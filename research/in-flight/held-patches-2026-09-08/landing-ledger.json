@@ -1,0 +1,839 @@
+[
+ {
+  "cluster": "claude_pretooluse live twin strangler port",
+  "detail": "suite",
+  "rank": 2,
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s02",
+  "pin_path": "tests/test_pretooluse_twin_strangler_port.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/claude-pretooluse-live-twin-strangler-port.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/claude-pretooluse-live-twin-strangler-port.fix.patch",
+  "files": [
+   "scripts/hooks/claude_pretooluse.py",
+   "tests/test_pretooluse_twin_strangler_port.py"
+  ],
+  "mechanism": "873db5de switched agent/harness/hooks/claude_pretooluse.py::_recall_context to agent.harness.actions.recall_block but left scripts/hooks/claude_pretooluse.py (the copy user-level settings actually run) on its private pre-t383 fork; ported the four-line delegation verbatim so the twins' _recall_context is byte-identical; residual drift left as found: cwd-guard (scripts/ only), presence beat (agent/ only), _activity.py:54 fallback.",
+  "commit_msg_red": "pin: the claude_pretooluse LIVE twin must reach the strangler door (suite:test_seat_identity_resolver r7)\n\nt383 (873db5de) switched agent/harness/hooks/claude_pretooluse.py::_recall_context to\nagent.harness.actions.recall_block and left scripts/hooks/claude_pretooluse.py -- the copy\nthe user-level settings actually run (pyw E:/AI-Setup/scripts/hooks/claude_pretooluse.py) --\non its private pre-t383 fork: recall_at/render/mark_seen/mark_impression/log_injection with\nits own kill-switch and empty-target checks and its own AKASHIC_AGENT_ID read. r7 catches\nthe SYMPTOM (identity lines differ across twins). This pin catches the MECHANISM: the door\nis replaced by a recorder and the engine beneath it made inert, and both twins must make\nthe identical recall_block call (session uuid as both keys, no explicit agent_id) for four\npayload shapes and both kill-switch states. An un-ported twin fails on the assertion, never\non the environment (no Redis, no state). RED at c72e50fe: 9/9 fail, scripts/: ([], '')\nagainst agent/: one door call.",
+  "commit_msg_fix": "claude_pretooluse: port the t383 strangler switch to the live scripts/ twin (suite:test_seat_identity_resolver r7)\n\n873db5de replaced the inline recall block in agent/harness/hooks/claude_pretooluse.py with\na four-line delegation to agent.harness.actions.recall_block and did not port it to\nscripts/hooks/claude_pretooluse.py, which is the copy a home-rooted session runs (user-level\nsettings register pyw E:/AI-Setup/scripts/hooks/claude_pretooluse.py; check_wiring\ndeliberately does not walk it). So the identity thread (explicit agent_id beats env,\n_agent(None) -> AKASHIC_AGENT_ID) and every later recall_block policy change landed on the\ncopy that is not running, while the live copy kept a private fork with its own kill switch,\nempty-target return and os.getenv('AKASHIC_AGENT_ID') read -- r7 red at clean HEAD.\n\n_recall_context is now byte-identical across the twins (extracted from the agent/ copy\nverbatim); kill switch and empty-target silence are the door's, exactly as for the agent/\ncopy, so the twins differ only by sys.path depth on this seam. Pins: tests/\ntest_pretooluse_twin_strangler_port.py 9/9, test_seat_identity_resolver 9/9,\ntest_harness_actions 15/15, t236 12/12, k0 2/2, git_guard 31/31, locks 12/12; the live\nhook driven as a process exits 0 on Bash and Edit payloads. Residual twin drift outside\nthis cluster, left as found: cwd-guard (scripts/ only), presence beat (agent/ only), and\n_activity.py:54's peer-name fallback.",
+  "verified": "verifier approve=true high: pin red at tip/green after; twins _recall_context md5-identical; live hook driven as process (Bash+Edit, recall on/off) exit 0, one JSON line or empty; residual: scripts/hooks/claude_userpromptsubmit.py carries the same unported plan_block strangler",
+  "regen": {
+   "red": [
+    "tests/test_pretooluse_twin_strangler_port.py"
+   ],
+   "fix": [
+    "scripts/hooks/claude_pretooluse.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "780f0c50",
+   "0bc00f9c"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "t365 test needs seeded root identity",
+  "detail": "suite",
+  "rank": 7,
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s07",
+  "pin_path": "tests/test_t365_spawn_proves_life.py",
+  "patch_red": "N/A",
+  "patch_fix": "/x/suite/patches/t365-seeded-root-identity.fix.patch",
+  "files": [
+   "tests/test_t365_spawn_proves_life.py"
+  ],
+  "test_only": true,
+  "commit_msg_red": "N/A",
+  "commit_msg_fix": "tests: t365 corpse-pin seeds its own root identity (suite:test_t365_spawn_proves_life)\n\ntest_handle_message_does_not_sprout_when_the_spawner_raises called\nbuild_config() bare. Since the secrets redirect landed (isolate_canonical.py\npoints AKASHIC_SECRETS_DIR at an empty per-run dir, and OPERATOR_ID_FILE /\nROOTS_FILE / PEOPLE_FILE are import-time constants under it), a bare call\nfinds no root anywhere and raises EarConfigError at discord_inbound.py:173\nbefore the assertion under test is reached -- the pin was red for the vault's\nemptiness, not for a sprout over a corpse.\n\nSeed one snowflake through the call-time override\n(AKASHIC_DISCORD_OPERATOR_ID_FILE) and point both registries at non-existent\ntmp files -- the hermetic cfg idiom test_discord_inbound_pins.py already uses --\nso the pin means the same thing on every machine regardless of who holds root\nthere. Test-only; no production change. Whole file 8/8, sibling mechanism\nfiles test_discord_inbound_pins.py 33/33 and test_remote_bridge_v1_pins.py\n16/16.",
+  "verified": "self: applied at tip in land-check, file green",
+  "shas": [
+   "1432e303"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "harness_lib dated snapshot pin",
+  "detail": "suite",
+  "rank": 10,
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s10",
+  "pin_path": "tests/test_harness_lib.py",
+  "patch_red": "N/A",
+  "patch_fix": "/x/suite/patches/harness-lib-dated-snapshot-pin.fix.patch",
+  "files": [
+   "tests/test_harness_lib.py"
+  ],
+  "test_only": true,
+  "commit_msg_red": "N/A",
+  "commit_msg_fix": "tests: pin the dsh registry row's durable contract, not the 2026-08-24 snapshot (suite:test_harness_lib)\n\ntest_deepseek_harness_row_is_honest_not_flattering froze a dated snapshot as hard\nasserts (T1 unsupported, T2-T6 pending). afd5b4aa landed the dsh adapter the same\nnight and made T1 true; c2be0957, be2df105, b59b4033 and 7d2f0439 then moved T3,\nT4 and T6 to supported. The code was honest; the pin was stale on four of six tiers.\n\nThe rewrite pins what holds on any day: T0/T1 are the adapter's floor (door +\nstamped identity, and the T1 evidence must name the same id the row declares as\ndefault_agent_id); every tier states a verdict AND a mechanism-or-limitation after\n' -- ' (no bare 'yes' without evidence, no bare 'pending' without a reason); a\n'pending' verdict is never counted by supported(), and a 'yes' verdict always is.\nThat last line -- the scoreboard must never read 'pending' as automated -- is the\ninvariant the snapshot was guarding, and it now survives every honest row edit.\n\nTest-only; agent/harness/registry.py untouched.",
+  "verified": "self: applied at tip in land-check, file green",
+  "shas": [
+   "176c6cb5"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "store lifecycle tests hold sqlite handle",
+  "detail": "suite",
+  "rank": 4,
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s04",
+  "pin_path": "tests/test_agent_memory.py + tests/test_store.py",
+  "patch_red": "N/A",
+  "patch_fix": "/x/suite/patches/store-lifecycle-sqlite-handle.fix.patch",
+  "files": [
+   "tests/test_agent_memory.py",
+   "tests/test_store.py"
+  ],
+  "test_only": true,
+  "commit_msg_red": "N/A",
+  "commit_msg_fix": "tests: release the sqlite-selected durable tier before TemporaryDirectory teardown (suite:test_agent_memory, suite:test_store)\n\nSince the T118 cutover HybridStore.create() and create_store(prefer_redis=False)\nroute the durable tier through _file_tier, which selects SqliteStore whenever\nAKASHIC_STORE_BACKEND=sqlite -- the User-scope env on this machine. SqliteStore\nholds ONE persistent WAL connection by design and has no __del__, so the three\nFileStore-era tests (test_hybrid_redis_down, test_hybridstore_redis_down,\ntest_factory) still held h.db/hy.db/f.db open when their TemporaryDirectory\nran rmtree: on Windows that is a sharing violation, WinError 32, 3/3 runs.\n\nWrap each body in try/finally with store.close() (both stores in test_factory)\nso the handle is released deterministically even when an assertion fails;\nHybridStore.close() already closes both tiers exactly once (T118 D7).\n\ntest_factory also pinned isinstance(file_only, FileStore): the pre-cutover\nanswer frozen past c02afb34 D5, a second independent red under sqlite. It now\nmirrors the selector (sqlite -> SqliteStore, else FileStore) and pins\nHybridStore._file the same way, so a mis-route in either direction still fails.\n\nTest-only. Production close() semantics untouched: no __del__, no per-op\nconnections. Green 3/3 per pin under AKASHIC_STORE_BACKEND=sqlite and under\nenv -u AKASHIC_STORE_BACKEND; both full files green under both backends.",
+  "verified": "self: applied at tip in land-check, both files green",
+  "shas": [
+   "1296949d"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "t237 warnings tests depend on live key",
+  "detail": "suite",
+  "rank": 6,
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s06",
+  "pin_path": "tests/test_t237_json_callers_get_the_warnings_too.py",
+  "patch_red": "N/A",
+  "patch_fix": "/x/suite/patches/t237-warnings-tests-depend-on-live-key.fix.patch",
+  "files": [
+   "tests/test_t237_json_callers_get_the_warnings_too.py"
+  ],
+  "test_only": true,
+  "commit_msg_red": "N/A",
+  "residual": "PRE-EXISTING, same class, not touched: tests/test_t218_ask_reports_clipped_evidence_to_caller.py::test_caller_is_told_when_its_evidence_was_clipped hardcodes '40000' and '80052' while bus.py is now 83129 chars",
+  "commit_msg_fix": "tests: T237 pin drives `ask` in-process with only the wire faked (suite:test_t237_json_callers_get_the_warnings_too)\n\nThe three nodes shelled out to `py agent_cli.py ask ...`, which reaches the REAL\ndeepseek door. In a keyless checkout every node died at its precondition with\n`no DEEPSEEK_API_KEY and no .secrets/deepseek.key` -- ask() returns that failure\nBEFORE attach_evidence runs, so `context` and `warnings` never existed to assert\non -- and in a keyed checkout the same nodes spent three live model calls to test\na RENDER. A pin whose colour depends on a credential and a network is a\nlive-state leak, and it was red for the wrong reason.\n\nNow the same parser and the same cmd_ask the shell reaches are driven in-process\n(build_parser().parse_args + cmd_ask under capsys), and exactly one thing is\nfaked: _load_key returns a placeholder (the T171 K5 contract; _load_key_for\ndelegates to it for the deepseek vendor so the patch cannot be routed around)\nand runner_lib.make_openai_compat_client returns a FakeClient -- the T242\npattern, one layer up. Vendor resolution, key loading, the client-construction\nseam, build_context, attach_evidence, _ask_payload and both render paths run for\nreal; wire.calls == 1 proves the construction path was traversed, not bypassed.\nEvidence paths are absolute (build_context resolves relative paths against the\ncwd) and the budget is pinned to the documented 40000, so the preconditions\ndepend on two repo files and one number, never on the caller's environment.\n\nEvery original assertion keeps its intent: a clipped JSON caller gets a\ndiscoverable top-level `warnings` naming bus.py; a clean run carries none; the\nhuman path still prints CLIPPED to stderr.",
+  "verified": "self: applied at tip in land-check, file green",
+  "shas": [
+   "79afe4cf"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "pre_commit test fixture isolation",
+  "detail": "suite",
+  "rank": 5,
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s05",
+  "pin_path": "tests/test_pre_commit.py",
+  "patch_red": "N/A",
+  "patch_fix": "/x/suite/patches/pre-commit-test-fixture-isolation.fix.patch",
+  "files": [
+   "tests/test_pre_commit.py"
+  ],
+  "test_only": true,
+  "commit_msg_red": "N/A",
+  "commit_msg_fix": "tests: the dead-gate pre-commit test holds EVERY gate open, not the two from 2026-08-01 (suite:test_pre_commit)\n\ntest_dead_gate_warns_but_does_not_block drove pre_commit.main() end-to-end while\nstubbing only check_staged and _comprehensibility_fast. Every gate added to main()\nsince -- the private-plane leak guard (6dffb41e, 71a42453) and the t384 attribution\nguard (70839cc0) -- ran LIVE inside the test, so its verdict came from the runner's\nenvironment: with AKASHIC_AGENT_ID set and the git author unstamped the attribution\nguard correctly refused, and the test went red for a reason unrelated to the gate it\nmeasures. The T178 ratchet, ensure_baseline and the generators were live inside it\ntoo: subprocesses, a baseline write under state/ and a git add of docs/ from a unit\ntest. The fixture had quietly widened into an integration test of whatever main()\ncontained that week.\n\nTEST-ONLY; pre_commit.py is untouched and not weakened. _hold_every_gate_open stubs\nevery gate main() calls to its PASS shape, in main()'s own order, reaching the inline\nprivate-plane guard through core.trust.private_plane.report/scan_text exactly as\n_patch_locks reaches core.comm.locks; a test then overrides the ONE gate it measures.\nTripwire: pre_commit.subprocess is replaced by a proxy whose run() RECORDS argv and\nanswers with a benign CompletedProcess, and the tests assert the record stays empty --\nrecorded rather than raised because every shell-out in pre_commit.py sits inside a\nfail-open except that would swallow a raise and re-hide the leak. New\ntest_fully_isolated_main_is_green_and_silent pins the fixture's own contract, so a\ngate added to main() later fails HERE, naming the fixture to extend.\ntests/test_pre_commit.py 9/9; t177 9/9, t178 8/8, t384 9/9.",
+  "verified": "self: applied at tip in land-check, file green",
+  "shas": [
+   "823bb565"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "trust registry silent fail-open bootstrap",
+  "detail": "defer",
+  "rank": 2,
+  "ids": [
+   "cf6fe59a4d"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d02",
+  "pin_path": "tests/test_acl_floor_is_loud.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/trust-registry-silent-fail-open-bootstrap.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/trust-registry-silent-fail-open-bootstrap.fix.patch",
+  "files": [
+   "tests/test_acl_floor_is_loud.py",
+   "core/trust/registry.py",
+   "agent_cli.py"
+  ],
+  "test_only": false,
+  "residual": "same-shape silent fail-open in agent_cli.py _agent_acl_caps (~9182) reads security/acl.json directly and degrades to an empty cap set without a word -- not touched",
+  "commit_msg_red": "tests: RED pin -- the trust registry's bootstrap floor is silent (defer cf6fe59a4d)\n\ncore/trust/registry.py::resolve() answers from BOOTSTRAP_ROLES (claude=super_admin,\ndeepseek=admin, every other id quarantined) whenever security/acl.json is MISSING or\nCORRUPT, and says nothing: _load() swallows the OSError / parse error and returns None,\nthe only loud line in the module (A2-1, may_run_runner) fires only when resolve()\nRAISES, and doctor has no row. t384 made the file instance-local (gitignored), so a\nclean clone takes the permissive branch by default in silence -- a permissive fallback\nnobody can see is indistinguishable from a permissive default. Same trapdoor shape\nT151 fixed for grant expiry.\n\ntests/test_acl_floor_is_loud.py F1-F7 pin the POLICY (unchanged: floor roles, stranger\nquarantined) and demand the surface: one stderr line per process naming BOOTSTRAP FLOOR,\nthe fault kind and the path (F1 missing, F2 corrupt), once per process (F3), quiet when\nthe file is valid (F4), a never-raising acl_status() (F5), an 'ACL MISSING/CORRUPT --\nBOOTSTRAP FLOOR IN FORCE' doctor row with the restore drill and no row when valid (F6),\nand re-warn after recovery then loss (F7).\n\n7/7 red at c72e50fe: stderr='' on both branches, no acl_status, no doctor row.\n\nF8 (added after the v2 refutation): the restore drill must never offer copying the empty\nsecurity/acl.example.json as a standalone recovery.",
+  "commit_msg_fix": "trust: the bootstrap floor is LOUD -- stderr once per process, acl_status(), doctor row (defer cf6fe59a4d)\n\nPolicy unchanged: BOOTSTRAP_ROLES still answers for a missing/corrupt security/acl.json\n(the availability floor that keeps deepseek admin through file loss). What changes is\nthat the fallback -- wider than the file it replaces, and the default on a clean clone\nsince t384 -- is observable at first use and at inspection instead of silent.\n\ncore/trust/registry.py: _load() records why it returns None in _ACL_FAULT (kind\nmissing|unreadable|corrupt, path, detail) and clears it on every successful read, cache\nhit included, which also re-arms the once-flag so a second loss after a recovery warns\nagain; resolve()'s floor branch calls _floor_notice(): ONE stderr line per process on\nthe A2-1 channel naming the fault, the path, the floor roles and the restore drill from\nsecurity/ACL-MOVED-READ-ME.md, never raising (observability must not gate trust);\nacl_status() is the read-only never-raising probe on expiring_grants()'s contract, and\nit probes the file itself so inspection does not wait for a resolve() -- it prints\nnothing, so first-use line and inspection row never double up.\n\nagent_cli.py cmd_doctor: rep['acl'] = acl_status() (also in --json) and a page-grade\n'## ACL <KIND> -- BOOTSTRAP FLOOR IN FORCE (security/acl.json unreadable at <path>)' row\nbeside the T151 GRANTS LAPSING block, with the drill; nothing renders when the file is\nvalid. Hooks are short-lived, so once-per-process is once per hook run on a floor-in-force\nhost -- the intended loudness; throttle before ever dropping it.\n\nPin: tests/test_acl_floor_is_loud.py 7/7 green. Related pins (t151 X1-X4, t384 P1-P5,\nrb25 A2-1 stderr pins, t108 h6 doctor) green; remaining reds in those files reproduce\nwith this fix reverted (instance-local acl.json / unrelated Bus and reaper tests).\n\nRepair after adversarial review (v2 refutation): the restore drill offered copying\nsecurity/acl.example.json as a standalone step. The example ships ZERO grants and resolve()\nhonours an EMPTY valid file, so that drill would move a fresh clone from the floor\n(claude=super_admin, deepseek=admin) to a state where EVERY seat resolves quarantined and\ngrant refuses both core seats -- worse than what the line warns about. Both surfaces and\nsecurity/ACL-MOVED-READ-ME.md now bind the copy to adding your own root record by hand; pin\nF8 asserts the drill never offers the copy alone.",
+  "verified": "verifier: mechanism approved (policy unchanged, never raises, no leak, once-flag re-arms, doctor row on/off) but REFUTED on the restore drill offering acl.example.json as a standalone step; REPAIRED by claude: drill reworded in registry._floor_notice, cmd_doctor row and security/ACL-MOVED-READ-ME.md to bind the copy to adding a root record; new pin F8 asserts it; tests/test_acl_floor_is_loud.py 8/8",
+  "regen": {
+   "red": [
+    "tests/test_acl_floor_is_loud.py"
+   ],
+   "fix": [
+    "agent_cli.py",
+    "core/trust/registry.py",
+    "security/ACL-MOVED-READ-ME.md"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "b4831e58",
+   "053cd88d"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "remote_bridge_supervise discards child death evidence",
+  "detail": "defer",
+  "rank": 12,
+  "ids": [
+   "e935125f0e"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d12",
+  "pin_path": "tests/test_remote_bridge_supervise_evidence_pins.py",
+  "patch_red": "/x/suite/patches/remote-bridge-supervise-death-evidence.red.patch",
+  "patch_fix": "/x/suite/patches/remote-bridge-supervise-death-evidence.fix.patch",
+  "files": [
+   "tests/test_remote_bridge_supervise_evidence_pins.py",
+   "scripts/remote_bridge_supervise.py"
+  ],
+  "test_only": false,
+  "commit_msg_red": "RED: pin the bridge supervisor's death evidence -- the child's ring tail must reach stdout on every exit, sit beside the breaker verdict, and land in the file the verdict names (defer e935125f0e)\n\nFive port-free pins (ManagedChild's public surface faked, door_open stubbed shut, sleep a no-op), proven red on c72e50fe: the tail is discarded because on_exit is never wired; the BREAKER TRIPPED line stands alone; state/logs/remote-bridge-listener.log is named but never written under supervision; --child-log does not exist; an exit-0 handover announces nothing. The fake tail is a realistic ring -- banner, 24 request lines, traceback with the cause on the LAST line -- so a first-200-chars 'summary' (the bifrost_daemon shape that destroyed the 2026-08-25 TIMEOUT receipts) would fail it too.",
+  "commit_msg_fix": "fix: remote_bridge_supervise wires ManagedChild.on_exit -- the listener's ring tail is printed and appended on every exit, and the breaker verdict re-prints it beside itself, naming the sink that actually received it (defer e935125f0e)\n\nThe 2026-08-26 12:05 trip (three deaths in fifty seconds, breaker correct, door down) could not be root-caused for a structural reason: the supervisor never assigned child.on_exit, and ManagedChild.poll hands the 200-line ring to that hook and to nobody else, so the evidence died in the deque with each child. The breaker line then sent the operator to state/logs/remote-bridge-listener.log -- a file only peer_connect writes, by handing it to the listener as stdout when IT launches one; under supervision stdout is ManagedChild's pipe, so the file had nothing from that day. The diagnostic pointed away from the evidence and the evidence was thrown away.\n\nNow _on_child_exit prints '[stamp] LISTENER EXITED code=N (pid P): <crash | DELIBERATE stop, N1>' with the FULL tail (ring-full notice when 200 lines were kept, never a character clip) and tees a date-stamped record to --child-log, default that same state/logs/remote-bridge-listener.log so its name is true whichever way the listener was launched. A failed append is announced and remembered; the BREAKER TRIPPED verdict re-prints the last tail directly beneath itself and names only a sink that actually got it ('printed here ONLY' when the tee failed). door_open() is documented as observation-only: child.poll() alone drives respawn/backoff/breaker, so a DOOR SHUT line is a symptom report, not a cause (defer point 3). No ManagedChild change -- bifrost_daemon's callers already wire on_exit; this was a supervise-only omission. N1 and breaker semantics unchanged.",
+  "verified": "self: applied at tip in land-check, pin 5/5 + oom pins green, compile ok, --help shows --child-log",
+  "shas": [
+   "7236de95",
+   "775c5233"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "check_wiring stale EXCEPTIONS blind spot",
+  "detail": "suite",
+  "rank": 3,
+  "ids": [],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/s03",
+  "pin_path": "tests/test_t159_oracle_field_of_view.py::test_k14_narrowing_the_universe_hides_nothing",
+  "patch_red": "N/A",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/check-wiring-stale-exceptions-blind-spot.fix.patch",
+  "files": [
+   "scripts/checkers/check_wiring.py",
+   "scripts/checkers/wiring_function_baseline.json",
+   "tests/test_wiring_exceptions_expire.py"
+  ],
+  "test_only": false,
+  "mechanism": "A module-level EXCEPTIONS entry whose module has become REACHABLE is examined by NEITHER surface of the Built!=Wired gate. Two existed (shift_loop since beaf1f21, remote_relay since 96a38e9c). Retired both; six newly-visible public functions frozen on wiring_function_baseline.json (119->125) with dated UNWIRE-WHEN history; GRANDFATHERED_UNDATED 20->18 with a new pin holding it equal to the live undated count. Residual: three function-backlog entries still WARN as stale; a stale module entry only WARNs with exit 0 (gate-policy decision).",
+  "blocked_reason": "",
+  "commit_msg_red": "N/A",
+  "commit_msg_fix": "check_wiring: retire two stale EXCEPTIONS entries that sat in neither gate's field of view (suite:test_t159_oracle_field_of_view K14)\n\nA module-level EXCEPTIONS entry whose module has become REACHABLE is examined by NEITHER\nsurface: candidate_modules() drops it from the function gate because it is excepted, and\nanalyze() never names it unwired because it is reachable. K14's coverage invariant is exactly\n'no such module', and two existed: core/coord/shift_loop.py (reachable since beaf1f21,\n2026-08-24 -- core/comm/shift_turn.py:65 calls next_beat() under scripts/bifrost_runner_sol.py,\nthe entry's own UNWIRE-WHEN; scripts/shift_daemon.py:44 beside it) and core/comm/remote_relay.py\n(reachable since 96a38e9c, 2026-08-25 -- core/comm/bridge_status.py:35 under scripts/bifrost_ui.py;\ninbound half called at scripts/remote_bridge_listener.py:200). The gate printed its stale-entry\nWARN for both and exited 0, so the suite pin was the only thing that failed, for two weeks.\n\n- delete both entries, tombstoned in the block's own style with the wiring commits cited\n- the six public functions the function gate now sees and nothing in production names\n  (remote_relay::{admitted_count, enqueue, file_announcement, last_admitted,\n  render_file_announcement}, shift_loop::shift_state_is_complete) go on\n  wiring_function_baseline.json (119 -> 125) with a dated history entry carrying each one's\n  UNWIRE-WHEN: enqueue and the file-announce pair are outbound-by-design (which bus traffic\n  crosses a fleet boundary is Daniil's call, not a default), last_admitted/admitted_count are\n  the admission gate's measurement probes, shift_state_is_complete is the READ half of the\n  shift-loop entry's UNWIRE-WHEN that has not fired. Verified by hand: test-file refs only.\n- GRANDFATHERED_UNDATED 20 -> 18: retiring two undated entries must tighten the ratchet, not\n  leave two undated slots for the next author; a new pin in tests/test_wiring_exceptions_expire.py\n  holds the constant EQUAL to the live undated count (mutation-checked: left at 20 it fails\n  with the teaching message)\n\nGate: PASS, 19 exceptions, 125 on the backlog, 0 NEW, 0 stale module entries.\nResidual, outside this cluster: three function-backlog entries still WARN as stale\n(bifrost_api::intents, bus::file_part, learning_store::get_all_learnings), and a stale module\nentry only WARNs with exit 0 -- the print-FAIL-exit-0 shape this file's own comments condemn.\nEscalating that is a gate-policy decision; filed here, not made here.",
+  "verified": "self: applied at tip 775c5233 in land-check; 49 PASSED across the four pin files; check_wiring gate PASS",
+  "regen": {
+   "red": [],
+   "fix": [
+    "scripts/checkers/check_wiring.py",
+    "scripts/checkers/wiring_function_baseline.json",
+    "tests/test_wiring_exceptions_expire.py"
+   ]
+  },
+  "apply_check_regen": "red:n/a | fix:OK",
+  "shas": [
+   "ee1e3301"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "learning tests read the LIVE store (isolation leak)",
+  "detail": "defer",
+  "rank": 3,
+  "ids": [
+   "951a9944f6"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d03",
+  "pin_path": "tests/test_data_root_isolation.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/learning-tests-read-the-live-store-isolation-leak.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/learning-tests-read-the-live-store-isolation-leak.fix.patch",
+  "files": [
+   "core/paths.py",
+   "core/foundation/store.py",
+   "core/learning/learning_store.py",
+   "core/foundation/ledger.py",
+   "core/infrastructure/health_check.py",
+   "core/signals/coordinator_api.py",
+   "core/state/session_checkpoint.py",
+   "core/learning/consolidation.py",
+   "core/narrative/chronicler.py",
+   "tests/isolate_canonical.py",
+   "tests/test_data_root_isolation.py"
+  ],
+  "test_only": false,
+  "mechanism": "e30a8517 merged 'where is the CODE' (repo_root, marker-validated) with 'where does INSTANCE STATE live' (AI_SETUP). isolate_canonical points AI_SETUP at a bare temp dir, repo_root rejected it, every instance-state default fell through to the live tree. Adds core.paths.data_root(): a set AI_SETUP always wins (no marker check); unset it equals repo_root(); nine sites rewired. Residual: agent_cli cmd_doctor_deploy message; raw AI_SETUP copies in sqlite_store.py, blobs.py, durable_reconcile.py; t070 test returns early when Redis is up.",
+  "blocked_reason": "",
+  "commit_msg_red": "test: pin that a bare AI_SETUP redirects instance state (defer 951a9944f6)\n\ntests/isolate_canonical.py points AI_SETUP at a temp dir holding only session_logs/ --\nno agent_cli.py, no core/. Since e30a8517 every instance-state default (FileStore(),\nFileLedger(), LearningStore's legacy learnings.jsonl import, coordinator_logs/,\nchronicles/) resolves through core.paths.repo_root(), which validates the override\nagainst the repo markers and silently falls through to the __file__-derived root when\nthey are missing. So the FILE half of test isolation has been a no-op: the default store\nis <code root>/session_logs/store_state.json and an 'empty' injected store comes back\nholding <code root>/session_logs/learnings.jsonl. That file exists (gitignored) in the\nlive tree and not in a clean clone, which is why test_learning_loader::test_top_k_and_empty\nand test_recall_acceptance::test_a2 are red in the main tree (156 where 150 were seeded)\nand green in CI.\n\nFour machine-independent pins, RED at HEAD: the default FileStore and FileLedger under a\nbare AI_SETUP land in the code root; a fake code root carrying a legacy corpus (built in\ntmp_path, reached by relocating core.paths' __file__) bleeds into an isolated store;\ncore.paths.data_root does not exist yet.",
+  "commit_msg_fix": "paths: split data_root() from repo_root() so a bare AI_SETUP redirects instance state (defer 951a9944f6)\n\ne30a8517 merged two questions into one resolver: 'where is the CODE' (marker-validated,\nderived from __file__) and 'where does INSTANCE STATE live' (the AI_SETUP override, raw).\nThe validation is right for the first -- a wrong code root means a wrong docs/, scripts/,\nstore/docs -- and wrong for the second: a relocated data dir or a test harness's throwaway\ntree is not a repo and never has the markers, so repo_root() rejected exactly the override\nits own docstring promised, and every instance-state default fell through to the live tree.\n\ncore/paths.py gains data_root() and data_root_str(): a set AI_SETUP always wins, whether or\nnot it looks like a repo; unset, it is repo_root(). The nine sites e30a8517 rewired go back\nto the data root: the FileStore default (session_logs/store_state.json), the FileLedger\ndefault (session_logs/ledger), LearningStore's coordinator_logs/ and its legacy\nlearnings.jsonl import, the health_check and session_checkpoint log dirs, coordinator_api's\nlog_dir, and the chronicles/ output of consolidation and the Chronicler.\nstore._repo_root_str() collapses onto the shared helper instead of restating the rule.\nCode-relative readers (docs/, scripts/, store/docs atoms, world resolution) stay on\nrepo_root(); isolate_canonical.py now names the contract where it makes the bare dir.\n\nProduction behaviour is unchanged (no machine sets AI_SETUP, so data_root()==repo_root()).\nUnder test isolation the file half is in force again: test_learning_loader::test_top_k_and_empty\nand test_recall_acceptance::test_a2 pass with a legacy learnings.jsonl present in the code root,\nand a test run no longer creates session_logs/ beside the code.",
+  "verified": "verifier approve=true high: leak reproduced and closed with a planted gitignored learnings.jsonl; 17 regression files identical before/after; AI_SETUP setters audited (CI workspace + door_probe only); residual: cmd_doctor_deploy message drift, 6 raw AI_SETUP copies, 3 unpinned defaults",
+  "regen": {
+   "red": [
+    "tests/test_data_root_isolation.py"
+   ],
+   "fix": [
+    "core/foundation/ledger.py",
+    "core/foundation/store.py",
+    "core/infrastructure/health_check.py",
+    "core/learning/consolidation.py",
+    "core/learning/learning_store.py",
+    "core/narrative/chronicler.py",
+    "core/paths.py",
+    "core/signals/coordinator_api.py",
+    "core/state/session_checkpoint.py",
+    "tests/isolate_canonical.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "319bad56",
+   "8a3b8ec0"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "concurrent MCP doors share the bus cursor keyspace",
+  "detail": "defer",
+  "rank": 6,
+  "ids": [
+   "224ac54766"
+  ],
+  "status": "partial",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d06",
+  "pin_path": "tests/test_wake_lane_pending_reads_lane_cursor.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/concurrent-mcp-doors-share-the-bus-cursor-keyspace.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/concurrent-mcp-doors-share-the-bus-cursor-keyspace.fix.patch",
+  "files": [
+   "core/comm/bifrost_api.py",
+   "tests/test_wake_pending_spin.py",
+   "tests/test_wake_lane_pending_reads_lane_cursor.py"
+  ],
+  "test_only": false,
+  "mechanism": "BifrostAPI._wake_block_lane's arm-time pending check read the LEGACY cursor family unconditionally (frozen at 2026-08-29 with 204 wake-worthy entries behind it) while every consumer advances the LANE cursor (at tail), so every fresh arm fired on week-old mail. New _pending_peek: a seat with a non-virgin lane hash is judged against the lane hash's inbox/bc on the work-lane streams; a virgin lane hash keeps the legacy family as authority; read-only on both hashes; unreadable lane hash degrades to the legacy peek. Seed warning names the family it peeked.",
+  "blocked_reason": "Cursor half fixed and pinned. NOT done: (C) the ai_setup_mcp.py parent-liveness watchdog / door presence key (sibling-modified file); (B) collapsing the eight per-process BIFROST_CONSUME_LANE=work defaults into one core default collides with T198's no-surprise-cutover pin and needs a ruling.",
+  "commit_msg_red": "pin: lane watcher's arm-time pending check must read the cursor family the consumer advances (defer 224ac54766)\n\nRED at c72e50fe: 4 of 5 fail. BifrostAPI._wake_block_lane peeks `bus.wait(timeout_ms=1, limit=10)` -- the LEGACY cursor -- while every consumer in the house advances the LANE cursor. Measured live 2026-09-07 (read-only): bifrost:cursor:claude inbox frozen at 1787969686471-0 (08-29, gen 365) with 204 wake-worthy chat/reply entries behind it; bifrost:cursor:lane:claude at 1788729020181-0 (09-06, gen 368), at tail. Every fresh arm therefore fires on week-old mail; the S0-gamma sidecar was one of five band-aids on this one unnamed co-tenant.\n\nPins state the guarantee: with a non-virgin lane hash, 'pending' means behind the LANE cursor on the LANE streams (both directions); a virgin lane hash keeps the legacy family as authority (T017 / t045 L4 and the migrant backlog still wake); detection writes neither cursor; the seed warning names the family it peeked. tests/test_wake_lane_pending_reads_lane_cursor.py -- seam pin on a fake bus + Redis-backed pins in throwaway namespaces.\n\nPin 5 (after the v5 refutation): twelve broadcast notes older than one directed chat,\nall behind an ESTABLISHED lane cursor, must still wake a fresh arm with the chat, and\ndetection must write neither cursor hash.",
+  "commit_msg_fix": "bifrost_api: arm-time pending check reads the LANE cursor when the seat has one (defer 224ac54766)\n\n_wake_block_lane's arm-time pending peek read the legacy cursor family unconditionally, which nobody has advanced since 2026-08-29 while the lane family sits at tail -- so a fresh watcher arm found ten stale chat/reply messages and fired on mail the seat drained a week ago, every arm (lesson wake_local_cursor_history_replay's '2-3 insta-fire arms').\n\nNew BifrostAPI._pending_peek: a seat WITH a lane cursor (non-virgin lane hash) is judged against the lane hash's inbox/bc on the work-lane streams -- the position its consumer commits after processing (RB-26) -- so the watcher's 'unread' and the consumer's 'unread' are the same set. A VIRGIN lane hash means no lane consumer ever ran for this seat, so the legacy family remains the authority there: T017 arm-onto-pending (t045 L4) and a migrant's unconsumed legacy backlog keep waking. Read-only on both hashes: detection never runs the flip ritual (seeding a migrant's lane hash at tails from the watcher would silence exactly the backlog legacy still holds). An unreadable lane hash reads as virgin and degrades to the legacy peek -- one possible false wake, never a missed one. The seed-over-pending warning now names the family it peeked and its drain instruction points at that family (BIFROST_CONSUME_LANE=work|legacy). Bus untouched. The test_wake_pending_spin mocks gain read_lane_cursor() (virgin) so they keep modelling the legacy family.\n\nOut of scope, recorded on the defer: the ai_setup_mcp.py parent-liveness watchdog (sibling-modified file) and the eight-site BIFROST_CONSUME_LANE default collapse (collides with the T198 no-surprise-cutover pin; needs a ruling).\n\nPins: tests/test_wake_lane_pending_reads_lane_cursor.py 5/5; test_wake_pending_spin 8/8; test_t045_wake_cutover 8/8; test_t045_runner_cutover 12/12; test_t198_wake_lane_follows_consume 4/4; test_wake_detect 14/14; T108-u1 fence still 4 strict-xfail.\n\nRepair after adversarial review (v5 refutation, 2026-09-08): the first version decided\n'pending' on the ten OLDEST ids and filtered PENDING_SKIP_KINDS afterwards, so a backlog\nwhose ten oldest entries were notes read as 'nothing pending' while a directed chat sat\nbehind them -- the watcher seeded past the chat and slept (live shape: dsh_agent's peek\nreturned ten notes with 178 wake-worthy directed entries behind its lane cursor). New\n_peek_wake_worthy pages 50 at a time behind the cursor, bounded at 10 pages, filters\nskip-kinds BEFORE deciding, stops at the first wake-worthy page / a short page / an empty\nor stalled next-position; read-only on both hashes. Pin: twelve notes older than one\ndirected chat must still wake a fresh arm (red before the repair, green after).",
+  "verified": null,
+  "regen": {
+   "red": [
+    "tests/test_wake_lane_pending_reads_lane_cursor.py"
+   ],
+   "fix": [
+    "core/comm/bifrost_api.py",
+    "tests/test_wake_pending_spin.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "pending_review": "heimdall ask 5d4c5415 (repair review) + verifier refutation addressed"
+ },
+ {
+  "cluster": "TaskLedger.save lost-update: cross-process CAS",
+  "detail": "defer",
+  "rank": 1,
+  "ids": [
+   "77e485bb23"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d01",
+  "pin_path": "tests/test_task_ledger_cas.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/taskledger-save-lost-update-cross-process-cas.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/taskledger-save-lost-update-cross-process-cas.fix.patch",
+  "files": [
+   "core/coord/task_ledger.py",
+   "core/coord/conductor.py",
+   "tests/test_task_ledger_cas.py"
+  ],
+  "test_only": false,
+  "mechanism": "T270's CAS anchored on seq (the task-id allocator) which only propose() advances; transition() saved with seq unchanged so a stale save clobbered a peer's committed transition; no lock around compare-then-replace. Fix: per-save rev in the on-disk payload advanced by every save (pre-fix file's seq read as the revision, migration is itself a CAS); save() refuses with LedgerConflict (LedgerError subclass) on mismatch; read-compare-write-replace-mirror under core.foundation.filelock.exclusive(path) with LOCK_TIMEOUT_S=5 (timeout is a refusal, never an unprotected write); unreadable anchor fails CLOSED; refused instance re-reads disk truth before raising; conductor door re-applies on LedgerConflict bounded at LOST_UPDATE_ATTEMPTS=4 re-running every gate each attempt. Landing notes: state/coord/tasks.json gains rev on the first post-fix save; untracked state/coord/tasks.json.lock appears (gitignore follow-up); mixed-version window: an old process can still clobber until every seat runs the new tree.",
+  "blocked_reason": "",
+  "commit_msg_red": "RED pin 77e485bb23: the TaskLedger CAS anchor is the wrong number -- transition() never moves seq, so a stale save still clobbers a peer's committed transition\n\nEight deterministic pins appended to tests/test_task_ledger_cas.py, hand-sequenced\ninterleavings like the T270 pins: stale transition vs committed transition, stale propose\nvs committed transition, per-save rev, refused-instance resync, ledger lock held in-process,\nledger lock held by a separate process, unreadable anchor, and conductor re-apply after a\npeer write. On HEAD six report DID NOT RAISE, rev reads None, and the conductor case shows\nA's committed approval reverted to 'proposed' by B's stale save -- the seq-anchored CAS is\nblind to every transition, the compare-then-replace has no lock (TOCTOU), the losing\ninstance stays poisoned, and the door surfaces the refusal instead of re-applying.",
+  "commit_msg_fix": "77e485bb23: anchor the TaskLedger CAS on a per-save revision, serialize compare-then-replace under the house filelock, resync the loser, re-apply at the conductor door\n\nT270 compared `seq`, the task-id allocator, which only propose() advances: a transition\nsaved with seq unchanged, so a stale instance passed the check and wrote its whole\nsnapshot over a peer's committed transition (verified at HEAD: an approval silently\nreverted to 'proposed'), and the check-then-replace had no lock at all.\n\ncore/coord/task_ledger.py: `rev` in the on-disk payload, advanced by EVERY save; load()\nreads it (a pre-fix file's seq is read as the revision, so the migration is itself a CAS);\nsave() refuses with LedgerConflict (a LedgerError) when the on-disk rev is not the one\nthis instance last saw. The read-compare-write-replace-mirror runs under\ncore.foundation.filelock.exclusive(path) -- OS-arbitrated, kernel-released, the primitive\nthe bridge inbox adopted for the same silent-loss shape -- so two savers can no longer\nboth pass the check or both write the shared .tmp; a holder past LOCK_TIMEOUT_S is a\nrefusal, never an unprotected write; the mirror write sits inside the lock so cache order\nequals file order. An unreadable anchor now fails CLOSED instead of paving over damage.\nOn refusal the instance re-reads the truth before raising, so a retry on the same\ninstance (scripts/shift_daemon.py's next beat) re-decides against what is there instead\nof replaying a phantom task and an over-advanced seq.\n\ncore/coord/conductor.py: every `task` verb loads fresh and re-applies on LedgerConflict,\nbounded (LOST_UPDATE_ATTEMPTS=4); each attempt re-runs every gate on the fresh file, so a\nretry lands only a legal move or becomes a gate refusal, which is never retried.\n\nstate/coord/tasks.json gains `rev` on the first save after this lands; an untracked\nstate/coord/tasks.json.lock appears beside it (same as remote_bridge_inbox.jsonl.lock).\nPins: tests/test_task_ledger_cas.py (11 passed).",
+  "verified": "verifier approve=true high: lost update reproduced at tip and refused with fix; 3x20 storms 60/60 raw+door and 60/60 disjoint approvals x3; migration, stale lock (proceeds), live holder (refused after 5.00s), daemon resync all confirmed; doctor patch stacks with offsets only; residual: Windows reader/writer os.replace PermissionError class pre-existing, gitignore state/coord/*.lock",
+  "regen": {
+   "red": [
+    "tests/test_task_ledger_cas.py"
+   ],
+   "fix": [
+    "core/coord/conductor.py",
+    "core/coord/task_ledger.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "6516870d",
+   "4f01b9ab"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "host-killing test pair: bridge_status pins together kill the shell",
+  "detail": "defer",
+  "rank": 4,
+  "ids": [
+   "5d2f0963e1"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d04",
+  "pin_path": "tests/test_bridge_status_pins.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/host-killing-test-pair-bridge-status-pins-together-kill-the-.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/host-killing-test-pair-bridge-status-pins-together-kill-the-.fix.patch",
+  "files": [
+   "core/comm/bridge_status.py",
+   "tests/test_bridge_status_pins.py"
+  ],
+  "test_only": false,
+  "mechanism": "Not a signal path: _restart_listener asked PowerShell for every process whose CommandLine -like '*remote_bridge_listener*' and taskkill /F-ed each; a pytest command line naming tests/test_remote_bridge_listener_pins.py matched pytest's own python.exe, the py launcher and the host shell. Now discovery pulls a raw table (pid/ppid/name/cmdline) and one pure function select_listener_pids selects an interpreter whose PROGRAM is remote_bridge_listener.py; the caller's pid, its ppid chain and anything with pytest on its command line are refused and named; act(..., process_table=, kill=) seams; outcome reports stopped/failed per pid. test_act_never_raises runs through the seams and asserts zero real subprocess.run calls. Residual: no test-mode detection in production, so a future test calling act('restart_listener', confirm=True) without the seams would still reach a real listener door.",
+  "blocked_reason": "",
+  "commit_msg_red": "pin: bridge_status restart must select the listener process and never its own host (defer 5d2f0963e1)\n\n`py -m pytest tests/test_bridge_status_pins.py tests/test_remote_bridge_listener_pins.py` killed the whole shell with zero output. Not a signal path: _restart_listener discovers the listener with `CommandLine -like '*remote_bridge_listener*'` and taskkill /F-s every match, and once the listener's TEST file is on the pytest command line the matches are pytest's own python.exe, the py launcher and the host shell carrying that string. test_act_never_raises pressed the button for real; alone, this file's command line lacked the substring and the listener pins never call act(), which is why each file passed on its own.\n\nFive pins, red at HEAD: a discovery answer holding the caller's own pid and parent gets taskkill aimed at both (demonstrated: ['30312', '53372']); a process table shaped like the dead host (pytest, bash, powershell, an editor, a grep, two real listeners, one under pytest) has no seam to select from; ancestors wearing the listener's shape are not refused; a failed taskkill is still reported as stopped; act() has no process_table=/kill= seams, so the never-raises loop reaches the host.",
+  "commit_msg_fix": "bridge_status: the restart selects the listener PROCESS and refuses its own lineage (defer 5d2f0963e1)\n\nRoot cause: a command line that MENTIONS remote_bridge_listener was treated as the listener. Discovery is now a raw process table (pid/ppid/name/cmdline via CIM, JSON) filtered by one pure function, select_listener_pids: selected = an interpreter whose PROGRAM (first positional argument) is remote_bridge_listener.py; refused, independently of that predicate and named by pid in the outcome = the caller, its ppid chain (bounded walk) and anything with pytest on its command line. Discovery and the stop are seams -- act(..., process_table=, kill=), exactly like bus_send= -- so no test has to touch the host to pin the action, and the report says stopped/failed per pid instead of counting attempts as stops.\n\nA test path, a shell, an editor, a grep and the query's own powershell no longer qualify; a listener launched as `py scripts/remote_bridge_listener.py`, by the supervisor's absolute path, or with a quoted interpreter path still does. Two-token interpreter flags (`-X dev`) are a documented miss reported as 'matched 0', never a wrong kill.",
+  "verified": "verifier approve=true high: old query self-matched reproduced; fixed selector over 430 real rows chose exactly the real listeners; the pair ran 29 passed in its own process group and the shell survived; 119/119 regression group before/after; residual: conftest guard against taskkill of own lineage recommended as its own defer",
+  "regen": {
+   "red": [
+    "tests/test_bridge_status_pins.py"
+   ],
+   "fix": [
+    "core/comm/bridge_status.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "6a3ddf38",
+   "9cac6e64"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "anchors.py banner overstates MISSING",
+  "detail": "defer",
+  "rank": 17,
+  "ids": [
+   "00b3d351fb"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d17",
+  "pin_path": "tests/test_lesson_anchors.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/anchors-py-banner-overstates-missing.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/anchors-py-banner-overstates-missing.fix.patch",
+  "files": [
+   "core/recall/anchors.py",
+   "tests/test_lesson_anchors.py"
+  ],
+  "test_only": false,
+  "mechanism": "anchors.review() built the headline from `if missing:` so any strong MISSING anchor produced 'premise MISSING'. Now strong_checkable = strong RESOLVED + strong MISSING; 'premise PARTIALLY unresolved (k of n strong anchors MISSING)' when some but not all are missing; 'premise MISSING' only when all strong justifications failed (JTMS); weak-only and STARVED branches, gap list and verdicts untouched. Label-only; sole reader is recall --full (agent_cli.py:716).",
+  "blocked_reason": "",
+  "commit_msg_red": "pin: anchors.review() may not headline 'premise MISSING' while other strong anchors still resolve (defer 00b3d351fb)\n\nRED at HEAD, banner reads '[premise MISSING: MISSING deadbee (commit)]' beside a live sha. Four pins in tests/test_lesson_anchors.py. Two are red at HEAD: three strong pin-receipt anchors (2 passed, 1 failed) and a live sha beside a bogus one both come back '[premise MISSING ...]' although the verdict list says one gap among anchors that hold -- the defer's own '1 of 3' shape. Two are guards, green at HEAD and required to stay so: every strong anchor gone still reads MISSING (a RESOLVED weak path does not rescue the premise), and a gone path beside a live strong anchor stays the untouched weak-only branch. Receipt anchors are used so the pins cannot go blind for a reason unrelated to the banner (no git, no filesystem, no Redis).",
+  "commit_msg_fix": "anchors.review(): headline counts strong anchors -- 'premise PARTIALLY unresolved (k of n strong anchors MISSING)' unless every strong anchor is gone (defer 00b3d351fb)\n\n`if missing:` fired 'premise MISSING' on ANY missing strong anchor, so a lesson with two RESOLVED strong anchors and one moved was labelled as if its premise had vanished -- a label claiming more than its measurement supports, inside the exact machinery a premise/retirement system would be built on (same class as 'value 3.7 percent'). JTMS (deepseek, 2026-07-27, build_system_and_tms_invalidation): a belief stands while at least one justification stands. Label-only, as the defer itself recommends: strong_checkable = strong RESOLVED + strong MISSING (UNCHECKABLE is blindness, weak paths are never authoritative); when some but not all are MISSING the lead carries the count; 'premise MISSING' only when all strong justifications failed; the weak-only and STARVED branches, the named gap list and every verdict are unchanged, so lesson-validity semantics across the corpus are not touched. Sole reader is `recall --full` (agent_cli.py:716), which prints the banner as an opaque string. Pins: tests/test_lesson_anchors.py 16/16.",
+  "verified": "self: applied at tip 775c5233 in land-check; 49 PASSED across the four pin files; check_wiring gate PASS",
+  "regen": {
+   "red": [
+    "tests/test_lesson_anchors.py"
+   ],
+   "fix": [
+    "core/recall/anchors.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "1b4dc4cc",
+   "b043d00c"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "credential-constant readers ignore AKASHIC_SECRETS_DIR (T365)",
+  "detail": "defer",
+  "rank": 10,
+  "ids": [
+   "fd3e244095"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d10",
+  "pin_path": "tests/test_t365_secret_readers_honor_vault.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/credential-constant-readers-ignore-akashic-secrets-dir-t365.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/credential-constant-readers-ignore-akashic-secrets-dir-t365.fix.patch",
+  "files": [
+   "scripts/gemini_web.py",
+   "scripts/ops/redact.py",
+   "scripts/checkers/check_secrets.py",
+   "core/comm/secret_intake.py",
+   "tests/test_t365_secret_readers_honor_vault.py"
+  ],
+  "test_only": false,
+  "mechanism": "AKASHIC_SECRETS_DIR now redirects every credential-path reader and a gate stops the class growing back. gemini_web PROFILE -> profile_dir(), ops/redact MANIFEST -> manifest_path(), both through secret_intake.secrets_dir() at call time with a sys.path bootstrap. check_secrets.scan_secret_paths(): AST rule firing only where tracked Python BUILDS a path from a '.secrets' literal; wired into main() so the existing pre-push gate enforces it. DEFAULT_PATH_ALLOWLIST carries the 11 readers outside T365's census with reasons; STALE entries are named. Note: tests/test_eye_seat_capture.py is an untracked sibling file, not touched.",
+  "blocked_reason": "",
+  "commit_msg_red": "pin(T365): AKASHIC_SECRETS_DIR must redirect gemini_web and ops/redact at call time, and a '.secrets' path-literal rule must gate\n\nRED on purpose (defer fd3e244095, ledger T365). tests/test_t365_secret_readers_honor_vault.py:\nP1/P2 scripts/gemini_web.py binds PROFILE = ROOT / \".secrets\" / ... at import, so a redirect\napplied after import leaves _login_hint() naming the canonical vault, and there is no\nprofile_dir(). P3 scripts/ops/redact.py binds MANIFEST the same way and has no manifest_path()\n-- the pin refuses to call load_manifest() until one exists, because today that call opens the\nreal manifest. P4-P6 scripts/checkers/check_secrets.py has no scan_secret_paths(), so main()\npasses a tracked file that builds ROOT / \".secrets\" / \"x\" and the pre-push gate lets the\nclass grow back. Every pin imports FIRST and redirects AFTER: conftest exports the env before\nany import, so a resolver that read it once at import would look fixed and still be a constant\nin disguise. The receipt behind the bar: a rooms pin once read a real webhook plus bot token\nthrough constants and minted a live thread in the operator's server mid-test.",
+  "commit_msg_fix": "T365: resolve gemini_web PROFILE and ops/redact MANIFEST through secrets_dir() at call time; check_secrets gates '.secrets' path literals\n\nCloses defer fd3e244095 (ledger T365). A reader that builds ROOT / \".secrets\" / \"x\" at import\nbinds the canonical vault before tests/isolate_canonical.py's AKASHIC_SECRETS_DIR can say\notherwise -- the class that read a real webhook plus bot token and minted a live thread in the\noperator's server. Of T365's five, two were still constants: scripts/gemini_web.py PROFILE (a\nlive Google session) becomes profile_dir(), scripts/ops/redact.py MANIFEST becomes\nmanifest_path(); both go through core.comm.secret_intake.secrets_dir() per call, with a\nsys.path bootstrap so `py scripts/...` still imports the door. No external consumer read\neither constant (bifrost_runner imports gemini_web, never PROFILE).\n\nThe class-closing half that never landed: check_secrets.scan_secret_paths(), AST-based, fires\nonly where code BUILDS a path from the literal (a `/` operand or a direct Path()/open()/\nos.path.join() argument), never on a comment, docstring, message or list entry; only files\nthat mention .secrets are parsed, so the gate cost is ~1s. Wired into main(), so the existing\npre-push gate enforces it unchanged; --history is untouched (blobs have no module scope).\nDEFAULT_PATH_ALLOWLIST is the standing ledger of the 11 readers outside T365's census that\nstill bind the literal (ask_*/..._chat KEY_FILEs, core/web/door.py brave key, peer_connect.py,\nworld_fidelity's count, ai_setup_mcp's display path): each entry says why, is deleted when the\nreader is routed, and the report names one that stops hitting as STALE. The pin refuses the\ntwo T365 readers from ever joining it. secrets_dir() now states the law in its docstring.",
+  "verified": null,
+  "regen": {
+   "red": [
+    "tests/test_t365_secret_readers_honor_vault.py"
+   ],
+   "fix": [
+    "core/comm/secret_intake.py",
+    "scripts/checkers/check_secrets.py",
+    "scripts/gemini_web.py",
+    "scripts/ops/redact.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "review": "heimdall ask 62b929f7 REJECT: scan_secret_paths misses f-strings / concatenation / escaped literals (JoinedStr, '.'), and an allowlisted-but-still-nonconforming reader is reported STALE and the scan says ok. must_fix: detect constructed/obfuscated '.secrets' paths and never report an allowlisted reader STALE until it is routed. Reader half (gemini_web profile_dir, redact manifest_path) unrefuted. HELD.",
+  "held": true
+ },
+ {
+  "cluster": "private-plane scan reads stale COMMIT_EDITMSG: move to commit-msg hook",
+  "detail": "defer",
+  "rank": 8,
+  "ids": [
+   "dd0c36b406"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d08",
+  "pin_path": "tests/test_commit_msg_hook_pins.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/private-plane-scan-reads-stale-commit-editmsg-move-to-commit.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/private-plane-scan-reads-stale-commit-editmsg-move-to-commit.fix.patch",
+  "files": [
+   "scripts/githooks/commit-msg",
+   "scripts/githooks/commit_msg.py",
+   "scripts/githooks/pre_commit.py",
+   "scripts/githooks/install_git_hooks.py",
+   "tests/test_commit_msg_hook_pins.py"
+  ],
+  "test_only": false,
+  "mechanism": "git runs pre-commit BEFORE it writes the message file, so pre_commit.py's read of .git/COMMIT_EDITMSG judged commit N-1's message when deciding commit N (marker-naming message passed its own commit, clean successor refused; in a linked worktree the read silently failed). The scan moved to a commit-msg stage hook handed the live message path as argv[1]: scripts/githooks/commit-msg shim -> commit_msg.py; scan_message drops comment lines and the scissors tail then runs private_plane.scan_text; a guard that cannot run fails OPEN with a WARNING, a finding fails CLOSED even if stderr is dead. pre-commit keeps the staged-file report. install_git_hooks names all three stages and reports an absent stage as rc 1. LANDING NOTE: hooksPath is the tracked dir, so the commit-msg hook is LIVE the moment the fix patch touches the working tree; the landing commit's own message is scanned against the real plane.",
+  "blocked_reason": "",
+  "commit_msg_red": "pin(dd0c36b406): the private-plane message guard must judge THIS commit's message, at the commit-msg stage\n\nRED at c72e50fe. scripts/githooks/pre_commit.py scans the commit message by reading .git/COMMIT_EDITMSG from the pre-commit stage, but git writes that file only after pre-commit has run (receipt, git 2.53.0.windows.2: on commit N pre-commit sees commit N-1's message; commit-msg's argv[1] holds N's). So a marker-naming message passed its own commit and the clean commit after it was refused; in a linked worktree `.git` is a file, so the read failed and the scan never ran at all.\n\ntests/test_commit_msg_hook_pins.py pins the stage that is handed the live message: refusal names marker + remedy (P1); clean, comment-line and scissors-tail handling (P2); no stale read left in pre_commit.py (P3); real git stage order in a hermetic repo and in a linked worktree -- the marker is refused at its own commit and a clean successor after a --no-verify'd marker-naming predecessor passes (P4/P4b); shim and installer wiring (P5); loud fail-open on a crash, fail-closed on a finding (P6). 13 red: the module, the shim and the installer entries do not exist and the stale read is still there.",
+  "commit_msg_fix": "githooks(dd0c36b406): move the private-plane MESSAGE scan to a commit-msg stage hook that reads the live message\n\nMECHANISM. git runs pre-commit BEFORE it writes the message file, so pre_commit.py's read of .git/COMMIT_EDITMSG evaluated the PREVIOUS commit's message: a marker-naming message passed its own commit, a clean successor was refused (the sanctioned-bypass confession case), and in a linked worktree (`.git` is a file) the read silently failed, so the guard never ran there at all. git's commit-msg stage is handed the live message path as argv[1]; that is where the scan now lives.\n\n- scripts/githooks/commit-msg (new shim, mirrors pre-commit): exec py scripts/githooks/commit_msg.py \"$1\"\n- scripts/githooks/commit_msg.py (new): scan_message(path, root) runs core.trust.private_plane.scan_text over what git will actually record -- comment lines and the scissors tail are dropped first, so the status template and a `commit -v` diff cannot cause a false refusal; main() prints the same BLOCKED/marker/remedy/bypass text as the file guard and returns 1. A guard that cannot run fails OPEN with a WARNING, never silently; a finding fails CLOSED even if stderr is dead. AKASHIC_PRIVATE_PLANE_ROOT is the hermetic-repo test seam.\n- scripts/githooks/pre_commit.py: the stale read is gone; pre-commit keeps the staged-FILE report. The comment now records why the message is not scanned here.\n- scripts/githooks/install_git_hooks.py: HOOKS = (pre-commit, commit-msg, pre-push); missing_hooks() reports an absent stage as a wiring defect (rc 1) instead of letting hooksPath silently cover a hole.\n\n--no-verify still skips both stages, so the emergency bypass is unchanged. Hook modes stay 100644 like the tracked siblings (core.filemode=false). No derived-doc churn: gen_arch_index indexes scripts/ non-recursively. Guardrail counts identical before and after.",
+  "verified": "verifier approve=true high: stage order proven with real git incl. linked worktree, --amend, subdir; fail-open loud, fail-closed with stderr closed; 5 test files identical before/after; realistic landing messages 0 findings vs 71-marker plane; residual: -m comment lines not stripped by git (guard strips them), zero exposure in 400 messages",
+  "regen": {
+   "red": [
+    "tests/test_commit_msg_hook_pins.py"
+   ],
+   "fix": [
+    "scripts/githooks/install_git_hooks.py",
+    "scripts/githooks/pre_commit.py",
+    "scripts/githooks/commit-msg",
+    "scripts/githooks/commit_msg.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "8c47c45c",
+   "1d3721b9"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "doctor open-watch line (IN_PROGRESS vs cap)",
+  "detail": "defer",
+  "rank": 13,
+  "ids": [
+   "2955dae7eb"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d13",
+  "pin_path": "tests/test_width_gauge.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/doctor-open-watch-line-in-progress-vs-cap.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/doctor-open-watch-line-in-progress-vs-cap.fix.patch",
+  "files": [
+   "core/coord/task_ledger.py",
+   "core/comm/doctor.py",
+   "tests/test_width_gauge.py"
+  ],
+  "test_only": false,
+  "mechanism": "Every doctor render (boot one-liner, `doctor`, --json, flightdeck) carries 'watches N/cap [ids]'. New git-only door task_ledger.open_watches(path=None) (TaskLedger(client=None), no mirror, no write, via AKASHIC_TASKS_PATH) fails open: absent ledger 0/cap, unreadable '?/cap (ledger error: why)'. The gate's literal 2 lifted into WATCH_CAP so refusal and render share one constant. Silent width around the gate (more IN_PROGRESS than cap with no pauses=/operator_ruling=) is a dashboard-grade 'watch_cap_silent' finding. NOTE: touches core/coord/task_ledger.py, which the CAS fix also touches -- apply CAS first, then this; hand-merge if hunks collide.",
+  "blocked_reason": "",
+  "commit_msg_red": "RED pin: the doctor renders open-watch count against the cap -- ruling 369243's observability half (defer 2955dae7eb)\n\nFour pins appended to tests/test_width_gauge.py (the ruling's own pin file), red at c72e50fe for the mechanism's absence: examine_fleet's report carries no 'watches' and its summary never names the cap (KeyError 'watches' x3), and task_ledger has no WATCH_CAP (AttributeError). They pin: the 2/2 render with ids through the T352 AKASHIC_TASKS_PATH door; fail-open on a corrupt ledger (?/2 plus the why, never a raise through a boot; an absent ledger is 0/2); one named constant read by both the gate and the door (widen it and the third watch opens in silence); and silent width around the gate (three open, none with pauses=/operator_ruling=) as a dashboard finding while licensed width is not one. The gate half shipped in 0c22d0ef; until these pins two watches sat at cap and no render said so.",
+  "commit_msg_fix": "doctor: one open-watch line -- count vs cap + ids, fail-open (ruling 369243 observability half; defer 2955dae7eb)\n\nThe gate half (0c22d0ef) made the cap bind by refusal, so the count was visible only at the moment of refusing: two watches sat at cap and neither boot nor `doctor` said so.\n\ncore/coord/task_ledger.py: lift the gate's literal 2 into WATCH_CAP (one constant, two readers -- the number refused at and the number rendered against cannot drift) and add open_watches(path=None): a git-only read (TaskLedger(client=None): no mirror, no write) through the same AKASHIC_TASKS_PATH door as every verb, counting status==IN_PROGRESS exactly as the gate does; absent file -> 0/cap, unreadable -> open=None + error=<why>; `silent` lists open rows with no recorded pauses=/operator_ruling=.\n\ncore/comm/doctor.py: examine_fleet appends ' | watches N/cap [ids]' (or 'watches ?/cap (ledger error: ...)', the why whole and unclipped) to the summary line that boot and cmd_doctor both print, returns the dict as rep['watches'] (--json for free), and adds a dashboard-grade 'watch_cap_silent' finding with a drill when more rows than the cap are open with no recorded cost -- the state the gate refuses, so it exists only when the ledger was widened around the gate and must not render as normal. Licensed width (a third watch that named its cost) is the ruling working: no finding. agent_cli.py untouched: the segment rides the summary.\n\nPins: tests/test_width_gauge.py (9 passed).",
+  "verified": "self: stacked on the CAS fix at tip 65d98263 in land-check; test_task_ledger_cas + test_width_gauge + test_fleet_doctor + test_task_ledger = 45 PASSED; no hunk collision",
+  "regen": {
+   "red": [
+    "tests/test_width_gauge.py"
+   ],
+   "fix": [
+    "core/comm/doctor.py",
+    "core/coord/task_ledger.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "shas": [
+   "1bde4025",
+   "a07ad771"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "check_comprehensibility asks the working tree not the index; guardrail baseline desync",
+  "detail": "defer",
+  "rank": 5,
+  "ids": [
+   "a3d09c4e5d",
+   "af5759c5a2"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d05",
+  "pin_path": "tests/test_comprehensibility_index_pins.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/check-comprehensibility-asks-the-working-tree-not-the-index-.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/check-comprehensibility-asks-the-working-tree-not-the-index-.fix.patch",
+  "files": [
+   "scripts/checkers/check_comprehensibility.py",
+   "scripts/generators/gen_master_map.py",
+   "state/ci/guardrail_baseline.json",
+   "tests/test_comprehensibility_index_pins.py"
+  ],
+  "test_only": false,
+  "mechanism": "The guard's verdict is now a function of the git INDEX, identical on every machine. _tracked_paths() runs git ls-files -z as bytes and raises on failure (broken-check FAIL, never an empty all-clear); _missing_refs() resolves a reference iff it is in that set; _living_docs() from the index; _gitignored() feeds check-ignore --stdin -z NUL-joined bytes (text mode had rewritten '\\n' as '\\r\\n' so every ref but the last matched nothing: the 11 false acl.json FAILs in every clean checkout). gen_master_map._name_index() builds pin/paper columns from the index. Two dated REF_ALLOWLIST entries (expire 2026-09-21) for present-but-untracked targets. Baseline counts deliberately NOT synced; two ledger notes record the 14-vs-0 and 5-vs-0 measurements. LANDING NOTE: the pre-commit regenerate step will regenerate and stage docs/MAP.md (sibling-modified) at the next hooked commit.",
+  "blocked_reason": "",
+  "commit_msg_red": "pin(RED): the comprehensibility guard must ask the index, not the working tree (defer a3d09c4e5d af5759c5a2)\n\nFive RED pins in tests/test_comprehensibility_index_pins.py, all failing at c72e50fe for the\nmechanism's reason, not by accident:\n  - _gitignored({'security/acl.json', 'tests/zz_never_exists.py'}) -> set(): a text-mode stdin\n    pipe turns '\\n' into '\\r\\n' on Windows, so every ref but the last reaches git as 'path\\r'\n    and matches nothing (the existing single-ref pin cannot see this)\n  - a committed living doc citing an UNTRACKED file that exists on disk -> _stale_refs() == []\n    (os.path.exists said present); its GITIGNORED twin never reaches the instance-local WARN\n  - outside any repository _stale_refs() answers [] instead of a broken-check FAIL\n  - gen_master_map._name_index() lists an untracked tests/*.py into the pin column\n\nMeasured at HEAD on the workstation: main tree `--fast` PASS, pristine worktree of the SAME\ncommit 13 drift FAILs (11 x security/acl.json, 2 x present-but-untracked test targets). A guard\nthat disagrees with itself across machines is the defect; the pins state the law: the verdict\nis a function of the index (tracked + staged), identical on every machine.",
+  "commit_msg_fix": "fix: comprehensibility guard resolves references against the git index; check-ignore fed NUL bytes (defer a3d09c4e5d af5759c5a2)\n\nscripts/checkers/check_comprehensibility.py\n  - _tracked_paths(): `git ls-files -z` as bytes under the ref roots + root docs; RAISES on\n    failure so _run() reports a broken-check FAIL instead of an empty all-clear\n  - _missing_refs(): a reference resolves iff it is in the INDEX (exact case, so Windows and\n    Linux give one verdict). \"Exists on this box\" was never \"is in the repository\": a\n    present-but-untracked target is drift on every machine, and a gitignored one reaches the\n    F2 instance-local WARN route on workstations too (it fired for the first time here)\n  - _living_docs(): sources from the index as well -- one seat's untracked draft cannot gate\n    every other seat's commit\n  - _gitignored(): `check-ignore --stdin -z` with NUL-joined bytes. text=True rewrote '\\n' as\n    os.linesep ('\\r\\n' on Windows), so every ref but the last matched nothing: 11 false\n    acl.json FAILs in every clean checkout on this box, invisible to the single-ref pin\n  - _filename_case() shares the one tracked-set door (a failed ls-files is now a FAIL, not [])\n  - REF_ALLOWLIST: two dated entries (expire 2026-09-21) for the present-but-untracked targets\n    docs/CODEX_INTEGRATION.md -> tests/test_codex_hook_contract.py and docs/MAP.md ->\n    tests/test_t084_intent_shadow.py, so landing this does not brick the --fast gate\n\nscripts/generators/gen_master_map.py\n  - _name_index(): pin/paper columns from the index (the module column already was). The\n    untracked T084 pin had been rendered into the committed map -- the 13th FAIL, and why\n    MAP.md could never converge between a dirty tree and a clean checkout; the pre-commit\n    regenerate step converges it at the next hooked commit (row drops to GAP)\n\nstate/ci/guardrail_baseline.json\n  - counts UNCHANGED. _check_comprehensibility_1 records the 14-vs-0 clean-checkout\n    measurement and its decomposition; _door_parity_9 records the 5-vs-0 desync as the T084\n    lane's in-flight twins (manifest committed ahead of the uncommitted wrappers) with the\n    paydown owner -- not grandfathered as debt, not silent\n\nMeasured after: pristine worktree `--fast` PASS (was 13 FAILs); full = 1 FAIL (docs/MAP.md\nstale at HEAD, self-heals at the next hooked commit) + 12 WARN; main tree under the fixed\nguard: 0 drift FAILs, 11 instance-local WARNs, 0 case FAILs. Pins 5/5 green;\ntests/test_derived_docs_ignore_untracked.py + tests/test_master_map.py 5/5 green.",
+  "verified": "verifier approve=true high",
+  "regen": {
+   "red": [
+    "tests/test_comprehensibility_index_pins.py"
+   ],
+   "fix": [
+    "scripts/checkers/check_comprehensibility.py",
+    "scripts/generators/gen_master_map.py",
+    "state/ci/guardrail_baseline.json"
+   ]
+  },
+  "apply_check_regen": "red:FAIL error: tests/test_comprehensibility_index_pins.py: already exists in working directory | fix:FAIL error: patch failed: scripts/checkers/check_comprehensibility.py:13\nerror: scripts/checkers/check_comprehensibility.py: patch does not apply\nerror: patch failed",
+  "landed": true,
+  "shas": [
+   "1a0e26f8",
+   "9435fa71"
+  ]
+ },
+ {
+  "cluster": "RED pin for _cwd_drift guard",
+  "detail": "defer",
+  "rank": 15,
+  "ids": [
+   "21f178ad26"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d15",
+  "pin_path": "tests/test_cwd_guard_pins.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/red-pin-for-cwd-drift-guard.red.patch",
+  "patch_fix": "N/A",
+  "files": [
+   "tests/test_cwd_guard_pins.py"
+  ],
+  "test_only": true,
+  "mechanism": "Pin-only cluster: the shipped _cwd_drift guard in scripts/hooks/claude_pretooluse.py gets its 19-case durable pin (drift speaks on both scope branches; anchored/in-repo/non-repo stay quiet; git veto still denies; odd payloads never raise; _cwd_drift pinned as a pure function). GREEN at HEAD, RED against b095caa5~1. Loads the live scripts/ copy by path. ADJACENT FINDING: core/foundation/redis_connection.py:87 print()s a '[world] UNKNOWN checkout' line on STDOUT on the first agent.* import in any checkout without a declared world; a hook's stdout IS the JSON protocol, so a hook registered from a worktree or fresh clone emits a non-JSON first line and the harness cannot parse its deny. Route that diagnostic to stderr (own item).",
+  "blocked_reason": "",
+  "commit_msg_red": "cwd-guard pin (defer 21f178ad26): the 2026-09-01 stdin drill becomes durable on the LIVE hook\n\nThe guard shipped in b095caa5 (out-of-scope branch) and 5b65b7ab (in-scope-by-text branch) with stdin drill receipts and no committed pin. This is the drill, in the suite: drift speaks on the out-of-scope branch (the line is the whole output -- still no recall outside the repo) and on the in-scope-by-text branch (folded in FRONT of recall); anchored commands, an in-repo cwd and non-repo work stay quiet; the guard never changes the decision (the git veto still denies a drifted `... && git add -A`). _cwd_drift is pinned as a pure function too, so the contract survives a reshuffle of main() -- the 5b65b7ab class, a guard that exists but is unwired on one branch.\n\nLoads scripts/hooks/claude_pretooluse.py by path under a unique module name: the user-level registration runs that copy, while every sibling hook pin imports the agent/harness/hooks twin, which has no _cwd_drift -- a pin written by copying their import would stay green while the live guard regressed. Recall is replaced by a sentinel at the hook's own seam (Redis-free; pins the fold order). scope.py roots itself at the checkout it lives in, so the in-scope-BY-CWD case pins that root to E:\\AI-Setup rather than certify nothing from a worktree. The first agent.* import in a process prints a [world] line on STDOUT in an undeclared checkout (core/foundation/redis_connection.py:87); the fixture warms those imports outside every capture so the one-JSON-line-per-call contract stays strict and order-independent.\n\nRed against b095caa5~1 (the tree before the guard): 15 failed -- AttributeError: no attribute '_cwd_drift'; the out-of-scope case got '' (the old invisibility) and the in-scope case got recall only -- while the 4 guard-quiet invariants passed as they must. Green at HEAD: 19 passed.",
+  "commit_msg_fix": "N/A",
+  "verified": "self: applied at tip 775c5233 in land-check; 49 PASSED across the four pin files; check_wiring gate PASS",
+  "regen": {
+   "red": [
+    "tests/test_cwd_guard_pins.py"
+   ],
+   "fix": []
+  },
+  "apply_check_regen": "red:OK | fix:n/a",
+  "landed": true,
+  "shas": [
+   "65d98263"
+  ]
+ },
+ {
+  "cluster": "standalone runner takes daemon lock silently",
+  "detail": "defer",
+  "rank": 16,
+  "ids": [
+   "9e1bc7ce78"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d16",
+  "pin_path": "tests/test_9e1bc7ce78_standalone_runner_warns.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/standalone-runner-takes-daemon-lock-silently.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/standalone-runner-takes-daemon-lock-silently.fix.patch",
+  "files": [
+   "core/comm/daemon_state.py",
+   "core/comm/doctor.py",
+   "scripts/bifrost_daemon.py",
+   "scripts/bifrost_runner_deepseek.py",
+   "scripts/bifrost_runner_kimi.py",
+   "tests/test_9e1bc7ce78_standalone_runner_warns.py"
+  ],
+  "test_only": false,
+  "mechanism": "A bare runner confesses it is standalone: daemon_state.standalone_warning(agent, c, ns, runner_script) returns None when <ns>:daemon:<agent> is live and otherwise ONE loud line naming the services a --spawn-runner daemon provides, whether ANY daemon is live fleet-wide, and the supervised relaunch command; doubt renders as [STANDALONE?]. Runners call it to stderr right after acquire_waiting succeeds, fail-open. No refusal: the runner never held the daemon key; the incident's refusal was the FLAGLESS alpha launch taking runner_lock itself. The three flagless hints (doctor daemon drill, daemon usage text, stop-hook nag) now name the mode flag. Overlap: doctor.py also touched by the doctor open-watch fix; runner scripts also touched by rank 9 (fix applies over d09's tree, disjoint hunks).",
+  "blocked_reason": "",
+  "commit_msg_red": "pin 9e1bc7ce78 (RED): a bare runner must say it is standalone; daemon hints must carry the mode flag\n\nDefer 9e1bc7ce78 (2026-08-26): Heimdall's Discord went silent with every liveness signal green. At the code layer the runner never held bifrost:daemon:<agent> -- it holds bifrost:runner:<agent> only -- and the quoted refusal ('M1-P11 coexistence -- no steal') is the daemon's FLAGLESS alpha path taking runner_lock itself. Two residues live at HEAD: (1) a bare runner starts silent, hosting none of its daemon's services (discord outbound pump beat, runner supervision, runner-down card); (2) three hints -- doctor's daemon drill, the daemon usage text, the stop-hook nag -- still advertise the flagless launch that refuses under a bare runner.\n\nP1 daemon_state.standalone_warning: absent key -> loud text naming discord and the flagged relaunch, kimi names --runner-script; key present -> None. P2 both bare-launchable runners call it AFTER acquire_waiting (a refused runner is not standalone). P3 doctor's daemon drill carries --spawn-runner and --manage-listener. P4 the daemon usage advertises no flagless real seat. P5 the stop-hook nag names --manage-listener, the only mode that consumes .rearm triggers. All eight red at c72e50fe.",
+  "commit_msg_fix": "9e1bc7ce78: a bare runner confesses it is standalone; every daemon hint carries its mode flag\n\nMechanism: core/comm/daemon_state.standalone_warning(agent, c, ns, runner_script) returns None when <ns>:daemon:<agent> is live (managed child or W102 idle-watcher) and otherwise ONE loud line naming the services a --spawn-runner daemon provides (discord outbound pump beat, runner supervision/respawn + circuit breaker, runner-down presence card), whether ANY daemon is live fleet-wide (the pump election is one fleet key: none anywhere = Discord outbound has NO HOST while every liveness signal stays green) and the supervised relaunch `py scripts/bifrost_daemon.py --agent <a> --spawn-runner [--runner-script <own script>] --runner-consume-lane work`. Doubt renders as [STANDALONE?], never a confident claim. bifrost_runner_deepseek.py and bifrost_runner_kimi.py call it to stderr right after acquire_waiting succeeds, fail-open with a confession. No refusal: the runner never held the daemon key -- the incident's refusal was the FLAGLESS alpha launch taking runner_lock itself.\n\nThe three flagless hints now name the mode: doctor's daemon drill (--spawn-runner runner seats | --agent claude --manage-listener) and its DOWN detail says the daemon-hosted pump has no host; the daemon usage text carries --spawn-runner / --manage-listener and its docstring says a bare runner = W102 idle-watch, only the flagless alpha launch refuses; the stop-hook nag says --manage-listener because consume_rearms is gated on manage_listener, so a flagless launch retires nothing.\n\nPin tests/test_9e1bc7ce78_standalone_runner_warns.py: 8 green.",
+  "verified": "self: stacked on CAS+doctor at tip in land-check; 43 PASSED across pin + width_gauge + fleet_doctor + autopilot_a1 + revive_claude_daemon_rung + t081_services; compile ok",
+  "shas": [
+   "ef687f85",
+   "5d961004"
+  ],
+  "landed": true
+ },
+ {
+  "cluster": "clean runner exit must retract its own phase card",
+  "detail": "defer",
+  "rank": 9,
+  "ids": [
+   "8c881ab628"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d09",
+  "pin_path": "tests/test_runner_clean_exit_retracts_card.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/clean-runner-exit-must-retract-its-own-phase-card.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/clean-runner-exit-must-retract-its-own-phase-card.fix.patch",
+  "files": [
+   "core/comm/runner_lib.py",
+   "scripts/bifrost_runner_deepseek.py",
+   "scripts/bifrost_runner_discord.py",
+   "scripts/bifrost_runner_gemini.py",
+   "scripts/bifrost_runner_kimi.py",
+   "scripts/bifrost_runner_sol.py",
+   "tests/test_runner_clean_exit_retracts_card.py"
+  ],
+  "test_only": false,
+  "mechanism": "runner_lib.seat_session_id() is the one derivation of the per-incarnation id; retire_seat() is the one exit choreography: stop_hb.set(); hb_thread.join FIRST (an in-flight beat would resurrect the card); roster.go_offline() deletes the incarnation card and stamps seatseen phase=offline; bare worklive key stands down; never raises. Wired into the finally of deepseek/kimi/sol/gemini runners, kimi/gemini control-channel stand-down before os._exit(0), and the discord gateway after client.run() with its pulse loop on a stoppable Event. Overlap with rank 16 (runner lock): disjoint hunks except possibly the shared runner_lib import line -- land this first.",
+  "blocked_reason": "",
+  "commit_msg_red": "RED: a clean runner exit must retract its own phase card (defer 8c881ab628)\n\nPin tests/test_runner_clean_exit_retracts_card.py. Every runner's heartbeat thread beats {ns}:worklive:{agent}#{sid8} with phase='running' hardcoded and a since_ts that roster.heartbeat preserves across beats, and the exit path does stop_hb.set() + runner_lock.release() and nothing else: the card outlives the process for WORKLIVE_TTL_S (180s), and the doctor reads non-idle + aged past DEFAULT_WEDGE_S + dead pulse + stale beat = HARD WEDGE, page grade. Live receipt 2026-08-26: deepseek#3708-dee paged 'HARD WEDGE aged 4232s' after a clean drain exit 0. The retraction verb (roster.go_offline, 2026-08-24) exists and no runner calls it.\n\nP1  retire_seat deletes the incarnation card NOW and stamps seatseen phase=offline.\nP1b the beat thread is JOINED before the delete -- an in-flight beat would resurrect the card.\nP2  every scripts/bifrost_runner_*.py (enumerated from disk) derives its seat id through one shared derivation and calls the retraction on its exit path, after the beat it retracts.\nP3  the receipt's exact card pages HARD WEDGE before the retraction (the control) and yields no page-grade finding after it.\n\nRed at HEAD: runner_lib.retire_seat absent, the card survives, no runner calls it, the doctor still pages.",
+  "commit_msg_fix": "runners: a planned exit retracts its own phase card -- roster.go_offline after joining the beat thread (defer 8c881ab628)\n\ncore/comm/runner_lib.seat_session_id() is the ONE derivation of the per-incarnation session id (explicit --session, else BIFROST_INCARNATION, else '<pid>-<agent>', the heartbeat's historical precedence) and retire_seat() the ONE exit choreography: stop_hb.set(); hb_thread.join(hb_join_s) FIRST, because a beat in flight after the delete re-creates the card and the exit retracts nothing; then roster.go_offline() deletes {ns}:worklive:{agent}#{sid8} and stamps the seatseen witness phase=offline + offline_ts; then the bare worklive key stands down to an idle-class phase. Never raises -- an exit path cannot fail on its own bookkeeping.\n\nWired into the finally: of bifrost_runner_{deepseek,kimi,sol,gemini} (drain, stale-code self-restart, lock loss and interrupts all leave through it), into kimi's and gemini's control-channel stand-down before their os._exit(0) (a commanded exit is a planned one; short join, the beat thread is not the wedged thread), and into the discord gateway after client.run() returns, with its pulse loop moved onto a stoppable Event so it can be joined.\n\nThe guarantee changes from 'a planned exit leaves a running card for 180s that pages HARD WEDGE' to 'a planned exit deletes its card and declares its departure': the roster renders OFFLINE (declared), not DEAD (unexplained), and the doctor has nothing to page on. Reversible by construction (roster O3): a later beat under the same id is LIVE again. Same lesson class as escalation_needs_retraction_not_just_emission -- the verb existed, nothing called it. Pin: tests/test_runner_clean_exit_retracts_card.py (4 passed).",
+  "verified": null,
+  "regen": {
+   "red": [
+    "tests/test_runner_clean_exit_retracts_card.py"
+   ],
+   "fix": [
+    "core/comm/runner_lib.py",
+    "scripts/bifrost_runner_deepseek.py",
+    "scripts/bifrost_runner_discord.py",
+    "scripts/bifrost_runner_gemini.py",
+    "scripts/bifrost_runner_kimi.py",
+    "scripts/bifrost_runner_sol.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "review": "heimdall ask 07b890e1 REJECT: (1) retire_seat calls go_offline even when the beat thread did not join within hb_join_s -> an in-flight beat re-creates the card; (2) the bare-phase write via liveness.worklive(agent).set ignores ns/client -> real-Redis contamination under a test client; (3) discord _pulse beat id may diverge from the retraction id (inference). must_fix: go_offline only when joined; honour ns/client on the bare-phase write. HELD.",
+  "held": true
+ },
+ {
+  "cluster": "conductor_gate false ACTIVATION from stale orphan marker",
+  "detail": "defer",
+  "rank": 7,
+  "ids": [
+   "44f88b3da6"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d07",
+  "pin_path": "tests/test_conductor_gate_audit.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/conductor-gate-false-activation-from-stale-orphan-marker.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/conductor-gate-false-activation-from-stale-orphan-marker.fix.patch",
+  "files": [
+   "core/comm/conductor_gate.py",
+   "core/comm/wake_seat.py",
+   "scripts/hooks/claude_sessionstart.py",
+   "scripts/hooks/claude_stop.py",
+   "agent/harness/hooks/claude_sessionstart.py",
+   "agent/harness/hooks/claude_stop.py",
+   "tests/test_conductor_gate_audit.py"
+  ],
+  "test_only": false,
+  "mechanism": "wake_seat gains a .harness sidecar (pid + created_ms of the nearest harness ancestor of the hook process: the per-session claude.exe engine on the desktop app, node.exe on the CLI), written at SessionStart and backstopped at Stop. _conductor_two_factor, after every seat has read dead, consults the agent's sidecars: a recorded process present in the snapshot under a harness name, not recycled, not tombstoned vetoes the corpse; evidence is one-way so a real crash still reads orphan. The janitor sweeps a sidecar only when a snapshot it already holds proves its process gone. Second guarantee: a per-process mandate latch announces an activation once per mandate (repeat verdicts write a rate-limited 'mandate held' heartbeat), stand-down releases it. Overlap with d14 (model stamp) on the same four hook files proven composable in either order.",
+  "blocked_reason": "",
+  "commit_msg_red": "RED: a lone dead watcher must not condemn a live idle conductor, and one mandate is announced once (defer 44f88b3da6)\n\nReceipt: bifrost_wake_conductor_gate.reap.log(.1) holds 28 '[live] ACTIVATION' lines on 2026-09-04 (14:06 -> 17:05), every one citing the SAME corpse -- 'orphan (marker N, pid 41168 not in snapshot)' -- while the conductor sat idle and alive (its last stop-hook marker is 13:31: a turn, not a death). 7e254510 lets a LIVE seat veto a corpse; here there was one seat and it was the corpse. chain_alive on a dead watcher pid answers 'not in snapshot' before walking anything, so the SESSION process is never probed, and the .alive marker and the roster beat are both turn cadence, which K7 says is not liveness. The pin lays the receipt's shape on disk under an isolated tempdir (dead watcher pid, a 200-minute .alive marker as the bare float incarnation.py parses, a .harness sidecar naming a harness process that IS in the snapshot) and asserts the verdict is not 'orphan'; calibration pins (process gone / pid recycled younger / pid now a non-harness / session tombstoned) assert a real crash still reads 'orphan'. Second defect in the same receipt: decide_and_act re-broadcast, re-ledgered and re-logged the activation every 60s per runner while the window held (10 ledger events for one window) -- pinned as once per mandate, with a held-mandate heartbeat, re-announcement after lapse, and a stand-down reopening the announcement. Red at HEAD: 3 failed, 17 passed.",
+  "commit_msg_fix": "conductor_gate: a SESSION proof of life that is not turn cadence, and one announcement per mandate (defer 44f88b3da6)\n\nwake_seat gains a .harness sidecar: bifrost_wake_<agent>_<sid>.harness = '<pid> <created_ms>' of the nearest HARNESS_NAME_HINTS ancestor of a hook process (the per-session claude.exe engine on the desktop app, node.exe on the CLI), written at SessionStart from the hook's own ancestry (source != compact; the WMI snapshot is shared with the janitor so a start pays for it once, ~0.4s) and backstopped at Stop only when missing or naming a provably-gone pid (one tasklist probe). _conductor_two_factor, after every seat has read dead, consults the agent's sidecars: a recorded process present in the snapshot under a harness name, not recycled (creation-time ordering under _RECYCLE_SLACK_MS) and not tombstoned (T086) vetoes the corpse. Evidence stays one-way -- a sidecar whose process is gone, recycled, renamed, or whose session ended by record adds nothing, so a real crash still reads orphan (K8's other face). Condition 1 can now only be satisfied when the conductor's own harness process is gone: the docstring's 'immune by construction' becomes a property instead of a claim. The janitor sweeps a sidecar only when the snapshot it already holds proves its process gone (never taking WMI for litter). Latch: a per-process _mandate_state so a repeat 'activate' verdict inside mandate_hours writes a rate-limited '[live] mandate held' heartbeat instead of another broadcast + ledger event + ACTIVATION line; a stand-down releases it, lapse is the backstop, _reset_heartbeat clears it for tests. The 'sweep stale pid-61024 marker' half of the defer was already done by the janitor on 08-25; 'consult live roster beat' is not acted on -- _attendance already IS the roster beat and it was legitimately UNATTENDED across 3.5h without a turn. Both hook trees carry the same edit (sys.path depth per location).",
+  "verified": null,
+  "regen": {
+   "red": [
+    "tests/test_conductor_gate_audit.py"
+   ],
+   "fix": [
+    "agent/harness/hooks/claude_sessionstart.py",
+    "agent/harness/hooks/claude_stop.py",
+    "core/comm/conductor_gate.py",
+    "core/comm/wake_seat.py",
+    "scripts/hooks/claude_sessionstart.py",
+    "scripts/hooks/claude_stop.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "review": "heimdall ask af2d49eb REJECT: sidecar veto is agent-wide not session-bound (a stale .harness for another session under the same agent naming a live shared harness blocks succession indefinitely); janitor deletes a sidecar on harness_alive==False although that is documented as proving nothing; pid existence used as identity (pid reuse). must_fix: bind the veto to the conductor's own seat/session; never delete on one-way 'not alive'. HELD.",
+  "held": true
+ },
+ {
+  "cluster": "auto-stamp model self-report from hooks",
+  "detail": "defer",
+  "rank": 14,
+  "ids": [
+   "9a85e7cfa2"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d14",
+  "pin_path": "tests/test_stop_model_stamp.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/auto-stamp-model-self-report-from-hooks.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/auto-stamp-model-self-report-from-hooks.fix.patch",
+  "files": [
+   "scripts/hooks/claude_stop.py",
+   "agent/harness/hooks/claude_stop.py",
+   "core/fleet/seat_model.py",
+   "tests/test_stop_model_stamp.py"
+  ],
+  "test_only": false,
+  "mechanism": "Both wired Stop hooks read the API's own message.model from the newest genuine assistant record of the transcript the Stop payload names (last_assistant_model over a shared _tail_records generator; skips synthetic/isApiErrorMessage/sidechain records) and call seat_model.report(_seat(sid), sid, model, harness='claude-code'), keyed by the resolved seat, after the tombstone stand-down and before the wake ritual, fail-open; no genuine record -> no stamp. Not at SessionStart by design (no model field; resume would name the previous incarnation). Overlap with the conductor-gate hook edits: disjoint regions in claude_stop.py; sessionstart hooks no longer touched by this fix.",
+  "blocked_reason": "",
+  "commit_msg_red": "test: pin 9a85e7cfa2 -- the Stop hook must stamp the model receipt from the transcript, both copies\n\nRED at c72e50fe: neither wired Stop hook (scripts/hooks/ via ~/.claude/settings.json,\nagent/harness/hooks/ via .claude/settings.json) ever calls core.fleet.seat_model.report,\nso the receipt plane behind !model is hand-fed only and the display reads 'no session has\nreported a model' for every seat nobody stamped by hand:\n  AssertionError: turn boundary never called seat_model.report -- !model stays honest-but-empty\n\nThe pin feeds one Stop payload per copy with a transcript whose assistant record carries\nmessage.model and asserts: exactly one report per turn, keyed by the resolved seat (binding\nbefore env -- a declared seat never lands on the conductor's row), the id verbatim, the\nharness labelled; no assistant record / no transcript / no path -> no stamp; <synthetic>\nisApiErrorMessage and sidechain records are not receipts; a tombstoned session never stamps;\nthe reader names the newest genuine record so a mid-session model change is visible on the\nnext turn. Every other side effect of the boundary is neutralised (no Redis, no tempdir\nmarkers), including the sibling harness-sidecar probe if it is present.",
+  "commit_msg_fix": "hooks: stamp the model RECEIPT at every Stop from the transcript's own message.model (9a85e7cfa2)\n\ncore/fleet/seat_model.py keeps the PIN (what --model we requested) and the RECEIPT (what a\nlive session says it runs) apart on purpose; the receipt was populated only by a hand-run\nreport(), so !model was honest-but-empty for every unstamped seat.\n\nClaude Code records the API's own message.model on each assistant record of the transcript\nthe Stop payload names. Both wired Stop hooks now read it (last_assistant_model: the same\nbounded tail-walk as last_assistant_text, factored over _tail_records; skips <synthetic>/\nisApiErrorMessage placeholders and sidechain records) and call\nseat_model.report(_seat(sid), sid, model, harness='claude-code') -- keyed by the resolved\nseat identity, never the process env; after the tombstone stand-down (an ended session\nclaims nothing) and before the wake ritual (ephemeral seats and the daemon fast path stamp\ntoo); fail-open like every sibling block; no genuine record -> the plane is left untouched.\nPer-turn refresh against REPORT_TTL_SEC makes the receipt self-healing like the incarnation\ncard and lets it lapse when the session dies. Landed identically in both copies\n(scripts/hooks/ and agent/harness/hooks/ differ only in sys.path depth).\n\nDeliberately NOT at SessionStart: its payload has no model field, at startup no assistant\nrecord exists, and on resume the newest record names the previous incarnation -- stamping\nit would mask a --model change for a whole turn. The pin plane is untouched: no\nresolve_model_id, no alias added to MODELS; a raw id renders verbatim.",
+  "verified": null,
+  "regen": {
+   "red": [
+    "tests/test_stop_model_stamp.py"
+   ],
+   "fix": [
+    "agent/harness/hooks/claude_stop.py",
+    "core/fleet/seat_model.py",
+    "scripts/hooks/claude_stop.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "review": "heimdall ask e5be23dd FAILED (starved); Fable verifier killed at the limit stop; my evidence only: pin 12/12 stacked on tip with the conductor-gate hooks (composable). HELD: the Stop hook runs every turn of every session; lands after a second reviewer.",
+  "held": true
+ },
+ {
+  "cluster": "worklive sid8 discriminator is constant for DSH seats",
+  "detail": "defer",
+  "rank": 11,
+  "ids": [
+   "7e2670d54e"
+  ],
+  "status": "fixed",
+  "worktree": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/wt/d11",
+  "pin_path": "tests/test_roster_sid8_discriminates_prefixed_sids.py",
+  "patch_red": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/worklive-sid8-discriminator-is-constant-for-dsh-seats.red.patch",
+  "patch_fix": "C:/Users/L5/AppData/Local/Temp/claude/E--/5ee9c3a7-43ad-4d06-8bd6-889ba300752d/scratchpad/patches/worklive-sid8-discriminator-is-constant-for-dsh-seats.fix.patch",
+  "files": [
+   "core/comm/bus.py",
+   "core/comm/roster.py",
+   "core/eye/position.py",
+   "agent/bifrost_pull.py",
+   "tests/test_roster_sid8_discriminates_prefixed_sids.py"
+  ],
+  "test_only": false,
+  "mechanism": "Six independent str(sid)[:8] slices replaced by ONE derivation core.comm.bus.sid8(session_id): strip one leading alphabetic scheme word ('session-', 'dsh-') when and only when the word is not pure hex and at least 8 hex chars follow, then take 8 chars. Byte-identical for bare UUIDs, '<pid>-<agent>', 8-char pins, 'seat-0001', 'deadbeef-...'; idempotent. 'session-<uuid>' now keys #<hexhead> on every plane (worklive/seatseen, seat inbox, seat cursor, eye standpoint), so two web seats no longer share one row and a goodbye cannot erase a living twin. Side effect: the stale bifrost:seatseen:dsh_agent#session- witness ages out after SEATSEEN_TTL_S.",
+  "blocked_reason": "",
+  "commit_msg_red": "RED: pin 7e2670d54e -- sid8 must discriminate scheme-prefixed session ids\n\nSix call sites each derive the incarnation discriminator as str(sid)[:8]. A head\nslice only discriminates while the id's entropy sits in its head; DSH session ids\nare 'session-<uuid>', so every web seat keys bifrost:worklive:dsh_agent#session-,\ntwo concurrent seats share one presence row, go_offline for the departing seat\ndeletes the living seat's key, and under BIFROST_INCARNATION=session-<uuid> the\nseat inbox, seat cursor and eye standpoint collide the same way (directed mail to\nseat A is drained by seat B). tests/test_roster_sid8_discriminates_prefixed_sids.py\npins the guarantee: two distinct session ids -> two distinct keys on every sid8\nplane, through ONE derivation (core.comm.bus.sid8) that is byte-identical for every\nexisting fleet shape and idempotent. RED 6/6 at c72e50fe.",
+  "commit_msg_fix": "fix 7e2670d54e: one sid8() derivation -- a scheme prefix is not a discriminator\n\ncore.comm.bus.sid8(session_id) is now THE incarnation discriminator: strip one\nleading alphabetic scheme word ('session-', 'dsh-') when, and only when, the word is\nnot pure hex and >= 8 hex chars follow it, then take 8 chars. Wired at\nroster.heartbeat / go_offline / _have_summary, Bus.__init__ incarnation,\nBus._my_sid8, the to_incarnation compares in Bus.send / Bus.inbox /\nbifrost_pull.peek_inbox, and eye position.whoami. Byte-identical for bare UUIDs,\n'<pid>-<agent>', 8-char pins, 'seat-0001' and 'deadbeef-...', so every existing\n'<AGENT>#<SID[:8]>' pin and the operator dialect (boot 'session ed728d23',\nbifrost-send --to-incarnation <sid8>) keep working; 'session-7ed91e83-...' now keys\n#7ed91e83 on every plane, and a goodbye can no longer erase a living twin.\nbridge.py / lib/index.js untouched by design: the writer passes the full sid and\nthe derivation lives at the key builders. Side effect: the stale\nbifrost:seatseen:dsh_agent#session- witness ages out after SEATSEEN_TTL_S. GREEN 6/6.",
+  "verified": null,
+  "regen": {
+   "red": [
+    "tests/test_roster_sid8_discriminates_prefixed_sids.py"
+   ],
+   "fix": [
+    "agent/bifrost_pull.py",
+    "core/comm/bus.py",
+    "core/comm/roster.py",
+    "core/eye/position.py"
+   ]
+  },
+  "apply_check_regen": "red:OK | fix:OK",
+  "review": "heimdall ask d8a1a137 STARVED at 16000 completion tokens (no visible output); Fable verifier killed at the limit stop; my evidence only: pin 6/6 + roster/bus/eye files green stacked on tip. HELD for a live-key census review (every existing key tail must derive to itself).",
+  "held": true
+ }
+]

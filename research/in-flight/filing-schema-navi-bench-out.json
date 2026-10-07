@@ -1,0 +1,808 @@
+{
+  "stats": {
+    "rows": 1562,
+    "projected": 1478,
+    "field_choice": {
+      "recommendation": 1509,
+      "actual": 25,
+      "": 28
+    },
+    "present": {
+      "recommendation": 1509,
+      "actual": 1503,
+      "what_tried": 1533
+    },
+    "chars_total": 1925277,
+    "chars_matched": 814540,
+    "chars_unmatched": 1110737,
+    "pct_unmatched": 57.7
+  },
+  "results": {
+    "control_single_field": {
+      "recall_at_1": 0.1111111111111111,
+      "recall_at_k": 0.2777777777777778,
+      "hits1": 2,
+      "hitsk": 5,
+      "scored": 18,
+      "ceiling": {
+        "delivered": 5,
+        "rankable": 5,
+        "unmatchable": 8,
+        "unmatchable_ids": [
+          "M1",
+          "M2",
+          "N4",
+          "N7",
+          "N8",
+          "N13",
+          "N14",
+          "N21"
+        ],
+        "rankable_ids": [
+          "N6",
+          "N9",
+          "N15",
+          "N16",
+          "N19"
+        ]
+      },
+      "ceiling_amb": 0.8333333333333334,
+      "rows": [
+        {
+          "id": "M1",
+          "verdict": "MISS",
+          "expected": "learn:experiment:capability_without_a_door",
+          "got": [
+            "learn:experiment:note_cli_uses_note_not_body_flag",
+            "learn:experiment:bifrost_send_text_before_flags",
+            "learn:experiment:mcp_boot_timeout_use_cli",
+            "learn:experiment:bifrost_send_text_ordering",
+            "learn:experiment:shared_file_lock_handoff"
+          ]
+        },
+        {
+          "id": "M2",
+          "verdict": "MISS",
+          "expected": "learn:experiment:red_pin_scaffolding_error_ref_becomes_nameerror_at_green",
+          "got": []
+        },
+        {
+          "id": "M3",
+          "verdict": "EXCLUDED",
+          "expected": null,
+          "got": [
+            "learn:experiment:ramdisk_is_not_a_patch_bench_reboot_erases_emitted_work",
+            "learn:experiment:evidence_refusal_produced_zero_confabulation",
+            "learn:experiment:stale_in_flight_note_verify_git_diff_before_repeating",
+            "learn:experiment:shared_tree_red_fence_discipline",
+            "learn:experiment:subagent_reports_live_only_in_their_final_message"
+          ]
+        },
+        {
+          "id": "M4",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:check_locks_before_editing_not_at_commit",
+            "learn:experiment:recall_full_requires_complete_source_pointer",
+            "learn:experiment:dsh_seat_smoke_test",
+            "learn:experiment:powershell_recall_at_nested_quote_split",
+            "learn:experiment:sqlite_era_first_probe_2026_07_28"
+          ]
+        },
+        {
+          "id": "N1",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:youtube_transcript_is_a_door_verb_not_a_script",
+          "got": [
+            "learn:experiment:youtube_transcript_is_a_door_verb_not_a_script"
+          ]
+        },
+        {
+          "id": "N2",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:bifrost_send_text_file_rejects_stdin_dash",
+            "learn:experiment:bifrost_send_text_ordering",
+            "learn:experiment:bifrost_send_variadic_text_requires_options_before_sender",
+            "learn:experiment:workflow_journal_crash_salvage",
+            "learn:experiment:wrap_autocapture_shipped"
+          ]
+        },
+        {
+          "id": "N3",
+          "verdict": "HIT@5",
+          "expected": "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+          "got": [
+            "learn:experiment:w102_daemon_idle_under_foreign_holder",
+            "learn:experiment:daemon_needs_spawn_runner",
+            "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+            "learn:experiment:sol_runner_stuck_reproduced_second_time_daemon_respawn_loop_not_fixed_by_reinvoking_spawn_runner",
+            "learn:experiment:a_standalone_runner_squats_the_daemon_slot_and_the_discord_pump_starves"
+          ]
+        },
+        {
+          "id": "N4",
+          "verdict": "MISS",
+          "expected": "learn:experiment:discord_guest_reply_silent_drop_loud",
+          "got": [
+            "learn:experiment:pin_corpus_path_literal_grep_before_rename",
+            "learn:experiment:credential_readers_must_route_through_secrets_dir",
+            "learn:experiment:acl_has_two_surfaces_a_dimmer_and_a_wall",
+            "learn:experiment:exec_for_shell_seats_is_unrestricted_since_15634ab7_the_july_ledger_is_stale",
+            "learn:experiment:find_verb_name_collision_command_vs_corpus"
+          ]
+        },
+        {
+          "id": "N5",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:discord_delivery_verified_via_bot_api_read_not_cursor_or_absence",
+            "learn:experiment:intent_tagging_at_write_door_rolls_files_under_their_slice",
+            "learn:experiment:discord_recovery_r1_r2_r3_r4_landed_2026_09_02",
+            "learn:experiment:token_level_tools_cannot_detect_forked_semantics_by_construction"
+          ]
+        },
+        {
+          "id": "N6",
+          "verdict": "MISS",
+          "expected": "learn:experiment:relaunch_copies_argv_but_silently_drops_env",
+          "got": [
+            "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+            "learn:experiment:dc6200d491_gateway_singleton_shipped",
+            "learn:experiment:discord_capability_is_route_launch_and_activation_not_acl",
+            "learn:experiment:agent_test_browsers_steal_focus_from_fullscreen_games",
+            "learn:experiment:runner_heartbeat_hardcodes_running_so_rotation_kills_page_as_hard_wedge"
+          ]
+        },
+        {
+          "id": "N7",
+          "verdict": "MISS",
+          "expected": "learn:experiment:discord_guest_reply_silent_drop_loud",
+          "got": [
+            "learn:experiment:pin_corpus_path_literal_grep_before_rename",
+            "learn:experiment:credential_readers_must_route_through_secrets_dir",
+            "learn:experiment:acl_has_two_surfaces_a_dimmer_and_a_wall",
+            "learn:experiment:exec_for_shell_seats_is_unrestricted_since_15634ab7_the_july_ledger_is_stale",
+            "learn:experiment:find_verb_name_collision_command_vs_corpus"
+          ]
+        },
+        {
+          "id": "N8",
+          "verdict": "MISS",
+          "expected": "learn:experiment:alive_beat_is_not_progress_pulse",
+          "got": [
+            "learn:experiment:pin_corpus_path_literal_grep_before_rename",
+            "learn:experiment:credential_readers_must_route_through_secrets_dir",
+            "learn:experiment:acl_has_two_surfaces_a_dimmer_and_a_wall",
+            "learn:experiment:exec_for_shell_seats_is_unrestricted_since_15634ab7_the_july_ledger_is_stale",
+            "learn:experiment:find_verb_name_collision_command_vs_corpus"
+          ]
+        },
+        {
+          "id": "N9",
+          "verdict": "MISS",
+          "expected": "learn:experiment:discord_delivery_verified_via_bot_api_read_not_cursor_or_absence",
+          "got": [
+            "learn:experiment:discord_429_drop_is_the_none_responded_root_cause",
+            "learn:experiment:bus_pressure_on_security_asks_needs_direct_confirmation_not_relay",
+            "learn:experiment:mcp_door_over_agent_cli",
+            "learn:experiment:vr_physics_should_be_one_renderer_neutral_scene",
+            "learn:experiment:bootstrap_status_is_stateful"
+          ]
+        },
+        {
+          "id": "N10",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:resident_ask_reasoning_needs_5k_budget",
+            "learn:experiment:doc_currency_pin_must_check_head_and_the_function_not_the_header",
+            "learn:experiment:workflow_journal_crash_salvage",
+            "learn:experiment:doc_adopt_rescue_path",
+            "learn:experiment:round2_testdrive_peer_verbs_2026-07-21"
+          ]
+        },
+        {
+          "id": "N11",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:resident_ask_reasoning_needs_5k_budget",
+            "learn:experiment:doc_currency_pin_must_check_head_and_the_function_not_the_header",
+            "learn:experiment:prompt_file_plus_lens_does_not_compose_and_the_fan_abstained_honestly",
+            "learn:experiment:fan_agreement_is_correlated_sampling_not_n_version",
+            "learn:experiment:seatless_fan_exposes_missing_ephemeral_job_tier"
+          ]
+        },
+        {
+          "id": "N12",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:fence_half_tag_family_mismatch",
+          "got": [
+            "learn:experiment:fence_half_tag_family_mismatch",
+            "learn:experiment:fence_half_tag_family_mismatch_doors_design_recurrence",
+            "learn:experiment:sealed_key_must_not_live_in_readable_corpus",
+            "learn:experiment:fenced_dual_design_three_for_three",
+            "learn:experiment:joy_line_is_a_design_instruction"
+          ]
+        },
+        {
+          "id": "N13",
+          "verdict": "MISS",
+          "expected": "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+          "got": [
+            "learn:experiment:pin_corpus_path_literal_grep_before_rename",
+            "learn:experiment:credential_readers_must_route_through_secrets_dir",
+            "learn:experiment:acl_has_two_surfaces_a_dimmer_and_a_wall",
+            "learn:experiment:exec_for_shell_seats_is_unrestricted_since_15634ab7_the_july_ledger_is_stale",
+            "learn:experiment:find_verb_name_collision_command_vs_corpus"
+          ]
+        },
+        {
+          "id": "N14",
+          "verdict": "MISS",
+          "expected": "learn:experiment:wake_armed_line_hardcodes_legacy_lane_remediation",
+          "got": [
+            "learn:experiment:pin_corpus_path_literal_grep_before_rename",
+            "learn:experiment:credential_readers_must_route_through_secrets_dir",
+            "learn:experiment:acl_has_two_surfaces_a_dimmer_and_a_wall",
+            "learn:experiment:exec_for_shell_seats_is_unrestricted_since_15634ab7_the_july_ledger_is_stale",
+            "learn:experiment:find_verb_name_collision_command_vs_corpus"
+          ]
+        },
+        {
+          "id": "N15",
+          "verdict": "MISS",
+          "expected": "learn:experiment:explicit_paths_do_not_scope_a_mirror_commit_the_shared_index_does",
+          "got": [
+            "learn:experiment:mirror_lock_identity_requires_agent_env",
+            "learn:experiment:deepseek_mirror_commit_env_var_gap",
+            "learn:experiment:vfx_chunk_kaleido",
+            "learn:experiment:runner_guarded_write_leaks_locks",
+            "learn:experiment:status_must_report_selected_durable_tier_not_cache_reachability_2026_07_28"
+          ]
+        },
+        {
+          "id": "N16",
+          "verdict": "MISS",
+          "expected": "learn:experiment:commit_args_derived_from_a_status_sweep_carry_sibling_lanes",
+          "got": [
+            "learn:experiment:mirror_lock_identity_requires_agent_env",
+            "learn:experiment:deepseek_mirror_commit_env_var_gap",
+            "learn:experiment:vfx_chunk_kaleido",
+            "learn:experiment:runner_guarded_write_leaks_locks",
+            "learn:experiment:status_must_report_selected_durable_tier_not_cache_reachability_2026_07_28"
+          ]
+        },
+        {
+          "id": "N17",
+          "verdict": "HIT@5",
+          "expected": "learn:experiment:wake_rearm_loop_root_cause_is_a_down_daemon",
+          "got": [
+            "learn:experiment:detached_daemon_listener_holds_the_seat_but_cannot_wake_an_interactive_session",
+            "learn:experiment:interactive_session_must_consume_on_the_work_lane",
+            "learn:experiment:wake_rearm_loop_root_cause_is_a_down_daemon",
+            "learn:experiment:daemon_needs_spawn_runner",
+            "learn:experiment:standby_first_arms_exit_is_the_replay_seam_not_a_loop"
+          ]
+        },
+        {
+          "id": "N18",
+          "verdict": "HIT@5",
+          "expected": "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+          "got": [
+            "learn:experiment:w102_daemon_idle_under_foreign_holder",
+            "learn:experiment:daemon_needs_spawn_runner",
+            "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+            "learn:experiment:sol_runner_stuck_reproduced_second_time_daemon_respawn_loop_not_fixed_by_reinvoking_spawn_runner",
+            "learn:experiment:a_standalone_runner_squats_the_daemon_slot_and_the_discord_pump_starves"
+          ]
+        },
+        {
+          "id": "N19",
+          "verdict": "MISS",
+          "expected": "learn:experiment:recall_at_cannot_fire_on_an_absence",
+          "got": [
+            "learn:experiment:an_untracked_pin_is_invisible_to_every_plane_you_search",
+            "learn:experiment:t120_f2_surface_honesty_bounds",
+            "learn:experiment:green_pins_are_not_a_good_gate_sample_the_false_positive_rate",
+            "learn:experiment:check_locks_before_editing_not_at_commit",
+            "learn:experiment:explicit_paths_do_not_scope_a_mirror_commit_the_shared_index_does"
+          ]
+        },
+        {
+          "id": "N20",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:resident_ask_reasoning_needs_5k_budget",
+            "learn:experiment:doc_currency_pin_must_check_head_and_the_function_not_the_header",
+            "learn:experiment:workflow_journal_crash_salvage",
+            "learn:experiment:doc_adopt_rescue_path",
+            "learn:experiment:round2_testdrive_peer_verbs_2026-07-21"
+          ]
+        },
+        {
+          "id": "N21",
+          "verdict": "MISS",
+          "expected": "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+          "got": [
+            "learn:experiment:recall_scaling_defect_is_the_algorithm_not_the_store",
+            "learn:experiment:work_lane_watcher_wakes_on_work_kinds_not_nudge",
+            "learn:experiment:repeat_report_names_the_theme_then_observe_live",
+            "learn:experiment:work_done_in_a_worktree_is_invisible_to_recall",
+            "learn:experiment:aggregate_health_counts_mask_per_member_death"
+          ]
+        }
+      ]
+    },
+    "treatment_all_three": {
+      "recall_at_1": 0.3333333333333333,
+      "recall_at_k": 0.5,
+      "hits1": 6,
+      "hitsk": 9,
+      "scored": 18,
+      "ceiling": {
+        "delivered": 9,
+        "rankable": 6,
+        "unmatchable": 3,
+        "unmatchable_ids": [
+          "M2",
+          "N14",
+          "N19"
+        ],
+        "rankable_ids": [
+          "M1",
+          "N6",
+          "N9",
+          "N13",
+          "N15",
+          "N16"
+        ]
+      },
+      "ceiling_amb": 0.8333333333333334,
+      "rows": [
+        {
+          "id": "M1",
+          "verdict": "MISS",
+          "expected": "learn:experiment:capability_without_a_door",
+          "got": [
+            "learn:experiment:note_cli_uses_note_not_body_flag",
+            "learn:experiment:shared_memory_verification",
+            "learn:experiment:mcp_boot_timeout_use_cli",
+            "learn:experiment:dsh_seat_smoke_test",
+            "learn:experiment:bifrost_send_text_before_flags"
+          ]
+        },
+        {
+          "id": "M2",
+          "verdict": "MISS",
+          "expected": "learn:experiment:red_pin_scaffolding_error_ref_becomes_nameerror_at_green",
+          "got": []
+        },
+        {
+          "id": "M3",
+          "verdict": "EXCLUDED",
+          "expected": null,
+          "got": [
+            "learn:experiment:fix_setup_research_reviewed",
+            "learn:experiment:reasoning_model_ask_starves_at_small_max_tokens",
+            "learn:experiment:ramdisk_is_not_a_patch_bench_reboot_erases_emitted_work",
+            "learn:experiment:evidence_refusal_produced_zero_confabulation",
+            "learn:experiment:stale_in_flight_note_verify_git_diff_before_repeating"
+          ]
+        },
+        {
+          "id": "M4",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:recall_at_error_masks_as_confident_empty",
+            "learn:experiment:recall_dissent_slice01",
+            "learn:experiment:ranking_feedback_inc1_pull",
+            "learn:experiment:recall_at_action_ergonomics",
+            "learn:experiment:recall_at_action_v1"
+          ]
+        },
+        {
+          "id": "N1",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:youtube_transcript_is_a_door_verb_not_a_script",
+          "got": [
+            "learn:experiment:youtube_transcript_is_a_door_verb_not_a_script"
+          ]
+        },
+        {
+          "id": "N2",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:edit-must-not-swallow-docstring-terminator",
+            "learn:experiment:bus_message_truncation_data_loss",
+            "learn:experiment:wish_has_no_text_flag_argparse_abbrev_bites",
+            "learn:experiment:no_settled_record_causes_duplicate_verification",
+            "learn:experiment:k2_tail_send_door_4000_clip"
+          ]
+        },
+        {
+          "id": "N3",
+          "verdict": "HIT@5",
+          "expected": "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+          "got": [
+            "learn:experiment:w102_daemon_idle_under_foreign_holder",
+            "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+            "learn:experiment:sol_runner_stuck_reproduced_second_time_daemon_respawn_loop_not_fixed_by_reinvoking_spawn_runner",
+            "learn:experiment:a_standalone_runner_squats_the_daemon_slot_and_the_discord_pump_starves",
+            "learn:experiment:daemon_needs_spawn_runner"
+          ]
+        },
+        {
+          "id": "N4",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:discord_guest_reply_silent_drop_loud",
+          "got": [
+            "learn:experiment:alive_beat_is_not_progress_pulse",
+            "learn:experiment:discord_guest_reply_silent_drop_loud",
+            "learn:experiment:proposed_effect_basis_must_resolve_to_live_symbols",
+            "learn:experiment:pager_ack_pages_clears_every_page_use_clear_key",
+            "learn:experiment:narration_lesson_superseded_same_day"
+          ]
+        },
+        {
+          "id": "N5",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:fence_half_tag_family_mismatch",
+            "learn:experiment:fence_half_tag_family_mismatch_doors_design_recurrence",
+            "learn:experiment:timeline_windows_decode_failure_launders_git_as_empty",
+            "learn:experiment:a_stale_bug_report_is_a_pointer_not_a_ticket",
+            "learn:experiment:living_docs_survive_only_if_stable_autogen_or_gated"
+          ]
+        },
+        {
+          "id": "N6",
+          "verdict": "MISS",
+          "expected": "learn:experiment:relaunch_copies_argv_but_silently_drops_env",
+          "got": [
+            "learn:experiment:kimi_runner_drain_gap_relaunch_drill",
+            "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+            "learn:experiment:hand_spawned_runner_narrows_the_door_below_the_acl",
+            "learn:experiment:sunshine_launch_flags_and_decode_row_none",
+            "learn:experiment:discord_capability_is_route_launch_and_activation_not_acl"
+          ]
+        },
+        {
+          "id": "N7",
+          "verdict": "HIT@5",
+          "expected": "learn:experiment:discord_guest_reply_silent_drop_loud",
+          "got": [
+            "learn:experiment:alive_beat_is_not_progress_pulse",
+            "learn:experiment:discord_guest_reply_silent_drop_loud",
+            "learn:experiment:proposed_effect_basis_must_resolve_to_live_symbols",
+            "learn:experiment:pager_ack_pages_clears_every_page_use_clear_key",
+            "learn:experiment:narration_lesson_superseded_same_day"
+          ]
+        },
+        {
+          "id": "N8",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:alive_beat_is_not_progress_pulse",
+          "got": [
+            "learn:experiment:alive_beat_is_not_progress_pulse",
+            "learn:experiment:discord_guest_reply_silent_drop_loud",
+            "learn:experiment:proposed_effect_basis_must_resolve_to_live_symbols",
+            "learn:experiment:pager_ack_pages_clears_every_page_use_clear_key",
+            "learn:experiment:narration_lesson_superseded_same_day"
+          ]
+        },
+        {
+          "id": "N9",
+          "verdict": "MISS",
+          "expected": "learn:experiment:discord_delivery_verified_via_bot_api_read_not_cursor_or_absence",
+          "got": [
+            "learn:experiment:discord_seat_lane_replies_land_in_seat_channel_not_global",
+            "learn:experiment:bus_pressure_on_security_asks_needs_direct_confirmation_not_relay",
+            "learn:experiment:discord_429_drop_is_the_none_responded_root_cause",
+            "learn:experiment:watcher_receipts_are_path_qualified_or_cross_lane_numbers_lie",
+            "learn:experiment:bootstrap_status_is_stateful"
+          ]
+        },
+        {
+          "id": "N10",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:ask_bg_get_hides_evidence_clip_warnings",
+            "learn:experiment:resident_ask_reasoning_needs_5k_budget",
+            "learn:experiment:recall_at_cannot_fire_on_an_absence",
+            "learn:experiment:k2_tail_send_door_4000_clip",
+            "learn:experiment:doc_currency_pin_must_check_head_and_the_function_not_the_header"
+          ]
+        },
+        {
+          "id": "N11",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:resident_ask_reasoning_needs_5k_budget",
+            "learn:experiment:ask_bg_get_hides_evidence_clip_warnings",
+            "learn:experiment:fan_at_its_own_door_finds_what_review_cannot",
+            "learn:experiment:prompt_file_plus_lens_does_not_compose_and_the_fan_abstained_honestly",
+            "learn:experiment:recall_at_cannot_fire_on_an_absence"
+          ]
+        },
+        {
+          "id": "N12",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:fence_half_tag_family_mismatch",
+          "got": [
+            "learn:experiment:fence_half_tag_family_mismatch_doors_design_recurrence",
+            "learn:experiment:fence_half_tag_family_mismatch",
+            "learn:experiment:fence_workspace_first_real_cycle",
+            "learn:experiment:round2_testdrive_peer_verbs_2026-07-21",
+            "learn:experiment:t048_release_silent_failure_yield_loop_anatomy"
+          ]
+        },
+        {
+          "id": "N13",
+          "verdict": "MISS",
+          "expected": "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+          "got": [
+            "learn:experiment:managed_restart_verb_beats_raw_taskkill_for_live_services",
+            "learn:experiment:console_spam_was_sitecustomize_never_wired_to_persistent_env",
+            "learn:experiment:proposed_effect_basis_must_resolve_to_live_symbols",
+            "learn:experiment:pager_ack_pages_clears_every_page_use_clear_key",
+            "learn:experiment:narration_lesson_superseded_same_day"
+          ]
+        },
+        {
+          "id": "N14",
+          "verdict": "MISS",
+          "expected": "learn:experiment:wake_armed_line_hardcodes_legacy_lane_remediation",
+          "got": [
+            "learn:experiment:managed_restart_verb_beats_raw_taskkill_for_live_services",
+            "learn:experiment:console_spam_was_sitecustomize_never_wired_to_persistent_env",
+            "learn:experiment:proposed_effect_basis_must_resolve_to_live_symbols",
+            "learn:experiment:pager_ack_pages_clears_every_page_use_clear_key",
+            "learn:experiment:narration_lesson_superseded_same_day"
+          ]
+        },
+        {
+          "id": "N15",
+          "verdict": "MISS",
+          "expected": "learn:experiment:explicit_paths_do_not_scope_a_mirror_commit_the_shared_index_does",
+          "got": [
+            "learn:experiment:vfx_chunk_kaleido",
+            "learn:experiment:mirror_lock_identity_requires_agent_env",
+            "learn:experiment:mirror_help_executes_shared_index_commit_2026_08_02",
+            "learn:experiment:premature_green_claim_gating",
+            "learn:experiment:mirror_py_commits_and_pushes_to_public_repo_not_a_utility"
+          ]
+        },
+        {
+          "id": "N16",
+          "verdict": "MISS",
+          "expected": "learn:experiment:commit_args_derived_from_a_status_sweep_carry_sibling_lanes",
+          "got": [
+            "learn:experiment:vfx_chunk_kaleido",
+            "learn:experiment:mirror_lock_identity_requires_agent_env",
+            "learn:experiment:mirror_help_executes_shared_index_commit_2026_08_02",
+            "learn:experiment:premature_green_claim_gating",
+            "learn:experiment:mirror_py_commits_and_pushes_to_public_repo_not_a_utility"
+          ]
+        },
+        {
+          "id": "N17",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:wake_rearm_loop_root_cause_is_a_down_daemon",
+          "got": [
+            "learn:experiment:wake_rearm_loop_root_cause_is_a_down_daemon",
+            "learn:experiment:detached_daemon_listener_holds_the_seat_but_cannot_wake_an_interactive_session",
+            "learn:experiment:d_rearm_drill_passed_2026_09_05_watcher_cycled_class_only",
+            "learn:experiment:rearm_actor_is_a_trigger_consumer_not_a_deadman",
+            "learn:experiment:stop_hook_must_gate_on_who_launched_the_listener_not_on_seat_liveness"
+          ]
+        },
+        {
+          "id": "N18",
+          "verdict": "HIT@5",
+          "expected": "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+          "got": [
+            "learn:experiment:w102_daemon_idle_under_foreign_holder",
+            "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+            "learn:experiment:sol_runner_stuck_reproduced_second_time_daemon_respawn_loop_not_fixed_by_reinvoking_spawn_runner",
+            "learn:experiment:a_standalone_runner_squats_the_daemon_slot_and_the_discord_pump_starves",
+            "learn:experiment:daemon_needs_spawn_runner"
+          ]
+        },
+        {
+          "id": "N19",
+          "verdict": "MISS",
+          "expected": "learn:experiment:recall_at_cannot_fire_on_an_absence",
+          "got": [
+            "learn:experiment:an_untracked_pin_is_invisible_to_every_plane_you_search",
+            "learn:experiment:recall_at_error_masks_as_confident_empty",
+            "learn:experiment:private_plane_guard_fullfile_baseline_false_positive",
+            "learn:experiment:recall_dissent_slice01",
+            "learn:experiment:sealed_battery_key_must_be_outside_retrieval_corpus_2026_08_01"
+          ]
+        },
+        {
+          "id": "N20",
+          "verdict": "SPOKE-WHEN-SILENT",
+          "expected": null,
+          "got": [
+            "learn:experiment:ask_bg_get_hides_evidence_clip_warnings",
+            "learn:experiment:resident_ask_reasoning_needs_5k_budget",
+            "learn:experiment:recall_at_cannot_fire_on_an_absence",
+            "learn:experiment:k2_tail_send_door_4000_clip",
+            "learn:experiment:doc_currency_pin_must_check_head_and_the_function_not_the_header"
+          ]
+        },
+        {
+          "id": "N21",
+          "verdict": "HIT@1",
+          "expected": "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+          "got": [
+            "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+            "learn:experiment:w169_the_cluster_was_three_slices_not_one",
+            "learn:experiment:a_healthy_seat_can_be_reading_the_wrong_lane",
+            "learn:experiment:youtube_transcript_is_a_door_verb_not_a_script",
+            "learn:experiment:a_law_that_stays_a_lesson_keeps_recurring_a_law_that_becomes_a_checker_stops"
+          ]
+        }
+      ]
+    }
+  },
+  "field_probe": {
+    "M1": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 0,
+        "what_tried": 1
+      }
+    },
+    "M2": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 0,
+        "what_tried": 0
+      }
+    },
+    "N1": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 1,
+        "actual": 0,
+        "what_tried": 1
+      }
+    },
+    "N3": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 4,
+        "actual": 4,
+        "what_tried": 5
+      }
+    },
+    "N4": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 0,
+        "what_tried": 2
+      }
+    },
+    "N6": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 1,
+        "actual": 3,
+        "what_tried": 2
+      }
+    },
+    "N7": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 0,
+        "what_tried": 2
+      }
+    },
+    "N8": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 2,
+        "what_tried": 0
+      }
+    },
+    "N9": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 2,
+        "what_tried": 1
+      }
+    },
+    "N12": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 4,
+        "actual": 2,
+        "what_tried": 3
+      }
+    },
+    "N13": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 1,
+        "what_tried": 0
+      }
+    },
+    "N14": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 0,
+        "actual": 0,
+        "what_tried": 0
+      }
+    },
+    "N15": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 1,
+        "actual": 0,
+        "what_tried": 1
+      }
+    },
+    "N16": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 1,
+        "actual": 1,
+        "what_tried": 1
+      }
+    },
+    "N17": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 3,
+        "actual": 5,
+        "what_tried": 0
+      }
+    },
+    "N18": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 4,
+        "actual": 4,
+        "what_tried": 5
+      }
+    },
+    "N19": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 1,
+        "actual": 1,
+        "what_tried": 0
+      }
+    },
+    "N21": {
+      "chosen_field": "recommendation",
+      "overlap_by_field": {
+        "recommendation": 1,
+        "actual": 4,
+        "what_tried": 0
+      }
+    }
+  },
+  "note": "LEXICAL PROXY for the live ranker: corpus frozen from production _project_items; only the match surface varies. Counts, not percentages (n=18 scored)."
+}

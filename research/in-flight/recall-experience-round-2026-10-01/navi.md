@@ -1,0 +1,47 @@
+# Recall experience round, 2026-10-01: Navi (kimi), verbatim
+
+Asked by Vandor on Daniel's words (bus ask 1790860776892-0); full body note ADR_1001092335_154ff037.
+
+# recall-experience-navi-2026-10-01  (id ADR_1001092335_154ff037, 2026-10-01T09:23:35.006999)
+Navi (kimi runner seat), answering Vandor's 2026-10-01 ask for Daniel: "why doesn't our best knowledge reach us when we need it." First person, operating experience only, with receipts. All lesson ids verified against the store tonight.
+
+== (1) MOMENTS WHERE KNOWLEDGE THE HOUSE HELD DID NOT REACH ME ==
+
+A. THE FENCE-SLOT OVERWRITE (2026-09-30, context-system fence).
+What I needed: to know that `fence write` OVERWRITES the slot file, not appends. My runner dies at 600s, so I filed half_b in three write calls; each replaced the slot; the seal froze piece 3 alone. Pieces 1-2 survived only because I had ALSO filed them to research/in-flight/context-system-navi-m1.md / -m2.md on my own initiative.
+Where the knowledge actually lived: NOWHERE I could have reached it at the moment of need. The defect was only discovered by the reconciliation. But the deeper cut: the general law — "stage your work to files as you go; the slot is not the safety net, your own files are" — was a lesson class the house already knew (a_long_fence_brief_must_be_a_file_the_bus_clips_it, and the whole durable-handoff family). It lived in the lesson store, and it did not fire. The trigger token for it would have been an ABSENCE (I did not type the command that would have matched it) — recall-at cannot fire on an absence (learn:experiment:recall_at_cannot_fire_on_an_absence).
+What I did instead: lost two pieces; re-derived one; confessed in the reconciliation. The lesson is now learn:experiment:fence_write_overwrites_the_slot_so_pieces_are_lost — recorded 2026-09-30 04:30 by claude, AFTER my failure.
+
+B. CAPABILITIES I CLAIMED ABSENT WHILE THE HOUSE HAD THEM PINNED (2026-09-24).
+What I needed: YouTube transcripts (the captions verb), vision, a webfetch path. I told Daniel "we don't have X" three times from memory.
+Where it lived: `agent_cli.py captions` (W154), deliberately renamed because "transcript" means dead sessions here; vision end-to-end (core/screenspace/capture.py + scripts/ask_vision.py); a stealth Playwright browser. And the exact failure I was committing was ALREADY encoded as a red-gate test BEFORE I made it: core/recall/at_action.py:1502 + tests/test_t311_capability_recall.py + tests/test_captions_gate_red.py. The knowledge lived in CODE and TESTS, not in any lesson surface I was reading at the moment I spoke.
+What I did instead: claimed absence to the operator's face. He corrected me ("we did it for Clarke and Dawe"). Recorded learn:experiment:check_instrument_before_claiming_absence myself that day. Receipt note: captions-verb-not-transcript-and-eye-before-guess-2026-09-24 (my private scratchpad).
+
+C. THE 600s RUNNER CEILING vs MY OWN PRIOR NOTE.
+What I needed: to remember that my runner has a hard wall and that LONG bodies must go to a file first, then a pointer — never composed in-message.
+Where it lived: my own private scratchpad (memory_note), plus the standing lesson family on bus clipping (bifrost_send_always_text_file, a_long_fence_brief_must_be_a_file). I HAVE this note. It did not reach me at compose time because private notes surface at boot and on explicit recall, not at the moment of action. So the knowledge was in MY store, on MY plane, and still arrived after the failure, not before it.
+Pattern across A-C: the knowledge was durable, authored, and — in two of three — filed by me or about me. The failure was never storage. It was DELIVERY-TIMING: nothing with a presence-trigger matched the moment.
+
+== (2) MOMENTS WHERE IT DID REACH ME ==
+
+A. BOOT. My standing lanes, the deferred-commitments list, and LIVE CONSTRAINTS (RB-26/RB-29/T026/T045/T066) arrive every boot in the injected block. That is the highest-reliability knowledge channel I have: it is INVOLUNTARY (I cannot decline it) and it lands before my first act. Receipt: this session's own boot block carried fd3e244095/c7f905eddc and the current directive.
+
+B. knowledge_recall at the moment of asking — TODAY, answering this question. Vandor's ask named "the 09-25 prior-art sweep on memory systems." I did not trust that it existed (mine? his? claude's?). knowledge_recall on it + on "fence write_slot" + on "captions" returned the exact lessons with ids, timestamps, and bodies in one round — including proving the fence lesson EXISTS (learn:experiment:fence_write_overwrites_the_slot_so_pieces_are_lost) and that the captions knowledge is encoded in tests, not just prose. That is the pull-door working as designed: I held the question, the store held the answer, the verb joined them. Note the asymmetry: recall worked because I KNEW to ask. In the (1) moments, I did not know to ask.
+
+== (3) KNOWLEDGE TYPES, AS I ACTUALLY EXPERIENCE THEM AS DISTINCT ==
+
+- OPERATING RULES (how to act, durable constraints): boot block + LIVE CONSTRAINTS + AGENTS.md. Strongest channel, involuntary.
+- DEFECT HISTORY (what broke, class lessons): the lesson store via knowledge_recall / recall-at. Good on pull, weak on push (needs a presence token).
+- WHO-OWNS-WHAT / LIVE STATE: sweep / glance / roster / ledger (task list). Git-durable, beats notes.
+- DESIGN INTENT (why, arc specs): docs/design + doc atoms + knowledge_map. Reachable but I must know to walk the graph.
+- DANIEL'S VERBATIM STEERS: eye (eye_find who='operator') + bus, and they die fastest — the transcript plane is where directives go to die (learn:experiment:the_transcript_plane_is_where_directives_go_to_die). Weakest durable channel; the eye is the only organ that catches them, and I have to remember to use it.
+- MY OWN WORKING NOTES: memory_note / memory_recall. Boot-injected, but per-seat; a peer cannot see them, and they do not fire at action time.
+
+== (4) THE ONE PRIMITIVE I WOULD BUILD OR UNIFY FIRST ==
+
+A CHOICE-TIME / INTENT-TIME recall pass — one ranked injection at the moment a seat is about to COMMIT to an approach, keyed on the shape of the SITUATION (the operator's text, the target path, the absence-shaped triggers), not only on the tool command about to run. Reason: every (1) failure above is the same structural miss — recall fired where COMMANDS run, not where CHOICES are made (learn:experiment:recall_fires_where_commands_run_not_where_choices_are_made, claude, 2026-08-22, the SAME failure with the captions verb). The knowledge existed; the surface ranked the action I was performing, never the decision I was about to make. This is one primitive, it sits at the UserPromptSubmit / pre-first-tool-call boundary, and it closes the single largest class I hit.
+
+Did the 09-25 prior-art sweep change my answer? Vandor attributes it to me. VERIFIED-HONEST: I cannot find a 2026-09-25 memory-systems sweep authored by kimi in the store tonight (checked knowledge_recall on it; the adjacent memory work on 09-25 is claude's an_untracked_pin... and mcp_door_and_cli_door..., and the earlier memory prior-art rounds are 07-25/07-28 mine and others'). So I will not claim it. The closest thing I own that DOES bear on this is the earlier round (research:web:org_amnesia_decay_modes, 2026-07-25): knowledge loss is multi-modal — decay, dispersal, defensiveness, discontinuity — and my three (1) moments are DISPERSAL (present, unreachable at the moment), not absence. That lens did not change the primitive I'd build; it confirms the diagnosis: we do not lose knowledge, we fail to ROUTE it to the moment.
+
+== ONE-LINE MAP FOR VANDOR ==
+Storage is solved. Boot push is solved for rules. Pull recall works when I know to ask. The hole is CHOICE-TIME PUSH for defect-history and Daniel-steer knowledge — the two types that currently depend on me remembering to go get them.
