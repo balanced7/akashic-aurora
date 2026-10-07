@@ -23,12 +23,20 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 PREREG_RE = re.compile(r"pre-?registered", re.IGNORECASE)
-# Source = where impl lives. docs/, research/, chronicles/ ride along with registrations.
-NONSOURCE_PREFIXES = ("tests/", "docs/", "research/", "chronicles/")
 
-
-def _norm(p: str) -> str:
-    return p.replace("\\", "/").lstrip("./")
+# T123 (ratified 2026-07-28): the METRIC now lives in core and this gate imports INWARD.
+# It used to live here, and core/coord/method_drift.py reached OUT to it with a
+# sys.path.insert -- the inverted dependency the architecture guardrail refuses by rule
+# `no-syspath-insert`. A SCRIPT putting the repo root on its own path is the right-way-round
+# direction and is not a boundary violation (the guardrail scans core/, which is a library
+# and must never do this). core/coord/preregistration.py is the single definition of
+# NONSOURCE_PREFIXES, _norm and audit_stats; re-exported here so existing callers of this
+# module keep working unchanged.
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+from core.coord.preregistration import (  # noqa: E402
+    NONSOURCE_PREFIXES, _norm, audit_stats,
+)
 
 
 def _is_new_in_git(path: str) -> bool:
@@ -47,46 +55,6 @@ def _declares_prereg(path: str) -> bool:
         return bool(PREREG_RE.search(head))
     except OSError:
         return False
-
-
-def audit_stats(n: int, root: str = "") -> dict:
-    """M3 metric as NUMBERS: of the last N commits that ADD a tests/test_*.py, how many also
-    touched source in the same commit (violations).
-
-    Split out from the printing path deliberately. The wrap scorecard needs the RATE, and a
-    reader that re-parses a rendered compliance line is fragile -- delimiters collide with
-    content, and the number silently becomes whatever the formatting last did. Returns
-    {total, clean, violations, pct, offenders}; callers render, this computes.
-    """
-    cwd = root or ROOT
-    log = subprocess.run(
-        ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
-        capture_output=True, cwd=cwd, encoding="utf-8", errors="replace",
-        stdin=subprocess.DEVNULL, close_fds=True).stdout or ""
-    total = viol = 0
-    offenders = []
-    for block in log.split("\x01"):
-        lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
-        if not lines:
-            continue
-        header, files = lines[0], [_norm(l) for l in lines[1:]]
-        added_tests = [f for f in files if f.startswith("tests/test_") and f.endswith(".py")]
-        if not added_tests:
-            continue
-        total += 1
-        # The same commit's FULL touch set (adds + modifications):
-        sha = header.split()[0]
-        touched = (subprocess.run(["git", "show", "--name-only", "--format=", sha],
-                                  capture_output=True, cwd=cwd, encoding="utf-8",
-                                  errors="replace", stdin=subprocess.DEVNULL,
-                                  close_fds=True).stdout or "").split()
-        src = [f for f in map(_norm, touched) if f and not f.startswith(NONSOURCE_PREFIXES)]
-        if src:
-            viol += 1
-            offenders.append((header, added_tests, src[:3]))
-    ok = total - viol
-    return {"total": total, "clean": ok, "violations": viol,
-            "pct": (100.0 * ok / total) if total else 100.0, "offenders": offenders}
 
 
 def _audit(n: int) -> int:

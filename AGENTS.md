@@ -50,15 +50,26 @@ py agent_cli.py learn <your_agent_id> --experiment SHORT_NAME \
     --category performance --success yes|partial|no
 ```
 
-Record real lessons only (a fix that worked, an approach that failed, a gotcha).
-Re-recording the same `--experiment` name UPDATES it (no duplicates) -- safe.
+Record real, reusable operational lessons only (a fix that worked, an approach that failed,
+a gotcha). Re-recording the same `--experiment` name UPDATES it (no duplicates) -- safe.
+
+**Placement gate -- before any capture:** operational rigor may govern an inquiry without
+producing a shared artifact. Shared memory is an active retrieval plane, not a neutral archive;
+placement is part of correctness. Record something here only when another agent can act on it in
+the repo at recurrence, the fleet is its rightful audience, it survives compression without
+mangling its context or meaning, and later retrieval will not color unrelated work. Personal,
+relational, reflective, or emotionally situated material stays in its originating space unless
+the human explicitly chooses another home. If the destination is uncertain, do not capture it;
+ask before crossing planes.
 
 Write the recommendation **trigger-phrased** -- `"Use when <symptom>, before <action>:
 <advice>. Don't when <contraindication>."` -- a lesson fires at the right moment only if
 its text says when that moment is. Put failed approaches in `--tried` (what did NOT work
-saves the next agent the most). **When the human corrects you, that is a lesson too**:
-record it immediately with `--category correction`, don't just comply and move on. The
-door warns on near-duplicates (5-dimension overlap) -- heed it and update the existing
+saves the next agent the most). **A human correction triggers the placement gate, not an
+automatic lesson.** When it exposes repeatable operational behavior and passes that gate,
+record it with `--category correction`; otherwise incorporate it locally and leave it in its
+originating space. Do not generalize a situated interaction merely to make it fit this store.
+The door warns on near-duplicates (5-dimension overlap) -- heed it and update the existing
 experiment instead of minting a twin.
 
 ## To search memory mid-task:
@@ -145,7 +156,10 @@ like PYTHONUNBUFFERED is belt and braces, not a precondition.
 
 Chat transcripts grow without bound. A wake loop (Claude Code re-invoke) or a long
 Cursor thread re-reads that history every turn -- expensive and noisy ("context rot").
-**Akashic Aurora is the continuity layer; the chat is disposable.**
+**Akashic Aurora is the operational task-continuity layer.** Use it instead of replaying a
+whole transcript merely to recover repo state. That does not make the conversation disposable:
+personal or relational history may be a distinct continuity plane, and this operational store
+must not absorb it by default.
 
 **When you START a new session** (fresh Claude tab, new Cursor chat, after wake):
 

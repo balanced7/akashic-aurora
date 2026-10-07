@@ -263,8 +263,10 @@ class SolAgent:
                 self._trace("tool", f"{c['name']}({json.dumps(c['arguments'])[:200]})")
                 self._activity("tool", c["name"])
                 out = self._run_tool(c["name"], c["arguments"])
+                from core.comm.toolbox import recall_tool_request
+                rendered = f"[hop {hop}/{self.max_hops}] {out}"
                 self.history.append({"type": "function_call_output", "call_id": c["call_id"],
-                                     "output": f"[hop {hop}/{self.max_hops}] {out}"[:20000]})
+                                     "output": rendered if recall_tool_request(c["name"], c["arguments"]) else rendered[:20000]})
         return (f"{partial}\n[sol tool budget exhausted at {self.max_hops} hops -- "
                 f"partial answer above; re-ask to continue]").strip()
 

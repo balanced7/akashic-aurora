@@ -517,6 +517,17 @@
    "done_by": "",
    "done_at": "",
    "receipt": ""
+  },
+  {
+   "id": "42046992db",
+   "by": "claude",
+   "cmd": "py -m pytest tests/test_seat_heartbeat_wiring.py::test_w4_never_invents_a_seat_when_identity_is_absent -q",
+   "needs": "write",
+   "why": "W4 is RED on BOTH hook copies and predates this arc -- a detached worktree at b70e003e fails it identically. With AKASHIC_AGENT_ID, BIFROST_INCARNATION and CLAUDE_CODE_SESSION_ID all stripped from the env, the PostToolUse hook still beats a roster row for ('claude','beef9999'): it resolves the DEFAULT agent from the payload's session_id. That is exactly the phantom-seat bug the pin exists to forbid, and the pin's own docstring says one physical session already appeared as two roster rows under two names. Identity resolution is its own slice (core/coord/session_id.py, whose ENV_VARS order changed at 4c1f6cd7 for Rill's fix) -- do not fold it into a recall slice. A phantom row also marks a corpse alive and leaves the real worker reapable, so this is a liveness defect, not cosmetics.",
+   "filed_at": "2026-10-06T13:55:17.220939+00:00",
+   "done_by": "",
+   "done_at": "",
+   "receipt": ""
   }
  ]
 }

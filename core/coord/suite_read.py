@@ -1,7 +1,7 @@
-"""suite_read — the READ-ONLY half of the suite verb family (draft, pre-approval).
+"""suite_read — the READ-ONLY half of the suite verb family (wired 2026-10-01).
 
-DRAFT artifact (deepseek/Heimdall, 2026-10-01). Not yet imported by agent_cli.py and NOT yet
-wired as a verb. Companion spec: design/suite-verb-family-spec.md.
+Companion spec: design/suite-verb-family-spec.md. Reached from agent_cli.py `suite diff |
+triage | rerun-failing | tail` (see cmd_suite).
 
 This module is the pure, testable core behind `suite diff` / `suite triage` /
 `suite rerun-failing` / `suite tail`. It is deliberately a PROJECTION layer over records that

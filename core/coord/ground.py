@@ -16,6 +16,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from core.trust.action_authority import (
+    TOOLBOX_BUS_REQUIREMENTS,
+    requirements_for_toolbox_action,
+)
+
 
 _ROOT = Path(__file__).resolve().parents[2]
 _RUNG_ORDER = ("declared", "reachable", "authorized", "wired", "exercised", "proven")
@@ -27,8 +32,8 @@ _STATES = {"observed", "partial", "absent", "refused", "unknown"}
 # Keeping the map per-door is load-bearing: bifrost_send is ACL-gated on the
 # ToolBox while its CLI and MCP twins currently send directly.
 _DOOR_CAP_REQUIREMENTS: Dict[str, Dict[str, Tuple[str, ...]]] = {
-    "bifrost_send": {"toolbox": ("bus.send",)},
-    "bifrost_nudge": {"toolbox": ("bus.nudge",)},
+    **{name: {"toolbox": requirements_for_toolbox_action(name)}
+       for name in TOOLBOX_BUS_REQUIREMENTS},
     "learn": {"toolbox": ("kb.learn",)},
     "note": {"toolbox": ("kb.learn",)},
     "write_file": {"toolbox": ("write",)},
@@ -40,6 +45,8 @@ _DOOR_CAP_REQUIREMENTS: Dict[str, Dict[str, Tuple[str, ...]]] = {
 # unknown requirement: it was checked, and no subject capability gate exists.
 _OPEN_READ_DOORS: Dict[str, Tuple[str, ...]] = {
     "sweep": ("cli", "mcp", "toolbox"),
+    "orient": ("cli", "mcp", "toolbox"),
+    "shadow": ("cli", "mcp", "toolbox"),
     "ground": ("cli", "mcp", "toolbox"),
 }
 

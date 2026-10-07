@@ -1,14 +1,16 @@
 ---
-description: Akashic Aurora shared memory — the loop you are inside. Session start, capture reflexes (FAIL→SUCCESS flips, user corrections, known-bads), closing the loop on surfaced lessons, session end.
+description: Akashic Aurora shared operational memory — session start, placement gate, qualified capture reflexes, feedback on surfaced lessons, and session end. A correction triggers a placement check, not an automatic write.
 alwaysApply: true
 ---
 
 # Akashic memory: the loop you are inside
 
-This repo has a shared memory. Other agents' lessons surface to you automatically
+This repo has a shared operational memory. Other agents' lessons surface to you automatically
 (hooks inject the top few around your actions — on Cursor they arrive one beat AFTER
-a tool runs, since preToolUse can't attach context); what YOU learn must flow back or
-the loop starves. The full contract is `AGENTS.md`; this rule is the reflex layer.
+a tool runs, since preToolUse can't attach context); reusable repo knowledge should flow back
+when it belongs on that plane. Shared memory is an active retrieval surface, not a neutral
+archive: placement is part of correctness. The full contract is `AGENTS.md`; this rule is the
+reflex layer.
 Your agent id is `composer` (set via env by the sessionStart hook and the MCP config).
 
 ## Session start
@@ -16,10 +18,26 @@ Your agent id is `composer` (set via env by the sessionStart hook and the MCP co
 py agent_cli.py boot composer --task "<this slice only>"
 ```
 Read the output. The RECENT NOTES section is where-we-are; `py agent_cli.py notes --json`
-for full bodies. Never re-read chat history to reconstruct state — the store is the
-continuity layer, the chat is disposable.
+for full bodies. Use the store instead of replaying an entire chat merely to reconstruct repo
+state. This is an operational task-continuity rule, not a declaration that conversation is
+disposable or permission to move personal or relational history into shared memory.
 
-## The capture reflexes (highest value, most forgettable)
+## Placement gate (before every capture)
+
+Operational rigor can govern an inquiry without producing a shared artifact. Before `learn`,
+`note`, or a durable document, ask:
+
+1. **Use at recurrence:** can another agent act on this in the repo when the situation recurs?
+2. **Rightful audience:** is the shared operational fleet the intended audience for it?
+3. **Fidelity:** can it survive compression without losing the context that gives it meaning?
+4. **Stream effect:** will later retrieval help the relevant work without coloring unrelated
+   work or changing the emotional and cultural character of another space?
+
+Personal, relational, reflective, or emotionally situated material stays in its originating
+space unless the human explicitly chooses another home for it. If any answer is uncertain, do
+not capture by default; ask before crossing planes. Ephemerality can be the correct boundary.
+
+## The operational capture reflexes (after placement)
 
 **FAIL→SUCCESS flip** — the moment something that failed now works, a lesson was just
 earned. The postToolUse hook usually nudges you with a pre-filled command; run it.
@@ -34,8 +52,10 @@ py agent_cli.py learn composer --experiment <slug> \
 Include what did NOT work (`--tried` is exactly that) — failed approaches save the next
 agent more time than successes do.
 
-**User correction** — every time the human corrects you, that is a lesson-earning moment.
-Record it immediately with `--category correction`. Do not just comply and move on.
+**User correction** — a correction deserves attention, not automatic promotion. If it exposes
+repeatable operational behavior and passes the placement gate, record it with `--category
+correction`. Otherwise incorporate it locally and leave it in its originating space. Do not
+generalize a situated interaction merely to make it fit the shared store.
 
 **Known-bad approach** — record with `--anti-pattern <slug>` so it surfaces as a warning,
 not advice.

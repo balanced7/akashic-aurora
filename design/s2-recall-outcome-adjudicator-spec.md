@@ -29,26 +29,56 @@ key)."* So we already durably know **(lesson, action, session)**. The Eye answer
 happened next in that session**. S2 is the join, plus a verdict, plus the honesty to say
 "unknowable".
 
-## THE CORE MOVE: the 19 ghosts are not one bucket
+## CORRECTED after Heimdall's fence — the population is the STAGE LOG, not the ghosts
 
-The lesson `cost_without_return_cannot_see_prevention` (which fired at me while designing this,
-and is the reason this section exists) says a zero-credit lesson may be **silently working**: it
-fired, the seat complied, no incident occurred, so there was nothing to credit. Mass-pruning
-zero-credit would delete our best preventers — the classic reliability error of scoring a
-barrier by the incidents it failed to stop.
+**My first draft was wrong on its sharpest number and Heimdall caught it.** I claimed the 19
+zero-credit ghosts were banner-blindness measured. Verified in code, `prune_ghost_counters`
+(at_action.py:723): *"a GHOST is a `learn:experiment:*` counter whose lesson NO LONGER EXISTS in
+the corpus… bookkeeping rows pointing at nothing."* That is **lesson-churn debt**, not
+fired-and-ignored. Two different failure modes, conflated. The ghost plank is withdrawn.
 
-Only an objective record can split them. For each impression, the observer returns one of:
+**The right population already exists, and it is better.** `_log_outcome_stage`
+(at_action.py:973) durably records EVERY resolution — not only flips — at `_STAGE_DIR`, and its
+docstring already states this slice's thesis independently:
+
+> *"the credited-flip numerator counts RESCUE, never PREVENTION — 'a first-try success credits
+> and logs nothing' was the contrastive gate, by design — so the single most valuable thing a
+> lesson can do (stop the failure from happening at all) was invisible to the only value metric
+> the system had."*
+
+It even ships the contrastive design:
+
+    success AND surfaced AND NOT flipped   ->  PREVENTION candidate
+    success AND NOT surfaced               ->  its CONTROL arm
+
+So S2 is not new machinery. **It is the missing consumer of a log the house already writes.**
+Nobody computes the prevention numerator, and it cannot be computed from the stage log alone
+because "surfaced AND success" does not mean the lesson CAUSED the success. That is the causal
+gap — and the Eye is what closes it.
+
+## THE CORE MOVE: the Eye supplies the missing causal link
+
+For each PREVENTION candidate, the transcript settles what the counter cannot:
 
 | verdict | meaning | what it implies |
 |---|---|---|
-| `COMPLIED` | the lesson's prescribed shape appears in what the seat then did | **silent prevention — KEEP, this is the good ghost** |
-| `VIOLATED` | the forbidden shape appears anyway | the fired-then-violated class (we have 8) — **candidate for promotion to a GATE (S1)** |
+| `COMPLIED` | the lesson's prescribed shape appears in what the seat then did | **real prevention — KEEP** |
+| `VIOLATED` | the forbidden shape appears anyway (success was luck) | fired-then-violated — **promote to a GATE (S1)** |
 | `INAPPLICABLE` | the situation the lesson addresses never arose | **genuine noise — retire candidate** |
-| `UNKNOWABLE` | transcript cannot settle it | **never counted in any rate** (see denominator law) |
+| `UNKNOWABLE` | transcript cannot settle it | **never counted in any rate** |
 
-A zero-credit lesson that is COMPLIED-heavy is a **silent preventer**. A zero-credit lesson that
-is INAPPLICABLE-heavy is **noise**. Today both are called "ghost" and both would be pruned. That
-single distinction is the slice's reason to exist.
+Against the CONTROL arm (`success AND NOT surfaced`), `COMPLIED` becomes a contrastive rate
+rather than a bare count — which is what makes it evidence instead of a tally.
+
+**Heimdall's binding caveat, accepted:** attribute to **the action actually taken**, never to the
+counter. `resolve_action_outcome` (verified, at_action.py:940) credits `helped` to EVERY source
+surfaced at flip time with no causal check — pointing the Eye at that counter would produce an
+objective record of a confounded signal. `precision_audit` already judges "against THE ACTION
+ACTUALLY TAKEN, not the query"; this slice inherits that discipline verbatim.
+
+**Standing constraint, honored:** the stage-log docstring rules *"OBSERVATION ONLY — nothing here
+feeds ranking… No automatic steer may ride this signal until the stages are separately
+observed."* This slice observes and proposes; it steers nothing.
 
 ## Authority boundary — fence r2 H-C1 (binding, discovered mid-design)
 
@@ -112,10 +142,15 @@ deviation is itself the hazard, and we do not yet know this instrument's error r
   them silently inflates precision.)
 - **P3 — denominator law:** `UNKNOWABLE` never enters a rate; coverage is reported with every
   rate; a sample failing the coverage floor yields NO retirement proposal.
-- **P4 — the ghost split is real:** on the current 19 zero-credit ghosts the observer
-  partitions them into ≥1 `COMPLIED`-heavy (silent preventer, KEEP) and ≥1 `INAPPLICABLE`-heavy
-  (noise, retire-candidate), with the transcript addresses cited for each. If it cannot separate
-  them, the instrument has failed and the slice does not ship.
+- **P4 — the prevention split is real:** over the stage log's PREVENTION candidates
+  (`success AND surfaced AND NOT flipped`) the observer partitions lessons into ≥1
+  `COMPLIED`-heavy (real prevention, KEEP) and ≥1 `INAPPLICABLE`-heavy (noise, retire-candidate),
+  citing transcript addresses for each, and reports each against the CONTROL arm
+  (`success AND NOT surfaced`). If it cannot separate them, the instrument has failed and the
+  slice does not ship. (Ghost counters are OUT OF SCOPE: they are churn debt, a supersession
+  problem, not an attention problem.)
+- **P4b — causal attribution:** verdicts are computed against the ACTION ACTUALLY TAKEN in the
+  transcript, never against the `helped` counter; a run that can only see counters REFUSES.
 - **P5 — read-only boundary:** the observer imports no live recall path and writes only the
   observation register; a same-path write attempt refuses (inherits T370's contract).
 - **P6 — replay determinism:** same impressions + same Eye state ⇒ byte-identical verdicts

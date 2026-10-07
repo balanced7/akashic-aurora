@@ -113,7 +113,8 @@ from core.comm.toolbox import (   # noqa: F401,E402  (compat re-export)
 MAX_TOOL_ROUNDS = int(os.getenv("DEEPSEEK_MAX_TOOL_ROUNDS", "0")) or 10**9
 _ROUNDS_CAPPED = MAX_TOOL_ROUNDS < 10**9
 
-# The ceiling on a SINGLE tool result entering history. gemini/kimi/sol have always
+# The ceiling on ordinary tool output entering history; recall remains intact.
+# gemini/kimi/sol have historically
 # clipped at 20000; deepseek was the one sibling that did not, and the divergence is
 # expensive twice over: an unclipped result is retained for the life of the process AND
 # re-sent on every remaining hop. Measured 2026-07-25 -- 309 turns / 393M tokens, worst
@@ -469,7 +470,7 @@ class Agent:
                             _pre = self.toolbox._preflight_recall(s["name"], args)
                         except Exception:
                             _pre = ""
-                        result = self.toolbox.execute(s["name"], args)
+                        result = self.toolbox.execute(s["name"], args, output_transform=clip_tool_result)
                         if _pre:
                             result = _pre + result
                     first = result.splitlines()[0] if result else ""
@@ -479,10 +480,9 @@ class Agent:
                     # agent paces with open eyes instead of hoarding hops on anxiety.
                     self._hops = getattr(self, "_hops", 0) + 1
                     _budget = f"/{MAX_TOOL_ROUNDS}" if _ROUNDS_CAPPED else ""
-                    # Clip the BODY, then append the marker: the hop counter is a suffix
-                    # here (the siblings prefix theirs), so clipping the composed string
-                    # would eat the very number the agent paces itself by.
-                    result = (f"{clip_tool_result(result)}\n"
+                    # Ordinary output was bounded before recall was composed above.
+                    # Keep both recall and the hop marker intact in model history.
+                    result = (f"{result}\n"
                               f"[hop {self._hops} | tool-round {_round + 1}{_budget}]")
                     self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
                 continue

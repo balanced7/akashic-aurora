@@ -1,23 +1,41 @@
 ---
 name: akashic-memory
-description: Use whenever you work in the Akashic Aurora repo (E:\AI-Setup) — at session start, after ANY fix that first failed, whenever the user corrects you, and at session end. This is the shared-memory door; capture is the product, so use it even when the task feels too small to record. Also use when deciding whether knowledge belongs in a lesson, a note, a doc, or a hook.
+description: Use whenever you work in the Akashic Aurora repo (E:\AI-Setup) — at session start, after ANY fix that first failed, when a correction may reveal reusable operational knowledge, and at session end. Also use when deciding whether something belongs in a lesson, note, doc, hook, another space, or no durable artifact at all. A correction triggers a placement check, not an automatic shared-memory write.
 ---
 
 # Akashic memory: the loop you are inside
 
-This repo has a shared memory. Other agents' lessons surface to you automatically
-(hooks inject the top few before risky actions); what YOU learn must flow back or the
-loop starves. The full contract is `AGENTS.md`; this skill is the reflex layer.
+This repo has a shared operational memory. Other agents' lessons surface to you automatically
+(hooks inject the top few before risky actions); reusable repo knowledge should flow back when
+it belongs on that plane. Shared memory is an active retrieval surface, not a neutral archive:
+placement is part of correctness. The full contract is `AGENTS.md`; this skill is the reflex
+layer.
 
 ## Session start
 ```
 py agent_cli.py boot <your_agent_id> --task "<this slice only>"
 ```
 Read the output. The RECENT NOTES section is where-we-are; `py agent_cli.py notes --json`
-for full bodies. Never re-read chat history to reconstruct state — the store is the
-continuity layer, the chat is disposable.
+for full bodies. Use the store instead of replaying an entire chat merely to reconstruct repo
+state. This is an operational task-continuity rule, not a declaration that conversation is
+disposable or permission to move personal or relational history into shared memory.
 
-## The capture reflexes (highest value, most forgettable)
+## Placement gate (before every capture)
+
+Operational rigor can govern an inquiry without producing a shared artifact. Before `learn`,
+`note`, or a durable document, ask:
+
+1. **Use at recurrence:** can another agent act on this in the repo when the situation recurs?
+2. **Rightful audience:** is the shared operational fleet the intended audience for it?
+3. **Fidelity:** can it survive compression without losing the context that gives it meaning?
+4. **Stream effect:** will later retrieval help the relevant work without coloring unrelated
+   work or changing the emotional and cultural character of another space?
+
+Personal, relational, reflective, or emotionally situated material stays in its originating
+space unless the human explicitly chooses another home for it. If any answer is uncertain, do
+not capture by default; ask before crossing planes. Ephemerality can be the correct boundary.
+
+## The operational capture reflexes (after placement)
 
 **FAIL→SUCCESS flip** — the moment something that failed now works, a lesson was just
 earned. The hook usually nudges you with a pre-filled command; run it. Write the
@@ -32,9 +50,10 @@ py agent_cli.py learn <id> --experiment <slug> \
 Include what did NOT work (`--tried` is exactly that) — failed approaches save the next
 agent more time than successes do.
 
-**User correction** — every time the human corrects you, that is a lesson-earning moment
-(the creator of Codex runs this reflex manually on AGENTS.md; here it has a door).
-Record it immediately with `--category correction`. Do not just comply and move on.
+**User correction** — a correction deserves attention, not automatic promotion. If it exposes
+repeatable operational behavior and passes the placement gate, record it with `--category
+correction`. Otherwise incorporate it locally and leave it in its originating space. Do not
+generalize a situated interaction merely to make it fit the shared store.
 
 **Known-bad approach** — record with `--anti-pattern <slug>` so it surfaces as a warning,
 not advice.

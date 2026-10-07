@@ -19,6 +19,14 @@ import sys
 import urllib.parse
 import urllib.request
 
+# Windows console defaults to cp1252; search results and snippets routinely contain
+# characters (e.g. Japanese names) outside that code page, which makes the final
+# print() raise UnicodeEncodeError AFTER a successful fetch -- swallowing every
+# multilingual result as a crash that looks like a walled search. Force UTF-8.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 DEFAULT_HOST = "http://127.0.0.1:8888"
 
 

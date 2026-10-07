@@ -27,7 +27,7 @@ from agent.harness.codex_app_server import (
 )
 from core.comm import packet_spec
 from core.comm.bus import Bus, Message
-from core.comm.toolbox import ToolBox
+from core.comm.toolbox import ToolBox, RECALL_CLI_VERBS
 from core.fleet import residents
 from core.toolbelt.registry import Toolbelt
 
@@ -820,22 +820,39 @@ class CodexBifrostWake:
                     "currently safe zero-argument combo for this subject seat.",
                 )
             rendered: List[str] = []
+            recall_sections = set()
+
+            def compose() -> str:
+                # The aggregate budget applies to ordinary output only. A recall
+                # section remains complete even after earlier sections used it up.
+                marker = "\n\n[combo output capped; remainder omitted]"
+                ordinary = "\n\n".join(s for i, s in enumerate(rendered) if i not in recall_sections)
+                if len(ordinary) <= AURORA_COMBO_OUTPUT_CHARS:
+                    return "\n\n".join(rendered)
+                remaining = AURORA_COMBO_OUTPUT_CHARS - len(marker)
+                parts = []
+                for i, section in enumerate(rendered):
+                    if i in recall_sections:
+                        parts.append(section)
+                    elif remaining > 0:
+                        parts.append(section[:remaining])
+                        remaining = max(0, remaining - len(section) - 2)
+                return "\n\n".join(parts) + marker
+
             total = len(steps)
             for index, argv in enumerate(steps, start=1):
                 command = shlex.join(["py", "agent_cli.py", *argv])
                 output = self._toolbox.run_command(command, timeout=120)
+                if argv[0] in RECALL_CLI_VERBS:
+                    recall_sections.add(len(rendered))
                 rendered.append(f"[{name} {index}/{total}] {' '.join(argv)}\n{output}")
                 refused = output.startswith(
                     ("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED")
                 )
                 failed_exit = "\n[exit " in output
                 if refused or failed_exit:
-                    return response(False, "\n\n".join(rendered)[:AURORA_COMBO_OUTPUT_CHARS])
-            body = "\n\n".join(rendered)
-            if len(body) > AURORA_COMBO_OUTPUT_CHARS:
-                marker = "\n\n[combo output capped; remainder omitted]"
-                body = body[: AURORA_COMBO_OUTPUT_CHARS - len(marker)] + marker
-            return response(True, body)
+                    return response(False, compose())
+            return response(True, compose())
         verb = str(arguments.get("verb") or "").strip()
         raw_args = arguments.get("args", [])
         if not isinstance(raw_args, list) or any(not isinstance(arg, str) for arg in raw_args):

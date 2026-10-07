@@ -250,13 +250,31 @@ def clear_round(client: Any = None) -> int:
     return count
 
 
-def covers(agent: str, path: str, client: Any = None) -> bool:
-    """True iff `agent` holds an active intent whose scope covers `path` (prefix match). The enforcement
-    backstop asks this: an agent writing a file it declared no intent for is acting outside its plan."""
+def scope_matches(scope: Any, path: Any) -> bool:
+    """True iff a single scope string covers `path`. THE one owner of the match rule --
+    both the set-level `covers()` and the per-intent write-tagger (`toolbox._active_intent_for`)
+    call this so enforcement and provenance can never disagree about what a slice covers.
+
+    Three clauses, all deliberate:
+      1. exact:        scope == path                      (a declared file matches itself)
+      2. prefix:       path starts with scope + "/"        (a declared dir matches everything under it)
+      3. substring:    scope appears anywhere in path      (a bare filename like "intent.py" matches
+                                                            "core/coord/intent.py" -- lets a seat declare
+                                                            a name without a full path)
+    Clause 3 is the subtle one: it is NOT redundant with clause 2, and it makes a scope of "intent.py"
+    ALSO match "intent_shadow.py". That breadth is intentional (declare-by-name); don't "tidy" it away.
+    Pure function: no Redis, no I/O, never raises on odd input (coerces via str)."""
     p = str(path).replace("\\", "/")
+    s = str(scope).replace("\\", "/")
+    return p == s or p.startswith(s.rstrip("/") + "/") or s in p
+
+
+def covers(agent: str, path: str, client: Any = None) -> bool:
+    """True iff `agent` holds an active intent whose scope covers `path`. The enforcement
+    backstop asks this: an agent writing a file it declared no intent for is acting outside its plan.
+    The match rule lives in `scope_matches()`; this is just the any() over the active set."""
     for i in active(agent=agent, client=client):
         for s in (i.get("scope") or []):
-            s = str(s).replace("\\", "/")
-            if p == s or p.startswith(s.rstrip("/") + "/") or s in p:
+            if scope_matches(s, path):
                 return True
     return False

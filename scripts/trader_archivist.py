@@ -57,6 +57,21 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) akashic-archivist
                     "(point-in-time corpus; contact: local research)"}
 
 
+def configure_background_stdio() -> Path | None:
+    """Preserve the daily task's diagnostics when launched with pythonw.exe."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return None
+    log_root = Path(os.getenv("LOCALAPPDATA") or _ROOT / "state") / "AkashicAurora" / "logs"
+    log_root.mkdir(parents=True, exist_ok=True)
+    log_path = log_root / "trader-archivist.log"
+    stream = log_path.open("a", encoding="utf-8", errors="replace", buffering=1)
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
+    return log_path
+
+
 def _now_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -151,6 +166,7 @@ def capture(dry: bool = False) -> dict:
 
 
 if __name__ == "__main__":
+    configure_background_stdio()
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry", action="store_true")
     args = ap.parse_args()

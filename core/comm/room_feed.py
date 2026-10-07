@@ -61,6 +61,14 @@ def streams_for(client, ns: str) -> List[str]:
         bc = f"{ns}:{_BROADCAST_SUFFIX}"
         if client.keys(bc):
             out.append(bc)
+        # TRACE LANE — the live telemetry ring (tool calls, thinking, narration) is a SINGLE
+        # shared stream per room, not per-agent inbox (packet_spec.lane_stream_key: "trace is ONE
+        # shared ring"). The conversation feed MUST include it or a streamed toolcall/reasoning
+        # event never reaches the browser in realtime -- it only shows up folded into a later
+        # completion (the "I only see it after the fact" symptom, Daniil 2026-08-24).
+        tr = f"{ns}:trace"
+        if client.keys(tr):
+            out.append(tr)
     except Exception:
         return []                      # a dead client is an empty feed, never a crash
     return out

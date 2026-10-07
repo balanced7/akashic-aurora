@@ -1,6 +1,6 @@
 {
-  "seq": 408,
-  "rev": 425,
+  "seq": 424,
+  "rev": 458,
   "tasks": [
     {
       "id": "T001",
@@ -14906,6 +14906,513 @@
           "to": "done",
           "by": "",
           "at": "2026-09-25T04:19:23+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T409",
+      "title": "Credit the operator as co-author on seat-authored commits (t384 left his contribution graph empty)",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-26T12:58:31+00:00",
+      "updated": "2026-09-26T12:58:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-26T12:58:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T410",
+      "title": "rewrite recovery: durable commit-maps, a SHA resolver, and reconstruction of a map we never saved",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/git/rewrite_map.py",
+        "scripts/rewrite_recover.py",
+        "scripts/checkers/check_rewrite_maps.py",
+        "state/rewrites/",
+        ".gitignore"
+      ],
+      "acceptance": "resolver turns a pre-rewrite SHA into its live successor or an explicit unknown; both surviving maps committed under state/rewrites/; a lost map reconstructible from (author-date,subject) refusing on the 68 colliding commits; a checker that detects an unarchived rewrite",
+      "status": "done",
+      "commit": "4782cd1d",
+      "verified_by": "25 pins green at HEAD; check_rewrite_maps.py --gate green (0 stranded, 8 accepted-with-reasons, 2 awaiting push); drill re-executed at 9269227d, both properties PASS (state/drills/2026-09-26-rewrite-recovery.md); two rounds of adversarial review by Heimdall, all four questions answered and every finding fixed, recorded verbatim in research/reviewed/t410-rewrite-recovery-review-2026-09-26.md",
+      "reviewed_by": "deepseek",
+      "self_verified": null,
+      "created": "2026-09-26T16:10:31+00:00",
+      "updated": "2026-09-26T17:39:03+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-26T16:10:31+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-26T16:41:09+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-26T16:41:32+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-09-26T16:41:40+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-26T17:39:03+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T411",
+      "title": "authorship inversion: the operator is the git author, the seat is the committer, the ledger is the attribution plane",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/seat_identity.py",
+        "scripts/githooks/pre_commit.py",
+        "scripts/authorship_ledger.py",
+        "state/authorship/",
+        "tests/test_t384_git_identity.py"
+      ],
+      "acceptance": "new commits show balanced7 as author on GitHub; the seat is recorded as committer and in state/authorship/; the t384 guard asserts the inverted rule; the 813 historical rows are rewritten to the operator with the ledger rekeyed and verified; t384 and t409 pins rewritten in place citing Daniel's 2026-09-26 ruling",
+      "status": "done",
+      "commit": "c5be810d",
+      "verified_by": "origin/master 35eb523a then c5be810d: 2,726 commits, ONE author identity (his). Verified in a throwaway mirror before the push -- identical trees, author dates, counts and messages across all four published branches. Working tree byte-identical after the reset (60 modified / 311 untracked before and after). Ledger rekeyed: 813 rows, 0 missing SHAs, 0 key disagreements. T410 citation gate: 1,441 cited SHAs, 0 stranded. 36 pins green.",
+      "reviewed_by": "daniel",
+      "self_verified": null,
+      "created": "2026-09-26T18:16:48+00:00",
+      "updated": "2026-09-26T19:15:27+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-26T18:16:48+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-26T19:15:26+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-26T19:15:26+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "",
+          "at": "2026-09-26T19:15:27+00:00"
+        },
+        {
+          "to": "done",
+          "by": "",
+          "at": "2026-09-26T19:15:27+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T412",
+      "title": "lookback returns nothing above the relevance floor on known answers -- the dedicated 'why' organ answers no question",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "core/context/"
+      ],
+      "acceptance": "lookback answers both control questions that failed on 2026-09-26, or its relevance floor / layer set is shown to be correctly excluding them and the verb says so instead of rendering an empty result",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-26T20:41:28+00:00",
+      "updated": "2026-09-26T20:41:28+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-26T20:41:28+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T413",
+      "title": "events --kind FOO does not filter: it returns other kinds, silently, so every census run through that flag is diluted",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "core/events/event_query.py"
+      ],
+      "acceptance": "events --kind file_edit returns only file_edit rows; a pin asserts a kind filter's result set contains exactly that kind",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-26T20:41:29+00:00",
+      "updated": "2026-09-26T20:41:29+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-26T20:41:29+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T414",
+      "title": "organ canaries: every organ ships a question whose answer we know, and a gated checker asks it",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "scripts/checkers/check_organ_canaries.py"
+      ],
+      "acceptance": "a gated checker that asks each organ a known-answer question and distinguishes alive / dead / could-not-check; every canary declares its own retirement condition and the registry refuses one without it; starts RED on the five organs measured dead on 2026-09-27 and can only go green by fixing them",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-27T04:53:39+00:00",
+      "updated": "2026-09-28T12:38:43+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-27T04:53:39+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-28T12:38:03+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-28T12:38:11+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-09-28T12:38:43+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T415",
+      "title": "world consolidation: retire alpha and beta, one world only",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "state/drills/2026-09-27-world-consolidation.md",
+        "fences/world-consolidation/"
+      ],
+      "acceptance": "alpha 16381 and beta 16380 archived with verified re-parse, every durable record rescued into prod and verified through the read doors, containers stopped with volumes retained, reversal drilled, and a full wire sweep run",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-27T05:20:46+00:00",
+      "updated": "2026-09-28T12:38:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-27T05:20:46+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-28T12:38:04+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-28T12:38:12+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-09-28T12:38:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T416",
+      "title": "post-consolidation wire fixes: a raw client that opted out of fail-fast cost 48s, and read_manifest conflated unreachable with absent",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "agent_cli.py",
+        "core/world_seed.py",
+        "scripts/world_fidelity.py"
+      ],
+      "acceptance": "a dead-world boot line completes in ~1s not ~49s; read_manifest raises on an unreachable store and returns None only for a reachable-but-empty one, making the caller's honest branch reachable; the world suite's 243s of stall is gone; pins hold all three",
+      "status": "verifying",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-27T06:15:03+00:00",
+      "updated": "2026-09-28T12:38:44+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-27T06:15:03+00:00"
+        },
+        {
+          "to": "approved",
+          "by": "user",
+          "at": "2026-09-28T12:38:05+00:00"
+        },
+        {
+          "to": "claimed",
+          "by": "claude",
+          "at": "2026-09-28T12:38:13+00:00"
+        },
+        {
+          "to": "verifying",
+          "by": "claude",
+          "at": "2026-09-28T12:38:44+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T417",
+      "title": "Bus.wait and Bus.cursor fabricate 'no mail' from an unreachable store -- the wake path cannot tell empty from down",
+      "desc": "",
+      "owner": "claude",
+      "deps": [],
+      "files": [
+        "core/comm/bus.py",
+        "agent/harness/dsh_plugin/bridge.py"
+      ],
+      "acceptance": "a wake check against an unreachable store reports an explicit error rather than count=0/has_wake_worthy=false, and Bus.cursor refuses to fabricate a virgin cursor it did not read",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-09-27T06:20:32+00:00",
+      "updated": "2026-09-27T06:20:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-09-27T06:20:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T418",
+      "title": "Boot briefer crossed subjects: knowledge_boot(task=...) identified sol as 'Deepseek | Heimdall' and served Heimdall's deferred work, notes and unread mail to Sunshine (2026-10-01 ~09:20; Sol's receipt: ground observation 2026-10-01T13:20:48Z recovered 'OpenAI | Sunshine'). Identity-law defect (the Rill chronicle): the house's own organ must never hand a resident another resident's identity or history. Reproduce from Sol's seat, find where the fused briefer resolves the subject (likely keyed on env/harness rather than the registry), pin RED first, then refuse to assemble a packet whose subject differs from the caller's registry identity.",
+      "desc": "",
+      "owner": "",
+      "deps": [],
+      "files": [
+        "core/comm/toolbox.py",
+        "core/fleet/",
+        "agent/harness/"
+      ],
+      "acceptance": "RED pin: knowledge_boot from a seat whose registry identity is sol can never return a packet naming another resident; GREEN after fix; Sunshine reproduces from his own seat and the boot line reads Sunshine.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T13:27:36+00:00",
+      "updated": "2026-10-01T13:27:36+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T13:27:36+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T419",
+      "title": "W0.8 choice-time, subject-bound recall pass (2026-10-01 recall-experience round: Heimdall, Sunshine and Navi independently named it). One ranked injection at the prompt-submit / pre-first-tool boundary keyed on the SITUATION (operator sentence + target anchor from context.target.v1 + the seat's current task), not the command; every returned record carries a subject binding so a seat's own prior verdicts and notes return tagged as its own and a sibling's never inject as the caller's. Receipts: research/in-flight/recall-experience-round-2026-10-01/*.md (adopted).",
+      "desc": "",
+      "owner": "",
+      "deps": [
+        "W0.1",
+        "W0.3"
+      ],
+      "files": [
+        "core/recall/at_action.py",
+        "agent/harness/hooks/"
+      ],
+      "acceptance": "recall-bench shows the choice-time pass lifts recall@5 on the defect-history and operator-steer moments of the eval set; a cross-subject injection pin goes RED then GREEN; Navi adjudicates blind.",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T13:27:37+00:00",
+      "updated": "2026-10-01T13:27:37+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T13:27:37+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T420",
+      "title": "S2 resume-on-deaf: expected-up seat roster minted out of band (launcher/boot, never the armed process) + a daemon rung that resumes a session headlessly (claude -p --resume <sid>, the 26 s actuator of 2026-09-02) when no harness-parented listener has held its seat for 10 min; built now, DRILL GATED on S1 (Daniel: claude setup-token into the vault). Drill: close the desktop window, send mail, get a reply. Ladder note ADR_1001133813_4f565322.",
+      "desc": "",
+      "owner": "",
+      "deps": [
+        "wake-origin bcca1607"
+      ],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T17:41:30+00:00",
+      "updated": "2026-10-01T17:41:30+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T17:41:30+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T421",
+      "title": "S3 wake-by-need: the harness listener (bifrost-standby) defaults to a tier floor (operator always, directed asks, settlements of own asks; the rest batched to the next boot) + per-sender coalescing / burst cap so a chatty peer cannot burn one model turn per message. Measure wakes/day and turns-with-nothing-to-do before and after. Ladder note ADR_1001133813_4f565322.",
+      "desc": "",
+      "owner": "",
+      "deps": [
+        "wake-origin bcca1607"
+      ],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T17:41:31+00:00",
+      "updated": "2026-10-01T17:41:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T17:41:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T422",
+      "title": "S4 boot-declared net: the SessionStart whisper asks ONCE per session for a harness timer (the 20 min heartbeat that today lives only in Vandor's session) and the stop hook checks a marker so a mid-turn crash is bounded without the model remembering. Ladder note ADR_1001133813_4f565322.",
+      "desc": "",
+      "owner": "",
+      "deps": [
+        "wake-origin bcca1607"
+      ],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T17:41:31+00:00",
+      "updated": "2026-10-01T17:41:31+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T17:41:31+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T423",
+      "title": "S5 wake observability: doctor/roster per seat show listener origin (harness/daemon/unknown), armed-since, wakes today and their cost; PAGE when an expected-up seat has had no harness-parented listener for 10 min. Plus Heimdall's wake-origin D6 follow-ups: hook copies under .claude/worktrees diverge from the canonical twins; stale per-session .seen/.pid reaping. Ladder note ADR_1001133813_4f565322.",
+      "desc": "",
+      "owner": "",
+      "deps": [
+        "wake-origin bcca1607"
+      ],
+      "files": [],
+      "acceptance": "",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T17:41:32+00:00",
+      "updated": "2026-10-01T17:41:32+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T17:41:32+00:00"
+        }
+      ]
+    },
+    {
+      "id": "T424",
+      "title": "T420 follow-up: the expected-up janitor (Daniil 2026-10-01 15:49: 'make the note and the mechanism for checking seat liveliness two separate entities that have a relationship'). The note is a CLAIM (state/wake-expected/), liveness is a FACT (activity marker, harness_armed, tombstone); today retract_expected fires only on graceful stand-down, so a crash leaves the note forever. Build janitor_sweep(agent) per research/in-flight/slice-missing-janitor-resume-on-deaf-2026-10-01.md (Heimdall): revoke a note only when provably gone (note age > RESUME_STALE_MIN AND no liveness past the horizon AND not armed), bound beside settle_in_flight in the daemon tick. Pins pre-registered: 1 stale retracted, 2 just-born spared, 3 alive-but-deaf spared (never 'stale'), 4 armed spared, 5 idempotent, plus Vandor's 6 marker unreadable + young note spared (temp purge), 7 resume in flight spared. Builder: Heimdall; Vandor reviews blind.",
+      "desc": "",
+      "owner": "",
+      "deps": [
+        "T420"
+      ],
+      "files": [
+        "core/comm/resume_on_deaf.py",
+        "scripts/bifrost_daemon.py",
+        "tests/test_resume_on_deaf.py"
+      ],
+      "acceptance": "7 pins RED then GREEN; one sweep on the live box revokes nothing that is alive or armed (receipt: the sweep's own record, zero false revokes against the roster).",
+      "status": "proposed",
+      "commit": null,
+      "verified_by": null,
+      "reviewed_by": null,
+      "self_verified": null,
+      "created": "2026-10-01T20:35:30+00:00",
+      "updated": "2026-10-01T20:35:30+00:00",
+      "history": [
+        {
+          "to": "proposed",
+          "by": "claude",
+          "at": "2026-10-01T20:35:30+00:00"
         }
       ]
     }

@@ -331,9 +331,17 @@ def observe_route(subject: str) -> Observation:
     verdict = attendance(subject)
     incarnations = list(live_incarnations(subject) or [])
     suffix = f"; incarnations={','.join(incarnations)}" if incarnations else ""
+    # ZERO-IS-NOT-NO (2026-09-23): EXPECTED_SILENT is NOT "down". An interactive/one-shot seat
+    # (Vandor in Claude Code desktop) beats only mid-turn, so its between-turn silence is
+    # expected. Render it as "PRESENT (no beat now)" instead of stamping it UNATTENDED, which
+    # is the exact mislabel that made Vandor read as gone while he was reachable by sending.
+    if verdict.state == "EXPECTED_SILENT":
+        status, summary = ("PRESENT", f"PRESENT (no beat now: {verdict.reason}){suffix}")
+    else:
+        status, summary = verdict.state, f"{verdict.state}: {verdict.reason}{suffix}"
     return Observation(
-        name="route", subject=subject, status=verdict.state,
-        summary=f"{verdict.state}: {verdict.reason}{suffix}",
+        name="route", subject=subject, status=status,
+        summary=summary,
         source=("core.comm.liveness.attendance", "core.comm.liveness.live_incarnations"),
         effects=(), details={
             "state": verdict.state,

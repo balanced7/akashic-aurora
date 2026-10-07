@@ -136,7 +136,13 @@ function pokeWake(sid, summary) {
     source: { kind: 'plugin', plugin: 'dsh-akashic-recall', form: 'snapshot' },
   }
   try {
-    const agent = applyCtx && applyCtx.agents && applyCtx.agents.get(sid)
+    // R6/agents-seam: the agents registry is a PROVIDED service, reached via ctx.get()
+    // (the sibling plugins dsh-user-questions / dsh-web-search-deepseek use exactly this).
+    // Reading the bare `.agents` property throws under the cordis inject membrane
+    // ("cannot get property 'agents' without inject") because 'agents' is not in this
+    // plugin's inject allowlist -- the detect half fired and the poke silently dropped.
+    const agents = (applyCtx && typeof applyCtx.get === 'function') ? applyCtx.get('agents') : null
+    const agent = (agents && typeof agents.get === 'function') ? agents.get(sid) : null
     if (!agent || !agent.inbox || typeof agent.inbox.append !== 'function') {
       capture({ at: Date.now(), kind: 'wake-seat-down', sid, count: summary.count,
                 reason: 'ctx.agents/inbox unreachable' })
