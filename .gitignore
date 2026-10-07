@@ -256,6 +256,18 @@ charters/daniel/*
 /_tmp_*.py
 /_probe_*.py
 /_measure_*.py
+# 2026-10-07: the same shape WITHOUT the leading underscore, and with any extension. A subagent
+# probing es.exe argument order left tmp_eshelp_probe.py and tmp_eshelp_out.txt at the root this
+# morning, and neither matched -- the rules above enumerate one spelling of a prefix and one
+# extension, which is the hand-maintained-denylist shape this house has a standing finding against
+# (core/trust/private_plane.py: "markers are DERIVED, NEVER DECLARED ... a hand-maintained denylist
+# rots the moment someone adds a file"). A probe's output file is as much debris as its script.
+#
+# Still root-anchored and still prefix-narrow, verified the same way before adding: no tracked file
+# matches ^(tmp|probe|measure)_ at the repo root.
+/tmp_*
+/probe_*
+/measure_*
 
 # EXCEPTION (2026-09-26): a commit-map from a history rewrite is the only artifact that can
 # turn a pre-rewrite SHA in our own chronicle back into a commit. Measured today: 877 of the
