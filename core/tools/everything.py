@@ -200,8 +200,8 @@ _WALK_SKIP = frozenset({
 
 
 
-def _rank_exact_first(paths, needle):
-    """Exact basename matches first, for EVERY engine.
+def _rank_exact_first(items, needle, *, sorted_by: str = "", key=None):
+    """Exact basename matches first, for EVERY engine -- UNLESS the caller named a sort.
 
     Substring matching is Everything's own default and we keep it -- dropping it would lose
     real hits -- but unranked it buries the answer. Searching `es.exe` on this machine returns
@@ -209,20 +209,48 @@ def _rank_exact_first(paths, needle):
     genuinely contains the literal "es.exe". A reader skimming the first line of that list
     learns the opposite of the truth.
 
-    This lives OUTSIDE walk_search on purpose. The first version of it was inside, so the
-    bounded walk was ranked and the indexed path -- the one people will actually use -- was
-    not. Fixing the instance and leaving the class open is the recurring defect of this
-    session; a shared helper is the version that cannot drift apart.
+    ``sorted_by`` NAMES AN ORDER THE CALLER ASKED FOR, and then this is a no-op. Until
+    2026-10-07 the ranking was unconditional, which made every ``--sort`` key and every
+    ``--preset`` silently inert: the flag reached es.exe, es.exe answered in the requested
+    order, and then this function replaced that answer with (exact-basename, path-length).
+    Measured on the day it was found, ``--sort date-modified-descending`` returned
+    10/6, 9/14, 8/26, 10/2, 8/26, 10/2, 9/24, 8/25 -- i.e. ascending PATH LENGTH, because the
+    primary key tied on every row and the tiebreak did all the sorting.
+
+    The ranking itself is not the bug and is kept. It exists because es.exe applies ``-n`` in
+    ITS OWN order, so truncating can drop the exact match before we ever see it (see the
+    over-fetch comment in ``search``). That hazard is real only when es.exe's order is
+    arbitrary. With an explicit ``-sort`` the truncation happens in the REQUESTED order, so
+    the thing the ranking protects against cannot occur.
+
+    ``key`` extracts the path from each item, so ONE helper serves both the plain-path forms
+    (strings) and the json/csv forms (``Hit`` objects). Four call sites had each grown their
+    own inline copy of the sort expression, and a fix applied to one of them leaves ``--sort``
+    working on some paths and broken on others -- the hardest version to notice. Keeping the
+    decision here is the same argument this docstring already made about walk_search: fixing
+    the instance and leaving the class open is the recurring defect, and a shared helper is
+    the version that cannot drift apart.
     """
+    if str(sorted_by or "").strip():
+        return list(items)
+    get = key or (lambda x: x)
     base = os.path.basename(str(needle or "").strip().lower())
-    return sorted(paths, key=lambda p: (os.path.basename(p).lower() != base, len(p)))
+    return sorted(items, key=lambda it: (os.path.basename(get(it)).lower() != base,
+                                         len(get(it))))
 
 
 #: es.exe's -sort keys (verified against -h); the named flag surfaces these verbatim.
-#: Each key ALSO accepts a ``-descending`` suffix (es.exe's own inversion, verified live)
-#: so `recent`/`biggest` can mean most-recent / largest FIRST instead of forcing the reader
-#: to scan to the end of a long list -- which is how a "recent first" intent silently became
-#: "recent last" when the descending form was not representable.
+#: Each key also accepts ``-ascending`` or ``-descending``.
+#:
+#: A BARE KEY IS DESCENDING. es.exe's help reads ``-sort <name[-ascending|-descending]>``, which
+#: reads as though bare means ascending. It does not. Measured 2026-10-07 against es.exe itself::
+#:
+#:     es Transcript -sort date-created            -> 10/7, 10/7, 10/7, 10/6      DESCENDING
+#:     es Transcript -sort date-created-ascending  -> 11/1/2025, 11/9/2025, ...   ascending
+#:
+#: So any ASCENDING intent must say ``-ascending`` out loud. The presets below did not, and
+#: `oldest` returned the newest files while `smallest` returned the biggest -- the exact
+#: opposite of their names, for as long as they had existed.
 _SORT_KEYS = frozenset({
     "name", "path", "size", "extension", "date-created", "date-modified",
     "date-accessed", "attributes", "filelist-filename", "run-count",
@@ -254,9 +282,11 @@ def is_valid_sort_key(sort: str) -> bool:
 PRESETS = {
     "recent":   {"sort": "date-modified-descending"},
     "newest":   {"sort": "date-created-descending"},
-    "oldest":   {"sort": "date-created"},
+    # -ascending stated EXPLICITLY on both: a bare es.exe key sorts DESCENDING (see the note
+    # above _SORT_KEYS), so these two returned the exact opposite of their names until 2026-10-07.
+    "oldest":   {"sort": "date-created-ascending"},
     "biggest":  {"sort": "size-descending"},
-    "smallest": {"sort": "size"},
+    "smallest": {"sort": "size-ascending"},
     # deep modes -- the capabilities the research pass found but a newcomer would never
     # name (-get-result-count / -get-total-size / journal are es.exe internals, not goals):
     "folders":  {"dirs_only": True},
@@ -614,9 +644,9 @@ def search(query: str, *,
 
     if format in ("json", "csv"):
         parsed = _parse_json_hits(_out) if format == "json" else _parse_csv_hits(_out)
-        base = os.path.basename(str(query or "").strip().lower())
-        # rank exact-basename-first, same rule as the path form (shared intent, Hits not paths)
-        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
+        # Same rule as the path form, through the SAME helper (shared intent, Hits not paths).
+        # An inline copy here is exactly how --sort stayed honored on one path and not another.
+        parsed = _rank_exact_first(parsed, query, sorted_by=sort, key=lambda h: h.path)
         sliced = parsed[:int(max_results)]
         return SearchResult(
             query=query, paths=[h.path for h in sliced], hits=sliced,
@@ -625,7 +655,7 @@ def search(query: str, *,
         )
 
     lines = [ln.rstrip() for ln in _out.splitlines() if ln.strip()]
-    ranked = _rank_exact_first(lines, query)
+    ranked = _rank_exact_first(lines, query, sorted_by=sort)
     # `exhaustive` reports whether ES had MORE than our fetch window, not whether we trimmed
     # to max_results -- the caller asked for a page, and a page is not a bounded search.
     return SearchResult(query=query, paths=ranked[:int(max_results)], ok=True,
@@ -733,8 +763,7 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
 
     if format in ("json", "csv"):
         parsed = _parse_json_hits(_out) if format == "json" else _parse_csv_hits(_out)
-        base = os.path.basename(str(query or "").strip().lower())
-        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
+        parsed = _rank_exact_first(parsed, query, sorted_by=sort, key=lambda h: h.path)
         sliced = parsed[offset:] if unlimited else parsed[offset:offset + limit]
         return SearchResult(
             query=query, paths=[h.path for h in sliced], hits=sliced,
@@ -744,7 +773,7 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
         )
 
     lines = [ln.rstrip() for ln in _out.splitlines() if ln.strip()]
-    ranked = _rank_exact_first(lines, query)
+    ranked = _rank_exact_first(lines, query, sorted_by=sort)
     sliced = ranked[offset:] if unlimited else ranked[offset:offset + limit]
     # Unlimited means we returned everything ES gave us, therefore exhaustive by
     # definition (there is no further page). Bounded means ES may hold more than our

@@ -237,7 +237,10 @@ def test_a_bare_sort_key_is_descending_in_es_so_ascending_presets_must_say_so():
 @pytest.mark.skipif(not _have_everything(), reason="Everything/es.exe not installed on this host")
 def test_preset_smallest_actually_returns_the_smallest():
     """End-to-end on the inverted preset. Sizes render with thousands separators."""
-    r = _run("find", "Transcript", "--preset", "smallest", "--columns", "size", "--limit", "6")
+    # --files: the smallest hits are DIRECTORIES, whose size column renders blank, so without
+    # this the size regex matches nothing and the pin skips -- green by vacancy again.
+    r = _run("find", "Transcript", "--preset", "smallest", "--files",
+             "--columns", "size", "--limit", "6")
     assert r.returncode == 0, r.stderr[:300]
     sizes = [int(m.replace(",", "")) for m in re.findall(r"^\s*([\d,]+)\s+[A-Za-z]:", r.stdout, re.M)]
     if len(sizes) < 3:
