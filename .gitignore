@@ -34,6 +34,20 @@ session_screenshots/
 build/
 dist/
 temp/
+# tmp/ and logs/ added 2026-10-07. `temp/` above has been ignored since the beginning and `tmp/`
+# never was, so a directory whose own name declares it scratch sat fully exposed: 771 untracked
+# files, 58 MB, including 50 MB of third-party copyrighted PDFs and two byte-identical 361-file
+# copies of another tool's vendored schema dump. One `git add -A` away from a PUBLIC repo.
+#
+# `logs/` is the same omission one rule down: session_logs/ and coordinator_logs/ are ignored and
+# plain logs/ was not, so 201 files of per-run render scratch were exposed -- 97 of its 112 web
+# files byte-identical to files already tracked under arsenal/.
+#
+# Found 2026-10-07 by two blind adversarial sweeps run before committing anything, each told to
+# assume something harmful was present. Both found these independently, which is why they are here
+# rather than in a list of things to look at later.
+tmp/
+logs/
 backups/
 sessions/
 
