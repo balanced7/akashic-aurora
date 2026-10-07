@@ -313,6 +313,16 @@ def managed_runner_env(
 
 
 def main(argv=None) -> int:
+    # FIRST, before argparse and before anything can print. Under Task Scheduler this process gets
+    # no console and CPython sets sys.stdout to None, so print() succeeds and discards -- and this
+    # daemon's output is its whole account of which listeners it spawned and which markers it
+    # swept. Added 2026-10-07 when it became AkashicAurora-WakeDaemon; without it the supervisor
+    # would run forever and report nothing, which is the failure it exists to prevent, one level up.
+    try:
+        from core.infrastructure.background_stdio import repair_background_stdio
+        repair_background_stdio("bifrost-daemon")
+    except Exception:                                                      # noqa: BLE001
+        pass          # a diagnostics helper must never be the reason the supervisor fails to start
     args = build_parser().parse_args(argv)
 
     from typing import Optional as _Opt

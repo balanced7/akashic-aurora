@@ -138,15 +138,48 @@ def test_every_direct_windowed_task_script_repairs_its_streams(rel):
 @pytest.mark.parametrize("rel", DIRECT_WINDOWED_TASK_SCRIPTS)
 def test_the_repair_runs_before_anything_can_print(rel):
     """Ordering is the whole value: a repair that happens after argument parsing misses every
-    usage error, and one that happens after an import misses anything that prints at import time."""
+    usage error, and one that happens after an import misses anything that prints at import time.
+
+    THE FIRST VERSION OF THIS COMPARED TEXTUAL POSITIONS AND HAD A FALSE POSITIVE, found 2026-10-07
+    on scripts/bifrost_daemon.py. That file builds its parser in a `build_parser()` defined at line
+    167 and calls it from `main()` at line 315, so `argparse.ArgumentParser(` appears BEFORE the
+    repair in the file while running strictly AFTER it. The old check read "defined earlier" as
+    "runs earlier" and failed a correct implementation.
+
+    Order of execution is a property of the call graph, not of byte offsets, so this parses `main`
+    and asks the only question that matters: inside the function that actually runs, does the repair
+    come before anything that parses arguments? A definition elsewhere in the file is not an event.
+    """
+    import ast
     src = _src(rel)
-    i = src.index("repair_background_stdio(")
-    head = src[:i]
-    for late in ("parse_args(", "argparse.ArgumentParser("):
-        j = head.rfind(late)
-        assert j == -1 or "def main" not in src[j:i], (
-            "%s parses arguments before repairing stdout, so an argparse error message -- which "
-            "goes to stderr and exits -- is still lost" % rel)
+    tree = ast.parse(src)
+    main_fn = next((n for n in ast.walk(tree)
+                    if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+    assert main_fn is not None, "%s has no main() to order" % rel
+
+    def _calls(node):
+        """Line numbers of calls to anything whose attribute/name ends in `names`."""
+        out = {"repair": [], "parse": []}
+        for sub in ast.walk(node):
+            if not isinstance(sub, ast.Call):
+                continue
+            f = sub.func
+            name = getattr(f, "attr", None) or getattr(f, "id", None) or ""
+            if name == "repair_background_stdio":
+                out["repair"].append(sub.lineno)
+            elif name in ("parse_args", "parse_known_args", "build_parser"):
+                out["parse"].append(sub.lineno)
+        return out
+
+    seen = _calls(main_fn)
+    assert seen["repair"], (
+        "%s never calls repair_background_stdio inside main(), so whatever it does at import time "
+        "or in a helper does not protect the run" % rel)
+    if seen["parse"]:
+        assert min(seen["repair"]) < min(seen["parse"]), (
+            "%s parses arguments at line %d before repairing stdout at line %d, so an argparse "
+            "error message -- which goes to stderr and exits -- is still lost"
+            % (rel, min(seen["parse"]), min(seen["repair"])))
 
 
 def test_no_task_script_touches_a_stdout_attribute_outside_a_guard():
