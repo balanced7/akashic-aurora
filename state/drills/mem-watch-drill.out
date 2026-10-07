@@ -1,0 +1,3 @@
+[2026-08-26T08:14:58.358321+00:00] ALERT process python.exe pid=33904 rss=562.1MB (grew +150.0MB since first seen)
+[2026-08-26T08:15:04.453650+00:00] ALERT process python.exe pid=33904 rss=612.1MB (grew +200.0MB since first seen)
+[2026-08-26T08:15:10.549584+00:00] ALERT process python.exe pid=33904 rss=612.0MB (grew +199.9MB since first seen)
