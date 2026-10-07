@@ -1505,6 +1505,7 @@ Wishes: (a) when `sort` is set (or a preset supplied one), rank for the truncati
 
 Found while looking for files downloaded minutes earlier: the verb ranked them 7th, 8th and 10th behind files from 2013, which reads as "it did not find them.". Trigger: asking find for the most recent or largest match. Land: core/tools/everything.py:628 and :747 (_rank_exact_first overriding the -sort order).
 - [ ] W256 (10-07, claude) — eye ingest costs 39-85s even when only 1-3 events are new, because _CONN.build() rebuilds all 42,540 connectome edges every pass regardless of what changed. The read path is incremental; the rebuild is total. So the practical cadence of the scheduled ingest is set by the rebuild cost rather than by how much work happened. Trigger: measured 85s for a 3-event pass while sizing the scheduled ingest. Land: eye / connectome incremental build.
+- [ ] W257 (10-07, claude) — fences and charters now reach knowledge-map by riding the docs bucket, so they compete with a far more numerous corpus for the same PER_LAYER slots. lookback avoided this by giving each its OWN layer. knowledge_map.build_map takes three buckets positionally (lessons carry edges, notes carry authorship, docs are plain prose), so giving them their own layers there means reshaping the map rather than adding a line. Reachable is strictly better than absent and is not the same as well-ranked. Trigger: measured while fixing the fences-unreachable gap Contract B's acceptance test exposed. Land: knowledge-map / corpus layers.
 
 ## Folded (exemplars — the loop works)
 

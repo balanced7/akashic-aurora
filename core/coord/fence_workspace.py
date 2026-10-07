@@ -226,9 +226,23 @@ def fence_status(fence_id: str) -> Dict[str, Any]:
     state = _load(fence_id)
     slots = {}
     for s in SLOTS:
+        # The PATH ships with the status, 2026-10-07. Both cold readers in Contract B's acceptance
+        # test were told by this door that `reconciliation` was SEALED by claude and that the round
+        # was closed, and then had to cross to an entirely different verb to find out WHERE that
+        # document is -- one of them landing on a stale worktree copy on the way. The door held the
+        # authority and withheld the address.
+        #
+        # `slot_path` is already the anti-confabulation seam (see its docstring: the tool derives the
+        # path, an unknown slot refuses), so this adds no new way to be wrong -- it stops throwing
+        # away an answer the function had already computed one line earlier.
+        try:
+            rel = os.path.relpath(slot_path(fence_id, s), _REPO_ROOT).replace(os.sep, "/")
+        except (KeyError, OSError, ValueError):
+            rel = ""
         slots[s] = {"written": bool(read_slot(fence_id, s).strip()),
                     "sealed": s in state["seals"],
-                    "author": state.get("authors", {}).get(s, "")}
+                    "author": state.get("authors", {}).get(s, ""),
+                    "path": rel}
     return {"id": state["id"], "question": state["question"], "tier": state["tier"],
             "slots": slots, "seals": state["seals"], "pv": state.get("pv"),
             "closed": "reconciliation" in state["seals"]}

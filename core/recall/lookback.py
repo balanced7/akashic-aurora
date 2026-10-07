@@ -298,6 +298,163 @@ def _charter_items() -> List[Dict[str, Any]]:
     return out
 
 
+def _fence_rounds() -> List[Dict[str, Any]]:
+    """Per round: its ruling (reconciliation + every addendum, as ONE document) and its brief.
+
+    Returns ``[{"round", "ruling", "addenda": [...], "brief"}]``, any of which may be absent.
+
+    THE RULING IS SEVERAL FILES AND ONE DOCUMENT. This house never edits sealed text; a round that
+    needs revising gets a dated ``addendum-*.md`` beside it. So reconciliation-plus-addenda is the
+    authority, and indexing them as separate rows invents a competition that does not exist -- which it
+    then LOSES, because an addendum is short and focused while the ruling it annotates runs to 32,008
+    bytes, so the addendum wins on relevance density every time.
+
+    MEASURED 2026-10-07, by a cold reader sent to verify this very layer: `lookback` returned
+    `fences/context-system/addendum-2026-10-02-the-fold.md` and omitted the reconciliation entirely,
+    and the reader wrote "if I had stopped there I would have reported the addendum". A reader handed
+    the addendum without the ruling has been given a footnote and told it is the law.
+    """
+    root = os.path.join(ROOT, "fences")
+    out: List[Dict[str, Any]] = []
+    try:
+        rounds = sorted(os.listdir(root))
+    except OSError:
+        return []
+    for r in rounds:
+        d = os.path.join(root, r)
+        if not os.path.isdir(d):
+            continue
+        try:
+            names = sorted(os.listdir(d))
+        except OSError:
+            continue
+        rec = os.path.join(d, "reconciliation.md") if "reconciliation.md" in names else ""
+        add = [os.path.join(d, n) for n in names
+               if n.startswith("addendum") and n.endswith(".md")]
+        brief = os.path.join(d, "brief.md") if "brief.md" in names else ""
+        if rec or add or brief:
+            out.append({"round": r, "ruling": rec, "addenda": add, "brief": brief})
+    return out
+
+
+def _fence_paths() -> List[str]:
+    """Every file the fences layer reads, flat. Kept as the layer's own manifest.
+
+    ``fences/<round>/reconciliation.md``, any ``addendum-*.md`` beside it, then ``brief.md``.
+
+    THE HALVES ARE DELIBERATELY EXCLUDED, and this is the load-bearing decision in this layer. A
+    half is a POSITION -- frequently a position the reconciliation went on to REJECT on measurement.
+    Retrieving a rejected half and reading it as the house's answer is the worst thing this layer
+    could introduce, and it would be strictly worse than the silence it replaces: a confident wrong
+    ruling beats no ruling only in the sense that it travels further. Every reconciliation cites its
+    halves by name, so a reader who lands on the ruling reaches any half in one hop, in the context
+    that says which parts of it survived.
+
+    (Concrete instance from tonight: `fences/eye-journal-plane/half_heimdall_verbatim.md` proposes an
+    address rule that collapses 1,457 transcripts onto 115 addresses. It is correct to preserve and
+    ruinous to retrieve as an answer. Its reconciliation says which half of it was adopted.)
+    """
+    root = os.path.join(ROOT, "fences")
+    out: List[str] = []
+    try:
+        rounds = sorted(os.listdir(root))
+    except OSError:
+        return []
+    for r in rounds:
+        d = os.path.join(root, r)
+        if not os.path.isdir(d):
+            continue
+        try:
+            names = sorted(os.listdir(d))
+        except OSError:
+            continue
+        for n in names:
+            if n == "reconciliation.md" or (n.startswith("addendum") and n.endswith(".md")):
+                out.append(os.path.join(d, n))
+        if "brief.md" in names:
+            out.append(os.path.join(d, "brief.md"))
+    return out
+
+
+def _fence_items() -> List[Dict[str, Any]]:
+    """The corpus of what was SETTLED -- its own layer, not a tenant of `docs`.
+
+    MEASURED 2026-10-07, running Contract B's acceptance test, which had been recorded as unrun since
+    the filing-schema round closed. Two independent cold readers, different phrasings, neither given
+    the filename or the words "fence" or "reconciliation", were asked to find the Wave 0 build spec by
+    what it is about. Both found it -- reader A in 15 `agent_cli` invocations, reader B in 11, neither
+    in one -- and NEITHER EVER SAW IT AS A RESULT ROW. Both reached it only because an unrelated note
+    happened to quote its path. Both named the same cause: there was no `fences` layer here, and
+    `knowledge-map` did not walk the plane either, so 21 sealed reconciliations were structurally
+    unreachable from the two doors built for "find the document that decided X".
+
+    A reconciliation is the most authoritative artifact this house produces -- it is where a contested
+    question is settled on measurement -- and it was the one class of document no retrieval verb
+    indexed.
+
+    ONE ROW PER RULING. The reconciliation and its addenda are indexed TOGETHER, under the
+    reconciliation's path, because sealed text is never edited here and an addendum is how a later
+    round folds in: they are one document that happens to live in several files. The first version of
+    this layer gave each its own row, and a cold reader sent to verify the fix got the ADDENDUM and not
+    the ruling -- an addendum is short and sharply scoped, so it beats a 32,008-byte ruling on relevance
+    density while being, by construction, a footnote to the answer.
+
+    ITS OWN LAYER, for the reason `_charter_items` gives in the same words: folding it into `docs`
+    would leave it competing with a far more numerous corpus for the same PER_LAYER slots, present in
+    the code and still absent from the answers. Registered AFTER `docs` so `docs` stays LAYERS[0] (the
+    query counter keys off it).
+
+    STATUS. An unstamped reconciliation is STANDING, not unknown -- the same call `_charter_items`
+    makes, for the same reason. A brief is ranked below a ruling: it carries the question, which answers
+    "why did we even ask this", not "what did we decide".
+    """
+    out = []
+    for rnd in _fence_rounds():
+        # The ROUND's name rides the searchable surface of every row. A cold reader asks about the
+        # subject ("context system", "filing schema"); the directory is the only place that word
+        # reliably appears, because the document's own title says "Reconciliation" first.
+        label = rnd["round"].replace("-", " ")
+        ruling_paths = ([rnd["ruling"]] if rnd["ruling"] else []) + rnd["addenda"]
+        if ruling_paths:
+            parts, newest = [], 0.0
+            for p in ruling_paths:
+                try:
+                    parts.append(_read_head(p))
+                    newest = max(newest, os.path.getmtime(p))
+                except OSError:
+                    continue
+            if parts:
+                head = parts[0]
+                status = _doc_status(head)
+                if status == "unstamped":
+                    status = "current"
+                # source/drill point at the RECONCILIATION when there is one, so a reader always lands
+                # on the ruling and reaches its addenda from there (the ruling cites them). A round
+                # with addenda and no reconciliation is addressed by its newest addendum.
+                anchor = rnd["ruling"] or rnd["addenda"][-1]
+                rel = os.path.relpath(anchor, ROOT).replace(os.sep, "/")
+                extra = ""
+                if rnd["ruling"] and rnd["addenda"]:
+                    names = ", ".join(os.path.basename(a) for a in rnd["addenda"])
+                    extra = "\nfolded addenda: " + names
+                out.append({"text": label + "\n" + "\n".join(parts) + extra, "source": rel,
+                            "timestamp": newest, "importance": 3, "layer": "fences",
+                            "status": status, "class": "ruling", "drill": rel})
+        if rnd["brief"]:
+            try:
+                head = _read_head(rnd["brief"])
+            except OSError:
+                continue
+            rel = os.path.relpath(rnd["brief"], ROOT).replace(os.sep, "/")
+            status = _doc_status(head)
+            if status == "unstamped":
+                status = "current"
+            out.append({"text": label + "\n" + head, "source": rel,
+                        "timestamp": os.path.getmtime(rnd["brief"]), "importance": 2,
+                        "layer": "fences", "status": status, "class": "question", "drill": rel})
+    return out
+
+
 def _research_items() -> List[Dict[str, Any]]:
     out = []
     rr = os.path.join(ROOT, "research", "reviewed")
@@ -393,11 +550,19 @@ def _git_items(limit: int = 250) -> List[Dict[str, Any]]:
     return out
 
 
-LAYERS = (("docs", _docs_items), ("charters", _charter_items),
+LAYERS = (("docs", _docs_items), ("fences", _fence_items), ("charters", _charter_items),
           ("research", _research_items), ("notes", _note_items),
           ("promoted", _promoted_items), ("chapters", _chapter_items), ("git", _git_items))
 # `docs` stays FIRST: lookback's query counter bumps on LAYERS[0][0]. Pinned by
 # tests/test_charters_in_lookback_corpus.py::test_p3.
+#
+# `fences` sits SECOND, immediately after docs, because it is the most authoritative plane here: a
+# reconciliation is where a contested question was settled on measurement, and docs are frequently
+# derived FROM one. Measured 2026-10-07 and the ordering is not cosmetic -- both cold readers in
+# Contract B's acceptance test briefly accepted `docs/context-system.md` as the Wave 0 build spec, and
+# it is the after-the-fact contract that the reconciliation ORDERED BUILT. The derived document
+# outranked its source, and the only thing that corrected both readers was that the derived document
+# happened to cite upward.
 
 
 # ---------------------------------------------------------------- the fan-out

@@ -34,7 +34,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from core.recall.lookback import (
     MIN_RELEVANCE, _build_idf_relevance, _stem_relevance, _match_excerpt,
-    _docs_items, _note_items,
+    _docs_items, _note_items, _fence_items, _charter_items,
 )
 
 # statuses that mean "on topic but not live": routed to the archive layer, off the surface
@@ -210,7 +210,23 @@ def knowledge_map(topic: str, *, per_layer: int = PER_LAYER,
     the next audit of this surface has numbers, not anecdotes (the lookback pattern)."""
     lessons = _safe(_lesson_items)
     notes = _safe(_note_items)
-    docs = _safe(_docs_items)
+    # fences and charters RIDE THE DOCS BUCKET, 2026-10-07. `build_map` takes three buckets
+    # positionally because lessons carry edges and notes carry authorship; a fence reconciliation and
+    # a charter are both plain prose with a header, so docs is where they belong without reshaping the
+    # map.
+    #
+    # MEASURED: both cold readers in Contract B's acceptance test reached for `knowledge-map` first,
+    # and reader B's verdict was "it does not look where the answer lives" -- the Wave 0 build spec
+    # sits in fences/ and this corpus was lessons+notes+docs. `charters` is added in the same line
+    # DELIBERATELY and not as scope creep: it was absent for exactly the same reason, one line away,
+    # and `_charter_items` was written to fix precisely this class of unreachability in lookback. A
+    # fix that covered only the case I happened to measure would be the "exception list" mistake in a
+    # new costume.
+    #
+    # HONEST LIMITATION, stated rather than discovered later: both now compete with docs for the same
+    # PER_LAYER slots, which is the cost `_charter_items` avoided in lookback by taking its OWN layer.
+    # Reachable is strictly better than absent, and it is not the same as well-ranked. Filed as a wish.
+    docs = _safe(_docs_items) + _safe(_fence_items) + _safe(_charter_items)
     m = build_map(topic, lessons, notes, docs, per_layer=per_layer,
                   min_relevance=min_relevance, now=now)
     _count(m)

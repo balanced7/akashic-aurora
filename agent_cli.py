@@ -6094,7 +6094,11 @@ def cmd_fence(args):
         for s, v in st["slots"].items():
             mark = "SEALED" if v["sealed"] else ("written" if v["written"] else "empty")
             by = f" by {v['author']}" if v["author"] else ""
-            print(f"  {s:16} {mark}{by}")
+            # The path, for any slot that actually HAS content. A reader who has just been told a
+            # document is sealed and authoritative should not have to search for it -- that search is
+            # how a cold reader ends up reading a stale worktree copy that looks identical.
+            where = f"  {v['path']}" if (v.get("path") and (v["written"] or v["sealed"])) else ""
+            print(f"  {s:16} {mark}{by}{where}")
         pv = st.get("pv")
         pv_line = "not run" if not pv else f"{pv['missing_count']} missing @ {pv['ran_at']}"
         print(f"  pv: {pv_line}")

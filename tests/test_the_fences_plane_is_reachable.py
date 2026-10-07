@@ -110,15 +110,73 @@ def test_a_cold_question_about_the_wave_0_spec_reaches_it():
     not "fence", not "reconciliation", not "Wave 0" as a filing term. If the retrieval system needs
     the reader to already know how the thing is filed, it is an index of answers for people who have
     them.
+
+    AT THE DEFAULT DEPTH, and that correction is the point. The first version of this pin passed
+    ``per_layer=10`` and went green, which measured a depth no caller uses: ``PER_LAYER = 3``. A fresh
+    cold reader run against that supposedly-fixed state then MISSED the document -- `lookback` returned
+    the dated ADDENDUM instead, and the reader said plainly "if I had stopped there I would have
+    reported the addendum". My pin had bought itself a pass by asking for seven more slots than the
+    verb hands out. A pin must use the production call shape; a generous parameter is the same evasion
+    as a generous assertion.
     """
     from core.recall.lookback import lookback
-    hits = lookback("what did we agree to build first for the context system and what waits",
-                    per_layer=10)
+    hits = lookback("what did we agree to build first for the context system and what waits")
     sources = [h.get("source") for h in hits]
     assert TARGET in sources, (
         "the Wave 0 build spec is not reachable by a question about what it is about. %d hit(s) "
         "came back and the authoritative document was not among them: %r"
         % (len(hits), sources[:12]))
+
+
+def test_the_exact_question_a_cold_reader_actually_asked():
+    """THE MEASURED PIN, and the one I did not think to write.
+
+    After the fences layer landed, a fresh cold reader was sent in to verify the fix. `knowledge-map`
+    found the document as its own row at joint-top relevance (0.704) in 4 commands, down from 11 and
+    15. But `lookback` MISSED it, and the reader's own words were: *"it ranked the dated addendum to
+    the target above the target and omitted the target entirely. If I had stopped there I would have
+    reported the addendum."*
+
+    My own pin above passed at the same moment, because my phrasing happens to contain the words
+    "context system" -- which is the ROUND NAME this layer prepends to every row. The reader described
+    the same thing as "an agent's working context" and "round one versus later rounds" and got the
+    addendum. So the pin I wrote measured my luck at guessing my own index's vocabulary.
+
+    This query is the reader's, verbatim. It is the acceptance test; the other one is a warm-up.
+
+    WHY THE ADDENDUM WINS AND WHY THAT IS A BUG, not a tuning problem: an addendum is SHORTER and more
+    focused than the 32,008-byte ruling it annotates, so it scores higher on relevance density while
+    being, by construction, a modifier of the answer rather than the answer. The house's own rule is
+    that sealed text is never edited and a round that needs revising gets a dated addendum beside it --
+    which means the ruling IS reconciliation-plus-its-addenda, one document in several files. Indexing
+    them as rivals invents a competition the house does not have.
+    """
+    from core.recall.lookback import lookback
+    hits = lookback("how is an agent's working context assembled, and what was decided for "
+                    "round one versus later rounds")
+    sources = [h.get("source") for h in hits]
+    fences = [s for s in sources if s and s.startswith("fences/")]
+    assert TARGET in sources, (
+        "the reader's own phrasing does not reach the ruling. fence rows returned: %r "
+        "(all %d hits: %r)" % (fences, len(sources), sources[:12]))
+
+
+def test_an_addendum_never_outranks_the_ruling_it_annotates():
+    """The rule, stated as a rule so it cannot regress into a tuning accident.
+
+    A dated addendum folds a later round into a sealed one. It is never the authority on its own, and
+    a reader handed the addendum without the ruling has been given a footnote and told it is the law.
+    """
+    from core.recall.lookback import LAYERS
+    fn = dict(LAYERS).get("fences")
+    if fn is None:
+        pytest.fail("no fences layer")
+    sources = [i.get("source", "") for i in fn()]
+    stray = [s for s in sources if "addendum" in s.rsplit("/", 1)[-1]]
+    assert not stray, (
+        "addenda are indexed as rows of their own and so compete with the rulings they annotate: %r. "
+        "They belong folded into their reconciliation's row, which is what the house's "
+        "never-edit-sealed-text rule already means." % stray[:5])
 
 
 def test_fence_status_prints_a_path():
