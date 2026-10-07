@@ -107,16 +107,46 @@ that the normaliser is applied on **both** sides of every join.
 
 Three rules, each closing a numbered defect above:
 
+> **A1 AND A2 WERE BOTH WITHDRAWN ON 2026-10-06.** They were fenced, attacked by two independent
+> halves, and falsified — A2 additionally by measurement. The ruling is
+> `fences/filing-schema/reconciliation.md` §2, §3 and §8, and it supersedes the two bullets below,
+> which are kept verbatim because a withdrawn contract is evidence and deleting it would hide why
+> the replacement exists. **Do not build A1 or A2 as written.**
+>
+> - **A1 → withdrawn.** "Refuse any non-eight-kind ref at the write door" would BREAK promoter,
+>   toolbox and event_index: `bifrost:` and `file:` already have resolvers and `target.py` marks
+>   them `_OPAQUE_PREFIXES` deliberately. The 88.3% figure is real; the inference from it was not.
+>   Replacement: **a walker per ref family**; `REF_KINDS` stays the closed *address* set it was
+>   sealed as. "Has a walker" ≠ "is one of eight kinds".
+> - **A2 → withdrawn.** Measured by `scripts/measure_target_join.py`: raw intersection **0**;
+>   after every cosmetic fold a normaliser can do, **still 0**; only a root-resolved
+>   *translation* reaches **83**. A normaliser maps a string to a canonically-spelled same string
+>   and cannot do a root-dependent translation. And **97.6% of the outcome plane is `c:`
+>   command-keyed** while the touch side mints no `c:` axis at all, so even the translation
+>   reaches 2.4%. Replacement, reordered so the big half is first: **redefine `c:` as the file
+>   targets `touch.py` already extracts** (97.6%), then the root-resolved translation (2.4%).
+>
+> A3 below survives untouched and shipped (`ca2ea5bd`).
+>
+> *(Stamped 2026-10-07. Found because Heimdall and Daniel were both reading these bullets as live
+> while the ruling that withdrew them sat unreachable: until this morning `fences/` was in no
+> searchable corpus, so 21 sealed reconciliations could not be retrieved by either door built for
+> "find the document that decided X". The doc outranking its own ruling is the same defect one
+> layer up.)*
+
 - **A1.** A ref that is not one of the eight kinds is refused at the write door, not silently
-  accepted. *(closes #5 — 88.3% unwalkable)*
+  accepted. *(closes #5 — 88.3% unwalkable)* — **WITHDRAWN, see above**
 - **A2.** `core/coord/target.py`'s normaliser is the only producer of a target key, and both
   the touch path and the outcome path call it. *(closes #2 — the 0-of-365 split; this is the
-  single highest-value fix in the document, because every other join waits on it)*
+  single highest-value fix in the document, because every other join waits on it)* —
+  **WITHDRAWN, see above**
 - **A3.** Every capture carries `session_id`, resolved by one shared helper rather than three.
   *(closes #6)*
 
 **Acceptance, pre-registered:** after A2, the touch∩outcome intersection is non-empty and its
-size is reported; after A3, `context --stats` shows non-zero coverage for `learning`, `fail`
+size is reported *(this acceptance was MET and still falsified the contract: the intersection is
+non-empty only after a translation A2 forbids, and tops out at 2.4% — a pre-registered acceptance
+can be satisfied by a change that does not do the job, which is worth remembering next time)*; after A3, `context --stats` shows non-zero coverage for `learning`, `fail`
 and `boot`. Both are already measured at zero, so neither can pass by accident.
 
 ### Contract B — THE SHELF: the library atom system is the filing schema
