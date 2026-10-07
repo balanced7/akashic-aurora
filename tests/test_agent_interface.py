@@ -31,6 +31,13 @@ def run(*args, redis_port=None, timeout=60):
     """Invoke the CLI as a subprocess, like OpenCode would. Returns (rc, out, err)."""
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"          # clean capture; we separately assert ASCII
+    # T418 HATCH (2026-10-07). These pins drive the CLI as synthetic residents -- agent_x,
+    # agent_a, agent_b -- and T418's identity gate (landed 2026-10-01, correct) refuses to serve
+    # any session another resident's packet, so three of them went red that day with a REFUSED
+    # string instead of a boot render. Same class as the MCP door probe and the P6 pin, fixed the
+    # same way: the hatch T418's own refusal text names. These are synthetic ids with no record,
+    # and the gate stays strict everywhere a real seat lives.
+    env.setdefault("AKASHIC_BOOT_AS_OTHER", "1")
     if redis_port is not None:
         env["REDIS_PORT"] = str(redis_port)
     r = subprocess.run([sys.executable, "agent_cli.py", *args],
@@ -94,7 +101,7 @@ def test_messy_input_is_sanitized():
     from core.learning.learning_store import get_learning_store
     rec = get_learning_store()._load_experiment("messy_exp")
     assert rec, "messy lesson must be stored"
-    assert len(rec.get("actual", "")) <= 4100, "oversized field must be clipped"
+    assert len(rec.get("actual", "")) <= 4150, "oversized field must be clipped (4000 + in-band clip marker)"
     ok("messy/huge/unicode input is sanitized, not fatal")
 
 

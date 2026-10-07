@@ -39,6 +39,18 @@ async def _session(extra_env=None):
     params = StdioServerParameters(command=sys.executable, args=[SERVER],
                                    cwd=ROOT,
                                    env={**os.environ, "_AISETUP_TEST_ISOLATED": "1",
+                                        # T418 HATCH (2026-10-07). These pins boot the door as
+                                        # synthetic residents ("mcp-boot-regression-<hash>"), and
+                                        # T418's identity gate -- landed 2026-10-01 and correct --
+                                        # refuses to hand any session another resident's packet.
+                                        # P6 went red that day and, because the door gate blocks
+                                        # mirror.py --push on a red door pin, helped dam 173
+                                        # commits for a week. Same class as the door probe itself,
+                                        # fixed the same way: the child here already runs
+                                        # _AISETUP_TEST_ISOLATED, so the synthetic resident has no
+                                        # record to leak. The hatch is named by T418's own refusal
+                                        # text for exactly this case.
+                                        "AKASHIC_BOOT_AS_OTHER": "1",
                                         **(extra_env or {})})
     return stdio_client(params)
 
@@ -91,7 +103,25 @@ def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
                             "agent": agent,
                             "task": f"C7-4 {state} single-frame response pin",
                         }),
-                        timeout=5.0,
+                        # 5.0 -> 30.0 (2026-10-07). At 5.0 this pin FLAKED: pass/fail/pass across
+                        # isolated runs, failing with a bare asyncio TimeoutError. Measured cause,
+                        # not guessed -- a healthy boot through this door now takes 4.48-6.55s
+                        # (four door-probe runs the same hour), because the corpus has grown to
+                        # 1,501 warm lessons since this number was chosen. The pin was sitting on
+                        # the edge of its own subject.
+                        #
+                        # AND IT WAS THE WRONG KIND OF NUMBER HERE. P6 asserts FRAMING -- that a
+                        # single inbound frame is enough to get boot's reply back, the C7-4
+                        # end-to-end proof. Latency is core/comm/door_probe.py's job, where the
+                        # budget is mutation-tested against a measured degraded case (healthy
+                        # ~5s, degraded 11.38s, budget 8.0s). Giving a framing pin a tight
+                        # latency bound made it a second, worse latency instrument that could
+                        # only disagree with the first. 30s is a HANG net: it still fails fast on
+                        # a door that never answers, and never fires on one that is merely busy.
+                        #
+                        # This mattered beyond the noise: a red door pin blocks mirror.py --push,
+                        # so a flaky pin is an intermittently closed door on the whole repo.
+                        timeout=30.0,
                     )
                     text = "".join(getattr(c, "text", "") for c in out.content)
                     assert f"# CONTEXT for {agent}" in text
