@@ -59,9 +59,41 @@ def _today_journal(agent: str, journal_dir: Optional[str]) -> Dict[str, int]:
         path = os.path.join(base, f"runner_{agent}_{time.strftime('%Y-%m-%d')}.json")
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
-        return {"prompt": int(d.get("prompt") or 0), "completion": int(d.get("completion") or 0)}
-    except Exception:
-        return {"prompt": 0, "completion": 0}
+    except Exception as exc:                                               # noqa: BLE001
+        # TYPED ABSENCE. Until 2026-10-07 this returned {"prompt": 0, "completion": 0}, so a seat
+        # with no journal and a seat that ran all day and spent nothing rendered identically -- and
+        # a quiet meter is the one nobody investigates. `measured` is the field that separates them;
+        # the numeric keys stay PRESENT (as None) so every existing reader keeps its shape.
+        return {"prompt": None, "completion": None, "measured": False,
+                "why": "%s: %s" % (type(exc).__name__, str(exc)[:80])}
+    # THE KEYS THE WRITER ACTUALLY SERIALIZES. This asked for "prompt"/"completion"; the journal
+    # has always written "prompt_tokens"/"completion_tokens" (scripts/runner_token_journal.py:98),
+    # so `.get` returned None, `or 0` made it a number, and the gauge reported a confident zero over
+    # real traffic -- measured 2026-10-07 at 5,049,156 deepseek tokens shown as 0. W118, filed
+    # 2026-08-07, and the `or 0` is why it survived two months without anyone doubting the reading.
+    #
+    # core/comm/doctor.py:1305-1306 has read the correct names all along, which is the tell: two
+    # readers of one file disagreed and only the quieter one was wrong.
+    #
+    # The bare names are still accepted as a fallback so an older or hand-written journal is not
+    # silently zeroed by the fix itself.
+    def _pick(*names):
+        for n in names:
+            v = d.get(n)
+            if v is not None:
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    return None
+        return None
+
+    p = _pick("prompt_tokens", "prompt")
+    c = _pick("completion_tokens", "completion")
+    if p is None and c is None:
+        # The file exists and carries neither shape: readable, and still not a measurement.
+        return {"prompt": None, "completion": None, "measured": False,
+                "why": "journal present but carries no token keys"}
+    return {"prompt": p or 0, "completion": c or 0, "measured": True}
 
 
 def gauge_snapshot(agent: str, c=None, allow_fallback: bool = True,

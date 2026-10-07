@@ -96,7 +96,21 @@ def test_p4_tokens_from_journal(tmp_path):
     s = ev.gauge_snapshot(AGENT, c=c, journal_dir=str(tmp_path))
     assert s["tokens"]["prompt"] == 1234 and s["tokens"]["completion"] == 567
     s2 = ev.gauge_snapshot(AGENT, c=c, journal_dir=str(tmp_path / "nope"))
-    assert s2["tokens"] == {"prompt": 0, "completion": 0}, "P4: absent journal -> zeros"
+    # AMENDED 2026-10-07 (W118). This used to assert `== {"prompt": 0, "completion": 0}` under the
+    # label "absent journal -> zeros", and that assertion is what kept the defect alive for two
+    # months: it PINNED the behaviour that a seat with no journal and a seat that ran all day and
+    # spent nothing must render identically. While it held, the reader could ask for keys the writer
+    # never wrote ("prompt"/"completion" against prompt_tokens/completion_tokens) and still look
+    # correct -- 5,049,156 live deepseek tokens reported as 0.
+    #
+    # P4's REAL intent survives unchanged and is still asserted below: an absent journal must not
+    # raise, and the shape must stay stable for every reader. Only the VALUE changes, from a
+    # measurement nobody took to an explicit non-measurement.
+    # See tests/test_the_token_gauge_reads_the_keys_the_journal_writes.py for the full case.
+    assert set(s2["tokens"]) >= {"prompt", "completion"}, "P4: shape stays stable"
+    assert s2["tokens"].get("measured") is False, "P4: absent journal -> NOT a measurement"
+    assert s2["tokens"]["prompt"] is None and s2["tokens"]["completion"] is None, (
+        "P4: an unmeasured quantity must not render as 0 -- 0 is a measurement")
 
 
 def test_p5_pages_count():
