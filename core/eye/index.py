@@ -456,7 +456,18 @@ def corpus_coverage() -> Dict[str, Any]:
 def _connect(db_path: Optional[Path]) -> sqlite3.Connection:
     p = Path(db_path) if db_path else _DEFAULT_DB
     p.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(str(p))
+    # A FULL PASS HOLDS ITS WRITE FOR 40-85 SECONDS, so the second writer has to be patient. Python's
+    # default is 5 s, which against this organ is not a timeout but a guaranteed crash: measured
+    # 2026-10-07, a hand-run ingest and the newly scheduled one overlapped by 17 s and the second died
+    # with "OperationalError: database is locked", surfacing as LastTaskResult: 1 on a daily task.
+    #
+    # WAL below is the other half and neither substitutes for the other: WAL lets READERS run during a
+    # write (which is what keeps `eye find`/`stats`/`zoom` usable mid-ingest), and busy_timeout is what
+    # makes a second WRITER wait instead of raise. 180 s is chosen to clear the slowest pass observed
+    # with room to spare, and it is a ceiling on patience rather than a lock: a genuinely stuck writer
+    # still fails, loudly, after three minutes.
+    con = sqlite3.connect(str(p), timeout=180.0)
+    con.execute("PRAGMA busy_timeout=180000")
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT)")
     row = con.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
