@@ -171,6 +171,12 @@ EXCEPTIONS = {
         "surface consumes it YET, and a fake wire to clear this gate would be the name-it-to-evade "
         "move the gate itself warns against. UNWIRE-WHEN: the W0.1 projection reader or the "
         "serve.py surface imports it. Owner: claude / one-world UI (H9).",
+    "core/oneworld/projection.py": "built-ahead (W0.1, one-world UI core; spec atom d622ac): the "
+        "projection reader -- a pure fold of the journal into a derived surface state, one journal "
+        "-> N projections. 6 pins green in tests/test_oneworld_projection.py, incl. the drift test "
+        "(a redelivered fact counts once). Reachable only from its pins today; production surfaces "
+        "fold it. UNWIRE-WHEN: the serve.py surface or a world CLI verb projects through it. "
+        "Owner: claude / one-world UI (H9).",
     "core/recall/shadow_shelf.py": {
         "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
             "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "

@@ -269,8 +269,9 @@
 - `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
 - `shelf.py` — shelf -- labelled chunks in SQLite with an FTS5 index; incremental ingest; honest search.
 
-## core/oneworld/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/oneworld/  (2 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `journal.py` — W0 -- the authored world-state journal for the one-world UI core.
+- `projection.py` — W0.1 -- the projection reader over the one-world journal.
 
 ## core/provenance/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `delta.py` — The DISK plane of the delta door -- what moved that no Aurora plane recorded.

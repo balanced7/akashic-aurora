@@ -91,6 +91,16 @@ ALLOWLIST = {
     ("no-duplicate-module-basename", "registry.py"):
         "two registries by deliberate design (toolbelt verb-registry vs trust ACL-registry); "
         "always imported by full package path, never `from core import registry`",
+    # W0.1 (2026-10-08) added core/oneworld/projection.py (the one-world UI projection reader);
+    # core/library/projection.py (the atom renderer) predates it. Both are ALWAYS imported by full
+    # package path (core.oneworld.projection / core.library.projection -- verified: render_atom and
+    # projection_relpath come via `from core.library.projection import ...`, the UI reader via
+    # `from core.oneworld import projection`); no `from core import projection` exists anywhere. Same
+    # no-shadowing-hazard rationale as schema.py / registry.py. They are different objects:
+    # library = atom->markdown render; oneworld = journal->surface-state fold.
+    ("no-duplicate-module-basename", "projection.py"):
+        "two projections by deliberate design (library atom-renderer vs oneworld journal-fold); "
+        "always imported by full package path, never `from core import projection`",
 }
 
 REDIS_CONNECTOR = "core/foundation/redis_connection.py"
