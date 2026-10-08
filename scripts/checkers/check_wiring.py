@@ -183,6 +183,15 @@ EXCEPTIONS = {
         "green in tests/test_oneworld_mode.py. The specific modes each surface declares arrive WITH "
         "that surface; this is the shape + validation. UNWIRE-WHEN: the serve.py surface (or any "
         "surface) builds a mode and renders through it. Owner: claude / one-world UI (H9).",
+    "core/oneworld/floor.py": "built-ahead (W3, one-world UI core; spec atom d622ac section 4): the "
+        "floor -- a shadow-first, toggleable manifest of loud absence (off/shadow/live per entry, "
+        "named modes, three-state sensors, found-vs-taken legend, per-entry falsifiers). 12 pins "
+        "green in tests/test_oneworld_floor.py. SHADOW-FIRST and the four default sensors are "
+        "honestly UNWIRED (report 'unavailable', never all-clear), so nothing can interrupt and "
+        "nothing lies. UNWIRE-WHEN: each real sensor adapter lands (roster x inbox scan, "
+        "guard-execution audit, egress detector, external last-eval watchdog) AND a surface calls "
+        "evaluate() -- wiring each is safe incrementally because everything starts in shadow. "
+        "Owner: claude / one-world UI (H9).",
     "core/recall/shadow_shelf.py": {
         "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
             "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "

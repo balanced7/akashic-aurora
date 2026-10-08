@@ -269,7 +269,8 @@
 - `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
 - `shelf.py` — shelf -- labelled chunks in SQLite with an FTS5 index; incremental ingest; honest search.
 
-## core/oneworld/  (3 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/oneworld/  (4 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `floor.py` — W3 -- the floor: a shadow-first, toggleable manifest of loud absence.
 - `journal.py` — W0 -- the authored world-state journal for the one-world UI core.
 - `mode.py` — W2 -- the mode primitive for the one-world UI core.
 - `projection.py` — W0.1 -- the projection reader over the one-world journal.
