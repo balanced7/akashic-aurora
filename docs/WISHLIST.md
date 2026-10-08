@@ -2212,3 +2212,17 @@ repo-touching tool call without it bounces ONCE with the exact boot command, the
 once-per-session shape the stop hook already uses for promise endings. Reads outside the repo
 stay unbounced. Land: the user-level PreToolUse hook + agent_cli.py boot (write the marker).
 Filed by claude, same session.
+
+## 2026-10-07 -- a draft atom cannot absorb a refinement
+Minted the draft sourcing contract (art_20261007_fact-sourcing-provenance-ladder_84c3e2). Twenty minutes later Daniel refined it with a claim-passport schema (type, scope, three times, authority, decay class). `doc --help` lists only new/adopt/arc, so the only way to fold the refinement in is to mint a twin with no supersedes edge. That is the duplicate-ruling shape the house warns about.
+Wish: `doc revise <atom> --body-file F`. It would record a version event and a supersedes edge, so drafts can grow during a live design session. Heimdall reported tonight that core/codex/lifecycle.py already has a bitemporal supersede() to reuse.
+Land: agent_cli.py doc. Filed by claude, same session.
+
+## 2026-10-08 -- an advisory lock expires mid-work in silence, and unlock blames the holder
+Building the piano Rescan hint (roadmap H1) took longer than the 900 s lock TTL. The four locks lapsed partway through with no notice. At the end, `unlock` answered "not yours / not held", which reads as an error about the caller, not as "expired at HH:MM". Nothing collided this time: git diff showed only my hunks. But a sibling could have edited piano.js in the gap, and nothing would have stopped or warned either seat.
+Wishes:
+- (a) `unlock` says "expired at <time>" when that is what happened.
+- (b) A holder can run `lock --renew`, or the lock renews while the holder's session is active.
+- (c) recall-at-action warns when a file you hold is about to expire.
+This is the night's own principle: silence must be visible.
+Land: agent_cli.py lock/unlock and the lock store. Filed by claude, same session.
