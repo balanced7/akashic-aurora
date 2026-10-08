@@ -13,8 +13,17 @@ Discord ear does not run from this repo**.
 ## READ THIS FIRST — the thing you must not re-derive
 
 **Production Discord runs from `C:\Users\L5\AppData\Local\AkashicAurora\worktrees\
-sunshine-discord-split`, branch `codex/sunshine-discord-split`, which is 547 commits BEHIND master
-and 1043 ahead.** It is a git worktree of this same repo.
+sunshine-discord-split`, branch `codex/sunshine-discord-split`, which is 1044 commits BEHIND master
+and 548 ahead.** It is a git worktree of this same repo.
+
+> CORRECTED 2026-10-07 by the next Vandor seat: this line originally read "547 commits BEHIND
+> master and 1043 ahead" — the two numbers were swapped. Measured:
+> `git rev-list --count codex/sunshine-discord-split..master` = 1044 (master commits the branch
+> lacks), `git rev-list --count master..codex/sunshine-discord-split` = 548 (branch-only commits).
+> The direction matters for sizing the merge: there are **548** production-only commits to review,
+> not 1043 — roughly half the fence the original line implies. Also note a prior attempt at this
+> exact reconciliation already exists: worktree `reconcile/prod-into-master` (at 4c31e1bf), so this
+> is not a cold start.
 
 Everything landing on master — today's T418 door-probe fix, the eye's journal plane, 4 seconds off
 every turn, the cap-strip guard — **is not in the thing that talks to Daniel.** Master grew

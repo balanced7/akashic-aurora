@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ce6547ba. A bound you discover by collision is not awareness -- this sheet
+> Derived at 1d6e070a. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (274 names)
+## Configuration flags (275 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -162,6 +162,7 @@ Class: reference
 | `AKASHIC_WIRE_QUEUE` | `"4096"` | scripts/wire_journal.py |
 | `AKASHIC_WIRE_WRITER` | `` | scripts/wire_journal.py |
 | `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
+| `AKASHIC_WISHLIST_TRIAGE_DIR` | `` | scripts/ops/wishlist_triage_task.py |
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `APPDATA` | `` | core/tools/everything.py |
@@ -288,7 +289,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (332 numeric constants)
+## Mechanical bounds (334 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -370,6 +371,7 @@ Class: reference
 | `DEFAULT_WINDOW_SECONDS` | 1,800 | core/narrative/event_bridge.py | +/- 30 min around a point (Beat / timestamp) |
 | `DEFINING_SOUND_MS` | 250 | arsenal/practice.py | a note sounding less than this cannot make a chord borrowed, modal or a secondary dominant |
 | `DIRECTIVE_STALE_DAYS` | 3 | agent_cli.py | W04: a directive older than this confesses its age at boot |
+| `DISCORD_LIMIT` | 1,800 | scripts/ops/wishlist_triage_task.py | Discord caps a message at 2000; leave room for the frame |
 | `DISCORD_MAX` | 2,000 | core/comm/discord_bridge.py |  |
 | `DRAIN_FLUSH_JOIN_SEC` | 2 | core/comm/launcher.py |  |
 | `DRAIN_TTL_S` | 300 | core/comm/control.py |  |
@@ -385,6 +387,7 @@ Class: reference
 | `FRESH_MIN_DEFAULT` | 30 | core/comm/wake_seat.py | AKASHIC_WAKE_MARKER_FRESH_MIN overrides |
 | `FULL_TOP_MAX` | 69 | arsenal/jam/schemas.py | A4, hard |
 | `GEMINI` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py | Gemini strategic review |
+| `GIT_BUDGET` | 70 | scripts/ops/wishlist_triage_task.py | subprocess calls are the cost here, not tokens |
 | `GIT_CAP` | 10 | agent/harness/delta.py | commits listed before the pull pointer takes over |
 | `GRACE_MS` | 100 | arsenal/practice.py | ...except a grace note or crush sounding under this long, which is heard only while it sou |
 | `GROWTH_MS` | 1,000 | arsenal/practice.py | a window this short whose notes all belong to the next window, and which was still |
