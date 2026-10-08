@@ -9,10 +9,11 @@
 //   - gone on success.
 // The facts it adds to the page's own: what Windows sees (GET /api/midi/ports, asked only when nothing is bound), the
 // MIDI permission state, and which browser this is (for its restart door).
-import { decideMidiHint, SUCCESS_LINGER_MS, SOUND_CHECK_GIVE_UP_MS } from "./midi-hint-model.mjs";
+import { decideMidiHint, NARRATE_MS, SUCCESS_LINGER_MS, SOUND_CHECK_GIVE_UP_MS } from "./midi-hint-model.mjs";
 
 const FAIL = new Set(["missing", "stale", "stopped", "blocked", "idle"]);
 const PORTS_TIMEOUT_MS = 1500;
+const TICK_MS = 250;  // fine enough to catch a held note for the narration; it only runs for two minutes after a press
 
 export function browserIdentity(nav = globalThis.navigator || {}) {
   if (nav.brave) return { name: "Brave", restartUrl: "brave://restart" };
@@ -55,6 +56,7 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
   const browser = browserIdentity();
   let eventsAtPress = 0, windows = null, permission = "unknown";
   let open = null, deferred = false, quietAfter = -1, ticker = 0, lingerTimer = 0;
+  let heardShown = null, narrateUntil = 0;  // the "Heard you" narration: its current title, and when it stops renaming
 
   const el = make("div", "midi-hint");
   el.setAttribute("role", "status");
@@ -124,9 +126,15 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
     el.setAttribute("aria-hidden", "false");
     el.classList.add("is-on");
     if (v.tone === "success") {
-      open = null;
-      if (v.cause === "found") quietAfter = presses.length;  // no sound check straight after "There it is"
-      lingerTimer = setTimeout(hide, SUCCESS_LINGER_MS);
+      if (v.cause === "heard") {  // stays open while it lingers, so new notes can rename it
+        if (open !== "heard") narrateUntil = Date.now() + NARRATE_MS;
+        open = "heard";
+        heardShown = v.title;
+      } else {
+        open = null;
+        if (v.cause === "found") quietAfter = presses.length;  // no sound check straight after "There it is"
+      }
+      lingerTimer = setTimeout(hide, SUCCESS_LINGER_MS);  // each rename restarts the fade
     } else {
       open = v.cause;
       shown[v.cause] = Math.max(shown[v.cause] || 0, v.level);
@@ -138,6 +146,7 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
     el.classList.remove("is-on");
     el.setAttribute("aria-hidden", "true");
     open = null;
+    heardShown = null;
   }
 
   function dismiss() {
@@ -146,9 +155,10 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
   }
 
   function evaluate(trigger) {
+    const facts = readFacts();
     let v = decideMidiHint({
-      ...readFacts(), now: Date.now(), trigger, presses: [...presses], eventsAtPress, windows, permission,
-      browser, shown: { ...shown }, open,
+      ...facts, now: Date.now(), trigger, presses: [...presses], eventsAtPress, windows, permission,
+      browser, shown: { ...shown }, open, heardShown,
     });
     if (v && v.defer) {  // REC is running: keep the question, show nothing, re-offer when the take ends
       deferred = true;
@@ -156,9 +166,11 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
       return;
     }
     deferred = false;
+    if (open === "heard" && facts.rec && facts.rec !== "idle") { hide(); return; }  // a take starts: step aside
+    if (v && v.cause === "heard" && open === "heard" && Date.now() > narrateUntil) v = null;  // narration is capped
     if (v && v.cause === "sound-check" && quietAfter === presses.length) v = null;
     if (v) render(v);
-    else if (open) hide();
+    else if (open && open !== "heard") hide();  // a lingering "Heard you" leaves by its own timer
   }
 
   function arm() {
@@ -171,7 +183,7 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
         return;
       }
       evaluate(deferred && readFacts().rec === "idle" ? "resume" : "tick");
-    }, 1000);
+    }, TICK_MS);
   }
 
   async function pressed() {

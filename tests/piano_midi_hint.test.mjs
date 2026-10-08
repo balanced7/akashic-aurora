@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  decideMidiHint, footerStatus, displayName,
+  decideMidiHint, footerStatus, displayName, heardTitle,
   SECOND_PRESS_WINDOW_MS, SOUND_CHECK_AFTER_MS, STILL_SILENT_AFTER_MS,
 } from '../arsenal/web/piano/midi-hint-model.mjs';
 
@@ -158,6 +158,34 @@ test('a hint deferred by REC is re-offered when recording ends, however long the
   assert.equal(after.cause, 'stale-browser-list');
   assert.equal(decideMidiHint(facts({ trigger: 'tick', windows: WIN_KEYLAB, presses: [T0 - 10 * SECOND_PRESS_WINDOW_MS] })), null,
     'without the resume trigger the same facts stay quiet');
+});
+
+test('the sound check names what it heard, with the right article (Daniel: "thats a c.. thats an e....")', () => {
+  assert.equal(heardTitle(null), 'Heard you');
+  assert.equal(heardTitle({ notes: [] }), 'Heard you');
+  assert.equal(heardTitle({ notes: ['C'] }), "That's a C");
+  assert.equal(heardTitle({ notes: ['E'] }), "That's an E");
+  assert.equal(heardTitle({ notes: ['F♯'] }), "That's an F♯");
+  assert.equal(heardTitle({ notes: ['A♭'] }), "That's an A♭");
+  assert.equal(heardTitle({ notes: ['B♭'] }), "That's a B♭");
+  assert.equal(heardTitle({ notes: ['C', 'E'] }), "That's a C and an E");
+  assert.equal(heardTitle({ notes: ['C', 'E', 'G', 'B'], chord: 'Cmaj7' }), 'Cmaj7, loud and clear');
+  assert.equal(heardTitle({ notes: ['C', 'D', 'E'], chord: null }), "That's a chord, loud and clear");
+});
+
+test('"Heard you" names the first note, then narrates new ones while it lingers', () => {
+  const base = facts({ trigger: 'tick', inputs: keylabIn, bound: [KEYLAB], presses: [T0 - 10_000], eventsAtPress: 5 });
+  const first = decideMidiHint({ ...base, events: 6, open: 'sound-check', heard: { notes: ['C'] } });
+  assert.equal(first.cause, 'heard');
+  assert.equal(first.title, "That's a C");
+  const next = decideMidiHint({ ...base, events: 7, open: 'heard', heardShown: "That's a C", heard: { notes: ['E'] } });
+  assert.equal(next.title, "That's an E");
+  assert.equal(decideMidiHint({ ...base, events: 7, open: 'heard', heardShown: "That's an E", heard: { notes: ['E'] } }), null,
+    'the same sound does not re-render');
+  assert.equal(decideMidiHint({ ...base, events: 7, open: 'heard', heardShown: "That's an E", heard: null }), null,
+    'silence leaves the card to its own fade');
+  assert.equal(decideMidiHint({ ...base, rec: 'recording', events: 8, open: 'heard', heardShown: "That's an E", heard: { notes: ['G'] } }), null,
+    'no narration during a take');
 });
 
 test('displayName drops the trailing MIDI port suffix only', () => {

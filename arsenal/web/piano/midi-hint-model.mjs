@@ -14,13 +14,15 @@
 //   bound (names the page listens to), remembered (the stored input choice),
 //   events / eventsAtPress (midi.events now and at the last press), rec (the recorder's state),
 //   windows (null, or GET /api/midi/ports: { ok, inputs, service: { state } }),
-//   browser ({ name, restartUrl }), shown ({ cause: highest level shown }), open (the cause on screen, or null).
+//   browser ({ name, restartUrl }), shown ({ cause: highest level shown }), open (the cause on screen, or null),
+//   heard (null, or { notes: [spelled names], chord } of what is sounding now), heardShown (the narration's title).
 
 export const SECOND_PRESS_WINDOW_MS = 90_000;
 export const SOUND_CHECK_AFTER_MS = 6_000;      // bound, Rescanned, and silent this long: offer the sound check
 export const STILL_SILENT_AFTER_MS = 26_000;    // ...and this long: say so once more
 export const SOUND_CHECK_GIVE_UP_MS = 120_000;  // a check nobody answered closes by itself
 export const SUCCESS_LINGER_MS = 3_500;
+export const NARRATE_MS = 8_000;                // "Heard you" narrates new notes this long, then lets itself fade
 
 const ALL_INPUTS = "__all__";  // piano.js's "all inputs" choice, never a device name
 const PROBLEMS = new Set(["permission-denied", "no-access", "stale-browser-list", "windows-sees-none",
@@ -50,7 +52,14 @@ export function decideMidiHint(f) {
     return recording ? null : success("found", "There it is", `Listening to ${displayName(bound[0])}.`);
   }
   if (bound.length && f.open === "sound-check" && f.events > f.eventsAtPress) {
-    return recording ? null : success("heard", "Heard you", `${displayName(bound[0])} is coming through.`);
+    return recording ? null : success("heard", heardTitle(f.heard), `${displayName(bound[0])} is coming through.`);
+  }
+  // While "Heard you" lingers it narrates: each new note or chord renames the card ("that's a C... that's an E...",
+  // Daniel's own sample, 2026-10-08). Nothing new, or a take starting: the card is left to its own timer.
+  if (bound.length && f.open === "heard") {
+    const title = heardTitle(f.heard);
+    if (recording || !f.heard || title === f.heardShown) return null;
+    return success("heard", title, `${displayName(bound[0])} is coming through.`);
   }
 
   // 2. Something is bound: the only question left is whether notes arrive.
@@ -153,6 +162,18 @@ function chain(f) {
 }
 
 const success = (cause, title, body) => ({ cause, level: 1, tone: "success", title, body });
+
+// What the sound check heard, as a title. The notes arrive already spelled by the page's own speller (one speller for
+// the reader and the page), so this only chooses the sentence -- and the article: "an" before A, E and F, which are
+// said with a vowel sound ("an E", "an F♯"), "a" before the rest ("a C", "a B♭").
+const article = (name) => (/^[AEF]/.test(name) ? "an" : "a");
+export function heardTitle(heard) {
+  const notes = (heard && heard.notes) || [];
+  if (!notes.length) return "Heard you";
+  if (notes.length === 1) return `That's ${article(notes[0])} ${notes[0]}`;
+  if (notes.length === 2) return `That's ${article(notes[0])} ${notes[0]} and ${article(notes[1])} ${notes[1]}`;
+  return heard.chord ? `${heard.chord}, loud and clear` : "That's a chord, loud and clear";
+}
 
 // The Studio footer's input line. It used to say "Computer keyboard ready" whenever no MIDI input was bound -- true,
 // and exactly how a missing KeyLab hid on 2026-10-07. null means "keep the selected input's own label".

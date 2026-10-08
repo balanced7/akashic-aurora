@@ -4891,6 +4891,11 @@ function boot() {
       remembered: safeGet(midiPrefKey),
       events: midi.events,
       rec: rec.arming ? "arming" : rec.state,
+      heard: (() => {  // what sounds now, named by the page's own speller (one speller for the reader and the page)
+        const info = currentInfo();
+        const notes = info && info.notes ? [...new Set(info.notes.map((n) => n.name))] : [];
+        return notes.length ? { notes, chord: notes.length >= 3 ? info.name || null : null } : null;
+      })(),
     }),
   });
   (async () => {
