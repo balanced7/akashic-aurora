@@ -17,6 +17,11 @@ said in". Timing becomes layout, because a reader takes layout in at a glance an
     word, and the first real run hid a 2.2 s deadpan pause inside a spoken letter that way;
   - a word the model is unsure of (probability below UNSURE_P) carries "(?)", so the transcript states its own
     confidence. Whisper's habit of hallucinating a repeat at the end of a clip shows up as a run of (?).
+  - but the probability covers only the doubts the model knows it has. The letter names that rhyme with "ee"
+    (B C D E G P T V Z) differ only in a consonant a few hundredths of a second long, and a rushed one loses it: the
+    first real run wrote Misha's "D" as "E" at p=0.96, and Daniel ruled it D by ear. So a line holding any of these
+    letters is followed by a note asking for an ear. Five of the seven note names are among them, which makes music
+    talk the worst case.
 """
 from __future__ import annotations
 
@@ -26,6 +31,8 @@ from pathlib import Path
 
 LINE_BREAK_S, DOT_S, SPAN_S, UNSURE_P = 0.6, 0.25, 2.0, 0.5
 HELD_S, HELD_CHARS = 0.9, 3  # a word of at most HELD_CHARS letters lasting HELD_S or more was held, or hid a pause
+EE_LETTERS = frozenset("BCDEGPTVZ")  # spoken, these differ only in a brief consonant: the probability can't vouch
+EAR_NOTE = 'letters that rhyme with "ee" are easily confused; confirm by ear'
 
 
 def mmss(t: float) -> str:
@@ -43,27 +50,31 @@ def token(w: dict) -> str:
 
 
 def render(words: list, duration: float) -> str:
-    out, line, start, prev = [], [], None, None
+    out, line, letters, start, prev = [], [], [], None, None
 
     def flush():
         if line:
             out.append(f"[{mmss(start)}] " + "".join(line).strip())
+        if letters:
+            out.append(f"       [{', '.join(dict.fromkeys(letters))}: {EAR_NOTE}]")
 
     if words and words[0]["start"] >= SPAN_S:
         out.append(f"       [{words[0]['start']:.1f}s no speech]")
     for w in words:
         tok = token(w)
         if prev is None:
-            start, line = w["start"], [tok]
+            start, line, letters = w["start"], [tok], []
         else:
             gap = w["start"] - prev
             if gap >= LINE_BREAK_S:
                 flush()
                 if gap >= SPAN_S:
                     out.append(f"       [{gap:.1f}s no speech]")
-                start, line = w["start"], [tok]
+                start, line, letters = w["start"], [tok], []
             else:
                 line.append((" · " if gap >= DOT_S else " ") + tok)
+        if w["word"].strip(",.?!;:") in EE_LETTERS:
+            letters.append(w["word"].strip(",.?!;:"))
         prev = w["end"]
     flush()
     if words and duration - words[-1]["end"] >= SPAN_S:

@@ -46,6 +46,29 @@ def test_unsure_words_carry_a_question_mark():
     assert out == "[0:00] We're(?) using(?)"
 
 
+def test_letters_that_rhyme_with_ee_get_a_line_asking_for_an_ear():
+    # the first real run: Misha's rushed "D" lost its d, and the model wrote "E" at p=0.96 with no (?) to warn.
+    # Daniel ruled it D by ear (2026-10-08). The probability cannot vouch for a consonant the audio no longer holds.
+    words = [w(30.3, 30.4, "We're"), w(30.4, 30.74, "using"), w(30.74, 32.96, "F,", 0.7), w(32.98, 33.36, "A,"),
+             w(33.66, 33.86, "G,"), w(34.28, 34.44, "E,", 0.96), w(34.84, 34.96, "A,"), w(35.18, 35.36, "D"),
+             w(35.36, 35.66, "tuning.")]
+    lines = render(words, 36.0).splitlines()
+    assert lines[-2].startswith("[0:30] We're using F, [held 2.2s] A, · G, · E, · A, D tuning.")
+    assert lines[-1] == '       [G, E, D: letters that rhyme with "ee" are easily confused; confirm by ear]'
+
+
+def test_the_ear_line_follows_the_breath_line_that_holds_the_letters():
+    out = render([w(0.0, 0.3, "Drop"), w(0.3, 0.5, "D."), w(1.5, 1.8, "Thanks.")], 2.0).splitlines()
+    assert out == ["[0:00] Drop D.", '       [D: letters that rhyme with "ee" are easily confused; confirm by ear]',
+                   "[0:01] Thanks."]
+
+
+def test_other_letters_and_words_get_no_ear_line():
+    # A, F and I do not rhyme with "ee"; "be" and "Bee." are words, not letters
+    out = render([w(0.0, 0.2, "A,"), w(0.2, 0.4, "F,"), w(0.4, 0.5, "I"), w(0.5, 0.7, "be"), w(0.7, 0.9, "Bee.")], 1.0)
+    assert "confirm by ear" not in out
+
+
 def test_leading_and_trailing_silence_are_stated():
     out = render([w(5.0, 5.4, "Hello.")], 12.0).splitlines()
     assert out[0] == "       [5.0s no speech]"
