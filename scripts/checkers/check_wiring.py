@@ -192,6 +192,13 @@ EXCEPTIONS = {
         "guard-execution audit, egress detector, external last-eval watchdog) AND a surface calls "
         "evaluate() -- wiring each is safe incrementally because everything starts in shadow. "
         "Owner: claude / one-world UI (H9).",
+    "core/oneworld/surface.py": "built-ahead (one-world UI surface adapter; spec atom d622ac): the "
+        "standalone 'what to show' half -- agents_view() assembles a serializable live agent-presence "
+        "payload from the roster, carrying its bounds legend, failing soft to 'unavailable' rather "
+        "than a false empty roster. 5 pins green in tests/test_oneworld_surface.py; live-verified "
+        "against the real roster (6 agents). UNWIRE-WHEN: Heimdall's /api/world endpoint in "
+        "bifrost_ui.py calls agents_view (his lane -- the web surface). Owner: claude authors the "
+        "adapter, deepseek wires the serve layer.",
     "core/recall/shadow_shelf.py": {
         "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
             "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "

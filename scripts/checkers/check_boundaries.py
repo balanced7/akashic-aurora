@@ -101,6 +101,13 @@ ALLOWLIST = {
     ("no-duplicate-module-basename", "projection.py"):
         "two projections by deliberate design (library atom-renderer vs oneworld journal-fold); "
         "always imported by full package path, never `from core import projection`",
+    # 2026-10-08 added core/oneworld/surface.py (the one-world live-view adapter); core/recall/
+    # surface.py (the recall cluster's CLI surface, W169) predates it. Different objects, both
+    # ALWAYS imported by full package path (core.oneworld.surface / core.recall.surface), no
+    # `from core import surface` anywhere -- same no-shadowing-hazard rationale as projection.py.
+    ("no-duplicate-module-basename", "surface.py"):
+        "two surfaces by deliberate design (oneworld live-view adapter vs recall CLI surface); "
+        "always imported by full package path, never `from core import surface`",
 }
 
 REDIS_CONNECTOR = "core/foundation/redis_connection.py"
