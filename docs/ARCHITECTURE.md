@@ -209,6 +209,12 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
   answered, and an empty bounded walk says so explicitly rather than reading as absence).
 - **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
   the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
+- **One-world UI core (`core/oneworld/`)** — the spine the unified UI renders through: one authored
+  world-state journal (`journal.py`, append-only at `state/oneworld/world.jsonl`, replayed into
+  rebuildable projections — authored vs derived, a surface is a projection and never a store), with
+  the mode schema, the floor, and the bounds-legend arriving as later slices. Named `oneworld`, not
+  `world`, so it cannot shadow the load-bearing `core/world.py` (prod/sandbox environment
+  resolution). Spec: `docs/library/design/20261008_one-world-ui-core-reconciled-spec_d622ac.md` (H9).
 - **Season / game mechanics** — `core/season/` (`scoring.py` = Season 1 round scoring as a PURE
   function over a policy dict, so the rules are executable data rather than a markdown table and a
   rule change is a config diff). Deliberately imports nothing from `core/trust/`: *score is

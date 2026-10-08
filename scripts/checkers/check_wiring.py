@@ -162,6 +162,15 @@ EXCEPTIONS = {
         "written deliberately BEFORE the gate that consumes them -- its own docstring says so, "
         "because a rule stated by pointing at the census sample would be a fit rather than a "
         "principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
+    "core/oneworld/journal.py": "built-ahead (W0, one-world UI core; spec atom "
+        "art_20261008_one-world-ui-core-reconciled-spec_d622ac): the authored world-state journal, "
+        "the settled foundation every surface replays from (Heimdall's authored/derived plane). "
+        "6 pins green in tests/test_oneworld_journal.py; replay() is its reader and the journal is "
+        "a durable tracked file, so this is NOT a process-local decoration -- it answers the "
+        "gate's real question (who reads this) with a real reader and a real store. No production "
+        "surface consumes it YET, and a fake wire to clear this gate would be the name-it-to-evade "
+        "move the gate itself warns against. UNWIRE-WHEN: the W0.1 projection reader or the "
+        "serve.py surface imports it. Owner: claude / one-world UI (H9).",
     "core/recall/shadow_shelf.py": {
         "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
             "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "
