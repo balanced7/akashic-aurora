@@ -177,6 +177,12 @@ EXCEPTIONS = {
         "(a redelivered fact counts once). Reachable only from its pins today; production surfaces "
         "fold it. UNWIRE-WHEN: the serve.py surface or a world CLI verb projects through it. "
         "Owner: claude / one-world UI (H9).",
+    "core/oneworld/mode.py": "built-ahead (W2, one-world UI core; spec atom d622ac section 3): the "
+        "mode primitive -- a surface's typed declaration of regions/verbosity/reach(+confessed), "
+        "with verdict_guard enforcing 'declare your boundary before you judge the whole'. 8 pins "
+        "green in tests/test_oneworld_mode.py. The specific modes each surface declares arrive WITH "
+        "that surface; this is the shape + validation. UNWIRE-WHEN: the serve.py surface (or any "
+        "surface) builds a mode and renders through it. Owner: claude / one-world UI (H9).",
     "core/recall/shadow_shelf.py": {
         "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
             "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "
