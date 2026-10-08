@@ -1,20 +1,34 @@
 /* The Rescan hint (arsenal/web/piano/midi-hint.js): a small card beside Rescan, in the Studio's own type and colours.
    It sits beside the control and never over the stage. It is DOM only, so it is never in a take. The left edge carries
-   the tone: amber for a problem, the Studio cyan for a sound check, green for success. */
+   the tone: amber for a problem, the Studio cyan for a sound check, green for success.
+   It condenses out of a mist (Daniel, 2026-10-08): it arrives blurred and faint and sharpens while a soft glow gathers
+   and thins. The ambient sound check takes its time; an answer to a press arrives quicker. It leaves the same way,
+   dissolving back into the mist. */
 .midi-hint{
-  --mh-edge:#e1b06a;
+  --mh-edge:#e1b06a; --mh-in:.6s;
   position:fixed; z-index:60; box-sizing:border-box;
   width:min(330px, calc(100vw - 32px)); padding:14px 40px 14px 16px;
   background:rgba(10,17,24,.96);
   border:1px solid var(--rule,#24313a); border-left:2px solid var(--mh-edge); border-radius:10px;
   box-shadow:0 18px 50px #0009;
   color:var(--ink,#e3e9e9); font-family:'DM Sans', system-ui, sans-serif;
-  opacity:0; transform:translateY(-4px); pointer-events:none;
-  transition:opacity .22s ease, transform .22s ease;
+  opacity:0; filter:blur(10px); transform:translateY(-3px) scale(.985); pointer-events:none;
+  transition:opacity .9s ease-in, filter .9s ease-in, transform .9s ease-in, border-color .4s ease;  /* leaving */
 }
-.midi-hint.is-on{opacity:1; transform:none; pointer-events:auto}
-.midi-hint[data-tone=check]{--mh-edge:var(--studio-accent,#a5e2e7)}
-.midi-hint[data-tone=success]{--mh-edge:#87bdaa}
+.midi-hint.is-on{
+  opacity:1; filter:none; transform:none; pointer-events:auto;
+  transition:opacity var(--mh-in) ease-out, filter var(--mh-in) ease-out, transform var(--mh-in) ease-out,
+             border-color .4s ease;  /* arriving */
+}
+.midi-hint[data-tone=check]{--mh-edge:var(--studio-accent,#a5e2e7); --mh-in:1.6s}
+.midi-hint[data-tone=success]{--mh-edge:#87bdaa; --mh-in:.35s}
+/* The mist itself: a soft glow that gathers as the card appears, then thins away. */
+.midi-hint::before{
+  content:""; position:absolute; inset:-22px; z-index:-1; border-radius:24px; pointer-events:none; opacity:0;
+  background:radial-gradient(closest-side, rgba(165,226,231,.18), rgba(165,226,231,.06) 55%, transparent 75%);
+}
+.midi-hint.is-on::before{animation:mh-mist calc(var(--mh-in) * 1.7) ease-out both}
+@keyframes mh-mist{0%{opacity:0; transform:scale(.92)} 35%{opacity:1} 100%{opacity:0; transform:scale(1.06)}}
 .midi-hint-title{margin:0 0 6px; font-family:'Instrument Serif', Georgia, serif; font-size:19px; font-weight:400; line-height:1.15}
 .midi-hint-body{margin:0; font-size:12px; line-height:1.55; color:var(--ink-2,#9baab2)}
 .midi-hint-close{
@@ -43,4 +57,7 @@
 .midi-hint-action button:hover{background:#18262e}
 .midi-hint-note{font-size:10px; color:var(--ink-3,#70838e)}
 
-@media (prefers-reduced-motion:reduce){.midi-hint{transition:opacity .2s ease; transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .midi-hint, .midi-hint.is-on{filter:none; transform:none; transition:opacity .3s ease}
+  .midi-hint.is-on::before{animation:none}
+}

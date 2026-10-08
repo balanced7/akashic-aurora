@@ -18,7 +18,9 @@
 //   heard (null, or { notes: [spelled names], chord } of what is sounding now), heardShown (the narration's title).
 
 export const SECOND_PRESS_WINDOW_MS = 90_000;
-export const SOUND_CHECK_AFTER_MS = 6_000;      // bound, Rescanned, and silent this long: offer the sound check
+export const SOUND_CHECK_AFTER_MS = 2_000;      // bound, Rescanned, and silent this long: the sound check begins to
+                                                // condense out of a mist (Daniel, 2026-10-08: "a 2 second slow delay
+                                                // that fades in or becomes revealed out of a mist"; midi-hint.css)
 export const STILL_SILENT_AFTER_MS = 26_000;    // ...and this long: say so once more
 export const SOUND_CHECK_GIVE_UP_MS = 120_000;  // a check nobody answered closes by itself
 export const SUCCESS_LINGER_MS = 3_500;
