@@ -43,7 +43,14 @@ def project(reducer: Reducer, initial: Optional[Dict[str, Any]] = None) -> Dict[
     state: Dict[str, Any] = {} if initial is None else dict(initial)
     for fact in r["facts"]:
         state = reducer(state, fact)
-    return {"state": state, "taken": r["taken"], "unparsed": r["unparsed"]}
+    return {
+        "state": state, "taken": r["taken"], "unparsed": r["unparsed"],
+        # W1: the bounds legend is emitted BY CONSTRUCTION. There is no code path that returns a
+        # projection without it, so a surface literally cannot render one without a declared
+        # boundary. A reducer that knows surface-specific gaps passes them via a wrapping call to
+        # bounds_legend; the journal-level found-vs-taken is always here.
+        "legend": bounds_legend(r["taken"], r["unparsed"]),
+    }
 
 
 def latest_by(key_fn: Callable[[Dict[str, Any]], Any]) -> Reducer:
@@ -67,3 +74,33 @@ def count_by(key_fn: Callable[[Dict[str, Any]], Any]) -> Reducer:
         out[k] = out.get(k, 0) + 1
         return out
     return reducer
+
+
+# --- W1: the bounds legend -- the spec's anti-drift law made a reusable piece. "A surface declares
+# its boundary before it issues a verdict about the whole." It lives here (not its own module) until
+# a second consumer -- the floor, the mode schema -- reuses it; rule of three, then extract. ---
+
+def bounds_legend(taken: int, unparsed: int, gaps: Optional[list] = None) -> str:
+    """One line a human reads: what this surface could NOT see. The journal-level found-vs-taken
+    (unparsed lines) is always folded in; `gaps` carries surface-specific unresolved things (a
+    dangling reference, a window that rotated away). 'complete' is said ONLY when nothing was
+    dropped and no gap was named -- silence never masquerades as completeness."""
+    parts = []
+    if unparsed:
+        parts.append(f"{unparsed} journal line(s) unparsed and skipped")
+    parts.extend(str(g) for g in (gaps or []) if str(g).strip())
+    if not parts:
+        return f"complete: {taken} fact(s) read, nothing dropped"
+    return f"{taken} fact(s) read; could not see: " + "; ".join(parts)
+
+
+def require_bounds(result: Dict[str, Any]) -> str:
+    """The render-boundary guard a surface calls before it draws. A projection-shaped dict with no
+    non-empty legend is REFUSED: you may not issue a verdict about the whole without declaring your
+    boundary. Returns the legend so the call site renders it."""
+    legend = result.get("legend") if isinstance(result, dict) else None
+    if not isinstance(legend, str) or not legend.strip():
+        raise ValueError(
+            "a surface must declare its bounds (a non-empty legend) before it renders a verdict "
+            "about the whole -- this projection has none")
+    return legend

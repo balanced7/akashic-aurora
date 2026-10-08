@@ -86,3 +86,47 @@ def test_found_vs_taken_carried_into_projection(jp):
 def test_empty_journal_projects_clean(jp):
     r = projection.project(projection.count_by(lambda f: f["kind"]))
     assert r["state"] == {} and r["taken"] == 0 and r["unparsed"] == 0
+
+
+# --- W1: the bounds legend (spec d622ac) -- a surface declares what it could not see, by
+# construction, before it issues a verdict about the whole. ---
+
+def test_projection_always_carries_a_legend(jp):
+    """By construction: project() can't return a result without a non-empty legend."""
+    journal.append("ev", "a", {"n": 1})
+    r = projection.project(projection.count_by(lambda f: f["kind"]))
+    assert isinstance(r.get("legend"), str) and r["legend"].strip()
+
+
+def test_clean_legend_says_complete(jp):
+    journal.append("ev", "a", {"n": 1})
+    r = projection.project(projection.count_by(lambda f: f["kind"]))
+    assert "complete" in r["legend"].lower() and "1" in r["legend"]
+
+
+def test_legend_names_dropped_lines(jp):
+    """found-vs-taken, rendered for a human: a dropped line is NAMED in the legend, not just
+    counted in a field nobody reads."""
+    journal.append("ev", "a", {"n": 1})
+    with open(jp, "a", encoding="utf-8") as f:
+        f.write("{ not json\n")
+    r = projection.project(projection.count_by(lambda f: f["kind"]))
+    assert "complete" not in r["legend"].lower()
+    assert "1" in r["legend"]  # one unparsed line named
+
+
+def test_require_bounds_returns_legend_and_rejects_legendless(jp):
+    """The render-boundary guard: a surface calls require_bounds before drawing. A projection-shaped
+    dict with no legend is refused -- you cannot judge the whole without declaring your boundary."""
+    journal.append("ev", "a", {"n": 1})
+    r = projection.project(projection.count_by(lambda f: f["kind"]))
+    assert projection.require_bounds(r) == r["legend"]
+    with pytest.raises((KeyError, ValueError)):
+        projection.require_bounds({"state": {}, "taken": 0, "unparsed": 0})  # no legend
+
+
+def test_bounds_legend_surfaces_extra_gaps(jp):
+    """The primitive accepts surface-specific gaps (things THIS surface could not resolve), beyond
+    the journal-level unparsed count."""
+    line = projection.bounds_legend(taken=5, unparsed=0, gaps=["2 refs dangling"])
+    assert "2 refs dangling" in line and "complete" not in line.lower()
