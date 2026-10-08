@@ -206,11 +206,18 @@ export const EGGS = [
     id: "fagdad",
     pcs: [5, 9, 7, 2, 9, 2],
     title: "F. A. G. D. A. D.",
-    // the first sentence is Daniel's own line, 2026-10-08
-    body: "Ah yes, one of Misha Mansoor's legendary guitar tunings. He walked through it on camera string by string with a perfectly straight face — and then actually played in it.",
-    // The video, once verified against the original (the sourcing rules, docs/library/contract/...84c3e2): never a
-    // guessed URL. The card shows the link and the platform's own thumbnail when these are set.
-    source: null,  // { url, label, thumb }
+    // The first sentence is Daniel's own line; the last two are his verdict ("he played the right notes in the wrong
+    // tuning, it was glorious"), both 2026-10-08.
+    body: "Ah yes, one of Misha Mansoor's legendary guitar tunings. In his Scarlet lesson he plays the first riff, then names the tuning, string by string, with a perfectly straight face. The right notes, in the wrong tuning. Glorious.",
+    // Verified 2026-10-08 against the original's captions (py agent_cli.py captions): "Scarlet Guitar Lesson with
+    // Misha". He plays the first riff at 0:14-0:25, then at ~0:27 calls it "a different tuning" and spells it out --
+    // which YouTube's own auto-captions render as "f-a-a ... a detuning" and then censor. Sourcing rules: atom 84c3e2.
+    // The thumbnail is the platform's own image, linked, never copied.
+    source: {
+      url: "https://www.youtube.com/watch?v=z7K8Vjm8jLU",
+      label: "Watch the Scarlet lesson ↗",
+      thumb: "https://i.ytimg.com/vi/z7K8Vjm8jLU/hqdefault.jpg",
+    },
   },
 ];
 

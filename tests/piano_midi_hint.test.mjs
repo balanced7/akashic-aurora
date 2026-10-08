@@ -212,6 +212,13 @@ test('F-A-G-D-A-D in any octave plays the Periphery egg; anything short of it do
   assert.equal(matchEgg([]), null);
 });
 
+test('the egg links its verified original, and the link and thumbnail name the same video', () => {
+  const { source } = matchEgg([53, 57, 55, 50, 57, 62]);
+  const id = new URL(source.url).searchParams.get('v');
+  assert.equal(id, 'z7K8Vjm8jLU');
+  assert.equal(source.thumb, `https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
+});
+
 test('displayName drops the trailing MIDI port suffix only', () => {
   assert.equal(displayName('KeyLab 88 mk3 MIDI'), 'KeyLab 88 mk3');
   assert.equal(displayName('MIDI Fighter Twister'), 'MIDI Fighter Twister');
