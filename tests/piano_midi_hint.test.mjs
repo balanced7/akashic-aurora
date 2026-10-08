@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  decideMidiHint, footerStatus, displayName, heardTitle,
+  decideMidiHint, footerStatus, displayName, heardTitle, matchEgg, BANTER,
   SECOND_PRESS_WINDOW_MS, SOUND_CHECK_AFTER_MS, STILL_SILENT_AFTER_MS,
 } from '../arsenal/web/piano/midi-hint-model.mjs';
 
@@ -186,6 +186,30 @@ test('"Heard you" names the first note, then narrates new ones while it lingers'
     'silence leaves the card to its own fade');
   assert.equal(decideMidiHint({ ...base, rec: 'recording', events: 8, open: 'heard', heardShown: "That's an E", heard: { notes: ['G'] } }), null,
     'no narration during a take');
+});
+
+test('pressed again after a success, Rescan climbs the deadpan ladder and then goes quiet', () => {
+  const healthy = facts({ inputs: keylabIn, bound: [KEYLAB] });
+  const yes = decideMidiHint({ ...healthy, banter: 1, lastHeard: 'C' });
+  assert.equal(yes.cause, 'banter');
+  assert.equal(yes.tone, 'wry');
+  assert.equal(yes.title, '…yes?');
+  assert.match(yes.body, /That was a C a moment ago/);
+  assert.equal(decideMidiHint({ ...healthy, banter: 1, lastHeard: 'E' }).body.includes('an E'), true);
+  assert.equal(decideMidiHint({ ...healthy, banter: 1 }).body, 'Still here. Still working.');
+  BANTER.forEach((line, i) => assert.equal(decideMidiHint({ ...healthy, banter: i + 1 }).title, line.title));
+  assert.equal(decideMidiHint({ ...healthy, banter: BANTER.length + 1 }), null, 'the joke ends; it goes quiet');
+  assert.equal(decideMidiHint({ ...healthy, banter: 1, rec: 'recording' }), null, 'no banter during a take');
+  assert.equal(decideMidiHint({ ...healthy, banter: 0 }), null, 'no success yet: the ordinary press stays silent');
+});
+
+test('F-A-G-D-A-D in any octave plays the Periphery egg; anything short of it does not', () => {
+  assert.equal(matchEgg([53, 57, 55, 50, 57, 62]).id, 'fagdad');           // F3 A3 G3 D3 A3 D4
+  assert.equal(matchEgg([41, 45, 43, 38, 45, 38]).id, 'fagdad');           // the same, an octave down
+  assert.equal(matchEgg([60, 64, 53, 57, 55, 50, 57, 62]).id, 'fagdad');   // after other notes
+  assert.equal(matchEgg([53, 57, 55, 50, 57]), null);                      // five strings in: not yet
+  assert.equal(matchEgg([53, 57, 55, 50, 57, 61]), null);                  // a C♯ at the end: not it
+  assert.equal(matchEgg([]), null);
 });
 
 test('displayName drops the trailing MIDI port suffix only', () => {

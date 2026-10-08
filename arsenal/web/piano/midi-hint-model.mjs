@@ -15,7 +15,8 @@
 //   events / eventsAtPress (midi.events now and at the last press), rec (the recorder's state),
 //   windows (null, or GET /api/midi/ports: { ok, inputs, service: { state } }),
 //   browser ({ name, restartUrl }), shown ({ cause: highest level shown }), open (the cause on screen, or null),
-//   heard (null, or { notes: [spelled names], chord } of what is sounding now), heardShown (the narration's title).
+//   heard (null, or { notes: [spelled names], chord } of what is sounding now), heardShown (the narration's title),
+//   banter (how many presses in a row came after a success; 0 for none), lastHeard (the last note it named).
 
 export const SECOND_PRESS_WINDOW_MS = 90_000;
 export const SOUND_CHECK_AFTER_MS = 2_000;      // bound, Rescanned, and silent this long: the sound check begins to
@@ -66,6 +67,13 @@ export function decideMidiHint(f) {
 
   // 2. Something is bound: the only question left is whether notes arrive.
   if (bound.length) {
+    // ...unless Rescan already said yes. Pressed again after a success, it answers in the deadpan register, one rung
+    // per press, and then goes quiet -- the second-press principle, played as comedy (Daniel, 2026-10-08).
+    if (f.trigger === "press" && f.banter > 0) {
+      const line = BANTER[f.banter - 1];
+      return recording || !line ? null
+        : { cause: "banter", level: f.banter, tone: "wry", title: line.title, body: line.body(f.lastHeard) };
+    }
     if (lastPress == null || f.events > f.eventsAtPress) return null;
     const silent = now - lastPress;
     if (silent < SOUND_CHECK_AFTER_MS || silent >= SOUND_CHECK_GIVE_UP_MS) return null;
@@ -175,6 +183,44 @@ export function heardTitle(heard) {
   if (notes.length === 1) return `That's ${article(notes[0])} ${notes[0]}`;
   if (notes.length === 2) return `That's ${article(notes[0])} ${notes[0]} and ${article(notes[1])} ${notes[1]}`;
   return heard.chord ? `${heard.chord}, loud and clear` : "That's a chord, loud and clear";
+}
+
+// The deadpan ladder: Rescan pressed again while everything already works. Clarke & Dawe by way of Bagley.
+export const BANTER = [
+  { title: "…yes?",
+    body: (heard) => (heard ? `Still here. Still working. That was ${article(heard)} ${heard} a moment ago.` : "Still here. Still working.") },
+  { title: "It's working.",
+    body: () => "I've had it checked. It's connected, the notes are arriving, and frankly I'm running out of ways to say so." },
+  { title: "Look, I'll be straight with you.",
+    body: () => "There's nothing wrong with it. That's the hardest thing in the world to diagnose." },
+  { title: "I'm going to have a little lie down.",
+    body: () => "Play something and I'll know you're alright." },
+];
+
+// Musical easter eggs, heard only while the hint is listening (after a Rescan press, never during a take), so a
+// D-minor improvisation is never ambushed mid-performance. pcs are pitch classes in order, any octave.
+export const EGGS = [
+  {
+    // Periphery lore, from Daniel: Misha Mansoor explained his guitar tuning in a YouTube video, deadpan, string by
+    // string, until it hits you -- and he actually played in it.
+    id: "fagdad",
+    pcs: [5, 9, 7, 2, 9, 2],
+    title: "F. A. G. D. A. D.",
+    // the first sentence is Daniel's own line, 2026-10-08
+    body: "Ah yes, one of Misha Mansoor's legendary guitar tunings. He walked through it on camera string by string with a perfectly straight face — and then actually played in it.",
+    // The video, once verified against the original (the sourcing rules, docs/library/contract/...84c3e2): never a
+    // guessed URL. The card shows the link and the platform's own thumbnail when these are set.
+    source: null,  // { url, label, thumb }
+  },
+];
+
+export function matchEgg(noteOns) {  // the egg whose sequence the most recent note-ons end with, or null
+  const pcs = (noteOns || []).map((m) => ((m % 12) + 12) % 12);
+  for (const egg of EGGS) {
+    const n = egg.pcs.length;
+    if (pcs.length >= n && egg.pcs.every((pc, i) => pcs[pcs.length - n + i] === pc)) return egg;
+  }
+  return null;
 }
 
 // The Studio footer's input line. It used to say "Computer keyboard ready" whenever no MIDI input was bound -- true,

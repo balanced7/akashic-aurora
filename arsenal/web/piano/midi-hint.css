@@ -22,6 +22,8 @@
 }
 .midi-hint[data-tone=check]{--mh-edge:var(--studio-accent,#a5e2e7); --mh-in:1.6s}
 .midi-hint[data-tone=success]{--mh-edge:#87bdaa; --mh-in:.35s}
+.midi-hint[data-tone=wry]{--mh-edge:var(--studio-accent,#a5e2e7); --mh-in:.45s}  /* the deadpan ladder: quick, dry */
+.midi-hint[data-tone=egg]{--mh-edge:#e47fa7; --mh-in:1.2s}                       /* an easter egg: a slower reveal, for timing */
 /* The mist itself: a soft glow that gathers as the card appears, then thins away. */
 .midi-hint::before{
   content:""; position:absolute; inset:-22px; z-index:-1; border-radius:24px; pointer-events:none; opacity:0;
@@ -56,6 +58,9 @@
 }
 .midi-hint-action button:hover{background:#18262e}
 .midi-hint-note{font-size:10px; color:var(--ink-3,#70838e)}
+.midi-hint-source{display:flex; align-items:center; gap:10px; font-size:11px; color:var(--studio-accent,#a5e2e7); text-decoration:none}
+.midi-hint-source:hover{text-decoration:underline}
+.midi-hint-source img{width:96px; height:54px; object-fit:cover; border-radius:6px; border:1px solid #2b414c; flex:none}
 
 @media (prefers-reduced-motion:reduce){
   .midi-hint, .midi-hint.is-on{filter:none; transform:none; transition:opacity .3s ease}

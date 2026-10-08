@@ -2654,6 +2654,7 @@ function glowLevel(st, t) {
 
 function noteOn(m, vel) {
   if (vel <= 0) { noteOff(m); return; }
+  midiHint?.noteOn(m);  // the Rescan hint's easter eggs listen while it does (piano/midi-hint.js)
   const t = clock();
   spectacle?.noteOn(m, vel, t);
   beforeChange(t);

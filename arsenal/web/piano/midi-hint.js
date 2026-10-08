@@ -9,10 +9,15 @@
 //   - gone on success.
 // The facts it adds to the page's own: what Windows sees (GET /api/midi/ports, asked only when nothing is bound), the
 // MIDI permission state, and which browser this is (for its restart door).
-import { decideMidiHint, NARRATE_MS, SUCCESS_LINGER_MS, SOUND_CHECK_GIVE_UP_MS } from "./midi-hint-model.mjs";
+import { decideMidiHint, matchEgg, NARRATE_MS, SUCCESS_LINGER_MS, SOUND_CHECK_GIVE_UP_MS } from "./midi-hint-model.mjs";
 
 const FAIL = new Set(["missing", "stale", "stopped", "blocked", "idle"]);
+const LINGERING = new Set(["heard", "egg", "banter"]);  // cards that leave by their own fade, never on a null verdict
 const PORTS_TIMEOUT_MS = 1500;
+const EGG_LINGER_MS = 7_000;          // long enough to read the punchline
+const WRY_LINGER_MS = 4_500;
+const BANTER_WINDOW_MS = 5 * 60_000;  // presses within this long of a success climb the deadpan ladder
+const NOTE_BUFFER = 12;               // note-ons the eggs remember
 const TICK_MS = 250;  // fine enough to catch a held note for the narration; it only runs for two minutes after a press
 
 export function browserIdentity(nav = globalThis.navigator || {}) {
@@ -57,6 +62,8 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
   let eventsAtPress = 0, windows = null, permission = "unknown";
   let open = null, deferred = false, quietAfter = -1, ticker = 0, lingerTimer = 0;
   let heardShown = null, narrateUntil = 0;  // the "Heard you" narration: its current title, and when it stops renaming
+  let banter = 0, successAt = 0, lastHeard = null;  // the deadpan ladder: its rung, the last success, the last note named
+  const noteBuf = [];                               // recent note-ons, for the eggs
 
   const el = make("div", "midi-hint");
   el.setAttribute("role", "status");
@@ -121,11 +128,27 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
       actionEl.append(btn);
       if (v.action.note) actionEl.append(make("span", "midi-hint-note", v.action.note));
     }
-    actionEl.hidden = !v.action;
+    const src = v.source && v.source.url ? v.source : null;
+    if (src) {  // an egg's original: a link (and the platform's own thumbnail), never a copy
+      const a = make("a", "midi-hint-source", src.label || "Watch it ↗");
+      a.href = src.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      if (src.thumb) {
+        const img = make("img");
+        img.src = src.thumb;
+        img.alt = "";
+        img.loading = "lazy";
+        a.prepend(img);
+      }
+      actionEl.append(a);
+    }
+    actionEl.hidden = !v.action && !src;
     place();
     el.setAttribute("aria-hidden", "false");
     el.classList.add("is-on");
     if (v.tone === "success") {
+      successAt = Date.now();
       if (v.cause === "heard") {  // stays open while it lingers, so new notes can rename it
         if (open !== "heard") narrateUntil = Date.now() + NARRATE_MS;
         open = "heard";
@@ -135,9 +158,15 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
         if (v.cause === "found") quietAfter = presses.length;  // no sound check straight after "There it is"
       }
       lingerTimer = setTimeout(hide, SUCCESS_LINGER_MS);  // each rename restarts the fade
+    } else if (v.tone === "wry" || v.tone === "egg") {  // the comedy department: one card, its own fade
+      open = v.cause;
+      quietAfter = presses.length;  // the joke answers this press; no sound check after it
+      if (v.tone === "egg") successAt = Date.now();
+      lingerTimer = setTimeout(hide, v.tone === "egg" ? EGG_LINGER_MS : WRY_LINGER_MS);
     } else {
       open = v.cause;
       shown[v.cause] = Math.max(shown[v.cause] || 0, v.level);
+      if (v.tone === "hint") { banter = 0; successAt = 0; }  // a real problem ends the joke
     }
   }
 
@@ -158,8 +187,9 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
     const facts = readFacts();
     let v = decideMidiHint({
       ...facts, now: Date.now(), trigger, presses: [...presses], eventsAtPress, windows, permission,
-      browser, shown: { ...shown }, open, heardShown,
+      browser, shown: { ...shown }, open, heardShown, banter, lastHeard,
     });
+    if (v && v.cause === "heard" && facts.heard && facts.heard.notes.length === 1) lastHeard = facts.heard.notes[0];
     if (v && v.defer) {  // REC is running: keep the question, show nothing, re-offer when the take ends
       deferred = true;
       if (open) hide();
@@ -170,7 +200,7 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
     if (v && v.cause === "heard" && open === "heard" && Date.now() > narrateUntil) v = null;  // narration is capped
     if (v && v.cause === "sound-check" && quietAfter === presses.length) v = null;
     if (v) render(v);
-    else if (open && open !== "heard") hide();  // a lingering "Heard you" leaves by its own timer
+    else if (open && !LINGERING.has(open)) hide();  // a lingering card leaves by its own timer
   }
 
   function arm() {
@@ -188,13 +218,31 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
 
   async function pressed() {
     const facts = readFacts();
-    presses.push(Date.now());
+    const now = Date.now();
+    banter = facts.bound.length && successAt && now - successAt < BANTER_WINDOW_MS ? banter + 1 : 0;
+    presses.push(now);
     eventsAtPress = facts.events;
+    noteBuf.length = 0;  // a fresh listening window for the eggs
     [windows, permission] = await Promise.all([
       facts.bound.length ? Promise.resolve(windows) : fetchWindows(endpoint), queryPermission(),
     ]);
     evaluate("press");
     arm();
+  }
+
+  // Every note-on from the page. The eggs listen only while the hint does -- within two minutes of a Rescan press, never
+  // during a take -- so an improvisation is never ambushed.
+  function noteOn(m) {
+    const last = presses.length ? presses[presses.length - 1] : 0;
+    if (!last || Date.now() - last >= SOUND_CHECK_GIVE_UP_MS) return;
+    const rec = readFacts().rec;
+    if (rec && rec !== "idle") return;
+    noteBuf.push(m);
+    if (noteBuf.length > NOTE_BUFFER) noteBuf.shift();
+    const egg = matchEgg(noteBuf);
+    if (!egg) return;
+    noteBuf.length = 0;
+    render({ cause: "egg", level: 1, tone: "egg", title: egg.title, body: egg.body, source: egg.source });
   }
 
   function changed() {  // bindings changed: only an open hint (or a deferred one) can have news
@@ -209,5 +257,5 @@ export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports"
     el.remove();
   }
 
-  return { pressed, changed, dispose, get open() { return open; } };
+  return { pressed, changed, noteOn, dispose, get open() { return open; } };
 }
