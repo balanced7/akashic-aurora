@@ -1,0 +1,201 @@
+// The Rescan hint on /piano: gathers the facts, asks the model (midi-hint-model.mjs) which gentle hint answers this
+// moment, and renders a small card anchored beside Rescan.
+//
+// It is the first brick of the house's gentle-hint primitive (roadmap P1,
+// docs/library/map/20261007_design-night-roadmap-2026-10-07_fa48f2.md):
+//   - beside the control, never over the stage;
+//   - DOM only, so never in a take (REC records the canvas);
+//   - never popping up on its own;
+//   - gone on success.
+// The facts it adds to the page's own: what Windows sees (GET /api/midi/ports, asked only when nothing is bound), the
+// MIDI permission state, and which browser this is (for its restart door).
+import { decideMidiHint, SUCCESS_LINGER_MS, SOUND_CHECK_GIVE_UP_MS } from "./midi-hint-model.mjs";
+
+const FAIL = new Set(["missing", "stale", "stopped", "blocked", "idle"]);
+const PORTS_TIMEOUT_MS = 1500;
+
+export function browserIdentity(nav = globalThis.navigator || {}) {
+  if (nav.brave) return { name: "Brave", restartUrl: "brave://restart" };
+  const ua = nav.userAgent || "";
+  if (/\bEdg\//.test(ua)) return { name: "Edge", restartUrl: "edge://restart" };
+  if (/\bFirefox\//.test(ua)) return { name: "Firefox", restartUrl: null };
+  if (/\bChrome\//.test(ua)) return { name: "Chrome", restartUrl: "chrome://restart" };
+  return { name: "your browser", restartUrl: null };
+}
+
+async function fetchPorts(endpoint) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), PORTS_TIMEOUT_MS);
+  try {
+    const r = await fetch(endpoint, { cache: "no-store", signal: ctl.signal });
+    return r.ok ? await r.json() : null;  // a server without the route answers 404: then no claim about Windows
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function midiPermission() {
+  try { return (await navigator.permissions.query({ name: "midi" })).state; } catch { return "unknown"; }
+}
+
+const make = (tag, className, text) => {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text != null) el.textContent = text;
+  return el;
+};
+
+// queryPermission and fetchWindows are seams for tests and demos; the page uses the defaults.
+export function createMidiHint({ anchor, readFacts, endpoint = "/api/midi/ports",
+                                 queryPermission = midiPermission, fetchWindows = fetchPorts }) {
+  const presses = [];
+  const shown = {};
+  const browser = browserIdentity();
+  let eventsAtPress = 0, windows = null, permission = "unknown";
+  let open = null, deferred = false, quietAfter = -1, ticker = 0, lingerTimer = 0;
+
+  const el = make("div", "midi-hint");
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
+  el.setAttribute("aria-hidden", "true");
+  const close = make("button", "midi-hint-close", "×");
+  close.type = "button";
+  close.setAttribute("aria-label", "Dismiss");
+  const title = make("p", "midi-hint-title");
+  const body = make("p", "midi-hint-body");
+  const chainEl = make("ol", "midi-hint-chain");
+  const actionEl = make("div", "midi-hint-action");
+  el.append(close, title, body, chainEl, actionEl);
+  document.body.append(el);
+
+  close.addEventListener("click", () => { close.blur(); dismiss(); });  // blur: Space must stay the piano's
+  const onKey = (e) => { if (e.key === "Escape" && open) dismiss(); };
+  const onResize = () => { if (el.classList.contains("is-on")) place(); };
+  addEventListener("keydown", onKey);
+  addEventListener("resize", onResize);
+
+  function place() {
+    const a = anchor && anchor();
+    const r = a && a.getBoundingClientRect ? a.getBoundingClientRect() : null;
+    if (r && r.width) {
+      el.style.top = `${Math.round(r.bottom + 10)}px`;
+      el.style.right = `${Math.max(12, Math.round(innerWidth - r.right))}px`;
+    } else {  // Rescan hidden (a compact or focus layout): the top-right corner
+      el.style.top = "72px";
+      el.style.right = "12px";
+    }
+  }
+
+  function render(v) {
+    clearTimeout(lingerTimer);
+    el.dataset.tone = v.tone;
+    el.dataset.level = String(v.level);
+    title.textContent = v.title;
+    body.textContent = v.body;
+    chainEl.replaceChildren();
+    if (v.chain) {  // lit up to the step where the signal stops; the steps after it never saw it
+      let broken = false;
+      for (const node of v.chain) {
+        const li = make("li");
+        li.dataset.status = node.status;
+        if (!broken && FAIL.has(node.status)) { li.classList.add("is-break"); broken = true; }
+        li.append(make("i"), node.label);
+        li.title = `${node.label}: ${node.status}`;
+        chainEl.append(li);
+      }
+    }
+    chainEl.hidden = !v.chain;
+    actionEl.replaceChildren();
+    if (v.action) {
+      const btn = make("button", null, v.action.label);
+      btn.type = "button";
+      btn.addEventListener("click", async () => {
+        btn.blur();
+        try { await navigator.clipboard.writeText(v.action.copy); btn.textContent = "Copied"; }
+        catch { btn.textContent = v.action.copy; }  // no clipboard: show the text to type instead
+      });
+      actionEl.append(btn);
+      if (v.action.note) actionEl.append(make("span", "midi-hint-note", v.action.note));
+    }
+    actionEl.hidden = !v.action;
+    place();
+    el.setAttribute("aria-hidden", "false");
+    el.classList.add("is-on");
+    if (v.tone === "success") {
+      open = null;
+      if (v.cause === "found") quietAfter = presses.length;  // no sound check straight after "There it is"
+      lingerTimer = setTimeout(hide, SUCCESS_LINGER_MS);
+    } else {
+      open = v.cause;
+      shown[v.cause] = Math.max(shown[v.cause] || 0, v.level);
+    }
+  }
+
+  function hide() {
+    clearTimeout(lingerTimer);
+    el.classList.remove("is-on");
+    el.setAttribute("aria-hidden", "true");
+    open = null;
+  }
+
+  function dismiss() {
+    quietAfter = presses.length;  // dismissed: nothing time-driven comes back until the next press
+    hide();
+  }
+
+  function evaluate(trigger) {
+    let v = decideMidiHint({
+      ...readFacts(), now: Date.now(), trigger, presses: [...presses], eventsAtPress, windows, permission,
+      browser, shown: { ...shown }, open,
+    });
+    if (v && v.defer) {  // REC is running: keep the question, show nothing, re-offer when the take ends
+      deferred = true;
+      if (open) hide();
+      return;
+    }
+    deferred = false;
+    if (v && v.cause === "sound-check" && quietAfter === presses.length) v = null;
+    if (v) render(v);
+    else if (open) hide();
+  }
+
+  function arm() {
+    if (ticker) return;
+    ticker = setInterval(() => {
+      const last = presses.length ? presses[presses.length - 1] : 0;
+      if (!open && !deferred && Date.now() - last >= SOUND_CHECK_GIVE_UP_MS) {
+        clearInterval(ticker);
+        ticker = 0;
+        return;
+      }
+      evaluate(deferred && readFacts().rec === "idle" ? "resume" : "tick");
+    }, 1000);
+  }
+
+  async function pressed() {
+    const facts = readFacts();
+    presses.push(Date.now());
+    eventsAtPress = facts.events;
+    [windows, permission] = await Promise.all([
+      facts.bound.length ? Promise.resolve(windows) : fetchWindows(endpoint), queryPermission(),
+    ]);
+    evaluate("press");
+    arm();
+  }
+
+  function changed() {  // bindings changed: only an open hint (or a deferred one) can have news
+    if (open || deferred) evaluate("change");
+  }
+
+  function dispose() {
+    clearInterval(ticker);
+    clearTimeout(lingerTimer);
+    removeEventListener("keydown", onKey);
+    removeEventListener("resize", onResize);
+    el.remove();
+  }
+
+  return { pressed, changed, dispose, get open() { return open; } };
+}

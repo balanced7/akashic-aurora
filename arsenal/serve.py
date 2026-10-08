@@ -24,6 +24,7 @@ from . import __version__
 from .graph import GraphError, load_graph
 from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
 from .jam.runs import JamApi
+from . import midiports
 from . import pianolooks
 from .pianocue import MAX_CUE_BODY, CueError, CueHub, validate_cue
 from .plan import make_plan, render_plan
@@ -296,6 +297,8 @@ class Handler(BaseHTTPRequestHandler):
                     return self._static_under(unquote(path[len("/web/"):]))
                 if path == "/api/health":
                     return self._json(200, {"ok": True, "api": "arsenal.serve/v0", "version": __version__})
+                if path == "/api/midi/ports":  # what Windows sees of MIDI, for /piano's Rescan hint (midiports.py)
+                    return self._json(200, midiports.snapshot())
                 if path == "/api/library":
                     return self._json(200, {"roots": [str(r) for r in self.app.library.roots],
                                             "clips": self.app.library.clips()})

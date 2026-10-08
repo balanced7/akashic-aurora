@@ -1,4 +1,5 @@
 // UI only: reuse the host's controls and APIs so MIDI, saved looks, cues and capture keep one owner.
+import { footerStatus } from './midi-hint-model.mjs';
 const DETAILS = {
   aether: ['Crystal collection', 'Aether', 'Prism, platinum & suspended light.', '#a5e2e7', '01'],
   solstice: ['Crystal collection', 'Solstice', 'Opal, champagne brass & living light.', '#edc38f', '02'],
@@ -123,7 +124,7 @@ export function mountWorkbench(page) {
     $('studio-render-size').textContent=`${render.width} × ${render.height} pixels · 4× MSAA`;
     $('studio-health').textContent=`${render.width} × ${render.height} · ${render.paused?'PAUSED':`${s.fps} FPS`}`;
     $('studio-harmony').textContent=s.chord?`${s.chord}${s.pedal?' · sustain':''}`:s.demo?'Generative performance':'A space for your music.';
-    const midi=original['midi-select'];$('studio-midi-status').textContent=midi.value?midi.selectedOptions[0]?.textContent:'Computer keyboard ready';
+    const midi=original['midi-select'];$('studio-midi-status').textContent=midi.value?midi.selectedOptions[0]?.textContent:footerStatus({boundName:null,remembered:page.midiRemembered?.()??null,visible:[...midi.options].map(o=>o.textContent)});  // names a missing remembered keyboard instead of calling it ready
     stage.dataset.instrument=id;stage.dataset.camera=page.galleryCamera.active()?'sculpture':'performance';
     stage.dataset.sounding=s.sounding.length;stage.dataset.pedal=String(s.pedal);stage.dataset.paused=String(render.paused);
     tip.textContent=render.paused?'RENDER PAUSED':page.galleryCamera.active()?'DRAG TO EXPLORE  ↗':'PLAY THE KEYS  ↗';

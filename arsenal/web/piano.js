@@ -33,6 +33,7 @@ import { keyContext, spellChord, spellNote } from "./piano/spell.js";
 import { createKeySignatureModel, signaturePlaces, staffAccidental } from "./piano/keysig.js";
 import { createGalleryCamera } from "./piano/gallery-camera.js";
 import { mountWorkbench } from "./piano/workbench.js";
+import { createMidiHint } from "./piano/midi-hint.js";
 
 // ===== THEORY BEGIN (pure: no DOM, no three.js; the node tests extract this block) =====
 const Theory = (() => {
@@ -3514,8 +3515,10 @@ function bindMidi(choice, remember) {
   if (midi.bound.map((i) => i.id).join(",") !== before) allNotesOff();  // no stuck notes across a switch
   if (remember) safeSet(midiPrefKey, choice === ALL_INPUTS ? ALL_INPUTS : (picked[0] && picked[0].name) || "");
   setMidiStatus(midi.bound.length ? midi.bound.map((i) => i.name).join(" + ") : midi.inputs.length ? "no input selected" : "no inputs");
+  midiHint?.changed();  // a hint on screen may have news: the keyboard was found
 }
 function setMidiStatus(text) { midi.status = text; }
+let midiHint = null;  // the Rescan hint (piano/midi-hint.js), created in boot()
 function onMidiMessage(ev) {
   const d = ev.data;
   if (!d || d.length < 2) return;
@@ -4164,7 +4167,11 @@ function setNumbersMode(mode) {
 
 function wireUi() {
   for (const b of document.querySelectorAll(".btn")) b.addEventListener("click", () => b.blur());
-  $("btn-midi").addEventListener("click", () => (midi.access ? refreshMidiInputs() : connectMIDI()));
+  // A first press rescans; a second is a question, answered beside the button (piano/midi-hint.js)
+  $("btn-midi").addEventListener("click", async () => {
+    await (midi.access ? refreshMidiInputs() : connectMIDI());
+    midiHint?.pressed();
+  });
   $("midi-select").addEventListener("change", (e) => bindMidi(e.target.value, true));
   $("btn-demo").addEventListener("click", () => (demo.running ? stopDemo() : startDemo()));
   $("btn-916").addEventListener("click", () => applyFraming("9:16"));
@@ -4548,6 +4555,7 @@ window.__piano = {
   get ornamentalMotion() { return ornamentalMotion; },
   setOrnamentalMotion(value) { ornamentalMotion=!!value;requestRender(); },
   requestRender,
+  midiRemembered: () => safeGet(midiPrefKey),  // the input the page last chose, for the Studio footer
   get spectacle() { return spectacle; },
   // Scheme and Instrument (the "looks" section): looks({ geometry, render }) reports; select*() resolve true once shown;
   // registerScheme(module) joins a module object without a file for this page load (scheme development)
@@ -4874,6 +4882,17 @@ function boot() {
   startCues();
   startDeck();  // the cards, after the stream (8.11 item 13): deck frames arriving before it are read by its first refresh
   startStudio();  // the Studio after the deck, which it shares the right edge with (it loads its modules on its own)
+  midiHint = createMidiHint({  // before MIDI connects, so the first binding already reaches it
+    anchor: () => $("btn-midi"),
+    readFacts: () => ({
+      access: !!midi.access,
+      inputs: midi.inputs.filter((i) => midiRank(i) !== -2).map((i) => ({ name: i.name || "", state: i.state })),
+      bound: midi.bound.map((i) => i.name || ""),
+      remembered: safeGet(midiPrefKey),
+      events: midi.events,
+      rec: rec.arming ? "arming" : rec.state,
+    }),
+  });
   (async () => {
     let state = "prompt";
     try { state = (await navigator.permissions.query({ name: "midi" })).state; } catch { /* not queryable */ }

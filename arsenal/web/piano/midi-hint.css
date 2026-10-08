@@ -1,0 +1,46 @@
+/* The Rescan hint (arsenal/web/piano/midi-hint.js): a small card beside Rescan, in the Studio's own type and colours.
+   It sits beside the control and never over the stage. It is DOM only, so it is never in a take. The left edge carries
+   the tone: amber for a problem, the Studio cyan for a sound check, green for success. */
+.midi-hint{
+  --mh-edge:#e1b06a;
+  position:fixed; z-index:60; box-sizing:border-box;
+  width:min(330px, calc(100vw - 32px)); padding:14px 40px 14px 16px;
+  background:rgba(10,17,24,.96);
+  border:1px solid var(--rule,#24313a); border-left:2px solid var(--mh-edge); border-radius:10px;
+  box-shadow:0 18px 50px #0009;
+  color:var(--ink,#e3e9e9); font-family:'DM Sans', system-ui, sans-serif;
+  opacity:0; transform:translateY(-4px); pointer-events:none;
+  transition:opacity .22s ease, transform .22s ease;
+}
+.midi-hint.is-on{opacity:1; transform:none; pointer-events:auto}
+.midi-hint[data-tone=check]{--mh-edge:var(--studio-accent,#a5e2e7)}
+.midi-hint[data-tone=success]{--mh-edge:#87bdaa}
+.midi-hint-title{margin:0 0 6px; font-family:'Instrument Serif', Georgia, serif; font-size:19px; font-weight:400; line-height:1.15}
+.midi-hint-body{margin:0; font-size:12px; line-height:1.55; color:var(--ink-2,#9baab2)}
+.midi-hint-close{
+  position:absolute; top:8px; right:8px; width:24px; height:24px;
+  border:0; border-radius:6px; background:none; color:var(--ink-3,#70838e);
+  font:inherit; font-size:16px; line-height:1; cursor:pointer;
+}
+.midi-hint-close:hover{color:var(--ink,#e3e9e9); background:#16212a}
+
+/* The signal chain: lit up to the step where the signal stops; the steps after it fade, because the signal never got there. */
+.midi-hint-chain{display:flex; align-items:center; flex-wrap:wrap; margin:12px 0 2px; padding:0; list-style:none; font-size:10px; letter-spacing:.02em}
+.midi-hint-chain[hidden], .midi-hint-action[hidden]{display:none}
+.midi-hint-chain li{display:flex; align-items:center; gap:6px; color:var(--ink-2,#9baab2); white-space:nowrap}
+.midi-hint-chain li+li::before{content:""; width:16px; height:1px; margin:0 8px; background:#2c3c47}
+.midi-hint-chain i{width:7px; height:7px; border-radius:50%; background:#87bdaa; flex:none}
+.midi-hint-chain li[data-status=unknown] i{background:#3a4a55}
+.midi-hint-chain li.is-break{color:var(--ink,#e3e9e9)}
+.midi-hint-chain li.is-break i{background:var(--mh-edge); box-shadow:0 0 0 3px rgba(225,176,106,.16)}
+.midi-hint-chain li.is-break ~ li{opacity:.45}
+
+.midi-hint-action{display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap}
+.midi-hint-action button{
+  font:inherit; font-size:11px; padding:6px 10px; border-radius:7px; cursor:pointer;
+  border:1px solid #2b414c; background:#12202a; color:var(--studio-accent,#a5e2e7);
+}
+.midi-hint-action button:hover{background:#18262e}
+.midi-hint-note{font-size:10px; color:var(--ink-3,#70838e)}
+
+@media (prefers-reduced-motion:reduce){.midi-hint{transition:opacity .2s ease; transform:none}}
