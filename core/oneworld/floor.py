@@ -42,7 +42,7 @@ from __future__ import annotations
 
 from collections import namedtuple
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from core.oneworld import journal
 
@@ -83,10 +83,22 @@ def make_entry(key: str, sensor: Callable[[], Signal], *, state: str = "shadow",
                       description=description, budget_s=float(budget_s))
 
 
-def evaluate(entries: List[FloorEntry]) -> Dict[str, Any]:
+def evaluate(entries: List[FloorEntry],
+             previous: Optional[Dict[str, str]] = None,
+             now: Optional[Callable[[], str]] = None) -> Dict[str, Any]:
     """Run each non-off entry's sensor and bucket the result, journaling fires as world-facts: a
     shadow fire is a `floor_would_fire` (the diary); a live fire is a `floor_fired` (a real alarm).
-    Returns a report whose buckets account for EVERY entry, plus an engine-written legend.
+    Returns a report whose buckets account for EVERY entry, plus an engine-written legend, plus
+    `statuses` ({key: fired|clear|unavailable|off}) for the next call to pass back as `previous`.
+
+    `previous` makes the journal an EPISODE log: a fire is journaled only on the transition into
+    fired, and its payload carries `since` (when that episode began), so fire -> clear -> fire is two
+    facts. Without `previous` the W3 semantics hold: the journal is content-idempotent, so a steady
+    identical fire is already one fact -- but a second episode with the same detail is invisible,
+    which the floor's own calibration rule ("promote once the diary says it would have been right")
+    cannot afford. Corrected 2026-10-09: I first assumed the journal would flood on every poll; the
+    pins showed it is idempotent, and the real gap was uncountable episodes. Steady repeats are
+    counted in `journal_suppressed`, never hidden.
 
     A sensor that raises is caught as UNAVAILABLE -- a sensor crashing means the floor cannot see
     that risk right now, which is a real (and honest) state, not a reason to take the floor down.
@@ -97,11 +109,13 @@ def evaluate(entries: List[FloorEntry]) -> Dict[str, Any]:
     unavailable: List[dict] = []
     off: List[dict] = []
     diary_errors: List[str] = []
-    checked = 0
+    statuses: Dict[str, str] = {}
+    checked = suppressed = 0
 
     for e in entries:
         if e.state == "off":
             off.append({"key": e.key, "detail": "off"})
+            statuses[e.key] = "off"
             continue
         checked += 1
         try:
@@ -109,6 +123,7 @@ def evaluate(entries: List[FloorEntry]) -> Dict[str, Any]:
         except Exception as exc:  # noqa: BLE001 -- a crashed sensor is UNAVAILABLE, named, not fatal
             sig = Signal(UNAVAILABLE, f"sensor raised: {type(exc).__name__}: {exc}")
         rec = {"key": e.key, "detail": sig.detail}
+        statuses[e.key] = sig.status if sig.status in (FIRED, CLEAR, UNAVAILABLE) else CLEAR
         if sig.status == FIRED:
             if e.state == "live":
                 live_firing.append(rec)
@@ -116,9 +131,14 @@ def evaluate(entries: List[FloorEntry]) -> Dict[str, Any]:
             else:
                 shadow_would_fire.append(rec)
                 kind = "floor_would_fire"
+            if previous is not None and previous.get(e.key) == FIRED:
+                suppressed += 1  # the same steady fire as last time: already in the journal
+                continue
+            payload = {"entry": e.key, "status": sig.status, "detail": sig.detail}
+            if previous is not None:  # episode mode: a new transition is a new fact
+                payload["since"] = (now or journal._now_iso)()
             try:
-                journal.append(kind, "floor",
-                               {"entry": e.key, "status": sig.status, "detail": sig.detail})
+                journal.append(kind, "floor", payload)
             except Exception as exc:  # the diary failing must be NAMED, never swallowed silently
                 diary_errors.append(f"{e.key}: {type(exc).__name__}: {exc}")
         elif sig.status == UNAVAILABLE:
@@ -138,6 +158,7 @@ def evaluate(entries: List[FloorEntry]) -> Dict[str, Any]:
         "live_firing": live_firing, "shadow_would_fire": shadow_would_fire,
         "clear": clear, "unavailable": unavailable, "off": off,
         "checked": checked, "total": total, "diary_errors": diary_errors, "legend": legend,
+        "statuses": statuses, "journal_suppressed": suppressed,
     }
 
 
