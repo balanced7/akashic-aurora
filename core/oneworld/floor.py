@@ -188,12 +188,14 @@ def default_manifest() -> List[FloorEntry]:
     """The four entries, ALL in shadow (shadow-first), with honestly-unwired sensors. Each sensor's
     detail names the real adapter that would wire it (UNWIRE-WHEN); each falsifier constructs the
     entry's own dangerous condition so self_check proves the entry can fire."""
+    from core.oneworld import sensors  # imported here: sensors imports this module's Signal and states
     return [
         make_entry(
             "undeliverable_mail",
-            sensor=_unwired("not wired: needs a roster x inbox scan for directed ANSWER_KIND mail "
-                            "addressed to a seat with no live incarnation"),
-            falsifier=_falsify("falsifier: a directed reply addressed to an absent seat"),
+            # Wired 2026-10-09 (core/oneworld/sensors.py): roster x shadow mailbox. The lambdas look the sensor up
+            # at call time, so a patched or reloaded sensors module is the one that runs.
+            sensor=lambda: sensors.undeliverable_mail(),
+            falsifier=lambda: sensors.undeliverable_mail_falsifier(),
             description="mail to a specific agent that cannot be delivered -- more urgent than a "
                         "backlog, because it never arrives unless someone notices"),
         make_entry(

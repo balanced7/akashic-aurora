@@ -138,11 +138,17 @@ def test_floor_view_names_each_entry_with_its_state_and_status(jp):
     assert rows["y"]["status"] == "off"
 
 
-def test_the_default_floor_is_not_calm_it_is_blind(jp):
+def test_the_default_floor_names_its_blind_spots_beside_its_one_real_sensor(jp, monkeypatch):
+    # undeliverable_mail is wired (core/oneworld/sensors.py); the other three are still honestly unwired. The
+    # sensor's sources are pinned here so this never reads a live Redis.
+    sensors = pytest.importorskip("core.oneworld.sensors")
+    monkeypatch.setattr(sensors, "_roster_rows", lambda: [{"agent": "sol", "state": "DEAD"}])
+    monkeypatch.setattr(sensors, "_mailbox_query", lambda ns, agent: {"available": True, "entries": []})
     v = surface.floor_view(clock=Clock(), cache={})
-    assert v["ok"] is True
-    assert {r["status"] for r in v["entries"]} == {"unavailable"}, "four unwired sensors are four blind spots"
-    assert "4 unavailable" in v["legend"]
+    rows = {r["key"]: r["status"] for r in v["entries"]}
+    assert rows.pop("undeliverable_mail") == "clear"
+    assert set(rows.values()) == {"unavailable"}, "three unwired sensors are three blind spots, never calm"
+    assert "1 clear" in v["legend"] and "3 unavailable" in v["legend"]
 
 
 def test_a_crashed_engine_is_blind_never_all_clear(jp):

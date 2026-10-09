@@ -134,9 +134,25 @@ def test_every_entry_ships_a_falsifier_that_fires():
     assert all(result.values()), "each entry's falsifier must actually fire -- proof it CAN"
 
 
-def test_default_sensors_are_honest_about_being_unwired(jp):
-    """A fresh floor sees none of the four risks yet, and SAYS so -- it does not report all-clear
-    while blind. This is the anti-'false all-clear' demonstrated on the real default manifest."""
+def test_default_sensors_are_honest_about_being_blind(jp, monkeypatch):
+    """A floor that cannot see does not report all-clear -- the anti-'false all-clear', demonstrated on the
+    real default manifest. Amended 2026-10-09 when undeliverable_mail was wired (core/oneworld/sensors.py):
+    with its roster unreadable it is blind too, so all four are unavailable and nothing is clear."""
+    sensors = pytest.importorskip("core.oneworld.sensors")
+
+    def blind():
+        raise ConnectionError("roster down")
+
+    monkeypatch.setattr(sensors, "_roster_rows", blind)
     rep = floor.evaluate(floor.default_manifest())
-    assert not rep["clear"], "nothing is wired, so nothing may be reported clear"
+    assert not rep["clear"], "a floor that cannot see may not report anything clear"
     assert len(rep["unavailable"]) == 4
+
+
+def test_the_one_wired_sensor_reports_what_it_read_and_the_rest_stay_blind(jp, monkeypatch):
+    sensors = pytest.importorskip("core.oneworld.sensors")
+    monkeypatch.setattr(sensors, "_roster_rows", lambda: [{"agent": "sol", "state": "DEAD"}])
+    monkeypatch.setattr(sensors, "_mailbox_query", lambda ns, agent: {"available": True, "entries": []})
+    rep = floor.evaluate(floor.default_manifest())
+    assert [r["key"] for r in rep["clear"]] == ["undeliverable_mail"]
+    assert len(rep["unavailable"]) == 3, "the three unwired sensors still say they cannot see"
