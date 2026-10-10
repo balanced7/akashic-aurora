@@ -653,13 +653,20 @@ def cmd_sha(args):
 
 # -------------------------------------------------------------------------- learn
 def cmd_learn(args):
-    from core.learning.learning_store import get_learning_store
-
     # T253: a REPEAT is evidence ABOUT an existing lesson, not a new one. It lands here rather
     # than behind its own verb because this is the door already reached for at the moment of
     # "I just learned something" -- and the moment you notice a repeat is exactly that moment.
     # A write door must OFFER a field or it stays empty: the anti-pattern surface sat at zero
     # for months because no flag exposed it, not because nobody had one to record.
+    from core.fleet import provenance
+    from core.learning.learning_store import get_learning_store
+
+    # Task 01: stamp the session's harness/model/effort record before writing, so the lesson
+    # (and its event) can point at it. Fail-soft and empty when no harness names a session.
+    # A known harness with no session variable (some Codex builds) still gets a record: a
+    # minted per-process id keeps the harness and model, which is what scoping needs.
+    prov = provenance.ensure(agent_id=args.agent_id, mint=provenance.detect_harness() != "shell")
+    session_id = prov.get("session_id", "")
     if getattr(args, "repeat_of", None):
         try:
             rec = get_learning_store().record_repeat(
@@ -667,6 +674,7 @@ def cmd_learn(args):
                 agent_id=args.agent_id,
                 what=(args.tried or args.result or ""),
                 recall_outcome=getattr(args, "recall_outcome", "") or "",
+                session_id=session_id,
             )
         except ValueError as e:
             print(f"ERROR: {e}", file=sys.stderr)
@@ -713,6 +721,8 @@ def cmd_learn(args):
         # iterate per-CHARACTER -- silently turning one path into hundreds of one-letter
         # "paths" that match nothing. Accept comma or whitespace separation; agents write both.
         "files_affected": [p for p in _clip(getattr(args, "files_affected", ""), 2000).replace(",", " ").split() if p],
+        "session_id": session_id,
+        "prov": provenance.pointer(session_id),
     }
     related = []
     try:  # near-duplicate scan BEFORE recording (advisory only -- writes are never blocked)
@@ -752,13 +762,17 @@ def cmd_learn(args):
                 "learning",
                 f"lesson: {signal['experiment_name']}",
                 agent_id=signal.get("agent_id"),
+                session_id=session_id,
                 refs=[f"learn:experiment:{signal['experiment_name']}"],
-                detail={
-                    "tried": signal.get("what_tried"),
-                    "result": signal.get("actual_outcome"),
-                    "category": signal.get("category"),
-                    "success": signal.get("success"),
-                },
+                detail=provenance.stamp(
+                    {
+                        "tried": signal.get("what_tried"),
+                        "result": signal.get("actual_outcome"),
+                        "category": signal.get("category"),
+                        "success": signal.get("success"),
+                    },
+                    session_id=session_id,
+                ),
             )
         except Exception:
             pass
@@ -844,6 +858,20 @@ def cmd_tag_anti_pattern(args):
     else:
         print(f"[FAIL] no lesson '{args.experiment}' to tag (record it first with `learn`)")
     return 0 if ok else 1
+
+
+def cmd_provenance(args):
+    """Show (and, if missing, write) the session provenance record: harness, model, effort and
+    environment. With no --session, the current session; outside a harness there is none."""
+    from core.fleet import provenance
+
+    sid = args.session or provenance.current_session_id()
+    rec = provenance.ensure(session_id=sid, agent_id=args.agent or "") if sid else {}
+    if args.json:
+        print(json.dumps({"pointer": provenance.pointer(sid), "record": rec or None}))
+    else:
+        print(provenance.render(rec))
+    return 0 if rec else 1
 
 
 # ------------------------------------------------------------------------- recall
@@ -9821,6 +9849,14 @@ def build_parser():
     ap.add_argument("--reason", default="")
     ap.add_argument("--json", action="store_true")
     ap.set_defaults(fn=cmd_tag_anti_pattern)
+
+    pv = sub.add_parser(
+        "provenance", help="show this session's harness, model, effort and environment record (task 01)"
+    )
+    pv.add_argument("--session", default="", help="a session id (default: this process's harness session)")
+    pv.add_argument("--agent", default="", help="agent id to record if the session has none yet")
+    pv.add_argument("--json", action="store_true")
+    pv.set_defaults(fn=cmd_provenance)
 
     r = sub.add_parser("recall", help="search past lessons (no query = list all)")
     r.add_argument("query", nargs="?", default="")
