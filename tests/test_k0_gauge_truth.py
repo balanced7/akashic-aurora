@@ -7,8 +7,8 @@ user-absolute); both fired per call, log_injection() counted twice, and the funn
 `surfaced` denominator ran ~2x hot — the quantifier was gauging the gauge.
 
 Laws pinned:
-  1. SINGLE SURFACE — the hook appears in AT MOST ONE of the two settings files
-     (user-level absolute is the resilient keeper per the ledger's routing).
+  1. SINGLE SURFACE — the hook appears in AT MOST ONE of the settings files in play
+     (user, project shared, project local); agent/harness/install.py enforces it at install.
   2. ATOMIC DEDUP BACKSTOP — even if double-registration ever returns, an identical
      payload within the window is a silent no-op (O_EXCL marker; no load-then-mark race).
 Run: py -m pytest tests/test_k0_gauge_truth.py -q
@@ -37,17 +37,20 @@ def _hook_count(settings_path) -> int:
 
 
 def test_single_registration_surface():
-    """C8-3 root cause pinned: the recall hook lives on exactly ONE settings surface."""
-    project = os.path.join(REPO, ".claude", "settings.json")
-    user = os.path.join(os.path.expanduser("~"), ".claude", "settings.json")
-    surfaces_with_hook = sum(1 for p in (project, user) if _hook_count(p) > 0)
-    assert surfaces_with_hook <= 1, (
-        "claude_pretooluse.py registered on BOTH settings surfaces again -- every matched "
-        "call double-fires and the funnel denominator lies (C8-3). Keep ONLY the user-level "
-        "absolute-path registration."
+    """C8-3 root cause pinned: the recall hook lives on exactly ONE settings surface.
+
+    Which surface is the installer's choice now (`agent_cli.py hooks install --scope user|project`);
+    the invariant is that it is never two -- and the installer refuses to make it two."""
+    surfaces = (
+        os.path.join(REPO, ".claude", "settings.json"),
+        os.path.join(REPO, ".claude", "settings.local.json"),
+        os.path.join(os.path.expanduser("~"), ".claude", "settings.json"),
     )
-    assert _hook_count(project) == 0, (
-        "project-level registration returned -- the ledger's routing keeps user-level only"
+    with_hook = [p for p in surfaces if _hook_count(p) > 0]
+    assert len(with_hook) <= 1, (
+        "claude_pretooluse.py registered on MORE THAN ONE settings surface -- every matched "
+        f"call double-fires and the funnel denominator lies (C8-3): {with_hook}. "
+        "Run `agent_cli.py hooks status`, then `hooks uninstall` on all but one scope."
     )
 
 

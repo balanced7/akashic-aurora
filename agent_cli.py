@@ -1147,6 +1147,55 @@ def cmd_fleet(args):
     return 2
 
 
+# --------------------------------------------------------------------- hooks / setup
+def cmd_hooks(args):
+    """Register, remove, switch off/on, or inspect Aurora's harness hooks (agent/harness/install.py).
+    Scope `user` fires for every project; `project` writes one project's config (Claude: the
+    personal settings.local.json, or the committed settings.json with --shared)."""
+    from agent.harness import install as inst
+
+    if args.action == "status":
+        if args.json:
+            print(json.dumps(inst.status(args.project), indent=2))
+            return 0
+        print("# Aurora harness hooks  (change with: hooks install|uninstall|enable|disable)")
+        for line in inst.status_lines(args.project, only_present=not args.all):
+            print(line)
+        return 0
+    try:
+        res = inst.ACTIONS[args.action](
+            args.harness, args.scope, project=args.project, shared=args.shared, dry_run=args.dry_run
+        )
+    except (ValueError, json.JSONDecodeError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(res.as_dict(), indent=2))
+        return 0
+    tag = "DRY RUN -- " if args.dry_run else ""
+    print(f"{tag}{args.action} {args.harness} hooks ({args.scope}): {res.path}")
+    for label, items in (("added", res.added), ("removed", res.removed), ("skipped", res.skipped)):
+        for it in items:
+            print(f"  {label:<8} {it}")
+    for n in res.notes:
+        print(f"  note     {n}")
+    if not (res.added or res.removed or res.skipped or res.notes):
+        print("  already up to date")
+    return 0
+
+
+def cmd_setup(args):
+    """Interactive onboarding: pick hook scope per harness, agent id, MCP and git hooks. Every
+    step prints the CLI command that changes it later. --yes takes the defaults (or flags)."""
+    from agent.harness.onboard import run
+
+    try:
+        return run(args)
+    except (KeyboardInterrupt, EOFError):
+        print("\nsetup interrupted; nothing after the last printed step was changed.")
+        return 130
+
+
 # --------------------------------------------------------------------- harnesses
 def cmd_harnesses(args):
     """The integration-tier matrix: what each harness ACTUALLY delivers, T0 door .. T6 close.
@@ -6300,6 +6349,21 @@ def cmd_doctor_deploy() -> int:
             f"{_pyl()} scripts/githooks/install_git_hooks.py"
         )
 
+    # Agent harness hooks (recall-at-action, boot whisper, plan-time recall). Same reader as
+    # `hooks status`, so the two can never disagree about what is registered.
+    try:
+        from agent.harness.install import status as _hook_status
+
+        _claude = [r for r in _hook_status() if r["harness"] == "claude" and (r["installed"] or r["stale"])]
+    except Exception:
+        _claude = []
+    print("  claude hooks   : %s" % (", ".join(r["scope"] for r in _claude) or "NOT INSTALLED"))
+    if not _claude:
+        bad.append(
+            "no Claude Code hooks are registered, so recall-at-action, the session-start boot and "
+            f"plan-time recall never fire. Fix: {_pyl()} agent_cli.py setup  (or: hooks install)"
+        )
+
     quiet = root / "scripts" / "quiet"
     pp = [x for x in (os.getenv("PYTHONPATH") or "").split(os.pathsep) if x.strip()]
     on_path = any(os.path.normcase(os.path.normpath(x)) == os.path.normcase(str(quiet)) for x in pp)
@@ -9808,6 +9872,32 @@ def build_parser():
     )
     hz.add_argument("--json", action="store_true")
     hz.set_defaults(fn=cmd_harnesses)
+
+    hk = sub.add_parser(
+        "hooks", help="register / remove / switch off-on / inspect the harness hooks (user or project scope)"
+    )
+    hk.add_argument("action", choices=["status", "install", "uninstall", "enable", "disable"])
+    hk.add_argument("--harness", choices=["claude", "codex", "cursor"], default="claude", help="default: claude")
+    hk.add_argument("--scope", choices=["user", "project"], default="user", help="default: user (every project)")
+    hk.add_argument("--project", default=None, help="project dir for --scope project (default: cwd)")
+    hk.add_argument(
+        "--shared",
+        action="store_true",
+        help="claude + project: write the committed settings.json, not settings.local.json",
+    )
+    hk.add_argument("--dry-run", action="store_true", help="show what would change; write nothing")
+    hk.add_argument("--all", action="store_true", help="status: also list config files with no Aurora hooks")
+    hk.add_argument("--json", action="store_true")
+    hk.set_defaults(fn=cmd_hooks)
+
+    su = sub.add_parser("setup", help="onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes")
+    su.add_argument("--yes", action="store_true", help="non-interactive: take every default (or the flags below)")
+    su.add_argument("--harness", action="append", choices=["claude", "codex", "cursor"], help="repeatable")
+    su.add_argument("--scope", choices=["user", "project", "skip"], default=None)
+    su.add_argument("--project", default=None)
+    su.add_argument("--agent-id", default=None)
+    su.add_argument("--dry-run", action="store_true")
+    su.set_defaults(fn=cmd_setup)
 
     fl = sub.add_parser("fleet", help="local-model dispatch: roster (list) + capability select + direct one-shot call")
     fl.add_argument(

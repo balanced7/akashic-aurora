@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (107 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (109 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -61,6 +61,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `ground` | typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity | `<target>*` `--agent` `--continuity` `--json` |
 | `handoff` | hand work to another agent (writes a briefing its next boot reads) | `<agent_id>*` `--to` `--task` `--note` `--blocker` `--list` `--json` |
 | `harnesses` | integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers | `--json` |
+| `hooks` | register / remove / switch off-on / inspect the harness hooks (user or project scope) | `<action>* {status,install,uninstall,enable,disable}` `--harness {claude,codex,cursor}` `--scope {user,project}` `--project` `--shared` `--dry-run` `--all` `--json` |
 | `injections` | the injection ledger: what recall pushed into contexts + cost | `--hours` `--json` |
 | `kata` | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') | `<agent_id>*` `<name>*` |
 | `kit` | install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor) | `<agent_id>*` `<kit_name>` `--show` `--json` |
@@ -97,6 +98,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `season-score` | T165: score a Season 1 round, or --compare the two rule sets over the same claims | `--round-file` `--policy` `--compare` `--policies` `--json` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
 | `secret` | the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. | `<target>` `--stdin` |
+| `setup` | onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes | `--yes` `--harness {claude,codex,cursor}` `--scope {user,project,skip}` `--project` `--agent-id` `--dry-run` |
 | `sha` | resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410) | `<sha>*` `--maps` `--verbose` `--no-remote` |
 | `shadow` | zero-effect intent shadow: preview one typed ToolBox action before reality changes | `<target>*` `--agent` `--args-json` `--json` |
 | `shell-home` | where the shell is now + where fresh harness shells land (cwd-guard's other half) | `--set` `--clear` |

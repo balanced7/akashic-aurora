@@ -423,6 +423,8 @@ MANIFEST = {
     "discover": "cli_only",
     "console_log": "cli_only",
     "harnesses": "cli_only",
+    "hooks": "cli_only",  # writes harness config files on THIS machine; not a remote-door action
+    "setup": "cli_only",  # interactive onboarding (input()); an MCP client has no terminal to answer it
     "recall_counters": "cli_only",
     "triage": "cli_only",
     "wrap": "cli_only",

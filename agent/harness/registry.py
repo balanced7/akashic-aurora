@@ -34,7 +34,7 @@ TIERS = ("T0", "T1", "T2", "T3", "T4", "T5", "T6")
 HARNESSES = {
     "claude-code": {
         "default_agent_id": "claude",
-        "adapters": "agent/harness/hooks/claude_*.py (user-global registration, scope-guarded)",
+        "adapters": "agent/harness/hooks/claude_*.py (`agent_cli.py hooks install`: user or project scope, scope-guarded; check with `hooks status`)",
         "tiers": {
             "T0": "yes -- shell (Bash/PowerShell) + ai_setup_mcp.py",
             "T1": "yes -- .claude/settings.json env",
@@ -81,7 +81,7 @@ HARNESSES = {
         "default_agent_id": "composer",
         "adapters": "agent/harness/hooks/cursor_*.py (project .cursor/hooks.json)",
         "tiers": {
-            "T0": "yes -- Shell tool + mcp_global/cursor.mcp.json",
+            "T0": "yes -- Shell tool + scripts/static/mcp/ (cursor MCP config)",
             "T1": "yes -- sessionStart hook returns env (propagates all session hooks) + MCP config env",
             "T2": "yes -- sessionStart additional_context",
             "T3": "one-beat-late -- preToolUse is deny-only (cannot inject on allow); "
@@ -89,6 +89,21 @@ HARNESSES = {
             "T4": "yes, DIRECT -- postToolUseFailure is a real fail event (no transcript synthesis needed)",
             "T5": "unavailable -- beforeSubmitPrompt cannot inject context",
             "T6": "yes -- sessionEnd -> chronicles/last-session-draft.md",
+        },
+    },
+    "codex-desktop": {
+        "default_agent_id": "sol",
+        "adapters": "agent/harness/codex_app_server.py (owned app-server child) + the claude_* hooks "
+        "via .codex/hooks.json (`agent_cli.py hooks install --harness codex`)",
+        "wake": "armed -- agent/harness/codex_bifrost_wake.py; live wake receipts remain unobserved",
+        "tiers": {
+            "T0": "yes -- shell + ai_setup_mcp.py (.codex/config.toml)",
+            "T1": "yes -- .codex/config.toml env (AKASHIC_AGENT_ID)",
+            "T2": "pending -- SessionStart wiring declared; no live receipt yet (docs/CODEX_INTEGRATION.md)",
+            "T3": "pending -- PreToolUse runs the claude_* adapter; Codex payload parity unobserved",
+            "T4": "pending -- PostToolUse runs the claude_* adapter; Codex payload parity unobserved",
+            "T5": "pending -- UserPromptSubmit not yet observed live",
+            "T6": "pending -- no Codex transcript parser; close/draft unbuilt",
         },
     },
     "bare-cli": {
@@ -124,3 +139,48 @@ def supported(harness: str, tier: str) -> bool:
     scoreboard must not read a not-yet-built tier as automated."""
     how = capability(harness, tier).lower()
     return bool(how) and not how.startswith(("unavailable", "manual", "no ", "pending "))
+
+
+# ----------------------------------------------------------------------------- hook specs
+# What `agent_cli.py hooks install` registers, per installer harness: (event, matcher, script).
+# Scripts live in agent/harness/hooks/ (the ONE hook tree; scripts/hooks/ holds shims only).
+# Matchers come from each hook's own docstring. A None matcher means the event takes none.
+
+_TOOL_MATCHER = "Bash|PowerShell|Read|Edit|Write|NotebookEdit|Glob|Grep|Task|WebFetch|WebSearch"
+_ACT_MATCHER = "Bash|PowerShell|Edit|Write|NotebookEdit"
+
+HOOK_SPECS = {
+    "claude": [
+        ("PreToolUse", _TOOL_MATCHER, "claude_trace.py"),
+        ("PreToolUse", _ACT_MATCHER, "claude_pretooluse.py"),
+        ("PreToolUse", "mcp__.*Claude_Browser__(navigate|preview_start)", "claude_browser_guard.py"),
+        ("PostToolUse", _ACT_MATCHER, "claude_posttooluse.py"),
+        ("PostToolUseFailure", _ACT_MATCHER, "claude_posttooluse.py"),
+        ("UserPromptSubmit", "*", "claude_userpromptsubmit.py"),
+        ("SessionStart", "*", "claude_sessionstart.py"),
+        ("PreCompact", "*", "claude_sessionend.py"),
+        ("SessionEnd", "*", "claude_sessionend.py"),
+        ("Stop", "*", "claude_stop.py"),
+    ],
+    # Codex reads Claude-shaped hooks.json. No codex_* adapters exist in the tree yet, so it
+    # runs the claude_* ones (as .codex/hooks.json always has); T2-T6 stay `pending` above.
+    "codex": [
+        ("PreToolUse", _TOOL_MATCHER, "claude_trace.py"),
+        ("PreToolUse", "Bash|Edit|Write|NotebookEdit", "claude_pretooluse.py"),
+        ("PostToolUse", "Bash|Edit|Write|NotebookEdit", "claude_posttooluse.py"),
+        ("PreCompact", "*", "claude_sessionend.py"),
+        ("Stop", None, "claude_stop.py"),
+    ],
+    # Cursor's own hooks.json shape: camelCase events, flat {command, matcher, failClosed}.
+    "cursor": [
+        ("sessionStart", None, "cursor_sessionstart.py"),
+        ("beforeShellExecution", "git\\s+(add|commit)", "cursor_beforeshell.py"),
+        ("preToolUse", "Shell|Write", "cursor_pretooluse.py"),
+        ("postToolUse", "Shell|Read|Write", "cursor_posttooluse.py"),
+        ("postToolUseFailure", "Shell|Read|Write", "cursor_posttooluse.py --event postToolUseFailure"),
+        ("sessionEnd", None, "cursor_sessionend.py"),
+    ],
+}
+
+#: Cursor entries that must block on hook failure (the commit guard).
+CURSOR_FAIL_CLOSED = {"cursor_beforeshell.py"}
