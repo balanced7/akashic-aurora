@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (118 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (119 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -84,6 +84,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `orient` | VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral | `<target>` `--agent` `--density {compact,standard,wide}` `--depth {surface,evidence}` `--per-stream` `--json` |
 | `packet-stats` | N0 bounded shadow route/mirror counters | `--json` |
 | `packet-trace` | N0 dry-run: explain the static route for one packet kind (no send) | `<kind>*` `--json` |
+| `precompile` | meta-harness precompiler (task 09): lessons into skills, subagents, guards, instruction lines | `<action>* {plan,build,check}` `--lesson` `--base` `--harness {claude-code,codex-cli,cursor,runner}` `--force` `--root` `--json` |
 | `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
 | `provenance` | show this session's harness, model, effort and environment record (task 01) | `--session` `--agent` `--json` |
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
