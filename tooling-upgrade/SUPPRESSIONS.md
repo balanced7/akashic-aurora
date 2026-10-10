@@ -2,29 +2,29 @@
 
 | File | Line | Suppression | Reason |
 |---|---|---|---|
-| agent/bifrost_pull.py | 423 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent/bifrost_pull.py | 431 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/harness/codex_bifrost_wake.py | 32 | `noqa: TC001` | runtime-evaluated annotations (annotation_sensitive module) |
-| agent/harness/delta.py | 147 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentMemory has no get_experiences; suppress() hides it |
+| agent/harness/delta.py | 155 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentMemory has no get_experiences; suppress() hides it |
 | agent/harness/draft_keepalive.py | 94 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/harness/draft_keepalive.py | 118 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/harness/dsh_plugin/bridge.py | 365 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1478 | `noqa: F401` | registers on import |
-| agent_cli.py | 2144 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2658 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2727 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3540 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12060 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12276 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12301 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| ai_setup_mcp.py | 509 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 509 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 513 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
-| ai_setup_mcp.py | 516 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 989 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 1697 | `noqa: A002` | public API name (MCP tool parameter) |
+| agent_cli.py | 1489 | `noqa: F401` | registers on import |
+| agent_cli.py | 2157 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2671 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2740 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3553 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12070 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12286 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12311 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| ai_setup_mcp.py | 517 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 517 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 521 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
+| ai_setup_mcp.py | 524 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 997 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 1705 | `noqa: A002` | public API name (MCP tool parameter) |
 | arsenal/analysis.py | 187 | `noqa: BLE001` | deliberately broad: never raise, ever |
 | arsenal/boost.py | 71 | `pyright: ignore[reportOperatorIssue]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |
 | arsenal/fl/vfx/arsenal_band.py | 46 | `pyright: ignore[reportMissingImports]` | FL Studio's embedded module, exists only inside FL |
@@ -41,7 +41,7 @@
 | arsenal/replay.py | 242 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/serve.py | 239 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/tiktok.py | 40 | `noqa: TC003` | runtime-evaluated annotations (inventory annotation_sensitive) |
-| bootstrap.py | 120 | `noqa: F401` | availability probe |
+| bootstrap.py | 128 | `noqa: F401` | availability probe |
 | bridge_doctor.py | 39 | `noqa: E402` | sys.path bootstrap |
 | bridge_doctor.py | 98 | `noqa: SIM112` | Windows spelling; POSIX lookups are case-sensitive |
 | bridge_doctor.py | 108 | `noqa: BLE001` | fail-soft: falls back to a default value |
@@ -49,8 +49,8 @@
 | bridge_doctor.py | 187 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | config.py | 246 | `noqa: E402` | beside the setting it serves |
 | core/codex/schema.py | 94 | `noqa: A002` | public API name |
-| core/comm/ask.py | 1332 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/bifrost_api.py | 185 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/ask.py | 1340 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/bifrost_api.py | 193 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bridge_seal.py | 342 | `noqa: BLE001` | fail-soft: re-raised after cleanup |
 | core/comm/bridge_status.py | 67 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bridge_status.py | 119 | `noqa: BLE001` | fail-soft: falls back to a default value |
@@ -74,31 +74,31 @@
 | core/comm/discord_feed.py | 249 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/discord_feed.py | 274 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | core/comm/discord_feed.py | 287 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| core/comm/discord_inbound.py | 447 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| core/comm/discord_inbound.py | 519 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/discord_inbound.py | 580 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| core/comm/discord_inbound.py | 455 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| core/comm/discord_inbound.py | 527 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/discord_inbound.py | 588 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | core/comm/discord_ladder.py | 40 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/comm/discord_rooms.py | 76 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | core/comm/discord_rooms.py | 266 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/discord_rooms.py | 293 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/doctor.py | 696 | `pyright: ignore[reportPossiblyUnboundVariable]` | LATENT: unbound if worklive probe raised; NameError swallowed below |
-| core/comm/doctor.py | 866 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: LockManager has no list_held; always [] |
-| core/comm/doctor.py | 1220 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: LockManager has no list_held; always [] |
-| core/comm/doctor.py | 1576 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/doctor.py | 704 | `pyright: ignore[reportPossiblyUnboundVariable]` | LATENT: unbound if worklive probe raised; NameError swallowed below |
+| core/comm/doctor.py | 874 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: LockManager has no list_held; always [] |
+| core/comm/doctor.py | 1228 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: LockManager has no list_held; always [] |
+| core/comm/doctor.py | 1584 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/mailbox.py | 866 | `noqa: A001` | public API name (mailbox.open) |
 | core/comm/operator_reply.py | 151 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/operator_reply.py | 200 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 475 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 539 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 582 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 778 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 483 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 547 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 590 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 786 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/runner_lock.py | 416 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: two reads; lock may vanish between them |
 | core/comm/shift_turn.py | 67 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/shift_turn.py | 75 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/toolbox.py | 1016 | `noqa: A002` | public API name |
-| core/comm/toolbox.py | 1416 | `noqa: A002` | public API name |
-| core/comm/toolbox.py | 1901 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
-| core/comm/toolbox.py | 2397 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound before any subprocess call can time out |
+| core/comm/toolbox.py | 1024 | `noqa: A002` | public API name |
+| core/comm/toolbox.py | 1424 | `noqa: A002` | public API name |
+| core/comm/toolbox.py | 1909 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
+| core/comm/toolbox.py | 2405 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound before any subprocess call can time out |
 | core/coord/compare.py | 35 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/coord/compare.py | 205 | `pyright: ignore[reportMissingImports]` | LATENT: no such module; compare() reports this domain as an error |
 | core/coord/experiment.py | 35 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
@@ -309,8 +309,8 @@
 | research/in-flight/wire-capture-deepseek-2026-08-02/probes.py | 26 | `noqa: E402` | fail fast on a missing key before importing the SDK |
 | scripts/bifrost_daemon.py | 45 | `noqa: SIM105` | runs before every other import (contextlib included): Popen is patched first |
 | scripts/bifrost_daemon.py | 46 | `noqa: F401` | patches subprocess.Popen |
-| scripts/bifrost_daemon.py | 655 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_daemon.py | 683 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_daemon.py | 663 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_daemon.py | 691 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | scripts/bifrost_reports.py | 33 | `noqa: E402` | sys.path bootstrap |
 | scripts/bifrost_runner.py | 38 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner.py | 42 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
@@ -318,42 +318,42 @@
 | scripts/bifrost_runner_deepseek.py | 39 | `noqa: F401` | patches subprocess.Popen |
 | scripts/bifrost_runner_deepseek.py | 75 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_deepseek.py | 79 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_deepseek.py | 1442 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_deepseek.py | 1450 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 41 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_discord.py | 45 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_discord.py | 63 | `noqa: E402` | streams are forced to UTF-8 before the import |
-| scripts/bifrost_runner_discord.py | 147 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 196 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 236 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 259 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 274 | `noqa: SIM115` | handle outlives this function: stored on the Tee for the process lifetime |
-| scripts/bifrost_runner_discord.py | 275 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 285 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 294 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 300 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 338 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 470 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 665 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 669 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 685 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 711 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 738 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 758 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 824 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 861 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 887 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 935 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 950 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 956 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 971 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 984 | `pyright: ignore[reportCallIssue]` | LATENT: GuestReplyTracker.poll() takes no on_drop; this TypeError ends the guest-reply task |
-| scripts/bifrost_runner_discord.py | 988 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1050 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1075 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1086 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1098 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1132 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1153 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 155 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 204 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 244 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 267 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 282 | `noqa: SIM115` | handle outlives this function: stored on the Tee for the process lifetime |
+| scripts/bifrost_runner_discord.py | 283 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 293 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 302 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 308 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 346 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 478 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 673 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 677 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 693 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 719 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 746 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 766 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 832 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 869 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 895 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 943 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 958 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 964 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 979 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 992 | `pyright: ignore[reportCallIssue]` | LATENT: GuestReplyTracker.poll() takes no on_drop; this TypeError ends the guest-reply task |
+| scripts/bifrost_runner_discord.py | 996 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1058 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1083 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1094 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1106 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1140 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1161 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | scripts/bifrost_runner_gemini.py | 62 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_gemini.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_kimi.py | 62 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
@@ -399,15 +399,15 @@
 | scripts/remote_bridge_fetch.py | 35 | `noqa: E402` | sys.path bootstrap |
 | scripts/remote_bridge_fetch.py | 65 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/remote_bridge_listener.py | 54 | `noqa: E402` | sys.path bootstrap |
-| scripts/remote_bridge_listener.py | 104 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/remote_bridge_listener.py | 143 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/remote_bridge_listener.py | 228 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/remote_bridge_listener.py | 112 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/remote_bridge_listener.py | 151 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/remote_bridge_listener.py | 236 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/remote_bridge_listener.py | 269 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/remote_bridge_listener.py | 280 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/remote_bridge_listener.py | 292 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/remote_bridge_listener.py | 319 | `noqa: N802` | public API name |
-| scripts/remote_bridge_listener.py | 340 | `noqa: N802` | public API name |
+| scripts/remote_bridge_listener.py | 244 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/remote_bridge_listener.py | 277 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/remote_bridge_listener.py | 288 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/remote_bridge_listener.py | 300 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/remote_bridge_listener.py | 327 | `noqa: N802` | public API name |
+| scripts/remote_bridge_listener.py | 348 | `noqa: N802` | public API name |
 | scripts/remote_bridge_relay.py | 49 | `noqa: E402` | sys.path bootstrap |
 | scripts/remote_bridge_relay.py | 88 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/remote_bridge_relay.py | 147 | `noqa: BLE001` | fail-soft: logged, caller continues |
