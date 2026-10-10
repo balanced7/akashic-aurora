@@ -36,9 +36,9 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from core.paths import data_root
+from core.paths import state_root
 
-log_dir = data_root() / "session_logs"
+log_dir = state_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format="[SESSION_STATE] [%(asctime)s] %(message)s")

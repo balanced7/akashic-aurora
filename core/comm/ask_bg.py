@@ -30,10 +30,14 @@ import json
 import os
 import time
 import uuid
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-ASK_DIR = Path(__file__).resolve().parents[2] / "state" / "asks"
+from core.paths import shared_state_root
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+ASK_DIR = shared_state_root() / "state" / "asks"
 #: A record still "running" past this with no live process is ORPHANED rather than busy.
 ORPHAN_AFTER_S = float(os.getenv("AKASHIC_ASK_BG_ORPHAN_S", "1800"))
 

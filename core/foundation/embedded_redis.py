@@ -74,12 +74,22 @@ def _repo_root() -> Path:
         return Path(__file__).resolve().parents[2]
 
 
+def _shared_root() -> Path:
+    try:
+        from core.paths import shared_state_root
+
+        return shared_state_root()
+    except Exception:  # pragma: no cover - import guard
+        return _repo_root()
+
+
 def data_dir() -> Path:
-    """Where the embedded server keeps its files. Beside the CODE (repo_root), not data_root():
+    """Where the embedded server keeps its files: the world's home (shared_state_root), else beside
+    the CODE (repo_root) -- never data_root():
     one server serves a world port for every process, including test runs that point AI_SETUP
     at a throwaway tree -- they isolate on db 15, exactly as they did against Docker Redis."""
     override = (os.getenv("AKASHIC_EMBEDDED_REDIS_DIR") or "").strip()
-    return Path(override) if override else _repo_root() / "state" / "redis-embedded"
+    return Path(override) if override else _shared_root() / "state" / "redis-embedded"
 
 
 def data_file(port: int) -> Path:
@@ -87,7 +97,7 @@ def data_file(port: int) -> Path:
 
 
 def _marker() -> Path:
-    return _repo_root() / "state" / "redis-backend"
+    return _shared_root() / "state" / "redis-backend"
 
 
 # ------------------------------------------------------------------------------ backend choice
@@ -406,9 +416,9 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
         import fakeredis
 
         from core.foundation.redis_connection import DEFAULT_REDIS_DB
-        from core.paths import data_root
+        from core.paths import state_root
 
-        state_file = data_root() / "session_logs" / "store_state.json"
+        state_file = state_root() / "session_logs" / "store_state.json"
         n = 0
         if state_file.exists():
             data = json.loads(state_file.read_text(encoding="utf-8"))

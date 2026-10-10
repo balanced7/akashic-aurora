@@ -27,7 +27,7 @@ from enum import Enum
 from typing import Any
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
-from core.paths import data_root
+from core.paths import state_root
 
 
 class SignalType(Enum):
@@ -99,7 +99,7 @@ class SignalEmitter:
 
         # Retained for other file artifacts (briefings, etc.); the durable
         # signal record now lives in the ledger's File backend.
-        self.log_dir = data_root() / "session_logs"
+        self.log_dir = state_root() / "session_logs"
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
         # Setup logging

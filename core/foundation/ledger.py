@@ -59,7 +59,7 @@ from typing import Any, ClassVar, cast
 
 from core.foundation import filelock
 from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
-from core.paths import data_root
+from core.paths import state_root
 
 logger = logging.getLogger("ledger")
 
@@ -211,7 +211,7 @@ class FileLedger(Ledger):
     """
 
     def __init__(self, base_dir: str | None = None):
-        base = Path(base_dir) if base_dir else data_root() / "session_logs" / "ledger"
+        base = Path(base_dir) if base_dir else state_root() / "session_logs" / "ledger"
         base.mkdir(parents=True, exist_ok=True)
         self._base = base
         self._lock = threading.RLock()

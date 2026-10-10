@@ -45,7 +45,7 @@ from typing import Any, ClassVar
 
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
-from core.paths import data_root
+from core.paths import state_root
 
 # ---- RETRIEVAL VOCABULARY ----------------------------------------------------------------------
 # The flood, measured 2026-08-02: asking the corpus a shader question returned 77, 707 and 675 rows,
@@ -371,7 +371,7 @@ class LearningStore:
             redis_client: Deprecated/back-compat. If provided, it is wrapped in a
                    RedisStore+HybridStore so existing callers keep working.
         """
-        log_dir = data_root() / "coordinator_logs"
+        log_dir = state_root() / "coordinator_logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         logging.basicConfig(level=logging.INFO, format="[LEARNING_STORE] [%(asctime)s] %(message)s")
         self.logger = logging.getLogger("learning_store")
@@ -401,7 +401,7 @@ class LearningStore:
         repeated startups never duplicate entries.
         """
         try:
-            legacy_file = data_root() / "session_logs" / "learnings.jsonl"
+            legacy_file = state_root() / "session_logs" / "learnings.jsonl"
             if not legacy_file.exists():
                 return
             imported = 0

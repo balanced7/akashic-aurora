@@ -126,6 +126,60 @@ def data_root() -> Path:
     return repo_root()
 
 
+def aurora_home() -> Path | None:
+    """The user-level home of this world's INSTANCE STATE: $AURORA_HOME/<world>, default
+    ~/.aurora/<world>. None unless that directory exists.
+
+    WHY A HOME OUTSIDE THE CHECKOUT (2026-10-10): instance state lived beside the code, so a git
+    worktree -- a second checkout of the SAME world -- wrote its session logs, transcript index
+    and embedded-Redis files into its own tree. Those copies were cut off from the main checkout
+    and deleted with the worktree. One home per world gives every checkout and worktree of that
+    world one place to keep state, with nothing to set up per checkout.
+
+    Keyed by WORLD, never shared across worlds: prod, beta and alpha are physically separate on
+    purpose (core/world.py), and one home for all of them would undo that.
+
+    Opt-in by existence: without the directory every resolver behaves exactly as before, so a
+    fresh machine, CI and the test suite need nothing new.
+    """
+    try:
+        from core.world import current
+
+        world = current().name
+    except Exception:  # pragma: no cover - import guard; a path helper never raises
+        return None
+    if world == "unknown":
+        return None
+    base = (os.getenv("AURORA_HOME") or "").strip()
+    home = (Path(base).expanduser() if base else Path.home() / ".aurora") / world
+    return home if home.is_dir() else None
+
+
+def state_root() -> Path:
+    """Where GITIGNORED instance state lives for code that follows data_root(): session_logs/,
+    coordinator_logs/, state/manuals/. Order: a bare-directory AI_SETUP (test isolation, a
+    relocated data dir) -> aurora_home() -> data_root().
+
+    An AI_SETUP that IS a repo names the code root (the harness hooks set it to the project
+    dir), so it does not outrank the home. Tracked outputs such as chronicles/ stay on
+    data_root(): moving them would leave the committed copies stale.
+    """
+    env = (os.getenv("AI_SETUP") or "").strip()
+    if env and not _looks_like_root(Path(env)):
+        return Path(env)
+    return aurora_home() or data_root()
+
+
+def shared_state_root() -> Path:
+    """Where ONE-PER-WORLD gitignored state lives: the embedded Redis files, the transcript
+    index, the web cache, the ask journals. aurora_home() -> repo_root().
+
+    Ignores AI_SETUP on purpose, as these sites always have: one embedded server serves a world
+    port for every process, including test runs that isolate on db 15 (embedded_redis.data_dir).
+    """
+    return aurora_home() or repo_root()
+
+
 def data_root_str() -> str:
     """String form of data_root(), for os.path.join call sites."""
     return str(data_root())

@@ -169,9 +169,9 @@ _STOP = {
 
 
 def default_db_path() -> Path:
-    from core.paths import data_root
+    from core.paths import state_root
 
-    return data_root() / "state" / "manuals" / "manuals.db"
+    return state_root() / "state" / "manuals" / "manuals.db"
 
 
 @dataclass

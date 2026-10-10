@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
-from core.paths import data_root
+from core.paths import state_root
 
 if TYPE_CHECKING:
     from core.foundation.sqlite_store import SqliteStore
@@ -424,7 +424,7 @@ class FileStore(Store):
     DATA_BUCKETS = ("kv", "hash", "list", "set", "zset")
 
     def __init__(self, path: str | None = None):
-        base = data_root() / "session_logs"
+        base = state_root() / "session_logs"
         base.mkdir(parents=True, exist_ok=True)
         self._path = Path(path) if path else base / "store_state.json"
         self._lock = threading.RLock()
@@ -1357,7 +1357,7 @@ def _file_tier(file_path: str | None = None) -> "FileStore | SqliteStore":
         elif path is None:
             # Defaults pair store_state.db with store_state.json -- the same twin the
             # migration and the dual-authority checker reason about.
-            echo = os.path.join(_repo_root_str(), "session_logs", "store_state.json")
+            echo = os.path.join(str(state_root()), "session_logs", "store_state.json")
         else:
             echo = None  # a bare .db path names no JSON twin; nothing to escrow to
         # T118 D4: while the cutover era lasts, closing a sqlite-selected store exports

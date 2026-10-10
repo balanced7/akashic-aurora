@@ -83,6 +83,14 @@ def _repo_root_str() -> str:
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
+def _state_root_str() -> str:
+    """Where gitignored instance state lives (core.paths.state_root): the world's ~/.aurora home
+    when it exists, else the same AI_SETUP-or-derived root as before."""
+    from core.paths import state_root
+
+    return str(state_root())
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS kv (
     key   TEXT PRIMARY KEY,
@@ -129,7 +137,7 @@ class SqliteStore(Store):
     """File-backed Store on SQLite in WAL mode. Safe across processes AND instances."""
 
     def __init__(self, path: str | None = None, busy_timeout_ms: int = 10_000, echo_json_path: str | None = None):
-        base = os.path.join(_repo_root_str(), "session_logs")
+        base = os.path.join(_state_root_str(), "session_logs")
         os.makedirs(base, exist_ok=True)
         self._path = path or os.path.join(base, "store_state.db")
         # Migration-era rollback escrow (T118 D4): when set, close() exports the full

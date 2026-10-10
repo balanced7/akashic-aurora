@@ -49,7 +49,7 @@
 | bridge_doctor.py | 187 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | config.py | 246 | `noqa: E402` | beside the setting it serves |
 | core/codex/schema.py | 94 | `noqa: A002` | public API name |
-| core/comm/ask.py | 1332 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/ask.py | 1334 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bifrost_api.py | 185 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bridge_seal.py | 342 | `noqa: BLE001` | fail-soft: re-raised after cleanup |
 | core/comm/bridge_status.py | 67 | `noqa: BLE001` | fail-soft: falls back to a default value |
@@ -113,9 +113,9 @@
 | core/fleet/seat_model.py | 160 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/fleet/seat_model.py | 183 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | core/fleet/seat_model.py | 185 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/foundation/embedded_redis.py | 99 | `noqa: F401` | availability probe |
-| core/foundation/embedded_redis.py | 337 | `pyright: ignore[reportAttributeAccessIssue]` | idempotence marker on a third-party class |
-| core/foundation/embedded_redis.py | 536 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| core/foundation/embedded_redis.py | 109 | `noqa: F401` | availability probe |
+| core/foundation/embedded_redis.py | 347 | `pyright: ignore[reportAttributeAccessIssue]` | idempotence marker on a third-party class |
+| core/foundation/embedded_redis.py | 546 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
 | core/foundation/redis_connection.py | 207 | `pyright: ignore[reportPossiblyUnboundVariable]` | NameError without redis is caught below |
 | core/foundation/redis_connection.py | 280 | `pyright: ignore[reportPossiblyUnboundVariable]` | REDIS_LIBRARY_AVAILABLE checked above |
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API) |
@@ -152,7 +152,7 @@
 | core/tools/everything.py | 545 | `noqa: A002` | public API name |
 | core/tools/everything.py | 679 | `noqa: A002` | public API name |
 | core/trust/capabilities.py | 14 | `noqa: UP042` | str() of members must stay "Cls.NAME" |
-| core/web/door.py | 279 | `noqa: E402` | used by search |
+| core/web/door.py | 281 | `noqa: E402` | used by search |
 | core/world.py | 53 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | data/play/claude/campfire.py | 72 | `noqa: B005` | strips the char set "- []" by design |
 | docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py | 12 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |

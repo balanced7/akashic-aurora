@@ -32,8 +32,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from core.paths import shared_state_root
+
 ROOT = Path(__file__).resolve().parents[2]
-CACHE_DIR = ROOT / "state" / "web_cache"
+CACHE_DIR = shared_state_root() / "state" / "web_cache"
 RECEIPTS = ROOT / "state" / "coord" / "web_fetch_receipts.jsonl"
 UA = "AkashicLabs-WebDoor/0.1 (+https://akashiclabs.io; respectful cache-first fetcher)"
 DEFAULT_LIMIT = 8000

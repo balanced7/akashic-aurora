@@ -58,11 +58,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from core.paths import shared_state_root
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Module-level so tests (and a future config pass) can repoint both planes together.
 JOURNAL_PATH = _REPO_ROOT / "state" / "coord" / "routes.jsonl"
-DB_PATH = _REPO_ROOT / "state" / "eye" / "eye.db"
+DB_PATH = shared_state_root() / "state" / "eye" / "eye.db"
 
 SCHEMA_VERSION = 1
 

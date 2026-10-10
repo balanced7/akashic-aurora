@@ -28,8 +28,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from core.paths import shared_state_root
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_DB = _REPO_ROOT / "state" / "eye" / "eye.db"
+_DEFAULT_DB = shared_state_root() / "state" / "eye" / "eye.db"
 
 # Markers that make a `user`-typed record SYSTEM, not operator. Same family the
 # success-vocabulary extractor learned the hard way (its lens-3 catch).
@@ -304,7 +306,7 @@ def _corpus_roots() -> list[Any]:
         b = Path(base)
         if b.is_dir():
             _take("archive", b, b.glob(_TRANSCRIPT_GLOB))
-    rescued = _REPO_ROOT / "state" / "eye" / "recovered"
+    rescued = shared_state_root() / "state" / "eye" / "recovered"
     if rescued.is_dir():
         _take("rescued", rescued, rescued.glob(_TRANSCRIPT_GLOB))
     # T406: the DSH plane -- one directory per session, its own glob because the transcripts

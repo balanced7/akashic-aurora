@@ -56,15 +56,23 @@ def _repo_root_str() -> str:
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
+def _state_root_str() -> str:
+    """Where gitignored instance state lives (core.paths.state_root): the world's ~/.aurora home
+    when it exists, else the same AI_SETUP-or-derived root as before."""
+    from core.paths import state_root
+
+    return str(state_root())
+
+
 _BUCKETS = ("kv", "hash", "list", "set", "zset")
 
 
 def _default_json() -> Path:
-    return Path(_repo_root_str()) / "session_logs" / "store_state.json"
+    return Path(_state_root_str()) / "session_logs" / "store_state.json"
 
 
 def _default_db() -> Path:
-    return Path(_repo_root_str()) / "session_logs" / "store_state.db"
+    return Path(_state_root_str()) / "session_logs" / "store_state.db"
 
 
 def load_json(path: Path) -> dict:

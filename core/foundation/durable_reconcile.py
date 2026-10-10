@@ -49,6 +49,14 @@ def _repo_root_str() -> str:
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
+def _state_root_str() -> str:
+    """Where gitignored instance state lives (core.paths.state_root): the world's ~/.aurora home
+    when it exists, else the same AI_SETUP-or-derived root as before."""
+    from core.paths import state_root
+
+    return str(state_root())
+
+
 # family -> (authority, structure). RATIFIED by Daniel 2026-07-28 ("I like it, I
 # assume since its a table we can add other categories as they emerge. Iapprove") --
 # the full table with receipts: research/in-flight/t118-roster-proposal-2026-07-28.md.
@@ -320,7 +328,7 @@ def main(argv=None) -> int:
             )
             return 0
         stamp = int(time.time())
-        escrow = Path(_repo_root_str()) / "session_logs" / f"reconcile-displaced-{stamp}.json"
+        escrow = Path(_state_root_str()) / "session_logs" / f"reconcile-displaced-{stamp}.json"
         rep = apply(redis, file_store, escrow_path=escrow)
         print(
             f"[reconcile] APPLIED: copied={rep['copied']} displaced={rep['displaced']} "

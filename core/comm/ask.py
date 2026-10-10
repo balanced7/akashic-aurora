@@ -370,7 +370,9 @@ def _route_journal_path() -> Path:
     env = os.environ.get("AKASHIC_ROUTE_JOURNAL", "")
     if env:
         return Path(env)
-    return _REPO_ROOT / "state" / "route_journal.jsonl"
+    from core.paths import shared_state_root
+
+    return shared_state_root() / "state" / "route_journal.jsonl"
 
 
 def _route_journal(rec: dict[str, Any]) -> None:

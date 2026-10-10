@@ -15,6 +15,7 @@ import subprocess
 
 import pytest
 
+from core import paths as P
 from core import world as W
 
 # --------------------------------------------------------------------------
@@ -78,3 +79,59 @@ def test_a_worktree_of_an_unknown_checkout_stays_unknown(tmp_path):
     wt = tmp_path / "wt"
     _git("worktree", "add", "-q", str(wt), cwd=main)
     assert W.resolve(root=wt, env={}).name == "unknown"
+
+
+# --------------------------------------------------------------------------
+# the per-world home
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """A prod home under tmp_path, with the world pinned to prod."""
+    base = tmp_path / "dot-aurora"
+    monkeypatch.setenv("AURORA_HOME", str(base))
+    monkeypatch.setattr(W, "current", lambda: W.WORLDS["prod"])
+    monkeypatch.delenv("AI_SETUP", raising=False)
+    return base
+
+
+def test_no_home_directory_means_no_home_and_unchanged_roots(home):
+    assert P.aurora_home() is None
+    assert P.state_root() == P.data_root()
+    assert P.shared_state_root() == P.repo_root()
+
+
+def test_home_is_keyed_by_world(home, monkeypatch):
+    (home / "prod").mkdir(parents=True)
+    assert P.aurora_home() == home / "prod"
+    monkeypatch.setattr(W, "current", lambda: W.WORLDS["alpha"])
+    assert P.aurora_home() is None  # alpha has no home yet: never borrow prod's
+
+
+def test_unknown_world_never_gets_a_home(home, monkeypatch):
+    (home / "unknown").mkdir(parents=True)
+    monkeypatch.setattr(W, "current", lambda: W.UNKNOWN)
+    assert P.aurora_home() is None
+
+
+def test_existing_home_wins_for_both_roots(home):
+    (home / "prod").mkdir(parents=True)
+    assert P.state_root() == home / "prod"
+    assert P.shared_state_root() == home / "prod"
+
+
+def test_bare_ai_setup_still_isolates_state_but_not_shared_state(home, tmp_path, monkeypatch):
+    (home / "prod").mkdir(parents=True)
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    monkeypatch.setenv("AI_SETUP", str(bare))
+    assert P.state_root() == bare  # test isolation keeps working
+    assert P.shared_state_root() == home / "prod"  # one embedded server per world, as before
+
+
+def test_a_repo_ai_setup_does_not_outrank_the_home(home, monkeypatch):
+    """The harness hooks set AI_SETUP to the project dir; that names code, not a data dir."""
+    (home / "prod").mkdir(parents=True)
+    monkeypatch.setenv("AI_SETUP", str(P.repo_root()))
+    assert P.state_root() == home / "prod"
