@@ -14,6 +14,8 @@ Fake agent modes (argv[1]):
   aware    good if the candidate's CLAUDE.md says FIX-EVERYTHING, else bad
   memory   reads the run's private memory: a USE-PLUS lesson -> good, a USE-MINUS-WRONG
            lesson -> bad, no such lesson -> half
+  modes    good when CLAUDE.md (compiled) or a recalled lesson says USE-PLUS, else half;
+           each recalled lesson adds 500 input tokens, and hybrid skips compiled lessons
 """
 
 from __future__ import annotations
@@ -31,6 +33,22 @@ FAKE_AGENT = textwrap.dedent(
     import glob, json, re, sys
     mode = sys.argv[1]
     prompt = open(sys.argv[2]).read()
+    extra_tokens = 0
+    if mode == "modes":  # compiled rules in CLAUDE.md, or recalled lessons, each say USE-PLUS
+        import os
+        compiled = os.path.exists("CLAUDE.md") and "USE-PLUS" in open("CLAUDE.md").read()
+        recalled = ""
+        if os.environ.get("AKASHIC_RECALL_AT_ACTION") == "1" and os.environ.get("AKASHIC_MEMORY_MODE") != "precompiled":
+            store = os.path.join(os.environ.get("AI_SETUP", ""), "session_logs", "store_state.json")
+            doc = json.load(open(store)) if os.path.exists(store) else {}
+            for k, v in (doc.get("hash") or {}).items():
+                if not k.startswith("learn:experiment:"):
+                    continue
+                if os.environ.get("AKASHIC_MEMORY_MODE") == "hybrid" and v.get("compiled_into"):
+                    continue  # hybrid: the harness already carries it
+                recalled += str(v.get("recommendation", ""))
+                extra_tokens += 500  # each pushed lesson costs context
+        mode = "good" if compiled or "USE-PLUS" in recalled else "half"
     if mode == "memory":  # reads its run's PRIVATE memory, as recall would hand it lessons
         import os
         store = os.path.join(os.environ.get("AI_SETUP", ""), "session_logs", "store_state.json")
@@ -57,9 +75,10 @@ FAKE_AGENT = textwrap.dedent(
     else:
         open("NOTES.md", "a").write("looked around\\n")
     scale = 10 if mode == "verbose" else 1
+    extra = extra_tokens
     print(json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Edit", "input": {}}]}}))
     print(json.dumps({"type": "result", "subtype": "success", "total_cost_usd": 0.01 * scale, "num_turns": 2,
-                      "usage": {"input_tokens": 1000 * scale, "output_tokens": 50 * scale}}))
+                      "usage": {"input_tokens": 1000 * scale + extra, "output_tokens": 50 * scale}}))
     """
 )
 

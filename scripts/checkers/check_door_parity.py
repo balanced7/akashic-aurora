@@ -134,6 +134,7 @@ MANIFEST = {
     "loop": "cli_only",  # meta-harness task 07: the proposer loop
     "memreplay": "cli_only",  # meta-harness task 08: replay memory before and after a lesson
     "precompile": "cli_only",  # meta-harness task 09: lessons into harness primitives
+    "modes": "cli_only",  # meta-harness task 10: interpretive vs precompiled memory
     "forecast": "cli_only",
     # 2026-08-23 incident lever (Daniil from the phone: "Can we add a command to
     # restart the discord gateway?"): status/restart for the ear, detached relaunch

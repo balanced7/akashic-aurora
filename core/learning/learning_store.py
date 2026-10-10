@@ -1405,8 +1405,10 @@ def _memreplay_trigger(name: str, why: str, previous: dict[str, Any] | None) -> 
     its record as it stands. Never raises: a trigger must not cost the write it watches."""
     try:
         from core.metaharness.memreplay import enqueue
+        from core.metaharness.modes import flag_stale
 
         enqueue(name, why, previous)
+        flag_stale(name, why, previous)  # task 10: a compiled lesson that changes needs a recompile
     except Exception:  # noqa: BLE001  # fail-soft by contract
         pass
 
