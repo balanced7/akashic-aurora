@@ -481,7 +481,9 @@ class LearningStore:
     #: it replaces. `repeat_report()` refuses to emit one and says so in its own payload.
     REPEAT_INDEX = "learn:repeats"
 
-    def record_repeat(self, of: str, agent_id: str = "", what: str = "", recall_outcome: str = "") -> dict[str, Any]:
+    def record_repeat(
+        self, of: str, agent_id: str = "", what: str = "", recall_outcome: str = "", session_id: str = ""
+    ) -> dict[str, Any]:
         """Record that a lesson which ALREADY EXISTED was violated anyway.
 
         `recall_outcome` is the field that earns its place: a repeat where recall FIRED is a
@@ -522,6 +524,11 @@ class LearningStore:
             "at": now.isoformat(),
             "elapsed_s": round(elapsed, 3),
         }
+        if session_id:  # provenance pointer (task 01): which session saw the mistake recur
+            from core.fleet.provenance import pointer
+
+            rec["session_id"] = session_id
+            rec["prov"] = pointer(session_id)
         try:
             self.store.hset(f"learn:repeat:{rid}", mapping={k: str(v) for k, v in rec.items()})
             self.store.sadd(self.REPEAT_INDEX, rid)
@@ -910,6 +917,13 @@ class LearningStore:
             # agent-authored learning, so it points at itself -> Distiller can keep it.
             "source": _s(learning_signal.get("source"), f"learn:experiment:{experiment_id}"),
         }
+        # PROVENANCE (meta-harness task 01): which session -- and so which harness, model and
+        # effort -- recorded this lesson. Written only when known, so a lesson from a door that
+        # knows no session reads exactly like the ~1,100 that predate the field: absent means
+        # unknown, never a guessed default.
+        for f in ("session_id", "prov"):
+            if learning_signal.get(f):
+                experiment_data[f] = _s(learning_signal.get(f))
 
         self.store.hset(f"learn:experiment:{experiment_id}", mapping=experiment_data)
 
