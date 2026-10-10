@@ -148,6 +148,11 @@ def select_within_budget(
     now_f = float(now if now is not None else time.time())
     credit = credit_fn or _default_credit_fn()
     lessons = store if isinstance(store, list) else store.load_all_learnings_from_store()
+    # Applicability (meta-harness task 02): a lesson scoped to another harness or model does
+    # not take boot budget. Unknown context or no scope field -> kept, as before.
+    from core.learning import scope as _scope
+
+    lessons = _scope.filter_applicable(lessons)
     try:
         from core.learning.learning_store import is_graduated
     except Exception:

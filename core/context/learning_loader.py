@@ -123,7 +123,9 @@ def load_learnings_ranked_by_relevance(
     store = learning_store or get_learning_store_instance()
     ranker = ranker or Ranker()
 
-    learnings = store.load_all_learnings_from_store()
+    from core.learning import scope as _scope
+
+    learnings = _scope.filter_applicable(store.load_all_learnings_from_store())  # task 02
     items = [
         {
             "text": _text_of(lesson),
