@@ -8,6 +8,7 @@
     "recall",
     "recall-at-action",
     "recall-loop",
+    "execution-modes",
     "ranker-and-distiller",
     "chronicles",
     "library"
