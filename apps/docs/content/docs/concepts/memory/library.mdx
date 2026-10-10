@@ -3,44 +3,48 @@ title: Library
 description: The home for the project's own documents, where each is a versioned record and the markdown you read is printed from it.
 ---
 
-The library gives every house document a home. Each document is an atom: an append-only record with a version history. The markdown file you read is a projection, a copy that a program prints from the atom. Think of a master copy kept in a vault. A program prints the shelf copies from it. When a shelf copy and the master disagree, the master wins.
+The library gives every house document a home. Each document is an atom, a versioned record that only grows. The markdown file you read is a projection, a copy that a program prints from the atom. Think of a master copy kept in a vault. A program prints the shelf copies from it. When a shelf copy and the master disagree, the master wins.
 
 ## Why it exists
 
-The goal was simple: know where to find anything, at once. Docs had sprawled across the repo. Worse, some still gave orders that no longer applied. One doc called itself the "SINGLE SOURCE OF TRUTH" for a model the project had dropped. Fresh agents found it and followed it. The fix moved docs into atoms. One commit deleted 621 loose copies. It pointed every reference at the new projections.
+The goal was simple: know where to find anything, at once. Docs had sprawled across the repo. Worse, some still gave orders that no longer applied. One doc called itself the "SINGLE SOURCE OF TRUTH" for a model the project had dropped. A fresh agent reading it would have followed dead rules. The fix minted the docs as atoms first. Then one commit deleted the 621 tracked originals. It pointed every reference at the new projections. Every byte survived.
 
 ## How it works
 
-- **Atoms are the truth.** Each atom lives in the [store](/docs/concepts/foundations/store) and in a file tracked by git, one line per version. If the store loses its copy, the file rebuilds it.
+- **Atoms are the truth.** Each atom follows the [append-only record](/docs/concepts/foundations/append-only-record) pattern. It lives in the [store](/docs/concepts/foundations/store) for fast reads. Git also tracks a file per type, `store/docs/<type>.jsonl`. It gets one line per version event: a new version or a status change. If the store loses its copy, a rebuild replays the file.
 - **Markdown is a projection.** Each file under `docs/library/` carries a "do not edit" banner and the atom's id.
-- **A path says only the type.** Types include design, report, brief, chronicle, map, contract and ruling. Arc, author and status live in the header. To change a category, you print a new catalog. You never move the file.
-- **Living docs and dated docs.** A living doc is a short list of rules in `docs/`, named in capitals, such as `LIBRARY.md`. A dated doc carries its date in the name, or lives as an atom.
+- **A path says only the type.** There are eight types: contract, map, design, brief, report, chronicle, ledger and ruling. Arc, author and status live in the header. To change a category, you print a new catalog. You never move the file.
+- **Living docs and dated docs.** A living doc is one an agent can act on today. Its header says `Status: current`; that is the marker. Contracts usually carry names in capitals, such as `LIBRARY.md`. The generated maps in `docs/` are living too. A dated doc carries its date in the name, or lives as an atom.
 - **Every doc states its status.** A top-level doc in `docs/` must say `current`, `superseded-by` or `historical` near the top. A checker fails a doc with no status. It warns about a `current` doc untouched for 45 days. Atoms use their own set: `current`, `draft`, `superseded` and `fossil`.
 
-### The codex
-
-<Callout type="warn" title="Planned, partly built">The codex has its first parts in code, but its pages are not built, and the project has set the design aside.</Callout>
-
-The codex was a plan for knowledge that tidies itself. Its pages would never be hand-edited. A program would group related atoms and write a summary for each group. To merge two pages, it would regroup and rewrite. The plan aimed to stop a common rot: hundreds of weak pages no one dares to merge. The first parts exist. A page schema and a version history exist, but only tests call them. A grouping step and an [embedder](/docs/concepts/memory/discover-and-embeddings) exist too, and the story theme finder now borrows them. There is no `codex` command.
+One mismatch to know: `LIBRARY.md` lists `current`, `superseded by` and `fossil` for the header, but the checker accepts `current`, `superseded-by` and `historical`.
 
 ## How you use it
 
 ```bash
 aurora doc new --type design --title my-plan --draft
-aurora doc adopt docs/notes.md
+aurora doc adopt research/in-flight/my-findings.md
 ```
 
-Read `docs/INDEX.md` for the living set. Read `docs/SHELVES.md` for a count of docs by type.
+`doc adopt` mints an atom from a loose file you already have, and leaves that file untouched. Use it for drafts outside `docs/`. A commit guard refuses a new loose `.md` under `docs/`, so start there with `doc new`.
+
+Read `docs/INDEX.md` for the living set. `docs/SHELVES.md` counts the docs by type. A script, `scripts/generators/gen_library.py`, writes it, and its counts can lag. Run that script before you trust them.
+
+### The codex
+
+<Callout type="warn" title="Planned, partly built">The codex has its first parts in code, but its pages are not built, and the project has set the design aside.</Callout>
+
+The codex was a plan for knowledge that tidies itself. Its pages would never be hand-edited. A program would group related atoms and write a summary for each group. To merge two pages, it would regroup and rewrite. The plan aimed to stop a common rot: hundreds of weak pages no one dares to merge. A page schema and a version history exist, but only tests call them. A grouping step and an embedder exist too. The story theme finder borrows the [embedder](/docs/concepts/memory/ranker-and-distiller) only. The grouping step has no live caller. There is no `codex` command.
 
 ## Don't confuse it with
 
 - **"The codex" in `docs/ARCHITECTURE.md`** — a nickname for the whole knowledge and memory block. It means this section, not the plan above.
 - **Codex the agent** — an outside coding agent that holds the `sol` seat. See [Seats](/docs/concepts/bifrost/seats).
-- **[Chronicles](/docs/concepts/memory/chronicles)** — digests made from lessons and notes, not house docs.
-- **[Manuals shelf](/docs/concepts/memory/manuals-shelf)** — outside vendor manuals, not house docs.
+- **[Chronicles](/docs/concepts/memory/chronicles)** — digests made from notes and story beats, not house docs.
+- **[Manuals shelf](/docs/concepts/tools/manuals-shelf)** — outside vendor manuals, not house docs.
 
 ## How it connects
 
-- **Built on:** [Store](/docs/concepts/foundations/store), [Append-only record](/docs/concepts/foundations/append-only-record), [Hybrid storage](/docs/concepts/foundations/hybrid-storage)
-- **Used by:** [Boot](/docs/concepts/memory/boot) (reads the architecture map, a living doc, for its code slice), [Guards over discipline](/docs/concepts/method/guards-over-discipline)
+- **Built on:** [Append-only record](/docs/concepts/foundations/append-only-record), [Store](/docs/concepts/foundations/store), [Hybrid storage](/docs/concepts/foundations/hybrid-storage)
+- **Used by:** [Boot](/docs/concepts/memory/boot) (it reads the architecture map), `lookback` and `knowledge-map` (they rank living docs and projections), [Guards over discipline](/docs/concepts/method/guards-over-discipline)
 - **Part of:** [Memory and recall](/docs/concepts/memory)

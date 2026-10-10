@@ -17,7 +17,7 @@ Once, the same knowledge lived in several places that disagreed. Redis held 12 e
 flowchart BT
   raw["1. Raw<br/>Ledger streams such as events:raw<br/>only grow"]
   canon["2. Canonical<br/>the Store: learn:*, mem:*, proj:*<br/>a short summary of each fact"]
-  derived["3. Derived<br/>chronicles/: lessons.md, story.md<br/>written by a program"]
+  derived["3. Derived<br/>chronicles/: memory.md, story.md<br/>written by a program"]
   raw -- "summed up into" --> canon
   canon -. "source pointer back" .-> raw
   canon -- "rebuilt into" --> derived
@@ -26,7 +26,7 @@ flowchart BT
 
 1. **Raw.** [Ledger](/docs/concepts/foundations/ledger) streams such as `events:raw` and `agent:events`. They only grow, within each stream's size cap.
 2. **Canonical.** The [Store](/docs/concepts/foundations/store), under keys such as `learn:*`, `mem:*` and `proj:*`. Each record is a short summary plus a `source` pointer to where it came from.
-3. **Derived.** Files under `chronicles/`, such as `lessons.md` and `story.md`. A program writes them. Each says at the top: do not hand-edit.
+3. **Derived.** Files under `chronicles/`, such as `memory.md` (from notes) and `story.md` (from story beats). A program writes them. `memory.md` says at the top: do not hand-edit. `story.md` says it was generated.
 
 The rule fits in four lines. Keep the raw intact. Let the Store sum up, with a pointer. Rebuild the chronicles from the Store. Never hand-edit a derived page as if it were a source.
 

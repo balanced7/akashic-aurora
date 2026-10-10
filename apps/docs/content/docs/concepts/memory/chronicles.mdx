@@ -1,32 +1,39 @@
 ---
 title: Chronicles
-description: Digest files made from the raw stores, which you read but never edit by hand.
+description: Digest files made from the stored records, which you read but never edit by hand.
 ---
 
-Chronicles are the readable digests in the `chronicles/` folder. A program writes them from the raw records. You read them, but you never edit them. Think of a yearbook printed from the school records. To fix a mistake, you fix the record and print again.
-
-<Callout type="warn" title="One file is stale">`chronicles/lessons.md` still holds six early lessons; nothing in the code writes it today.</Callout>
+Chronicles are the readable digests in the `chronicles/` folder. A program writes them from the stored records: `memory.md` from notes, `story.md` from story beats. You read them, but you never edit them. Think of a yearbook printed from the school records. To fix a mistake, you fix the record and print again.
 
 ## Why it exists
 
-People need a short, readable view of lessons, notes and the story so far. The raw stores are too big to read. The project settled on three [knowledge layers](/docs/concepts/foundations/knowledge-layers). Raw records come first, and no one rewrites them. The [store](/docs/concepts/foundations/store) keeps a summary of each, with a pointer back. Chronicles sit on top, and a program can always write them again. An early bug had two functions writing the same file, each wiping out the other. Now each file has one writer.
+People need a short, readable view of notes and the story so far, and the stores are too big to read. Chronicles are the derived layer of the three [knowledge layers](/docs/concepts/foundations/knowledge-layers), so a program can always write them again. An early bug had two functions writing the same file, each wiping out the other. Each file now has one live writer. An unused old helper could still overwrite `memory.md`, but nothing calls it.
 
 ## How it works
 
 The live writers share the [ranker and the distiller](/docs/concepts/memory/ranker-and-distiller). Each picks the top records and packs them into a budget. The notes digest also runs the faithfulness critic. Its file does not record the result. The story file skips that critic and prints a basic check for each chapter.
 
-The main files are:
+The files are:
 
 - **`memory.md`** — a digest of the live [notes](/docs/concepts/memory/notes-and-agent-memory). Every `note` write rebuilds it.
 - **`story.md`** — the story of the work so far. The Chronicler on the [narrative spine](/docs/concepts/narrative/narrative-spine) writes it.
-- **`lessons.md`** — meant to be a digest of the lessons. A function to write it exists, but nothing calls it. The file still lists six lessons from the first days, while the store now holds hundreds.
-- **`adrs.json`, `failures.json`, `milestones.json`** — output from an old chronicle program that no longer exists. Nothing reads or writes them now.
+- **`story.index.json`** — the chapter index the Chronicler writes beside `story.md`. Lookback reads it to find chapters.
+- **`last-session-draft.md`** — a draft of where a session ended. A hook writes it when a session ends or its context is about to shrink. Git ignores it. `wrap --commit` turns it into a real note.
+- **`lessons.md`** — meant to be a digest of the lessons. **It is stale.** A function to write it exists, but nothing calls it. The file still lists six lessons from June 2026, while the store now holds many more.
+- **`adrs.json`, `failures.json`, `milestones.json`, `tag_vocabulary.json`** — output from an old chronicle program, now retired. Its code sits in `docs/_archive/pre-library/python_old/chronicle.py`. Nothing reads or writes these files now.
+
+A commit guard keeps the folder small. It refuses any other new `.md` file in `chronicles/`. Written records belong in the [library](/docs/concepts/memory/library) as atoms.
 
 The word "chronicle" belongs to this layer only. It never names the raw event log.
 
 ## How you use it
 
-Read `chronicles/memory.md` for the state of the project. Read `chronicles/story.md` for how it got there. To rebuild `memory.md`, run `notes --project`. Never edit these files. Fix the records and let the program write them again.
+```bash
+aurora notes --project     # rebuild memory.md
+aurora story --chronicle   # rebuild story.md
+```
+
+Read `chronicles/memory.md` for the state of the project. Read `chronicles/story.md` for how it got there. Never edit these files. Fix the records and let the program write them again.
 
 ## Don't confuse it with
 
@@ -36,6 +43,6 @@ Read `chronicles/memory.md` for the state of the project. Read `chronicles/story
 
 ## How it connects
 
-- **Built on:** [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller), [Lessons](/docs/concepts/memory/lessons), [Notes](/docs/concepts/memory/notes-and-agent-memory), [Narrative spine](/docs/concepts/narrative/narrative-spine)
+- **Built on:** [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller), [Notes](/docs/concepts/memory/notes-and-agent-memory), [Narrative spine](/docs/concepts/narrative/narrative-spine)
 - **Used by:** people reading the project's state and story
 - **Part of:** [Memory and recall](/docs/concepts/memory); it is the derived layer of [Knowledge layers](/docs/concepts/foundations/knowledge-layers). The rule behind it is [decision 0010](/docs/reference/decisions/0010-generate-status-never-hand-write-it).
