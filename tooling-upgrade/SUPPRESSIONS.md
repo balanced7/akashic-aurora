@@ -737,6 +737,7 @@
 | tests/test_link_python_units.py | 33 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_python_units.py | 34 | `noqa: E402` | sys.path bootstrap |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_compress.py | 29 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_corpus.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_graders.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_graders.py | 27 | `noqa: E402` | sys.path bootstrap |
