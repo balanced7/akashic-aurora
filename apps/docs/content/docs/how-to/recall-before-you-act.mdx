@@ -10,19 +10,53 @@ aurora recall-at --path core/foundation/store.py
 aurora recall-at --command "git rebase -i main"
 ```
 
-You get at most a few lessons, each with a `source` pointer. You also see if another agent holds a lock on that path. If nothing clears the relevance bar, you get nothing. That silence is on purpose.
+You get at most three lessons by default (`--limit N` changes that), each with a `source` pointer. You also see if another agent holds a lock on that path, and up to two commands that fit. If nothing clears the relevance bar, you get one line instead:
 
-## Let the hooks do it
+```text
+# recall-at-action: nothing relevant (silence beats a weak hint)
+```
 
-In Claude Code on a set-up host, hooks run this check before every edit and command. You only need the manual habit in tools without hook wiring. See [Recall at action](/docs/concepts/memory/recall-at-action).
+That silence is on purpose. When lessons do fit, the output looks like this trimmed example of a run with `--limit 1`:
+
+```text
+Recall-at-action (Akashic) - facts relevant to what you're about to do:
+[worked claude helped 2x] Use when a test run hangs at start, before you retry: check the port first. (source: learn:experiment:port-clash)
+... 1 of 3 relevant lesson(s) shown — `recall-at --limit 3` for the rest, or `recall --full <source>` for any one's whole record
+```
+
+A run by hand only shows you lessons. It does not count as a showing in the [recall loop](/docs/concepts/memory/recall-loop), and it cannot earn flip credit.
+
+## Turn on the hook
+
+Recall at action is opt-in per project. Until you turn the hook on, recall pushes nothing before your tool calls and no flip credit builds. To turn it on in the Aurora repo, add this entry to the `PreToolUse` list in its `.claude/settings.json`. Its command line has the same form as the `PostToolUse` entry already there. Its matcher also covers `PowerShell`, the shell tool on Windows:
+
+```json
+{
+  "matcher": "Bash|PowerShell|Edit|Write|NotebookEdit",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "AI_SETUP=\"$CLAUDE_PROJECT_DIR\" $(command -v uvw || command -v uv) run -p 3.12 --gui-script \"$CLAUDE_PROJECT_DIR/agent/harness/hooks/claude_pretooluse.py\""
+    }
+  ]
+}
+```
+
+Two copies of this hook exist, and they differ. Use `agent/harness/hooks/claude_pretooluse.py`. The other Claude hooks in the settings file live beside it. The two copies have drifted apart: this one reports busy status, while the `scripts/hooks/` copy, still used by the Codex hook config, adds a shell-folder guard. Register one copy only.
+
+Flip credit also needs the `PostToolUse` hook, which judges whether the action worked. The repo already registers it.
+
+To check that the hook is on, open `/hooks` in Claude Code, or read `.claude/settings.json` and look for `claude_pretooluse.py` under `PreToolUse`. Don't trust boot's "recall-at: armed" line for this. It prints whether or not you installed the hook.
+
+In tools without hook wiring, keep the manual habit. See [Recall at action](/docs/concepts/memory/recall-at-action).
 
 ## Tell Aurora what helped
 
-If a lesson changed what you did, mark it. If it was off target, say so.
+If a lesson changed what you did, mark it. If it was off target, say so. `--useful` is the default, so you can leave it off.
 
 ```bash
-aurora recall-feedback --source learn:experiment:pip_on_windows --useful
-aurora recall-feedback --source learn:experiment:pip_on_windows --noise
+aurora recall-feedback --source learn:experiment:port-clash --useful
+aurora recall-feedback --source learn:experiment:port-clash --noise
 ```
 
 Useful votes lift a lesson in future results. This feeds the [recall loop](/docs/concepts/memory/recall-loop).

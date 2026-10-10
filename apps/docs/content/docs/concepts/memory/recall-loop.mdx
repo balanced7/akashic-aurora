@@ -3,6 +3,8 @@ title: Recall loop
 description: The feedback cycle that counts when a lesson shows up and when it helps, then lifts proven lessons and benches idle ones.
 ---
 
+Recall = you pull, by keyword (`recall`). Recall at action = lessons pushed to you right before a tool call (`recall-at` to run it by hand). Recall loop = the scoring that learns which lessons help.
+
 The recall loop checks whether the lessons we show do any good. Each lesson keeps a scorecard: how often it showed up, and how often it helped. Lessons that help rank higher. Lessons that never help move to a back shelf, and they can come back.
 
 <Callout type="warn" title="The curator runs by hand">Nothing benches a lesson on a schedule; the curator stamps only when someone runs `recall-curate --apply`.</Callout>
@@ -15,24 +17,49 @@ Without feedback, the ranking cannot learn what matters. One week of data showed
 
 ```mermaid
 flowchart TB
-  act["An agent is about to edit a file or run a command"] --> show["Recall at action shows up to three lessons<br/>surfaced +1"]
-  show --> flip{"It failed before,<br/>and this try works?"}
+  show["Recall at action shows a lesson<br/>surfaced +1"] --> act["The agent runs the tool"]
+  act --> result["PostToolUse reads the result"]
+  result --> flip{"Same target failed last time,<br/>and works now?"}
   flip -- "yes, a flip" --> helped["helped +1"]
   votes["Votes: --useful or --noise"] --> factor
   helped --> factor["Usefulness factor<br/>from 0.5 to 1.5"]
   factor --> rank["The ranker scores lessons"]
   rank --> show
-  show -. "shown 10+ times, no credit, 10+ days old" .-> bench["The curator benches it"]
+  full["recall --full<br/>engaged +1"] -. "shields from the bench" .-> bench
+  show -. "10+ showings, no credit,<br/>10+ days old" .-> bench["The curator benches it"]
+  bench -. "trial after 14 days, max 3" .-> show
+  bench -. "credit + recall-curate --apply" .-> show
 ```
 
 
-- **Impression.** Each time [recall at action](/docs/concepts/memory/recall-at-action) shows a lesson, its `surfaced` count goes up by one.
-- **Flip credit** (also called outcome credit). Say a command fails. A lesson shows up. The next try works. That is a flip, from fail to success. Each lesson shown for that target gets `helped` plus one. A first-try success credits nothing. The loop needs a before and an after. A flip also nudges the agent to record a new lesson.
+- **Impression.** Each time the hook for [recall at action](/docs/concepts/memory/recall-at-action) shows a lesson, its `surfaced` count goes up by one. Plan-time recall, a separate opt-in hook on each new prompt, adds to `surfaced` too. A run of `recall-at` by hand never counts.
+- **Flip credit**. A lesson shows up for a target this session. Later that exact target fails and then succeeds. That is a flip, from fail to success. Every lesson shown for that target then gets `helped` plus one.
+- **What "the same target" means.** For a command, it is the text lowercased with spaces collapsed. For a file, it is the absolute path. A retry with a slightly different command is a new target, so it is no flip. A first-try success credits nothing.
+- **Both hooks.** Credit needs the PreToolUse hook to show the lesson and the PostToolUse hook to judge the result. A flip also nudges the agent to record a new lesson.
 - **Votes.** `recall-feedback` lets an agent mark a lesson `--useful` or `--noise`. Each lesson belongs to one area, such as system code or visual effects. If agents vote a lesson useful in two areas, using `--domain`, it starts to show everywhere.
 - **Interest.** Pulling the full record with `recall --full` counts as `engaged`. That shields a lesson from the bench, but it does not raise its rank.
-- **Usefulness factor.** These counts become one multiplier. An unseen lesson sits near 1.0. A proven lesson climbs toward 1.5. Noise falls toward 0.5.
+- **Credit.** Credit means `helped` plus `useful` plus `engaged`. The curator reads this sum.
 - **Funnel.** A read-only report follows lessons from shown, to helped, to flips, to new lessons captured. Boot prints a one-line pulse of it.
-- **Curator.** It benches a lesson that showed up 10 times or more, earned no credit, and is at least 10 days old. A benched lesson stops showing at the moment of action, but it keeps its history. A later `--apply` run lifts the bench if the lesson earns credit. Once a lesson has sat on the bench for 14 days, it can get another chance to show. At most three do at a time, oldest first.
+
+### The usefulness factor
+
+The counts become one multiplier on each lesson's score. A few real values:
+
+| Track record | Factor |
+| --- | --- |
+| Never shown | about 1.0 |
+| Shown 10 times, no credit | about 0.58 |
+| Shown 3 times, helped all 3 | about 1.30 |
+| Many noise votes | down to 0.5 |
+
+The top of 1.5 is a ceiling that the formula never reaches. Recall reads the counts when it builds the lesson cache. So a vote changes the ranking only after the cache refreshes, up to 120 seconds later.
+
+### The curator and the bench
+
+- **Bench.** The curator benches a lesson that showed up 10 times or more, earned no credit, and is at least 10 days old. The code fixes those two numbers; no setting changes them. A benched lesson stops showing at the moment of action. It keeps its history. Plain recall still lists it with a `[benched]` tag. Boot does not read the stamp, so it can still show there, untagged, ranked lower by its low credit.
+- **Back from the bench.** When a benched lesson has credit, the next `recall-curate --apply` lifts the bench.
+- **Bench probe.** After 14 days on the bench, a lesson may get a trial slot at the moment of action. At most three are on trial at once, oldest first. A trial lesson carries a `probation` tag. Today the same three oldest benched lessons keep the trial slots until they earn credit; nothing rotates them. Two settings tune the trial: `AKASHIC_BENCH_PROBE_DAYS` and `AKASHIC_BENCH_PROBE_MAX`. See [memory settings](/docs/reference/memory-settings).
+- **What `--apply` does.** It benches lessons and lifts benches. It also prunes counters for lessons that no longer exist, and applies pending lesson-edit stamps. The `wrap` command nudges you to run it when there is work to do.
 - **Dissent.** It looks for a lesson that argues against the top one, through a "contradicts" link. Lessons cannot carry that link today, so dissent never speaks. The code exists; nothing feeds it.
 
 ## How you use it
@@ -46,6 +73,8 @@ aurora recall-curate --apply    # stamp the bench
 
 ## Don't confuse it with
 
+- **[Recall](/docs/concepts/memory/recall)** — a keyword search you pull. Its results do not add showings.
+- **[Recall at action](/docs/concepts/memory/recall-at-action)** — the hook that shows lessons before a tool call. The loop scores what it shows.
 - **The `bench` verb** — parks stale requests in an inbox. It has nothing to do with benched lessons.
 - **Graduate** — retires a lesson because automation now enforces its rule. Benching retires a lesson because it never helped.
 - **Repeat** — `learn --repeat-of` records that someone broke a known lesson again.

@@ -3,6 +3,8 @@ title: Recall
 description: The keyword search you run over every stored lesson, which puts strong matches first and never floods you with noise.
 ---
 
+Recall = you pull, by keyword (`recall`). Recall at action = lessons pushed to you right before a tool call (`recall-at` to run it by hand). Recall loop = the scoring that learns which lessons help.
+
 Recall is a search you run when you want it. You give it words, and it finds the [lessons](/docs/concepts/memory/lessons) that match. A lesson must match enough of your words to count. If no lesson clears that bar, you get at most five weak hits, not a flood. If no word matches at all, you get nothing.
 
 ## Why it exists
@@ -11,19 +13,41 @@ Agents need to look things up in the middle of a task. Early recall matched any 
 
 ## How it works
 
-- Recall drops filler words like "the" and cuts each word to its stem.
-- A query of one or two words needs one match. Longer ones need a quarter of their words, and never fewer than two.
-- If nothing clears that bar, recall returns the five best partial matches. With `--json`, each one carries a `weak_match` flag. The plain listing does not mark them yet, so read a short list with care.
+- Recall drops filler words like "the" and single characters. It cuts each word to its stem, so "tracks" matches "track".
+- The words that remain carry the meaning. One or two of them need one match. Longer queries need a quarter of them, rounded up, and never fewer than two.
+- If nothing clears that bar, recall returns the five best partial matches, the weak hits. With `--json`, each one carries `"weak_match": true`. The plain listing puts them under the same `# N lesson(s) matching` header as strong hits, with no mark. So read a short list with care.
 - With no query, recall lists every lesson. `--agent` keeps only one author's lessons.
 - It shows 25 rows, then points you to `--json` for the rest.
 - Graduated and benched lessons still show up here, with a tag. See the [recall loop](/docs/concepts/memory/recall-loop).
-- Some queries look like a lesson's name. If no lesson has that exact name, recall prints `[title-miss]`. It will not pass off the top hits as the one you meant.
-- `--full SOURCE` prints one whole record. It also checks whether the lesson's premise still holds, such as a file path it cites. Pulling a record this way counts as interest in the recall loop.
+- Some queries look like a lesson's name. That means one that starts with `learn:experiment:` or `research:web:`, or three or more words joined by spaces, dashes or underscores. The first word must have four letters or more. If no hit has that exact name, recall prints `[title-miss]`. It will not pass off the top hits as the one you meant.
+- `--full SOURCE` prints one whole record. In plain mode it also checks whether the lesson's premise still holds, such as a file path it cites. With `--json` you get the record only, with no check. Pulling a record this way counts as interest in the recall loop.
+
+Here is a trimmed example of a plain search:
+
+```text
+# 2 lesson(s) matching 'port clash'
+  - [infra] port-clash: Use when a test run hangs at start, before you retry: check the port first. (source: learn:experiment:port-clash)
+  - [infra] redis-port-drift: Check which port the world file names before you blame Redis. (source: learn:experiment:redis-port-drift)
+```
+
+And a trimmed `--json` weak hit:
+
+```json
+[
+  {
+    "id": "redis-port-drift",
+    "experiment_name": "redis-port-drift",
+    "recommendation": "Check which port the world file names before you blame Redis.",
+    "weak_match": true
+  }
+]
+```
 
 ## How you use it
 
 ```bash
 aurora recall "port clash"
+aurora recall "port clash" --json
 aurora recall --full learn:experiment:port-clash
 ```
 
@@ -32,8 +56,9 @@ Agents that use tools call `knowledge_recall` and `knowledge_full`. See [Recall 
 ## Don't confuse it with
 
 - **[Recall at action](/docs/concepts/memory/recall-at-action)** — pushed to you, not pulled. It fires right before a tool call and shows at most three lessons.
+- **[Recall loop](/docs/concepts/memory/recall-loop)** — the scoring that learns which lessons help. Plain recall does not add showings to it.
 - **[Boot](/docs/concepts/memory/boot)** — shows ranked lessons once, at the start of a session.
-- **Lookback** — answers one "why" question. It searches docs, research, notes, bus decisions, story chapters and commit messages. Recall searches lessons only.
+- **Lookback** — answers one "why" question. It searches docs, research, notes, bus decisions, story chapters and commit messages. Recall searches lessons only. See the [commands reference](/docs/reference/commands).
 
 ## How it connects
 
