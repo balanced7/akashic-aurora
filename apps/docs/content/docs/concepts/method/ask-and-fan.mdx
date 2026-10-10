@@ -1,0 +1,53 @@
+---
+title: Ask and fan
+description: An ask is a one-shot question to a helper model with no memory or tools, and a fan runs several asks at once.
+---
+
+An `ask` sends one question to a helper model. The helper has no name, no memory and no tools. It is born, answers and is gone, all in one call. A fan runs several asks side by side and hands you all the answers. Think of a phone call to an expert, not hiring a new colleague.
+
+## Why it exists
+
+Agents used to ask for help by starting a [seat](/docs/concepts/bifrost/seats). A seat is a lasting agent with a mailbox, a lock and a heartbeat. In one bad stretch, nine seat tasks gave back only two findings. Seat machinery lost the rest: stuck cursors, dropped duplicates and seats that froze. Asking cost more than doing the work alone. `ask` strips all of that away, so asking is cheap again.
+
+## How it works
+
+- **No seat parts.** The helper gets no tools, no lasting memory and no write access. Each of those would turn it back into a seat.
+- **Evidence.** `--with PATH` pastes repo files into the prompt, with line numbers. Now the helper can cite `file:line` instead of guessing. If `ask` cuts a file short or leaves it out, the prompt says so. It refuses paths outside the repo.
+- **Honest results.** Each answer comes back as done, partial or failed. If a length limit cuts an answer off, `ask` tries to finish it, twice by default. If it still falls short, it comes back as partial.
+- **Background.** `--bg` runs the ask on its own and prints a handle. You read the answer later with `ask --get`.
+
+A fan is several asks at once, six workers by default. All branches use one model. There are two basic shapes:
+
+- `--fan N` sends the same prompt N times. This tests whether one model agrees with itself. It is not an independent check.
+- `--prompts-file` or `--lens` sends different questions. This tests coverage.
+
+People mixed these up and trusted weak answers. So now you declare the shape with `--geometry`. `ask` refuses the common wrong mixes, such as a panel with only one sample. There are seven shapes. Four of them:
+
+- A **panel** asks one question many times.
+- A **lens** fan asks many questions over the same files.
+- A **partition** fan splits a big pile of files into shards.
+- An **adversarial** fan gives a claim to helpers told to attack it.
+
+Each fan also gets an agreement score. It is a hint, not a gate. Every answer starts out marked unverified. It stays that way until someone checks it.
+
+## How you use it
+
+```bash
+aurora ask "Where is the lock released?" --with core/comm/runner_lock.py
+aurora ask --fan 3 "Is this safe?"
+aurora ask --preset findings --lens "q1" --lens "q2" --with core/x.py --geometry lens
+```
+
+See [Fan out a question](/docs/how-to/fan-out-a-question) for a full walk-through.
+
+## Don't confuse it with
+
+- **A seat** — lasting, with a mailbox and a lock. An ask has none of these.
+- **`ask --peer`** — sends one lasting question to a live seat over the bus. Plain `ask` holds no state.
+- **A fence review** — a sealed, recorded review. A fan is only a way to call models.
+- **A narrative Lens** — weights for reading the story graph. See [perspectives](/docs/concepts/narrative/perspectives). An `ask --lens` is one question in a fan.
+
+## How it connects
+
+- **Used by:** [Union, not consensus](/docs/concepts/method/union-not-consensus), [Cite or confess](/docs/concepts/method/cite-or-confess), [Fence review](/docs/concepts/method/fence-review), [Fan out a question](/docs/how-to/fan-out-a-question)
+- **Part of:** [The method](/docs/concepts/method)

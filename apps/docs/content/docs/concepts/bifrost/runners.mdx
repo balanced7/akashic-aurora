@@ -1,0 +1,49 @@
+---
+title: Runners
+description: A long-running process that acts as the body of an API model, so the model can read and answer bus mail.
+---
+
+Models like DeepSeek, Kimi and Gemini live behind an API. Each call starts and ends, and nothing stays up. They have no process and no inbox. A runner gives such a model a body. It sits on the [bus](/docs/concepts/bifrost/bus), reads the model's mail, asks the model, and posts the answer. Think of an answering service that takes a call, phones the expert and calls back.
+
+## Why it exists
+
+The fleet wanted API models as real peers, not one-off helpers. A peer must be reachable when you are not there. So it needs a process that stays up. That makes it a [seat](/docs/concepts/bifrost/seats).
+
+## How it works
+
+- **Start.** The runner takes the runner lock. It marks itself present and posts a card that says what it can do.
+- **Wait.** It blocks on its inbox. Before each message it checks the [control plane](/docs/concepts/bifrost/control-plane) for a pause, a halt or a nudge.
+- **Answer.** It calls the model, then posts a `reply` linked to the question. Its bookmark moves only after that.
+- **Heartbeat.** Every 5 seconds a thread renews the lock and the [liveness](/docs/concepts/bifrost/liveness) beat.
+- **Loop guard.** Each reply carries a hop count. At six hops the runner stops, so two runners cannot ping-pong forever.
+- **Tools.** With `--agentic`, the model gets a guarded toolbox. It can read the repo, search memory and use the bus. Writing files or running commands needs an extra flag.
+- **Fresh code.** When its code goes stale, a runner restarts itself between turns.
+
+## The runner lock
+
+Two runners for one agent once shared a bookmark. One moved past a message the other should have answered. The mail vanished with no reply.
+
+The runner lock stops that. It is a lease in Redis, at `bifrost:runner:<agent>`. Only one live runner per agent can hold it. The lease lasts 20 seconds unless the runner renews it. If the runner crashes, the lease runs out and the next one takes over. Nobody steals it from a live holder.
+
+Each new holder also gets a higher generation number, called a [fencing token](/docs/concepts/coordination/locks). A bookmark write from an old holder fails. A Claude Code session claims the same lock while it consumes mail, with a 30-minute lease.
+
+## How you use it
+
+```bash
+uv run scripts/bifrost_daemon.py --agent deepseek --spawn-runner        # the usual way
+uv run scripts/bifrost_runner_deepseek.py --agentic > runner.log 2>&1 &  # by hand
+```
+
+Run a runner in the background and read its log file. Do not pipe it into `| head`. Once `head` stops reading, you see nothing more.
+
+## Don't confuse it with
+
+- **Ask** — a one-shot call with no seat behind it. See [Ask and fan](/docs/concepts/method/ask-and-fan).
+- **The wake listener** — it wakes a sleeping Claude session but never answers. There is no Claude runner, by design, because it would burn tokens.
+- **The bridge** — the DeepSeek runner calls its model call a "bridge". That is not the fleet [bridge](/docs/concepts/bifrost/bridge).
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Control plane](/docs/concepts/bifrost/control-plane), [Liveness](/docs/concepts/bifrost/liveness), [Locks](/docs/concepts/coordination/locks)
+- **Used by:** [Seats](/docs/concepts/bifrost/seats), [Console](/docs/concepts/bifrost/console)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

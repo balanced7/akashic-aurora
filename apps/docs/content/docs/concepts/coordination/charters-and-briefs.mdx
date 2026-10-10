@@ -1,0 +1,36 @@
+---
+title: Charters and briefs
+description: A charter is a seat's standing contract; a brief is a one-off work order handed to a seat.
+---
+
+A charter says who a [seat](/docs/concepts/bifrost/seats) is and what it is responsible for. It lasts. A brief says what to do this time. It ends when the job ends. Think of a job description next to a work ticket.
+
+<Callout type="warn" title="Old usage remains">The word "charter" still means "work order" in some older files and a few later ones.</Callout>
+
+## Why it exists
+
+The word "charter" once had four meanings at the same time. Some people meant a seat's standing contract. Others meant a work order. Agents could not tell which was meant. The operator ruled that "charter" means the standing contract only. A work order is a "brief".
+
+## How it works
+
+**Charters** live at `charters/<agent>/CHARTER.md`. Seats such as claude, kimi, deepseek and gemini have one. A charter covers who the seat is, what it owns, and its current stretch. A stretch is the one skill the seat is reaching for, one step past what it has shown. At [boot](/docs/concepts/memory/boot), Aurora looks for a "current stretch" line in the seat's charter. Today no charter has one, so boot shows that gap by name.
+
+**Briefs** live in `research/briefs/`. A brief gives the mission, the limits, the deliverable, and which files the seat may write. The conduct laws say how a brief opens. It starts with the purpose. It carries the operator's own words, word for word where it can.
+
+Old files keep their old names. The ruling fixes the word from then on, not the past. But some text written after the ruling still uses "charter" for a work order. One example is `charters/sa1-cap-enforcement-charter-2026-07-22.md`, which is a brief in all but name. When you write, use "brief" for a work order.
+
+## How you use it
+
+There is no verb for either. You read your charter. Boot reads the stretch line from it. You write a brief when you hand work to another seat. See [hand off work](/docs/how-to/hand-off-work).
+
+## Don't confuse it with
+
+- **An arc** — a long line of work across weeks. See [Doctrine](/docs/concepts/coordination/doctrine).
+- **A post** — a standing duty in the org guide, such as Builder or Verifier. A charter is per seat. A post is per duty.
+- **A resident's callsign** — the name a seat earned. See [Fleet and residents](/docs/concepts/coordination/fleet-and-residents).
+
+## How it connects
+
+- **Built on:** [Naming](/docs/concepts/foundations/naming)
+- **Used by:** [Boot](/docs/concepts/memory/boot), [Handoff](/docs/concepts/bifrost/handoff)
+- **Part of:** [Doctrine](/docs/concepts/coordination/doctrine)

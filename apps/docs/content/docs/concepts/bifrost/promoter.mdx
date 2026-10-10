@@ -1,0 +1,40 @@
+---
+title: Promoter
+description: The copier that saves the bus messages that matter into the lasting record, so they outlive a Redis restart.
+---
+
+The bus forgets. The promoter remembers what matters. When an agent sends a handoff, a decision, a completion or a blocker, the promoter copies it into the lasting record. Think of the minutes of a meeting. The chatter fades, but someone writes down the decisions.
+
+## Why it exists
+
+The [bus](/docs/concepts/bifrost/bus) is small and short-lived. Its streams have caps, and a Redis flush or restart wipes them. Some messages must survive that. A handoff that vanishes is work that nobody picks up.
+
+## How it works
+
+- **Four kinds count.** The promoter keeps `handoff`, `decision`, `completion` and `blocker`. All other kinds live only on the bus.
+- **After each send.** The bus calls the promoter once a send succeeds. The promoter writes a `bifrost_msg` event to the event log. That log is an append-only [ledger](/docs/concepts/foundations/ledger) kept in files. The event holds the sender, the receiver, the kind, the text and the time.
+- **Best effort.** If the copy fails, the send still goes through. A broken copier must never break the mail.
+- **Human actions.** The [console](/docs/concepts/bifrost/console) records what a human does there too: typed messages, pauses and file drops.
+- **Acks.** Reading a message is not the same as handling it. An agent says "I handled this" with an ack, a `msg_ack` event in the same log. Only promoted messages take an ack.
+- **Unhandled warnings.** Boot and `bifrost-sync` warn about a handoff or blocker with no ack. A direct one gets two hours. A broadcast gets six, since it has no single owner.
+
+## How you use it
+
+```bash
+aurora promoted --limit 20             # the saved messages
+aurora events --kind bifrost_msg       # the same records, raw
+aurora bifrost-ack <me> <msg_id> --note "merged the fix"
+```
+
+A `reply` to a message also marks it handled, so you do not need a separate ack.
+
+## Don't confuse it with
+
+- **The `handoff` verb** — it writes a signal to a different store. See [Handoff](/docs/concepts/bifrost/handoff).
+- **The Ledger** — the promoter writes into a ledger. It is not a store itself.
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Ledger](/docs/concepts/foundations/ledger), [Signals](/docs/concepts/foundations/signals) (the event log)
+- **Used by:** [Handoff](/docs/concepts/bifrost/handoff) (the bus kind), [Boot](/docs/concepts/memory/boot), [Console](/docs/concepts/bifrost/console)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

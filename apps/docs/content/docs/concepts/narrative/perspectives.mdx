@@ -1,0 +1,42 @@
+---
+title: Perspectives
+description: A swappable way to read the story graph, set by which links you follow (the Map) and what you care about (the Lens).
+---
+
+Perspectives are ways to read the story graph without changing it. The story graph is the Beats and the typed links between them. A Map picks which kinds of links you follow. A Lens says what you care about. Put one Map and one Lens together and you get a view.
+
+Think of one city with many maps. A subway map and a road map show different links. A fast route and a scenic route rank them in different ways. The city stays the same.
+
+<Callout type="warn" title="Built, not yet wired">The Map, Lens and ReinforcedGraph code exists and has tests, but nothing in the running system uses it yet.</Callout>
+
+## Why it exists
+
+People ask the same record many questions. "Why did this happen?" "What is hot right now?" "Where does this idea show up?" Each one needs a different walk through the [narrative spine](/docs/concepts/narrative/narrative-spine). Copying or editing the data for each question would break it. The design rule is short: the record never changes; only the way you read it does.
+
+## How it works
+
+- **Map.** A list of link families to follow, such as causal, temporal or structural. Each family groups some of the [relationship types](/docs/concepts/foundations/relationship-types). Three Maps come built in: `narrative` (time plus structure), `causal` and `dependency`.
+- **Lens.** A set of weights. They score the four [ranker](/docs/concepts/memory/ranker-and-distiller) factors: relevance, importance, recency and strength. A Lens can also weight single link types, start from a focus point, and state a goal. Three Lenses come built in: `causal`, `recency` and `thematic`.
+- **View.** One Map paired with one Lens, read-only over the data. Swap either one and the same data shows a different picture.
+
+### The ReinforcedGraph
+
+One part does write. The ReinforcedGraph tracks which things you use together. Each time you use two together, their link grows stronger. Growth slows as the link nears its cap of 1.0, so no link runs away. Links also fade when nobody uses them, losing half their strength every 30 days. That fade guards against an echo chamber, where strong links only get stronger.
+
+This is the only write-back, and it touches only the link store. The story itself never changes.
+
+## How you use it
+
+There is no command yet. You reach it from Python with `from core.perspectives import ...`, and the tests in `tests/test_perspectives.py` show it at work.
+
+## Don't confuse it with
+
+- **`ask --lens`** — a prompt angle for a fan of models. It is not this Lens. See [ask and fan](/docs/concepts/method/ask-and-fan).
+- **A view** — here it means a Map and Lens pair, not a screen in the UI.
+- **The Eye's region map** — `eye overview` shows regions of the transcripts. It is not a Map.
+- **"Perspective"** — an older name for a Lens. Say Lens, so it does not clash with the package name.
+
+## How it connects
+
+- **Built on:** [Narrative spine](/docs/concepts/narrative/narrative-spine), [Relationship types](/docs/concepts/foundations/relationship-types), [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller), [Store](/docs/concepts/foundations/store).
+- **Used by:** nothing yet. See [Built, not wired](/docs/concepts/method/built-not-wired).

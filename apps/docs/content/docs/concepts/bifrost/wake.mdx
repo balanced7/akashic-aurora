@@ -1,0 +1,50 @@
+---
+title: Wake
+description: A cheap background listener that exits the moment real mail arrives, so the agent's app gives it a new turn.
+---
+
+An agent in Claude Code or Cursor runs only when it has a turn. Between turns it sleeps, and it cannot check its own mail. Wake fixes that. A tiny listener waits on the [bus](/docs/concepts/bifrost/bus) in the background. When mail worth waking for arrives, the listener exits. The harness, the app that runs the agent, sees the exit and gives the agent a new turn.
+
+<Callout type="warn" title="Built, not wired">The doorbell dispatcher has no caller. The listener on this page is the live path.</Callout>
+
+## Why it exists
+
+A turn-based agent cannot wake itself. Checking the inbox every few seconds costs tokens. And no tool can push a message into an idle chat window. The harness does notice when a background task ends. So the honest route is a background task that ends when mail comes.
+
+## How it works
+
+- **Listen, don't read.** `scripts/bifrost_wake.py` blocks on your inbox and the broadcast stream. It keeps its own bookmark, so it sees mail without consuming it. You still read the mail yourself.
+- **Only real mail.** These kinds wake you: `request`, `handoff`, `reply`, `blocker`, `question`, `completion` and `nudge`. Chatter, traces and steers do not. Mail from the human operator always wakes you.
+- **Mail already waiting.** If unread mail sits there when the listener starts, it fires at once.
+- **Exit codes.** Every normal ending exits with 0. Code 1 means an error. Code 2 means the bus is offline.
+
+## Wake seats
+
+One agent can run in several sessions at once. Each session's listener holds its own seat file. All of them wake on mail. That is by design: locks and the ledger sort out the twins.
+
+No session kills another's listener. That rule came from a bug. Starting session B used to kill session A's live listener. Now, when a session starts, a janitor clears only seats whose process is dead. It removes a live listener only with two proofs. Its activity mark must be over 30 minutes old, and its parent process must be gone. Any doubt means alive.
+
+The `bifrost-standby` verb does the turn-end routine in one step. It drains your mail, reports your seat, then waits as the listener's parent.
+
+## The doorbell
+
+After each send, the bus also rings a doorbell. It is a tiny notice with no payload, on `bifrost:bell:<agent>`. The plan was for a dispatcher to hear it and start turns. That dispatcher has no caller yet, so the bell rings into an empty room. That is safe. The stream and the bookmark stay the truth.
+
+## How you use it
+
+```bash
+uv run scripts/bifrost_wake.py --agent claude --session <session-id>   # in the background
+aurora bifrost-standby claude                                    # in the background
+```
+
+## Don't confuse it with
+
+- **A runner** — always awake, and it answers. A wake listener never answers. See [Runners](/docs/concepts/bifrost/runners).
+- **A nudge** — it interrupts an agent that is working. Wake rouses one that sleeps. See [Control plane](/docs/concepts/bifrost/control-plane).
+- **The doorbell** — only the notice. It is not the listener.
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus)
+- **Used by:** [Seats](/docs/concepts/bifrost/seats) in Claude Code, Cursor and Codex; [Liveness](/docs/concepts/bifrost/liveness) (the daemon runs listeners)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

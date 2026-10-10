@@ -1,0 +1,53 @@
+---
+title: Tags
+description: A Beat's track label, kept as a list of dated, scored opinions, where the best opinion wins.
+---
+
+A tag says which track, or project thread, a Beat belongs to. Aurora never overwrites a tag. Each new guess goes on a list, with a date, a source and a confidence score. The best guess on the list is the current tag.
+
+Think of a wiki page history. Every edit stays, and you can always go back. The difference: the page shows the most trusted version, not the newest.
+
+## Why it exists
+
+Tags get redone. A cleanup run or a better router may want to change thousands of them. If a re-tag overwrites the old value, one bad run destroys good labels. When a tag is an opinion about a fixed fact, a bad re-tag can only lose the ranking. It cannot erase data.
+
+## How it works
+
+Each opinion is one entry: a value, a confidence, a source, a time, and a `confirmed` flag. New opinions append to the Beat's tag history. Nothing goes away.
+
+The current tag is the best entry. A confirmed entry wins over an unconfirmed one. Then higher confidence wins. Then the newer entry wins. To roll back, the system appends the old value again as a new, confirmed entry, so it wins.
+
+Confidence depends on the clue behind the tag:
+
+| Basis | Confidence |
+| --- | --- |
+| a person confirmed it | 1.0 |
+| files the commit touched | 0.95 |
+| strong keyword | 0.85 |
+| embedding match | 0.75 |
+| category | 0.6 |
+| weak keyword | 0.4 |
+| kept the active track | 0.3 |
+| no clue at all | 0.1 |
+
+The rule that picks the winner gives the same answer in any order, and gives the same answer if you run it twice. That makes the tag a CRDT, a data type that merges without conflict. You can rerun a cleanup as often as you like. The result settles and cannot get worse.
+
+<Callout type="warn" title="Built, not yet wired">Seeding the history works today. Two more parts exist, but nothing calls them yet. The TagGovernor re-tags, with confidence checks. The TagAuditor flags suspect tags.</Callout>
+
+The TagAuditor only flags. It looks for low confidence, tags that clash with nearby Beats, and models that disagree. It never changes a tag.
+
+## How you use it
+
+You meet tags only through Beats. When the system writes a Beat, the tag history starts with the router's choice. There is no command to re-tag.
+
+## Don't confuse it with
+
+- **`tag-anti-pattern`** — a verb that marks a [lesson](/docs/concepts/memory/lessons) as a known bad move. It has nothing to do with track tags.
+- **Recall domains** — the boundary lines in [recall](/docs/concepts/memory/recall). They are not tags.
+- **Model tags in the fleet** — labels on [Bifrost](/docs/concepts/bifrost) seats.
+
+## How it connects
+
+- **Built on:** [Append-only record](/docs/concepts/foundations/append-only-record), [Narrative spine](/docs/concepts/narrative/narrative-spine).
+- **Used by:** every Beat in the [narrative spine](/docs/concepts/narrative/narrative-spine).
+- **Part of:** [Narrative spine](/docs/concepts/narrative/narrative-spine).
