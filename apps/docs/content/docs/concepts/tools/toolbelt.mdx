@@ -1,0 +1,45 @@
+---
+title: Toolbelt
+description: Each agent's own shortcut commands, each one a fixed list of verbs that already exist.
+---
+
+The toolbelt holds shortcut commands an agent writes for itself. Each shortcut, called an alias, is a fixed list of steps. Each step is a verb that `agent_cli.py` already has. An alias adds no new power. It saves typing the same steps again.
+
+## Why it exists
+
+Agents repeat the same few commands many times a day. Writing a new verb for each habit would grow the CLI without end. A toolbelt lets each agent keep its own habits, in its own file, under firm rules.
+
+## How it works
+
+- **Sugar only.** An alias can only chain known verbs. If a step names a verb the CLI does not know, minting fails with an error.
+- **No shadowing.** An alias runs only through `run <agent> <name>`. So it can never hide a real verb with the same name.
+- **Honest labels.** Each alias carries a label: `VERIFIED`, `INFER` or `GUESS`. The default is `GUESS`. An alias nobody tested says so. The `kata` verb checks an alias against the real CLI. If it passes, its label rises to `VERIFIED`.
+- **Versions.** Minting the same name with new steps makes a new version. The old one stays in the history. Minting the exact same alias again does nothing.
+- **A quota.** Each agent may keep 20 active aliases. `AKASHIC_TOOLBELT_QUOTA` changes the cap. Past it, retire one before you mint another.
+- **Storage.** Each agent's belt is one JSON file at `data/verb-registry/<agent>.json`. The file is the truth.
+- **CLI only.** The toolbelt has no MCP tool.
+
+The toolbelt is the bottom rung of a ladder. A verb grows into a combo, then a macro that takes arguments `$1` to `$9`. A tool is a draft script that runs in a locked-down sandbox. A kit is a bundle of entries you can install on a seat. The first kit is `recovery-kit`.
+
+## How you use it
+
+```bash
+aurora alias claude mint morning --step "status" --step "task list" --why "start-of-day check"
+aurora run claude morning --dry   # show the steps, run nothing
+aurora kata claude morning        # test it; pass raises it to VERIFIED
+aurora run claude morning
+aurora alias claude list
+aurora kit claude recovery-kit --show
+aurora tool list claude
+```
+
+## Don't confuse it with
+
+- **A real verb** — lives in `agent_cli.py` and works for everyone. An alias belongs to one agent.
+- **The Eye's evidence grades** — recorded, derived and inferred describe links in [the Eye](/docs/concepts/narrative/the-eye). Toolbelt labels describe how well someone tested an alias.
+
+## How it connects
+
+- **Built on:** [Doors](/docs/concepts/coordination/doors) (the CLI verbs it chains), [Append-only record](/docs/concepts/foundations/append-only-record) (new versions supersede old ones).
+- **Used by:** any [seat](/docs/concepts/bifrost/seats); the recovery kit helps a stalled seat get going again.
+- **Part of:** [House tools](/docs/concepts/tools).

@@ -1,0 +1,61 @@
+---
+title: Commands
+description: The doors into Aurora and the commands you will reach for most.
+---
+
+Agents and people reach Aurora through a few doors. Each door is a different handle on the same memory. See [Doors](/docs/concepts/coordination/doors) for why.
+
+| Door | What it is |
+|---|---|
+| `agent_cli.py` | The command-line door. Every verb explains itself with `--help`. |
+| `ai_setup_mcp.py` | The MCP door. It serves Aurora as native tools to MCP clients. |
+| Runner tool door | Tools such as `knowledge_boot` and `knowledge_recall`, for seats with no shell. |
+
+To list every verb with its purpose, run `aurora discover`. The full, generated list of verbs and their inputs lives in [`docs/DOORS.md`](https://github.com/balanced7/akashic-aurora/blob/master/docs/DOORS.md).
+
+## Memory
+
+| Command | What it does |
+|---|---|
+| `boot <id> --task "..."` | Prints your startup context: top lessons, blockers, handoffs and mail. |
+| `learn <id> --experiment NAME ...` | Records a lesson. The same name updates it. |
+| `note <id> --title ... --note ...` | Records a durable project note. |
+| `recall [query]` | Searches lessons. With no query, it lists them all. |
+| `recall-at --path FILE` | Shows the few lessons and locks that matter before you act. |
+| `recall-feedback --source SRC --useful` | Marks a lesson as useful, or as noise with `--noise`. |
+| `status` | Shows whether the store is up and how much it holds. |
+
+## Bifrost
+
+| Command | What it does |
+|---|---|
+| `bifrost-send <id> TEXT --to PEER --kind KIND` | Sends a message on the bus. |
+| `bifrost-sync <id>` | Shows presence and peeks at unread mail. Add `--consume` to move your cursor. |
+| `handoff <id> --to PEER --task ... --note ...` | Leaves a briefing the next agent's boot will show. |
+| `promoted` | Lists salient messages saved to the durable record. |
+| `bifrost-pause` / `bifrost-resume` | Freezes and unfreezes the bus auto-responders. |
+| `bifrost-nudge <id> TEXT --to PEER` | Sends a targeted interrupt, steer or inform signal to one peer. |
+
+## Coordination
+
+| Command | What it does |
+|---|---|
+| `lock <id> PATH` / `unlock <id> PATH` | Claims or releases an advisory lock on a path. |
+| `locks` | Shows who holds which lock. |
+| `task list` | Shows the task ledger. Other actions: propose, approve, claim, start, verify, done, block, abandon, park, unpark, next. |
+| `resident roster` | Lists the rostered residents. |
+
+## Story, search and tools
+
+| Command | What it does |
+|---|---|
+| `story` | Prints the narrative story views. |
+| `episode current` | Shows the open episode. Also `close` and `accept`. |
+| `eye ingest` / `eye find "..."` | Builds and searches the transcript index. |
+| `ask "..."` | Asks a helper model one question. Add lenses to fan out. |
+| `fence open ID --question "..."` | Opens a fence workspace for a reviewed design. |
+| `web fetch URL` | Fetches a page through the house web door. |
+| `manual search WORDS` | Searches the reference manuals shelf. |
+| `sha SHA` | Follows an old commit id across history rewrites. |
+
+Most commands take `--json`, so scripts can parse the output.

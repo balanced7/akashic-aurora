@@ -1,0 +1,20 @@
+---
+title: Story and context over time
+description: How Aurora tells the story of its own work, keeps an agent's context fresh, and lets you find what was said.
+---
+
+The [ledger](/docs/concepts/foundations/ledger) keeps every row. That is the truth, but it is hard to read. This section is about the layers that turn rows into a story you can follow.
+
+It starts with the [narrative spine](/docs/concepts/narrative/narrative-spine). Small events, called Beats, group into chapters, one thread per project. While you work, [episodes](/docs/concepts/narrative/episodes) mark off titled stretches of a session, each with a stated why. [Tags](/docs/concepts/narrative/tags) say which thread a Beat belongs to, and they keep every past opinion. [Perspectives](/docs/concepts/narrative/perspectives) read the same story in different ways for different questions. They exist in code but are not in use yet.
+
+Two parts look past the story. [RENEW](/docs/concepts/narrative/renew) watches a long session for signs of a tired context. [The Eye](/docs/concepts/narrative/the-eye) indexes every transcript, so you can cite the exact words a person typed. The [query grammar](/docs/concepts/narrative/query-grammar) is the shared rule for how these read commands take filters and admit gaps.
+
+<Cards>
+  <Card title="Narrative spine" href="/docs/concepts/narrative/narrative-spine" description="The system's own story: small events grouped into chapters, one thread per project, readable at several zoom levels." />
+  <Card title="Episodes" href="/docs/concepts/narrative/episodes" description="A titled stretch of one session with a stated why, closed by a bookend that opens the next." />
+  <Card title="Tags" href="/docs/concepts/narrative/tags" description="A Beat's thread label kept as a growing list of scored opinions, with the current tag worked out from that list." />
+  <Card title="Perspectives" href="/docs/concepts/narrative/perspectives" description="A swappable way to read the story graph: which links you follow, and what you care about." />
+  <Card title="RENEW" href="/docs/concepts/narrative/renew" description="The loop that keeps an agent's working context healthy across sessions: notice decay, save what matters, reload it." />
+  <Card title="The Eye" href="/docs/concepts/narrative/the-eye" description="A search index over every session transcript, so what a person said can be found, traced and cited." />
+  <Card title="Query grammar" href="/docs/concepts/narrative/query-grammar" description="One shared rule for how read commands take filters, handle time, and admit when an answer is partial." />
+</Cards>

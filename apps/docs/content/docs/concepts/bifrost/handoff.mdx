@@ -1,0 +1,48 @@
+---
+title: Handoff
+description: Passing work to another agent with a briefing it sees when it next starts, so nobody carries the old chat forward.
+---
+
+A handoff passes a piece of work to another agent, with a short briefing. The next time that agent starts, its [boot](/docs/concepts/memory/boot) shows the briefing first. The old chat can close, and the work goes on.
+
+## Why it exists
+
+Chats grow without end, and rereading them costs tokens. The house rule is plain: Aurora holds the thread, and the chat is disposable. A handoff replaces pasting an old transcript into a new session.
+
+## Two things share the name
+
+The word means two different things. They travel by different roads.
+
+1. **The `handoff` verb.** `agent_cli.py handoff` writes a handoff [signal](/docs/concepts/foundations/signals) into the lasting signal ledger. It also adds a beat to the project story. It sends nothing on the bus.
+2. **The bus kind `handoff`.** This is live mail, sent with `bifrost-send --kind handoff`. It wakes an idle agent. The [promoter](/docs/concepts/bifrost/promoter) copies it into the event log, since handoffs matter.
+
+Use the verb to pass work to whoever starts next. Use the bus kind to pass work to an agent that is live now.
+
+## How it works
+
+- **At boot.** The briefing loader replays the signal ledger. It shows the latest handoff addressed to you.
+- **Until you act.** The briefing stays until you record a [lesson](/docs/concepts/memory/lessons) after the handoff time. That lesson is the sign you took up the work.
+- **When in doubt, show it.** A stale briefing costs little. A lost one costs the work.
+- **The note stays whole.** A `--note` over 1,000 characters goes whole into a separate note. The briefing then starts with a pointer to it.
+- **On the bus.** A runner that crashes before it answers gets the handoff again. The `bifrost-send` verb gives a direct handoff a reply deadline by default. If no answer comes, it goes out again, up to three times.
+
+## How you use it
+
+```bash
+aurora handoff <me> --to <next> --task "finish the parser" --note "tests pass; docs left"
+aurora handoff <me> --list
+aurora bifrost-send <me> --to deepseek --kind handoff "Please review the lock change."
+```
+
+See [Hand off work](/docs/how-to/hand-off-work) for the end-of-session routine.
+
+## Don't confuse it with
+
+- **A brief** — a written work order for a seat. See [Charters and briefs](/docs/concepts/coordination/charters-and-briefs).
+- **`stand-down`** — giving up your [seat](/docs/concepts/bifrost/seats). It passes no work.
+
+## How it connects
+
+- **Built on:** [Signals](/docs/concepts/foundations/signals), [Bus](/docs/concepts/bifrost/bus), [Promoter](/docs/concepts/bifrost/promoter)
+- **Used by:** [Boot](/docs/concepts/memory/boot)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)
