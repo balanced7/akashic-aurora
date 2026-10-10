@@ -153,6 +153,9 @@ def select_within_budget(
     from core.learning import scope as _scope
 
     lessons = _scope.filter_applicable(lessons)
+    from core.metaharness.modes import filter_for_mode
+
+    lessons = filter_for_mode(lessons)  # task 10: hybrid boots without what the harness compiled
     try:
         from core.learning.learning_store import is_graduated
     except Exception:

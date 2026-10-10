@@ -12,14 +12,14 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1684 | `noqa: F401` | registers on import |
-| agent_cli.py | 2352 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2866 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2935 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3748 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12519 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12735 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12760 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 1691 | `noqa: F401` | registers on import |
+| agent_cli.py | 2359 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2873 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2942 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3755 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12539 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12755 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12780 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 518 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 518 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
@@ -134,7 +134,7 @@
 | core/foundation/store.py | 154 | `ty: ignore[invalid-type-form]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
-| core/learning/learning_store.py | 1410 | `noqa: BLE001` | fail-soft by contract |
+| core/learning/learning_store.py | 1412 | `noqa: BLE001` | fail-soft by contract |
 | core/learning/scope.py | 158 | `noqa: BLE001` | fail-soft: no context means no filtering |
 | core/learning/scope.py | 334 | `noqa: BLE001` | fail-soft: no events means no evidence |
 | core/learning/scope.py | 341 | `noqa: BLE001` | fail-soft: no repeat counters means no evidence |

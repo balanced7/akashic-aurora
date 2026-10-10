@@ -432,3 +432,44 @@ def precompile_main(args) -> int:
         return 0 if res.get("built") else 1
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def modes_main(args) -> int:
+    """`modes <action>` -- interpretive vs precompiled memory (task 10)."""
+    from core.learning.learning_store import get_learning_store_instance
+    from core.metaharness import modes
+
+    a = args.action
+    if a == "show":
+        out = {"mode": modes.mode(), "harness": modes._harness_now() or "unknown"}
+        _print(out, args.json, f"memory mode: {out['mode']} (AKASHIC_MEMORY_MODE); active harness: {out['harness']}")
+        return 0
+    if a == "compare":
+        if not (args.base and args.compiled and args.scenario):
+            print("ERROR: `modes compare` needs --base, --compiled and --scenario ...")
+            return 2
+        rep = modes.compare(args.base, args.compiled, args.scenario, trials=args.trials, daily_usd=args.daily_usd)
+        lines = [f"{rep['harness']} / {rep['model'] or 'default model'}: default mode -> {rep['default_mode']}"]
+        lines += [
+            f"  {arm:<13} pass={s.get('pass_rate')} tokens={s.get('tokens')} cost={s.get('cost_usd')}"
+            for arm, s in rep["scores"].items()
+        ]
+        _print(rep, args.json, "\n".join(lines))
+        return 0
+    if a == "placement":
+        ls = get_learning_store_instance()
+        rows = modes.placement(ls.load_all_learnings_from_store(), store=ls.store)
+        _print(
+            rows, args.json, "\n".join(f"  {r['lesson']:<40} {r['move']:<10} {r['why']}" for r in rows) or "no lessons"
+        )
+        return 0
+    if a == "stale":
+        rows = modes.recompile_queue()
+        _print(
+            rows,
+            args.json,
+            "\n".join(f"  {r['lesson']}: {r['why']} at {r['at']}" for r in rows) or "no compiled lesson has changed",
+        )
+        return 0
+    print(f"ERROR: unknown action {a!r}")
+    return 2

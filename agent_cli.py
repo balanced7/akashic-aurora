@@ -1010,6 +1010,13 @@ def cmd_precompile(args):
     return precompile_main(args)
 
 
+def cmd_modes(args):
+    """Meta-harness memory modes (task 10); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import modes_main
+
+    return modes_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -10164,6 +10171,19 @@ def build_parser():
     pc.add_argument("--root", default="", help="check: the tree to check (default: this repo)")
     pc.add_argument("--json", action="store_true")
     pc.set_defaults(fn=cmd_precompile)
+
+    md = sub.add_parser(
+        "modes",
+        help="meta-harness memory modes (task 10): show, compare the four arms, per-lesson placement, stale compiled lessons",
+    )
+    md.add_argument("action", choices=["show", "compare", "placement", "stale"])
+    md.add_argument("--base", default="", help="compare: the candidate carrying harness and model")
+    md.add_argument("--compiled", default="", help="compare: a precompiled candidate (precompile build)")
+    md.add_argument("--scenario", action="append", help="compare: scenario id (repeatable)")
+    md.add_argument("--trials", type=int, default=3)
+    md.add_argument("--daily-usd", dest="daily_usd", type=float, default=None, help="compare: spend cap")
+    md.add_argument("--json", action="store_true")
+    md.set_defaults(fn=cmd_modes)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"

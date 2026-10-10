@@ -510,6 +510,8 @@ def _project_items(recs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "scope": rec.get("scope", ""),
                 # Task 08: the lesson's measured effect on replayed outcomes, when one exists.
                 "proven_effect": rec.get("proven_effect", ""),
+                # Task 10: where the lesson is compiled into a harness (hybrid mode skips it there).
+                "compiled_into": rec.get("compiled_into", ""),
                 "field": field,
                 # Carried so the renderer can say so. A probed lesson was benched for failing to
                 # earn credit and is being re-tested -- presenting it as an ordinary lesson would
@@ -1638,6 +1640,14 @@ def _lessons(
     items = _scope.filter_applicable(items, applies_in)
     if stats_out is not None and len(items) < before:
         stats_out["out_of_scope"] = before - len(items)
+    # EXECUTION MODE (task 10): precompiled pushes nothing; hybrid skips what the active harness
+    # already carries as compiled structure. Unset AKASHIC_MEMORY_MODE = interpretive, unchanged.
+    from core.metaharness.modes import filter_for_mode
+
+    in_scope = len(items)
+    items = filter_for_mode(items)
+    if stats_out is not None and len(items) < in_scope:
+        stats_out["compiled_away"] = in_scope - len(items)
     excl = exclude_sources or set()
     by_text = {str(it.get("text") or ""): it for it in items}
     cands: list = []
