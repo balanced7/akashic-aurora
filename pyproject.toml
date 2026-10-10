@@ -75,13 +75,20 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.16.9",
     "ty>=0.0.84",
+    # the `aurora` launcher (aurora-cli/), so `uv run aurora <verb>` works in a checkout
+    "akashic-aurora-cli",
 ]
 
 [tool.turbo]
 name = "aurora"
 
 [tool.uv.workspace]
-members = ["tooling-upgrade"]
+# aurora-cli is the installable `aurora` launcher. aurora-rs/py (the optional Rust wheel) is
+# deliberately NOT a member: a member would make `uv sync` need a Rust toolchain.
+members = ["tooling-upgrade", "aurora-cli"]
+
+[tool.uv.sources]
+akashic-aurora-cli = { workspace = true }
 
 [tool.uv]
 package = false
@@ -424,7 +431,8 @@ precision = 2
 # are history trees: every ARCHIVAL file lives there, and their remaining scripts import retired
 # stacks (torch, fastapi, selenium, flask, cv2, ...) that no deployment of this checkout ever
 # installed (g0 O3: those modules already fail to import; every module outside them imports OK).
-extend_exclude = ["^docs/", "^research/"]
+# aurora-cli/ is its own package (the `aurora` launcher) with its own [project].dependencies.
+extend_exclude = ["^docs/", "^research/", "^aurora-cli/"]
 # Sibling modules imported through a sys.path entry (scripts/, scripts/generators/,
 # scripts/checkers/, scripts/githooks/, scripts/quiet/, core/toolbelt/, agent/harness/,
 # tooling-upgrade/), which deptry cannot see as first-party.

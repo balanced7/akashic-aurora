@@ -1,0 +1,43 @@
+# The `aurora` command: a small launcher that runs Akashic Aurora without a checkout.
+#
+# It is the counterpart of openai/codex's codex-cli/ npm package: a thin, dependency-light entry
+# point that fetches the real program for its own version and hands every argument to it. Here
+# the "real program" is the Aurora release bundle (the repo tree at a tag) run by a uv-managed
+# Python, so every verb behaves exactly as `uv run agent_cli.py <verb>` does in the repo.
+#
+# Its version IS the release version: scripts/release/releases.py keeps it, aurora-rs/Cargo.toml
+# and the release tag in step (`releases.py bump X.Y.Z`, then tag vX.Y.Z).
+[project]
+name = "akashic-aurora-cli"
+version = "0.1.0"
+description = "The aurora command: Akashic Aurora's shared agent memory and coordination CLI, without a checkout."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+# uv drives the bundle's environment. Depending on its PyPI wheel means `pipx install` works on
+# a machine with no uv; `uv tool install` reuses the uv already there.
+dependencies = ["uv>=0.12"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/balanced7/akashic-aurora"
+Documentation = "https://github.com/balanced7/akashic-aurora/tree/master/apps/docs"
+
+[project.scripts]
+aurora = "aurora_cli.launcher:main"
+
+# Windows only in effect: a console-less twin for harness hooks, so a hook firing on every tool
+# call never flashes a console window (the role `uvw --gui-script` played for repo hooks).
+[project.gui-scripts]
+auroraw = "aurora_cli.launcher:main"
+
+[build-system]
+requires = ["uv_build>=0.9,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "aurora_cli"
