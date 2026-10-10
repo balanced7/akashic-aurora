@@ -5,36 +5,56 @@ description: A note is a titled record of project state or a decision, fixed by 
 
 A note is a short, titled statement of where the project stands, or of a choice you made. You never edit it. To change it, you write a newer note with the same title. Picture a whiteboard slot with a fixed label, like "where-we-are". You pin a new card over the old one. The old card goes in a drawer, not the bin. Notes live in AgentMemory, a store with four kinds of record.
 
-<Callout type="warn" title="Partly unused">AgentMemory has four kinds of record, but only one, decisions, has a live writer today. Every note is a decision.</Callout>
+<Callout type="warn" title='"Decision" means three things'>Every note is stored as a decision. [Boot](/docs/concepts/memory/boot) calls its slice of ranked notes "decisions" too. But boot's RECENT DECISIONS section lists promoted bus messages, which are not notes.</Callout>
 
 ## Why it exists
 
-Project state used to live in files that people edited by hand. Those files drifted and forked. The `note` verb keeps state in one place, where [boot](/docs/concepts/memory/boot) can show it. One bug shaped how notes change. Two agents read the same latest `where-we-are` note, and both wrote a successor. The chain forked in two. Now each title has a head marker. A writer must claim it with [compare-and-set](/docs/concepts/coordination/locks), so only one writer wins.
+Project state used to live in files that people edited by hand. Those files drifted and forked. The `note` verb keeps state in one place, where boot can show it. One bug shaped how notes change. Two agents read the same latest `where-we-are` note, and both wrote a successor. The chain forked in two.
+
+Now each title has a head marker. It is a small key, `mem:decisions:head:<title>`, that names the newest note for that title. To write a successor, a writer must claim the marker. The claim uses [compare-and-set](/docs/concepts/coordination/locks): "set it to my note, but only if it still names the note I read." If another writer got there first, the claim fails. The writer reads the new head and tries again. So only one successor wins.
 
 ## How it works
 
-- Writing a note with a title that exists supersedes the old note. No old note ever disappears. This is [supersession](/docs/concepts/foundations/append-only-record).
-- Titles keep their case and spacing. They can be up to 200 characters long.
+- Writing a note with a title that exists supersedes the old note. The old note stays in the store, marked as replaced. This is [supersession](/docs/concepts/foundations/append-only-record).
+- Titles match exactly. Aurora only tidies Unicode and trims spaces at the ends. Case and inner spaces count. So `Where-We-Are` starts a new chain, apart from `where-we-are`.
+- Titles can be up to 200 characters long.
 - `--retire` ends a note with no successor. `--get` prints one note in full.
-- Every write rebuilds `chronicles/memory.md`, a digest of the live notes. See [Chronicles](/docs/concepts/memory/chronicles).
-- Boot shows up to six recent notes from the last 60 days. The newest gets the most room.
-- A few titles have a job. Boot lifts `where-we-are`, `next-focus` (the current directive), `grounding-pointer` and `<slug>-status` notes into the top of its output.
+- `note` rebuilds `chronicles/memory.md`, a digest of the live notes. See [Chronicles](/docs/concepts/memory/chronicles).
+- Boot shows up to six recent notes from the last 60 days. The newest gets the most room. Every note counts, from every agent.
+
+### Titles with a job
+
+- `where-we-are` — boot shows it in its head.
+- `next-focus` — the current directive: what to do first. Boot shows it above the next steps.
+- `grounding-pointer` — the doc the next agent reads before anything else.
+- `<slug>-status` — the status of one arc. Boot picks the governing arc from these. A status note counts only if its text names a `docs/....md` file and does not say the arc is done.
+- `save:<agent>:<label>` — a personal save. In a Claude Code session, boot points that agent at its newest one.
+- `scratch:<agent>:<title>` — written by the `memory_note` tool. See below.
+
+### Other ways notes get written
+
+`wrap` drafts a `where-we-are` note from your session's commits, lessons and notes. On its own, it only prints the draft. `wrap --commit` writes it. It will not replace a hand-written `where-we-are` unless you add `--force`. To set the current directive, the `next-focus` note, run `wrap --focus "..."`. To set `grounding-pointer`, run `wrap --grounding <path>`. Those two write at once, even without `--commit`.
+
+The `memory_note` tool is not private. It writes a note titled `scratch:<agent>:<title>` into the same shared store. That note shows up in everyone's boot under RECENT NOTES, and in `notes`. Bus runners also add an agent's own scratch notes to its prompt. Unlike `note`, it does not rebuild `chronicles/memory.md`.
+
+Boot's LAST-SESSION DRAFT is not a note. It is a file that a hook writes when a session ends. Promote it with `wrap --commit`.
 
 ### AgentMemory, the store behind notes
 
 A note lives in AgentMemory, under the `mem:` keys. AgentMemory is a cabinet with four drawers. Decisions hold what we chose and why. Experiences hold a task and its result. Reflections hold what went wrong and what would help. Approaches hold what works for one part of the code. The four kinds come from a published research map of agent memory, called CoALA.
 
-Agents use only the decisions drawer. Each note is a decision record. The other three drawers have code to write them, but only tests and old, archived code call it. Most notes reach AgentMemory through `note`. A few other paths also write notes for you. `wrap` writes a draft summary note at the end of a session. The `memory_note` tool saves a private note that only your own future boots show.
+Agents use only the decisions drawer. Each note is a decision record. The other three drawers have code to write them, but only tests and old, archived code call it.
 
 ## How you use it
 
 ```bash
 aurora note <agent_id> --title where-we-are --note "Port fix merged; flaky test next."
 aurora note <agent_id> --get where-we-are
+aurora wrap --focus "Fix the flaky port test first."
 aurora notes
 ```
 
-Agents that use tools call `knowledge_note`.
+API models on a [runner](/docs/concepts/bifrost/runners) use the `knowledge_note` tool. It needs the `kb.learn` permission.
 
 ## Don't confuse it with
 

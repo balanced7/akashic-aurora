@@ -5,46 +5,70 @@ description: "The start-of-session command that prints what an agent needs first
 
 Boot is the first command an agent runs in a session. It prints a short briefing: where the work stands, which rules win, and the past lessons that fit the task. It works like a shift-change sheet. The top says where things stand. The lessons from past shifts come after.
 
+<Callout type="warn" title='"Decision" means three things'>A [note](/docs/concepts/memory/notes-and-agent-memory) is stored as a decision. Boot's notes slice is called "decisions" in its JSON. And RECENT DECISIONS lists [promoted](/docs/concepts/bifrost/promoter) bus messages, which are not notes at all.</Callout>
+
 ## Why it exists
 
-A fresh agent knows nothing. But dumping everything on it hurts too. More context can make an agent worse, not better. People call this context rot. So boot picks, ranks and trims. Real mistakes shaped the top of its output. Once, boot pointed a new session at a piece of work that was already done. Now boot skips finished work.
+A fresh agent knows nothing. But dumping everything on it hurts too. More context can make an agent worse, not better. People call this context rot. So boot picks, ranks and trims. Real mistakes shaped the top of its output. Once, boot pointed a new session at an arc that was already done. Now boot skips any `<slug>-status` note whose text says the arc is done. Words like "arc complete" or "all slices shipped" mark it done.
 
 ## How it works
 
+Boot gathers its sources, ranks them, and prints them in a fixed order. Each section fails open. If a source breaks, its section drops out and boot carries on. This follows [fail-soft](/docs/concepts/foundations/fail-soft).
 
-```mermaid
-pie showData title Boot's token budget, by share
-  "Lessons" : 25
-  "Promoted bus decisions" : 20
-  "Project state" : 15
-  "Story so far" : 13
-  "Handoff brief" : 12
-  "Blockers" : 10
-  "Not allotted" : 5
+**The budget.** Boot aims at about 9000 tokens. It guesses tokens from text length: four characters make one token. There is no flag to change the budget. Each source has a share of it. But boot trims only list sources to their share. Lessons, notes and blockers are lists, so their lowest-ranked entries drop first. Boot keeps the [handoff](/docs/concepts/bifrost/handoff) brief and the [story so far](/docs/concepts/narrative/narrative-spine) whole. It keeps project state, such as progress and current work, whole too. Project state shows only in `--json` output, never in the text.
+
+**Lessons.** [Lessons](/docs/concepts/memory/lessons) have a budget of their own, about 2000 characters. You can change it with `AKASHIC_RELEVANCE_BUDGET_CHARS`. Boot scores each lesson by how well it fits your task. A lesson tagged as a constraint scores high when it shares words with the task. So does a lesson that names a file your task names. Newer lessons get a small boost. Lessons that helped before score higher, through the [recall loop](/docs/concepts/memory/recall-loop). Benched lessons are not left out. Their low credit ranks them lower. Graduated lessons, whose rules automation now enforces, stay out. The top hit always ships, even if boot must clip it.
+
+**Notes.** Boot ranks your [notes](/docs/concepts/memory/notes-and-agent-memory) against the task and keeps the best few. Separately, it lists recent notes by date.
+
+**Promoted bus messages.** RECENT DECISIONS shows up to five promoted bus messages. They sit outside any budget.
+
+The [distiller](/docs/concepts/memory/ranker-and-distiller) packs the handoff, the story, the ranked notes, the lessons and the blockers into short lines. Each line has a pointer to its source.
+
+### The order of the output
+
+1. **The recall line.** It says the [recall at action](/docs/concepts/memory/recall-at-action) cache is warm. Boot prints it every time. It does not prove the hook is on. That hook is opt-in, one project at a time.
+2. **Who you are.** A resident agent gets a short identity block. Most agents get none.
+3. **The head.** It names your door: can this seat use tools? It points to the code map in `docs/ARCHITECTURE.md` and to the [working method](/docs/concepts/coordination/doctrine), the house rules for how to work. It names the governing [arc](/docs/concepts/coordination/doctrine), the long piece of work your task belongs to. It shows the `where-we-are` note and the current directive, a note that says what to do first. Then comes the rule of precedence. The task ledger beats notes. Notes beat promoted bus messages. Those beat the live bus. After that come next steps from the [task ledger](/docs/concepts/coordination/task-ledger) and the first six [live constraints](/docs/concepts/coordination/doctrine). Last, it says which core sources loaded and which failed.
+4. **LESSONS / CONTEXT.** The distiller's lines.
+5. **ARCH SLICE.** The parts of the code map that fit your task.
+6. **ACTIVE BLOCKERS**, then **RECENT NOTES**: up to six from the last 60 days. The newest gets the most room.
+7. **RECENT DECISIONS**, then **FUNNEL**: a one-line report from the recall loop.
+8. **METHOD** and **DOCTOR**: method drift, which is silent when all is well, and fleet health.
+9. **LAST-SESSION DRAFT**: a file a hook saved when the last session ended.
+10. **Mail, locks, a hint for how to add a lesson, and DELTA**: what changed since your last boot.
+
+Boot also warms the cache that recall at action reads, so your first edit gets an instant answer.
+
+**Primer-aware mode.** A Claude Code session sets `CLAUDE_CODE_SESSION_ID` or `CLAUDE_SESSION_ID`. When it sees either one, boot assumes a session-start hook already gave you a short primer. So it skips the funnel, the draft, the mail and the delta. It also prints the full `where-we-are` note in the head. Set `AKASHIC_BOOT_FULL=1` to get every section back.
+
+Here is a trimmed example. Real output is longer.
+
+```text
+# recall-at: armed (812 lesson(s) warm) -- listening at every edit; ...
+# CONTEXT for my_agent -- task: fix the flaky port test
+# 3 lesson(s), 1 blocker(s)
+# Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)
+# where-we-are: Port fix merged; flaky test next.
+# >> CURRENT DIRECTIVE (do this FIRST; beats the NEXT list order): ...
+# Precedence when sources conflict: TASK LEDGER ... beats durable NOTES ...
+#------------------------------------------------------------
+## LESSONS / CONTEXT (most relevant first)
+- Use when a server start hangs, before you retry: check the port. ...  (source: port-clash)
+
+## RECENT NOTES (durable project memory)
+  [2026-10-09] where-we-are: Port fix merged; flaky test next.
 ```
-
-Boot fills a budget of 9000 tokens by default. Each source gets a fixed share. Lessons get 25%. [Promoted](/docs/concepts/bifrost/promoter) bus decisions get 20%, and project state, such as progress and current work, gets 15%. The [story so far](/docs/concepts/narrative/narrative-spine) gets 13%, the [handoff](/docs/concepts/bifrost/handoff) brief 12%, and blockers 10%. The [distiller](/docs/concepts/memory/ranker-and-distiller) packs it all into short lines, each with a pointer to its source.
-
-Boot scores each [lesson](/docs/concepts/memory/lessons) by how well it fits your task. Newer lessons get a small boost. Lessons that helped before score higher, through the [recall loop](/docs/concepts/memory/recall-loop). Graduated lessons, whose rules automation now enforces, stay out.
-
-The head of the output comes first. It names the governing [arc](/docs/concepts/coordination/doctrine): the long piece of work your task belongs to. It points to the code map in `docs/ARCHITECTURE.md` and to the [working method](/docs/concepts/coordination/doctrine), the house rules for how to work. It shows the `where-we-are` [note](/docs/concepts/memory/notes-and-agent-memory) and the current directive, a note that says what to do first. It shows the next steps from the [task ledger](/docs/concepts/coordination/task-ledger). It states the rule of precedence. The task ledger beats durable notes. Notes beat promoted bus messages. Those beat the live bus. It lists the first six [live constraints](/docs/concepts/coordination/doctrine), the rules that hold right now. Last, it lists any core source that failed to load.
-
-Then come the sections: lessons, the code that fits your task, blockers, notes and decisions. Last come your inbox, a one-line funnel report from the recall loop, and what changed since your last boot.
-
-Each section fails open. If a source breaks, its section drops out and boot carries on. A few core sources, such as the notes store and the task ledger, also show up in that list of failures. This follows [fail-soft](/docs/concepts/foundations/fail-soft).
-
-Boot also warms the cache for [recall at action](/docs/concepts/memory/recall-at-action).
-
-You can install a session-start hook for Claude Code at the user level. It runs a light boot for you and injects a short primer. Inside such a session, a full boot skips the parts the primer covers: the funnel, the draft, the mail and the delta. Set `AKASHIC_BOOT_FULL=1` to get them all.
 
 ## How you use it
 
 ```bash
 aurora boot <agent_id> --task "fix the flaky port test"
+aurora boot <agent_id> --task "fix the flaky port test" --json
 aurora delta <agent_id>
 ```
 
-`delta` shows only what changed since your last boot. Agents that use tools call `knowledge_boot`.
+`delta` shows only what changed since your last boot. API models on a [runner](/docs/concepts/bifrost/runners) use the `knowledge_boot` tool instead. That tool always boots as the `deepseek` agent, whoever calls it.
 
 ## Don't confuse it with
 
@@ -56,5 +80,6 @@ aurora delta <agent_id>
 
 - **Built on:** [Lessons](/docs/concepts/memory/lessons), [Notes](/docs/concepts/memory/notes-and-agent-memory), [Recall loop](/docs/concepts/memory/recall-loop), [Task ledger](/docs/concepts/coordination/task-ledger), [Handoff](/docs/concepts/bifrost/handoff), [Promoter](/docs/concepts/bifrost/promoter), [Narrative spine](/docs/concepts/narrative/narrative-spine)
 - **Packed by:** [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller)
-- **Used by:** every agent session, [Recall at action](/docs/concepts/memory/recall-at-action), [RENEW](/docs/concepts/narrative/renew)
+- **Used by:** every agent session, [RENEW](/docs/concepts/narrative/renew)
+- **Warms:** the cache that [Recall at action](/docs/concepts/memory/recall-at-action) reads
 - **Part of:** [Memory and recall](/docs/concepts/memory)

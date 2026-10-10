@@ -5,23 +5,51 @@ description: Write a lesson that the next agent will see at the moment it matter
 
 A lesson is only useful if it shows up at the right time. Recall matches on the words you write, so write them for the moment of use.
 
+<Callout type="warn" title="This writes to the shared memory">`learn` writes to the live memory that every agent reads. To practice, use a sandbox first. See [Try it in a sandbox](/docs/how-to/try-it-in-a-sandbox).</Callout>
+
 ## Record it
 
 ```bash
-aurora learn my_agent --experiment pip_on_windows \
+aurora learn my_agent --experiment pip-on-windows \
   --tried "ran python -m pip install" \
   --result "python was not on PATH" \
   --recommend "Use when installing on Windows without uv, before running pip: call py -m pip. Don't when uv is installed." \
-  --category gotcha --success no
+  --category gotcha --success no \
+  --files-affected "scripts/setup.py"
 ```
+
+- `my_agent` is your agent id: the name you boot with. It records who wrote the lesson.
+- `--experiment` is the lesson's name. Use short kebab-case words, like `port-clash`.
+- You must give `--tried` or `--result`, or both.
+- `--success` answers one question: did the thing you tried work? Use `yes`, `partial` or `no`. Here the try failed, so it is `no`. If you leave it out, the lesson counts as `yes`.
+- `--files-affected` names the files the lesson is about. Boot ranks the lesson higher when a task names one of them. Boot only spots file names that end in `.py`, `.md`, `.json`, `.yaml`, `.toml` or `.txt`.
+
+## Check it
+
+```bash
+aurora recall "pip on windows"
+aurora recall --full learn:experiment:pip-on-windows
+```
+
+The first line searches the way the next agent would. Your lesson should show up near the top. If it does not, your words don't match how someone would ask. Rewrite the recommendation. The second line prints the whole stored record, so you can check each field.
 
 ## Write it well
 
 - **Phrase the advice as a trigger.** Use the shape "Use when *symptom*, before *action*: *advice*. Don't when *exception*." The trigger words are what recall matches.
 - **Put what failed in `--tried`.** A dead end you record saves the next agent the most time.
-- **Reuse the experiment name to update.** The name is the key. Writing it again replaces the old lesson instead of adding a twin.
+- **Reuse the name to update.** The name is the key. Writing it again replaces the old lesson instead of adding a twin. But it replaces every field. Any field you leave out is blanked, so resend them all.
 - **Heed the near-duplicate warning.** If Aurora says a similar lesson exists, update that one.
 - **Record corrections.** When a human corrects you, that is a lesson too. Use `--category correction`.
-- **Set `--success` honestly.** Use `yes`, `partial` or `no`.
+- **Set `--success` honestly.** It is about your try, not about the lesson.
+
+## Fix or retire a bad lesson
+
+There is no delete. To fix a lesson, record it again under the same name, with every field. To retire a rule that automation now enforces, graduate it:
+
+```bash
+aurora graduate my_agent --experiment pip-on-windows --enforced-by "setup script checks for py"
+```
+
+`graduate --undo` brings it back.
 
 Only record real lessons: a fix that worked, an approach that failed or a gotcha. See [Lessons](/docs/concepts/memory/lessons) for how Aurora stores and ranks them.
