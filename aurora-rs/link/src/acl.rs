@@ -47,6 +47,9 @@ pub const MAX_INVITE_TTL_S: u64 = 30 * 24 * 3600;
 pub const DEFAULT_INVITE_TTL_S: u64 = 24 * 3600;
 /// How far an entry's own timestamp may run ahead of the verifier's clock.
 pub const MAX_FUTURE_SKEW_S: u64 = 600;
+/// The largest single ACL entry, canonical bytes. A rotation wrapping to 64 X-Wing devices is
+/// about 110 KiB; anything bigger is refused rather than stored and relayed.
+pub const MAX_ENTRY_BYTES: usize = 256 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -109,6 +112,10 @@ impl Default for Policy {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Wrap {
+    /// The epoch whose key this wraps. An entry is refused when it differs from the epoch in
+    /// force where the entry applies, so a wrap issued beside a concurrent rotation can never
+    /// be filed under the new epoch with the old key inside.
+    pub epoch: u64,
     pub device: String,
     pub suite: u8,
     pub enc: String,
@@ -380,6 +387,12 @@ pub struct AclState {
     /// Epoch k's `prev`: the key of epoch k-1 sealed under the key of epoch k.
     pub prev_keys: BTreeMap<u64, String>,
     pub rotation_due: bool,
+    /// When the rotation became due (the `ts` of the entry that made it due).
+    pub rotation_due_since: u64,
+    /// The epoch in force after each entry that was valid where its author stood, applied in
+    /// the merged order or not. A record is checked against this, so a head that lost a fork
+    /// cannot block its author's feed.
+    pub causal_epoch: BTreeMap<String, u64>,
     /// Joins waiting for an `accept`: join entry hash -> member root.
     pub pending_joins: BTreeMap<String, String>,
     /// Epoch in effect after each applied entry, by entry hash.
@@ -453,6 +466,7 @@ impl AclState {
                     .cert;
                 let (suite, enc, ct) = crypto::wrap(key, &cert.kem()?, &self.wrap_info(epoch, d))?;
                 Ok(Wrap {
+                    epoch,
                     device: d.clone(),
                     suite,
                     enc: b64(&enc),
@@ -519,7 +533,10 @@ impl AclState {
     }
 
     /// Wraps must cover exactly `expected`, with the suite each device's certificate allows.
-    fn check_wraps(&self, wraps: &[Wrap], expected: &BTreeSet<String>, extra: &[DeviceCert]) -> Result<()> {
+    fn check_wraps(&self, epoch: u64, wraps: &[Wrap], expected: &BTreeSet<String>, extra: &[DeviceCert]) -> Result<()> {
+        if wraps.iter().any(|w| w.epoch != epoch) {
+            return Err(refused("a wrap names another epoch than the one in force"));
+        }
         let got: BTreeSet<String> = wraps.iter().map(|w| w.device.clone()).collect();
         if got.len() != wraps.len() {
             return Err(refused("a device is wrapped to twice"));
@@ -559,7 +576,7 @@ impl AclState {
         {
             return Err(refused("sealed previous key has the wrong size"));
         }
-        self.check_wraps(&k.wraps, keyed, &[])
+        self.check_wraps(k.epoch, &k.wraps, keyed, &[])
     }
 
     fn apply_key_change(&mut self, k: &KeyChange) {
@@ -579,6 +596,9 @@ impl AclState {
     pub fn apply(&mut self, e: &Entry, hash: &str) -> Result<()> {
         let mut next = self.clone();
         next.apply_inner(e, hash)?;
+        if next.rotation_due && !self.rotation_due {
+            next.rotation_due_since = e.ts;
+        }
         next.applied.push(hash.to_owned());
         next.epoch_at.insert(hash.to_owned(), next.epoch);
         if e.seq >= next.head_seq || next.head.is_empty() {
@@ -661,12 +681,18 @@ impl AclState {
                     .members
                     .get(&root)
                     .ok_or_else(|| refused("pending member vanished"))?;
+                // Only live devices get the key: one cut before the accept never does.
                 let expected: BTreeSet<String> = if member.role.reads() {
-                    member.devices.clone()
+                    member
+                        .devices
+                        .iter()
+                        .filter(|d| self.devices.get(*d).is_some_and(|s| s.cut.is_none()))
+                        .cloned()
+                        .collect()
                 } else {
                     BTreeSet::new()
                 };
-                self.check_wraps(&a.wraps, &expected, &[])?;
+                self.check_wraps(self.epoch, &a.wraps, &expected, &[])?;
                 self.wraps
                     .entry(self.epoch)
                     .or_default()
@@ -744,7 +770,7 @@ impl AclState {
                         "adding a reading device needs an author that holds the read key",
                     ));
                 }
-                self.check_wraps(&a.wraps, &expected, std::slice::from_ref(&a.cert))?;
+                self.check_wraps(self.epoch, &a.wraps, &expected, std::slice::from_ref(&a.cert))?;
                 self.devices.insert(
                     a.cert.device.clone(),
                     DeviceState {
@@ -783,6 +809,9 @@ impl AclState {
                 if target_member == self.owner && live_devices <= 1 {
                     return Err(refused("the owner's last device cannot be removed"));
                 }
+                if r.device == e.author && r.rotate.is_some() {
+                    return Err(refused("a device that removes itself cannot pick the next key"));
+                }
                 self.devices.get_mut(&r.device).expect("checked").cut = Some(r.cut);
                 self.removal_rotation(r.rotate.as_ref(), &e.author)?;
             }
@@ -807,7 +836,7 @@ impl AclState {
                     if !self.has_wrap(self.epoch, &e.author) {
                         return Err(refused("granting read access needs an author that holds the read key"));
                     }
-                    self.check_wraps(&s.wraps, &live, &[])?;
+                    self.check_wraps(self.epoch, &s.wraps, &live, &[])?;
                     self.wraps
                         .entry(self.epoch)
                         .or_default()
@@ -868,7 +897,8 @@ impl AclState {
                     .invites
                     .get_mut(&r.invite)
                     .ok_or_else(|| refused("no such invite"))?;
-                if inv.used || inv.revoked {
+                // A reusable invite stays revocable after its first use: that is when it matters.
+                if (inv.single_use && inv.used) || inv.revoked {
                     return Err(refused("invite is already used or revoked"));
                 }
                 inv.revoked = true;
@@ -955,7 +985,7 @@ impl AclState {
         if g.key.epoch != 0 || g.key.prev.is_some() {
             return Err(refused("genesis key must be epoch 0 with no previous key"));
         }
-        self.check_wraps(&g.key.wraps, &devices, &[])?;
+        self.check_wraps(0, &g.key.wraps, &devices, &[])?;
         self.wraps.insert(0, g.key.wraps.clone());
         Ok(())
     }
@@ -969,6 +999,14 @@ impl AclState {
         if inv.revoked || (inv.single_use && inv.used) || e.ts >= inv.expires {
             return Err(refused("invite is revoked, used, or expired"));
         }
+        // An invite is only as good as its inviter: removed or demoted, their invites die.
+        if self
+            .members
+            .get(&inv.by)
+            .is_none_or(|m| m.removed || m.pending || !m.role.admin())
+        {
+            return Err(refused("the inviter is no longer an admin of this link"));
+        }
         unhex::<32>(&j.root)?;
         if let Some(m) = self.members.get(&j.root)
             && !m.removed
@@ -980,6 +1018,18 @@ impl AclState {
         }
         if j.label.is_empty() || j.label.chars().count() > MAX_LABEL || j.label.chars().any(char::is_control) {
             return Err(refused("fleet label is empty, too long, or has control characters"));
+        }
+        // Labels name members in commands and in @fleet/seat addresses, so they must be unique and
+        // must not look like a root key.
+        if j.label.len() == 64 && j.label.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(refused("a fleet label cannot look like a root key"));
+        }
+        if self
+            .members
+            .values()
+            .any(|m| !m.removed && m.label.eq_ignore_ascii_case(&j.label))
+        {
+            return Err(refused("another member already uses that fleet label"));
         }
         if j.devices.is_empty() || j.devices.len() > MAX_DEVICES_PER_MEMBER {
             return Err(refused("join lists no devices, or too many"));
@@ -1113,43 +1163,99 @@ impl AclLog {
 
     /// Insert verified entries (any order, duplicates ignored) and re-resolve the state.
     /// Returns how many were new. Entries whose parent is unknown are refused.
-    pub fn insert(&mut self, mut batch: Vec<Entry>) -> Result<usize> {
+    pub fn insert(&mut self, batch: Vec<Entry>) -> Result<usize> {
+        self.insert_at(batch, None)
+    }
+
+    /// Insert entries received at `now` (the verifier's clock). Each entry is checked on its own:
+    /// one bad entry does not sink the batch, and entries that build on it are skipped with it.
+    /// Entries that were never valid where their author stood are discarded, not stored, so
+    /// nobody can grow the log with refused junk. Returns how many entries were kept.
+    pub fn insert_at(&mut self, mut batch: Vec<Entry>, now: Option<u64>) -> Result<usize> {
         batch.sort_by_key(|e| e.seq);
-        let mut added = 0;
+        let mut fresh: Vec<String> = Vec::new();
+        let mut first_err: Option<LinkError> = None;
         for e in batch {
-            let hash = e.hash()?;
-            if self.entries.contains_key(&hash) {
-                continue;
-            }
-            e.verify_signature()?;
-            if e.seq == 0 {
-                if !self.entries.is_empty() {
-                    return Err(refused("a second genesis for this link"));
+            match self.check_structure(&e, now) {
+                Ok(Some(hash)) => {
+                    self.entries.insert(hash.clone(), e);
+                    if self.state.link_id.is_empty() {
+                        self.resolve();
+                        if self.state.link_id != hash {
+                            self.entries.remove(&hash);
+                            self.resolve();
+                            first_err.get_or_insert(refused("genesis does not apply"));
+                            continue;
+                        }
+                    }
+                    fresh.push(hash);
                 }
-            } else {
-                let parent = self
-                    .entries
-                    .get(&e.prev)
-                    .ok_or_else(|| refused("ACL entry's parent is unknown"))?;
-                if parent.seq + 1 != e.seq || e.link != self.state.link_id {
-                    return Err(refused("ACL entry seq or link does not follow its parent"));
-                }
-            }
-            self.entries.insert(hash.clone(), e);
-            if self.state.link_id.is_empty() {
-                self.resolve();
-                if self.state.link_id != hash {
-                    self.entries.remove(&hash);
-                    self.resolve();
-                    return Err(refused("genesis does not apply"));
+                Ok(None) => {}
+                Err(err) => {
+                    first_err.get_or_insert(err);
                 }
             }
-            added += 1;
         }
-        if added > 0 {
+        if !fresh.is_empty() {
             self.resolve();
+            let never: Vec<String> = self
+                .state
+                .dropped
+                .iter()
+                .filter(|(_, why)| why.starts_with("not valid where") || why.starts_with("builds on"))
+                .map(|(h, _)| h.clone())
+                .collect();
+            for h in &never {
+                self.entries.remove(h);
+            }
+            if let Some((_, why)) = self
+                .state
+                .dropped
+                .iter()
+                .find(|(h, _)| fresh.contains(h) && never.contains(h))
+            {
+                first_err.get_or_insert(refused(why.clone()));
+            }
+            fresh.retain(|h| self.entries.contains_key(h));
         }
-        Ok(added)
+        match (fresh.len(), first_err) {
+            (0, Some(err)) => Err(err),
+            (n, _) => Ok(n),
+        }
+    }
+
+    /// Signature, size, link, seq, parent and time. `Ok(None)` for an entry already held.
+    fn check_structure(&self, e: &Entry, now: Option<u64>) -> Result<Option<String>> {
+        let hash = e.hash()?;
+        if self.entries.contains_key(&hash) {
+            return Ok(None);
+        }
+        if codec::canonical(e)?.len() > MAX_ENTRY_BYTES {
+            return Err(refused("ACL entry is too large"));
+        }
+        if let Some(n) = now
+            && e.ts > n + MAX_FUTURE_SKEW_S
+        {
+            return Err(refused("ACL entry is dated in the future"));
+        }
+        e.verify_signature()?;
+        if e.seq == 0 {
+            if !self.entries.is_empty() {
+                return Err(refused("a second genesis for this link"));
+            }
+        } else {
+            let parent = self
+                .entries
+                .get(&e.prev)
+                .ok_or_else(|| refused("ACL entry's parent is unknown"))?;
+            if parent.seq + 1 != e.seq || e.link != self.state.link_id {
+                return Err(refused("ACL entry seq or link does not follow its parent"));
+            }
+            if e.ts < parent.ts {
+                return Err(refused("ACL entry is dated before its parent"));
+            }
+        }
+        Ok(Some(hash))
     }
 
     /// The branch rank of every entry: its path of sibling ranks from genesis.
@@ -1201,6 +1307,7 @@ impl AclLog {
                     .push((hash, format!("not valid where its author stood: {err}")));
                 continue;
             }
+            state.causal_epoch.insert(hash.clone(), own.epoch);
             causal.insert(hash.clone(), own);
             if let Err(err) = state.apply(&e, &hash) {
                 state.dropped.push((hash, err.to_string()));

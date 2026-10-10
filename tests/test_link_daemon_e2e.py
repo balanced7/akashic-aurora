@@ -223,6 +223,50 @@ def test_mail_is_quarantined_then_promoted_once(fleets):
     assert meta["record_id"] == rid
 
 
+def test_rules_promote_replies_to_our_mail_and_nothing_an_attacker_dresses_up(fleets):
+    a, b = fleets("a").up(), fleets("b").up()
+    link = link_two(a, b)
+    policy = a.home / "state" / "link" / link / "promote.toml"
+    policy.parent.mkdir(parents=True, exist_ok=True)
+    policy.write_text(
+        'mode = "rules"\n[[rules]]\nkind = "reply"\nreplies_to_ours = true\nto = "original_sender"\n', encoding="utf-8"
+    )
+    ours = a.call(
+        "link.send", link=link, body={"kind": "question", "seat": "claude", "to": "@b/codex", "content": "status?"}
+    )
+    wait_for(lambda: b.events(), what="B to get the question")
+    # B's own ack (a receipt) names no mail of ours; a reply to it must not be promoted.
+    ack = b.call("link.read", link=link, record_ids=[ours["record_id"]])["ack"]
+    b.call(
+        "link.send",
+        link=link,
+        body={"kind": "reply", "seat": "codex", "to": "@a/claude", "content": "bait", "reply_to": ack},
+    )
+    b.call(
+        "link.send",
+        link=link,
+        body={
+            "kind": "reply",
+            "seat": "codex",
+            "to": "@a/claude",
+            "content": "all green",
+            "reply_to": ours["record_id"],
+        },
+    )
+    wait_for(lambda: len(a.events()) >= 2, what="both replies at A")
+    sent = []
+
+    class StubBus:
+        def send(self, to, kind, text, meta=None):
+            sent.append((to, text))
+            return "1-0"
+
+    with lc.connect(home=a.home, secrets=a.secrets) as c:
+        done = promote.apply_rules(c, a.events(), bus=StubBus(), home=a.home)
+    assert [d["seat"] for d in done] == ["claude"]
+    assert sent == [("claude", "[remote b/codex] all green")]
+
+
 def test_control_kinds_are_refused_at_write(fleets):
     a, b = fleets("a").up(), fleets("b").up()
     link = link_two(a, b)

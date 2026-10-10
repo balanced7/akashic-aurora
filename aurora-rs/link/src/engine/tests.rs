@@ -58,6 +58,18 @@ fn sync_pair(a: &mut Node, b: &mut Node, now: u64) {
     panic!("sync did not settle");
 }
 
+/// All ACL entries in a join reply (it ends with `synced`).
+fn entries_of(frames: Vec<Frame>) -> Vec<acl::Entry> {
+    assert!(matches!(frames.last(), Some(Frame::Synced { .. })));
+    frames
+        .into_iter()
+        .flat_map(|f| match f {
+            Frame::Acl { entries } => entries,
+            _ => vec![],
+        })
+        .collect()
+}
+
 /// `host` (an admin) invites `guest` with `role`; the guest joins through frames.
 fn admit(host: &mut Node, guest: &mut Node, role: Role, now: u64) {
     let secret = host
@@ -66,31 +78,61 @@ fn admit(host: &mut Node, guest: &mut Node, role: Role, now: u64) {
         .unwrap()
         .invite(&host.dev, role, 3600, true, false, now)
         .unwrap();
-    let invite = hex(&crypto::public_of(&acl::invite_key(&secret)));
     let link_id = host.link.as_mut().unwrap().id().to_owned();
     let hdev = Device::from_json(&host.dev.to_json().unwrap()).unwrap();
-    let Frame::Acl { entries } = sync::serve_join(
-        host.link.as_mut().unwrap(),
-        &hdev,
-        Frame::JoinHello {
-            v: 1,
-            link: link_id,
-            invite,
-        },
-        now,
-    )
-    .unwrap()
-    .remove(0) else {
-        panic!()
-    };
-    let entry = sync::join_entry(&entries, &guest.dev, &secret, "guest", now).unwrap();
-    let Frame::Acl { entries } = sync::serve_join(host.link.as_mut().unwrap(), &hdev, Frame::Join { entry }, now)
-        .unwrap()
-        .remove(0)
-    else {
-        panic!()
-    };
+    let gid = guest.id();
+    let hello = sync::join_hello(&link_id, &guest.dev, &secret).unwrap();
+    let entries = entries_of(sync::serve_join(host.link.as_mut().unwrap(), &hdev, &gid, hello, now).unwrap());
+    let entry = sync::join_entry(&entries, &guest.dev, &secret, &guest.dev.cert.label.clone(), now).unwrap();
+    let entries =
+        entries_of(sync::serve_join(host.link.as_mut().unwrap(), &hdev, &gid, Frame::Join { entry }, now).unwrap());
     guest.link = Some(Link::adopt(None, entries, now).unwrap());
+}
+
+#[test]
+fn the_join_protocol_checks_before_it_stores() {
+    let mut a = Node::new("a");
+    a.link = Some(Link::create(None, &a.dev, "p", "fleet-a", Policy::default(), T0).unwrap());
+    let adev = Device::from_json(&a.dev.to_json().unwrap()).unwrap();
+    let secret = a
+        .link
+        .as_mut()
+        .unwrap()
+        .invite(&a.dev, Role::Writer, 3600, true, false, T0)
+        .unwrap();
+    let link_id = a.link.as_ref().unwrap().id().to_owned();
+    let guest = Node::new("guest");
+    let thief = Node::new("thief");
+    // A hello bound to another connection, or after expiry, gets nothing.
+    let hello = sync::join_hello(&link_id, &guest.dev, &secret).unwrap();
+    assert!(sync::serve_join(a.link.as_mut().unwrap(), &adev, &thief.id(), hello.clone(), T0).is_err());
+    assert!(sync::serve_join(a.link.as_mut().unwrap(), &adev, &guest.id(), hello, T0 + 7200).is_err());
+    // A join backdated inside the window is refused by our clock after expiry.
+    let entries = a.link.as_ref().unwrap().acl.missing_for(&BTreeSet::new());
+    let late = sync::join_entry(&entries, &guest.dev, &secret, "guest", T0 + 10).unwrap();
+    let before = a.link.as_ref().unwrap().acl.len();
+    assert!(
+        sync::serve_join(
+            a.link.as_mut().unwrap(),
+            &adev,
+            &guest.id(),
+            Frame::Join { entry: late.clone() },
+            T0 + 7200
+        )
+        .is_err()
+    );
+    assert_eq!(a.link.as_ref().unwrap().acl.len(), before, "nothing was stored");
+    // Someone else's join entry, sent on our connection, is refused too.
+    assert!(
+        sync::serve_join(
+            a.link.as_mut().unwrap(),
+            &adev,
+            &thief.id(),
+            Frame::Join { entry: late },
+            T0 + 20
+        )
+        .is_err()
+    );
 }
 
 fn trio() -> (Node, Node, Node) {
@@ -493,4 +535,87 @@ fn a_second_machine_trusts_the_devices_that_added_it_but_not_later_ones() {
         .self_monitor(&second.id_hex(), second.root_hex(), &mine, T0 + 4)
         .unwrap();
     assert_eq!(flagged, vec![rogue.id_hex()]);
+}
+
+#[test]
+fn two_admins_rotating_at_once_never_block_a_feed() {
+    let (mut a, mut b, _m) = trio();
+    let broot = b.dev.root_hex().to_owned();
+    let adev = Device::from_json(&a.dev.to_json().unwrap()).unwrap();
+    a.link
+        .as_mut()
+        .unwrap()
+        .set_role(&adev, &broot, Role::Admin, T0 + 3)
+        .unwrap();
+    sync_pair(&mut a, &mut b, T0 + 4);
+    // Both admins rotate at the same head, then B writes under its own (losing) rotation.
+    let bdev = Device::from_json(&b.dev.to_json().unwrap()).unwrap();
+    a.link.as_mut().unwrap().rotate_key(&adev, T0 + 5).unwrap();
+    b.link.as_mut().unwrap().rotate_key(&bdev, T0 + 5).unwrap();
+    b.link
+        .as_mut()
+        .unwrap()
+        .write(&b.dev, &mail("chat", "under the losing branch"), T0 + 6)
+        .unwrap();
+    sync_pair(&mut a, &mut b, T0 + 7);
+    // B's feed is not blocked: its next record reaches A and opens.
+    b.link
+        .as_mut()
+        .unwrap()
+        .write(&b.dev, &mail("chat", "after the merge"), T0 + 8)
+        .unwrap();
+    sync_pair(&mut a, &mut b, T0 + 9);
+    let got: Vec<String> = events(&a)
+        .iter()
+        .filter_map(|e| e["body"]["content"].as_str().map(str::to_owned))
+        .collect();
+    assert!(got.contains(&"after the merge".to_owned()), "{got:?}");
+    assert_eq!(a.link.as_ref().unwrap().heads().unwrap()[&b.id()], 2);
+}
+
+#[test]
+fn a_relay_cannot_strip_a_body_and_another_fleets_ack_is_only_a_receipt() {
+    let (mut a, mut b, _m) = trio();
+    let (_, r) = a
+        .link
+        .as_mut()
+        .unwrap()
+        .write(&a.dev, &mail("chat", "keep me"), T0 + 10)
+        .unwrap();
+    let bdev = Device::from_json(&b.dev.to_json().unwrap()).unwrap();
+    let acl = a.link.as_ref().unwrap().acl.missing_for(&BTreeSet::new());
+    b.link.as_mut().unwrap().add_acl(acl, T0 + 11).unwrap();
+    // A stripped copy is refused and nothing is stored, so the whole copy still lands later.
+    assert!(matches!(
+        b.link.as_mut().unwrap().receive(&bdev, &r.retired(), T0 + 11).unwrap(),
+        Admit::Refused(_)
+    ));
+    assert!(matches!(
+        b.link.as_mut().unwrap().receive(&bdev, &r, T0 + 11).unwrap(),
+        Admit::Stored { .. }
+    ));
+    assert_eq!(events(&b)[0]["body"]["content"], "keep me");
+    // B's ack reaches A as a receipt, never as "own".
+    let ack = b.link.as_mut().unwrap().ack(&bdev, vec![], T0 + 12).unwrap().unwrap();
+    sync_pair(&mut a, &mut b, T0 + 13);
+    let stored = a.link.as_ref().unwrap().store.get(&ack).unwrap().unwrap();
+    assert_eq!(stored.status, store::RECEIPT);
+}
+
+#[test]
+fn a_permanent_gap_does_not_loop() {
+    let (mut a, mut b, _m) = trio();
+    sync_pair(&mut a, &mut b, T0 + 3);
+    let bdev = Device::from_json(&b.dev.to_json().unwrap()).unwrap();
+    // B freezes A (as after equivocation): A's records now refuse at B, forever.
+    b.link.as_mut().unwrap().store.freeze(&a.id(), "test", T0).unwrap();
+    for i in 0..3 {
+        a.link
+            .as_mut()
+            .unwrap()
+            .write(&a.dev, &mail("chat", &format!("{i}")), T0 + 4)
+            .unwrap();
+    }
+    let _ = bdev;
+    sync_pair(&mut a, &mut b, T0 + 5); // panics with "sync did not settle" if it loops
 }

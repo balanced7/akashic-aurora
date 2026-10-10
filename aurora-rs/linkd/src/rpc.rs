@@ -683,6 +683,7 @@ pub fn endpoint_name(path: &std::path::Path) -> String {
 #[cfg(unix)]
 pub async fn serve_socket(ctx: Arc<Ctx>, path: std::path::PathBuf) -> anyhow::Result<()> {
     use std::os::unix::fs::PermissionsExt;
+    crate::daemon::private_socket_dir(&path)?;
     if path.exists() {
         // A live daemon answers; a stale socket file is left by a crash.
         if tokio::net::UnixStream::connect(&path).await.is_ok() {

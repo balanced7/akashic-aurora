@@ -152,13 +152,20 @@ def promote(
     return {"promoted": True, "record_id": record_id, "seat": seat, "bus_id": mid}
 
 
-def apply_rules(client: Client, events: list[dict[str, Any]], bus: Any | None = None) -> list[dict[str, Any]]:
+def _our_root(client: Client, link_id: str) -> str:
+    status = client.call("link.status", link=link_id)
+    return next((m["root"] for m in status["members"] if m.get("us")), "")
+
+
+def apply_rules(
+    client: Client, events: list[dict[str, Any]], bus: Any | None = None, home: Path | None = None
+) -> list[dict[str, Any]]:
     """Promote what a link's local rules allow; leave everything else in quarantine."""
     done: list[dict[str, Any]] = []
     policies: dict[str, dict[str, Any]] = {}
     for e in events:
         link_id = str(e.get("link"))
-        policy = policies.setdefault(link_id, load_policy(link_id))
+        policy = policies.setdefault(link_id, load_policy(link_id, home))
         if policy["mode"] != "rules":
             continue
         body = e.get("body") or {}
@@ -175,7 +182,14 @@ def apply_rules(client: Client, events: list[dict[str, Any]], bus: Any | None = 
                     o = client.call("record.get", link=link_id, record_id=orig)
                 except Exception:  # noqa: BLE001  # an unknown original is simply not ours
                     continue
-                if o.get("status") != "own":
+                # "Ours" means written by our own fleet, and real mail: never another fleet's ack
+                # (a receipt), whose seat field that fleet chose itself.
+                o_body = o.get("body") or {}
+                if (
+                    o.get("status") != "own"
+                    or o_body.get("kind") == "ack"
+                    or o.get("fleet_root") != _our_root(client, link_id)
+                ):
                     continue
                 if seat == "original_sender":
                     seat = (o.get("body") or {}).get("seat")

@@ -127,7 +127,7 @@
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API) |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
 | core/link/client.py | 147 | `noqa: SIM115` | closed by Client.close |
-| core/link/promote.py | 176 | `noqa: BLE001` | an unknown original is simply not ours |
+| core/link/promote.py | 183 | `noqa: BLE001` | an unknown original is simply not ours |
 | core/link/quarantine.py | 45 | `noqa: BLE001` | fail-soft: offline bus = None, the store stays the truth |
 | core/manuals/chunk.py | 17 | `noqa: TC001` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/manuals/convert.py | 293 | `pyright: ignore[reportArgumentType]` | LATENT: pypdf returns None for a dangling outline target; the sort below would raise |
@@ -201,6 +201,7 @@
 | peer_connect.py | 193 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | peer_connect.py | 211 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
 | research/drafts/t097-s1-progress-stamp-draft.py | 38 | `pyright: ignore[reportCallIssue]` | LATENT: Bus() now requires agent_id; this research draft predates that |
+| research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `pyright: ignore[reportMissingImports]` | the control runs in its own venv (see report.md) |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py | 399 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: client is None when Sentinel is down; the except below logs it and returns None |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 33 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 64 | `pyright: ignore[reportPossiblyUnboundVariable]` | attribute annotation, never evaluated at runtime |

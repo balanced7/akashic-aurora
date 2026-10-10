@@ -6,7 +6,7 @@
 //! - `state/link/blobs/`: the iroh-blobs store (encrypted attachments only);
 //! - `state/link/linkd.sock`: the RPC socket while `serve` runs (a named pipe on Windows);
 //! - `<secrets>/link/device.json`: this install's keys and certificate (mode 0600);
-//! - `<secrets>/link/root.json`: the fleet root, age-encrypted with a passphrase, only when the
+//! - `<secrets>/link/root.json`: the fleet root, sealed under a passphrase (Argon2id), only when the
 //!   operator chose to keep it here (otherwise the recovery phrase re-derives it on demand);
 //! - `<secrets>/link/certified.json`: the devices our root has certified (self-monitoring).
 //!
@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use aurora_link::acl::{self, Policy, Role};
 use aurora_link::codec::{self, hex, now};
 use aurora_link::crypto;
@@ -85,13 +85,37 @@ impl Dirs {
             return near;
         }
         let tag = &aurora_link::codec::hex(&crypto::sha256(&[self.home.to_string_lossy().as_bytes()]))[..16];
-        let dir = std::env::var_os("XDG_RUNTIME_DIR")
+        // Never a bare file in a shared directory: a private folder (mode 0700, see
+        // `private_socket_dir`) so another local user cannot squat the name.
+        let base = std::env::var_os("XDG_RUNTIME_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(std::env::temp_dir);
-        dir.join(format!("aurora-linkd-{tag}.sock"))
+        base.join(format!("aurora-linkd-{}", user_tag()))
+            .join(format!("{tag}.sock"))
     }
     pub fn refusals_log(&self) -> PathBuf {
         self.home.join("state").join("logs").join("linkd-refusals.log")
+    }
+}
+
+/// The member a person named: an exact root first, then exactly one live member whose label or
+/// root prefix matches. Never "the first match": labels are chosen by the members themselves.
+pub fn member_root(l: &Link, key: &str) -> Result<String, RpcError> {
+    let members = &l.state().members;
+    if members.contains_key(key) {
+        return Ok(key.to_owned());
+    }
+    let hits: Vec<&String> = members
+        .values()
+        .filter(|m| !m.removed && (m.label == key || (key.len() >= 8 && m.root.starts_with(key))))
+        .map(|m| &m.root)
+        .collect();
+    match hits.as_slice() {
+        [one] => Ok((*one).clone()),
+        [] => Err(RpcError::refused(format!("no member {key:?}"))),
+        _ => Err(RpcError::refused(format!(
+            "{key:?} names more than one member; use the root"
+        ))),
     }
 }
 
@@ -117,6 +141,47 @@ pub fn write_secret(path: &Path, data: &[u8]) -> anyhow::Result<()> {
     #[cfg(not(unix))]
     std::fs::write(&tmp, data)?;
     std::fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+/// A per-user tag for the private socket folder.
+fn user_tag() -> String {
+    #[cfg(unix)]
+    {
+        // SAFETY: getuid has no preconditions and cannot fail.
+        unsafe extern "C" {
+            fn getuid() -> u32;
+        }
+        unsafe { getuid() }.to_string()
+    }
+    #[cfg(not(unix))]
+    {
+        std::env::var("USERNAME").unwrap_or_else(|_| "user".into())
+    }
+}
+
+/// Create the socket's folder as ours alone, refusing one that someone else owns or can enter.
+#[cfg(unix)]
+pub fn private_socket_dir(socket: &Path) -> anyhow::Result<()> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+    let Some(dir) = socket.parent() else { return Ok(()) };
+    if !dir
+        .file_name()
+        .is_some_and(|n| n.to_string_lossy().starts_with("aurora-linkd-"))
+    {
+        return Ok(()); // the usual place, under state/link/, guarded by the socket's own mode
+    }
+    if !dir.exists() {
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+    }
+    let meta = std::fs::metadata(dir)?;
+    let mine = user_tag().parse::<u32>().unwrap_or(u32::MAX);
+    if meta.uid() != mine || meta.permissions().mode() & 0o077 != 0 {
+        bail!(
+            "{} is not a private folder of this user; refusing to serve RPC there",
+            dir.display()
+        );
+    }
     Ok(())
 }
 
@@ -549,14 +614,7 @@ impl Daemon {
         self.with_link(&p.str("link")?, |l| {
             let before = l.acl.hashes();
             let t = now();
-            let member = |l: &Link, key: &str| -> Result<String, RpcError> {
-                l.state()
-                    .members
-                    .values()
-                    .find(|m| m.root == key || m.label == key || (key.len() >= 8 && m.root.starts_with(key)))
-                    .map(|m| m.root.clone())
-                    .ok_or_else(|| RpcError::refused(format!("no member {key:?}")))
-            };
+            let member = |l: &Link, key: &str| member_root(l, key);
             let e = match what {
                 "remove_member" => {
                     let root = member(l, &p.str("member")?)?;

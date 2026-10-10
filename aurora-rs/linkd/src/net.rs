@@ -140,18 +140,38 @@ fn addr_for(dirs: &Dirs, device: &str) -> anyhow::Result<EndpointAddr> {
 // --------------------------------------------------------------------------------------- framing
 
 async fn read_frame(recv: &mut RecvStream) -> anyhow::Result<Option<Frame>> {
+    read_frame_max(recv, lsync::MAX_FRAME).await
+}
+
+/// The first frame of a connection comes from a peer nobody has checked yet: keep it small.
+const MAX_FIRST_FRAME: usize = 64 * 1024;
+const FIRST_FRAME_WITHIN: Duration = Duration::from_secs(30);
+
+async fn read_frame_max(recv: &mut RecvStream, max: usize) -> anyhow::Result<Option<Frame>> {
     let mut len = [0u8; 4];
     match recv.read_exact(&mut len).await {
         Ok(()) => {}
         Err(_) => return Ok(None),
     }
     let n = u32::from_be_bytes(len) as usize;
-    if n > lsync::MAX_FRAME {
+    if n > max {
         bail!("frame too large");
     }
     let mut body = vec![0u8; n];
     recv.read_exact(&mut body).await.context("short frame")?;
     Ok(Some(lsync::decode(&body)?))
+}
+
+/// A join reply: ACL frames up to `synced`. None when the inviter closed instead.
+async fn read_log(recv: &mut RecvStream) -> anyhow::Result<Option<Vec<aurora_link::acl::Entry>>> {
+    let mut out = Vec::new();
+    loop {
+        match read_frame(recv).await? {
+            Some(Frame::Acl { entries }) => out.extend(entries),
+            Some(Frame::Synced { .. }) => return Ok(Some(out)),
+            _ => return Ok(None),
+        }
+    }
 }
 
 async fn write_frame(send: &mut SendStream, f: &Frame) -> anyhow::Result<()> {
@@ -212,8 +232,8 @@ impl ProtocolHandler for LinkProto {
         let Ok((send, mut recv)) = conn.accept_bi().await else {
             return Ok(());
         };
-        let first = match read_frame(&mut recv).await {
-            Ok(Some(f @ Frame::Hello { .. })) => f,
+        let first = match tokio::time::timeout(FIRST_FRAME_WITHIN, read_frame_max(&mut recv, MAX_FIRST_FRAME)).await {
+            Ok(Ok(Some(f @ Frame::Hello { .. }))) => f,
             _ => {
                 refuse(&net, &conn, "link", "first frame was not a hello");
                 return Ok(());
@@ -247,9 +267,11 @@ impl ProtocolHandler for JoinProto {
             Ok(d) => d,
             Err(_) => return Ok(()),
         };
-        // At most two frames: JoinHello, then Join.
+        // At most two frames, JoinHello then Join, from a peer nobody has vouched for: small and quick.
+        let peer = hex(conn.remote_id().as_bytes());
         for _ in 0..2 {
-            let frame = match tokio::time::timeout(Duration::from_secs(60), read_frame(&mut recv)).await {
+            let frame = match tokio::time::timeout(FIRST_FRAME_WITHIN, read_frame_max(&mut recv, MAX_FIRST_FRAME)).await
+            {
                 Ok(Ok(Some(f))) => f,
                 _ => return Ok(()),
             };
@@ -264,7 +286,7 @@ impl ProtocolHandler for JoinProto {
             let is_join = matches!(frame, Frame::Join { .. });
             let result = net.d.with_link(&link_id, |l| {
                 let before = l.acl.hashes();
-                let out = lsync::serve_join(l, &device, frame, now())?;
+                let out = lsync::serve_join(l, &device, &peer, frame, now())?;
                 if is_join {
                     net.d.after_acl_change(l, &before)?;
                 }
@@ -556,28 +578,16 @@ impl Net {
             .map_err(|e| fail(&e))?
             .map_err(|e| fail(&e))?;
         let (mut send, mut recv) = conn.open_bi().await.map_err(|e| fail(&e))?;
-        let invite = hex(&crypto::public_of(&aurora_link::acl::invite_key(&code.secret_bytes()?)));
-        write_frame(
-            &mut send,
-            &Frame::JoinHello {
-                v: 1,
-                link: code.link.clone(),
-                invite,
-            },
-        )
-        .await
-        .map_err(|e| fail(&e))?;
+        let me = self.d.device()?;
+        let hello = lsync::join_hello(&code.link, &me, &code.secret_bytes()?)?;
+        write_frame(&mut send, &hello).await.map_err(|e| fail(&e))?;
         let refused = || RpcError::refused("the inviter refused: the code is used, expired, revoked or not theirs");
-        let Some(Frame::Acl { entries }) = read_frame(&mut recv).await.map_err(|e| fail(&e))? else {
-            return Err(refused());
-        };
+        let entries = read_log(&mut recv).await.map_err(|e| fail(&e))?.ok_or_else(refused)?;
         let (entry, _) = self.d.join_with(code, entries, label)?;
         write_frame(&mut send, &Frame::Join { entry })
             .await
             .map_err(|e| fail(&e))?;
-        let Some(Frame::Acl { entries }) = read_frame(&mut recv).await.map_err(|e| fail(&e))? else {
-            return Err(refused());
-        };
+        let entries = read_log(&mut recv).await.map_err(|e| fail(&e))?.ok_or_else(refused)?;
         let _ = send.finish();
         conn.close(0u32.into(), b"");
         let id = self.d.adopt(entries)?;

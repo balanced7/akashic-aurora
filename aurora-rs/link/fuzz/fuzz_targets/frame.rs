@@ -33,6 +33,6 @@ fuzz_target!(|data: &[u8]| {
     let mut s = Session::new();
     for f in frames {
         let _ = s.on_frame(link, dev, &me, f.clone(), aurora_link::codec::now());
-        let _ = sync::serve_join(link, dev, f, aurora_link::codec::now());
+        let _ = sync::serve_join(link, dev, &me, f, aurora_link::codec::now());
     }
 });

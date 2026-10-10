@@ -57,10 +57,13 @@ pub enum Frame {
         advert: HeadAdvert,
     },
     /// A joiner asks the inviter for the log, proving nothing yet but which invite it holds.
+    /// `proof` signs (link, this connection's device) with the invite key: holding the invite's
+    /// public key (which every member sees in the log) is not enough to read the log.
     JoinHello {
         v: u32,
         link: String,
         invite: String,
+        proof: String,
     },
     Join {
         entry: Entry,
@@ -115,6 +118,28 @@ pub fn hello(link: &Link, me: &Device) -> Result<Frame> {
         acl: link.acl.hashes(),
         heads: link.heads()?,
     })
+}
+
+/// Split ACL entries into frames under the batch budget.
+pub fn acl_frames(entries: Vec<Entry>) -> Vec<Frame> {
+    let mut out = Vec::new();
+    let mut batch = Vec::new();
+    let mut size = 0;
+    for e in entries {
+        let n = serde_json::to_vec(&e).map(|v| v.len()).unwrap_or(BATCH_BYTES);
+        if size + n > BATCH_BYTES && !batch.is_empty() {
+            out.push(Frame::Acl {
+                entries: std::mem::take(&mut batch),
+            });
+            size = 0;
+        }
+        size += n;
+        batch.push(e);
+    }
+    if !batch.is_empty() {
+        out.push(Frame::Acl { entries: batch });
+    }
+    out
 }
 
 /// Split records into frames under the batch budget.
@@ -178,25 +203,31 @@ impl Session {
                 }
                 self.peer = Some(device);
                 self.peer_heads = heads.clone();
-                let entries = link.acl.missing_for(&acl);
-                if !entries.is_empty() {
-                    out.replies.push(Frame::Acl { entries });
-                }
+                out.replies.extend(acl_frames(link.acl.missing_for(&acl)));
                 out.replies
                     .extend(record_frames(link.missing_for(&heads, MAX_RECORDS_PER_PASS)?));
                 out.replies.push(Frame::Synced { heads: link.heads()? });
             }
             Frame::Acl { entries } => {
-                out.acl_added = link.add_acl(entries, now)?;
+                // A refused entry is the sender's problem, not a reason to drop the session.
+                match link.add_acl(entries, now) {
+                    Ok(n) => out.acl_added = n,
+                    Err(e) => {
+                        link.store.refusal(peer_device, &e.to_string(), now)?;
+                        out.refused.push(e.to_string());
+                    }
+                }
                 if !link.state().sync_devices().contains(peer_device) {
                     return Err(refused("peer is not (or no longer) a member"));
                 }
             }
             Frame::Records { records } => {
                 let mut gap = false;
+                let mut progress = false;
                 for r in records {
                     match link.receive(me, &r, now)? {
                         Admit::Stored { .. } => {
+                            progress = true;
                             let n = self.peer_heads.entry(r.author.clone()).or_insert(0);
                             *n = (*n).max(r.seq);
                             out.stored.push(r);
@@ -209,7 +240,9 @@ impl Session {
                         }
                     }
                 }
-                if gap {
+                // Ask again only after progress: a gap behind a refused or over-quota record would
+                // otherwise make both sides resend the same batch for ever.
+                if gap && progress {
                     out.replies.push(Frame::Want { heads: link.heads()? });
                 }
             }
@@ -253,38 +286,74 @@ impl Session {
     }
 }
 
-/// The inviter's side of a join: check the invite is live, then accept the join entry.
-pub fn serve_join(link: &mut Link, me: &Device, f: Frame, now: u64) -> Result<Vec<Frame>> {
+fn join_hello_bytes(link: &str, device: &str) -> Result<Vec<u8>> {
+    crate::codec::jcs(&serde_json::json!({"link": link, "device": device}))
+}
+
+/// The joiner's first frame: proves it holds the invite secret, bound to this connection.
+pub fn join_hello(link: &str, me: &Device, secret: &[u8; 32]) -> Result<Frame> {
+    let key = crate::acl::invite_key(secret);
+    let proof = crate::crypto::sign(&key, "join-hello", &join_hello_bytes(link, &me.id_hex())?);
+    Ok(Frame::JoinHello {
+        v: 1,
+        link: link.to_owned(),
+        invite: crate::codec::hex(&crate::crypto::public_of(&key)),
+        proof: crate::codec::b64(&proof),
+    })
+}
+
+/// A live invite by the verifier's clock: present, unrevoked, unused if single-use, unexpired.
+fn invite_live(link: &Link, invite: &str, now: u64) -> bool {
+    link.state()
+        .invites
+        .get(invite)
+        .is_some_and(|i| !i.revoked && !(i.single_use && i.used) && i.expires > now)
+}
+
+/// The inviter's side of a join. Nothing is stored until the invite is live by our own clock
+/// and the proof holds; the replies end with `synced`.
+pub fn serve_join(link: &mut Link, me: &Device, peer_device: &str, f: Frame, now: u64) -> Result<Vec<Frame>> {
+    let reply = |link: &Link| -> Vec<Frame> {
+        let mut out = acl_frames(link.acl.missing_for(&BTreeSet::new()));
+        out.push(Frame::Synced { heads: BTreeMap::new() });
+        out
+    };
     match f {
-        Frame::JoinHello { v, link: id, invite } => {
-            if v != 1 || id != link.id() {
-                return Err(refused("join is for another link"));
+        Frame::JoinHello {
+            v,
+            link: id,
+            invite,
+            proof,
+        } => {
+            if v != 1 || id != link.id() || !invite_live(link, &invite, now) {
+                return Err(refused("no live invite with that key for this link"));
             }
-            let s = link.state();
-            let live = s
-                .invites
-                .get(&invite)
-                .is_some_and(|i| !i.revoked && !(i.single_use && i.used) && i.expires > now);
-            if !live {
-                return Err(refused("no live invite with that key"));
-            }
-            Ok(vec![Frame::Acl {
-                entries: link.acl.missing_for(&BTreeSet::new()),
-            }])
+            let msg = join_hello_bytes(&id, peer_device)?;
+            crate::crypto::verify(
+                &crate::codec::unhex::<32>(&invite)?,
+                "join-hello",
+                &msg,
+                &crate::codec::unb64(&proof)?,
+            )?;
+            Ok(reply(link))
         }
         Frame::Join { entry } => {
-            if entry.op != "join" {
+            if entry.op != "join" || entry.author != peer_device || entry.link != link.id() {
+                return Err(refused("expected this connection's own join entry"));
+            }
+            let crate::acl::Op::Join(j) = entry.parsed()? else {
                 return Err(refused("expected a join entry"));
+            };
+            if !invite_live(link, &j.invite, now) {
+                return Err(refused("no live invite with that key for this link"));
             }
             let hash = entry.hash()?;
             link.add_acl(vec![entry], now)?;
-            if let Some((_, why)) = link.state().dropped.iter().find(|(h, _)| *h == hash) {
-                return Err(refused(format!("join refused: {why}")));
+            if !link.acl.contains(&hash) || link.state().dropped.iter().any(|(h, _)| *h == hash) {
+                return Err(refused("join refused"));
             }
             link.upkeep(me, now)?;
-            Ok(vec![Frame::Acl {
-                entries: link.acl.missing_for(&BTreeSet::new()),
-            }])
+            Ok(reply(link))
         }
         _ => Err(refused("expected a join frame")),
     }

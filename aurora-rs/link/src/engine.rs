@@ -126,14 +126,16 @@ impl Link {
             .filter(|e| e.hash().map(|h| !self.acl.contains(&h)).unwrap_or(true))
             .collect();
         let mut trial = self.acl.clone();
-        let added = trial.insert(fresh.clone())?;
-        if added > 0 {
-            for e in &fresh {
-                self.store.put_acl(&e.hash()?, e, now)?;
+        let result = trial.insert_at(fresh.clone(), Some(now));
+        // Persist exactly what the log kept: refused entries are neither stored nor relayed.
+        for e in &fresh {
+            let h = e.hash()?;
+            if trial.contains(&h) {
+                self.store.put_acl(&h, e, now)?;
             }
-            self.acl = trial;
         }
-        Ok(added)
+        self.acl = trial;
+        result
     }
 
     pub fn append(&mut self, device: &Device, op: Op, now: u64) -> Result<Entry> {
@@ -326,10 +328,28 @@ impl Link {
         for join in auto {
             out.push(self.accept(device, &join, now)?);
         }
-        if self.state().rotation_due {
+        if self.state().rotation_due && self.may_rotate_now(device, now) {
             out.push(self.rotate_key(device, now)?);
         }
         Ok(out)
+    }
+
+    /// How long a due rotation waits for its designated admin before any admin appends it.
+    pub const ROTATION_GRACE_S: u64 = 3600;
+
+    /// Two admins rotating at once fork the log, and only one rotation survives. So one admin
+    /// device is designated (the lowest id among admin devices holding the key) and rotates at
+    /// once; the others wait out a grace period in case it is offline.
+    fn may_rotate_now(&self, device: &Device, now: u64) -> bool {
+        let s = self.state();
+        let designated = s
+            .devices
+            .keys()
+            .filter(|d| s.active_device(d).is_some_and(|(m, _)| m.role.admin()) && s.has_wrap(s.epoch, d))
+            .min()
+            .cloned();
+        designated.as_deref() == Some(device.id_hex().as_str())
+            || now.saturating_sub(s.rotation_due_since) >= Self::ROTATION_GRACE_S
     }
 
     /// Self-monitoring: every device the log lists under our own root must be one we certified.
@@ -457,6 +477,17 @@ impl Link {
         if let Err(e) = self.authorised(r) {
             return Ok(Admit::Refused(e.to_string()));
         }
+        // A body may be gone only once the link's retention has passed. Earlier, a missing body
+        // means a relay stripped it: refuse this copy, store nothing, and wait for a whole one.
+        if r.ct.is_none() {
+            let written = self.acl.get(&r.acl).map(|e| e.ts).unwrap_or(0);
+            let keep = self.state().policy().retention_days * 24 * 3600;
+            if written + keep > now {
+                return Ok(Admit::Refused(
+                    "record arrived without its body, inside the retention period".into(),
+                ));
+            }
+        }
         // In order, or equivocation.
         if let Some(other) = self.store.record_at(&r.author, r.seq)? {
             debug_assert_ne!(other, id);
@@ -501,9 +532,18 @@ impl Link {
         let own_fleet = my_root == author_member;
         let writes = s.members[&author_member].role.writes();
         let kinds = s.policy().kinds;
+        let lost_fork = !s.applied.contains(&r.acl);
         let (status, body, reason) = match self.read_key(me, r.epoch) {
+            _ if r.ct.is_none() => (store::OPAQUE, None, Some("retired before it reached us".to_owned())),
             Err(_) => (store::OPAQUE, None, None),
             Ok(key) => match r.open(&key.0, &kinds) {
+                // Sealed under a key change that lost a fork: no fault of the author's, and the
+                // feed goes on past it.
+                Err(_) if lost_fork => (
+                    store::WITHHELD,
+                    None,
+                    Some("sealed under an ACL branch that lost a fork".to_owned()),
+                ),
                 Err(e) => {
                     self.store.alarm("withheld", &r.author, &format!("{id}: {e}"), now)?;
                     (store::WITHHELD, None, Some(e.to_string()))
@@ -515,8 +555,11 @@ impl Link {
                 }
                 Ok(b) => {
                     let text = String::from_utf8_lossy(&codec::canonical(&b)?).into_owned();
-                    let status = if own_fleet || b.kind == ACK_KIND {
+                    // Another fleet's ack is a receipt, never "own": promotion rules trust "own".
+                    let status = if own_fleet {
                         store::OWN
+                    } else if b.kind == ACK_KIND {
+                        store::RECEIPT
                     } else {
                         store::ADMITTED
                     };
@@ -564,8 +607,10 @@ impl Link {
         if self.store.frozen(&r.author)? {
             return Err(refused("author is frozen after equivocating"));
         }
+        // The epoch the head had where the author stood, not in our merged order: a head that
+        // lost a fork must not block the author's feed for ever.
         let at = s
-            .epoch_at
+            .causal_epoch
             .get(&r.acl)
             .ok_or_else(|| refused("record names an ACL head this link does not hold"))?;
         if *at != r.epoch {

@@ -45,7 +45,7 @@ fn invite(log: &mut AclLog, by: &Device, role: Role, approval: bool, ts: u64) ->
 
 fn join(log: &mut AclLog, who: &Device, secret: &[u8; 32], ts: u64) -> Result<String> {
     let s = log.state();
-    let e = make_join(who, secret, &s.link_id, &s.head, s.head_seq, "partner", ts)?;
+    let e = make_join(who, secret, &s.link_id, &s.head, s.head_seq, &who.id_hex()[..12], ts)?;
     let h = e.hash()?;
     log.insert(vec![e])?;
     match log.state().dropped.iter().find(|(d, _)| *d == h) {
@@ -305,8 +305,38 @@ fn a_tampered_entry_is_refused() {
     let mut fresh = AclLog::new();
     let mut all: Vec<Entry> = log.ordered().into_iter().map(|(_, e)| e.clone()).collect();
     all.last_mut().unwrap().body["join"] = Value::String("00".repeat(32));
-    assert!(fresh.insert(all).is_err());
+    let n = all.len();
+    assert_eq!(fresh.insert(all).unwrap(), n - 1, "the tampered entry alone is refused");
+    assert_eq!(fresh.len(), n - 1);
     let _ = a;
+}
+
+#[test]
+fn junk_that_was_never_valid_is_not_kept() {
+    let (mut log, _a, _b) = two_fleets(Role::Writer);
+    let stranger = Fleet::new(1, false);
+    // A self-certified stranger signs a well-formed entry onto our head: it can never apply.
+    let s = log.state().clone();
+    let op = Op::RevokeInvite(RevokeInvite {
+        invite: "ab".repeat(32),
+    });
+    let junk = Entry::sign(stranger.d(0), &s.link_id, s.head_seq + 1, &s.head, &op, T0 + 30).unwrap();
+    let before = log.len();
+    assert!(log.insert(vec![junk]).is_err());
+    assert_eq!(log.len(), before, "a refused entry is neither stored nor relayed");
+}
+
+#[test]
+fn entries_from_the_future_or_before_their_parent_are_refused() {
+    let (mut log, a, _b) = two_fleets(Role::Writer);
+    let s = log.state().clone();
+    let op = Op::RevokeInvite(RevokeInvite {
+        invite: "cd".repeat(32),
+    });
+    let early = Entry::sign(a.d(0), &s.link_id, s.head_seq + 1, &s.head, &op, T0).unwrap();
+    assert!(log.insert(vec![early]).is_err(), "dated before its parent");
+    let late = Entry::sign(a.d(0), &s.link_id, s.head_seq + 1, &s.head, &op, T0 + 100_000).unwrap();
+    assert!(log.insert_at(vec![late], Some(T0 + 10)).is_err(), "dated in the future");
 }
 
 /// Entries of `log`, as a peer would receive them.
@@ -522,4 +552,59 @@ proptest! {
         }
         prop_assert!(!merged[0].state().members[&fleets[0].root_hex()].removed, "the owner is never removed");
     }
+}
+
+#[test]
+fn a_wrap_issued_beside_a_rotation_is_refused_not_misfiled() {
+    let (mut base, a, b) = two_fleets(Role::Writer);
+    base.append(
+        a.d(0),
+        Op::SetRole(SetRole {
+            member: b.root_hex(),
+            role: Role::Admin,
+            wraps: vec![],
+        }),
+        T0 + 6,
+    )
+    .unwrap();
+    let c = Fleet::new(1, false);
+    let secret = invite(&mut base, a.d(0), Role::Mailbox, false, T0 + 7);
+    let j = join(&mut base, c.d(0), &secret, T0 + 8).unwrap();
+    let _ = j;
+    // The owner rotates while admin B, at the same head, makes C a reader with epoch-0 wraps.
+    let mut left = base.clone();
+    let mut right = base.clone();
+    let s = left.state().clone();
+    let (change, _) = s.new_key_change(&key_of(&left, a.d(0)), &s.keyed_devices()).unwrap();
+    left.append(a.d(0), Op::RotateKey(change), T0 + 20).unwrap();
+    let s = right.state().clone();
+    let wraps = s
+        .make_wraps(&key_of(&right, b.d(0)).0, 0, &s.members[&c.root_hex()].devices)
+        .unwrap();
+    right
+        .append(
+            b.d(0),
+            Op::SetRole(SetRole {
+                member: c.root_hex(),
+                role: Role::Reader,
+                wraps,
+            }),
+            T0 + 20,
+        )
+        .unwrap();
+    let mut m = AclLog::new();
+    m.insert(entries(&left)).unwrap();
+    m.insert(entries(&right)).unwrap();
+    let st = m.state();
+    assert_eq!(st.epoch, 1);
+    assert_eq!(
+        st.members[&c.root_hex()].role,
+        Role::Mailbox,
+        "the stale grant is dropped"
+    );
+    assert!(
+        !st.wraps
+            .get(&1)
+            .is_some_and(|w| w.iter().any(|w| st.devices[&w.device].member == c.root_hex()))
+    );
 }

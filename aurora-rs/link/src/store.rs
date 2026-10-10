@@ -53,6 +53,8 @@ pub const ADMITTED: &str = "admitted";
 pub const OWN: &str = "own";
 pub const OPAQUE: &str = "opaque";
 pub const WITHHELD: &str = "withheld";
+/// Another fleet's `ack`: receipts for our mail, never surfaced and never "own".
+pub const RECEIPT: &str = "receipt";
 
 /// A promotion: (seat, promoted by, bus message id, when).
 pub type Promotion = (String, String, Option<String>, u64);
