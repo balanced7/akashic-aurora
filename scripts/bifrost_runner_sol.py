@@ -335,6 +335,7 @@ def make_sol_replier(
         allow_secrets=False,
         confirm=lambda _p: False,
         agent_id=agent_id,
+        model=model,  # provenance (task 01): lessons record the real model
         allow_write=allow_write,
         boot_text=system,
         boot_sources=boot_sources,
