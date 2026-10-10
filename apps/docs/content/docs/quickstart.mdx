@@ -3,7 +3,7 @@ title: Quickstart
 description: Shared memory for AI agents, running in two minutes.
 ---
 
-Akashic Aurora is a shared memory for AI agents. Agents **boot** to load past lessons, **learn** to record new ones, and **recall** to search them. All you need is [uv](https://docs.astral.sh/uv/), which handles your Python environment.
+Akashic Aurora is a shared memory for AI agents. Agents **boot** to load past lessons, **learn** to record new ones, and **recall** to search them. One command installs it. The installer also brings [uv](https://docs.astral.sh/uv/), which runs Aurora's Python for you.
 
 ## Set up with agents
 
@@ -12,139 +12,114 @@ Paste the prompt into any agent that can run commands, or start one straight fro
 ```text tab="Prompt" tab-group="agent"
 Set up Akashic Aurora for me, a shared memory for AI agents.
 
-- Clone https://github.com/balanced7/akashic-aurora.git and cd into it.
-- If uv is not installed, install it (https://docs.astral.sh/uv/).
-- Add a permanent `aurora` command to my shell profile, unless one
-  exists, that runs:
-  uv run -p 3.12 --project <clone> <clone>/agent_cli.py
-  (with <clone> as the absolute path to the clone)
-- In a fresh shell that loads my profile, run these and show me the output:
+- Install the aurora command with the one-line installer for this OS:
+  macOS/Linux: curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh | sh
+  Windows: powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 | iex"
+- Run `aurora setup --yes --dry-run` to see what setup would change.
+  Ask me about each choice, then run `aurora setup --yes` with flags
+  for my answers.
+- In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
-  aurora learn me --experiment first_try --tried cloning --result booted
+  aurora learn me --experiment first_try --tried installing --result booted
   aurora recall first_try
-- Read AGENTS.md and tell me, in a few sentences, how you will use
-  Aurora while we work together.
+- Run `aurora discover` and tell me, in a few sentences, how you will
+  use Aurora while we work together.
 ```
 
 ```bash tab="Claude Code" tab-group="agent"
 claude 'Set up Akashic Aurora for me, a shared memory for AI agents.
 
-- Clone https://github.com/balanced7/akashic-aurora.git and cd into it.
-- If uv is not installed, install it (https://docs.astral.sh/uv/).
-- Add a permanent `aurora` command to my shell profile, unless one
-  exists, that runs:
-  uv run -p 3.12 --project <clone> <clone>/agent_cli.py
-  (with <clone> as the absolute path to the clone)
-- In a fresh shell that loads my profile, run these and show me the output:
+- Install the aurora command with the one-line installer for this OS:
+  macOS/Linux: curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh | sh
+  Windows: powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 | iex"
+- Run `aurora setup --yes --dry-run` to see what setup would change.
+  Ask me about each choice, then run `aurora setup --yes` with flags
+  for my answers.
+- In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
-  aurora learn me --experiment first_try --tried cloning --result booted
+  aurora learn me --experiment first_try --tried installing --result booted
   aurora recall first_try
-- Read AGENTS.md and tell me, in a few sentences, how you will use
-  Aurora while we work together.'
+- Run `aurora discover` and tell me, in a few sentences, how you will
+  use Aurora while we work together.'
 ```
 
 ```bash tab="Codex" tab-group="agent"
 codex 'Set up Akashic Aurora for me, a shared memory for AI agents.
 
-- Clone https://github.com/balanced7/akashic-aurora.git and cd into it.
-- If uv is not installed, install it (https://docs.astral.sh/uv/).
-- Add a permanent `aurora` command to my shell profile, unless one
-  exists, that runs:
-  uv run -p 3.12 --project <clone> <clone>/agent_cli.py
-  (with <clone> as the absolute path to the clone)
-- In a fresh shell that loads my profile, run these and show me the output:
+- Install the aurora command with the one-line installer for this OS:
+  macOS/Linux: curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh | sh
+  Windows: powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 | iex"
+- Run `aurora setup --yes --dry-run` to see what setup would change.
+  Ask me about each choice, then run `aurora setup --yes` with flags
+  for my answers.
+- In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
-  aurora learn me --experiment first_try --tried cloning --result booted
+  aurora learn me --experiment first_try --tried installing --result booted
   aurora recall first_try
-- Read AGENTS.md and tell me, in a few sentences, how you will use
-  Aurora while we work together.'
+- Run `aurora discover` and tell me, in a few sentences, how you will
+  use Aurora while we work together.'
 ```
 
 ```bash tab="Gemini CLI" tab-group="agent"
 gemini 'Set up Akashic Aurora for me, a shared memory for AI agents.
 
-- Clone https://github.com/balanced7/akashic-aurora.git and cd into it.
-- If uv is not installed, install it (https://docs.astral.sh/uv/).
-- Add a permanent `aurora` command to my shell profile, unless one
-  exists, that runs:
-  uv run -p 3.12 --project <clone> <clone>/agent_cli.py
-  (with <clone> as the absolute path to the clone)
-- In a fresh shell that loads my profile, run these and show me the output:
+- Install the aurora command with the one-line installer for this OS:
+  macOS/Linux: curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh | sh
+  Windows: powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 | iex"
+- Run `aurora setup --yes --dry-run` to see what setup would change.
+  Ask me about each choice, then run `aurora setup --yes` with flags
+  for my answers.
+- In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
-  aurora learn me --experiment first_try --tried cloning --result booted
+  aurora learn me --experiment first_try --tried installing --result booted
   aurora recall first_try
-- Read AGENTS.md and tell me, in a few sentences, how you will use
-  Aurora while we work together.'
+- Run `aurora discover` and tell me, in a few sentences, how you will
+  use Aurora while we work together.'
 ```
 
 ```bash tab="Cursor" tab-group="agent"
 cursor-agent 'Set up Akashic Aurora for me, a shared memory for AI agents.
 
-- Clone https://github.com/balanced7/akashic-aurora.git and cd into it.
-- If uv is not installed, install it (https://docs.astral.sh/uv/).
-- Add a permanent `aurora` command to my shell profile, unless one
-  exists, that runs:
-  uv run -p 3.12 --project <clone> <clone>/agent_cli.py
-  (with <clone> as the absolute path to the clone)
-- In a fresh shell that loads my profile, run these and show me the output:
+- Install the aurora command with the one-line installer for this OS:
+  macOS/Linux: curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh | sh
+  Windows: powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 | iex"
+- Run `aurora setup --yes --dry-run` to see what setup would change.
+  Ask me about each choice, then run `aurora setup --yes` with flags
+  for my answers.
+- In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
-  aurora learn me --experiment first_try --tried cloning --result booted
+  aurora learn me --experiment first_try --tried installing --result booted
   aurora recall first_try
-- Read AGENTS.md and tell me, in a few sentences, how you will use
-  Aurora while we work together.'
+- Run `aurora discover` and tell me, in a few sentences, how you will
+  use Aurora while we work together.'
 ```
 
 ```bash tab="OpenCode" tab-group="agent"
 opencode --prompt 'Set up Akashic Aurora for me, a shared memory for AI agents.
 
-- Clone https://github.com/balanced7/akashic-aurora.git and cd into it.
-- If uv is not installed, install it (https://docs.astral.sh/uv/).
-- Add a permanent `aurora` command to my shell profile, unless one
-  exists, that runs:
-  uv run -p 3.12 --project <clone> <clone>/agent_cli.py
-  (with <clone> as the absolute path to the clone)
-- In a fresh shell that loads my profile, run these and show me the output:
+- Install the aurora command with the one-line installer for this OS:
+  macOS/Linux: curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh | sh
+  Windows: powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 | iex"
+- Run `aurora setup --yes --dry-run` to see what setup would change.
+  Ask me about each choice, then run `aurora setup --yes` with flags
+  for my answers.
+- In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
-  aurora learn me --experiment first_try --tried cloning --result booted
+  aurora learn me --experiment first_try --tried installing --result booted
   aurora recall first_try
-- Read AGENTS.md and tell me, in a few sentences, how you will use
-  Aurora while we work together.'
+- Run `aurora discover` and tell me, in a few sentences, how you will
+  use Aurora while we work together.'
 ```
 
 ## Set up on your own
 
-**1. Install uv** (skip if you have it), then open a new terminal:
+Install the `aurora` command. It works in any terminal, from any directory, with no clone of the repo.
 
-```bash tab="macOS / Linux" tab-group="os"
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+<InstallCard />
 
-```powershell tab="Windows" tab-group="os"
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+Your memory lives in `~/.aurora/data`. Updates never touch it. `aurora self version` shows where everything is, and `aurora self update` installs the newest release.
 
-**2. Clone and run:**
-
-```bash tab="macOS / Linux" tab-group="os"
-git clone https://github.com/balanced7/akashic-aurora.git && cd akashic-aurora
-alias aurora='uv run -p 3.12 agent_cli.py'
-
-aurora boot me --task first-run
-aurora learn me --experiment first_try --tried cloning --result booted
-aurora recall first_try
-```
-
-```powershell tab="Windows" tab-group="os"
-git clone https://github.com/balanced7/akashic-aurora.git
-cd akashic-aurora
-function aurora { uv run -p 3.12 agent_cli.py @args }
-
-aurora boot me --task first-run
-aurora learn me --experiment first_try --tried cloning --result booted
-aurora recall first_try
-```
-
-The alias lasts for this terminal session and works from inside the repo.
+To work on Aurora itself, clone the repo and run `uv run aurora` inside it. That runs the checkout's own code.
 
 Next: read [`AGENTS.md`](https://github.com/balanced7/akashic-aurora/blob/master/AGENTS.md) in the repo.
 

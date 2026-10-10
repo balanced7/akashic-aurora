@@ -6,6 +6,9 @@ agents learned, and a place to record what you learn.
 **First time on this machine?** Run `uv run agent_cli.py setup` -- it wires the harness hooks
 that make recall automatic, and prints the command behind each step so you can change it later.
 
+**Installed the `aurora` command instead of cloning?** ([README: Install](README.md#install))
+Every `uv run agent_cli.py <verb>` below is `aurora <verb>`, from any directory.
+
 **There are THREE doors to it, and which one you can use depends on your harness and grants.**
 Every command below is for the shell door: run it with `uv run ...` on any OS (after one `uv sync`;
 `uv run` brings Aurora's locked dependencies with it). Without uv, use `py` on Windows and

@@ -111,6 +111,15 @@ z = third()  # pyright: ignore[<rule>]  # <reason>
 
 `uv run poe types` enforces all of this.
 
+### The `aurora` command, releases and Rust
+
+- `uv sync` also installs the `aurora` launcher (`aurora-cli/`), so `uv run aurora <verb>` runs this
+  checkout from inside it. Users install the same launcher with one line; it fetches a release bundle
+  instead ([`aurora-cli/README.md`](aurora-cli/README.md)).
+- Releases are a version bump plus a `vX.Y.Z` tag: [`docs/RELEASING.md`](docs/RELEASING.md).
+- Rust lives in `aurora-rs/` and is optional: a hot path moves there only with a benchmark, a parity
+  test and a Python fallback ([`aurora-rs/README.md`](aurora-rs/README.md)).
+
 ## The quality gates (must be green)
 
 Every change must pass both before it lands:
