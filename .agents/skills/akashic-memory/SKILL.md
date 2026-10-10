@@ -1,6 +1,6 @@
 ---
 name: akashic-memory
-description: Use whenever you work in the Akashic Aurora repo (E:\AI-Setup) — at session start, after ANY fix that first failed, whenever the user corrects you, and at session end. This is the shared-memory door; capture is the product, so use it even when the task feels too small to record. Also use when deciding whether knowledge belongs in a lesson, a note, a doc, or a hook.
+description: Use whenever you work in the Akashic Aurora repo — at session start, after ANY fix that first failed, whenever the user corrects you, and at session end. This is the shared-memory door; capture is the product, so use it even when the task feels too small to record. Also use when deciding whether knowledge belongs in a lesson, a note, a doc, or a hook.
 ---
 
 # Akashic memory: the loop you are inside
@@ -33,7 +33,7 @@ Include what did NOT work (`--tried` is exactly that) — failed approaches save
 agent more time than successes do.
 
 **User correction** — every time the human corrects you, that is a lesson-earning moment
-(the creator of Codex runs this reflex manually on AGENTS.md; here it has a door).
+(agents elsewhere run this reflex by hand on their instruction file; here it has a door).
 Record it immediately with `--category correction`. Do not just comply and move on.
 
 **Known-bad approach** — record with `--anti-pattern <slug>` so it surfaces as a warning,

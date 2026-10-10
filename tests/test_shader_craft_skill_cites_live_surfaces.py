@@ -1,6 +1,6 @@
 """The shader-craft skill must describe the code that exists, not the code that once did.
 
-THE GUARANTEE THESE PIN: `.claude/skills/shader-craft/SKILL.md` and its cookbook are the
+THE GUARANTEE THESE PIN: `.agents/skills/shader-craft/SKILL.md` (also reached as .claude/skills, a symlink) and its cookbook are the
 fold-back of the house's shader craft (the aurora bed, the geodesic avatar, the activity
 line, the VFX bench, the sketches). A skill is loaded into a seat's context the moment a
 shader is asked for, so a stale rule in it is a lie told at the exact moment it is trusted --
@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SKILL_DIR = REPO / ".claude" / "skills" / "shader-craft"
+SKILL_DIR = REPO / ".agents" / "skills" / "shader-craft"
 SKILL = SKILL_DIR / "SKILL.md"
 COOKBOOK = SKILL_DIR / "references" / "house-glsl-cookbook.md"
 

@@ -168,6 +168,13 @@ Example (Linux, archives on two mounted disks):
 export AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS="/mnt/disk1/aurora/transcripts:/mnt/disk2/aurora/transcripts"
 ```
 
+### Windows: symlinks for the skills folder
+
+`.claude/skills` is a git symlink to `.agents/skills` (one source for Claude Code and Codex
+skills). Without symlink support git writes it as a one-line text file and Claude Code loads no
+skills. Enable Developer Mode, then run `git config core.symlinks true` and
+`git checkout -- .claude/skills`.
+
 ### Keeping the original Windows machine (`E:\AI-Setup`) working
 
 These variables replaced literals that were written for that machine. After it pulls the

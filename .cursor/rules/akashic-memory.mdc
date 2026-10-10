@@ -2,6 +2,7 @@
 description: Akashic Aurora shared memory — the loop you are inside. Session start, capture reflexes (FAIL→SUCCESS flips, user corrections, known-bads), closing the loop on surfaced lessons, session end.
 alwaysApply: true
 ---
+<!-- Source of truth: .agents/skills/akashic-memory/SKILL.md -- keep this rule in step with it. -->
 
 # Akashic memory: the loop you are inside
 

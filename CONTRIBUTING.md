@@ -15,6 +15,10 @@ environment from `uv.lock`, on the Python pinned in `.python-version`), then
 `python3`. This is the repo's own launcher policy (`core.paths.python_launcher`): `uv run` wherever
 uv and `pyproject.toml` exist, `py` on Windows without uv, `python3` elsewhere.
 
+**Windows checkouts need symlinks.** `.claude/skills` is a symlink to `.agents/skills`, the one
+source for agent skills. Enable Developer Mode, then `git config core.symlinks true` and
+`git checkout -- .claude/skills`; `tests/test_skills_single_source.py` fails until that is done.
+
 `requirements.txt` and `requirements/gemini-web.txt` are **generated** from `uv.lock` for pip
 consumers (`uv run poe lock`; `uv run poe lock-check` fails if they are stale). Never hand-edit them.
 
