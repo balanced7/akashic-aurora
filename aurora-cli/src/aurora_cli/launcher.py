@@ -39,20 +39,11 @@ _USAGE_SELF = """usage: aurora self <action>
 
 
 # --------------------------------------------------------------------------- resolution
-def _gui() -> bool:
-    return Path(sys.argv[0]).stem.lower().endswith("auroraw")
-
-
 def _launcher_path() -> str:
     """The console `aurora` executable, absolute -- what hooks and MCP registrations call."""
     # absolute, NOT resolved: ~/.local/bin/aurora is the stable name; the symlink target inside
     # uv's tool venv is an implementation detail of how it was installed
-    me = Path(os.path.abspath(shutil.which(sys.argv[0]) or sys.argv[0]))
-    if _gui():
-        twin = me.with_name(me.name.lower().replace("auroraw", "aurora"))
-        if twin.exists():
-            return str(twin)
-    return str(me)
+    return os.path.abspath(shutil.which(sys.argv[0]) or sys.argv[0])
 
 
 def _source_checkout() -> Path | None:
@@ -83,9 +74,6 @@ def program_env(root: Path, mode: str) -> dict[str, str]:
         return env  # `uv run aurora` in the repo: the repo's own behaviour, nothing added
     launcher = _launcher_path()
     env["AURORA_LAUNCHER"] = launcher
-    gui = Path(launcher).with_name(Path(launcher).name.replace("aurora", "auroraw"))
-    if os.name == "nt" and gui.exists():
-        env["AURORA_LAUNCHER_GUI"] = str(gui)
     on_path = shutil.which("aurora")
     same = bool(on_path) and Path(on_path).resolve() == Path(launcher).resolve()
     env.setdefault("AKASHIC_PYTHON", "aurora" if same else f'"{launcher}"' if " " in launcher else launcher)
@@ -99,13 +87,12 @@ def program_env(root: Path, mode: str) -> dict[str, str]:
 
 
 def _python(root: Path, mode: str) -> list[str]:
-    gui = _gui() and os.name == "nt"
     if mode == "bundle":
         if not bundle.is_synced(root):
             bundle.sync(root, __version__)
-        return [str(bundle.venv_python(root, gui=gui))]
+        return [str(bundle.venv_python(root))]
     # a checkout: uv keeps its .venv in step with its lock, as `uv run agent_cli.py` does
-    return [bundle.uv_bin(), "run", "--quiet", "--project", str(root), "pythonw" if gui else "python"]
+    return [bundle.uv_bin(), "run", "--quiet", "--project", str(root), "python"]
 
 
 def _script(arg: str, root: Path) -> str:

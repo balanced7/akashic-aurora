@@ -30,11 +30,6 @@ Documentation = "https://github.com/balanced7/akashic-aurora/tree/master/apps/do
 [project.scripts]
 aurora = "aurora_cli.launcher:main"
 
-# Windows only in effect: a console-less twin for harness hooks, so a hook firing on every tool
-# call never flashes a console window (the role `uvw --gui-script` played for repo hooks).
-[project.gui-scripts]
-auroraw = "aurora_cli.launcher:main"
-
 [build-system]
 requires = ["uv_build>=0.9,<0.13"]
 build-backend = "uv_build"

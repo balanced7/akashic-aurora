@@ -180,9 +180,9 @@ def uv_bin() -> str:
         raise SystemExit("aurora: uv is not available. Install it: https://docs.astral.sh/uv/") from e
 
 
-def venv_python(root: Path, gui: bool = False) -> Path:
+def venv_python(root: Path) -> Path:
     if os.name == "nt":
-        return root / ".venv" / "Scripts" / ("pythonw.exe" if gui else "python.exe")
+        return root / ".venv" / "Scripts" / "python.exe"
     return root / ".venv" / "bin" / "python"
 
 

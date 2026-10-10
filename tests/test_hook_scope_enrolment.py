@@ -68,11 +68,9 @@ def test_launcher_hook_command(data, monkeypatch):
     cmd = inst.hook_command("claude", "claude_trace.py", "user", os_name="posix")
     assert cmd == '"/home/u/.local/bin/aurora" agent/harness/hooks/claude_trace.py'
     assert inst.script_of(cmd) == "claude_trace.py", "the installer still recognises its own entry"
-    monkeypatch.setenv("AURORA_LAUNCHER_GUI", "C:/u/.local/bin/auroraw.exe")
-    assert inst.hook_command("claude", "claude_stop.py", "user", os_name="nt").startswith(
-        '"C:/u/.local/bin/auroraw.exe"'
-    )
-    assert inst.hook_command("cursor", "cursor_stop.py", "user", os_name="nt").startswith('"/home/u/.local/bin/aurora"')
+    for harness, script in (("claude", "claude_stop.py"), ("cursor", "cursor_stop.py")):
+        cmd = inst.hook_command(harness, script, "user", os_name="nt")
+        assert cmd.startswith('"/home/u/.local/bin/aurora"'), "Windows hooks use the console launcher too"
 
 
 def test_project_install_enrols_under_the_launcher(data, tmp_path, monkeypatch):

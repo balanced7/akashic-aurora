@@ -115,10 +115,8 @@ def hook_command(harness: str, script: str, scope: str, project=None, os_name: s
     exe = _launcher()
     if exe and not in_repo:
         # Installed: the launcher resolves agent/harness/hooks/ inside whichever release bundle
-        # is current, so the registration survives upgrades. On Windows the console-less twin
-        # (auroraw) keeps a hook from flashing a window, as uvw --gui-script did.
-        if os_name == "nt" and harness == "claude":
-            exe = os.getenv("AURORA_LAUNCHER_GUI") or exe
+        # is current, so the registration survives upgrades. The console launcher on Windows
+        # too: a GUI-subsystem twin (pythonw) returned no stdout to the harness in CI.
         return f'"{_posix(exe)}" agent/harness/hooks/{name}{tail}'
     if harness == "claude":
         root = "$CLAUDE_PROJECT_DIR" if in_repo else _posix(_repo())

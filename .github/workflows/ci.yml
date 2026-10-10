@@ -230,12 +230,6 @@ jobs:
           out="$(printf '%s' "$payload" | aurora agent/harness/hooks/claude_userpromptsubmit.py)"
           echo "$out"
           echo "$out" | grep -q ci_smoke_install
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            # the console-less twin the Windows hook registrations use: stdin/stdout must still flow
-            out="$(printf '%s' "$payload" | auroraw agent/harness/hooks/claude_userpromptsubmit.py)"
-            echo "$out"
-            echo "$out" | grep -q ci_smoke_install
-          fi
 
   rust:
     name: Rust (aurora-rs) test, clippy, fmt + parity
