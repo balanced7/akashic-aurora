@@ -11,20 +11,20 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1429 | `noqa: F401` | registers on import |
-| agent_cli.py | 2072 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2586 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2655 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3468 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 11947 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12163 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12188 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| ai_setup_mcp.py | 497 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 497 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 501 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
-| ai_setup_mcp.py | 504 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 977 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 1685 | `noqa: A002` | public API name (MCP tool parameter) |
+| agent_cli.py | 1478 | `noqa: F401` | registers on import |
+| agent_cli.py | 2121 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2635 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2704 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3517 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12037 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12253 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12278 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| ai_setup_mcp.py | 509 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 509 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 513 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
+| ai_setup_mcp.py | 516 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 989 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 1697 | `noqa: A002` | public API name (MCP tool parameter) |
 | arsenal/analysis.py | 187 | `noqa: BLE001` | deliberately broad: never raise, ever |
 | arsenal/boost.py | 71 | `pyright: ignore[reportOperatorIssue]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |
 | arsenal/fl/vfx/arsenal_band.py | 46 | `pyright: ignore[reportMissingImports]` | FL Studio's embedded module, exists only inside FL |
@@ -435,7 +435,6 @@
 | scripts/sol_chat.py | 119 | `noqa: N813` | public API name |
 | scripts/ui_shot.py | 42 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | scripts/ui_shot.py | 46 | `pyright: ignore[reportMissingImports]` | optional dependency |
-| scripts/web_door.py | 21 | `noqa: E402` | sys.path bootstrap |
 | scripts/yt_captions.py | 140 | `pyright: ignore[reportMissingImports]` | optional ml |
 | seat_topology.py | 71 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | seat_topology.py | 154 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
@@ -565,7 +564,7 @@
 | tests/test_comprehensibility_index_pins.py | 47 | `noqa: E402` | sys.path bootstrap |
 | tests/test_context_loaders.py | 12 | `noqa: F401` | isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import |
 | tests/test_corpus_gap_honesty.py | 36 | `noqa: E402` | sys.path bootstrap |
-| tests/test_cwd_guard_pins.py | 81 | `noqa: F401` | git_veto |
+| tests/test_cwd_guard_pins.py | 80 | `noqa: F401` | git_veto |
 | tests/test_discord_feed_pins.py | 20 | `noqa: E402` | sys.path bootstrap |
 | tests/test_discord_feed_pins.py | 45 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
 | tests/test_discord_feed_swallow.py | 44 | `noqa: E402` | sys.path bootstrap |
@@ -596,6 +595,7 @@
 | tests/test_g5_latent_prior_art_launcher.py | 22 | `noqa: S603` | argv is sys.executable plus a fixed in-file snippet; no external input |
 | tests/test_graduation.py | 12 | `noqa: F401` | isolate file store + Redis db BEFORE foundation import |
 | tests/test_heal_clobbers_richer_redis_list.py | 59 | `noqa: E402` | sys.path bootstrap |
+| tests/test_hook_shims.py | 17 | `noqa: E402` | sys.path bootstrap |
 | tests/test_intake_clip_confession.py | 172 | `pyright: ignore[reportCallIssue]` | LATENT: __main__ runner predates its fixtures |
 | tests/test_isolation_flag_is_not_proof.py | 46 | `noqa: F401` | re-export or side-effect import |
 | tests/test_k1_kimi_seat.py | 14 | `noqa: E402` | sys.path bootstrap |
