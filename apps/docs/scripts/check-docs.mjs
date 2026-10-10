@@ -164,9 +164,13 @@ function kind(page) {
   return page.rel.startsWith('concepts/') ? 'concepts' : 'default';
 }
 
+// <SectionCard section="x"> links /docs/concepts/x (components/core-parts.tsx).
 function links(page) {
-  return [...page.body.matchAll(/\]\((\/docs[^)#\s]*)(#[^)\s]*)?\)|href="(\/docs[^"#]*)/g)]
-    .map((m) => (m[1] ?? m[3]).replace(/\/$/, ''));
+  return [
+    ...page.body.matchAll(
+      /\]\((\/docs[^)#\s]*)(#[^)\s]*)?\)|href="(\/docs[^"#]*)|<SectionCard section="([a-z-]+)"/g,
+    ),
+  ].map((m) => (m[4] ? `/docs/concepts/${m[4]}` : (m[1] ?? m[3]).replace(/\/$/, '')));
 }
 
 // ---------------------------------------------------------------- main
