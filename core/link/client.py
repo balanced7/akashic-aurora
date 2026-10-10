@@ -82,12 +82,12 @@ def find_linkd() -> str | None:
     beside = Path(sys.executable).parent / exe
     if beside.is_file():
         return str(beside)
-    builds = [
+    builds: list[Path] = [
         p
         for p in (repo_root() / "aurora-rs" / "target" / k / exe for k in ("release", "linkd", "debug"))
         if p.is_file()
     ]
-    return str(max(builds, key=lambda p: p.stat().st_mtime)) if builds else None
+    return str(max(builds, key=os.path.getmtime)) if builds else None
 
 
 def check_params(method: str, params: dict[str, Any]) -> None:

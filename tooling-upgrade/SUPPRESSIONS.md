@@ -201,8 +201,14 @@
 | peer_connect.py | 193 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | peer_connect.py | 211 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
 | research/drafts/t097-s1-progress-stamp-draft.py | 38 | `pyright: ignore[reportCallIssue]` | LATENT: Bus() now requires agent_id; this research draft predates that |
-| research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `pyright: ignore[reportMissingImports]` | the control runs in its own venv (see report.md) |
+| research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `pyright: ignore[reportMissingImports]` | ty: ignore[unresolved-import]  # the control runs in its own venv (see report.md) |
 | research/in-flight/link-phase0-transport-2026-10-10/relay_only_internet.py | 22 | `noqa: SIM115` | held for the daemon's lifetime |
+| research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 25 | `noqa: E402` | sibling helper |
+| research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 27 | `noqa: E402` | the repo's own RPC client |
+| research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 59 | `noqa: SIM115` | held for the daemon's lifetime |
+| research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 106 | `noqa: SIM115` | held for the daemon's lifetime |
+| research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 124 | `noqa: BLE001` | not up yet |
+| research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 205 | `noqa: BLE001` | still fetching |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py | 399 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: client is None when Sentinel is down; the except below logs it and returns None |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 33 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 64 | `pyright: ignore[reportPossiblyUnboundVariable]` | attribute annotation, never evaluated at runtime |
@@ -626,10 +632,6 @@
 | tests/test_link_daemon_e2e.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
-| tests/test_link_pyo3_surface.py | 41 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
-| tests/test_link_pyo3_surface.py | 46 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
-| tests/test_link_pyo3_surface.py | 56 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
-| tests/test_link_pyo3_surface.py | 59 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_onboarding_v2.py | 192 | `pyright: ignore[reportMissingImports]` | LATENT: module absent |
 | tests/test_oom_leak_fixes_2026_08_26_pins.py | 168 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |

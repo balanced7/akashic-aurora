@@ -5,7 +5,7 @@ import json
 import statistics
 import time
 
-import iroh  # pyright: ignore[reportMissingImports]  # the control runs in its own venv (see report.md)
+import iroh  # pyright: ignore[reportMissingImports]  # ty: ignore[unresolved-import]  # the control runs in its own venv (see report.md)
 
 ALPN = b"aurora/bench/0"
 _TASKS: set[asyncio.Task] = set()
