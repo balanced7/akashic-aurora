@@ -301,3 +301,47 @@ def review_main(args) -> int:
         return 1
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def loop_main(args) -> int:
+    """`loop <action>` -- the candidate archive and the proposer loop (task 07)."""
+    from core.metaharness import archive, loop, proposer
+
+    a = args.action
+    if a == "status":
+        rows = archive.index()
+        rep = archive._read_json(proposer._rep_path(), {})
+        out = {"candidates": len(rows), "front": archive.front(), "spent_today": loop.spent_today(), "proposers": rep}
+        _print(out, args.json, json.dumps(out, indent=1))
+        return 0
+    if a == "archive":
+        rows = archive.index()
+        _print(
+            rows,
+            args.json,
+            "\n".join(
+                f"  {r['name']:<30} parent={r['parent'] or '-':<24} pass={r['scores'].get('pass_rate')} tokens={r['scores'].get('tokens')}  {r['hypothesis'][:50]}"
+                for r in rows
+            ),
+        )
+        return 0
+    if a == "lineage":
+        _print(archive.lineage(args.candidate), args.json, " <- ".join(archive.lineage(args.candidate)))
+        return 0
+    if a == "run":
+        if args.daily_usd is None:
+            print("ERROR: `loop run` needs --daily-usd: the loop spends real money and has no default budget")
+            return 2
+        logs = loop.run(
+            args.candidate or "baseline",
+            iterations=args.iterations,
+            daily_usd=args.daily_usd,
+            proposals=args.proposals,
+            trials=args.trials,
+            mode=args.mode,
+            proposer_card={"model": args.proposer_model} if args.proposer_model else None,
+        )
+        _print(logs, args.json, "\n".join(json.dumps(x)[:400] for x in logs))
+        return 0
+    print(f"ERROR: unknown action {a!r}")
+    return 2
