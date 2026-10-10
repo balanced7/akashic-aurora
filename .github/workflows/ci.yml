@@ -160,11 +160,18 @@ jobs:
         run: uv run poe ci-lint
 
   install-smoke:
-    name: Install smoke (the aurora CLI from this commit)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: Install smoke (${{ matrix.os }}, the aurora CLI from this commit)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     env:
       AKASHIC_WORLD: alpha
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -173,28 +180,61 @@ jobs:
         with:
           version: "0.12.21"
           enable-cache: true
-      # The release path end to end, from local assets: bundle + launcher wheel -> install.sh ->
-      # the advertised commands, run from outside any checkout (release.yml repeats this per OS).
+      # The release path end to end, from local assets: bundle + launcher wheel -> the real
+      # install script for the OS -> the advertised commands and a hook, from outside any
+      # checkout (release.yml repeats this against the assets it is about to publish).
       - name: Build the bundle and the launcher wheel
         run: |
+          rel="$RUNNER_TEMP/rel"
           v="$(uv run --no-project scripts/release/releases.py version)"
-          uv run --no-project scripts/release/build_bundle.py --out "$RUNNER_TEMP/rel" --version "$v"
-          uv build --package akashic-aurora-cli --wheel --out-dir "$RUNNER_TEMP/rel"
+          uv run --no-project scripts/release/build_bundle.py --out "$rel" --version "$v"
+          uv build --package akashic-aurora-cli --wheel --out-dir "$rel"
           echo "AURORA_V=$v" >> "$GITHUB_ENV"
+          echo "AURORA_RELEASE_BASE=$rel" >> "$GITHUB_ENV"
       - name: Install with install.sh
-        run: AURORA_RELEASE_BASE="$RUNNER_TEMP/rel" sh aurora-cli/install/install.sh --version "$AURORA_V" --no-modify-path
+        if: runner.os != 'Windows'
+        run: sh aurora-cli/install/install.sh --version "$AURORA_V" --no-modify-path
+      - name: Install with install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:AURORA_VERSION = $env:AURORA_V
+          $env:AURORA_NO_MODIFY_PATH = '1'
+          ./aurora-cli/install/install.ps1
       - name: The advertised commands answer from outside the checkout
         working-directory: ${{ runner.temp }}
         run: |
-          export PATH="$(uv tool dir --bin):$PATH"
+          bin="$(uv tool dir --bin)"
+          if command -v cygpath >/dev/null 2>&1; then bin="$(cygpath -u "$bin")"; fi
+          export PATH="$bin:$PATH"
           set -x
           aurora self version
           aurora discover | head -5
           aurora status
-          aurora learn smoke --experiment ci_smoke --tried install --result ok --recommend keep
-          aurora recall ci_smoke | grep -q ci_smoke
-          aurora hooks status
+          aurora learn smoke --experiment ci_smoke_install --tried install --result ok --recommend keep
+          aurora recall ci_smoke_install | grep -q ci_smoke_install
           aurora setup --yes --dry-run --harness claude
+          aurora -c "from core.foundation.accel import status; print(status())"
+      - name: Hooks fire through the installed launcher in an enrolled project
+        working-directory: ${{ runner.temp }}
+        run: |
+          bin="$(uv tool dir --bin)"
+          if command -v cygpath >/dev/null 2>&1; then bin="$(cygpath -u "$bin")"; fi
+          export PATH="$bin:$PATH"
+          mkdir -p proj && cd proj
+          aurora hooks install --harness claude --scope user
+          aurora hooks enroll
+          aurora hooks status
+          payload='{"session_id":"ci","cwd":"'"$PWD"'","hook_event_name":"UserPromptSubmit","prompt":"ci smoke install"}'
+          out="$(printf '%s' "$payload" | aurora agent/harness/hooks/claude_userpromptsubmit.py)"
+          echo "$out"
+          echo "$out" | grep -q ci_smoke_install
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # the console-less twin the Windows hook registrations use: stdin/stdout must still flow
+            out="$(printf '%s' "$payload" | auroraw agent/harness/hooks/claude_userpromptsubmit.py)"
+            echo "$out"
+            echo "$out" | grep -q ci_smoke_install
+          fi
 
   rust:
     name: Rust (aurora-rs) test, clippy, fmt + parity
