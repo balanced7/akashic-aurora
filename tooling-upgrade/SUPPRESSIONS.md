@@ -731,6 +731,7 @@
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_compress.py | 29 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_corpus.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_graders.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_graders.py | 27 | `noqa: E402` | sys.path bootstrap |
