@@ -106,24 +106,27 @@ def test_default_corpus_publishes_its_coverage():
     assert "total" in cov, "coverage must carry a total"
 
 
-def test_projects_glob_reaches_nested_transcripts():
+def test_projects_glob_reaches_nested_transcripts(tmp_path, monkeypatch):
     """Second-order defect, same family: the live glob is one level deep.
 
     `for d in root.iterdir() if d.is_dir() for p in d.glob('*.jsonl')` cannot see a transcript in
     projects/<x>/subagents/. The recorded instance of this class is THE EYE reporting
-    '83/83 manifest_complete' while seeing 82 of 443 files on disk."""
+    '83/83 manifest_complete' while seeing 82 of 443 files on disk.
+
+    Hermetic: a home of its own holding one top-level and one nested transcript, so the pin runs
+    on every machine (CI has no ~/.claude) instead of skipping there."""
     from core.eye.index import corpus_coverage, default_corpus
 
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     live = Path.home() / ".claude" / "projects"
-    if not live.is_dir():
-        import pytest
-
-        pytest.skip("no live projects directory on this machine")
+    (live / "proj" / "subagents").mkdir(parents=True)
+    (live / "proj" / "11111111-1111-1111-1111-111111111111.jsonl").write_text("{}\n", encoding="utf-8")
+    (live / "proj" / "subagents" / "agent-22222222-2222-2222-2222-222222222222.jsonl").write_text(
+        "{}\n", encoding="utf-8"
+    )
     nested = [p for p in live.rglob("*.jsonl") if p.parent.parent != live]
-    if not nested:
-        import pytest
-
-        pytest.skip("no nested transcripts exist to find")
+    assert nested, "the fixture must hold a nested transcript"
     seen = {p.name for p in default_corpus()}
     missing = [p for p in nested if p.name not in seen]
     assert not missing, (

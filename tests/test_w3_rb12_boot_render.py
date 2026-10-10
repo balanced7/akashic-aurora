@@ -20,7 +20,7 @@ import json
 import os
 import sys
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -38,6 +38,11 @@ def mem(monkeypatch):
     # hermetic: no live task ledger -- forged slugs must never match real active tasks
     monkeypatch.setattr("core.coord.task_ledger.state_view", dict)
     return m
+
+
+def _days_ago(n: int) -> str:
+    """A note date relative to today: boot reads only the last 90 days, so fixed dates age out."""
+    return (datetime.now() - timedelta(days=n)).isoformat()
 
 
 def _forge_note(mem, dec_id, title, body, created):
@@ -65,8 +70,8 @@ def test_empty_store_renders_gap_lines_not_crash(mem):
 
 
 def test_gap_lines_replaced_when_notes_exist(mem):
-    _forge_note(mem, "ADR_wwa_00000001", "where-we-are", "mid-wave-3", datetime(2026, 7, 10).isoformat())
-    _forge_note(mem, "ADR_nf_00000002", "next-focus", "verify RB-9..12", datetime(2026, 7, 10).isoformat())
+    _forge_note(mem, "ADR_wwa_00000001", "where-we-are", "mid-wave-3", _days_ago(1))
+    _forge_note(mem, "ADR_nf_00000002", "next-focus", "verify RB-9..12", _days_ago(1))
     head = agent_cli._orientation_header("claude")
     assert "[GAP] where-we-are:" not in head
     assert "mid-wave-3" in head
@@ -76,12 +81,8 @@ def test_gap_lines_replaced_when_notes_exist(mem):
 
 def test_fallback_arc_is_newest_not_alphabetical(mem):
     # alpha-by-doc-path would pick docs/aaa-old.md; recency must pick docs/zzz-new.md
-    _forge_note(
-        mem, "ADR_old_00000001", "qqold-arc-status", "older arc, doc docs/aaa-old.md", datetime(2026, 7, 1).isoformat()
-    )
-    _forge_note(
-        mem, "ADR_new_00000002", "qqnew-arc-status", "newer arc, doc docs/zzz-new.md", datetime(2026, 7, 10).isoformat()
-    )
+    _forge_note(mem, "ADR_old_00000001", "qqold-arc-status", "older arc, doc docs/aaa-old.md", _days_ago(10))
+    _forge_note(mem, "ADR_new_00000002", "qqnew-arc-status", "newer arc, doc docs/zzz-new.md", _days_ago(1))
     head = agent_cli._orientation_header("claude")
     assert "newest is docs/zzz-new.md" in head, (
         "the fallback names the NEWEST candidate, never the alphabetically-first"

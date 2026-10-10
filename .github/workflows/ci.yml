@@ -91,16 +91,42 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+          # the g0 baseline was taken on a full clone; lookback's git layer reads recent history,
+          # so a depth-1 clone fails tests that pass everywhere else.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
         with:
           version: "0.12.21"
           enable-cache: true
       - name: Install dependencies
         run: uv sync --locked
+      # The suite's Rust-backed tests (accel parity, the PyO3 surface, fleet links end to end)
+      # skip without the wheel and the daemon; build both so they run here too.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: "aurora-rs -> target"
+      - name: Build the aurora-rs wheel and aurora-linkd
+        run: |
+          uvx --from 'maturin>=1.9,<2' maturin build --release -m aurora-rs/py/Cargo.toml --out "$RUNNER_TEMP/whl"
+          cargo build --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          {
+            printf 'ORACLE_WHEELS='
+            printf '%s ' "$RUNNER_TEMP"/whl/*.whl
+            echo
+            echo "AURORA_LINKD=$GITHUB_WORKSPACE/aurora-rs/target/debug/aurora-linkd"
+          } >> "$GITHUB_ENV"
       # The full suite (REDIS_DB=15) with branch coverage, compared with the g0 baseline:
       # no stable-pass test may fail reproducibly, and no package's coverage may drop > 0.5 pp.
       - name: Test suite
         run: uv run poe test
+      # The snapshot holds every test's outcome; with it, a red oracle is read, not rerun.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: oracle-suite-snapshot
+          path: tooling-upgrade/snapshots/suite
+          retention-days: 14
+          if-no-files-found: ignore
 
   ty:
     name: ty (advisory)

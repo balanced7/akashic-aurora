@@ -12,14 +12,14 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1496 | `noqa: F401` | registers on import |
-| agent_cli.py | 2164 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2678 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2747 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3560 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12167 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12383 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12408 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 1632 | `noqa: F401` | registers on import |
+| agent_cli.py | 2300 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2814 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2883 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3696 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12347 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12563 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12588 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 517 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 517 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
@@ -99,11 +99,11 @@
 | core/comm/promoter.py | 75 | `ty: ignore[redundant-cast]` | pyright sees object here; events_for_ref: list of event dicts |
 | core/comm/shift_turn.py | 67 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/shift_turn.py | 75 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/toolbox.py | 1024 | `noqa: A002` | public API name |
-| core/comm/toolbox.py | 1424 | `noqa: A002` | public API name |
-| core/comm/toolbox.py | 1909 | `ty: ignore[unresolved-attribute]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
-| core/comm/toolbox.py | 1909 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
-| core/comm/toolbox.py | 2405 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound before any subprocess call can time out |
+| core/comm/toolbox.py | 1038 | `noqa: A002` | public API name |
+| core/comm/toolbox.py | 1438 | `noqa: A002` | public API name |
+| core/comm/toolbox.py | 1923 | `ty: ignore[unresolved-attribute]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
+| core/comm/toolbox.py | 1923 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
+| core/comm/toolbox.py | 2419 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound before any subprocess call can time out |
 | core/coord/compare.py | 35 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/coord/conductor.py | 70 | `ty: ignore[redundant-cast]` | LOST_UPDATE_ATTEMPTS >= 1, so a conflict set it |
 | core/coord/continuity.py | 92 | `ty: ignore[redundant-cast]` | pyright narrows to type[DataclassInstance] too; asdict decides, exactly as before |
@@ -114,6 +114,10 @@
 | core/coord/world_savepoint.py | 37 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/fleet/app_package.py | 206 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/fleet/app_package.py | 255 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/fleet/provenance.py | 149 | `noqa: BLE001` | fail-soft: no transcript means unknown, never an error |
+| core/fleet/provenance.py | 232 | `noqa: BLE001` | fail-soft: not a repo, or no git |
+| core/fleet/provenance.py | 281 | `noqa: BLE001` | fail-soft: a down store reads as no record |
+| core/fleet/provenance.py | 328 | `noqa: BLE001` | fail-soft: provenance must never break its caller |
 | core/fleet/seat_model.py | 74 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/fleet/seat_model.py | 136 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/fleet/seat_model.py | 160 | `noqa: BLE001` | fail-soft: falls back to a default value |
@@ -130,6 +134,9 @@
 | core/foundation/store.py | 154 | `ty: ignore[invalid-type-form]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
+| core/learning/scope.py | 158 | `noqa: BLE001` | fail-soft: no context means no filtering |
+| core/learning/scope.py | 334 | `noqa: BLE001` | fail-soft: no events means no evidence |
+| core/learning/scope.py | 341 | `noqa: BLE001` |  |
 | core/link/client.py | 155 | `noqa: SIM115` | closed by Client.close |
 | core/link/promote.py | 183 | `noqa: BLE001` | an unknown original is simply not ours |
 | core/link/quarantine.py | 45 | `noqa: BLE001` | fail-soft: offline bus = None, the store stays the truth |
@@ -137,6 +144,7 @@
 | core/manuals/shelf.py | 73 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
 | core/manuals/shelf.py | 89 | `ty: ignore[unresolved-attribute]` | tag read back by callers via getattr |
 | core/manuals/shelf.py | 89 | `pyright: ignore[reportFunctionMemberAccess]` | tag read back by callers via getattr |
+| core/metaharness/corpus.py | 202 | `noqa: BLE001` | fail-soft: mining without signals still mines |
 | core/narrative/tag_governance.py | 93 | `ty: ignore[invalid-argument-type]` | default is returned as-is; None is a valid result here |
 | core/narrative/tag_governance.py | 93 | `pyright: ignore[reportArgumentType]` | default is returned as-is; None is a valid result here |
 | core/primitives/embedder.py | 82 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
@@ -393,7 +401,7 @@
 | scripts/bifrost_runner_deepseek.py | 39 | `noqa: F401` | patches subprocess.Popen |
 | scripts/bifrost_runner_deepseek.py | 75 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_deepseek.py | 79 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_deepseek.py | 1449 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_deepseek.py | 1450 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 41 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_discord.py | 45 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_discord.py | 63 | `noqa: E402` | streams are forced to UTF-8 before the import |
@@ -432,7 +440,7 @@
 | scripts/bifrost_runner_gemini.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_kimi.py | 62 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_kimi.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_kimi.py | 868 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_kimi.py | 869 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_sol.py | 69 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_sol.py | 73 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_ui.py | 1595 | `pyright: ignore[reportMissingImports]` | optional package |
@@ -495,8 +503,8 @@
 | seat_topology.py | 166 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | seat_topology.py | 218 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | seat_topology.py | 227 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| tests/conftest.py | 60 | `noqa: F401` | side-effect: temp AI_SETUP + db 15 + flush |
-| tests/conftest.py | 159 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| tests/conftest.py | 69 | `noqa: F401` | side-effect: temp AI_SETUP + db 15 + flush |
+| tests/conftest.py | 168 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | tests/drill_succession_live.py | 96 | `ty: ignore[invalid-argument-type]` | deliberate bad input: the drill proves hours=None is refused |
 | tests/drill_succession_live.py | 96 | `pyright: ignore[reportArgumentType]` | deliberate bad input: the drill proves hours=None is refused |
 | tests/drill_succession_live.py | 147 | `ty: ignore[missing-argument]` | fallback for the pre-reason revoke() signature |
@@ -700,17 +708,27 @@
 | tests/test_legacy_net_exact_and_bounded.py | 51 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_anchors.py | 44 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_dedup.py | 11 | `noqa: F401` | re-export or side-effect import |
+| tests/test_lesson_scope.py | 24 | `noqa: E402` |  |
+| tests/test_lesson_scope.py | 25 | `noqa: E402` |  |
+| tests/test_lesson_scope.py | 26 | `noqa: E402` |  |
+| tests/test_link_cli_units.py | 22 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_cli_units.py | 23 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_cli_units.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_contract.py | 20 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_contract.py | 21 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_contract.py | 22 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
+| tests/test_link_python_units.py | 33 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_python_units.py | 34 | `noqa: E402` | sys.path bootstrap |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_corpus.py | 28 | `noqa: E402` |  |
 | tests/test_narrative_health.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_newborn_gauntlet.py | 200 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; never touch the real bus -- we test the ACL verdict only |
 | tests/test_ops_archive_ephemeral.py | 55 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
 | tests/test_pointer_promises.py | 45 | `noqa: E402` | sys.path bootstrap |
+| tests/test_provenance.py | 23 | `noqa: E402` |  |
 | tests/test_r9_daemon_respawn_gate.py | 18 | `noqa: E402` | sys.path bootstrap |
 | tests/test_r9_daemon_respawn_gate.py | 20 | `noqa: E402` | sys.path bootstrap |
 | tests/test_rb25_amendment2.py | 105 | `ty: ignore[invalid-assignment]` | LATENT: online is a read-only property; fails at base |
@@ -840,7 +858,7 @@
 | tests/test_task_ledger.py | 232 | `pyright: ignore[reportAttributeAccessIssue]` | optional surface, hasattr-probed |
 | tests/test_task_ledger.py | 236 | `ty: ignore[redundant-condition]` | ledger_view is an optional, hasattr-probed surface |
 | tests/test_tooling_upgrade_oracle.py | 1 | `pyright: strict` |  |
-| tests/test_tooling_upgrade_oracle.py | 409 | `noqa: FBT001, RUF100` | pytest parametrize value, passed by pytest; FBT is ratchet-only |
+| tests/test_tooling_upgrade_oracle.py | 422 | `noqa: FBT001, RUF100` | pytest parametrize value, passed by pytest; FBT is ratchet-only |
 | tests/test_vault_refuses_mangled_paste.py | 30 | `noqa: E402` | sys.path bootstrap |
 | tests/test_w06_stdin_send.py | 15 | `noqa: E402` | sys.path bootstrap |
 | tests/test_w06_stdin_send.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
@@ -887,16 +905,16 @@
 | tooling-upgrade/oracle.py | 130 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 131 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 333 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1174 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1461 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1473 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1658 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1714 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1749 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1781 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1808 | `noqa: PT028` | not a pytest test: the O9 capture |
-| tooling-upgrade/oracle.py | 1825 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1904 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 2041 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 2212 | `noqa: T201` | CLI output: the guardrails verdict line |
+| tooling-upgrade/oracle.py | 1185 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1477 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1489 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1674 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1730 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1765 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1797 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1824 | `noqa: PT028` | not a pytest test: the O9 capture |
+| tooling-upgrade/oracle.py | 1841 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1920 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2057 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2236 | `noqa: T201` | CLI output: the guardrails verdict line |
 | tooling-upgrade/pytest_plugin/aurora_oracle_plugin.py | 1 | `pyright: strict` |  |
