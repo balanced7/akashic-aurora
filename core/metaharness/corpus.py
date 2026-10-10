@@ -358,10 +358,20 @@ def validate(sid: str, *, repo: Path = ROOT, timeout: int = 900, runner: list[st
     if not tests:
         return {"id": sid, "ok": None, "why": "oracle has no python tests to run"}
     wt = Path(tempfile.mkdtemp(prefix="mh_validate_")) / "wt"
-    env = {**os.environ, "REDIS_DB": "15", "AI_SETUP": str(wt.parent / "ai"), "_AISETUP_TEST_ISOLATED": ""}
+    # No bytecode cache: the start run and the reference run are seconds apart, and a fix that
+    # keeps a file's size (a - b -> a + b) would otherwise run the start state's stale .pyc.
+    env = {
+        **os.environ,
+        "REDIS_DB": "15",
+        "AI_SETUP": str(wt.parent / "ai"),
+        "_AISETUP_TEST_ISOLATED": "",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
     try:
         _git("worktree", "add", "--detach", "-q", str(wt), start, repo=repo)
         _git("apply", "--whitespace=nowarn", str(d / "oracle" / "tests.patch"), repo=wt)
+
+        tails: list[str] = []
 
         def run() -> int:
             r = subprocess.run(
@@ -373,6 +383,7 @@ def validate(sid: str, *, repo: Path = ROOT, timeout: int = 900, runner: list[st
                 timeout=timeout,
                 check=False,
             )
+            tails.append((r.stdout + r.stderr)[-600:])
             return r.returncode
 
         before = run()
@@ -385,6 +396,8 @@ def validate(sid: str, *, repo: Path = ROOT, timeout: int = 900, runner: list[st
     else:
         ok = before != 0 and after == 0
         res = {"id": sid, "ok": ok, "fails_on_start": before != 0, "passes_on_reference": after == 0}
+        if not ok:  # keep the evidence: a person decides whether the oracle or the run is at fault
+            res["output"] = tails[-1] if after != 0 else tails[0]
     finally:
         _git("worktree", "remove", "--force", str(wt), repo=repo, check=False)
         shutil.rmtree(wt.parent, ignore_errors=True)
