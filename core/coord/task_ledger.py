@@ -166,7 +166,8 @@ WATCH_CAP = 2
 LOAD_BEARING = (
     "core/",  # the substrate every seat runs on
     "agent_cli.py",  # the door every agent enters through
-    "scripts/hooks/",  # fires unbidden in every session; a defect here is silent and global
+    "agent/harness/hooks/",  # fires unbidden in every session; a defect here is silent and global
+    "scripts/hooks/",  # stable-path shims onto agent/harness/hooks/ that older registrations still run
 )
 
 
