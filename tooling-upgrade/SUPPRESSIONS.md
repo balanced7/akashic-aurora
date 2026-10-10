@@ -137,7 +137,7 @@
 | core/learning/learning_store.py | 1410 | `noqa: BLE001` | fail-soft by contract |
 | core/learning/scope.py | 158 | `noqa: BLE001` | fail-soft: no context means no filtering |
 | core/learning/scope.py | 334 | `noqa: BLE001` | fail-soft: no events means no evidence |
-| core/learning/scope.py | 341 | `noqa: BLE001` |  |
+| core/learning/scope.py | 341 | `noqa: BLE001` | fail-soft: no repeat counters means no evidence |
 | core/link/client.py | 155 | `noqa: SIM115` | closed by Client.close |
 | core/link/promote.py | 183 | `noqa: BLE001` | an unknown original is simply not ours |
 | core/link/quarantine.py | 45 | `noqa: BLE001` | fail-soft: offline bus = None, the store stays the truth |
@@ -718,9 +718,9 @@
 | tests/test_legacy_net_exact_and_bounded.py | 51 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_anchors.py | 44 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_dedup.py | 11 | `noqa: F401` | re-export or side-effect import |
-| tests/test_lesson_scope.py | 24 | `noqa: E402` |  |
-| tests/test_lesson_scope.py | 25 | `noqa: E402` |  |
-| tests/test_lesson_scope.py | 26 | `noqa: E402` |  |
+| tests/test_lesson_scope.py | 24 | `noqa: E402` | sys.path bootstrap |
+| tests/test_lesson_scope.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_lesson_scope.py | 26 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_contract.py | 20 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_contract.py | 21 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_contract.py | 22 | `noqa: E402` | sys.path bootstrap |
@@ -728,25 +728,25 @@
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
-| tests/test_metaharness_corpus.py | 28 | `noqa: E402` |  |
-| tests/test_metaharness_graders.py | 25 | `noqa: E402` |  |
-| tests/test_metaharness_graders.py | 27 | `noqa: E402` |  |
+| tests/test_metaharness_corpus.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_graders.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_graders.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_graders.py | 131 | `noqa: E731` | pure position bias |
-| tests/test_metaharness_loop.py | 27 | `noqa: E402` |  |
-| tests/test_metaharness_loop.py | 29 | `noqa: E402` |  |
-| tests/test_metaharness_memreplay.py | 25 | `noqa: E402` |  |
-| tests/test_metaharness_memreplay.py | 27 | `noqa: E402` |  |
-| tests/test_metaharness_memreplay.py | 28 | `noqa: E402` |  |
+| tests/test_metaharness_loop.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_loop.py | 30 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_memreplay.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_memreplay.py | 27 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_memreplay.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_precompile.py | 26 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_precompile.py | 27 | `noqa: E402` | sys.path bootstrap |
-| tests/test_metaharness_replay.py | 26 | `noqa: E402` |  |
-| tests/test_metaharness_review.py | 25 | `noqa: E402` |  |
-| tests/test_metaharness_review.py | 27 | `noqa: E402` |  |
+| tests/test_metaharness_replay.py | 26 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_review.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_review.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_narrative_health.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_newborn_gauntlet.py | 200 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; never touch the real bus -- we test the ACL verdict only |
 | tests/test_ops_archive_ephemeral.py | 55 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
 | tests/test_pointer_promises.py | 45 | `noqa: E402` | sys.path bootstrap |
-| tests/test_provenance.py | 23 | `noqa: E402` |  |
+| tests/test_provenance.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_r9_daemon_respawn_gate.py | 18 | `noqa: E402` | sys.path bootstrap |
 | tests/test_r9_daemon_respawn_gate.py | 20 | `noqa: E402` | sys.path bootstrap |
 | tests/test_rb25_amendment2.py | 105 | `ty: ignore[invalid-assignment]` | LATENT: online is a read-only property; fails at base |
