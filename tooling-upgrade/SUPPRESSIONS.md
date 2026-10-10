@@ -12,14 +12,14 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1691 | `noqa: F401` | registers on import |
-| agent_cli.py | 2359 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2873 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2942 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3755 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12539 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12755 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12780 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 1698 | `noqa: F401` | registers on import |
+| agent_cli.py | 2366 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2880 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2949 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3762 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12559 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12775 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12800 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 518 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 518 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |

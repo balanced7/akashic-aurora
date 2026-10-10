@@ -473,3 +473,43 @@ def modes_main(args) -> int:
         return 0
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def compress_main(args) -> int:
+    """`compress <action>` -- harness compression (task 11)."""
+    from pathlib import Path
+
+    from core.metaharness import compress, replay
+
+    a = args.action
+    if a == "pieces":
+        root = Path(args.root) if args.root else compress.ROOT_DEFAULT
+        rows = compress.pieces(root)
+        _print(rows, args.json, "\n".join(f"  {p['id']:<56} group={p['group']}" for p in rows) or "no pieces found")
+        return 0
+    if a == "telemetry":
+        if not (args.candidate and args.scenario):
+            print("ERROR: `compress telemetry` needs --candidate and --scenario ...")
+            return 2
+        root = Path(args.root) if args.root else compress.ROOT_DEFAULT
+        items = compress.pieces(root)
+        runs = [rd for s in args.scenario for rd in replay.runs_for(args.candidate, s)]
+        uses = compress.telemetry(runs, items)
+        _print(
+            uses,
+            args.json,
+            "\n".join(f"  {k:<56} {v}" for k, v in sorted(uses.items(), key=lambda kv: kv[1]))
+            + f"\n({len(runs)} runs read)",
+        )
+        return 0
+    if a == "run":
+        if not (args.candidate and args.scenario and args.max_runs):
+            print("ERROR: `compress run` needs --candidate, --scenario ... and --max-runs (real runs cost money)")
+            return 2
+        res = compress.run_compression(
+            args.candidate, args.scenario, repo=compress.ROOT_DEFAULT, max_runs=args.max_runs, trials=args.trials
+        )
+        _print(res, args.json, json.dumps(res, indent=1))
+        return 0 if res.get("built") else 1
+    print(f"ERROR: unknown action {a!r}")
+    return 2
