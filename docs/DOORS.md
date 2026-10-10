@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (113 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (114 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -92,6 +92,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `recall-prevention` | S2: what recall PREVENTED (stage-log contrastive record) -- observation only, never a grade | `--json` |
 | `reentry` | T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only | `--show-open-loops` `--since` `--stale-ok` |
 | `repeat` | record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken | `<source>` `--what` `--recall-outcome` `--agent` `--report` `--json` |
+| `replay` | meta-harness replay (task 04): run a scenario against a candidate harness, isolated | `<action>* {run,candidates,new}` `--candidate` `--scenario` `--trials` `--parallel` `--budget-usd` `--redis-db` `--keep-sandbox` `--harness` `--model` `--effort` `--parent` `--hypothesis` `--overlay` `--json` |
 | `reply` | answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable) | `<text>*` `--text-file` `--to` `--as` `--model` `--json` |
 | `report` | scaffold a visual report with the design kit inlined (T275) | `--title` `--eyebrow` `--out` `--crib` |
 | `resident` | callsign ceremony: nominate / ratify / show a resident's designation | `<sub> {nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration}` |
