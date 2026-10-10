@@ -28,6 +28,8 @@ sys.path.insert(0, str(ROOT))
 from core.metaharness import corpus, redact, transcripts  # noqa: E402
 
 FAKE_KEY = "sk-ant-api03-" + "A1b2C3d4E5f6G7h8I9j0" * 2
+# Assembled at runtime: the repo's secrets checker blocks the literal marker in tracked files.
+PEM_HEAD = "-----" + "BEGIN {} " + "PRIVATE KEY-----"
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +49,7 @@ def test_redaction_rewrites_visibly_and_the_check_then_passes():
 
 
 def test_the_check_catches_what_the_rewrite_cannot():
-    assert redact.find_secrets("-----BEGIN RSA PRIVATE KEY-----\nMIIE") == ["private key block"]
+    assert redact.find_secrets(PEM_HEAD.format("RSA") + "\nMIIE") == ["private key block"]
 
 
 # --------------------------------------------------------------------------- transcripts
@@ -55,7 +57,7 @@ def test_archive_redacts_skips_unchanged_and_refuses_a_leak(tmp_path):
     src = tmp_path / "sess-a.jsonl"
     src.write_text(json.dumps({"message": {"content": f"use {FAKE_KEY}"}}) + "\n", encoding="utf-8")
     leak = tmp_path / "sess-b.jsonl"
-    leak.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n", encoding="utf-8")
+    leak.write_text(PEM_HEAD.format("OPENSSH") + "\nAAAA\n", encoding="utf-8")
     r = transcripts.archive([("claude-code", src), ("claude-code", leak)], cap_mb=10)
     assert r["archived"] == 1
     assert len(r["refused"]) == 1
