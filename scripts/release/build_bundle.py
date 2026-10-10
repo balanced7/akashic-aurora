@@ -70,7 +70,10 @@ def build(version: str, ref: str, out: Path) -> Path:
         info = {"version": version, "commit": commit, "ref": ref, "excluded": list(EXCLUDE)}
         (tree / "AURORA_BUNDLE.json").write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
         paths = sorted(tree.rglob("*"), key=lambda p: p.relative_to(tree).as_posix())
-        norm = lambda t: _normalize(t, mtime)  # noqa: E731
+
+        def norm(t: tarfile.TarInfo) -> tarfile.TarInfo:
+            return _normalize(t, mtime)
+
         # mtime=0 in the gzip header too, or the archive bytes change with the build clock
         with (
             open(archive, "wb") as fh,

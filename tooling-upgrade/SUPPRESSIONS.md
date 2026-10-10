@@ -556,9 +556,9 @@
 | tests/test_cli_send_spills.py | 34 | `noqa: F401` | db 15 + temp AI_SETUP, flushed (child inherits via env) |
 | tests/test_clip_chokepoint_contract.py | 64 | `pyright: ignore[reportAttributeAccessIssue]` | T273 RED pin, not built yet |
 | tests/test_codex_app_server.py | 595 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
-| tests/test_codex_hook_contract.py | 17 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
-| tests/test_codex_hook_contract.py | 18 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
-| tests/test_codex_hook_contract.py | 19 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
+| tests/test_codex_hook_contract.py | 24 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
+| tests/test_codex_hook_contract.py | 25 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
+| tests/test_codex_hook_contract.py | 26 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
 | tests/test_comprehensibility_index_pins.py | 45 | `noqa: E402` | sys.path bootstrap |
 | tests/test_comprehensibility_index_pins.py | 46 | `noqa: E402` | sys.path bootstrap |
 | tests/test_comprehensibility_index_pins.py | 47 | `noqa: E402` | sys.path bootstrap |
