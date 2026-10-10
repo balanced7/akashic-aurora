@@ -161,6 +161,7 @@ separated by `;` on Windows and `:` elsewhere; relative entries are ignored with
 | `ES_EXE` | Path to Everything's `es.exe` (Windows). | Found on `PATH` or in the standard install folders. |
 | `AKASHIC_CHECKOUT_<WORLD>` | A world's checkout (`PROD`, `BETA`, `ALPHA`) when it isn't a sibling folder. | Derived from the repo root. |
 | `AI_SETUP` | Overrides where instance data lives (see `core/paths.py`). | Data lives in the repo. |
+| `AURORA_HOME` | Base folder for each world's gitignored instance state, used as `<AURORA_HOME>/<world>` once that folder exists. Every checkout and git worktree of the world shares it (see `core/paths.py`). | `~/.aurora`; state lives in the repo until `~/.aurora/<world>` exists. |
 
 Example (Linux, archives on two mounted disks):
 
