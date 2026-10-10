@@ -226,3 +226,78 @@ def grade_main(args) -> int:
         return 0
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def review_main(args) -> int:
+    """`review <action>` -- the human final check-off (task 06)."""
+    from core.metaharness import graders, review
+
+    a = args.action
+    if a == "list":
+        rows = review.pending()
+        _print(
+            rows,
+            args.json,
+            "\n".join(
+                f"  {r['id']:<28} {r['candidate']} vs {r['against']}  {r['verdict'].get('pareto')}  needs {r['reviewers_needed']}  expires {r['expires']}"
+                for r in rows
+            )
+            or "queue empty",
+        )
+        return 0
+    if a == "watch":
+        out = review.watch()
+        _print(
+            out,
+            args.json,
+            "\n".join(f"  {r['id']}: {r['status']}" + (f"  WORSE {r['worse']}" if r["worse"] else "") for r in out)
+            or "nothing applied under watch",
+        )
+        return 0
+    if a == "disagreements":
+        rows = review.disagreements()
+        _print(rows, args.json, "\n".join(json.dumps(r) for r in rows) or "no person/grader disagreements recorded")
+        return 0
+    if a == "add":
+        if not (args.candidate and args.against and args.scenario):
+            print("ERROR: `review add` needs --candidate, --against and --scenario ...")
+            return 2
+        v = graders.compare(args.against, args.candidate, args.scenario)
+        it = review.enqueue(args.candidate, v, predicted=args.predicted)
+        page = review.render(it["id"])
+        _print(it, args.json, f"[OK] queued {it['id']} ({v['pareto']}); review page: {page}")
+        return 0
+    if not args.id:
+        print(f"ERROR: `review {a}` needs an item id")
+        return 2
+    try:
+        if a == "show":
+            page = review.render(args.id)
+            _print(review.item(args.id), args.json, f"review page: {page}")
+            return 0
+        if a == "decide":
+            calls = dict(kv.split("=", 1) for kv in args.calls.replace(",", " ").split() if "=" in kv)
+            it = review.decide(args.id, args.reviewer, args.decision, calls, args.reason)
+            _print(
+                it,
+                args.json,
+                f"[OK] {args.id}: {it['status']} ({len(it['decisions'])} decision(s), needs {it['reviewers_needed']})",
+            )
+            return 0
+        if a == "apply":
+            it = review.apply(args.id)
+            _print(
+                it,
+                args.json,
+                f"[OK] applied {args.id}: {len(it['manifest'])} file(s); watched until {it['watch_until']}",
+            )
+            return 0
+        if a == "rollback":
+            it = review.rollback(args.id, reason=args.reason or "operator rollback")
+            _print(it, args.json, f"[OK] rolled back {args.id}")
+            return 0
+    except (KeyError, ValueError, PermissionError) as e:
+        print(f"ERROR: {e}")
+        return 1
+    print(f"ERROR: unknown action {a!r}")
+    return 2
