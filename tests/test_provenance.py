@@ -186,7 +186,7 @@ def test_a_runner_tool_lesson_records_the_runner_and_its_model():
     assert os.environ.get("_AISETUP_TEST_ISOLATED")
     assert os.environ.get("REDIS_DB") == "15"
     try:
-        tb._kb_write_ok = lambda: None  # the capability gate is not what this pins
+        tb._kb_write_ok = lambda: None  # ty: ignore[invalid-assignment]  # instance monkeypatch: the capability gate is not what this pins
         out = tb.knowledge_learn(name, "t", "r", "use when x")
         assert "[OK]" in out, out
         rec = _record(name, dict(os.environ))

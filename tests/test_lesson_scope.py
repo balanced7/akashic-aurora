@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from typing import Any
 
 import pytest
 
@@ -91,7 +92,12 @@ def test_a_codex_model_x_lesson_is_not_pushed_to_claude_model_y():
     ls = _ls()
     _lesson(ls, "codex_only_sandbox_flag", "pytest tempdir sandbox flag codex", "harness:codex-cli model:gpt")
     _lesson(ls, "universal_sandbox_flag", "pytest tempdir sandbox flag universal")
-    common = {"command": "pytest tempdir sandbox flag", "learning_store": ls, "limit": 5, "min_relevance": 0.0}
+    common: dict[str, Any] = {
+        "command": "pytest tempdir sandbox flag",
+        "learning_store": ls,
+        "limit": 5,
+        "min_relevance": 0.0,
+    }
     claude = [i["source"] for i in recall_at(applies_in=CLAUDE_Y, **common).get("lessons", [])]
     codex = [i["source"] for i in recall_at(applies_in=CODEX_X, **common).get("lessons", [])]
     assert "learn:experiment:codex_only_sandbox_flag" not in claude
