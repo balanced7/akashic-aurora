@@ -144,7 +144,7 @@ def test_a_broken_file_is_never_overwritten(env):
 
 def test_status_flags_the_old_shim_path(env):
     home, _, _ = env
-    old = "pyw E:/AI-Setup/scripts/hooks/claude_stop.py"
+    old = "pyw /old/checkout/scripts/hooks/claude_stop.py"
     _seed(
         home / ".claude" / "settings.json",
         {"hooks": {"Stop": [{"matcher": "*", "hooks": [{"type": "command", "command": old}]}]}},
