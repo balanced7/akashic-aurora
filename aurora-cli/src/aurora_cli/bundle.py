@@ -217,11 +217,23 @@ def sync(root: Path, version: str) -> None:
     _sync_marker(root).write_text(_lock_digest(root), encoding="utf-8")
 
 
+def _release_index(version: str) -> str | None:
+    """The release's own asset list as a package index: GitHub serves every asset of a release
+    as links on releases/expanded_assets/<tag>, which uv reads with --find-links. So the wheel
+    attached to the release installs even before (or without) PyPI publishing."""
+    base = release_base(version)
+    marker = "/releases/download/"
+    if base.startswith("https://github.com/") and marker in base:
+        repo, tag = base.split(marker, 1)
+        return f"{repo}/releases/expanded_assets/{tag}"
+    return None
+
+
 def install_accel(root: Path, version: str) -> bool:
     """Best effort: the aurora-rs wheel matching this release. Aurora runs the same without it
     (core/accel.py falls back to pure Python), so a miss is a note, never an error."""
     cmd = [uv_bin(), "pip", "install", "--quiet", "--python", str(venv_python(root)), "--only-binary", ":all:"]
-    links = (os.environ.get("AURORA_RS_FIND_LINKS") or "").strip()
+    links = (os.environ.get("AURORA_RS_FIND_LINKS") or "").strip() or _release_index(version)
     if links:
         cmd += ["--find-links", links]
     cmd.append(f"{ACCEL_PACKAGE}=={version}")

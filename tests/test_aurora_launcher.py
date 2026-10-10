@@ -122,3 +122,13 @@ def test_bundle_with_a_bad_checksum_is_refused(home, tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="checksum"):
         bundle.ensure_bundle("9.9.8")
     assert bundle.installed_versions() == []
+
+
+def test_rust_wheels_install_from_the_release_page(home, monkeypatch):
+    assert (
+        bundle._release_index("1.2.3") == "https://github.com/balanced7/akashic-aurora/releases/expanded_assets/v1.2.3"
+    )
+    monkeypatch.setenv("AURORA_RELEASE_BASE", "https://github.com/me/fork/releases/download/v{version}")
+    assert bundle._release_index("1.2.3") == "https://github.com/me/fork/releases/expanded_assets/v1.2.3"
+    monkeypatch.setenv("AURORA_RELEASE_BASE", "/local/dir")
+    assert bundle._release_index("1.2.3") is None, "a local directory is passed as-is via AURORA_RS_FIND_LINKS"
