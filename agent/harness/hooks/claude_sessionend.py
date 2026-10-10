@@ -164,6 +164,13 @@ def emit_session_signals(data) -> None:
 
         signals = fold_signals(calls)
         signals["window_truncated"] = truncated
+        try:  # provenance pointer (meta-harness task 01): which harness/model ran this session
+            from core.fleet import provenance
+
+            provenance.ensure(data, session_id=sid)
+            provenance.stamp(signals, session_id=sid)
+        except Exception:
+            pass
         try:  # recall economy for the same session (vNext loop 3): one dataset serves both pillars
             from core.recall.at_action import session_recall_summary
 

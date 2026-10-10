@@ -45,7 +45,20 @@ def main() -> int:
     except Exception:
         pass  # warm-up is best-effort; never block session start
     agent_id = os.getenv("AKASHIC_AGENT_ID") or "composer"
-    out: dict[str, object] = {"env": {"AKASHIC_AGENT_ID": agent_id}}
+    env_out: dict[str, str] = {"AKASHIC_AGENT_ID": agent_id}
+    out: dict[str, object] = {"env": env_out}
+    try:
+        # Meta-harness task 01: name the harness and session for every later hook and shell
+        # (sessionStart env propagates), then write the durable provenance record.
+        sid = str(data.get("session_id") or data.get("conversation_id") or "")
+        if sid:
+            env_out["AKASHIC_SESSION_ID"] = sid
+            env_out["AKASHIC_HARNESS"] = "cursor"
+            from core.fleet import provenance
+
+            provenance.ensure(data, {**os.environ, **env_out}, session_id=sid, agent_id=agent_id)
+    except Exception:
+        pass
     try:
         from agent.harness.context import build_autoboot_context
 
