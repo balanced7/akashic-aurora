@@ -41,6 +41,9 @@
 | arsenal/replay.py | 242 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/serve.py | 239 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/tiktok.py | 40 | `noqa: TC003` | runtime-evaluated annotations (inventory annotation_sensitive) |
+| aurora-cli/src/aurora_cli/bundle.py | 102 | `noqa: SIM115` | returned to a with-block in the caller |
+| aurora-cli/src/aurora_cli/bundle.py | 104 | `noqa: S310` | https or file only, by construction |
+| aurora-rs/bench.py | 79 | `pyright: ignore[reportMissingImports]` | optional wheel |
 | bootstrap.py | 128 | `noqa: F401` | availability probe |
 | bridge_doctor.py | 39 | `noqa: E402` | sys.path bootstrap |
 | bridge_doctor.py | 98 | `noqa: SIM112` | Windows spelling; POSIX lookups are case-sensitive |
@@ -113,6 +116,7 @@
 | core/fleet/seat_model.py | 160 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/fleet/seat_model.py | 183 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | core/fleet/seat_model.py | 185 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/foundation/accel.py | 38 | `pyright: ignore[reportMissingImports]` | optional wheel (aurora-rs/py) |
 | core/foundation/embedded_redis.py | 99 | `noqa: F401` | availability probe |
 | core/foundation/embedded_redis.py | 337 | `pyright: ignore[reportAttributeAccessIssue]` | idempotence marker on a third-party class |
 | core/foundation/embedded_redis.py | 536 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
@@ -396,6 +400,7 @@
 | scripts/ops/failsafe_watcher.py | 59 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/piano_follow_frames.py | 31 | `noqa: E402` | sys.path bootstrap |
 | scripts/piano_roll_pack.py | 22 | `noqa: E402,F401` | sys.path bootstrap; re-export |
+| scripts/release/build_bundle.py | 34 | `noqa: E402` | sys.path bootstrap |
 | scripts/remote_bridge_fetch.py | 35 | `noqa: E402` | sys.path bootstrap |
 | scripts/remote_bridge_fetch.py | 65 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/remote_bridge_listener.py | 54 | `noqa: E402` | sys.path bootstrap |
