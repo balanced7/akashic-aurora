@@ -448,6 +448,7 @@ known_first_party = [
 DEP001 = [
     "flvfx",     # provided by FL Studio's VFX Script host; guarded import (arsenal/fl/vfx)
     "bifrost",   # optional bifrost.api in scripts/bifrost_ui.py; guarded, answers 500 when absent
+    "aurora_rs", # the optional Rust wheel (aurora-rs/py); core/foundation/accel.py falls back to Python
 ]
 DEP002 = [
     "lupa",      # loaded by fakeredis to run the bus's Lua scripts (dynamic, never imported)

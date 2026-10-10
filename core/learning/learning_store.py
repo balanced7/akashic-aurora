@@ -43,6 +43,7 @@ import uuid
 from datetime import datetime
 from typing import Any, ClassVar
 
+from core.foundation.accel import rust
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
 from core.paths import data_root
@@ -217,10 +218,23 @@ def _content_terms(query: str) -> list[str]:
     return [_stem(t) for t in _TOKEN.findall(str(query or "").lower()) if t not in _STOPWORDS and len(t) > 1]
 
 
-def _tokens_of(text: str) -> set:
+def _tokens_of_py(text: str) -> set:
     """WORD stems, not substrings -- so 'track' still matches 'tracks' while 'state' no longer
-    matches 'statement'."""
+    matches 'statement'. The reference implementation; see _tokens_of."""
     return {_stem(t) for t in _TOKEN.findall(str(text or "").lower())}
+
+
+# Resolved once at import: a per-call lookup would spend part of what the port saves.
+_TOKENS_OF_RS = rust("tokens_of")
+
+
+def _tokens_of(text: str) -> set:
+    """_tokens_of_py, run in Rust when the akashic-aurora-rs wheel is installed. Search calls it
+    over every stored lesson per query, which makes it the first hot path ported
+    (core/foundation/accel.py; parity pinned in tests/test_accel_parity.py)."""
+    if _TOKENS_OF_RS is not None:
+        return _TOKENS_OF_RS(str(text or ""))
+    return _tokens_of_py(text)
 
 
 def _min_hits(n_terms: int) -> int:

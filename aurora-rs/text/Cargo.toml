@@ -1,0 +1,9 @@
+[package]
+name = "aurora-text"
+description = "Aurora's recall tokenizer: lowercase word runs folded to light stems."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

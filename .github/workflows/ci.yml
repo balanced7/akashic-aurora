@@ -196,3 +196,29 @@ jobs:
           aurora hooks status
           aurora setup --yes --dry-run --harness claude
 
+  rust:
+    name: Rust (aurora-rs) test, clippy, fmt + parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      # rustup, cargo, clippy and rustfmt come preinstalled on GitHub's Ubuntu runners.
+      - name: cargo test / clippy / fmt
+        working-directory: aurora-rs
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
+      - name: Rust output equals Python output (tests/test_accel_parity.py)
+        run: |
+          uv sync --locked
+          uvx --from 'maturin>=1.9,<2' maturin build --release -m aurora-rs/py/Cargo.toml --out "$RUNNER_TEMP/whl"
+          uv pip install "$RUNNER_TEMP"/whl/*.whl
+          uv run --no-sync pytest -q -p no:randomly tests/test_accel_parity.py
+          uv run --no-sync python aurora-rs/bench.py --lessons 500

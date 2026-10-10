@@ -1,0 +1,16 @@
+[package]
+name = "aurora-py"
+description = "PyO3 bindings for Aurora's Rust crates (the akashic-aurora-rs wheel)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "aurora_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+aurora-text.workspace = true
+pyo3.workspace = true

@@ -1,0 +1,24 @@
+# Aurora's Rust workspace -- where a hot path moves when Python is measurably too slow.
+#
+# Layout follows openai/codex's codex-rs/: one Cargo workspace, small single-purpose crates,
+# one shared version. Pure-Rust logic lives in its own crate (text/) with its own tests; the
+# Python binding (py/) is a thin PyO3 layer that maturin builds into the akashic-aurora-rs
+# wheel. Python always keeps a reference implementation and falls back to it (core/accel.py),
+# so the Rust path is an accelerator, never a requirement. See aurora-rs/README.md.
+[workspace]
+members = ["text", "py"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"  # the release version; scripts/release/releases.py keeps it in step
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/balanced7/akashic-aurora"
+
+[workspace.dependencies]
+aurora-text = { path = "text" }
+pyo3 = { version = "0.29", features = ["abi3-py311"] }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1

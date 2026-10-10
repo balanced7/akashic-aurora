@@ -268,3 +268,6 @@ charters/daniel/*
 
 # Turborepo local cache and logs (turbo.json); also kept out of turbo's own input hashes
 .turbo/
+
+# Rust build output (aurora-rs/, the Cargo workspace)
+aurora-rs/target/
