@@ -84,11 +84,32 @@ wherever NAT allows.
 So mail and files flow both ways between two fleets that are never online together, through a
 mailbox on a separate network stack that cannot read what it carries.
 
+## Two physical machines, on two networks
+
+`two_machines.py` hosts a link on one machine and joins it from another. The far side is a GitHub
+Actions runner (`.github/workflows/link-two-machines.yml`). The invite code is single-use, expires
+in 30 minutes, and travels as a repository secret, so it never reaches the public logs. Neither side
+forces a path: both use n0 address lookup, n0 relays, and a direct path where both NATs allow it.
+Run on 2026-10-10 (fork run s1-f0/aurora 38090751538):
+
+| | |
+|---|---|
+| host | this workstation (Linux x86_64), on a home LAN (192.168.1.219) behind the home router's NAT |
+| far | an Azure VM (`runnervm…`, Linux x86_64) behind Azure's NAT (10.1.0.222) |
+| join, by invite code | 2.05 s; the fingerprint matched the code |
+| host to far: a question with a 256 KiB file | arrived; sha256 matched the one named in the message |
+| far to host: a reply with its own 256 KiB file | arrived; sha256 matched |
+| host to far: an acknowledgement | arrived |
+| link afterwards | 2 members (owner `fleet-home`, writer `fleet-far`); the invite marked used; 1 live session |
+
+The far job, from checkout to report, takes 63 s: the Rust build is cached, and the drill itself
+takes 31 s. The host's 122 s wait for the reply includes the runner queue and that build.
+
 ## What is not measured here, and where it is covered
 
-- **Two machines owned by two people.** The runs above use separate network stacks and NATs (a VM's
-  Docker bridges, and relay-only daemons through n0's public relay), on one physical host. The first
-  real link between two fleets should post its `aurora link status` on the issue.
+- **Two people.** The two-machine run above uses two machines, two networks and two fleets with
+  their own keys, but one operator. The first real link between two people's fleets should post its
+  `aurora link status` on the issue.
 - **macOS and Windows.** CI's `link-os` job builds the daemon and runs the link tests, including
   the `ManagedChild` restart and the named-pipe RPC, on macOS and Windows. Windows is non-blocking
   until it has a green record, like the existing Windows smoke job.
