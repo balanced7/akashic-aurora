@@ -1,0 +1,69 @@
+---
+title: Chronicles
+description: Digest files made from the stored records, which you read but never edit by hand.
+---
+
+Chronicles are the readable digests in the `chronicles/` folder. A program writes them from the stored records: `memory.md` from notes, `story.md` from story beats. You read them, but you never edit them. Think of a yearbook printed from the school records. To fix a mistake, you fix the record and print again.
+
+## Why it exists
+
+People need a short, readable view of notes and the story so far, and the stores are too big to read. Chronicles are the derived layer of the three [knowledge layers](/docs/concepts/foundations/knowledge-layers), so a program can always write them again. An early bug had two functions writing the same file, each wiping out the other. Each file now has one live writer. An unused old helper could still overwrite `memory.md`, but nothing calls it.
+
+## How it works
+
+The live writers share the [ranker and the distiller](/docs/concepts/memory/ranker-and-distiller). Each picks the top records and packs them into a budget. The notes digest also runs the faithfulness critic. Its file does not record the result. The story file skips that critic and prints a basic check for each chapter.
+
+The files are:
+
+- **`memory.md`** — a digest of the live [notes](/docs/concepts/memory/notes-and-agent-memory). Every `note` write rebuilds it.
+- **`story.md`** — the story of the work so far. The Chronicler on the [narrative spine](/docs/concepts/narrative/narrative-spine) writes it.
+- **`story.index.json`** — the chapter index the Chronicler writes beside `story.md`. Lookback reads it to find chapters.
+- **`last-session-draft.md`** — a draft of where a session ended. A hook writes it when a session ends or its context is about to shrink. Git ignores it. `wrap --commit` turns it into a real note.
+- **`lessons.md`** — meant to be a digest of the lessons. **It is stale.** A function to write it exists, but nothing calls it. The file still lists six lessons from June 2026, while the store now holds many more.
+- **`adrs.json`, `failures.json`, `milestones.json`, `tag_vocabulary.json`** — output from an old chronicle program, now retired. Its code sits in `docs/_archive/pre-library/python_old/chronicle.py`. Nothing reads or writes these files now.
+
+A commit guard keeps the folder small. It refuses any other new `.md` file in `chronicles/`. Written records belong in the [library](/docs/concepts/memory/library) as atoms.
+
+The word "chronicle" belongs to this layer only. It never names the raw event log.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Summary agent | [OpenCode](https://opencode.ai/docs/agents#use-summary) | A hidden built-in agent that writes summaries of sessions. |
+| Branch summarization | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#branch-summarization) | When you leave a branch, Pi can sum it up and attach that to the new branch. |
+
+**How Aurora differs:** These ask a model to sum up a chat. A program prints chronicles from stored records. To fix one, you fix the record and print again.
+
+</Callout>
+
+## How you use it
+
+```bash
+aurora notes --project     # rebuild memory.md
+aurora story --chronicle   # rebuild story.md
+```
+
+Read `chronicles/memory.md` for the state of the project. Read `chronicles/story.md` for how it got there. Never edit these files. Fix the records and let the program write them again.
+
+## Don't confuse it with
+
+- **The Chronicler** — the narrative process that writes `story.md`. It is one writer, not the layer.
+- **The [ledger](/docs/concepts/foundations/ledger) and the event log** — raw records. They are never called chronicles.
+- **The `chronicle` doc type** — a kind of document in the [library](/docs/concepts/memory/library). It has its own shelf there.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /chronicle | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/chronicle#using-the-chronicle-slash-command) | Not the same: a CLI command that answers questions and builds reports from past sessions. |
+
+**How Aurora differs:** Aurora's chronicles are digest files in a folder, not a command. You read them, and a program writes them.
+
+</Callout>
+
+## How it connects
+
+- **Built on:** [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller), [Notes](/docs/concepts/memory/notes-and-agent-memory), [Narrative spine](/docs/concepts/narrative/narrative-spine)
+- **Used by:** people reading the project's state and story
+- **Part of:** [Memory and recall](/docs/concepts/memory); it is the derived layer of [Knowledge layers](/docs/concepts/foundations/knowledge-layers). The rule behind it is [decision 0010](/docs/reference/decisions/0010-generate-status-never-hand-write-it).

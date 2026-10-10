@@ -1,0 +1,101 @@
+---
+title: Bus
+description: The live, throwaway mail system on Redis, where mail waits in each agent's own inbox until that agent reads it.
+---
+
+The bus is the mail system under Bifrost. A sender addresses a message to one agent, and the bus drops it into that agent's inbox. The mail waits there until the agent reads it. Each agent keeps a bookmark of how far it has read. Broadcasts go to one shared stream that every agent reads with its own bookmark. Picture pigeonholes in a mailroom, with a bookmark for each reader.
+
+## Why it exists
+
+The old message layer had a broken broadcast. All agents read through one shared reader group. Such a group splits messages between its readers instead of copying them. So a "broadcast" reached only one agent. The bus gives each agent its own inbox and its own bookmark. It also keeps live chatter out of the lasting [Ledger](/docs/concepts/foundations/ledger), on purpose.
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph now["Now: own inbox, own bookmark"]
+    direction LR
+    s["sender"] -- "to: B" --> ib["bifrost:inbox:B"]
+    s -- "to: all" --> bc["bifrost:broadcast"]
+    ib --> b1["agent B<br/>own cursor"]
+    bc --> b1
+    bc --> a1["agent A<br/>own cursor"]
+  end
+  subgraph before["Before: one shared reader group"]
+    direction LR
+    bc0["broadcast stream"] --> grp["shared group"]
+    grp -- "message 1" --> a0["agent A"]
+    grp -- "message 2" --> b0["agent B"]
+  end
+```
+
+A shared group splits messages between its readers. Separate cursors give every reader every message.
+
+
+- **Streams.** The bus runs on Redis Streams. Each agent reads `bifrost:inbox:<agent>`. Broadcasts go to `bifrost:broadcast`.
+- **Bookmarks.** The code calls the bookmark a cursor. It holds the last message id the agent read. A read can peek, which leaves the cursor where it is. Or it can consume, which moves the cursor on.
+- **At least once, for runners.** A [runner](/docs/concepts/bifrost/runners) moves its cursor only after it answers. If it crashes first, the message comes again. A plain consuming read moves the cursor as soon as you read.
+- **Lanes.** The bus picks a lane from the message kind, and the sender cannot choose. Work mail rides `work`. Control signals such as pause and nudge ride `sig`, so they never wait behind chatter. Telemetry rides `trace`.
+- **Caps.** Each stream keeps its newest 5,000 to 10,000 messages. Older mail falls off the end.
+- **Size.** When you send a message over 64 KB, the bus splits it into pieces. The reader joins them back up. The bus never cuts a message short.
+- **Spill.** Past 8,000 characters, `bifrost-send` and a runner's tools store the full text in a file. The message keeps the start, plus a `blob:<sha>` pointer you read with `bifrost-fetch`.
+- **Kinds.** Each message has a kind, such as `chat`, `request`, `handoff`, `reply` or `question`. A `reply` marks the message it answers as handled.
+- **Offline is loud.** If Redis is down, the bus reports itself offline. A send returns nothing, and no agent crashes.
+
+The move to lanes is half done. For now each message also lands in the old inbox stream. So you may see one message twice, under two ids. The bus records that the two ids belong together.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Mailbox | [Claude Code](https://code.claude.com/docs/en/agent-teams#architecture) | The message system agent team members use to send each other notes. |
+| Team State | [Cline](https://docs.cline.bot/cli/agent-teams#team-state) | Each team keeps a task board, a mailbox between agents and a log. |
+| Cross-session messaging | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging) | One session sends a text message to your other sessions, even on other machines. |
+| SendMessage | [Claude Code](https://code.claude.com/docs/en/tools-reference) | A tool Claude uses to message a teammate, subagent or session. |
+| Agent to Agent | [Amp](https://ampcode.com/docs/orbs/agent-to-agent) | Agents start other agents, send them instructions and files, and bring results back. |
+| Session orchestration tools | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/sessions/manage-sessions#_orchestrate-sessions-from-agent-host-sessions) | Tools that let an agent list, create, read and message other sessions. |
+| Send Message | [A2A](https://a2a-protocol.org/latest/specification/#311-send-message) | The main call a client uses to send a message and get a task or reply. |
+| Message | [A2A](https://a2a-protocol.org/latest/specification/#414-message) | One turn of talk between client and agent, with a user or agent role. |
+| Multi-turn interactions | [A2A](https://a2a-protocol.org/latest/specification/#34-multi-turn-interactions) | The agent asks for more input before it finishes the task. |
+| Elicitation | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation) | A server asks the user for more information during a request. |
+| ask_question | [Cline](https://docs.cline.bot/tools-reference/all-cline-tools#tool-categories) | A built-in tool Cline uses to ask you for input during a task. |
+| question | [OpenCode](https://opencode.ai/docs/tools#question) | A built-in tool that asks you multiple choice questions mid task. |
+| Ask User tool | [Gemini CLI](https://geminicli.com/docs/tools/ask-user/) | A tool that asks you one to four questions, such as yes or no. |
+| Ask questions | [Cursor](https://cursor.com/docs/agent/overview#tools) | A tool the agent uses to ask you clarifying questions while it keeps working. |
+
+**How Aurora differs:** Bifrost mail waits in the inbox, even while its agent sleeps. A `question` here can go from one agent to another. The bus also links agents from different apps.
+
+</Callout>
+
+## How you use it
+
+```bash
+aurora bifrost-sync <me>             # say you are here, peek at unread mail
+aurora bifrost-sync <me> --consume   # read and move your cursor
+aurora bifrost-send <me> --to deepseek --kind request "Where is the lock freed?"
+```
+
+Reading is not consuming. The `bifrost_inbox` tool of the [MCP door](/docs/concepts/coordination/doors) only peeks, unless you pass `consume=true`. Your [boot](/docs/concepts/memory/boot) peeks at your inbox too. See [Use the bus](/docs/how-to/use-the-bus) for a walk-through.
+
+## Don't confuse it with
+
+- **The Ledger** — it lasts, and every reader replays the same shared record. The bus drops mail into one agent's inbox, and later forgets it.
+- **Bifrost** — the whole live layer. The bus is only the transport inside it.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Transports | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports) | The ways MCP messages travel between client and server. |
+| Data layer and transport layer | [MCP](https://modelcontextprotocol.io/docs/2026-07-28/learn/architecture#layers) | An inner layer for messages and an outer layer for moving them. |
+| pi.events | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md#choose-an-integration-point) | Not the same: an event channel extensions use inside one Pi process. |
+
+**How Aurora differs:** Bifrost splits the same way. The bus is the transport layer inside it. Unlike pi.events, the bus carries mail between separate agents.
+
+</Callout>
+
+## How it connects
+
+- **Built on:** [Hybrid storage](/docs/concepts/foundations/hybrid-storage) (Redis)
+- **Used by:** [Seats](/docs/concepts/bifrost/seats), [Wake](/docs/concepts/bifrost/wake), [Runners](/docs/concepts/bifrost/runners), [Promoter](/docs/concepts/bifrost/promoter), [Handoff](/docs/concepts/bifrost/handoff), [Control plane](/docs/concepts/bifrost/control-plane), [Liveness](/docs/concepts/bifrost/liveness), [Console](/docs/concepts/bifrost/console), [Bridge](/docs/concepts/bifrost/bridge)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

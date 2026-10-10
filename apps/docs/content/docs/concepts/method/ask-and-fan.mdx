@@ -1,0 +1,115 @@
+---
+title: Ask and fan
+description: An ask is a one-shot question to a helper model with no memory or tools, and a fan runs several asks at once.
+---
+
+An `ask` sends one question to a helper model. The helper has no name, no memory and no tools. It is born, answers and is gone, all in one call. A fan runs several asks side by side and hands you all the answers. Think of a phone call to an expert, not hiring a new colleague.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Advisor | [Claude Code](https://code.claude.com/docs/en/advisor) | A stronger model the main model consults for advice at key moments. |
+| Oracle | [Amp](https://ampcode.com/docs/tools#oracle) | A stronger second-opinion model the agent can ask for hard reasoning, planning or review. |
+| Thread-Scoped AI | [Amp](https://ampcode.com/docs/customize/plugins#use-thread-scoped-ai) | Plugin helpers that ask a model quick yes or no or typed questions. |
+| Side questions (/btw) | [Claude Code](https://code.claude.com/docs/en/interactive-mode#side-questions-with-%2Fbtw) | A quick question about your work that stays out of the conversation. |
+| Side questions (/ask) | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/ask-a-side-question#asking-a-quick-question) | A quick question in a CLI session that stays out of the main conversation. |
+| Side chat (/side) | [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#start-a-side-chat-with-side) | A short temporary branch off the current chat for a quick detour. |
+| Side chats | [Cursor](https://cursor.com/docs/agent/overview#side-chats) | A child chat that sees the main chat but keeps its own transcript. |
+
+**How Aurora differs:** These helpers answer one question and step aside. A side chat sees your main chat. An ask sees only the files you paste in.
+
+</Callout>
+
+## Why it exists
+
+Agents used to ask for help by starting a [seat](/docs/concepts/bifrost/seats). A seat is a lasting agent with a mailbox, a lock and a heartbeat. In one bad stretch, nine seat tasks gave back only two findings. Seat machinery lost the rest: stuck cursors, dropped duplicates and seats that froze. Asking cost more than doing the work alone. `ask` strips all of that away, so asking is cheap again.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Sub-Agents vs Teams | [Cline](https://docs.cline.bot/sdk/guides/multi-agent-teams#sub-agents-vs-teams) | Subagents are short one-off helpers. Teams keep shared state across a session. |
+
+**How Aurora differs:** Cline draws the same line. Its subagents are one-off and its teams keep state. Asks and seats split the same way.
+
+</Callout>
+
+## How it works
+
+- **No seat parts.** The helper gets no tools, no lasting memory and no write access. Each of those would turn it back into a seat.
+- **Evidence.** `--with PATH` pastes repo files into the prompt, with line numbers. Now the helper can cite `file:line` instead of guessing. If `ask` cuts a file short or leaves it out, the prompt says so. It refuses paths outside the repo.
+- **Honest results.** Each answer comes back as done, partial or failed. If a length limit cuts an answer off, `ask` tries to finish it, twice by default. If it still falls short, it comes back as partial.
+- **Background.** `--bg` runs the ask on its own and prints a handle. You read the answer later with `ask --get`.
+
+A fan is several asks at once, six workers by default. All branches use one model. There are two basic shapes:
+
+- `--fan N` sends the same prompt N times. This tests whether one model agrees with itself. It is not an independent check.
+- `--prompts-file` or `--lens` sends different questions. This tests coverage.
+
+People mixed these up and trusted weak answers. So now you declare the shape with `--geometry`. `ask` refuses the common wrong mixes, such as a panel with only one sample. There are seven shapes. Four of them:
+
+- A **panel** asks one question many times.
+- A **lens** fan asks many questions over the same files.
+- A **partition** fan splits a big pile of files into shards.
+- An **adversarial** fan gives a claim to helpers told to attack it.
+
+Each fan also gets an agreement score. It is a hint, not a gate. Every answer starts out marked unverified. It stays that way until someone checks it.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents) · [Codex](https://learn.chatgpt.com/docs/agent-configuration/subagents) · [Cursor](https://cursor.com/docs/subagents#how-subagents-work) · [Gemini CLI](https://geminicli.com/docs/core/subagents/#what-are-subagents) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/subagents#_when-to-use-subagents) · [OpenCode](https://opencode.ai/docs/agents#subagents) · [Cline](https://docs.cline.bot/features/subagents) · [Windsurf](https://docs.devin.ai/desktop/devin-local#subagents) | Helper agents with their own context that take a focused task and report back. |
+| Specialist Subagents | [Amp](https://ampcode.com/docs/models-and-subagents#specialist-subagents) | Helper agents with their own context window that get focused work. |
+| Background subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background) · [OpenCode](https://opencode.ai/docs/cli#experimental) | Subagents that keep working while you go on, then report when done. |
+| Foreground and background subagents | [Cursor](https://cursor.com/docs/subagents#foreground-vs-background) | Subagents either block until done or return at once and keep working. |
+| Fan Out Independent Work | [Amp](https://ampcode.com/docs/orbs/agent-to-agent#fan-out-independent-work) | Several threads run in parallel on separate parts of a problem. |
+| /batch | [Claude Code](https://code.claude.com/docs/en/commands) | Splits a large change into parts and runs them in parallel agents. |
+| /fleet | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet#how-fleet-works) | Splits a big request into subtasks and runs them in parallel with subagents. |
+| Dynamic workflows | [Claude Code](https://code.claude.com/docs/en/workflows) | A script that runs many subagents in the background and returns one result. |
+| At commands (@) | [Gemini CLI](https://geminicli.com/docs/reference/commands/#at-commands) | Typing @ and a path pulls file contents into your prompt. |
+| @ Mentions | [Cline](https://docs.cline.bot/core-workflows/working-with-files#file-mentions) | Typing @ and a path puts a file or folder into the chat. |
+| File references (@) | [OpenCode](https://opencode.ai/docs/tui#file-references) | Typing @ and a file name adds that file to the conversation. |
+| @ file references | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/usage.md#enter-a-prompt) | Typing @ searches for a file and adds it to your prompt. |
+| @-mentions | [Windsurf](https://docs.devin.ai/desktop/chat/overview#%40-mentions) | Typing @ attaches files, rules, plans or past chats as context. |
+| Mentioning Files | [Amp](https://ampcode.com/docs/prompting#mentioning-files) | Typing @ in the CLI adds a file's contents to your message. |
+
+**How Aurora differs:** A subagent gets tools and can act. An ask gets no tools, memory or write access. A fan uses one model, and you must name its shape.
+
+</Callout>
+
+## How you use it
+
+```bash
+aurora ask "Where is the lock released?" --with core/comm/runner_lock.py
+aurora ask --fan 3 "Is this safe?"
+aurora ask --preset findings --lens "q1" --lens "q2" --with core/x.py --geometry lens
+```
+
+See [Fan out a question](/docs/how-to/fan-out-a-question) for a full walk-through.
+
+## Don't confuse it with
+
+- **A seat** — lasting, with a mailbox and a lock. An ask has none of these.
+- **`ask --peer`** — sends one lasting question to a live seat over the bus. Plain `ask` holds no state.
+- **A fence review** — a sealed, recorded review. A fan is only a way to call models.
+- **A narrative Lens** — weights for reading the story graph. See [perspectives](/docs/concepts/narrative/perspectives). An `ask --lens` is one question in a fan.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Ask mode | [Cursor](https://cursor.com/help/ai-features/ask-mode) · [Windsurf](https://docs.devin.ai/desktop/cascade/modes#ask-mode) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/tools/ai-tools#using-copilot-chat-in-ask-mode) | Not the same: a read-only chat mode where the agent answers but does not edit. |
+| AskUserQuestion | [Claude Code](https://code.claude.com/docs/en/tools-reference#askuserquestion-tool-behavior) | Not the same: a tool the agent uses to ask you multiple-choice questions. |
+| Ask questions (tool) | [Cursor](https://cursor.com/docs/agent/overview#tools) | Not the same: a tool the agent uses to ask you clarifying questions. |
+| Ask User tool (ask_user) | [Gemini CLI](https://geminicli.com/docs/tools/ask-user/) | Not the same: a tool that lets the agent ask you one to four questions. |
+
+**How Aurora differs:** An ask here goes to a helper model, never to you. It is a command, not a chat mode.
+
+</Callout>
+
+## How it connects
+
+- **Used by:** [Union, not consensus](/docs/concepts/method/union-not-consensus), [Cite or confess](/docs/concepts/method/cite-or-confess), [Fence review](/docs/concepts/method/fence-review), [Fan out a question](/docs/how-to/fan-out-a-question)
+- **Part of:** [The method](/docs/concepts/method)
