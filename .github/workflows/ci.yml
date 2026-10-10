@@ -195,11 +195,11 @@ jobs:
           if-no-files-found: ignore
 
   ty:
-    name: ty (advisory)
+    name: ty
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # ty is the advisory second opinion beside basedpyright (G4.P4): reported, never blocking.
-    continue-on-error: true
+    # ty is the second opinion beside basedpyright (G4.P4). basedpyright stays the gate until ty is
+    # 1.0; since the repo reached 0 ty diagnostics (2026-10-10), this job blocks so none creep back.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:

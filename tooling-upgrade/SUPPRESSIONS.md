@@ -708,9 +708,9 @@
 | tests/test_legacy_net_exact_and_bounded.py | 51 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_anchors.py | 44 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_dedup.py | 11 | `noqa: F401` | re-export or side-effect import |
-| tests/test_lesson_scope.py | 24 | `noqa: E402` |  |
 | tests/test_lesson_scope.py | 25 | `noqa: E402` |  |
 | tests/test_lesson_scope.py | 26 | `noqa: E402` |  |
+| tests/test_lesson_scope.py | 27 | `noqa: E402` |  |
 | tests/test_link_cli_units.py | 22 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_cli_units.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_cli_units.py | 24 | `noqa: E402` | sys.path bootstrap |
@@ -729,6 +729,7 @@
 | tests/test_ops_archive_ephemeral.py | 55 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
 | tests/test_pointer_promises.py | 45 | `noqa: E402` | sys.path bootstrap |
 | tests/test_provenance.py | 23 | `noqa: E402` |  |
+| tests/test_provenance.py | 189 | `ty: ignore[invalid-assignment]` | instance monkeypatch: the capability gate is not what this pins |
 | tests/test_r9_daemon_respawn_gate.py | 18 | `noqa: E402` | sys.path bootstrap |
 | tests/test_r9_daemon_respawn_gate.py | 20 | `noqa: E402` | sys.path bootstrap |
 | tests/test_rb25_amendment2.py | 105 | `ty: ignore[invalid-assignment]` | LATENT: online is a read-only property; fails at base |
