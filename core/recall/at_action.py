@@ -1853,7 +1853,10 @@ def _verbs(query: str, command: str | None = None, limit: int = 2) -> list[dict[
             # friction scored 0.5 and was filtered. Naming the organ is not a coincidence, so a
             # name hit always clears the floor. (Found by the friction pin, 2026-08-15.)
             name_toks = {t.lower() for t in _TOKEN_RE.findall(e.get("verb", "").replace("-", " ")) if len(t) > 3}
-            if q & name_toks:
+            # Three distinct help tokens agreeing are corroboration, not coincidence: as the verb
+            # corpus grows, IDF alone drifts below the floor ('note' fell to 0.76 at 145 verbs, its
+            # four hits on 'record durable project decision' notwithstanding). T311 sample.
+            if q & name_toks or len(hits) >= 3:
                 score = max(score, _VERB_FLOOR)
             elif len(hits) < 2:
                 # ONE generic help-text token is not evidence of intent. This single rule killed

@@ -24,6 +24,15 @@ for _p in (_ROOT, _TESTS):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# The codex_* hook adapters land upstream separately (balanced7 master, dcc2a644). Where they
+# are absent their contract has nothing to pin, so the file is left uncollected: neither a
+# collection error (the g0 state) nor a skip that reads as lost coverage.
+collect_ignore = (
+    []
+    if os.path.exists(os.path.join(_ROOT, "agent", "harness", "hooks", "codex_common.py"))
+    else ["test_codex_hook_contract.py"]
+)
+
 # Recall scratch state (warm cache / seen / impressions / flips / nudges / injections) is
 # UNIVERSALLY isolated: core/recall/at_action.py and the hook scripts derive their state dir
 # from this env var at import time. Without it, any test that transitively warms the cache

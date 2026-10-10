@@ -298,29 +298,26 @@ def _corpus_roots() -> list[Any]:
         roots.append((label, str(base), picked))
 
     live = Path.home() / ".claude" / "projects"
-    if live.is_dir():
-        _take("live", live, live.rglob(_TRANSCRIPT_GLOB))
+    # A root that is absent is still named, with 0 files: a vanished root must read as a zero,
+    # never as a shorter list (fault 3 above).
+    _take("live", live, live.rglob(_TRANSCRIPT_GLOB) if live.is_dir() else [])
     for base in TRANSCRIPT_ARCHIVE_ROOTS:
         b = Path(base)
-        if b.is_dir():
-            _take("archive", b, b.glob(_TRANSCRIPT_GLOB))
+        _take("archive", b, b.glob(_TRANSCRIPT_GLOB) if b.is_dir() else [])
     rescued = _REPO_ROOT / "state" / "eye" / "recovered"
-    if rescued.is_dir():
-        _take("rescued", rescued, rescued.glob(_TRANSCRIPT_GLOB))
+    _take("rescued", rescued, rescued.glob(_TRANSCRIPT_GLOB) if rescued.is_dir() else [])
     # T406: the DSH plane -- one directory per session, its own glob because the transcripts
     # are compressed. Taken LAST so a Claude Code session of the same id keeps precedence,
     # matching the live > archive > rescued rule this function already states.
     for base in DSH_SESSION_ROOTS:
         b = Path(base)
-        if b.is_dir():
-            _take("dsh", b, b.rglob(_DSH_GLOB))
+        _take("dsh", b, b.rglob(_DSH_GLOB) if b.is_dir() else [])
     # T407: the seat planes, labelled by seat so coverage can say WHOSE sessions it reached.
     # Taken after the operator's roots for the same precedence reason: if a session somehow
     # appears on both, his copy is the one that keeps the id.
     for seat, base in sorted((SEAT_TRANSCRIPT_ROOTS or {}).items()):
         b = Path(base)
-        if b.is_dir():
-            _take(f"seat:{seat}", b, b.rglob(_TRANSCRIPT_GLOB))
+        _take(f"seat:{seat}", b, b.rglob(_TRANSCRIPT_GLOB) if b.is_dir() else [])
     return [(lbl, base, files) for lbl, base, files in roots]
 
 

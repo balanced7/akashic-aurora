@@ -217,6 +217,17 @@ def test_p7_the_bus_records_the_dual_id_alias_at_emit():
     try:
         mid = bus.send(b, "question", "alias pin: does the emit record the twin?")
         assert mid
+        from core.comm import packet_spec
+
+        lane = packet_spec.lane_for("question")
+        assert lane is not None, "question must ride a lane for this pin to mean anything"
+        lane_copy = bus._client.xrevrange(packet_spec.lane_stream_key(ns, lane, to=b), count=1)
+        lane_mid = lane_copy[0][0] if lane_copy else None
+        lane_mid = lane_mid.decode() if isinstance(lane_mid, bytes) else lane_mid
+        if lane_mid == mid:
+            # Two streams written in the same millisecond can mint the SAME id (ids are per
+            # stream: <ms>-<seq>); then both names already resolve to one message, no alias.
+            return
         aliases = list(bus._client.scan_iter(match=f"{ns}:idalias:*", count=200))
         vals = {bus._client.get(k) for k in aliases}
         assert mid in vals, (

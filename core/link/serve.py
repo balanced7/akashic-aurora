@@ -111,6 +111,8 @@ def run(*, flags: list[str] | None = None, mailbox: bool = False, once: bool = F
                 client = Client(io.BufferedReader(reader), writer, desc=f"stdio pid {child.pid}")
                 client_pid = child.pid
             if mailbox:
+                if once:
+                    break
                 time.sleep(1.0)  # a mailbox opens nothing: no quarantine, no promotion
                 continue
             try:

@@ -299,6 +299,19 @@ def test_compare_dirs_equal_diff_and_intended(tmp_path: Path):
     assert lines[1] == "O9 EQUAL (intended: IC-0001)"
 
 
+def test_compare_dirs_detail_lists_every_open_item(tmp_path: Path):
+    """The summary names three items; `detail` gets all of them, so a CI log is enough to act on."""
+    tests = {f"t::{i:d}": 1 for i in range(5)}
+    _snap(tmp_path / "a", {"O9": {"tests": tests, "total": 5}})
+    _snap(tmp_path / "b", {"O9": {"tests": {}, "total": 0}})
+    detail: list[str] = []
+    lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "b", ["O9"], intended=[], detail=detail)
+    assert not ok
+    assert lines[0].startswith("O9 DIFF")
+    assert len(detail) == int(lines[0].split()[2])
+    assert all(d.startswith("O9 ") for d in detail)
+
+
 def test_missing_component_is_never_equal(tmp_path: Path):
     _snap(tmp_path / "a", {"O8": {"violations": []}})
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", ["O8", "O9"], intended=[])

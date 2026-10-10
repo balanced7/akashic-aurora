@@ -981,6 +981,17 @@ def run_tree(ref: str, python: str | None = None) -> Generator[Path, None, None]
             check=True,
             timeout=1800,
         )
+        # Optional builds the caller made (CI: the aurora-rs wheel), installed into this venv so
+        # the tests that need them run instead of skipping. Space-separated wheel paths.
+        wheels = (os.environ.get("ORACLE_WHEELS") or "").split()
+        if wheels:
+            run(
+                ["uv", "pip", "install", "--quiet", "--python", str(venv_python(tree)), *wheels],
+                cwd=tree,
+                env=oracle_env(),
+                check=True,
+                timeout=600,
+            )
         yield tree
     finally:
         _rmtree(base)
@@ -1203,7 +1214,12 @@ def compare_o1(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> l
         return max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)
 
     if skips(b) > skips(a):
-        diffs.append(("skips", f"skip count {skips(b):d} > baseline {skips(a):d}"))
+        # name the newcomers: a count alone sends the reader to rerun the suite to find them
+        new = sorted(
+            n for n, t in b["tests"].items() if t["class"] == "skip" and a["tests"].get(n, {}).get("class") != "skip"
+        )
+        named = " (now skipping: {})".format(", ".join(new[:10])) if new else ""
+        diffs.append(("skips", f"skip count {skips(b):d} > baseline {skips(a):d}{named}"))
 
     def cerr(s: dict[str, Any]) -> int:
         return max((len(r["collect_errors"]) for r in s["runs"]), default=0)
@@ -2040,7 +2056,10 @@ def compare_dirs(
     components: Sequence[str] | None = None,
     partial: bool = False,  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
     intended: list[dict[str, Any]] | None = None,
+    detail: list[str] | None = None,
 ) -> tuple[list[str], bool]:
+    """Compare two snapshots, one summary line per component. A DIFF line names its first three
+    items; pass `detail` to collect every open item (key: what changed), one per entry."""
     intended = load_intended() if intended is None else intended
     lines: list[str] = []
     equal = 0
@@ -2081,6 +2100,8 @@ def compare_dirs(
             lines.append("{} EQUAL{}".format(c, " (intended: {})".format(", ".join(ids)) if ids else ""))
         else:
             summary = "; ".join("{}: {}".format(*d) for d in open_[:3])
+            if detail is not None:
+                detail.extend("{} {}: {}".format(c, *d) for d in open_)
             lines.append(f"{c} DIFF {len(open_):d} {summary}")
     lines.append(f"ORACLE: {equal:d}/{len(comps):d} EQUAL")
     return lines, equal == len(comps)
@@ -2101,8 +2122,11 @@ def cmd_snapshot(args: argparse.Namespace) -> int:
 
 def cmd_compare(args: argparse.Namespace) -> int:
     comps = args.components.split(",") if args.components else None
-    lines, ok = compare_dirs(snapshot_dir(args.a), snapshot_dir(args.b), comps, args.partial)
+    detail: list[str] = []
+    lines, ok = compare_dirs(snapshot_dir(args.a), snapshot_dir(args.b), comps, args.partial, detail=detail)
     print("\n".join(lines))
+    if detail:  # CI keeps no snapshot, so the log has to carry every open item
+        print("open items:\n  " + "\n  ".join(detail))
     return 0 if ok else 1
 
 

@@ -350,3 +350,139 @@ goal = "G5"
 fix_commit = "8bc3020a9bdcd23268c751bf07c04c47a35ccc89"
 regression_test = "tests/test_g5_latent_prior_art_launcher.py"
 ```
+
+## Fleet links and the hook tree (registered after their commits)
+
+### IC-0024 to IC-0031: the HMAC bridge is retired (RFC #70, Phase 6)
+
+The cutover (3cbc97e6) deletes the HMAC path between fleets: scripts/remote_bridge_*.py,
+core/comm/remote_relay.py, bridge_seal.py and bridge_status.py, with the 17 pin and drill files that
+tested them. Fleet links replace it; their tests are tests/test_link_*.py and the Rust suites in
+aurora-rs/link and aurora-rs/linkd. The no-control-kind pin moved to tests/test_link_contract.py.
+Each key names a deleted file, so no surviving test can match.
+
+### IC-0032 to IC-0038: one canonical hook tree
+
+71850339 made agent/harness/hooks the one hook tree and turned scripts/hooks into shims. Tests that
+compared the two copies, or ran once per copy, now have one copy: the per-copy parameters and the
+in-sync checks are gone, and the single-copy cases still run.
+
+```toml
+id = "IC-0024"
+component = "O1"
+key = "id:tests/test_remote_bridge_*"
+reason = "the HMAC bridge retired with its code (RFC #70 Phase 6 cutover, 3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0025"
+component = "O1"
+key = "volatile:tests/test_remote_bridge_*"
+reason = "the HMAC bridge retired with its code (RFC #70 Phase 6 cutover, 3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0026"
+component = "O1"
+key = "id:tests/test_bridge_seal_*"
+reason = "the HMAC bridge retired with its code (RFC #70 Phase 6 cutover, 3cbc97e6); bridge_seal was never called"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0027"
+component = "O1"
+key = "id:tests/test_bridge_status_pins.py::*"
+reason = "the HMAC bridge retired with its code (RFC #70 Phase 6 cutover, 3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0028"
+component = "O1"
+key = "id:tests/test_remote_relay_pins.py::*"
+reason = "the HMAC bridge retired with its code (RFC #70 Phase 6 cutover, 3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0029"
+component = "O1"
+key = "id:tests/test_oom_leak_fixes_2026_08_26_pins.py::test_append_row_is_idempotent_on_a_repeated_id"
+reason = "remote_relay's append pins left with remote_relay (3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0030"
+component = "O1"
+key = "id:tests/test_oom_leak_fixes_2026_08_26_pins.py::test_concurrent_appends_do_not_drop_rows"
+reason = "remote_relay's append pins left with remote_relay (3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0031"
+component = "O1"
+key = "id:tests/test_oom_leak_fixes_2026_08_26_pins.py::test_write_jsonl_uses_a_unique_temp_name"
+reason = "remote_relay's append pins left with remote_relay (3cbc97e6)"
+goal = "RFC70"
+```
+
+```toml
+id = "IC-0032"
+component = "O1"
+key = "id:tests/test_pretooluse_twin_strangler_port.py::test_both_twins_make_the_same_door_call*"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339)"
+goal = "hooks"
+```
+
+```toml
+id = "IC-0033"
+component = "O1"
+key = "id:tests/test_pretooluse_twin_strangler_port.py::test_live_scripts_twin_routes_recall_through_the_strangler_door"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339)"
+goal = "hooks"
+```
+
+```toml
+id = "IC-0034"
+component = "O1"
+key = "id:tests/test_seat_beat_retracts_wedge.py::test_the_turn_end_clears_and_beats_idle[[]#356b9e82b95d]"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339); the hook-path parameters are now spelled out"
+goal = "hooks"
+```
+
+```toml
+id = "IC-0035"
+component = "O1"
+key = "id:tests/test_seat_heartbeat_wiring.py::test_w3_both_hook_copies_stay_in_sync"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339)"
+goal = "hooks"
+```
+
+```toml
+id = "IC-0036"
+component = "O1"
+key = "id:tests/test_seat_identity_resolver.py::test_r6_no_hook_silently_defaults_identity_to_a_peer_name[[]#8c5967fd8486]"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339)"
+goal = "hooks"
+```
+
+```toml
+id = "IC-0037"
+component = "O1"
+key = "id:tests/test_seat_identity_resolver.py::test_r7_both_hook_copies_resolve_identity_identically"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339)"
+goal = "hooks"
+```
+
+```toml
+id = "IC-0038"
+component = "O1"
+key = "id:tests/test_seat_beat_retracts_wedge.py::test_the_turn_end_clears_and_beats_idle[[]#bd892d6cc2f6]"
+reason = "one canonical hook tree; scripts/hooks became shims, so the twin-copy checks have one copy left (71850339); the hook-path parameters are now spelled out"
+goal = "hooks"
+```
