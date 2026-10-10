@@ -311,6 +311,7 @@ def run_one(
     sdir = corpus.scenario_dir(scenario)
     if not (sdir / "start.sha").exists():
         raise KeyError(f"no scenario {scenario!r}")
+    corpus.seal(scenario)  # graders out of reach: oracle and reference are read-only from here
     run_dir = runs_dir() / cand / scenario / f"t{trial}"
     if run_dir.exists():
         shutil.rmtree(run_dir)

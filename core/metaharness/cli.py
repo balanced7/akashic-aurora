@@ -157,3 +157,72 @@ def replay_main(args) -> int:
         return 0 if all(r.get("exit_reason") in ("ok", "error", "timeout", "budget") for r in res) else 1
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def grade_main(args) -> int:
+    """`grade <action>` -- graders and verdicts (task 05)."""
+    from core.metaharness import graders, replay, stats
+
+    a = args.action
+    judge = graders.default_judge if args.judge else None
+    if a == "power":
+        mde = stats.min_detectable(args.scenarios_n, args.trials)
+        pw = stats.power(args.scenarios_n, args.trials, args.delta) if args.delta else None
+        _print(
+            {"min_detectable": mde, "power": pw},
+            args.json,
+            f"{args.scenarios_n} scenarios x {args.trials} trials: detects a pass-rate change of "
+            f"{mde * 100:.1f} points at 80% power"
+            + (f"; power for {args.delta * 100:.0f} points: {pw:.2f}" if pw is not None else ""),
+        )
+        return 0
+    if a == "label":
+        if not (args.criterion and args.person and args.judge_call):
+            print("ERROR: `grade label` needs --criterion, --person and --judge-call")
+            return 2
+        graders.add_label(args.criterion, args.person, args.judge_call, ref=args.ref)
+        _print(graders.agreement(args.criterion), args.json, json.dumps(graders.agreement(args.criterion)))
+        return 0
+    if a == "agreement":
+        rows = [graders.agreement(c) for c in ("quality", "process")]
+        _print(rows, args.json, "\n".join(json.dumps(r) for r in rows))
+        return 0
+    scenarios = args.scenario or []
+    if a == "run":
+        if not (args.candidate and scenarios):
+            print("ERROR: `grade run` needs --candidate and --scenario")
+            return 2
+        out = []
+        for s in scenarios:
+            for rd in replay.runs_for(args.candidate, s):
+                g = graders.grade_run(rd, s, judge=judge)
+                out.append(
+                    {
+                        "run": str(rd),
+                        **{
+                            k: (v or {}).get("score") if isinstance(v, dict) else v
+                            for k, v in g.items()
+                            if k != "non_functional"
+                        },
+                    }
+                )
+        _print(out, args.json, "\n".join(json.dumps(r) for r in out) or "no runs to grade")
+        return 0
+    if a in ("compare", "noise"):
+        if not (args.candidate and args.against and scenarios):
+            print(f"ERROR: `grade {a}` needs --candidate B --against A and --scenario ...")
+            return 2
+        if a == "noise":
+            r = graders.noise_check(args.against, args.candidate, scenarios)
+            _print(r, args.json, ("OK: no criterion beats its own rerun" if r["ok"] else f"NOISY: {r['spurious']}"))
+            return 0 if r["ok"] else 1
+        v = graders.compare(args.against, args.candidate, scenarios)
+        lines = [f"{v['b']} vs {v['a']} on {len(v['scenarios'])} scenario(s): {v['pareto']}"]
+        lines += [
+            f"  {k:<14} {r['a']:>10} -> {r['b']:<10} effect {r['effect']:+.4f} CI {r['ci']}  {r['verdict']}"
+            for k, r in v["criteria"].items()
+        ]
+        _print(v, args.json, "\n".join(lines))
+        return 0
+    print(f"ERROR: unknown action {a!r}")
+    return 2
