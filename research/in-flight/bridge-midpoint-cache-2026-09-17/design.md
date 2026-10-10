@@ -1,5 +1,9 @@
 # A midpoint mail cache for the Akashic↔Akashic bridge (design, 2026-09-17)
 
+> **Superseded (2026-10-10) by fleet links, RFC balanced7/akashic-aurora#70.** The mailbox member
+> (`aurora link mailbox`) replaces this cache and keeps its rule: the midpoint never holds anything it
+> can read, and can never forge anything. See ADR 0011 and `aurora-rs/linkd`. Kept as history.
+
 Daniel's ask, verbatim: "figure out a schema for reliable mail caching in a midpoint so that we can
 communicate even if one of the endpoints is down. Could we host it in a secure and nonhackable way
 through akashiclabs.io?"

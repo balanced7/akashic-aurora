@@ -38,6 +38,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+          # certify.py checks that a superseding check was registered in a LATER commit than
+          # the one it supersedes; a depth-1 clone has no history to answer that from.
+          fetch-depth: 0
       # One launcher (plan G1.P5): the locked environment, then every step through `uv run`.
       # numpy (the embedding subsystems exercised here) is a locked runtime dependency.
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
@@ -158,3 +161,157 @@ jobs:
       # zizmor (workflow security), actionlint (syntax), and every uses: pinned to a SHA
       - name: Workflow lint
         run: uv run poe ci-lint
+
+  install-smoke:
+    name: Install smoke (${{ matrix.os }}, the aurora CLI from this commit)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      AKASHIC_WORLD: alpha
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      # The release path end to end, from local assets: bundle + launcher wheel -> the real
+      # install script for the OS -> the advertised commands and a hook, from outside any
+      # checkout (release.yml repeats this against the assets it is about to publish).
+      - name: Build the bundle and the launcher wheel
+        run: |
+          rel="$RUNNER_TEMP/rel"
+          v="$(uv run --no-project scripts/release/releases.py version)"
+          uv run --no-project scripts/release/build_bundle.py --out "$rel" --version "$v"
+          uv build --package akashic-aurora-cli --wheel --out-dir "$rel"
+          echo "AURORA_V=$v" >> "$GITHUB_ENV"
+          echo "AURORA_RELEASE_BASE=$rel" >> "$GITHUB_ENV"
+      - name: Install with install.sh
+        if: runner.os != 'Windows'
+        run: sh aurora-cli/install/install.sh --version "$AURORA_V" --no-modify-path
+      - name: Install with install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:AURORA_VERSION = $env:AURORA_V
+          $env:AURORA_NO_MODIFY_PATH = '1'
+          ./aurora-cli/install/install.ps1
+      - name: The advertised commands answer from outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          bin="$(uv tool dir --bin)"
+          if command -v cygpath >/dev/null 2>&1; then bin="$(cygpath -u "$bin")"; fi
+          export PATH="$bin:$PATH"
+          set -x
+          aurora self version
+          aurora discover > "$RUNNER_TEMP/discover.txt"   # not a pipe: Windows Python dies on a closed pipe (exit 120)
+          head -5 "$RUNNER_TEMP/discover.txt"
+          aurora status
+          aurora learn smoke --experiment ci_smoke_install --tried "installed aurora with the install script" --result "every command answered" --recommend "keep the install smoke test green on every OS"
+          aurora recall ci_smoke_install | grep -q ci_smoke_install
+          aurora setup --yes --dry-run --harness claude
+          aurora -c "from core.foundation.accel import status; print(status())"
+      - name: Hooks fire through the installed launcher in an enrolled project
+        working-directory: ${{ runner.temp }}
+        run: |
+          bin="$(uv tool dir --bin)"
+          if command -v cygpath >/dev/null 2>&1; then bin="$(cygpath -u "$bin")"; fi
+          export PATH="$bin:$PATH"
+          mkdir -p proj && cd proj
+          aurora hooks install --harness claude --scope user
+          aurora hooks enroll
+          aurora hooks status
+          here="$PWD"; [ "$RUNNER_OS" = "Windows" ] && here="$(pwd -W)"  # Claude Code sends native paths
+          payload='{"session_id":"ci","cwd":"'"$here"'","hook_event_name":"UserPromptSubmit","prompt":"keep the install smoke test green on every OS"}'
+          out="$(printf '%s' "$payload" | aurora agent/harness/hooks/claude_userpromptsubmit.py)"
+          echo "$out"
+          echo "$out" | grep -q ci_smoke_install
+
+  rust:
+    name: Rust (aurora-rs) test, clippy, fmt, deny, MSRV, fuzz smoke + link end to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      # iroh compiles slowly: cache the target directory between runs.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: "aurora-rs -> target"
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0  # v2.87.22
+        with:
+          tool: cargo-deny,cargo-audit,cargo-fuzz
+      # rustup, cargo, clippy and rustfmt come preinstalled on GitHub's Ubuntu runners.
+      - name: cargo test / clippy / fmt
+        working-directory: aurora-rs
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test
+      - name: Licences, advisories and sources (cargo-deny, cargo-audit)
+        working-directory: aurora-rs
+        run: |
+          cargo deny check
+          cargo audit
+      - name: The link crates build on iroh's MSRV (1.91)
+        working-directory: aurora-rs
+        run: |
+          rustup toolchain install 1.91 --profile minimal
+          cargo +1.91 check -p aurora-link -p aurora-linkd
+      - name: Fuzz smoke (every decoder, 20 s each)
+        working-directory: aurora-rs
+        run: |
+          rustup toolchain install nightly --profile minimal
+          link/fuzz/smoke.sh 20
+      - name: Rust output equals Python output, and fleet links end to end
+        run: |
+          uv sync --locked
+          uvx --from 'maturin>=1.9,<2' maturin build --release -m aurora-rs/py/Cargo.toml --out "$RUNNER_TEMP/whl"
+          uv pip install "$RUNNER_TEMP"/whl/*.whl
+          cargo build --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          uv run --no-sync pytest -q -p no:randomly tests/test_accel_parity.py tests/test_link_contract.py \
+            tests/test_link_pyo3_surface.py tests/test_link_legacy_import.py tests/test_link_daemon_e2e.py
+          uv run --no-sync python aurora-rs/bench.py --lessons 500
+
+  link-os:
+    # The daemon, its named-pipe/socket RPC and ManagedChild restarts on all three OSes (RFC #70
+    # Phase 3). Windows stays non-blocking, like the windows smoke above, until it has a green record.
+    name: Fleet links on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: "aurora-rs -> target"
+      - name: Build aurora-linkd and run the link tests
+        shell: bash
+        run: |
+          uv sync --locked
+          cargo build --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          cargo test --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          uv run --no-sync pytest -q -p no:randomly tests/test_link_contract.py tests/test_link_daemon_e2e.py

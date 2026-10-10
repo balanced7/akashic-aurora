@@ -32,6 +32,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 MCP_NAME = "akashic-aurora"
 
 
@@ -56,9 +64,23 @@ def _launch(repo=None):
     return [sys.executable]
 
 
+def _installed_launcher():
+    """The installed `aurora` launcher (aurora-cli/), whose `aurora mcp` outlives upgrades."""
+    try:
+        from core.paths import launcher
+
+        return launcher()
+    except Exception:
+        return None
+
+
 def registration_command(repo=None):
     """The exact `claude mcp add` one-liner, with an ABSOLUTE script path (user-scoped)."""
     import shlex
+
+    exe = _installed_launcher()
+    if exe:
+        return f"claude mcp add --scope user {MCP_NAME} -- {shlex.quote(exe)} mcp"
 
     launch = " ".join(shlex.quote(a) for a in _launch(repo))
     return f'claude mcp add --scope user {MCP_NAME} -- {launch} "{_mcp_path(repo)}"'
@@ -66,6 +88,9 @@ def registration_command(repo=None):
 
 def registration_json(repo=None):
     """The equivalent mcpServers snippet, for manual config editing if preferred."""
+    exe = _installed_launcher()
+    if exe:
+        return {"mcpServers": {MCP_NAME: {"command": exe, "args": ["mcp"], "env": {}}}}
     launch = _launch(repo)
     return {"mcpServers": {MCP_NAME: {"command": launch[0], "args": [*launch[1:], str(_mcp_path(repo))], "env": {}}}}
 
@@ -83,7 +108,7 @@ def main(argv=None):
     print("# 1) run this once:")
     print(f"     {registration_command()}")
     print("# 2) restart Claude Code")
-    print(f"# 3) verify: {_pyl()} agent_cli.py boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
+    print(f"# 3) verify: {_cli()} boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
     return 0
 
 

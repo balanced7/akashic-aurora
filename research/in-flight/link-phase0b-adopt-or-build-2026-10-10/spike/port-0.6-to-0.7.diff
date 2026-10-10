@@ -1,0 +1,35 @@
+--- /tmp/claude-1000/-mnt-lnx-storage-projects-akashic-labs/a29823b2-39f0-4498-b86c-7d8a4b9ad82d/scratchpad/phase0b/probe06/src/main.rs	2026-10-10 13:32:52.175370965 +0200
++++ src/main.rs	2026-10-10 13:33:24.377292723 +0200
+@@ -3,7 +3,8 @@
+ use p2panda_auth::Access;
+ use p2panda_auth::group::resolver::StrongRemove;
+ use p2panda_auth::group::{GroupAction, GroupCrdt, GroupMember};
+-use p2panda_auth::traits::{IdentityHandle, Operation, OperationId};
++use p2panda_auth::traits::Operation;
++use p2panda_core::traits::{Author, OperationId};
+ use p2panda_encryption::Rng;
+ use p2panda_encryption::crypto::x25519::SecretKey;
+ use p2panda_encryption::key_bundle::Lifetime;
+@@ -11,9 +12,9 @@
+ use p2panda_encryption::traits::PreKeyManager;
+ use p2panda_encryption::two_party::LongTermTwoParty;
+ 
+-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
++#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+ struct DeviceId(u8);
+-impl IdentityHandle for DeviceId {}
++impl Author for DeviceId {}
+ 
+ #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ struct RecordId(u32);
+@@ -60,8 +61,8 @@
+     let b_km = KeyManager::rotate_prekey(KeyManager::init(&b_sk).unwrap(), Lifetime::default(), &rng).unwrap();
+     let a_bundle = KeyManager::prekey_bundle(&a_km).unwrap();
+     let b_bundle = KeyManager::prekey_bundle(&b_km).unwrap();
+-    let a_2sm = LongTermTwoParty::init(b_bundle);
+-    let b_2sm = LongTermTwoParty::init(a_bundle);
++    let a_2sm = LongTermTwoParty::init_to_send(b_bundle);
++    let b_2sm = LongTermTwoParty::init_to_receive();
+     let (_a_2sm, msg) = LongTermTwoParty::send(a_2sm, &a_km, b"group secret", &rng).unwrap();
+     let (_b_2sm, _b_km, pt) = LongTermTwoParty::receive(b_2sm, b_km, msg).unwrap();
+     println!("2SM delivered: {}", String::from_utf8_lossy(&pt));

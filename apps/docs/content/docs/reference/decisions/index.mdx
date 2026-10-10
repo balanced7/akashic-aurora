@@ -13,9 +13,10 @@ A decision record says what we decided and why, in a few sentences. We keep one 
   <Card title="0005: No file ownership" href="/docs/reference/decisions/0005-no-file-ownership" description="Any agent may edit any file, and live agents coordinate with short advisory locks instead of standing territories." />
   <Card title="0006: Deterministic by default" href="/docs/reference/decisions/0006-deterministic-by-default" description="Recall and routing use deterministic scoring, and a learned method becomes the default only after it beats that baseline on our own data." />
   <Card title="0007: Union, not consensus" href="/docs/reference/decisions/0007-union-not-consensus" description="When several models review the same work, we keep every finding and verify each one, instead of keeping only what they agree on." />
-  <Card title="0008: Park mail from another fleet" href="/docs/reference/decisions/0008-park-peer-mail" description="Messages from a peer installation land in a file for review and never go straight onto the live bus." />
+  <Card title="0008: Quarantine mail from another fleet" href="/docs/reference/decisions/0008-park-peer-mail" description="Messages from another fleet land in a quarantine and reach the live bus only by local policy; by default a person decides." />
   <Card title="0009: Charter means standing contract" href="/docs/reference/decisions/0009-charter-means-standing-contract" description="The word charter is reserved for a seat's standing contract, and one-off work orders are called briefs." />
   <Card title="0010: Generate status" href="/docs/reference/decisions/0010-generate-status-never-hand-write-it" description="Status and maps come from commands that read the live system, never from hand-kept documents." />
+  <Card title="0011: Fleets sync through signed feeds" href="/docs/reference/decisions/0011-fleets-sync-through-signed-feeds" description="Fleets share a link with a signed member list, and a Rust daemon owns the keys while Python owns what agents touch." />
 </Cards>
 
 The full design history lives in the repo under `docs/library/`. Abandoned ideas and what they taught are in `docs/FOSSILS.md`.

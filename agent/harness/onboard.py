@@ -103,14 +103,34 @@ def _mcp_command(repo: Path) -> str | None:
         return None
 
 
+def _ask_enrolment(ask: Asker, here: Path, cli: str, dry: bool) -> None:
+    """Installed, the hooks speak up only in enrolled projects (agent/harness/scope.py)."""
+    is_home = here == Path(os.path.expanduser("~")).resolve()
+    say("2/5", "the hooks recall and record only in projects you enroll; everywhere else they stay silent.")
+    choice = ask.ask(
+        f"enroll this directory ({here}), every directory, or none for now?",
+        "none" if is_home else "here",
+        ("here", "everywhere", "none"),
+    )
+    if choice == "here":
+        say("2/5", inst.enroll(here, dry_run=dry))
+    elif choice == "everywhere":
+        say("2/5", inst.enroll(everywhere=True, dry_run=dry))
+    later(f"{cli} hooks enroll --project <dir>      # or --everywhere; `hooks unenroll` undoes it")
+
+
 def run(args) -> int:
-    from core.paths import repo_root
+    from core.paths import cli_command, launcher, repo_root
 
     repo = repo_root().resolve()
     pyl = _launcher()
     ask = Asker(bool(getattr(args, "yes", False)))
     dry = bool(getattr(args, "dry_run", False))
-    cli = f"{pyl} agent_cli.py"
+    cli = cli_command()
+    # Installed (`aurora`): the code root is a release bundle, so "this project" means the
+    # directory you ran setup from, and the checkout-only steps (git hooks) do not apply.
+    installed = launcher() is not None
+    here = Path.cwd().resolve() if installed else repo
 
     print("Akashic Aurora setup. Each step shows the command that does the same thing later.")
     if dry:
@@ -118,9 +138,10 @@ def run(args) -> int:
 
     # 1. where are we --------------------------------------------------------------------
     found = detect_harnesses()
-    say("1/5", f"OS: {'Windows' if os.name == 'nt' else sys.platform}; repo: {repo}")
+    where = f"Aurora {os.getenv('AURORA_CLI_VERSION', '')} installed at {repo}" if installed else f"repo: {repo}"
+    say("1/5", f"OS: {'Windows' if os.name == 'nt' else sys.platform}; {where}")
     say("1/5", f"harnesses found: {', '.join(found) or 'none'}")
-    if not _skills_link_ok(repo):
+    if not installed and not _skills_link_ok(repo):
         say(
             "1/5",
             "WARNING: .claude/skills is not a symlink to .agents/skills, so Claude Code sees no skills. "
@@ -133,6 +154,7 @@ def run(args) -> int:
 
     # 2. hooks per harness -----------------------------------------------------------------
     claude_target: Path | None = None
+    enrolled_asked = False
     for h in wanted:
         default = getattr(args, "scope", None) or _DEFAULT_SCOPE[h]
         scope = ask.ask(
@@ -147,8 +169,8 @@ def run(args) -> int:
         project = None
         flags = f"--harness {h} --scope {scope}"
         if scope == "project":
-            project = getattr(args, "project", None) or ask.ask("which project directory?", str(repo))
-            if Path(project).resolve() != repo:
+            project = getattr(args, "project", None) or ask.ask("which project directory?", str(here))
+            if Path(project).resolve() != here:
                 flags += f' --project "{project}"'
         try:
             res = inst.install(h, scope, project=project, dry_run=dry)
@@ -160,6 +182,9 @@ def run(args) -> int:
         later(f"{cli} hooks disable {flags}    # off, remembered; `hooks enable {flags}` brings them back")
         if h == "claude":
             claude_target = res.path
+        if installed and scope == "user" and not enrolled_asked:
+            enrolled_asked = True
+            _ask_enrolment(ask, here, cli, dry)
 
     # 3. identity --------------------------------------------------------------------------
     if claude_target is not None:
@@ -181,27 +206,33 @@ def run(args) -> int:
 
     # 4. MCP door --------------------------------------------------------------------------
     mcp = _mcp_command(repo)
-    say("4/5", "this repo's .mcp.json already gives Claude Code the akashic-aurora tools when launched here.")
+    if installed:
+        say("4/5", "the akashic-aurora MCP server gives Claude Code Aurora's tools (boot, recall, learn, ...).")
+    else:
+        say("4/5", "this repo's .mcp.json already gives Claude Code the akashic-aurora tools when launched here.")
     if mcp and "claude" in wanted:
-        if ask.yes("also register them user-wide, so sessions launched elsewhere get them?", False):
+        if ask.yes("register them user-wide, so every Claude Code session gets them?", installed):
             if dry:
                 say("4/5", f"would run: {mcp}")
             else:
                 r = subprocess.run(mcp, shell=True, check=False)
                 say("4/5", "registered" if r.returncode == 0 else f"`claude mcp add` exited {r.returncode}")
-        later(f"{pyl} scripts/mcp_register.py   # prints: {mcp}")
+        later(mcp if installed else f"{pyl} scripts/mcp_register.py   # prints: {mcp}")
 
     # 5. git hooks -------------------------------------------------------------------------
-    if ask.yes("install the repo's git hooks (pre-commit guardrails, commit-msg lint)?", True):
+    if installed:
+        say("5/5", "git hooks: skipped -- they guard commits to an Aurora checkout, and this is an install.")
+    elif ask.yes("install the repo's git hooks (pre-commit guardrails, commit-msg lint)?", True):
         if dry:
             say("5/5", "would run scripts/githooks/install_git_hooks.py")
         else:
             subprocess.run([sys.executable, str(repo / "scripts" / "githooks" / "install_git_hooks.py")], check=False)
-    later(f"{pyl} scripts/githooks/install_git_hooks.py")
+    if not installed:
+        later(f"{pyl} scripts/githooks/install_git_hooks.py")
 
     # summary ------------------------------------------------------------------------------
     print("\nDone. Where things stand:")
-    for line in inst.status_lines():
+    for line in inst.status_lines(here):
         print("  " + line)
     print(
         "\nThe commands you just met:\n"

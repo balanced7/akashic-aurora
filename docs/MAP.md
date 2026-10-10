@@ -60,10 +60,11 @@ Class: reference
 - agent/harness/codex_bifrost_wake.py
 - agent/initializer.py
 
-## core/foundation/  (11 modules)
+## core/foundation/  (12 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
+| `accel.py` | accel -- optional Rust implementations of hot paths, with Python as the reference. | tests/test_accel_parity.py | GAP | `AURORA_NO_RUST` |
 | `durable_reconcile.py` | Per-family authority reconcile: make the durable source COMPLETE before migrating. | GAP | GAP | `AI_SETUP` |
 | `embedded_redis.py` | embedded_redis -- a Redis-compatible server in pure Python, persisted to SQLite. | tests/test_embedded_redis.py | GAP | `AKASHIC_EMBEDDED_REDIS_DIR`, `AKASHIC_EMBEDDED_REDIS_FLUSH_SEC`, `AKASHIC_REDIS_BACKEND` |
 | `filelock.py` | A cross-process exclusive file lock. | GAP | GAP |  |
@@ -91,35 +92,33 @@ Class: reference
 | `agent_signal_ledger.py` | Agent Signal Ledger: the ordered record of every signal agents emit | GAP | GAP |  |
 | `coordinator_api.py` | Coordinator API: Minimal signal-based logging for agents | GAP | GAP |  |
 
-## core/comm/  (72 modules)
+## core/comm/  (69 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
-| `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_ask_as_resident.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_COLLAPSE_AT`, `AKASHIC_ASK_CONTEXT_CHARS`, `AKASHIC_ASK_DISTINCT_AT`, `AKASHIC_ASK_FAN_WORKERS`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `AKASHIC_ROUTE_JOURNAL`, `DEEPSEEK_API_KEY`, `KIMI_BASE_URL`, `KIMI_READ_TIMEOUT` |
+| `ask.py` | ask -- a synchronous helper call, with no seat behind it (T171). | tests/test_ask_as_resident.py | GAP | `AKASHIC_ASK_BASE_URL`, `AKASHIC_ASK_COLLAPSE_AT`, `AKASHIC_ASK_CONTEXT_CHARS`, `AKASHIC_ASK_DISTINCT_AT`, `AKASHIC_ASK_FAN_WORKERS`, `AKASHIC_ASK_MAX_TOKENS`, `AKASHIC_ASK_MODEL`, `AKASHIC_ROUTE_JOURNAL`, `AURORA_LAUNCHER`, `DEEPSEEK_API_KEY`, `KIMI_BASE_URL`, `KIMI_READ_TIMEOUT` |
 | `ask_bg.py` | ask_bg -- a helper call that outlives your turn without becoming a seat (T205). | tests/test_t205_ask_bg.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_ASK_BG_ORPHAN_S` |
 | `ask_state.py` | ask_state -- one durable ask's honest state (T196d). | tests/test_t196d_ask_state.py | GAP |  |
 | `assertions.py` | Pre-flight assertions (T068-R3 / deepseek M10) -- verify a directed answer's FACTUAL | GAP | GAP | `BIFROST_PREFLIGHT_ASSERT` |
 | `awareness.py` | Pure, bounded awareness providers and the composite ``sweep`` snapshot. | tests/test_t084_awareness_snapshot.py | GAP | `BIFROST_NAMESPACE` |
-| `bifrost_api.py` | bifrost.api -- the one door an agent uses to join and work the Bifrost bus. | tests/test_bifrost_api.py | GAP | `BIFROST_CONSUME_LANE`, `BIFROST_WAKE_LANE` |
+| `bifrost_api.py` | bifrost.api -- the one door an agent uses to join and work the Bifrost bus. | tests/test_bifrost_api.py | GAP | `AURORA_LAUNCHER`, `BIFROST_CONSUME_LANE`, `BIFROST_WAKE_LANE` |
 | `blobs.py` | BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads. | GAP | GAP | `AI_SETUP` |
-| `bridge_seal.py` | bridge_seal — the sealed envelope and the chain, for a bridge that may pass through a midpoint. | tests/test_bridge_seal_hardening.py | GAP |  |
-| `bridge_status.py` | Remote-bridge status and remediation — the model the Bifrost UI renders. | tests/test_bridge_status_pins.py | GAP |  |
 | `bus.py` | Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams. | tests/test_bifrost_bus.py | GAP | `AGENT_ID`, `AKASHIC_UNATTENDED_S`, `BIFROST_INCARNATION`, `BIFROST_NAMESPACE`, `BIFROST_REASK_WINDOW_S`, `BIFROST_REPLY_DEDUP_TTL_S`, `CLAUDE_CODE_SESSION_ID`, `PYTEST_CURRENT_TEST` |
 | `conductor_gate.py` | conductor_gate -- succession detection + the acting conductor's bounded mandate. | tests/drill_conductor_gate.py | GAP | `AKASHIC_CONDUCTOR_SUCCESSORS`, `AKASHIC_OPERATOR_IDS`, `BIFROST_AGENT_ID` |
 | `context_hints.py` | Context Hints -- compact, ephemeral, per-agent context forwarding between peers. | tests/test_context_hints_gate.py | GAP |  |
-| `control.py` | Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration. | tests/test_bifrost_control_halt.py | docs/library/design/20260712_control-plane-namespace-isolation-claude_fade67.md | `BIFROST_MAX_HOPS`, `BIFROST_MAX_REPLIES_PER_MIN`, `BIFROST_NAMESPACE` |
+| `control.py` | Bifrost control plane -- human-in-the-loop PAUSE + runaway-loop guard for live agent collaboration. | tests/test_bifrost_control_halt.py | docs/library/design/20260712_control-plane-namespace-isolation-claude_fade67.md | `AURORA_LAUNCHER`, `BIFROST_MAX_HOPS`, `BIFROST_MAX_REPLIES_PER_MIN`, `BIFROST_NAMESPACE` |
 | `control_channel.py` | Out-of-band control: a loopback listener that survives a dead bus. | tests/test_control_channel.py | GAP | `AKASHIC_CONTROL_PORT_BASE` |
 | `cursor_admin.py` | cursor_admin -- T076a: SANCTIONED skip-to-now for an agent's consume cursors. | GAP | GAP |  |
 | `daemon_state.py` | daemon_state -- the autopilot's shared surface (slice A1, T075 gamma-scope). | GAP | GAP | `BIFROST_NAMESPACE` |
 | `discord_bridge.py` | Outbound Discord bridge -- the fleet becomes watchable from a phone. | GAP | GAP | `AKASHIC_DISCORD_WEBHOOK`, `AKASHIC_DISCORD_WEBHOOKS` |
 | `discord_feed.py` | The automatic Discord feed — the subscription that makes the bridge real. | tests/test_discord_feed_honesty.py | GAP |  |
 | `discord_guest_reply.py` | discord_guest_reply -- the pure half of the guest reply path (the tier's missing direction). | tests/test_discord_guest_reply.py | GAP |  |
-| `discord_inbound.py` | Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does. | tests/test_discord_inbound_pins.py | GAP | `AKASHIC_DISCORD_OPERATOR_ID_FILE`, `AKASHIC_DISCORD_PEOPLE_FILE`, `AKASHIC_DISCORD_ROOTS_FILE`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
+| `discord_inbound.py` | Discord inbound — Daniil's Discord messages become his voice on the bus. Nothing else does. | tests/test_discord_inbound_pins.py | GAP | `AKASHIC_DISCORD_OPERATOR_ID_FILE`, `AKASHIC_DISCORD_PEOPLE_FILE`, `AKASHIC_DISCORD_ROOTS_FILE`, `AKASHIC_DISCORD_SEATS_REGISTRY`, `AURORA_LAUNCHER` |
 | `discord_ladder.py` | T380 -- the comms-stage reaction ladder, pure half (no discord import). | GAP | GAP |  |
 | `discord_rooms.py` | Outbound room router — each ask/breakout becomes a Discord thread. | tests/test_discord_rooms_pins.py | GAP | `AKASHIC_DISCORD_BOT_TOKEN`, `AKASHIC_DISCORD_FORUM_WEBHOOK`, `AKASHIC_DISCORD_ROOMS_REGISTRY`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
 | `dispatcher.py` | Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes. | GAP | GAP |  |
-| `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_LANE_STALL_PAGE_S`, `AKASHIC_LANE_STALL_WARN_S`, `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
-| `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md |  |
+| `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_LANE_STALL_PAGE_S`, `AKASHIC_LANE_STALL_WARN_S`, `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `AURORA_LAUNCHER`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
+| `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md | `AURORA_LAUNCHER` |
 | `engine_vitals.py` | engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1). | tests/test_t079_e1_engine_vitals.py | GAP | `BIFROST_NAMESPACE` |
 | `expectations.py` | expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29). | tests/test_t030_l4_expectations.py | GAP | `AKASHIC_EXPECT_TASK_SETTLE`, `BIFROST_NAMESPACE` |
 | `failsafe.py` | The failsafe deadman -- an out-of-band watcher that survives the bus it watches. | tests/test_failsafe_watcher.py | GAP | `AKASHIC_RUN_EXPECTATION` |
@@ -131,19 +130,18 @@ Class: reference
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `kinds.py` | T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision. | tests/test_t175_skip_kinds_names_what_it_skips.py | GAP |  |
 | `lane_depths.py` | lane_depths -- the engine room's flow gauge source (T079-E2). | GAP | GAP | `BIFROST_NAMESPACE` |
-| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_g5_latent_prior_art_launcher.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
+| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_aurora_launcher.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
 | `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `AKASHIC_UNATTENDED_S`, `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
 | `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_g4_latent_locks_age.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
 | `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `BIFROST_NAMESPACE` |
 | `operator_reply.py` | Answering the operator, in one argument, with an honest delivery verdict. | tests/test_operator_reply.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_OPERATOR_ID`, `CLAUDE_CODE_SESSION_ID` |
-| `packet_spec.py` | Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043). | GAP | docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md | `BIFROST_LANES_DUAL_WRITE`, `BIFROST_STALE_MS`, `BUS_MAX_MESSAGE_BYTES`, `FRAG_REASSEMBLY_TTL`, `PACKET_INTEGRITY_ENABLED`, `PACKET_INTEGRITY_TRACE`, `PACKET_TRACE_SPOT_INTERVAL` |
+| `packet_spec.py` | Packet Spec v1 -- envelope integrity + MTU library (T040 LAW; built in T043). | GAP | docs/library/design/20260701_packet-spec-v1-reconciled-build-spec-dua_a50b94.md | `AURORA_LAUNCHER`, `BIFROST_LANES_DUAL_WRITE`, `BIFROST_STALE_MS`, `BUS_MAX_MESSAGE_BYTES`, `FRAG_REASSEMBLY_TTL`, `PACKET_INTEGRITY_ENABLED`, `PACKET_INTEGRITY_TRACE`, `PACKET_TRACE_SPOT_INTERVAL` |
 | `pager.py` | pager -- page-grade findings reach a HUMAN (T078-W4, the 6h-invisible killer). | tests/test_page_resolution.py | docs/library/design/remote-bifrost-bridge-serge-onepager.md | `BIFROST_NAMESPACE` |
 | `peer_ready.py` | peer_ready -- make the peer EXIST before asking it something (T197c). | tests/test_t197c_peer_ready.py | GAP |  |
 | `presets.py` | Fan presets: a named answer contract bound to the parser that reads it back. | tests/test_arsenal_presets.py | GAP |  |
 | `promoter.py` | Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger. | tests/test_bifrost_promoter.py | GAP | `AKASHIC_ACK_UNHANDLED_HOURS` |
 | `reaper.py` | reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded. | tests/test_t108_s4_reaper_hardening.py | research/reviewed/fence-lite-s4-reaper-kimi-2026-07-28.md |  |
-| `remote_relay.py` | Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1). | tests/test_remote_relay_pins.py | GAP | `AKASHIC_REMOTE_BRIDGE_PEER_URL` |
 | `role_queue.py` | role_queue -- T108 S1: load-balanced role-addressed work with claim semantics. | tests/test_t108_role_queue.py | GAP |  |
 | `room_feed.py` | Namespace-aware feed-stream discovery -- the backend half of readable side rooms. | tests/test_room_feed_namespace.py | GAP |  |
 | `roster.py` | roster -- S2: the lobby. Per-seat liveness the whole fleet can read. | tests/test_roster_connection_reuse.py | docs/library/design/20260718_frontier-roster-playbook-opening-positio_fde0ed.md | `AKASHIC_RESUME_GAP_S`, `AKASHIC_ROSTER_CHURN_AT`, `AKASHIC_ROSTER_CHURN_WINDOW_S`, `AKASHIC_WORKLIVE_FRESH_S`, `AKASHIC_WORKLIVE_TTL_S` |
@@ -161,8 +159,8 @@ Class: reference
 | `storm_detect.py` | storm_detect — S0-beta storm signature detection (lane-depth spike + repeat-delivery). | GAP | GAP | `STORM_DEPTH_THRESHOLD`, `STORM_DEPTH_WINDOW`, `STORM_REPEAT_THRESHOLD` |
 | `thread_capture.py` | Subject-bound, non-consuming Bifrost thread capture (T084 S2). | GAP | GAP |  |
 | `timescale.py` | Timescale (T030 L1 follow-up) -- ONE seam for BUGGIFY-style timeout shrinking. | GAP | GAP | `AKASHIC_TIMEOUT_MULTIPLIER` |
-| `toolbox.py` | core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam. | tests/test_k0_toolbox_extraction.py | docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md | `AKASHIC_AGENT_ID`, `DEEPSEEK_MAX_CMD_TIMEOUT`, `DEEPSEEK_RECALL_AT` |
-| `triage_park.py` | Triage park (S0-alpha) -- the scry-to-bottom bench. | tests/test_s0_triage_park.py | GAP | `BIFROST_NAMESPACE` |
+| `toolbox.py` | core.comm.toolbox -- the fleet's guarded tool surface (schemas + executor), shared seam. | tests/test_k0_toolbox_extraction.py | docs/library/report/20260715_deepseek-t067-1-design-toolbox-third-doo_ae2b37.md | `AKASHIC_AGENT_ID`, `AURORA_LAUNCHER`, `DEEPSEEK_MAX_CMD_TIMEOUT`, `DEEPSEEK_RECALL_AT` |
+| `triage_park.py` | Triage park (S0-alpha) -- the scry-to-bottom bench. | tests/test_s0_triage_park.py | GAP | `AURORA_LAUNCHER`, `BIFROST_NAMESPACE` |
 | `turn_metrics.py` | Turn metrics (progress-bars data half; co-designed claude+deepseek 2026-07-11). | tests/test_turn_metrics.py | GAP | `BIFROST_NAMESPACE` |
 | `wake_seat.py` | wake_seat -- the per-session wake-seat protocol (T029 Wave 2, the R1/R16 fix). | tests/test_wake_seat.py | docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md | `AKASHIC_TOMBSTONE`, `AKASHIC_WAKE_MARKER_FRESH_MIN`, `BIFROST_NAMESPACE` |
 | `wake_tiers.py` | wake tiers -- the priority dimension the wake decision was missing. | tests/test_wake_tiers.py | GAP |  |
@@ -176,13 +174,13 @@ Class: reference
 | `cognitive_metrics.py` | Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine. | tests/test_cognitive_metrics.py | GAP |  |
 | `compare.py` | compare -- the cross-domain set difference, with a name (T213). | tests/test_t213_compare.py | GAP |  |
 | `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/drill_conductor_gate.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md |  |
-| `continuity.py` | Bounded, non-authoritative continuity evidence for exactly one seat. | tests/test_continuity_drift.py | docs/library/design/20260701_continuity-of-mode-institutionalizing-st_e1eb96.md |  |
+| `continuity.py` | Bounded, non-authoritative continuity evidence for exactly one seat. | tests/test_continuity_drift.py | docs/library/design/20260701_continuity-of-mode-institutionalizing-st_e1eb96.md | `AURORA_LAUNCHER` |
 | `dawe_census.py` | dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad. | tests/test_w164_dawe_census.py | GAP |  |
-| `defer_queue.py` | defer_queue — the capability-gated standing queue (W33, seat-zero wave B3). | tests/test_w33_defer_queue.py | GAP |  |
+| `defer_queue.py` | defer_queue — the capability-gated standing queue (W33, seat-zero wave B3). | tests/test_w33_defer_queue.py | GAP | `AURORA_LAUNCHER` |
 | `experiment.py` | Coordination experiment harness -- the Stage-3 evidence engine. | tests/test_coord_experiment.py | docs/library/contract/20260923_sonnet-scaffolding-experiment-sealed-pre_a36df6.md |  |
 | `fence_workspace.py` | Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention. | tests/test_fence_workspace.py | GAP | `AKASHIC_FENCE_ROOT` |
 | `forecast_registry.py` | T375 -- the engineering forecast registry (append-only, fold-not-table). | tests/test_t375_forecast_registry.py | GAP |  |
-| `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_t084_ground_seat_continuity.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md |  |
+| `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_t084_ground_seat_continuity.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md | `AURORA_LAUNCHER` |
 | `intent.py` | Intent declaration -- Policy 0 of the coordination layer. | tests/test_boot_intent_surface.py | docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md | `BIFROST_NAMESPACE` |
 | `intent_shadow.py` | Deterministic, renderer-neutral previews of proposed Aurora actions. | GAP | GAP |  |
 | `lens_ledger.py` | lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied. | tests/test_w168_lens_ledger.py | GAP | `AKASHIC_LENS_LEDGER` |
@@ -190,9 +188,9 @@ Class: reference
 | `metrics.py` | Solution-Space-Shrinkage Tracker — the Metric C cross-run watchdog. | tests/narrative_metrics.py | GAP |  |
 | `negotiation.py` | Negotiation round — brief window after user input where agents declare plans. | tests/test_negotiation.py | GAP |  |
 | `observations.py` | Shared schema for bounded, subject-explicit observations. | GAP | GAP |  |
-| `orient.py` | Renderer-neutral orientation scene over Aurora's native read verbs. | tests/test_boot_orientation.py | docs/bifrost-new-seat-orientation.md |  |
+| `orient.py` | Renderer-neutral orientation scene over Aurora's native read verbs. | tests/test_boot_orientation.py | docs/bifrost-new-seat-orientation.md | `AURORA_LAUNCHER` |
 | `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | docs/library/report/20260807_t207-grounding-ab-preregistration_b423f7.md |  |
-| `session_focus.py` | Session focus -- which task THIS session's tool calls belong to, and a nudge when they drift. | tests/test_t056b_session_focus.py | GAP | `AKASHIC_SESSION_ID`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
+| `session_focus.py` | Session focus -- which task THIS session's tool calls belong to, and a nudge when they drift. | tests/test_t056b_session_focus.py | GAP | `AKASHIC_SESSION_ID`, `AURORA_LAUNCHER`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
 | `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_g4_latent_sift_junction_record.py | GAP |  |
 | `suite_baseline.py` | suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4). | tests/test_w34_suite_baseline.py | GAP |  |
@@ -220,7 +218,7 @@ Class: reference
 |---|---|---|---|---|
 | `actions.py` | The importable recall-at-action contract for EXTERNAL consumers (deepseek harness posttool / | tests/test_harness_actions.py | docs/library/design/20260805_t196-ask-transaction-spec_b59657.md |  |
 | `anchors.py` | Lesson anchor resolver -- does a lesson's premise still hold? | tests/test_lesson_anchors.py | GAP |  |
-| `at_action.py` | Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action. | GAP | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_BENCH_PROBE_DAYS`, `AKASHIC_BENCH_PROBE_MAX`, `AKASHIC_RECALL_CACHE_TTL`, `AKASHIC_RECALL_FLOOR`, `AKASHIC_RECALL_SELF_ECHO_H`, `AKASHIC_RECALL_STATE_DIR`, `AKASHIC_STALE_CUE_DAYS`, `AKASHIC_VERB_FLOOR` |
+| `at_action.py` | Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action. | GAP | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_BENCH_PROBE_DAYS`, `AKASHIC_BENCH_PROBE_MAX`, `AKASHIC_RECALL_CACHE_TTL`, `AKASHIC_RECALL_FLOOR`, `AKASHIC_RECALL_SELF_ECHO_H`, `AKASHIC_RECALL_STATE_DIR`, `AKASHIC_STALE_CUE_DAYS`, `AKASHIC_VERB_FLOOR`, `AURORA_LAUNCHER` |
 | `curator.py` | Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report. | GAP | GAP |  |
 | `dissent.py` | Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson. | tests/test_dissent_capture.py | docs/library/report/20260718_kimi-fresh-eyes-dissent-round-t094-recal_71a6f9.md |  |
 | `forge.py` | Forge F1 -- the Tier-0 edit gate (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204 | tests/test_forge_gate.py | docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204.md |  |
@@ -235,7 +233,7 @@ Class: reference
 | `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_arsenal_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
 | `shadow_shelf.py` | Offline shadow-shelf substrate for T370 Slice 0. | tests/test_t370_shadow_shelf_reader_red.py | GAP |  |
 | `staleness.py` | The stale-claim detector: a lesson's ANCHORS can resolve while its CLAIM has gone false. | tests/test_t116_retroactive_staleness.py | docs/library/brief/20260719_w04-staleness-stamps-design-brief-for-ki_4aad76.md |  |
-| `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/design/20260901_discord-verb-surface-taxonomy-navi-00000_1b1008.md | `AKASHIC_AGENT_ID` |
+| `surface.py` | The recall cluster's CLI surface -- W169 slice 1 of the agent_cli extraction. | tests/test_boot_intent_surface.py | docs/library/design/20260901_discord-verb-surface-taxonomy-navi-00000_1b1008.md | `AKASHIC_AGENT_ID`, `AURORA_LAUNCHER` |
 
 ## core/primitives/  (8 modules)
 
@@ -286,7 +284,7 @@ Class: reference
 | `capabilities.py` | Capability tokens + role templates -- the atomic vocabulary of the security schema. | GAP | GAP |  |
 | `grant_writer.py` | core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema). | GAP | GAP |  |
 | `private_plane.py` | The private-plane leak guard: ingress, at the one place everything must pass. | tests/test_private_plane_guard.py | GAP |  |
-| `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AKASHIC_ACL_PATH` |
+| `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AKASHIC_ACL_PATH`, `AURORA_LAUNCHER` |
 
 ## core/fleet/  (8 modules)
 
@@ -295,7 +293,7 @@ Class: reference
 | `app_package.py` | app_package -- the rung the ladder did not have on 2026-08-24. | tests/test_app_package_rung.py | GAP | `AKASHIC_APP_PACKAGE` |
 | `caller.py` | The direct caller -- one-shot invocation of a local model for a BOUNDED subtask. | tests/test_recall_error_is_not_silence.py | GAP |  |
 | `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
-| `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md |  |
+| `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md | `AURORA_LAUNCHER` |
 | `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_t292_scout_role.py | GAP |  |
 | `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launcher_sunshine_red.py | GAP | `DSH_HOME` |
 | `seat_model.py` | Which model a seat runs on -- the pin, and the self-report. | tests/test_seat_model.py | GAP |  |
@@ -322,7 +320,7 @@ Class: reference
 | `reinforce.py` | ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use | GAP | GAP |  |
 | `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
 
-## agent/harness/  (13 modules)
+## agent/harness/  (15 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -330,13 +328,15 @@ Class: reference
 | `capture.py` | Payload-truth capture shared by every harness adapter (Integration Tiers H1). | tests/test_bifrost_console_capture.py | docs/library/chronicle/20260723_last-session-draft-auto-captured-2026-07_1dd6ee.md | `AKASHIC_PAYLOAD_CAPTURE` |
 | `codex_app_server.py` | Owned Codex App Server stdio host. | tests/test_codex_app_server.py | GAP | `AKASHIC_CODEX_BINARY`, `LOCALAPPDATA` |
 | `codex_bifrost_wake.py` | Zero-model Bifrost level watcher with an owned Codex turn starter. | GAP | GAP | `AKASHIC_CALLSIGN_HINT`, `AKASHIC_CALLSIGN_STATUS`, `LOCALAPPDATA` |
-| `context.py` | The auto-boot whisper shared by every harness adapter (Integration Tiers H0). | tests/test_context_hints_gate.py | docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md | `AKASHIC_AUTOBOOT`, `AKASHIC_WHISPER_LINES` |
-| `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_g4_latent_vfx_probe_none_delta.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `BIFROST_NAMESPACE` |
+| `context.py` | The auto-boot whisper shared by every harness adapter (Integration Tiers H0). | tests/test_context_hints_gate.py | docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md | `AKASHIC_AUTOBOOT`, `AKASHIC_WHISPER_LINES`, `AURORA_LAUNCHER` |
+| `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_g4_latent_vfx_probe_none_delta.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `AURORA_LAUNCHER`, `BIFROST_NAMESPACE` |
 | `draft_keepalive.py` | draft_keepalive -- make the auto-handoff survive an UNGRACEFUL death. | tests/test_draft_keepalive.py | GAP |  |
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
+| `install.py` | Hook installer: register Aurora's harness hooks at USER or PROJECT scope, and turn them off/on. | tests/test_hooks_installer.py | docs/library/contract/20260901_installer-manifest-v0_a9dbfe.md |  |
 | `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
-| `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md |  |
-| `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md |  |
+| `onboard.py` | `agent_cli.py setup` -- the onboarding sequence, and a mini-tutorial of the CLI it drives. | tests/test_onboarding_v2.py | docs/ONBOARDING-BRIDGE.md | `AURORA_CLI_VERSION` |
+| `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AURORA_LAUNCHER` |
+| `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AI_SETUP` |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | tests/test_w162_seat_seen_family.py | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |
 | `trace.py` | Push display-only trace lines (tool calls) onto the Bifrost bus so the console shows what | tests/test_flow_trace.py | docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md | `AKASHIC_AGENT_ID`, `AKASHIC_TRACE` |
 
@@ -344,5 +344,5 @@ Class: reference
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
-| `bifrost_pull.py` | Bifrost pull-side helpers (System 5 read lane). | tests/test_bifrost_pull.py | GAP | `BIFROST_INCARNATION`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
+| `bifrost_pull.py` | Bifrost pull-side helpers (System 5 read lane). | tests/test_bifrost_pull.py | GAP | `AURORA_LAUNCHER`, `BIFROST_INCARNATION`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
 | `initializer.py` | Agent Initialization Module: Derive context from startup sources | GAP | GAP |  |

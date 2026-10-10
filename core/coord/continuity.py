@@ -29,6 +29,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _ROOT = Path(__file__).resolve().parents[2]
 _REGION_ORDER = ("designation", "lessons", "notes", "handoffs", "artifacts", "movement")
 _DEFAULT_LIMITS = {
@@ -48,15 +56,15 @@ _AUTHORITIES = {
     "movement": "telemetry_attribution_not_identity",
 }
 _DRILLS = {
-    "designation": f"{_pyl()} agent_cli.py resident show {{subject}}",
-    "lessons": f'{_pyl()} agent_cli.py recall "identity continuity" --agent {{subject}} --json',
+    "designation": f"{_cli()} resident show {{subject}}",
+    "lessons": f'{_cli()} recall "identity continuity" --agent {{subject}} --json',
     "notes": "use the bound ToolBox memory_recall door for {subject}",
     "handoffs": (
-        f"inbound: {_pyl()} agent_cli.py handoff {{subject}} --list --to {{subject}} --json; "
+        f"inbound: {_cli()} handoff {{subject}} --list --to {{subject}} --json; "
         "outbound has no dedicated CLI reader, so use this grounded region"
     ),
     "artifacts": ("no dedicated exact atom read door; use the atom:<id> source shown by this region"),
-    "movement": f"{_pyl()} agent_cli.py events --agent {{subject}} --limit 25 --json",
+    "movement": f"{_cli()} events --agent {{subject}} --limit 25 --json",
 }
 _CURRENCY = {
     "designation": "current resident projection at read time; registry history is append-only",
@@ -479,9 +487,9 @@ def _region(
 def _drill(name: str, subject: str, shown: list[Mapping[str, Any]]) -> str:
     """One bounded escape hatch; never expand a whole archive when an exact ref exists."""
     if name == "lessons" and shown:
-        return f"{_pyl()} agent_cli.py recall --full {shown[0].get('source')} --json"
+        return f"{_cli()} recall --full {shown[0].get('source')} --json"
     if name == "movement" and shown:
-        return f"{_pyl()} agent_cli.py events --get {shown[0].get('source')} --json"
+        return f"{_cli()} events --get {shown[0].get('source')} --json"
     return _DRILLS[name].format(subject=subject)
 
 

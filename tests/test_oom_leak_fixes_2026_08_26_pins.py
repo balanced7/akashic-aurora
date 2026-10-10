@@ -36,10 +36,8 @@ Run: py -m pytest tests/test_oom_leak_fixes_2026_08_26_pins.py -q
 
 from __future__ import annotations
 
-import json
 import os
 import sys
-import threading
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
@@ -146,63 +144,9 @@ def test_observe_reports_a_real_zero_as_repairable(monkeypatch):
     assert gw.get("repairable") is True, f"an answered probe finding zero gateways is repairable, got {gw}"
 
 
-# --------------------------------------------- P3: the read-modify-write that drops
-def test_concurrent_appends_do_not_drop_rows(tmp_path):
-    """N threads appending concurrently must yield N rows.
-
-    The unlocked read-modify-write plus a FIXED temp filename means two admits race
-    os.replace and the loser's message vanishes -- silently, on the file that doubles
-    as the idempotency ledger.
-    """
-    from core.comm import remote_relay
-
-    path = tmp_path / "inbox.jsonl"
-    n = 24
-    barrier = threading.Barrier(n)
-    errors: list = []
-
-    def _append(i: int) -> None:
-        try:
-            barrier.wait(timeout=10)
-            remote_relay._append_row(path, {"id": f"msg-{i}", "content": f"body {i}"})
-        except Exception as exc:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
-            errors.append(exc)
-
-    threads = [threading.Thread(target=_append, args=(i,)) for i in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join(timeout=30)
-
-    assert not errors, f"appends raised: {errors[:3]}"
-    rows = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    got = sorted(r["id"] for r in rows)
-    want = sorted(f"msg-{i}" for i in range(n))
-    assert got == want, f"lost {len(want) - len(got)} row(s) to the race"
-
-
-def test_append_row_is_idempotent_on_a_repeated_id(tmp_path):
-    """The inbox is the idempotency ledger; the same id must not land twice."""
-    from core.comm import remote_relay
-
-    path = tmp_path / "inbox.jsonl"
-    remote_relay._append_row(path, {"id": "dup", "content": "first"})
-    added = remote_relay._append_row(path, {"id": "dup", "content": "second"})
-
-    rows = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
-    assert len(rows) == 1, f"a repeated id must not append twice, got {rows}"
-    assert added is False, "a duplicate append reports that it did not add"
-    assert rows[0]["content"] == "first", "the first write wins; the duplicate is dropped"
-
-
-def test_write_jsonl_uses_a_unique_temp_name(tmp_path):
-    """Two writers must never collide on one temp path, whatever else is true."""
-    from core.comm import remote_relay
-
-    seen = set()
-    for _ in range(5):
-        seen.add(remote_relay._tmp_for(tmp_path / "inbox.jsonl"))
-    assert len(seen) == 5, f"temp names must be unique per write, got {seen}"
+# --------------------------------------------- P3: retired with the HMAC bridge (RFC #70)
+# The parked-inbox append these pinned lived in core/comm/remote_relay.py, deleted at the fleet-link
+# cutover. Link records are stored once, by id, in the daemon's SQLite store (aurora-rs/link).
 
 
 # ------------------------------------------------------- P4: the empty environment

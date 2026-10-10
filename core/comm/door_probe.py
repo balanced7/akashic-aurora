@@ -62,6 +62,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 ROOT = Path(__file__).resolve().parents[2]
 SERVER = ROOT / "ai_setup_mcp.py"
 CACHE = ROOT / "state" / "door" / "last_probe.json"
@@ -257,7 +265,7 @@ def _child_flow(timeout_s: float) -> dict:
                         "boot_render_broken",
                         f"boot returned {len(text)} chars without its CONTEXT header",
                         "The door answered but boot's render is wrong. Compare against "
-                        f"`{_pyl()} agent_cli.py boot <you>`, which shares the code path.",
+                        f"`{_cli()} boot <you>`, which shares the code path.",
                     )
 
                 el = time.time() - t0
@@ -285,7 +293,7 @@ def _child_flow(timeout_s: float) -> dict:
                     el,
                     "response_path_hang",
                     f"handshake succeeded; boot did not answer within {timeout_s}s",
-                    f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. This is the "
+                    f"DO NOT USE MCP. Boot via CLI: {_cli()} boot <you>. This is the "
                     "C7-4 class (a tool's reply parked behind an inherited handle). Run "
                     "tests/test_subprocess_stdin_sever.py -- S3 names the offending "
                     "file:line. If it passes, your SERVER IS STALE: restart it, because an "
@@ -369,7 +377,7 @@ def probe(timeout_s: float = DEFAULT_TIMEOUT_S, cache: bool = True) -> dict:
             time.time() - t0,
             "response_path_hang",
             f"the probe child had to be killed at {timeout_s * 1.5:.0f}s",
-            f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. Then run "
+            f"DO NOT USE MCP. Boot via CLI: {_cli()} boot <you>. Then run "
             "tests/test_subprocess_stdin_sever.py; if it passes, restart your "
             "server -- it is running pre-fix code.",
         )

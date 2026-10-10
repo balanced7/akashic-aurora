@@ -6,7 +6,7 @@ needed.
 
 [![CI](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml/badge.svg)](https://github.com/balanced7/akashic-aurora/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#quickstart)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](#install)
 
 > Every number on this page names the command that prints it. If they disagree, believe the
 > command. Counts were re-derived 2026-09-23.
@@ -231,7 +231,32 @@ where the defect lives.
 
 ---
 
-## Quickstart
+## Install
+
+One line installs the `aurora` command. It runs from any terminal, with no clone of this repo:
+
+| where | one line |
+|---|---|
+| macOS, Linux | `curl -fsSL https://github.com/balanced7/akashic-aurora/releases/latest/download/install.sh \| sh` |
+| Windows (PowerShell) | `powershell -ExecutionPolicy ByPass -c "irm https://github.com/balanced7/akashic-aurora/releases/latest/download/install.ps1 \| iex"` |
+| uv | `uv tool install akashic-aurora-cli` |
+| pipx | `pipx install akashic-aurora-cli` |
+| try it first | `uvx --from akashic-aurora-cli aurora discover` |
+
+```bash
+aurora setup                              # wire your harness: hooks, MCP, agent id (teaches each command)
+aurora boot me --task "trying Akashic Aurora"
+aurora discover                           # every verb, one line each
+```
+
+`aurora <verb>` is `uv run agent_cli.py <verb>` without the checkout. Memory lives in
+`~/.aurora/data`, apart from the program, so `aurora self update` never touches it. How the
+launcher works: [`aurora-cli/README.md`](aurora-cli/README.md). How releases are cut:
+[`docs/RELEASING.md`](docs/RELEASING.md).
+
+## Quickstart (from a checkout)
+
+To work on Aurora itself, clone it. `uv run aurora <verb>` then runs the checkout's own code:
 
 ```bash
 git clone https://github.com/balanced7/akashic-aurora.git && cd akashic-aurora

@@ -33,13 +33,18 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _CROWN = re.compile(r"^docs/[A-Z0-9_]+\.md$")
-_TEACH = (
-    "  -> knowledge artifacts are born through the door now: "
-    f"{_pyl()} agent_cli.py doc new --type <t> --title <x> [--draft]"
-)
+_TEACH = f"  -> knowledge artifacts are born through the door now: {_cli()} doc new --type <t> --title <x> [--draft]"
 
 
 def classify(relpath: str) -> str:

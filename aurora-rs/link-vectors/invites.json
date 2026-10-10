@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {
+      "code": "aurora-invite1:eyJhZGRycyI6WyIxMDAuNjQuMC43Ojc3NzciXSwiZmluZ2VycHJpbnQiOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJsaW5rIjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSIsIm5hbWUiOiJwYXJ0bmVycyIsIm5vZGUiOiIzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzIiwicmVsYXkiOiJodHRwczovL3JlbGF5LmV4YW1wbGUiLCJzZWNyZXQiOiIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyIiwidiI6MX0",
+      "link": "1111111111111111111111111111111111111111111111111111111111111111",
+      "valid": true
+    },
+    {
+      "code": "aurora-invite1:@@@",
+      "valid": false
+    },
+    {
+      "code": "aurora-invite2:eyJhZGRycyI6WyIxMDAuNjQuMC43Ojc3NzciXSwiZmluZ2VycHJpbnQiOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJsaW5rIjoiMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMSIsIm5hbWUiOiJwYXJ0bmVycyIsIm5vZGUiOiIzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzIiwicmVsYXkiOiJodHRwczovL3JlbGF5LmV4YW1wbGUiLCJzZWNyZXQiOiIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyIiwidiI6MX0",
+      "valid": false
+    },
+    {
+      "code": "aurora-invite1:",
+      "valid": false
+    }
+  ]
+}

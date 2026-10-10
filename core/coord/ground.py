@@ -31,6 +31,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _ROOT = Path(__file__).resolve().parents[2]
 _RUNG_ORDER = ("declared", "reachable", "authorized", "wired", "exercised", "proven")
 _STATES = {"observed", "partial", "absent", "refused", "unknown"}
@@ -463,7 +471,7 @@ def ground(target: str, *, subject: str, continuity: bool = False) -> dict[str, 
             "security/acl.json via core.trust.registry.resolve + door implementations",
             observed_at,
             details=auth_details,
-            drill=f"{_pyl()} agent_cli.py ground verb:{name} --agent {subject} --json",
+            drill=f"{_cli()} ground verb:{name} --agent {subject} --json",
         ),
         _rung(
             "wired",

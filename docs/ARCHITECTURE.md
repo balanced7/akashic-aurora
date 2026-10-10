@@ -97,6 +97,19 @@ How live agents talk, are steered, and are kept alive.
   salient bus messages into the durable Ledger. **`locks.py`** — advisory path-locks. **`blobs.py` /
   `context_hints.py`** — media payloads / per-agent context forwarding.
 
+## Fleet links (`core/link/` + `aurora-rs/link`, `aurora-rs/linkd`) — RFC #70
+How this fleet syncs mail with other fleets, and why their words never act on our agents alone.
+- **`aurora-linkd`** (Rust) — the daemon that owns keys and untrusted bytes: identity, the signed ACL
+  log, signed + sealed records, the per-link SQLite store, iroh transport, gossip, blobs, mailbox
+  mode. It never sees the bus. One implementation; Python calls it, never re-implements it.
+- **`client.py`** — the JSON-RPC channel to it (socket, or a one-shot child); `rpc_types.py` is
+  generated from `aurora-rs/linkd/openrpc.json`.
+- **`quarantine.py`** — admitted records → `bifrost:remote:<link>`, never an inbox (ADR 0008).
+  **`promote.py`** — the local promotion policy, default manual. **`export.py`** — `Bus.send` to
+  `@fleet/seat` → our feed, under `export.toml` and `redact()`.
+- **`serve.py`** — `aurora link serve` (ManagedChild + the quarantine pump); **`cli.py` / `panel.py` /
+  `health.py`** — the terminal, console and doctor doors; **`legacy.py`** — the HMAC bridge's parked mail.
+
 ## Coordination (`core/coord/`)
 Stops agents colliding and plays them to their strengths.
 - **`task_ledger.py`** — the deterministic coordination substrate (who owns what task, no model in loop).

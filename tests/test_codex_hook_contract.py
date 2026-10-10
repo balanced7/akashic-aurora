@@ -13,7 +13,14 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from agent.harness import registry
+
+# The codex_* adapters land upstream separately; on a base without them this contract has
+# nothing to pin, so it skips (with the reason) instead of failing collection for the suite.
+pytest.importorskip("agent.harness.hooks.codex_common", reason="codex_* hook adapters are not in this tree")
+
 from agent.harness.hooks import codex_common as common  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
 from agent.harness.hooks import codex_posttooluse as post  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
 from agent.harness.hooks import codex_pretooluse as pre  # pyright: ignore[reportAttributeAccessIssue]  # not in repo

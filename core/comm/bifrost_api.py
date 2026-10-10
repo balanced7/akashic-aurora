@@ -37,6 +37,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _log = logging.getLogger("bifrost")
 
 
@@ -446,7 +454,7 @@ class BifrostAPI:
                         "if you see this line again the pending set is not clearing and RE-ARMING "
                         "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKED the "
                         "%s cursor family (the one this seat's consumer advances), so drain THAT "
-                        f"one: BIFROST_CONSUME_LANE=%s {_pyl()} agent_cli.py bifrost-sync %s --consume",
+                        f"one: BIFROST_CONSUME_LANE=%s {_cli()} bifrost-sync %s --consume",
                         len(live),
                         ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
                         family,

@@ -344,7 +344,13 @@ class Bus:
         Returns the message id, or None if the bus is offline OR the packet exceeds the MTU and
         `allow_frag` is False (a REFUSE-LOUD, never a silent truncation -- T043). By default
         oversize payloads are auto-fragmented (P2 auto-chunk); pass allow_frag=False for the
-        legacy LOUD-refusal behavior."""
+        legacy LOUD-refusal behavior.
+
+        A remote address (`@fleet/seat`, `@fleet`) never touches the bus: it is written to a fleet
+        link by core.link.export, so the CLI, MCP and ToolBox doors all reach a peer one way. The
+        record id comes back in place of a message id; a refusal prints why and returns None."""
+        if isinstance(to, str) and to.startswith("@"):
+            return self._send_remote(to, kind, content, meta)
         to, meta = self._resolve_recipient(to, meta)
         # T108 slice 1: incarnation-directed mail also lands on the target SEAT's own stream.
         self._warn_if_unattended(str(to))  # T108-S0: delivery is not receipt
@@ -360,6 +366,16 @@ class Bus:
             allow_frag=allow_frag,
             mirror_stream=mirror,
         )
+
+    def _send_remote(self, to: str, kind: str, content: Any, meta: dict[str, Any] | None) -> str | None:
+        """RFC #70 §7.7: mail with a remote address goes to a fleet link, under export.toml."""
+        try:
+            from core.link.export import send_remote
+
+            return send_remote(self.agent_id, to, kind, content, meta=meta)
+        except Exception as e:  # noqa: BLE001  # fail-loud: refused or unavailable, the sender is told
+            _loud(f"[bus] NOT SENT to {to}: {type(e).__name__}: {e}")
+            return None
 
     # --- T108 slice 0: delivery is not receipt -------------------------------------------------
     # Sending to a seat with no live heartbeat SUCCEEDS and always has -- correctly, because

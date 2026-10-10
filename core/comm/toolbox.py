@@ -76,6 +76,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 def _loud(msg: str) -> None:
     """Report a swallowed-class failure without ever raising (T108-S0).
 
@@ -1876,7 +1884,7 @@ class ToolBox:
                 _loud(
                     f"[toolbox] UNLOCK FAILED for {p} (holder {self.agent_id}): "
                     f"{type(e).__name__}: {e} -- the lock is STALE and will block peers until "
-                    f"its TTL expires. Release it by hand: {_pyl()} agent_cli.py unlock "
+                    f"its TTL expires. Release it by hand: {_cli()} unlock "
                     f"{self.agent_id} {p}"
                 )
         return len(paths)
@@ -2132,7 +2140,7 @@ class ToolBox:
                         f"agent_cli verb {verb!r} is not in the unattended READ "
                         f"allowlist -- mutations (note/learn/wrap/bifrost-send/"
                         f"lock/...) go through your dedicated ACL'd tools. "
-                        f"`{_pyl()} agent_cli.py {verb} --help` IS allowed, so you can "
+                        f"`{_cli()} {verb} --help` IS allowed, so you can "
                         f"always read what a verb does even when you may not run it."
                     ),
                 )
@@ -2292,7 +2300,7 @@ class ToolBox:
             None,
             (
                 f"only these families run unattended: `pytest ...` / `{_pyl()} -m "
-                f"pytest ...` (isolated), `{_pyl()} agent_cli.py <read-verb> ...`, "
+                f"pytest ...` (isolated), `{_cli()} <read-verb> ...`, "
                 f'`{_pyl()} scripts/mirror.py "msg" <paths>` (IR-4 audited commits), '
                 "`git <status|diff|log|show>` (G7 read-only), and "
                 "`tasklist` / `taskkill /PID <digits> /F` (recovery)"

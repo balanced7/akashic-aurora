@@ -1,0 +1,15 @@
+[package]
+name = "convergence"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+p2panda-auth = { version = "=0.7.1", features = ["test_utils"] }
+p2panda-core = "=0.7.1"
+p2panda-encryption = "=0.7.1"
+p2panda-spaces = { version = "=0.7.1", features = ["test_utils"] }
+
+[dev-dependencies]
+proptest = "1"
+tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread"] }
+[workspace]

@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (109 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (110 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -61,12 +61,13 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `ground` | typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity | `<target>*` `--agent` `--continuity` `--json` |
 | `handoff` | hand work to another agent (writes a briefing its next boot reads) | `<agent_id>*` `--to` `--task` `--note` `--blocker` `--list` `--json` |
 | `harnesses` | integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers | `--json` |
-| `hooks` | register / remove / switch off-on / inspect the harness hooks (user or project scope) | `<action>* {status,install,uninstall,enable,disable}` `--harness {claude,codex,cursor}` `--scope {user,project}` `--project` `--shared` `--dry-run` `--all` `--json` |
+| `hooks` | register / remove / switch off-on / inspect the harness hooks (user or project scope) | `<action>* {status,install,uninstall,enable,disable,enroll,unenroll}` `--harness {claude,codex,cursor}` `--scope {user,project}` `--project` `--everywhere` `--shared` `--dry-run` `--all` `--json` |
 | `injections` | the injection ledger: what recall pushed into contexts + cost | `--hours` `--json` |
 | `kata` | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') | `<agent_id>*` `<name>*` |
 | `kit` | install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor) | `<agent_id>*` `<kit_name>` `--show` `--json` |
 | `knowledge-map` | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) | `<query>*` `--per-layer` `--json` |
 | `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` `--root-cause` `--files-affected` |
+| `link` | fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd) | `<action>* {init,whoami,renew,cert,certify,create,list,status,invite,join,accept,decline,verify,remove-member,remove-device,add-device,rotate-key,revoke-invite,set-role,leave,serve,mailbox,sync,peer,inbox,show,promote,blob,send,export,import,policy,rebuild,import-legacy,relay-config}` `<args>*` `--label` `--role` `--ttl` `--multi` `--approval` `--out` `--to` `--by` `--yes` `--again` `--mark` `--kind` `--link` `--kinds` `--retention-days` `--limit` `--phrase-stdin` `--passphrase-env` `--no-xwing` `--addr` `--relay-url` `--no-relay` `--no-n0` `--no-mdns` `--bind` `--trace-rpc` `--once` `--dry-run` `--json` |
 | `list` | list ALL lessons in memory | `--json` |
 | `lock` | claim an advisory path-lock (C2) | `<agent_id>*` `<path>*` `--ttl` `--json` |
 | `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |

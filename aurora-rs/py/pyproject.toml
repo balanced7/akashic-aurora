@@ -1,0 +1,20 @@
+# The akashic-aurora-rs wheel: Aurora's Rust crates as the `aurora_rs` Python module.
+#
+# Built by maturin (`uvx maturin build --release -m aurora-rs/py/Cargo.toml`); the release
+# workflow builds one abi3 wheel per platform, so a single wheel serves every Python >= 3.11.
+# Optional by design: core/accel.py uses it when it imports and falls back to pure Python when
+# it does not, so `uv sync` never needs a Rust toolchain. The version comes from Cargo.toml.
+[project]
+name = "akashic-aurora-rs"
+description = "Optional Rust accelerators for Akashic Aurora (recall tokenizer)."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dynamic = ["version"]
+
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "aurora_rs"
+features = ["pyo3/extension-module"]

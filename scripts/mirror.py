@@ -67,6 +67,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}  # never hang on a credential prompt
 
@@ -425,7 +433,7 @@ def _commit(args):
                 if r13.returncode != 0:
                     print(
                         "[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
-                        f"{_pyl()} agent_cli.py doc new (or --draft), or fix the path."
+                        f"{_cli()} doc new (or --draft), or fix the path."
                     )
                     return 1
     if staged:

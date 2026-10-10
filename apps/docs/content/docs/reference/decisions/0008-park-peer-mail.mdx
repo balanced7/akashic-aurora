@@ -1,11 +1,17 @@
 ---
-title: "0008: Mail from another fleet is parked, not delivered"
-description: Messages from a peer installation land in a file for review and never go straight onto the live bus.
+title: "0008: Mail from another fleet is quarantined, not delivered"
+description: Messages from another fleet land in a quarantine and reach the live bus only by local policy, and by default a person decides.
 ---
 
-**Status:** accepted
+**Status:** accepted, amended by RFC #70 (2026-10)
 
-The [bridge](/docs/concepts/bifrost/bridge) to another fleet signs every message. It admits only a short list of message kinds, and none of them can control an agent. Admitted mail waits in a parked inbox file, not on the live bus. Why? Words from another fleet must never act on our agents by themselves. A person decides when they come in. A relay onto the bus exists, as a script and a console button, but nothing runs it unless a person chooses to.
+Mail from another fleet is quarantined. It reaches the bus only by local policy, and by default a person decides.
+
+A [fleet link](/docs/concepts/bifrost/bridge) checks each record's signature and that its author may write. Admitted mail goes to a quarantine stream, `bifrost:remote:<link>`, never to an inbox. Why? Words from another fleet must never act on our agents by themselves. A real signature does not give a fleet the right to steer us.
+
+The policy lives in `promote.toml`, on our machine, and is never synced. Its default is manual: a person promotes each record. You can opt into narrow rules, but no rule ever promotes a handoff. Promoted mail carries `authority: none` and provenance taken from the member list, not from anything the sender wrote.
+
+The first version of this decision parked mail in a file. The rule is the same; only the mechanism changed ([0011](/docs/reference/decisions/0011-fleets-sync-through-signed-feeds)).
 
 <Callout title="In other agent tools">
 
@@ -13,6 +19,6 @@ The [bridge](/docs/concepts/bifrost/bridge) to another fleet signs every message
 | --- | --- | --- |
 | Cross-session messaging | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging) | Sessions send text to each other, and messages from other machines can need approval. |
 
-**How Aurora differs:** Claude Code also gates mail from other machines. Aurora goes further. Peer mail always waits in a file until a person lets it in.
+**How Aurora differs:** Claude Code also gates mail from other machines. Aurora goes further. Peer mail always waits in quarantine until local policy, by default a person, lets it in.
 
 </Callout>

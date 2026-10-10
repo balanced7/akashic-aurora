@@ -140,8 +140,12 @@ class ManagedChild:
         on_blocker: Callable[[], None] | None = None,
         breaker_window_s: float = 300.0,
         breaker_max: int = 3,
+        stdio_rpc: bool = False,
     ):
         self._args = list(args)
+        # stdio_rpc: the child speaks JSON-RPC on stdin/stdout (aurora-linkd), so those two pipes
+        # belong to the caller (`rpc_pipes`) and only STDERR is drained into the ring.
+        self._stdio_rpc = stdio_rpc
         # env=None INHERITS, exactly as subprocess.Popen documents it. The old
         # `dict(env or {})` turned "no preference" into a genuinely EMPTY environment --
         # no PATH, no SYSTEMROOT, none of the AKASHIC_* overrides -- which is not a
@@ -188,6 +192,14 @@ class ManagedChild:
         return self._tripped
 
     @property
+    def rpc_pipes(self) -> tuple[Any, Any] | None:
+        """(reader, writer) of a live stdio_rpc child: its stdout and stdin, as bytes."""
+        if not self._stdio_rpc or not self.alive:
+            return None
+        proc = cast("Any", self._proc)
+        return proc.stdout, proc.stdin
+
+    @property
     def pid(self) -> int | None:
         return self._proc.pid if self._proc else None
 
@@ -200,29 +212,44 @@ class ManagedChild:
             return self._proc
         if time.time() < self._next_spawn_at:
             return None  # F2: backoff not yet elapsed; caller retries on next tick
-        self._proc = subprocess.Popen(
-            self._args,
-            env=self._env,
-            cwd=self._cwd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            # Runners self-bless stdout/stderr to UTF-8.  On Windows a bare
-            # text=True reader defaults to cp1252; one valid UTF-8 continuation
-            # byte then kills the drainer's decoder, the broad exception guard
-            # hides that death, and the child blocks once the undrained pipe fills.
-            # Declare the wire encoding at BOTH ends; replacement keeps best-effort
-            # display from becoming a process-lifecycle dependency.
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            bufsize=1,
-        )
+        if self._stdio_rpc:
+            self._proc = subprocess.Popen(
+                self._args,
+                env=self._env,
+                cwd=self._cwd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=0,
+            )
+        else:
+            self._proc = subprocess.Popen(
+                self._args,
+                env=self._env,
+                cwd=self._cwd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                # Runners self-bless stdout/stderr to UTF-8.  On Windows a bare
+                # text=True reader defaults to cp1252; one valid UTF-8 continuation
+                # byte then kills the drainer's decoder, the broad exception guard
+                # hides that death, and the child blocks once the undrained pipe fills.
+                # Declare the wire encoding at BOTH ends; replacement keeps best-effort
+                # display from becoming a process-lifecycle dependency.
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+            )
         # F1: start drainer thread to prevent pipe wedge
         self._ring.clear()
         self._drainer_done.clear()
 
         def _drain():
             try:
+                if self._stdio_rpc:  # stdout is the RPC channel: the ring takes stderr, as bytes
+                    for raw in cast("Any", self._proc).stderr:
+                        self._ring.append(raw.decode("utf-8", "replace").rstrip("\n\r"))
+                    return
                 # stdout=PIPE above; a concurrent reset (None) raises into the except below, as before
                 for line in cast("Any", self._proc).stdout:
                     self._ring.append(line.rstrip("\n\r"))

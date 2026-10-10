@@ -1,0 +1,47 @@
+# cargo-deny: run by `poe rust-gate` and CI (RFC #70 addendum, the gate before Phase 6).
+#   cargo deny check        -- licences, advisories, bans, sources
+[graph]
+all-features = false
+
+[advisories]
+# RustSec. A new advisory on a network-facing crate is a 7-day patch (aurora-rs/README.md).
+version = 2
+yanked = "deny"
+# Unmaintained crates are reported for our own direct dependencies; deep in iroh they are
+# n0's to replace, and RUSTSEC vulnerabilities still fail at any depth.
+unmaintained = "workspace"
+ignore = []
+
+[licenses]
+version = 2
+confidence-threshold = 0.9
+# Permissive only. AGPL (libsignal) and every GPL are denied by not being listed.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+  "MPL-2.0",
+  "CC0-1.0",
+  "BSL-1.0",
+  "Unlicense",
+  "CDLA-Permissive-2.0",
+]
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true  # workspace path dependencies (publish = false)
+deny = [
+  # Two HPKE implementations in one daemon would break the one-implementation rule (P2).
+  { name = "hpke-rs" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

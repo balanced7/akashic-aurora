@@ -7,8 +7,8 @@ Agents and people reach Aurora through a few doors. Each door is a different han
 
 | Door | What it is |
 |---|---|
-| `agent_cli.py` | The command-line door. Every verb explains itself with `--help`. |
-| `ai_setup_mcp.py` | The MCP door. It serves Aurora as native tools to MCP clients. |
+| `aurora` | The command-line door, installed from the [Quickstart](/docs/quickstart). In a checkout it is `uv run agent_cli.py`. Every verb explains itself with `--help`. |
+| `aurora mcp` | The MCP door (`ai_setup_mcp.py`). It serves Aurora as native tools to MCP clients. |
 | Runner tool door | Tools such as `knowledge_boot` and `knowledge_recall`, for seats with no shell. |
 
 To list every verb with its purpose, run `aurora discover`. The full, generated list of verbs and their inputs lives in [`docs/DOORS.md`](https://github.com/balanced7/akashic-aurora/blob/master/docs/DOORS.md).
@@ -37,6 +37,17 @@ To list every verb with its purpose, run `aurora discover`. The full, generated 
 | `hooks install --scope user` | Registers the hooks for every project. `--scope project` does one project. |
 | `hooks disable` / `hooks enable` | Switches the hooks off, and back on exactly as they were. |
 | `hooks uninstall` | Removes Aurora's hooks. Other hooks in the file stay. |
+| `hooks enroll` / `hooks unenroll` | Marks the current project (or `--project DIR`) as one where the hooks speak up. `--everywhere` does every directory. Outside the Aurora repo and enrolled projects, the hooks stay silent. |
+
+## The installed command
+
+| Command | What it does |
+|---|---|
+| `aurora self version` | Shows the launcher version, which Aurora it runs, and where your memory lives. |
+| `aurora self update` | Installs the newest release. Your memory in `~/.aurora/data` stays. |
+| `aurora self prune` | Deletes the program files of older versions. |
+| `aurora self uninstall` | Deletes the program files. `--purge` also deletes your memory. |
+| `aurora mcp` | Runs the MCP server. Register it with `claude mcp add --scope user akashic-aurora -- aurora mcp`. |
 
 ## Memory
 

@@ -31,6 +31,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _DEFAULT_ACL = Path(__file__).resolve().parent.parent.parent / "security" / "acl.json"
 # T163: overridable so the grant WRITER can be exercised against a copy. Before this there was no
 # writer at all, so nothing ever needed to point elsewhere -- and a test that must edit the real
@@ -158,7 +166,7 @@ def _floor_notice(agent_id: str) -> None:
             f"security/acl.json > security/acl.json); on a fresh instance copy "
             f"security/acl.example.json AND add your own root/super_admin record by hand -- "
             f"an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included, "
-            f"and is narrower than this floor; then {_pyl()} agent_cli.py grant --bootstrap",
+            f"and is narrower than this floor; then {_cli()} grant --bootstrap",
             file=sys.stderr,
         )
     except Exception:

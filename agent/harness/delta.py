@@ -37,6 +37,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FIELDS = ("git_commit", "ledger_seq", "notes_head", "promoted_id")
 BUDGET_DEFAULT = 1200
@@ -254,18 +262,15 @@ def _sections(agent: str, mark: dict[str, str], cur: dict[str, str]) -> list[str
     elif cur["git_commit"] == "?":
         parts.append("  git: (unavailable -- repository not readable)")
     if _moved(mark["ledger_seq"], cur["ledger_seq"]):
-        parts.append(
-            f"  ledger: moved {mark['ledger_seq']} -> {cur['ledger_seq']} -- "
-            f"transitions: {_pyl()} agent_cli.py task list"
-        )
+        parts.append(f"  ledger: moved {mark['ledger_seq']} -> {cur['ledger_seq']} -- transitions: {_cli()} task list")
     elif cur["ledger_seq"] == "?":
         parts.append("  ledger: (unavailable)")
     if _moved(mark["notes_head"], cur["notes_head"]):
-        parts.append(f"  notes: updated since your mark -- {_pyl()} agent_cli.py notes")
+        parts.append(f"  notes: updated since your mark -- {_cli()} notes")
     elif cur["notes_head"] == "?":
         parts.append("  notes: (unavailable)")
     if _moved(mark["promoted_id"], cur["promoted_id"]):
-        parts.append(f"  bus: new promoted salient(s) -- {_pyl()} agent_cli.py promoted")
+        parts.append(f"  bus: new promoted salient(s) -- {_cli()} promoted")
     elif cur["promoted_id"] == "?":
         parts.append("  bus: (unavailable)")
     return parts
@@ -290,10 +295,7 @@ def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> tuple[str, Cal
     head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
     text = "\n".join([head, *parts])
     if len(text) > budget:
-        counts = (
-            f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- "
-            f"full: {_pyl()} agent_cli.py delta {agent}]"
-        )
+        counts = f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- full: {_cli()} delta {agent}]"
         keep: list[str] = [head]
         for p in parts:
             if len("\n".join([*keep, p, counts])) > budget:

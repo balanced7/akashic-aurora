@@ -30,6 +30,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 # agent_cli derived the scripts/ dir from its OWN location, which worked because it sits at
 # repo root. This file sits two levels down, so the root is named explicitly -- same target,
 # honest derivation. (parents[2]: surface.py -> recall -> core -> REPO)
@@ -98,7 +106,7 @@ def cmd_recall_curate(args):
         exp = args.forge_check
         if not getattr(args, "draft", None):
             print("ERROR: --forge-check needs --draft FILE (the proposed recommendation text).")
-            print(f"Example: {_pyl()} agent_cli.py recall-curate --forge-check {exp} --draft new_text.md")
+            print(f"Example: {_cli()} recall-curate --forge-check {exp} --draft new_text.md")
             return 2
         try:
             with open(args.draft, encoding="utf-8") as fh:
@@ -140,13 +148,12 @@ def cmd_recall_curate(args):
                 print("[forge-apply] FAILED -- record not updated (store down or record missing).")
         elif rep["verdict"] == "PASS":
             print(
-                f"  (gate PASS -- apply with: {_pyl()} agent_cli.py recall-curate --forge-check {exp} "
-                f"--draft {args.draft} --apply)"
+                f"  (gate PASS -- apply with: {_cli()} recall-curate --forge-check {exp} --draft {args.draft} --apply)"
             )
         elif rep["verdict"] == "UNMEASURABLE" and getattr(args, "apply", False):
             print(
                 "  (the gate ABSTAINS -- it will not apply what it cannot adjudicate. The unaided "
-                f"human path is an ordinary re-record: {_pyl()} agent_cli.py learn <you> --experiment "
+                f"human path is an ordinary re-record: {_cli()} learn <you> --experiment "
                 f"{exp} ... which bypasses the Forge and is visible in history.)"
             )
         return 0 if rep["verdict"] == "PASS" else 1
@@ -190,7 +197,7 @@ def cmd_recall_curate(args):
                 print(f"    optimizer rationale: {r['rationale']}")
             for reason in r.get("reasons", []):
                 print(f"    - {reason}")
-        print(f"  review queue: {_pyl()} agent_cli.py recall-curate --forge-proposals")
+        print(f"  review queue: {_cli()} recall-curate --forge-proposals")
         return 0
     if getattr(args, "forge_proposals", False):
         from core.recall.forge_optimizer import pending_proposals
@@ -213,7 +220,7 @@ def cmd_recall_curate(args):
                 print(f"    rationale: {p['rationale']}")
             print(f"    draft: {p['draft'][:220]}")
             print(
-                f"    apply: write draft to a file, then {_pyl()} agent_cli.py recall-curate "
+                f"    apply: write draft to a file, then {_cli()} recall-curate "
                 f"--forge-check {p['experiment']} --draft FILE --apply"
             )
         return 0
@@ -283,7 +290,7 @@ def cmd_recall_curate(args):
             or rep.get("forge_confirm")
             or rep.get("forge_expire")
         ):
-            print(f"  (report only -- apply with: {_pyl()} agent_cli.py recall-curate --apply)")
+            print(f"  (report only -- apply with: {_cli()} recall-curate --apply)")
         return 0
     out = apply_curation(rep)
     print(

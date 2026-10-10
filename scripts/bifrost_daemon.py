@@ -79,6 +79,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _STOP = {"flag": False, "reason": ""}
 
 
@@ -826,7 +834,7 @@ def main(argv=None) -> int:
                                 bus.broadcast(
                                     "blocker",
                                     f"[blocker] runner for '{agent}' down {int(down_s / 60)}min — "
-                                    f"daemon presence held. Check: {_pyl()} agent_cli.py doctor {agent}",
+                                    f"daemon presence held. Check: {_cli()} doctor {agent}",
                                     meta={"via": f"{agent}-daemon", "kind": "blocker"},
                                 )
                                 _say(

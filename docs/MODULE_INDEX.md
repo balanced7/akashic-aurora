@@ -4,7 +4,8 @@
 > The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,
 > each module's line-1 docstring = its single responsibility.
 
-## core/foundation/  (11 modules)
+## core/foundation/  (12 modules)
+- `accel.py` — accel -- optional Rust implementations of hot paths, with Python as the reference.
 - `durable_reconcile.py` — Per-family authority reconcile: make the durable source COMPLETE before migrating.
 - `embedded_redis.py` — embedded_redis -- a Redis-compatible server in pure Python, persisted to SQLite.
 - `filelock.py` — A cross-process exclusive file lock.
@@ -26,7 +27,7 @@
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit
 - `coordinator_api.py` — Coordinator API: Minimal signal-based logging for agents
 
-## core/comm/  (72 modules)
+## core/comm/  (69 modules)
 - `ask.py` — ask -- a synchronous helper call, with no seat behind it (T171).
 - `ask_bg.py` — ask_bg -- a helper call that outlives your turn without becoming a seat (T205).
 - `ask_state.py` — ask_state -- one durable ask's honest state (T196d).
@@ -34,8 +35,6 @@
 - `awareness.py` — Pure, bounded awareness providers and the composite ``sweep`` snapshot.
 - `bifrost_api.py` — bifrost.api -- the one door an agent uses to join and work the Bifrost bus.
 - `blobs.py` — BlobStore (Slice B1) -- a content-addressed blob store for Bifrost media/large payloads.
-- `bridge_seal.py` — bridge_seal — the sealed envelope and the chain, for a bridge that may pass through a midpoint.
-- `bridge_status.py` — Remote-bridge status and remediation — the model the Bifrost UI renders.
 - `bus.py` — Bifrost Bus (Slice B0) -- one ephemeral message transport for local agents, on Redis Streams.
 - `conductor_gate.py` — conductor_gate -- succession detection + the acting conductor's bounded mandate.
 - `context_hints.py` — Context Hints -- compact, ephemeral, per-agent context forwarding between peers.
@@ -75,7 +74,6 @@
 - `presets.py` — Fan presets: a named answer contract bound to the parser that reads it back.
 - `promoter.py` — Bifrost B2 -- the durable projection. Promote SALIENT bus messages into the append-only Ledger.
 - `reaper.py` — reaper -- S4: a dead seat's unread directed mail re-homes, loudly. Never stranded.
-- `remote_relay.py` — Remote peer relay — the OUTBOUND half of the Akashic↔Akashic bridge (v0.1).
 - `role_queue.py` — role_queue -- T108 S1: load-balanced role-addressed work with claim semantics.
 - `room_feed.py` — Namespace-aware feed-stream discovery -- the backend half of readable side rooms.
 - `roster.py` — roster -- S2: the lobby. Per-seat liveness the whole fleet can read.
@@ -256,6 +254,19 @@
 - `reports.py` — Report shelf -- one read surface over every report the fleet has produced.
 - `taxonomy.py` — Taxonomy constants + the birth-door classifier (A1, homes-and-order round).
 
+## core/link/  (11 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `cli.py` — cli -- `aurora link <action>`: the operator's door to fleet links.
+- `client.py` — client -- the JSON-RPC client for aurora-linkd, Aurora's fleet-link daemon.
+- `export.py` — export -- the outbound half: bus mail with a remote address becomes a record in our feed.
+- `health.py` — health -- the fleet-link section of `aurora doctor` and of the console: is anything wrong?
+- `kinds.py` — kinds -- the bridge allowlist: the only message kinds that may cross a fleet boundary.
+- `legacy.py` — legacy -- the cutover's import: mail the old HMAC bridge parked becomes `legacy` quarantine records.
+- `panel.py` — panel -- the console's fleet-link panel: a dict to paint, and the few actions a person takes.
+- `promote.py` — promote -- the local decision whether a quarantined record reaches our bus, and which seat.
+- `quarantine.py` — quarantine -- admitted link records land on `bifrost:remote:<link>`, never on an inbox.
+- `rpc_types.py` — rpc_types -- GENERATED from aurora-rs/linkd/openrpc.json by scripts/generators/gen_link_rpc.py.
+- `serve.py` — serve -- `aurora link serve`: run the fleet-link daemon under supervision and pump its mail.
+
 ## core/manuals/  (3 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `chunk.py` — chunk -- Sections become bounded Chunks, each labelled with where it came from.
 - `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
@@ -294,9 +305,7 @@
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
-- `bridge_doctor.py` — bridge_doctor — diagnose YOUR side of the bridge and report it back across the bridge.
 - `config.py` — Centralized Configuration - Akashic Aurora
-- `peer_connect.py` — peer_connect — get a remote Akashic Aurora talking to ours in one command.
 - `seat_topology.py` — seat_topology — who is actually running, under which seat id, driven by what.
 
 ## scripts/
@@ -349,17 +358,13 @@
 - `piano_roll_pack.py` — roll/1 door: pack a recorded session, or read one back.
 - `piano_roll_render.py` — Render a recorded performance session as a piano-roll scroll -- SVG and PNG.
 - `rb25_storm_burst.py` — SUPERSEDED tombstone -- points old references to the canonical RB-25 storm-burst drill.
-- `remote_bridge_fetch.py` — Follow a blob ref across the bridge and write the bytes to disk.
-- `remote_bridge_listener.py` — Remote bridge listener — the HTTP door in front of the inbound gate (v1).
-- `remote_bridge_relay.py` — remote_bridge_relay — drain parked peer mail onto the LOCAL bus, safely, forever.
-- `remote_bridge_supervise.py` — Keep the bridge door open — supervise the inbound listener so staging cannot be missed.
-- `remote_bridge_watch.py` — Watch the remote-bridge inbox and announce NEW peer mail.
 - `repair_learning_index.py` — Repair `learn:experiments:all` -- the index that decides what recall can SEE.
 - `revive.py` — revive -- the house's recovery reconciler (T382, the revive ladder's L2 core).
 - `rewrite_recover.py` — Survive a history rewrite: capture its map, rebuild a map we lost, measure the damage.
 - `round_archive.py` — round_archive -- a round's evidence outlives the round, so a scorer can be replaced (T190).
 - `run_job.py` — Durable one-shot job supervision for long Akashic operations (T093).
 - `runner_token_journal.py` — runner_token_journal -- daily token-count ledger (T078 W1: C6 meter).
+- `rust_gate.py` — rust_gate -- the Rust half of `poe gate`: aurora-rs fmt, clippy, tests, cargo-deny and a fuzz smoke.
 - `season_dryrun.py` — season_dryrun -- run the Season 1 bounty loop end to end against a shadow tree (W6).
 - `season_fan_calibration.py` — Matched DeepSeek calibration: redundant replication versus positional sharding (T195).
 - `season_llm_player.py` — season_llm_player -- an LLM player for the Season 1 bounty loop (T184).

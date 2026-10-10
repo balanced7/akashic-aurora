@@ -1,0 +1,20 @@
+# The akashic-aurora-linkd wheel: the aurora-linkd binary, packaged the way deltachat-rpc-server is.
+#
+# maturin's bin bindings put the executable in the wheel's scripts, so `uv pip install
+# akashic-aurora-linkd` puts `aurora-linkd` beside Python, where core/link/client.find_linkd()
+# looks. The wheel is py3-none-<platform>: it does not depend on the Python version at all.
+# Required by fleet links and by nothing else (aurora-rs/README.md, "Required crates").
+[project]
+name = "akashic-aurora-linkd"
+description = "aurora-linkd: Akashic Aurora's fleet-link daemon (RFC #70)."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dynamic = ["version"]
+
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+bindings = "bin"
+profile = "linkd"

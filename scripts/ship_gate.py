@@ -55,6 +55,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 DEFAULT_STALE_S = 48 * 3600  # announce: the list is getting old
 
 # THE TTL IS WHAT MAKES THIS A DEFERRAL INSTEAD OF AN AMNESTY (deepseek's counter, 2026-07-27,
@@ -178,7 +186,7 @@ def evaluate(
             # `;` not `&&`: a suite WITH failures exits nonzero, so && would skip
             # the record exactly when a baseline is most needed.
             f"{_pyl()} -m pytest -q > suite.txt; "
-            f"{_pyl()} agent_cli.py suite-baseline <you> --from-file suite.txt"
+            f"{_cli()} suite-baseline <you> --from-file suite.txt"
         )
     elif age is not None and age > float(stale_after_s):
         lines.append(
