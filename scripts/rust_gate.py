@@ -10,6 +10,7 @@ Run:  uv run poe rust-gate            # inside the gate
 """
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -45,6 +46,11 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if not shutil.which("cargo"):
         print("rust-gate: SKIP (no cargo here; CI's rust job runs it)")
+        return 0
+    if os.environ.get("GITHUB_ACTIONS") == "true" and not a.force:
+        # CI's rust and rust-fuzz jobs run the full set beside the gate, with a warm cache; a
+        # second, cold copy inside the gate job only made the gate the slowest job (~10 min).
+        print("rust-gate: SKIP (CI: the rust and rust-fuzz jobs run it)")
         return 0
     if not a.force and not _changed():
         print("rust-gate: SKIP (aurora-rs/ is unchanged)")
