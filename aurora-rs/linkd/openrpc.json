@@ -881,6 +881,25 @@
       },
       "summary": "Run retention and certificate renewal now.",
       "x-network": false
+    },
+    {
+      "name": "relay.config",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "http_bind",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "An iroh-relay config whose allowlist is every device of every link here: a self-hosted relay only members can use.",
+      "x-network": false
     }
   ],
   "openrpc": "1.3.2"

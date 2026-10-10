@@ -11,20 +11,20 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1489 | `noqa: F401` | registers on import |
-| agent_cli.py | 2157 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2671 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2740 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3553 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12070 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12286 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12311 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 1496 | `noqa: F401` | registers on import |
+| agent_cli.py | 2164 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2678 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2747 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3560 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12164 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12380 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12405 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 517 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 517 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 521 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
 | ai_setup_mcp.py | 524 | `noqa: A002` | public API name (MCP tool parameter) |
 | ai_setup_mcp.py | 997 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 1705 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 1741 | `noqa: A002` | public API name (MCP tool parameter) |
 | arsenal/analysis.py | 187 | `noqa: BLE001` | deliberately broad: never raise, ever |
 | arsenal/boost.py | 71 | `pyright: ignore[reportOperatorIssue]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |
 | arsenal/fl/vfx/arsenal_band.py | 46 | `pyright: ignore[reportMissingImports]` | FL Studio's embedded module, exists only inside FL |
@@ -41,8 +41,8 @@
 | arsenal/replay.py | 242 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/serve.py | 239 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/tiktok.py | 40 | `noqa: TC003` | runtime-evaluated annotations (inventory annotation_sensitive) |
-| aurora-cli/src/aurora_cli/bundle.py | 102 | `noqa: SIM115` | returned to a with-block in the caller |
-| aurora-cli/src/aurora_cli/bundle.py | 104 | `noqa: S310` | https or file only, by construction |
+| aurora-cli/src/aurora_cli/bundle.py | 105 | `noqa: SIM115` | returned to a with-block in the caller |
+| aurora-cli/src/aurora_cli/bundle.py | 107 | `noqa: S310` | https or file only, by construction |
 | aurora-rs/bench.py | 79 | `pyright: ignore[reportMissingImports]` | optional wheel |
 | bootstrap.py | 128 | `noqa: F401` | availability probe |
 | bridge_doctor.py | 39 | `noqa: E402` | sys.path bootstrap |
@@ -60,7 +60,8 @@
 | core/comm/bridge_status.py | 195 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bridge_status.py | 399 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bus.py | 77 | `noqa: E402` | THE incarnation discriminator |
-| core/comm/bus.py | 867 | `noqa: RUF012` | annotation_sensitive module; class-level throttle shared on purpose |
+| core/comm/bus.py | 376 | `noqa: BLE001` | fail-loud: refused or unavailable, the sender is told |
+| core/comm/bus.py | 883 | `noqa: RUF012` | annotation_sensitive module; class-level throttle shared on purpose |
 | core/comm/conductor_gate.py | 65 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/comm/conductor_gate.py | 727 | `noqa: BLE001` | fail-closed: never raise out of the loop top |
 | core/comm/control_channel.py | 194 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: stop() can null _sock between the _stop check and accept |
@@ -91,10 +92,11 @@
 | core/comm/mailbox.py | 866 | `noqa: A001` | public API name (mailbox.open) |
 | core/comm/operator_reply.py | 151 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/operator_reply.py | 200 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 483 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 547 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 590 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/remote_relay.py | 786 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 113 | `noqa: E402` | ONE allowlist, shared with fleet links |
+| core/comm/remote_relay.py | 473 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 537 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 580 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/remote_relay.py | 776 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/runner_lock.py | 416 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: two reads; lock may vanish between them |
 | core/comm/shift_turn.py | 67 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/shift_turn.py | 75 | `noqa: BLE001` | fail-soft: falls back to a default value |
@@ -124,6 +126,9 @@
 | core/foundation/redis_connection.py | 280 | `pyright: ignore[reportPossiblyUnboundVariable]` | REDIS_LIBRARY_AVAILABLE checked above |
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API) |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
+| core/link/client.py | 147 | `noqa: SIM115` | closed by Client.close |
+| core/link/promote.py | 176 | `noqa: BLE001` | an unknown original is simply not ours |
+| core/link/quarantine.py | 45 | `noqa: BLE001` | fail-soft: offline bus = None, the store stays the truth |
 | core/manuals/chunk.py | 17 | `noqa: TC001` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/manuals/convert.py | 293 | `pyright: ignore[reportArgumentType]` | LATENT: pypdf returns None for a dangling outline target; the sort below would raise |
 | core/manuals/shelf.py | 73 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
@@ -365,7 +370,7 @@
 | scripts/bifrost_runner_kimi.py | 869 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_sol.py | 69 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_sol.py | 73 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_ui.py | 1598 | `pyright: ignore[reportMissingImports]` | optional package |
+| scripts/bifrost_ui.py | 1609 | `pyright: ignore[reportMissingImports]` | optional package |
 | scripts/capture_apple_hig.py | 46 | `noqa: BLE001` | fail-soft: logged, caller continues — log and retry; the summary reports misses |
 | scripts/checkers/check_comprehensibility.py | 215 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/checkers/check_ports.py | 48 | `noqa: E402` | sys.path bootstrap |
@@ -613,6 +618,16 @@
 | tests/test_legacy_net_exact_and_bounded.py | 51 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_anchors.py | 44 | `noqa: E402` | sys.path bootstrap |
 | tests/test_lesson_dedup.py | 11 | `noqa: F401` | re-export or side-effect import |
+| tests/test_link_contract.py | 20 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_contract.py | 21 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_contract.py | 22 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_daemon_e2e.py | 23 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
+| tests/test_link_pyo3_surface.py | 41 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
+| tests/test_link_pyo3_surface.py | 46 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
+| tests/test_link_pyo3_surface.py | 56 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
+| tests/test_link_pyo3_surface.py | 59 | `pyright: ignore[reportOptionalCall]` | skipped when absent |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_onboarding_v2.py | 192 | `pyright: ignore[reportMissingImports]` | LATENT: module absent |
 | tests/test_oom_leak_fixes_2026_08_26_pins.py | 168 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |

@@ -27,3 +27,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytes = "1"
 clap = { version = "4", features = ["derive", "env"] }
 n0-future = "0.3.2"
+
+[dev-dependencies]
+# A real relay server (with access control) in process, for the relay tests and Phase 0 numbers.
+iroh = { version = "=1.3.0", features = ["test-utils"] }
+iroh-relay = { version = "=1.3.0", features = ["server"] }

@@ -369,6 +369,12 @@ pub const METHODS: &[Method] = &[
         params: &[],
         network: false,
     },
+    Method {
+        name: "relay.config",
+        summary: "An iroh-relay config whose allowlist is every device of every link here: a self-hosted relay only members can use.",
+        params: &[("http_bind", "string", false)],
+        network: false,
+    },
 ];
 
 pub fn openrpc() -> Value {
@@ -574,6 +580,23 @@ pub async fn dispatch(ctx: &Ctx, method: &str, params: Value) -> Result<Value, R
             Ok(json!({"dialing": true}))
         }
         "housekeeping" => d.housekeeping(),
+        "relay.config" => {
+            let mut devices: std::collections::BTreeSet<String> = d.peer_links().into_keys().collect();
+            if let Ok(me) = d.device() {
+                devices.insert(me.id_hex());
+            }
+            let bind = p.opt_str("http_bind")?.unwrap_or_else(|| "[::]:3340".into());
+            let list: Vec<String> = devices.iter().map(|x| format!("  \"{x}\",")).collect();
+            let toml = format!(
+                "# iroh-relay config: `cargo install iroh-relay`, then `iroh-relay --config-path relay.toml`.\n\
+                 # Written by aurora-linkd: only the devices of our links may relay through it.\n\
+                 # Add a [tls] section for a public host, and regenerate after membership changes.\n\
+                 http_bind_addr = \"{bind}\"\n\
+                 access.allowlist = [\n{}\n]\n",
+                list.join("\n")
+            );
+            Ok(json!({"toml": toml, "devices": devices.len()}))
+        }
         other => Err(RpcError {
             code: -32601,
             message: format!("no method {other}"),

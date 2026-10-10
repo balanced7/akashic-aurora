@@ -242,6 +242,12 @@ class HousekeepingParams(TypedDict):
     """Run retention and certificate renewal now."""
 
 
+class RelayConfigParams(TypedDict):
+    """An iroh-relay config whose allowlist is every device of every link here: a self-hosted relay only members can use."""
+
+    http_bind: NotRequired[str]
+
+
 #: method -> (required parameters, optional parameters)
 METHODS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "rpc.discover": ((), ()),
@@ -278,6 +284,7 @@ METHODS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "net.status": ((), ()),
     "sync.now": ((), ("link",)),
     "housekeeping": ((), ()),
+    "relay.config": ((), ("http_bind",)),
 }
 
 #: Methods an offline daemon refuses: they need `aurora link serve`.

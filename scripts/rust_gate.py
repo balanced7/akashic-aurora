@@ -39,7 +39,7 @@ def _run(cmd: list[str]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--force", action="store_true", help="run even when aurora-rs/ is unchanged")
     ap.add_argument("--fuzz-seconds", type=int, default=10, help="per fuzz target (0 skips the smoke)")
     a = ap.parse_args(argv)

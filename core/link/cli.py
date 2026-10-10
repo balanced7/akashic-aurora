@@ -57,6 +57,7 @@ ACTIONS = (
     "policy",
     "rebuild",
     "import-legacy",
+    "relay-config",
 )
 
 #: Actions that need the daemon's network (`aurora link serve`, or a one-shot networked child).
@@ -507,6 +508,17 @@ def do_sync(c: Client, args: Any) -> int:
     return 0
 
 
+def do_relay_config(c: Client, args: Any) -> int:
+    """An iroh-relay config admitting only our links' devices: a self-hosted, members-only relay."""
+    out = c.call("relay.config", http_bind=getattr(args, "bind", None))
+    if getattr(args, "out", None):
+        Path(args.out).write_text(out["toml"], encoding="utf-8")
+        print(f"wrote {args.out}: {out['devices']} device(s) may relay. Run: iroh-relay --config-path {args.out}")
+    else:
+        print(out["toml"], end="")
+    return 0
+
+
 def do_import_legacy(c: Client, args: Any) -> int:
     from core.link import legacy
 
@@ -552,6 +564,7 @@ HANDLERS = {
     "peer": do_peer,
     "sync": do_sync,
     "import-legacy": do_import_legacy,
+    "relay-config": do_relay_config,
 }
 
 
