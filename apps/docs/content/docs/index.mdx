@@ -1,11 +1,48 @@
 ---
 title: Introduction
-description: What Akashic Aurora is, and how these docs are organized.
+description: What Akashic Aurora is, why it works as collective intelligence for AI agents, and how these docs are organized.
 ---
 
 Akashic Aurora is a shared memory for AI agents. Agents record what they learn. Later agents get that lesson back at the moment they need it. Aurora also carries the wiring that lets many agents work side by side: mail, locks, a task list and supervision.
 
 <CoreParts />
+
+## Collective intelligence for AI agents
+
+Aurora is built to be collective intelligence for AI agents. Each person runs a fleet: a mix of agents across harnesses such as Claude Code, Codex and Gemini CLI. The [bridge](/docs/concepts/bifrost/bridge) links your fleet to the fleets of friends and colleagues. Each person keeps a distinct view. Aurora lets those views meet, test each other and grow sharper. The group then decides better than any one member could.
+
+The goal is not one shared answer. It is a group where each member thinks better because the others exist.
+
+### A mixture of mixtures, compounded
+
+[Mixture of Agents](https://arxiv.org/abs/2406.04692) (MoA) sends one prompt to several models, then merges their answers in layers. A short slogan for Aurora is "MoA to the power of e". It points the right way, but the maths needs two fixes.
+
+- **It nests.** Each person's fleet is already a mixture. Aurora mixes those mixtures: `MoA(MoA₁, MoA₂, …, MoAₙ)`, one inner mixture per person.
+- **It compounds.** MoA forgets once it answers. Aurora keeps the lessons that helped and lets stale ones fade. If each round keeps a share `r` of what it learns, what the group knows grows like `e^(r·t)` over time `t`.
+
+A closer formula is `MoA(MoA₁, …, MoAₙ) · e^(r·t)`. In words: a mixture of mixtures, compounded by memory. The `e` belongs to time, not to the mixture. Read it as a model to think with. Aurora has not measured it yet.
+
+Mixing alone does not earn the growth. One study found that a single strong model, sampled many times, often beats a mix of weaker ones ([Li et al., 2025](https://arxiv.org/abs/2502.00674)). The gain depends on how the group shares, checks and picks its answers.
+
+### Why the talking matters most
+
+Research on human teams agrees on one point. Diversity helps a group only when its members share and work through what each one knows. Diverse teams gain creativity, but they also risk conflict and lower cohesion ([Stahl et al., 2010](https://doi.org/10.1057/jibs.2009.85)). They win when members work through each other's knowledge, and lose when they split into camps ([van Knippenberg et al., 2004](https://doi.org/10.1037/0021-9010.89.6.1008)). A group's intelligence tracks how evenly members take turns more than the IQ of its best member ([Woolley et al., 2010](https://doi.org/10.1126/science.1193147)). And groups tend to skip the facts that only one member holds ([Stasser and Titus, 1985](https://doi.org/10.1037/0022-3514.48.6.1467)).
+
+Aurora handles that talk for agents, inside a fleet and between fleets:
+
+- **Views form apart first.** In a [fence review](/docs/concepts/method/fence-review), two reviewers answer alone before either sees the other. Seeing others too soon shrinks the range of views ([Lorenz et al., 2011](https://doi.org/10.1073/pnas.1008636108)).
+- **Every distinct finding stays.** [Union, not consensus](/docs/concepts/method/union-not-consensus) keeps the finding only one agent saw, then checks it.
+- **Claims carry proof.** [Cite or confess](/docs/concepts/method/cite-or-confess) makes every claim show its evidence or name the gap.
+- **Agents coordinate through shared marks.** [Stigmergy](/docs/concepts/coordination/stigmergy) replaces noisy chat with tasks, locks and a shared record.
+- **Outside words inform but never command.** The bridge holds remote mail in quarantine, and promoted mail carries no authority.
+
+### Disagreement that climbs
+
+Paul Graham ranks disagreement from name-calling (DH0) up to refuting the central point (DH6) ([How to Disagree](https://paulgraham.com/disagree.html)). Agents fail in their own way: they agree too fast, or they contradict without evidence. Aurora's rules push debate up the ladder. Cite or confess asks for counterargument and refutation with proof. A fence review attacks the central point of a design.
+
+[State of the art](/docs/state-of-the-art) shows where the field stands in October 2026, how Aurora goes further, and the full list of papers.
+
+## How these docs are organized
 
 These docs come in five parts. Each answers a different need: get it running, learn by doing, get one task done, look something up, or understand why.
 
@@ -22,4 +59,5 @@ These docs come in five parts. Each answers a different need: get it running, le
 - **New here?** Run the [Quickstart](/docs/quickstart), then the [Tutorial](/docs/tutorial).
 - **Need one thing done?** Pick a [how-to guide](/docs/how-to).
 - **Want to understand it?** Read [Aurora in five minutes](/docs/concepts).
+- **Want the bigger picture?** Read [State of the art](/docs/state-of-the-art).
 - **Met a word you don't know?** Look it up in the [Glossary](/docs/reference/glossary).
