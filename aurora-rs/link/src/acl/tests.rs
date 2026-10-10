@@ -79,7 +79,7 @@ fn accept(log: &mut AclLog, admin: &Device, join_hash: &str, ts: u64) {
 fn two_fleets(role: Role) -> (AclLog, Fleet, Fleet) {
     let a = Fleet::new(2, true);
     let b = Fleet::new(2, false);
-    let (mut log, _) = genesis(a.d(0), "partners", Policy::default(), T0 + 1).unwrap();
+    let (mut log, _) = genesis(a.d(0), "partners", "owner", Policy::default(), T0 + 1).unwrap();
     log.append(
         a.d(0),
         Op::AddDevice(add_device_op(&log, a.d(0), &a.devs[1].cert)),
@@ -115,7 +115,7 @@ fn add_device_op(log: &AclLog, author: &Device, cert: &DeviceCert) -> AddDevice 
 #[test]
 fn genesis_gives_the_owner_a_read_key_and_a_link_id() {
     let a = Fleet::new(1, true);
-    let (log, g) = genesis(a.d(0), "partners", Policy::default(), T0 + 1).unwrap();
+    let (log, g) = genesis(a.d(0), "partners", "owner", Policy::default(), T0 + 1).unwrap();
     assert_eq!(log.link_id(), g.hash().unwrap());
     assert_eq!(log.state().members[&a.root_hex()].role, Role::Owner);
     key_of(&log, a.d(0));
@@ -137,7 +137,7 @@ fn an_invite_is_single_use_expires_and_can_be_revoked() {
     let a = Fleet::new(1, false);
     let b = Fleet::new(1, false);
     let c = Fleet::new(1, false);
-    let (mut log, _) = genesis(a.d(0), "p", Policy::default(), T0 + 1).unwrap();
+    let (mut log, _) = genesis(a.d(0), "p", "owner", Policy::default(), T0 + 1).unwrap();
     let secret = invite(&mut log, a.d(0), Role::Writer, false, T0 + 2);
     join(&mut log, b.d(0), &secret, T0 + 3).unwrap();
     assert!(
@@ -165,7 +165,7 @@ fn an_invite_is_single_use_expires_and_can_be_revoked() {
 fn an_approval_join_waits_and_can_be_declined() {
     let a = Fleet::new(1, false);
     let b = Fleet::new(1, false);
-    let (mut log, _) = genesis(a.d(0), "p", Policy::default(), T0 + 1).unwrap();
+    let (mut log, _) = genesis(a.d(0), "p", "owner", Policy::default(), T0 + 1).unwrap();
     let secret = invite(&mut log, a.d(0), Role::Reader, true, T0 + 2);
     let j = join(&mut log, b.d(0), &secret, T0 + 3).unwrap();
     assert!(log.state().members[&b.root_hex()].pending);

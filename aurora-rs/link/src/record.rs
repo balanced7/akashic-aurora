@@ -36,6 +36,9 @@ pub struct Record {
     pub seq: u64,
     pub prev: String,
     pub deps: Vec<String>,
+    /// Ids of the blobs the body references: signed and in the clear, so a mailbox that cannot
+    /// open the body still knows which blobs travel with the record (and nothing else about them).
+    pub blobs: Vec<String>,
     pub acl: String,
     pub epoch: u64,
     pub size_class: u64,
@@ -140,7 +143,7 @@ impl Record {
     fn header_value(&self) -> serde_json::Value {
         json!({
             "v": self.v, "link": self.link, "author": self.author, "seq": self.seq, "prev": self.prev,
-            "deps": self.deps, "acl": self.acl, "epoch": self.epoch, "size_class": self.size_class,
+            "deps": self.deps, "blobs": self.blobs, "acl": self.acl, "epoch": self.epoch, "size_class": self.size_class,
             "ct_hash": self.ct_hash,
         })
     }
@@ -177,6 +180,7 @@ impl Record {
             seq: s.seq,
             prev: s.prev.to_owned(),
             deps: s.deps,
+            blobs: body.blobs.iter().map(|b| b.id.clone()).collect(),
             acl: s.acl.to_owned(),
             epoch: s.epoch,
             size_class: bucket as u64,
@@ -211,6 +215,12 @@ impl Record {
         if self.deps.len() > MAX_DEPS {
             return Err(refused("too many deps"));
         }
+        if self.blobs.len() > MAX_BLOBS {
+            return Err(refused("too many blobs"));
+        }
+        for b in &self.blobs {
+            unhex::<32>(b)?;
+        }
         for d in &self.deps {
             unhex::<32>(d)?;
         }
@@ -237,6 +247,9 @@ impl Record {
         let padded = crypto::open(key, &ct, &self.aad()?)?;
         let body: Body = codec::parse(&crypto::unpad(&padded)?, "record body")?;
         body.check(kinds)?;
+        if body.blobs.iter().map(|b| &b.id).ne(self.blobs.iter()) {
+            return Err(refused("body blobs do not match the signed header"));
+        }
         Ok(body)
     }
 

@@ -305,6 +305,71 @@ impl Device {
     }
 }
 
+// ------------------------------------------------------------------------------ the stored root
+
+/// The fleet root, sealed under a passphrase (Argon2id, then XChaCha20-Poly1305), for installs
+/// that keep it to renew certificates unattended. Without a passphrase the root is not stored:
+/// the recovery phrase re-derives it whenever it is needed.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SealedRoot {
+    v: u32,
+    kdf: String,
+    m_kib: u32,
+    t: u32,
+    p: u32,
+    salt: String,
+    sealed: String,
+}
+
+const ROOT_AAD: &[u8] = b"aurora-link/v1/root";
+
+fn root_kek(passphrase: &str, salt: &[u8], m_kib: u32, t: u32, p: u32) -> Result<Secret32> {
+    let params = argon2::Params::new(m_kib, t, p, Some(32)).map_err(|e| refused(format!("argon2 parameters: {e}")))?;
+    let argon = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+    let mut out = [0u8; 32];
+    argon
+        .hash_password_into(passphrase.as_bytes(), salt, &mut out)
+        .map_err(|e| refused(format!("argon2: {e}")))?;
+    Ok(Secret32(out))
+}
+
+pub fn seal_root(root: &SigningKey, passphrase: &str) -> Result<Vec<u8>> {
+    if passphrase.chars().count() < 12 {
+        return Err(refused("the passphrase must have at least 12 characters"));
+    }
+    let salt = crypto::random_bytes(16);
+    let (m_kib, t, p) = (64 * 1024, 3, 1);
+    let kek = root_kek(passphrase, &salt, m_kib, t, p)?;
+    let sealed = crypto::seal(&kek.0, &root.to_bytes(), ROOT_AAD);
+    let file = SealedRoot {
+        v: 1,
+        kdf: "argon2id".into(),
+        m_kib,
+        t,
+        p,
+        salt: b64(&salt),
+        sealed: b64(&sealed),
+    };
+    serde_json::to_vec_pretty(&file).map_err(|e| LinkError::Unavailable(e.to_string()))
+}
+
+pub fn open_root(raw: &[u8], passphrase: &str) -> Result<SigningKey> {
+    let f: SealedRoot = codec::parse(raw, "sealed root")?;
+    if f.v != 1 || f.kdf != "argon2id" || f.m_kib > 1024 * 1024 || f.t > 16 || f.p > 16 {
+        return Err(refused("sealed root has an unknown format"));
+    }
+    let kek = root_kek(passphrase, &unb64(&f.salt)?, f.m_kib, f.t, f.p)?;
+    let mut seed = crypto::open(&kek.0, &unb64(&f.sealed)?, ROOT_AAD)
+        .map_err(|_| refused("the root did not open with that passphrase"))?;
+    let arr: [u8; 32] = seed
+        .as_slice()
+        .try_into()
+        .map_err(|_| refused("sealed root holds a malformed key"))?;
+    seed.zeroize();
+    Ok(crypto::signing_key(&arr))
+}
+
 // --------------------------------------------------------------------------------- fingerprints
 
 const FINGERPRINT_ITERATIONS: usize = 5200;
@@ -419,6 +484,18 @@ mod tests {
         assert!(forged.verify().is_err());
         let back = Device::from_json(&device.to_json().unwrap()).unwrap();
         assert_eq!(back.id(), device.id());
+    }
+
+    #[test]
+    fn a_sealed_root_opens_only_with_its_passphrase() {
+        let root = root_from_phrase(&new_phrase()).unwrap();
+        let sealed = seal_root(&root, "correct horse battery").unwrap();
+        assert_eq!(
+            open_root(&sealed, "correct horse battery").unwrap().to_bytes(),
+            root.to_bytes()
+        );
+        assert!(open_root(&sealed, "wrong horse battery").is_err());
+        assert!(seal_root(&root, "short").is_err());
     }
 
     #[test]

@@ -6,7 +6,7 @@
 # wheel. Python always keeps a reference implementation and falls back to it (core/accel.py),
 # so the Rust path is an accelerator, never a requirement. See aurora-rs/README.md.
 [workspace]
-members = ["text", "py", "link"]
+members = ["text", "py", "link", "linkd"]
 resolver = "2"
 
 [workspace.package]

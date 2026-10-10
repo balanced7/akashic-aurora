@@ -130,6 +130,8 @@ pub struct KeyChange {
 pub struct Genesis {
     pub name: String,
     pub owner: String,
+    /// The owner fleet's name, as members see it.
+    pub label: String,
     pub policy: Policy,
     pub devices: Vec<DeviceCert>,
     pub key: KeyChange,
@@ -897,8 +899,12 @@ impl AclState {
         if e.seq != 0 || !e.prev.is_empty() || !e.link.is_empty() {
             return Err(refused("genesis must have seq 0, no prev and no link"));
         }
-        if g.name.is_empty() || g.name.chars().count() > MAX_LABEL || g.name.chars().any(char::is_control) {
-            return Err(refused("link name is empty, too long, or has control characters"));
+        for text in [&g.name, &g.label] {
+            if text.is_empty() || text.chars().count() > MAX_LABEL || text.chars().any(char::is_control) {
+                return Err(refused(
+                    "link or fleet name is empty, too long, or has control characters",
+                ));
+            }
         }
         if g.policy.kinds.iter().any(|k| !BRIDGE_KINDS.contains(&k.as_str())) || g.policy.kinds.is_empty() {
             return Err(refused("link policy names a kind outside the bridge allowlist"));
@@ -938,7 +944,7 @@ impl AclState {
             g.owner.clone(),
             MemberState {
                 root: g.owner.clone(),
-                label: g.name.clone(),
+                label: g.label.clone(),
                 role: Role::Owner,
                 pending: false,
                 removed: false,
@@ -1236,7 +1242,7 @@ impl AclLog {
 }
 
 /// Start a new link: genesis by `device`, with a fresh epoch-0 key wrapped to its devices.
-pub fn genesis(device: &Device, name: &str, policy: Policy, ts: u64) -> Result<(AclLog, Entry)> {
+pub fn genesis(device: &Device, name: &str, label: &str, policy: Policy, ts: u64) -> Result<(AclLog, Entry)> {
     let key = Secret32::random();
     let mut tmp = AclState {
         owner: device.root_hex().to_owned(),
@@ -1254,6 +1260,7 @@ pub fn genesis(device: &Device, name: &str, policy: Policy, ts: u64) -> Result<(
     let op = Op::Genesis(Genesis {
         name: name.to_owned(),
         owner: device.root_hex().to_owned(),
+        label: label.to_owned(),
         policy,
         devices: vec![device.cert.clone()],
         key: KeyChange {

@@ -97,7 +97,7 @@ fn trio() -> (Node, Node, Node) {
     let mut a = Node::new("a");
     let mut b = Node::new("b");
     let mut m = Node::new("mailbox");
-    a.link = Some(Link::create(None, &a.dev, "partners", Policy::default(), T0).unwrap());
+    a.link = Some(Link::create(None, &a.dev, "partners", "fleet-a", Policy::default(), T0).unwrap());
     admit(&mut a, &mut b, Role::Writer, T0 + 1);
     admit(&mut a, &mut m, Role::Mailbox, T0 + 2);
     (a, b, m)
@@ -160,7 +160,7 @@ fn partitioned_fleets_converge_with_no_duplicates_or_loss() {
     assert_eq!(got, ["a0", "a1", "a2", "a3", "a4"]);
     assert_eq!(
         events(&b)[0]["fleet"],
-        "partners",
+        "fleet-a",
         "provenance comes from the ACL, not the body"
     );
     // A second sync changes nothing.
@@ -434,7 +434,7 @@ fn self_monitoring_flags_a_device_we_never_certified() {
 fn the_store_survives_a_reopen() {
     let dir = std::env::temp_dir().join(format!("aurora-link-test-{}", hex(&crypto::random32())));
     let mut a = Node::new("a");
-    let link = Link::create(Some(&dir), &a.dev, "p", Policy::default(), T0).unwrap();
+    let link = Link::create(Some(&dir), &a.dev, "p", "fleet-a", Policy::default(), T0).unwrap();
     let path = link.path.clone().unwrap();
     a.link = Some(link);
     a.link

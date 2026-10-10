@@ -49,8 +49,15 @@ pub fn db_path(dir: &Path, link_id: &str) -> PathBuf {
 
 impl Link {
     /// Create a new link owned by this device's fleet.
-    pub fn create(dir: Option<&Path>, device: &Device, name: &str, policy: Policy, now: u64) -> Result<Self> {
-        let (acl, genesis) = acl::genesis(device, name, policy, now)?;
+    pub fn create(
+        dir: Option<&Path>,
+        device: &Device,
+        name: &str,
+        label: &str,
+        policy: Policy,
+        now: u64,
+    ) -> Result<Self> {
+        let (acl, genesis) = acl::genesis(device, name, label, policy, now)?;
         let mut link = Self::empty(dir, acl.link_id())?;
         link.store.put_acl(&genesis.hash()?, &genesis, now)?;
         link.acl = acl;
@@ -492,6 +499,9 @@ impl Link {
         };
         self.store
             .put_record(&id, r, status, body.as_deref(), reason.as_deref(), now)?;
+        for blob in &r.blobs {
+            self.store.put_blob(blob, &id, "", 0)?;
+        }
         Ok(Admit::Stored {
             id,
             status: status.to_owned(),

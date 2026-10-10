@@ -16,4 +16,5 @@ pub mod record;
 pub mod store;
 pub mod sync;
 
+pub use ed25519_dalek;
 pub use error::{LinkError, Result};

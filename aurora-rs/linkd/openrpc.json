@@ -1,0 +1,887 @@
+{
+  "info": {
+    "description": "The local channel between Aurora's Python side and its fleet-link daemon.",
+    "title": "aurora-linkd",
+    "version": "0.1.0"
+  },
+  "methods": [
+    {
+      "name": "rpc.discover",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "This contract as an OpenRPC document.",
+      "x-network": false
+    },
+    {
+      "name": "daemon.status",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Version, mode, uptime and network state.",
+      "x-network": false
+    },
+    {
+      "name": "daemon.shutdown",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Stop the daemon cleanly (exit code 0, not restarted).",
+      "x-network": false
+    },
+    {
+      "name": "identity.init",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "phrase",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "label",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "passphrase",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "xwing",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "force",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Create this install's device under a fleet root. Without a phrase, a new 24-word phrase is made and returned once.",
+      "x-network": false
+    },
+    {
+      "name": "identity.status",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "This install's device, root fingerprint and certificate.",
+      "x-network": false
+    },
+    {
+      "name": "identity.renew",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "phrase",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "passphrase",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Renew the device certificate (needs the phrase, or the passphrase for root.age) and announce it in every link.",
+      "x-network": false
+    },
+    {
+      "name": "identity.certify",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "cert",
+          "required": true,
+          "schema": {
+            "type": "object"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Record a certificate of another device of this fleet as ours (self-monitoring).",
+      "x-network": false
+    },
+    {
+      "name": "link.create",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "name",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "label",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "kinds",
+          "required": false,
+          "schema": {
+            "type": "array"
+          }
+        },
+        {
+          "name": "retention_days",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Create a link owned by this fleet.",
+      "x-network": false
+    },
+    {
+      "name": "link.list",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Links this install holds.",
+      "x-network": false
+    },
+    {
+      "name": "link.status",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Members, devices, heads, receipts, invites and alarms of one link.",
+      "x-network": false
+    },
+    {
+      "name": "link.invite",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "role",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "ttl_s",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "single_use",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "approval",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Publish an invite and return its code. The code also carries the bundle-free dial hints.",
+      "x-network": false
+    },
+    {
+      "name": "link.join",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "code",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "label",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "acl",
+          "required": false,
+          "schema": {
+            "type": "array"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Join with an invite code. With `acl` (the inviter's log from a bundle) it works offline and returns our join entry as a bundle; without, it dials the inviter.",
+      "x-network": false
+    },
+    {
+      "name": "link.accept",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "join",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Admit a pending join (wraps the read key to it).",
+      "x-network": false
+    },
+    {
+      "name": "link.decline",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "join",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Refuse a pending join.",
+      "x-network": false
+    },
+    {
+      "name": "link.verify",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "member",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "mark",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Safety numbers for each member; with mark=true, record that they were compared.",
+      "x-network": false
+    },
+    {
+      "name": "link.remove_member",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "member",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Remove a fleet and rotate the read key.",
+      "x-network": false
+    },
+    {
+      "name": "link.leave",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Leave a link (an admin's daemon then rotates the key).",
+      "x-network": false
+    },
+    {
+      "name": "link.remove_device",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "device",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Remove one device and rotate the read key.",
+      "x-network": false
+    },
+    {
+      "name": "link.add_device",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "cert",
+          "required": true,
+          "schema": {
+            "type": "object"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Add another device of a member, from its certificate.",
+      "x-network": false
+    },
+    {
+      "name": "link.rotate_key",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Start a new read-key epoch.",
+      "x-network": false
+    },
+    {
+      "name": "link.revoke_invite",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "invite",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Kill an unused invite.",
+      "x-network": false
+    },
+    {
+      "name": "link.set_role",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "member",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "role",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Change a member's role (owner > admin > writer > reader > mailbox).",
+      "x-network": false
+    },
+    {
+      "name": "link.send",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "source",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "attachments",
+          "required": false,
+          "schema": {
+            "type": "array"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Write one record. `source` makes it idempotent (the exporter passes the bus message id). Attachments become encrypted blobs.",
+      "x-network": false
+    },
+    {
+      "name": "link.read",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "record_ids",
+          "required": true,
+          "schema": {
+            "type": "array"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Send read receipts for records a seat has read.",
+      "x-network": false
+    },
+    {
+      "name": "record.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "record_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "One stored record with its body and provenance.",
+      "x-network": false
+    },
+    {
+      "name": "events.wait",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "cursors",
+          "required": false,
+          "schema": {
+            "type": "object"
+          }
+        },
+        {
+          "name": "timeout_ms",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Admitted records after the given per-link cursors; waits up to timeout_ms for the first one.",
+      "x-network": false
+    },
+    {
+      "name": "promotion.record",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "record_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "seat",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "by",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "bus_id",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Record that a person or rule promoted a record onto the bus. Returns first=false when it already was.",
+      "x-network": false
+    },
+    {
+      "name": "bundle.export",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "records",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "The whole log and records of a link, for sneakernet.",
+      "x-network": false
+    },
+    {
+      "name": "bundle.import",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "bundle",
+          "required": true,
+          "schema": {
+            "type": "object"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Merge a bundle: every entry and record is verified as if it came over the wire.",
+      "x-network": false
+    },
+    {
+      "name": "blob.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "record_id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "blob",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "out",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Fetch (if needed), verify and decrypt one attachment of a record into a file.",
+      "x-network": false
+    },
+    {
+      "name": "peers.add",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "device",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "addrs",
+          "required": false,
+          "schema": {
+            "type": "array"
+          }
+        },
+        {
+          "name": "relay",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Remember dial hints (direct addresses, a relay URL) for a device.",
+      "x-network": false
+    },
+    {
+      "name": "net.status",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Our endpoint id, addresses, relay and live sessions.",
+      "x-network": true
+    },
+    {
+      "name": "sync.now",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Dial every member of a link (or all links) now.",
+      "x-network": true
+    },
+    {
+      "name": "housekeeping",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Run retention and certificate renewal now.",
+      "x-network": false
+    }
+  ],
+  "openrpc": "1.3.2"
+}
