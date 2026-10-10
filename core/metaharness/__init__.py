@@ -25,9 +25,12 @@ if TYPE_CHECKING:
 
 
 def home() -> Path:
-    """Root of all meta-harness state. Follows state_root(), so AI_SETUP isolates it in tests."""
-    from core.paths import state_root
+    """Root of all meta-harness state. Follows state_root(), so AI_SETUP isolates it in tests.
+    Trees that predate the per-world home (no state_root) use data_root, which AI_SETUP also
+    overrides -- the same place their session_logs live."""
+    import core.paths as paths
 
-    p = state_root() / "metaharness"
+    root = getattr(paths, "state_root", paths.data_root)()
+    p = root / "metaharness"
     p.mkdir(parents=True, exist_ok=True)
     return p
