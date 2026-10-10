@@ -148,6 +148,9 @@
 | core/metaharness/corpus.py | 202 | `noqa: BLE001` | fail-soft: mining without signals still mines |
 | core/metaharness/memreplay.py | 73 | `noqa: BLE001` | WRONGTYPE on Redis: try the next shape |
 | core/metaharness/memreplay.py | 390 | `noqa: BLE001` | a trigger is a bonus; the lesson write is what matters |
+| core/metaharness/modes.py | 57 | `noqa: BLE001` | fail-soft: unknown harness compiles nothing away |
+| core/metaharness/modes.py | 248 | `noqa: BLE001` | no replay module means no replay verdict |
+| core/metaharness/modes.py | 306 | `noqa: BLE001` | a flag is bookkeeping; the lesson write is what matters |
 | core/metaharness/precompile.py | 166 | `noqa: BLE001` | a resolver fault is not a pass |
 | core/metaharness/precompile.py | 412 | `noqa: BLE001` | no counters means no credit |
 | core/metaharness/proposer.py | 129 | `noqa: BLE001` | fail-soft: the brief is still useful without lessons |
@@ -737,6 +740,10 @@
 | tests/test_metaharness_memreplay.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_memreplay.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_memreplay.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_modes.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_modes.py | 30 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_modes.py | 31 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_modes.py | 32 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_precompile.py | 26 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_precompile.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_replay.py | 26 | `noqa: E402` | sys.path bootstrap |
