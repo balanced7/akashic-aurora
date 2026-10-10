@@ -58,7 +58,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# The two real copies. The scripts/ one is what a home-rooted session actually executes.
+# The canonical hook, and the scripts/hooks shim that older user-level registrations run. Both are
+# executed as real processes, so the shim's hand-off is exercised end to end.
 HOOKS = {
     "scripts": os.path.join(REPO, "scripts", "hooks", "claude_posttooluse.py"),
     "agent_harness": os.path.join(REPO, "agent", "harness", "hooks", "claude_posttooluse.py"),
@@ -180,33 +181,6 @@ def test_w2b_beat_is_not_hostage_to_the_recall_kill_switch(which, ns):
         f"[{which}] the beat is placed BELOW the AKASHIC_RECALL_AT_ACTION kill switch, so "
         f"disabling recall silently disables liveness."
     )
-
-
-def test_w3_both_hook_copies_stay_in_sync():
-    """W3: the two copies must differ ONLY by sys.path depth.
-
-    They are separate real files that have already drifted once (uncommitted edits landed in
-    scripts/ alone). If a future fix lands in one copy, a home-rooted session and a repo-rooted
-    session get different liveness behaviour -- and the difference is invisible.
-    """
-
-    def norm(p):
-        with open(p, encoding="utf-8") as f:
-            body = f.read().replace("\r\n", "\n")
-        return [ln for ln in body.split("\n") if "sys.path.insert" not in ln]
-
-    a, b = norm(HOOKS["scripts"]), norm(HOOKS["agent_harness"])
-    if a != b:
-        diff = [
-            f"  line {i + 1}:\n    scripts/: {x!r}\n    agent/:   {y!r}"
-            for i, (x, y) in enumerate(zip(a, b, strict=False))
-            if x != y
-        ][:5]
-        pytest.fail(
-            "hook copies have drifted (modulo sys.path):\n"
-            + "\n".join(diff)
-            + ("" if len(a) == len(b) else f"\n  line counts differ: {len(a)} vs {len(b)}")
-        )
 
 
 @pytest.mark.parametrize("which", sorted(HOOKS))

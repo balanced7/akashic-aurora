@@ -1,4 +1,4 @@
-"""PIN: the cwd-guard (_cwd_drift) in the LIVE PreToolUse hook, scripts/hooks/claude_pretooluse.py.
+"""PIN: the cwd-guard (_cwd_drift) in the PreToolUse hook, agent/harness/hooks/claude_pretooluse.py.
 
 Defer 21f178ad26 (claude, 2026-09-01): "write the RED pin for _cwd_drift ... drift speaks, anchored
 stays guard-quiet, in-repo untouched -- the 3-case stdin drill from 2026-09-01 is the spec". The
@@ -15,11 +15,10 @@ alone; in-scope: folded in FRONT of recall), and stays quiet for anchored comman
 (cd /e/AI-Setup && ..., absolute repo paths), for a cwd already inside E:\\AI-Setup, and for
 non-repo work that mentions no repo marker.
 
-WHICH FILE. The hook exists twice: agent/harness/hooks/claude_pretooluse.py (what the sibling pins
-import) and scripts/hooks/claude_pretooluse.py (what the user-level registration runs). Only the
-scripts/ copy carries the guard. This pin loads the LIVE copy by path under a unique module name;
-a pin written by copying the sibling pins' import would test the wrong file and stay green while
-the live guard regressed. RED against b095caa5~1 (the tree before the guard existed); GREEN at HEAD.
+WHICH FILE. The guard used to live only in the scripts/hooks/ twin. Since the hook trees were
+unified, agent/harness/hooks/claude_pretooluse.py is the one body and scripts/hooks/ holds a runpy
+shim onto it, so this pin loads the canonical file by path under a unique module name.
+RED against b095caa5~1 (the tree before the guard existed); GREEN at HEAD.
 
 Recall is replaced by a sentinel at the hook's own seam (_recall_context), so every case is
 Redis-free by construction and the FOLD ORDER (drift line first, recall after) is pinned rather
@@ -46,7 +45,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-LIVE_HOOK = os.path.join(ROOT, "scripts", "hooks", "claude_pretooluse.py")
+LIVE_HOOK = os.path.join(ROOT, "agent", "harness", "hooks", "claude_pretooluse.py")
 SENTINEL = "SENTINEL-RECALL-AT-ACTION"
 # Derived from THIS checkout, never one machine's drive: on the original box REPO is
 # E:\\AI-Setup and DRIFTED is E:\\ (where the harness shell lands after a rebuild); anywhere

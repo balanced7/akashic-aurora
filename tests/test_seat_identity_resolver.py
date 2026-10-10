@@ -54,7 +54,6 @@ HOOK_NAMES = (
     "claude_sessionend.py",
 )
 HOOK_DIRS = {
-    "scripts": os.path.join(ROOT, "scripts", "hooks"),
     "agent_harness": os.path.join(ROOT, "agent", "harness", "hooks"),
 }
 
@@ -190,31 +189,6 @@ def test_r6_no_hook_silently_defaults_identity_to_a_peer_name(which):
     )
 
 
-def test_r7_both_hook_copies_resolve_identity_identically():
-    """W3's shape, applied to this slice. scripts/hooks/ and agent/harness/hooks/ are TWO REAL
-    FILES that differ only by sys.path depth. A home-rooted session runs the scripts/ copy; the
-    wiring gate at check_wiring.py:28-34 declares that copy 'not entry points... deliberately
-    not walked', so a fix landing in the agent/ copy alone is invisible AND a no-op exactly
-    where it is needed. Identity lines must match across both."""
-
-    def ident_lines(d):
-        out = []
-        for name in HOOK_NAMES:
-            p = os.path.join(d, name)
-            if not os.path.exists(p):
-                continue
-            with open(p, encoding="utf-8") as fh:
-                out += [(name, ln.strip()) for ln in fh if "AKASHIC_AGENT_ID" in ln or "seat_identity" in ln]
-        return out
-
-    a, b = ident_lines(HOOK_DIRS["scripts"]), ident_lines(HOOK_DIRS["agent_harness"])
-    assert a == b, (
-        "hook copies disagree on identity resolution -- one seat profile gets the "
-        f"fix and the other does not:\n  scripts/: {a}\n  agent/:   {b}"
-    )
-
-
-# ------------------------------------------------------------------ R8: the declare door
 def test_r8_declare_door_is_reachable_from_the_cli():
     """A binding a seat cannot create is not a door. The CLI must expose it, because the seat
     that needs it is mid-session and cannot restart itself to change its own process env."""

@@ -79,8 +79,9 @@ if os.path.isdir(_rd):
     ]
 # T104-M2 (2026-07-24): hooks split by owner-facet -- harness adapters live in
 # agent/harness/hooks/, commit guards in scripts/githooks/. Enumerate BOTH live
-# dirs; the transitional scripts/hooks/ session-continuity copies are NOT entry
-# points (deleted at next session start) and are deliberately not walked.
+# dirs. scripts/hooks/ holds only stable-path SHIMS that runpy the canonical file
+# (older user-level registrations point there); they carry no imports to walk, and
+# hook_shim_violations() below fails the gate if one grows behaviour again.
 for _hd, _prefix in (
     (os.path.join(ROOT, "agent", "harness", "hooks"), "agent/harness/hooks"),
     (os.path.join(ROOT, "scripts", "githooks"), "scripts/githooks"),
@@ -745,6 +746,30 @@ def analyze():
     return core_universe, reachable, unwired
 
 
+HOOK_SHIM_DIR = os.path.join(ROOT, "scripts", "hooks")
+
+
+def hook_shim_violations(shim_dir=HOOK_SHIM_DIR):
+    """scripts/hooks/*.py must be policy-free shims onto agent/harness/hooks/. The two trees
+    drifted twice as full copies (features written into the copy nobody registered); a shim
+    that only runpy's its canonical twin cannot drift. Returns [(file, why)]."""
+    out = []
+    if not os.path.isdir(shim_dir):
+        return out
+    for name in sorted(os.listdir(shim_dir)):
+        if not name.endswith(".py"):
+            continue
+        with open(os.path.join(shim_dir, name), encoding="utf-8") as fh:
+            body = fh.read()
+        if "def " in body or "class " in body:
+            out.append((name, "defines a function or class -- behaviour belongs in agent/harness/hooks/"))
+        elif "runpy.run_path(" not in body or f'"{name}"' not in body:
+            out.append((name, f"does not runpy agent/harness/hooks/{name}"))
+        elif not os.path.isfile(os.path.join(ROOT, "agent", "harness", "hooks", name)):
+            out.append((name, f"its canonical target agent/harness/hooks/{name} does not exist"))
+    return out
+
+
 def main():
     core_universe, reachable, unwired = analyze()
 
@@ -806,7 +831,11 @@ def main():
     # amnesty this whole change exists to remove -- and it is what this function did
     # for about four minutes, until the author noticed he had rebuilt the defect
     # while fixing it.
-    if new_unwired or new_orphans or expired:
+    shim_bad = hook_shim_violations()
+    for name, why in shim_bad:
+        print(f"FAIL: scripts/hooks/{name} {why}")
+
+    if new_unwired or new_orphans or expired or shim_bad:
         if new_unwired:
             print(f"\n{len(new_unwired)} NEW unwired core/ module(s). Latent capability must not accumulate.")
         if new_orphans:

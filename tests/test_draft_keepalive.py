@@ -137,9 +137,9 @@ def test_the_writer_is_INJECTED_so_this_module_owns_no_second_way_to_build_a_dra
 def test_the_keepalive_is_WIRED_at_both_turn_boundaries():
     """FLIPPED 2026-08-26 (was: NOT-wired, recorded as a decision). The wiring slice
     landed TWO call sites, one per seat shape:
-      (1) the Stop hook -- scripts/hooks/claude_stop.py, the LIVE registered copy
-          (user settings register pyw E:/AI-Setup/scripts/hooks/claude_stop.py), so
-          every claude turn refreshes a stale draft;
+      (1) the Stop hook -- agent/harness/hooks/claude_stop.py (scripts/hooks/ holds
+          only a shim onto it for older registrations), so every claude turn
+          refreshes a stale draft;
       (2) the DSH turn seam -- bridge.py gains a `draft-keepalive` subcommand (the
           pinned throttle + the one existing draft builder) and lib/index.js fires it
           fire-and-forget from tools/post-execute, so a taskkill /F on the DSH host
@@ -150,7 +150,7 @@ def test_the_keepalive_is_WIRED_at_both_turn_boundaries():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    stop = root / "scripts" / "hooks" / "claude_stop.py"
+    stop = root / "agent" / "harness" / "hooks" / "claude_stop.py"
     assert stop.is_file(), "live stop hook missing from this tree"
     assert "draft_keepalive" in stop.read_text(encoding="utf-8"), (
         "the Stop hook must refresh a stale draft at the turn boundary"

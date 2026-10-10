@@ -125,6 +125,54 @@ def _emit_context(text: str) -> None:
     )
 
 
+_REPO_MARKERS = ("agent_cli.py", "scripts/", "core/", "docs/", "tests/", "agent/", "config.py")
+#: This checkout, derived from where the hook stands (as agent/harness/scope.py does) -- the
+#: guard was pinned to one machine's drive and fired on every repo command anywhere else.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+
+def _repo_cd() -> str:
+    """How to spell `cd <repo>` in the harness shell: git-bash form for a Windows drive
+    (E:\\AI-Setup -> /e/AI-Setup), the plain path everywhere else."""
+    fwd = _REPO_ROOT.replace("\\", "/").rstrip("/")
+    if len(fwd) > 1 and fwd[1] == ":":
+        return f"/{fwd[0].lower()}{fwd[2:]}"
+    return fwd
+
+
+def _repo_anchors() -> tuple:
+    """Every spelling of the repo root a command may carry, lowercased for matching."""
+    fwd = _REPO_ROOT.replace("\\", "/").rstrip("/").lower()
+    return tuple({fwd, fwd.replace("/", "\\"), _repo_cd().lower()})
+
+
+def _cwd_drift(data) -> str:
+    """A shell call whose command is repo-shaped while its cwd is NOT the repo is the
+    false-clean class (grep over missing dirs hits nothing, git says 'not a repository') --
+    the harness shell can reset its cwd whenever it rebuilds, and the old silent out-of-scope
+    no-op made that reset invisible. Anchored commands (cd <repo> && ..., absolute repo
+    paths) stay quiet; intentional non-repo work never mentions repo markers."""
+    if (data.get("tool_name") or "") not in _SHELL_TOOLS:
+        return ""
+    ti = data.get("tool_input")
+    cmd = (ti.get("command") or "") if isinstance(ti, dict) else ""
+    cwd = data.get("cwd") or os.getcwd()
+    root = _REPO_ROOT.replace("\\", "/").rstrip("/").lower()
+    here = cwd.replace("\\", "/").rstrip("/").lower()
+    if here == root or here.startswith(root + "/"):
+        return ""
+    low = cmd.lower()
+    if any(a in low for a in _repo_anchors()):
+        return ""
+    if not any(m in cmd for m in _REPO_MARKERS):
+        return ""
+    return (
+        f"[cwd-guard] shell cwd is {cwd} -- NOT {_REPO_ROOT}. Repo-relative paths in this "
+        "command will miss or FALSE-CLEAN (grep of absent dirs reports zero hits). "
+        f"Anchor with `cd {_repo_cd()} && ...` -- the shell can reset its cwd when it rebuilds."
+    )
+
+
 def _recall_context(data) -> str:
     """Recall-at-action: relevant active lessons + lock/peer warning for the path/command about to be
     acted on. Best-effort, capped, FAITH-gated, fail-open. ANTI-REPEAT: lessons already surfaced this
@@ -248,21 +296,17 @@ def main() -> int:
     except Exception:
         return 0  # unparseable -> allow
     tool = data.get("tool_name") or ""
-    # PRESENCE, before the tool filter and before every gate below. This must fire for EVERY tool,
-    # not just the shell/file ones this hook guards -- the avatar is reporting whether the seat is
-    # busy at all, and a Read that reported nothing would render as idle, which is a wrong claim
-    # rather than a missing one. Fail-open and side-effect-only; see _activity.py.
-    try:
-        from agent.harness.hooks._activity import report, verb_for
-
-        report(verb_for(tool), tool, data.get("cwd") or "", data.get("session_id") or "")
-    except Exception:
-        pass
     if tool not in _SHELL_TOOLS + _FILE_TOOLS:
         return 0
     if _dedup_should_skip(data):
         return 0  # K0/C8-3: identical payload already fired within the window -> silent no-op
+    # 2026-09-01: drift is ORTHOGONAL to scope -- a repo-shaped command can be IN scope by its
+    # text while its cwd is drifted (py agent_cli.py from E:\ -> file-not-found), or OUT of
+    # scope entirely (grep of absent dirs -> false-clean). Both were silent; both now speak.
+    drift = _cwd_drift(data)
     if not _in_scope(tool, data):
+        if drift:
+            _emit_context(drift)
         return 0  # outside this repo -> silent no-op (safe for user-level / global registration)
     reason = _check_bash(data) if tool in _SHELL_TOOLS else _check_write(data)
     if reason:
@@ -272,6 +316,8 @@ def main() -> int:
     # exclude_sources) now prevents the same lesson repeating, so Bash recall front-loads relevant
     # knowledge then goes quiet instead of spamming. The git-guard above remains Bash's job.
     ctx = _recall_context(data)
+    if drift:
+        ctx = (drift + "\n" + ctx) if ctx else drift
     # T236: a FACT about the id being minted into this path, at the application site. Composed
     # with recall rather than replacing it, and placed FIRST because it is about the action in
     # hand while recall is about the topic. Fires approximately never (terminal id + new path

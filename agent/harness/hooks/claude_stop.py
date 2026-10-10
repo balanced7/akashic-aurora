@@ -465,7 +465,19 @@ def main():
         if now - last >= 25:  # loop guard: never block twice within 25s
             with contextlib.suppress(Exception), open(guard, "w") as f:
                 f.write(str(now))
-            arm_cmd = f"BIFROST_WAKE_LANE=work {_pyl()} scripts/bifrost_wake.py --agent {AGENT}" + (
+            # ABSOLUTE path on purpose: the seat's cwd drifts off the repo root (observed
+            # repeatedly at E:\ instead of E:\AI-Setup), and a relative script path then
+            # resolves to a file that does not exist. The arm backgrounds cleanly and only
+            # fails ASYNCHRONOUSLY, so the seat reads "armed" and is silently unwakeable --
+            # the failure this hook exists to prevent, caused by the hook's own advice.
+            # `uv run` also needs --project for the same reason: from a drifted cwd it would
+            # not find the locked environment.
+            _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            _wake_py = os.path.join(_root, "scripts", "bifrost_wake.py").replace("\\", "/")
+            _launch = _pyl()
+            if _launch.startswith("uv run"):
+                _launch += " --project " + _root.replace("\\", "/")
+            arm_cmd = f"BIFROST_WAKE_LANE=work {_launch} {_wake_py} --agent {AGENT}" + (
                 f" --session {session_id}" if session_id else ""
             )  # T045: lane-mode watch
             # T073 P3: this block is the BACKSTOP, not a per-turn chore -- the watcher is

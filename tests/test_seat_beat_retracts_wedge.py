@@ -41,11 +41,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 ACT = ROOT / "agent" / "harness" / "hooks" / "_activity.py"
 
-# BOTH copies, deliberately. The user-level settings run scripts/hooks/*; the project settings
-# reference agent/harness/hooks/*. That divergence already cost an hour today when a fix landed in
-# the copy that does not run, so every pin here checks the pair.
-TRACE_HOOKS = [ROOT / "scripts" / "hooks" / "claude_trace.py"]
-STOP_HOOKS = [ROOT / "scripts" / "hooks" / "claude_stop.py", ROOT / "agent" / "harness" / "hooks" / "claude_stop.py"]
+# The canonical hooks. scripts/hooks/* are runpy shims onto these (check_wiring enforces it), so
+# the divergence that once cost an hour -- a fix landing in the copy that does not run -- is gone.
+TRACE_HOOKS = [ROOT / "agent" / "harness" / "hooks" / "claude_trace.py"]
+STOP_HOOKS = [ROOT / "agent" / "harness" / "hooks" / "claude_stop.py"]
 
 
 def _read(p: Path) -> str:
