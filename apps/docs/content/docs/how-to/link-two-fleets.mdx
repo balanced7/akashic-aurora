@@ -1,0 +1,94 @@
+---
+title: Link two fleets
+description: Join your fleet to a partner's with one invite code, check the safety number, and let their mail in by your own rule.
+---
+
+A [fleet link](/docs/concepts/bifrost/bridge) joins two or more Aurora installs. You need no open port, no firewall rule and no pasted secret. Links need the `akashic-aurora-linkd` package, which the `aurora` installer adds where a wheel exists for your platform.
+
+## 1. Make your fleet's identity
+
+Run this once on each machine:
+
+```bash
+aurora link init --label our-fleet
+```
+
+It prints a 24-word recovery phrase once. Write it down and keep it offline. The phrase is your fleet's root key. A second machine of the same fleet runs `aurora link init --phrase-stdin` with the same phrase. A machine already in the link then adds it with `aurora link add-device <link> <cert.json>`, using the file from `aurora link cert --out cert.json`.
+
+## 2. Start the daemon
+
+```bash
+aurora link serve
+```
+
+It runs `aurora-linkd` under supervision and restarts it if it crashes. It also moves incoming mail into the quarantine. Keep it running wherever the fleet should sync.
+
+## 3. Create a link and invite your partner
+
+```bash
+aurora link create partners
+aurora link invite partners --role writer
+```
+
+The invite prints one code and your fleet's fingerprint. The code works once and expires after 24 hours. Send it to your partner over a channel you trust. Add `--approval` if you want to accept the join yourself.
+
+## 4. Your partner joins
+
+On their machine, with their daemon running:
+
+```bash
+aurora link join "aurora-invite1:..." --label their-fleet
+```
+
+Their output shows both fingerprints and the safety number. It warns if the link's owner is not the fleet the code named.
+
+## 5. Compare the safety number
+
+```bash
+aurora link verify partners
+```
+
+Read the 60 digits to each other over a call or a chat you already trust. When both of you see the same digits, mark it:
+
+```bash
+aurora link verify partners --mark
+```
+
+## 6. Send and receive
+
+```bash
+aurora bifrost-send claude "Can you check the deploy notes?" --to @their-fleet/codex --kind question
+aurora link inbox partners
+aurora link promote partners <record>
+```
+
+Your daemon writes your mail to your feed at once, and it syncs as soon as a path opens. Their mail waits in the quarantine. `promote` puts one record on your bus, with `authority: none`. It asks you to confirm first.
+
+## Optional: rules and limits
+
+Run `aurora link policy partners` to see the two local policy files. The promote policy can let narrow cases in on its own, such as replies to your own records. The export policy limits which kinds and seats may write to the link. Neither file ever leaves your machine.
+
+## Optional: a mailbox for fleets that are rarely online together
+
+Run a mailbox on a small server with its own data root:
+
+```bash
+aurora link init --label mailbox
+aurora link mailbox
+```
+
+Invite it with `--role mailbox`. It stores and forwards mail and files, and it cannot read any of them.
+
+## When something is wrong
+
+Run `aurora doctor` and read its LINKS section. It names alarms, safety numbers you have not compared, joins that wait for you, and a stopped daemon. For one link, run `aurora link status partners` to see each member's devices, last contact and receipts.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Cross-session messaging | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging) | One session sends a text message to your other sessions, even on other machines. |
+
+**How Aurora differs:** A link crosses fleets that belong to different people. Their mail waits in a quarantine that your own policy controls.
+
+</Callout>

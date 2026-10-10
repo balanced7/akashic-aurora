@@ -1,15 +1,15 @@
 ---
 title: Bridge
-description: A signed, narrow mail link to another Aurora install, where incoming mail waits in a file until someone lets it in.
+description: Fleet links join your fleet to other Aurora installs through signed, sealed feeds, and remote mail waits in quarantine until local policy lets it in.
 ---
 
-The bridge links your fleet to another fleet on another machine. It carries mail, and only mail. Every message carries a signature. Incoming mail does not go onto your [bus](/docs/concepts/bifrost/bus). It waits in a file until someone chooses to let it in.
-
-<Callout type="warn" title="Partly wired">Nothing sends your bus mail to the peer on its own yet. An encrypted "sealed envelope" exists in code but has no caller.</Callout>
+The bridge links your fleet to other fleets. Since RFC #70 it is a **fleet link**: a shared space with a signed member list. Each machine writes its mail into its own signed, encrypted feed. Fleets sync those feeds whenever any path opens. Mail from another fleet never reaches your [bus](/docs/concepts/bifrost/bus) on its own. It waits in a quarantine until local policy, or a person, lets it in.
 
 ## Why it exists
 
-The project owner wanted a partner's agent to talk with this fleet. But not everyone should get in. The design borrowed a rule from the Discord link to the owner's phone. Sending out is safe. Letting in is where all the risk lives. A remote message that talks an agent into running commands would be a real danger.
+The project owner wanted a partner's agents to talk with this fleet. The first bridge was a direct HTTP link with one shared secret. Both sides had to be awake at once. In September 2026 our door stayed shut for 13 days, and every message sent in that time was lost.
+
+A link fixes the mechanism and keeps the rule. Sending out is safe. Letting in is where the risk lives. A remote message that talks an agent into running commands would be a real danger.
 
 <Callout title="In other agent tools">
 
@@ -17,21 +17,29 @@ The project owner wanted a partner's agent to talk with this fleet. But not ever
 | --- | --- | --- |
 | Security best practices | [MCP](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices) | Guidance on attacks against MCP setups and how to block them. |
 
-**How Aurora differs:** The bridge treats incoming words as the main risk. Remote mail waits in a file until a person lets it in.
+**How Aurora differs:** A link treats incoming words as the main risk. Remote mail waits in quarantine until local policy lets it in.
 
 </Callout>
 
 ## How it works
 
-- **Out.** Each envelope carries a signature (HMAC-SHA256) made with a shared secret. The bridge posts it to the peer. A file outbox holds it until the peer confirms, so a failed post gets another try.
-- **The door.** `scripts/remote_bridge_listener.py` is a plain HTTP server on port 8791. It binds to `127.0.0.1` by default. It allows a private address too, such as one on Tailscale, a private network. A public address needs `--allow-public`, typed on purpose. The code has no TLS; the signature proves who sent each envelope.
-- **The gate.** An envelope must carry a valid signature from one of the configured peers. The key that checks out names the sender. It must be less than 5 minutes old. Only mail kinds pass: chat, question, handoff, reply, completion, blocker and note. No control kind can cross.
-- **No hints.** The sender comes from the checked route, not from what the message claims. Every refusal looks the same on the wire, so a prober learns nothing.
-- **Parked.** Admitted mail lands in `state/coord/remote_bridge_inbox.jsonl`, not on the bus. Words from another fleet must never act on your agents by themselves. A person decides when they come in.
-- **Relay.** `scripts/remote_bridge_relay.py` moves parked mail onto the local bus. It is opt-in, and a peer can never switch it on. Relayed lines start with `[remote <route>]` and carry `authority: none`.
-- **Secrets.** Keys live in files under `.secrets/`, which git never tracks. The config names the file, never the secret.
+Three questions get three different answers.
 
-Today the outbox empties only when someone presses a button in the [console](/docs/concepts/bifrost/console).
+- **Is this record real, and may its author write?** The daemon checks the signature, the member list and the author's feed. That part is pure maths.
+- **Does it reach our bus?** Local policy in `promote.toml` decides. The default is that a person decides. A peer can never change this file.
+- **Does it make an agent act?** The agent decides, under its own [Trust](/docs/concepts/coordination/trust) role. Promoted mail carries `authority: none`.
+
+The parts:
+
+- **Identity.** A 24-word recovery phrase makes the fleet's root key. Each machine gets its own device key, signed by the root for 90 days. People compare a 60-digit safety number once, over a call or a chat they already trust.
+- **Membership.** Invites, joins, removals and key changes are signed entries in one log. Every member checks every entry. If two admins write at once, every member settles the clash the same way.
+- **Records.** Each record names the record before it. A gap, a reorder or a forged record shows up at once. Replays do nothing, whatever the clock says.
+- **Encryption.** Only members can read content, kinds and seat names. Removing a member changes the read key, so they cannot read new mail.
+- **Transport.** Daemons dial each other by key over iroh, a QUIC network that crosses NATs. There is no open port and no firewall rule. A device that is not a member gets the same silent refusal as any stranger.
+- **Mailbox.** A mailbox member stores and forwards mail it cannot read. Two fleets that are never online together still get their mail.
+- **Files.** Attachments travel as encrypted blobs. They arrive even when the sender has gone offline.
+
+The daemon is `aurora-linkd`, written in Rust. It holds the keys and reads every untrusted byte. It never sees the bus. Python runs the quarantine, the promotion policy and every door an agent uses.
 
 <Callout title="In other agent tools">
 
@@ -43,23 +51,30 @@ Today the outbox empties only when someone presses a button in the [console](/do
 | Agent Card signing | [A2A](https://a2a-protocol.org/latest/specification/#84-agent-card-signing) | Signing an Agent Card so clients can check it is real and unchanged. |
 | Remote Subagents (A2A) | [Gemini CLI](https://geminicli.com/docs/core/remote-agents/#defining-remote-subagents) | Subagents on other services, reached over the A2A protocol. |
 
-**How Aurora differs:** The bridge does a narrow version of this job. It signs each message, not an agent card. It carries mail, never tasks or control.
+**How Aurora differs:** A link carries mail, never tasks or control. Every record is signed, and only members can read it. It needs no server: a mailbox can relay mail it cannot read.
 
 </Callout>
 
 ## How you use it
 
 ```bash
-uv run peer_connect.py                          # one-command setup and handshake
-uv run bridge_doctor.py                         # check your half of the link
-uv run scripts/remote_bridge_listener.py        # open the door on 127.0.0.1:8791
-uv run scripts/remote_bridge_relay.py --once    # let parked mail onto the bus
+aurora link init --label our-fleet          # once per machine; shows the phrase once
+aurora link create partners                 # a new link
+aurora link invite partners                 # prints a single-use code
+aurora link join <code>                     # on the other fleet
+aurora link verify partners --mark          # after you compare the safety number
+aurora link serve                           # the daemon, supervised
+aurora bifrost-send claude "hi" --to @partner/codex
+aurora link inbox partners                  # the quarantine
+aurora link promote partners <record>       # let one record onto the bus
 ```
+
+[Link two fleets](/docs/how-to/link-two-fleets) walks through it.
 
 ## Don't confuse it with
 
-- **The Discord bridge** — it links the fleet to the owner's phone, not to another fleet.
-- **The name Bifrost** — a bridge between agents in different tools on one machine.
+- **The Discord bridge.** It links the fleet to the owner's phone, not to another fleet.
+- **The name Bifrost.** It means the bus between agents in different tools on one machine.
 
 <Callout title="In other agent tools">
 
@@ -70,7 +85,7 @@ uv run scripts/remote_bridge_relay.py --once    # let parked mail onto the bus
 | Slack integration | [Cursor](https://cursor.com/docs/integrations/slack) | Mention @cursor in Slack to start and manage Cloud Agents. |
 | Claude Tag | [Claude Code](https://claude.com/docs/claude-tag/overview) | Claude working in your Slack channels, with access set by your admins. |
 
-**How Aurora differs:** These match the Discord bridge, a link from a chat app to the fleet. The fleet bridge links one fleet to another.
+**How Aurora differs:** These match the Discord bridge, a link from a chat app to the fleet. A fleet link joins one fleet to another.
 
 </Callout>
 
@@ -79,3 +94,4 @@ uv run scripts/remote_bridge_relay.py --once    # let parked mail onto the bus
 - **Built on:** [Bus](/docs/concepts/bifrost/bus), [Trust](/docs/concepts/coordination/trust)
 - **Used by:** [Console](/docs/concepts/bifrost/console)
 - **Part of:** [Bifrost](/docs/concepts/bifrost)
+- **Decisions:** [0008: Quarantine mail from another fleet](/docs/reference/decisions/0008-park-peer-mail), [0011: Fleets sync through signed feeds](/docs/reference/decisions/0011-fleets-sync-through-signed-feeds)

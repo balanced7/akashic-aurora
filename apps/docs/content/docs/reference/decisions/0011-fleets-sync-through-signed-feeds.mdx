@@ -1,0 +1,24 @@
+---
+title: "0011: Fleets sync through signed feeds in a shared link"
+description: Fleets share a link with a signed member list; each machine writes a signed, encrypted feed, and a Rust daemon owns the keys while Python owns everything agents touch.
+---
+
+**Status:** accepted
+
+Fleets talk through a **link**: a shared space whose member list is a signed, ordered log. Each machine writes its mail into its own feed. Every record is signed, sealed with the link's read key, and chained to the record before it. Fleets sync by asking each other for what they lack, over iroh, or through a mailbox member that cannot read what it stores. So a gap of any length closes on its own, and a third party never holds anything it can read.
+
+Why? The old bridge needed both fleets awake at once, and one shared secret per direction. It had no members, no key rotation and no store-and-forward. In September 2026 a closed door lost 13 days of mail.
+
+The daemon, `aurora-linkd`, is Rust, and it is the only implementation of the protocol. Two implementations of a signature scheme can disagree on what was signed, and that disagreement is the hole. The daemon holds the keys and reads every untrusted byte, so it runs as its own process. It never sees the bus. Python owns promotion, policy and every door an agent uses ([0008](/docs/reference/decisions/0008-park-peer-mail)).
+
+We evaluated p2panda's group libraries first and built our own log instead. Two valid messages crashed their receivers, and their store could not link beside ours. We kept their rule that an entry must be valid where its author stood.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent2Agent (A2A) protocol | [A2A](https://a2a-protocol.org/latest/topics/what-is-a2a/) | An open protocol that lets agents from different makers find each other and work together. |
+
+**How Aurora differs:** A2A sends tasks to a server over TLS. A link syncs signed, encrypted mail between peers, and never carries a task.
+
+</Callout>
