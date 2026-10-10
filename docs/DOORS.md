@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (115 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (116 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -97,6 +97,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `reply` | answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable) | `<text>*` `--text-file` `--to` `--as` `--model` `--json` |
 | `report` | scaffold a visual report with the design kit inlined (T275) | `--title` `--eyebrow` `--out` `--crib` |
 | `resident` | callsign ceremony: nominate / ratify / show a resident's designation | `<sub> {nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration}` |
+| `review` | meta-harness review queue (task 06): the human final check-off, apply, rollback, watch | `<action>* {list,add,show,decide,apply,rollback,watch,disagreements}` `<id>` `--candidate` `--against` `--scenario` `--predicted` `--reviewer` `--decision` `--calls` `--reason` `--json` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` `--by-agent` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
 | `scope` | lesson applicability (task 02): show, set, widen by evidence, list proposals, tree | `<action>* {show,set,widen,proposals,tree}` `--experiment` `--scope` `--kinds` `--force` `--json` |
