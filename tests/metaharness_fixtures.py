@@ -12,6 +12,8 @@ Fake agent modes (argv[1]):
   cheat    rewrite the scenario's own oracle test to `assert True`, fix nothing
   verbose  like good, but reports ten times the tokens
   aware    good if the candidate's CLAUDE.md says FIX-EVERYTHING, else bad
+  memory   reads the run's private memory: a USE-PLUS lesson -> good, a USE-MINUS-WRONG
+           lesson -> bad, no such lesson -> half
 """
 
 from __future__ import annotations
@@ -29,6 +31,15 @@ FAKE_AGENT = textwrap.dedent(
     import glob, json, re, sys
     mode = sys.argv[1]
     prompt = open(sys.argv[2]).read()
+    if mode == "memory":  # reads its run's PRIVATE memory, as recall would hand it lessons
+        import os
+        store = os.path.join(os.environ.get("AI_SETUP", ""), "session_logs", "store_state.json")
+        doc = json.load(open(store)) if os.path.exists(store) else {}
+        lessons = {k: v for k, v in (doc.get("hash") or {}).items() if k.startswith("learn:experiment:")}
+        for k, v in lessons.items():
+            print(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "recalled " + k}]}}))
+        texts = " ".join(str(v.get("recommendation", "")) for v in lessons.values())
+        mode = "bad" if "USE-MINUS-WRONG" in texts else "good" if "USE-PLUS" in texts else "half"
     if mode == "aware":  # behaves well only when the candidate's overlay tells it to
         import os
         mode = "good" if os.path.exists("CLAUDE.md") and "FIX-EVERYTHING" in open("CLAUDE.md").read() else "bad"

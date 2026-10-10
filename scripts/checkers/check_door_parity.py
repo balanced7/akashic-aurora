@@ -132,6 +132,7 @@ MANIFEST = {
     "grade": "cli_only",  # meta-harness task 05: graders and verdicts
     "review": "cli_only",  # meta-harness task 06: the human final check-off
     "loop": "cli_only",  # meta-harness task 07: the proposer loop
+    "memreplay": "cli_only",  # meta-harness task 08: replay memory before and after a lesson
     "forecast": "cli_only",
     # 2026-08-23 incident lever (Daniil from the phone: "Can we add a command to
     # restart the discord gateway?"): status/restart for the ear, detached relaunch

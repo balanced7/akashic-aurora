@@ -508,6 +508,8 @@ def _project_items(recs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 # Applicability (meta-harness task 02): which harness/model/effort the lesson
                 # holds under. Absent means universal, so every pre-scope lesson is unaffected.
                 "scope": rec.get("scope", ""),
+                # Task 08: the lesson's measured effect on replayed outcomes, when one exists.
+                "proven_effect": rec.get("proven_effect", ""),
                 "field": field,
                 # Carried so the renderer can say so. A probed lesson was benched for failing to
                 # earn credit and is being re-tested -- presenting it as an ordinary lesson would
@@ -784,6 +786,17 @@ def _trigger_aware_relevance(by_text: dict[str, dict[str, Any]]):
         return 0.6 * _damped_overlap(trig, query, weights) + 0.4 * prose
 
     return fn
+
+
+def _proven_factor(item: dict[str, Any]) -> float:
+    if not item.get("proven_effect"):
+        return 1.0
+    try:
+        from core.metaharness.memreplay import ranker_factor
+
+        return ranker_factor(item["proven_effect"])
+    except Exception:
+        return 1.0
 
 
 def usefulness_factor(use: dict[str, int] | None) -> float:
@@ -1653,7 +1666,9 @@ def _lessons(
             continue
         seen.add(src)
         # usefulness re-rank: proven-useful lessons rise; surfaced-often-yet-never-useful decay
-        cands.append((s.score * usefulness_factor(s.item.get("_use")), s.item))
+        # A replay-proven effect (task 08) is stronger evidence than flip credit: it boosts or damps
+        # on top of the usefulness factor, and is 1.0 for every lesson never replayed.
+        cands.append((s.score * usefulness_factor(s.item.get("_use")) * _proven_factor(s.item), s.item))
     cands.sort(key=lambda t: t[0], reverse=True)
     return [it for _, it in cands[:limit]], len(cands)
 
