@@ -410,7 +410,7 @@ def bass_label(f: dict, pc: int) -> str:
 
 def score_scales(hist: dict[int, float]) -> list[dict]:
     """Every candidate scale scored over a weighted interval histogram (shares summing to 1), best first (MUSIC 9.7)."""
-    out = []
+    out: list[dict[str, Any]] = []
     for order, (name, steps, own, used_with) in enumerate(SCALE_CANDIDATES):
         coverage = sum(hist.get(i, 0.0) for i in steps)
         unused = sum(1 for i in steps if hist.get(i, 0.0) < SCALE_UNUSED_SHARE)
@@ -1024,7 +1024,7 @@ def _window_ms(beat_ms: float, rule: tuple[float, float]) -> float:
 def read_notes(tl, snd: dict, lo_t: float, hi_t: float) -> tuple[list[dict], list[dict], list[list[dict]]]:
     """(notes, top line, attacks) of his inside [lo_t, hi_t): positions, top line, lengths, weights, the chord each
     note is heard against (with anticipations) and its class and label (11.3 steps 2-5)."""
-    recs = []
+    recs: list[dict[str, Any]] = []
     for n in snd["notes"]:
         if lo_t <= n["on_ms"] < hi_t:
             end = n["end_ms"] if n["off_ms"] is None else min(n["off_ms"], n["end_ms"])
@@ -1500,7 +1500,7 @@ def _degrees(tl, insts: list[dict], tops: list[dict]) -> dict:
 
 def _passes(tl, insts: list[dict], recs: list[dict], attacks: list[list[dict]], snd: dict, bars_set: set) -> list[dict]:
     """Per pass (11.3 step 10): range, velocity, shares, rests, pedal, onsets per bar, and at most one picking fact."""
-    rows = []
+    rows: list[dict[str, Any]] = []
     seen_colours: set = set()
     for p in sorted({x["pass"] for x in insts}):
         px = [x for x in insts if x["pass"] == p]
@@ -2528,7 +2528,8 @@ def _no_overlap(store: PerformanceStore, loaded: dict, rows=None) -> RiffError:
     for sid, info in rows if rows is not None else _session_rows(store):
         s0, s1 = session_window(info)
         if s0 is not None:
-            near.append((min(abs(s0 - r1), abs(r0 - cast("float", s1))), sid, s0, s1))  # s1 set with s0
+            s1 = cast("float", s1)  # s1 set with s0
+            near.append((min(abs(s0 - r1), abs(r0 - s1)), sid, s0, s1))
     near.sort()
     lines = [
         f"no practice session overlaps run {loaded['run'].get('run')}, which played from {_local(r0)} to {_local(r1)}"
@@ -2646,7 +2647,7 @@ def riff(
             key
             and nashville.parse_key(key)
             and d.get("key")
-            and nashville.parse_key(key)["name"] != nashville.parse_key(d["key"])["name"]  # pyright: ignore[reportOptionalSubscript]  # LATENT: a def file whose key does not parse raises TypeError here
+            and nashville.parse_key(key)["name"] != nashville.parse_key(d["key"])["name"]  # ty: ignore[not-subscriptable]  # pyright: ignore[reportOptionalSubscript]  # LATENT: a def file whose key does not parse raises TypeError here
         ):
             loaded["problems"].append(f"the def is in {d['key']}, not {key}")
         block = run_block(loaded, sid, info, snd, opts, Clock("assumed", [(0.0, 0.0)], None), node, rebuild)

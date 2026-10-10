@@ -12,6 +12,7 @@ import json
 import struct
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -752,7 +753,7 @@ def test_dropout_rests_every_lane_but_the_bass():
 
 def test_dropout_treats_pushes_as_the_vfx_band_does():
     spec = next(s for s in band.SEEDS if s["id"] == "eb-neosoul-pocket")
-    kw = {
+    kw: dict[str, Any] = {
         "key": spec["key"],
         "bpm": spec["bpm"],
         "bars": 8,
@@ -955,7 +956,7 @@ def test_a_change_off_the_rhythm_is_still_struck():
 
 def test_a_shell_comp_is_two_guide_tones_below_e4():
     ps = band.seed("f-to-d-drop")
-    assert next(s for s in band.SEEDS if s["id"] == "f-to-d-drop")["shell"]
+    assert next(s for s in band.SEEDS if s["id"] == "f-to-d-drop").get("shell")
     groups = {}
     for n in lane(ps, "comp"):
         groups.setdefault(n["beat"], []).append(n["note"])
@@ -1000,7 +1001,7 @@ def test_nashville_numbers_read_in_the_key_and_round_trip():
 
 
 def test_the_same_numbers_in_another_key_transpose_every_lane():
-    kw = {"pid": "same", "bass": "walking", "drums": "neo-soul", "comp": True, "pad": True, "bars": 4}
+    kw: dict[str, Any] = {"pid": "same", "bass": "walking", "drums": "neo-soul", "comp": True, "pad": True, "bars": 4}
     db = band.make_pattern_set("4maj9 - 6m11 - 5^11/4 - 1add9", key="Db major", **kw)
     d = band.make_pattern_set("4maj9 - 6m11 - 5^11/4 - 1add9", key="D major", **kw)
     assert [c["name"] for c in d["chords"]] == ["Gmaj9", "Bm11", "A11/G", "Dadd9"]

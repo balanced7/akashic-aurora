@@ -133,8 +133,8 @@ def test_per_agent_stream_name_sanitized():
 
 def test_capture_never_raises_on_bad_input():
     el = _log()
-    assert el.capture("note", None, agent_id=None).ok  # pyright: ignore[reportArgumentType]  # bad input on purpose: None summary -> ""
-    assert el.capture(None, "s").ok  # pyright: ignore[reportArgumentType]  # bad input on purpose: None kind -> 'note'
+    assert el.capture("note", None, agent_id=None).ok  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # bad input on purpose: None summary -> ""
+    assert el.capture(None, "s").ok  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # bad input on purpose: None kind -> 'note'
     huge = "x" * 50000
     ev = el.capture("note", huge, detail={"blob": huge})
     assert ev.ok

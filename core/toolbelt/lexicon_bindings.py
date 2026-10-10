@@ -186,7 +186,7 @@ def audit_bindings(bindings: dict[str, Any] | None = None) -> list[Any]:
                 )
                 continue
             try:
-                rx = re.compile(disc)
+                rx: re.Pattern[str] = re.compile(disc)
             except re.error as e:
                 rows.append(
                     _Row(

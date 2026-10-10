@@ -19,6 +19,10 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openai.types.chat import ChatCompletionMessageParam
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "openai.key"
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")
@@ -61,7 +65,7 @@ def main():
     from openai import OpenAI
 
     client = OpenAI(api_key=key)
-    messages = []
+    messages: list[ChatCompletionMessageParam] = []
     if args.system:
         messages.append({"role": "system", "content": args.system})
     messages.append({"role": "user", "content": prompt})

@@ -98,7 +98,7 @@ def _any_daemon_live(cli, ns: str) -> bool | None:
     try:
         scan = getattr(cli, "scan_iter", None)
         if callable(scan):
-            for _ in cast("Any", scan(match=pattern, count=200)):  # redis scan_iter
+            for _ in cast("Any", scan(match=pattern, count=200)):  # ty: ignore[redundant-cast]  # pyright sees object here; redis scan_iter
                 return True
             return False
         keys = getattr(cli, "keys", None)

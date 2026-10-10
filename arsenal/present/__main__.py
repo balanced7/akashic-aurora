@@ -25,6 +25,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from . import scene as scene_mod
 
@@ -80,7 +81,7 @@ def _cmd_targets(args) -> int:
     scene = scene_mod.load(args.scene) if args.scene else None
     rows = []
     for mid, m in _present_manifests().items():
-        row = {
+        row: dict[str, Any] = {
             "id": mid,
             "engine": m.get("engine"),
             "status": m.get("status", "unknown"),

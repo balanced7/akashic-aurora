@@ -40,7 +40,7 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = _REPO_ROOT / ".secrets" / "redaction-manifest.json"
@@ -180,7 +180,7 @@ def render(rep: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--root", default="")

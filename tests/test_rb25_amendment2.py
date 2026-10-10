@@ -102,7 +102,7 @@ class _SeedProbe(Bus):
 
     def __init__(self, advance_status):
         self._advance_status = advance_status  # no super().__init__: pure unit probe
-        self.online = True  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: online is a read-only property; fails at base
+        self.online = True  # ty: ignore[invalid-assignment]  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: online is a read-only property; fails at base
 
     def probe(self):
         return True
@@ -145,7 +145,7 @@ def test_redis_death_mid_seed_degrades_to_false():
     def _die(**kw):
         raise ConnectionError("redis died between register and seed (drill)")
 
-    probe.advance_to = _die
+    probe.advance_to = _die  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     assert probe.seed_cursor_at_tail() is False, (
         "a dead Redis mid-onboarding degrades to False (old behavior), never a runner crash"
     )

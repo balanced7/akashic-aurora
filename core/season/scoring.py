@@ -35,6 +35,8 @@ decision by accident. A score may make a player ELIGIBLE for a grant that a huma
 
 from __future__ import annotations
 
+from typing import Any
+
 #: Base multiplier by confirmed claim class. Identical in both policies -- the classes are the
 #: findings the board is made of, and re-weighting them is a different argument than the one W2
 #: is making.
@@ -47,7 +49,7 @@ _BASE = {
     "dead": 1,  # weakest claim, never auto-executed
 }
 
-POLICIES = {
+POLICIES: dict[str, dict[str, Any]] = {
     "v1_doc": {
         "notes": "Exactly the committed table, section 1.6. Pinned so the design doc stays executable.",
         "base": dict(_BASE),
@@ -231,7 +233,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime
         player = c.get("player")
         key = c.get("dedupe_key")
         outcome = str(c.get("outcome") or "").lower()
-        detail = {
+        detail: dict[str, Any] = {
             "player": player,
             "dedupe_key": key,
             "outcome": outcome,
@@ -265,9 +267,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime
             credit = float(P.get("low_confidence_credit", 1.0))
             if is_low_conf and credit != 1.0:
                 pts = round(pts * credit)
-                detail["reason"] = (
-                    detail["reason"] + "; " if detail["reason"] else ""
-                ) + f"low-confidence credit x{credit:g}"
+                detail["reason"] = f"low-confidence credit x{credit:g}"  # first reason set on this path
             if not is_first:
                 if P["duplicate_decay"]:
                     # An independent corroborating find keeps a SHARE. A hard zero makes

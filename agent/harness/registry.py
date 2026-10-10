@@ -18,6 +18,8 @@ a runtime actually does (e.g. on Cursor a lesson can only arrive one beat late, 
 should not expect pre-action warnings there).
 """
 
+from typing import Any
+
 
 def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
@@ -39,7 +41,7 @@ def _cli() -> str:
 
 TIERS = ("T0", "T1", "T2", "T3", "T4", "T5", "T6")
 
-HARNESSES = {
+HARNESSES: dict[str, dict[str, Any]] = {
     "claude-code": {
         "default_agent_id": "claude",
         "adapters": "agent/harness/hooks/claude_*.py (`agent_cli.py hooks install`: user or project scope, scope-guarded; check with `hooks status`)",

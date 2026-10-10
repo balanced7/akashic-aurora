@@ -155,13 +155,9 @@ def test_menu_and_hop_describe_the_same_set(tmp_path):
     assert m, "menu lost the exact 'recall' label:\n" + menu
     hop = _run(fx, "--theme", "recall").stdout
     h = re.search(r"\[digests\] (\d+) of (\d+)", hop)
-    assert h, (
-        f"menu says {m.group(1)} but the hop's total is {h.group(2) if h else '?'} -- "
-        "two surfaces, two different sets:\n" + hop
-    )
+    assert h, f"menu says {m.group(1)} but the hop's total is ? -- two surfaces, two different sets:\n" + hop
     assert h.group(2) == m.group(1), (
-        f"menu says {m.group(1)} but the hop's total is {h.group(2) if h else '?'} -- "
-        "two surfaces, two different sets:\n" + hop
+        f"menu says {m.group(1)} but the hop's total is {h.group(2)} -- two surfaces, two different sets:\n" + hop
     )
     assert "docs/at.md" not in hop, "exact hop leaked the 'recall-at' row via substring"
 

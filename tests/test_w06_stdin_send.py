@@ -60,7 +60,7 @@ def _with_fake_bus(monkeypatch):
 def test_stdin_body_sends(monkeypatch):
     _with_fake_bus(monkeypatch)
     fake_in = io.StringIO("a body with --flag-shaped prose (parens: yes) that argv would mangle")
-    fake_in.isatty = lambda: False
+    fake_in.isatty = lambda: False  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     monkeypatch.setattr(sys, "stdin", fake_in)
     rc = agent_cli.cmd_bifrost_send(_args())
     assert rc in (0, None), f"stdin send must succeed, rc={rc}"
@@ -71,7 +71,7 @@ def test_stdin_body_sends(monkeypatch):
 def test_tty_empty_still_refuses(monkeypatch):
     _with_fake_bus(monkeypatch)
     tty_in = io.StringIO("")
-    tty_in.isatty = lambda: True
+    tty_in.isatty = lambda: True  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     monkeypatch.setattr(sys, "stdin", tty_in)
     rc = agent_cli.cmd_bifrost_send(_args())
     assert rc == 2, "no text + no pipe must refuse loudly"
@@ -81,7 +81,7 @@ def test_tty_empty_still_refuses(monkeypatch):
 def test_positional_text_still_wins(monkeypatch):
     _with_fake_bus(monkeypatch)
     fake_in = io.StringIO("stdin should NOT be read when argv text exists")
-    fake_in.isatty = lambda: False
+    fake_in.isatty = lambda: False  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     monkeypatch.setattr(sys, "stdin", fake_in)
     rc = agent_cli.cmd_bifrost_send(_args(text=["short", "safe", "sentence"]))
     assert rc in (0, None)

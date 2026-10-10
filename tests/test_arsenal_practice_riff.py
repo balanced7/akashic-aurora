@@ -25,7 +25,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import pytest
 
@@ -873,7 +873,7 @@ def test_a11_loopback_guard_from_the_def_without_node():
     assert clean["mirrored_share"] == 0.0
 
 
-WORDING_CASES = {
+WORDING_CASES: dict[str, dict[str, Any]] = {
     "l1": {},
     "d4": {"d_plan": "d4"},
     "d0": {"d_plan": "d0"},

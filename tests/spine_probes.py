@@ -199,7 +199,7 @@ el = EventLog(FileLedger(base_dir=tempfile.mkdtemp(prefix="ev2_")))
 for i in range(50):
     el.capture("command", f"build failed error {i}", at=f"2026-01-01T00:{i:02d}:00")
 # a couple of garbage ones
-el.capture("note", None, at="2026-01-01T01:00:00")  # pyright: ignore[reportArgumentType]  # deliberate garbage input
+el.capture("note", None, at="2026-01-01T01:00:00")  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # deliberate garbage input
 el.capture("", "", at="2026-01-01T01:01:00")
 st = store()
 rep = promote_salient(st, EventQuery(event_log=el), threshold=3, max_promote=10, scan=500)

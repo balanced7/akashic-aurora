@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Any
 
 from core.library import atoms as at
 from core.library import projection as pj
@@ -10,7 +11,7 @@ from tests.test_atoms import FakeStore
 
 def _mint(tmp_path, **kw):
     fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "jsonl"))
-    defaults = {"arc": "t101", "seats": ["claude"], "categories": ["substrate"], "now": 1000.0}
+    defaults: dict[str, Any] = {"arc": "t101", "seats": ["claude"], "categories": ["substrate"], "now": 1000.0}
     defaults.update(kw)
     return fam, fam.mint(
         kw.pop("type_", "design") if "type_" in kw else "design",

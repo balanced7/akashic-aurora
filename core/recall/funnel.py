@@ -24,7 +24,7 @@ Everything is fail-soft and injectable: a missing backend yields zeros, never a 
 
 import contextlib
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 # The Wave-A gate from docs/library/design/20260709_leapfrog-plan-outcome-grounded-memory_18eeba.md: "corpus growth rate measurably up
@@ -84,7 +84,7 @@ def snapshot(
         recs = learning_store.load_all_learnings_from_store()
     except Exception:
         recs = []
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     cutoff = now - timedelta(hours=hours)
     new_lessons = [r for r in recs if (_parse_ts(r.get("timestamp")) or datetime.min) >= cutoff]
 
@@ -294,10 +294,10 @@ def trend(
     `events_capped` (True when the scan hit EVENT_SCAN_LIMIT -- older flips may be missing;
     renderers must say so rather than under-report silently).
     """
-    now = now or datetime.utcnow()
+    now = now or datetime.now(UTC).replace(tzinfo=None)
     days = max(1, int(days))
     day_keys = [(now - timedelta(days=i)).date().isoformat() for i in range(days - 1, -1, -1)]
-    buckets = {d: {"date": d, "lessons": 0, "flips": 0, "credited": 0} for d in day_keys}
+    buckets: dict[str, dict[str, Any]] = {d: {"date": d, "lessons": 0, "flips": 0, "credited": 0} for d in day_keys}
 
     recs: list[dict[str, Any]] = []
     try:

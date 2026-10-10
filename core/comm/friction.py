@@ -154,7 +154,11 @@ def fold(
     # it); presence_effect answers "does a present peer actually answer", the question
     # T197 shipped autolaunch on and could not test.
     peers: dict[str, dict[str, Any]] = {}
-    presence = {"ATTENDED": {"n": 0, "n_answered": 0}, "UNATTENDED": {"n": 0, "n_answered": 0}, "n_unobserved": 0}
+    presence: dict[str, Any] = {
+        "ATTENDED": {"n": 0, "n_answered": 0},
+        "UNATTENDED": {"n": 0, "n_answered": 0},
+        "n_unobserved": 0,
+    }
 
     def _peer_row(name: Any) -> dict[str, Any] | None:
         """The bucket for one peer, or None when the event names no peer -- a malformed

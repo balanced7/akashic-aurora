@@ -99,7 +99,7 @@ def test_ir6_p2_research_note_delegates_to_knowledge_learn():
         seen["recommend"] = recommend
         return f"recorded {experiment}"
 
-    tb.knowledge_learn = fake_learn
+    tb.knowledge_learn = fake_learn  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     out = tb.research_note(
         "k8s_owner_references",
         "searched k8s GC patterns",
@@ -135,7 +135,7 @@ def test_ir6_p3_research_note_fields_preserved():
         seen.update(experiment=experiment, tried=tried, result=result, recommend=recommend)
         return "ok"
 
-    tb.knowledge_learn = fake_learn
+    tb.knowledge_learn = fake_learn  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     tb.research_note("test_slug", "searched X", "found Y", "recommend Z")
     assert seen["tried"] == "searched X"
     assert seen["result"] == "found Y"

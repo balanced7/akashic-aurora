@@ -536,7 +536,7 @@ class SqliteStore(Store):
                 self._conn.execute("INSERT OR IGNORE INTO set_members(key,member) VALUES(?,?)", (key, str(m)))
             return n
 
-    def smembers(self, key: str) -> set:
+    def smembers(self, key: str) -> set:  # ty: ignore[invalid-type-form]  # resolves to the class's set() method; annotation value kept unchanged (public API)
         with self._lock:
             if self._conn is None:
                 return set()

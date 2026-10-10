@@ -33,7 +33,7 @@ Usage:
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from core.paths import data_root
@@ -102,7 +102,7 @@ class SessionState:
             True if checkpoint created and saved successfully
         """
         checkpoint = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             "agent_id": self.agent_id,
             "task": task,
             "progress": progress,
@@ -119,7 +119,7 @@ class SessionState:
                 json.dump(checkpoint, f, indent=2)
 
             # Also save as timestamped checkpoint
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(UTC).replace(tzinfo=None).strftime("%Y%m%d_%H%M%S")
             checkpoint_file = self.checkpoint_dir / f"checkpoint_{timestamp}.json"
             with open(checkpoint_file, "w", encoding="utf-8") as f:
                 json.dump(checkpoint, f, indent=2)

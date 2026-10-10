@@ -452,7 +452,7 @@ class Band:
         self.compiled = None
         self.anchor = 0  # band tick where the running pattern's beat 0 sits
         self.band_t = -1  # last band tick processed
-        self.last_ticks = None  # pyright: ignore[reportAttributeAccessIssue]  # unset until the first played onTick
+        self.last_ticks = None  # ty: ignore[invalid-assignment]  # pyright: ignore[reportAttributeAccessIssue]  # unset until the first played onTick
         self.gaps = []  # recent FL ticks between played onTicks (forward moves of at most a beat)
         self.loop_span = None  # FL's loop span (end - start), once a loop wrap has shown it
         self.parked_at_zero = False  # FL reported tick 0 while stopped since the last played onTick (a Stop)
@@ -460,7 +460,7 @@ class Band:
         self.deferred = []  # entries whose release waits for the next onTick (they started in this one)
         self.was_playing = False
         self.restart = True  # the next Play starts fresh at bar 1
-        self.ppq = None  # pyright: ignore[reportAttributeAccessIssue]  # unset until on_tick reads FL's PPQ
+        self.ppq = None  # ty: ignore[invalid-assignment]  # pyright: ignore[reportAttributeAccessIssue]  # unset until on_tick reads FL's PPQ
         self.poll_every = 4
         self.calls = 0
         self.next_poll = 0

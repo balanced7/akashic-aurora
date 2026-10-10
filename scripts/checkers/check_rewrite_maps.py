@@ -43,7 +43,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -337,7 +337,7 @@ def report(gate=False, freeze=False):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--gate", action="store_true", help="fail on a finding or a regression")
     ap.add_argument("--freeze", action="store_true", help="re-freeze the stranded baseline")
     args = ap.parse_args(argv)

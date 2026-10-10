@@ -40,6 +40,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
@@ -211,7 +212,7 @@ def evaluate(led: dict) -> dict:
     cps = led.get("checkpoints", [])
     samples = led.get("samples", [])
     t0 = cps[0] if cps else None
-    res = {}
+    res: dict[str, Any] = {}  # per-criterion dicts plus the "overall" string
 
     # K1 MEMORY BOUNDED -- runbook: fail if RSS "grows MONOTONICALLY beyond +15%". A one-time startup
     # settle that then plateaus is NOT a leak; only a sustained climb past tolerance is. So FAIL only

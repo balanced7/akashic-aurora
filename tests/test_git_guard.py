@@ -68,7 +68,7 @@ def test_allows_safe_commands(cmd):
 
 def test_never_raises_on_garbage():
     for junk in [None, "git add '", "\x00\x00", "git add " + "x" * 10000]:
-        allowed, _ = check_git_command(junk)  # must not raise
+        allowed, _ = check_git_command(junk)  # ty: ignore[invalid-argument-type]  # deliberate bad input: garbage (incl. None) must not raise
         assert isinstance(allowed, bool)
 
 

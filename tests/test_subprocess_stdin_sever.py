@@ -115,7 +115,7 @@ def test_s3_boot_path_spawns_no_stdin_inheriting_child():
     # itself as sys.stdout at import, and pytest swaps sys.stdout per test, so arming
     # it here would capture only when this test happened to run first.
     buf = io.StringIO()
-    subprocess.Popen = _Tracer
+    subprocess.Popen = _Tracer  # ty: ignore[invalid-assignment]  # monkeypatch: trace every Popen
     try:
         with contextlib.redirect_stdout(buf):
             agent_cli.cmd_boot(ns)

@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -36,7 +37,7 @@ import pytest
 # real acl.json. P0 pins the invariant.
 _EXPIRES_AT = (datetime.now(UTC) + timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-SAMPLE = {
+SAMPLE: dict[str, Any] = {
     "_comment": "test acl",
     "schema_version": 1,
     "grants": [

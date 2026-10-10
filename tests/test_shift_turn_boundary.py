@@ -44,7 +44,7 @@ def test_fails_closed_to_idle_when_the_ledger_raises():
         raise RuntimeError("ledger down")
 
     orig = shift_turn._statuses
-    shift_turn._statuses = _boom
+    shift_turn._statuses = _boom  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         out = shift_turn.turn_beat("claude")
         assert out["action"] == "idle", out
@@ -59,7 +59,7 @@ def test_fails_closed_to_idle_when_the_decision_core_raises():
     from core.comm import shift_turn
 
     orig = sl.next_beat
-    sl.next_beat = lambda **k: (_ for _ in ()).throw(ValueError("bad view"))
+    sl.next_beat = lambda **k: (_ for _ in ()).throw(ValueError("bad view"))  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         out = shift_turn.turn_beat("claude", statuses={"T1": "verifying"})
         assert out["action"] == "idle", out

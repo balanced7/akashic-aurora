@@ -167,11 +167,11 @@ def main() -> int:
         # firehose; ship never sets it.
         if not os.environ.get("AKASHIC_GATE_NO_CEILING"):
             try:
-                from datetime import datetime, timedelta
+                from datetime import UTC, datetime, timedelta
 
                 from core.events.event_query import get_event_query
 
-                since = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+                since = (datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=24)).isoformat()
                 prior = get_event_query().search("", kind="ungated_ship", since=since, top_k=5)
             except Exception:
                 prior = []

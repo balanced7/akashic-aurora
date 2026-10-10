@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -202,7 +203,7 @@ def test_backward_compat_record_loading():
     from core.learning.agent_memory import Decision, Experience
 
     # records written before Phase B lack supersedes/superseded
-    old_decision = {
+    old_decision: dict[str, Any] = {
         "id": "ADR_x",
         "title": "t",
         "status": "accepted",
@@ -217,7 +218,7 @@ def test_backward_compat_record_loading():
     dec = Decision(**old_decision)  # must not crash; defaults applied
     assert dec.superseded is False
     assert dec.supersedes is None
-    old_exp = {
+    old_exp: dict[str, Any] = {
         "id": "exp_x",
         "task": "t",
         "approach": "",

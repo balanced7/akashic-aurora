@@ -697,7 +697,7 @@ def cmd_learn(args):
         print("Re-send tried, result, expected, and recommend as separate arguments.")
         return 2
     clipped = []
-    signal = {
+    signal: dict[str, Any] = {
         "experiment_name": _clip(args.experiment, 200),
         "agent_id": _clip(args.agent_id, 200),
         "what_tried": _intake(args.tried, _MAX, "what_tried", clipped),
@@ -4555,7 +4555,7 @@ def cmd_doc(args):
     title = (getattr(args, "title", "") or "").strip()
 
     from_bus = (getattr(args, "from_bus", "") or "").strip()
-    conv_kwargs = {}
+    conv_kwargs: dict[str, Any] = {}
     text = ""
     if from_bus:
         msg = _read_bus_message(from_bus)
@@ -5580,12 +5580,13 @@ def cmd_story(args, store=None):
     # A `mark` beat forces a new chapter and names it, then we re-chronicle.
     mark_title = getattr(args, "mark", None)
     if mark_title:
+        from datetime import UTC
         from datetime import datetime as _dtm
 
         beat_log.emit(
             "mark",
             summary=mark_title,
-            source=f"mark:{_dtm.utcnow().isoformat()}",
+            source=f"mark:{_dtm.now(UTC).replace(tzinfo=None).isoformat()}",
             hint=RouteHint(category="meta", task="mark_chapter"),
         )
 
@@ -5951,8 +5952,9 @@ def cmd_episode(args):
     from core.narrative import episode as ep
 
     act = args.action
+    out: dict[str, Any]
     if act == "current":
-        out: dict[str, Any] = ep.current_episode()
+        out = ep.current_episode()
         try:  # S3: the door composes the advisory suggestion (episode.py stays one-way, fail-soft)
             from core.narrative.episode_suggester import suggest
 

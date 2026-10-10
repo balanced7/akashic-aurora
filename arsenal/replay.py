@@ -239,7 +239,7 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, PerformanceError, OSError) as exc:
             return self._send(400, {"error": str(exc)})
 
-    def log_message(self, fmt, *args):  # pyright: ignore[reportIncompatibleMethodOverride]  # fmt, not format (A002); stdlib passes it positionally
+    def log_message(self, fmt, *args):  # ty: ignore[invalid-method-override]  # pyright: ignore[reportIncompatibleMethodOverride]  # fmt, not format (A002); stdlib passes it positionally
         # No query strings/session identifiers in service access logs.
         sys.stderr.write(f"[replay] {self.command} {urlsplit(self.path).path}\n")
 

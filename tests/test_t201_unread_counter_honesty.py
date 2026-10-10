@@ -129,7 +129,7 @@ def test_missing_messages_key_falls_back_to_pending(fake_collect):
     import agent.bifrost_pull as bp
 
     orig = bp.collect_boot_bifrost
-    bp.collect_boot_bifrost = fake
+    bp.collect_boot_bifrost = fake  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         assert ctx._unread_count("claude") == 5
     finally:

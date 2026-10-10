@@ -93,7 +93,7 @@ def d4_permanent_is_unexpressible():
             agent_id=TARGET,
             role="member",
             reason="drill",
-            hours=None,  # pyright: ignore[reportArgumentType]  # deliberate bad input: the drill proves hours=None is refused
+            hours=None,  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # deliberate bad input: the drill proves hours=None is refused
             caps=["read"],
         )
         return False, "hours=None was ACCEPTED -- lapse is not mandatory"
@@ -144,7 +144,7 @@ def d8_cleanup_revokes_the_drill_grant():
             TARGET, by="claude", reason="LIVE SUCCESSION DRILL 2026-08-24 complete -- drill authority removed"
         )
     except TypeError:
-        grant_writer.revoke(TARGET, by="claude")  # pyright: ignore[reportCallIssue]  # fallback for the pre-reason revoke() signature
+        grant_writer.revoke(TARGET, by="claude")  # ty: ignore[missing-argument]  # pyright: ignore[reportCallIssue]  # fallback for the pre-reason revoke() signature
     g = registry.resolve(TARGET)
     ok = g.role == "quarantined"
     return ok, f"post-revoke resolve({TARGET}) -> role={g.role} (must be quarantined)"

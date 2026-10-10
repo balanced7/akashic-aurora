@@ -35,7 +35,7 @@ switch/idle triggers still work. Best-effort everywhere; a suggester hiccup must
 import contextlib
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from core.foundation.store import Store, create_store
@@ -61,7 +61,7 @@ _SWITCH_MIN_BEATS = 2  # ...and needs >=2 of them, unanimous, on a non-episode t
 
 
 def _now(now: str | None) -> str:
-    return now or datetime.utcnow().isoformat()
+    return now or datetime.now(UTC).replace(tzinfo=None).isoformat()
 
 
 # ---- pure trigger evaluation (unit-testable without a store) ---------------------------------------
@@ -184,7 +184,7 @@ def suggest(
         # CONTENT beats only: the previous episode's close-mark shares this span's start timestamp
         # and must not count toward thin-gates, idle recency, switch unanimity, or the draft.
         beats = content_beats(BeatLog(store).in_window(ch.span_start, now_iso))
-        st = _load_state(store)
+        st: dict[str, Any] = _load_state(store)
         if st.get("chapter_id") != ch.id:  # fresh episode -> fresh slate
             st = {"chapter_id": ch.id, "fingerprints": [], "last_at": None, "active": None}
 

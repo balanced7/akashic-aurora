@@ -49,21 +49,21 @@ def test_ten_minutes_is_not_a_whole_number_of_29_97_frames():
 
 def test_a_rate_passed_as_a_timebase_is_refused():
     with pytest.raises(ValueError, match=r"tb\(1, 48000\)"):
-        TimeRef("media", 0, 48000, 48000)  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
+        TimeRef("media", 0, 48000, 48000)  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
     with pytest.raises(ValueError, match=r"tb\(1001, 30000\)"):
         tb(30000, 1001)
     with pytest.raises(ValueError, match="a timebase denominator must not be zero"):
         tb(1, 0)
-    assert TimeRef("media", 0, 5, 1).seconds == 5  # pyright: ignore[reportArgumentType]  # int timebase is accepted at runtime; the field is annotated Fraction only
+    assert TimeRef("media", 0, 5, 1).seconds == 5  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # int timebase is accepted at runtime; the field is annotated Fraction only
 
 
 def test_bare_numbers_are_refused():
     with pytest.raises(TypeError):
-        TimeRef("media", 0, 1.0, tb(1, 48000))  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
+        TimeRef("media", 0, 1.0, tb(1, 48000))  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
     with pytest.raises(TypeError):
         TimeRef("media", 0, True, tb(1, 48000))
     with pytest.raises(TypeError):
-        TimeRef("media", 0, 1, 0.5)  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
+        TimeRef("media", 0, 1, 0.5)  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
     with pytest.raises(TypeError):
         _ = TimeRef("media", 0, 1, tb(1, 48000)) < 1
 

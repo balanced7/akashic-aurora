@@ -233,7 +233,7 @@ def test_claimed_can_park_without_faking_a_start(tmp_path):
         if hasattr(TL, "ledger_view")
         else None
     )
-    if v:
+    if v:  # ty: ignore[redundant-condition]  # ledger_view is an optional, hasattr-probed surface
         assert v["parked"][0]["reason"] == "wave 3 -- unpark after the grade"
 
 

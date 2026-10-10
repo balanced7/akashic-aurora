@@ -31,6 +31,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 CACHE_DIR = ROOT / "state" / "web_cache"
@@ -86,7 +87,7 @@ def fetch(
     key = _key(url)
     meta_p = CACHE_DIR / f"{key}.meta.json"
     raw_p = CACHE_DIR / f"{key}.raw"
-    meta = json.loads(meta_p.read_text(encoding="utf-8")) if meta_p.exists() else None
+    meta: dict[str, Any] | None = json.loads(meta_p.read_text(encoding="utf-8")) if meta_p.exists() else None
 
     cond = {}
     if meta:
@@ -100,7 +101,7 @@ def fetch(
         resp = _http_get(url, cond)
         status = resp.status
         body = resp.read()
-        new_meta = {
+        new_meta: dict[str, Any] = {
             "url": url,
             "final_url": resp.geturl(),
             "fetched_at": _now(),

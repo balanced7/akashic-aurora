@@ -171,7 +171,7 @@ class _StdinSeveredPopen(subprocess.Popen):
         super().__init__(args, bufsize, executable, subprocess.DEVNULL if stdin is None else stdin, *a, **kw)
 
 
-subprocess.Popen = _StdinSeveredPopen
+subprocess.Popen = _StdinSeveredPopen  # ty: ignore[invalid-assignment]  # deliberate process-wide monkeypatch with a subclass
 
 # ---------------------------------------------------------------- P-3: the write tier
 # ONE lock: write verbs, consuming reads, and bus sends serialize for ordering; read
@@ -514,7 +514,7 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
 @mcp.tool()
 async def find(
     query: str,
-    limit: int = None,  # noqa: RUF013  # pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical
+    limit: int = None,  # noqa: RUF013  # ty: ignore[invalid-parameter-default]  # pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical
     offset: int = 0,
     path: bool = False,
     no_sort: bool = False,

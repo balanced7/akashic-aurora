@@ -550,7 +550,7 @@ class AgentCommService:
 
         # Auto-respond to ping
         if msg_type == "ping":
-            self.send_message("pong", {"original_time": content.get("time")}, msg.get("from_agent"))  # pyright: ignore[reportArgumentType]  # LATENT: a ping without from_agent sends the pong to None
+            self.send_message("pong", {"original_time": content.get("time")}, msg.get("from_agent"))  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # LATENT: a ping without from_agent sends the pong to None
 
     def send_message(self, msg_type: str, content: dict, to_agent: str = "broadcast") -> str:
         """Send a message"""

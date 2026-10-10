@@ -243,7 +243,7 @@ def test_d7_hybrid_close_delegates_to_cache_and_sqlite_exactly_once(tmp_path):
         durable_close_calls += 1
         original_close()
 
-    durable.close = tracked_durable_close
+    durable.close = tracked_durable_close  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     hybrid = HybridStore(cast("RedisStore", cache), cast("FileStore", durable))
 
     try:

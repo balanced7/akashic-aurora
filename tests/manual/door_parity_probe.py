@@ -17,12 +17,12 @@ assert isinstance(gaps, list)  # the gap-tracking mechanism works; 0 gaps == deb
 print(f"[PASS] passes on reality; {len(gaps)} CLI<->MCP gap(s) tracked (0 == fully paid down)")
 
 orig = c.cli_verbs
-c.cli_verbs = lambda: sorted(set(orig()) | {"zznewverb"})
+c.cli_verbs = lambda: sorted(set(orig()) | {"zznewverb"})  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 f2, _, _, _ = c.check()
 assert any("zznewverb" in x for x in f2), "must FAIL on a new unclassified verb"
 print("[PASS] fails on a new unclassified verb (ratchet stops new drift)")
 
-c.cli_verbs = lambda: sorted(set(orig()) - {"boot"})
+c.cli_verbs = lambda: sorted(set(orig()) - {"boot"})  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 f3, _, _, _ = c.check()
 assert any("boot" in x for x in f3), "must FAIL when a shared verb regresses off a door"
 print("[PASS] fails on a shared-verb regression")

@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,7 +40,7 @@ def _fixture(baseline, use_now, *, forged_days_ago=1.0):
     )
     assert ls.apply_forge_edit("watched", NEW_TEXT, {"floor": 0.2}, baseline=baseline)
     # backdate the provisional stamp to simulate elapsed time (production-shaped naive utcnow)
-    forged_at = (datetime.utcnow() - timedelta(days=forged_days_ago)).isoformat()
+    forged_at = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=forged_days_ago)).isoformat()
     ls.store.hset("learn:experiment:watched", mapping={"forge_provisional": forged_at, "forged_at": forged_at})
     use = FileStore(os.path.join(d, "use.json"))
     use.set("recall:use:learn:experiment:watched", json.dumps(use_now))
@@ -92,7 +92,7 @@ def test_young_provisional_is_left_alone():
 
 def test_stale_proposal_expires():
     ls, use = _fixture(baseline={"surfaced": 10}, use_now={"surfaced": 11}, forged_days_ago=0.5)
-    old = (datetime.utcnow() - timedelta(days=9)).isoformat()
+    old = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=9)).isoformat()
     ls.store.hset(
         "learn:experiment:watched",
         mapping={

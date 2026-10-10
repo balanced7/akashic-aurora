@@ -88,7 +88,7 @@ def load_key() -> str | None:
 def make_client(api_key=None, base_url=BASE_URL):
     """Kimi wrap of the shared hardening factory (K0): kimi owns only its env conventions."""
     return make_openai_compat_client(
-        api_key or load_key(),  # pyright: ignore[reportArgumentType]  # LATENT: no key passes None; the SDK then reads OPENAI_API_KEY
+        api_key or load_key(),  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # LATENT: no key passes None; the SDK then reads OPENAI_API_KEY
         base_url,
         connect_timeout=KIMI_CONNECT_TIMEOUT,
         read_timeout=KIMI_READ_TIMEOUT,
@@ -124,7 +124,7 @@ class SpendMeter:
 
         self.path = Path(path)
         self._lock = threading.Lock()  # B1 rider: responder thread + heartbeat reconcile interleave
-        self.state = {
+        self.state: dict[str, Any] = {
             "spent_usd": 0.0,
             "turns": 0,
             "prompt_tokens": 0,

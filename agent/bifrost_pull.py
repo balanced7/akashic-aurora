@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, cast
+from typing import Any
 
 
 def _pyl() -> str:
@@ -133,7 +133,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
             if sid8:
                 try:
                     seat_cur = str(
-                        cast("Any", b._client).hget(  # b.online checked above: client is set
+                        b._client.hget(  # b.online checked above: client is set
                             b._seat_cursor_key(sid8), "seat"
                         )
                         or "0"
@@ -145,7 +145,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
             for skey, scur, is_bc in streams:
                 lo = "(" + str(scur) if str(scur) not in ("0", "0-0") else "-"
                 try:
-                    rows = cast("Any", b._client).xrevrange(  # b.online checked above: client is set
+                    rows = b._client.xrevrange(  # b.online checked above: client is set
                         skey, max="+", min=lo, count=want
                     )
                 except Exception:

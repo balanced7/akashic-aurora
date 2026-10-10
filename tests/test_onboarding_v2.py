@@ -7,7 +7,7 @@ Measures: decision reuse, token efficiency, context availability, startup time
 import json
 import sys
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, ".")
@@ -78,7 +78,7 @@ class MetricsCollector:
         return {
             "agent_id": self.agent_id,
             "test_name": self.test_name,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             "startup_time_ms": self.startup_time_ms,
             "decisions_made": self.decisions_made,
             "decisions_reused": self.decisions_reused,
@@ -189,9 +189,8 @@ def test_new_approach():
     try:
         from coordinator_api import initialize
         from session_checkpoint import SessionState
-        from startup_diagnostics import (  # pyright: ignore[reportMissingImports]  # LATENT: module absent
-            create_startup_diagnostics,
-        )
+
+        from core.infrastructure.health_check import create_startup_diagnostics
 
         # Track startup with diagnostics
         _diag = create_startup_diagnostics("new_agent")
@@ -347,7 +346,7 @@ def compare_results(old_metrics: dict | None, new_metrics: dict | None):
     results_file.parent.mkdir(parents=True, exist_ok=True)
 
     results = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
         "old_approach": old_metrics,
         "new_approach": new_metrics,
         "improvements": dict(improvements),

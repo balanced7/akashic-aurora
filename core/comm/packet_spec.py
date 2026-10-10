@@ -804,7 +804,7 @@ class Reassembler:
             return None, ("orphan", f"bad frag header seq={seq} of={of} whole={wid}")
         if wid in self._done:
             return None, None  # late/duplicate frag of a finished whole
-        slot = self._buf.get(wid)
+        slot: dict[str, Any] | None = self._buf.get(wid)
         if slot is None:
             slot = self._buf[wid] = {
                 "of": of,

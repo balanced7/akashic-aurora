@@ -124,7 +124,7 @@ def _load_key() -> str | None:
 #
 # Conventions are MIRRORED, never imported: _load_key's docstring above states that core does not
 # reach into scripts/ for a credential, and scripts/kimi_chat.py is where kimi's live.
-_VENDORS = (
+_VENDORS: tuple[dict[str, Any], ...] = (
     {
         "name": "kimi",
         "prefix": "kimi-",
@@ -600,10 +600,10 @@ def ask(
             # per-read timeout AND lands in the T156 wire journal for free.
             from core.comm.runner_lib import make_openai_compat_client
 
-            _mk = {}
             if vendor.get("read_timeout"):
-                _mk["read_timeout"] = float(vendor["read_timeout"])
-            client = make_openai_compat_client(key, vendor["base_url"], **_mk)
+                client = make_openai_compat_client(key, vendor["base_url"], read_timeout=float(vendor["read_timeout"]))
+            else:
+                client = make_openai_compat_client(key, vendor["base_url"])
         kwargs = {
             "model": model,
             "messages": [{"role": "system", "content": system or DEFAULT_SYSTEM}, {"role": "user", "content": prompt}],
@@ -655,7 +655,7 @@ def ask(
     truncation = None
     if finish == "length":
         truncation = "CUT" if answer else "STARVED"
-    detail = {
+    detail: dict[str, Any] = {
         "answer": answer,
         "model": model,
         "prompt_tokens": pt,
@@ -1061,7 +1061,7 @@ def ask_peer(
             break
         time.sleep(max(0.05, float(poll_s)))
 
-    detail = {
+    detail: dict[str, Any] = {
         "ask_id": str(mid),
         "peer": peer,
         "state": st["state"],
@@ -1192,10 +1192,9 @@ def _fan_client(client, model: str | None = None):
         )
     from core.comm.runner_lib import make_openai_compat_client
 
-    _mk = {}
     if vendor.get("read_timeout"):
-        _mk["read_timeout"] = float(vendor["read_timeout"])
-    return make_openai_compat_client(key, vendor["base_url"], **_mk), None
+        return make_openai_compat_client(key, vendor["base_url"], read_timeout=float(vendor["read_timeout"])), None
+    return make_openai_compat_client(key, vendor["base_url"]), None
 
 
 def ask_many(
@@ -1407,7 +1406,7 @@ def ask_many(
     collapsed = diversity == "collapsed"
 
     n = len(prompts)
-    detail = {
+    detail: dict[str, Any] = {
         "n": n,
         "n_ok": n_ok,
         "n_partial": n_partial,

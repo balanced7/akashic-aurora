@@ -331,4 +331,4 @@ def test_h9_self_directed_seat_work_remains_answerable_after_rehome(isolated_bus
     assert fields
     meta = json.loads(fields.get("meta") or "{}")
 
-    assert should_answer(str(fields.get("kind") or ""), str(fields.get("frm") or ""), AGENT, meta)  # pyright: ignore[reportCallIssue]  # pre-registered strict xfail: no meta param yet
+    assert should_answer(str(fields.get("kind") or ""), str(fields.get("frm") or ""), AGENT, meta)  # ty: ignore[too-many-positional-arguments]  # pyright: ignore[reportCallIssue]  # pre-registered strict xfail: no meta param yet

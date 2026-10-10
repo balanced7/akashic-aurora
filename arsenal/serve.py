@@ -19,7 +19,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import __version__, pianolooks
@@ -34,7 +34,7 @@ from .take import TakeLedger
 from .timebase import StaleEpoch
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
     from io import BufferedIOBase
 
 HOST = "127.0.0.1"
@@ -97,7 +97,7 @@ class Library:
         with self._lock:
             if not force and self._clips and time.monotonic() - self._scanned < 10:
                 return
-            found = []
+            found: list[dict[str, Any]] = []
             for root in self.roots:
                 if not root.is_dir():
                     continue
@@ -152,7 +152,7 @@ class Jobs:
 
     def features(self, clip: dict) -> tuple[int, dict]:
         with self._lock:
-            job = self._jobs.get(clip["id"])
+            job: dict[str, Any] | None = self._jobs.get(clip["id"])
             if job is None:
                 job = {"status": "computing", "progress": 0.0}
                 self._jobs[clip["id"]] = job
@@ -236,7 +236,7 @@ class Handler(BaseHTTPRequestHandler):
     def app(self) -> App:
         return cast("Server", self.server).app  # only ever served by Server below
 
-    def log_message(self, fmt, *args):  # pyright: ignore[reportIncompatibleMethodOverride]  # fmt, not format (A002); stdlib passes it positionally
+    def log_message(self, fmt, *args):  # ty: ignore[invalid-method-override]  # pyright: ignore[reportIncompatibleMethodOverride]  # fmt, not format (A002); stdlib passes it positionally
         if "/api/media/" in self.path or "/api/analysis/" in self.path:
             return  # seeks and polls are chatty
         if self.path.startswith("/api/performance/") and self.path.endswith("/events") and args[1:2] == ("200",):
@@ -350,17 +350,17 @@ class Handler(BaseHTTPRequestHandler):
                     return self._looks("GET")
                 if _is_jam_path(path):
                     return self._jam_route("GET", path, query)
-                logging = self.app.performance is not None
-                if path == "/api/performance" and logging:
-                    return self._json(200, {"sessions": cast("PerformanceStore", self.app.performance).list()})
-                routes = [
+                performance = self.app.performance
+                if path == "/api/performance" and performance is not None:
+                    return self._json(200, {"sessions": performance.list()})
+                routes: list[tuple[str, Callable[[str], None]]] = [
                     (rf"/api/media/({_ID})", self._media),
                     (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
                     (rf"/api/analysis/({_ID})", self._analysis),
                     (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
                     (rf"/api/take/({_TAKE})", self._take_get),
                 ]
-                if logging:
+                if performance is not None:
                     routes.append((rf"/api/performance/({SESSION_PATTERN})", self._performance_get))
                 for pattern, handler in routes:
                     m = re.fullmatch(pattern, path)

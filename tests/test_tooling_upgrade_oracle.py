@@ -399,6 +399,8 @@ def test_drill_verdicts(
         ("ruff: noqa", True),
         ("type: ignore", True),
         ("type: ignore[attr-defined]", False),
+        ("ty: ignore", True),
+        ("ty: ignore[invalid-argument-type]", False),
         ("pyright: basic", True),
         ("pyright: ignore[reportX]", False),
         ("pyright: strict", False),

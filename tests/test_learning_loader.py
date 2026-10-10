@@ -24,7 +24,7 @@ DAY = 86400.0
 
 
 def _iso(ts):
-    return _dt.datetime.utcfromtimestamp(ts).isoformat()
+    return _dt.datetime.fromtimestamp(ts, _dt.UTC).replace(tzinfo=None).isoformat()
 
 
 def _seeded_store():

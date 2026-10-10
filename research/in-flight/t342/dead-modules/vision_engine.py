@@ -651,7 +651,7 @@ def analyze_video_keyframes(keyframes: list[Image.Image], task: str = "detailed_
         results.append({"frame_idx": i, "result": result})
 
     # Generate summary
-    captions = [r["result"].get("caption", "") for r in results if "caption" in r["result"]]
+    captions = [r["result"].get("caption", "") for r in results if "caption" in r["result"]]  # ty: ignore[unresolved-attribute, unsupported-operator]  # archived dead code
     summary = " | ".join(captions[:3])  # First 3 frames
 
     return {

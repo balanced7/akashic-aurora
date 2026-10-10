@@ -197,7 +197,7 @@ def test_toolbox_admin_still_allowed_through_acl_gate():
         agent_id="deepseek",
         allow_write=False,
     )
-    tb._bus = lambda: None  # never touch the real bus -- we test the ACL verdict only
+    tb._bus = lambda: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double; never touch the real bus -- we test the ACL verdict only
     for door in (
         lambda: tb.bifrost_send("claude", "x", "chat"),
         lambda: tb.bifrost_nudge("claude", "x"),

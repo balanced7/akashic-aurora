@@ -68,7 +68,7 @@ def radial_summary(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] 
     non_monotone = any((a[i] or 0) > (a[i - 1] or 0) + 1e-9 for i in range(1, len(a)))
     if non_monotone:
         reason = "radial banding: brightness rises away from the centre and then falls"
-    elif all(abs(v - a[0]) < 1e-6 for v in a):  # pyright: ignore[reportOperatorIssue]  # LATENT: a degenerate image's empty annulus (None) raises TypeError here
+    elif all(abs(v - a[0]) < 1e-6 for v in a):  # ty: ignore[unsupported-operator]  # pyright: ignore[reportOperatorIssue]  # LATENT: a degenerate image's empty annulus (None) raises TypeError here
         reason = "flat: no radial structure at all"
     else:
         reason = "a glow or gradient: monotone fall away from the centre"

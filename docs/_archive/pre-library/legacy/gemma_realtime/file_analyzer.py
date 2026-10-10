@@ -132,17 +132,18 @@ class FileAnalyzer:
             lines = text.split("\n")
 
             # Basic analysis
+            details: dict[str, Any] = {
+                "has_imports": "import " in text or "require" in text,
+                "has_functions": "def " in text or "function " in text,
+                "has_classes": "class " in text,
+                "has_docstrings": '"""' in text or "'''" in text,
+            }
             analysis = {
                 "type": "code",
                 "filename": filename,
                 "lines": len(lines),
                 "size_bytes": len(data),
-                "analysis": {
-                    "has_imports": "import " in text or "require" in text,
-                    "has_functions": "def " in text or "function " in text,
-                    "has_classes": "class " in text,
-                    "has_docstrings": '"""' in text or "'''" in text,
-                },
+                "analysis": details,
             }
 
             # Try to extract more info

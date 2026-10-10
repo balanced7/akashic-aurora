@@ -86,7 +86,7 @@ def _load_minilm():
             list(texts), batch_size=64, normalize_embeddings=True, convert_to_numpy=True, show_progress_bar=False
         ).astype("float32")
 
-    embed.model_name = DEFAULT_TAG  # pyright: ignore[reportFunctionMemberAccess]  # tag read back by callers via getattr
+    embed.model_name = DEFAULT_TAG  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportFunctionMemberAccess]  # tag read back by callers via getattr
     return embed
 
 

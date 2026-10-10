@@ -939,7 +939,7 @@ def test_post_publish_optional_failure_preserves_primary_success(tmp_path, monke
     monkeypatch.setattr(ship_module, "_git_value", lambda *_: "receipt-value")
     monkeypatch.setattr(ship_module, "_run", lambda label, _cmd: label == "commit + push")
 
-    rc = ship_module.main(["test publish", "scripts/ship.py", "--_durable-child"])  # pyright: ignore[reportCallIssue]  # LATENT: test red at BASE, ship.main() takes no argv
+    rc = ship_module.main(["test publish", "scripts/ship.py", "--_durable-child"])  # ty: ignore[too-many-positional-arguments]  # pyright: ignore[reportCallIssue]  # LATENT: test red at BASE, ship.main() takes no argv
     receipt = json.loads(outcome.read_text(encoding="utf-8"))
     assert rc == 0
     assert receipt["state"] == "succeeded"

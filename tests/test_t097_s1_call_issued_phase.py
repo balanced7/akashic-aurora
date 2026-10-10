@@ -49,7 +49,7 @@ def test_calling_model_phase_is_set_before_create():
 
     ag = dc.Agent(
         _Client(),
-        None,  # pyright: ignore[reportArgumentType]  # test double: tools_enabled=False needs no ToolBox
+        None,  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # test double: tools_enabled=False needs no ToolBox
         model="deepseek-test",
         system="s",
         think=False,
@@ -101,7 +101,7 @@ def test_phase_flips_to_thinking_once_the_stream_yields():
 
     ag = dc.Agent(
         _Client(),
-        None,  # pyright: ignore[reportArgumentType]  # test double: tools_enabled=False needs no ToolBox
+        None,  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # test double: tools_enabled=False needs no ToolBox
         model="deepseek-test",
         system="s",
         think=False,

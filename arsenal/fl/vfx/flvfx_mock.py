@@ -494,7 +494,7 @@ class Host:
         if self.gaps is None:
             return self.tick_step
         if callable(self.gaps):
-            return int(cast("Any", self.gaps(n)))
+            return int(cast("Any", self.gaps(n)))  # ty: ignore[redundant-cast]  # pyright narrows callable(Any) to a callable returning object; the cast keeps int() well typed there
         return self.gaps[n % len(self.gaps)]
 
     def tick(self):

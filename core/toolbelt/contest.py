@@ -41,10 +41,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 # toast's verifier is the shared truth: a contest proves itself the same way a toast does.
-try:
-    from core.toolbelt.toast import note_title, verify_receipt
-except Exception:  # pragma: no cover - toast is a sibling module; same package in prod
-    from toast import note_title, verify_receipt
+from core.toolbelt.toast import note_title, verify_receipt
 
 MAX_BODY = 240  # a second voice is shorter than the first; chorus, not solo.
 
@@ -130,7 +127,7 @@ def send(
 
             mem = get_agent_memory()
             try:  # latest-by-title; None when absent
-                cur = mem.latest(_title)  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentMemory has no latest(); except returns None
+                cur = mem.latest(_title)  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentMemory has no latest(); except returns None
                 return cur.get("decision") if cur else None
             except Exception:
                 return None
@@ -165,11 +162,9 @@ def send(
     if bus_send is None:
 
         def _default_bus_send(_to: str, kind: str, text: str) -> Any:
-            from core.comm.bifrost import (  # pyright: ignore[reportMissingImports]  # LATENT: no core.comm.bifrost; the ping always reports failed
-                get_bus,
-            )
+            from core.comm.bus import get_bus
 
-            return get_bus().send(frm, _to, kind, text)
+            return get_bus(frm).send(_to, kind, text)
 
         bus_send = _default_bus_send
 

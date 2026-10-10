@@ -13,6 +13,7 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 from openai import OpenAI
 
@@ -66,7 +67,7 @@ def run_case(name, mode, timeout, cap=15.0):
     box = {}
 
     def work():
-        kw = {"api_key": "sk-test", "base_url": f"http://127.0.0.1:{PORT}", "max_retries": 0}
+        kw: dict[str, Any] = {"api_key": "sk-test", "base_url": f"http://127.0.0.1:{PORT}", "max_retries": 0}
         if timeout is not None:
             kw["timeout"] = timeout
         client = OpenAI(**kw)

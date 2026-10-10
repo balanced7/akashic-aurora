@@ -55,11 +55,11 @@ def _run_stats(monkeypatch, tmp_path, recs, use, flip_recs, hours=24, as_json=Fa
 
 
 def _fixture(now):
-    from datetime import datetime
+    from datetime import UTC, datetime
 
     # utcnow, not now: the stores stamp utcnow().isoformat(), and funnel windows in UTC too
     recs = [
-        {"experiment_name": "new", "timestamp": datetime.utcnow().isoformat(timespec="seconds")},
+        {"experiment_name": "new", "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")},
         {"experiment_name": "old", "timestamp": "2020-01-01T00:00:00"},
     ]
     use = {

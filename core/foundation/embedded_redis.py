@@ -334,7 +334,7 @@ def _install_hooks() -> None:
 
     for name in ("info", "touch"):
         setattr(bfs.BaseFakeSocket, name, getattr(_AuroraExtras, name))
-    bfs.BaseFakeSocket._aurora_hooked = True  # pyright: ignore[reportAttributeAccessIssue]  # idempotence marker on a third-party class
+    bfs.BaseFakeSocket._aurora_hooked = True  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]  # idempotence marker on a third-party class
 
 
 _SEQ_MAX = b"18446744073709551615"
@@ -530,7 +530,7 @@ def _spawn(port: int) -> None:
     env = dict(os.environ)
     root = str(_repo_root())
     env["PYTHONPATH"] = root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "cwd": root,
         "stdin": subprocess.DEVNULL,
         "stdout": open(log, "ab"),  # noqa: SIM115  # handle outlives this block: inherited by the Popen child, parent copy closed on GC

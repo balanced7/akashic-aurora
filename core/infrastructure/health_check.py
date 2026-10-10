@@ -13,7 +13,7 @@ health report with recommendations for optimization.
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from core.paths import data_root
@@ -59,7 +59,7 @@ class StartupDiagnostics:
                 "success": success,
                 "duration_ms": duration_ms,
                 "details": details,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             }
         )
 
@@ -98,7 +98,7 @@ class StartupDiagnostics:
         total = len(self.phases)
 
         report = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             "agent_id": self.agent_id,
             "total_startup_time_ms": total_time,
             "phases_passed": passed,
@@ -332,10 +332,11 @@ def check_infrastructure_health(
             "checked_at": ISO timestamp,
         }
     """
+    redis_report: dict[str, Any] = {"available": False, "latency_ms": None, "error": None}
     report: dict[str, Any] = {
-        "redis": {"available": False, "latency_ms": None, "error": None},
+        "redis": redis_report,
         "healthy": False,
-        "checked_at": datetime.utcnow().isoformat(),
+        "checked_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
     }
 
     # --- Redis probe (fail-fast) ---
@@ -348,12 +349,12 @@ def check_infrastructure_health(
 
         client = connect_to_redis_with_fail_fast(host=redis_host, port=redis_port, timeout_seconds=timeout_seconds)
         if client is not None:
-            report["redis"]["available"] = True
-            report["redis"]["latency_ms"] = round((time.time() - start) * 1000, 2)
+            redis_report["available"] = True
+            redis_report["latency_ms"] = round((time.time() - start) * 1000, 2)
         else:
-            report["redis"]["error"] = "unreachable (fail-fast probe)"
+            redis_report["error"] = "unreachable (fail-fast probe)"
     except Exception as e:
-        report["redis"]["error"] = f"{type(e).__name__}: {e}"
+        redis_report["error"] = f"{type(e).__name__}: {e}"
 
     # File fallback is always available, so the system is "healthy" regardless
     # of Redis. The flag tells callers a usable persistence path exists.

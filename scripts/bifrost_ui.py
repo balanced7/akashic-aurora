@@ -224,7 +224,7 @@ def _vfx_job_add(op, args):
 # it after a few seconds of silence so closing the tab hands the farm to whoever is left. A visible
 # tab may take the lease from a hidden one, because a hidden holder cannot do the job it is
 # holding -- which is the exact case that made this a bug rather than a curiosity.
-_VFX_LEASE = {"worker": "", "at": 0.0, "visible": True}
+_VFX_LEASE: dict[str, Any] = {"worker": "", "at": 0.0, "visible": True}
 VFX_LEASE_TTL = 6.0
 
 

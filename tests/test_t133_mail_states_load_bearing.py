@@ -363,7 +363,7 @@ def test_unreadable_liveness_never_retires():
 
     orig = inc.live_incarnations
     try:
-        inc.live_incarnations = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down"))
+        inc.live_incarnations = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down"))  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
         assert mbx._sender_can_return("codex_root_019fab2d") is True
     finally:
         inc.live_incarnations = orig

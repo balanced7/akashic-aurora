@@ -35,7 +35,7 @@ import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from arsenal import nashville
 from arsenal.jam import DEF_API
@@ -172,7 +172,12 @@ def run_bridge(request: dict) -> list[dict]:
     return reply["results"]
 
 
-_BAND_PROBE = {"mtime": None, "has": False}
+class _BandProbe(TypedDict):
+    mtime: int | None
+    has: bool
+
+
+_BAND_PROBE: _BandProbe = {"mtime": None, "has": False}
 _BAND_LOCK = threading.Lock()
 
 
@@ -658,7 +663,8 @@ def stub_band(facts: Sequence[dict]) -> list[dict]:
     sits on the bass pitch class in C2..B2; full's upper voices in F3..E4, comp's in E3..Eb4 (inside the 10.1 limits,
     above every low-interval limit); an upper_same slot keeps the previous upper voices and moves only the bass."""
     out: list[dict] = []
-    prev = None
+    prev: dict[str, Any] | None = None
+    v: dict[str, Any]
     for i, f in enumerate(facts):
         bass_pc = f["bass_pc"]
         # a shape the next slots keep over a moving bass holds its 5th, so it still names the chord over each bass
@@ -875,7 +881,7 @@ class Resolver:
         s = shift_of(card_key, k_name)
 
         # sections and slots
-        sections = [{"i": 0, "key": k_name, "from_beat": 0}]
+        sections: list[dict[str, Any]] = [{"i": 0, "key": k_name, "from_beat": 0}]
         raw: list[dict] = []
         beat = 0.0
         for idx, it in enumerate(items):
@@ -1097,7 +1103,7 @@ class Resolver:
         for sec in sections:
             sec.pop("_k", None)
 
-        d = {
+        d: dict[str, Any] = {
             "api": DEF_API,
             "card": (
                 {

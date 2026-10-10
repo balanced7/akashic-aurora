@@ -153,11 +153,9 @@ def send(
     if bus_send is None:
 
         def _default_bus_send(_to: str, kind: str, text: str) -> Any:  # the real door (lazy import)
-            from core.comm.bifrost import (  # pyright: ignore[reportMissingImports]  # LATENT: no core.comm.bifrost; the ping always reports failed
-                get_bus,
-            )
+            from core.comm.bus import get_bus
 
-            return get_bus().send(frm, _to, kind, text)
+            return get_bus(frm).send(_to, kind, text)
 
         bus_send = _default_bus_send
 

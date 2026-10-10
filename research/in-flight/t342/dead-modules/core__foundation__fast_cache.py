@@ -274,7 +274,7 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            cache_key = f"{CACHE_PREFIX}{prefix}:{func.__name__}:{_make_key('', *args, **kwargs)}"
+            cache_key = f"{CACHE_PREFIX}{prefix}:{func.__name__}:{_make_key('', *args, **kwargs)}"  # ty: ignore[unresolved-attribute]  # archived dead code
 
             # LAYER 1: RAM cache (fastest - microseconds)
             if cache_key in _ram_cache:

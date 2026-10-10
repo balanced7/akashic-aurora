@@ -687,8 +687,9 @@ def build_inventory(tree_root: Path = ROOT) -> dict[str, Any]:
     entries: dict[str, dict[str, Any]] = {}
     for f in pys:
         tree = graph.asts[f]
+        e: dict[str, Any]
         if f in archival:
-            e: dict[str, Any] = {"class": "ARCHIVAL", "proof": proofs[f]}
+            e = {"class": "ARCHIVAL", "proof": proofs[f]}
         else:
             e = {"class": classify(f)}
             if f in proofs:
@@ -2544,7 +2545,7 @@ def cmd_measure(args: argparse.Namespace) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="oracle.py", description=cast("str", __doc__).split("\n\n")[0])
+    p = argparse.ArgumentParser(prog="oracle.py", description=(__doc__ or "").split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("inventory", help="classify every tracked .py (writes inventory.json)")
     s.add_argument("--check", action="store_true", help="exit 1 if inventory.json is stale")

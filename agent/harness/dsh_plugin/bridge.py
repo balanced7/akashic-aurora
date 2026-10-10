@@ -43,7 +43,6 @@ import argparse
 import json
 import os
 import sys
-from typing import Any, cast
 
 
 def _repo() -> str:
@@ -89,8 +88,7 @@ def cmd_presence(a) -> int:
             return _emit(
                 {"ok": bool(rep and rep.get("ok")), "phase": a.phase, "offline_ts": (rep or {}).get("offline_ts")}
             )
-        # roster.heartbeat is annotated `-> bool` but returns a dict on every path
-        rep = cast("dict[str, Any]", heartbeat(ns, agent, a.session_id or "", phase=a.phase))
+        rep = heartbeat(ns, agent, a.session_id or "", phase=a.phase)
         return _emit(
             {"ok": bool(rep and rep.get("ok")), "phase": a.phase, "resumed_after_s": (rep or {}).get("resumed_after_s")}
         )

@@ -117,7 +117,7 @@ class GeminiBridgeMonitor:
         """Capture current browser state for diagnosis"""
         try:
             screenshot = capture_active_window()
-            return get_screen_context_for_analyst(screenshot)  # pyright: ignore[reportArgumentType]  # LATENT: capture_active_window() may return None; the except below reports it
+            return get_screen_context_for_analyst(screenshot)  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # LATENT: capture_active_window() may return None; the except below reports it
         except Exception as e:
             print(f"[monitor] Failed to capture state: {e}")
             return {"error": str(e)}

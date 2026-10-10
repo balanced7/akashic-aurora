@@ -33,6 +33,7 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 SCORE = REPO / "state" / "arsenal" / "score"
@@ -404,6 +405,7 @@ def check_export(manifest_path: Path) -> dict:
 def run(manifests: list[Path], write: bool = True) -> dict:
     groups: dict[str, dict] = {}
     for mp in manifests:
+        r: dict[str, Any]
         try:
             r = check_export(mp)
         except Exception as e:  # a missing or unreadable file fails all three receipts for that export

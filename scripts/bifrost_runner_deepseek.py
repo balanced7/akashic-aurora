@@ -697,8 +697,7 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
     n_kept = n_total - n_dropped
     # T120 pin: NAME distinct sections (a 40x-repeated heading must not drown the unique
     # ones past the cap); counts stay raw so the contour never understates the cut.
-    _seen = set()
-    distinct = [s for s in dropped if not (s in _seen or _seen.add(s))]
+    distinct = list(dict.fromkeys(dropped))
     named = "; ".join(distinct[:8]) if distinct else "tail content (cut mid-section)"
     more = f" (+{len(distinct) - 8} more distinct)" if len(distinct) > 8 else ""
     contour = f"{n_kept}/{n_total} sections kept"

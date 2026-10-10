@@ -72,7 +72,7 @@ def _events_for_ref(eq, ref: str, *, fallback_kind: str, fallback_top_k: int):
     promoter readers; the exact path may return mixed kinds, so callers still filter."""
     fn = getattr(eq, "events_for_ref", None)
     if callable(fn):
-        return cast("Any", fn(ref))  # events_for_ref: list of event dicts
+        return cast("Any", fn(ref))  # ty: ignore[redundant-cast]  # pyright sees object here; events_for_ref: list of event dicts
     return eq.search("", kind=fallback_kind, top_k=fallback_top_k)
 
 

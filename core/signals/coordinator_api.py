@@ -22,7 +22,7 @@ import logging
 # always); this module never touches redis directly.
 import time
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -132,7 +132,7 @@ class SignalEmitter:
             bool: True if signal was successfully persisted to both backends
         """
         signal = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
             "agent_id": self.agent_id,
             "session_id": self.session_id,
             "signal_type": signal_type.value,
@@ -334,7 +334,11 @@ class SignalEmitter:
             from core.learning.learning_store import get_learning_store
 
             store = get_learning_store()
-            learning_signal = {**data, "agent_id": self.agent_id, "timestamp": datetime.utcnow().isoformat()}
+            learning_signal = {
+                **data,
+                "agent_id": self.agent_id,
+                "timestamp": datetime.now(UTC).replace(tzinfo=None).isoformat(),
+            }
             store.record_learning(learning_signal)
             self.logger.info("Learning indexed: %s (%s)", experiment_name, success)
         except Exception as e:

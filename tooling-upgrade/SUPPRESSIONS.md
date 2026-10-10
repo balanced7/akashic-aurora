@@ -4,10 +4,11 @@
 |---|---|---|---|
 | agent/bifrost_pull.py | 431 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/harness/codex_bifrost_wake.py | 32 | `noqa: TC001` | runtime-evaluated annotations (annotation_sensitive module) |
+| agent/harness/delta.py | 155 | `ty: ignore[unresolved-attribute]` | LATENT: AgentMemory has no get_experiences; suppress() hides it |
 | agent/harness/delta.py | 155 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentMemory has no get_experiences; suppress() hides it |
 | agent/harness/draft_keepalive.py | 94 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/harness/draft_keepalive.py | 118 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent/harness/dsh_plugin/bridge.py | 365 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent/harness/dsh_plugin/bridge.py | 363 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
@@ -16,29 +17,40 @@
 | agent_cli.py | 2678 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 2747 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 3560 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12165 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12381 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12406 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| ai_setup_mcp.py | 517 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
+| agent_cli.py | 12167 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12383 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12408 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
+| ai_setup_mcp.py | 517 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 517 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 517 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 521 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
 | ai_setup_mcp.py | 524 | `noqa: A002` | public API name (MCP tool parameter) |
 | ai_setup_mcp.py | 997 | `noqa: A002` | public API name (MCP tool parameter) |
 | ai_setup_mcp.py | 1741 | `noqa: A002` | public API name (MCP tool parameter) |
 | arsenal/analysis.py | 187 | `noqa: BLE001` | deliberately broad: never raise, ever |
+| arsenal/boost.py | 71 | `ty: ignore[unsupported-operator]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |
 | arsenal/boost.py | 71 | `pyright: ignore[reportOperatorIssue]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |
 | arsenal/fl/vfx/arsenal_band.py | 46 | `pyright: ignore[reportMissingImports]` | FL Studio's embedded module, exists only inside FL |
+| arsenal/fl/vfx/arsenal_band.py | 455 | `ty: ignore[invalid-assignment]` | unset until the first played onTick |
 | arsenal/fl/vfx/arsenal_band.py | 455 | `pyright: ignore[reportAttributeAccessIssue]` | unset until the first played onTick |
+| arsenal/fl/vfx/arsenal_band.py | 463 | `ty: ignore[invalid-assignment]` | unset until on_tick reads FL's PPQ |
 | arsenal/fl/vfx/arsenal_band.py | 463 | `pyright: ignore[reportAttributeAccessIssue]` | unset until on_tick reads FL's PPQ |
+| arsenal/fl/vfx/flvfx_mock.py | 497 | `ty: ignore[redundant-cast]` | pyright narrows callable(Any) to a callable returning object; the cast keeps int() well typed there |
+| arsenal/jam/schemas.py | 942 | `ty: ignore[invalid-return-type]` | an id-less card keys as None; callers pass cards that validate_card already gave ids |
 | arsenal/lanes/hwdecode_soak.py | 124 | `noqa: BLE001` | record and stop, never crash the soak |
 | arsenal/practice.py | 2396 | `noqa: BLE001` | any failure inside the shared numberer falls back to the parts |
 | arsenal/practice.py | 2410 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| arsenal/practice.py | 5294 | `ty: ignore[not-subscriptable]` | LATENT: no velocities -> ZeroDivisionError above first; output for that case is a judgement call |
 | arsenal/practice.py | 5294 | `pyright: ignore[reportOptionalSubscript]` | LATENT: no velocities -> ZeroDivisionError above first; output for that case is a judgement call |
 | arsenal/practice_riff.py | 456 | `noqa: E731` | local one-line key function |
 | arsenal/practice_riff.py | 2124 | `noqa: E731` | local one-line key function |
-| arsenal/practice_riff.py | 2649 | `pyright: ignore[reportOptionalSubscript]` | LATENT: a def file whose key does not parse raises TypeError here |
+| arsenal/practice_riff.py | 2650 | `ty: ignore[not-subscriptable]` | LATENT: a def file whose key does not parse raises TypeError here |
+| arsenal/practice_riff.py | 2650 | `pyright: ignore[reportOptionalSubscript]` | LATENT: a def file whose key does not parse raises TypeError here |
 | arsenal/present/__init__.py | 37 | `noqa: E402` | re-exported for convenience; scene.py stays standalone |
+| arsenal/replay.py | 242 | `ty: ignore[invalid-method-override]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/replay.py | 242 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
+| arsenal/serve.py | 239 | `ty: ignore[invalid-method-override]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/serve.py | 239 | `pyright: ignore[reportIncompatibleMethodOverride]` | fmt, not format (A002); stdlib passes it positionally |
 | arsenal/tiktok.py | 40 | `noqa: TC003` | runtime-evaluated annotations (inventory annotation_sensitive) |
 | aurora-cli/src/aurora_cli/bundle.py | 105 | `noqa: SIM115` | returned to a with-block in the caller |
@@ -47,14 +59,14 @@
 | bootstrap.py | 128 | `noqa: F401` | availability probe |
 | config.py | 246 | `noqa: E402` | beside the setting it serves |
 | core/codex/schema.py | 94 | `noqa: A002` | public API name |
-| core/comm/ask.py | 1340 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| core/comm/ask.py | 1339 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bifrost_api.py | 193 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/bus.py | 77 | `noqa: E402` | THE incarnation discriminator |
 | core/comm/bus.py | 376 | `noqa: BLE001` | fail-loud: refused or unavailable, the sender is told |
 | core/comm/bus.py | 883 | `noqa: RUF012` | annotation_sensitive module; class-level throttle shared on purpose |
 | core/comm/conductor_gate.py | 65 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/comm/conductor_gate.py | 727 | `noqa: BLE001` | fail-closed: never raise out of the loop top |
-| core/comm/control_channel.py | 194 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: stop() can null _sock between the _stop check and accept |
+| core/comm/daemon_state.py | 101 | `ty: ignore[redundant-cast]` | pyright sees object here; redis scan_iter |
 | core/comm/daemon_state.py | 214 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/daemon_state.py | 233 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | core/comm/discord_bridge.py | 466 | `noqa: BLE001` | fail-soft: falls back to a default value |
@@ -76,21 +88,25 @@
 | core/comm/discord_rooms.py | 266 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/discord_rooms.py | 293 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/doctor.py | 704 | `pyright: ignore[reportPossiblyUnboundVariable]` | LATENT: unbound if worklive probe raised; NameError swallowed below |
+| core/comm/doctor.py | 874 | `ty: ignore[call-non-callable]` | LATENT: LockManager has no list_held; always [] |
 | core/comm/doctor.py | 874 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: LockManager has no list_held; always [] |
+| core/comm/doctor.py | 1228 | `ty: ignore[call-non-callable]` | LATENT: LockManager has no list_held; always [] |
 | core/comm/doctor.py | 1228 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: LockManager has no list_held; always [] |
 | core/comm/doctor.py | 1584 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/mailbox.py | 866 | `noqa: A001` | public API name (mailbox.open) |
 | core/comm/operator_reply.py | 151 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/operator_reply.py | 200 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| core/comm/runner_lock.py | 416 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: two reads; lock may vanish between them |
+| core/comm/promoter.py | 75 | `ty: ignore[redundant-cast]` | pyright sees object here; events_for_ref: list of event dicts |
 | core/comm/shift_turn.py | 67 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/shift_turn.py | 75 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/comm/toolbox.py | 1024 | `noqa: A002` | public API name |
 | core/comm/toolbox.py | 1424 | `noqa: A002` | public API name |
+| core/comm/toolbox.py | 1909 | `ty: ignore[unresolved-attribute]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
 | core/comm/toolbox.py | 1909 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: intent.scope_matches never existed; except swallows, tag is always "" |
 | core/comm/toolbox.py | 2405 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound before any subprocess call can time out |
 | core/coord/compare.py | 35 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
-| core/coord/compare.py | 205 | `pyright: ignore[reportMissingImports]` | LATENT: no such module; compare() reports this domain as an error |
+| core/coord/conductor.py | 70 | `ty: ignore[redundant-cast]` | LOST_UPDATE_ATTEMPTS >= 1, so a conflict set it |
+| core/coord/continuity.py | 92 | `ty: ignore[redundant-cast]` | pyright narrows to type[DataclassInstance] too; asdict decides, exactly as before |
 | core/coord/experiment.py | 35 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | core/coord/forecast_registry.py | 158 | `noqa: A002` | public API name |
 | core/coord/observations.py | 10 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
@@ -105,20 +121,23 @@
 | core/fleet/seat_model.py | 185 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/foundation/accel.py | 38 | `pyright: ignore[reportMissingImports]` | optional wheel (aurora-rs/py) |
 | core/foundation/embedded_redis.py | 99 | `noqa: F401` | availability probe |
+| core/foundation/embedded_redis.py | 337 | `ty: ignore[unresolved-attribute]` | idempotence marker on a third-party class |
 | core/foundation/embedded_redis.py | 337 | `pyright: ignore[reportAttributeAccessIssue]` | idempotence marker on a third-party class |
 | core/foundation/embedded_redis.py | 536 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
 | core/foundation/redis_connection.py | 207 | `pyright: ignore[reportPossiblyUnboundVariable]` | NameError without redis is caught below |
 | core/foundation/redis_connection.py | 280 | `pyright: ignore[reportPossiblyUnboundVariable]` | REDIS_LIBRARY_AVAILABLE checked above |
-| core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API) |
+| core/foundation/sqlite_store.py | 539 | `ty: ignore[invalid-type-form]` | resolves to the class's set() method; annotation value kept unchanged (public API) |
+| core/foundation/store.py | 154 | `ty: ignore[invalid-type-form]` | runtime annotation is Store.set; kept unchanged |
+| core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
 | core/link/client.py | 155 | `noqa: SIM115` | closed by Client.close |
 | core/link/promote.py | 183 | `noqa: BLE001` | an unknown original is simply not ours |
 | core/link/quarantine.py | 45 | `noqa: BLE001` | fail-soft: offline bus = None, the store stays the truth |
 | core/manuals/chunk.py | 17 | `noqa: TC001` | runtime-evaluated annotations (annotation_sensitive module) |
-| core/manuals/convert.py | 293 | `pyright: ignore[reportArgumentType]` | LATENT: pypdf returns None for a dangling outline target; the sort below would raise |
 | core/manuals/shelf.py | 73 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| core/manuals/shelf.py | 89 | `ty: ignore[unresolved-attribute]` | tag read back by callers via getattr |
 | core/manuals/shelf.py | 89 | `pyright: ignore[reportFunctionMemberAccess]` | tag read back by callers via getattr |
-| core/narrative/chapter_lifecycle.py | 148 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: re-read; a chapter removed since the filter above raises |
+| core/narrative/tag_governance.py | 93 | `ty: ignore[invalid-argument-type]` | default is returned as-is; None is a valid result here |
 | core/narrative/tag_governance.py | 93 | `pyright: ignore[reportArgumentType]` | default is returned as-is; None is a valid result here |
 | core/primitives/embedder.py | 82 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
 | core/primitives/epistemic.py | 32 | `noqa: UP042` | str() of members must stay "Cls.NAME" |
@@ -140,18 +159,17 @@
 | core/screenspace/foreground.py | 155 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/screenspace/foreground.py | 165 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | core/signals/coordinator_api.py | 152 | `noqa: LOG015` | root-logger routing kept as-is |
-| core/toolbelt/contest.py | 133 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentMemory has no latest(); except returns None |
-| core/toolbelt/contest.py | 168 | `pyright: ignore[reportMissingImports]` | LATENT: no core.comm.bifrost; the ping always reports failed |
-| core/toolbelt/toast.py | 156 | `pyright: ignore[reportMissingImports]` | LATENT: no core.comm.bifrost; the ping always reports failed |
+| core/toolbelt/contest.py | 130 | `ty: ignore[unresolved-attribute]` | LATENT: AgentMemory has no latest(); except returns None |
+| core/toolbelt/contest.py | 130 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentMemory has no latest(); except returns None |
 | core/tools/everything.py | 545 | `noqa: A002` | public API name |
 | core/tools/everything.py | 679 | `noqa: A002` | public API name |
 | core/trust/capabilities.py | 14 | `noqa: UP042` | str() of members must stay "Cls.NAME" |
-| core/web/door.py | 279 | `noqa: E402` | used by search |
+| core/web/door.py | 280 | `noqa: E402` | used by search |
 | core/world.py | 53 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | data/play/claude/campfire.py | 72 | `noqa: B005` | strips the char set "- []" by design |
 | docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py | 12 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
 | docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py | 13 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
-| docs/_archive/pre-library/legacy/gemma_realtime/file_analyzer.py | 211 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/legacy/gemma_realtime/file_analyzer.py | 212 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
 | docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py | 59 | `noqa: ASYNC210` | archived code: the blocking call stays (no behaviour change) |
 | docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py | 103 | `noqa: ASYNC210` | archived code: the blocking call stays (no behaviour change) |
 | docs/_archive/pre-library/legacy/gemma_realtime/server.py | 14 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
@@ -169,7 +187,9 @@
 | docs/_archive/pre-library/legacy/services/session_monitor.py | 43 | `noqa: F401` | import probe: sets REDIS_AVAILABLE at runtime |
 | docs/_archive/pre-library/legacy/session_compressor.py | 26 | `pyright: ignore[reportMissingImports]` | archived module |
 | docs/_archive/pre-library/python_old/ai_watchdog.py | 157 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/ai_watchdog.py | 187 | `ty: ignore[invalid-assignment]` | LATENT: shadows the ensure_infra flag, so the flag is ignored |
 | docs/_archive/pre-library/python_old/ai_watchdog.py | 187 | `pyright: ignore[reportAssignmentType]` | LATENT: shadows the ensure_infra flag, so the flag is ignored |
+| docs/_archive/pre-library/python_old/ai_watchdog.py | 211 | `ty: ignore[call-non-callable]` | LATENT: same shadowing as the import above; this calls the imported function |
 | docs/_archive/pre-library/python_old/ai_watchdog.py | 211 | `pyright: ignore[reportCallIssue]` | LATENT: same shadowing as the import above; this calls the imported function |
 | docs/_archive/pre-library/python_old/session_supervisor.py | 139 | `pyright: ignore[reportMissingImports]` | archived module |
 | docs/_archive/pre-library/python_old/session_supervisor.py | 157 | `pyright: ignore[reportMissingImports]` | archived module |
@@ -179,9 +199,47 @@
 | docs/_archive/pre-library/python_old/stack_gui.py | 52 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
 | docs/_archive/pre-library/python_old/stack_gui.py | 57 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | docs/_archive/pre-library/python_old/stack_gui.py | 58 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/python_old/stack_gui.py | 204 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_gui.py | 206 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_gui.py | 223 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_gui.py | 225 | `ty: ignore[invalid-argument-type]` | archived dead code |
 | docs/_archive/pre-library/python_old/stack_gui.py | 226 | `noqa: ASYNC251` | archived code: the blocking call stays (no behaviour change) |
+| docs/_archive/pre-library/python_old/stack_gui.py | 248 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_gui.py | 249 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_gui.py | 250 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_gui.py | 370 | `ty: ignore[not-iterable]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 359 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 362 | `ty: ignore[not-iterable]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 404 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 417 | `ty: ignore[not-iterable]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 446 | `ty: ignore[not-iterable]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 449 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 453 | `ty: ignore[invalid-return-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 464 | `ty: ignore[not-iterable]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 466 | `ty: ignore[invalid-argument-type, not-subscriptable, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 472 | `ty: ignore[unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 486 | `ty: ignore[not-iterable]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 490 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 594 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 595 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 596 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 687 | `ty: ignore[unresolved-attribute, unsupported-operator]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 688 | `ty: ignore[unresolved-attribute, unsupported-operator]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 722 | `ty: ignore[unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 723 | `ty: ignore[unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 724 | `ty: ignore[unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1036 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1037 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1038 | `ty: ignore[invalid-argument-type, unresolved-attribute]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1127 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1129 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1151 | `ty: ignore[no-matching-overload]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1226 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| docs/_archive/pre-library/python_old/stack_manager.py | 1228 | `ty: ignore[invalid-argument-type]` | archived dead code |
+| research/drafts/t097-s1-progress-stamp-draft.py | 38 | `ty: ignore[missing-argument]` | LATENT: Bus() now requires agent_id; this research draft predates that |
 | research/drafts/t097-s1-progress-stamp-draft.py | 38 | `pyright: ignore[reportCallIssue]` | LATENT: Bus() now requires agent_id; this research draft predates that |
-| research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `pyright: ignore[reportMissingImports]` | ty: ignore[unresolved-import]  # the control runs in its own venv (see report.md) |
+| research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `pyright: ignore[reportMissingImports]` | the control runs in its own venv (see report.md) |
+| research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `ty: ignore[unresolved-import]` | the control runs in its own venv (see report.md) |
 | research/in-flight/link-phase0-transport-2026-10-10/relay_only_internet.py | 22 | `noqa: SIM115` | held for the daemon's lifetime |
 | research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 25 | `noqa: E402` | sibling helper |
 | research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 27 | `noqa: E402` | the repo's own RPC client |
@@ -200,6 +258,9 @@
 | research/in-flight/t342/dead-modules/_archive__python_old__ai_watchdog.py | 213 | `pyright: ignore[reportCallIssue]` | LATENT: the local import rebinds the bool param ensure_infra, so the guard is always true |
 | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py | 19 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py | 58 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py | 157 | `ty: ignore[invalid-assignment]` | archived dead code |
+| research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py | 160 | `ty: ignore[invalid-assignment]` | archived dead code |
+| research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py | 282 | `ty: ignore[unresolved-attribute]` | archived dead code |
 | research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py | 52 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py | 57 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py | 60 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
@@ -211,16 +272,21 @@
 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine.py | 78 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound when DIRECTML_AVAILABLE, checked above |
 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine.py | 107 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine_comfy.py | 59 | `pyright: ignore[reportPossiblyUnboundVariable]` | bound when REDIS_AVAILABLE, checked above |
+| research/in-flight/t342/dead-modules/agent_comm_service.py | 553 | `ty: ignore[invalid-argument-type]` | LATENT: a ping without from_agent sends the pong to None |
 | research/in-flight/t342/dead-modules/agent_comm_service.py | 553 | `pyright: ignore[reportArgumentType]` | LATENT: a ping without from_agent sends the pong to None |
+| research/in-flight/t342/dead-modules/agent_coordinator.py | 195 | `ty: ignore[invalid-assignment]` | LATENT: dataclass default is "" not a list; field annotation left as is |
 | research/in-flight/t342/dead-modules/agent_coordinator.py | 195 | `pyright: ignore[reportAssignmentType]` | LATENT: dataclass default is "" not a list; field annotation left as is |
+| research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 397 | `ty: ignore[invalid-argument-type]` | LATENT: passes a ResourceLock, json.dumps fails and the broadcast is silently dropped |
 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 397 | `pyright: ignore[reportArgumentType]` | LATENT: passes a ResourceLock, json.dumps fails and the broadcast is silently dropped |
 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 728 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 771 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/context__learning_loader.py | 42 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/core__foundation__fast_cache.py | 58 | `noqa: E402` | sys.path bootstrap (after the RAM-disk makedirs) |
+| research/in-flight/t342/dead-modules/core__foundation__fast_cache.py | 277 | `ty: ignore[unresolved-attribute]` | archived dead code |
 | research/in-flight/t342/dead-modules/deploy_vllm.py | 62 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/deploy_vllm.py | 205 | `noqa: PT028` | not a pytest test: a helper named test_* |
 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | 210 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/error_documentation.py | 206 | `ty: ignore[invalid-assignment]` | archived dead code |
 | research/in-flight/t342/dead-modules/gemini_bridge.py | 31 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/gemini_bridge.py | 39 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/gemini_bridge.py | 42 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
@@ -249,28 +315,39 @@
 | research/in-flight/t342/dead-modules/gemini_bridge_monitor.py | 25 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/gemini_bridge_monitor.py | 28 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/gemini_bridge_monitor.py | 31 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/gemini_bridge_monitor.py | 120 | `ty: ignore[invalid-argument-type]` | LATENT: capture_active_window() may return None; the except below reports it |
 | research/in-flight/t342/dead-modules/gemini_bridge_monitor.py | 120 | `pyright: ignore[reportArgumentType]` | LATENT: capture_active_window() may return None; the except below reports it |
 | research/in-flight/t342/dead-modules/harness_enforcer.py | 238 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/harness_enforcer.py | 445 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/harness_enforcer.py | 448 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/harness_enforcer.py | 691 | `ty: ignore[unresolved-attribute]` | archived dead code |
 | research/in-flight/t342/dead-modules/init_session.py | 27 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/init_session.py | 31 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/init_session.py | 78 | `ty: ignore[unknown-argument]` | LATENT: init_blackboard() takes no force kwarg; TypeError is caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 78 | `pyright: ignore[reportCallIssue]` | LATENT: init_blackboard() takes no force kwarg; TypeError is caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 89 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/init_session.py | 97 | `pyright: ignore[reportPossiblyUnboundVariable]` | LATENT: SESSION_ID unbound if step 1's import failed; NameError caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 151 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: no such function; ImportError caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 170 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
-| research/in-flight/t342/dead-modules/init_session.py | 176 | `noqa: F821` | pyright: ignore[reportUndefinedVariable]  # LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2 |
+| research/in-flight/t342/dead-modules/init_session.py | 176 | `ty: ignore[unresolved-reference]` | LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2 |
+| research/in-flight/t342/dead-modules/init_session.py | 176 | `noqa: F821` | LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2 |
 | research/in-flight/t342/dead-modules/init_session.py | 176 | `pyright: ignore[reportUndefinedVariable]` | LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2 |
+| research/in-flight/t342/dead-modules/init_session.py | 203 | `ty: ignore[unresolved-attribute]` | LATENT: AgentCommService has agent_id, not _agent_id; caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 203 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentCommService has agent_id, not _agent_id; caught below |
+| research/in-flight/t342/dead-modules/init_session.py | 206 | `ty: ignore[unresolved-attribute]` | LATENT: AgentCommService has no broadcast_status; caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 206 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentCommService has no broadcast_status; caught below |
+| research/in-flight/t342/dead-modules/init_session.py | 209 | `ty: ignore[unresolved-attribute]` | LATENT: TerminalWaker has no print_wake_signal; caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 209 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: TerminalWaker has no print_wake_signal; caught below |
+| research/in-flight/t342/dead-modules/init_session.py | 211 | `ty: ignore[unresolved-attribute]` | LATENT: AgentCommService has agent_id, not _agent_id; caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 211 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: AgentCommService has agent_id, not _agent_id; caught below |
 | research/in-flight/t342/dead-modules/init_session.py | 249 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/launch.py | 121 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/launch.py | 125 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/launch.py | 329 | `ty: ignore[unresolved-attribute]` | LATENT: MessageBus has no broadcast_to_agents; AttributeError at runtime |
 | research/in-flight/t342/dead-modules/launch.py | 329 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: MessageBus has no broadcast_to_agents; AttributeError at runtime |
+| research/in-flight/t342/dead-modules/launch.py | 373 | `ty: ignore[unresolved-attribute]` | LATENT: decode_responses=True gives str; .decode() raises |
 | research/in-flight/t342/dead-modules/launch.py | 373 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: decode_responses=True gives str; .decode() raises |
+| research/in-flight/t342/dead-modules/launch.py | 374 | `ty: ignore[unresolved-attribute]` | LATENT: decode_responses=True gives str; .decode() raises |
 | research/in-flight/t342/dead-modules/launch.py | 374 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: decode_responses=True gives str; .decode() raises |
 | research/in-flight/t342/dead-modules/master.py | 32 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/master.py | 37 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
@@ -302,6 +379,7 @@
 | research/in-flight/t342/dead-modules/vision_engine.py | 119 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/vision_engine.py | 382 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/vision_engine.py | 572 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
+| research/in-flight/t342/dead-modules/vision_engine.py | 654 | `ty: ignore[unresolved-attribute, unsupported-operator]` | archived dead code |
 | research/in-flight/wire-capture-deepseek-2026-08-02/probes.py | 25 | `noqa: E402` | fail fast on a missing key before importing the SDK |
 | research/in-flight/wire-capture-deepseek-2026-08-02/probes.py | 26 | `noqa: E402` | fail fast on a missing key before importing the SDK |
 | scripts/bifrost_daemon.py | 45 | `noqa: SIM105` | runs before every other import (contextlib included): Popen is patched first |
@@ -315,7 +393,7 @@
 | scripts/bifrost_runner_deepseek.py | 39 | `noqa: F401` | patches subprocess.Popen |
 | scripts/bifrost_runner_deepseek.py | 75 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_deepseek.py | 79 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_deepseek.py | 1450 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_deepseek.py | 1449 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 41 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_discord.py | 45 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_discord.py | 63 | `noqa: E402` | streams are forced to UTF-8 before the import |
@@ -343,7 +421,6 @@
 | scripts/bifrost_runner_discord.py | 958 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | scripts/bifrost_runner_discord.py | 964 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 979 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 992 | `pyright: ignore[reportCallIssue]` | LATENT: GuestReplyTracker.poll() takes no on_drop; this TypeError ends the guest-reply task |
 | scripts/bifrost_runner_discord.py | 996 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 1058 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 1083 | `noqa: BLE001` | fail-soft: logged, caller continues |
@@ -355,7 +432,7 @@
 | scripts/bifrost_runner_gemini.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_kimi.py | 62 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_kimi.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_kimi.py | 869 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_kimi.py | 868 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_sol.py | 69 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_sol.py | 73 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_ui.py | 1595 | `pyright: ignore[reportMissingImports]` | optional package |
@@ -369,13 +446,14 @@
 | scripts/enrich_corpus.py | 40 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 41 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 42 | `noqa: E402` | sys.path bootstrap |
+| scripts/gemini_chat.py | 90 | `ty: ignore[invalid-argument-type]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
 | scripts/gemini_chat.py | 90 | `pyright: ignore[reportArgumentType]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
 | scripts/gemini_web.py | 124 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | scripts/gemini_web.py | 127 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | scripts/gemini_web.py | 137 | `pyright: ignore[reportMissingImports]` | optional dependency |
-| scripts/gemini_web.py | 208 | `pyright: ignore[reportMissingImports]` | optional dependency  # noqa: F401  # availability probe |
+| scripts/gemini_web.py | 208 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | scripts/gemini_web.py | 208 | `noqa: F401` | availability probe |
-| scripts/gemini_web.py | 214 | `pyright: ignore[reportMissingImports]` | optional dependency  # noqa: F401  # availability probe |
+| scripts/gemini_web.py | 214 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | scripts/gemini_web.py | 214 | `noqa: F401` | availability probe |
 | scripts/generators/gen_arch_index.py | 22 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_master_map.py | 22 | `noqa: E402` | sys.path bootstrap |
@@ -385,6 +463,7 @@
 | scripts/generators/gen_prior_art_register.py | 35 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_requirements.py | 1 | `pyright: strict` |  |
 | scripts/githooks/pre_commit.py | 130 | `noqa: S603` | argv is the resolved prek binary plus fixed flags and the repo's own config path; no user input reaches it |
+| scripts/kimi_chat.py | 91 | `ty: ignore[invalid-argument-type]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
 | scripts/kimi_chat.py | 91 | `pyright: ignore[reportArgumentType]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
 | scripts/ops/archive_ephemeral.py | 63 | `noqa: E402` | sys.path bootstrap |
 | scripts/ops/archive_ephemeral.py | 141 | `noqa: BLE001` | contained + confessed, never silent |
@@ -418,17 +497,35 @@
 | seat_topology.py | 227 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | tests/conftest.py | 60 | `noqa: F401` | side-effect: temp AI_SETUP + db 15 + flush |
 | tests/conftest.py | 159 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| tests/drill_succession_live.py | 96 | `ty: ignore[invalid-argument-type]` | deliberate bad input: the drill proves hours=None is refused |
 | tests/drill_succession_live.py | 96 | `pyright: ignore[reportArgumentType]` | deliberate bad input: the drill proves hours=None is refused |
+| tests/drill_succession_live.py | 147 | `ty: ignore[missing-argument]` | fallback for the pre-reason revoke() signature |
 | tests/drill_succession_live.py | 147 | `pyright: ignore[reportCallIssue]` | fallback for the pre-reason revoke() signature |
 | tests/isolate_canonical.py | 21 | `noqa: F401` | side-effect: isolates + flushes |
+| tests/manual/door_parity_probe.py | 20 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/door_parity_probe.py | 25 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_auto_revive_probe.py | 40 | `ty: ignore[invalid-assignment]` | probe patches a module constant |
+| tests/manual/l3b_auto_revive_probe.py | 45 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; keep the synthetic spec (registry() would otherwise reload real specs over it) |
+| tests/manual/l3b_auto_revive_probe.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_hardening_probe.py | 42 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_hardening_probe.py | 63 | `ty: ignore[invalid-assignment]` | probe patches a module constant |
+| tests/manual/l3b_hardening_probe.py | 66 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_hardening_probe.py | 71 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_revive_probe.py | 74 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_revive_probe.py | 86 | `ty: ignore[invalid-assignment]` | probe patches a module constant |
+| tests/manual/l3b_revive_probe.py | 88 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/l3b_revive_probe.py | 89 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/manual/wiring_probe.py | 27 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/rb25_drill3_orchestrate.py | 53 | `noqa: E402` | pause-guard, 2026-07-12 finding |
 | tests/rb25_drill3_orchestrate.py | 57 | `noqa: E402` | sys.path bootstrap |
 | tests/rb25_drill3_orchestrate.py | 93 | `noqa: SIM115` | handle outlives this function: the child writes to it; kept on p._logf |
+| tests/rb25_drill3_orchestrate.py | 97 | `ty: ignore[unresolved-attribute]` | ad-hoc attribute: keeps the log handle alive with the child |
 | tests/rb25_drill3_orchestrate.py | 97 | `pyright: ignore[reportAttributeAccessIssue]` | ad-hoc attribute: keeps the log handle alive with the child |
-| tests/rb25_drill4_soak.py | 53 | `noqa: E402` | sys.path bootstrap |
-| tests/rb25_drill4_soak.py | 55 | `noqa: E402` | sys.path bootstrap |
-| tests/rb25_drill4_soak.py | 60 | `noqa: E402` | sys.path bootstrap |
-| tests/rb25_drill4_soak.py | 119 | `noqa: SIM115` | handle outlives this function: inherited by the detached child as stdout |
+| tests/rb25_drill4_soak.py | 54 | `noqa: E402` | sys.path bootstrap |
+| tests/rb25_drill4_soak.py | 56 | `noqa: E402` | sys.path bootstrap |
+| tests/rb25_drill4_soak.py | 61 | `noqa: E402` | sys.path bootstrap |
+| tests/rb25_drill4_soak.py | 120 | `noqa: SIM115` | handle outlives this function: inherited by the detached child as stdout |
+| tests/spine_probes.py | 202 | `ty: ignore[invalid-argument-type]` | deliberate garbage input |
 | tests/spine_probes.py | 202 | `pyright: ignore[reportArgumentType]` | deliberate garbage input |
 | tests/test_9e1bc7ce78_standalone_runner_warns.py | 46 | `noqa: E402` | sys.path bootstrap |
 | tests/test_acl_floor_is_loud.py | 38 | `noqa: E402` | sys.path bootstrap |
@@ -436,8 +533,8 @@
 | tests/test_aggregator.py | 11 | `noqa: F401` | isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import |
 | tests/test_arc_thread.py | 18 | `noqa: E402` | sys.path bootstrap |
 | tests/test_archive_ephemeral_hostile_stream_names.py | 48 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
-| tests/test_arsenal_band.py | 22 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_band.py | 23 | `noqa: E402` | sys.path bootstrap |
+| tests/test_arsenal_band.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_fl_vfx.py | 139 | `noqa: B006` | deliberate: a call counter that persists across calls |
 | tests/test_arsenal_jam_cli.py | 22 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_jam_cli.py | 23 | `noqa: E402` | sys.path bootstrap |
@@ -468,9 +565,13 @@
 | tests/test_arsenal_kernel.py | 16 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_kernel.py | 17 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_kernel.py | 18 | `noqa: E402` | sys.path bootstrap |
+| tests/test_arsenal_kernel.py | 52 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_kernel.py | 52 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
+| tests/test_arsenal_kernel.py | 57 | `ty: ignore[invalid-argument-type]` | int timebase is accepted at runtime; the field is annotated Fraction only |
 | tests/test_arsenal_kernel.py | 57 | `pyright: ignore[reportArgumentType]` | int timebase is accepted at runtime; the field is annotated Fraction only |
+| tests/test_arsenal_kernel.py | 62 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_kernel.py | 62 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
+| tests/test_arsenal_kernel.py | 66 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_kernel.py | 66 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_looks_route.py | 18 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_looks_route.py | 19 | `noqa: E402` | sys.path bootstrap |
@@ -485,10 +586,15 @@
 | tests/test_arsenal_pianocue.py | 299 | `noqa: E731` | local one-line key function |
 | tests/test_arsenal_pianocue.py | 781 | `noqa: E731` | local one-line key function |
 | tests/test_arsenal_pianocue.py | 846 | `noqa: E731` | local one-line key function |
+| tests/test_arsenal_pins_heimdall.py | 80 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_pins_heimdall.py | 80 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
+| tests/test_arsenal_pins_heimdall.py | 86 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_pins_heimdall.py | 86 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
+| tests/test_arsenal_pins_heimdall.py | 98 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_pins_heimdall.py | 98 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
+| tests/test_arsenal_pins_heimdall.py | 103 | `ty: ignore[invalid-argument-type]` | int timebase is accepted at runtime; the field is annotated Fraction only |
 | tests/test_arsenal_pins_heimdall.py | 103 | `pyright: ignore[reportArgumentType]` | int timebase is accepted at runtime; the field is annotated Fraction only |
+| tests/test_arsenal_pins_heimdall.py | 109 | `ty: ignore[invalid-argument-type]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_pins_heimdall.py | 109 | `pyright: ignore[reportArgumentType]` | deliberate wrong type: the test pins the runtime refusal |
 | tests/test_arsenal_pins_playnight_heimdall.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_arsenal_practice.py | 22 | `noqa: E402` | sys.path bootstrap |
@@ -519,14 +625,20 @@
 | tests/test_arsenal_tiktok.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_ask_as_resident.py | 42 | `noqa: F401` | db 15 + temp AI_SETUP, flushed (child inherits via env) |
 | tests/test_ask_as_resident.py | 47 | `noqa: E402` | sys.path bootstrap |
+| tests/test_b_cutover_red_fence.py | 246 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_boot_reports_reachability.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_ci_instance_local_refs_pins.py | 37 | `noqa: E402` | sys.path bootstrap |
 | tests/test_cli_send_spills.py | 34 | `noqa: F401` | db 15 + temp AI_SETUP, flushed (child inherits via env) |
-| tests/test_clip_chokepoint_contract.py | 64 | `pyright: ignore[reportAttributeAccessIssue]` | T273 RED pin, not built yet |
-| tests/test_codex_app_server.py | 595 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
-| tests/test_codex_hook_contract.py | 24 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
+| tests/test_clip_chokepoint_contract.py | 65 | `ty: ignore[unresolved-import]` | T273 RED pin, not built yet |
+| tests/test_clip_chokepoint_contract.py | 65 | `pyright: ignore[reportAttributeAccessIssue]` | T273 RED pin, not built yet |
+| tests/test_codex_app_server.py | 597 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
+| tests/test_codex_app_server.py | 1086 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_codex_hook_contract.py | 25 | `ty: ignore[unresolved-import]` | not in repo |
 | tests/test_codex_hook_contract.py | 25 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
-| tests/test_codex_hook_contract.py | 26 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
+| tests/test_codex_hook_contract.py | 28 | `ty: ignore[unresolved-import]` | not in repo |
+| tests/test_codex_hook_contract.py | 28 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
+| tests/test_codex_hook_contract.py | 31 | `ty: ignore[unresolved-import]` | not in repo |
+| tests/test_codex_hook_contract.py | 31 | `pyright: ignore[reportAttributeAccessIssue]` | not in repo |
 | tests/test_comprehensibility_index_pins.py | 45 | `noqa: E402` | sys.path bootstrap |
 | tests/test_comprehensibility_index_pins.py | 46 | `noqa: E402` | sys.path bootstrap |
 | tests/test_comprehensibility_index_pins.py | 47 | `noqa: E402` | sys.path bootstrap |
@@ -548,7 +660,9 @@
 | tests/test_event_bridge.py | 19 | `noqa: F401` | re-export or side-effect import |
 | tests/test_event_hooks.py | 19 | `noqa: F401` | side-effect: isolate + flush db15 |
 | tests/test_event_log.py | 18 | `noqa: F401` | side-effect: isolate + flush db15 |
+| tests/test_event_log.py | 136 | `ty: ignore[invalid-argument-type]` | bad input on purpose: None summary -> "" |
 | tests/test_event_log.py | 136 | `pyright: ignore[reportArgumentType]` | bad input on purpose: None summary -> "" |
+| tests/test_event_log.py | 137 | `ty: ignore[invalid-argument-type]` | bad input on purpose: None kind -> 'note' |
 | tests/test_event_log.py | 137 | `pyright: ignore[reportArgumentType]` | bad input on purpose: None kind -> 'note' |
 | tests/test_event_promoter.py | 18 | `noqa: F401` | re-export or side-effect import |
 | tests/test_event_query.py | 17 | `noqa: F401` | re-export or side-effect import |
@@ -559,15 +673,25 @@
 | tests/test_filestore_durability.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_find_bounded_is_not_absent.py | 46 | `noqa: E402` | sys.path bootstrap |
 | tests/test_find_ergonomics.py | 24 | `noqa: E402` | sys.path bootstrap |
+| tests/test_find_full_capability_surface.py | 121 | `ty: ignore[unresolved-attribute]` | strict-xfail pin: journal() seam not built yet |
 | tests/test_find_full_capability_surface.py | 121 | `pyright: ignore[reportAttributeAccessIssue]` | strict-xfail pin: journal() seam not built yet |
 | tests/test_g5_latent_prior_art_launcher.py | 22 | `noqa: S603` | argv is sys.executable plus a fixed in-file snippet; no external input |
+| tests/test_git_guard.py | 71 | `ty: ignore[invalid-argument-type]` | deliberate bad input: garbage (incl. None) must not raise |
 | tests/test_graduation.py | 12 | `noqa: F401` | isolate file store + Redis db BEFORE foundation import |
 | tests/test_heal_clobbers_richer_redis_list.py | 59 | `noqa: E402` | sys.path bootstrap |
 | tests/test_hook_shims.py | 17 | `noqa: E402` | sys.path bootstrap |
+| tests/test_intake_clip_confession.py | 58 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_intake_clip_confession.py | 59 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_intake_clip_confession.py | 60 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_intake_clip_confession.py | 68 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_intake_clip_confession.py | 172 | `ty: ignore[missing-argument]` | LATENT: __main__ runner predates its fixtures |
 | tests/test_intake_clip_confession.py | 172 | `pyright: ignore[reportCallIssue]` | LATENT: __main__ runner predates its fixtures |
 | tests/test_isolation_flag_is_not_proof.py | 46 | `noqa: F401` | re-export or side-effect import |
 | tests/test_k1_kimi_seat.py | 14 | `noqa: E402` | sys.path bootstrap |
+| tests/test_learning_index_derives.py | 47 | `ty: ignore[unknown-argument]` | LATENT: dead branch, FileStore has no base_dir |
 | tests/test_learning_index_derives.py | 47 | `pyright: ignore[reportCallIssue]` | LATENT: dead branch, FileStore has no base_dir |
+| tests/test_learning_index_derives.py | 168 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_learning_index_derives.py | 172 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_ledger.py | 12 | `noqa: F401` | isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import |
 | tests/test_ledger_cross_process.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_legacy_net_exact_and_bounded.py | 48 | `noqa: E402` | sys.path bootstrap |
@@ -583,16 +707,21 @@
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
-| tests/test_onboarding_v2.py | 192 | `pyright: ignore[reportMissingImports]` | LATENT: module absent |
+| tests/test_narrative_health.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_newborn_gauntlet.py | 200 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; never touch the real bus -- we test the ACL verdict only |
 | tests/test_ops_archive_ephemeral.py | 55 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |
 | tests/test_pointer_promises.py | 45 | `noqa: E402` | sys.path bootstrap |
 | tests/test_r9_daemon_respawn_gate.py | 18 | `noqa: E402` | sys.path bootstrap |
 | tests/test_r9_daemon_respawn_gate.py | 20 | `noqa: E402` | sys.path bootstrap |
+| tests/test_rb25_amendment2.py | 105 | `ty: ignore[invalid-assignment]` | LATENT: online is a read-only property; fails at base |
 | tests/test_rb25_amendment2.py | 105 | `pyright: ignore[reportAttributeAccessIssue]` | LATENT: online is a read-only property; fails at base |
+| tests/test_rb25_amendment2.py | 148 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_reasoning_trace_reaches_the_bus.py | 42 | `noqa: E402` | sys.path bootstrap |
+| tests/test_reasoning_trace_reaches_the_bus.py | 72 | `ty: ignore[invalid-argument-type]` | no toolbox: the canned stream never calls a tool |
 | tests/test_reasoning_trace_reaches_the_bus.py | 72 | `pyright: ignore[reportArgumentType]` | no toolbox: the canned stream never calls a tool |
 | tests/test_recall_agent_scope.py | 26 | `noqa: F401` | db 15 + temp AI_SETUP, flushed (child inherits via env) |
 | tests/test_recall_agent_scope.py | 31 | `noqa: E402` | sys.path bootstrap |
+| tests/test_recall_at.py | 260 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; both equally relevant to "consolidator"; B is proven-useful |
 | tests/test_recall_error_is_not_silence.py | 33 | `noqa: E402` | sys.path bootstrap |
 | tests/test_resident_identity.py | 40 | `noqa: F401` | db 15 + temp AI_SETUP, flushed (child inherits via env) |
 | tests/test_resident_identity.py | 45 | `noqa: E402` | sys.path bootstrap |
@@ -600,21 +729,38 @@
 | tests/test_resident_placement.py | 34 | `noqa: E402` | sys.path bootstrap |
 | tests/test_resident_roles.py | 35 | `noqa: F401` | db 15 + temp AI_SETUP, flushed (child inherits via env) |
 | tests/test_resident_roles.py | 40 | `noqa: E402` | sys.path bootstrap |
+| tests/test_revive_per_agent_observation.py | 39 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_runner_clean_exit_retracts_card.py | 54 | `noqa: E402` | sys.path bootstrap |
 | tests/test_session_seat_steer_drain.py | 34 | `noqa: E402` | sys.path bootstrap |
+| tests/test_shift_turn_boundary.py | 47 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_shift_turn_boundary.py | 62 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_spawn_already_up.py | 26 | `noqa: E402` | sys.path bootstrap |
 | tests/test_subprocess_stdin_sever.py | 69 | `noqa: F401` | installs the membrane |
+| tests/test_subprocess_stdin_sever.py | 118 | `ty: ignore[invalid-assignment]` | monkeypatch: trace every Popen |
 | tests/test_sync_reconciler.py | 21 | `noqa: E402` | AI_SETUP env (mkdtemp) must exist before import |
+| tests/test_t077_a3_runner_visibility.py | 88 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_t077_a3_runner_visibility.py | 104 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_t077_a3_runner_visibility.py | 121 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_t077_a3_runner_visibility.py | 136 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_t081_w6_w7_runner.py | 13 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t083_c3_send_textfile.py | 43 | `ty: ignore[too-many-positional-arguments]` | dead fallback: build_parser exists |
 | tests/test_t083_c3_send_textfile.py | 43 | `pyright: ignore[reportCallIssue]` | dead fallback: build_parser exists |
+| tests/test_t083_c3_send_textfile.py | 101 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_t084_tier1_ironman.py | 102 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_t084_tier1_ironman.py | 138 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_t093_durable_job.py | 942 | `ty: ignore[too-many-positional-arguments]` | LATENT: test red at BASE, ship.main() takes no argv |
 | tests/test_t093_durable_job.py | 942 | `pyright: ignore[reportCallIssue]` | LATENT: test red at BASE, ship.main() takes no argv |
 | tests/test_t095_m0_mailbox_shadow.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t095_m0_mailbox_shadow.py | 65 | `noqa: A002` | mirrors redis-py xrange(min=, max=) |
+| tests/test_t097_s1_call_issued_phase.py | 52 | `ty: ignore[invalid-argument-type]` | test double: tools_enabled=False needs no ToolBox |
 | tests/test_t097_s1_call_issued_phase.py | 52 | `pyright: ignore[reportArgumentType]` | test double: tools_enabled=False needs no ToolBox |
+| tests/test_t097_s1_call_issued_phase.py | 104 | `ty: ignore[invalid-argument-type]` | test double: tools_enabled=False needs no ToolBox |
 | tests/test_t097_s1_call_issued_phase.py | 104 | `pyright: ignore[reportArgumentType]` | test double: tools_enabled=False needs no ToolBox |
+| tests/test_t108_s4_reaper_hardening.py | 334 | `ty: ignore[too-many-positional-arguments]` | pre-registered strict xfail: no meta param yet |
 | tests/test_t108_s4_reaper_hardening.py | 334 | `pyright: ignore[reportCallIssue]` | pre-registered strict xfail: no meta param yet |
 | tests/test_t108_u3_lane_cursor_composition.py | 42 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t108_u3_lane_cursor_composition.py | 106 | `noqa: A002` | mirrors redis-py xrange(min=, max=) |
+| tests/test_t133_mail_states_load_bearing.py | 366 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_t134_self_invoking_is_not_a_library.py | 59 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t134_wiring_function_level.py | 52 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t134c_scripts_are_production.py | 55 | `noqa: E402` | sys.path bootstrap |
@@ -626,6 +772,7 @@
 | tests/test_t151_grant_expiry_is_visible.py | 38 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t156_wire_verification.py | 42 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t156_wire_verification.py | 43 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t156_wire_verification.py | 130 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; deletion "succeeds" but frees nothing |
 | tests/test_t167_rearm_autopilot_actually_spawns.py | 46 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t169_budget_exhaustion_still_answers.py | 44 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t170_outcome_cannot_be_silent.py | 33 | `noqa: E402` | sys.path bootstrap |
@@ -644,6 +791,7 @@
 | tests/test_t191_llm_round_archive_keeps_player_report.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t194_scoreboard_v2_separates_truth_exposure_integrity.py | 36 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t195_replication_vs_positional_sharding.py | 31 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t201_unread_counter_honesty.py | 132 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_t219_oracle_does_not_void_a_reasoning_player.py | 52 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t220_a_clipped_body_carries_its_address.py | 31 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t221_confidence_must_not_be_a_free_option.py | 47 | `noqa: E402` | sys.path bootstrap |
@@ -665,13 +813,17 @@
 | tests/test_t297_done_receipt_hex.py | 20 | `noqa: F401` | db 15 + temp AI_SETUP, flushed |
 | tests/test_t332_s1_ruling_the_forks.py | 64 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t332_s1_ruling_the_forks.py | 65 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t332_s1_ruling_the_forks.py | 173 | `ty: ignore[missing-argument]` | deliberate bad call: the test pins the TypeError |
 | tests/test_t332_s1_ruling_the_forks.py | 173 | `type: ignore[call-arg]` | deliberate bad call: the test pins the TypeError |
 | tests/test_t335_s1_walk_fidelity.py | 52 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t335_s1_walk_fidelity.py | 200 | `ty: ignore[unknown-argument]` | deliberate bad call: the test pins the TypeError |
 | tests/test_t335_s1_walk_fidelity.py | 200 | `type: ignore[call-arg]` | deliberate bad call: the test pins the TypeError |
 | tests/test_t335_s2_the_render_the_acceptance_promised.py | 57 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t335_s2_the_render_the_acceptance_promised.py | 58 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t335_s2_the_render_the_acceptance_promised.py | 272 | `ty: ignore[unknown-argument]` | deliberate: pins depth is not declarable |
 | tests/test_t335_s2_the_render_the_acceptance_promised.py | 272 | `pyright: ignore[reportCallIssue]` | deliberate: pins depth is not declarable |
 | tests/test_t336_eye_at_the_peer_door.py | 43 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t338_handoff_briefing_not_clipped.py | 133 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_t340_read_file_slices_before_it_truncates.py | 45 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t361_eye_get_prefix_pins.py | 32 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t364_discord_clip_multipart.py | 21 | `noqa: E402` | sys.path bootstrap |
@@ -686,10 +838,14 @@
 | tests/test_t410_rewrite_recovery.py | 30 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t414_organ_canaries.py | 29 | `noqa: E402` | sys.path bootstrap |
 | tests/test_task_ledger.py | 232 | `pyright: ignore[reportAttributeAccessIssue]` | optional surface, hasattr-probed |
+| tests/test_task_ledger.py | 236 | `ty: ignore[redundant-condition]` | ledger_view is an optional, hasattr-probed surface |
 | tests/test_tooling_upgrade_oracle.py | 1 | `pyright: strict` |  |
-| tests/test_tooling_upgrade_oracle.py | 407 | `noqa: FBT001, RUF100` | pytest parametrize value, passed by pytest; FBT is ratchet-only |
+| tests/test_tooling_upgrade_oracle.py | 409 | `noqa: FBT001, RUF100` | pytest parametrize value, passed by pytest; FBT is ratchet-only |
 | tests/test_vault_refuses_mangled_paste.py | 30 | `noqa: E402` | sys.path bootstrap |
 | tests/test_w06_stdin_send.py | 15 | `noqa: E402` | sys.path bootstrap |
+| tests/test_w06_stdin_send.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_w06_stdin_send.py | 74 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
+| tests/test_w06_stdin_send.py | 84 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_w149_boot_own_liveness.py | 113 | `noqa: F401` | import before patching its collaborators |
 | tests/test_w154_captions_gaps.py | 63 | `noqa: PT017` | optional model: the error is the skip path |
 | tests/test_w154_captions_gaps.py | 73 | `noqa: PT017` | optional model: the error is the skip path |
@@ -708,36 +864,39 @@
 | tooling-upgrade/certify.py | 47 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
 | tooling-upgrade/certify.py | 48 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
 | tooling-upgrade/certify.py | 338 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 597 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1641 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
-| tooling-upgrade/certify.py | 1645 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
-| tooling-upgrade/certify.py | 1792 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
-| tooling-upgrade/certify.py | 1796 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
-| tooling-upgrade/certify.py | 1838 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 599 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 820 | `ty: ignore[invalid-return-type]` | ty keeps `list[str] & Callable` after callable() |
+| tooling-upgrade/certify.py | 834 | `ty: ignore[invalid-argument-type]` | callable() narrowing, as in _exec |
+| tooling-upgrade/certify.py | 1160 | `ty: ignore[redundant-cast]` | basedpyright sees list[Unknown] |
+| tooling-upgrade/certify.py | 1643 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
+| tooling-upgrade/certify.py | 1647 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
+| tooling-upgrade/certify.py | 1794 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
+| tooling-upgrade/certify.py | 1798 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
 | tooling-upgrade/certify.py | 1840 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1846 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1856 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1859 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1868 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1872 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1877 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1926 | `noqa: T201` | CLI output: a certificate line |
-| tooling-upgrade/certify.py | 1989 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 2002 | `noqa: T201` | CLI output: a certificate line |
+| tooling-upgrade/certify.py | 1842 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1848 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1858 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1861 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1870 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1874 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1879 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1928 | `noqa: T201` | CLI output: a certificate line |
+| tooling-upgrade/certify.py | 1991 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 2004 | `noqa: T201` | CLI output: a certificate line |
 | tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
 | tooling-upgrade/oracle.py | 130 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 131 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 333 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1173 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1460 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1472 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1657 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1713 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1748 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1780 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1807 | `noqa: PT028` | not a pytest test: the O9 capture |
-| tooling-upgrade/oracle.py | 1824 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1903 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 2040 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 2211 | `noqa: T201` | CLI output: the guardrails verdict line |
+| tooling-upgrade/oracle.py | 1174 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1461 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1473 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1658 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1714 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1749 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1781 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1808 | `noqa: PT028` | not a pytest test: the O9 capture |
+| tooling-upgrade/oracle.py | 1825 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1904 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2041 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2212 | `noqa: T201` | CLI output: the guardrails verdict line |
 | tooling-upgrade/pytest_plugin/aurora_oracle_plugin.py | 1 | `pyright: strict` |  |

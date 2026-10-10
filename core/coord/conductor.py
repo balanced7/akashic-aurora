@@ -67,7 +67,7 @@ def _apply(op, client="auto", path=None):
         except TL.LedgerConflict as e:
             last = e
             time.sleep(0.02 * (attempt + 1))  # let the peer's mirror/announce land first
-    raise cast("TL.LedgerConflict", last)  # LOST_UPDATE_ATTEMPTS >= 1, so a conflict set it
+    raise cast("TL.LedgerConflict", last)  # ty: ignore[redundant-cast]  # LOST_UPDATE_ATTEMPTS >= 1, so a conflict set it
 
 
 def _broadcast(kind: str, text: str, meta: dict) -> None:

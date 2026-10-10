@@ -17,7 +17,10 @@ import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import builtins
 
 ENVELOPE_CAP = 8 * 1024
 DEFAULT_WAL_PAUSE_BYTES = 100 * 1024 * 1024
@@ -614,7 +617,7 @@ class JudgmentStore(_SQLiteRegister):
         )
         return value
 
-    def list(self) -> list[dict[str, Any]]:
+    def list(self) -> builtins.list[dict[str, Any]]:
         if not self.available:
             return []
         rows = self._require_connection().execute("SELECT snapshot FROM judgments ORDER BY id").fetchall()
@@ -1018,7 +1021,7 @@ def replay_fixture(root: os.PathLike[str] | str, **_: Any) -> dict[str, Any]:
     os.makedirs(directory, exist_ok=True)
     observation = ObservationStore(os.path.join(directory, "shadow-observation.sqlite"))
     judgment = JudgmentStore(os.path.join(directory, "shadow-judgment.sqlite"))
-    fixtures = [
+    fixtures: list[dict[str, Any]] = [
         {
             "source_fingerprint": "fixture:agreement:1",
             "subject": "fixture-seat",
