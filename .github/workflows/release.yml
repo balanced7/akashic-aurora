@@ -1,0 +1,209 @@
+name: Release
+
+# Publishes the `aurora` CLI. Modelled on openai/codex's rust-release.yml: master keeps working
+# versions, a release is a commit that bumps them (`uv run scripts/release/releases.py bump X.Y.Z`)
+# plus an annotated tag `vX.Y.Z` on it, and this workflow refuses a tag its files disagree with.
+#
+#   tag-check -> bundle + launcher + rust wheels -> smoke (install from the built assets on
+#   Linux, macOS, Windows) -> GitHub release (assets + install scripts) -> PyPI
+#
+# The install one-liners download from releases/latest/download/, so a release is live for
+# `curl | sh` and `irm | iex` the moment the GitHub release is published.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v0.1.0. Builds and smoke-tests; publishes nothing."
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+# Every action is pinned to a full commit SHA, the tag it resolved from beside it.
+jobs:
+  tag-check:
+    name: Tag matches every version file
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+      - name: Check the tag against aurora-cli/pyproject.toml and aurora-rs/Cargo.toml
+        run: uv run --no-project scripts/release/releases.py check-tag "$TAG"
+      - id: v
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  bundle:
+    name: Bundle + launcher
+    needs: tag-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+      - name: Build the release bundle (the repo tree at the tag)
+        run: uv run --no-project scripts/release/build_bundle.py --ref "$TAG" --out dist
+      - name: Build the launcher wheel and sdist
+        run: uv build --package akashic-aurora-cli --out-dir dist
+      - name: Stage the install scripts
+        run: cp aurora-cli/install/install.sh aurora-cli/install/install.ps1 dist/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: dist-bundle
+          path: dist/*
+          if-no-files-found: error
+
+  rust-wheels:
+    name: Rust wheel (${{ matrix.name }})
+    needs: tag-check
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-x86_64, runner: ubuntu-latest, target: x86_64, manylinux: "2_28" }
+          - { name: linux-aarch64, runner: ubuntu-24.04-arm, target: aarch64, manylinux: "2_28" }
+          - { name: macos-arm64, runner: macos-latest, target: aarch64-apple-darwin, manylinux: "" }
+          - { name: macos-x86_64, runner: macos-latest, target: x86_64-apple-darwin, manylinux: "" }
+          - { name: windows-x64, runner: windows-latest, target: x64, manylinux: "" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      # One abi3 wheel per platform serves every Python >= 3.11 (aurora-rs/py/pyproject.toml).
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b  # v1.51.0
+        with:
+          working-directory: aurora-rs/py
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+          args: --release --out ../../dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: dist-rs-${{ matrix.name }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  smoke:
+    name: Install smoke test (${{ matrix.os }})
+    needs: [bundle, rust-wheels]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      # install from the assets this run built, exactly as users will from the release
+      AURORA_RELEASE_BASE: ${{ github.workspace }}/dist
+      AURORA_RS_FIND_LINKS: ${{ github.workspace }}/dist
+      AKASHIC_WORLD: alpha
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Install (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: sh dist/install.sh --version "${TAG#v}" --no-modify-path
+      - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:AURORA_VERSION = "$env:TAG".TrimStart('v')
+          $env:AURORA_NO_MODIFY_PATH = '1'
+          ./dist/install.ps1
+      - name: Every advertised entry point answers, from outside any checkout
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          bin="$(uv tool dir --bin)"
+          if command -v cygpath >/dev/null 2>&1; then bin="$(cygpath -u "$bin")"; fi
+          export PATH="$bin:$PATH"
+          set -x
+          aurora self version
+          aurora discover | head -5
+          aurora status
+          aurora learn smoke --experiment release_smoke --tried install --result ok --recommend keep
+          aurora recall release_smoke | grep -q release_smoke
+          aurora hooks status
+          aurora setup --yes --dry-run --harness claude
+          aurora -c "from core.foundation.accel import status; print(status())"
+
+  release:
+    name: GitHub release
+    needs: [tag-check, smoke]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Release notes from the conventional commits since the last tag
+        run: uv run --no-project scripts/release/releases.py notes "$TAG" > notes.md
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$TAG" dist/* --title "Aurora $TAG" --notes-file notes.md --verify-tag
+
+  pypi:
+    name: PyPI (trusted publishing)
+    needs: release
+    runs-on: ubuntu-latest
+    # Configure once on pypi.org: a trusted publisher for akashic-aurora-cli and
+    # akashic-aurora-rs pointing at this repository, workflow release.yml, environment pypi.
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      # Only the Python packages: the bundle (aurora-X.Y.Z.tar.gz) lives on the GitHub release.
+      - name: Publish the launcher and the Rust wheels
+        run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/akashic_aurora_*

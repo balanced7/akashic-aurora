@@ -158,3 +158,41 @@ jobs:
       # zizmor (workflow security), actionlint (syntax), and every uses: pinned to a SHA
       - name: Workflow lint
         run: uv run poe ci-lint
+
+  install-smoke:
+    name: Install smoke (the aurora CLI from this commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AKASHIC_WORLD: alpha
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      # The release path end to end, from local assets: bundle + launcher wheel -> install.sh ->
+      # the advertised commands, run from outside any checkout (release.yml repeats this per OS).
+      - name: Build the bundle and the launcher wheel
+        run: |
+          v="$(uv run --no-project scripts/release/releases.py version)"
+          uv run --no-project scripts/release/build_bundle.py --out "$RUNNER_TEMP/rel" --version "$v"
+          uv build --package akashic-aurora-cli --wheel --out-dir "$RUNNER_TEMP/rel"
+          echo "AURORA_V=$v" >> "$GITHUB_ENV"
+      - name: Install with install.sh
+        run: AURORA_RELEASE_BASE="$RUNNER_TEMP/rel" sh aurora-cli/install/install.sh --version "$AURORA_V" --no-modify-path
+      - name: The advertised commands answer from outside the checkout
+        working-directory: ${{ runner.temp }}
+        run: |
+          export PATH="$(uv tool dir --bin):$PATH"
+          set -x
+          aurora self version
+          aurora discover | head -5
+          aurora status
+          aurora learn smoke --experiment ci_smoke --tried install --result ok --recommend keep
+          aurora recall ci_smoke | grep -q ci_smoke
+          aurora hooks status
+          aurora setup --yes --dry-run --harness claude
+

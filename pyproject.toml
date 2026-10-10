@@ -441,7 +441,7 @@ known_first_party = [
     "check_reconciliation_gate", "coauthor", "deepseek_chat", "gemini_chat", "gemini_web",
     "gen_arch_index", "gen_doors", "gen_library", "gen_master_map", "gen_physics_sheet",
     "gen_prior_art_register", "gen_report_scaffold", "hooks", "kimi_chat", "mirror", "oracle",
-    "piano_roll_pack", "sitecustomize", "sol_chat", "toast", "vfx_ingest",
+    "piano_roll_pack", "releases", "sitecustomize", "sol_chat", "toast", "vfx_ingest",
 ]
 
 [tool.deptry.per_rule_ignores]
