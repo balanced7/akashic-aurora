@@ -505,6 +505,9 @@ def _project_items(recs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 # the projection was dropping it, so nothing downstream could scope on it. A lesson
                 # written before domains existed has no field and means DEFAULT_DOMAIN by construction.
                 "domain": rec.get("domain", ""),
+                # Applicability (meta-harness task 02): which harness/model/effort the lesson
+                # holds under. Absent means universal, so every pre-scope lesson is unaffected.
+                "scope": rec.get("scope", ""),
                 "field": field,
                 # Carried so the renderer can say so. A probed lesson was benched for failing to
                 # earn credit and is being re-tested -- presenting it as an ordinary lesson would
@@ -1591,6 +1594,7 @@ def _lessons(
     agent_id: str | None = None,
     stats_out: dict[str, int] | None = None,
     domain: str | None = None,
+    applies_in: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Rank ACTIVE lessons by TRIGGER-AWARE relevance; keep those above the show-nothing floor,
     minus any already surfaced this session (`exclude_sources` -> anti-repeat), the caller's own
@@ -1612,6 +1616,15 @@ def _lessons(
             for it in items
             if (it.get("domain") or DEFAULT_DOMAIN) == domain or is_general(it.get("source"), use=it.get("_use"))
         ]
+    # APPLICABILITY (task 02): a lesson scoped to another harness or model does not compete.
+    # `applies_in` is the context to match (tests pass one); None means this process's own
+    # provenance. An empty context matches everything -- the pre-scope behaviour.
+    from core.learning import scope as _scope
+
+    before = len(items)
+    items = _scope.filter_applicable(items, applies_in)
+    if stats_out is not None and len(items) < before:
+        stats_out["out_of_scope"] = before - len(items)
     excl = exclude_sources or set()
     by_text = {str(it.get("text") or ""): it for it in items}
     cands: list = []
@@ -1890,6 +1903,7 @@ def recall_at(
     learning_store: Any | None = None,
     exclude_sources: set | None = None,
     count_surface: bool = False,
+    applies_in: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Given a point of action (path and/or command), return the few highest-signal active items.
     `exclude_sources` (lesson sources already shown this session) enables hook anti-repeat.
@@ -1914,6 +1928,7 @@ def recall_at(
                 agent_id=agent_id,
                 stats_out=lstats,
                 domain=scope,
+                applies_in=applies_in,
             )
             if query
             else ([], 0)
