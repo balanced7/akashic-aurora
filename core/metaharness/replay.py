@@ -75,7 +75,14 @@ DEFAULTS: dict[str, Any] = {
     "parent": "",
     "hypothesis": "",
     "command": [],
+    # Extra environment for the sandbox (task 10 switches memory modes through it).
+    "env": {},
+    # A memory snapshot (memreplay.capture) to load into the run's PRIVATE store. Set, the run
+    # gets a file-only store under its own AI_SETUP (Redis pointed at a closed port), so each
+    # arm sees exactly one memory state and no arm can see another's.
+    "memory": "",
 }
+CLOSED_REDIS_PORT = "9"
 _NETWORK_TOOLS = ("WebFetch", "WebSearch")
 
 #: Appended to every scenario prompt, identically for every candidate, so it cannot favour one.
@@ -191,6 +198,12 @@ def sandbox_env(
     }
     if fixtures is not None:
         env["AKASHIC_FIXTURES_DIR"] = str(fixtures)
+    # Recall's warm cache and scratch state follow this variable; without it every sandbox would
+    # share the user's cache -- and with it the LIVE lessons, whatever memory the arm was given.
+    env["AKASHIC_RECALL_STATE_DIR"] = str(run_dir / "state" / "recall")
+    if card.get("memory"):
+        env["REDIS_PORT"] = CLOSED_REDIS_PORT
+    env.update({str(k): str(v) for k, v in (card.get("env") or {}).items()})
     (run_dir / "state").mkdir(parents=True, exist_ok=True)
     return env
 
@@ -328,6 +341,10 @@ def run_one(
     try:
         prepare_sandbox((sdir / "start.sha").read_text(encoding="utf-8").strip(), workdir, card["overlay"], repo=repo)
         env = sandbox_env(run_dir, session_id=session_id, card=card, fixtures=fixtures, redis_db=redis_db)
+        if card.get("memory"):
+            from core.metaharness import memreplay
+
+            memreplay.load(Path(card["memory"]), run_dir / "state")
         cmd = build_command(card, workdir, prompt_file, session_id)
         p = subprocess.run(
             cmd,

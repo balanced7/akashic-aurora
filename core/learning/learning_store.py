@@ -639,6 +639,8 @@ class LearningStore:
         try:
             if not self.store.exists(key):
                 return False
+            if not undo:
+                _memreplay_trigger(experiment_id, "graduate", self.store.hgetall(key))
             self.store.hset(
                 key,
                 mapping={
@@ -666,6 +668,8 @@ class LearningStore:
         try:
             if not self.store.exists(key):
                 return False
+            if not undo:
+                _memreplay_trigger(experiment_id, "bench", self.store.hgetall(key))
             self.store.hset(
                 key,
                 mapping={
@@ -1394,6 +1398,17 @@ def is_benched(rec: dict[str, Any]) -> bool:
     mark_benched). Same surface contract as graduation: out of recall surfaces, in full-corpus
     queries with a [benched] tag. Reversed automatically on new credit."""
     return bool(str((rec or {}).get("benched") or "").strip())
+
+
+def _memreplay_trigger(name: str, why: str, previous: dict[str, Any] | None) -> None:
+    """Queue a lesson that is about to change for a memory replay (meta-harness task 08), with
+    its record as it stands. Never raises: a trigger must not cost the write it watches."""
+    try:
+        from core.metaharness.memreplay import enqueue
+
+        enqueue(name, why, previous)
+    except Exception:  # noqa: BLE001  # fail-soft by contract
+        pass
 
 
 # Global instance

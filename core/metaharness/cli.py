@@ -345,3 +345,41 @@ def loop_main(args) -> int:
         return 0
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def memreplay_main(args) -> int:
+    """`memreplay <action>` -- replay the memory system before and after a lesson (task 08)."""
+    from core.metaharness import memreplay
+
+    a = args.action
+    if a == "snapshot":
+        p = memreplay.capture(label=args.label or "manual", exclude=tuple(args.exclude or ()))
+        _print({"snapshot": str(p)}, args.json, f"[OK] snapshot {p}")
+        return 0
+    if a == "queue":
+        rows = memreplay.queued()
+        _print(rows, args.json, "\n".join(f"  {r['lesson']}: {r['why']} at {r['at']}" for r in rows) or "queue empty")
+        return 0
+    if a == "run":
+        if not (args.lesson and args.base):
+            print("ERROR: `memreplay run` needs --lesson and --base (the candidate whose harness the arms share)")
+            return 2
+        out = memreplay.experiment(
+            args.lesson, args.base, scenarios=args.scenario or None, trials=args.trials, daily_usd=args.daily_usd
+        )
+        _print(out, args.json, json.dumps(out.get("proven_effect") or out, indent=1))
+        return 0 if "error" not in out else 1
+    if a == "drain":
+        if args.daily_usd is None or not args.base:
+            print("ERROR: `memreplay drain` needs --base and --daily-usd")
+            return 2
+        out = memreplay.drain(args.base, daily_usd=args.daily_usd, trials=args.trials)
+        _print(
+            out,
+            args.json,
+            "\n".join(f"  {o['lesson']}: {(o.get('proven_effect') or {}).get('verdict', o.get('error'))}" for o in out)
+            or "nothing queued",
+        )
+        return 0
+    print(f"ERROR: unknown action {a!r}")
+    return 2

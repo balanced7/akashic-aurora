@@ -430,6 +430,7 @@ def render(iid: str) -> Path:
             cells.append(f"<td><h4>{esc(v[side])}</h4><pre>{esc(diff)}</pre></td>")
         sides.append(f"<h3>{esc(s)}</h3><table class='side'><tr>{''.join(cells)}</tr></table>")
     crits = ", ".join(f"{k}=better|same|worse" for k in (v.get("criteria") or {}))
+    lessons_html = _lessons_section(it["candidate"])
     page = f"""<!doctype html><meta charset="utf-8"><title>Review {esc(iid)}</title>
 <style>body{{font:14px system-ui;margin:16px;max-width:1400px}}pre{{white-space:pre-wrap;font:12px ui-monospace;background:#f6f6f6;padding:8px}}
 table{{border-collapse:collapse}}td,th{{border:1px solid #ccc;padding:4px 8px;vertical-align:top}}.side td{{width:50%}}
@@ -438,6 +439,7 @@ table{{border-collapse:collapse}}td,th{{border:1px solid #ccc;padding:4px 8px;ve
 <p>Pareto: <b>{esc(str(v.get("pareto")))}</b>. Predicted effect: {esc(it["predicted"] or "(none stated)")}.
 Reviewers needed: {it["reviewers_needed"]}{" (high-risk surface)" if it["high_risk"] else ""}. Expires {esc(it["expires"])}.</p>
 <table><tr><th>criterion</th><th>old</th><th>new</th><th>effect</th><th>95% CI</th><th>grader call</th></tr>{rows}</table>
+{lessons_html}
 <h2>Config diff</h2><pre>{esc((d / "config.diff").read_text(encoding="utf-8"))}</pre>
 <h2>Where they differ most</h2>{"".join(sides)}
 <h2>Decide</h2><pre>uv run agent_cli.py review decide {esc(iid)} --reviewer YOU --decision accept|reject|more_runs \\
@@ -445,3 +447,32 @@ Reviewers needed: {it["reviewers_needed"]}{" (high-risk surface)" if it["high_ri
     out = d / "review.html"
     out.write_text(page, encoding="utf-8")
     return out
+
+
+def _lessons_section(candidate: str) -> str:
+    """The proven effect (task 08) of every lesson the candidate's contract says it builds on."""
+    from core.metaharness import archive
+
+    names = [str(x) for x in (archive.contract(candidate).get("lessons") or [])]
+    if not names:
+        return ""
+    try:
+        from core.learning.learning_store import get_learning_store_instance
+
+        store = get_learning_store_instance().store
+    except Exception:  # noqa: BLE001  # the page still renders without the store
+        return ""
+    rows = []
+    for n in names:
+        pe = (store.hgetall(f"learn:experiment:{n}") or {}).get("proven_effect") or ""
+        try:
+            d = json.loads(pe) if pe else {}
+        except ValueError:
+            d = {}
+        cell = f"{d.get('effect')} CI {d.get('ci')} ({d.get('verdict')})" if d else "not replayed yet"
+        rows.append(f"<tr><td>{html.escape(n)}</td><td>{html.escape(cell)}</td></tr>")
+    return (
+        "<h2>Lessons it builds on: proven effect</h2><table><tr><th>lesson</th><th>effect on replay</th></tr>"
+        + "".join(rows)
+        + "</table>"
+    )

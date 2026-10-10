@@ -743,6 +743,13 @@ def cmd_learn(args):
             related = find_related(signal, ls.load_all_learnings_from_store(), exclude_name=signal["experiment_name"])
     except Exception:
         related = []
+    try:  # task 08: queue the lesson for a memory replay, with its record BEFORE this write
+        from core.learning.learning_store import _memreplay_trigger
+
+        _prev = get_learning_store()._load_experiment(signal["experiment_name"])
+        _memreplay_trigger(signal["experiment_name"], "edited" if _prev else "new", _prev or None)
+    except Exception:
+        pass
     try:
         ok = get_learning_store().record_learning(signal)
     except Exception as e:
@@ -987,6 +994,13 @@ def cmd_loop(args):
     from core.metaharness.cli import loop_main
 
     return loop_main(args)
+
+
+def cmd_memreplay(args):
+    """Meta-harness memory replay (task 08); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import memreplay_main
+
+    return memreplay_main(args)
 
 
 def cmd_provenance(args):
@@ -10108,6 +10122,21 @@ def build_parser():
     )
     lp.add_argument("--json", action="store_true")
     lp.set_defaults(fn=cmd_loop)
+
+    mr = sub.add_parser(
+        "memreplay",
+        help="meta-harness memory replay (task 08): does a lesson change outcomes? snapshot, queue, run, drain",
+    )
+    mr.add_argument("action", choices=["snapshot", "queue", "run", "drain"])
+    mr.add_argument("--lesson", default="", help="run: the lesson to measure")
+    mr.add_argument("--base", default="", help="run/drain: the candidate harness every arm shares")
+    mr.add_argument("--scenario", action="append", help="run: scenario id (repeatable; default: the most related)")
+    mr.add_argument("--trials", type=int, default=3)
+    mr.add_argument("--daily-usd", dest="daily_usd", type=float, default=None, help="spend cap (required for drain)")
+    mr.add_argument("--label", default="", help="snapshot: a label for the file name")
+    mr.add_argument("--exclude", action="append", help="snapshot: a lesson to leave out (repeatable)")
+    mr.add_argument("--json", action="store_true")
+    mr.set_defaults(fn=cmd_memreplay)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
