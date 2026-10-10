@@ -420,7 +420,7 @@ MANIFEST = {
     # this axis is CLI<->MCP parity; the CLI spells it `web fetch`.
     "diag_echo_slow": "mcp_only",  # MCP server health check; no CLI meaning
     # --- cli_only: local diagnostics / operator controls / needs shell+git ---
-    "discover": "cli_only",
+    "discover": "shared",  # the self-describing door; MCP clients had no way to list verbs
     "console_log": "cli_only",
     "harnesses": "cli_only",
     "hooks": "cli_only",  # writes harness config files on THIS machine; not a remote-door action
@@ -536,6 +536,7 @@ TOOLBOX_ALIASES = {
 # agentic-tool primitives, not a CLI mirror). Every entry needs a rationale -- a NEW
 # shared verb missing from ToolBox+aliases+here FAILS (the knowledge_map class).
 TOOLBOX_EXEMPT = {
+    "discover": "runner seats reach it through run_command's agent_cli READ-verb allowlist (toolbox.py)",
     "recall_feedback": "funnel voting is the operator/wrap loop, not an in-task tool",
     "stats": "operator telemetry; the boot one-liner covers the agent's need",
     "status": "operator/coordination view; boot + ledger folds cover it",

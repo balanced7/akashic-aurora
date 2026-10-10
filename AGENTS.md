@@ -3,19 +3,29 @@
 You are an agent working in this repo. It has a **shared memory**: lessons other
 agents learned, and a place to record what you learn.
 
-**There are TWO doors to it, and which one you can use depends on your grants.** Every command
-below is for the shell door. Run it with `uv run ...` on any OS (after one `uv sync`; `uv run`
-brings Aurora's locked dependencies with it). It is written as `py ...`, the Windows fallback when uv
-is not installed (without uv elsewhere, use `python3`). If you cannot run shell commands -- and you probably cannot,
-because `security/acl.json` QUARANTINES unlisted agents to read-only by default -- use the tool
-door instead, which is the same memory through a different handle:
+**First time on this machine?** Run `uv run agent_cli.py setup` -- it wires the harness hooks
+that make recall automatic, and prints the command behind each step so you can change it later.
 
-| this doc says | tool-surface equivalent |
-|---|---|
-| `py agent_cli.py boot <id>` | `knowledge_boot(task)` |
-| `py agent_cli.py learn <id> ...` | `knowledge_learn(...)` -- needs the `kb.learn` capability |
-| `py agent_cli.py note <id> ...` | `knowledge_note(...)` -- needs `kb.learn` |
-| `py agent_cli.py recall ...` | `knowledge_recall(...)` -- open to everyone |
+**There are THREE doors to it, and which one you can use depends on your harness and grants.**
+Every command below is for the shell door: run it with `uv run ...` on any OS (after one `uv sync`;
+`uv run` brings Aurora's locked dependencies with it). Without uv, use `py` on Windows and
+`python3` elsewhere. If you cannot run shell commands -- and you may not, because
+`security/acl.json` QUARANTINES unlisted agents to read-only by default -- use your tool door
+instead. It is the same memory through a different handle:
+
+| shell door | MCP tool (Claude Code, Codex, Cursor) | runner ToolBox (API model seats) |
+|---|---|---|
+| `uv run agent_cli.py boot <id>` | `boot(agent, task)` | `knowledge_boot(task)` |
+| `uv run agent_cli.py learn <id> ...` | `learn(agent, experiment, ...)` | `knowledge_learn(...)` -- needs `kb.learn` |
+| `uv run agent_cli.py note <id> ...` | `note(agent, title, ...)` | `knowledge_note(...)` -- needs `kb.learn` |
+| `uv run agent_cli.py recall ...` | `recall(query)` | `knowledge_recall(...)` -- open to everyone |
+| `uv run agent_cli.py discover [word]` | `discover(query)` | `run_command` with `agent_cli.py discover` |
+
+**Finding any other command:** `discover [word]` lists all ~110 verbs with a one-line purpose;
+`discover --semantic "<what you need>"` asks whether something already does it, at the level of
+meaning. The full generated table, with every argument, is [docs/DOORS.md](docs/DOORS.md). Most
+verbs are also MCP tools under the same name with `-` spelled `_` (`bifrost-sync` ->
+`bifrost_sync`).
 
 If a KB write refuses you for a missing capability, that is not your mistake and it is not a bug:
 reads stay open to all, writes are granted. Ask **claude** (the super-admin) on the bus --
@@ -36,7 +46,7 @@ not advice: gated slices cite their reconciled build spec; the bar is match-or-e
 ## At the START of your task, run this and read the output:
 
 ```
-py agent_cli.py boot <your_agent_id> --task "<short task description>"
+uv run agent_cli.py boot <your_agent_id> --task "<short task description>"
 ```
 
 It prints the most relevant past lessons + active blockers, newest/most-relevant
@@ -46,7 +56,7 @@ the memory is empty -- that's fine.
 ## When you LEARN something worth keeping, run:
 
 ```
-py agent_cli.py learn <your_agent_id> --experiment SHORT_NAME \
+uv run agent_cli.py learn <your_agent_id> --experiment SHORT_NAME \
     --tried "what you did" --result "what happened" \
     --recommend "what the next agent should do" \
     --category performance --success yes|partial|no
@@ -66,26 +76,26 @@ experiment instead of minting a twin.
 ## To search memory mid-task:
 
 ```
-py agent_cli.py recall "keyword"
-py agent_cli.py status            # is the store up? how many lessons?
+uv run agent_cli.py recall "keyword"
+uv run agent_cli.py status            # is the store up? how many lessons?
 ```
 
 ## Before you EDIT a file or run a command (recall-at-action):
 
 ```
-py agent_cli.py recall-at --path <file>          # or: --command "<shell cmd>"
+uv run agent_cli.py recall-at --path <file>          # or: --command "<shell cmd>"
 ```
 
 Returns the few highest-signal ACTIVE lessons + any peer lock on that path, with
 `source` pointers -- the right knowledge AT THE MOMENT you act (silent when nothing is
-relevant; never padded). **In Claude Code on this host this is automatic for ANY session
-cwd** (the hooks are registered user-level with absolute paths and scope themselves to
-repo actions) -- launched from the repo, from `C:\Users\L5`, from anywhere. Make it a
-manual habit only if your harness has no hook wiring (Cursor headless, other CLIs).
-Cheap, deterministic, fail-soft.
+relevant; never padded). **This is automatic once the hooks are installed** (`setup`, or
+`agent_cli.py hooks install --scope user|project`): Claude Code then injects it before each edit or
+shell command. Check what is wired with `agent_cli.py hooks status`; switch it off and on with
+`hooks disable` / `hooks enable`. Make it a manual habit only if your harness has no hook wiring
+(Cursor headless, other CLIs). Cheap, deterministic, fail-soft.
 
 **Close the loop (teach recall what helps):** if a recalled lesson actually changed what you did,
-mark it -- `py agent_cli.py recall-feedback --source <its source> --useful` (or `--noise` if it was
+mark it -- `uv run agent_cli.py recall-feedback --source <its source> --useful` (or `--noise` if it was
 off-target). Useful votes boost a lesson in future recall; lessons shown often but never useful decay
 on their own. This is how recall gets smarter about what's load-bearing.
 
@@ -97,9 +107,9 @@ or tasks -- whoever is online (or whoever the human is driving) does the work. T
 don't clobber each other --
 
 ```
-py agent_cli.py lock <your_agent_id> <path>      # transient "I'm editing this now"
-py agent_cli.py unlock <your_agent_id> <path>    # release when done
-py agent_cli.py locks                            # who holds what right now
+uv run agent_cli.py lock <your_agent_id> <path>      # transient "I'm editing this now"
+uv run agent_cli.py unlock <your_agent_id> <path>    # release when done
+uv run agent_cli.py locks                            # who holds what right now
 ```
 
 Locks are released when you're done, not owned. Use a stable `AKASHIC_AGENT_ID` so locks/handoffs
@@ -112,21 +122,21 @@ e.g. handing a narrow job to a local LLM on purpose -- not the default.)
 registers your presence. **In-session**, at the start of each turn, also run:
 
 ```
-py agent_cli.py bifrost-sync <your_agent_id>          # MCP: bifrost_sync(agent)
+uv run agent_cli.py bifrost-sync <your_agent_id>          # MCP: bifrost_sync(agent)
 # or consume/ack:  bifrost-sync <id> --consume       # MCP: bifrost_inbox(agent)
 ```
 
 Durable handoffs/decisions (survive Redis restart):
 
 ```
-py agent_cli.py promoted [--limit N]                  # MCP: promoted()
-py agent_cli.py events --kind bifrost_msg             # same records, raw firehose view
+uv run agent_cli.py promoted [--limit N]                  # MCP: promoted()
+uv run agent_cli.py events --kind bifrost_msg             # same records, raw firehose view
 ```
 
 Optional event-driven wake (GUI agents with harness re-invoke on bg task exit):
 
 ```
-py scripts/bifrost_wake.py --agent cursor --session <session-id>
+uv run scripts/bifrost_wake.py --agent cursor --session <session-id>
 ```
 
 Wake seats are PER-SESSION (T029 Wave 2): concurrent sessions of one agent id each arm
@@ -152,8 +162,8 @@ Cursor thread re-reads that history every turn -- expensive and noisy ("context 
 **When you START a new session** (fresh Claude tab, new Cursor chat, after wake):
 
 ```
-py agent_cli.py boot <your_agent_id> --task "<this slice only>"
-py agent_cli.py bifrost-sync <your_agent_id>    # unread mail only (MCP: bifrost_sync)
+uv run agent_cli.py boot <your_agent_id> --task "<this slice only>"
+uv run agent_cli.py bifrost-sync <your_agent_id>    # unread mail only (MCP: bifrost_sync)
 ```
 
 Use a **focused `--task`** -- boot ranks against it and stays within ~9k tokens.
@@ -163,8 +173,8 @@ Do NOT re-paste prior chat logs or re-summarize the whole arc; if you need depth
 **When you END a session** (hand off, switch agents, or close for the day):
 
 ```
-py agent_cli.py handoff <your_agent_id> --to <next> --task "..." --note "where we left off"
-py agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..." \
+uv run agent_cli.py handoff <your_agent_id> --to <next> --task "..." --note "where we left off"
+uv run agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..." \
     --recommend "..."     # only if you learned something worth keeping
 ```
 
@@ -237,3 +247,18 @@ same on the embedded Redis (it keeps real logical databases).
 It prints `ERROR: ...` with a one-line reason and a usage example, and exits non-zero.
 Missing/empty arguments are sanitized, not fatal -- but `learn` needs at least
 `--experiment` plus one of `--tried`/`--result`.
+
+## Which command for what (when more than one looks right)
+
+| you want to | use | not |
+|---|---|---|
+| check your work before committing | `uv run poe gate` (fmt, lint, types, guardrails, fast tests) | -- |
+| check, commit and push in one step | `uv run scripts/ship.py` (its suite gate is the `scripts/ship_gate.py` ratchet) | a raw `git commit` that skips the method checkers |
+| see whether the store is up | `agent_cli.py status`; `bootstrap.py --agent-init` for a first-run orientation | -- |
+| see whether seats are alive or stuck | `agent_cli.py doctor` (fleet liveness), `unwedge <agent>`, `flightdeck` | `bridge_doctor.py`, which checks the REMOTE BRIDGE only |
+| connect to a peer machine | `peer_connect.py` once; then `bridge_doctor.py`, `seat_topology.py` | -- |
+| wait for mail at turn end | `agent_cli.py bifrost-standby` (drain, report, block as the wake listener) | arming `scripts/bifrost_wake.py` by hand, unless your harness lacks standby |
+| ask another model | `agent_cli.py ask` (one question), `sift` (needs more reading than one context) | `scripts/ask_*.py`, the per-provider bridges those verbs call |
+| fetch a web page | `agent_cli.py web` (MCP: `web_fetch`) | -- |
+| snapshot state | `scripts/ops/snapshot_knowledge.py` (the knowledge store), `scripts/snapshot.py` (one bus session), `scripts/world_savepoint.py` (the whole world before a risky change) | -- |
+| change hook wiring | `agent_cli.py hooks status` / `install` / `uninstall` / `enable` / `disable` | hand-editing settings files |

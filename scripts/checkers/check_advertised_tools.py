@@ -110,12 +110,51 @@ def scan(docs, toolbox=TOOLBOX, mcp=None):
     return out
 
 
+def _surface(path, pattern):
+    with contextlib.suppress(OSError), open(path, encoding="utf-8", errors="replace") as fh:
+        return set(pattern.findall(fh.read()))
+    return set()
+
+
+def door_table_mismatches(doc, toolbox=TOOLBOX, mcp=None):
+    """[(doc, token, lineno, surface)] -- a call named in a door TABLE column that does not exist
+    on THAT column's surface.
+
+    scan() accepts a name found on EITHER surface, which is right for prose but let AGENTS.md's
+    door table tell MCP clients to call knowledge_boot -- a ToolBox-only name -- and still pass.
+    A table column headed "MCP" promises the MCP server; one headed "ToolBox" promises the runner
+    ToolBox. Each column is checked against its own surface."""
+    mcp = mcp if mcp is not None else os.path.join(ROOT, "ai_setup_mcp.py")
+    surfaces = {"MCP": _surface(mcp, _MCP_DEF), "ToolBox": _surface(toolbox, _TOOL_DEF)}
+    try:
+        with open(doc, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return []
+    out, cols = [], {}
+    for i, line in enumerate(lines, 1):
+        if not line.lstrip().startswith("|"):
+            cols = {}
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if not cols:  # header row of a new table
+            cols = {j: k for j, c in enumerate(cells) for k in surfaces if k.lower() in c.lower()}
+            continue
+        for j, kind in cols.items():
+            if j >= len(cells) or not surfaces[kind]:
+                continue
+            calls = re.findall(r"`?([a-z][a-z0-9_]*)\(", cells[j])
+            out.extend((doc, tok, i, kind) for tok in calls if tok not in surfaces[kind])
+    return out
+
+
 def main():
     tools = real_tools()
     ns = sorted(namespaces(tools))
     docs = [os.path.join(ROOT, d) for d in CONTRACT_DOCS]
     docs = [d for d in docs if os.path.exists(d)]
     bad = scan(docs)
+    table_bad = [m for d in docs for m in door_table_mismatches(d)]
     if "--report" in sys.argv:
         print(f"tools: {len(tools)}  |  namespaces (>=2 tools): {', '.join(ns)}")
         print(f"contract docs scanned: {[os.path.relpath(d, ROOT) for d in docs]}\n")
@@ -125,7 +164,11 @@ def main():
             f"FAIL: {rel}:{ln} advertises tool '{tok}', which is not in the TOOLS list "
             f"-> fix the name, or add the tool, or stop promising it"
         )
-    if bad:
+    for d, tok, ln, kind in table_bad:
+        rel = os.path.relpath(d, ROOT).replace(os.sep, "/")
+        print(f"FAIL: {rel}:{ln} lists '{tok}' in the {kind} column, but the {kind} surface has no such tool")
+    if bad or table_bad:
+        bad = bad + table_bad
         print(
             f"\n{len(bad)} advertised tool(s) do not exist. A door that names a capability "
             f"nobody can call strands the agent that believes it."

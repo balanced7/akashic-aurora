@@ -410,7 +410,8 @@ mcp = FastMCP(
         "As you work, give back: learn(...) records a reusable lesson; log(...) records a "
         "narrative beat; handoff(...) leaves a briefing the NEXT agent's boot surfaces "
         "automatically (cross-agent continuity). recall/status/story/events/promoted/bifrost_sync "
-        "are read tools. bifrost_inbox/bifrost_send are the LIVE bus (ephemeral). Use a short, STABLE "
+        "are read tools. Not sure a capability exists? discover(query) lists every verb with its "
+        "purpose; discover(query, semantic=True) asks whether something already does it. bifrost_inbox/bifrost_send are the LIVE bus (ephemeral). Use a short, STABLE "
         "agent id so contributions are attributed and handoffs route correctly. Everything persists on shared Redis, "
         "so writes from any agent (via CLI or MCP) feed every other agent's next boot. "
         "FIRST each turn: boot(agent, task) surfaces unread Bifrost mail; in-session also call "
@@ -479,6 +480,16 @@ async def recall(query: str = "", full: str = "") -> str:
     Pass `full` = a lesson's source pointer (e.g. learn:experiment:NAME) to pull its WHOLE record
     instead, including the stored fields beyond the recommendation selected by recall_at."""
     return await _athread(_run, agent_cli.cmd_recall, query=query, full=full or None)
+
+
+@mcp.tool()
+async def discover(query: str = "", semantic: bool = False) -> str:
+    """Find a capability: list every agent_cli verb with its one-line purpose (optionally filtered
+    by a substring QUERY). semantic=True asks at the level of MEANING instead ("does something
+    already do X?") -- a model read of the verb table, marked as such. Most verbs also exist here
+    as MCP tools under the same name with '-' spelled '_' (bifrost-sync -> bifrost_sync); the rest
+    run in a shell as `agent_cli.py <verb>`. Use this BEFORE building something new."""
+    return await _athread(_run, agent_cli.cmd_discover, query=query, semantic=semantic)
 
 
 @mcp.tool()

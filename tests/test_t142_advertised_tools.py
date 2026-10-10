@@ -110,3 +110,18 @@ def test_t6_the_real_docs_advertise_no_missing_tools():
     docs = [d for d in docs if os.path.exists(d)]
     bad = cat.scan(docs)
     assert not bad, f"docs advertise tool(s) that do not exist: {bad}"
+
+
+def test_t7_a_door_table_column_is_checked_against_its_own_surface(tmp_path):
+    """The union in scan() let AGENTS.md tell MCP clients to call knowledge_boot (ToolBox-only)."""
+    doc = tmp_path / "AGENTS.md"
+    doc.write_text(
+        "| shell | MCP tool | runner ToolBox |\n|---|---|---|\n| x | `knowledge_boot(task)` | `knowledge_boot(task)` |\n",
+        encoding="utf-8",
+    )
+    bad = cat.door_table_mismatches(str(doc))
+    assert [(tok, kind) for _d, tok, _ln, kind in bad] == [("knowledge_boot", "MCP")]
+
+
+def test_t8_the_live_agents_md_door_table_matches_both_surfaces():
+    assert cat.door_table_mismatches(os.path.join(ROOT, "AGENTS.md")) == []
