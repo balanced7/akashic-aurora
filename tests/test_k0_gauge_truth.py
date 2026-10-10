@@ -59,10 +59,9 @@ def test_dedup_guard_is_atomic_and_window_bound(tmp_path, monkeypatch):
     DIFFERENT payload never skips. Atomic O_EXCL -- no load-then-mark race to lose."""
     monkeypatch.setenv("TMPDIR", str(tmp_path))
     monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))
-    sys.path.insert(0, os.path.join(REPO, "agent", "harness", "hooks"))
     import importlib
 
-    import claude_pretooluse as hook
+    from agent.harness.hooks import claude_pretooluse as hook
 
     importlib.reload(hook)
     payload = {"session_id": "s1", "tool_name": "Bash", "tool_input": {"command": "ls"}}

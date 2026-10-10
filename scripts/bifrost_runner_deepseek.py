@@ -289,7 +289,7 @@ def promise_shaped_runner(text):
     the stop-hook's promise_shaped plus the wider bare-"let me" net (see bounce_promise
     docstring for why the net is wider here). Returns the matched excerpt, else None."""
     try:
-        from hooks.claude_stop import USER_CONDITIONAL, final_paragraph, promise_shaped
+        from agent.harness.hooks.claude_stop import USER_CONDITIONAL, final_paragraph, promise_shaped
 
         para = final_paragraph(text or "")
         excerpt = promise_shaped(para)
