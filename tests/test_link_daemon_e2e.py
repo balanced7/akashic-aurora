@@ -455,3 +455,30 @@ def test_bundle_round_trip_is_verified(fleets, tmp_path):
     bundle["records"][0]["seq"] = 7  # tampered in transit
     out = a.call("bundle.import", bundle=json.loads(json.dumps(bundle)))
     assert out["records_stored"] == 0
+
+
+def test_the_console_shows_delivered_and_read_receipts(fleets, monkeypatch):
+    a, b = fleets("a").up(), fleets("b").up()
+    link = link_two(a, b)
+    sent = a.call(
+        "link.send", link=link, body={"kind": "question", "seat": "claude", "to": "@b/codex", "content": "seen?"}
+    )
+    wait_for(lambda: b.events(), what="B to get the question")
+    b.call("link.read", link=link, record_ids=[sent["record_id"]])  # B's ack: delivered up to it, and read
+
+    def receipts() -> str:
+        rows = a.call("link.status", link=link)["sent"]
+        return next((r["receipts"] for r in rows if r["record_id"] == sent["record_id"]), "")
+
+    wait_for(lambda: "read" in receipts(), what="the receipts to reach A")
+    # The console's model, exactly as GET /api/link serves it to the links panel.
+    from core.link import panel
+
+    monkeypatch.setenv("AI_SETUP", str(a.home))
+    monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(a.secrets))
+    snap = panel.snapshot()
+    rows = snap["links"][0]["status"]["sent"]
+    row = next(r for r in rows if r["record_id"] == sent["record_id"])
+    assert "delivered" in row["receipts"]
+    assert "read" in row["receipts"]
+    assert snap["health"]["running"] is True
