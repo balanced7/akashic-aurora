@@ -18,6 +18,17 @@ In one bad case, every screen said an agent was alive and idle. Meanwhile a ques
 - **Roster.** The roster lists each live session as LIVE, STALE, OFFLINE or DEAD, from how fresh its beat is.
 - **Supervisors.** The launcher starts agent processes. If an agent opts in, it restarts after a crash. The wait starts at 3 seconds and grows to 60. A daemon is a long-lived keeper for one agent. It runs a runner or a [wake](/docs/concepts/bifrost/wake) listener, and gives up after 3 crashes in 5 minutes.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Progress | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress) | Updates a server sends about how far along a long request is. |
+| Task states | [A2A](https://a2a-protocol.org/latest/specification/#413-taskstate) | The stages a task moves through, such as submitted, working and completed. |
+
+**How Aurora differs:** These report what the worker says about itself. Liveness also checks the clock and the thread stack. So it can tell stuck from busy, even when the agent cannot say.
+
+</Callout>
+
 ## Two things called revive
 
 1. **The Revive button.** In the [console](/docs/concepts/bifrost/console), Revive kills the agent if it runs, frees its lock and starts it again.

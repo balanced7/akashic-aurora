@@ -6,3 +6,13 @@ description: Status and maps come from commands that read the live system, never
 **Status:** accepted
 
 Status comes from `aurora status`, `aurora story` and the generated code maps (`docs/MAP.md`, `docs/MODULE_INDEX.md`). A guard fails the build if any new markdown file appears at the repo root, beyond a short allowlist. We chose this because every hand-kept status page drifted the moment the code moved. See [Guards over discipline](/docs/concepts/method/guards-over-discipline).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /init | [Claude Code](https://code.claude.com/docs/en/commands) · [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#generate-agentsmd-with-init) · [Gemini CLI](https://geminicli.com/docs/reference/commands/#init) · [OpenCode](https://opencode.ai/docs/rules#initialize) | A command that scans the repo and writes a starter AGENTS.md or similar file. |
+
+**How Aurora differs:** Their /init writes a first draft that you then keep by hand. Aurora rebuilds status from the live system every time.
+
+</Callout>

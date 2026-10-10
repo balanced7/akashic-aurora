@@ -26,6 +26,19 @@ The tools follow the same rule:
 
 In a [fence review](/docs/concepts/method/fence-review), the same idea shows up at the end. When two halves find different things, the reconciler adopts both.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Ultrareview | [Claude Code](https://code.claude.com/docs/en/ultrareview) | A deep cloud review where many agents find bugs and verify each one. |
+| Code Review | [Claude Code](https://code.claude.com/docs/en/code-review) | Pull request reviews that use several agents to find logic and security bugs. |
+| /simplify | [Claude Code](https://code.claude.com/docs/en/commands) | Parallel agents review changed code for cleanup, then apply the fixes. |
+| Multi-Model Review & Consensus | [Cline](https://docs.cline.bot/cli/samples/model-orchestration#pattern-3-multi-model-review-%26-consensus) | Several models review the same change, then you compare what they find. |
+
+**How Aurora differs:** Ultrareview also checks each bug before it reports. Here you keep every distinct finding, even from one reviewer. Agreement never filters a finding out.
+
+</Callout>
+
 ## Don't confuse it with
 
 - **Majority vote** — drops any finding that too few reviewers saw. Union keeps it and checks it.

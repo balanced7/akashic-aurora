@@ -11,6 +11,16 @@ Screenspace lets a [seat](/docs/concepts/bifrost/seats) see the screen. It can g
 
 Some work happens in windows, not in files. An agent that cannot see the screen has to guess what a person sees. Screenspace gives it eyes first. The power to act comes later, behind a separate unlock.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Real-time awareness | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#real-time-awareness) | The agent notices what you just did in the editor, so you skip explaining. |
+
+**How Aurora differs:** Windsurf watches your editor. Screenspace looks at the whole screen.
+
+</Callout>
+
 ## How it works
 
 The package has two layers.
@@ -23,6 +33,21 @@ Three helpers round it out. The `foreground` module tracks which window has focu
 Every import is lazy and [fail-soft](/docs/concepts/foundations/fail-soft). The screen libraries are not pinned in the repo. On a machine with no desktop, the package still loads. It answers `available=False` instead of crashing.
 
 The verbs that act, such as input, are not exported. They wait on a separate unlock that allows writes and GUI control.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Computer use | [Claude Code](https://code.claude.com/docs/en/computer-use) · [Cursor](https://cursor.com/docs/cloud-agent/capabilities#computer-use) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/computer-use#about-computer-use) | Lets the agent see the screen and control apps by clicking and typing. |
+| Computer Use | [Codex](https://learn.chatgpt.com/docs/computer-use) | Lets the agent click and type in other apps on your computer. |
+| Browser | [Cursor](https://cursor.com/docs/agent/tools/browser) | A built-in browser the agent drives to click, type, take screenshots and read logs. |
+| Browser tools | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/browser-tools#_how-the-browser-feedback-loop-works) | Tools that let the agent open, click and inspect web pages. |
+| Browser Agent | [Gemini CLI](https://geminicli.com/docs/core/subagents/#browser-agent) | A built-in subagent that drives a browser to navigate, fill forms and pull data. |
+| Claude in Chrome | [Claude Code](https://code.claude.com/docs/en/chrome) | A browser extension that lets Claude test web apps, read logs and fill forms. |
+
+**How Aurora differs:** These tools see and act together. Screenspace sees but never acts. The power to act waits behind a separate unlock.
+
+</Callout>
 
 ## How you use it
 

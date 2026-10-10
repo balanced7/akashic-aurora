@@ -13,6 +13,20 @@ The command list describes itself, so agents need no separate manual. It comes f
 
 One problem kept coming back. Agents decided a feature was missing when it existed. A word search for "check whether a test failure is pre-existing" found nothing. The command that does it, `suite-baseline`, sat in that same list. A word search cannot match meaning. So `discover` gained a mode that asks a model. The aim is to make checking cheaper than guessing.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Tool search | [Claude Code](https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#tool-search) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/tool-search#introduction) | Tool details stay hidden until a task needs them, so they do not fill the context. |
+| Skill catalog | [Agent Skills](https://agentskills.io/client-implementation/adding-skills-support#step-3-disclose-available-skills-to-the-model) | A short list of each skill's name and description, so the model knows what exists. |
+| Command Palette | [Amp](https://ampcode.com/docs/cli/keybindings) | A searchable menu of Amp actions, opened with Ctrl+O in the CLI. |
+| CLI Help Agent | [Gemini CLI](https://geminicli.com/docs/core/subagents/#cli-help-agent) | A built-in subagent that answers questions about Gemini CLI itself. |
+| Discovery | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/discover) | A request a client can send first to learn a server's versions, abilities, and identity. |
+
+**How Aurora differs:** These help an agent find a tool it did not know about. Discover lists every Aurora command with a one-line purpose. Its `--semantic` mode asks a model whether a feature exists.
+
+</Callout>
+
 ## How it works
 
 - **Plain mode.** With a word, it keeps the commands whose name or help line contains that text. With zero matches, it says it cannot match meaning, and suggests `--semantic`.

@@ -45,6 +45,22 @@ A note lives in AgentMemory, under the `mem:` keys. AgentMemory is a cabinet wit
 
 Agents use only the decisions drawer. Each note is a decision record. The other three drawers have code to write them, but only tests and old, archived code call it.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Memory Bank | [Cline](https://docs.cline.bot/best-practices/memory-bank) | Markdown files in your repo that Cline reads and updates to remember the project. |
+| Memory Bank Core Files | [Cline](https://docs.cline.bot/best-practices/memory-bank#core-files) | Six fixed files, such as activeContext.md, that hold project facts and current focus. |
+| Memory files | [Gemini CLI](https://geminicli.com/docs/tools/memory/#technical-reference) | Markdown files the agent edits to save facts that load in future sessions. |
+| Memory tool | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/memory#_memory-tool) | A VS Code agent tool that saves and reads notes as memory files. |
+| Memory scopes | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/memory#_memory-scopes) | User, repository and session levels that set how long a memory lasts. |
+| Subagent persistent memory | [Claude Code](https://code.claude.com/docs/en/sub-agents#enable-persistent-memory) | A memory folder a custom subagent keeps for itself so it can learn across sessions. |
+| /memory | [Claude Code](https://code.claude.com/docs/en/memory#view-and-edit-with-%2Fmemory) · [Gemini CLI](https://geminicli.com/docs/reference/commands/#memory) | A command to view, edit or reload the memory the agent loads. |
+
+**How Aurora differs:** These files change in place, so old text is lost. No one edits a note. A newer note with the same title replaces it, and the old one stays on file.
+
+</Callout>
+
 ## How you use it
 
 ```bash

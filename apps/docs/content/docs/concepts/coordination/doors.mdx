@@ -22,6 +22,25 @@ There are four doors:
 
 The verbs also describe themselves. [Discover](/docs/concepts/tools/discover) lists every verb with one line on what it does, and can ask a model whether a feature exists. It is on the CLI door only. Any verb takes `-h` for its full arguments.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Model Context Protocol | [MCP](https://modelcontextprotocol.io/specification/2026-07-28) · [Codex](https://learn.chatgpt.com/docs/extend/mcp) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/context/mcp#overview-of-model-context-protocol-mcp) · [Cursor](https://cursor.com/docs/mcp#what-is-mcp) · [Windsurf](https://docs.devin.ai/desktop/cascade/mcp) | An open protocol that connects an agent to outside tools and data. |
+| MCP | [Amp](https://ampcode.com/docs/customize/mcp) | Amp connects to local or remote MCP servers to give the agent more tools. |
+| MCP servers | [Claude Code](https://code.claude.com/docs/en/mcp) · [OpenCode](https://opencode.ai/docs/mcp-servers) · [Cline](https://docs.cline.bot/mcp/mcp-overview) · [Gemini CLI](https://geminicli.com/docs/tools/mcp-server/#what-is-an-mcp-server) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/mcp.md) | Programs that give the agent extra tools through MCP. |
+| Server | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture#servers) | A program that offers tools, resources and prompts to AI apps over MCP. |
+| Tools | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/tools) · [OpenCode](https://opencode.ai/docs/tools) | Functions or actions the model can call to act or fetch data. |
+| Codex app server | [Codex](https://learn.chatgpt.com/docs/app-server) | A local JSON-RPC server that lets other apps drive Codex threads. |
+| Server (opencode serve) | [OpenCode](https://opencode.ai/docs/server) | A headless HTTP server that any OpenCode client can drive. |
+| SDK | [OpenCode](https://opencode.ai/docs/sdk) | A typed JavaScript client that controls OpenCode through its server. |
+| Cloud Agents API | [Cursor](https://cursor.com/docs/cloud-agent/api/endpoints) | An HTTP API to create, run, stream and cancel cloud agents. |
+| ACP | [Cursor](https://cursor.com/docs/cli/acp) · [OpenCode](https://opencode.ai/docs/acp) · [Gemini CLI](https://geminicli.com/docs/cli/acp-mode/#agent-client-protocol-acp) | The Agent Client Protocol, which lets editors and other clients drive the agent. |
+
+**How Aurora differs:** Their servers let outside apps drive the agent. Aurora's MCP door is an MCP server too. A check keeps its CLI, MCP and runner doors in step.
+
+</Callout>
+
 ## How you use it
 
 ```bash

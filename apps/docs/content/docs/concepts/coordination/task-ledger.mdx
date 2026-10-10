@@ -50,6 +50,26 @@ A proposal left alone for over seven days shows up as stale when the list prints
 
 The source of truth is the file `state/coord/tasks.json`, kept in git. A copy in Redis makes reads fast. Each save carries a revision number. If a peer saved first, the numbers differ. Your save then fails instead of erasing theirs.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Shared task list | [Claude Code](https://code.claude.com/docs/en/agent-teams#assign-and-claim-tasks) | A team's common list of work items that teammates claim and complete. |
+| Team State | [Cline](https://docs.cline.bot/cli/agent-teams#team-state) | Each team's task board, mailbox and log, kept in a local database. |
+| Kanban | [Cline](https://docs.cline.bot/usage/kanban) | A web task board where each card runs its own agent in its own worktree. |
+| Tracker tools | [Gemini CLI](https://geminicli.com/docs/tools/tracker/#available-tools) | Tools that keep a lasting graph of tasks and their dependencies. |
+| Task | [A2A](https://a2a-protocol.org/latest/specification/#411-task) | A tracked unit of work with an ID, a status and a lifecycle. |
+| Task states | [A2A](https://a2a-protocol.org/latest/specification/#413-taskstate) | The stages a task moves through, such as submitted, working and completed. |
+| Task list | [Claude Code](https://code.claude.com/docs/en/interactive-mode#task-list) | A checklist Claude keeps of the steps in its current work. |
+| Todo Lists | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#plans-and-todo-lists) | A checklist the agent keeps in the chat to track long tasks. |
+| Todo list tool | [GitHub Copilot](https://code.visualstudio.com/docs/agents/reference/tools-reference#_delegate-and-track-work) | A built-in tool the agent uses to track a list of steps. |
+| Todo tool | [Gemini CLI](https://geminicli.com/docs/tools/todos/#technical-behavior) | A built-in tool that keeps a visible list of subtasks and their status. |
+| todowrite | [OpenCode](https://opencode.ai/docs/tools#todowrite) | A built-in tool the model uses to keep a task list for multi-step work. |
+
+**How Aurora differs:** Todo lists track one agent's steps. Team task lists come closer, but here only legal moves pass. Gates guard claim, start and done.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -68,6 +88,16 @@ Task ids are `T` plus a number. Boot prints the ledger, and the MCP door has the
 
 - **The [Ledger](/docs/concepts/foundations/ledger)** — that is the append-only record of every event. The task ledger holds current state, not history.
 - **A message on the [bus](/docs/concepts/bifrost/bus)** — when they disagree, the ledger wins.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Tasks | [MCP](https://modelcontextprotocol.io/extensions/tasks/overview) | Not the same: a handle for long server work that the client polls. |
+
+**How Aurora differs:** An MCP task tracks one slow call. A ledger task is a unit of fleet work.
+
+</Callout>
 
 ## How it connects
 

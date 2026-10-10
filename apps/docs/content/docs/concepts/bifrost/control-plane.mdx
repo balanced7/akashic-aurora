@@ -11,6 +11,20 @@ Agents wake each other and answer each other. Sometimes a human needs to break i
 
 Two runners that answer on their own can ping-pong forever and burn tokens. DeepSeek itself raised that risk. A human also needs a way to stop an exchange that went wrong.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Subagent depth | [OpenCode](https://opencode.ai/docs/config#subagent-depth) | How many levels deep subagents may launch other subagents. |
+| Max steps | [OpenCode](https://opencode.ai/docs/agents#max-steps) | A cap on tool-using turns before the agent must answer in text. |
+| doom_loop | [OpenCode](https://opencode.ai/docs/permissions#available-permissions) | A check that asks you when one tool call repeats three times with identical input. |
+| Isolation and recursion protection | [Gemini CLI](https://geminicli.com/docs/core/subagents/#isolation-and-recursion-protection) | Each subagent runs in its own context and cannot call other subagents. |
+| Session limit | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/set-session-limit#what-happens-when-the-limit-is-reached) | A cap on AI credits one session may spend before Copilot asks you. |
+
+**How Aurora differs:** These guards stop one agent from looping. Aurora's guards stop two agents that loop on each other. A hop count and a reply cap pause the loop for a human.
+
+</Callout>
+
 ## How it works
 
 The levers form a ladder, from soft to hard.
@@ -28,6 +42,25 @@ Two guards stop runaway loops. Every auto-reply carries a hop count, and at six 
 There is also a back door. Some runners open a local socket that accepts commands even when the bus is dead. It came from a 12-hour wedge where Kimi was up but unreachable.
 
 Runners also obey a halt aimed at one agent. No verb or button sets that halt yet; only Python code can. The console once read typed text and guessed whether you meant halt, steer or ask. It misread ordinary words as "halt". Now you pick the strength yourself.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Steer a running agent | [Cursor](https://cursor.com/docs/agent/overview#steer-a-running-agent) | A follow-up reaches the working agent at its next tool call without stopping it. |
+| Steering and follow-up messages | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/usage.md#change-direction) | Steering guides the next response, and a follow-up waits until the task ends. |
+| Steer and queue | [Codex](https://learn.chatgpt.com/docs/prompting#steering-and-queuing) | Steer changes the current run, and queue waits. |
+| Steering and queueing | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/steer-agents#queue-a-prompt-to-be-processed-next) | Redirect the agent now, or queue a message to run next. |
+| Model steering | [Gemini CLI](https://geminicli.com/docs/cli/model-steering/#using-model-steering) | Guidance typed while the agent is busy, so it adjusts on the next turn. |
+| Queueing Messages | [Amp](https://ampcode.com/docs/prompting#queueing-messages) | Messages sent mid-work steer after the current step, or wait for the turn to end. |
+| Queued messages | [Cursor](https://cursor.com/docs/agent/overview#queued-messages) · [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#queued-messages) | Messages typed while the agent works, which run in order after the current task. |
+| Message queue | [Claude Code](https://code.claude.com/docs/en/interactive-mode#queue-messages-while-claude-works) | Messages you type while Claude is busy, sent as soon as it can take them. |
+| Cancellation | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/cancellation) | Either side can stop a request that is still running. |
+| Cancel Task | [A2A](https://a2a-protocol.org/latest/specification/#315-cancel-task) | A call asking the agent to stop a task that is still running. |
+
+**How Aurora differs:** Steer and queue match Aurora's steer and inform. Interrupt is close to cancel, but the runner stays up. Pause acts on every runner at once.
+
+</Callout>
 
 ## How you use it
 

@@ -21,6 +21,16 @@ An early audit found "a class named `Bus` that wasn't one, and a `success:"True"
 - **Old names are aliases.** A retired name may point to the new one, marked "Deprecated: use X".
 - **Use the field's words.** Public names follow a field's standard terms, not new ones.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Deprecated features | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/deprecated) | The official list of features due for removal and what to use instead. |
+
+**How Aurora differs:** Aurora does the same for its own names. A retired name stays as an alias marked "Deprecated: use X".
+
+</Callout>
+
 ### What a machine checks
 
 Most of this rests on review. The boundary checker allows one definition per class name and one module per file name in `core/`. Another check makes sure each file's name has the same case on disk as in git. No tool compares a name with what the code does.

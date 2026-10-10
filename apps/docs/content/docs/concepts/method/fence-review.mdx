@@ -35,6 +35,19 @@ Helpers often write a half. The DeepSeek seat, called Heimdall, often writes the
 
 A guard also runs when you ship. A change to trust, bus, coordination, event or security code, or to a runner, must cite a reconciliation record. Or it must say `[ungated: <reason>]` out loud.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Rubber duck agent | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/rubber-duck#what-the-rubber-duck-agent-does) | A critic agent that reviews Copilot's plans, code and tests with a different model. |
+| Multi-Model Review & Consensus | [Cline](https://docs.cline.bot/cli/samples/model-orchestration#pattern-3-multi-model-review-%26-consensus) | Several models review the same change, then you compare what they find. |
+| Code Review | [Claude Code](https://code.claude.com/docs/en/code-review) | Pull request reviews that use several agents to find logic and security bugs. |
+| Quick Review | [Windsurf](https://docs.devin.ai/desktop/quick-review) | A second agent that reviews your local changes for bugs and style problems. |
+
+**How Aurora differs:** These tools add a second reviewer or a second model. A fence keeps two halves blind until both seal. Then a third agent rules on each difference.
+
+</Callout>
+
 ## How you use it
 
 ```bash

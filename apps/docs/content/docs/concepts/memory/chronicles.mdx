@@ -26,6 +26,17 @@ A commit guard keeps the folder small. It refuses any other new `.md` file in `c
 
 The word "chronicle" belongs to this layer only. It never names the raw event log.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Summary agent | [OpenCode](https://opencode.ai/docs/agents#use-summary) | A hidden built-in agent that writes summaries of sessions. |
+| Branch summarization | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#branch-summarization) | When you leave a branch, Pi can sum it up and attach that to the new branch. |
+
+**How Aurora differs:** These ask a model to sum up a chat. A program prints chronicles from stored records. To fix one, you fix the record and print again.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -40,6 +51,16 @@ Read `chronicles/memory.md` for the state of the project. Read `chronicles/story
 - **The Chronicler** — the narrative process that writes `story.md`. It is one writer, not the layer.
 - **The [ledger](/docs/concepts/foundations/ledger) and the event log** — raw records. They are never called chronicles.
 - **The `chronicle` doc type** — a kind of document in the [library](/docs/concepts/memory/library). It has its own shelf there.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /chronicle | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/chronicle#using-the-chronicle-slash-command) | Not the same: a CLI command that answers questions and builds reports from past sessions. |
+
+**How Aurora differs:** Aurora's chronicles are digest files in a folder, not a command. You read them, and a program writes them.
+
+</Callout>
 
 ## How it connects
 

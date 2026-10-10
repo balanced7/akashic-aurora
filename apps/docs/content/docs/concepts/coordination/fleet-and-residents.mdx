@@ -25,6 +25,23 @@ The operator gave long-lived seats names like `Deepseek | Onyx | Red | 3 - Foxba
 
 At boot, a resident sees `# YOU ARE:` with its name and its lessons. The bus can route mail by callsign. And `ask --as-resident` lets a helper answer as that resident, with its lessons loaded.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| models.json | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md#configure-a-compatible-endpoint) | A file that adds models behind compatible APIs, such as Ollama, or changes model details. |
+| Virtual models | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/virtual-models.md) | A selectable model that picks a real model for each request, by task or cost. |
+| Auto | [Cursor](https://cursor.com/docs/cursor-router) | Picks a model for each request through Cursor Router. |
+| Auto model selection | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/models/auto-model-selection#overview) | Copilot picks a suitable model for each task for you. |
+| Adaptive | [Windsurf](https://docs.devin.ai/desktop/adaptive) | A router that picks a cheap or strong model for each request. |
+| System Models | [Amp](https://ampcode.com/docs/models-and-subagents#system-models) | Smaller models for side jobs like reading images and naming threads. |
+| Utility models | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/models/utility-models#how-do-utility-models-work) | Small models that run background features like titles and summaries. |
+| Subagent persistent memory | [Claude Code](https://code.claude.com/docs/en/sub-agents#enable-persistent-memory) | A memory folder a custom subagent keeps so it learns across sessions. |
+
+**How Aurora differs:** Those routers pick a model inside one agent. Here `fleet` lists local models and calls one by skill. A resident's name rests on its own lessons, much like subagent memory.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -47,6 +64,16 @@ Also:
 - **A seat** — any running identity. Being a resident is a status a seat earns.
 - **A [charter](/docs/concepts/coordination/charters-and-briefs)** — a seat's standing contract, not its name.
 - **An ACL role** — sets what a seat may do. See [Trust](/docs/concepts/coordination/trust).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /fleet | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet#how-fleet-works) | Not the same: a command that splits a request into subtasks for parallel subagents. |
+
+**How Aurora differs:** Copilot's /fleet fans one request out to helpers. Here the fleet is every seat in the install.
+
+</Callout>
 
 ## How it connects
 

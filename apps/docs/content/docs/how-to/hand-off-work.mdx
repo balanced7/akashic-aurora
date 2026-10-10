@@ -20,6 +20,23 @@ aurora learn my_agent --experiment parser_windows_paths --tried "..." --result "
 
 To check that your handoff landed, run `aurora handoff my_agent --list --to next_agent`. Run `aurora handoff my_agent --list` to see every handoff addressed to you.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /newtask | [Cline](https://docs.cline.bot/core-workflows/using-commands#/newtask) | Starts a fresh task that carries a short summary of the current one. |
+| Handoff | [Amp](https://ampcode.com/guides/context-management#handoff) | Moves the useful parts of a long thread into a new, focused thread. |
+| Plan files | [Windsurf](https://docs.devin.ai/desktop/cascade/modes#continuing-from-a-plan) | Saved Markdown plans you mention in a new chat to continue with fresh context. |
+| Handoff | [GitHub Copilot](https://code.visualstudio.com/docs/agents/concepts/sessions#_hand-off-a-session) | Continues work under another harness or agent role, carrying the full conversation. |
+| Handoff | [Codex](https://learn.chatgpt.com/docs/environments/git-worktrees#working-between-local-and-worktree) | Not the same: moves a chat and its work between your checkout and a worktree. |
+| Cloud Agent handoff (&) | [Cursor](https://cursor.com/docs/cli/overview#cloud-agent-handoff) | Sends the CLI conversation to a Cloud Agent you can pick up on web or mobile. |
+| Delegate to cloud agent (&) | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/delegate-tasks-to-cca#delegate-tasks-to-copilot-cloud-agent) | Sends a task to the cloud agent, which keeps working on a new branch. |
+| Devin | [Windsurf](https://docs.devin.ai/desktop/devin#delegating-work-to-devin) | A cloud agent on its own machine that you hand work to from the editor. |
+
+**How Aurora differs:** Aurora passes a short briefing, not the chat. The next agent sees it at boot. Cline's /newtask is the closest match.
+
+</Callout>
+
 ## Start the next session lean
 
 ```bash
@@ -28,3 +45,17 @@ aurora bifrost-sync next_agent
 ```
 
 Keep `--task` narrow. Boot ranks lessons against it and stays inside its token budget. Don't paste old chat logs back in. See [Handoff](/docs/concepts/bifrost/handoff).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Resume | [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-resume) · [Cursor](https://cursor.com/docs/cli/overview#sessions) · [Gemini CLI](https://geminicli.com/docs/cli/session-management/#resuming-sessions) | Reopens a past session so the chat continues with its earlier context. |
+| Resume a session | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/work-with-multiple-sessions#returning-to-a-previous-session) | Reopens a past CLI session with its history, by ID or name. |
+| Resume and continue | [Claude Code](https://code.claude.com/docs/en/sessions#resume-a-session) | Picks up an earlier conversation with its full history. |
+| Continue and resume | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md#continue-or-switch-sessions) | Reopens the latest session for this folder, or any saved one from a list. |
+| /clear | [Claude Code](https://code.claude.com/docs/en/commands) | Starts a fresh conversation with empty context and keeps the old one stored. |
+
+**How Aurora differs:** Resume reloads the whole old chat. Aurora starts the next agent fresh with boot and your handoff. In Claude Code, /clear and then boot gives that lean start.
+
+</Callout>

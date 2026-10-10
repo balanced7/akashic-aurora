@@ -30,6 +30,16 @@ A pin is a test that fixes how the code should behave. Here the pin comes first.
 
 A guard backs this up. Say a test file's header calls it "pre-registered". `check_preregistration.py` then fails a ship that adds that test in the same commit as the code. Like the wiring check, it bites in `ship.py`. In CI it gets no commit message, so it passes without checking.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Verification loop | [Claude Code](https://code.claude.com/docs/en/best-practices#give-claude-a-way-to-verify-its-work) | Giving the agent a check it can run, like tests, so it works until it passes. |
+
+**How Aurora differs:** Both lean on a test the agent can run. Here the failing test lands first, in its own commit. A guard checks that order when you ship.
+
+</Callout>
+
 ## How you use it
 
 ```bash

@@ -24,6 +24,20 @@ The Ledger used to be a class named `Bus`. But nothing pushed messages anywhere.
 - `emit` never raises. On failure it logs and returns the newest id already on disk. It avoids returning `"0"`, which would make a reader replay the whole stream.
 - A stream can have a size cap, `maxlen`. Past the cap, the oldest rows go. The [append-only record](/docs/concepts/foundations/append-only-record) page explains what that means for history.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Transcript | [Claude Code](https://code.claude.com/docs/en/sessions#where-transcripts-are-stored) | The saved JSONL record of a session, read back when you resume. |
+| Sessions | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md) | A saved JSONL file of one conversation, with messages, tool calls and events. |
+| Session file format | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/session-format.md) | The JSONL layout of a session file, where each entry has an ID and a parent ID. |
+| Session data and syncing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/session-data#session-syncing) | Session records kept on disk and, by default, synced to your GitHub account. |
+| Pagination | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination) | A client passes a cursor to fetch the next page of a long list. |
+
+**How Aurora differs:** Those logs hold one session each. Many agents and sessions share one Ledger stream. Each reader keeps its own cursor and picks up where it stopped.
+
+</Callout>
+
 ## How you use it
 
 No command touches the Ledger head-on. You meet it through `events`, which reads the raw firehose. You also meet it through `handoff`, which writes to the signal ledger. See [signals](/docs/concepts/foundations/signals).

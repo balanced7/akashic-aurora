@@ -25,6 +25,18 @@ Early on, Redis calls sat all over the code. Each module wrote its own "try Redi
 - Keys carry a prefix that says what they hold. The `learn:*` keys hold lessons. The `mem:*` keys hold agent memory. The `artifact:*` keys hold library records.
 - Several engines can sit behind the Store. The default writes to a file and to Redis. See [hybrid storage](/docs/concepts/foundations/hybrid-storage).
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Codemode store | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/codemode.md#store-values) | A small key value store that scripts use to keep state between calls. |
+| Artifacts | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/artifacts#_artifacts-and-references) | Not the same: plans, screenshots and other files an agent session produces. |
+| Artifact | [A2A](https://a2a-protocol.org/latest/specification/#417-artifact) | Not the same: a finished output an agent makes during a task. |
+
+**How Aurora differs:** The Store is also a key value store, but every part of Aurora shares it. It writes to a file and to Redis. An Aurora `artifact:*` key holds a library record, not a session output.
+
+</Callout>
+
 ## How you use it
 
 You never call the Store yourself. It is internal on purpose. You reach it through the [doors](/docs/concepts/coordination/doors), with verbs such as `learn`, `recall`, `note` and `boot`.

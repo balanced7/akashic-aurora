@@ -11,6 +11,19 @@ A lesson is one short record. It says what an agent tried, what happened, and wh
 
 Agents start every session knowing nothing. Without a shared store, each one repeats the last one's mistakes. Lessons began as lines in one flat file. They moved onto the [store](/docs/concepts/foundations/store), so they survive when Redis is down. Real failures shaped the rest. Once, recall could not see 446 of 464 lessons. The list that recall searched had drifted away from the lessons themselves. Now the store rebuilds that list from the lessons.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Project shared context | [Cursor](https://cursor.com/docs/agent/projects#shared-context) | Files a Project keeps in sync so every agent shares what earlier agents learned. |
+| Memories | [Cursor](https://cursor.com/docs/cloud-agent/automations#memories) | Notes an automation's agent reads and writes so it can remember things across runs. |
+| Auto Memory | [Gemini CLI](https://geminicli.com/docs/cli/auto-memory/#how-auto-memory-works) | Reads past sessions and drafts memory updates and new skills for you to approve. |
+| Auto Memory inbox | [Gemini CLI](https://geminicli.com/docs/cli/auto-memory/#how-to-review-extracted-items) | A review list where drafted memories and skills wait until you apply or discard them. |
+
+**How Aurora differs:** Cursor's shared context comes closest. Aurora adds a short, fixed shape: what you tried, what happened, what to do. The next agent sees the lesson right before it acts.
+
+</Callout>
+
 ## How it works
 
 ```mermaid
@@ -34,6 +47,21 @@ stateDiagram-v2
 - **Near-duplicate warning.** Before it writes a new lesson, the store compares it to every old one. It checks five points: problem, root cause, fix, references and kind. It uses word overlap, not a model. At four or five matches, it tells you to update the old lesson instead. At two or three, it names a related lesson. It warns, but it never blocks the write. It skips the check when the name already exists, since that write is an update.
 - **Two stamps.** The `graduated` stamp means automation now enforces the rule. Boot and recall at action stop showing it. The `benched` stamp means the [recall loop](/docs/concepts/memory/recall-loop) found the lesson never helped. Recall at action stops showing it, except for a rare second chance. Boot does not read this stamp. But the low credit that got the lesson benched also ranks it lower in boot. Stamps change only when someone runs a command. The `recall-curate --apply` command benches and unbenches. The `graduate` command graduates. Neither stamp deletes anything.
 - **Repeats.** The flag `learn --repeat-of <name>` records that someone broke an existing lesson again. The flag `--recall-outcome` says what recall did at that moment.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent Skills | [Agent Skills](https://agentskills.io/home) | A folder of instructions, scripts, and files an agent can load to gain a new ability. |
+| Skills | [Codex](https://learn.chatgpt.com/docs/build-skills) · [Windsurf](https://docs.devin.ai/desktop/cascade/skills) · [Amp](https://ampcode.com/docs/customize/skills) | Folders with a SKILL.md file of instructions that teach the agent a task. |
+| SKILL.md | [Agent Skills](https://agentskills.io/specification#skill-md-format) | The required file in a skill folder, with YAML frontmatter and Markdown instructions. |
+| Frontmatter | [Agent Skills](https://agentskills.io/specification#frontmatter) | Required name and description fields that say what the skill does and when to use it. |
+| /newrule | [Cline](https://docs.cline.bot/core-workflows/using-commands#/newrule) | A slash command where Cline helps you write a new rule file from your preferences. |
+| Toggling Rules | [Cline](https://docs.cline.bot/customization/cline-rules#toggling-rules) | Turning single rule files on or off without deleting them. |
+
+**How Aurora differs:** A skill's description says when to load it. A lesson's "Use when" clause does the same job. Any agent writes a lesson in one command, and stamps retire it without a delete.
+
+</Callout>
 
 ## How you use it
 

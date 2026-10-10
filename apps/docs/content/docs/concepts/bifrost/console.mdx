@@ -9,6 +9,23 @@ The console is a web page on your own machine. It shows the [bus](/docs/concepts
 
 Agents talk to each other all day, and the bus forgets fast. A human needs one place to see that talk and to break in.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent view | [Claude Code](https://code.claude.com/docs/en/agent-view) | One screen to dispatch, watch and reply to many background sessions. |
+| Agents Window | [Cursor](https://cursor.com/docs/agent/agents-window) | An agent-first workspace for running and managing many agents across repos. |
+| Agents window | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/agents-window#_agents-window-interface-overview) | A VS Code window for running many agent sessions in parallel. |
+| Agent Command Center | [Windsurf](https://docs.devin.ai/desktop/agent-command-center) | A Kanban board of all your local and cloud agents, grouped by status. |
+| Agent management | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/agent-management#managing-agents) | One GitHub page to see, jump between and steer all your agent sessions. |
+| Kanban | [Cline](https://docs.cline.bot/usage/kanban) | A web task board where each card runs its own agent. |
+| Hub dashboard | [Cline](https://docs.cline.bot/cli/cli-reference#hub-dashboard-options) | A browser page of apps and sessions, where you can send messages. |
+| Puck | [Amp](https://ampcode.com/docs/puck) | A personal assistant that starts, tracks, messages and coordinates your agents. |
+
+**How Aurora differs:** These views watch one tool's own agents. The console watches the bus, so it sees agents from many apps. It also shows their talk with each other.
+
+</Callout>
+
 ## How it works
 
 - **Local only.** `scripts/bifrost_ui.py` is a small server with no outside packages. By default it listens on `127.0.0.1:8787`, so nothing off your machine can reach it.
@@ -21,6 +38,27 @@ Agents talk to each other all day, and the bus forgets fast. A human needs one p
 - **A record.** Your messages, pauses and file drops go to the lasting event log, through the [promoter](/docs/concepts/bifrost/promoter).
 
 There is also a terminal version, `scripts/bifrost_console.py`. You join as `human`. Plain text goes to everyone, `@agent` sends a direct message, and `/who` shows who is online.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Streaming | [A2A](https://a2a-protocol.org/latest/topics/streaming-and-async/#streaming-with-server-sent-events-sse) | Live task status and updates over an open connection. |
+| Notifications | [Claude Code](https://code.claude.com/docs/en/hooks-guide#get-notified-when-claude-needs-input) · [Codex](https://learn.chatgpt.com/docs/notifications) · [Cline](https://docs.cline.bot/features/auto-approve#how-it-works) · [Windsurf](https://docs.devin.ai/desktop/agent-command-center#notifications) · [Amp](https://ampcode.com/docs/cli/settings#settings) · [Gemini CLI](https://geminicli.com/docs/cli/notifications/#types-of-notifications) | Alerts when the agent finishes or needs your input. |
+| Attention | [OpenCode](https://opencode.ai/docs/tui#attention) | Desktop alerts and sounds for questions, permissions, errors and finished sessions. |
+| Chat notifications | [GitHub Copilot](https://code.visualstudio.com/docs/chat/chat-overview#_get-notified-about-chat-responses) | VS Code alerts when a chat response finishes or needs your input. |
+| Remote Control | [Claude Code](https://code.claude.com/docs/en/remote-control) · [Cursor](https://cursor.com/docs/cloud-agent/mobile#remote-control) | Drive a session on your computer from your phone or a browser. |
+| Remote control | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-remote-control#what-you-can-do-remotely) | Watch and steer a running CLI session from GitHub.com or GitHub Mobile. |
+| Remote connections | [Codex](https://learn.chatgpt.com/docs/remote-connections) | Use Codex chats on a connected computer from your phone. |
+| Cross-Client Access | [Amp](https://ampcode.com/docs/cli/remote-control) | Continue a running CLI thread from the web or app on another device. |
+| TUI | [Cline](https://docs.cline.bot/usage/tui) | The chat screen that runs inside your terminal. |
+| attach | [OpenCode](https://opencode.ai/docs/cli#attach) | Connects a TUI to an OpenCode server already running elsewhere. |
+| Web | [OpenCode](https://opencode.ai/docs/web) | A browser interface for OpenCode, started with `opencode web`. |
+| Forcing a subagent (@ syntax) | [Gemini CLI](https://geminicli.com/docs/core/subagents/#forcing-a-subagent--syntax) | Start a prompt with @ and a subagent name to send it the task. |
+
+**How Aurora differs:** The console is local, so you cannot reach it from a phone. It shows live state on the page, not desktop alerts. Its `@agent` sends mail to a seat, not a task to a subagent.
+
+</Callout>
 
 ## How you use it
 

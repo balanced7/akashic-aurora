@@ -9,6 +9,20 @@ Many parts of Aurora ask the same question: what matters most here? The ranker a
 
 [Boot](/docs/concepts/memory/boot), [recall at action](/docs/concepts/memory/recall-at-action) and the digest writers all need a ranking. One shared scorer that shows its work beats three hidden ones. The distiller follows one rule: a lossy summary plus a lossless pointer. The text gets small, but you lose nothing. The full detail is always one hop away.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Conversation summarization | [Cursor](https://cursor.com/docs/agent/prompting#context-usage) | When the context window nears full, Cursor squeezes older turns into a summary. |
+| Auto Compact | [Cline](https://docs.cline.bot/features/auto-compact) | Cline sums up the chat on its own near the context limit, then keeps going. |
+| Compaction | [Claude Code](https://code.claude.com/docs/en/context-window#what-survives-compaction) · [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#keep-transcripts-lean-with-compact) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#compaction) | The tool sums up older chat so long work fits in the context window. |
+| Chat history compression | [Gemini CLI](https://geminicli.com/docs/core/#chat-history-compression) | Gemini CLI shrinks long chat history when it nears the model's token limit. |
+| File references | [Agent Skills](https://agentskills.io/specification#file-references) | Relative links from SKILL.md to other skill files that the agent reads on demand. |
+
+**How Aurora differs:** Compaction asks a model to sum up the chat, and details can drop out. The distiller uses no model. It clips stored records and keeps a pointer to each source.
+
+</Callout>
+
 ## How it works
 
 ```mermaid
@@ -81,6 +95,17 @@ HF_HUB_OFFLINE=0 uv run --group ml python -c "from sentence_transformers import 
 ```
 
 Plain methods stay the default. In one test, embeddings lost to a keyword rule at sorting story events into threads. The keyword rule scored 0.754 on a standard match score, against 0.212 for embeddings. Better tools still have to beat the boring baseline on your own data. See [decision 0006](/docs/reference/decisions/0006-deterministic-by-default).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Context engine | [Windsurf](https://docs.devin.ai/desktop/context-awareness/windsurf-overview#default-context) | The indexing system that finds relevant code from your whole project to feed the AI. |
+| Repository indexing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/context/repository-indexing#benefit-of-indexing-repositories) | A search index of your repo so chat and agents can find related code by meaning. |
+
+**How Aurora differs:** Those tools index your code to search it by meaning. Aurora keeps embeddings off by default. Only the manuals shelf and story themes use them.
+
+</Callout>
 
 ## Don't confuse it with
 

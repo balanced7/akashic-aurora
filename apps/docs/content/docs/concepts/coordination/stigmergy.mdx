@@ -27,6 +27,21 @@ In these docs, **three planes** means this split of shared state into three kind
 2. **Workspace.** State each agent keeps apart, such as its own git worktree.
 3. **Single OS resources.** Things there is only one of, such as a port or a browser profile. Agents take turns on them, through a lock or a route. They never copy them.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Worktrees | [Claude Code](https://code.claude.com/docs/en/worktrees) · [Codex](https://learn.chatgpt.com/docs/environments/git-worktrees) · [Cursor](https://cursor.com/docs/configuration/worktrees) · [Windsurf](https://docs.devin.ai/desktop/cascade/worktrees) | Separate git checkouts so parallel agents each edit their own copy. |
+| Git Worktrees | [Gemini CLI](https://geminicli.com/docs/cli/git-worktrees/#how-to-use-git-worktrees) | Each session gets its own working copy and branch, so parallel tasks do not collide. |
+| Worktree isolation | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/agent-harnesses#_choose-code-isolation) | An agent session runs in its own worktree, apart from your workspace. |
+| Create a Worktree | [Amp](https://ampcode.com/docs/cli/runners#create-a-worktree) | A runner gives a new thread its own worktree so parallel threads do not collide. |
+| --worktree | [Cline](https://docs.cline.bot/cli/cli-reference#global-options) | A CLI flag that runs the task in a new detached git worktree. |
+| Project shared context | [Cursor](https://cursor.com/docs/agent/projects#shared-context) | Files a Project keeps in sync so every agent shares what earlier agents learned. |
+
+**How Aurora differs:** The workspace plane is the same idea: state an agent keeps apart, such as its own worktree. Cursor's shared context is closest to the shared marks here.
+
+</Callout>
+
 ## Don't confuse it with
 
 - **The [bus](/docs/concepts/bifrost/bus)** — the bus carries messages between agents. Stigmergy is about state you read, not mail you get.

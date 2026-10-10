@@ -15,11 +15,50 @@ Long sessions pile up cognitive debt: stale plans, files read again and again, c
 
 Tools already compact a chat when it hits a token limit. RENEW aims to differ in four ways. It triggers on health signals, not raw token count. It pulls knowledge from event records with no model. It works across sessions. It ships no policy without a benchmark.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Compaction | [Claude Code](https://code.claude.com/docs/en/context-window#what-survives-compaction) · [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#keep-transcripts-lean-with-compact) · [OpenCode](https://opencode.ai/docs/config#compaction) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#compaction) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/context-management#compaction) | Older chat turns become a summary when the context window gets close to full. |
+| Context Compaction | [Amp](https://ampcode.com/docs/models-and-subagents#system-models) | A helper model compacts long conversations so they can keep going. |
+| Auto Compact | [Cline](https://docs.cline.bot/features/auto-compact) | Cline sums up the chat on its own near the context limit, then keeps going. |
+| Chat history compression | [Gemini CLI](https://geminicli.com/docs/core/#chat-history-compression) | Long chat history shrinks on its own near the token limit. |
+| Conversation summarization | [Cursor](https://cursor.com/docs/agent/prompting#context-usage) | Older turns become a summary when the context window nears full. |
+| /compact | [OpenCode](https://opencode.ai/docs/tui#compact) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md#manage-conversation-context) | A command to compact the conversation right now. |
+| /smol (/compact) | [Cline](https://docs.cline.bot/core-workflows/using-commands#/smol) | A slash command that shrinks the current chat into a summary. |
+| /compress | [Gemini CLI](https://geminicli.com/docs/reference/commands/#compress) | A command that swaps the whole chat for a short summary. |
+| /summarize | [Cursor](https://cursor.com/docs/cli/using#selecting-context) | A CLI command that summarizes the chat to free up context space. |
+| Compaction agent | [OpenCode](https://opencode.ai/docs/agents#use-compaction) | A hidden built-in agent that turns long context into a smaller summary. |
+| Auto-compact window | [Claude Code](https://code.claude.com/docs/en/model-config#context-window-and-auto-compaction) | A setting for how full the context gets before it compacts on its own. |
+| Compaction settings | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#settings) | Settings that turn automatic compaction on or off and set token reserves. |
+| Compaction mode (--compaction) | [Cline](https://docs.cline.bot/cli/cli-reference#global-options) | A CLI flag that picks how the chat gets shortened: agentic, basic or off. |
+| Checkpoints | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/context-management#checkpoints) | A numbered, titled copy of each compaction summary that you can read back later. |
+| Context window | [Claude Code](https://code.claude.com/docs/en/context-window) · [Cline](https://docs.cline.bot/core-workflows/task-management#context-window) · [Amp](https://ampcode.com/guides/context-management#context-in-amp) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/context-management#about-the-context-window) | Everything the model can see at once: chat, files, instructions and tool output. |
+| Context | [Codex](https://learn.chatgpt.com/docs/prompting#add-useful-context) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/how-pi-works.md#context) | All the information the agent sends to the model while it works. |
+
+**How Aurora differs:** Their tools compact one chat when tokens run low, and a model writes the summary. RENEW plans to act on health signals instead. It keeps what matters in event records, with no model, across sessions.
+
+</Callout>
+
 ## How it works
 
 The membrane has four jobs. Surface brings the right lessons at the moment you act. Capture records what matters. Enforce runs the checks that hold agents to the rules. Unify keeps one [door](/docs/concepts/coordination/doors) for every tool. The hooks do the first two. One fires before a tool call and recalls lessons. One fires after it and credits outcomes.
 
 RENEW is the fifth job, the one that spans sessions. It is a loop with three steps: notice the debt, capture what lasts, surface a fresh reload. It adds no new subsystem. It reuses [boot](/docs/concepts/memory/boot), the [recall loop](/docs/concepts/memory/recall-loop), the [launcher](/docs/concepts/bifrost/liveness) and [supersession](/docs/concepts/foundations/append-only-record).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Handoff | [Amp](https://ampcode.com/guides/context-management#handoff) | Moves the useful parts of a long thread into a new, focused thread. |
+| /newtask | [Cline](https://docs.cline.bot/core-workflows/using-commands#/newtask) | Starts a fresh task that carries a short summary of the current one. |
+| New Task vs. Continue | [Cline](https://docs.cline.bot/core-workflows/task-management#new-task-vs-continue) | Advice on when to start fresh and when to keep going in one task. |
+| Memory Bank | [Cline](https://docs.cline.bot/best-practices/memory-bank) | Markdown files in your repo that Cline reads and updates to remember the project. |
+| SessionStart hook | [Claude Code](https://code.claude.com/docs/en/hooks#sessionstart) | A hook that runs when a session starts or resumes, often to load context. |
+
+**How Aurora differs:** These tools carry work into a fresh start. RENEW aims to do the same as one loop. It reuses boot and recall to reload what lasts.
+
+</Callout>
 
 ### The two sensors
 
@@ -29,6 +68,20 @@ Why a hook? An older recorder needed a person to run it. It died, and the data s
 
 A second hook records a `fail` event each time a tool call fails. Those failures are the labels. Set against the signals, they will show which signals predict a bad session. Only then will anyone build a health check.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /context | [Claude Code](https://code.claude.com/docs/en/commands) | Draws a grid of what fills the context window and suggests savings. |
+| Context usage | [Cursor](https://cursor.com/docs/agent/prompting#context-usage) | A ring that breaks the chat's token budget into categories. |
+| /stats | [Gemini CLI](https://geminicli.com/docs/reference/commands/#stats) | Shows usage for the current session, such as tokens, tool calls and quota. |
+| Stats | [OpenCode](https://opencode.ai/docs/cli#stats) | Shows token use and cost across your sessions. |
+| post_cascade_response_with_transcript | [Windsurf](https://docs.devin.ai/desktop/cascade/hooks#post_cascade_response_with_transcript) | A hook event that hands your script the full transcript after each agent reply. |
+
+**How Aurora differs:** Their meters show how full the context is. RENEW counts work habits, such as repeats and failed calls. Failures will show which habits predict a bad session.
+
+</Callout>
+
 ## Don't confuse it with
 
 - **Chat compaction** — triggered by token count, run by a model, and lossy.
@@ -37,6 +90,20 @@ A second hook records a `fail` event each time a tool call fails. Those failures
   - `session_checkpoint` saves crash checkpoints so work can resume.
   - `session_state` saves a snapshot of the live Bifrost fleet: who ran, doing what.
   - `session_recovery` reads session history from local files when Redis is down. Nothing calls it yet.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Checkpoints | [Claude Code](https://code.claude.com/docs/en/checkpointing) · [Cline](https://docs.cline.bot/core-workflows/checkpoints) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/review-code-edits#_restore-a-checkpoint) | Not the same: snapshots of your files at each step, so you can roll back edits. |
+| Checkpointing | [Gemini CLI](https://geminicli.com/docs/cli/checkpointing/#how-it-works) | Not the same: a snapshot of files and chat taken before a tool changes files. |
+| Named Checkpoints and Reverts | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#named-checkpoints-and-reverts) | Not the same: saved project snapshots that roll code back to an earlier step. |
+| Manual chat checkpoints | [Gemini CLI](https://geminicli.com/docs/cli/session-management/#manual-chat-checkpoints) | Not the same: named save points of a chat that you can resume or share. |
+| /rewind | [Claude Code](https://code.claude.com/docs/en/checkpointing#rewind-and-summarize) | Not the same: a menu to roll back code, chat or both to a chosen message. |
+
+**How Aurora differs:** Their checkpoints undo edits or save a chat. Aurora's `session_checkpoint` saves crash state so work can resume. RENEW does neither. It reloads lasting knowledge.
+
+</Callout>
 
 ## How it connects
 

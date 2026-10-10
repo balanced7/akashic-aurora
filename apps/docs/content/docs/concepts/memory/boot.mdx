@@ -11,6 +11,18 @@ Boot is the first command an agent runs in a session. It prints a short briefing
 
 A fresh agent knows nothing. But dumping everything on it hurts too. More context can make an agent worse, not better. People call this context rot. So boot picks, ranks and trims. Real mistakes shaped the top of its output. Once, boot pointed a new session at an arc that was already done. Now boot skips any `<slug>-status` note whose text says the arc is done. Words like "arc complete" or "all slices shipped" mark it done.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Max Mode | [Cursor](https://cursor.com/help/ai-features/max-mode) | A legacy plan option that extends a model's context window past the default. |
+| /init | [Claude Code](https://code.claude.com/docs/en/commands) · [OpenCode](https://opencode.ai/docs/rules#initialize) · [Gemini CLI](https://geminicli.com/docs/reference/commands/#init) | A command that studies your project and writes a starter instructions file. |
+| Resume | [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-resume) | Reopens a saved chat and its full transcript so you continue where you stopped. |
+
+**How Aurora differs:** These give the agent more text up front. Boot does the opposite. It picks, ranks and trims, then points to the full source.
+
+</Callout>
+
 ## How it works
 
 Boot gathers its sources, ranks them, and prints them in a fixed order. Each section fails open. If a source breaks, its section drops out and boot carries on. This follows [fail-soft](/docs/concepts/foundations/fail-soft).
@@ -59,6 +71,27 @@ Here is a trimmed example. Real output is longer.
 ## RECENT NOTES (durable project memory)
   [2026-10-09] where-we-are: Port fix merged; flaky test next.
 ```
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| CLAUDE.md | [Claude Code](https://code.claude.com/docs/en/memory#claude-md-files) | A markdown file of standing instructions you write, loaded at the start of every session. |
+| AGENTS.md | [AGENTS.md](https://agents.md/) · [Codex](https://learn.chatgpt.com/docs/agent-configuration/agents-md) · [Amp](https://ampcode.com/docs/customize/agents-md) · [Cursor](https://cursor.com/docs/rules#agentsmd) · [Claude Code](https://code.claude.com/docs/en/memory#agents-md) | A plain Markdown file in the repo that tells coding agents how to work on the project. |
+| Rules | [Cursor](https://cursor.com/docs/rules#how-rules-work) · [OpenCode](https://opencode.ai/docs/rules) · [Windsurf](https://docs.devin.ai/desktop/cascade/memories#rules) | Saved instruction files the tool adds to the agent's context to guide it. |
+| Cline Rules | [Cline](https://docs.cline.bot/customization/cline-rules) | Markdown files of standing instructions that Cline follows in every task. |
+| GEMINI.md | [Gemini CLI](https://geminicli.com/docs/cli/gemini-md/#understand-the-context-hierarchy) | Markdown files of project rules that Gemini CLI sends to the model with every prompt. |
+| Context files | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/configuration.md#context-files) | AGENTS.md or CLAUDE.md files Pi loads from the agent, working and parent folders. |
+| Custom instructions | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions#creating-custom-instructions) | Guidance in files that Copilot adds to every request so it follows your project rules. |
+| Project instructions discovery | [Codex](https://learn.chatgpt.com/docs/config-file/config-advanced#project-instructions-discovery) | Settings for which instruction files Codex finds and how much text it loads. |
+| Instruction precedence | [AGENTS.md](https://agents.md/#faq) | The closest AGENTS.md wins, and the user's chat prompt overrides all files. |
+| Precedence | [OpenCode](https://opencode.ai/docs/rules#precedence) | The search order for rule files, where the first match in each category wins. |
+| SessionStart hook | [Claude Code](https://code.claude.com/docs/en/hooks#sessionstart) | A hook that runs when a session starts or resumes, often to load extra context. |
+| Space context sharing | [Windsurf](https://docs.devin.ai/desktop/spaces#context-is-shared-across-sessions) | New sessions in a Space start with what the Space already knows. |
+
+**How Aurora differs:** Those files hold the same text for every task, and people write them. Boot builds a fresh briefing for each task. It ranks lessons from every agent and fits them in a token budget.
+
+</Callout>
 
 ## How you use it
 

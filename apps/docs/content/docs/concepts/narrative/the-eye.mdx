@@ -9,6 +9,16 @@ The Eye is a search index over every agent session transcript. Every line has an
 
 Raw transcripts were losing the operator's instructions. The operator is the person who runs the agents. One day two of them went missing. Finding them again took nine guessed searches. Part of the trouble was where they lived. Messages the operator queues up land in `queue-operation` records, and those are not chained to the rest of the chat. They were easy to miss. On its first day, the Eye found each lost instruction in one call.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Queued Messages | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#queued-messages) | Messages you type while the agent is busy, which run in order afterward. |
+
+**How Aurora differs:** Queued messages are easy to lose in a transcript. The Eye reads them as operator speech, like any other turn.
+
+</Callout>
+
 ## How it works
 
 - **The index is a copy.** The truth is the session log files, one JSONL file per session. The Eye builds a SQLite index at `state/eye/eye.db`. Git ignores it. You can delete it and rebuild it from the logs. The only thing lost is each seat's bookmark.
@@ -21,11 +31,43 @@ Raw transcripts were losing the operator's instructions. The operator is the per
 
 The Eye also has zoom levels, built only from quoted text. One level pairs the operator's opening sentence with the agent's first reply. A higher level digests a whole session. Stale parts show as "fog" instead of hiding.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Transcript | [Claude Code](https://code.claude.com/docs/en/sessions#where-transcripts-are-stored) | The saved file record of a session, read back when you resume. |
+| Session management | [Gemini CLI](https://geminicli.com/docs/cli/session-management/#automatic-saving) | Every conversation saves on its own so you can review or resume it. |
+| History persistence | [Codex](https://learn.chatgpt.com/docs/config-file/config-advanced#history-persistence) | Local chat transcripts saved to a history file you can cap or turn off. |
+| Session storage | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md#control-session-storage) | Controls for where session files go, or whether they save at all. |
+| Task History | [Cline](https://docs.cline.bot/core-workflows/task-management#task-history) | A saved, searchable list of every past task on your machine. |
+| Sessions | [Cline](https://docs.cline.bot/cli/cli-reference#history%7Ch-options) | The CLI list of past sessions you can open, export or delete. |
+| Session data and syncing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/session-data#session-syncing) | Session records stored on your machine and synced to your GitHub account. |
+| Conversation search | [Cursor](https://cursor.com/docs/agent/overview#conversation-search) | Search across your past agent transcripts from the command palette. |
+| Finding Threads | [Amp](https://ampcode.com/docs/prompting#finding-threads) | Ask the agent, or use filters, to search past threads. |
+| Read Thread | [Amp](https://ampcode.com/docs/models-and-subagents#specialist-subagents) | A subagent that reads and sums up other threads for the main agent. |
+| Referencing Threads | [Amp](https://ampcode.com/docs/prompting#referencing-threads) | Mention another thread by URL or ID, and the agent pulls what matters. |
+| @-mention previous conversations | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#%40-mention-previous-conversations) | Pull useful parts of an earlier chat into the current chat. |
+| Amp-Thread-ID | [Amp](https://ampcode.com/docs/threads#reference-and-find-threads) | A commit trailer that links each agent commit back to its thread. |
+
+**How Aurora differs:** These tools save and search chats. The Eye adds an address for every line and a grade for every link. It also admits gaps.
+
+</Callout>
+
 ### Where a seat stands
 
 A [seat](/docs/concepts/bifrost/seats) has a position in the transcripts, like a bookmark. It belongs to one incarnation: one live session of an agent, written `agent#sid8`, such as `claude#6ebe8686`. A new incarnation starts with no position until it inherits one. The `since` verb shows what the Eye learned while the seat was away.
 
 The Eye can also spot standing directives. These are phrases the operator repeats, which no task, lesson or commit cites yet. It proposes them and files nothing. A route saves a path you walked through the transcripts, so someone else can follow it.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Auto Memory | [Gemini CLI](https://geminicli.com/docs/cli/auto-memory/#how-auto-memory-works) | Reads past sessions and suggests memory updates and new skills for you to approve. |
+
+**How Aurora differs:** Both read past sessions and suggest, but never file. The Eye looks for operator phrases that nothing cites yet.
+
+</Callout>
 
 ## How you use it
 

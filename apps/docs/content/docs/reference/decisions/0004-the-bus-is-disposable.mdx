@@ -7,6 +7,17 @@ description: Live agent mail rides a fast, throwaway bus, and only the messages 
 
 Agents talk on a Redis Streams [bus](/docs/concepts/bifrost/bus) that may lose its contents on restart. The [promoter](/docs/concepts/bifrost/promoter) copies handoffs, decisions, completions and blockers into the durable event record. We keep two channels on purpose. All the chat would drown the record. But the decisions inside that chat must survive.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Team State | [Cline](https://docs.cline.bot/cli/agent-teams#team-state) | A team's task board, mailbox and log, kept in a local database. |
+| Mailbox | [Claude Code](https://code.claude.com/docs/en/agent-teams#architecture) | Each team member's inbox, kept as a JSON file on disk. |
+
+**How Aurora differs:** Those tools keep all team mail. Aurora lets the bus forget and keeps only the messages that matter.
+
+</Callout>
+
 ## Consequences
 
 To find a past decision, read `promoted`, not the bus.

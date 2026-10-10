@@ -19,6 +19,19 @@ These settings change how memory picks and shows lessons. Most people never touc
 
 Fixed in code: at most two suggested commands. Lessons per call default to three; `recall-at --limit N` changes that for a run by hand.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /memory | [Claude Code](https://code.claude.com/docs/en/memory#view-and-edit-with-%2Fmemory) | A command to open memory files and turn auto memory on or off. |
+| Memories | [Codex](https://learn.chatgpt.com/docs/customization/memories) | Notes Codex builds from past chats. They are off by default. |
+| /memories | [Codex](https://learn.chatgpt.com/docs/customization/memories#control-local-memories-per-chat) | Sets whether one chat may use memories or feed future ones. |
+| Auto Memory | [Gemini CLI](https://geminicli.com/docs/cli/auto-memory/#how-auto-memory-works) | An experimental feature, off by default, that suggests memory updates from past sessions. |
+
+**How Aurora differs:** Those switches turn a tool's memory on or off. `AKASHIC_RECALL_AT_ACTION` turns off only the push before a tool call. Boot and recall still show lessons.
+
+</Callout>
+
 ## Recall loop
 
 | Variable | Default | What it does |
@@ -27,6 +40,16 @@ Fixed in code: at most two suggested commands. Lessons per call default to three
 | `AKASHIC_BENCH_PROBE_MAX` | `3` | How many benched lessons may be on trial at once. |
 
 Fixed in code: the curator benches a lesson only when it showed 10 times or more, earned no credit, and is at least 10 days old.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Memory retention and validation | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-memory#retention-and-validation) | Saved memories expire after 28 days unused and are checked against the code before use. |
+
+**How Aurora differs:** Copilot deletes a memory that sits unused. Aurora never deletes a lesson. It benches one that never helps, then tries it again after 14 days.
+
+</Callout>
 
 ## Boot
 

@@ -11,6 +11,19 @@ For work that could hurt if wrong, two agents review it apart. Then a third rule
 
 Two last checks keep the code honest. Code that exists but never runs counts as [built, not wired](/docs/concepts/method/built-not-wired). And rules that matter live in scripts, not in good intentions. That is [guards over discipline](/docs/concepts/method/guards-over-discipline). The nine [principles](/docs/concepts/method/principles) sit under all of it.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents) · [Codex](https://learn.chatgpt.com/docs/agent-configuration/subagents) · [Cursor](https://cursor.com/docs/subagents#how-subagents-work) | Helper agents with their own context that take a focused task and report back. |
+| Code Review | [Claude Code](https://code.claude.com/docs/en/code-review) | Pull request reviews that use several agents to find logic and security bugs. |
+| Verification loop | [Claude Code](https://code.claude.com/docs/en/best-practices#give-claude-a-way-to-verify-its-work) | Giving the agent a check it can run, like tests, so it works until it passes. |
+| Hooks | [Claude Code](https://code.claude.com/docs/en/hooks-guide) · [Codex](https://learn.chatgpt.com/docs/hooks) · [Cursor](https://cursor.com/docs/hooks) | Scripts the tool runs at set points in a turn, such as before a tool call. |
+
+**How Aurora differs:** Most tools ship these as features you can use. Here each one is a habit with a rule. Scripts enforce the most important ones.
+
+</Callout>
+
 <Cards>
   <Card title="Ask and fan" href="/docs/concepts/method/ask-and-fan" description="A one-shot question to a helper model with no memory or tools, or several such questions run at once." />
   <Card title="Union, not consensus" href="/docs/concepts/method/union-not-consensus" description="When reviewers disagree, keep every distinct finding and check each one, instead of keeping only what they agree on." />

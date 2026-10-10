@@ -11,6 +11,24 @@ An agent in Claude Code or Cursor runs only when it has a turn. Between turns it
 
 A turn-based agent cannot wake itself. Checking the inbox every few seconds costs tokens. And no tool can push a message into an idle chat window. The harness does notice when a background task ends. So the honest route is a background task that ends when mail comes.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Host | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture#host) | The AI app the user runs, which creates MCP clients and controls consent. |
+| Turn | [Codex](https://learn.chatgpt.com/docs/app-server#core-primitives) | One user request plus all the agent work and replies that follow it. |
+| Background subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background) | Subagents that keep working while you chat, then report when finished. |
+| Monitor tool | [Claude Code](https://code.claude.com/docs/en/tools-reference#monitor-tool) | Runs a command in the background and feeds each output line back to Claude. |
+| Idle notice | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging#get-a-notice-when-another-session-goes-idle) | A message telling one session when another session it watches goes idle. |
+| Channels | [Claude Code](https://code.claude.com/docs/en/channels) | MCP servers that push outside events, like chat messages, into a running session. |
+| agent.end | [Amp](https://ampcode.com/docs/customize/plugins#agent-end-continue-after-a-turn-ends) | An event after each turn where a plugin can add a follow-up message. |
+| Scheduled tasks | [Claude Code](https://code.claude.com/docs/en/scheduled-tasks) | Prompts that repeat on a timer or fire once inside a running session. |
+| Scheduled prompts | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/schedule-prompts#scheduling-a-recurring-prompt-with-every) | `/every` and `/after` run a prompt on a repeat or after a delay. |
+
+**How Aurora differs:** Aurora calls the host the harness. Like a background subagent, the listener ends and so grants a turn. Unlike a timer, it fires when real mail lands, not on a clock.
+
+</Callout>
+
 ## How it works
 
 - **Listen, don't read.** `scripts/bifrost_wake.py` blocks on your inbox and the broadcast stream. It keeps its own bookmark, so it sees mail without consuming it. You still read the mail yourself.
@@ -30,6 +48,22 @@ The `bifrost-standby` verb does the turn-end routine in one step. It drains your
 
 After each send, the bus also rings a doorbell. It is a tiny notice with no payload, on `bifrost:bell:<agent>`. The plan was for a dispatcher to hear it and start turns. That dispatcher has no caller yet, so the bell rings into an empty room. That is safe. The stream and the bookmark stay the truth.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Push notifications | [A2A](https://a2a-protocol.org/latest/topics/streaming-and-async/#push-notifications-for-disconnected-scenarios) | The agent calls a client webhook when a task changes. |
+| Subscriptions | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions) | A long-lived stream where a client opts in to change notices from a server. |
+| Subscriptions | [Cursor](https://cursor.com/docs/agent/projects#subscriptions) | Events a coordinator listens for, like Slack messages or schedules, to act unprompted. |
+| Webhooks | [Amp](https://ampcode.com/docs/orbs/event-driven#webhooks) | A plugin URL that stores incoming events and wakes its orb. |
+| Webhooks | [Cursor](https://cursor.com/docs/cloud-agent/api/webhooks) | HTTP calls Cursor sends to your URL when a Cloud Agent finishes or errors. |
+| GitHub Webhooks | [Amp](https://ampcode.com/docs/github#github-webhooks) | Threads subscribe to issues, pull requests and CI checks and wake on updates. |
+| Automations | [Cursor](https://cursor.com/docs/cloud-agent/automations) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-automations#triggers) | Agents that start on a schedule or when events happen in other tools. |
+
+**How Aurora differs:** The doorbell is the same kind of event notice. It carries no payload, and nothing listens to it yet. The listener on the bus stream wakes agents today.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -42,6 +76,16 @@ aurora bifrost-standby claude                                    # in the backgr
 - **A runner** — always awake, and it answers. A wake listener never answers. See [Runners](/docs/concepts/bifrost/runners).
 - **A nudge** — it interrupts an agent that is working. Wake rouses one that sleeps. See [Control plane](/docs/concepts/bifrost/control-plane).
 - **The doorbell** — only the notice. It is not the listener.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| .agents/setup and .agents/resume | [Amp](https://ampcode.com/docs/orbs/customizing) | Not the same: scripts that prepare a new orb and reconnect it after each wake. |
+
+**How Aurora differs:** In Amp, a wake resumes a sleeping machine. In Aurora, wake gives a sleeping agent a new turn.
+
+</Callout>
 
 ## How it connects
 

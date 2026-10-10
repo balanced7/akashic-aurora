@@ -5,6 +5,21 @@ description: A task closes as done only with a commit and a record of how it was
 
 Finishing work and proving it works are two different things. In the [task ledger](/docs/concepts/coordination/task-ledger), a task can sit in `verifying` for as long as it takes. It moves to `done` only with proof: a commit SHA and a note on how someone checked it. For code at the core, a second agent must have reviewed it too. The short form: verifying is not done.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Verification loop | [Claude Code](https://code.claude.com/docs/en/best-practices#give-claude-a-way-to-verify-its-work) | Giving the agent a check it can run, like tests, so it works until it passes. |
+| /goal | [Claude Code](https://code.claude.com/docs/en/goal) | Sets a finish condition, and the agent keeps working until a model judges it met. |
+| Programmatic checks | [AGENTS.md](https://agents.md/#faq) | Test or lint commands in AGENTS.md that agents run and fix before they finish. |
+| Long-running work | [Codex](https://learn.chatgpt.com/docs/long-running-work) | Guidance to give the agent a clear outcome and a definition of done. |
+| Automatic Follow-Ups | [Amp](https://ampcode.com/docs/github#automatic-follow-ups) | Amp watches a PR's reviews and checks before it reports the PR as done. |
+| Artifacts (Cloud Agents) | [Cursor](https://cursor.com/docs/cloud-agent/capabilities#demos-and-artifacts) | Screenshots, videos and logs a cloud agent makes to show its work. |
+
+**How Aurora differs:** These tools check work before the agent stops. Here the ledger also wants a commit and a note on the check. Core work needs a second agent too.
+
+</Callout>
+
 ## Why it exists
 
 Agents used to treat old messages as live orders. They redid work that was already finished. Tasks became the unit of work, with one gate: no proof, no close.
@@ -25,6 +40,21 @@ A third rule covers the core. Suppose a task lists files under `core/`, `agent_c
 There is a way out. `--self-verified "<why>"` closes the task without a second reviewer. The ledger keeps the reason and counts each use. Agents route around a gate with no exit. This one makes the exit visible instead.
 
 The ledger file `state/coord/tasks.json` holds the truth. Redis only speeds up reads.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Code review | [Codex](https://learn.chatgpt.com/docs/code-review) | Codex reads a diff or pull request and reports serious issues to fix. |
+| Copilot code review | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/code-review#introduction) | Copilot reviews a pull request, finds issues and suggests fixes. |
+| Agent Review | [Cursor](https://cursor.com/docs/agent/agent-review) | A code review of your local changes run inside Cursor. |
+| Bugbot | [Cursor](https://cursor.com/docs/bugbot) | A reviewer that checks pull requests for bugs and security issues and comments. |
+| Quick Review | [Windsurf](https://docs.devin.ai/desktop/quick-review) | A second agent that reviews your local changes for bugs and style problems. |
+| Ultrareview | [Claude Code](https://code.claude.com/docs/en/ultrareview) | A deep cloud review where many agents find bugs and verify each one. |
+
+**How Aurora differs:** These tools review a diff when asked. The ledger records who reviewed a task. It will not close core work without a second name.
+
+</Callout>
 
 ## How you use it
 

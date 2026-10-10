@@ -9,6 +9,23 @@ The toolbelt holds shortcut commands an agent writes for itself. Each shortcut, 
 
 Agents repeat the same few commands many times a day. Writing a new verb for each habit would grow the CLI without end. A toolbelt lets each agent keep its own habits, in its own file, under firm rules.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Custom commands | [Claude Code](https://code.claude.com/docs/en/skills) · [Gemini CLI](https://geminicli.com/docs/cli/custom-commands/#file-locations-and-precedence) | Your own saved prompts that you run as slash commands. |
+| Commands | [OpenCode](https://opencode.ai/docs/commands) | Saved prompts you run by typing / and a name. |
+| Slash commands | [Cursor](https://cursor.com/docs/skills#migrating-rules-and-commands-to-skills) · [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/prompt-files#_use-a-prompt-file-in-chat) | Commands typed after a slash that run saved prompts, prompt files or skills. |
+| Workflows | [Windsurf](https://docs.devin.ai/desktop/cascade/workflows) · [Cline](https://docs.cline.bot/getting-started/config#configuration-directory-layout) | Saved step-by-step prompt files you run yourself. |
+| Prompt files | [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/prompt-files) | Reusable .prompt.md files you run as slash commands to repeat a task. |
+| Custom prompts | [Codex](https://learn.chatgpt.com/docs/custom-prompts) | Old Markdown files that ran as your own slash commands. Now deprecated. |
+| Saved Prompts | [Amp](https://ampcode.com/docs/puck#send-saved-prompts) | Named prompts, like ship or review, that you send to a thread by name. |
+| Tool sets | [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/tool-sets) | Named groups of tools that you can reference as one item. |
+
+**How Aurora differs:** Their shortcuts save a prompt for a person to run. An alias saves a list of CLI verbs. The agent mints it and runs it.
+
+</Callout>
+
 ## How it works
 
 - **Sugar only.** An alias can only chain known verbs. If a step names a verb the CLI does not know, minting fails with an error.
@@ -20,6 +37,29 @@ Agents repeat the same few commands many times a day. Writing a new verb for eac
 - **CLI only.** The toolbelt has no MCP tool.
 
 The toolbelt is the bottom rung of a ladder. A verb grows into a combo, then a macro that takes arguments `$1` to `$9`. A tool is a draft script that runs in a locked-down sandbox. A kit is a bundle of entries you can install on a seat. The first kit is `recovery-kit`.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Skills | [Claude Code](https://code.claude.com/docs/en/skills) · [Codex](https://learn.chatgpt.com/docs/build-skills) · [Cursor](https://cursor.com/docs/skills#what-are-skills) | Folders of instructions and scripts that teach the agent a task. |
+| Agent skills | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills#creating-and-adding-a-skill) | Folders with a SKILL.md file that load only when a task needs them. |
+| Name collisions | [Agent Skills](https://agentskills.io/client-implementation/adding-skills-support#handling-name-collisions) | When two skills share a name, a fixed rule picks one. |
+| Skill Sources and Precedence | [Amp](https://ampcode.com/docs/customize/skills#skill-sources-and-precedence) | The ordered list of places searched for skills, where the first name wins. |
+| Workflow Precedence | [Windsurf](https://docs.devin.ai/desktop/cascade/workflows#workflow-precedence) | The order that picks a workflow when several share a name. |
+| Record & Replay | [Codex](https://learn.chatgpt.com/docs/extend/record-and-replay) | Show a workflow once, and it drafts a reusable skill from the recording. |
+| Custom Tools | [Cline](https://docs.cline.bot/tools-reference/all-cline-tools#custom-tools) · [OpenCode](https://opencode.ai/docs/custom-tools) | New tools you write in code that the model can call. |
+| Register a Tool | [Amp](https://ampcode.com/docs/customize/plugins#register-a-tool) | Plugins can add custom tools that the agent can call. |
+| Sandboxing | [Claude Code](https://code.claude.com/docs/en/sandboxing) | OS limits on which files and hosts shell commands can reach. |
+| Tool sandboxing | [Gemini CLI](https://geminicli.com/docs/cli/sandbox/#tool-sandboxing) | A sandbox around each tool call instead of the whole app. |
+| Plugins | [Claude Code](https://code.claude.com/docs/en/plugins/overview) · [Cursor](https://cursor.com/docs/plugins#what-plugins-contain) · [Codex](https://learn.chatgpt.com/docs/plugins) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/about-plugins#what-is-a-plugin) · [Amp](https://ampcode.com/docs/customize/plugins) | Installable bundles of skills, hooks, MCP servers and more. |
+| Extensions | [Gemini CLI](https://geminicli.com/docs/extensions/) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md) | Installable packages or modules that add tools, commands and more. |
+| CLI extensions | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-cli-extensions#extensions-compared-with-plugins) | A JavaScript module that adds your own tools and slash commands. |
+| Pi packages | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md) | Bundles of extensions, skills, prompts and themes shared through npm or git. |
+
+**How Aurora differs:** Skills and plugins can add new power. An alias cannot. It chains verbs that already exist and carries a tested label.
+
+</Callout>
 
 ## How you use it
 
@@ -37,6 +77,17 @@ aurora tool list claude
 
 - **A real verb** — lives in `agent_cli.py` and works for everyone. An alias belongs to one agent.
 - **The Eye's evidence grades** — recorded, derived and inferred describe links in [the Eye](/docs/concepts/narrative/the-eye). Toolbelt labels describe how well someone tested an alias.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Model configuration | [Claude Code](https://code.claude.com/docs/en/model-config) | Not the same: aliases there are short names for Claude models. |
+| Advanced model configuration | [Gemini CLI](https://geminicli.com/docs/cli/generation-settings/#2-configuration-primitives) | Not the same: model aliases there set model names and settings. |
+
+**How Aurora differs:** An Aurora alias is a shortcut command. It never names a model.
+
+</Callout>
 
 ## How it connects
 

@@ -27,6 +27,27 @@ The [narrative spine](/docs/concepts/narrative/narrative-spine) keeps only the i
 - `SignalEmitter` gives agents plain verbs, such as `emit_blocker_preventing_progress`. It never touches Redis.
 - Today `handoff` is the main live user. The architecture docs call signals "the older domain layer".
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Hook events | [Claude Code](https://code.claude.com/docs/en/hooks#hook-events) · [Codex](https://learn.chatgpt.com/docs/hooks#config-shape) | Named points in a session where hooks can run, such as PreToolUse and Stop. |
+| Hook Stages | [Cline](https://docs.cline.bot/sdk/plugins#hook-stages) | Named moments a hook can run at, such as tool_call_before and run_end. |
+| Plugin events (hooks) | [OpenCode](https://opencode.ai/docs/plugins#events) | Named events, like tool.execute.before, that plugins can run code on. |
+| Events (SSE) | [OpenCode](https://opencode.ai/docs/server#events) | A server-sent event stream that reports what happens across sessions. |
+| JSON Output | [Cline](https://docs.cline.bot/cli/cli-reference#json-output-for-agent-runs) | A flag that prints one JSON event per line for scripts to read. |
+| JSON mode | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/json.md) | A one-shot mode that writes every agent event as JSON lines. |
+| SDK Events | [Cline](https://docs.cline.bot/sdk/events) | Events your code can subscribe to for streaming output, usage and cancel. |
+| OpenTelemetry monitoring | [Claude Code](https://code.claude.com/docs/en/monitoring-usage) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/guides/monitoring-agents) | Export of metrics and events about agent activity to your own monitoring tools. |
+| OpenTelemetry Export | [Cursor](https://cursor.com/docs/enterprise/opentelemetry-export) | Enterprise export of agent activity, and optionally chat content, to telemetry tools. |
+| Observability and telemetry | [Codex](https://learn.chatgpt.com/docs/config-file/config-advanced#observability-and-telemetry) | Opt-in OpenTelemetry export of Codex events and metrics. |
+| Observability with OpenTelemetry | [Gemini CLI](https://geminicli.com/docs/cli/telemetry/#opentelemetry-integration) | Built-in logs, metrics and traces of agent activity for local or cloud tools. |
+| Session logs | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/use-copilot-agents/manage-and-track-agents#trace-commits-to-session-logs) | A live record of what a cloud agent session did, linked to its commits. |
+
+**How Aurora differs:** Hooks are where the firehose gets its events. Other tools send their streams out to scripts or monitors. Aurora keeps each event on the Ledger with a pointer, and adds eight fixed kinds of signal.
+
+</Callout>
+
 ## How you use it
 
 ```bash

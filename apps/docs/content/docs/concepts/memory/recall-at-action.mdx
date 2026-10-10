@@ -13,6 +13,26 @@ Recall at action brings lessons to you at the moment you act. Right before you e
 
 Lessons sat in storage. Agents seldom read them at the moment they mattered. [Boot](/docs/concepts/memory/boot) shows lessons at the start, which is often far from the moment of use. So a hook puts lessons in front of the agent at the point of action. A later rework added three things. It made matching favor each lesson's trigger. It added a floor below which recall stays silent. And it stopped echoing an agent's own fresh lessons back to it.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Rule types | [Cursor](https://cursor.com/docs/rules#rule-anatomy) | Settings that load a rule always, when relevant, for matching files, or when mentioned. |
+| Activation Modes | [Windsurf](https://docs.devin.ai/desktop/cascade/memories#activation-modes) | A rule setting for when the agent sees it: always, by choice, by file, or manually. |
+| Conditional Rules | [Cline](https://docs.cline.bot/customization/cline-rules#conditional-rules) | Rules that switch on only when you work with files that match their path patterns. |
+| Rules | [Claude Code](https://code.claude.com/docs/en/memory#organize-rules-with-claude/rules/) | Small files in .claude/rules/ that can load only when Claude touches matching paths. |
+| Path-specific custom instructions | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions#creating-path-specific-custom-instructions) | NAME.instructions.md files that apply only when Copilot works on files matching a glob. |
+| Granular Guidance | [Amp](https://ampcode.com/docs/customize/agents-md#granular-guidance) | Guidance files with globs that load only after the agent reads a matching file. |
+| Just-in-time (JIT) context files | [Gemini CLI](https://geminicli.com/docs/cli/gemini-md/#understand-the-context-hierarchy) | GEMINI.md files added to context only when a tool touches their folder. |
+| Nested AGENTS.md files | [AGENTS.md](https://agents.md/#faq) · [Cursor](https://cursor.com/docs/rules#agentsmd) · [Windsurf](https://docs.devin.ai/desktop/cascade/agents-md) | AGENTS.md files in subfolders that apply when the agent works on files inside them. |
+| Model-driven activation | [Agent Skills](https://agentskills.io/client-implementation/adding-skills-support#model-driven-activation) | The model decides a skill fits the task and loads its full instructions itself. |
+| Skill invocation | [Codex](https://learn.chatgpt.com/docs/build-skills#how-chatgpt-and-codex-use-skills) | You name a skill, or Codex picks it when the task matches. |
+| activate_skill tool | [Gemini CLI](https://geminicli.com/docs/tools/activate-skill/#description) | The tool the agent calls to load a skill's instructions when a task matches it. |
+
+**How Aurora differs:** These load fixed text that a person wrote for a path or a task. Recall at action ranks lessons that agents wrote after real failures. It shows at most three lessons, or none.
+
+</Callout>
+
 ## How it works
 
 ```mermaid
@@ -58,6 +78,28 @@ Recall-at-action (Akashic) - facts relevant to what you're about to do:
 
 The tag in brackets gives each lesson's status, author and credit. A `[lock]` line comes first when a peer holds the file.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Hooks | [Claude Code](https://code.claude.com/docs/en/hooks-guide) · [Cursor](https://cursor.com/docs/hooks) · [Codex](https://learn.chatgpt.com/docs/hooks) · [Gemini CLI](https://geminicli.com/docs/hooks/#what-are-hooks) · [Cline](https://docs.cline.bot/sdk/plugins#hook-stages) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/hooks#what-are-hooks) | Your own scripts that the tool runs at set points, such as before a tool call. |
+| Cascade Hooks | [Windsurf](https://docs.devin.ai/desktop/cascade/hooks) | Your own shell commands that run at key points in the agent's work. |
+| PreToolUse | [Claude Code](https://code.claude.com/docs/en/hooks#hook-events) · [Codex](https://learn.chatgpt.com/docs/hooks#pretooluse) · [Cline](https://docs.cline.bot/customization/clineignore#enforcing-clineignore-with-a-hook) | A hook event that runs before a tool call and can block it. |
+| preToolUse | [Cursor](https://cursor.com/docs/hooks#hook-categories) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/hooks#types-of-hooks) | A hook event that fires before the agent uses a tool. |
+| BeforeTool | [Gemini CLI](https://geminicli.com/docs/hooks/reference/#beforetool) | A hook that runs before a tool executes so it can check, rewrite, or block the call. |
+| Hook Events | [Windsurf](https://docs.devin.ai/desktop/cascade/hooks#hook-events) | Named moments a hook can run on, such as before reading code. |
+| tool.execute.before | [OpenCode](https://opencode.ai/docs/plugins#events) | A plugin event that fires before a tool runs. |
+| tool.call | [Amp](https://ampcode.com/docs/customize/plugins#event-examples) | A plugin event that fires when the agent calls a tool. |
+| Extension events | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md#events-and-concurrency) | Lifecycle events extensions listen to, to watch, change or block what Pi does. |
+| Third Party Hooks | [Cursor](https://cursor.com/docs/reference/third-party-hooks) | Cursor can load and run hooks set up for Claude Code. |
+| Agent hooks | [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/hooks#_configure-hooks-for-the-local-harness) | VS Code hooks that run commands at agent lifecycle events, with formats per harness. |
+| System reminder | [Claude Code](https://code.claude.com/docs/en/glossary#system-reminder) | A message Claude Code adds to the chat, such as hook output, to give Claude context. |
+| Deduplicate activations | [Agent Skills](https://agentskills.io/client-implementation/adding-skills-support#deduplicate-activations) | Tracking loaded skills so the same instructions are not added to context twice. |
+
+**How Aurora differs:** Aurora uses the same hook point, right before a tool runs. Other tools leave the script to you. Aurora's hook brings lessons from every agent, with no repeats in a session.
+
+</Callout>
+
 ## How you use it
 
 To turn the hook on for a project, add one entry to its `.claude/settings.json`. [Recall before you act](/docs/how-to/recall-before-you-act) gives the exact entry and how to check it. You can also run the same lookup by hand:
@@ -77,6 +119,16 @@ Boot prints a "recall-at: armed" line whether or not you installed the hook. It 
 - **[Recall loop](/docs/concepts/memory/recall-loop)** — the scoring that learns which lessons help. Recall at action feeds it and reads from it.
 - **Boot's lesson list** — shown once, at the start, within a budget.
 - **The peer lock** — the same hook denies an edit to a file another agent [holds a lock on](/docs/concepts/coordination/locks). Recall at action only reports the lock. The hook enforces it.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Prompt cache warming | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/settings.md#model-and-thinking) | Not the same: keeps a model provider's prompt cache warm to avoid costly misses. |
+
+**How Aurora differs:** Boot warms Aurora's own disk cache of lessons. That cache has nothing to do with a model's prompt cache.
+
+</Callout>
 
 ## How it connects
 

@@ -11,6 +11,16 @@ A car whose radio dies keeps driving. The radio never stops the engine.
 
 Agents run hooks around every action. Hooks log, add moments to the story and track recall. If a hook can crash, a side job can block the real work. The first warning was a 48-second hang. Each module that pinged a down Redis froze that long. The README states the rule: "a hook must never brick the action it decorates."
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Hook Policies | [Cline](https://docs.cline.bot/sdk/plugins#hook-policies) | Settings that make a hook block or run in the background, with a timeout and retries. |
+
+**How Aurora differs:** Cline lets you pick how each hook behaves. In Aurora, no hook may block the action it wraps. A failed hook lets the work go on.
+
+</Callout>
+
 ## How it works
 
 - **Storage:** making a Store or a Ledger never fails on a down Redis. Both fall back to files. See [hybrid storage](/docs/concepts/foundations/hybrid-storage).
@@ -19,6 +29,17 @@ Agents run hooks around every action. Hooks log, add moments to the story and tr
 - **Boot:** the repair at boot never raises. A skipped repair beats a broken boot.
 - **Watching:** a counter or heartbeat that fails returns quietly. Watching must never break what it watches.
 - **Code rule:** a deliberate catch-all needs a comment, `# fail-soft: <why>`. It must also log or document what it falls back to.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Automatic retry | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/settings.md#network-and-retries) | Pi retries a turn after a short provider failure, waiting longer each time. |
+| Model routing | [Gemini CLI](https://geminicli.com/docs/cli/model-routing/#how-it-works) | Switches to a fallback model when the chosen model fails or runs out of quota. |
+
+**How Aurora differs:** Those tools retry or switch when the model fails. Aurora keeps going when a helper part fails, such as Redis. It does less and says what it lost.
+
+</Callout>
 
 ### Soft, not silent
 

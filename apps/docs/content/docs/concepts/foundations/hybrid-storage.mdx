@@ -47,6 +47,16 @@ uv run python -m core.foundation.embedded_redis --status   # is the stand-in run
 - **`durable_reconcile`** — a separate tool that a person runs before a move to SQLite. It can overwrite, but it keeps the old value aside. The boot repair keeps no copy of what it overwrites.
 - **Embedded Redis and the bus** — embedded Redis is a stand-in server. It is not a second [bus](/docs/concepts/bifrost/bus).
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Backend Modes | [Cline](https://docs.cline.bot/sdk/architecture/hub-spoke#backend-modes) | Not the same: settings that choose where the agent runs, through a hub or in process. |
+
+**How Aurora differs:** In Aurora, a backend is a storage engine under the Store and the Ledger. It decides where data lives, not where the agent runs.
+
+</Callout>
+
 ## How it connects
 
 - **Built on:** Redis, plain files and SQLite; it applies the [fail soft](/docs/concepts/foundations/fail-soft) rule

@@ -41,6 +41,18 @@ sequenceDiagram
 - **Watching.** The [console](/docs/concepts/bifrost/console) shows it all on one local web page.
 - **Other fleets.** The [bridge](/docs/concepts/bifrost/bridge) carries signed mail to another install.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent teams | [Claude Code](https://code.claude.com/docs/en/agent-teams) · [Cline](https://docs.cline.bot/cli/agent-teams) | A lead agent runs teammates that share a task board and message each other. |
+| Orchestration and thread controls | [Codex](https://learn.chatgpt.com/docs/agent-configuration/subagents#orchestration-and-thread-controls) | Codex spawns subagents, routes follow-ups, waits for results and closes their threads. |
+| A2A and MCP | [A2A](https://a2a-protocol.org/latest/topics/a2a-and-mcp/) | A2A links agents to each other, while MCP links each agent to its tools. |
+
+**How Aurora differs:** Those teams hold agents of one app, but Bifrost links many apps. Like A2A, the bus joins agents. The MCP door joins each agent to Aurora.
+
+</Callout>
+
 <Cards>
   <Card title="Bus" href="/docs/concepts/bifrost/bus" description="The live, throwaway mail system on Redis, where mail waits in each agent's own inbox until that agent reads it." />
   <Card title="Seats" href="/docs/concepts/bifrost/seats" description="One live agent on the bus, with its own name, inbox, lock and heartbeat, so others can reach it later." />

@@ -11,6 +11,16 @@ aurora ask --with core/comm/bus.py "What does consume() do when the cursor is pa
 
 `--with` inlines the file with line numbers, so the answer can cite real lines.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents) · [Codex](https://learn.chatgpt.com/docs/agent-configuration/subagents) · [Cursor](https://cursor.com/docs/subagents#how-subagents-work) · [Cline](https://docs.cline.bot/features/subagents) · [Gemini CLI](https://geminicli.com/docs/core/subagents/#what-are-subagents) · [OpenCode](https://opencode.ai/docs/agents#subagents) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/subagents#_when-to-use-subagents) | Helper agents with their own context that do a focused task and report back. |
+
+**How Aurora differs:** A subagent has tools and works through steps. An ask is one question to a helper model, with one answer back.
+
+</Callout>
+
 ## Ask in the background
 
 ```bash
@@ -18,6 +28,17 @@ aurora ask --bg --with core/comm/roster.py "List every writer of the roster."
 ```
 
 You get a handle back instead of a wall of text. Fetch the answer later with `aurora ask --get <handle>`.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Foreground and background subagents | [Cursor](https://cursor.com/docs/subagents#foreground-vs-background) | Subagents either block until done or return at once and keep working. |
+| Background subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background) · [OpenCode](https://opencode.ai/docs/cli#experimental) | Subagent tasks that run in the background while you keep working. |
+
+**How Aurora differs:** A background ask hands you a handle, not a running agent. You fetch the answer when you want it.
+
+</Callout>
 
 ## Fan out
 
@@ -34,6 +55,17 @@ aurora ask --geometry lens --preset findings \
 ```
 
 `--geometry` declares the shape of the fan. Aurora checks the shape before it spends anything. It refuses a combination that makes no sense.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Fan Out Independent Work | [Amp](https://ampcode.com/docs/orbs/agent-to-agent#fan-out-independent-work) | Runs several threads in parallel on separate parts of a problem, then sums them up. |
+| /fleet | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet#how-fleet-works) | Splits a big request into subtasks and runs them in parallel with subagents. |
+
+**How Aurora differs:** Those split one job into parts. An Aurora fan asks different questions about the same thing. You declare its shape first, and Aurora checks it.
+
+</Callout>
 
 ## Read the results
 

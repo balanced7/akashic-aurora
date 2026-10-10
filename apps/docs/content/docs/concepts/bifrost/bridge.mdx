@@ -11,6 +11,16 @@ The bridge links your fleet to another fleet on another machine. It carries mail
 
 The project owner wanted a partner's agent to talk with this fleet. But not everyone should get in. The design borrowed a rule from the Discord link to the owner's phone. Sending out is safe. Letting in is where all the risk lives. A remote message that talks an agent into running commands would be a real danger.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Security best practices | [MCP](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices) | Guidance on attacks against MCP setups and how to block them. |
+
+**How Aurora differs:** The bridge treats incoming words as the main risk. Remote mail waits in a file until a person lets it in.
+
+</Callout>
+
 ## How it works
 
 - **Out.** Each envelope carries a signature (HMAC-SHA256) made with a shared secret. The bridge posts it to the peer. A file outbox holds it until the peer confirms, so a failed post gets another try.
@@ -22,6 +32,20 @@ The project owner wanted a partner's agent to talk with this fleet. But not ever
 - **Secrets.** Keys live in files under `.secrets/`, which git never tracks. The config names the file, never the secret.
 
 Today the outbox empties only when someone presses a button in the [console](/docs/concepts/bifrost/console).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent2Agent (A2A) protocol | [A2A](https://a2a-protocol.org/latest/topics/what-is-a2a/) | An open protocol that lets agents from different makers find each other and work together. |
+| A2A Client | [A2A](https://a2a-protocol.org/latest/topics/key-concepts/#core-actors-in-a2a-interactions) | An app or agent that sends requests to a remote agent. |
+| A2A Server (Remote Agent) | [A2A](https://a2a-protocol.org/latest/topics/key-concepts/#core-actors-in-a2a-interactions) | An agent that exposes an A2A endpoint, takes requests and returns results. |
+| Agent Card signing | [A2A](https://a2a-protocol.org/latest/specification/#84-agent-card-signing) | Signing an Agent Card so clients can check it is real and unchanged. |
+| Remote Subagents (A2A) | [Gemini CLI](https://geminicli.com/docs/core/remote-agents/#defining-remote-subagents) | Subagents on other services, reached over the A2A protocol. |
+
+**How Aurora differs:** The bridge does a narrow version of this job. It signs each message, not an agent card. It carries mail, never tasks or control.
+
+</Callout>
 
 ## How you use it
 
@@ -36,6 +60,19 @@ uv run scripts/remote_bridge_relay.py --once    # let parked mail onto the bus
 
 - **The Discord bridge** — it links the fleet to the owner's phone, not to another fleet.
 - **The name Bifrost** — a bridge between agents in different tools on one machine.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Connectors | [Cline](https://docs.cline.bot/cli/connectors) | Links that let you chat with your agent from Slack, Telegram or Linear. |
+| Slack Integration | [Amp](https://ampcode.com/docs/puck/slack-integration) | Use your personal Puck from Slack to start and follow agents. |
+| Slack integration | [Cursor](https://cursor.com/docs/integrations/slack) | Mention @cursor in Slack to start and manage Cloud Agents. |
+| Claude Tag | [Claude Code](https://claude.com/docs/claude-tag/overview) | Claude working in your Slack channels, with access set by your admins. |
+
+**How Aurora differs:** These match the Discord bridge, a link from a chat app to the fleet. The fleet bridge links one fleet to another.
+
+</Callout>
 
 ## How it connects
 

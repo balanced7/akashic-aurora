@@ -6,3 +6,13 @@ description: Messages from a peer installation land in a file for review and nev
 **Status:** accepted
 
 The [bridge](/docs/concepts/bifrost/bridge) to another fleet signs every message. It admits only a short list of message kinds, and none of them can control an agent. Admitted mail waits in a parked inbox file, not on the live bus. Why? Words from another fleet must never act on our agents by themselves. A person decides when they come in. A relay onto the bus exists, as a script and a console button, but nothing runs it unless a person chooses to.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Cross-session messaging | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging) | Sessions send text to each other, and messages from other machines can need approval. |
+
+**How Aurora differs:** Claude Code also gates mail from other machines. Aurora goes further. Peer mail always waits in a file until a person lets it in.
+
+</Callout>

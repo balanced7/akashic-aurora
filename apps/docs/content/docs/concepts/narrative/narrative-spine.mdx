@@ -35,6 +35,18 @@ Chapters keep stable ids. A rerun on the same Beats rebuilds the same chapter in
 
 <Callout type="warn" title="Built, not yet wired">A drift check, which warns when work wanders off its track, exists in code, but nothing calls it yet.</Callout>
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Spaces | [Windsurf](https://docs.devin.ai/desktop/spaces) | Groups that hold all the sessions, PRs, files and context for one task or project. |
+| Labels | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/session-format.md#labelentry) | User bookmarks on a session entry, such as a named checkpoint. |
+| Team State (task board, mailbox, mission log) | [Cline](https://docs.cline.bot/cli/agent-teams#team-state) | Each agent team keeps a task board, a mailbox and a log in a local database. |
+
+**How Aurora differs:** Their tools group chats by project or mark a point in one. The spine builds a story from every record. It groups Beats into chapters, one track per project.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -51,6 +63,19 @@ aurora log decision --summary "Use SQLite for the index"
 - **chronicle** — the curated highlights in `chronicles/`. Never call the raw event log a chronicle. The Chronicler is the process that writes them.
 - **Track** — a story thread, not a git branch or a task.
 - **Theme** — not a tag on a lesson, and not a recall domain.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Themes | [OpenCode](https://opencode.ai/docs/themes) · [Gemini CLI](https://geminicli.com/docs/cli/themes/#available-themes) | Not the same: color schemes for the app screen. |
+| Threads | [Amp](https://ampcode.com/docs/threads) | Not the same: one conversation with the agent, with prompts, replies and changed files. |
+| Thread | [Codex](https://learn.chatgpt.com/docs/app-server#threads) | Not the same: the stored object that holds one conversation and its turns. |
+| /chronicle | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/chronicle#using-the-chronicle-slash-command) | Not the same: a command that answers questions and builds reports from past sessions. |
+
+**How Aurora differs:** In Aurora, a theme is an idea that cuts across tracks. A track is the project thread. A chronicle is the curated highlights.
+
+</Callout>
 
 ## How it connects
 

@@ -29,4 +29,23 @@ Now `boot`, `learn` and `recall` work as usual, but only on your sandbox. Close 
 
 <Callout type="warn" title="REDIS_DB alone is not a sandbox">It only moves the Redis copy. Aurora always writes a file copy too, so without `AI_SETUP` your lessons still land in the real files.</Callout>
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Sandbox mode | [Cline](https://docs.cline.bot/getting-started/config#environment-variables) | Running Cline with its own data folder, so tests do not touch your real state. |
+| Ephemeral session | [Codex](https://learn.chatgpt.com/docs/non-interactive-mode#basic-usage) | A non-interactive run that saves no session state after it ends. |
+| Sandboxing | [Claude Code](https://code.claude.com/docs/en/sandboxing) · [Cursor](https://cursor.com/docs/agent/security/run-modes#sandboxing) · [Gemini CLI](https://geminicli.com/docs/cli/sandbox/#overview-of-sandboxing) · [Windsurf](https://docs.devin.ai/desktop/devin-local#sandboxing) | Not the same: OS limits on which files and network hosts commands can reach. |
+| Sandbox | [Codex](https://learn.chatgpt.com/docs/sandboxing) | Not the same: an enforced boundary on the files and network Codex commands use. |
+| sandbox.json | [Cursor](https://cursor.com/docs/reference/sandbox) | Not the same: a file that sets which domains and paths sandboxed commands can reach. |
+| Tool sandboxing | [Gemini CLI](https://geminicli.com/docs/cli/sandbox/#tool-sandboxing) | Not the same: isolation applied to each single tool call, not the whole CLI. |
+| Local sandboxing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/about-cloud-and-local-sandboxes#how-local-sandboxing-works) | Not the same: an OS-level policy that limits file reads, writes and network access. |
+| Cloud sandboxing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/about-cloud-and-local-sandboxes#cloud-sandboxing) | Not the same: a session that runs in a short-lived Linux machine hosted by GitHub. |
+| Agent sandboxing | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/agent-sandboxing#_understand-the-sandbox-boundary) | Not the same: limits on what agent terminal commands in VS Code can touch. |
+| Containerization and sandboxing | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/containerization.md) | Not the same: running Pi or its tools inside Docker or a micro VM. |
+
+**How Aurora differs:** Aurora's sandbox fences data, not commands. It sends memory writes to a throwaway folder and a test database. Cline's sandbox mode is the closest match.
+
+</Callout>
+
 The test suite also uses database 15 and wipes it, so keep nothing there you need. It also keeps what you wrote last time, so a new sandbox may show an old test lesson. You don't need to install Redis. If none was running the first time you used Aurora, it starts a small embedded one, and that one has database 15 too. See [Hybrid storage](/docs/concepts/foundations/hybrid-storage).

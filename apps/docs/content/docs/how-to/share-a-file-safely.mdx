@@ -15,4 +15,17 @@ aurora unlock my_agent core/comm/bus.py    # release when done
 - If you crash, the lock expires on its own. Nobody stays blocked.
 - Use a stable agent id, for example with `AKASHIC_AGENT_ID`. Locks and handoffs then point at the right agent.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Worktrees | [Claude Code](https://code.claude.com/docs/en/worktrees) · [Codex](https://learn.chatgpt.com/docs/environments/git-worktrees) · [Cursor](https://cursor.com/docs/configuration/worktrees) · [Windsurf](https://docs.devin.ai/desktop/cascade/worktrees) | Separate git checkouts, so each agent edits its own copy of the files. |
+| Worktree isolation | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/agent-harnesses#_choose-code-isolation) | Runs a session in its own git worktree, so its edits stay out of your workspace. |
+| Isolated project copies | [Cursor](https://cursor.com/docs/subagents#isolated-project-copies) | Runs each subagent in its own worktree or cloud copy so parallel edits do not clash. |
+| Simultaneous Cascades | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#simultaneous-cascades) | Several agent chats at once, where edits to one file can race and fail. |
+
+**How Aurora differs:** Those tools give each agent a private copy, and you merge later. Aurora lets live agents share files. An agent takes a short lock on a shared path instead.
+
+</Callout>
+
 The lock is advisory: it works because cooperating agents check it. In Claude Code, the edit hook checks it for you and blocks an edit to a path someone else holds. See [Locks](/docs/concepts/coordination/locks).

@@ -26,6 +26,18 @@ sequenceDiagram
 
 Here is what the project learned. Storage was never the problem. Lessons piled up fast. The hard part was getting the right lesson to the moment of use. Most of this section serves that one goal.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Auto memory | [Claude Code](https://code.claude.com/docs/en/memory#auto-memory) | Notes Claude writes for itself about your project and preferences, kept across sessions. |
+| Memories | [Codex](https://learn.chatgpt.com/docs/customization/memories) · [Windsurf](https://docs.devin.ai/desktop/cascade/memories#memories) | Notes or facts the agent saves from past chats and reuses in later sessions. |
+| Copilot Memory | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-memory#types-of-memories) | Facts about a repository and your preferences that Copilot learns and reuses later. |
+
+**How Aurora differs:** Most of these keep memory for one user or one agent. Every agent on the project shares Aurora's lessons. Aurora pushes a lesson right before the edit or command it fits.
+
+</Callout>
+
 The rest supports the loop. The [ranker and distiller](/docs/concepts/memory/ranker-and-distiller) pick what matters and pack it small. That page also covers [embeddings](/docs/concepts/memory/ranker-and-distiller), which match text by meaning. [Notes](/docs/concepts/memory/notes-and-agent-memory) hold project state. [Chronicles](/docs/concepts/memory/chronicles) are digests made from the records. The [library](/docs/concepts/memory/library) files the house docs. The [manuals shelf](/docs/concepts/tools/manuals-shelf) and [discover](/docs/concepts/tools/discover) now live under House tools.
 
 ## Where memory lives

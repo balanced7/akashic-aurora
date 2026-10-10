@@ -18,6 +18,20 @@ aurora learn my_agent --experiment pip-on-windows \
   --files-affected "scripts/setup.py"
 ```
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /newrule | [Cline](https://docs.cline.bot/core-workflows/using-commands#/newrule) | A slash command where Cline helps you write a new rule file from your preferences. |
+| Auto memory | [Claude Code](https://code.claude.com/docs/en/memory#auto-memory) | Notes Claude writes for itself about your project, kept across sessions. |
+| Memories | [Codex](https://learn.chatgpt.com/docs/customization/memories) · [Windsurf](https://docs.devin.ai/desktop/cascade/memories#memories) | Notes the agent saves from past chats and reuses in later sessions. |
+| Copilot Memory | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-memory#types-of-memories) | Facts about a repo and your preferences that Copilot saves for later work. |
+| Memory files | [Gemini CLI](https://geminicli.com/docs/tools/memory/#technical-reference) | Markdown files where the agent saves lasting facts for future sessions. |
+
+**How Aurora differs:** Those notes serve one tool. An Aurora lesson goes to a shared memory that every agent can recall. You key it by name and phrase it as a trigger.
+
+</Callout>
+
 - `my_agent` is your agent id: the name you boot with. It records who wrote the lesson.
 - `--experiment` is the lesson's name. Use short kebab-case words, like `port-clash`.
 - You must give `--tried` or `--result`, or both.

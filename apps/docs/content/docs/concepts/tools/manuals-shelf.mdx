@@ -9,6 +9,20 @@ The manuals shelf holds manuals from outside the project, like Apple's design gu
 
 Agents doing design work need vendor rules. A whole manual would flood their context. Someone suggested loading manuals into DuckDB, a database the project did not use. A closer look showed the trick was simpler. DuckDB's own docs were small sections, ranked by BM25, a classic keyword method. The project already had BM25. It came with SQLite's full-text index (FTS5), which [the Eye](/docs/concepts/narrative/the-eye) used. So the shelf kept SQLite. In its WAL mode, SQLite also lets many seats read while one ingests, which a shared DuckDB file would not.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Progressive disclosure | [Agent Skills](https://agentskills.io/specification#progressive-disclosure) · [Codex](https://learn.chatgpt.com/docs/build-skills) · [Windsurf](https://docs.devin.ai/desktop/cascade/skills) | Loading a skill in stages: short metadata first, full text on use, extra files when needed. |
+| Skills | [Claude Code](https://code.claude.com/docs/en/skills) · [Cursor](https://cursor.com/docs/skills#what-are-skills) · [Cline](https://docs.cline.bot/customization/skills) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md) | Folders with a SKILL.md of task instructions that the agent loads only when needed. |
+| Agent Skills | [Gemini CLI](https://geminicli.com/docs/cli/skills/#how-it-works) · [OpenCode](https://opencode.ai/docs/skills) | Instruction folders the agent loads on demand when a task needs them. |
+| Agent skills | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills#creating-and-adding-a-skill) | Folders with a SKILL.md and scripts that Copilot loads only when a task needs them. |
+| skill tool | [OpenCode](https://opencode.ai/docs/tools#skill) | A built-in tool that loads a skill's SKILL.md content into the conversation. |
+
+**How Aurora differs:** Skills load know-how in stages to save context. The shelf goes one step smaller. A search returns a few labeled passages from a large manual.
+
+</Callout>
+
 ## How it works
 
 - **Convert.** Markdown, plain text, Apple's DocC JSON, HTML and PDF become titled sections.
@@ -21,6 +35,21 @@ Agents doing design work need vendor rules. A whole manual would flood their con
 The database is `state/manuals/manuals.db` under the data root, which git ignores. It stays out of git, because vendor manuals are under copyright.
 
 <Callout type="info" title="Works without the model">If the optional model is not installed, search falls back to keywords and says so.</Callout>
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Optional directories | [Agent Skills](https://agentskills.io/specification#optional-directories) | Standard skill subfolders for scripts, reference docs, and templates or data. |
+| Bundling Supporting Files | [Cline](https://docs.cline.bot/customization/skills#bundling-supporting-files) | Extra docs, templates and scripts kept inside a skill folder for Cline to use. |
+| References | [OpenCode](https://opencode.ai/docs/references) | Named local folders or Git repos outside the project that OpenCode reads as extra context. |
+| Librarian | [Amp](https://ampcode.com/docs/tools#librarian) | A subagent that researches public GitHub code and your private repos to answer questions. |
+| Scout subagent | [OpenCode](https://opencode.ai/docs/agents#use-scout) | A read-only subagent that researches outside docs and dependency source code. |
+| Internal documentation tool | [Gemini CLI](https://geminicli.com/docs/tools/internal-docs/#description) | A tool that lets the agent read Gemini CLI's own docs to answer questions about itself. |
+
+**How Aurora differs:** These read whole files, or send a helper agent to research. The shelf keeps manuals in a local search index. A query returns at most eight passages, each with its path.
+
+</Callout>
 
 ## How you use it
 

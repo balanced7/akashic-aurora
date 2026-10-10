@@ -7,6 +7,16 @@ description: Corrections add a new record that retires the old one, so nobody ed
 
 Events and library atoms are append-only. To correct a record, you add a newer one that retires it. A simple record, such as a note, carries `supersedes` with the old id, and the old one gets marked `superseded`. Story chapters also close the old one's validity window. They link old and new with `replaces` and `is_version_of`. Summaries, chronicles and indexes are projections we can throw away and rebuild. We chose this so that every view above the record stays disposable, because the record itself is not. See [The append-only record](/docs/concepts/foundations/append-only-record).
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Task immutability | [A2A](https://a2a-protocol.org/latest/topics/life-of-a-task/#task-immutability) | Once a task finishes it cannot restart, so a follow-up starts a new task. |
+
+**How Aurora differs:** A2A made the same choice for tasks. Aurora applies it to the whole record. A fix adds a new entry and never edits the old one.
+
+</Callout>
+
 ## Consequences
 
 - A bad summary or a bad re-tag can lose rank, never data.

@@ -21,6 +21,22 @@ aurora eye find "embedded redis" --who operator --as-of 2026-09-30
 
 Filters combine with AND. `--who` takes `operator`, `agent` or `system`. Each hit has an address like `<session>:<line>`.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Transcript | [Claude Code](https://code.claude.com/docs/en/sessions#where-transcripts-are-stored) | The saved file record of a session, read back when you resume. |
+| Conversation search | [Cursor](https://cursor.com/docs/agent/overview#conversation-search) | Search across your past agent transcripts from the command palette. |
+| Task History | [Cline](https://docs.cline.bot/core-workflows/task-management#task-history) | A saved, searchable list of every past task on your machine. |
+| Finding Threads | [Amp](https://ampcode.com/docs/prompting#finding-threads) | Search your past threads and your teammates' threads, with filters like author and repo. |
+| Referencing Threads | [Amp](https://ampcode.com/docs/prompting#referencing-threads) | Mention a thread by URL or ID, and the agent pulls what matters from it. |
+| @-mention previous conversations | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#%40-mention-previous-conversations) | Pulls useful parts of an earlier chat into the current one. |
+| /chronicle | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/chronicle#using-the-chronicle-slash-command) | Answers questions and builds reports from your past session history. |
+
+**How Aurora differs:** The Eye returns the exact words, each with an address you can cite. No model sums them up on the way. It reads the sessions of every agent on this machine.
+
+</Callout>
+
 ## Quote and trace
 
 ```bash

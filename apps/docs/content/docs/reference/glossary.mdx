@@ -613,3 +613,52 @@ The command that answers one "why" question from docs, research, notes, promoted
 - **Role** is a bundle of permissions; a **Post** is a standing duty.
 - **Pause** freezes every auto-responder; a **halt** stops one agent.
 - **WebFetch** is the harness's built-in fetch, which keeps no receipt; agents use the **Web door**.
+
+<Callout title="In other agent tools">
+
+| Aurora term | Their term | Where | What it means there |
+| --- | --- | --- | --- |
+| Sandbox | Sandboxing | [Claude Code](https://code.claude.com/docs/en/sandboxing) · [Cursor](https://cursor.com/docs/agent/security/run-modes#sandboxing) · [Gemini CLI](https://geminicli.com/docs/cli/sandbox/#overview-of-sandboxing) · [Windsurf](https://docs.devin.ai/desktop/devin-local#sandboxing) | Not the same: OS limits on which files and network hosts commands can reach. |
+| Sandbox | Sandbox | [Codex](https://learn.chatgpt.com/docs/sandboxing) | Not the same: an enforced boundary on the files and network Codex commands use. |
+| Sandbox | Local sandboxing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/security-governance-and-network-settings/about-cloud-and-local-sandboxes#how-local-sandboxing-works) | Not the same: an OS-level policy that limits file and network access for commands. |
+| Handoff | Handoff | [Codex](https://learn.chatgpt.com/docs/environments/git-worktrees#working-between-local-and-worktree) | Not the same: moving a chat and its work between your checkout and a worktree. |
+| Handoff | Handoff | [GitHub Copilot](https://code.visualstudio.com/docs/agents/concepts/sessions#_hand-off-a-session) | Not the same: continuing work under another harness or role, with the full conversation. |
+| Handoff | Handoffs | [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/custom-agents#_handoffs) | Not the same: buttons after a reply that switch to another custom agent. |
+| Fleet | /fleet | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/fleet#how-fleet-works) | Not the same: a command that splits a request into subtasks for parallel subagents. |
+| Chronicle | /chronicle | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/chronicle#using-the-chronicle-slash-command) | Not the same: a command that answers questions from your past session history. |
+| Runner | Runners | [Amp](https://ampcode.com/docs/cli/runners) | Not the same: an Amp process on your machine that runs threads started on the web. |
+| Wake listener | .agents/resume | [Amp](https://ampcode.com/docs/orbs/customizing) | Not the same: a script that reconnects a cloud orb after each wake. |
+| `session_checkpoint` | Checkpoints | [Claude Code](https://code.claude.com/docs/en/checkpointing) · [Cline](https://docs.cline.bot/core-workflows/checkpoints) · [Cursor](https://cursor.com/docs/agent/overview#checkpoints) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/review-code-edits#_restore-a-checkpoint) | Not the same: file snapshots taken during a chat so you can undo edits. |
+| `session_checkpoint` | Checkpointing | [Gemini CLI](https://geminicli.com/docs/cli/checkpointing/#how-it-works) | Not the same: a snapshot of files and chat before a tool changes files. |
+| `session_checkpoint` | Named Checkpoints and Reverts | [Windsurf](https://docs.devin.ai/desktop/cascade/cascade#named-checkpoints-and-reverts) | Not the same: saved project snapshots that roll code back to an earlier step. |
+| `session_checkpoint` | Manual chat checkpoints | [Gemini CLI](https://geminicli.com/docs/cli/session-management/#manual-chat-checkpoints) | Not the same: named save points of a conversation that you can resume later. |
+| `session_checkpoint` | Checkpoints | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/context-management#checkpoints) | Not the same: a saved copy of each compaction summary in the CLI. |
+| Ask | Ask mode | [Cursor](https://cursor.com/help/ai-features/ask-mode) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/tools/ai-tools#using-copilot-chat-in-ask-mode) · [Windsurf](https://docs.devin.ai/desktop/cascade/modes#ask-mode) | Not the same: a read-only chat mode that answers questions without editing files. |
+| Ask | AskUserQuestion | [Claude Code](https://code.claude.com/docs/en/tools-reference#askuserquestion-tool-behavior) | Not the same: a tool the agent uses to ask you multiple-choice questions. |
+| Ask | ask_user | [Gemini CLI](https://geminicli.com/docs/tools/ask-user/) | Not the same: a tool that lets the agent ask you one to four questions. |
+| Ask | ask_question | [Cline](https://docs.cline.bot/tools-reference/all-cline-tools#tool-categories) | Not the same: a built-in tool Cline uses to ask you for input. |
+| Ask | Ask questions | [Cursor](https://cursor.com/docs/agent/overview#tools) | Not the same: a tool the agent uses to ask you clarifying questions. |
+| Ask | /ask | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/ask-a-side-question#asking-a-quick-question) | Not the same: a quick side question that stays out of the main conversation. |
+| Ask | Ask | [OpenCode](https://opencode.ai/docs/permissions#what-ask-does) | Not the same: the approval prompt to allow once, allow always, or reject. |
+| Trust | Project trust | [Claude Code](https://code.claude.com/docs/en/permissions#project-allow-rules-and-workspace-trust) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md#understand-project-trust) | Not the same: accepting a folder before the tool loads its settings. |
+| Trust | Workspace trust | [Cursor](https://cursor.com/docs/agent/security#workspace-trust) | Not the same: a setting that opens new folders in normal or restricted mode. |
+| Trust | /permissions | [Gemini CLI](https://geminicli.com/docs/reference/commands/#permissions) | Not the same: a command to manage folder trust and other permission settings. |
+| Trust | Workspace MCP Server Trust | [Amp](https://ampcode.com/docs/customize/mcp#mcp-trust) | Not the same: approving a project's MCP servers before they can run. |
+| Capability | Capability negotiation | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture#capability-negotiation) | Not the same: client and server state which protocol features they support. |
+| Completion (message kind) | Completion | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion) | Not the same: server suggestions for filling in prompt or resource arguments. |
+| Task (task ledger) | Tasks | [MCP](https://modelcontextprotocol.io/extensions/tasks/overview) | Not the same: a durable handle for long server work that the client polls. |
+| `artifact:*` keys | Artifacts | [Cursor](https://cursor.com/docs/cloud-agent/capabilities#demos-and-artifacts) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/artifacts#_artifacts-and-references) | Not the same: screenshots, plans, logs and other files an agent session produces. |
+| `artifact:*` keys | Artifacts | [Claude Code](https://code.claude.com/docs/en/artifacts) | Not the same: live web pages published from a session to a shareable link. |
+| `artifact:*` keys | Artifact | [A2A](https://a2a-protocol.org/latest/specification/#417-artifact) | Not the same: a finished output an agent makes during a task. |
+| `aurora stats` | Stats | [OpenCode](https://opencode.ai/docs/cli#stats) | Not the same: a command that shows token use and cost across sessions. |
+| `aurora stats` | /stats | [Gemini CLI](https://geminicli.com/docs/reference/commands/#stats) | Not the same: usage for the current session, such as tokens and quota. |
+| Backend | Backend Modes | [Cline](https://docs.cline.bot/sdk/architecture/hub-spoke#backend-modes) | Not the same: settings that pick whether the agent runs through a hub or in process. |
+| Bridge | SDK Bridge | [Cursor](https://cursor.com/docs/sdk/bridge) | Not the same: a local server that lets other languages drive Cursor agents. |
+| Map | Codemaps | [Windsurf](https://docs.devin.ai/desktop/codemaps) | Not the same: shareable maps of how code runs and how its parts connect. |
+| View | Agent view | [Claude Code](https://code.claude.com/docs/en/agent-view) | Not the same: one screen to dispatch and watch many background sessions. |
+| Model roster (`models.json`) | models.json | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md#configure-a-compatible-endpoint) | Not the same: a file that adds models behind any compatible API. |
+| Boot cache warming | Prompt cache warming | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/settings.md#model-and-thinking) | Not the same: keeping a provider's prompt cache warm to avoid costly misses. |
+
+**How Aurora differs:** These tools use the same words for other things. On this site each word keeps its Aurora meaning from the entries above.
+
+</Callout>

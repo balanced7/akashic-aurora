@@ -34,6 +34,18 @@ Lessons are an exception. An agent writes a lesson straight into the Store, so t
 
 An old file, `session_logs/learnings.jsonl`, once held raw lessons. Today it is a leftover. The Store reads it once at start and never writes it.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Compaction | [Claude Code](https://code.claude.com/docs/en/context-window#what-survives-compaction) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#compaction) | An automatic summary of older chat when the context window is nearly full. |
+| Progressive disclosure | [Agent Skills](https://agentskills.io/specification#progressive-disclosure) · [Codex](https://learn.chatgpt.com/docs/build-skills) · [Windsurf](https://docs.devin.ai/desktop/cascade/skills) | Load a short description first, and the full content only when needed. |
+| Memory Bank Core Files | [Cline](https://docs.cline.bot/best-practices/memory-bank#core-files) | Six fixed files, from projectbrief.md to activeContext.md, that build on each other. |
+
+**How Aurora differs:** Compaction swaps old chat for a summary. Aurora keeps the raw record, the summary and the pages side by side. Each summary points back to its source.
+
+</Callout>
+
 ## How you use it
 
 - `learn` writes layers one and two.

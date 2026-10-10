@@ -5,6 +5,19 @@ description: How many agents share one repo without redoing work, clashing on fi
 
 Many agents work in the same repo at the same time. They need to know what work exists, who owns it, and who is editing which file. Aurora does not make them chat it out. They read and write shared marks instead.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent teams | [Claude Code](https://code.claude.com/docs/en/agent-teams) · [Cline](https://docs.cline.bot/cli/agent-teams) | Several agents under a lead agent that hands out tasks and collects results. |
+| Team lead | [Claude Code](https://code.claude.com/docs/en/agent-teams#architecture) | The main session in a team that starts teammates and coordinates their work. |
+| Projects | [Cursor](https://cursor.com/docs/agent/projects#how-a-project-works) · [Claude Code](https://code.claude.com/docs/en/claude-projects) | Large work where one coordinator plans and hands parts to many agents. |
+| Puck | [Amp](https://ampcode.com/docs/puck) | A personal assistant that starts, tracks, messages and coordinates your agents. |
+
+**How Aurora differs:** These tools put a lead agent in charge of the others. Agents there also message each other. Here agents coordinate through shared marks, like the ledger and locks.
+
+</Callout>
+
 The [task ledger](/docs/concepts/coordination/task-ledger) is the list of work. Each task has a status and an owner. [Locks](/docs/concepts/coordination/locks) say who is editing a file right now. Both follow one idea, [stigmergy](/docs/concepts/coordination/stigmergy): leave a mark, and let others read it.
 
 The [conductor](/docs/concepts/coordination/conductor) runs the ledger's commands. It also holds short rounds where agents post plans before they start.

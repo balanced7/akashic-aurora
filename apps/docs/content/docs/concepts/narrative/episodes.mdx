@@ -16,6 +16,19 @@ The [narrative spine](/docs/concepts/narrative/narrative-spine) cuts chapters af
 - The life of an episode is: open, gather Beats, close, accept. On close, the system drafts a title, a description and a why from the episode's Beats. The why comes from the latest decision or `mark`. No model writes the draft. You can accept it or change it.
 - When the session ends, the open episode closes on its own, so no episode stays open forever.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Title agent | [OpenCode](https://opencode.ai/docs/agents#use-title) | A hidden built-in agent that writes short titles for sessions. |
+| Utility models | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/models/utility-models#how-do-utility-models-work) | Small models that run background features such as titles and summaries. |
+| Session naming | [Claude Code](https://code.claude.com/docs/en/sessions#name-your-sessions) | Giving a conversation a readable name so you can find and resume it. |
+| Session recap | [Claude Code](https://code.claude.com/docs/en/interactive-mode#session-recap) | A short summary of what happened while you were away from a session. |
+
+**How Aurora differs:** Their tools name or sum up a whole chat, often with a model. No model drafts an episode. The draft comes from its Beats, and it must state a why.
+
+</Callout>
+
 ### The suggester
 
 A helper suggests when to close an episode. It only advises. It never closes one for you. Each trigger has a fixed confidence:
@@ -47,6 +60,19 @@ The [Bifrost console](/docs/concepts/bifrost/console) shows an episode chip, a p
 - **Narrative session** — the whole span from boot to session end. An episode is a smaller span inside it.
 - **Chronicler chapter** — cut later, by rules. You cut an episode live, give it a title, and state its why.
 - **Idle** — the episode idle time is 15 minutes. The four-hour gap belongs to the Chronicler.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Session | [Claude Code](https://code.claude.com/docs/en/how-claude-code-works#work-with-sessions) | One conversation tied to a folder, with its own context window and history. |
+| Sessions | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md) | The saved record of a conversation, stored as a JSONL file. |
+| Chat (session) | [Codex](https://learn.chatgpt.com/docs/projects#start-a-chat) | A saved conversation that holds its messages, context, results and actions. |
+| Tasks | [Cline](https://docs.cline.bot/core-workflows/task-management#what-are-tasks) | One work session that holds the whole chat, code changes and costs for one goal. |
+
+**How Aurora differs:** Their unit is the whole conversation. An episode is a smaller span inside one session. It gets its own title and why.
+
+</Callout>
 
 ## How it connects
 

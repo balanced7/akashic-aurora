@@ -9,6 +9,21 @@ Models like DeepSeek, Kimi and Gemini live behind an API. Each call starts and e
 
 The fleet wanted API models as real peers, not one-off helpers. A peer must be reachable when you are not there. So it needs a process that stays up. That makes it a [seat](/docs/concepts/bifrost/seats).
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Runners | [Amp](https://ampcode.com/docs/cli/runners) | Not the same: an Amp process on your own machine that runs threads started from the web. |
+| Orbs | [Amp](https://ampcode.com/docs/orbs) | Remote machines Amp creates so an agent can work without your computer. |
+| Cloud Agents | [Cursor](https://cursor.com/docs/cloud-agent) | Agents that run in isolated cloud machines, in parallel, without your laptop. |
+| Codex Cloud | [Codex](https://learn.chatgpt.com/docs/cloud) | Coding tasks that run on OpenAI servers, which you review later. |
+| Background sessions | [Claude Code](https://code.claude.com/docs/en/agent-view#how-background-sessions-are-hosted) | Full sessions that run detached from your terminal while you do other work. |
+| Agent Host | [GitHub Copilot](https://code.visualstudio.com/docs/agents/concepts/agent-host#_why-a-dedicated-agent-host) | A separate VS Code process that runs agent sessions locally or remotely. |
+
+**How Aurora differs:** These all keep an agent working while you are away. A runner does that for a raw API model, on your own machine. It gives the model an inbox, so other agents can reach it.
+
+</Callout>
+
 ## How it works
 
 - **Start.** The runner takes the runner lock. It marks itself present and posts a card that says what it can do.
@@ -18,6 +33,27 @@ The fleet wanted API models as real peers, not one-off helpers. A peer must be r
 - **Loop guard.** Each reply carries a hop count. At six hops the runner stops, so two runners cannot ping-pong forever.
 - **Tools.** With `--agentic`, the model gets a guarded toolbox. It can read the repo, search memory and use the bus. Writing files or running commands needs an extra flag.
 - **Fresh code.** When its code goes stale, a runner restarts itself between turns.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Agent harnesses | [GitHub Copilot](https://code.visualstudio.com/docs/agents/concepts/agent-harnesses) | The layer that turns a model into an agent by running its loop, tools and state. |
+| Agent loop | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/how-pi-works.md#agent-loop) | Pi sends a request, runs the tool calls in the reply, and repeats until done. |
+| Agentic loop | [Claude Code](https://code.claude.com/docs/en/how-claude-code-works#the-agentic-loop) | Claude gathers context, acts, checks results, and goes again. |
+| Agent SDK | [Claude Code](https://code.claude.com/docs/en/agent-sdk/overview) | Libraries that run Claude Code's agent loop inside your own app. |
+| Cursor SDK | [Cursor](https://cursor.com/docs/sdk/typescript) | Libraries for apps that run Cursor agents locally or in the cloud. |
+| SDK | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sdk.md) | A TypeScript library to create and control Pi agent sessions in your app. |
+| Codex SDK | [Codex](https://learn.chatgpt.com/docs/codex-sdk) | Libraries for controlling local Codex agents from your own code. |
+| Copilot SDK | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/agent-loop) | A library that embeds the agent runtime used by Copilot CLI. |
+| Built-in tools | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#tools) | The default tools Pi gives the model: read, bash, edit and write. |
+| Agent mode | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-in-your-ide/use-copilot-agents/use-agent-mode#introduction) | Copilot plans, edits files, runs commands and fixes errors on its own. |
+| /reload | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/slash-commands.md#runtime-and-project) | Reloads extensions, skills, themes and context files without a restart. |
+| Agent Card | [A2A](https://a2a-protocol.org/latest/specification/#441-agentcard) | A JSON file that describes an agent's identity, address, skills and login needs. |
+
+**How Aurora differs:** A runner is a small harness. It wraps the same loop around an API model. Its loop starts from bus mail, not from a person typing.
+
+</Callout>
 
 ## The runner lock
 
@@ -36,11 +72,32 @@ uv run scripts/bifrost_runner_deepseek.py --agentic > runner.log 2>&1 &  # by ha
 
 Run a runner in the background and read its log file. Do not pipe it into `| head`. Once `head` stops reading, you see nothing more.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Spawning Orbs | [Amp](https://ampcode.com/docs/cli/spawning-orbs) | Start or continue orb threads from the terminal with `amp -ox`. |
+| Background shells | [Gemini CLI](https://geminicli.com/docs/reference/commands/#shells-or-bashes) | A view for watching and managing long-running shell processes. |
+
+**How Aurora differs:** The daemon starts a runner from the terminal, like `amp -ox`. Unlike an orb, a runner stays on your machine. You watch it through its log file.
+
+</Callout>
+
 ## Don't confuse it with
 
 - **Ask** — a one-shot call with no seat behind it. See [Ask and fan](/docs/concepts/method/ask-and-fan).
 - **The wake listener** — it wakes a sleeping Claude session but never answers. There is no Claude runner, by design, because it would burn tokens.
 - **The bridge** — the DeepSeek runner calls its model call a "bridge". That is not the fleet [bridge](/docs/concepts/bifrost/bridge).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Non-interactive mode | [Claude Code](https://code.claude.com/docs/en/headless) · [Codex](https://learn.chatgpt.com/docs/non-interactive-mode) | Run one prompt from a script or CI, then exit. |
+
+**How Aurora differs:** Either one could serve as a runner body. Aurora has no Claude runner, by design. It would burn tokens on every message.
+
+</Callout>
 
 ## How it connects
 

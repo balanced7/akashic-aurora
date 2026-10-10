@@ -9,6 +9,16 @@ The web door is the one way agents fetch a web page or run a search. Every fetch
 
 An agent can cite a page it never read. It can trust text from a stranger as if it were an order. And a long page cut short can look complete. The web door closes each of these gaps. If an agent cites a page, there is a receipt showing it fetched that page.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Security best practices | [MCP](https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices) | Guidance on attacks against MCP setups and how to block them. |
+
+**How Aurora differs:** MCP gives advice. The web door puts it in code. It wraps all web text and marks it untrusted.
+
+</Callout>
+
 ## How it works
 
 - **Cache first.** Pages land in `state/web_cache/`. On the next fetch, the door asks the server if the page changed, using the ETag or Last-Modified header. A stale page cannot slip through quietly.
@@ -17,6 +27,28 @@ An agent can cite a page it never read. It can trust text from a stranger as if 
 - **Receipts.** Each fetch adds one line to `state/coord/web_fetch_receipts.jsonl`. It records the time, the seat, the URL, the status, the size, a hash, and whether the cache served it.
 - **A wrapper.** Served text sits inside a wrapper that names its source and marks it untrusted. Web content is data, never instructions.
 - **PDFs.** For a paper, the door first serves a cheap outline: the head, the contents and the references. The full text is a separate pull.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| WebFetch | [Claude Code](https://code.claude.com/docs/en/tools-reference#webfetch-tool-behavior) | A tool that fetches a web page by URL. |
+| WebSearch | [Claude Code](https://code.claude.com/docs/en/tools-reference#webfetch-tool-behavior) | A tool that runs a web search. |
+| Web fetch | [GitHub Copilot](https://code.visualstudio.com/docs/agents/reference/tools-reference#_access-the-web-and-github) | A tool set that lets the agent fetch web pages and read them. |
+| web_fetch | [Gemini CLI](https://geminicli.com/docs/tools/web-fetch/#technical-behavior) | A built-in tool that downloads and processes content from URLs in your prompt. |
+| webfetch | [OpenCode](https://opencode.ai/docs/tools#webfetch) | A built-in tool that fetches and reads a web page. |
+| fetch_web_content | [Cline](https://docs.cline.bot/tools-reference/all-cline-tools#built-in-tools-clinecore) | A built-in tool that downloads a web page for Cline to read. |
+| Web search | [Cursor](https://cursor.com/docs/agent/overview#tools) · [Codex](https://learn.chatgpt.com/docs/config-file/config-basic#web-search-mode) | A built-in tool that searches the web. Codex serves cached results by default. |
+| Web Search | [Windsurf](https://docs.devin.ai/desktop/cascade/web-search#search-the-web) · [Cline](https://docs.cline.bot/usage/cline-desktop#3-use-web-search) | The agent searches the web when a question needs fresh facts. |
+| websearch | [OpenCode](https://opencode.ai/docs/tools#websearch) | A built-in tool that searches the web using Exa or Parallel. |
+| google_web_search | [Gemini CLI](https://geminicli.com/docs/tools/web-search/#technical-behavior) | A built-in tool that searches Google and returns a summary with links. |
+| Reading Pages | [Windsurf](https://docs.devin.ai/desktop/cascade/web-search#reading-pages) | The agent reads a web page in chunks, the way a person skims. |
+| Caching | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/caching) | Hints on results that tell clients how long they may reuse them. |
+| Pagination | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/pagination) | Splitting long lists into pages fetched with a cursor. |
+
+**How Aurora differs:** Most agents can fetch and search. The web door adds a receipt for every fetch. It also says how much of a page you got.
+
+</Callout>
 
 ## How you use it
 

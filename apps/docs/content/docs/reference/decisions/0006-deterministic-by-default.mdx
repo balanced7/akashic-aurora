@@ -7,6 +7,19 @@ description: Recall and routing use deterministic scoring, and a learned method 
 
 Recall at action ranks lessons with a fixed formula, the [ranker](/docs/concepts/memory/ranker-and-distiller). Plain recall sorts by matched words. The router that sorts story events into threads uses keyword rules. No language model runs when recall picks lessons. Embeddings stay optional and off by default. Where a tool can use them, such as the manuals shelf, it falls back to keywords without them. Why? On our own test data, the embedding router lost to the keyword rules.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Auto model selection | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/models/auto-model-selection#overview) | Copilot picks a suitable model for each task for you. |
+| Auto and Cursor Router | [Cursor](https://cursor.com/docs/cursor-router) | Auto picks a model for each request using Cursor Router. |
+| Local model routing (Gemma) | [Gemini CLI](https://geminicli.com/docs/core/gemma-setup/#what-is-this) | A small local Gemma model helps route requests. |
+| Repository indexing | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/context/repository-indexing#benefit-of-indexing-repositories) | A search index that finds related code by meaning. |
+
+**How Aurora differs:** Those tools let a model route or search by meaning. Aurora uses fixed rules first. A learned method must beat them on our own data.
+
+</Callout>
+
 ## Consequences
 
 Any new mechanism needs a yardstick first. It must beat the boring baseline before it earns the complexity. See [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller), which covers embeddings, and the [manuals shelf](/docs/concepts/tools/manuals-shelf).

@@ -11,6 +11,28 @@ Trust decides what each agent may do. Every agent id maps to a set of capabiliti
 
 New and untrusted agents began to join the [bus](/docs/concepts/bifrost/bus). Their rights had to be checked at the point of action, with a record, not assumed. Early tests found real holes. A quarantined agent could still chat, nudge and steer through a fixed allowlist. It could also post through its runner. The runner tools now check the sender's rights first.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Sandboxing | [Claude Code](https://code.claude.com/docs/en/sandboxing) · [Cursor](https://cursor.com/docs/agent/security/run-modes#sandboxing) · [Windsurf](https://docs.devin.ai/desktop/devin-local#sandboxing) · [Gemini CLI](https://geminicli.com/docs/cli/sandbox/#overview-of-sandboxing) | OS limits on which files and network hosts the agent's commands can reach. |
+| Sandbox | [Codex](https://learn.chatgpt.com/docs/sandboxing) | An enforced boundary on the files and network access Codex commands can use. |
+| Sandbox mode | [Codex](https://learn.chatgpt.com/docs/config-file/config-basic#sandbox-level) | A setting that picks read-only, workspace-write, or full access. |
+| `sandbox.json` | [Cursor](https://cursor.com/docs/reference/sandbox) | A file that sets which domains and extra paths sandboxed commands can reach. |
+| Sandbox expansion | [Gemini CLI](https://geminicli.com/docs/cli/sandbox/#sandbox-expansion) | A request for more access when a sandboxed command needs network or extra paths. |
+| Agent sandboxing | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/agent-sandboxing#_understand-the-sandbox-boundary) | Limits on what agent terminal commands in VS Code can touch on disk and network. |
+| Agent firewall | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-the-firewall#overview) | A firewall that limits which internet hosts the cloud agent can reach. |
+| Permission profiles | [Codex](https://learn.chatgpt.com/docs/permissions#define-and-select-a-profile) | Named policies for which paths Codex may read or write and which hosts it may reach. |
+| Deny-read rule | [Codex](https://learn.chatgpt.com/docs/permissions#deny-reads-with-exact-paths-or-globs) | A rule that blocks Codex from reading sensitive paths or file patterns. |
+| Ignore file (`.cursorignore`) | [Cursor](https://cursor.com/docs/reference/ignore-file) | A file of paths the agent may not read. Protection is best effort. |
+| `.devinignore` | [Windsurf](https://docs.devin.ai/desktop/context-awareness/devin-ignore#devinignore) | A gitignore-style file of paths the agent may not index, view, edit or create. |
+| External directories | [OpenCode](https://opencode.ai/docs/permissions#external-directories) | A permission for tool access to paths outside the project folder. |
+| Roots | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/client/roots) | Folders or files the client tells a server it may work within. |
+
+**How Aurora differs:** These tools fence off files and hosts at the OS level. Aurora has no such fence. It checks rights inside its own tools when an agent acts.
+
+</Callout>
+
 ## How it works
 
 There are 13 capabilities. A few examples are `read`, `write`, `exec`, `bus.send`, `kb.recall` and `kb.learn`. Write is always tied to a set of paths. Sending is tied to a set of message kinds.
@@ -33,6 +55,42 @@ What if the claude seat dies? Two signals must show it is gone, the next seats m
 
 One more rule: a score is evidence, never a key. A good score can make a seat eligible for a grant. A human still makes the grant.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Permissions | [Claude Code](https://code.claude.com/docs/en/permissions) · [OpenCode](https://opencode.ai/docs/permissions) | Rules that let each action run, ask you first, or be blocked. |
+| Permission rules | [Claude Code](https://code.claude.com/docs/en/permissions#permission-rule-syntax) | Settings entries that allow, ask about, or deny a tool call by name and pattern. |
+| Permissions model | [Windsurf](https://docs.devin.ai/desktop/devin-local#permissions-model) | Devin Local rules that deny, ask about, or allow reads, writes, commands, fetches and MCP tools. |
+| CLI permissions | [Cursor](https://cursor.com/docs/cli/reference/permissions) | Config rules that allow or deny shell, file, web fetch and MCP actions. |
+| Policy engine | [Gemini CLI](https://geminicli.com/docs/reference/policy-engine/#core-concepts) | TOML rules that allow, deny, or ask about each tool call. |
+| Rules | [Codex](https://learn.chatgpt.com/docs/agent-configuration/rules) | Command prefix rules that allow, prompt for, or forbid commands outside the sandbox. |
+| Tool Policies | [Cline](https://docs.cline.bot/sdk/guides/permission-handling#tool-policies) | SDK settings per tool that turn it on or off and say if it needs approval. |
+| Allowed and denied tools | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/allowing-tools#layers-of-tool-controls) | CLI options like `--allow-tool` and `--deny-tool` that set which tools run without asking. |
+| `amp.mcpPermissions` | [Amp](https://ampcode.com/docs/cli/settings#settings) | Rules that allow or block MCP servers by command or URL pattern. |
+| Agent permissions | [OpenCode](https://opencode.ai/docs/agents#permissions) | Per agent rules that merge with and override the global permission config. |
+| Task permissions | [OpenCode](https://opencode.ai/docs/agents#task-permissions) | Glob rules for which subagents a primary agent may launch. |
+| Per-agent MCP | [OpenCode](https://opencode.ai/docs/mcp-servers#per-agent) | MCP tools turned off globally, then back on only for chosen agents. |
+| Subagent tool isolation | [Gemini CLI](https://geminicli.com/docs/core/subagents/#subagent-tool-isolation) | Each subagent gets its own tool list and MCP servers. |
+| Tool selection | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/cli.md#tools) | Options that choose which tools the model can see. |
+| `allowed-tools` | [Agent Skills](https://agentskills.io/specification#allowed-tools-field) | A skill field listing tools the skill may use without asking. |
+| Tool annotations | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/tools#tool) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md#tool-exposure) | Hints on a tool, such as read-only or destructive, that permission checks can use. |
+| Policies | [OpenCode](https://opencode.ai/docs/policies) | Experimental allow or deny statements for resources such as LLM providers. |
+| Managed configuration | [Codex](https://learn.chatgpt.com/docs/enterprise/managed-configuration) | Admin-set defaults and enforced rules for Codex across an organization. |
+| Enterprise-managed settings | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/enterprise/agent-management#enterprise-managed-settings) | Admin-pushed settings that lock agent behavior for users. |
+| Remote Configuration | [Cline](https://docs.cline.bot/enterprise-solutions/configuration/remote-configuration/overview) | Settings set in an admin console and pushed to every member. |
+| Admin controls | [Windsurf](https://docs.devin.ai/desktop/controls) | Team settings, device policies and system files that enforce agent behavior. |
+| Team controls | [Cursor](https://cursor.com/docs/agent/security/run-modes#team-controls) | Admin limits on run modes, sandbox network rules and read policy for everyone. |
+| MCP Allowlist | [Cursor](https://cursor.com/docs/mcp#mcp-allowlist) · [Windsurf](https://docs.devin.ai/desktop/cascade/mcp#mcp-allowlist) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/enterprise/mcp-management#mcp-allowlists) | An admin list of the MCP servers team members may use. |
+| Authorization | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization) | OAuth rules for how clients get and use tokens for remote MCP servers. |
+| Authentication and authorization | [A2A](https://a2a-protocol.org/latest/specification/#7-authentication-and-authorization) | Agents declare login schemes in the Agent Card and check credentials in HTTP headers. |
+| Agent Card signing | [A2A](https://a2a-protocol.org/latest/specification/#84-agent-card-signing) | Signing an Agent Card so clients can check it is real and unchanged. |
+| Amp ID Tokens | [Amp](https://ampcode.com/docs/customize/mcp#mcp-amp-id-token) | A short-lived identity token sent to a remote MCP server instead of a stored secret. |
+
+**How Aurora differs:** Those rules gate tools and paths. Aurora gives each agent id one of five roles, with an expiry. Local grants do not prove who sent a message.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -42,6 +100,34 @@ aurora grant gemini --revoke --by claude --reason "review done"
 aurora status
 ```
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Permission modes | [Claude Code](https://code.claude.com/docs/en/permission-modes) · [Codex](https://learn.chatgpt.com/docs/permission-modes) | Presets for how often the agent asks before it acts, from always to never. |
+| Approval modes | [Gemini CLI](https://geminicli.com/docs/reference/policy-engine/#approval-modes) | Modes for how much the agent may do unasked: default, autoEdit, plan, or yolo. |
+| Approval policy | [Codex](https://learn.chatgpt.com/docs/agent-approvals-security#sandbox-and-approvals) | Rules for when Codex must stop and ask before acting outside its sandbox. |
+| Run Modes | [Cursor](https://cursor.com/docs/agent/security/run-modes#pick-a-mode) | Settings for which tool calls run alone and when Cursor asks first. |
+| Auto-Execution Levels | [Windsurf](https://docs.devin.ai/desktop/terminal#auto-execution-levels) | Levels for which terminal commands Cascade may run without asking. |
+| Permission levels | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/approvals#_permission-levels) | A VS Code chat setting of Manual, Assisted, or Allow all. |
+| Tool approvals | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/approvals#_tool-approval) | Copilot asks before it runs tools or commands you have not approved yet. |
+| Auto Approve | [Cline](https://docs.cline.bot/features/auto-approve) | Settings that let Cline do chosen kinds of actions without asking each time. |
+| Auto mode | [Claude Code](https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode) | A mode where a classifier model reviews actions, so Claude rarely asks you. |
+| Auto mode (`--auto`) | [OpenCode](https://opencode.ai/docs/permissions#auto-mode) | A mode that approves every request that is not explicitly denied. |
+| Auto-review | [Cursor](https://cursor.com/docs/agent/security/run-modes#how-auto-review-works) · [Codex](https://learn.chatgpt.com/docs/sandboxing/auto-review) | A reviewer model or agent judges risky calls instead of asking you. |
+| YOLO mode | [Gemini CLI](https://geminicli.com/docs/cli/cli-reference/#cli-options) · [Cline](https://docs.cline.bot/features/auto-approve#yolo-mode) | Every action is approved with no prompts. |
+| Ask mode | [Cursor](https://cursor.com/help/ai-features/ask-mode) · [Windsurf](https://docs.devin.ai/desktop/cascade/modes#ask-mode) | A read-only mode where the agent answers questions but cannot edit. |
+| Ask (once / always / reject) | [OpenCode](https://opencode.ai/docs/permissions#what-ask-does) | A prompt to allow once, allow for the session, or reject. |
+| Session-wide grants | [Windsurf](https://docs.devin.ai/desktop/devin-local#responding-to-permission-requests) | One approval that covers the same kind of request for the rest of the session. |
+| Permissions | [Amp](https://ampcode.com/docs/tools#permissions) | Amp runs tools without asking. A permissions plugin can allow, block or ask per call. |
+| No per-call approvals | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md) | Pi does not ask before each tool call. Tools run with your own rights. |
+| `preToolUse` hook | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/hooks#types-of-hooks) | A hook that runs before any tool call and can approve or deny it. |
+| In-task authorization | [A2A](https://a2a-protocol.org/latest/specification/#76-in-task-authorization) | An agent pauses a task to ask for a credential or human approval. |
+
+**How Aurora differs:** These tools ask a human before risky calls. Aurora never prompts per call. An operator grants a role ahead of time, and the grant expires.
+
+</Callout>
+
 ## Don't confuse it with
 
 Three things are called "roles":
@@ -49,6 +135,25 @@ Three things are called "roles":
 - **ACL roles** — this page. They set what an agent may do.
 - **Posts** — duties in the org guide. See [Doctrine](/docs/concepts/coordination/doctrine).
 - **Resident roles** — a part played in one exercise. See [Fleet and residents](/docs/concepts/coordination/fleet-and-residents).
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Project trust | [Claude Code](https://code.claude.com/docs/en/permissions#project-allow-rules-and-workspace-trust) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/security.md#understand-project-trust) | Not the same: a yes or no on a folder before its settings load. |
+| Trusted Folders | [Gemini CLI](https://geminicli.com/docs/cli/trusted-folders/#how-it-works-the-trust-dialog) | Not the same: you trust a folder before it loads project settings and tools. |
+| Trusted projects | [Codex](https://learn.chatgpt.com/docs/config-file/config-basic#configuration-precedence) | Not the same: projects you mark so Codex loads their config files. |
+| Trusted directories | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/configure-copilot-cli#setting-trusted-directories) | Not the same: folders Copilot CLI may read, change and run files in. |
+| Workspace trust | [Cursor](https://cursor.com/docs/agent/security#workspace-trust) | Not the same: asks whether to open a new folder in normal or restricted mode. |
+| Restricted Mode | [Windsurf](https://docs.devin.ai/desktop/devin-local#restricted-mode) | Not the same: a workspace state where agents are off and hooks do not run. |
+| Trust considerations | [Agent Skills](https://agentskills.io/client-implementation/adding-skills-support#trust-considerations) | Not the same: load project skills only from folders the user trusts. |
+| Workspace MCP Server Trust | [Amp](https://ampcode.com/docs/customize/mcp#mcp-trust) | Not the same: MCP servers from project settings need approval before they run. |
+| Role Based Access | [Windsurf](https://docs.devin.ai/desktop/accounts/rbac-role-management) | Not the same: roles for what team members may do in the admin portal. |
+| Capability negotiation | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture#capability-negotiation) | Not the same: client and server state which protocol features they support. |
+
+**How Aurora differs:** Their trust is about a folder or a server. Aurora's trust is about an agent id. A role sets what that agent may do.
+
+</Callout>
 
 ## How it connects
 

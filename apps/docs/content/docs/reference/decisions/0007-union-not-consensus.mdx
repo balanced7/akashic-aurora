@@ -7,4 +7,14 @@ description: When several models review the same work, we keep every distinct fi
 
 Multi-model reviews merge by union, then check each finding. We never gate on agreement. We chose this because a finding here often costs one command to check. Merging only what models agree on throws away the rare true finding. In one panel, only one model family found a real argument-length bug.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Multi-Model Review & Consensus | [Cline](https://docs.cline.bot/cli/samples/model-orchestration#pattern-3-multi-model-review-%26-consensus) | Several models review the same change, and you compare what they find. |
+
+**How Aurora differs:** Cline's sample also uses several models. Aurora never waits for them to agree. It keeps every finding and checks each one.
+
+</Callout>
+
 See [Union, not consensus](/docs/concepts/method/union-not-consensus).

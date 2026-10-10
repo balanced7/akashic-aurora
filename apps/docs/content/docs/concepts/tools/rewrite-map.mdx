@@ -11,6 +11,16 @@ Think of a mail forwarding service after a city renames its streets. Old address
 
 This repo has rewritten its history four times. One removed outside reference material. One removed personal data. One fixed author emails and left no map at all. Later, the team rebuilt that map by matching commits. A fourth moved authorship again, and this time kept its map. Each rewrite changed every later SHA. Yet docs, ledgers and [lessons](/docs/concepts/memory/lessons) cite SHAs all the time. At one count, 877 of 1,436 cited SHAs worked only on the machine that wrote them.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Restack Changes | [Amp](https://ampcode.com/docs/orbs/shipping#restack-changes) | The agent reorganizes messy commits into a cleaner set before shipping. |
+
+**How Aurora differs:** A restack rewrites commits, so their ids change. The rewrite map follows old ids to new ones.
+
+</Callout>
+
 ## How it works
 
 The resolver chains together the rewrite maps saved under `state/rewrites/`. It also reads a map the last rewrite left inside `.git`, and warns that the next rewrite will overwrite it. A SHA may need several hops to reach today's commit. Every answer carries one of six labels:

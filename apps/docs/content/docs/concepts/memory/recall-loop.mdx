@@ -62,6 +62,18 @@ The top of 1.5 is a ceiling that the formula never reaches. Recall reads the cou
 - **What `--apply` does.** It benches lessons and lifts benches. It also prunes counters for lessons that no longer exist, and applies pending lesson-edit stamps. The `wrap` command nudges you to run it when there is work to do.
 - **Dissent.** It looks for a lesson that argues against the top one, through a "contradicts" link. Lessons cannot carry that link today, so dissent never speaks. The code exists; nothing feeds it.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Memory retention and validation | [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/copilot-memory#retention-and-validation) | Memories expire after 28 days unused and are checked against current code before use. |
+| Optimizing skill descriptions | [Agent Skills](https://agentskills.io/skill-creation/optimizing-descriptions) | Testing and rewriting a skill's description so it triggers on the right requests. |
+| Evaluating skill output quality | [Agent Skills](https://agentskills.io/skill-creation/evaluating-skills) | Running test cases with and without a skill and grading results to improve it. |
+
+**How Aurora differs:** Copilot drops a memory that sits unused. Aurora benches a lesson that shows up often and never helps. Credit comes from flips, when a failed try works after a lesson shows up.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -70,6 +82,17 @@ aurora stats
 aurora recall-curate            # report only
 aurora recall-curate --apply    # stamp the bench
 ```
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| /stats | [Gemini CLI](https://geminicli.com/docs/reference/commands/#stats) | Not the same: shows usage for the current session, such as tokens, tool calls and quota. |
+| Stats | [OpenCode](https://opencode.ai/docs/cli#stats) | Not the same: shows token use and cost across your sessions. |
+
+**How Aurora differs:** `aurora stats` reports the recall funnel. It counts lessons shown, lessons that helped, flips and new lessons. It does not track tokens.
+
+</Callout>
 
 ## Don't confuse it with
 

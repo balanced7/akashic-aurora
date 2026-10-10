@@ -18,6 +18,17 @@ The [bus](/docs/concepts/bifrost/bus) is small and short-lived. Its streams have
 - **Acks.** Reading a message is not the same as handling it. An agent says "I handled this" with an ack, a `msg_ack` event in the same log. Only promoted messages take an ack.
 - **Unhandled warnings.** Boot and `bifrost-sync` warn about a handoff or blocker with no ack. A direct one gets two hours. A broadcast gets six, since it has no single owner.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Artifact | [A2A](https://a2a-protocol.org/latest/specification/#417-artifact) | A finished output an agent makes during a task, such as a document or data. |
+| Artifacts | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/artifacts#_artifacts-and-references) | Plans, screenshots and other files an agent session produces, in one view. |
+
+**How Aurora differs:** These keep the outputs a task makes. The promoter keeps key messages, like handoffs and decisions. It copies them into a lasting log by a fixed rule.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -32,6 +43,16 @@ A `reply` to a message also marks it handled, so you do not need a separate ack.
 
 - **The `handoff` verb** — it writes a signal to a different store. See [Handoff](/docs/concepts/bifrost/handoff).
 - **The Ledger** — the promoter writes into a ledger. It is not a store itself.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Completion | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/server/utilities/completion) | Not the same: suggestions a server gives for filling in prompt or resource arguments. |
+
+**How Aurora differs:** In Aurora, a `completion` is a bus message that marks work as done. It has nothing to do with autocomplete.
+
+</Callout>
 
 ## How it connects
 

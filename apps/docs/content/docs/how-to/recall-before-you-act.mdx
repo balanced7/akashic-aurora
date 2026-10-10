@@ -50,6 +50,20 @@ To check that the hook is on, open `/hooks` in Claude Code, or read `.claude/set
 
 In tools without hook wiring, keep the manual habit. See [Recall at action](/docs/concepts/memory/recall-at-action).
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Hooks | [Claude Code](https://code.claude.com/docs/en/hooks-guide) · [Codex](https://learn.chatgpt.com/docs/hooks) · [Cursor](https://cursor.com/docs/hooks) · [Gemini CLI](https://geminicli.com/docs/hooks/#what-are-hooks) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/hooks#what-are-hooks) · [Cline](https://docs.cline.bot/sdk/plugins#hook-stages) | Scripts the tool runs at set points in a turn, such as before a tool call. |
+| Cascade Hooks | [Windsurf](https://docs.devin.ai/desktop/cascade/hooks) | Your own shell commands that run at key points in the agent's work. |
+| Third Party Hooks | [Cursor](https://cursor.com/docs/reference/third-party-hooks) | Cursor loads and runs hooks set up for Claude Code. |
+| Plugin events | [OpenCode](https://opencode.ai/docs/plugins#events) · [Amp](https://ampcode.com/docs/customize/plugins#event-examples) | Named events, such as before a tool runs, that plugin code can handle. |
+| Extension events | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md#events-and-concurrency) | Lifecycle events an extension can watch, change or block. |
+
+**How Aurora differs:** Aurora has no hook engine of its own. It plugs its recall check into the host's hooks. You turn it on per project, and this page shows the Claude Code entry.
+
+</Callout>
+
 ## Tell Aurora what helped
 
 If a lesson changed what you did, mark it. If it was off target, say so. `--useful` is the default, so you can leave it off.

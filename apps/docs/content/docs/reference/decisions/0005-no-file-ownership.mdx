@@ -12,6 +12,18 @@ Agents do not own files or areas. An agent about to edit a shared path takes a s
 - **Per-agent file ownership.** Tried and dropped. The roster went stale the moment an agent was renamed or a file moved.
 - **Short locks at the moment of contention.** Chosen.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Worktrees | [Claude Code](https://code.claude.com/docs/en/worktrees) · [Codex](https://learn.chatgpt.com/docs/environments/git-worktrees) · [Cursor](https://cursor.com/docs/configuration/worktrees) | Separate git checkouts, so each session or subagent edits its own copy. |
+| --worktree | [Cline](https://docs.cline.bot/cli/cli-reference#global-options) | A CLI flag that runs the task in a new detached git worktree. |
+| Worktree isolation | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/agent-harnesses#_choose-code-isolation) | Runs a session in its own worktree, and you merge the result yourself. |
+
+**How Aurora differs:** Those tools made the opposite choice. Each agent gets a private copy, and you merge later. Aurora lets agents edit the same files and locks a shared path only while someone edits it.
+
+</Callout>
+
 ## Consequences
 
 A task still holds the files it declares while it is active, so the task ledger refuses a second claim on them.

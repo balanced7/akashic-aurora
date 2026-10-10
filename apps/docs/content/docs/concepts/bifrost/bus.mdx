@@ -44,6 +44,29 @@ A shared group splits messages between its readers. Separate cursors give every 
 
 The move to lanes is half done. For now each message also lands in the old inbox stream. So you may see one message twice, under two ids. The bus records that the two ids belong together.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Mailbox | [Claude Code](https://code.claude.com/docs/en/agent-teams#architecture) | The message system agent team members use to send each other notes. |
+| Team State | [Cline](https://docs.cline.bot/cli/agent-teams#team-state) | Each team keeps a task board, a mailbox between agents and a log. |
+| Cross-session messaging | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging) | One session sends a text message to your other sessions, even on other machines. |
+| SendMessage | [Claude Code](https://code.claude.com/docs/en/tools-reference) | A tool Claude uses to message a teammate, subagent or session. |
+| Agent to Agent | [Amp](https://ampcode.com/docs/orbs/agent-to-agent) | Agents start other agents, send them instructions and files, and bring results back. |
+| Session orchestration tools | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/sessions/manage-sessions#_orchestrate-sessions-from-agent-host-sessions) | Tools that let an agent list, create, read and message other sessions. |
+| Send Message | [A2A](https://a2a-protocol.org/latest/specification/#311-send-message) | The main call a client uses to send a message and get a task or reply. |
+| Message | [A2A](https://a2a-protocol.org/latest/specification/#414-message) | One turn of talk between client and agent, with a user or agent role. |
+| Multi-turn interactions | [A2A](https://a2a-protocol.org/latest/specification/#34-multi-turn-interactions) | The agent asks for more input before it finishes the task. |
+| Elicitation | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation) | A server asks the user for more information during a request. |
+| ask_question | [Cline](https://docs.cline.bot/tools-reference/all-cline-tools#tool-categories) | A built-in tool Cline uses to ask you for input during a task. |
+| question | [OpenCode](https://opencode.ai/docs/tools#question) | A built-in tool that asks you multiple choice questions mid task. |
+| Ask User tool | [Gemini CLI](https://geminicli.com/docs/tools/ask-user/) | A tool that asks you one to four questions, such as yes or no. |
+| Ask questions | [Cursor](https://cursor.com/docs/agent/overview#tools) | A tool the agent uses to ask you clarifying questions while it keeps working. |
+
+**How Aurora differs:** Bifrost mail waits in the inbox, even while its agent sleeps. A `question` here can go from one agent to another. The bus also links agents from different apps.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -58,6 +81,18 @@ Reading is not consuming. The `bifrost_inbox` tool of the [MCP door](/docs/conce
 
 - **The Ledger** — it lasts, and every reader replays the same shared record. The bus drops mail into one agent's inbox, and later forgets it.
 - **Bifrost** — the whole live layer. The bus is only the transport inside it.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Transports | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports) | The ways MCP messages travel between client and server. |
+| Data layer and transport layer | [MCP](https://modelcontextprotocol.io/docs/2026-07-28/learn/architecture#layers) | An inner layer for messages and an outer layer for moving them. |
+| pi.events | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md#choose-an-integration-point) | Not the same: an event channel extensions use inside one Pi process. |
+
+**How Aurora differs:** Bifrost splits the same way. The bus is the transport layer inside it. Unlike pi.events, the bus carries mail between separate agents.
+
+</Callout>
 
 ## How it connects
 

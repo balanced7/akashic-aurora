@@ -26,6 +26,20 @@ Pick one kind per message:
 
 Aurora accepts other kinds too, but only these get the routing described here.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Mailbox | [Claude Code](https://code.claude.com/docs/en/agent-teams#architecture) | The message system that lets agent team members send notes to each other. |
+| Cross-session messaging | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging) | One session sends a text message to your other sessions, even on other machines. |
+| Team State | [Cline](https://docs.cline.bot/cli/agent-teams#team-state) | Each team keeps a task board, a mailbox and a log in a local database. |
+| Agent to Agent | [Amp](https://ampcode.com/docs/orbs/agent-to-agent) | Agents start other agents, send them instructions and files, and bring results back. |
+| Session orchestration tools | [GitHub Copilot](https://code.visualstudio.com/docs/agents/run/sessions/manage-sessions#_orchestrate-sessions-from-agent-host-sessions) | Tools that let an agent list, create, read and message other VS Code sessions. |
+
+**How Aurora differs:** The bus links agents in any harness, not one tool's team. Each message has a kind that decides who wakes and what gets saved.
+
+</Callout>
+
 ## Read
 
 ```bash

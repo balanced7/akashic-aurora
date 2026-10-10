@@ -9,6 +9,26 @@ A handoff passes a piece of work to another agent, with a short briefing. The ne
 
 Chats grow without end, and rereading them costs tokens. The house rule is plain: Aurora holds the thread, and the chat is disposable. A handoff replaces pasting an old transcript into a new session.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Resuming Tasks | [Cline](https://docs.cline.bot/core-workflows/task-management#resuming-tasks) | Open an old task so Cline continues it with the full earlier chat. |
+| Continue a Thread Anywhere | [Amp](https://ampcode.com/docs/threads#continue-a-thread-anywhere) | Reopen and keep prompting a thread from another device, the CLI or a script. |
+| Resume and continue | [Claude Code](https://code.claude.com/docs/en/sessions#resume-a-session) | Pick up an earlier conversation with its full history. |
+| Resume (--resume, /resume) | [Gemini CLI](https://geminicli.com/docs/cli/session-management/#resuming-sessions) | Load a past session with all earlier context restored. |
+| Resume a session | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/work-with-multiple-sessions#returning-to-a-previous-session) | Reopen a past CLI session to continue it with its history. |
+| Session persistence | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/session-persistence) | Save an agent session and resume it later with its state. |
+| Continue (--continue) | [OpenCode](https://opencode.ai/docs/cli#flags) | Reopen the last session, or a chosen one, instead of starting fresh. |
+| /clear | [Claude Code](https://code.claude.com/docs/en/commands) | Start a fresh conversation with empty context, keeping the old one stored. |
+| /new | [OpenCode](https://opencode.ai/docs/tui#new) | Start a new, empty session. |
+| Import from another agent | [Codex](https://learn.chatgpt.com/docs/import) | Copy setup and recent work from Claude Code or Cursor into Codex. |
+| Import sessions from other agents | [Cline](https://docs.cline.bot/usage/cline-desktop#1-import-workflows-from-other-agents) | Bring in chats from Claude Code or Codex and continue them in Cline. |
+
+**How Aurora differs:** Resume carries the whole old chat forward. A handoff drops the chat and keeps a short briefing. Aurora pairs it with a fresh start, like `/clear` or `/new`.
+
+</Callout>
+
 ## Two things share the name
 
 The word means two different things. They travel by different roads.
@@ -26,6 +46,22 @@ Use the verb to pass work to whoever starts next. Use the bus kind to pass work 
 - **The note stays whole.** A `--note` over 1,000 characters goes whole into a separate note. The briefing then starts with a pointer to it.
 - **On the bus.** A runner that crashes before it answers gets the handoff again. The `bifrost-send` verb gives a direct handoff a reply deadline by default. If no answer comes, it goes out again, up to three times.
 
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Handoff | [Amp](https://ampcode.com/guides/context-management#handoff) | Moves the useful parts of a long thread into a new, focused thread. |
+| /newtask | [Cline](https://docs.cline.bot/core-workflows/using-commands#/newtask) | Starts a fresh task that carries a short summary of the current one. |
+| Branch summarization | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#branch-summarization) | Summarizes a branch you leave and attaches the summary to the new one. |
+| Summary format | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/compaction.md#summary-format) | A fixed outline: goal, constraints, progress, decisions, next steps and critical context. |
+| Plan files | [Windsurf](https://docs.devin.ai/desktop/cascade/modes#continuing-from-a-plan) | Saved Markdown plans you mention in a new conversation to go on with fresh context. |
+| Space context sharing | [Windsurf](https://docs.devin.ai/desktop/spaces#context-is-shared-across-sessions) | New sessions in a Space start with what the Space already knows. |
+| Handoffs | [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/custom-agents#_handoffs) | Buttons that switch to another custom agent with context and a ready prompt. |
+
+**How Aurora differs:** These tools write the summary into a new chat. Aurora stores the briefing in a ledger. Boot shows it to the next agent that starts, even in another app.
+
+</Callout>
+
 ## How you use it
 
 ```bash
@@ -40,6 +76,20 @@ See [Hand off work](/docs/how-to/hand-off-work) for the end-of-session routine.
 
 - **A brief** — a written work order for a seat. See [Charters and briefs](/docs/concepts/coordination/charters-and-briefs).
 - **`stand-down`** — giving up your [seat](/docs/concepts/bifrost/seats). It passes no work.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Handoff | [Codex](https://learn.chatgpt.com/docs/environments/git-worktrees#working-between-local-and-worktree) | Not the same: moving a chat and its work between a local checkout, a worktree or hosts. |
+| Handoff (session) | [GitHub Copilot](https://code.visualstudio.com/docs/agents/concepts/sessions#_hand-off-a-session) | Not the same: going on under another harness or role, carrying the full conversation. |
+| Cloud Agent handoff (&) | [Cursor](https://cursor.com/docs/cli/overview#cloud-agent-handoff) | Prefix a CLI message with & to send the chat to a Cloud Agent. |
+| Delegate to cloud agent (&) | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/delegate-tasks-to-cca#delegate-tasks-to-copilot-cloud-agent) | Send a task to the cloud agent so it continues in the background. |
+| Devin (cloud agent) | [Windsurf](https://docs.devin.ai/desktop/devin#delegating-work-to-devin) | An autonomous cloud agent you hand work to from the editor. |
+
+**How Aurora differs:** These move a whole chat to another place. An Aurora handoff moves the work, not the chat. The next agent starts fresh with a briefing.
+
+</Callout>
 
 ## How it connects
 
