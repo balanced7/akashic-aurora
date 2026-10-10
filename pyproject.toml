@@ -740,7 +740,8 @@ enableTypeIgnoreComments = true
 reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.ty.environment]
-# Plan G4.P1/P4: ty runs informationally (`poe types-ty`) over the same scope as basedpyright.
+# Plan G4.P1/P4: ty (`poe types-ty`) runs over the same scope as basedpyright; at 0 diagnostics since
+# 2026-10-10, so CI's ty job blocks. basedpyright stays the gate until ty is 1.0.
 python-version = "3.11"
 # Aurora runs on Linux, macOS and Windows: Windows-only stdlib members (ctypes.WinDLL, msvcrt)
 # are real, not unresolved.
@@ -1079,7 +1080,7 @@ sequence = [
 ]
 
 [tool.poe.tasks.types-ty]
-help = "Type-check with ty (advisory second opinion)"
+help = "Type-check with ty (the second opinion; CI blocks on it)"
 cmd = "ty check"
 
 
