@@ -8,10 +8,11 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ref supersedes the run in flight.
+# A newer push to the same branch supersedes the run in flight, except on master: there every
+# commit's run finishes, or a busy master (pushes minutes apart) would never be verified at all.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 # Every action is pinned to a full commit SHA, the tag it resolved from beside it
 # (`git ls-remote` at pin time); Dependabot (.github/dependabot.yml) proposes the updates.
