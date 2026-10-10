@@ -20,8 +20,9 @@
 //    Tuning table below, under "the string light envelope and the vibration blur".
 //  - dampers: lift while their key is held or the sustain pedal is down; the right pedal dips with the pedal.
 //  - case: clear cast acrylic (white base, a faint cool attenuation over 400 mm, 15 mm walls, 25 mm legs and lyre). A
-//    cool-white fresnel edge (no environment map) outlines the silhouettes; strikes tint only the sharpest edges toward
-//    the notes' colours, capped under the bloom threshold, so the body never fills with colour.
+//    cool-white fresnel edge (in crystal, no environment map) outlines the silhouettes; strikes tint only the sharpest
+//    edges toward the notes' colours, capped under the bloom threshold, so the body never fills with colour. The other
+//    glass looks (options.glass, below) change how the case is drawn, never the action inside it.
 //  - music desk: the chord name (state.chord.name, our own text) is etched in the chord's colour, flares on a change.
 //
 // Integration notes for the host: the instrument brings its own keybed, key blocks and key slip, so the host's lacquer
@@ -29,8 +30,17 @@
 // (hints.floorY = -30.33); the host floor at y = -2.3 would cut them. Nothing in front of z = -3.55 rises above the key
 // tops, so the host's trails (emitted at z = -3.42) are never hidden by the glass.
 // Options (ctx.options or setOptions): lid "auto" (off on the page, long prop in the lab's hero view) | "long" |
-// "short" | "closed" | "off" (a portrait framing never raises it past "short"); glass "crystal" (transmission) | "fast"
-// (plain alpha blend, no transmission pass); desk true | false; edge 0..2 (fresnel edge strength, default 1).
+// "short" | "closed" | "off" (a portrait framing never raises it past "short"); desk true | false; edge 0..2 (fresnel edge
+// strength, default 1; it scales every look's edge light); glass, one of these (handle.optionsSpec lists them in this
+// order for the Studio menu; an unknown value mounts crystal; the numbers are in GLASS_LOOKS and the blocks above it):
+//   "crystal"     clear acrylic, a cool fresnel edge, no reflections: the original look, unchanged
+//   "studio"      Studio crystal: the same acrylic lit like a product photograph, with a reflection map of its own (STUDIO)
+//   "lens"        Lensing edges: a stylised thick-crystal edge; silhouettes bend hard and take a faint aqua tint (LENS)
+//   "prism"       Prism: cut crystal, ior 1.70, dispersion 4, thicker walls, the host studio's lines along the cuts (PRISM)
+//   "satin"       Satin: sandblasted faces, polished bevels and rods; the panes over the action stay clear windows (SATIN)
+//   "smoked"      Smoked glass: grey-violet, passes about 43 % of what is behind it, mirrors a studio of its own (SMOKE)
+//   "lightguide"  Light guide: edge-lit acrylic; each note's colour pools under its key and runs along the bevels (LG)
+//   "fast"        plain alpha blend, no transmission pass
 
 const MM = 1225.7 / 52;
 const DEG = Math.PI / 180;
@@ -108,6 +118,387 @@ const GLASS = { color: 0xffffff, roughness: 0.03, ior: 1.49, thickness: 15 / MM,
 // kept about 1.0 in blue, since blue carries only 0.07 of the luma weight, and at pow 7 that filled the grazing lid
 // underside navy.
 const EDGE = { color: 0xcfe0ff, gain: 0.12, pow: 5.5, strikePow: 10.0, strikeGain: 0.05, tau: 1.1, maxLuma: 0.09, maxChannel: 0.15 };
+
+// ---- the glass looks (options.glass) ----
+// Daniel, 2026-10-09: "Can we make the glass look more like glass and try a few different shaders? i didn't realize that
+// was the foot of the grand" (the tail leg's brass caster, seen through the clear key slip). Every look keeps the same
+// rules, because three r186 enforces them silently when they are broken:
+//  - transmission > 0 with transparent false. Three's transmission pass draws the background and the OPAQUE list into
+//    what the glass refracts; a transparent glass would drop out of the others' view. Only "fast" alpha-blends.
+//  - one program per look, keyed "glass-piano-<shader>" (crystal and fast share "glass-piano-crystal", as always).
+//  - every compile installs EVERY look's uniforms. Three keeps the uniforms object of a material's LAST compile, and a
+//    program taken back from its cache runs on that object (WebGLRenderer.getProgram, WebGLUniforms.seqWithValue), so a
+//    look-only uniform would go missing after a round trip through another look.
+//  - each look is a COMPLETE record (GLASS_LOOKS), so a switch never leaves a field of the last look behind, and crystal
+//    and fast are exactly what they always were.
+//  - nothing glows at rest and no face fills with note colour. The bloom line (0.94 under spectacle, 0.9 on the page) is
+//    on LINEAR luminance: the composer's RenderPass draws with NoToneMapping into a render target (WebGLPrograms), and
+//    OutputPass tone-maps afterwards.
+// What none of them changes is glass behind glass: the pass above holds no glass at all, so the tail leg stays invisible
+// through the key slip and keybed, and in the 9:16 follow view its brass caster still shows alone under the key slip.
+// Showing it is a separate change (side DoubleSide on the legs only, +0.7 ms at Cinema, or an opaque proxy drawn only
+// into the transmission pass).
+
+// "studio" (Studio crystal): the same acrylic, lit the way a product photograph lights a clear grand. The host's studio
+// puts its four strips where this case almost never mirrors them from the 22-degree follow camera (the desk mirrors
+// +9..+15 deg toward the player, the key slip and fallboard -18..-25, a column -22..-30), so studio carries a map of its
+// own (acrylicStudio, below). What it mirrors is soft-kneed (max channel 0.40, easing to at most 0.70), the legs are
+// solid 60 mm columns, and the clearcoat is off. Clearcoat 0 also drops the coat's second specular lobe (key-light glints
+// about 0.63x crystal's near normal incidence, about equal at grazing) and the coat's (1 - 0.6 Fcc) dimming of everything
+// under it, emissive included: edgeMul leaves the cool edge at about 0.77x crystal's on screen, and strikeMul keeps the
+// note tint where crystal has it (that factor, averaged over the strike's pow-10 lobe, is 0.58). The knee is GLSL
+// constants, never uniforms. legThickness also thickens the lyre posts and braces (20-25 mm and 10 mm across): judge by
+// eye. Cost: no pass; per glass fragment one IBL radiance and one irradiance fetch and the knee, minus the clearcoat lobe
+// (6.19 vs 6.16-6.18 ms a frame at Cinema 9:16 on the RX 9070 XT); once, a canvas paint and a PMREM bake (6 MB).
+const STUDIO = { envMapIntensity: 6, clearcoat: 0, legThickness: 60 / MM, edgeMul: 0.5, strikeMul: 0.6 };
+// The cool strip behind maps onto the 0.45 rim round-over as a sub-pixel line; if it crawls under the moving follow
+// camera, dim it to "rgb(110,122,160)" (more canvas blur cannot widen a line the geometry makes sub-pixel, and more
+// roughness would also blur the view through the glass).
+const STUDIO_HORIZON = "rgb(176,196,255)";
+const STUDIO_KNEE = `{ // studio: a soft knee on the mirrored environment
+  const float K0 = 0.40, K1 = 0.70;
+  float sl = max3( reflectedLight.indirectSpecular );
+  if ( sl > K0 ) reflectedLight.indirectSpecular *= ( K0 + ( K1 - K0 ) * ( 1.0 - exp( - ( sl - K0 ) / ( K1 - K0 ) ) ) ) / sl;
+}
+#include <aomap_fragment>`;
+
+// "lens" (Lensing edges): a stylised thick-crystal look. Face-on the walls stay as clear as crystal; toward every
+// silhouette the transmission ray is lengthened by up to LENS.addMM, so rounds, rods and side walls bend what is behind
+// them, and the longer path deepens a faint aqua Beer-Lambert tint. (A real flat 15 mm wall displaces the image by at
+// most about 12 mm even at 80 deg, and three already gives about 9 mm there: this exaggerates the edges on purpose.)
+// Added path = addMM * (1 - |n.v|)^pow, the SAME millimetres on walls and legs, additive and not a multiplier: x(1 + 4
+// shape) on the 25 mm legs reached 125 mm and pulled the brass pedals into the pedal-box top.
+//   walls 15 mm: x1.00 at 20 deg, x1.11 at 40, x1.71 at 60, x2.40 at 70, x3.48 at 80, x4.66 at 88
+//   legs  25 mm: x1.00 at 20 deg, x1.06 at 40, x1.42 at 60, x1.84 at 70, x2.49 at 80, x3.20 at 88
+// Beer transmittance (R, G, B): wall face-on (0.975, 0.994, 0.989), at the silhouette (0.881, 0.969, 0.945); crystal's
+// face-on wall (0.989, 0.991, 0.995). The edge line and the strike tint move into the transmission chunk (lensHook), so
+// lens draws no second edge. Cost: no pass; refraction fetches unchanged (8), about 15 ALU, the host map's 3 cube lookups.
+const LENS = {
+  addMM: 60,                       // extra path at a true silhouette, mm. 45 subtle .. 90 strong; above ~90 the front-object
+                                   // ghosts (the plate brackets on the spine's top round) detach into notches
+  pow: 2.5,                        // 2 = a broader ramp, 3 = only the last ~20 deg
+  blur: 0.06,                      // extra transmission roughness at the silhouette (about +0.6 mip): soft, no shimmer
+  pipe: 2.0,                       // the edge line's Beer path = 2 x the lensed thickness
+  attenuationColor: 0xbdeddf,      // sRGB; linear (0.507, 0.844, 0.737) over 400 mm
+  attenuationDistance: 400 / MM,
+  edgeGain: 0.10,                  // white edge line x the Beer tint: luminance 0.090 at a wall silhouette (crystal's 0.089)
+  envIntensity: 0.15,              // the host map. 0.20 stacks to ~0.97 linear at grazing with the strike and what shows
+                                   // through (a static line over the bloom line); 0.15 is ~0.77. 0 = pure lensing
+};
+const LENS_DECL = "uniform vec3 uLensEdge;\nuniform float uEdgePow;\nuniform vec3 uStrike;\nuniform float uStrikePow;\n" +
+  "uniform float uLensAdd;\nuniform float uLensPow;\nuniform float uLensBlur;\nuniform float uLensPipe;\n";
+const LENS_ANCHOR = "vec4 transmitted = getIBLVolumeRefraction(";
+// Inserted into r186 transmission_fragment just before its getIBLVolumeRefraction( call, where material.thickness,
+// .attenuationColor and .attenuationDistance are set and pos, v, n exist. That call turns material.thickness into BOTH the
+// refraction offset (normalize(refract(-v, n, 1/ior)) * thickness * modelScale) and the Beer path; material.roughness there
+// sets only the transmission mip and the (1 - F) term, and nothing after the chunk reads it. totalEmissiveRadiance is read
+// only afterwards (outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance), so moving the edge here is exact.
+const LENS_GLSL = `
+	// glass-piano lens: the transmission ray lengthens toward the silhouette
+	float lensFr = 1.0 - clamp( abs( dot( n, v ) ), 0.0, 1.0 );
+	float lensShape = pow( lensFr, uLensPow );
+	material.thickness += uLensAdd * lensShape;
+	material.roughness = min( material.roughness + uLensBlur * lensShape, 1.0 );
+	{
+		// the edge line, tinted by the same Beer law over pipe x the lensed path
+		float lensPath = material.thickness * length( modelMatrix[ 0 ].xyz ) * uLensPipe;
+		vec3 lensT = exp( log( max( material.attenuationColor, vec3( 1e-4 ) ) ) * ( lensPath / material.attenuationDistance ) );
+		totalEmissiveRadiance += uLensEdge * lensT * pow( lensFr, uEdgePow ) + uStrike * pow( lensFr, uStrikePow );
+	}
+`;
+
+// "prism": heavy flint, cut crystal. ior 1.70 (F0 0.067, acrylic's 1.49 gives 0.039); dispersion 4, so r186 refracts
+// r/g/b at ior -/+ (ior - 1) * 0.025 * dispersion = 1.63 / 1.70 / 1.77, about 6x real flint, so the fringes clear a pixel
+// at Cinema on curves while faces seen head-on stay clean; the modelled rim wall's thickness (G.rimTh, 30.6 mm) and 71 mm
+// legs, lyre and pedal box (the hammers behind the fallboard move about 0.21 units at 22 deg; crystal 0.08). Clearcoat 0,
+// one surface; the host studio at 0.6. The shader finds the cuts from screen derivatives (bend per world unit, so the
+// mask is the same at Studio and Cinema): the round-overs and bevels carry a faint cool line and brighter strips, and the
+// chord tint goes on the silhouettes and the SHARP bevels only (radius 0.25 or less), never the rim-top round-over band.
+// Every reflection is soft-kneed against the pixel's own headroom, so it never pushes a pixel past 0.86. Without clearcoat
+// the silhouette edge is up to 2.5x crystal's at the extreme rim (still under bloom). Geometry roughness makes the bevels
+// softer at Studio than at Cinema: judge them at Cinema. Cost: no pass; dispersion takes 3 refraction rays (24 fetches
+// instead of 8), the host map 2-4 more, 4 derivatives; unmeasured, about 3.5x the glass texture traffic.
+const PRISM = { ior: 1.70, dispersion: 4.0, thickness: G.rimTh, legThickness: 3.0, envMapIntensity: 0.6 };
+// Replaces the single "#include <transmission_fragment>" and includes it again first: there totalDiffuse holds the
+// refracted, dispersed scene, totalSpecular = direct + indirect specular, and outgoingLight is summed on the next line.
+// In scope: normal, nonPerturbedNormal, geometryViewDir, reflectedLight, vViewPosition, pow4, saturate, and luminance()
+// (WebGLProgram's fragment prefix, the same weights the bloom high-pass uses).
+const PRISM_GLSL = `#include <transmission_fragment>
+{
+	float gpFr = 1.0 - saturate( abs( dot( normal, geometryViewDir ) ) );
+	// bend per world unit (about 1/radius): 0 on flat faces, 2.2 on the 0.45 round-overs, 5-10 on the 0.1-0.2 slab
+	// bevels, under 0.8 on the turned legs; faded where a bevel is narrower than about 2 px, so distant cuts do not shimmer
+	vec3 gpDpx = dFdx( vViewPosition ), gpDpy = dFdy( vViewPosition );
+	float gpCurv = max( length( dFdx( nonPerturbedNormal ) ) / max( length( gpDpx ), 1e-6 ),
+	                    length( dFdy( nonPerturbedNormal ) ) / max( length( gpDpy ), 1e-6 ) );
+	float gpPx = max( length( gpDpx ), length( gpDpy ) );
+	float gpWide = smoothstep( 1.0, 3.0, 1.5708 / max( gpCurv * gpPx, 1e-6 ) );
+	float gpCut = smoothstep( 1.0, 3.5, gpCurv ) * gpWide;
+	float gpBevel = smoothstep( 3.5, 6.0, gpCurv ) * gpWide;
+	// silhouette and cut lines: tighter and fainter when the studio draws the outline, pow 5.5 without an env map
+	#ifdef USE_ENVMAP
+		totalEmissiveRadiance += uEdge * ( 0.5 * pow( gpFr, 8.0 ) + 0.35 * gpCut );
+	#else
+		totalEmissiveRadiance += uEdge * ( pow( gpFr, uEdgePow ) + 0.35 * gpCut );
+	#endif
+	totalEmissiveRadiance += uStrike * max( pow( gpFr, uStrikePow ), 0.35 * gpBevel );
+	// studio strips 1.8x along the cuts; a faint coating-like hue shift at grazing only (RGB mean kept, luminance +-13 %)
+	vec3 gpEnv = reflectedLight.indirectSpecular * ( 1.0 + 0.8 * gpCut );
+	vec3 gpFilm = 1.0 + 0.22 * cos( 6.2831853 * ( 0.72 - 2.22 * gpFr + vec3( 0.0, 0.3333, 0.6667 ) ) );
+	gpEnv *= mix( vec3( 1.0 ), gpFilm, pow4( gpFr ) );
+	// soft knee against the headroom of this pixel: the reflection never pushes it past 0.86; a pixel already over that
+	// keeps its own light and loses its reflection; over a dark interior this is the knee 0.55 easing to 0.80
+	float gpRoom = clamp( 0.86 - luminance( totalDiffuse + reflectedLight.directSpecular + totalEmissiveRadiance ), 0.0, 0.80 );
+	float gpK = 0.6875 * gpRoom;
+	float gpL = luminance( gpEnv );
+	float gpX = gpL - gpK;
+	gpEnv *= gpX > 0.0 ? ( gpK + gpX / ( 1.0 + gpX / max( gpRoom - gpK, 1e-4 ) ) ) / max( gpL, 1e-4 ) : 1.0;
+	totalSpecular = reflectedLight.directSpecular + gpEnv;
+}`;
+
+// "satin": sandblasted acrylic. Flat faces frost: their reflection is rough (0.42), the view through them is blurred (a
+// sigma of 0.7 % of the frame's short side, the same at Studio and Cinema), and a faint NEUTRAL milk is added (a share of
+// the transmission handed to a luminance-only diffuse film, so the note lights brighten it but never tint it). Bevels,
+// lyre rods, braces and the prop stay polished (curvature from screen derivatives), and frosted faces turn glossy in
+// REFLECTION only at grazing angles. The windows over the action (key slip, fallboard, desk rest, music desk: aPane = 1)
+// stay polished, so keys, hammers, dampers and strings stay sharp. The legs read frosted top to toe (their lathe normals
+// bend less than curv[0]). Env reflections are capped per layer under the bloom line. The blur is screen-space and has no
+// depth, so a frosted face also softens opaque things just in front of it. Cost: about +0.1 ms at Cinema (5.43-5.66 vs
+// 5.29-5.58 ms); one bicubic transmission sample as crystal, at a coarser mip; 4 derivatives and ~30 ALU; 3 cube lookups.
+const SATIN = Object.freeze({
+  rough: 0.42,         // reflection roughness of a fully frosted face, applied in the shader (m.roughness is never touched)
+  polishRough: 0.05,   // polished bevels and windows (three floors roughness at 0.0525, then adds geometryRoughness)
+  blur: 0.007,         // view-through blur sigma as a share of the frame's short side (Studio 7.6 px, Cinema 15 px)
+  veil: 0.06,          // share of a frosted face's transmission given to the neutral diffuse film; 0 = none
+  curv: [0.9, 2.0],    // curvature in 1/units: below 0.9 frosted, above 2.0 polished
+  graze: [0.55, 0.9],  // 1 - |n.v|: where the REFLECTION turns glossy (the view through stays frosted)
+  env: 0.9,            // envMapIntensity on the host's dark studio
+  specCap: 0.5,        // per-layer ceiling on env specular, linear: base + 0.6 x clearcoat stays at or under ~0.8
+});
+const SATIN_LOD = "float lod = log2( transmissionSamplerSize.x ) * applyIorToRoughness( roughness, ior );";  // r186 transmission_pars_fragment
+const SATIN_TX = "material.transmission = transmission;";                                                 // r186 transmission_fragment
+const SATIN_DECL = "uniform vec2 uSatinRough;\nuniform vec4 uSatinShape;\nuniform float uSatinBlur, uSatinVeil, uSatinSpecCap;\n" +
+  "varying float vPane;\nfloat satinBlur = 0.0;\nfloat satinAARough = 0.0;\n";
+// a bicubic tap of mip L spreads about 0.65 * 2^L px, so this lod gives sigma = satinBlur * the short side; never sharper
+// than three's own anti-aliasing lod for a polished face
+const SATIN_LOD_NEW = "float lod = max( log2( transmissionSamplerSize.x ) * applyIorToRoughness( satinAARough, ior ),\n" +
+  "  log2( max( satinBlur * min( transmissionSamplerSize.x, transmissionSamplerSize.y ) * 1.54, 1.0 ) ) );";
+// after the 0.0525 floor and geometryRoughness, before lights_fragment_begin reads material.roughness
+const SATIN_FROST = `
+float satinCurv = max( length( dFdx( nonPerturbedNormal ) ) / max( length( dFdx( vViewPosition ) ), 1e-6 ),
+  length( dFdy( nonPerturbedNormal ) ) / max( length( dFdy( vViewPosition ) ), 1e-6 ) );
+float satinFrost = ( 1.0 - vPane ) * ( 1.0 - smoothstep( uSatinShape.x, uSatinShape.y, satinCurv ) );
+float satinSheen = satinFrost * ( 1.0 - smoothstep( uSatinShape.z, uSatinShape.w,
+  1.0 - abs( dot( nonPerturbedNormal, normalize( vViewPosition ) ) ) ) );
+satinAARough = max( uSatinRough.x, 0.0525 ) + geometryRoughness;
+material.roughness = min( max( mix( uSatinRough.x, uSatinRough.y, satinSheen ), 0.0525 ) + geometryRoughness, 1.0 );
+#ifdef USE_CLEARCOAT
+  material.clearcoat *= 1.0 - satinSheen;
+#endif
+satinBlur = satinFrost * uSatinBlur;
+`;
+// env lines stay lines, never bloom sources at rest (clearcoatSpecularIndirect is a file-scope global in r186)
+const SATIN_CAP = `
+reflectedLight.indirectSpecular *= min( 1.0, uSatinSpecCap / max( max3( reflectedLight.indirectSpecular ), 1e-4 ) );
+clearcoatSpecularIndirect *= min( 1.0, uSatinSpecCap / max( max3( clearcoatSpecularIndirect ), 1e-4 ) );
+`;
+// the neutral veil: at frost 0 transmission stays 1, so mix(x, transmitted, 1) = transmitted and the windows are untouched
+const SATIN_TX_NEW = "material.transmission = transmission * ( 1.0 - uSatinVeil * satinFrost );\n\ttotalDiffuse = vec3( luminance( totalDiffuse ) );";
+
+// "smoked" (Smoked glass): grey-violet smoked acrylic that mirrors a studio of its own (smokeStudio, below; the host's
+// strips sit where these faces never mirror them). A wall passes (0.44, 0.41, 0.52) head-on (luma 0.43) and 0.34 at
+// grazing (the slab's true path t / cos theta_t, x1.35 at most, for the tint and the refraction offset alike); the legs
+// (0.37, 0.35, 0.45); the music desk is its real 10.4 mm pane, (0.54, 0.51, 0.62), luma 0.53, so a hammer flash behind
+// it still blooms from about velocity 77 (walls 86, crystal 56). Reflections ride a soft ceiling (linear to the knee,
+// easing to the ceiling per channel). Clearcoat stays 0.6, so the host lights' glints are crystal's. glint is the canvas
+// alpha of the desk's glint band (sRGB: 0.5 is about a quarter of its linear light; 0 removes it).
+// If the case reads purple, the neutral-cool fallback has the same luma: color 0xeeeef2, attenuationColor 0xbcbcc4,
+// edgeColor 0xcfe0ff, and in smokeStudio a skylight of rgb(146,146,170) and a floor card of rgb(146,146,165).
+// Cost: no pass; 3-6 cube fetches and ~30 ALU per glass fragment (5.8 vs 5.8 ms median at Cinema); once, a canvas paint,
+// three transient PMREM programs and a bake (6 MB held).
+const SMOKE = { color: 0xefebf6, attenuationColor: 0xbdbbc6, attenuationDistance: 15 / MM, legAttenuationDistance: 20 / MM,
+  deskThickness: 10.4 / MM, envMapIntensity: 2.0, legEnvMapIntensity: 2.2, edgeColor: 0xd8ccff, edgeGain: 0.07,
+  knee: 0.30, ceiling: 0.65, glint: 1.0 };
+const f4 = (x) => x.toFixed(4);
+const SMOKE_GLSL = `float smokePath( const in vec3 n, const in vec3 viewPos, const in float eta ) {
+	float c = clamp( abs( dot( normalize( n ), normalize( viewPos ) ) ), 0.0, 1.0 );
+	return inversesqrt( max( 1.0 - ( 1.0 - c * c ) / ( eta * eta ), 0.25 ) );
+}
+vec3 smokeCeil( const in vec3 x ) {
+	vec3 over = max( x - ${f4(SMOKE.knee)}, 0.0 );
+	return min( x, vec3( ${f4(SMOKE.knee)} ) ) + ${f4(SMOKE.ceiling - SMOKE.knee)} * ( 1.0 - exp( - over / ${f4(SMOKE.ceiling - SMOKE.knee)} ) );
+}
+`;
+const SMOKE_TF_FROM = "material.thickness = thickness;";   // r186 transmission_fragment, once
+const SMOKE_TF_TO = "material.thickness = thickness * smokePath( normal, vViewPosition, material.ior );";
+const SMOKE_CEIL = "\nreflectedLight.indirectSpecular = smokeCeil( reflectedLight.indirectSpecular );\nclearcoatSpecularIndirect = smokeCeil( clearcoatSpecularIndirect );";
+
+// "lightguide" (Light guide): edge-lit acrylic, the way a lit acrylic sign glows at its polished edges.
+// Where: the rounded bevels only. The shader measures how sharply the surface bends at each pixel (the shape operator's
+// size, sqrt(k1^2 + k2^2), from screen derivatives of the normal and the position), so the bevels (radius 0.1-0.45 units,
+// curvature 2.2-10 per unit) light, while flat faces (under 0.5) and the legs' shafts (about 0.6) stay clear. Rods (lyre
+// posts, braces, the prop) are all bevel to that mask, so the leg material, which the prop joins in this look, keeps
+// only a dim cool outline and takes no note light at all (partLegs).
+// What: at rest a faint cool light, half as bright at the tail as at the keys, because the light comes in at the keyboard.
+// A strike puts the note's colour into the edges at its key when the hammer reaches the string: a pool that fades where
+// it landed, and two pulses that run left and right along the case, widening and fading. A sounding note keeps a low glow
+// under its key on the strings' own envelope (bodyLvl), so it ends when the damper lands. The line is a 128-texel
+// half-float texture across the case, rebuilt each frame from the strike events; it fades behind the keyboard and down
+// the legs over LG.reach. The case-wide strike tint is off (strikeMul 0): the line carries the strikes, at their keys.
+// Caps: each texel at luma 0.30 and 0.45 per channel, after the edge option. Thicker walls (20/45 mm), the host studio at
+// 0.18 and a thinner clearcoat (0.3), so the two reflections do not stack. The line depends on x only: a long edge running
+// front to back shows a key's colour at every depth with that x, faded by reach.
+// Cost: no pass; ~55-60 ALU per glass fragment (4 derivatives, one mat4), one fetch from the 128x1 line, the host map's
+// cube lookups; 1 KB uploaded a frame while the line is lit; ~0.1 ms CPU worst case.
+//   name          what it is                                                          value
+//   rest          cool rest light on the bevels, x EDGE.color (luma 0.037)             0.05
+//   restFar       the share of it the far edges keep                                   0.5
+//   kLo/kHi       bevel mask: smoothstep on curvature per instrument unit              1.1 / 2.0 (radius 0.9 .. 0.5)
+//   reach         units: the line light falls by e behind z = zFront / below the bed  28 (drop counts 0.6)
+//   sil           share of the line light on the tightest silhouettes (pow 10)        0.35
+//   speed         units/s each running pulse travels (an octave in 0.44 s)            16
+//   sigma/spread  the pulse's width at the strike, and its widening per second        0.6 units, 1.5 units/s
+//   tauRun/Pool   the running pulses' fade, the pool's fade                           0.6 s, 0.35 s
+//   run/pool      each pulse's / the pool's peak at velocity 127, x note colour       0.30, 0.45 (x v^1.3)
+//   sustain       the held glow under a sounding note, x bodyLvl x note colour        0.20
+//   life/events   a strike is forgotten after life seconds; the event ring holds      3.0 s, 96
+//   partCase/Legs (rest share, line share) per material                              [1, 1] / [0.35, 0]
+const LG = Object.freeze({
+  texels: 128, rest: 0.05, restFar: 0.5, kLo: 1.1, kHi: 2.0, reach: 28, sil: 0.35, zFront: -6.3,
+  speed: 16, sigma: 0.6, spread: 1.5, tauRun: 0.6, tauPool: 0.35, run: 0.30, pool: 0.45, sustain: 0.20, velExp: 1.3,
+  life: 3.0, events: 96, maxLuma: 0.30, maxChannel: 0.45, partCase: [1, 1], partLegs: [0.35, 0],
+});
+const LIGHTGUIDE = { thickness: 20 / MM, legThickness: 45 / MM, clearcoat: 0.3, envMapIntensity: 0.18 };
+const LG_PARS = `uniform sampler2D uLgLine;
+uniform mat4 uLgFrame;
+uniform float uLgScale;
+uniform vec3 uLgRest;
+uniform vec4 uLgMask;
+uniform vec4 uLgSpan;
+uniform vec2 uLgPart;
+`;
+// uLgMask = (kLo, kHi, 1/reach, restFar), uLgSpan = (line x0, 1/line width, zFront, bed y), uLgFrame = world -> instrument.
+// The first three lines are crystal's edge, unchanged. vWorldPosition exists whenever transmission is on (it always is here).
+const LG_EDGE = `#include <emissivemap_fragment>
+{ float fr = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);
+  float frS = pow(fr, uStrikePow);
+  totalEmissiveRadiance += uEdge * pow(fr, uEdgePow) + uStrike * frS;
+  vec3 lgNx = dFdx(normal), lgNy = dFdy(normal), lgPx = dFdx(vViewPosition), lgPy = dFdy(vViewPosition);
+  vec3 lgC = cross(lgPx, lgPy);
+  float lgT = dot(lgNx, lgNx) * dot(lgPy, lgPy) + dot(lgNy, lgNy) * dot(lgPx, lgPx) - 2.0 * dot(lgNx, lgNy) * dot(lgPx, lgPy);
+  float lgK = sqrt(max(lgT, 0.0) / max(dot(lgC, lgC), 1e-24)) * uLgScale;
+  float lgBevel = smoothstep(uLgMask.x, uLgMask.y, lgK);
+#ifdef USE_TRANSMISSION
+  vec3 lgW = vWorldPosition;
+#else
+  vec3 lgW = (vec4(-vViewPosition - viewMatrix[3].xyz, 0.0) * viewMatrix).xyz;
+#endif
+  vec3 lgP = (uLgFrame * vec4(lgW, 1.0)).xyz;
+  float lgReach = exp(-(max(uLgSpan.z - lgP.z, 0.0) + 0.6 * max(uLgSpan.w - lgP.y, 0.0)) * uLgMask.z);
+  vec3 lgLine = texture2D(uLgLine, vec2((lgP.x - uLgSpan.x) * uLgSpan.y, 0.5)).rgb * lgReach;
+  totalEmissiveRadiance += lgBevel * (uLgRest * (uLgPart.x * mix(uLgMask.w, 1.0, lgReach)) + lgLine * uLgPart.y)
+    + frS * ${LG.sil.toFixed(2)} * uLgPart.y * lgLine; }`;
+
+// Crystal's edge and strike, byte for byte as they have always been compiled ("glass-piano-crystal").
+const EDGE_DECL = "uniform vec3 uEdge;\nuniform float uEdgePow;\nuniform vec3 uStrike;\nuniform float uStrikePow;\n";
+const EDGE_GLSL = "#include <emissivemap_fragment>\n{ float fr = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);\n  totalEmissiveRadiance += uEdge * pow(fr, uEdgePow) + uStrike * pow(fr, uStrikePow); }";
+// A look whose anchor is gone from a future three still compiles: it warns and skips that part.
+const hasAnchor = (src, at, look) => {
+  if (src.includes(at)) return true;
+  console.warn(`glass-piano: three's shader no longer has "${at}"; the ${look} glass skips that part`);
+  return false;
+};
+// Each look's GLSL, applied in onBeforeCompile after every look's uniforms are installed. Replacements are functions,
+// so no "$" in three's chunk text is ever read as a replacement pattern.
+const LOOK_GLSL = {
+  crystal(sh) {
+    sh.fragmentShader = EDGE_DECL + sh.fragmentShader.replace("#include <emissivemap_fragment>", EDGE_GLSL);
+  },
+  // crystal, then the knee: "#include <aomap_fragment>" comes after lights_fragment_end, where indirectSpecular is final,
+  // and before totalSpecular is summed, so it compresses only the mirrored environment
+  studio(sh) {
+    LOOK_GLSL.crystal(sh);
+    if (hasAnchor(sh.fragmentShader, "#include <aomap_fragment>", "studio")) sh.fragmentShader = sh.fragmentShader.replace("#include <aomap_fragment>", () => STUDIO_KNEE);
+  },
+  // REPLACES crystal's edge injection (no emissivemap edge, so no double edge): the edge moves into the transmission chunk
+  lens(sh, THREE) {
+    const chunk = THREE.ShaderChunk && THREE.ShaderChunk.transmission_fragment;
+    if (!chunk || !hasAnchor(chunk, LENS_ANCHOR, "lens") || !hasAnchor(sh.fragmentShader, "#include <transmission_fragment>", "lens")) {
+      LOOK_GLSL.crystal(sh);
+      return;
+    }
+    sh.fragmentShader = LENS_DECL + sh.fragmentShader.replace("#include <transmission_fragment>",
+      () => chunk.replace(LENS_ANCHOR, () => LENS_GLSL + "\t" + LENS_ANCHOR));
+  },
+  // REPLACES crystal's edge injection: the edge, the cut lines and the tint are drawn after the transmission chunk
+  prism(sh) {
+    if (!hasAnchor(sh.fragmentShader, "#include <transmission_fragment>", "prism")) { LOOK_GLSL.crystal(sh); return; }
+    sh.fragmentShader = EDGE_DECL + sh.fragmentShader.replace("#include <transmission_fragment>", () => PRISM_GLSL);
+  },
+  satin(sh, THREE) {
+    LOOK_GLSL.crystal(sh);
+    const C = THREE.ShaderChunk;
+    const pars = hasAnchor(C.transmission_pars_fragment, SATIN_LOD, "satin") ? C.transmission_pars_fragment.replace(SATIN_LOD, () => SATIN_LOD_NEW)
+      : C.transmission_pars_fragment;
+    const tx = hasAnchor(C.transmission_fragment, SATIN_TX, "satin") ? C.transmission_fragment.replace(SATIN_TX, () => SATIN_TX_NEW)
+      : C.transmission_fragment;
+    sh.vertexShader = "attribute float aPane;\nvarying float vPane;\n" +
+      sh.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvPane = aPane;");
+    sh.fragmentShader = SATIN_DECL + sh.fragmentShader
+      .replace("#include <transmission_pars_fragment>", () => pars)
+      .replace("#include <lights_physical_fragment>", () => "#include <lights_physical_fragment>\n" + SATIN_FROST)
+      .replace("#include <lights_fragment_end>", () => "#include <lights_fragment_end>\n" + SATIN_CAP)
+      .replace("#include <transmission_fragment>", () => tx);
+  },
+  smoked(sh, THREE) {
+    LOOK_GLSL.crystal(sh);
+    const TF = THREE.ShaderChunk.transmission_fragment;
+    const tf = hasAnchor(TF, SMOKE_TF_FROM, "smoked") ? TF.replace(SMOKE_TF_FROM, () => SMOKE_TF_TO) : "#include <transmission_fragment>";
+    sh.fragmentShader = SMOKE_GLSL + sh.fragmentShader
+      .replace("#include <lights_fragment_end>", () => "#include <lights_fragment_end>" + SMOKE_CEIL)   // the mirrored studio only
+      .replace("#include <transmission_fragment>", () => tf);
+  },
+  // REPLACES crystal's edge injection with one that contains it (the first three lines of LG_EDGE)
+  lightguide(sh) {
+    sh.fragmentShader = EDGE_DECL + LG_PARS + sh.fragmentShader.replace("#include <emissivemap_fragment>", () => LG_EDGE);
+  },
+};
+
+// The looks, in menu order (crystal first: the host shows choices[0] when nothing is saved; fast last). Every record
+// sets every field a look may change; crystal is exactly makeGlass's constructor values. env: null (none), "host"
+// (ctx.envMap, the page's dark studio) or the name of a map the instrument paints itself (GLASS_ENV_PAINTERS).
+const CRYSTAL_LOOK = Object.freeze({
+  name: "Crystal", shader: "crystal",
+  transmission: 1, transparent: false, opacity: 1, depthWrite: true, color: GLASS.color, roughness: GLASS.roughness,
+  ior: GLASS.ior, dispersion: 0, thickness: GLASS.thickness, legThickness: GLASS.legThickness, deskThickness: null,
+  attenuationColor: GLASS.attenuationColor, attenuationDistance: GLASS.attenuationDistance, legAttenuationDistance: null,
+  specularIntensity: 1, clearcoat: 0.6, clearcoatRoughness: 0.04, env: null, envMapIntensity: 1, legEnvMapIntensity: null,
+  edgeColor: EDGE.color, edgeGain: EDGE.gain, strikeMul: 1, propOnLegs: false,
+});
+const GLASS_LOOKS = Object.freeze({
+  crystal: CRYSTAL_LOOK,
+  studio: Object.freeze({ ...CRYSTAL_LOOK, name: "Studio crystal", shader: "studio", clearcoat: STUDIO.clearcoat,
+    legThickness: STUDIO.legThickness, env: "studio", envMapIntensity: STUDIO.envMapIntensity,
+    edgeGain: EDGE.gain * STUDIO.edgeMul, strikeMul: STUDIO.strikeMul }),
+  lens: Object.freeze({ ...CRYSTAL_LOOK, name: "Lensing edges", shader: "lens", attenuationColor: LENS.attenuationColor,
+    attenuationDistance: LENS.attenuationDistance, env: "host", envMapIntensity: LENS.envIntensity }),
+  prism: Object.freeze({ ...CRYSTAL_LOOK, name: "Prism", shader: "prism", ior: PRISM.ior, dispersion: PRISM.dispersion,
+    thickness: PRISM.thickness, legThickness: PRISM.legThickness, clearcoat: 0, env: "host", envMapIntensity: PRISM.envMapIntensity }),
+  satin: Object.freeze({ ...CRYSTAL_LOOK, name: "Satin", shader: "satin", env: "host", envMapIntensity: SATIN.env }),
+  smoked: Object.freeze({ ...CRYSTAL_LOOK, name: "Smoked glass", shader: "smoked", color: SMOKE.color,
+    attenuationColor: SMOKE.attenuationColor, attenuationDistance: SMOKE.attenuationDistance,
+    legAttenuationDistance: SMOKE.legAttenuationDistance, deskThickness: SMOKE.deskThickness, env: "smoke",
+    envMapIntensity: SMOKE.envMapIntensity, legEnvMapIntensity: SMOKE.legEnvMapIntensity, edgeColor: SMOKE.edgeColor,
+    edgeGain: SMOKE.edgeGain }),
+  lightguide: Object.freeze({ ...CRYSTAL_LOOK, name: "Light guide", shader: "lightguide", thickness: LIGHTGUIDE.thickness,
+    legThickness: LIGHTGUIDE.legThickness, clearcoat: LIGHTGUIDE.clearcoat, env: "host",
+    envMapIntensity: LIGHTGUIDE.envMapIntensity, strikeMul: 0, propOnLegs: true }),
+  fast: Object.freeze({ ...CRYSTAL_LOOK, name: "Fast (no refraction)", transmission: 0, transparent: true,
+    opacity: GLASS.fastOpacity, depthWrite: false, color: GLASS.fastColor }),
+});
+const GLASS_TITLE = "How the acrylic case is drawn. Crystal: the original clear acrylic. Studio: lit like a product photo. " +
+  "Lensing: the edges bend what is behind them. Prism: cut crystal with colour fringes. Satin: frosted faces, polished " +
+  "edges. Smoked: tinted glass. Light guide: each note runs along the edges. Fast: no refraction pass.";
 const STRING_W = 0.06;  // strings are thin crossed ribbons, not GL lines, so MSAA smooths them
 const ETCH = { level: 0.15, flash: 0.9, tau: 0.5 };  // a low resting glow, so the etch never competes with the page's chord header
 const CHECK = 0.42;   // share of the blow the hammer is held at while its key stays down
@@ -408,6 +799,62 @@ function grainTexture(THREE) {
   return t;
 }
 
+// The two studios the glass paints for itself, 1024 x 512 equirects baked into a PMREM on the first frame their look
+// draws. Three's equirectUv: u 0.25 = -z (the tail), 0.5 = +x, 0.75 = +z (the player and the page camera); rows are
+// elevation. Each source is placed for what this case mirrors from the page's 22-degree follow camera and the lab views.
+function canvasStudio(THREE, fill, paint) {
+  const W = 1024, H = 512;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  g.fillStyle = fill; g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "lighter";
+  const row = (e) => (0.5 - e / 180) * H, col = (u) => u * W;
+  // a vertical gradient band, stops running top (e1) -> bottom (e0); blur in canvas px
+  const band = (u0, u1, e0, e1, stops, blur) => {
+    g.filter = `blur(${blur}px)`;
+    const gr = g.createLinearGradient(0, row(e1), 0, row(e0));
+    for (const [t, css] of stops) gr.addColorStop(t, css);
+    g.fillStyle = gr; g.fillRect(col(u0), row(e1), col(u1) - col(u0), row(e0) - row(e1));
+  };
+  paint(band, (css) => [[0, css], [1, css]]);
+  g.filter = "none"; g.globalCompositeOperation = "source-over";
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+// studio: black so the stage stays dark. The desk mirrors +9..+15 deg toward the player, the key slip and the fallboard
+// -18..-25, a vertical column -22..-30 all round, a rim top seen across the case +2..+7 behind.
+function acrylicStudio(THREE) {
+  return canvasStudio(THREE, "#000", (band, flat) => {
+    band(0, 1, 58, 90, flat("rgb(12,13,16)"), 16);                                                          // faint ceiling
+    band(0.62, 0.88, 5, 21, [[0, "rgba(0,0,0,0)"], [0.12, "rgb(170,170,176)"], [0.5, "rgb(68,68,71)"], [1, "rgba(0,0,0,0)"]], 4);  // softbox behind the camera: the desk's sheen, brightest at its top
+    band(0.64, 0.86, -28, -16, [[0, "rgba(0,0,0,0)"], [0.5, "rgb(60,60,66)"], [1, "rgba(0,0,0,0)"]], 6);   // low card in front: key slip, fallboard
+    band(0.60, 0.90, 39, 45, flat("rgb(255,250,242)"), 3);                                                 // strip overhead in front: the up-front edges
+    band(0.12, 0.38, 2, 7, flat(STUDIO_HORIZON), 2);                                                       // cool horizon strip behind: rim tops, lid edges
+    for (const u of [0.155, 0.330]) band(u, u + 0.012, -60, 40, flat("rgb(236,240,255)"), 2);              // tall strips behind: legs, lyre, rim walls
+    for (const u of [0.020, 0.455]) band(u, u + 0.012, -40, 30, flat("rgb(200,206,220)"), 2);              // tall strips at the sides
+  });
+}
+// smoked: a dim violet room. The warm and cool strips sit at the host's own strip azimuths and skip +-14 deg, where the
+// far tail wall drew a floating "pole".
+function smokeStudio(THREE) {
+  return canvasStudio(THREE, "rgb(5,4,9)", (band, flat) => {
+    band(0.05, 0.45, 2, 30, [[0, "rgba(0,0,0,0)"], [0.6, "rgb(150,138,190)"], [1, "rgba(0,0,0,0)"]], 14);  // violet skylight: tops
+    band(0.03, 0.47, -26, -6, [[0, "rgba(0,0,0,0)"], [0.5, "rgb(96,88,124)"], [1, "rgba(0,0,0,0)"]], 14);  // dim floor behind: edge-on walls
+    band(0.0, 1.0, -4, 8, [[0, "rgba(0,0,0,0)"], [0.5, "rgb(54,50,72)"], [1, "rgba(0,0,0,0)"]], 14);       // nebula horizon: silhouettes
+    band(0.58, 0.92, -34, -10, [[0, "rgba(0,0,0,0)"], [0.5, "rgb(150,140,175)"], [1, "rgba(0,0,0,0)"]], 14); // floor card: fronts
+    if (SMOKE.glint > 0) band(0.70, 0.80, 12, 14.5, flat(`rgba(235,228,245,${SMOKE.glint})`), 2);         // the desk glint (SMOKE.glint)
+    band(0.60, 0.90, 40, 46, flat("rgb(220,220,235)"), 2);                                                  // overhead strip: top edges
+    for (const [e0, e1] of [[-46, -14], [14, 48]]) {
+      band(0.022, 0.040, e0, e1, flat("rgb(255,222,185)"), 2);                                               // warm, at the host's -x strip
+      band(0.430, 0.448, e0, e1, flat("rgb(185,205,255)"), 2);                                               // cool, at the host's +x strip
+    }
+  });
+}
+const GLASS_ENV_PAINTERS = { studio: acrylicStudio, smoke: smokeStudio };
+
 export default {
   id: "glass-piano",
   name: "Crystal Grand",
@@ -437,33 +884,63 @@ export default {
     const add = (mesh) => { group.add(mesh); return mesh; };
 
     // ---------------------------------------------------------------- materials --
-    const edgeBase = new THREE.Color(EDGE.color).multiplyScalar(EDGE.gain);
-    const edgeU = { value: edgeBase.clone() }, edgePow = { value: EDGE.pow };
+    const edgeU = { value: new THREE.Color() }, edgePow = { value: EDGE.pow };   // applyEdge: the look's edge x the edge option
     const strikeU = { value: new THREE.Color(0, 0, 0) }, strikePow = { value: EDGE.strikePow };
-    let edgeScale = 1;
+    let edgeScale = 1, strikeMul = 1;
+    // The look the glass is drawn in, and the shader its programs compile for. applyGlass sets both before needsUpdate;
+    // the cache key and the hook read glassShader in the same getProgram call, so a program can never be filed under
+    // another look's key.
+    let glassLook = "crystal", glassShader = "crystal";
+    // the light guide's line of light across the case (LG): rgb per texel, half float so the faint tail never bands
+    const LINE_X0 = -G.halfW - 0.5, LINE_W = 2 * G.halfW + 1, LINE_DX = LINE_W / LG.texels;
+    const lineData = new Uint16Array(LG.texels * 4);
+    const lineTex = new THREE.DataTexture(lineData, LG.texels, 1, THREE.RGBAFormat, THREE.HalfFloatType);
+    lineTex.magFilter = lineTex.minFilter = THREE.LinearFilter;   // the sampler interpolates between texels
+    lineTex.needsUpdate = true;
+    texs.push(lineTex);
+    const lgRestBase = new THREE.Color(EDGE.color).multiplyScalar(LG.rest);
+    const lgU = {
+      uLgLine: { value: lineTex },
+      uLgFrame: { value: new THREE.Matrix4() },
+      uLgScale: { value: 1 },
+      uLgRest: { value: lgRestBase.clone() },
+      uLgMask: { value: new THREE.Vector4(LG.kLo, LG.kHi, 1 / LG.reach, LG.restFar) },
+      uLgSpan: { value: new THREE.Vector4(LINE_X0, 1 / LINE_W, LG.zFront, G.bedBottom) },
+    };
+    const lensEdgeU = { value: new THREE.Color(1, 1, 1).multiplyScalar(LENS.edgeGain) };
+    // EVERY look's uniforms, installed on every compile whatever the look (the rules above GLASS_LOOKS); crystal declares
+    // only its four, and three uploads only what a program declares, so the rest cost crystal nothing
+    const glassU = {
+      uEdge: edgeU, uEdgePow: edgePow, uStrike: strikeU, uStrikePow: strikePow,
+      uLensEdge: lensEdgeU, uLensAdd: { value: LENS.addMM / MM }, uLensPow: { value: LENS.pow }, uLensBlur: { value: LENS.blur },
+      uLensPipe: { value: LENS.pipe },
+      uSatinRough: { value: new THREE.Vector2(SATIN.polishRough, SATIN.rough) },
+      uSatinShape: { value: new THREE.Vector4(SATIN.curv[0], SATIN.curv[1], SATIN.graze[0], SATIN.graze[1]) },
+      uSatinBlur: { value: SATIN.blur }, uSatinVeil: { value: SATIN.veil }, uSatinSpecCap: { value: SATIN.specCap },
+      ...lgU,
+    };
     // each glass program's uniforms: the renderer puts its transmission render target's texture in them (see dispose)
     const glassUniforms = new Set();
-    const glassHook = (sh) => {
-      glassUniforms.add(sh.uniforms);
-      sh.uniforms.uEdge = edgeU;
-      sh.uniforms.uEdgePow = edgePow;
-      sh.uniforms.uStrike = strikeU;
-      sh.uniforms.uStrikePow = strikePow;
-      sh.fragmentShader = "uniform vec3 uEdge;\nuniform float uEdgePow;\nuniform vec3 uStrike;\nuniform float uStrikePow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>",
-        "#include <emissivemap_fragment>\n{ float fr = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);\n  totalEmissiveRadiance += uEdge * pow(fr, uEdgePow) + uStrike * pow(fr, uStrikePow); }");
-    };
-    // one program, two materials: the case walls and the thicker legs/lyre share the uniforms above
-    const makeGlass = (thickness) => {
+    // one program per look, three materials: the case walls (rim, key blocks, keybed, key slip, belly, fallboard, desk rest,
+    // lid, prop), the thicker legs/lyre/pedal box, and the music desk (its own only so smoked can give it its real 10.4 mm
+    // pane; in every other look it equals the walls). part = the light guide's (rest share, line share) for this material.
+    const makeGlass = (thickness, part) => {
       const m = new THREE.MeshPhysicalMaterial({
         color: GLASS.color, roughness: GLASS.roughness, metalness: 0, transmission: 1, thickness, ior: GLASS.ior,
         attenuationColor: new THREE.Color(GLASS.attenuationColor), attenuationDistance: GLASS.attenuationDistance,
         specularIntensity: 1, clearcoat: 0.6, clearcoatRoughness: 0.04,
       });
-      m.onBeforeCompile = glassHook;
-      m.customProgramCacheKey = () => "glass-piano-crystal";
+      const own = { uLgPart: { value: new THREE.Vector2(part[0], part[1]) } };   // one program, a value per material
+      m.onBeforeCompile = (sh) => {
+        glassUniforms.add(sh.uniforms);
+        Object.assign(sh.uniforms, glassU, own);
+        LOOK_GLSL[glassShader](sh, THREE);
+      };
+      m.customProgramCacheKey = () => "glass-piano-" + glassShader;   // crystal and fast: "glass-piano-crystal", as always
       return m;
     };
-    const glass = makeGlass(GLASS.thickness), glassLeg = makeGlass(GLASS.legThickness);
+    const glass = makeGlass(GLASS.thickness, LG.partCase), glassLeg = makeGlass(GLASS.legThickness, LG.partLegs);
+    const glassDesk = makeGlass(GLASS.thickness, LG.partCase);
     const gold = new THREE.MeshPhysicalMaterial({ color: 0xc8a052, metalness: 0.55, roughness: 0.36, clearcoat: 0.5, clearcoatRoughness: 0.25 });
     const brass = new THREE.MeshPhysicalMaterial({ color: 0xd9b46c, metalness: 0.7, roughness: 0.28 });
     const grain = grainTexture(THREE);
@@ -495,22 +972,89 @@ export default {
       depthWrite: false, side: THREE.DoubleSide,
     });
     stringMat.customProgramCacheKey = () => "glass-piano-strings";
-    mats.push(glass, glassLeg, gold, brass, spruce, maple, dark, steel, felt, stringMat);
+    mats.push(glass, glassLeg, glassDesk, gold, brass, spruce, maple, dark, steel, felt, stringMat);
 
+    // Studio and smoked mirror a studio the instrument paints itself (GLASS_ENV_PAINTERS), baked into a PMREM on the first
+    // frame the look draws. An instrument reaches the renderer only inside a draw, so a degenerate triangle drawn first in
+    // the opaque list does it (the concert grand's frame hook), with a PMREMGenerator disposed at once (the renderer's own
+    // would keep its 768x1024 half-float ping-pong target for the page's life). Three's transmission pass draws the opaque
+    // list first, so the glass already has the map when it compiles that frame: one compile, never an env-less one. One
+    // painted map is held at a time (6 MB, until dispose or another painted look); the hook is hidden, and draws nothing,
+    // whenever no bake is pending, so crystal never sees it. A remount re-bakes (the generator's programs go with it).
+    let privateEnv = null, bakeWant = null;   // { id, target } held; the painter id the next frame should bake
+    const bakeGeo = new THREE.BufferGeometry();
+    bakeGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(9), 3));
+    geos.push(bakeGeo);
+    const bakeHook = add(new THREE.Mesh(bakeGeo, dark));
+    bakeHook.name = "glass studio-map hook";
+    bakeHook.frustumCulled = false;
+    bakeHook.renderOrder = -1e6;
+    bakeHook.visible = false;
+    bakeHook.onBeforeRender = (renderer) => {
+      const id = bakeWant;
+      bakeWant = null;
+      bakeHook.visible = false;
+      if (!id || (privateEnv && privateEnv.id === id)) return;
+      const src = GLASS_ENV_PAINTERS[id](THREE), pmrem = new THREE.PMREMGenerator(renderer);
+      const target = pmrem.fromEquirectangular(src);
+      pmrem.dispose();
+      src.dispose();
+      if (privateEnv) privateEnv.target.dispose();
+      privateEnv = { id, target };
+      if (GLASS_LOOKS[glassLook].env === id) applyGlass(glassLook);   // hand it to the glass before the glass draws
+    };
+
+    // A look is applied whole: every field any look sets comes from its record, so nothing of the last look survives a
+    // switch, and crystal and fast are their old values exactly. Setters that toggle a define (transmission, clearcoat,
+    // dispersion) bump the material version only when they cross 0, and needsUpdate is set either way.
     function applyGlass(mode) {
-      const fast = mode === "fast";
-      for (const m of [glass, glassLeg]) {
-        m.transmission = fast ? 0 : 1;
-        m.transparent = fast;
-        m.opacity = fast ? GLASS.fastOpacity : 1;
-        m.depthWrite = !fast;
-        m.color.set(fast ? GLASS.fastColor : GLASS.color);
+      const id = Object.hasOwn(GLASS_LOOKS, mode) ? mode : "crystal";   // an unknown or stale saved value mounts crystal
+      const L = GLASS_LOOKS[id];
+      glassLook = id;
+      glassShader = L.shader;
+      strikeMul = L.strikeMul;
+      let env = null, stale = null;
+      if (L.env === "host") env = ctx.envMap || scene.environment || null;   // the host owns and disposes it
+      else if (L.env) {
+        if (privateEnv && privateEnv.id === L.env) env = privateEnv.target.texture;
+        else {
+          if (privateEnv) { stale = privateEnv.target; privateEnv = null; }   // freed below, once no glass holds it
+          bakeWant = L.env;
+          bakeHook.visible = true;
+        }
+      }
+      if (!L.env || L.env === "host") { bakeWant = null; bakeHook.visible = false; }
+      for (const m of [glass, glassLeg, glassDesk]) {
+        const leg = m === glassLeg;
+        m.transmission = L.transmission;
+        m.transparent = L.transparent;               // false for every look but fast: the glass stays out of the transparent list
+        m.opacity = L.opacity;
+        m.depthWrite = L.depthWrite;
+        m.color.set(L.color);
+        m.roughness = L.roughness;
+        m.ior = L.ior;
+        m.dispersion = L.dispersion;
+        m.thickness = leg ? L.legThickness : m === glassDesk && L.deskThickness != null ? L.deskThickness : L.thickness;
+        m.attenuationColor.set(L.attenuationColor);
+        m.attenuationDistance = leg && L.legAttenuationDistance != null ? L.legAttenuationDistance : L.attenuationDistance;
+        m.specularIntensity = L.specularIntensity;
+        m.clearcoat = L.clearcoat;
+        m.clearcoatRoughness = L.clearcoatRoughness;
+        m.envMap = env;
+        m.envMapIntensity = leg && L.legEnvMapIntensity != null ? L.legEnvMapIntensity : L.envMapIntensity;
         m.needsUpdate = true;
       }
+      if (stale) stale.dispose();
+      prop.material = L.propOnLegs ? glassLeg : glass;   // the light guide: the prop is a rod, so it takes the legs' part
+      if (id === "lightguide") lgFrame(); else clearLine();
+      applyEdge();
     }
     function applyEdge() {
       edgeScale = Math.max(0, Math.min(2, Number(options.edge ?? 1) || 0));
-      edgeU.value.copy(edgeBase).multiplyScalar(edgeScale);
+      const L = GLASS_LOOKS[glassLook];
+      edgeU.value.set(L.edgeColor).multiplyScalar(L.edgeGain).multiplyScalar(edgeScale);
+      lensEdgeU.value.setScalar(LENS.edgeGain * edgeScale);
+      lgU.uLgRest.value.copy(lgRestBase).multiplyScalar(edgeScale);
     }
 
     // ---------------------------------------------------------------- the plan --
@@ -521,16 +1065,26 @@ export default {
 
     // ---------------------------------------------------------------- crystal body (one draw) --
     const W = G.halfW, bi = G.blockInner;
+    // The panes over the action (satin keeps them polished windows, so keys, hammers and strings stay sharp): a per-vertex
+    // flag, aPane, that only the satin program reads. Every glass geometry carries it (0 off the panes); no geometry,
+    // draw or crystal pixel changes for it.
+    const pane = (g) => { g.userData.pane = true; return g; };
+    const setPane = (g, runs) => {                   // runs: [[vertex count, flag], ...] in merge order, or one flag
+      const a = new Float32Array(g.attributes.position.count);
+      if (Array.isArray(runs)) { let o = 0; for (const [n, f] of runs) { if (f) a.fill(1, o, o + n); o += n; } } else if (runs) a.fill(1);
+      g.setAttribute("aPane", new THREE.BufferAttribute(a, 1));
+    };
     const bodyParts = [
       B.sweep(pathRings(outline, false), rrect(-G.rimTh, 0, G.rimBottom, G.rimTop, 0.45), true),               // rim
       B.slabZ(G.blockFront, G.front, -W, -bi, G.bedBottom, 1.45, 0.45),                                         // key blocks
       B.slabZ(G.blockFront, G.front, bi, W, G.bedBottom, 1.45, 0.45),
       B.slabX(-bi, bi, 3.2, G.front, G.bedBottom, G.bedTop, 0.1),                                               // keybed
-      B.slabX(-bi, bi, G.blockFront, 3.2, G.bedBottom, -0.28, 0.18),                                            // key slip
+      pane(B.slabX(-bi, bi, G.blockFront, 3.2, G.bedBottom, -0.28, 0.18)),                                      // key slip
       B.slabX(-W, W, G.front, G.gap0, G.rimBottom, G.bedBottom, 0.1),                                           // belly
-      B.slabX(-bi, bi, -3.72, -4.95, -0.55, 2.75, 0.35),                                                        // fallboard
-      B.slabX(-15.5, 15.5, -5.0, -6.3, G.plateY1, 2.9, 0.2),                                                    // desk rest
+      pane(B.slabX(-bi, bi, -3.72, -4.95, -0.55, 2.75, 0.35)),                                                  // fallboard
+      pane(B.slabX(-15.5, 15.5, -5.0, -6.3, G.plateY1, 2.9, 0.2)),                                              // desk rest
     ];
+    const bodyRuns = bodyParts.map((g) => [g.index ? g.index.count : g.attributes.position.count, !!g.userData.pane]);
     const leg = (x, z, top) => {
       const h = top - floorY - 0.9, pts = [[2.2, 0], [2.2, -0.5], [1.6, -1.2], [1.85, -4], [1.25, -h + 2.6], [1.55, -h + 0.5], [1.4, -h]];
       return B.at(new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p[0], p[1])), 28), x, top, z);
@@ -551,6 +1105,8 @@ export default {
       legParts.push(g);
     }
     const bodyGeo = B.merge(bodyParts), legGeo = B.merge(legParts);
+    setPane(bodyGeo, bodyRuns);
+    setPane(legGeo, false);
     const body = add(new THREE.Mesh(bodyGeo, glass));
     add(new THREE.Mesh(legGeo, glassLeg));
     geos.push(bodyGeo, legGeo);
@@ -561,7 +1117,8 @@ export default {
     deskGroup.rotation.x = -14 * DEG;
     add(deskGroup);
     const deskGeo = B.merge([B.slabX(-15, 15, 0.22, -0.22, 0, 9.5, 0.12), B.slabX(-15, 15, 0.95, -0.22, -0.2, 0.45, 0.15)]);
-    deskGroup.add(new THREE.Mesh(deskGeo, glass));
+    setPane(deskGeo, true);
+    deskGroup.add(new THREE.Mesh(deskGeo, glassDesk));
     geos.push(deskGeo);
     const etchCanvas = document.createElement("canvas");
     etchCanvas.width = 1024;
@@ -585,9 +1142,11 @@ export default {
       B.capSlab(insetPoly(lidPoly, 0.7), 0, G.lidTh),
     ]);
     geos.push(lidGeo);
+    setPane(lidGeo, false);
     const lid = add(new THREE.Mesh(lidGeo, glass));
     lid.position.set(-W, G.rimTop, 0);
     const propGeo = new THREE.CylinderGeometry(0.3, 0.3, 1, 14);
+    setPane(propGeo, false);
     geos.push(propGeo);
     const prop = add(new THREE.Mesh(propGeo, glass));
     let propBase = [24, -36];
@@ -799,6 +1358,76 @@ export default {
     let framing = ctx.framing || null;
     let portrait = isPortrait(framing);
 
+    // ---- the light guide's line (LG): strike events, rebuilt into lineData each frame while that look is on ----
+    const lgX = new Float32Array(LG.events), lgT = new Float64Array(LG.events), lgC = new Float32Array(LG.events * 3);
+    let lgHead = 0, lgCount = 0, lineLit = false;
+    const lgAcc = new Float32Array(LG.texels * 3);
+    const lgKeyX = new Float32Array(N);              // each key's centre in the instrument's own x
+    for (let i = 0; i < N; i++) lgKeyX[i] = (keyX(first + i) - group.position.x) / group.scale.x;
+    function lgPush(i, v, t0) {                       // light enters when the hammer reaches the string
+      const e = lgHead;
+      lgHead = (lgHead + 1) % LG.events;
+      lgCount = Math.min(lgCount + 1, LG.events);
+      const a = Math.pow(v, LG.velExp);
+      lgX[e] = lgKeyX[i];
+      lgT[e] = t0 + (0.055 - 0.037 * v);
+      lgC[e * 3] = strikeCol[i * 3] * a; lgC[e * 3 + 1] = strikeCol[i * 3 + 1] * a; lgC[e * 3 + 2] = strikeCol[i * 3 + 2] * a;
+    }
+    function lgSplat(x, sig, r, g, b) {               // a gaussian of peak (r, g, b) and width sig, at instrument x
+      const c = (x - LINE_X0) / LINE_DX - 0.5, rad = 3 * sig / LINE_DX;
+      const j0 = Math.max(0, Math.ceil(c - rad)), j1 = Math.min(LG.texels - 1, Math.floor(c + rad));
+      if (j0 > j1) return;
+      const k = -0.5 * (LINE_DX / sig) * (LINE_DX / sig);
+      for (let j = j0; j <= j1; j++) {
+        const w = Math.exp(k * (j - c) * (j - c)), o = j * 3;
+        lgAcc[o] += r * w; lgAcc[o + 1] += g * w; lgAcc[o + 2] += b * w;
+      }
+    }
+    function lgFrame() {                              // world -> the instrument's own frame, and its scale, for the shader
+      group.updateWorldMatrix(true, false);
+      lgU.uLgFrame.value.copy(group.matrixWorld).invert();
+      lgU.uLgScale.value = group.matrixWorld.getMaxScaleOnAxis();
+    }
+    function clearLine() {
+      lgCount = 0; lgHead = 0;
+      if (!lineLit) return;
+      lineData.fill(0); lineTex.needsUpdate = true; lineLit = false;
+    }
+    function updateLine(t) {
+      lgAcc.fill(0);
+      let any = false;
+      for (let e = 0; e < lgCount; e++) {
+        const a = t - lgT[e];
+        if (a < 0 || a > LG.life) continue;
+        any = true;
+        const o = e * 3, x = lgX[e], r = lgC[o], g = lgC[o + 1], b = lgC[o + 2];
+        const pool = LG.pool * Math.exp(-a / LG.tauPool);
+        lgSplat(x, LG.sigma, r * pool, g * pool, b * pool);
+        const sig = LG.sigma + LG.spread * a, run = LG.run * Math.exp(-a / LG.tauRun) * Math.sqrt(LG.sigma / sig), d = LG.speed * a;
+        lgSplat(x - d, sig, r * run, g * run, b * run);
+        lgSplat(x + d, sig, r * run, g * run, b * run);
+      }
+      for (let i = 0; i < N; i++) {
+        if (!(bodyLvl[i] > 0)) continue;
+        any = true;
+        const s = LG.sustain * bodyLvl[i], o = i * 3;
+        lgSplat(lgKeyX[i], LG.sigma, strikeCol[o] * s, strikeCol[o + 1] * s, strikeCol[o + 2] * s);
+      }
+      if (!any && !lineLit) return;
+      const half = THREE.DataUtils.toHalfFloat;
+      for (let j = 0; j < LG.texels; j++) {
+        const o = j * 3;
+        let r = lgAcc[o] * edgeScale, g = lgAcc[o + 1] * edgeScale, b = lgAcc[o + 2] * edgeScale;   // the edge option, then the caps
+        const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (l > LG.maxLuma) { const s = LG.maxLuma / l; r *= s; g *= s; b *= s; }
+        const p = Math.max(r, g, b);
+        if (p > LG.maxChannel) { const s = LG.maxChannel / p; r *= s; g *= s; b *= s; }
+        lineData[j * 4] = half(r); lineData[j * 4 + 1] = half(g); lineData[j * 4 + 2] = half(b);
+      }
+      lineTex.needsUpdate = true;
+      lineLit = any;
+    }
+
     // age > 0 seeds a sound that was already ringing when the crystal was mounted, or a strike the ring reports late: the
     // envelope is analytic, so it can simply be advanced. A strike never dips the light to dark first — whatever is still
     // showing above the new peak is folded into the prompt term and decays from there.
@@ -816,6 +1445,7 @@ export default {
       riseT[i] = lit ? -1e9 : t0 + (0.055 - 0.037 * v);
       noteColor(m, vel > 1 ? vel : vel * 127, tmp);
       strikeCol[i * 3] = tmp.r; strikeCol[i * 3 + 1] = tmp.g; strikeCol[i * 3 + 2] = tmp.b;
+      if (glassLook === "lightguide") lgPush(i, v, t0);
       const peak = Math.pow(v, PEAK_EXP), fl = peak * mix(FLOOR_LO, FLOOR_HI, v), above = peak - fl;
       const carry = Math.max(0, bodyLvl[i] - peak);
       bFloor[i] = fl;
@@ -870,6 +1500,7 @@ export default {
       alive.fill(0); shownAmp.fill(0); strU.uNote.value.fill(0);
       seeded = false;
       edgeAcc.setRGB(0, 0, 0); etchLevel = 0; etchFlash = 0; pedalAng = 0;
+      clearLine();
       glowArr.fill(0); glowAttr.needsUpdate = true;
       strikeU.value.setRGB(0, 0, 0);
       etchMat.color.setRGB(0, 0, 0);
@@ -921,6 +1552,11 @@ export default {
       keyStyle: KEY_STYLE,
       hints: HINTS,
       stage: { floorY },
+      // The Studio menu (piano.js instrumentOptions / workbench.js): one select per entry, setOptions({ [key]: value }) on a
+      // change, choices[0] shown when nothing is saved. The host refuses a change while REC runs, which covers the one-time
+      // compile (and, for studio and smoked, the bake) on a look's first use.
+      optionsSpec: [{ key: "glass", label: "Glass", title: GLASS_TITLE,
+        choices: Object.entries(GLASS_LOOKS).map(([value, L]) => ({ value, name: L.name })) }],
       // lab cameras: a three-quarter from the front right (the open lid faces that way) and a close-up of the action
       views: {
         // fitted offline (judge 2026-09-15: the lid tip and tail were cropped): the case, the long-prop lid and the tail
@@ -979,7 +1615,10 @@ export default {
         if (luma > EDGE.maxLuma) { const s = EDGE.maxLuma / luma; edgeAcc.r *= s; edgeAcc.g *= s; edgeAcc.b *= s; }
         const peak = Math.max(edgeAcc.r, edgeAcc.g, edgeAcc.b);
         if (peak > EDGE.maxChannel) { const s = EDGE.maxChannel / peak; edgeAcc.r *= s; edgeAcc.g *= s; edgeAcc.b *= s; }
-        strikeU.value.setRGB(edgeAcc.r * edgeScale, edgeAcc.g * edgeScale, edgeAcc.b * edgeScale);
+        // the look's share of the tint: studio 0.6 (no clearcoat dimming it), the light guide 0 (its line carries the
+        // strikes, at their keys); crystal multiplies by exactly 1
+        const sk = edgeScale * strikeMul;
+        strikeU.value.setRGB(edgeAcc.r * sk, edgeAcc.g * sk, edgeAcc.b * sk);
 
         const kFlash = Math.exp(-dt / TAU_FLASH), kDamp = Math.exp(-dt / TAU_DAMP), kVibOff = Math.exp(-dt / TAU_VIB_OFF);
         const un = strU.uNote.value;
@@ -1035,6 +1674,9 @@ export default {
         pedalAng = Math.abs(pedalAng - (pedal ? -0.11 : 0)) < 1e-4 ? (pedal ? -0.11 : 0) : damp(pedalAng, pedal ? -0.11 : 0, 0.05, dt);
         pose(dt);
 
+        // the light guide: the instrument's frame for the shader, then the line of light from the strikes and the sound
+        if (glassLook === "lightguide") { lgFrame(); updateLine(t); }
+
         // the etched chord name
         if (deskGroup.visible) {
           const chord = state && state.chord, name = chord && chord.name ? chord.name : null;
@@ -1073,6 +1715,9 @@ export default {
         for (const t of texs) t.dispose();
         shanks.dispose(); heads.dispose(); pins.dispose(); pedals.dispose();
         if (dampers) dampers.dispose();
+        // the painted studio map (studio, smoked); the host's ctx.envMap is the host's to free
+        if (privateEnv) { privateEnv.target.dispose(); privateEnv = null; }
+        bakeWant = null;
         // The renderer draws what is behind transmissive glass into a render target it makes on first use and keeps for
         // the page's life (full size, 4x multisampled, mipmapped). It is freed with the glass; a later transmissive
         // material (spectacle's, or the glass again) gets a new one on its next frame.

@@ -41,7 +41,7 @@ export function mountWorkbench(page) {
   workspace.innerHTML=`<nav class="studio-rail" aria-label="Studio sections">${['instruments','scene','play','capture'].map(id=>`<button data-panel="${id}" aria-controls="studio-${id}" aria-expanded="false"><span>${symbols[id]}</span>${id[0].toUpperCase()+id.slice(1)}</button>`).join('')}<div class="rail-spacer"></div><button data-external="practice"><span>${symbols.practice}</span>Practice</button><button data-panel="companion" aria-controls="studio-companion" aria-expanded="false"><span>${symbols.companion}</span>Companion</button><a href="/web/piano-gyre.html" target="_blank" rel="noopener"><span>⌁</span>Studies</a></nav>
     <aside class="studio-inspector" aria-label="Studio inspector" hidden>
       <div class="inspector-heading"><span id="inspector-eyebrow">YOUR COLLECTION</span><button id="inspector-close" aria-label="Close studio panel">×</button></div>
-      <section id="studio-instruments" aria-label="Instrument collection" hidden><h1>Find your<br><em>instrument.</em></h1><p class="inspector-intro">A different world for every piece.</p><div id="instrument-cards"></div><div id="instrument-menu"></div><button id="open-looks" class="studio-wide-button">Saved looks <span>↗</span></button></section>
+      <section id="studio-instruments" aria-label="Instrument collection" hidden><h1>Find your<br><em>instrument.</em></h1><p class="inspector-intro">A different world for every piece.</p><div id="instrument-cards"></div><div id="instrument-menu"></div><div id="instrument-options"></div><button id="open-looks" class="studio-wide-button">Saved looks <span>↗</span></button></section>
       <section id="studio-scene" aria-label="Scene controls" hidden><h1>Set the<br><em>scene.</em></h1><p class="inspector-intro">Shape the space around your music.</p><label class="studio-field">Camera<select id="studio-camera"><option value="auto">Instrument portrait</option><option value="performance">Performance · follow the keys</option><option value="sculpture">Full sculpture</option><option value="detail">Inside the mechanism</option><option value="orbit">Free orbit</option></select></label><button id="studio-home" class="studio-wide-button">Reset view <span>↺</span></button><label class="studio-field" id="studio-canopy-field" hidden>Solstice overhead lights<select id="studio-canopy"><option value="ribbons">Layered LED ribbons</option><option value="fan">Radial fan</option><option value="halo">Halo bands</option><option value="sails">Opal sails</option></select></label><label class="studio-check"><input id="studio-motion" type="checkbox" checked> Ornamental motion</label><div class="control-section" id="scene-look-controls"><h2>Notes & colour</h2></div><div id="environment-mount"></div></section>
       <section id="studio-play" aria-label="Playing controls" hidden><h1>Make it<br><em>your own.</em></h1><p class="inspector-intro">Your keyboard, your harmony, your practice.</p><div class="control-section" id="input-controls"><h2>Your instrument</h2></div><div class="control-section" id="theory-controls"><h2>Harmony & notation</h2></div><div class="control-section" id="metro-controls"><h2>Metronome</h2><p>A click to play to. Its beats are recorded with your notes, which is what lets a score know where the beat really was instead of guessing it from the notes themselves.</p></div><div class="control-section" id="log-controls"><h2>Practice log</h2></div><details class="studio-shortcuts"><summary>Computer keyboard</summary><p>Z–/ and Q–P play notes.<br>Space holds sustain.<br>← → shift the octave.<br>H shows performance details.</p><p>Use Practice for exercises and Saved looks for your visual presets.</p></details><button id="open-practice" class="studio-wide-button">Open practice library <span>↗</span></button></section>
       <section id="studio-capture" aria-label="Capture controls" hidden><h1>Keep the<br><em>moment.</em></h1><p class="inspector-intro">The piano and its light, ready to share.</p><div class="control-section" id="frame-controls"><h2>Canvas framing</h2></div><div class="control-section" id="audio-controls"><h2>Recording sound</h2><p>Choose an audio input to include sound in the recording.</p></div><div class="control-section" id="render-controls"><h2>Rendering</h2><label class="studio-field">Detail<select id="studio-quality"><option value="studio">1080p</option><option value="ultra">1440p</option><option value="cinema">4K</option></select></label><label class="studio-field">Refresh rate<select id="studio-refresh"><option value="native">Monitor native</option><option value="60">60 fps</option></select></label><p>Recordings capture at up to 60 fps. Pause render gives the GPU a rest.</p><output id="studio-render-size"></output></div></section>
@@ -107,6 +107,28 @@ export function mountWorkbench(page) {
   $('studio-refresh').addEventListener('change',e=>page.setRefreshMode(e.target.value));
   inspector.addEventListener('change',()=>{if(page.rendering().paused)page.requestRender();});
   for(const b of workspace.querySelectorAll('button'))b.addEventListener('click',e=>{if(e.detail)b.blur();});
+  // The mounted instrument's own choices (page.instrumentOptions(): its optionsSpec, e.g. the Crystal grand's glass), one select
+  // each, rebuilt only when the instrument or its list of choices changes; page.setInstrumentOption remembers the pick.
+  let optionsSig='';
+  function syncInstrumentOptions(id,name,rec){
+    const opts=page.instrumentOptions?.()||[], box=$('instrument-options');
+    const sig=id+'|'+opts.map(o=>`${o.key}:${o.choices.map(c=>`${c.value}=${c.name}`).join(',')}`).join(';');
+    if(sig!==optionsSig){
+      optionsSig=sig;
+      box.replaceChildren(...opts.map(o=>{
+        const label=document.createElement('label');label.className='studio-field';label.title=o.title;label.append(o.label);
+        const select=document.createElement('select');select.dataset.option=o.key;select.setAttribute('aria-label',`${o.label} of the ${name}`);
+        for(const c of o.choices)select.append(new Option(c.name,c.value));
+        select.addEventListener('change',()=>{if(!page.setInstrumentOption(o.key,select.value))optionsSig='';select.blur();sync();});
+        label.append(select);return label;
+      }));
+    }
+    for(const select of box.querySelectorAll('select')){
+      const o=opts.find(x=>x.key===select.dataset.option);
+      if(o&&document.activeElement!==select)select.value=o.value;
+      select.disabled=rec!=='idle';
+    }
+  }
   let lastInstrument='';
   function sync(){
     const looks=page.looks(), id=looks.instrument||'page', d=DETAILS[id]||DETAILS.page, s=page.stats(), render=page.rendering();
@@ -115,6 +137,7 @@ export function mountWorkbench(page) {
       $('scene-title').textContent=d[1];$('scene-collection').textContent=d[0].toUpperCase();$('scene-description').textContent=d[2];
       for(const b of collection.querySelectorAll('[data-instrument]'))b.setAttribute('aria-pressed',String(b.dataset.instrument===id));
     }
+    syncInstrumentOptions(id,d[1],s.rec);
     $('studio-canopy-field').hidden=id!=='solstice';if(id==='solstice')$('studio-canopy').value=page.instrument?.canopy||'ribbons';
     $('studio-camera').value=page.galleryCamera.mode;
     $('studio-quality').value=page.spectacle?.settings.quality||'ultra';$('studio-refresh').value=render.refresh;

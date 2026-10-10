@@ -1290,14 +1290,48 @@ const schemeCtx = Object.freeze({
   KEY: Object.freeze({ first: KEY.first, last: KEY.last }), RAIL_Y, TRAIL_Z,
   get framing() { return lookFraming(); },
 });
-function instrumentCtx() {
+// An instrument's own choices (its handle.optionsSpec: [{ key, label, title, choices: [{ value, name }] }], e.g. the Crystal
+// grand's glass), remembered per instrument id and handed back to create() as ctx.options, so a reload mounts it as left.
+const INSTRUMENT_OPTIONS_KEY = "arsenal.piano.instrument-options";
+function readInstrumentOptions() {
+  try { const all = JSON.parse(safeGet(INSTRUMENT_OPTIONS_KEY) || "{}"); return all && typeof all === "object" ? all : {}; }
+  catch { return {}; }
+}
+function savedInstrumentOptions(id) {
+  const o = readInstrumentOptions()[id];
+  return o && typeof o === "object" ? { ...o } : {};
+}
+// The mounted instrument's spec with the value each choice shows: the saved one if the spec still offers it, else the first.
+function instrumentOptions() {
+  const a = looks.instrument.active, spec = a && Array.isArray(a.handle.optionsSpec) ? a.handle.optionsSpec : [];
+  const saved = a ? savedInstrumentOptions(a.id) : {};
+  return spec.filter((s) => s && s.key && Array.isArray(s.choices) && s.choices.length).map((s) => ({
+    key: s.key, label: s.label || s.key, title: s.title || "", choices: s.choices.map((c) => ({ value: c.value, name: c.name || String(c.value) })),
+    value: s.choices.some((c) => c.value === saved[s.key]) ? saved[s.key] : s.choices[0].value,
+  }));
+}
+// Answers false when it keeps the setting as it was: no such choice, or REC running (a new glass program would hitch the take).
+function setInstrumentOption(key, value) {
+  const a = looks.instrument.active;
+  if (!a || typeof a.handle.setOptions !== "function") return false;
+  const spec = instrumentOptions().find((s) => s.key === key);
+  if (!spec || !spec.choices.some((c) => c.value === value)) return false;
+  if (rec.state !== "idle" || rec.arming) { toast("Stop recording before changing the instrument", true); return false; }
+  try { a.handle.setOptions({ [key]: value }); } catch (e) { return lookFailed("instrument", a, "setOptions", e); }
+  const all = readInstrumentOptions();
+  all[a.id] = { ...(all[a.id] && typeof all[a.id] === "object" ? all[a.id] : {}), [key]: value };
+  safeSet(INSTRUMENT_OPTIONS_KEY, JSON.stringify(all));
+  requestRender();
+  return true;
+}
+function instrumentCtx(id) {
   return {
     THREE, scene, keyX, isBlack, noteColor, noteCss, RoundedBoxGeometry, RAIL_Y, TRAIL_Z, KEY: { ...KEY }, framing: lookFraming(),
     span: { first: KEY.first, last: KEY.last, left: keyX(KEY.first) - 0.5, right: keyX(KEY.last) + 0.5, width: 52, keyTop: 0,
             blackTop: KEY.blackTop, keyFront: KEY.back + KEY.whiteL, keyBack: KEY.back, bedTop: -0.8, floorY: PAGE_LOOK.floorY,
             mmPerUnit: 1225.7 / 52 },
     fonts: { display: FONT.display },
-    options: {}, envMap, ornamentalMotion: () => ornamentalMotion,
+    options: savedInstrumentOptions(id), envMap, ornamentalMotion: () => ornamentalMotion,
   };
 }
 function lookList(kind) {
@@ -1486,7 +1520,7 @@ async function selectInstrument(id, persist = true) {
   unmountInstrument();
   let handle = null;
   try {
-    handle = def.create(instrumentCtx());
+    handle = def.create(instrumentCtx(id));
     if (!handle || !handle.group || !handle.group.isObject3D || typeof handle.update !== "function") {
       throw new Error("create() returned no group or no update()");
     }
@@ -4573,6 +4607,9 @@ window.__piano = {
   get studio() { return studio; },  // the Studio drawer (piano/studio/studio.js), once it has mounted
   get scheme() { return looks.scheme.active ? looks.scheme.active.instance : null; },
   get instrument() { return looks.instrument.active ? looks.instrument.active.handle : null; },
+  // The mounted instrument's own choices (its optionsSpec with the current values) and the setter the Studio menus call
+  instrumentOptions: () => instrumentOptions(),
+  setInstrumentOption: (key, value) => setInstrumentOption(key, value),
   conversation: {
     async mark() {
       if (!perfLog) throw new Error("The practice log is not available yet.");

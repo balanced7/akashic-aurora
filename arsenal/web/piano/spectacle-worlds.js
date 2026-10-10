@@ -66,7 +66,10 @@ export function createWorlds(THREE, parent, u, ctx) {
       c+=uCosmos*(mix(uA,uB,dust)*neb*.9+uC*exp(-r*18.0)*.7);
       c+=mix(uA,uC,.3)*pow(max(0.0,1.0-abs(p.y+.19)*8.0),3.0)*.03;
       gl_FragColor=vec4(c*uOpacity,1.0);
-    }`);
+    }`,{transparent:false});
+  // Opaque on purpose: three's transmission pass draws only the background and OPAQUE objects into what glass refracts, so
+  // a transparent sky left every glass face near-black where it should show. The sky writes alpha 1 and draws first,
+  // without depth, so the direct view is unchanged (alpha 1 over the background is what NoBlending writes).
   sky.position.set(0,-15,-370);sky.renderOrder=-20;
 
   // Stars occupy a bowl of space. The same restrained stars remain above the lake.

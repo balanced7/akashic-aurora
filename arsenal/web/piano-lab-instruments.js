@@ -259,7 +259,8 @@ function span() {
     floorY: FLOOR_Y, mmPerUnit: 1225.7 / 52 };
 }
 function makeCtx() {
-  return { THREE, scene, keyX, isBlack, KEY: { ...KEY }, noteColor, framing, RoundedBoxGeometry, RAIL_Y, TRAIL_Z, span: span() };
+  return { THREE, scene, keyX, isBlack, KEY: { ...KEY }, noteColor, framing, RoundedBoxGeometry, RAIL_Y, TRAIL_Z, span: span(),
+    envMap };
 }
 
 // ------------------------------------------------------------ views --
