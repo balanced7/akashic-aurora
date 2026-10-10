@@ -35,6 +35,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 SCHEMA = "orient.scene.v1"
 _DENSITY_NEARBY = {"compact": 1, "standard": 3, "wide": 4}
 _DEPTHS = {"surface", "evidence"}
@@ -145,12 +153,9 @@ def _focus_drill(target: Mapping[str, str], result: Mapping[str, Any], subject: 
         if drill:
             return drill
     if target["kind"] == "thread":
-        return (
-            f"{_pyl()} agent_cli.py capture --thread {target['name']} --agent {subject} "
-            f"--per-stream {per_stream} --json"
-        )
+        return f"{_cli()} capture --thread {target['name']} --agent {subject} --per-stream {per_stream} --json"
     continuity = " --continuity" if target["kind"] == "seat" else ""
-    return f"{_pyl()} agent_cli.py ground {target['address']} --agent {subject}{continuity} --json"
+    return f"{_cli()} ground {target['address']} --agent {subject}{continuity} --json"
 
 
 def _focus_summary(target: Mapping[str, str], result: Mapping[str, Any]) -> str:

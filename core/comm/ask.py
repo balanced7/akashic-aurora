@@ -52,6 +52,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 DEFAULT_MODEL = os.getenv("AKASHIC_ASK_MODEL", "deepseek-v4-pro")
 # 0 == UNLIMITED: omit max_tokens from the request entirely and let the model run to its
 # own ceiling. Daniil 2026-08-06: "make an unlimited version and we can figure out scaling
@@ -564,7 +572,7 @@ def ask(
         if not resident_meta.get("resident"):
             return BoundaryOutcome.failed(
                 f"'{as_resident}' is not a resident (no ratified designation), so it cannot "
-                f"answer at the resident tier. Run the ceremony first: {_pyl()} agent_cli.py "
+                f"answer at the resident tier. Run the ceremony first: {_cli()} "
                 f"resident nominate {as_resident} --callsign <name> --receipt <their lesson> "
                 f"--by <peer>"
             )
@@ -1063,7 +1071,7 @@ def ask_peer(
         "peer_at_ask": peer_state,
         "peer_at_ask_why": peer_why,
         "launched": launched,
-        "how_to_check": f"{_pyl()} agent_cli.py ask --status {mid} --as {sender}",
+        "how_to_check": f"{_cli()} ask --status {mid} --as {sender}",
     }
     # T202: when it did NOT settle, name WHICH failure this is and what to do -- the
     # caller used to work that out by hand thirty minutes later. Computed only on the

@@ -35,6 +35,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 def _ns() -> str:
     return os.environ.get("BIFROST_NAMESPACE", "bifrost")
 
@@ -74,7 +82,7 @@ def park(agent: str, msg: dict[str, Any], *, reason: str, by: str) -> dict[str, 
                 "note",
                 f"[triage] your {msg.get('kind', 'ask')} ({msg.get('id', '?')}) to "
                 f"{agent} was PARKED ({reason}) -- bottomed, not dropped. "
-                f"Re-raise if still live, or drill: {_pyl()} agent_cli.py bench {agent}",
+                f"Re-raise if still live, or drill: {_cli()} bench {agent}",
                 meta={"via": "triage-park", "display_only": True},
             )
         except Exception:
@@ -135,5 +143,5 @@ def render(agent: str) -> str:
             f"({e.get('reason', '?')}, parked {e.get('parked_at', '?')})"
         )
         rows.append(f"      {str(m.get('content', ''))[:110]}")
-    rows.append(f"  return one: {_pyl()} agent_cli.py bench {agent} unpark <parked_id>")
+    rows.append(f"  return one: {_cli()} bench {agent} unpark <parked_id>")
     return "\n".join(rows)

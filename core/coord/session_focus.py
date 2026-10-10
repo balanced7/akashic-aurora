@@ -49,6 +49,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 #: consecutive misses before the first nudge, and between repeats. Generous on purpose: reading
 #: around a problem legitimately wanders, and a detector that fires during exploration is noise.
 MISS_BEFORE_NUDGE = 14
@@ -310,8 +318,8 @@ def drift_note(session_id: str) -> str | None:
             f"[focus] {st['streak']} calls in a row have not touched {tid}'s files "
             f"({', '.join(declared[:3])}{'...' if len(declared) > 3 else ''}). "
             f'{tid} "{str(t.get("title", ""))[:60]}" was focused {age_d}d ago. '
-            f"If you have moved on: `{_pyl()} agent_cli.py focus --clear` (or --set T###). "
-            f"If this is still the task: `{_pyl()} agent_cli.py focus --quiet`, "
+            f"If you have moved on: `{_cli()} focus --clear` (or --set T###). "
+            f"If this is still the task: `{_cli()} focus --quiet`, "
             f"or `--dismiss` to wave this one off."
         )
     except Exception:

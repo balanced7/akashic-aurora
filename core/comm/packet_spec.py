@@ -51,6 +51,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 SPEC_VERSION = 2
 DEFAULT_MAX_MESSAGE_BYTES = 65536
 DEFAULT_FRAG_REASSEMBLY_TTL = 300
@@ -637,7 +645,7 @@ def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> tuple[str, di
     note = (
         f"\n\n[spilled: {full_len} chars total, first {{keep}} shown. "
         f"The FULL text is stored at {ref} -- fetch it, do NOT ask for a resend. "
-        f"Retrieve with: {_pyl()} agent_cli.py bifrost-fetch --get {ref}]"
+        f"Retrieve with: {_cli()} bifrost-fetch --get {ref}]"
     )
     keep = max(0, limit - len(note.format(keep=full_len)) - 8)
     return text[:keep] + note.format(keep=keep), {

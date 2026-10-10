@@ -26,6 +26,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "DOORS.md")
 sys.path.insert(0, ROOT)
@@ -76,7 +84,7 @@ def render(verbs):
         "> (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by",
         "> check_comprehensibility so it cannot silently rot.",
         "",
-        f"## CLI door -- `{_pyl()} agent_cli.py <verb>` ({len(verbs)} verbs)",
+        f"## CLI door -- `{_cli()} <verb>` ({len(verbs)} verbs)",
         "",
         "The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.",
         "",

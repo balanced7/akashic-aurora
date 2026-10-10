@@ -42,6 +42,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -282,7 +290,7 @@ def spawn_credential_refusal(vault_token: str, cli_logged_in: bool | None) -> st
             "no credential for a fresh seat: the CLI reports logged out and the vault "
             "holds no claude_oauth.token. Either `claude auth login` to restore the "
             "session, or `claude setup-token` and vault it with "
-            f"`{_pyl()} agent_cli.py secret claude_oauth.token` for one that outlives it"
+            f"`{_cli()} secret claude_oauth.token` for one that outlives it"
         )
     return None
 

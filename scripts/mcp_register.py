@@ -32,6 +32,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 MCP_NAME = "akashic-aurora"
 
 
@@ -100,7 +108,7 @@ def main(argv=None):
     print("# 1) run this once:")
     print(f"     {registration_command()}")
     print("# 2) restart Claude Code")
-    print(f"# 3) verify: {_pyl()} agent_cli.py boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
+    print(f"# 3) verify: {_cli()} boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
     return 0
 
 

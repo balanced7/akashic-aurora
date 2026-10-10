@@ -40,6 +40,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 HERE = os.path.dirname
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLAY = os.path.join(ROOT, "data", "play")
@@ -188,7 +196,7 @@ def render_list(agent: str | None = None) -> str:
                 recs = [f for f in os.listdir(runs) if f.startswith(f"{t}-") and f.endswith(".json")]
             n = len(recs)
             rows.append(f"    {t:<20}  {size:>5}B  {n} receipt(s)")
-    rows.append(f"\n  run one: {_pyl()} agent_cli.py tool run <agent>/<tool>")
+    rows.append(f"\n  run one: {_cli()} tool run <agent>/<tool>")
     return "\n".join(rows)
 
 

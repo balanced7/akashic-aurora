@@ -34,6 +34,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -251,9 +259,9 @@ def run(args):
     print()
     if not args.brief:
         print("  IF YOU ARE AN AGENT, start here (read AGENTS.md, then use the CLI):")
-        print(f'    {_pyl()} agent_cli.py boot <your_agent_id> --task "<what you are doing>"')
-        print(f'    {_pyl()} agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..."')
-        print(f"    {_pyl()} agent_cli.py list            # see all lessons")
+        print(f'    {_cli()} boot <your_agent_id> --task "<what you are doing>"')
+        print(f'    {_cli()} learn <your_agent_id> --experiment NAME --tried "..." --result "..."')
+        print(f"    {_cli()} list            # see all lessons")
         print("    -> full contract: AGENTS.md")
         print()
         print("  Humans / maintainers:")

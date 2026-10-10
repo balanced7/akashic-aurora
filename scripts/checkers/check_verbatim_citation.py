@@ -29,6 +29,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 GATE_RE = re.compile(r"\bGATE\s*:?\s*(GREEN|RED)\b|\bAFFIRM(?:ED)?\b|\bverify\s+(?:record|verdict)\b", re.IGNORECASE)
 # Atom-era homes (P3 migration): verbatim records are report ATOMS -- cite the projection
@@ -53,7 +61,7 @@ def _check(message: str) -> int:
         "(method baseline M6 -- decisions never rest on bus-stream/chat-scroll evidence)."
     )
     print(
-        f"Fix: mint the peer verdict as a report atom ({_pyl()} agent_cli.py doc new --type report "
+        f"Fix: mint the peer verdict as a report atom ({_cli()} doc new --type report "
         "...) and cite its projection path (docs/library/report/...) or atom id in the message."
     )
     return 1

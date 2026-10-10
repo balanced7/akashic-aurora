@@ -40,6 +40,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # state/coord/ is the ledger's own git-TRACKED home (state/*.json at top level is
 # gitignored -- kimi's amendment (c) requires git-durable, so the queue lives here).
@@ -133,5 +141,5 @@ def render_boot_section(*, agent_caps: set[str]) -> str:
         why = f"  ({i['why']})" if i.get("why") else ""
         lines.append(f"#   [{i['id']}] {i['cmd']}{why}  <- {i['by']}, {i['filed_at'][:10]}")
     if len(runnable) > BOOT_CAP:
-        lines.append(f"#   ...+{len(runnable) - BOOT_CAP} more: {_pyl()} agent_cli.py defer <you> --list")
+        lines.append(f"#   ...+{len(runnable) - BOOT_CAP} more: {_cli()} defer <you> --list")
     return "\n".join(lines)

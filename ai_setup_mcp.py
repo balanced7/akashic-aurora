@@ -83,6 +83,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 ROOT = Path(__file__).resolve().parent
 SCRIPTS = ROOT / "scripts"
 
@@ -1547,7 +1555,7 @@ async def resident(
         return (
             f"[resident] the MCP door refuses '{sub}' -- a HUMAN ratifies and the "
             f"operator adjudicates (the ratify ruling). Use the CLI: "
-            f"{_pyl()} agent_cli.py resident {sub} ..."
+            f"{_cli()} resident {sub} ..."
         )
     return await _athread(
         _run,

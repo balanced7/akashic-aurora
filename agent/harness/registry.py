@@ -29,6 +29,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 TIERS = ("T0", "T1", "T2", "T3", "T4", "T5", "T6")
 
 HARNESSES = {
@@ -51,7 +59,7 @@ HARNESSES = {
         "adapters": "out-of-tree dsh-posttool (cordis) plugin -> "
         "core/recall/actions.py::recall_context (importable contract)",
         "tiers": {
-            "T0": f"yes -- exec proven: the dsh seat drives the house CLI ({_pyl()} agent_cli.py) "
+            "T0": f"yes -- exec proven: the dsh seat drives the house CLI ({_cli()}) "
             "and messages peers over the Bifrost bus",
             "T1": "yes -- $DSH_HOME/.env user-env layer (dsh-launch-environment) stamps "
             "AKASHIC_AGENT_ID=dsh_agent + AKASHIC_REPO; verified live 2026-08-24: "
@@ -110,13 +118,13 @@ HARNESSES = {
         "default_agent_id": None,  # any agent id; set AKASHIC_AGENT_ID yourself
         "adapters": "none -- the AGENTS.md contract, followed manually",
         "tiers": {
-            "T0": f"yes -- {_pyl()} agent_cli.py (the one door)",
+            "T0": f"yes -- {_cli()} (the one door)",
             "T1": "manual -- export AKASHIC_AGENT_ID before working",
-            "T2": f"manual -- {_pyl()} agent_cli.py boot <id> --task ...",
-            "T3": f"manual -- {_pyl()} agent_cli.py recall-at --path/--command before acting",
-            "T4": f"manual -- {_pyl()} agent_cli.py learn / recall-feedback",
+            "T2": f"manual -- {_cli()} boot <id> --task ...",
+            "T3": f"manual -- {_cli()} recall-at --path/--command before acting",
+            "T4": f"manual -- {_cli()} learn / recall-feedback",
             "T5": "unavailable -- no per-prompt seam exists",
-            "T6": f"manual -- {_pyl()} agent_cli.py wrap --commit",
+            "T6": f"manual -- {_cli()} wrap --commit",
         },
     },
 }

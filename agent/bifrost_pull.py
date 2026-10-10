@@ -22,6 +22,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 def _clip(s: Any, n: int = 220) -> str:
     s = "" if s is None else str(s)
     if len(s) <= n:
@@ -378,7 +386,7 @@ def consume_inbox(agent_id: str, limit: int = 20) -> dict[str, Any]:
                     stale_notice_txt += (
                         f"  parked {parked_n} stale ask(s) to durable "
                         f"bench (bottomed, never dropped; "
-                        f"{_pyl()} agent_cli.py bench {agent_id})\n"
+                        f"{_cli()} bench {agent_id})\n"
                     )
                 msgs = fresh
             except Exception:
@@ -455,7 +463,7 @@ def stale_notice_lines(res: dict[str, Any], agent_id: str) -> list[str]:
     if not (res.get("consumed") or []):
         out.append(
             f"# no NEW mail surfaced for {agent_id} -- but the cursor ADVANCED past "
-            f"the entries above (bench: {_pyl()} agent_cli.py bench {agent_id})"
+            f"the entries above (bench: {_cli()} bench {agent_id})"
         )
     return out
 
@@ -790,7 +798,7 @@ def print_boot_bifrost_section(block: dict[str, Any], show_traces: bool = False)
     capped = any(m.get("pending_capped") for m in (block.get("messages") or []) if isinstance(m, dict))
     print(
         f"  {pending}{'+' if capped else ''} unread ({scope}, peek -- use bifrost_inbox or "
-        f"`{_pyl()} agent_cli.py bifrost-sync --consume` to ack):{summary_tag}"
+        f"`{_cli()} bifrost-sync --consume` to ack):{summary_tag}"
     )
     for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
         print(f"  {ln}")  # W4: trace-class telemetry folded (--traces to expand)
@@ -872,7 +880,7 @@ def format_promoted_events(events: list[dict[str, Any]], *, json_out: bool = Fal
         lines.append(f"    {body}")
         if ref:
             lines.append(f"    ref: {ref}")
-    lines.append(f"\nDrill: {_pyl()} agent_cli.py events --get <ref>")
+    lines.append(f"\nDrill: {_cli()} events --get <ref>")
     return "\n".join(lines)
 
 
@@ -904,5 +912,5 @@ def format_console_events(events: list[dict[str, Any]], *, json_out: bool = Fals
         lines.append(f"    {body}")
         if ref:
             lines.append(f"    ref: {ref}")
-    lines.append(f"\nDrill: {_pyl()} agent_cli.py events --get <ref>")
+    lines.append(f"\nDrill: {_cli()} events --get <ref>")
     return "\n".join(lines)

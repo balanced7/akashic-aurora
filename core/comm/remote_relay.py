@@ -69,6 +69,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 #: The committed route config: names the peer URL + which secret file, NEVER the secret.
@@ -529,7 +537,7 @@ def push(
     if not key:
         return BoundaryOutcome.failed(
             "remote bridge has no outbound secret. Capture one with "
-            f"`{_pyl()} agent_cli.py secret remote_bridge_outbound.key` (the vault door keeps it "
+            f"`{_cli()} secret remote_bridge_outbound.key` (the vault door keeps it "
             "out of every transcript), then hand the peer the SAME value out-of-band. "
             "Inert-until-keyed is the 'not everyone has access' gate."
         )
@@ -747,7 +755,7 @@ def accept(
                     "no inbound secret for any configured peer — the bridge is "
                     "INERT-UNTIL-KEYED. An absent allowlist must not resolve to 'allow' (the "
                     "obvious sin) and must not resolve to a guess (discord_inbound's "
-                    f"refusal). Capture one: {_pyl()} agent_cli.py secret remote_bridge_inbound.key"
+                    f"refusal). Capture one: {_cli()} secret remote_bridge_inbound.key"
                 )
             return BoundaryOutcome.failed(
                 "no configured peer's key verifies this envelope — refused. Identity here is "

@@ -36,6 +36,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 # W161 (2026-08-14): DERIVED, not defaulted. This read the AI_SETUP env var with a hardcoded
 # fallback -- the exact pattern core/paths.py exists to delete, and whose docstring already
 # measured the reason: "0 machines with AI_SETUP actually set -- including the original one."
@@ -66,7 +74,7 @@ def check() -> int:
     print("DOC-FRESHNESS CHECK (root allowlist)")
     print("=" * 60)
     print("Allowed at root: " + ", ".join(sorted(ALLOWED_ROOT_MD)))
-    print(f"Generated truth: `{_pyl()} agent_cli.py status` | `story` | `git log` | docs/ROADMAP.md\n")
+    print(f"Generated truth: `{_cli()} status` | `story` | `git log` | docs/ROADMAP.md\n")
 
     if offenders:
         print(f"UNLISTED ROOT DOCS ({len(offenders)}):")

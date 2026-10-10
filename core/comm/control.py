@@ -46,6 +46,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 # --- namespace-scoped control plane (2026-07-12 isolation fix; claude fenced half, deepseek review
 # pending) -----------------------------------------------------------------------------------------
 # The pause/halt/narration/activity keys FOLLOW BIFROST_NAMESPACE (exactly like Bus.ns) instead of
@@ -208,11 +216,11 @@ def format_pause_line(status: dict[str, Any], now: float | None = None) -> str:
             f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
             f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
             f"the message in hand, then hold; in-flight work is NOT abandoned; "
-            f"resume: {_pyl()} agent_cli.py bifrost-resume"
+            f"resume: {_cli()} bifrost-resume"
         )
     return (
         f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
-        f"{age} old) -- auto-responders frozen; resume: {_pyl()} agent_cli.py bifrost-resume"
+        f"{age} old) -- auto-responders frozen; resume: {_cli()} bifrost-resume"
     )
 
 

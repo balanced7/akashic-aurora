@@ -125,6 +125,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 REPLY_TIMEOUT_SEC = cast(
     "int", _scaled(600)
 )  # scaled(int) is an int; 10 min; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
@@ -745,7 +753,7 @@ def _directive_line(agent_id: str) -> str:
             return f"DIRECTIVE: {body}{suffix}"
     except Exception:
         pass
-    return f"DIRECTIVE: none active -- check the ledger: {_pyl()} agent_cli.py task list"
+    return f"DIRECTIVE: none active -- check the ledger: {_cli()} task list"
 
 
 def _siblings_for_runner(agent_id: str) -> str:

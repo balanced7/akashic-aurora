@@ -59,6 +59,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 # generic tokens that carry no recall signal (tooling/noise) — never used as query terms.
 _STOP = {
@@ -1454,7 +1462,7 @@ def learn_command_for(target: str, agent_id: str | None = None) -> str:
     # descriptions are what make a lesson FIRE at the right moment -- the template models it
     # so the phrasing costs one edit instead of authorship.
     return (
-        f"{_pyl()} agent_cli.py learn {agent} --experiment {_slug_from_target(target)} "
+        f"{_cli()} learn {agent} --experiment {_slug_from_target(target)} "
         f'--tried "<what failed>" --result "<what fixed it>" '
         f'--recommend "Use when <symptom>, before <action>: <advice>"'
     )
@@ -2151,7 +2159,7 @@ def render(
         if hint_style == "tool":
             lines.append(f"[verb] the door already has a `{v.get('verb')}` verb — {p}")
         else:
-            lines.append(f"[verb] `{_pyl()} agent_cli.py {v.get('verb')}` — {p}")
+            lines.append(f"[verb] `{_cli()} {v.get('verb')}` — {p}")
     if not lines:
         return ""
     shown, total = len(result.get("lessons", [])), result.get("total", 0)

@@ -59,6 +59,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 def _ns() -> str:
     # ns-isolation (2026-07-12): the doctor diagnoses agents WITHIN a namespace; its stall/page keys
     # (and its known_agents enumeration) must stay coherent with its scoped inputs (liveness,
@@ -373,7 +381,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     "self_reported_error",
                     "dashboard",
                     f"{agent}: SELF-REPORTED failure -- {reason} (gen {prog.get('generation', '?')})",
-                    f'{_pyl()} agent_cli.py events --search "{agent} error"',
+                    f'{_cli()} events --search "{agent} error"',
                 )
             )
         if phase.startswith("error:"):
@@ -383,7 +391,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     "self_reported_error",
                     "dashboard",
                     f"{agent}: worklive error phase -- {phase[len('error:') :]}",
-                    f"{_pyl()} agent_cli.py doctor --json",
+                    f"{_cli()} doctor --json",
                 )
             )
 
@@ -450,7 +458,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                         "dashboard",
                         f"{agent}: long work in '{phase}' ({int(stuck)}s) but the "
                         f"{evidence} -- genuinely working, not wedged",
-                        f"{_pyl()} agent_cli.py doctor --json",
+                        f"{_cli()} doctor --json",
                     )
                 )
             elif runner_beat_fresh:
@@ -496,7 +504,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     f"{agent}: APPROACHING WEDGE -- '{phase}' for {int(stuck)}s with no "
                     f"fresh pulse (sub-threshold; pages at {int(liveness.DEFAULT_WEDGE_S)}s "
                     "if it doesn't self-heal)",
-                    f"{_pyl()} agent_cli.py doctor --json   # py-spy dump --pid <{agent}-runner-pid> if it climbs",
+                    f"{_cli()} doctor --json   # py-spy dump --pid <{agent}-runner-pid> if it climbs",
                 )
             )
 
@@ -520,7 +528,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                             "dashboard",
                             f"{agent}: {backlog} unread -- live seat (wake-armed / "
                             f"lock-held), no runner phase; consumes on next turn/wake",
-                            f"{_pyl()} agent_cli.py bifrost-sync {agent}",
+                            f"{_cli()} bifrost-sync {agent}",
                         )
                     )
                 else:
@@ -542,7 +550,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                             # to act on a finding the doctor deliberately raised.
                             # skip-to-now IS "retire the inbox": it advances the
                             # cursors past ghost mail, with an audited reason.
-                            f"{_pyl()} agent_cli.py bifrost-skip-to-now {agent} --by <you> "
+                            f"{_cli()} bifrost-skip-to-now {agent} --by <you> "
                             f"--reason 'ghost mail from a retired seat'  | or ignore: "
                             f"the mail TTLs with the stream",
                         )
@@ -560,7 +568,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                             f"{agent}: STALLED CONSUMER -- {backlog} unread for "
                             f"{int(age)}s while idle (past hysteresis "
                             f"{int(STALL_HYSTERESIS_S)}s)",
-                            f"{_pyl()} agent_cli.py bifrost-sync {agent}",
+                            f"{_cli()} bifrost-sync {agent}",
                         )
                     )
                 else:
@@ -571,7 +579,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                             "dashboard",
                             f"{agent}: backlog {backlog} while idle -- observing "
                             f"({int(age)}s / {int(STALL_HYSTERESIS_S)}s hysteresis)",
-                            f"{_pyl()} agent_cli.py bifrost-sync {agent}",
+                            f"{_cli()} bifrost-sync {agent}",
                         )
                     )
         else:
@@ -586,7 +594,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     "frozen",
                     "banner",
                     f"{agent}: FROZEN -- {frozen.get('reason', 'paused')}" + (f" ({int(age)}s)" if age else ""),
-                    f"{_pyl()} agent_cli.py bifrost-resume",
+                    f"{_cli()} bifrost-resume",
                 )
             )
 
@@ -712,7 +720,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                         "page" if paging else "dashboard",
                         f"{agent}: {head}{depth} message(s) undrained on the work "
                         f"lane, oldest waiting {_fmt_age(waited)}{tail}",
-                        f"{_pyl()} agent_cli.py unwedge {agent}",
+                        f"{_cli()} unwedge {agent}",
                     )
                 )
             parts = [f"{agent}: lane cursor"]
@@ -729,7 +737,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     "lane_health",
                     "dashboard",
                     lh_line if len(parts) > 1 else lh_line + " healthy",
-                    f"{_pyl()} agent_cli.py mailbox --explain {agent}",
+                    f"{_cli()} mailbox --explain {agent}",
                 )
             )
     except Exception:
@@ -782,7 +790,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     f"one cursor, one consumer seat"
                     + (f"; held by {held[:8]}" if held else "; seat unheld")
                     + ". The other is being degraded to peek and may be losing mail.",
-                    f"retiring seat: {_pyl()} agent_cli.py stand-down {agent}",
+                    f"retiring seat: {_cli()} stand-down {agent}",
                 )
             )
     except Exception:
@@ -798,7 +806,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                     "triage_bench",
                     "dashboard",
                     f"{agent}: {n} ask(s) on the triage bench (bottomed, not dropped)",
-                    f"{_pyl()} agent_cli.py bench {agent}",
+                    f"{_cli()} bench {agent}",
                 )
             )
     except Exception:
@@ -881,7 +889,7 @@ def unwedge(agent: str) -> dict[str, Any]:
         status, verdict, rec = (
             "frozen",
             (f"{agent}: FROZEN — deliberately paused/halted. No action required unless this is stale."),
-            f"resume: {_pyl()} agent_cli.py bifrost-resume",
+            f"resume: {_cli()} bifrost-resume",
         )
     elif hard_wedge:
         status, verdict, rec = (
@@ -899,15 +907,15 @@ def unwedge(agent: str) -> dict[str, Any]:
                 + (f", {len(evidence['locks'])} lock(s) held" if evidence["locks"] else "")
             ),
             (
-                f"triaged drain: {_pyl()} agent_cli.py bifrost-skip-to-now {agent} --by <you> --reason '<why>' "
-                f"| or drill down: {_pyl()} agent_cli.py mailbox --explain {agent}"
+                f"triaged drain: {_cli()} bifrost-skip-to-now {agent} --by <you> --reason '<why>' "
+                f"| or drill down: {_cli()} mailbox --explain {agent}"
             ),
         )
     elif stalled:
         status, verdict, rec = (
             "stalled",
             (f"{agent}: STALLED CONSUMER — backlog present but lane cursor current; legacy mail may have accumulated"),
-            (f"sync: {_pyl()} agent_cli.py bifrost-sync {agent}"),
+            (f"sync: {_cli()} bifrost-sync {agent}"),
         )
     elif lane_stall:
         # Ranked ABOVE the runner and BUSY branches deliberately. This branch did not
@@ -928,10 +936,10 @@ def unwedge(agent: str) -> dict[str, Any]:
                 # Measured 2026-07-26 on claude's own stalled lane (22 -> 2 -> 0): the D2
                 # stale-ask gate parks in BATCHES, so one pass rarely finishes. Saying so
                 # keeps a half-drained lane from reading as a failed recommendation.
-                f"drain (repeat until depth 0): BIFROST_CONSUME_LANE=work {_pyl()} agent_cli.py "
-                f"bifrost-sync {agent} --consume  | if it will not drain: {_pyl()} agent_cli.py "
+                f"drain (repeat until depth 0): BIFROST_CONSUME_LANE=work {_cli()} "
+                f"bifrost-sync {agent} --consume  | if it will not drain: {_cli()} "
                 f"bifrost-skip-to-now {agent} --by <you> --reason '<why>'  "
-                f"| inspect: {_pyl()} agent_cli.py mailbox --explain {agent}"
+                f"| inspect: {_cli()} mailbox --explain {agent}"
             ),
         )
     elif runner == "down":
@@ -956,7 +964,7 @@ def unwedge(agent: str) -> dict[str, Any]:
         status, verdict, rec = (
             "backlogged",
             (f"{agent}: BUSY — {lh['depth']} on the work lane but pulse is fresh. Working, not wedged."),
-            f"monitor: {_pyl()} agent_cli.py doctor",
+            f"monitor: {_cli()} doctor",
         )
     elif lh.get("straggler", 0) > 0:
         status, verdict, rec = (
@@ -965,13 +973,13 @@ def unwedge(agent: str) -> dict[str, Any]:
                 f"{agent}: HEALTHY — {lh.get('straggler', 0)} straggler(s) on legacy stream "
                 "(dual-write soak, self-clears)"
             ),
-            f"monitor: {_pyl()} agent_cli.py doctor",
+            f"monitor: {_cli()} doctor",
         )
     elif runner == "live":
         status, verdict, rec = (
             "healthy",
             (f"{agent}: HEALTHY — runner live, lane current, no page-grade findings"),
-            (f"no action needed: {_pyl()} agent_cli.py doctor"),
+            (f"no action needed: {_cli()} doctor"),
         )
     else:
         status, verdict, rec = (
@@ -1468,7 +1476,7 @@ def _stale_code_line(agent: str) -> dict[str, Any] | None:
         text = runtime_age.line(agent, v)
         if not text:
             return None
-        return _f(agent, "stale_code", "dashboard", text, f"{_pyl()} agent_cli.py roster   # per-seat code state")
+        return _f(agent, "stale_code", "dashboard", text, f"{_cli()} roster   # per-seat code state")
     except Exception:
         return None
 
@@ -1525,7 +1533,7 @@ def _token_cost_line(agent: str, journal_dir: str = "") -> dict[str, Any] | None
         # argparse rejects is worse than none: it looks actionable and burns trust
         # in the finding that raised it (T222's class; check_advertised_verbs guards
         # the verb, not the flags, so this dead --token slipped the checker).
-        return _f(agent, "token_cost", "dashboard", line, f"{_pyl()} agent_cli.py doctor --json")
+        return _f(agent, "token_cost", "dashboard", line, f"{_cli()} doctor --json")
     except Exception:
         return None
 
@@ -1570,7 +1578,7 @@ def _feed_failure_findings(agent: str):
                 f"feed: {len(fails)} Discord post failure(s) in the last "
                 f"hour ({latest.get('path')}: {str(latest.get('error'))[:80]})"
                 f" -- replies may not be reaching the operator",
-                f"{_pyl()} agent_cli.py events --kind discord_feed_post_failed",
+                f"{_cli()} events --kind discord_feed_post_failed",
             )
         ]
     except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
@@ -1786,7 +1794,7 @@ def _watch_finding(w: dict[str, Any]) -> dict[str, Any] | None:
             f"the ledger was widened around it"
         ),
         "drill": (
-            f"{_pyl()} agent_cli.py task list  # then name what stops: {_pyl()} agent_cli.py task "
+            f"{_cli()} task list  # then name what stops: {_cli()} task "
             "park <id> --reason <why> -- width is licensed only by a recorded cost"
         ),
     }

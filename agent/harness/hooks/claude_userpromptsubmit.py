@@ -46,6 +46,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 
@@ -86,7 +94,7 @@ def build_bus_line(agent_id: str) -> str:
         return ""
     if not n:
         return ""
-    return f"[akashic] mail: {n} unread bus msg(s) -> {_pyl()} agent_cli.py bifrost-sync {agent_id}"
+    return f"[akashic] mail: {n} unread bus msg(s) -> {_cli()} bifrost-sync {agent_id}"
 
 
 def build_page_lines() -> list:

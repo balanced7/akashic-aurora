@@ -102,6 +102,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 _ROOT = Path(__file__).resolve().parents[1]
 # How long a fresh seat must keep breathing before its sprout is proven honest.
 # MEASURED, not guessed: an expired-OAuth death takes 15.8-16.9s (n=3, all exit 1) --
@@ -564,11 +572,11 @@ def main(argv=None) -> int:
         # fix: explicit, not hoped-for.
         prompt = (
             f"You were spawned by the operator's !spawn from Discord. First run: "
-            f'{_pyl()} agent_cli.py boot claude --task "{task[:200]}" -- then do the '
+            f'{_cli()} boot claude --task "{task[:200]}" -- then do the '
             f"task. IMPORTANT: a `wrap` alone never reaches him -- it distills THIS "
             f"session for the next one and sends nothing to Discord. Before you "
             f"wrap, reply to him directly on the bus so your words actually land in "
-            f'his channel: `{_pyl()} agent_cli.py bifrost-send claude "<your reply>" '
+            f'his channel: `{_cli()} bifrost-send claude "<your reply>" '
             f"--to daniil --kind chat` (use --text-file for anything long or "
             f"flag-bearing). Do this even if the ask read as a task rather than a "
             f"question -- a silent completion is indistinguishable from no reply at "

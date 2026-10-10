@@ -64,6 +64,14 @@ def _pyl() -> str:
         return "py"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` under the installed launcher, else
+    `<_pyl()> agent_cli.py` (core.paths.cli_command)."""
+    import os as _os
+
+    return "aurora" if (_os.getenv("AURORA_LAUNCHER") or "").strip() else f"{_pyl()} agent_cli.py"
+
+
 #: Loopback. THE DEFAULT IS THE POLICY — nobody reads flag docs before the first run, and this
 #: machine runs with Defender disabled and Windows Update blocked by choice, so an
 #: all-interfaces default is one absent-minded launch from an open door on an unpatched box.
@@ -357,7 +365,7 @@ def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, *, allow_public: b
         # a 2h44m outage learning to hate.
         print(
             "WARNING: no inbound secret found — this listener is INERT and will refuse "
-            f"every message. Drop remote_bridge_inbound.key into .secrets/ ({_pyl()} agent_cli.py "
+            f"every message. Drop remote_bridge_inbound.key into .secrets/ ({_cli()} "
             "secret) and restart.",
             file=sys.stderr,
         )
