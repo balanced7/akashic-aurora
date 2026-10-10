@@ -383,3 +383,52 @@ def memreplay_main(args) -> int:
         return 0
     print(f"ERROR: unknown action {a!r}")
     return 2
+
+
+def precompile_main(args) -> int:
+    """`precompile <action>` -- lessons into harness primitives (task 09)."""
+    from pathlib import Path
+
+    from core.learning.learning_store import get_learning_store_instance
+    from core.metaharness import precompile
+
+    a = args.action
+    if a == "check":
+        root = Path(args.root) if args.root else precompile.ROOT
+        drift = precompile.check_drift(root)
+        _print(drift, args.json, "\n".join(drift) or "no drift: every generated piece matches its source hash")
+        return 1 if drift else 0
+    ls = get_learning_store_instance()
+    lessons = ls.load_all_learnings_from_store()
+    if args.lesson:
+        lessons = [x for x in lessons if x.get("experiment_name") in set(args.lesson)]
+    if a == "plan":
+        rows = precompile.plan(lessons, store=ls.store)
+        _print(
+            rows,
+            args.json,
+            "\n".join(
+                f"  {r['lesson']:<40} {r['kind']:<12} {'PASS' if r['gates']['pass'] else 'hold'} "
+                f"proven={r['gates']['proven_by']} stable={r['gates']['stable']} premise={r['gates']['premise']} -> {','.join(r['harnesses'])}"
+                for r in rows
+            )
+            or "no lessons",
+        )
+        return 0
+    if a == "build":
+        res = precompile.build(
+            lessons,
+            base=args.base,
+            harnesses=tuple(args.harness or precompile.HARNESSES),
+            store=ls.store,
+            force=args.force,
+        )
+        _print(
+            res,
+            args.json,
+            json.dumps({k: v for k, v in res.items() if k != "plan"}, indent=1)
+            + ("\n(review it: `review add --candidate ...`)" if res.get("built") else ""),
+        )
+        return 0 if res.get("built") else 1
+    print(f"ERROR: unknown action {a!r}")
+    return 2
