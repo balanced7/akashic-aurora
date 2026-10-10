@@ -19,6 +19,7 @@ Run:  uv run scripts/release/releases.py version             # print the current
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -86,28 +87,46 @@ def bump(new: str) -> int:
     return 0
 
 
+#: GitHub rejects a release body over 125,000 characters; stay well inside it.
+NOTES_LIMIT = 60_000
+
+
 def notes(tag: str) -> int:
-    """Conventional-commit subjects since the previous tag, grouped -- the release body."""
+    """Conventional-commit subjects since the previous tag, grouped -- the release body.
+
+    The first tag has no previous one, and listing the whole history would overflow GitHub's
+    limit on a release body, so it gets a short introduction instead. Any body is capped at
+    NOTES_LIMIT, with the full diff one link away.
+    """
+    repo = os.environ.get("GITHUB_REPOSITORY") or "balanced7/akashic-aurora"
     prev = subprocess.run(
         ["git", "describe", "--tags", "--abbrev=0", f"{tag}^"], cwd=ROOT, capture_output=True, text=True, check=False
     ).stdout.strip()
-    rng = f"{prev}..{tag}" if prev else tag
+    lines = [f"## Aurora {tag}", "", f"Install or update: see https://github.com/{repo}#install", ""]
+    if not prev:
+        lines += ["The first release of the `aurora` command: Akashic Aurora without a checkout.", ""]
+        print("\n".join(lines))
+        return 0
     log = subprocess.run(
-        ["git", "log", "--no-merges", "--format=%s", rng], cwd=ROOT, capture_output=True, text=True, check=True
+        ["git", "log", "--no-merges", "--format=%s", f"{prev}..{tag}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.splitlines()
     groups = {"feat": "Features", "fix": "Fixes", "perf": "Performance", "docs": "Documentation"}
     out: dict[str, list[str]] = {}
     for subject in log:
         kind = re.match(r"^(\w+)(?:\([^)]*\))?!?:", subject)
         out.setdefault(groups.get(kind[1] if kind else "", "Other changes"), []).append(subject)
-    print(f"## Aurora {tag}\n")
-    print("Install or update: see https://github.com/balanced7/akashic-aurora#install\n")
     for title in (*groups.values(), "Other changes"):
         if out.get(title):
-            print(f"### {title}\n")
-            print("\n".join(f"- {s}" for s in out[title]) + "\n")
-    if prev:
-        print(f"Full diff: https://github.com/balanced7/akashic-aurora/compare/{prev}...{tag}")
+            lines += [f"### {title}", "", *(f"- {s}" for s in out[title]), ""]
+    full = f"Full diff: https://github.com/{repo}/compare/{prev}...{tag}"
+    body = "\n".join(lines)
+    if len(body) > NOTES_LIMIT:
+        body = body[: body.rfind("\n", 0, NOTES_LIMIT)] + "\n\n(list cut short; see the full diff)\n"
+    print(body + "\n" + full)
     return 0
 
 
