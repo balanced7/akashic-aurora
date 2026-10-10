@@ -52,6 +52,8 @@ __pycache__/
 session_logs/
 blackboard_data/
 coordinator_logs/
+/metaharness/
+# ^ meta-harness instance state (corpus, transcripts, runs) when no ~/.aurora home exists
 .pytest_out.txt
 .pytest_err.txt
 test_memory.json
