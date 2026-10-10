@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (119 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (120 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -79,6 +79,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `mailbox` | T095 M0 shadow mailbox: per-message state for an agent (observation only) | `<agent_id>*` `--explain` `--rebuild` `--retire-ghosts` `--apply` `--min-age-h` `--limit-scan` `--min-evidence {unhandled,consumed,replied,acked}` `--open` `--state` `--intent` `--as {act,decline,defer,delegate}` `--to` `--note` `--backfill` `--incarnation` `--json` |
 | `manual` | the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as labelled passages; ingest a folder; list what is shelved | `<manual_cmd>* {search,ingest,list}` `<words>*` `--shelf` `--limit` `--max-chars` `--selector` `--mode {bm25,hybrid}` `--json` |
 | `memreplay` | meta-harness memory replay (task 08): does a lesson change outcomes? snapshot, queue, run, drain | `<action>* {snapshot,queue,run,drain}` `--lesson` `--base` `--scenario` `--trials` `--daily-usd` `--label` `--exclude` `--json` |
+| `modes` | meta-harness memory modes (task 10): show, compare the four arms, per-lesson placement, stale compiled lessons | `<action>* {show,compare,placement,stale}` `--base` `--compiled` `--scenario` `--trials` `--daily-usd` `--json` |
 | `note` | record a durable project note (write-once; re-note same title to update) | `<agent_id>*` `--title` `--note` `--context` `--category` `--supersedes` `--retire` `--get` `--session` `--json` |
 | `notes` | list active project notes (--project regenerates chronicles/memory.md) | `--limit` `--days` `--project` `--all` `--json` |
 | `orient` | VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral | `<target>` `--agent` `--density {compact,standard,wide}` `--depth {surface,evidence}` `--per-stream` `--json` |
