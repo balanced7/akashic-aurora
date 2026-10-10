@@ -22,10 +22,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from metaharness_fixtures import build_world, fake_candidate  # noqa: E402
+from metaharness_fixtures import build_world, fake_candidate  # noqa: E402  # sys.path bootstrap
 
-from core.foundation.store import FileStore  # noqa: E402
-from core.metaharness import memreplay, replay, stats  # noqa: E402
+from core.foundation.store import FileStore  # noqa: E402  # sys.path bootstrap
+from core.metaharness import memreplay, replay, stats  # noqa: E402  # sys.path bootstrap
 
 PYTEST = [sys.executable, "-m", "pytest"]
 

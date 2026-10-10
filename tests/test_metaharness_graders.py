@@ -22,9 +22,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from metaharness_fixtures import build_world, fake_candidate  # noqa: E402
+from metaharness_fixtures import build_world, fake_candidate  # noqa: E402  # sys.path bootstrap
 
-from core.metaharness import corpus, graders, replay, stats  # noqa: E402
+from core.metaharness import corpus, graders, replay, stats  # noqa: E402  # sys.path bootstrap
 
 PYTEST = [sys.executable, "-m", "pytest"]
 
@@ -141,10 +141,12 @@ def test_the_pairwise_judge_needs_both_orders_to_agree():
 
 def test_model_criteria_stay_out_until_calibrated(world):
     _, ids, _ = world
+
     def judge(_p):
         return (
             '{"conventions": 5, "readable": 5, "minimal": 5, "no_hacks": 5, "verified": 4, "judgement": 4, "scope": 4}'
         )
+
     _run_and_grade(
         "bad",
         "bad",

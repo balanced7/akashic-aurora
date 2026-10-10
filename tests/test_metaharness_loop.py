@@ -18,15 +18,16 @@ import random
 import sys
 import textwrap
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from metaharness_fixtures import build_world, fake_candidate  # noqa: E402
+from metaharness_fixtures import build_world, fake_candidate  # noqa: E402  # sys.path bootstrap
 
-from core.metaharness import archive, corpus, flags, loop, proposer, replay, review  # noqa: E402
+from core.metaharness import archive, corpus, flags, loop, proposer, replay, review  # noqa: E402  # sys.path bootstrap
 
 PYTEST = [sys.executable, "-m", "pytest"]
 
@@ -197,7 +198,7 @@ def test_the_flag_optimiser_finds_the_constrained_optimum():
         score = (0.4 if c["hook"] else 0.0) + 0.4 * (1 - abs(c["floor"] - 0.3)) + 0.2 * c["turns"] / 50
         return score + rng.gauss(0, 0.02), 0.02 * c["turns"]
 
-    hist = []
+    hist: list[dict[str, Any]] = []
     for i in range(24):
         for c in flags.suggest(space, hist, seed=i, constraint=("cost", 0.6)):
             s, cost = objective(c)
