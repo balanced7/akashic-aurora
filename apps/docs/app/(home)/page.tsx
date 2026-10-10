@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { CoreParts } from '@/components/core-parts';
 
 export default function HomePage() {
   return (
@@ -7,6 +8,7 @@ export default function HomePage() {
       <p className="text-fd-muted-foreground">
         A shared memory for AI agents, and the wiring that lets them work together.
       </p>
+      <CoreParts className="mx-auto w-full max-w-3xl" />
       <p className="flex gap-4 justify-center">
         <Link href="/docs/quickstart" className="font-medium underline">
           Quickstart
