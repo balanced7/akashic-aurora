@@ -88,10 +88,8 @@ DEFAULT_ALLOWLIST: dict[str, str] = {
     "tests/test_t223_discord_outbound_bridge.py": "redaction-format pins (2026-08-24): parametrized SYNTHETIC vendor-format samples "
     "(sk-ant-api03-AAAABBBB..., xoxb-1234567890-abcdefghij) so redact() fails loudly "
     "when a vendor changes key formats -- A-F placeholders, never-valid by design",
-    "tests/drill_remote_bridge_loopback.py": "loopback drill leak fixture uses SYNTHETIC A-F placeholder literals (same "
-    "redaction-format-pin class as the t223 pins) -- never-valid credentials",
-    "tests/test_remote_bridge_v1_pins.py": "remote-bridge redaction pin (line ~262) plants a SYNTHETIC A-F placeholder key "
-    "to assert the bridge redacts before admit -- never-valid by design",
+    "tests/test_metaharness_corpus.py": "transcript-redaction pins plant bare private-key HEADERS ('-----BEGIN ... "
+    "PRIVATE KEY-----' with a 4-char body) to prove redact.find_secrets() catches them -- no key material",
 }
 
 _SKIP_SUFFIXES = {
