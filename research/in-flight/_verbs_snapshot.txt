@@ -17,6 +17,7 @@ resident             callsign ceremony: nominate / ratify / show a resident's de
 scout                read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict
 doc                  seed a new doc with its header contract (library door)
 tag-anti-pattern     tag an EXISTING lesson as a reusable known-bad
+provenance           show this session's harness, model, effort and environment record (task 01)
 recall               search past lessons (no query = list all)
 list                 list ALL lessons in memory
 recall-at            recall-at-action: relevant lessons/locks for a path or command
