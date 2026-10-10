@@ -1,0 +1,121 @@
+---
+title: State of the art
+description: Where teamwork between AI agents stands in October 2026, what the research says about groups, and what Aurora adds.
+---
+
+This page surveys the field as of October 2026. It covers four fronts: many models on one question, agent teams in coding tools, protocols, and memory. Then it turns to what science knows about groups of people. Last, it shows where Aurora goes further, and where it does not.
+
+Every claim links to its source. The [references](#references) at the end list each paper with a link you can follow.
+
+## Many models, one question
+
+**Mixture of Agents.** [Wang et al. (2024)](https://arxiv.org/abs/2406.04692) stack models in layers. Each model in a layer reads every answer from the layer before. A mix of open models beat GPT-4o on the AlpacaEval 2.0 benchmark this way.
+
+**Debate.** In [Du et al. (2024)](https://arxiv.org/abs/2305.14325), copies of a model answer alone, read each other's answers, and revise over a few rounds. Facts and reasoning both got better.
+
+**The catch.** Mixing is not free, and recent work shows three limits.
+
+- **One strong model can beat a mix.** [Self-MoA](https://arxiv.org/abs/2502.00674) samples the best model several times and merges its own answers. It beat mixed teams by 6.6% on AlpacaEval 2.0. Mixing in weaker models lowered the average quality.
+- **The pick matters more than the mix.** [Maryanskyy (2026)](https://arxiv.org/abs/2603.20324) found that a diverse team helps only when a good judge picks among its answers. Merging all the answers into one helped in none of 42 tasks.
+- **Agents give in too fast.** Debating agents drift toward the majority ([Choi et al., 2025](https://arxiv.org/abs/2506.01332)). They flatter each other and agree before they reach the right answer ([Yao et al., 2025](https://arxiv.org/abs/2509.23055)). They also yield to persuasive but wrong reasoning ([Wynn et al., 2025](https://arxiv.org/abs/2509.05396)).
+
+A study of 1,600 annotated runs across seven frameworks traced most failures to how the agents were set up and how they talk ([Cemri et al., 2025](https://arxiv.org/abs/2503.13657)). Weak models caused fewer of them. In short, the rules of talk decide whether many agents help.
+
+## Agent teams in coding tools
+
+The big coding tools now run teams of agents.
+
+- **Claude Code** has [agent teams](https://code.claude.com/docs/en/agent-teams), still marked experimental. One session leads. Teammates work in their own context windows, share a task list and message each other.
+- **Codex** runs [subagents](https://developers.openai.com/codex/subagents) in parallel and gathers their results into one reply.
+- **Anthropic's research system** pairs a lead agent with parallel subagents. It beat a single agent by more than 90% on Anthropic's own research tests, at about 15 times the tokens of a chat ([Anthropic, 2025](https://www.anthropic.com/engineering/multi-agent-research-system)).
+
+These teams last one session and serve one person. A team forgets what it learned once the session ends, unless someone writes it down by hand.
+
+## Protocols between agents and tools
+
+Two open standards carry most traffic. The [Model Context Protocol](https://modelcontextprotocol.io/) connects an agent to tools and data. It is a founding project of the Linux Foundation's [Agentic AI Foundation](https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation), formed in December 2025. The [Agent2Agent protocol](https://a2a-protocol.org/latest/), also hosted by the Linux Foundation, lets agents from different makers hand each other tasks.
+
+Both move requests and results. Neither says how a group should weigh a claim, keep a dissent, or learn from a mistake.
+
+## Memory for agents
+
+Memory layers such as [Mem0](https://arxiv.org/abs/2504.19413), [Zep](https://arxiv.org/abs/2501.13956) and Letta give one assistant a long memory. Their published benchmark scores disagree, and no system leads on every measure. We found no benchmark for memory shared across many agents and many people.
+
+## What science knows about groups
+
+Research on human teams is older and deeper. Its main lesson is plain: diversity helps a group only when its members share and work through what each one knows.
+
+- **Groups have their own intelligence.** [Woolley et al. (2010)](https://doi.org/10.1126/science.1193147) found a general factor, "c", for how well a group does across many tasks. It tracked how evenly members took turns and how well they read each other. The IQ of the smartest member mattered little. A meta-analysis of 1,356 groups confirmed it ([Riedl et al., 2021](https://doi.org/10.1073/pnas.2005737118)).
+- **Diversity cuts both ways.** A meta-analysis of 108 studies and 10,632 teams found that cultural diversity raised creativity. It also raised conflict and lowered cohesion ([Stahl et al., 2010](https://doi.org/10.1057/jibs.2009.85)).
+- **Talk decides which way it cuts.** The [categorization-elaboration model](https://doi.org/10.1037/0021-9010.89.6.1008) explains why. Diverse groups win when members work through each other's knowledge. They lose when they split into "us" and "them" ([van Knippenberg et al., 2004](https://doi.org/10.1037/0021-9010.89.6.1008); [van Knippenberg and Schippers, 2007](https://doi.org/10.1146/annurev.psych.58.110405.085546)).
+- **How a team talks predicts how it does.** Pentland's team put sensors on 2,500 people at work. Communication patterns predicted team results about as well as all other factors put together ([Pentland, 2012](https://hbr.org/2012/04/the-new-science-of-building-great-teams)).
+- **Groups miss what only one member knows.** In "hidden profile" tests, groups talk about facts everyone holds and skip facts only one person holds. So they miss the best choice ([Stasser and Titus, 1985](https://doi.org/10.1037/0022-3514.48.6.1467)).
+- **Seeing others too soon shrinks the range of views.** Mild social influence made estimates converge and hurt the wisdom of crowds ([Lorenz et al., 2011](https://doi.org/10.1073/pnas.1008636108)). In networks with no central hub, sharing improved estimates instead ([Becker et al., 2017](https://doi.org/10.1073/pnas.1615978114)).
+- **Diverse thinkers can beat the best ones.** In a model, a random team of diverse problem solvers beat a team of the best solvers ([Hong and Page, 2004](https://doi.org/10.1073/pnas.0403723101)). Critics dispute how far this result reaches, so treat it as a model, not a law.
+- **Safety makes learning possible.** Teams learn when members feel safe to speak up, admit errors and ask for help ([Edmondson, 1999](https://doi.org/10.2307/2666999)).
+- **People reason best in argument.** Reasoning works poorly alone and well when people test each other's arguments ([Mercier and Sperber, 2011](https://doi.org/10.1017/S0140525X10000968)).
+
+AI adds a new risk to this picture: sameness. Stories written with AI ideas were rated more creative, but they read more alike ([Doshi and Hauser, 2024](https://doi.org/10.1126/sciadv.adn5290)). Teams of people working with AI made more and better text, but their outputs grew more alike too ([Ju and Aral, 2025](https://arxiv.org/abs/2503.18238)). Groups of LLM agents agree first and skip the stage where humans work through their differences ([Knop et al., 2026](https://aisel.aisnet.org/ecis2026/platforms/platforms/2/)). [Burton et al. (2024)](https://doi.org/10.1038/s41562-024-01959-9) warn that language models can strengthen or weaken the collective intelligence of people, depending on how we use them.
+
+## Disagreement that climbs
+
+Paul Graham ranks disagreement in seven levels ([How to Disagree, 2008](https://paulgraham.com/disagree.html)). DH0 is name-calling. Then come ad hominem, responding to tone and contradiction. The useful levels start at DH4, counterargument. DH5 is refutation, and DH6 refutes the central point.
+
+Agents rarely call names. They fail lower down in their own way: they contradict without evidence, or they agree without checking. A good system for agents has to push talk up to DH4 and beyond.
+
+## Where Aurora goes further
+
+| Today's best | Where it stops | What Aurora adds |
+| --- | --- | --- |
+| Mixture of Agents and debate | One question, one person, then everything is forgotten | A mixture of mixtures: each person's fleet joins other fleets over the [bridge](/docs/concepts/bifrost/bridge), and what helped is kept |
+| Merging answers by vote or synthesis | Drops the finding only one agent saw, which is the hidden-profile trap | [Union, not consensus](/docs/concepts/method/union-not-consensus): keep every distinct finding, then check each one |
+| Debate rounds where agents see each other at once | Agents drift to the majority and flatter each other | [Fence review](/docs/concepts/method/fence-review): two reviewers answer apart and seal their work before either sees the other's |
+| Claims taken on trust | Persuasive but wrong reasoning wins | [Cite or confess](/docs/concepts/method/cite-or-confess): every claim carries its proof or names the gap, which keeps debate at DH4 and above |
+| Agent teams inside one session | The team forgets when the session ends | [Lessons](/docs/concepts/memory/lessons) and [recall at action](/docs/concepts/memory/recall-at-action): the right lesson reaches the next agent at the moment it acts |
+| Chat between agents | Old orders look new, and agents talk past each other | [Stigmergy](/docs/concepts/coordination/stigmergy): agents coordinate through shared marks such as tasks, locks and the record |
+| Agent2Agent between makers | Remote agents can ask yours to act | The bridge quarantines remote mail, and promoted mail carries no authority: words from outside can inform, never command |
+| Memory for one assistant | One person, one agent | One [shared memory](/docs/concepts/memory) for the whole fleet, read by every agent and every harness |
+
+The research above explains why this set of rules matters. Diversity pays off only when a group shares what each member knows and tests it with care. Aurora writes those habits into tools, so each agent and each person keeps a distinct view while the group improves on it.
+
+As far as our October 2026 search reached, no other tool or study combines these parts. That means several people's fleets, mixed harnesses, a shared memory that compounds, and rules for talk drawn from team research. The closest studies paired one person with one AI ([Ju and Aral, 2025](https://arxiv.org/abs/2503.18238)) or proposed frameworks without a working system.
+
+## What Aurora does not claim yet
+
+- **The growth is a model.** The idea that a group's knowledge compounds over time, as in the [Introduction](/docs), is untested. Aurora has not yet measured it.
+- **Diversity can still lose.** Self-MoA and the selection study show that a weak pick or merge step wastes a diverse team. Aurora's rules aim at that step, but no benchmark backs them yet.
+- **Some parts are not wired.** [Perspectives](/docs/concepts/narrative/perspectives), the swappable ways to read the shared story, exist in code but nothing uses them yet.
+- **The bridge needs setup.** Fleets of different people connect only after each side joins a fleet link.
+
+## References
+
+| Paper | Finding used here |
+| --- | --- |
+| Wang, J. et al. (2024). [Mixture-of-Agents Enhances Large Language Model Capabilities](https://arxiv.org/abs/2406.04692). arXiv:2406.04692. | Layered mixing of models |
+| Du, Y. et al. (2024). [Improving Factuality and Reasoning in Language Models through Multiagent Debate](https://arxiv.org/abs/2305.14325). ICML 2024. | Debate improves facts and reasoning |
+| Li, W. et al. (2025). [Rethinking Mixture-of-Agents: Is Mixing Different Large Language Models Beneficial?](https://arxiv.org/abs/2502.00674). arXiv:2502.00674. | One strong model can beat a mix |
+| Maryanskyy, A. (2026). [When Agents Disagree: The Selection Bottleneck in Multi-Agent LLM Pipelines](https://arxiv.org/abs/2603.20324). arXiv:2603.20324. | The pick matters more than the mix |
+| Cemri, M. et al. (2025). [Why Do Multi-Agent LLM Systems Fail?](https://arxiv.org/abs/2503.13657). NeurIPS 2025. | Most failures come from setup and talk |
+| Choi, M. et al. (2025). [An Empirical Study of Group Conformity in Multi-Agent Systems](https://arxiv.org/abs/2506.01332). arXiv:2506.01332. | Agents drift to the majority |
+| Yao, B. et al. (2025). [Peacemaker or Troublemaker: How Sycophancy Shapes Multi-Agent Debate](https://arxiv.org/abs/2509.23055). arXiv:2509.23055. | Agents agree too soon |
+| Wynn, A. et al. (2025). [Talk Isn't Always Cheap: Understanding Failure Modes in Multi-Agent Debate](https://arxiv.org/abs/2509.05396). arXiv:2509.05396. | Persuasive but wrong reasoning wins |
+| Chhikara, P. et al. (2025). [Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory](https://arxiv.org/abs/2504.19413). arXiv:2504.19413. | Memory for one assistant |
+| Rasmussen, P. et al. (2025). [Zep: A Temporal Knowledge Graph Architecture for Agent Memory](https://arxiv.org/abs/2501.13956). arXiv:2501.13956. | Memory for one assistant |
+| Anthropic (2025). [How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system). | Lead agent with subagents |
+| Woolley, A. W. et al. (2010). [Evidence for a Collective Intelligence Factor in the Performance of Human Groups](https://doi.org/10.1126/science.1193147). Science 330, 686–688. | The "c" factor |
+| Riedl, C. et al. (2021). [Quantifying collective intelligence in human groups](https://doi.org/10.1073/pnas.2005737118). PNAS 118(21). | Meta-analysis confirms "c" |
+| Stahl, G. K. et al. (2010). [Unraveling the effects of cultural diversity in teams](https://doi.org/10.1057/jibs.2009.85). Journal of International Business Studies 41, 690–709. | Diversity cuts both ways |
+| van Knippenberg, D., De Dreu, C. K. W. and Homan, A. C. (2004). [Work Group Diversity and Group Performance: An Integrative Model and Research Agenda](https://doi.org/10.1037/0021-9010.89.6.1008). Journal of Applied Psychology 89(6), 1008–1022. | The categorization-elaboration model |
+| van Knippenberg, D. and Schippers, M. C. (2007). [Work Group Diversity](https://doi.org/10.1146/annurev.psych.58.110405.085546). Annual Review of Psychology 58, 515–541. | Review of diversity research |
+| Pentland, A. (2012). [The New Science of Building Great Teams](https://hbr.org/2012/04/the-new-science-of-building-great-teams). Harvard Business Review. | Communication patterns predict results |
+| Stasser, G. and Titus, W. (1985). [Pooling of unshared information in group decision making](https://doi.org/10.1037/0022-3514.48.6.1467). Journal of Personality and Social Psychology 48(6), 1467–1478. | Hidden profiles |
+| Lorenz, J. et al. (2011). [How social influence can undermine the wisdom of crowd effect](https://doi.org/10.1073/pnas.1008636108). PNAS 108(22), 9020–9025. | Influence shrinks the range of views |
+| Becker, J., Brackbill, D. and Centola, D. (2017). [Network dynamics of social influence in the wisdom of crowds](https://doi.org/10.1073/pnas.1615978114). PNAS 114(26), E5070–E5076. | Networks with no hub improve estimates |
+| Hong, L. and Page, S. E. (2004). [Groups of diverse problem solvers can outperform groups of high-ability problem solvers](https://doi.org/10.1073/pnas.0403723101). PNAS 101(46), 16385–16389. | Diversity can beat ability (disputed) |
+| Edmondson, A. (1999). [Psychological Safety and Learning Behavior in Work Teams](https://doi.org/10.2307/2666999). Administrative Science Quarterly 44(2), 350–383. | Safety makes learning possible |
+| Mercier, H. and Sperber, D. (2011). [Why do humans reason? Arguments for an argumentative theory](https://doi.org/10.1017/S0140525X10000968). Behavioral and Brain Sciences 34(2), 57–74. | People reason best in argument |
+| Doshi, A. R. and Hauser, O. P. (2024). [Generative AI enhances individual creativity but reduces the collective diversity of novel content](https://doi.org/10.1126/sciadv.adn5290). Science Advances 10(28). | AI makes work more alike |
+| Ju, H. and Aral, S. (2025). [Collaborating with AI Agents: Field Experiments on Teamwork, Productivity, and Performance](https://arxiv.org/abs/2503.18238). arXiv:2503.18238. | Human-AI teams grow more alike |
+| Knop, F., Hendriks, P. and Sturm, T. (2026). [Multi-Agent Collaboration: Exploring Problem Solving in Groups of Large Language Model Agents](https://aisel.aisnet.org/ecis2026/platforms/platforms/2/). ECIS 2026. | Agents agree first |
+| Burton, J. W. et al. (2024). [How large language models can reshape collective intelligence](https://doi.org/10.1038/s41562-024-01959-9). Nature Human Behaviour 8, 1643–1655. | LLMs can help or hurt group intelligence |
+| Graham, P. (2008). [How to Disagree](https://paulgraham.com/disagree.html). | The disagreement hierarchy |
