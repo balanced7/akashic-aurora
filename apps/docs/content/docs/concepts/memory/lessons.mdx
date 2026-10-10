@@ -11,6 +11,16 @@ Agents start every session knowing nothing. Without a shared store, each one rep
 
 ## How it works
 
+```mermaid
+stateDiagram-v2
+  [*] --> live: learn, after a near-duplicate check
+  live --> live: learn again with the same name
+  live --> benched: shown often, never helped
+  benched --> live: earns credit
+  live --> graduated: automation now enforces it
+```
+
+
 - **The name is the key.** You pass it with `--experiment`. The flag name is a leftover; the thing is a lesson. Writing the same name again updates the lesson, so you get no duplicates.
 - **The fields.** A lesson holds what you tried, what happened, and a recommendation. It can also hold what you expected, a category, a root cause, an anti-pattern and the files it touched.
 - **Success is `yes`, `partial` or `no`.** The store scores them 100, 50 and 0. A word it does not know becomes `no`, so an unclear word never counts as a win. If you leave the flag out, the lesson counts as `yes`, so set it every time.

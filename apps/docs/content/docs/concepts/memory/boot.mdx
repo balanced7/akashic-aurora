@@ -11,6 +11,18 @@ A fresh agent knows nothing. But dumping everything on it hurts too. More contex
 
 ## How it works
 
+
+```mermaid
+pie showData title Boot's token budget, by share
+  "Lessons" : 25
+  "Promoted bus decisions" : 20
+  "Project state" : 15
+  "Story so far" : 13
+  "Handoff brief" : 12
+  "Blockers" : 10
+  "Not allotted" : 5
+```
+
 Boot fills a budget of 9000 tokens by default. Each source gets a fixed share. Lessons get 25%. [Promoted](/docs/concepts/bifrost/promoter) bus decisions get 20%, and project state, such as progress and current work, gets 15%. The [story so far](/docs/concepts/narrative/narrative-spine) gets 13%, the [handoff](/docs/concepts/bifrost/handoff) brief 12%, and blockers 10%. The [distiller](/docs/concepts/memory/ranker-and-distiller) packs it all into short lines, each with a pointer to its source.
 
 Boot scores each [lesson](/docs/concepts/memory/lessons) by how well it fits your task. Newer lessons get a small boost. Lessons that helped before score higher, through the [recall loop](/docs/concepts/memory/recall-loop). Graduated lessons, whose rules automation now enforces, stay out.

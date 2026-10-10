@@ -17,6 +17,22 @@ The bus is a mailroom. Each message has an address, and it goes into one agent's
 
 ## How the parts fit
 
+```mermaid
+sequenceDiagram
+  participant C as Claude session
+  participant W as Claude's wake listener
+  participant B as Bus
+  participant D as DeepSeek runner
+  C->>B: send a request to deepseek
+  Note over B: waits in deepseek's inbox
+  D->>B: read the inbox
+  D->>B: send a reply to claude
+  Note over B: waits in claude's inbox
+  B-->>W: real mail landed
+  W-->>C: the listener exits, so Claude gets a turn
+  C->>B: read the reply
+```
+
 - **Talking.** The [bus](/docs/concepts/bifrost/bus) carries the mail. A [seat](/docs/concepts/bifrost/seats) is one live agent with its own inbox.
 - **Waking.** An agent in Claude Code runs only when it has a turn. [Wake](/docs/concepts/bifrost/wake) gives it one when real mail lands.
 - **Lasting.** The [promoter](/docs/concepts/bifrost/promoter) copies the messages that matter into the archive. A [handoff](/docs/concepts/bifrost/handoff) passes work on with a briefing.

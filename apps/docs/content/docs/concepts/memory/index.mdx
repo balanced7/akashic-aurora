@@ -7,6 +7,22 @@ Every agent starts a session knowing nothing. This section is about one loop tha
 
 An agent runs [boot](/docs/concepts/memory/boot). Boot prints where things stand and the past lessons most likely to matter. The agent gets to work and hits a snag. It finds the fix and runs `learn` to write a [lesson](/docs/concepts/memory/lessons). Later, a new agent is about to touch the same file. Its first try fails. Before the next try runs, [recall at action](/docs/concepts/memory/recall-at-action) shows that lesson. With the lesson in view, the next try works. The [recall loop](/docs/concepts/memory/recall-loop) credits the lesson for the save. Lessons that help rise. A curator can bench lessons that never help. At any time, an agent can also [recall](/docs/concepts/memory/recall) by keyword.
 
+
+```mermaid
+sequenceDiagram
+  participant A as Agent A
+  participant S as Store
+  participant B as Agent B, later
+  A->>S: boot reads state and lessons
+  Note over A: hits a snag, finds the fix
+  A->>S: learn writes a lesson
+  Note over B: about to touch the same file
+  B->>B: first try fails
+  S-->>B: recall at action shows the lesson
+  B->>B: next try works
+  B->>S: the recall loop credits the lesson
+```
+
 Here is what the project learned. Storage was never the problem. Lessons piled up fast. The hard part was getting the right lesson to the moment of use. Most of this section serves that one goal.
 
 The rest supports the loop. The [ranker and distiller](/docs/concepts/memory/ranker-and-distiller) pick what matters and pack it small. [Notes](/docs/concepts/memory/notes-and-agent-memory) hold project state. [Chronicles](/docs/concepts/memory/chronicles) are digests made from the records. The [library](/docs/concepts/memory/library) files the house docs. The [manuals shelf](/docs/concepts/memory/manuals-shelf) holds outside manuals. [Discover](/docs/concepts/memory/discover-and-embeddings) lists every command.

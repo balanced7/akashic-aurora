@@ -13,6 +13,31 @@ Agents once learned what to do by reading a stream of messages. A message three 
 
 A task has one of nine statuses. The happy path is `proposed`, `approved`, `claimed`, `in_progress`, `verifying`, `done`. The other three are `blocked`, `parked` and `abandoned`. A fixed table lists each legal move. Any other move fails with an error that names the rule.
 
+
+```mermaid
+stateDiagram-v2
+  [*] --> proposed
+  proposed --> approved
+  proposed --> parked
+  approved --> claimed
+  claimed --> approved: release
+  claimed --> in_progress
+  claimed --> verifying
+  claimed --> parked
+  in_progress --> verifying
+  in_progress --> blocked
+  in_progress --> parked
+  verifying --> done
+  verifying --> in_progress
+  verifying --> blocked
+  verifying --> parked
+  blocked --> approved
+  blocked --> in_progress
+  parked --> in_progress
+```
+
+Any status but `verifying` can also move to `abandoned`, which has no way out. A `done` task moves there only with the operator's word.
+
 Gates guard the key moves:
 
 - **Claim.** Every task this one depends on must be done. No other active or parked task may hold its files.

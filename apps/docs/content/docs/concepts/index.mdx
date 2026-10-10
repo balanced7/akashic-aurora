@@ -7,6 +7,25 @@ AI agents forget. Each new session starts blank. Aurora gives them a memory they
 
 This page tells the whole story in one pass. Each section links to the full concept. Commands on these pages use the `aurora` alias from the [Quickstart](/docs/quickstart).
 
+```mermaid
+flowchart TB
+  doors["Doors<br/>the aurora command line and MCP tools"]
+  mem["Memory and recall<br/>lessons, boot, recall"]
+  coord["Coordination<br/>tasks, locks, the fleet"]
+  story["Story and context<br/>narrative spine, The Eye"]
+  bif["Bifrost<br/>live mail between agents"]
+  record["The record, Akasha<br/>Store: what is true now<br/>Ledger: what happened, in order"]
+  storage["Hybrid storage<br/>files first, Redis when it is up"]
+  doors --> mem & coord & story & bif
+  mem & coord & story --> record
+  bif -- "mail that matters is copied" --> record
+  bif -- "the bus runs on Redis" --> storage
+  record --> storage
+```
+
+Each arrow points at the part it stands on.
+
+
 ## A record that never gets rewritten
 
 Everything rests on a written record. Aurora adds new facts to it. It never edits old ones away. A fix is a new entry that points at the old one. The name says this: **Akasha** is the record, and **Aurora** is the order that grows over it. Read [Akasha and Aurora](/docs/concepts/foundations/akasha-and-aurora).

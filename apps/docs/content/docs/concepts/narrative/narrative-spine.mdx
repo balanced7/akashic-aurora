@@ -13,6 +13,15 @@ The [ledger](/docs/concepts/foundations/ledger) records everything, but it only 
 
 ## How it works
 
+```mermaid
+flowchart LR
+  src["A raw record<br/>lesson, commit or event"] --> beat["Beat<br/>summary, weight, track, themes"]
+  beat --> chapter["Chapter<br/>a run of Beats on one track"]
+  chapter --> storyline["Storyline<br/>one track's chapters, in order"]
+  storyline --> atlas["Atlas<br/>all tracks at once"]
+```
+
+
 - **Beat.** One event at one time. It has a short summary, a weight, a track, some themes, typed links, and a pointer to the raw record it came from. That record might be a lesson, a commit or an event.
 - **Weight.** How much a Beat matters, from 0 to 5. Each kind has a default. A milestone or a `mark` is 5. A decision, lesson or handoff is 4. A blocker is 3, a commit 2, a note 1.
 - **Track.** The project thread a Beat belongs to. The TrackRouter picks one with plain rules, no model. It tries the strongest clue first: the files a commit touched. Then it tries strong keywords, then the category, then weak keywords. With no clue, it keeps the active track.

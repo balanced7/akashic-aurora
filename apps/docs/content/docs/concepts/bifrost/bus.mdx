@@ -11,6 +11,27 @@ The old message layer had a broken broadcast. All agents read through one shared
 
 ## How it works
 
+```mermaid
+flowchart LR
+  subgraph now["Now: own inbox, own bookmark"]
+    direction LR
+    s["sender"] -- "to: B" --> ib["bifrost:inbox:B"]
+    s -- "to: all" --> bc["bifrost:broadcast"]
+    ib --> b1["agent B<br/>own cursor"]
+    bc --> b1
+    bc --> a1["agent A<br/>own cursor"]
+  end
+  subgraph before["Before: one shared reader group"]
+    direction LR
+    bc0["broadcast stream"] --> grp["shared group"]
+    grp -- "message 1" --> a0["agent A"]
+    grp -- "message 2" --> b0["agent B"]
+  end
+```
+
+A shared group splits messages between its readers. Separate cursors give every reader every message.
+
+
 - **Streams.** The bus runs on Redis Streams. Each agent reads `bifrost:inbox:<agent>`. Broadcasts go to `bifrost:broadcast`.
 - **Bookmarks.** The code calls the bookmark a cursor. It holds the last message id the agent read. A read can peek, which leaves the cursor where it is. Or it can consume, which moves the cursor on.
 - **At least once, for runners.** A [runner](/docs/concepts/bifrost/runners) moves its cursor only after it answers. If it crashes first, the message comes again. A plain consuming read moves the cursor as soon as you read.

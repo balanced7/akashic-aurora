@@ -11,6 +11,21 @@ Lessons sat in storage. Agents seldom read them at the moment they mattered. [Bo
 
 ## How it works
 
+```mermaid
+flowchart TB
+  hook["Hook passes the path or command"] --> q["Query from the words that matter"]
+  q --> rank["Ranker scores each lesson"]
+  rank --> floor{"Relevance at least 0.20?"}
+  floor -- no --> drop["Not shown"]
+  floor -- yes --> skip{"Shown this session, or<br/>yours from the last two hours?"}
+  skip -- yes --> drop
+  skip -- no --> use["Times the usefulness factor"]
+  use --> top["Keep the top three"]
+  top --> critic["Fact check on each one"]
+  critic --> show["Shown to the agent"]
+```
+
+
 - **The hook.** Before you edit a file or run a shell command in the repo, a hook passes the path or the command. Recall builds a query from the words that carry meaning. You install the hook for Claude Code at the user level, so check that yours has it.
 - **The score.** The [ranker](/docs/concepts/memory/ranker-and-distiller) scores each [lesson](/docs/concepts/memory/lessons). Words in the "Use when" clause count most. There are no embeddings on this path.
 - **The floor.** A lesson's relevance must pass 0.20, set by `AKASHIC_RECALL_FLOOR`. That value kept 95% of past helpful hits. Recall never pads the list to fill it.

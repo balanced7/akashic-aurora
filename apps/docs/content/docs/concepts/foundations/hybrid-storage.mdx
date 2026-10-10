@@ -15,6 +15,16 @@ The project once ran three Redis servers to stay up at all times. That turned ou
 
 ## How it works
 
+```mermaid
+flowchart LR
+  w["Write a key"] --> f["1. the file tier"] --> q{"Redis up?"}
+  q -- yes --> r["2. Redis<br/>an error is only logged"]
+  rd["Read a key"] --> q2{"Redis up?"}
+  q2 -- yes --> r2["Redis"]
+  q2 -- no --> f2["the file tier"]
+```
+
+
 - **Write:** the file first, then Redis. A Redis error goes to the log. It never stops the write.
 - **Read:** Redis if it is up, else the file.
 - **Compare-and-set:** Redis decides while it is up. Then the result goes to the file too.

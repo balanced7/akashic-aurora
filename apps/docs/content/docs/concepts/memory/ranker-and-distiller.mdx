@@ -11,6 +11,16 @@ Many parts of Aurora ask the same question: what matters most here? The ranker a
 
 ## How it works
 
+```mermaid
+flowchart LR
+  items["Items<br/>lessons, notes, events"] --> ranker["Ranker<br/>relevance 40%<br/>importance 20%<br/>recency 20%<br/>relationship 20%"]
+  ranker --> distiller["Distiller<br/>clips each line<br/>adds its source"]
+  distiller -- "over budget" --> dropped["dropped list"]
+  distiller --> critic["Faithfulness critic<br/>source real?<br/>numbers in it?"]
+  critic --> text["Short text,<br/>one hop from the full record"]
+```
+
+
 ### The ranker
 
 Think of a scorecard with four columns. Each column adds points:

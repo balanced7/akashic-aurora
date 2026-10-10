@@ -13,6 +13,19 @@ Without feedback, the ranking cannot learn what matters. One week of data showed
 
 ## How it works
 
+```mermaid
+flowchart TB
+  act["An agent is about to edit a file or run a command"] --> show["Recall at action shows up to three lessons<br/>surfaced +1"]
+  show --> flip{"It failed before,<br/>and this try works?"}
+  flip -- "yes, a flip" --> helped["helped +1"]
+  votes["Votes: --useful or --noise"] --> factor
+  helped --> factor["Usefulness factor<br/>from 0.5 to 1.5"]
+  factor --> rank["The ranker scores lessons"]
+  rank --> show
+  show -. "shown 10+ times, no credit, 10+ days old" .-> bench["The curator benches it"]
+```
+
+
 - **Impression.** Each time [recall at action](/docs/concepts/memory/recall-at-action) shows a lesson, its `surfaced` count goes up by one.
 - **Flip credit** (also called outcome credit). Say a command fails. A lesson shows up. The next try works. That is a flip, from fail to success. Each lesson shown for that target gets `helped` plus one. A first-try success credits nothing. The loop needs a before and an after. A flip also nudges the agent to record a new lesson.
 - **Votes.** `recall-feedback` lets an agent mark a lesson `--useful` or `--noise`. Each lesson belongs to one area, such as system code or visual effects. If agents vote a lesson useful in two areas, using `--domain`, it starts to show everywhere.

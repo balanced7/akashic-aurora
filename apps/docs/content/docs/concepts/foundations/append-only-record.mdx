@@ -20,6 +20,17 @@ The rule began as tidiness: "nothing is ever rewritten, only superseded." Later 
 - **Supersession with time.** Some records carry a `valid_to` time. Chapters of the [narrative spine](/docs/concepts/narrative/narrative-spine) are one example. Superseding closes the old record's `valid_to`. The old record gets a `replaces` link that points forward to the new one. The new one gets an `is_version_of` link back. The old record stays, and you can still query it.
 - **Read forward.** Tools serve the newest record in a chain unless you ask for history.
 
+```mermaid
+flowchart LR
+  old["Old chapter<br/>valid_to: closed<br/>kept, still queryable"]
+  new["New chapter<br/>valid_to: open<br/>served by default"]
+  old -- replaces --> new
+  new -- is_version_of --> old
+```
+
+Supersession with time adds a record and two links. It never deletes the old one.
+
+
 ### How honest is "append-only"?
 
 Nobody rewrites history. But three things do change in place.

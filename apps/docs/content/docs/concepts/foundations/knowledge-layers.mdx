@@ -13,6 +13,17 @@ Once, the same knowledge lived in several places that disagreed. Redis held 12 e
 
 ## How it works
 
+```mermaid
+flowchart BT
+  raw["1. Raw<br/>Ledger streams such as events:raw<br/>only grow"]
+  canon["2. Canonical<br/>the Store: learn:*, mem:*, proj:*<br/>a short summary of each fact"]
+  derived["3. Derived<br/>chronicles/: lessons.md, story.md<br/>written by a program"]
+  raw -- "summed up into" --> canon
+  canon -. "source pointer back" .-> raw
+  canon -- "rebuilt into" --> derived
+```
+
+
 1. **Raw.** [Ledger](/docs/concepts/foundations/ledger) streams such as `events:raw` and `agent:events`. They only grow, within each stream's size cap.
 2. **Canonical.** The [Store](/docs/concepts/foundations/store), under keys such as `learn:*`, `mem:*` and `proj:*`. Each record is a short summary plus a `source` pointer to where it came from.
 3. **Derived.** Files under `chronicles/`, such as `lessons.md` and `story.md`. A program writes them. Each says at the top: do not hand-edit.
