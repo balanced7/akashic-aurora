@@ -127,6 +127,7 @@ MANIFEST = {
     "focus": "cli_only",
     "provenance": "cli_only",  # meta-harness task 01: diagnostic view of the session record
     "scope": "cli_only",  # meta-harness task 02: lesson applicability (show, set, widen, proposals)
+    "corpus": "cli_only",  # meta-harness task 03: the replayable task corpus
     "forecast": "cli_only",
     # 2026-08-23 incident lever (Daniil from the phone: "Can we add a command to
     # restart the discord gateway?"): status/restart for the ear, detached relaunch

@@ -951,6 +951,13 @@ def cmd_scope(args):
     return 0 if ok else 1
 
 
+def cmd_corpus(args):
+    """The meta-harness task corpus (task 03); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import corpus_main
+
+    return corpus_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -9970,6 +9977,21 @@ def build_parser():
     ap.add_argument("--reason", default="")
     ap.add_argument("--json", action="store_true")
     ap.set_defaults(fn=cmd_tag_anti_pattern)
+
+    cp = sub.add_parser(
+        "corpus", help="meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status"
+    )
+    cp.add_argument(
+        "action", choices=["archive", "mine", "list", "show", "accept", "reject", "validate", "retire", "status"]
+    )
+    cp.add_argument("id", nargs="?", default="", help="scenario id (show/accept/reject/validate)")
+    cp.add_argument("--limit", type=int, default=None, help="mine: keep only the N most informative candidates")
+    cp.add_argument("--status", default="", help="list: only this status (candidate/accepted/rejected/retired)")
+    cp.add_argument("--reason", default="", help="accept/reject: why (kept in the scenario's history)")
+    cp.add_argument("--by", default="", help="accept/reject: who decided")
+    cp.add_argument("--cap-mb", dest="cap_mb", type=int, default=None, help="archive: size cap in MB (default 2048)")
+    cp.add_argument("--json", action="store_true")
+    cp.set_defaults(fn=cmd_corpus)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
