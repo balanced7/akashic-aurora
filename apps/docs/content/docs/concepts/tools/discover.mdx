@@ -35,7 +35,7 @@ One problem kept coming back. Agents decided a feature was missing when it exist
 - **Never a false "no".** A failed call, a missing key, a timeout or a reply in the wrong shape all give UNKNOWN. A cut-off reply carries a "not confident" tag. The output labels every answer as a model's read, not a lookup.
 - **The push side.** `discover` only helps when you already suspect a command exists. [Recall at action](/docs/concepts/memory/recall-at-action) reads the flags too. It can push up to two fitting commands to you as you act.
 
-On the CLI, `discover` is a verb. It lives on the CLI door only; MCP has no twin.
+On the CLI, `discover` is a verb. MCP clients get the same thing as the `discover` tool, with a `semantic` switch.
 
 ## How you use it
 

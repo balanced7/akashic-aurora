@@ -28,6 +28,16 @@ To list every verb with its purpose, run `aurora discover`. The full, generated 
 
 </Callout>
 
+## Setup and hooks
+
+| Command | What it does |
+|---|---|
+| `setup` | Guided setup: hook scope per tool, agent id, MCP and git hooks. Prints the command behind each step. |
+| `hooks status` | Shows which hooks are registered, in which settings file. |
+| `hooks install --scope user` | Registers the hooks for every project. `--scope project` does one project. |
+| `hooks disable` / `hooks enable` | Switches the hooks off, and back on exactly as they were. |
+| `hooks uninstall` | Removes Aurora's hooks. Other hooks in the file stay. |
+
 ## Memory
 
 | Command | What it does |

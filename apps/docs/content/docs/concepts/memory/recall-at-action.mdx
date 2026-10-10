@@ -102,7 +102,7 @@ The tag in brackets gives each lesson's status, author and credit. A `[lock]` li
 
 ## How you use it
 
-To turn the hook on for a project, add one entry to its `.claude/settings.json`. [Recall before you act](/docs/how-to/recall-before-you-act) gives the exact entry and how to check it. You can also run the same lookup by hand:
+To turn the hook on, run `aurora setup` or `aurora hooks install`. [Recall before you act](/docs/how-to/recall-before-you-act) covers the scopes and how to check them. You can also run the same lookup by hand:
 
 ```bash
 aurora recall-at --path core/comm/bus.py
@@ -111,7 +111,7 @@ aurora recall-at --command "pytest tests/test_bus.py" --limit 3
 
 A run by hand is not a showing. It does not count in the recall loop, and it cannot earn flip credit. Only the hook does.
 
-Boot prints a "recall-at: armed" line whether or not you installed the hook. It means the cache is warm, not that the hook is on.
+Boot's first line tells you the state. It says "armed" only when the hook is registered. With no hook, it says the cache is warm but the hook is not installed, and names the command that turns it on.
 
 ## Don't confuse it with
 

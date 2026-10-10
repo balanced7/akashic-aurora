@@ -28,25 +28,24 @@ A run by hand only shows you lessons. It does not count as a showing in the [rec
 
 ## Turn on the hook
 
-Recall at action is opt-in per project. Until you turn the hook on, recall pushes nothing before your tool calls and no flip credit builds. To turn it on in the Aurora repo, add this entry to the `PreToolUse` list in its `.claude/settings.json`. Its command line has the same form as the `PostToolUse` entry already there. Its matcher also covers `PowerShell`, the shell tool on Windows:
+Recall at action is opt-in. Until you turn the hook on, recall pushes nothing before your tool calls and no flip credit builds. The easy way is the setup guide. It asks where the hooks should go, then prints the command behind each step:
 
-```json
-{
-  "matcher": "Bash|PowerShell|Edit|Write|NotebookEdit",
-  "hooks": [
-    {
-      "type": "command",
-      "command": "AI_SETUP=\"$CLAUDE_PROJECT_DIR\" $(command -v uvw || command -v uv) run -p 3.12 --gui-script \"$CLAUDE_PROJECT_DIR/agent/harness/hooks/claude_pretooluse.py\""
-    }
-  ]
-}
+```bash
+aurora setup
 ```
 
-Two copies of this hook exist, and they differ. Use `agent/harness/hooks/claude_pretooluse.py`. The other Claude hooks in the settings file live beside it. The two copies have drifted apart: this one reports busy status, while the `scripts/hooks/` copy, still used by the Codex hook config, adds a shell-folder guard. Register one copy only.
+Or install the hooks yourself. Pick a scope:
 
-Flip credit also needs the `PostToolUse` hook, which judges whether the action worked. The repo already registers it.
+```bash
+aurora hooks install --scope user                      # every project you open in Claude Code
+aurora hooks install --scope project --project <dir>   # one project
+```
 
-To check that the hook is on, open `/hooks` in Claude Code, or read `.claude/settings.json` and look for `claude_pretooluse.py` under `PreToolUse`. Don't trust boot's "recall-at: armed" line for this. It prints whether or not you installed the hook.
+User scope writes `~/.claude/settings.json`. Project scope writes the project's `.claude/settings.local.json`, which git ignores. Add `--shared` to write the committed `.claude/settings.json` instead. The installer writes the full hook set, including `PostToolUse`, which flip credit needs.
+
+A hook registered in two settings files fires twice and counts every showing twice. So `install` skips any hook another file already holds, and says which file.
+
+To check the hooks, run `aurora hooks status`. Boot checks too: its first line says "armed" only when the hook is registered. To switch the hooks off and keep them for later, run `aurora hooks disable`. `aurora hooks enable` puts them back exactly as they were. Add `--harness cursor` or `--harness codex` for those tools.
 
 In tools without hook wiring, keep the manual habit. See [Recall at action](/docs/concepts/memory/recall-at-action).
 

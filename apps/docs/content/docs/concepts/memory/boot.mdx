@@ -39,7 +39,7 @@ The [distiller](/docs/concepts/memory/ranker-and-distiller) packs the handoff, t
 
 ### The order of the output
 
-1. **The recall line.** It says the [recall at action](/docs/concepts/memory/recall-at-action) cache is warm. Boot prints it every time. It does not prove the hook is on. That hook is opt-in, one project at a time.
+1. **The recall line.** It reports the [recall at action](/docs/concepts/memory/recall-at-action) hook. It says "armed" only when the hook is registered and the cache is warm. With no hook, it says so and names `hooks install`. That hook is opt-in.
 2. **Who you are.** A resident agent gets a short identity block. Most agents get none.
 3. **The head.** It names your door: can this seat use tools? It points to the code map in `docs/ARCHITECTURE.md` and to the [working method](/docs/concepts/coordination/doctrine), the house rules for how to work. It names the governing [arc](/docs/concepts/coordination/doctrine), the long piece of work your task belongs to. It shows the `where-we-are` note and the current directive, a note that says what to do first. Then comes the rule of precedence. The task ledger beats notes. Notes beat promoted bus messages. Those beat the live bus. After that come next steps from the [task ledger](/docs/concepts/coordination/task-ledger) and the first six [live constraints](/docs/concepts/coordination/doctrine). Last, it says which core sources loaded and which failed.
 4. **LESSONS / CONTEXT.** The distiller's lines.
