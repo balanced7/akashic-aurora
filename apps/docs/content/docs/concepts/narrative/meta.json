@@ -1,4 +1,5 @@
 {
   "title": "Story and context over time",
+  "icon": "narrative",
   "pages": ["narrative-spine", "episodes", "tags", "perspectives", "renew", "the-eye", "query-grammar"]
 }

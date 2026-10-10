@@ -1,5 +1,6 @@
 {
   "title": "Coordination",
+  "icon": "coordination",
   "pages": [
     "task-ledger",
     "locks",

@@ -1,5 +1,6 @@
 {
   "title": "Bifrost",
+  "icon": "bifrost",
   "pages": [
     "bus",
     "seats",

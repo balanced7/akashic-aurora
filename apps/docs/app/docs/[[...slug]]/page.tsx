@@ -9,6 +9,7 @@ import {
 } from 'fumadocs-ui/layouts/docs/page';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
+import { AuroraIcon, sectionOf } from '@/components/aurora-icon';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { getPageImageUrl, getPageMarkdownUrl, gitConfig } from '@/lib/shared';
@@ -20,10 +21,19 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
 
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
+  const section = sectionOf(page.slugs);
+  const isSectionHome = page.slugs.length === 2;
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
-      <DocsTitle>{page.data.title}</DocsTitle>
+      {section ? (
+        <div className="flex items-center gap-4">
+          <AuroraIcon name={section} size={isSectionHome ? 56 : 36} />
+          <DocsTitle>{page.data.title}</DocsTitle>
+        </div>
+      ) : (
+        <DocsTitle>{page.data.title}</DocsTitle>
+      )}
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
         <MarkdownCopyButton markdownUrl={markdownUrl} />

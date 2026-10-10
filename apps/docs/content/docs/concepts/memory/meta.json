@@ -1,5 +1,6 @@
 {
   "title": "Memory and recall",
+  "icon": "memory",
   "pages": [
     "lessons",
     "notes-and-agent-memory",
