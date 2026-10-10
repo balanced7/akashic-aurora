@@ -975,6 +975,13 @@ def cmd_grade(args):
     return grade_main(args)
 
 
+def cmd_review(args):
+    """Meta-harness human review queue (task 06); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import review_main
+
+    return review_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -10055,6 +10062,22 @@ def build_parser():
     gr.add_argument("--ref", default="", help="label: what was judged (run or pair)")
     gr.add_argument("--json", action="store_true")
     gr.set_defaults(fn=cmd_grade)
+
+    rv = sub.add_parser(
+        "review", help="meta-harness review queue (task 06): the human final check-off, apply, rollback, watch"
+    )
+    rv.add_argument("action", choices=["list", "add", "show", "decide", "apply", "rollback", "watch", "disagreements"])
+    rv.add_argument("id", nargs="?", default="", help="review item id")
+    rv.add_argument("--candidate", default="", help="add: the candidate to queue")
+    rv.add_argument("--against", default="", help="add: the live harness candidate it is compared with")
+    rv.add_argument("--scenario", action="append", help="add: scenario id (repeatable)")
+    rv.add_argument("--predicted", default="", help="add: the proposer's predicted effect")
+    rv.add_argument("--reviewer", default="", help="decide: who you are")
+    rv.add_argument("--decision", default="", help="decide: accept, reject or more_runs")
+    rv.add_argument("--calls", default="", help='decide: "functional=better correctness=same ..."')
+    rv.add_argument("--reason", default="", help="decide/rollback: why")
+    rv.add_argument("--json", action="store_true")
+    rv.set_defaults(fn=cmd_review)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
