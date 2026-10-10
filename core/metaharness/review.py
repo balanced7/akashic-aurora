@@ -276,6 +276,12 @@ def apply(iid: str, *, live_root: Path = ROOT, signals: dict[str, Any] | None = 
     for rel in overlay_files(overlay):
         (live_root / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(overlay / rel, live_root / rel)
+    try:  # task 09: a precompiled candidate records on each lesson where it now lives
+        from core.metaharness.precompile import stamp_compiled
+
+        it["compiled_lessons"] = stamp_compiled(overlay, it["candidate"])
+    except Exception:  # noqa: BLE001  # the config change has landed; the stamp is bookkeeping
+        it["compiled_lessons"] = 0
     now = _now()
     it.update(
         status="applied",

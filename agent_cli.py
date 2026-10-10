@@ -1003,6 +1003,13 @@ def cmd_memreplay(args):
     return memreplay_main(args)
 
 
+def cmd_precompile(args):
+    """Meta-harness precompiler (task 09); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import precompile_main
+
+    return precompile_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -10137,6 +10144,26 @@ def build_parser():
     mr.add_argument("--exclude", action="append", help="snapshot: a lesson to leave out (repeatable)")
     mr.add_argument("--json", action="store_true")
     mr.set_defaults(fn=cmd_memreplay)
+
+    pc = sub.add_parser(
+        "precompile",
+        help="meta-harness precompiler (task 09): lessons into skills, subagents, guards, instruction lines",
+    )
+    pc.add_argument("action", choices=["plan", "build", "check"])
+    pc.add_argument("--lesson", action="append", help="limit to these lessons (repeatable)")
+    pc.add_argument("--base", default="baseline", help="build: the candidate to compile on top of")
+    pc.add_argument(
+        "--harness",
+        action="append",
+        choices=["claude-code", "codex-cli", "cursor", "runner"],
+        help="build: targets (default all)",
+    )
+    pc.add_argument(
+        "--force", action="store_true", help="build: compile lessons that do not pass the gates too (for a dry run)"
+    )
+    pc.add_argument("--root", default="", help="check: the tree to check (default: this repo)")
+    pc.add_argument("--json", action="store_true")
+    pc.set_defaults(fn=cmd_precompile)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
