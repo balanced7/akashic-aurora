@@ -203,15 +203,17 @@ def _emit_context(text: str) -> None:
 # signal -- was computed here then discarded. Emitted exactly once per failure (gated by the same
 # tool_use_id watermark as the resolve). Best-effort + fail-soft: a label capture must never affect
 # the action. See docs/library/report/20260707_renew-strand-a-cheap-deterministic-conte_6eba11.md.
-def _capture_fail(target: str, tool: str) -> None:
+def _capture_fail(target: str, tool: str, session_id: str = "") -> None:
     try:
         from core.events.event_log import capture_event
+        from core.fleet.provenance import stamp
 
         capture_event(
             "fail",
             f"FAIL: {target}",
             agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-            detail={"target": target, "tool": tool},
+            session_id=session_id,
+            detail=stamp({"target": target, "tool": tool}, session_id=session_id),
         )
     except Exception:
         pass
@@ -394,7 +396,7 @@ def main() -> int:
                 fresh = not (fid and _failure_processed(sid, target, fid))
                 resolve_action_outcome(sid, target, False)
                 if fresh:
-                    _capture_fail(target, tool)  # durable degraded-output label (RENEW A'), exactly-once
+                    _capture_fail(target, tool, sid)  # durable degraded-output label (RENEW A'), exactly-once
                 if fid:
                     _mark_failure_processed(sid, target, fid)
             return 0
@@ -425,17 +427,23 @@ def main() -> int:
                     q = _query_from(p, c) if (p or c) else ""
                 except Exception:
                     q = ""
+                from core.fleet.provenance import stamp
+
                 capture_event(
                     "flip",
                     f"FAIL->SUCCESS: {target}",
                     agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-                    detail={
-                        "target": target,
-                        "credited": rep.get("credited", 0),
-                        "sources": rep.get("sources", []),
-                        "alt": "action",
-                        "query": q,
-                    },
+                    session_id=sid,
+                    detail=stamp(
+                        {
+                            "target": target,
+                            "credited": rep.get("credited", 0),
+                            "sources": rep.get("sources", []),
+                            "alt": "action",
+                            "query": q,
+                        },
+                        session_id=sid,
+                    ),
                 )
             except Exception:
                 pass

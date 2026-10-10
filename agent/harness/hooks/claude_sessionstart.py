@@ -71,6 +71,17 @@ def main() -> int:
         pass  # warm-up is best-effort; never block session start
     sid = ""
     try:
+        # Meta-harness task 01: the durable record of which harness, model and effort this
+        # session runs with. Written at first breath so every lesson, flip and fail can point
+        # at it; `learn` fills it lazily too, for sessions whose SessionStart hook is not wired.
+        from core.fleet import provenance
+
+        provenance.ensure(
+            data, session_id=str(data.get("session_id") or ""), agent_id=_seat(str(data.get("session_id") or ""))
+        )
+    except Exception:
+        pass
+    try:
         # Stamp THIS session alive the moment it exists -- the janitor's K7 fast path
         # (and the twin-session proof-of-life) starts at first breath, not first stop.
         sid = str(data.get("session_id") or "")
