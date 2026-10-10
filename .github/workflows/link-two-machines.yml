@@ -1,0 +1,51 @@
+name: Fleet link across two machines
+
+# The far half of research/in-flight/link-phase0-transport-2026-10-10/two_machines.py: a fleet on
+# this runner joins a link hosted on another machine, on another network, by invite code, and
+# trades mail and a file with it. Start the host first (`two_machines.py host ...` prints a
+# single-use code), store the code as the LINK_DRILL_CODE secret, then run this workflow. The code
+# travels as a secret so it never appears in this public repository's logs.
+on:
+  workflow_dispatch:
+  push:
+    branches: [drill/link-two-machines]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: link-two-machines
+  cancel-in-progress: false
+
+jobs:
+  far:
+    name: The far fleet (this runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: "aurora-rs -> target"
+          shared-key: rs-build
+          save-if: false
+      - name: Build aurora-linkd
+        run: cargo build --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+      - name: Join the host's link and trade mail and a file
+        env:
+          CODE: ${{ secrets.LINK_DRILL_CODE }}
+        run: |
+          test -n "$CODE" || { echo "LINK_DRILL_CODE is not set"; exit 1; }
+          python3 research/in-flight/link-phase0-transport-2026-10-10/two_machines.py far \
+            aurora-rs/target/debug/aurora-linkd "$RUNNER_TEMP/far" "$CODE"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: link-two-machines-far
+          path: |
+            ${{ runner.temp }}/far/report.json
+            ${{ runner.temp }}/far/far.log
+          retention-days: 30
+          if-no-files-found: ignore
