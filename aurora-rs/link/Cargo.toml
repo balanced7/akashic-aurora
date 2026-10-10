@@ -1,0 +1,28 @@
+[package]
+name = "aurora-link"
+description = "Aurora fleet links: identity, the ACL log, signed and sealed records, the per-link store and the sync plan."
+version.workspace = true
+edition = "2024"
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64 = "0.22"
+bip39 = "3.0.0"
+blake3 = "1.8.7"
+chacha20poly1305 = "0.11.0"
+ed25519-dalek = { version = "3.0.0", features = ["zeroize"] }
+hmac = "0.13.0"
+hpke = "0.14.1"
+getrandom = "0.3"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11.0"
+subtle = "2.6.1"
+thiserror = "2"
+zeroize = { version = "1.9.1", features = ["derive"] }
+
+[dev-dependencies]
+proptest = "1.11.0"
