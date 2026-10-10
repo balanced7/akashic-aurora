@@ -83,6 +83,7 @@ DEFAULTS: dict[str, Any] = {
     "memory": "",
 }
 CLOSED_REDIS_PORT = "9"
+OVERLAY_DELETE = ".aurora/overlay-delete.txt"
 _NETWORK_TOOLS = ("WebFetch", "WebSearch")
 
 #: Appended to every scenario prompt, identically for every candidate, so it cannot favour one.
@@ -155,6 +156,19 @@ def prepare_sandbox(start_sha: str, workdir: Path, overlay: str | Path | None, *
     _git("checkout", "-q", "--detach", start_sha, cwd=workdir)
     if overlay and Path(overlay).exists() and any(Path(overlay).iterdir()):
         shutil.copytree(overlay, workdir, dirs_exist_ok=True)
+        # An overlay can also REMOVE files (harness compression, task 11): one repo-relative path
+        # per line in OVERLAY_DELETE. The list itself never reaches the agent.
+        dl = workdir / OVERLAY_DELETE
+        if dl.exists():
+            for rel in dl.read_text(encoding="utf-8").splitlines():
+                rel = rel.strip()
+                target = (workdir / rel).resolve()
+                if rel and workdir.resolve() in target.parents:
+                    if target.is_dir():
+                        shutil.rmtree(target)
+                    else:
+                        target.unlink(missing_ok=True)
+            dl.unlink()
         _git("add", "-A", cwd=workdir)
         _git(
             "-c",
