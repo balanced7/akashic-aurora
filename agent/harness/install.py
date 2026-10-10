@@ -51,6 +51,23 @@ def _repo() -> Path:
     return repo_root().resolve()
 
 
+def _launcher() -> str | None:
+    from core.paths import launcher
+
+    return launcher()
+
+
+def _cli() -> str:
+    """The CLI as status lines name it: `aurora` when installed, else agent_cli.py."""
+    return "aurora" if _launcher() else "agent_cli.py"
+
+
+def _default_project() -> Path:
+    """The project a project-scope command means when none is given: this repo in a checkout;
+    the current directory under the installed launcher, whose code root is a release bundle."""
+    return Path.cwd().resolve() if _launcher() else _repo()
+
+
 def _posix(p: Path | str) -> str:
     return str(p).replace("\\", "/")
 
@@ -75,8 +92,8 @@ def target_file(harness: str, scope: str, project: str | os.PathLike | None = No
 
 def claude_files_in_play(project: str | os.PathLike | None = None) -> list[Path]:
     """Every Claude settings file whose hooks fire together for a session in `project`
-    (default: this repo). Used for the one-surface rule."""
-    proj = Path(project).resolve() if project else _repo()
+    (default: _default_project()). Used for the one-surface rule."""
+    proj = Path(project).resolve() if project else _default_project()
     return [
         _home() / ".claude" / "settings.json",
         proj / ".claude" / "settings.json",
@@ -95,6 +112,14 @@ def hook_command(harness: str, script: str, scope: str, project=None, os_name: s
     name, _, extra = script.partition(" ")
     tail = f" {extra}" if extra else ""
     in_repo = _project_is_repo(scope, project)
+    exe = _launcher()
+    if exe and not in_repo:
+        # Installed: the launcher resolves agent/harness/hooks/ inside whichever release bundle
+        # is current, so the registration survives upgrades. On Windows the console-less twin
+        # (auroraw) keeps a hook from flashing a window, as uvw --gui-script did.
+        if os_name == "nt" and harness == "claude":
+            exe = os.getenv("AURORA_LAUNCHER_GUI") or exe
+        return f'"{_posix(exe)}" agent/harness/hooks/{name}{tail}'
     if harness == "claude":
         root = "$CLAUDE_PROJECT_DIR" if in_repo else _posix(_repo())
         path = f"{root}/agent/harness/hooks/{name}"
@@ -321,7 +346,85 @@ def install(harness, scope, project=None, shared=False, dry_run=False) -> Result
     res.changed = json.dumps(doc, sort_keys=True) != before
     if res.changed and not dry_run:
         write_config(path, doc)
+    if scope == "project" and _launcher():
+        # Installed, the hooks act only in enrolled projects (agent/harness/scope.py), and a
+        # project-scope install says plainly that this project wants them.
+        proj = Path(project or os.getcwd()).resolve()
+        if str(proj) not in enrolled_roots():
+            if not dry_run:
+                enroll(proj)
+            res.notes.append(
+                f"enrolled {proj}: the hooks speak up there (undo: {_cli()} hooks unenroll --project {proj})"
+            )
     return res
+
+
+# ----------------------------------------------------------------------------- enrolment
+def enrolled_roots() -> list[str]:
+    from agent.harness.scope import enrolled
+
+    return enrolled()["roots"]
+
+
+def _save_enrolled(doc: dict) -> None:
+    from agent.harness.scope import enrolled_file
+
+    write_config(Path(enrolled_file()), doc)
+
+
+def enroll(project=None, everywhere: bool = False, dry_run: bool = False) -> str:
+    """Treat `project` (default: cwd) like the Aurora repo: hooks recall, whisper and record
+    there. `everywhere` enrolls every directory. Returns a one-line report."""
+    from agent.harness.scope import enrolled
+
+    doc = enrolled()
+    if everywhere:
+        if doc["everywhere"]:
+            return "already enrolled everywhere"
+        doc["everywhere"] = True
+        msg = "enrolled everywhere: the hooks speak up in every project"
+    else:
+        proj = str(Path(project or os.getcwd()).resolve())
+        if proj in doc["roots"]:
+            return f"{proj} is already enrolled"
+        doc["roots"] = sorted({*doc["roots"], proj})
+        msg = f"enrolled {proj}"
+    if not dry_run:
+        _save_enrolled(doc)
+    return msg
+
+
+def unenroll(project=None, everywhere: bool = False, dry_run: bool = False) -> str:
+    from agent.harness.scope import enrolled
+
+    doc = enrolled()
+    if everywhere:
+        if not doc["everywhere"]:
+            return "was not enrolled everywhere"
+        doc["everywhere"] = False
+        msg = "no longer enrolled everywhere (enrolled projects stay enrolled)"
+    else:
+        proj = str(Path(project or os.getcwd()).resolve())
+        if proj not in doc["roots"]:
+            return f"{proj} was not enrolled"
+        doc["roots"] = [r for r in doc["roots"] if r != proj]
+        msg = f"unenrolled {proj}"
+    if not dry_run:
+        _save_enrolled(doc)
+    return msg
+
+
+def enrolment_lines() -> list[str]:
+    from agent.harness.scope import enrolled
+
+    doc = enrolled()
+    if doc["everywhere"]:
+        return ["enrolled: EVERYWHERE (every directory is treated like the Aurora repo)"]
+    if not doc["roots"]:
+        return [
+            f"enrolled: none -- the hooks speak up only in the Aurora repo (enrol a project: {_cli()} hooks enroll)"
+        ]
+    return ["enrolled (the hooks speak up here):", *(f"  {r}" for r in doc["roots"])]
 
 
 def uninstall(harness, scope, project=None, shared=False, dry_run=False) -> Result:
@@ -372,7 +475,7 @@ def enable(harness, scope, project=None, shared=False, dry_run=False) -> Result:
     if not recs:
         res.notes.append(
             "nothing to enable: no disabled hooks recorded for this file "
-            f"(to register fresh, run: agent_cli.py hooks install --harness {harness} --scope {scope})"
+            f"(to register fresh, run: {_cli()} hooks install --harness {harness} --scope {scope})"
         )
         return res
     doc = read_config(path)
@@ -401,7 +504,7 @@ def status(project=None) -> list[dict[str, Any]]:
     """One row per (harness, scope file): installed / disabled / stale / foreign counts."""
     side = _sidecar_load()
     rows = []
-    proj = Path(project).resolve() if project else _repo()
+    proj = Path(project).resolve() if project else _default_project()
     plan = [("claude", "user", False), ("claude", "project", True), ("claude", "project", False)]
     plan += [(h, s, False) for h in HARNESS_NAMES if h != "claude" for s in SCOPES]
     for harness, scope, shared in plan:
@@ -469,16 +572,16 @@ def status_lines(project=None, only_present: bool = True) -> list[str]:
         if r["stale"]:
             out.append(
                 f"    {len(r['stale'])} via the old scripts/hooks/ shim path -- still works; to modernise: "
-                f"agent_cli.py hooks install --harness {r['harness']} {scope_flag}"
+                f"{_cli()} hooks install --harness {r['harness']} {scope_flag}"
             )
         if r["disabled"] and not r["installed"]:
-            out.append(f"    turn back on: agent_cli.py hooks enable --harness {r['harness']} {scope_flag}")
+            out.append(f"    turn back on: {_cli()} hooks enable --harness {r['harness']} {scope_flag}")
         if r["missing"]:
             out.append(
                 f"    not registered in any {r['harness']} file: {', '.join(r['missing'])} "
-                f"(fix: agent_cli.py hooks install --harness {r['harness']}"
+                f"(fix: {_cli()} hooks install --harness {r['harness']}"
                 + (" --scope user)" if r["harness"] == "claude" else f" {scope_flag})")
             )
     if not out:
-        out.append("no Aurora hooks are registered anywhere. Run: agent_cli.py setup  (or: agent_cli.py hooks install)")
+        out.append(f"no Aurora hooks are registered anywhere. Run: {_cli()} setup  (or: {_cli()} hooks install)")
     return out

@@ -7,8 +7,17 @@ silent no-op, never blocking edits or injecting AI-Setup lessons into unrelated
 projects. That decision is POLICY and lives here exactly once -- adapters translate
 their runtime's payload shape into these predicates, they never re-implement them
 (three drifting copies of _under_root is how this module was earned).
+
+ENROLLED PROJECTS. An installed Aurora (the `aurora` launcher) runs from a release bundle, not
+from a checkout anyone works in, so "inside the repo" would match nothing and every hook
+would stay silent everywhere. A project is therefore ENROLLED to be treated exactly like the
+repo: `hooks install --scope project` enrolls its project, `hooks enroll [--project P]`
+enrolls one by hand, `hooks enroll --everywhere` opts every directory in. The list is
+instance state (<data_root>/state/harness/scope.json); a checkout with no list behaves as it
+always has.
 """
 
+import json
 import os
 
 # agent/harness/scope.py -> repo root is three dirs up.
@@ -21,15 +30,47 @@ def repo_root() -> str:
     return _ROOT_RAW
 
 
+def enrolled_file() -> str:
+    """Where the enrolled-project list lives (instance state, so upgrades keep it)."""
+    try:
+        from core.paths import data_root
+
+        base = str(data_root())
+    except Exception:
+        base = (os.getenv("AI_SETUP") or "").strip() or _ROOT_RAW
+    return os.path.join(base, "state", "harness", "scope.json")
+
+
+def enrolled() -> dict:
+    """{"roots": [abs paths], "everywhere": bool}. Unreadable or absent -> nothing enrolled."""
+    try:
+        with open(enrolled_file(), encoding="utf-8") as fh:
+            doc = json.load(fh)
+        roots = [str(r) for r in doc.get("roots") or [] if isinstance(r, str) and r]
+        return {"roots": roots, "everywhere": bool(doc.get("everywhere"))}
+    except (OSError, ValueError, AttributeError):
+        return {"roots": [], "everywhere": False}
+
+
+def _inside(a: str, root: str) -> bool:
+    return a == root or a.startswith(root.rstrip(os.sep) + os.sep)
+
+
 def under_root(p: str) -> bool:
-    """True iff `p` is the repo root or inside it (case-normalized, absolute)."""
+    """True iff `p` is the repo root or inside it, or inside an enrolled project
+    (case-normalized, absolute)."""
     if not p:
         return False
     try:
         a = os.path.normcase(os.path.abspath(p))
     except Exception:
         return False
-    return a == _ROOT or a.startswith(_ROOT + os.sep)
+    if _inside(a, _ROOT):
+        return True
+    doc = enrolled()
+    if doc["everywhere"]:
+        return True
+    return any(_inside(a, os.path.normcase(os.path.abspath(r))) for r in doc["roots"])
 
 
 def is_home(p: str) -> bool:
@@ -71,4 +112,7 @@ def shell_in_scope(cwd: str, command: str) -> bool:
     if under_root(cwd or ""):
         return True
     cl = (command or "").lower()
-    return "agent_cli.py" in cl or any(r in cl for r in _root_spellings())
+    if "agent_cli.py" in cl or any(r in cl for r in _root_spellings()):
+        return True
+    # the installed launcher: `aurora <verb>` invokes Aurora from anywhere
+    return cl.startswith("aurora ") or any(f"{sep}aurora " in cl for sep in (" ", ";", "&", "|", "(", "/"))

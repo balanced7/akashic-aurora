@@ -196,3 +196,19 @@ def python_launcher() -> str:
     if os.name == "nt":
         return "py"
     return "python3"
+
+
+def launcher() -> str | None:
+    """The installed `aurora` launcher running this process (aurora-cli/), else None.
+
+    Set by the launcher as AURORA_LAUNCHER, an absolute path. Code that writes a command into a
+    file that outlives this process -- a harness hook, an MCP registration -- uses it instead of
+    a path into the code root, because an installed code root is versioned and moves on upgrade.
+    """
+    return (os.getenv("AURORA_LAUNCHER") or "").strip() or None
+
+
+def cli_command() -> str:
+    """How to invoke the CLI in commands shown to a person or agent: `aurora` when installed,
+    else `<python_launcher()> agent_cli.py` (`uv run agent_cli.py` in a checkout)."""
+    return "aurora" if launcher() else f"{python_launcher()} agent_cli.py"

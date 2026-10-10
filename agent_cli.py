@@ -556,8 +556,7 @@ def cmd_boot(args):
     print_boot_locks_section(bifrost, args.agent_id)
     print("\n## TO CONTRIBUTE A LESSON, run:")
     print(
-        f"  {_pyl()} agent_cli.py learn {args.agent_id} --experiment NAME "
-        f'--tried "..." --result "..." --recommend "..."'
+        f'  {_pyl()} agent_cli.py learn {args.agent_id} --experiment NAME --tried "..." --result "..." --recommend "..."'
     )
     print("\n## BIFROST (live + durable)")
     print(f"  {_pyl()} agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
@@ -677,8 +676,7 @@ def cmd_learn(args):
     if not args.experiment or not (args.tried or args.result):
         print("ERROR: need --experiment and at least one of --tried/--result.")
         print(
-            f"Example: {_pyl()} agent_cli.py learn me --experiment cache_fix "
-            '--tried "memoize" --result "+50%" --recommend "use it"'
+            f'Example: {_pyl()} agent_cli.py learn me --experiment cache_fix --tried "memoize" --result "+50%" --recommend "use it"'
         )
         return 2
     raw_fields = {
@@ -1151,16 +1149,23 @@ def cmd_fleet(args):
 def cmd_hooks(args):
     """Register, remove, switch off/on, or inspect Aurora's harness hooks (agent/harness/install.py).
     Scope `user` fires for every project; `project` writes one project's config (Claude: the
-    personal settings.local.json, or the committed settings.json with --shared)."""
+    personal settings.local.json, or the committed settings.json with --shared). The hooks act
+    only in the Aurora repo and in ENROLLED projects (enroll / unenroll; agent/harness/scope.py)."""
     from agent.harness import install as inst
 
     if args.action == "status":
         if args.json:
-            print(json.dumps(inst.status(args.project), indent=2))
+            print(json.dumps({"files": inst.status(args.project), "enrolled": inst.enrolled_roots()}, indent=2))
             return 0
-        print("# Aurora harness hooks  (change with: hooks install|uninstall|enable|disable)")
+        print("# Aurora harness hooks  (change with: hooks install|uninstall|enable|disable|enroll|unenroll)")
         for line in inst.status_lines(args.project, only_present=not args.all):
             print(line)
+        for line in inst.enrolment_lines():
+            print(line)
+        return 0
+    if args.action in ("enroll", "unenroll"):
+        fn = inst.enroll if args.action == "enroll" else inst.unenroll
+        print(("DRY RUN -- " if args.dry_run else "") + fn(args.project, args.everywhere, args.dry_run))
         return 0
     try:
         res = inst.ACTIONS[args.action](
@@ -1590,10 +1595,12 @@ def cmd_discover(args):
         print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2))
         return 0
     q = (args.query or "").strip()
+    from core.paths import cli_command
+
     print(
         f"# agent_cli.py - {len(verbs)} verb(s)"
         + (f" matching '{q}'" if q else "")
-        + f"   (run `{_pyl()} agent_cli.py <verb> -h` for arguments)"
+        + f"   (run `{cli_command()} <verb> -h` for arguments)"
     )
     width = max((len(n) for n, _ in verbs), default=0)
     for n, h in verbs:
@@ -9899,10 +9906,11 @@ def build_parser():
     hk = sub.add_parser(
         "hooks", help="register / remove / switch off-on / inspect the harness hooks (user or project scope)"
     )
-    hk.add_argument("action", choices=["status", "install", "uninstall", "enable", "disable"])
+    hk.add_argument("action", choices=["status", "install", "uninstall", "enable", "disable", "enroll", "unenroll"])
     hk.add_argument("--harness", choices=["claude", "codex", "cursor"], default="claude", help="default: claude")
     hk.add_argument("--scope", choices=["user", "project"], default="user", help="default: user (every project)")
-    hk.add_argument("--project", default=None, help="project dir for --scope project (default: cwd)")
+    hk.add_argument("--project", default=None, help="project dir for --scope project and enroll (default: cwd)")
+    hk.add_argument("--everywhere", action="store_true", help="enroll/unenroll: every directory, not one project")
     hk.add_argument(
         "--shared",
         action="store_true",
