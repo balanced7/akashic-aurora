@@ -12,14 +12,14 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1632 | `noqa: F401` | registers on import |
-| agent_cli.py | 2300 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2814 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2883 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3696 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12347 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12563 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12588 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 1677 | `noqa: F401` | registers on import |
+| agent_cli.py | 2345 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2859 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2928 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3741 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12492 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12708 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12733 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 518 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 518 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
@@ -134,6 +134,7 @@
 | core/foundation/store.py | 154 | `ty: ignore[invalid-type-form]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
+| core/learning/learning_store.py | 1410 | `noqa: BLE001` | fail-soft by contract |
 | core/learning/scope.py | 158 | `noqa: BLE001` | fail-soft: no context means no filtering |
 | core/learning/scope.py | 334 | `noqa: BLE001` | fail-soft: no events means no evidence |
 | core/learning/scope.py | 341 | `noqa: BLE001` | fail-soft: no repeat counters means no evidence |
@@ -145,6 +146,12 @@
 | core/manuals/shelf.py | 89 | `ty: ignore[unresolved-attribute]` | tag read back by callers via getattr |
 | core/manuals/shelf.py | 89 | `pyright: ignore[reportFunctionMemberAccess]` | tag read back by callers via getattr |
 | core/metaharness/corpus.py | 202 | `noqa: BLE001` | fail-soft: mining without signals still mines |
+| core/metaharness/memreplay.py | 73 | `noqa: BLE001` | WRONGTYPE on Redis: try the next shape |
+| core/metaharness/memreplay.py | 390 | `noqa: BLE001` | a trigger is a bonus; the lesson write is what matters |
+| core/metaharness/proposer.py | 129 | `noqa: BLE001` | fail-soft: the brief is still useful without lessons |
+| core/metaharness/review.py | 319 | `noqa: BLE001` | fail-soft: no store means no repeats seen |
+| core/metaharness/review.py | 337 | `noqa: BLE001` | fail-soft: no events means no evidence either way |
+| core/metaharness/review.py | 463 | `noqa: BLE001` | the page still renders without the store |
 | core/narrative/tag_governance.py | 93 | `ty: ignore[invalid-argument-type]` | default is returned as-is; None is a valid result here |
 | core/narrative/tag_governance.py | 93 | `pyright: ignore[reportArgumentType]` | default is returned as-is; None is a valid result here |
 | core/primitives/embedder.py | 82 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
@@ -724,6 +731,17 @@
 | tests/test_link_python_units.py | 34 | `noqa: E402` | sys.path bootstrap |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_corpus.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_graders.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_graders.py | 27 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_graders.py | 131 | `noqa: E731` | pure position bias |
+| tests/test_metaharness_loop.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_loop.py | 30 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_memreplay.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_memreplay.py | 27 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_memreplay.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_replay.py | 26 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_review.py | 25 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_review.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_narrative_health.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_newborn_gauntlet.py | 200 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; never touch the real bus -- we test the ACL verdict only |
 | tests/test_ops_archive_ephemeral.py | 55 | `noqa: A002` | mirrors the redis-py xrange(min=, max=) keyword API |

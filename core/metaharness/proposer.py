@@ -192,7 +192,7 @@ def run_proposer(pack: Path, proposer: dict[str, Any] | None = None) -> dict[str
     """Launch the proposer agent on a pack (cwd = the pack). Returns exit info."""
     import subprocess
 
-    card = {**replay.DEFAULTS, **DEFAULT_PROPOSER, **(proposer or {})}
+    card: dict[str, Any] = {**replay.DEFAULTS, **DEFAULT_PROPOSER, **(proposer or {})}
     cmd = replay.build_command(card, pack, pack / "brief.md", str(uuid.uuid4()))
     try:
         p = subprocess.run(

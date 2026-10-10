@@ -23,7 +23,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.metaharness import corpus, replay  # noqa: E402
+from core.metaharness import corpus, replay  # noqa: E402  # sys.path bootstrap
 
 FAKE_AGENT = textwrap.dedent(
     """
