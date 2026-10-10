@@ -344,6 +344,32 @@ def select(*, split: str = "dev", n: int | None = None, status: str = "accepted"
     return ids[:n] if n else ids
 
 
+def seal(sid: str) -> None:
+    """Make a scenario's oracle and reference read-only before any agent runs (task 05: graders
+    out of reach). The sandbox never contains them; this also stops a run that goes looking
+    for them by absolute path from changing what it will be graded against."""
+    d = scenario_dir(sid)
+    for sub in ("oracle", "reference"):
+        root = d / sub
+        if not root.exists():
+            continue
+        for p in sorted(root.rglob("*"), reverse=True):
+            p.chmod(0o555 if p.is_dir() else 0o444)
+        root.chmod(0o555)
+
+
+def unseal(sid: str) -> None:
+    """Undo seal() (re-mining or deleting a scenario needs write access again)."""
+    d = scenario_dir(sid)
+    for sub in ("oracle", "reference"):
+        root = d / sub
+        if not root.exists():
+            continue
+        root.chmod(0o755)
+        for p in root.rglob("*"):
+            p.chmod(0o755 if p.is_dir() else 0o644)
+
+
 # --------------------------------------------------------------------------- validation
 def validate(sid: str, *, repo: Path = ROOT, timeout: int = 900, runner: list[str] | None = None) -> dict[str, Any]:
     """Check a test-oracle scenario is a real test: its oracle FAILS on the start state with the

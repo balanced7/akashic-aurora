@@ -968,6 +968,13 @@ def cmd_replay(args):
     return replay_main(args)
 
 
+def cmd_grade(args):
+    """Meta-harness graders and verdicts (task 05); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import grade_main
+
+    return grade_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -10028,6 +10035,26 @@ def build_parser():
     rp.add_argument("--overlay", default="", help="new: a folder of config files to lay over the sandbox")
     rp.add_argument("--json", action="store_true")
     rp.set_defaults(fn=cmd_replay)
+
+    gr = sub.add_parser(
+        "grade", help="meta-harness graders (task 05): grade runs, compare candidates, power, calibration"
+    )
+    gr.add_argument("action", choices=["run", "compare", "noise", "power", "label", "agreement"])
+    gr.add_argument("--candidate", default="", help="the candidate being graded (B in a comparison)")
+    gr.add_argument("--against", default="", help="compare/noise: the candidate it is compared with (A)")
+    gr.add_argument("--scenario", action="append", help="scenario id (repeatable)")
+    gr.add_argument(
+        "--judge", action="store_true", help="also run the model graders (quality, process); costs model calls"
+    )
+    gr.add_argument("--scenarios-n", dest="scenarios_n", type=int, default=50, help="power: number of scenarios")
+    gr.add_argument("--trials", type=int, default=3, help="power: trials per scenario")
+    gr.add_argument("--delta", type=float, default=0.0, help="power: the pass-rate change to detect (0.1 = 10 points)")
+    gr.add_argument("--criterion", default="", help="label: quality or process")
+    gr.add_argument("--person", default="", help="label: the person's call")
+    gr.add_argument("--judge-call", dest="judge_call", default="", help="label: the judge's call on the same item")
+    gr.add_argument("--ref", default="", help="label: what was judged (run or pair)")
+    gr.add_argument("--json", action="store_true")
+    gr.set_defaults(fn=cmd_grade)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
