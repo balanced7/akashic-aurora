@@ -1,7 +1,7 @@
 """seat_topology — who is actually running, under which seat id, driven by what.
 
     py seat_topology.py                 # print it
-    py seat_topology.py --report        # print it AND send it across the bridge
+    py seat_topology.py --report-to @partner/claude   # print it AND send it over a fleet link
 
 Answers the question nobody can answer from the far side: HOW MANY OF YOU ARE THERE, and what
 is driving each one. Written 2026-08-25 because Daniil could not tell from our end whether
@@ -99,7 +99,12 @@ def processes():
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--report", action="store_true", help="also send this across the bridge to your peer")
+    ap.add_argument(
+        "--report-to",
+        default=None,
+        metavar="@FLEET/SEAT",
+        help="also send this to a seat of a linked fleet (aurora link)",
+    )
     a = ap.parse_args(argv)
 
     say("=" * 72)
@@ -213,32 +218,12 @@ def main(argv=None) -> int:
     except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say(f"  presence unavailable: {type(e).__name__}: {e}")
 
-    if a.report:
+    if a.report_to:
         try:
-            import base64
-            import time
-            import urllib.error
-            import urllib.request
+            from core.link.export import send_remote
 
-            from core.comm import remote_relay as RR
-
-            k = RR._secret(RR.OUTBOUND_KEY_FILE)
-            url = RR.peer_url()
-            pay = {
-                "v": 1,
-                "id": f"topology-{int(time.time())}",
-                "frm": "peer",
-                "kind": "note",
-                "content": "\n".join(OUT),
-                "sent_at": int(time.time()),
-            }
-            b = json.dumps(pay, sort_keys=True, separators=(",", ":")).encode()
-            env = {"body": base64.b64encode(b).decode(), "sig": RR.sign(b, k)}
-            r = urllib.request.Request(
-                url, data=json.dumps(env).encode(), method="POST", headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(r, timeout=12) as resp:
-                say(f"\nreported across the bridge: {resp.status}")
+            rid = send_remote("topology-probe", a.report_to, "note", "\n".join(OUT))
+            say(f"\nwritten to the fleet link for {a.report_to} (record {rid[:12]}); it syncs when a path opens")
         except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             say(f"\ncould not report ({type(e).__name__}: {e}) — paste the block above")
     return 0

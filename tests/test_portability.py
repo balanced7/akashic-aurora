@@ -145,7 +145,6 @@ _FIXTURE_DATA = {
     # Verified 2026-09-30 when the one-or-more-separator pattern above first saw them.
     "tests/test_revive_claude_daemon_rung.py": "Windows process-table lines fed to revive.observe() via a patched _cmdlines(); text only",
     "tests/test_revive_per_agent_observation.py": "Windows process-table lines fed to revive.observe() via a patched _cmdlines(); text only",
-    "tests/test_bridge_status_pins.py": "recorded Windows process command lines for bridge_status's matcher; parsed, never opened",
     "tests/test_watcher_kill_warrant_identity.py": "recorded Windows process command lines for the kill-warrant identity match; text only",
     "tests/test_gateway_census_observer_contamination.py": "recorded Windows process command lines for the gateway census; text only",
     "tests/test_seat_launchers.py": "a fake shutil.which() answer for the launcher resolver; returned, never executed",

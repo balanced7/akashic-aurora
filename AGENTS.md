@@ -258,8 +258,8 @@ Missing/empty arguments are sanitized, not fatal -- but `learn` needs at least
 | check your work before committing | `uv run poe gate` (fmt, lint, types, guardrails, fast tests) | -- |
 | check, commit and push in one step | `uv run scripts/ship.py` (its suite gate is the `scripts/ship_gate.py` ratchet) | a raw `git commit` that skips the method checkers |
 | see whether the store is up | `agent_cli.py status`; `bootstrap.py --agent-init` for a first-run orientation | -- |
-| see whether seats are alive or stuck | `agent_cli.py doctor` (fleet liveness), `unwedge <agent>`, `flightdeck` | `bridge_doctor.py`, which checks the REMOTE BRIDGE only |
-| connect to a peer machine | `peer_connect.py` once; then `bridge_doctor.py`, `seat_topology.py` | -- |
+| see whether seats are alive or stuck | `agent_cli.py doctor` (fleet liveness, and a LINKS section), `unwedge <agent>`, `flightdeck` | -- |
+| link to another fleet | `agent_cli.py link init`, `link create`/`invite`/`join`, then `link serve`; mail with `bifrost-send --to @fleet/seat` | the retired HMAC bridge scripts |
 | wait for mail at turn end | `agent_cli.py bifrost-standby` (drain, report, block as the wake listener) | arming `scripts/bifrost_wake.py` by hand, unless your harness lacks standby |
 | ask another model | `agent_cli.py ask` (one question), `sift` (needs more reading than one context) | `scripts/ask_*.py`, the per-provider bridges those verbs call |
 | fetch a web page | `agent_cli.py web` (MCP: `web_fetch`) | -- |

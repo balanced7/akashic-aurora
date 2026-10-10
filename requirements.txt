@@ -75,7 +75,6 @@ pydantic-settings==2.15.0
 pygments==2.21.0
 pyjwt==2.15.1
 pymupdf==1.28.2
-pynacl==1.6.2
 pypdf==6.19.0
 pytest==9.1.1
 pytest-cov==7.1.0

@@ -26,7 +26,6 @@ dependencies = [
     "requests>=2.31",
     "google-genai>=1",
     "discord.py>=2.3",
-    "pynacl>=1.5",
     # the web and manuals doors
     "beautifulsoup4>=4.12",
     "markdownify>=0.12",

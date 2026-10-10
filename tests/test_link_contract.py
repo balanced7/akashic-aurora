@@ -39,12 +39,6 @@ def test_no_control_kind_crosses_a_fleet_boundary():
     assert not control & _rust_kinds()
 
 
-def test_the_old_bridge_uses_the_same_allowlist_object():
-    from core.comm import remote_relay
-
-    assert remote_relay.BRIDGE_KINDS is BRIDGE_KINDS
-
-
 def test_generated_rpc_types_are_current():
     out = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "generators" / "gen_link_rpc.py"), "--check"],

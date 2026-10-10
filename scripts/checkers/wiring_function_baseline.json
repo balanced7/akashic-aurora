@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 125,
+  "count": 120,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -124,11 +124,6 @@
     "core/world.py::assert_may_write",
     "core/comm/conductor_gate.py::acting_conduct_grant",
     "core/comm/conductor_gate.py::acting_conductor_approve",
-    "core/comm/remote_relay.py::admitted_count",
-    "core/comm/remote_relay.py::enqueue",
-    "core/comm/remote_relay.py::file_announcement",
-    "core/comm/remote_relay.py::last_admitted",
-    "core/comm/remote_relay.py::render_file_announcement",
     "core/coord/shift_loop.py::shift_state_is_complete"
   ],
   "history": [
@@ -181,6 +176,18 @@
         "core/comm/remote_relay.py::last_admitted",
         "core/comm/remote_relay.py::render_file_announcement",
         "core/coord/shift_loop.py::shift_state_is_complete"
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "change": "125 -> 120",
+      "why": "RFC #70 Phase 6 (fleet links cutover): core/comm/remote_relay.py is deleted with the rest of the HMAC bridge, so its five baselined functions (enqueue, file_announcement, render_file_announcement, last_admitted, admitted_count) leave with it. Their outbound purpose is now core/link/export.py, wired from Bus.send; the inbound measurement is the daemon's store.",
+      "removed": [
+        "core/comm/remote_relay.py::admitted_count",
+        "core/comm/remote_relay.py::enqueue",
+        "core/comm/remote_relay.py::file_announcement",
+        "core/comm/remote_relay.py::last_admitted",
+        "core/comm/remote_relay.py::render_file_announcement"
       ]
     }
   ]
