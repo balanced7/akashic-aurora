@@ -74,7 +74,8 @@ class Fleet:
                 return
             except lc.LinkRpcError:
                 time.sleep(0.2)
-        raise AssertionError(f"{self.name}'s network did not start")
+        log = (self.home / "linkd.log").read_text(encoding="utf-8", errors="replace")[-3000:]
+        raise AssertionError(f"{self.name}'s network did not start; daemon log tail:\n{log}")
 
     def events(self) -> list:
         return self.call("events.wait", cursors={}, limit=1000)["events"]
