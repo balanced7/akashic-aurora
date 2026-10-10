@@ -85,19 +85,30 @@ export function mountWorkbench(page) {
   const tip=document.createElement('div');tip.className='studio-stage-tip';tip.textContent='DRAG TO EXPLORE  ↗';stage.append(tip);
   const footer=document.createElement('footer');footer.className='studio-status';footer.innerHTML='<span><i></i><span id="studio-midi-status">Keyboard ready</span></span><span id="studio-harmony">A space for your music.</span><span id="studio-health"></span>';app.append(footer);
   const collection=$('instrument-cards');let section='';
+  // Card art (assets/instrument-art, made by scripts/piano_card_art.py): a hidden-line wireframe of the live model, tinted by --card-accent
+  // through a CSS mask, and a matted render from the same camera that fades in on hover, focus and the chosen card. Both load only as a
+  // card nears view in the open panel; an instrument without a wireframe keeps the drawn silhouette(). The wireframe probe fetches in CORS
+  // mode, as a CSS mask does, so the mask reuses its download instead of fetching the file again.
+  const ART=new URL('../assets/instrument-art/',import.meta.url).href, artUrl=(id,kind)=>`${ART}${encodeURIComponent(id)}.${kind}.webp`;
+  const look=b=>{if(b.dataset.look||!b.classList.contains('has-art'))return;b.dataset.look='1';const u=artUrl(b.dataset.instrument,'preview'),img=new Image();img.src=u;img.decode().then(()=>{b.style.setProperty('--look',`url("${u}")`);b.classList.add('look-ready');},()=>{});};
+  const reveal=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){
+    const b=e.target,box=b.querySelector('.instrument-art'),u=artUrl(b.dataset.instrument,'wire'),img=new Image();reveal.unobserve(b);img.crossOrigin='anonymous';img.src=u;
+    img.decode().then(()=>{box.style.setProperty('--wire',`url("${u}")`);box.innerHTML='<span class="art-look"></span><span class="art-wire"></span>';b.classList.add('has-art');if(b.getAttribute('aria-pressed')==='true')look(b);},()=>{box.innerHTML=silhouette(b.dataset.instrument);});
+  }},{root:inspector,rootMargin:'0px 0px 360px'});
   // Crystal studies are curated first; all existing instruments stay in the collection below.
   const items=page.looks().instruments;
   for(const item of [...items.filter(i=>['aether','solstice','nocturne'].includes(i.id)),...items.filter(i=>!['aether','solstice','nocturne'].includes(i.id))]){
     const d=DETAILS[item.id]||['The instruments',item.name,'', '#b3cbd0'];
     if(section!==d[0]){section=d[0];const h=document.createElement('h2');h.textContent=section;collection.append(h);}
     const button=document.createElement('button');button.className=`instrument-card${d[4]?' featured':''}`;button.dataset.instrument=item.id;button.style.setProperty('--card-accent',d[3]);button.setAttribute('aria-pressed','false');
-    button.innerHTML=`<span class="instrument-art">${silhouette(item.id)}</span><span class="instrument-copy"><span class="instrument-index">${d[4]||'◈'}</span><strong>${d[1]}</strong><small>${d[2]}</small></span><span class="instrument-picked">✓</span>`;
+    button.innerHTML=`<span class="instrument-art" aria-hidden="true"></span><span class="instrument-copy"><span class="instrument-index">${d[4]||'◈'}</span><strong>${d[1]}</strong><small>${d[2]}</small></span><span class="instrument-picked">✓</span>`;
     button.setAttribute('aria-label',`Choose ${d[1]}`);
+    button.addEventListener('pointerenter',()=>look(button));button.addEventListener('focus',()=>look(button));
     button.addEventListener('click',async()=>{
       const token=++chooseToken;button.classList.add('loading');
       try {const ok=await page.selectInstrument(item.id);if(ok){page.galleryCamera.setMode('auto');$('studio-camera').value='auto';page.requestRender();if(innerWidth<1000)open(null);}}
       finally {button.classList.remove('loading');if(token===chooseToken)sync();}
-    });collection.append(button);
+    });collection.append(button);reveal.observe(button);
   }
   $('studio-camera').addEventListener('change',e=>page.galleryCamera.setMode(e.target.value));
   $('studio-home').addEventListener('click',()=>page.galleryCamera.home());
@@ -136,7 +147,7 @@ export function mountWorkbench(page) {
     if(id!==lastInstrument){
       lastInstrument=id;document.documentElement.style.setProperty('--studio-accent',d[3]);
       $('scene-title').textContent=d[1];$('scene-collection').textContent=d[0].toUpperCase();$('scene-description').textContent=d[2];
-      for(const b of collection.querySelectorAll('[data-instrument]'))b.setAttribute('aria-pressed',String(b.dataset.instrument===id));
+      for(const b of collection.querySelectorAll('[data-instrument]')){const on=b.dataset.instrument===id;b.setAttribute('aria-pressed',String(on));if(on)look(b);}
     }
     syncInstrumentOptions(id,d[1],s.rec);
     $('studio-canopy-field').hidden=id!=='solstice';if(id==='solstice')$('studio-canopy').value=page.instrument?.canopy||'ribbons';
@@ -155,7 +166,7 @@ export function mountWorkbench(page) {
     tip.textContent=render.paused?'RENDER PAUSED':page.galleryCamera.active()?'DRAG TO EXPLORE  ↗':'PLAY THE KEYS  ↗';
   }
   const timer=setInterval(()=>{if(!document.hidden)sync();},500);
-  addEventListener('pagehide',()=>{clearInterval(timer);additions.disconnect();},{once:true});
+  addEventListener('pagehide',()=>{clearInterval(timer);additions.disconnect();reveal.disconnect();},{once:true});
   // No synthetic notes or audio are started by the interface.
   open(innerWidth>=1000?'instruments':null);sync();
   return {sync};

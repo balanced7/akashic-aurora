@@ -372,6 +372,7 @@
 - `mirror.py` — mirror.py -- the PUBLISH door: commit named paths and push them to the PUBLIC GitHub repo.
 - `mutate.py` — The mutation runner (W128, amended by W236).
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
+- `piano_card_art.py` — Card art for the piano Studio's instrument cards: a wireframe and a rendered preview of every instrument.
 - `piano_follow_frames.py` — Reconstruct what the 9:16 follow view actually SHOWED, at true scale.
 - `piano_roll_pack.py` — roll/1 door: pack a recorded session, or read one back.
 - `piano_roll_render.py` — Render a recorded performance session as a piano-roll scroll -- SVG and PNG.
