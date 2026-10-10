@@ -11,6 +11,7 @@ Fake agent modes (argv[1]):
   half     fix the even-numbered modules only
   cheat    rewrite the scenario's own oracle test to `assert True`, fix nothing
   verbose  like good, but reports ten times the tokens
+  aware    good if the candidate's CLAUDE.md says FIX-EVERYTHING, else bad
 """
 
 from __future__ import annotations
@@ -28,6 +29,9 @@ FAKE_AGENT = textwrap.dedent(
     import glob, json, re, sys
     mode = sys.argv[1]
     prompt = open(sys.argv[2]).read()
+    if mode == "aware":  # behaves well only when the candidate's overlay tells it to
+        import os
+        mode = "good" if os.path.exists("CLAUDE.md") and "FIX-EVERYTHING" in open("CLAUDE.md").read() else "bad"
     if mode in ("good", "verbose", "half"):
         for path in sorted(glob.glob("m*.py")):
             i = int(re.findall(r"\\d+", path)[0])

@@ -982,6 +982,13 @@ def cmd_review(args):
     return review_main(args)
 
 
+def cmd_loop(args):
+    """Meta-harness candidate archive and proposer loop (task 07); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import loop_main
+
+    return loop_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -10078,6 +10085,29 @@ def build_parser():
     rv.add_argument("--reason", default="", help="decide/rollback: why")
     rv.add_argument("--json", action="store_true")
     rv.set_defaults(fn=cmd_review)
+
+    lp = sub.add_parser(
+        "loop", help="meta-harness proposer loop (task 07): archive, lineage, status, run within a daily budget"
+    )
+    lp.add_argument("action", choices=["run", "status", "archive", "lineage"])
+    lp.add_argument(
+        "--candidate", default="", help="run: the parent to improve (default baseline); lineage: the candidate"
+    )
+    lp.add_argument("--iterations", type=int, default=1)
+    lp.add_argument("--proposals", type=int, default=3, help="proposals per iteration (scaled by proposer accuracy)")
+    lp.add_argument("--trials", type=int, default=1)
+    lp.add_argument("--mode", choices=["structural", "prose"], default="structural")
+    lp.add_argument(
+        "--daily-usd", dest="daily_usd", type=float, default=None, help="run: the day's spend cap (required)"
+    )
+    lp.add_argument(
+        "--proposer-model",
+        dest="proposer_model",
+        default="",
+        help="run: the proposer's model (default claude-opus-5-5)",
+    )
+    lp.add_argument("--json", action="store_true")
+    lp.set_defaults(fn=cmd_loop)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
