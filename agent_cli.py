@@ -1017,6 +1017,13 @@ def cmd_modes(args):
     return modes_main(args)
 
 
+def cmd_compress(args):
+    """Meta-harness compression (task 11); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import compress_main
+
+    return compress_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -10184,6 +10191,19 @@ def build_parser():
     md.add_argument("--daily-usd", dest="daily_usd", type=float, default=None, help="compare: spend cap")
     md.add_argument("--json", action="store_true")
     md.set_defaults(fn=cmd_modes)
+
+    cmpr = sub.add_parser(
+        "compress",
+        help="meta-harness compression (task 11): pieces, usage telemetry, staged search for the pieces that matter",
+    )
+    cmpr.add_argument("action", choices=["pieces", "telemetry", "run"])
+    cmpr.add_argument("--candidate", default="", help="telemetry/run: the candidate to read or compress")
+    cmpr.add_argument("--scenario", action="append", help="telemetry/run: scenario id (repeatable)")
+    cmpr.add_argument("--root", default="", help="pieces/telemetry: the tree whose pieces to list (default: this repo)")
+    cmpr.add_argument("--max-runs", dest="max_runs", type=int, default=0, help="run: the task-run cap (required)")
+    cmpr.add_argument("--trials", type=int, default=1)
+    cmpr.add_argument("--json", action="store_true")
+    cmpr.set_defaults(fn=cmd_compress)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
