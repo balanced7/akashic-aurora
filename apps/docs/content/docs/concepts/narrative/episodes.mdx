@@ -1,0 +1,55 @@
+---
+title: Episodes
+description: A titled stretch of one working session, with a stated reason for the work.
+---
+
+An episode is a titled stretch of one working session. It says what you set out to do, and why. A bookend is the boundary that closes one episode and opens the next. Think of scene breaks in a play script: each scene gets a heading and a one-line reason.
+
+## Why it exists
+
+The [narrative spine](/docs/concepts/narrative/narrative-spine) cuts chapters after the fact, by rules such as a four-hour gap. A live session needs something sooner. It needs short, titled spans with a clear why, made while the work happens. A design review settled the shape. An episode is not a new kind of record. It is a chapter with a required `why`, plus a pointer to the one open episode.
+
+## How it works
+
+- A chapter has a `summary` for what happened. An episode adds a `why` for what you meant to do. It also adds a `final` flag. Once you accept an episode, the flag locks it.
+- Only one episode is open at a time. The key `narr:episode:open` points to it.
+- The life of an episode is: open, gather Beats, close, accept. On close, the system drafts a title, a description and a why from the episode's Beats. The why comes from the latest decision or `mark`. No model writes the draft. You can accept it or change it.
+- When the session ends, the open episode closes on its own, so no episode stays open forever.
+
+### The suggester
+
+A helper suggests when to close an episode. It only advises. It never closes one for you. Each trigger has a fixed confidence:
+
+| Trigger | Confidence |
+| --- | --- |
+| work looks complete | 0.88 |
+| switch to another subsystem | 0.75 |
+| new objective | 0.70 |
+| idle for 15 minutes | 0.60 |
+
+Some rules keep it quiet. It stays silent for an episode younger than five minutes or with fewer than two Beats. It waits ten minutes between different suggestions. Each trigger fires once per episode at most.
+
+The suggester is not a background job. It runs when you or the UI ask for the current episode. Each new suggestion also goes out as one `episode_suggestion` event. Later, [RENEW](/docs/concepts/narrative/renew) will read the same stream, so the two never nudge you twice.
+
+## How you use it
+
+```bash
+aurora episode current
+aurora episode close
+aurora episode accept <chapter_id> --title "..." --why "..."
+aurora episode close --accept-title "..." --accept-why "..."  # one shot
+```
+
+The [Bifrost console](/docs/concepts/bifrost/console) shows an episode chip, a panel and a banner for suggestions.
+
+## Don't confuse it with
+
+- **Narrative session** — the whole span from boot to session end. An episode is a smaller span inside it.
+- **Chronicler chapter** — cut later, by rules. You cut an episode live, give it a title, and state its why.
+- **Idle** — the episode idle time is 15 minutes. The four-hour gap belongs to the Chronicler.
+
+## How it connects
+
+- **Built on:** [Task ledger](/docs/concepts/coordination/task-ledger) (read for two triggers, [fail-soft](/docs/concepts/foundations/fail-soft)).
+- **Used by:** [Bifrost console](/docs/concepts/bifrost/console), [RENEW](/docs/concepts/narrative/renew) (planned reader of suggestions).
+- **Part of:** [Narrative spine](/docs/concepts/narrative/narrative-spine).

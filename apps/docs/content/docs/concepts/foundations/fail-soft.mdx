@@ -1,0 +1,43 @@
+---
+title: Fail soft
+description: When a helper part breaks, the main work carries on with less and says what it lost.
+---
+
+Fail soft is a house rule, not a module. When a helper part breaks, the main work keeps going. Redis may be down. Search may have no embeddings. The bus may be gone. The command still runs with less, and it tells you what it lost.
+
+A car whose radio dies keeps driving. The radio never stops the engine.
+
+## Why it exists
+
+Agents run hooks around every action. Hooks log, add moments to the story and track recall. If a hook can crash, a side job can block the real work. The first warning was a 48-second hang. Each module that pinged a down Redis froze that long. The README states the rule: "a hook must never brick the action it decorates."
+
+## How it works
+
+- **Storage:** making a Store or a Ledger never fails on a down Redis. Both fall back to files. See [hybrid storage](/docs/concepts/foundations/hybrid-storage).
+- **The Ledger:** `emit` logs loudly but never raises.
+- **Side jobs:** after `learn` saves a lesson, it also writes a story beat and a raw event. If those fail, `learn` still succeeds.
+- **Boot:** the repair at boot never raises. A skipped repair beats a broken boot.
+- **Watching:** a counter or heartbeat that fails returns quietly. Watching must never break what it watches.
+- **Code rule:** a deliberate catch-all needs a comment, `# fail-soft: <why>`. It must also log or document what it falls back to.
+
+### Soft, not silent
+
+Fail soft does not mean "swallow errors". The house line is: do less, and say so. Older code does not always meet this yet. `learn` drops a failed story beat without a word. Code at a fleet boundary, such as sending mail to another agent, returns a `BoundaryOutcome`. A failed one must carry a reason, or the code cannot build it.
+
+Some parts fail hard on purpose. The file store refuses to save when it cannot read its own file. A guard that crashes fails loud.
+
+## How you use it
+
+You see it every day. Commands keep working with Redis down. `boot` prints `[heal]` lines. The bus may report "bus OFFLINE". Code carries `# fail-soft:` comments.
+
+## Don't confuse it with
+
+- **Fail-open** — a check lets things through when it errors. Watching tools use it.
+- **Fail-closed** — refuse when unsure. Safety checks use it. For example, a reader refuses a record with a newer format than it knows.
+- Fail soft is about the main path surviving. It says nothing about whether a check passes.
+
+## How it connects
+
+- **Built on:** a house rule; see the [principles](/docs/concepts/method/principles)
+- **Used by:** [Hybrid storage](/docs/concepts/foundations/hybrid-storage), [Store](/docs/concepts/foundations/store), [Ledger](/docs/concepts/foundations/ledger), [Boot](/docs/concepts/memory/boot), [Doors](/docs/concepts/coordination/doors)
+- **Part of:** [Foundations](/docs/concepts/foundations)

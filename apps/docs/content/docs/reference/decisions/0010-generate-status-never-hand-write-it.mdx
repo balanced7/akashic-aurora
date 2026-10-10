@@ -1,0 +1,8 @@
+---
+title: "0010: Generate status, never hand-write it"
+description: Status and maps come from commands that read the live system, never from hand-kept documents.
+---
+
+**Status:** accepted
+
+Status comes from `aurora status`, `aurora story` and the generated code maps (`docs/MAP.md`, `docs/MODULE_INDEX.md`). A guard fails the build if any new markdown file appears at the repo root, beyond a short allowlist. We chose this because every hand-kept status page drifted the moment the code moved. See [Guards over discipline](/docs/concepts/method/guards-over-discipline).

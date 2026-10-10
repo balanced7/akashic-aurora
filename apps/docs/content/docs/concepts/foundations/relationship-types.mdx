@@ -1,0 +1,46 @@
+---
+title: Relationship types
+description: A fixed list of 66 named kinds of link, such as part_of and replaces, so a link means one thing everywhere.
+---
+
+When one record links to another, the link needs a name. Aurora picks that name from a fixed list of 66. Each one comes from a public standard, such as Dublin Core or the OBO relation list from biology. So `part_of` means the same thing in every part of the code.
+
+Think of a short list of approved verbs for drawing arrows between boxes.
+
+## Why it exists
+
+Without a list, one kind of link gets five names. Then no one can follow a graph or weigh its links. A naming cleanup produced the list. Its words come from library and science standards. They already mean something outside this repo.
+
+## How it works
+
+- `core/foundation/relationship_types.py` holds the list. Each entry has a formal name, a short name, an inverse, a description, a domain and examples.
+- Ten domains group the 66. Causal and associative have ten each. Structural and agent have eight each. Temporal has seven, documentation six, semantic five. Hierarchical, spatial and versioning have four each.
+- Every link has an inverse. `replaces` pairs with `replaced_by`. `part_of` pairs with `has_part`.
+- The [narrative spine](/docs/concepts/narrative/narrative-spine) uses them for its edges. [Perspectives](/docs/concepts/narrative/perspectives) choose which domains to follow. The Ranker gives them weights.
+- [Supersession](/docs/concepts/foundations/append-only-record) uses two of them. The old node gets `replaces`, pointing forward to the new one. The new node gets `is_version_of`, pointing back. Note that the list's own example reads the other way: "NewVersion replaces OldVersion".
+
+## How you use it
+
+```bash
+uv run python -m core.foundation.relationship_types   # prints the full list
+```
+
+Some names look right but are not on the list:
+
+| Not on the list | Use instead |
+| --- | --- |
+| `derived_from` | `derives_from` |
+| `supersedes` | `replaces` |
+| `led_to` | `causes` or `precedes` |
+
+## Don't confuse it with
+
+- **Library links** — library records use their own four links: `derives-from`, `contradicts`, `supports` and `discusses`. That list is separate and smaller. See the [library](/docs/concepts/memory/library).
+- **"Semantic Relationship:" lines** — many module headers carry one. They use free-form verbs, mostly not from the 66.
+- **[The Eye](/docs/concepts/narrative/the-eye)'s links** — those carry a grade for how sure they are.
+
+## How it connects
+
+- **Built on:** public standards (Dublin Core, OBO, RDF and OWL); see [naming](/docs/concepts/foundations/naming)
+- **Used by:** [Narrative spine](/docs/concepts/narrative/narrative-spine), [Perspectives](/docs/concepts/narrative/perspectives), [Ranker and distiller](/docs/concepts/memory/ranker-and-distiller), [Append-only record](/docs/concepts/foundations/append-only-record)
+- **Part of:** [Foundations](/docs/concepts/foundations)
