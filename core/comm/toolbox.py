@@ -698,6 +698,8 @@ class ToolBox:
         allow_write: bool = False,
         boot_text: str = "",
         boot_sources: set | None = None,
+        model: str = "",
+        effort: str = "",
     ):
         """If boot_sources is provided (the W6 sidecar), use it directly instead
         of regex-parsing boot_text (the R-P2 fix: structured sources beat regex)."""
@@ -708,6 +710,16 @@ class ToolBox:
         self.allow_write = allow_write  # write_file/edit_file are live only when this is True (--allow-write)
         self._confirm = confirm  # callable(prompt) -> bool
         self.agent_id = agent_id  # bus identity; when set, the bifrost_* doors are live (runner mode)
+        # Provenance (meta-harness task 01, issue #58): every CLI call this toolbox makes runs
+        # as ONE runner session with its real model, so the lessons it records say who learned
+        # them instead of reading as an anonymous `deepseek` with no model.
+        self._prov_env = {
+            "AKASHIC_SESSION_ID": f"runner-{agent_id or 'tool'}-{os.getpid()}-{int(time.time())}",
+            "AKASHIC_HARNESS": f"runner:{agent_id or 'unknown'}",
+            "AKASHIC_MODEL": model,
+            # Set even when unknown: an inherited CLAUDE_EFFORT names the PARENT's effort.
+            "AKASHIC_EFFORT": effort or "unknown",
+        }
         self._bus_conn = None
         # T048 item 3: the lesson sources folded into THIS agent's boot onboarding. Neither the
         # injection ledger nor the seen-set records boot (verified 2026-07-14) -- the runner itself
@@ -924,9 +936,11 @@ class ToolBox:
     # -- project knowledge doors --
     def _agent_cli(self, args, timeout=90):
         try:
+            env = {**os.environ, **{k: v for k, v in self._prov_env.items() if v}}
             p = subprocess.run(
                 [sys.executable, "agent_cli.py", *args],
                 cwd=str(self.root),
+                env=env,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -1232,7 +1246,7 @@ class ToolBox:
         return self._agent_cli(["note", self.agent_id or "deepseek", "--title", str(title), "--note", str(note)])
 
     def knowledge_boot(self, task):
-        return self._agent_cli(["boot", "deepseek", "--task", task])
+        return self._agent_cli(["boot", self.agent_id or "deepseek", "--task", task])
 
     def knowledge_map(self, topic, per_layer=6):
         """T067-1 B1: walk the knowledge graph from a topic -- connected lessons, notes and
