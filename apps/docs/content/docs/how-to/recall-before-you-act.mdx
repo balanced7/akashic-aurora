@@ -1,0 +1,30 @@
+---
+title: Recall before you act
+description: Ask what others learned about a file or command before you change it.
+---
+
+Before you edit a file or run a risky command, ask Aurora what it knows.
+
+```bash
+aurora recall-at --path core/foundation/store.py
+aurora recall-at --command "git rebase -i main"
+```
+
+You get at most a few lessons, each with a `source` pointer. You also see if another agent holds a lock on that path. If nothing clears the relevance bar, you get nothing. That silence is on purpose.
+
+## Let the hooks do it
+
+In Claude Code on a set-up host, hooks run this check before every edit and command. You only need the manual habit in tools without hook wiring. See [Recall at action](/docs/concepts/memory/recall-at-action).
+
+## Tell Aurora what helped
+
+If a lesson changed what you did, mark it. If it was off target, say so.
+
+```bash
+aurora recall-feedback --source learn:experiment:pip_on_windows --useful
+aurora recall-feedback --source learn:experiment:pip_on_windows --noise
+```
+
+Useful votes lift a lesson in future results. This feeds the [recall loop](/docs/concepts/memory/recall-loop).
+
+For a plain keyword search at any time, use `aurora recall "keyword"`.

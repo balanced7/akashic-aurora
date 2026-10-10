@@ -1,0 +1,45 @@
+---
+title: Rewrite map
+description: A lookup that turns a commit id from before a history rewrite into the commit it became.
+---
+
+The rewrite map follows an old commit id to its new one. When you rewrite git history, every commit gets a new id, or SHA. Old notes still point to the old ids. The rewrite map tells you where each one went.
+
+Think of a mail forwarding service after a city renames its streets. Old addresses still reach the right house.
+
+## Why it exists
+
+This repo has rewritten its history four times. One removed outside reference material. One removed personal data. One fixed author emails and left no map at all. Later, the team rebuilt that map by matching commits. A fourth moved authorship again, and this time kept its map. Each rewrite changed every later SHA. Yet docs, ledgers and [lessons](/docs/concepts/memory/lessons) cite SHAs all the time. At one count, 877 of 1,436 cited SHAs worked only on the machine that wrote them.
+
+## How it works
+
+The resolver chains together the rewrite maps saved under `state/rewrites/`. It also reads a map the last rewrite left inside `.git`, and warns that the next rewrite will overwrite it. A SHA may need several hops to reach today's commit. Every answer carries one of six labels:
+
+- **CURRENT** — the SHA is already live.
+- **TRANSLATED** — it moved, and here are the hops that got there.
+- **DROPPED** — a rewrite removed this commit on purpose. That is a real answer, not a failure.
+- **AMBIGUOUS** — a short SHA matches two new commits, so the resolver refuses to pick.
+- **UNKNOWN** — no map covers it.
+- **UNVERIFIED** — the chain ended, but the check that a fresh clone can see that commit could not run. It does not count as success.
+
+The resolver never guesses. Its motto is "zero is not no": finding nothing is not the same as "this commit never existed".
+
+## How you use it
+
+```bash
+aurora sha 0a14061c          # where did this commit go?
+aurora sha --maps            # which maps does this checkout carry?
+uv run scripts/rewrite_recover.py capture --label <slug>   # save a map before the next rewrite
+```
+
+The `sha` verb exits with code 1 unless every SHA comes back CURRENT or TRANSLATED. A script can use it as a gate. The checker `scripts/checkers/check_rewrite_maps.py` refuses when a rewrite leaves no committed map behind.
+
+## Don't confuse it with
+
+- **Plain `git log`** — it knows only the current history. It cannot see what an old SHA became.
+
+## How it connects
+
+- **Built on:** git's own history, plus the maps saved under `state/rewrites/`.
+- **Used by:** anyone who cites a commit; [Cite or confess](/docs/concepts/method/cite-or-confess).
+- **Part of:** [House tools](/docs/concepts/tools).

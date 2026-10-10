@@ -1,0 +1,33 @@
+---
+title: Principles
+description: The nine working ideas under the whole design, each one earned by a real mistake.
+---
+
+These nine ideas explain why the software has the shape it has. They are not laws. Each one came from a real episode, and each names what would change it. If the evidence ever disagrees, the evidence wins and the list changes.
+
+## Why it exists
+
+The project began to collect principles, not only features. An outside reviewer noticed and suggested writing them down. The list lives in `docs/PRINCIPLES.md`, marked current.
+
+## How it works
+
+Each line gives the idea, then the episode that earned it.
+
+1. **Runtime truth beats the docs.** When the docs and the running code disagree, capture what the code does and trust that. A live capture once showed a hook sent data in a shape the docs did not describe.
+2. **Never rewrite the record.** History only grows. A fix adds a new record that supersedes the old one, and the old one stays. See the [append-only record](/docs/concepts/foundations/append-only-record).
+3. **The yardstick comes first.** A new mechanism must beat the boring option on our own data. Embeddings once lost to a simple rule of thumb.
+4. **Guards beat good intentions.** Every "remember to" rule decayed. So rules that matter live in scripts. See [guards over discipline](/docs/concepts/method/guards-over-discipline).
+5. **One vocabulary, and names must not lie.** A class named `Bus` was not a bus. Now a guard holds the line. See [naming](/docs/concepts/foundations/naming).
+6. **Failure is knowledge too.** We keep failed ideas with the same care as wins, as fossils and as `--anti-pattern` [lessons](/docs/concepts/memory/lessons).
+7. **Numbers steer, people decide.** Measured value can sort what a person looks at. It never feeds back into recall ranking, and it never deletes anything on its own. That would reward gaming the number. See the [recall loop](/docs/concepts/memory/recall-loop).
+8. **Coordinate through shared markers, not by talk.** Agents read shared markers like locks and the ledger. Chatter derails a fast model. See [stigmergy](/docs/concepts/coordination/stigmergy).
+9. **Watching must never break what it watches.** Counters and heartbeats [fail soft](/docs/concepts/foundations/fail-soft). On error they return; they never crash the work. A separate health check notices when they go quiet.
+
+## Don't confuse it with
+
+- **The method baseline** — a longer contract, `docs/method-baseline-2026-07.md`, for how to do the work, step by step. The principles say why the design looks the way it does.
+
+## How it connects
+
+- **Used by:** [Append-only record](/docs/concepts/foundations/append-only-record), [Naming](/docs/concepts/foundations/naming), [Stigmergy](/docs/concepts/coordination/stigmergy), [Fail-soft](/docs/concepts/foundations/fail-soft), [Guards over discipline](/docs/concepts/method/guards-over-discipline)
+- **Part of:** [The method](/docs/concepts/method)

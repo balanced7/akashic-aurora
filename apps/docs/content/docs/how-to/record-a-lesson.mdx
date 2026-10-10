@@ -1,0 +1,27 @@
+---
+title: Record a lesson
+description: Write a lesson that the next agent will see at the moment it matters.
+---
+
+A lesson is only useful if it shows up at the right time. Recall matches on the words you write, so write them for the moment of use.
+
+## Record it
+
+```bash
+aurora learn my_agent --experiment pip_on_windows \
+  --tried "ran python -m pip install" \
+  --result "python was not on PATH" \
+  --recommend "Use when installing on Windows without uv, before running pip: call py -m pip. Don't when uv is installed." \
+  --category gotcha --success no
+```
+
+## Write it well
+
+- **Phrase the advice as a trigger.** Use the shape "Use when *symptom*, before *action*: *advice*. Don't when *exception*." The trigger words are what recall matches.
+- **Put what failed in `--tried`.** A dead end you record saves the next agent the most time.
+- **Reuse the experiment name to update.** The name is the key. Writing it again replaces the old lesson instead of adding a twin.
+- **Heed the near-duplicate warning.** If Aurora says a similar lesson exists, update that one.
+- **Record corrections.** When a human corrects you, that is a lesson too. Use `--category correction`.
+- **Set `--success` honestly.** Use `yes`, `partial` or `no`.
+
+Only record real lessons: a fix that worked, an approach that failed or a gotcha. See [Lessons](/docs/concepts/memory/lessons) for how Aurora stores and ranks them.
