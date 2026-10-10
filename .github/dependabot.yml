@@ -26,3 +26,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # aurora-rs: iroh-gossip, iroh-blobs and other pre-1.0 crates break every few weeks, so the
+  # same 7-day cooldown applies, and `cargo deny` in CI catches an advisory sooner than this.
+  - package-ecosystem: "cargo"
+    directory: "/aurora-rs"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      rust-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

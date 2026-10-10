@@ -30,6 +30,9 @@ from pathlib import Path
 REPO_SLUG = "balanced7/akashic-aurora"
 #: The optional Rust acceleration wheel (aurora-rs/py), installed best-effort beside the bundle.
 ACCEL_PACKAGE = "akashic-aurora-rs"
+#: The fleet-link daemon (aurora-rs/linkd). Required by `aurora link` and by nothing else, so a
+#: missing wheel turns links off and leaves the rest of Aurora as it is.
+LINKD_PACKAGE = "akashic-aurora-linkd"
 _MARKERS = ("agent_cli.py", "core")
 
 
@@ -214,18 +217,25 @@ def sync(root: Path, version: str) -> None:
     if rc != 0:
         raise SystemExit(f"aurora: `{' '.join(cmd)}` failed (exit {rc}).")
     install_accel(root, version)
+    install_accel(root, version, package=LINKD_PACKAGE, missing="fleet links (`aurora link`) stay off on this machine")
     _sync_marker(root).write_text(_lock_digest(root), encoding="utf-8")
 
 
-def install_accel(root: Path, version: str) -> bool:
-    """Best effort: the aurora-rs wheel matching this release. Aurora runs the same without it
-    (core/accel.py falls back to pure Python), so a miss is a note, never an error."""
+def install_accel(
+    root: Path,
+    version: str,
+    *,
+    package: str = ACCEL_PACKAGE,
+    missing: str = "using the pure-Python paths (same results)",
+) -> bool:
+    """Best effort: a Rust wheel matching this release (the aurora-rs accelerator, or the linkd
+    daemon). Aurora runs without either, so a miss is a note, never an error."""
     cmd = [uv_bin(), "pip", "install", "--quiet", "--python", str(venv_python(root)), "--only-binary", ":all:"]
     links = (os.environ.get("AURORA_RS_FIND_LINKS") or "").strip()
     if links:
         cmd += ["--find-links", links]
-    cmd.append(f"{ACCEL_PACKAGE}=={version}")
+    cmd.append(f"{package}=={version}")
     ok = subprocess.call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
     if not ok:
-        log(f"no {ACCEL_PACKAGE} {version} wheel for this platform; using the pure-Python paths (same results)")
+        log(f"no {package} {version} wheel for this platform; {missing}")
     return ok

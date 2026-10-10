@@ -44,3 +44,23 @@ def test_parse_invite_never_returns_the_secret():
 def test_verify_record_refuses_junk():
     with pytest.raises(ValueError, match="record"):
         verify_record(json.dumps({"v": 1}))  # pyright: ignore[reportOptionalCall]  # skipped when absent
+
+
+VECTORS = Path(__file__).resolve().parents[1] / "aurora-rs" / "link-vectors"
+
+
+def test_the_wheel_agrees_with_the_record_vectors():
+    cases = json.loads((VECTORS / "records.json").read_text(encoding="utf-8"))["cases"]
+    for case in cases:
+        if case["valid"]:
+            assert verify_record(json.dumps(case["record"])) == case["id"], case["name"]  # pyright: ignore[reportOptionalCall]  # skipped when absent
+        else:
+            with pytest.raises(ValueError, match="refused"):
+                verify_record(json.dumps(case["record"]))  # pyright: ignore[reportOptionalCall]  # skipped when absent
+
+
+def test_the_wheel_agrees_with_the_fingerprint_vectors():
+    v = json.loads((VECTORS / "fingerprints.json").read_text(encoding="utf-8"))
+    assert _fingerprint is not None
+    assert _fingerprint(v["root"]) == v["fingerprint"]
+    assert _fingerprint(v["root"], v["other"]) == v["safety_number"]

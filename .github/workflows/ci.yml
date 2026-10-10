@@ -235,9 +235,9 @@ jobs:
           echo "$out" | grep -q ci_smoke_install
 
   rust:
-    name: Rust (aurora-rs) test, clippy, fmt + parity
+    name: Rust (aurora-rs) test, clippy, fmt, deny, MSRV, fuzz smoke + link end to end
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -246,6 +246,13 @@ jobs:
         with:
           version: "0.12.21"
           enable-cache: true
+      # iroh compiles slowly: cache the target directory between runs.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: "aurora-rs -> target"
+      - uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0  # v2.87.22
+        with:
+          tool: cargo-deny,cargo-audit,cargo-fuzz
       # rustup, cargo, clippy and rustfmt come preinstalled on GitHub's Ubuntu runners.
       - name: cargo test / clippy / fmt
         working-directory: aurora-rs
@@ -253,10 +260,57 @@ jobs:
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings
           cargo test
-      - name: Rust output equals Python output (tests/test_accel_parity.py)
+      - name: Licences, advisories and sources (cargo-deny, cargo-audit)
+        working-directory: aurora-rs
+        run: |
+          cargo deny check
+          cargo audit
+      - name: The link crates build on iroh's MSRV (1.91)
+        working-directory: aurora-rs
+        run: |
+          rustup toolchain install 1.91 --profile minimal
+          cargo +1.91 check -p aurora-link -p aurora-linkd
+      - name: Fuzz smoke (every decoder, 20 s each)
+        working-directory: aurora-rs
+        run: |
+          rustup toolchain install nightly --profile minimal
+          link/fuzz/smoke.sh 20
+      - name: Rust output equals Python output, and fleet links end to end
         run: |
           uv sync --locked
           uvx --from 'maturin>=1.9,<2' maturin build --release -m aurora-rs/py/Cargo.toml --out "$RUNNER_TEMP/whl"
           uv pip install "$RUNNER_TEMP"/whl/*.whl
-          uv run --no-sync pytest -q -p no:randomly tests/test_accel_parity.py
+          cargo build --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          uv run --no-sync pytest -q -p no:randomly tests/test_accel_parity.py tests/test_link_contract.py \
+            tests/test_link_pyo3_surface.py tests/test_link_legacy_import.py tests/test_link_daemon_e2e.py
           uv run --no-sync python aurora-rs/bench.py --lessons 500
+
+  link-os:
+    # The daemon, its named-pipe/socket RPC and ManagedChild restarts on all three OSes (RFC #70
+    # Phase 3). Windows stays non-blocking, like the windows smoke above, until it has a green record.
+    name: Fleet links on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6  # v2.9.2
+        with:
+          workspaces: "aurora-rs -> target"
+      - name: Build aurora-linkd and run the link tests
+        shell: bash
+        run: |
+          uv sync --locked
+          cargo build --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          cargo test --manifest-path aurora-rs/Cargo.toml -p aurora-linkd
+          uv run --no-sync pytest -q -p no:randomly tests/test_link_contract.py tests/test_link_daemon_e2e.py

@@ -1108,6 +1108,10 @@ sequence = [
     { cmd = "python tooling-upgrade/oracle.py compare g0 head" },
 ]
 
+[tool.poe.tasks.rust-gate]
+help = "aurora-rs: fmt, clippy, tests, cargo-deny and a fuzz smoke, when aurora-rs/ changed and cargo exists (scripts/rust_gate.py)"
+cmd = "python scripts/rust_gate.py"
+
 [tool.poe.tasks.gate]
-help = "The local gate: fmt-check, lint-check, types, lock-check, deps, guardrails, test-fast; stops at the first failure"
-sequence = ["fmt-check", "lint-check", "types", "lock-check", "deps", "guardrails", "test-fast"]
+help = "The local gate: fmt-check, lint-check, types, lock-check, deps, guardrails, rust-gate, test-fast; stops at the first failure"
+sequence = ["fmt-check", "lint-check", "types", "lock-check", "deps", "guardrails", "rust-gate", "test-fast"]

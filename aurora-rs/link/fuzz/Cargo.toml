@@ -1,0 +1,52 @@
+# cargo-fuzz targets for every decoder that sees untrusted bytes (RFC #70 addendum, Phase 1).
+# Run: cargo +nightly fuzz run <target> -- -max_total_time=60   (from aurora-rs/link)
+[package]
+name = "aurora-link-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+aurora-link = { path = ".." }
+libfuzzer-sys = "0.4"
+serde_json = "1"
+
+[workspace]
+
+[[bin]]
+name = "record"
+path = "fuzz_targets/record.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "acl_entries"
+path = "fuzz_targets/acl_entries.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "invite"
+path = "fuzz_targets/invite.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cert"
+path = "fuzz_targets/cert.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "frame"
+path = "fuzz_targets/frame.rs"
+test = false
+doc = false
+bench = false

@@ -7,6 +7,7 @@
 # so the Rust path is an accelerator, never a requirement. See aurora-rs/README.md.
 [workspace]
 members = ["text", "py", "link", "linkd"]
+exclude = ["link/fuzz"]  # cargo-fuzz project; built with nightly
 resolver = "2"
 
 [workspace.package]
