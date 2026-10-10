@@ -168,10 +168,18 @@ def test_fixture_fold_end_to_end():
 
 
 def _spy_capture(monkeypatch):
+    """The session_signals events the hook captures. SessionEnd also records the session's
+    provenance (f912a64e) through the same capture_event; that is a different event and is not
+    what these pins count."""
     import core.events.event_log as el
 
     events = []
-    monkeypatch.setattr(el, "capture_event", lambda kind, summary, **kw: events.append((kind, summary, kw)) or None)
+
+    def spy(kind, summary, **kw):
+        if kind == "session_signals":
+            events.append((kind, summary, kw))
+
+    monkeypatch.setattr(el, "capture_event", spy)
     return events
 
 

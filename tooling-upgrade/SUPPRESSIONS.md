@@ -21,13 +21,13 @@
 | agent_cli.py | 12735 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | agent_cli.py | 12760 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
-| ai_setup_mcp.py | 517 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 517 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 517 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
-| ai_setup_mcp.py | 521 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
-| ai_setup_mcp.py | 524 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 997 | `noqa: A002` | public API name (MCP tool parameter) |
-| ai_setup_mcp.py | 1741 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 518 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 518 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 518 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
+| ai_setup_mcp.py | 522 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
+| ai_setup_mcp.py | 525 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 998 | `noqa: A002` | public API name (MCP tool parameter) |
+| ai_setup_mcp.py | 1742 | `noqa: A002` | public API name (MCP tool parameter) |
 | arsenal/analysis.py | 187 | `noqa: BLE001` | deliberately broad: never raise, ever |
 | arsenal/boost.py | 71 | `ty: ignore[unsupported-operator]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |
 | arsenal/boost.py | 71 | `pyright: ignore[reportOperatorIssue]` | LATENT: a degenerate image's empty annulus (None) raises TypeError here |

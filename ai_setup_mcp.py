@@ -210,6 +210,7 @@ _ARG_DEFAULTS = {
     "confidence": None,
     "kind": "note",
     "summary": "",
+    "action": None,  # recall --tree sets it and hands off to cmd_scope
     "source": "",
     # story
     "chronicle": False,
