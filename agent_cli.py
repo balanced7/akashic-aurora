@@ -724,6 +724,16 @@ def cmd_learn(args):
         "session_id": session_id,
         "prov": provenance.pointer(session_id),
     }
+    # Task 02: where this lesson APPLIES. Declared, or proposed from this session's provenance.
+    from core.learning import scope as _scope
+
+    try:
+        declared = _scope.parse(getattr(args, "scope", None)) if getattr(args, "scope", None) else []
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        return 2
+    lesson_scope = declared or _scope.propose(prov)
+    signal["scope"] = _scope.render(lesson_scope)
     related = []
     try:  # near-duplicate scan BEFORE recording (advisory only -- writes are never blocked)
         from core.learning.learning_store import find_related
@@ -791,6 +801,11 @@ def cmd_learn(args):
         )
         for c in clipped:  # RB-5: the door's RESULT carries the clip, never silent
             print(c)
+        if ok and not declared and not _scope.is_universal(lesson_scope):
+            print(
+                f"[scope] {signal['scope']} (proposed from this session). If it holds for every agent, "
+                f"re-record with --scope universal; credit under other harnesses or models widens it."
+            )
     # Slice 2 capture nudge: a failure with no anti_pattern is where a reusable known-bad hides, and
     # this instant (just recorded, context fresh) is the moment to name it. Auto-draft a candidate NAME
     # (removing the naming cost) and hand back the exact one-line tag command. Silent for successes or
@@ -860,6 +875,82 @@ def cmd_tag_anti_pattern(args):
     return 0 if ok else 1
 
 
+def cmd_scope(args):
+    """Lesson applicability (meta-harness task 02). `show`/`set` one lesson's scope, `widen` it
+    once evidence from two harnesses or models supports that, list `proposals`, or print the
+    `tree` of every lesson grouped by scope level. `set` and `widen` touch only the scope field."""
+    from core.learning import scope as _scope
+    from core.learning.learning_store import get_learning_store
+
+    ls = get_learning_store()
+    if args.action == "tree":
+        t = _scope.tree(ls.load_all_learnings_from_store())
+        if args.json:
+            print(json.dumps(t))
+            return 0
+        for lvl, groups in t.items():
+            print(f"{lvl}  ({sum(len(v) for v in groups.values())} lesson(s))")
+            for sc, names in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+                more = f" +{len(names) - 5} more" if len(names) > 5 else ""
+                print(f"  {sc}: {', '.join(names[:5])}{more}")
+        return 0
+    if args.action == "proposals":
+        props = _scope.proposals_now(ls)
+        if args.json:
+            print(json.dumps(props))
+            return 0
+        if not props:
+            print("no widening proposals (a lesson needs credit or repeats under 2+ harnesses or models)")
+        for pr in props:
+            print(f"  {pr['experiment']}: {pr['scope']} -> {pr['proposed']}  evidence: {pr['evidence']}")
+            print(f"    apply: {_cli()} scope widen --experiment {pr['experiment']}")
+        return 0
+    if not args.experiment:
+        print(f"ERROR: --experiment is required for `scope {args.action}`")
+        return 2
+    rec = ls._load_experiment(args.experiment)
+    if not rec:
+        print(f"ERROR: no lesson '{args.experiment}'")
+        return 1
+    current = _scope.of(rec)
+    if args.action == "show":
+        out = {"experiment": args.experiment, "scope": _scope.render(current), "level": _scope.level(current)}
+        print(json.dumps(out) if args.json else f"{args.experiment}: {out['scope']}  (level: {out['level']})")
+        return 0
+    if args.action == "set":
+        try:
+            new = _scope.parse(args.scope)
+        except ValueError as e:
+            print(f"ERROR: {e}")
+            return 2
+        if not new:
+            print("ERROR: --scope is required for `scope set`")
+            return 2
+    else:  # widen
+        prop = next((p for p in _scope.proposals_now(ls) if p["experiment"] == args.experiment), None)
+        kinds = args.kinds.split() if args.kinds else list((prop or {}).get("evidence", {}))
+        if not kinds:
+            print(f"no evidence-backed widening for '{args.experiment}'; pass --kinds to widen anyway")
+            return 1
+        # Verify before promotion: a lesson whose named files or symbols are gone must not
+        # reach more agents. Advisory UNCHECKED (no anchors) passes with its banner shown.
+        from core.recall import anchors
+
+        review = anchors.review(rec)
+        print(review.banner)
+        if any(v.status == "MISSING" for v in review.verdicts) and not args.force:
+            print("refused: a premise anchor is MISSING -- fix or re-record the lesson first (or --force)")
+            return 1
+        new = _scope.widen(current, kinds)
+    ok = ls.set_scope(args.experiment, _scope.render(new))
+    print(
+        json.dumps({"experiment": args.experiment, "scope": _scope.render(new), "ok": ok})
+        if args.json
+        else f"[{'OK' if ok else 'FAIL'}] {args.experiment}: {_scope.render(current)} -> {_scope.render(new)}"
+    )
+    return 0 if ok else 1
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -903,6 +994,9 @@ def cmd_recall(args):
         except Exception:
             pass  # a resolver fault must never break the record it annotates
         return 0
+    if getattr(args, "tree", False):  # task 02: the scope hierarchy, same as `scope tree`
+        args.action, args.experiment = "tree", ""
+        return cmd_scope(args)
     from core.learning.learning_store import get_learning_store
 
     ls = get_learning_store()
@@ -949,6 +1043,9 @@ def cmd_recall(args):
                     f'full corpus; try knowledge_full(source="<source>") if you '
                     f"have the source pointer, or recall without quotes to broaden"
                 )
+    from core.learning import scope as _scope
+
+    _ctx = _scope.current_context()
     for h in hits[:25]:
         rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
         # [graduated] = rule now enforced by automation (see `graduate`); [benched] = curator
@@ -959,6 +1056,10 @@ def cmd_recall(args):
             if str(h.get("graduated") or "").strip()
             else (" [benched]" if str(h.get("benched") or "").strip() else "")
         )
+        # Task 02: plain recall still lists a lesson scoped elsewhere -- searching is not acting --
+        # but says so, because recall-at and boot will not push it to this agent.
+        if _ctx and not _scope.lesson_applies(h, _ctx):
+            flag += f" [scope: {_scope.render(_scope.of(h))} -- not this agent]"
         source = h.get("source") or f"learn:experiment:{h.get('experiment_name', '?')}"
         print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {rec} (source: {source})")
     if len(hits) > 25:
@@ -9248,7 +9349,27 @@ def build_parser():
         help="comma/space-separated paths this lesson is about -- base_score tier "
         "0.7 matches a task's paths against them",
     )
+    learn_p.add_argument(
+        "--scope",
+        default=None,
+        help="where the lesson APPLIES (task 02): universal, harness:<name>, model:<family|id>, "
+        "effort:<level>, os:<name>, tool:<name>@<ver>; several allowed. Default: this "
+        "session's harness and model family (narrow; evidence widens it -- see `scope`)",
+    )
     learn_p.set_defaults(fn=cmd_learn)
+
+    scp = sub.add_parser(
+        "scope", help="lesson applicability (task 02): show, set, widen by evidence, list proposals, tree"
+    )
+    scp.add_argument("action", choices=["show", "set", "widen", "proposals", "tree"])
+    scp.add_argument("--experiment", default="", help="the lesson (show/set/widen)")
+    scp.add_argument("--scope", default="", help="the new scope (set)")
+    scp.add_argument(
+        "--kinds", default="", help="widen: which kinds to drop, e.g. 'harness model' (default: the proposal's)"
+    )
+    scp.add_argument("--force", action="store_true", help="widen even when a premise anchor is MISSING")
+    scp.add_argument("--json", action="store_true")
+    scp.set_defaults(fn=cmd_scope)
 
     wsh = sub.add_parser(
         "wish", help="file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back)"
@@ -9860,6 +9981,7 @@ def build_parser():
 
     r = sub.add_parser("recall", help="search past lessons (no query = list all)")
     r.add_argument("query", nargs="?", default="")
+    r.add_argument("--tree", action="store_true", help="group every lesson by scope level (task 02)")
     r.add_argument("--json", action="store_true")
     r.add_argument(
         "--full",

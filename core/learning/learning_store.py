@@ -610,6 +610,19 @@ class LearningStore:
             self.logger.error("tag_anti_pattern failed for %s: %s", experiment_id, e)
             return False
 
+    def set_scope(self, experiment_id: str, scope: str) -> bool:
+        """Replace ONE lesson's applicability scope (task 02) with a targeted merge-hset, so no
+        other field is touched -- re-recording would rewrite every field. False if unknown."""
+        key = f"learn:experiment:{experiment_id}"
+        if not self.store.exists(key):
+            return False
+        try:
+            self.store.hset(key, mapping={"scope": str(scope)})
+            return True
+        except Exception as e:
+            self.logger.error("set_scope failed for %s: %s", experiment_id, e)
+            return False
+
     def mark_graduated(self, experiment_id: str, enforced_by: str = "", *, undo: bool = False) -> bool:
         """GRADUATE a lesson: its rule is now ENFORCED by automation (a hook / guardrail / CI
         check), so it stops competing for recall surface slots while keeping its full history
@@ -921,7 +934,7 @@ class LearningStore:
         # effort -- recorded this lesson. Written only when known, so a lesson from a door that
         # knows no session reads exactly like the ~1,100 that predate the field: absent means
         # unknown, never a guessed default.
-        for f in ("session_id", "prov"):
+        for f in ("session_id", "prov", "scope"):
             if learning_signal.get(f):
                 experiment_data[f] = _s(learning_signal.get(f))
 
