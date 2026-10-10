@@ -12,14 +12,14 @@
 | agent/initializer.py | 128 | `pyright: ignore[reportAttributeAccessIssue]` | SignalEmitter declares it as None |
 | agent_cli.py | 56 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
 | agent_cli.py | 61 | `noqa: E402` | after sys.path bootstrap and UTF-8 stream setup |
-| agent_cli.py | 1677 | `noqa: F401` | registers on import |
-| agent_cli.py | 2345 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
-| agent_cli.py | 2859 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 2928 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
-| agent_cli.py | 3741 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12492 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12708 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12733 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 1684 | `noqa: F401` | registers on import |
+| agent_cli.py | 2352 | `noqa: PLC0415, RUF100` | lazy, as elsewhere |
+| agent_cli.py | 2866 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 2935 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
+| agent_cli.py | 3748 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| agent_cli.py | 12519 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12735 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12760 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 518 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 518 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
@@ -148,10 +148,13 @@
 | core/metaharness/corpus.py | 202 | `noqa: BLE001` | fail-soft: mining without signals still mines |
 | core/metaharness/memreplay.py | 73 | `noqa: BLE001` | WRONGTYPE on Redis: try the next shape |
 | core/metaharness/memreplay.py | 390 | `noqa: BLE001` | a trigger is a bonus; the lesson write is what matters |
+| core/metaharness/precompile.py | 166 | `noqa: BLE001` | a resolver fault is not a pass |
+| core/metaharness/precompile.py | 412 | `noqa: BLE001` | no counters means no credit |
 | core/metaharness/proposer.py | 129 | `noqa: BLE001` | fail-soft: the brief is still useful without lessons |
-| core/metaharness/review.py | 319 | `noqa: BLE001` | fail-soft: no store means no repeats seen |
-| core/metaharness/review.py | 337 | `noqa: BLE001` | fail-soft: no events means no evidence either way |
-| core/metaharness/review.py | 463 | `noqa: BLE001` | the page still renders without the store |
+| core/metaharness/review.py | 283 | `noqa: BLE001` | the config change has landed; the stamp is bookkeeping |
+| core/metaharness/review.py | 325 | `noqa: BLE001` | fail-soft: no store means no repeats seen |
+| core/metaharness/review.py | 343 | `noqa: BLE001` | fail-soft: no events means no evidence either way |
+| core/metaharness/review.py | 469 | `noqa: BLE001` | the page still renders without the store |
 | core/narrative/tag_governance.py | 93 | `ty: ignore[invalid-argument-type]` | default is returned as-is; None is a valid result here |
 | core/narrative/tag_governance.py | 93 | `pyright: ignore[reportArgumentType]` | default is returned as-is; None is a valid result here |
 | core/primitives/embedder.py | 82 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
@@ -739,6 +742,8 @@
 | tests/test_metaharness_memreplay.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_memreplay.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_memreplay.py | 28 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_precompile.py | 26 | `noqa: E402` | sys.path bootstrap |
+| tests/test_metaharness_precompile.py | 27 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_replay.py | 26 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_review.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_review.py | 27 | `noqa: E402` | sys.path bootstrap |

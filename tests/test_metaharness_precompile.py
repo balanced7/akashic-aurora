@@ -23,8 +23,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.foundation.store import FileStore  # noqa: E402
-from core.metaharness import precompile, replay, review  # noqa: E402
+from core.foundation.store import FileStore  # noqa: E402  # sys.path bootstrap
+from core.metaharness import precompile, replay, review  # noqa: E402  # sys.path bootstrap
 
 OLD = (datetime.now(UTC) - timedelta(days=60)).replace(tzinfo=None).isoformat()
 PROVEN = json.dumps({"effect": 0.4, "ci": [0.1, 0.7], "verdict": "better"})
@@ -198,7 +198,7 @@ def test_apply_stamps_where_each_lesson_now_lives(state, tmp_path, monkeypatch):
     assert where["candidate"] == res["candidate"]
     assert ".agents/skills/ship-release/SKILL.md" in where["harnesses"]["claude-code"]
     assert "compiled_into" not in store.hgetall("learn:experiment:narrow_flake")
-    assert review.HIGH_RISK, "a compiled guard touches settings, so review needs two reviewers"
+    assert review.high_risk([".claude/settings.json"]), "a compiled guard touches settings: two reviewers"
 
 
 def test_unused_pieces_are_demotion_candidates(state):

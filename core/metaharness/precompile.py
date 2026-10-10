@@ -356,7 +356,7 @@ def emit(lessons: list[dict[str, Any]], harness: str, live_root: Path = ROOT) ->
 
 # --------------------------------------------------------------------------- manifest, drift
 def manifest(lessons: list[dict[str, Any]], per_harness: dict[str, dict[str, str]]) -> dict[str, Any]:
-    pieces = []
+    pieces: list[dict[str, Any]] = []
     for h, files in sorted(per_harness.items()):
         for rel, text in sorted(files.items()):
             cites = sorted({x["experiment_name"] for x in lessons if _src(x) in text})
@@ -364,9 +364,10 @@ def manifest(lessons: list[dict[str, Any]], per_harness: dict[str, dict[str, str
                 {"harness": h, "path": rel, "lessons": cites, "hash": _h(text), "block": bool(_BLOCK_RE.search(text))}
             )
     lesson_map: dict[str, dict[str, list[str]]] = {}
-    for p in pieces:
-        for n in p["lessons"]:
-            lesson_map.setdefault(n, {}).setdefault(p["harness"], []).append(p["path"])
+    for h, files in sorted(per_harness.items()):
+        for rel, text in sorted(files.items()):
+            for n in sorted({str(x["experiment_name"]) for x in lessons if _src(x) in text}):
+                lesson_map.setdefault(n, {}).setdefault(h, []).append(rel)
     return {"pieces": pieces, "lessons": lesson_map, "kinds": {x["experiment_name"]: route(x) for x in lessons}}
 
 
