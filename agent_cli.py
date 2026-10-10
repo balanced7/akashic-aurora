@@ -351,7 +351,7 @@ def cmd_boot(args):
 
         _warm_n = warm_cache()
         prune_state()
-        print(_recall_armed_line(_warm_n))
+        print(_recall_armed_line(_warm_n, _recall_hook_registered()))
     except Exception:
         print(_recall_armed_line(None))
     # T258: a resident boots knowing WHO IT IS and WHY. Front-loaded deliberately -- kimi's
@@ -2028,13 +2028,36 @@ def _directive_done_tasks(focus_text: str) -> list:
         return []
 
 
-def _recall_armed_line(warm_n) -> str:
+def _recall_hook_registered():
+    """Is the recall-at PreToolUse hook (claude_pretooluse.py) registered in any Claude Code
+    settings file that fires for this checkout? True / False, or None when the settings could
+    not be read -- unknown is never reported as either answer."""
+    try:
+        from agent.harness.install import status
+
+        rows = [r for r in status() if r["harness"] == "claude"]
+    except Exception:
+        return None
+    if any(r["error"] for r in rows):
+        return None
+    want = "PreToolUse:claude_pretooluse.py"
+    return any(want in r["installed"] or want in r["stale"] for r in rows)
+
+
+def _recall_armed_line(warm_n, hooked=None) -> str:
     """W09: the one-line proof recall-at is live. warm_n = lesson count (None = warm
-    failed). A fresh seat reads this so LATER silence is calibrated, not suspect."""
+    failed). A fresh seat reads this so LATER silence is calibrated, not suspect.
+    hooked = _recall_hook_registered(): a warm cache with NO hook is not armed -- saying
+    "armed" there taught readers to trust a silence that could not be broken (issue #55)."""
     if warm_n is None:
         return (
             "# recall-at: could not warm the lesson cache (surface may be cold this "
             "session -- hints may not fire; investigate core.recall.at_action)"
+        )
+    if hooked is False:
+        return (
+            f"# recall-at: cache warm ({warm_n} lesson(s)) but the hook is NOT installed -- edits "
+            f"get no hints, so silence means nothing. Turn it on: {_pyl()} agent_cli.py hooks install"
         )
     return (
         f"# recall-at: armed ({warm_n} lesson(s) warm) -- listening at every edit; "
