@@ -212,7 +212,8 @@ jobs:
           export PATH="$bin:$PATH"
           set -x
           aurora self version
-          aurora discover | head -5
+          aurora discover > "$RUNNER_TEMP/discover.txt"   # not a pipe: Windows Python dies on a closed pipe (exit 120)
+          head -5 "$RUNNER_TEMP/discover.txt"
           aurora status
           aurora learn smoke --experiment ci_smoke_install --tried "installed aurora with the install script" --result "every command answered" --recommend "keep the install smoke test green on every OS"
           aurora recall ci_smoke_install | grep -q ci_smoke_install
