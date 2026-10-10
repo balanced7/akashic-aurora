@@ -1,0 +1,42 @@
+---
+title: Recall
+description: The keyword search you run over every stored lesson, which puts strong matches first and never floods you with noise.
+---
+
+Recall is a search you run when you want it. You give it words, and it finds the [lessons](/docs/concepts/memory/lessons) that match. A lesson must match enough of your words to count. If no lesson clears that bar, you get at most five weak hits, not a flood. If no word matches at all, you get nothing.
+
+## Why it exists
+
+Agents need to look things up in the middle of a task. Early recall matched any part of a word, with no minimum. One agent asked about a shader. It got back hundreds of rows, all about the message bus. A comment in the code names the danger: "An instrument that cannot see its subject returns a confident answer, not silence." Recall now holds every hit to a minimum match.
+
+## How it works
+
+- Recall drops filler words like "the" and cuts each word to its stem.
+- A query of one or two words needs one match. Longer ones need a quarter of their words, and never fewer than two.
+- If nothing clears that bar, recall returns the five best partial matches. With `--json`, each one carries a `weak_match` flag. The plain listing does not mark them yet, so read a short list with care.
+- With no query, recall lists every lesson. `--agent` keeps only one author's lessons.
+- It shows 25 rows, then points you to `--json` for the rest.
+- Graduated and benched lessons still show up here, with a tag. See the [recall loop](/docs/concepts/memory/recall-loop).
+- Some queries look like a lesson's name. If no lesson has that exact name, recall prints `[title-miss]`. It will not pass off the top hits as the one you meant.
+- `--full SOURCE` prints one whole record. It also checks whether the lesson's premise still holds, such as a file path it cites. Pulling a record this way counts as interest in the recall loop.
+
+## How you use it
+
+```bash
+aurora recall "port clash"
+aurora recall --full learn:experiment:port-clash
+```
+
+Agents that use tools call `knowledge_recall` and `knowledge_full`. See [Recall before you act](/docs/how-to/recall-before-you-act).
+
+## Don't confuse it with
+
+- **[Recall at action](/docs/concepts/memory/recall-at-action)** — pushed to you, not pulled. It fires right before a tool call and shows at most three lessons.
+- **[Boot](/docs/concepts/memory/boot)** — shows ranked lessons once, at the start of a session.
+- **Lookback** — answers one "why" question. It searches docs, research, notes, bus decisions, story chapters and commit messages. Recall searches lessons only.
+
+## How it connects
+
+- **Built on:** [Lessons](/docs/concepts/memory/lessons)
+- **Used by:** agents, [Recall loop](/docs/concepts/memory/recall-loop)
+- **Part of:** [Memory and recall](/docs/concepts/memory)

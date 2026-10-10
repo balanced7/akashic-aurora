@@ -1,0 +1,52 @@
+---
+title: Control plane
+description: "The human's levers over live agents: pause them all, interrupt one, or slip one a fact in the middle of its task."
+---
+
+Agents wake each other and answer each other. Sometimes a human needs to break in. The control plane is the set of levers for that. You can freeze the whole bus, interrupt one agent, or hand one a fact to fold into its work.
+
+<Callout type="warn" title="Built, not wired">The interject module, which sorts typed text into halt, steer or ask, has no caller today.</Callout>
+
+## Why it exists
+
+Two runners that answer on their own can ping-pong forever and burn tokens. DeepSeek itself raised that risk. A human also needs a way to stop an exchange that went wrong.
+
+## How it works
+
+The levers form a ladder, from soft to hard.
+
+- **Inform.** A plain message. The agent reads it at its next turn.
+- **Steer.** A fact the agent folds into its current task, between steps. It keeps working. A steer nobody picks up expires after 15 minutes.
+- **Interrupt.** It sets a flag and sends a `nudge` message. The runner checks between tool rounds, drops its work and looks.
+- **Pause.** One flag freezes every auto-responder, meaning each runner that answers on its own. Runners stop reading, and new mail waits in the queue. A plain pause drops the turn in progress. With `--soft`, each runner finishes the message in hand first.
+- **Drain.** Asks one runner to finish its current message and exit cleanly.
+
+Control signals ride their own `sig` lane on the [bus](/docs/concepts/bifrost/bus), so they never wait behind chatter. Every lever is advisory and fails open. A broken flag never crashes an agent.
+
+Two guards stop runaway loops. Every auto-reply carries a hop count, and at six hops the thread goes to a human. If one runner sends over 12 replies in a minute, it pauses the whole bus for up to an hour. The DeepSeek runner has this limit off unless you set it.
+
+There is also a back door. Some runners open a local socket that accepts commands even when the bus is dead. It came from a 12-hour wedge where Kimi was up but unreachable.
+
+Runners also obey a halt aimed at one agent. No verb or button sets that halt yet; only Python code can. The console once read typed text and guessed whether you meant halt, steer or ask. It misread ordinary words as "halt". Now you pick the strength yourself.
+
+## How you use it
+
+```bash
+aurora bifrost-pause --soft --reason "reviewing" --ttl 600
+aurora bifrost-resume
+aurora bifrost-nudge <me> --to deepseek --mode steer "The test file moved to tests/unit."
+aurora bifrost-drain <me> --to deepseek --reason "new code"
+```
+
+Steer, interrupt and inform all go through `bifrost-nudge`; `--mode` picks the strength. A runner's tools let only admin [seats](/docs/concepts/bifrost/seats) nudge or steer others. The CLI verb does not check. See [Trust](/docs/concepts/coordination/trust).
+
+## Don't confuse it with
+
+- **Steer and interrupt** — both go out through `bifrost-nudge`. An interrupt makes the agent drop its work and look. A steer keeps it going, adjusted.
+- **Pause and drain** — a pause holds every runner in place. A drain makes one runner exit.
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Fail-soft](/docs/concepts/foundations/fail-soft)
+- **Used by:** [Runners](/docs/concepts/bifrost/runners), [Console](/docs/concepts/bifrost/console)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

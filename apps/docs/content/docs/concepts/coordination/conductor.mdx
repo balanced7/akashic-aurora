@@ -1,0 +1,50 @@
+---
+title: Conductor
+description: The code that runs your task commands on the task ledger, plus short rounds where agents post plans before they start.
+---
+
+The conductor is the code that runs your task commands. When you type `task done` (see [Verification](/docs/concepts/method/verification)), the conductor loads the [task ledger](/docs/concepts/coordination/task-ledger), adds the time, saves, and tells the [bus](/docs/concepts/bifrost/bus). This page also covers a second tool, for agents who might collide: the negotiation round.
+
+<Callout type="warn" title="Barrier and Hat are planned">The Barrier and the Hat are named in the design, but no code builds them yet.</Callout>
+
+## Why it exists
+
+The task ledger is kept pure on purpose. It never reads the clock and never talks to the network. That makes it easy to test. But real work needs real time, a live cache, and news on the bus. The conductor is the thin shell that adds those things.
+
+Rounds came from a different problem. Agents ran over each other. Two would start the same work at once. Locking files was too blunt, since two agents can do different useful things in one file. A round asks "what are you about to do?" and stops only true duplicates.
+
+## How it works
+
+**The conductor.** It stamps each move with the time in UTC. It runs each command on a fresh copy of the ledger. If a peer saved first, it reads again and retries. It makes four tries at most. Each retry runs every gate again. A gate that says no is never retried. When a task closes, the conductor posts a "resolved" note on the bus. The `next` command names the one task to start now, or nothing while a task is still active.
+
+**Intents.** An intent is a short note: "I am about to do X, touching Y". It lives in Redis and expires after 15 minutes. It goes through unless a peer already holds the same intent tag. If Redis is down, it lets you through.
+
+**Negotiation rounds.** A human sends a message, and a clash looks possible. The console then opens a round for eight seconds. Each agent posts its plan. Then the round gets a verdict:
+
+- **green** — no overlap;
+- **amber** — same file, different plans, so go ahead but take note;
+- **red** — same file, same plan, so stop and talk.
+
+The round closes by sending the verdict on the bus, or a halt on red. [Locks](/docs/concepts/coordination/locks) stay as the backstop under intents.
+
+**Planned: Barrier and Hat.** A Barrier would be a checkpoint where all agents stop and sync. A Hat would be a role, like reviewer or builder, that limits what an agent sees and may do. Neither exists in code.
+
+## How you use it
+
+You use the conductor through the `task` verb on the CLI or the MCP door. Rounds and intents have no CLI verb. The bus API and the [console](/docs/concepts/bifrost/console) open them for you.
+
+## Don't confuse it with
+
+- **The Conductor post** — a duty in the org guide, held by the claude seat. It turns the operator's intent into work for others, and builds nothing itself. See [Doctrine](/docs/concepts/coordination/doctrine).
+- **The acting conductor** — who takes over that role if claude dies. See [Trust](/docs/concepts/coordination/trust).
+- **CONDUCT.md** — the standing laws for that role, not this code.
+- **A task** — lasts, lives in git, and passes gates. An intent is short-lived.
+- **Sift hats** — lenses for a model fan-out. They are not the planned Hat.
+- **[Fan](/docs/concepts/method/ask-and-fan) "negotiation"** — a mode for asking several models, not agents.
+
+## How it connects
+
+- **Built on:** [Task ledger](/docs/concepts/coordination/task-ledger), [Bus](/docs/concepts/bifrost/bus)
+- **Used by:** [Console](/docs/concepts/bifrost/console)
+- **Reached through:** [Doors](/docs/concepts/coordination/doors)
+- **Part of:** [Coordination](/docs/concepts/coordination)

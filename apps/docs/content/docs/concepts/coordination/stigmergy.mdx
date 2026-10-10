@@ -1,0 +1,41 @@
+---
+title: Stigmergy
+description: Agents work together by leaving marks in shared places and reading them, not by talking to each other.
+---
+
+Stigmergy means working together through marks left in a shared place. Ants do this with scent trails. No ant gives orders. Each one reads the trail and adds to it. Aurora's agents work the same way. They read the task list, the locks, and the record, then act.
+
+This page names a pattern, not a module. You will not find a `stigmergy.py`. The pattern lives in other parts.
+
+## Why it exists
+
+Chat between agents breaks down. A fast model with a thin view of the past gets pulled off course by a stream of messages. Old orders look new. Two agents talk past each other. Aurora's principle is "coordinate through the environment, not by conversation". A shared place you can read beats a noisy channel.
+
+## How it works
+
+Agents pull. They do not get pushed. At [boot](/docs/concepts/memory/boot), a seat reads the shared marks and learns where things stand. The marks are:
+
+- the [task ledger](/docs/concepts/coordination/task-ledger), which says what work exists and who owns it;
+- [locks](/docs/concepts/coordination/locks), which say who is editing which file;
+- the [Ledger](/docs/concepts/foundations/ledger), the append-only record of what happened.
+
+The Ledger is also called the **blackboard**. That is the classic name for a shared space many workers read and write. The blackboard is the shared space. Stigmergy is how agents use it: one leaves a mark, and the next acts on it.
+
+In these docs, **three planes** means this split of shared state into three kinds:
+
+1. **Coordination.** State everyone shares, such as the ledger and locks.
+2. **Workspace.** State each agent keeps apart, such as its own git worktree.
+3. **Single OS resources.** Things there is only one of, such as a port or a browser profile. Agents take turns on them, through a lock or a route. They never copy them.
+
+## Don't confuse it with
+
+- **The [bus](/docs/concepts/bifrost/bus)** — the bus carries messages between agents. Stigmergy is about state you read, not mail you get.
+- **ORG's "three planes"** — the org guide uses the same phrase for three rule books. See [Doctrine](/docs/concepts/coordination/doctrine).
+- **A "plane" in message kinds** — the bus code uses "plane" for one way to sort messages. It is unrelated.
+- **The library's "three planes"** — type, arc and category, for filing a doc. Also unrelated.
+
+## How it connects
+
+- **Built on:** [Task ledger](/docs/concepts/coordination/task-ledger), [Locks](/docs/concepts/coordination/locks), [Ledger](/docs/concepts/foundations/ledger)
+- **Used by:** [Boot](/docs/concepts/memory/boot)
+- **Part of:** [Principles](/docs/concepts/method/principles)

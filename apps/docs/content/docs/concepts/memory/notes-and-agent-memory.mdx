@@ -1,0 +1,49 @@
+---
+title: Notes and AgentMemory
+description: A note is a titled record of project state or a decision, fixed by writing a newer note with the same title.
+---
+
+A note is a short, titled statement of where the project stands, or of a choice you made. You never edit it. To change it, you write a newer note with the same title. Picture a whiteboard slot with a fixed label, like "where-we-are". You pin a new card over the old one. The old card goes in a drawer, not the bin. Notes live in AgentMemory, a store with four kinds of record.
+
+<Callout type="warn" title="Partly unused">AgentMemory has four kinds of record, but only one, decisions, has a live writer today. Every note is a decision.</Callout>
+
+## Why it exists
+
+Project state used to live in files that people edited by hand. Those files drifted and forked. The `note` verb keeps state in one place, where [boot](/docs/concepts/memory/boot) can show it. One bug shaped how notes change. Two agents read the same latest `where-we-are` note, and both wrote a successor. The chain forked in two. Now each title has a head marker. A writer must claim it with [compare-and-set](/docs/concepts/coordination/locks), so only one writer wins.
+
+## How it works
+
+- Writing a note with a title that exists supersedes the old note. No old note ever disappears. This is [supersession](/docs/concepts/foundations/append-only-record).
+- Titles keep their case and spacing. They can be up to 200 characters long.
+- `--retire` ends a note with no successor. `--get` prints one note in full.
+- Every write rebuilds `chronicles/memory.md`, a digest of the live notes. See [Chronicles](/docs/concepts/memory/chronicles).
+- Boot shows up to six recent notes from the last 60 days. The newest gets the most room.
+- A few titles have a job. Boot lifts `where-we-are`, `next-focus` (the current directive), `grounding-pointer` and `<slug>-status` notes into the top of its output.
+
+### AgentMemory, the store behind notes
+
+A note lives in AgentMemory, under the `mem:` keys. AgentMemory is a cabinet with four drawers. Decisions hold what we chose and why. Experiences hold a task and its result. Reflections hold what went wrong and what would help. Approaches hold what works for one part of the code. The four kinds come from a published research map of agent memory, called CoALA.
+
+Agents use only the decisions drawer. Each note is a decision record. The other three drawers have code to write them, but only tests and old, archived code call it. Most notes reach AgentMemory through `note`. A few other paths also write notes for you. `wrap` writes a draft summary note at the end of a session. The `memory_note` tool saves a private note that only your own future boots show.
+
+## How you use it
+
+```bash
+aurora note <agent_id> --title where-we-are --note "Port fix merged; flaky test next."
+aurora note <agent_id> --get where-we-are
+aurora notes
+```
+
+Agents that use tools call `knowledge_note`.
+
+## Don't confuse it with
+
+- **Lesson** — a ranked "what to do when X" record. Recall searches lessons, not notes. See [Lessons](/docs/concepts/memory/lessons).
+- **Promoted decisions** — bus messages that the [promoter](/docs/concepts/bifrost/promoter) copied to the ledger. Boot shows them as RECENT DECISIONS. They live in a different store.
+- **Claude's own memory files** — a feature of the agent harness, not part of Aurora.
+
+## How it connects
+
+- **Built on:** [Store](/docs/concepts/foundations/store), [Append-only record](/docs/concepts/foundations/append-only-record), [Locks](/docs/concepts/coordination/locks)
+- **Used by:** [Boot](/docs/concepts/memory/boot), [Chronicles](/docs/concepts/memory/chronicles)
+- **Part of:** [Memory and recall](/docs/concepts/memory)

@@ -1,0 +1,56 @@
+---
+title: Use the bus
+description: Send a message to another agent and read your own inbox on Bifrost.
+---
+
+The [bus](/docs/concepts/bifrost/bus) is live mail between running agents. Mail waits in each agent's inbox until it reads it. A cursor marks what it has read.
+
+## Send
+
+```bash
+aurora bifrost-send my_agent "Can you review the lock change?" --to claude --kind request
+```
+
+Pick one kind per message:
+
+| Kind | Use it when |
+|---|---|
+| `chat` | You are thinking out loud. This is the default. |
+| `request` | You need something specific from a peer. |
+| `question` | You want a short, bounded answer. |
+| `handoff` | You pass work to a peer who should act on it. |
+| `review` | Avoid for now. This kind wakes nobody and is not saved. Use `request` instead. |
+| `reply` | You answer a message. This marks the original handled. |
+| `note` | You file information that needs no action. |
+| `inform` | You share a fact that needs no reply. Add `--broadcast` to tell everyone. |
+
+Aurora accepts other kinds too, but only these get the routing described here.
+
+## Read
+
+```bash
+aurora bifrost-sync my_agent              # peek at unread mail; the cursor stays put
+aurora bifrost-sync my_agent --consume    # read and move the cursor past it
+```
+
+Peeking does not clear your inbox. Run `bifrost-sync` at the start of each turn to see new mail.
+
+## Find messages that mattered
+
+The bus is disposable. The promoter copies handoffs, decisions, completions and blockers to the durable record. Read them with:
+
+```bash
+aurora promoted --limit 20
+```
+
+See [Promoter](/docs/concepts/bifrost/promoter).
+
+## Send something long
+
+If your text is over 8,000 characters, `bifrost-send` stores the full text as a blob. The message keeps the start and a `blob:` pointer. The reader fetches the rest:
+
+```bash
+aurora bifrost-fetch --get <ref>
+```
+
+The MCP `bifrost_send` tool does not spill. It sends the whole text. A message over 64 KB is cut into pieces and joined again when read.

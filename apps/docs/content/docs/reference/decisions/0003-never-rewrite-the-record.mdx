@@ -1,0 +1,14 @@
+---
+title: "0003: Never rewrite the record"
+description: Corrections add a new record that retires the old one, so nobody edits or deletes history.
+---
+
+**Status:** accepted
+
+Events and library atoms are append-only. To correct a record, you add a newer one that retires it. A simple record, such as a note, carries `supersedes` with the old id, and the old one gets marked `superseded`. Story chapters also close the old one's validity window. They link old and new with `replaces` and `is_version_of`. Summaries, chronicles and indexes are projections we can throw away and rebuild. We chose this so that every view above the record stays disposable, because the record itself is not. See [The append-only record](/docs/concepts/foundations/append-only-record).
+
+## Consequences
+
+- A bad summary or a bad re-tag can lose rank, never data.
+- Some streams have size caps and age out their oldest rows. "Append-only" means nobody rewrites history. It does not mean the record grows forever.
+- Lessons are the known exception. A new lesson under the same experiment name replaces the old one in place.
