@@ -421,7 +421,7 @@ fn self_monitoring_flags_a_device_we_never_certified() {
         .link
         .as_mut()
         .unwrap()
-        .self_monitor(a.dev.root_hex(), &certified, T0)
+        .self_monitor("", a.dev.root_hex(), &certified, T0)
         .unwrap();
     assert_eq!(rogue, vec![a.id()]);
     assert_eq!(
@@ -446,4 +446,51 @@ fn the_store_survives_a_reopen() {
     let back = Link::open(&path).unwrap();
     assert_eq!(back.heads().unwrap()[&a.id()], 1);
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_second_machine_trusts_the_devices_that_added_it_but_not_later_ones() {
+    let root = root_from_phrase(&new_phrase()).unwrap();
+    let first = Device::create(&root, "first", false, T0 - 10).unwrap();
+    let second = Device::create(&root, "second", false, T0 - 10).unwrap();
+    let rogue = Device::create(&root, "rogue", false, T0 - 10).unwrap();
+    let mut link = Link::create(None, &first, "p", "us", Policy::default(), T0).unwrap();
+    let add = |link: &mut Link, by: &Device, d: &Device, t: u64| {
+        let s = link.state().clone();
+        let mut tmp = s.clone();
+        tmp.devices.insert(
+            d.id_hex(),
+            acl::DeviceState {
+                cert: d.cert.clone(),
+                member: d.root_hex().into(),
+                cut: None,
+            },
+        );
+        let wraps = tmp
+            .make_wraps(&link.read_key(by, s.epoch).unwrap().0, s.epoch, &[d.id_hex()].into())
+            .unwrap();
+        link.append(
+            by,
+            Op::AddDevice(acl::AddDevice {
+                cert: d.cert.clone(),
+                wraps,
+            }),
+            t,
+        )
+        .unwrap();
+    };
+    add(&mut link, &first, &second, T0 + 1);
+    // The second machine certified only itself, yet the first device raises no alarm there.
+    let mine: BTreeSet<String> = [second.id_hex()].into();
+    assert!(
+        link.self_monitor(&second.id_hex(), second.root_hex(), &mine, T0 + 2)
+            .unwrap()
+            .is_empty()
+    );
+    // A device added under our root afterwards, which neither machine certified, does.
+    add(&mut link, &first, &rogue, T0 + 3);
+    let flagged = link
+        .self_monitor(&second.id_hex(), second.root_hex(), &mine, T0 + 4)
+        .unwrap();
+    assert_eq!(flagged, vec![rogue.id_hex()]);
 }

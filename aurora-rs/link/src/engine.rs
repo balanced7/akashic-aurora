@@ -334,12 +334,17 @@ impl Link {
 
     /// Self-monitoring: every device the log lists under our own root must be one we certified.
     /// Returns the unknown ones (and raises an alarm for each).
-    pub fn self_monitor(&self, my_root: &str, certified: &BTreeSet<String>, now: u64) -> Result<Vec<String>> {
+    ///
+    /// A device also vouches for the devices of its own fleet that were already in the log when it
+    /// was added (one of them added it), so a fleet's second machine does not raise an alarm
+    /// about its first. Anything added under our root later must be one we certified ourselves.
+    pub fn self_monitor(&self, me: &str, my_root: &str, certified: &BTreeSet<String>, now: u64) -> Result<Vec<String>> {
+        let vouched = self.devices_before(me, my_root);
         let rogue: Vec<String> = self
             .state()
             .devices
             .iter()
-            .filter(|(d, s)| s.member == my_root && s.cut.is_none() && !certified.contains(*d))
+            .filter(|(d, s)| s.member == my_root && s.cut.is_none() && !certified.contains(*d) && !vouched.contains(*d))
             .map(|(d, _)| d.clone())
             .collect();
         for d in &rogue {
@@ -351,6 +356,34 @@ impl Link {
             )?;
         }
         Ok(rogue)
+    }
+
+    /// Devices under `root` that applied entries introduced up to (and with) the one adding `me`.
+    fn devices_before(&self, me: &str, root: &str) -> BTreeSet<String> {
+        let applied: BTreeSet<&String> = self.state().applied.iter().collect();
+        let mut seen = BTreeSet::new();
+        for (hash, e) in self.acl.ordered() {
+            if !applied.contains(hash) {
+                continue;
+            }
+            let added: Vec<String> = match e.parsed() {
+                Ok(Op::Genesis(g)) => g
+                    .devices
+                    .iter()
+                    .filter(|c| c.root == root)
+                    .map(|c| c.device.clone())
+                    .collect(),
+                Ok(Op::Join(j)) if j.root == root => j.devices.iter().map(|c| c.device.clone()).collect(),
+                Ok(Op::AddDevice(a)) if a.cert.root == root => vec![a.cert.device.clone()],
+                _ => vec![],
+            };
+            let found = added.iter().any(|d| d == me);
+            seen.extend(added);
+            if found {
+                return seen;
+            }
+        }
+        BTreeSet::new()
     }
 
     // -------------------------------------------------------------------------------- records

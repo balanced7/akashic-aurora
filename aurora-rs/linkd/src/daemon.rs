@@ -231,7 +231,7 @@ impl Daemon {
         let device = self.device()?;
         let t = now();
         link.upkeep(&device, t)?;
-        link.self_monitor(device.root_hex(), &self.certified(), t)?;
+        link.self_monitor(&device.id_hex(), device.root_hex(), &self.certified(), t)?;
         let fresh = link.acl.missing_for(before);
         if !fresh.is_empty() {
             self.push(link.id(), Push::Acl(fresh));
