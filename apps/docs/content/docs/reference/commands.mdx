@@ -18,12 +18,19 @@ To list every verb with its purpose, run `aurora discover`. The full, generated 
 | Command | What it does |
 |---|---|
 | `boot <id> --task "..."` | Prints your startup context: top lessons, blockers, handoffs and mail. |
-| `learn <id> --experiment NAME ...` | Records a lesson. The same name updates it. |
-| `note <id> --title ... --note ...` | Records a durable project note. |
+| `delta <id>` | Shows what changed since your last look. `--ack` moves your mark. |
+| `learn <id> --experiment NAME ...` | Records a lesson. The same name overwrites it, so resend every field. Also `--success`, `--category`, `--files-affected`, `--root-cause`, `--repeat-of`. |
+| `graduate <id> --experiment NAME --enforced-by CHECK` | Retires a lesson whose rule a check now enforces. `--undo` brings it back. |
+| `note <id> --title ... --note ...` | Records a durable project note. The same title supersedes the old note. |
+| `notes` | Lists live notes. `--all` adds superseded and retired ones; `--project` rebuilds `chronicles/memory.md`. |
+| `wrap` | Drafts an end-of-session `where-we-are` note. `--commit` saves it; `--focus` sets the current directive. |
 | `recall [query]` | Searches lessons. With no query, it lists them all. |
-| `recall-at --path FILE` | Shows the few lessons and locks that matter before you act. |
+| `recall-at --path FILE` | Shows the few lessons and locks that matter before you act. A manual run earns no credit. |
 | `recall-feedback --source SRC --useful` | Marks a lesson as useful, or as noise with `--noise`. |
+| `recall-curate` | Reports which lessons to bench or unbench. `--apply` does it. |
 | `status` | Shows whether the store is up and how much it holds. |
+
+Tuning knobs for these commands are on [Memory settings](/docs/reference/memory-settings).
 
 ## Bifrost
 
@@ -55,7 +62,10 @@ To list every verb with its purpose, run `aurora discover`. The full, generated 
 | `ask "..."` | Asks a helper model one question. Add lenses to fan out. |
 | `fence open ID --question "..."` | Opens a fence workspace for a reviewed design. |
 | `web fetch URL` | Fetches a page through the house web door. |
-| `manual search WORDS` | Searches the reference manuals shelf. |
+| `manual search WORDS` | Searches the [manuals shelf](/docs/concepts/tools/manuals-shelf). |
+| `discover [WORDS]` | Lists commands that match. `--semantic` asks a model whether a feature exists. |
+| `lookback QUESTION` | Answers one "why" question from docs, research, notes, promoted messages, story chapters and commits. |
+| `knowledge-map TOPIC` | Walks the lessons, notes and documents linked to a topic. |
 | `sha SHA` | Follows an old commit id across history rewrites. |
 
 Most commands take `--json`, so scripts can parse the output.

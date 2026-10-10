@@ -86,7 +86,7 @@ The address of one stored item, such as `learn:experiment:NAME`, used to cite it
 A titled record of project state or a decision, updated by writing a newer note with the same title. [Read more](/docs/concepts/memory/notes-and-agent-memory)
 _Avoid_: decision
 
-**Agent memory**:
+**AgentMemory**:
 The store behind notes, built for four kinds of record, of which only decisions are written today. [Read more](/docs/concepts/memory/notes-and-agent-memory)
 
 **Boot**:
@@ -103,7 +103,7 @@ A stated reason work cannot go on, shown to the next agent at boot. [Read more](
 The keyword search over all stored lessons, which puts strong matches first and shows a few weak ones when nothing fits well. [Read more](/docs/concepts/memory/recall)
 
 **Recall at action**:
-The few lessons shown to an agent right before it edits a file or runs a command, or none if nothing fits. [Read more](/docs/concepts/memory/recall-at-action)
+The few lessons pushed to an agent right before it edits a file or runs a command, once its hook is turned on for the project. [Read more](/docs/concepts/memory/recall-at-action)
 _Avoid_: recall hook
 
 **Hook**:
@@ -116,7 +116,7 @@ The cycle that counts when a lesson shows up and when it helps, then lifts prove
 One time a lesson was shown to an agent. [Read more](/docs/concepts/memory/recall-loop)
 
 **Flip credit**:
-The credit a lesson earns when an action fails, the lesson shows up, and the next try succeeds. [Read more](/docs/concepts/memory/recall-loop)
+The credit each lesson shown for a target earns when that exact command or path later fails and then succeeds in the same session. [Read more](/docs/concepts/memory/recall-loop)
 _Avoid_: outcome credit
 
 **Funnel**:
@@ -124,7 +124,7 @@ The read-only report that follows lessons from shown, to helped, to flips, to ne
 _Avoid_: value score
 
 **Curator**:
-The job, run by hand, that benches lessons shown often but never helpful. [Read more](/docs/concepts/memory/recall-loop)
+The job, run by hand with `recall-curate --apply`, that benches lessons shown often without credit and lifts the bench once they earn some. [Read more](/docs/concepts/memory/recall-loop)
 
 **Graduated lesson**:
 A lesson retired from boot and recall at action because automation now enforces its rule. [Read more](/docs/concepts/memory/lessons)
@@ -133,10 +133,10 @@ A lesson retired from boot and recall at action because automation now enforces 
 The multiplier that raises lessons that helped and lowers ones that never did. [Read more](/docs/concepts/memory/recall-loop)
 
 **Recall floor**:
-The minimum relevance a lesson needs before recall at action shows it. [Read more](/docs/concepts/memory/recall-at-action)
+The relevance a lesson must beat, 0.20 by default, before recall at action shows it. [Read more](/docs/concepts/memory/recall-at-action)
 
 **Bench**:
-The shelf for idle lessons, which keeps them out of recall at action until they earn their way back. [Read more](/docs/concepts/memory/recall-loop)
+The holding place for idle lessons, which keeps them out of recall at action, apart from a rare trial, until they earn credit. [Read more](/docs/concepts/memory/recall-loop)
 _Avoid_: delete, prune
 
 **Ranker**:
@@ -146,25 +146,55 @@ The formula that scores items by relevance, importance, recency and link type, a
 The packer that fits the best items into a token budget, keeping a pointer to each source. [Read more](/docs/concepts/memory/ranker-and-distiller)
 
 **Faithfulness critic**:
-A rule-based check that fails a summary line whose source pointer is missing or whose numbers its source lacks. [Read more](/docs/concepts/memory/ranker-and-distiller)
+A rule-based check that fails a line whose source pointer is missing or leads nowhere, or whose numbers its source lacks. [Read more](/docs/concepts/memory/ranker-and-distiller)
 
 **Chronicle**:
-A digest file a program writes from the stores, which you read but never edit by hand. [Read more](/docs/concepts/memory/chronicles)
+A digest file a program writes from the stored records, which you read but never edit by hand. [Read more](/docs/concepts/memory/chronicles)
 
 **Library**:
 The home for the project's own documents, each kept as a versioned record that the markdown is printed from. [Read more](/docs/concepts/memory/library)
 
 **Codex**:
-A planned knowledge layer that tidies itself, built in part and then set aside. [Read more](/docs/concepts/memory/library)
-
-**Manuals shelf**:
-A search store of outside reference manuals, cut into small labeled passages. [Read more](/docs/concepts/memory/manuals-shelf)
-
-**Discover**:
-The command that lists every verb and its purpose, so you can check if a feature exists before you build it. [Read more](/docs/concepts/memory/discover-and-embeddings)
+A planned knowledge layer that tidies itself, built in part and then set aside; not Codex, the OpenAI agent. [Read more](/docs/concepts/memory/library)
 
 **Embeddings**:
-An optional model, off by default, that matches text by meaning instead of by shared words. [Read more](/docs/concepts/memory/discover-and-embeddings)
+Lists of numbers a small optional model makes from text, so that similar meanings land close together; off by default. [Read more](/docs/concepts/memory/ranker-and-distiller)
+
+**Engaged**:
+A pull of a lesson's full record with `recall --full`, which counts as credit but does not raise its rank. [Read more](/docs/concepts/memory/recall-loop)
+
+**Bench probe**:
+A trial showing for a lesson benched 14 days or more, at most three at a time. [Read more](/docs/concepts/memory/recall-loop)
+
+**Anti-repeat**:
+The rule that recall at action shows a lesson only once per session. [Read more](/docs/concepts/memory/recall-at-action)
+
+**Self-echo**:
+The rule that hides lessons written under your own agent id in the last two hours from recall at action. [Read more](/docs/concepts/memory/recall-at-action)
+
+**Weak match**:
+One of up to five partial hits that recall returns when no lesson matches enough of your words. [Read more](/docs/concepts/memory/recall)
+
+**Title-miss**:
+Recall's warning that a query shaped like a lesson name matched no lesson of that exact name. [Read more](/docs/concepts/memory/recall)
+
+**Primer**:
+The short briefing a session-start hook can give Claude Code; inside any Claude Code session, boot assumes it ran and skips what it covers. [Read more](/docs/concepts/memory/boot)
+
+**Delta**:
+What changed since an agent last looked, printed by the `delta` command and at the end of a full boot. [Read more](/docs/concepts/memory/boot)
+
+**Current directive**:
+The `next-focus` note that says what to do first, set with `wrap --focus` and shown at the top of boot. [Read more](/docs/concepts/memory/notes-and-agent-memory)
+
+**Near-duplicate warning**:
+The note `learn` prints when a new lesson looks like an old one, so you update the old one instead. [Read more](/docs/concepts/memory/lessons)
+
+**Graduate**:
+To retire a lesson with `graduate` because a check now enforces its rule; `--undo` brings it back. [Read more](/docs/concepts/memory/lessons)
+
+**Relevance budget**:
+The roughly 2,000 characters of lesson text boot may print, filled by fit to your task. [Read more](/docs/concepts/memory/boot)
 
 ## Bifrost
 
@@ -507,7 +537,7 @@ A guard that allows the known failures but fails on any new one. [Read more](/do
 The docs guard that fails when docs drift from the code. [Read more](/docs/concepts/method/guards-over-discipline)
 
 **Living doc**:
-A document kept current, unlike a dated doc, which records one moment. [Read more](/docs/concepts/method/guards-over-discipline)
+A document kept current, marked `Status: current` in its header, unlike a dated doc, which records one moment. [Read more](/docs/concepts/memory/library)
 _Avoid_: snapshot
 
 **Dated doc**:
@@ -540,6 +570,18 @@ A package that lets a seat see the screen and read its text, without acting on i
 **Rewrite map**:
 A lookup that turns a commit id from before a history rewrite into the commit it became. [Read more](/docs/concepts/tools/rewrite-map)
 
+**Manuals shelf**:
+A search store of outside reference manuals, cut into small labeled passages. [Read more](/docs/concepts/tools/manuals-shelf)
+
+**Discover**:
+The command that lists every command and its purpose, so you can check if a feature exists before you build it. [Read more](/docs/concepts/tools/discover)
+
+**Shelf**:
+In the library, the folder for one type of document; in the manuals shelf, one named set of outside manuals. [Read more](/docs/concepts/tools/manuals-shelf)
+
+**Lookback**:
+The command that answers one "why" question from docs, research, notes, promoted bus messages, story chapters and commits. [Read more](/docs/reference/commands)
+
 ## Relationships
 
 - The **Store** holds what is; the **Ledger** holds what happened. Almost every other term is built on one of the two.
@@ -562,6 +604,7 @@ A lookup that turns a commit id from before a history rewrite into the commit it
 - **Handoff** names both the `handoff` command, which writes a briefing, and the `handoff` bus message kind, which the promoter saves.
 - **Codex** names a planned knowledge layer, an older nickname for all of memory, and Codex, the OpenAI agent. On this site it means the first.
 - **Experiment** is the flag that names a lesson's key. The thing itself is a **Lesson**.
+- **Decision** names three things: every **Note** is stored as a decision; boot's notes slice is called "decisions"; and boot's RECENT DECISIONS lists promoted bus messages.
 - **Conductor** names the task code. The conductor post and `CONDUCT.md` are about how the fleet is led.
 - **Degraded** on a query answer means "partial view". Elsewhere it can mean a fallback mode.
 - **Bus** and **Ledger** both carry messages in order. The bus forgets; the Ledger keeps.
