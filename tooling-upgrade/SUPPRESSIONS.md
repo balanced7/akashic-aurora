@@ -126,7 +126,7 @@
 | core/foundation/redis_connection.py | 280 | `pyright: ignore[reportPossiblyUnboundVariable]` | REDIS_LIBRARY_AVAILABLE checked above |
 | core/foundation/store.py | 154 | `pyright: ignore[reportGeneralTypeIssues]` | runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API) |
 | core/foundation/store.py | 154 | `noqa: A003` | annotation value must not change (Store.set is public API) |
-| core/link/client.py | 147 | `noqa: SIM115` | closed by Client.close |
+| core/link/client.py | 155 | `noqa: SIM115` | closed by Client.close |
 | core/link/promote.py | 183 | `noqa: BLE001` | an unknown original is simply not ours |
 | core/link/quarantine.py | 45 | `noqa: BLE001` | fail-soft: offline bus = None, the store stays the truth |
 | core/manuals/chunk.py | 17 | `noqa: TC001` | runtime-evaluated annotations (annotation_sensitive module) |

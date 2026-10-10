@@ -232,11 +232,21 @@ impl Daemon {
     }
 
     pub fn device(&self) -> Result<Arc<Device>, RpcError> {
-        self.device
-            .read()
-            .expect("device lock")
-            .clone()
-            .ok_or_else(|| RpcError::unavailable("no fleet identity on this install yet: run `aurora link init`"))
+        if let Some(d) = self.device.read().expect("device lock").clone() {
+            return Ok(d);
+        }
+        // Another process (a one-shot `aurora link init`) may have created the identity since
+        // this daemon started: pick it up rather than run without a network for ever.
+        if let Ok(raw) = std::fs::read(self.dirs.device_file())
+            && let Ok(d) = Device::from_json(&raw)
+        {
+            let d = Arc::new(d);
+            *self.device.write().expect("device lock") = Some(d.clone());
+            return Ok(d);
+        }
+        Err(RpcError::unavailable(
+            "no fleet identity on this install yet: run `aurora link init`",
+        ))
     }
 
     pub fn pushes(&self, link: &str) -> broadcast::Sender<Push> {

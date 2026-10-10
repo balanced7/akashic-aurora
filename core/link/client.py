@@ -28,6 +28,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -140,12 +141,24 @@ class Client:
         self.close()
 
 
+#: Windows: the pipe is "busy" (ERROR_PIPE_BUSY) between one client's connect and the server
+#: creating its next instance. That is a daemon at work, not a missing one.
+_PIPE_BUSY = 231
+
+
 def _socket_client(addr: str) -> Client | None:
     """Connect to a running daemon's socket or pipe; None when nothing answers there."""
     try:
         if os.name == "nt":
-            pipe = open(addr, "r+b", buffering=0)  # noqa: SIM115  # closed by Client.close
-            return Client(pipe, pipe, desc=f"pipe {addr}")
+            for _ in range(100):
+                try:
+                    pipe = open(addr, "r+b", buffering=0)  # noqa: SIM115  # closed by Client.close
+                    return Client(pipe, pipe, desc=f"pipe {addr}")
+                except OSError as e:
+                    if getattr(e, "winerror", None) != _PIPE_BUSY:
+                        raise
+                    time.sleep(0.02)
+            return None
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)  # POSIX-only branch
         s.connect(addr)
         f = s.makefile("rwb", buffering=0)
@@ -192,9 +205,12 @@ def connect(*, network: bool = False, home: Path | None = None, secrets: Path | 
     """A channel to the daemon for this data root: the running one if there is one, else a one-shot
     child (offline unless `network`). Raises LinkdMissing when the binary is absent."""
     home = home or data_root()
-    addr = running_addr(home)
+    try:
+        addr = (state_dir(home) / "linkd.addr").read_text(encoding="utf-8").strip()
+    except OSError:
+        addr = ""
     if addr:
-        c = _socket_client(addr)
+        c = _socket_client(addr)  # one connection, not a probe and then another
         if c is not None:
             return c
     binary = find_linkd()
