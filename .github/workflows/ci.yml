@@ -211,7 +211,7 @@ jobs:
           aurora self version
           aurora discover | head -5
           aurora status
-          aurora learn smoke --experiment ci_smoke_install --tried install --result ok --recommend keep
+          aurora learn smoke --experiment ci_smoke_install --tried "installed aurora with the install script" --result "every command answered" --recommend "keep the install smoke test green on every OS"
           aurora recall ci_smoke_install | grep -q ci_smoke_install
           aurora setup --yes --dry-run --harness claude
           aurora -c "from core.foundation.accel import status; print(status())"
@@ -225,7 +225,7 @@ jobs:
           aurora hooks install --harness claude --scope user
           aurora hooks enroll
           aurora hooks status
-          payload='{"session_id":"ci","cwd":"'"$PWD"'","hook_event_name":"UserPromptSubmit","prompt":"ci smoke install"}'
+          payload='{"session_id":"ci","cwd":"'"$PWD"'","hook_event_name":"UserPromptSubmit","prompt":"keep the install smoke test green on every OS"}'
           out="$(printf '%s' "$payload" | aurora agent/harness/hooks/claude_userpromptsubmit.py)"
           echo "$out"
           echo "$out" | grep -q ci_smoke_install

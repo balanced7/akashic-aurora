@@ -20,6 +20,7 @@ import gzip
 import hashlib
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -88,9 +89,13 @@ def _materialize_links(tree: Path) -> None:
     """Replace every symlink with a copy of its target. A link that leaves the tree is an error:
     the bundle must not depend on the machine that built it."""
     for link in sorted((p for p in tree.rglob("*") if p.is_symlink()), key=lambda p: len(p.parts)):
-        target = link.resolve()
-        if not target.is_relative_to(tree.resolve()):
-            raise SystemExit(f"build_bundle: {link.relative_to(tree)} points outside the repo ({target})")
+        # Read the link's own text instead of resolve(): on Windows the temp dir can resolve to
+        # its 8.3 short name (RUNNER~1) on one side and the long name on the other, and a
+        # correct in-tree link would then look like it leaves the tree.
+        rel = os.path.normpath(os.path.join(os.path.relpath(link.parent, tree), os.readlink(link)))
+        if os.path.isabs(os.readlink(link)) or rel == os.pardir or rel.startswith(os.pardir + os.sep):
+            raise SystemExit(f"build_bundle: {link.relative_to(tree)} points outside the repo ({os.readlink(link)})")
+        target = tree / rel
         link.unlink()
         if target.is_dir():
             shutil.copytree(target, link)
