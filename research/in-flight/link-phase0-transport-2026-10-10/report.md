@@ -63,11 +63,32 @@ reported no IP addresses at all.
 
 Run it with `python3 relay_only_internet.py <aurora-linkd> <scratch dir>` (it needs internet access).
 
+## Three network stacks, and a mailbox on its own
+
+`three_networks_docker.py` puts each fleet on its own network stack: A on this machine's LAN
+(192.168.1.219), and B and a mailbox M each in a container on its own Docker bridge network (172.18.x
+and 172.19.x) inside Docker Desktop's VM, behind its own NAT. Docker isolates the two bridges from
+each other. The daemons run with their defaults: n0 address lookup, n0 relays, direct paths
+wherever NAT allows.
+
+| | |
+|---|---|
+| mailbox joins A's link over the network | 0.07 s |
+| B joins over the network | 0.10 s |
+| B offline; A sends a handoff with a 256 KiB file, then goes offline | the mailbox holds it at once |
+| B back online, A still offline | B has A's mail in 0.2 s, and the file arrives intact |
+| provenance at B | `fleet-a` (from the member log), seat claim `claude` |
+| B replies, then goes offline; A comes back | A has the reply on reconnect |
+| what the mailbox admitted | nothing: role `mailbox`, no read key, no events |
+
+So mail and files flow both ways between two fleets that are never online together, through a
+mailbox on a separate network stack that cannot read what it carries.
+
 ## What is not measured here, and where it is covered
 
-- **Two physical networks.** The relay-only run above takes the same path two NATed fleets take, but
-  both ends were on one machine. The first real link between two fleets should post its
-  `aurora link status` and `net.status` on the issue.
+- **Two machines owned by two people.** The runs above use separate network stacks and NATs (a VM's
+  Docker bridges, and relay-only daemons through n0's public relay), on one physical host. The first
+  real link between two fleets should post its `aurora link status` on the issue.
 - **macOS and Windows.** CI's `link-os` job builds the daemon and runs the link tests, including
   the `ManagedChild` restart and the named-pipe RPC, on macOS and Windows. Windows is non-blocking
   until it has a green record, like the existing Windows smoke job.
