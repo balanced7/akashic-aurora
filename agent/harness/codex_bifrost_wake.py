@@ -90,7 +90,7 @@ AURORA_SHELL_META = frozenset(";|&><`$()\n\r")
 AURORA_READ_COMBO_TOOL_NAME = "aurora_read_combo"
 AURORA_COMBO_CATALOG_TOOL_NAME = "aurora_combo_catalog"
 AURORA_COMBO_OUTPUT_CHARS = 24_000
-AURORA_READ_VERB_TOOL = {
+AURORA_READ_VERB_TOOL: dict[str, Any] = {
     "type": "function",
     "name": "aurora_read_verb",
     "description": (

@@ -37,7 +37,6 @@ import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -250,7 +249,7 @@ def cmd_verify(args):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("build", help="record who authored what, from the live history")
     b.set_defaults(fn=cmd_build)

@@ -192,7 +192,7 @@ class AgentMetadata:
     # Status
     status: str = "initializing"
     current_task: str | None = None
-    capabilities: list[str] = ""  # pyright: ignore[reportAssignmentType]  # LATENT: dataclass default is "" not a list; field annotation left as is
+    capabilities: list[str] = ""  # ty: ignore[invalid-assignment]  # pyright: ignore[reportAssignmentType]  # LATENT: dataclass default is "" not a list; field annotation left as is
     last_heartbeat: str = ""
     started_at: str = ""
 

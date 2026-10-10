@@ -225,10 +225,12 @@ def apply_curation(report: dict[str, Any] | None = None, *, store=None, learning
         for row in report.get("forge_confirm", []):
             try:
                 key = f"learn:experiment:{row['name']}"
+                from datetime import UTC
                 from datetime import datetime as _dt
 
                 learning_store.store.hset(
-                    key, mapping={"forge_provisional": "", "forge_confirmed": _dt.utcnow().isoformat()}
+                    key,
+                    mapping={"forge_provisional": "", "forge_confirmed": _dt.now(UTC).replace(tzinfo=None).isoformat()},
                 )
                 confirmed.append(row["name"])
             except Exception:

@@ -52,6 +52,7 @@ import os
 import random
 import subprocess
 import sys
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -320,7 +321,7 @@ def score(manifest: dict, claims) -> dict:
         or the instrument is being gamed, and the round's evidence is worthless either way.
     """
     claimed = set(claims or [])
-    by_class = {}
+    by_class: dict[str, dict[str, Any]] = {}
     for c in manifest.get("canaries", []):
         b = by_class.setdefault(c["cls"], {"caught": 0, "missed": 0, "total": 0, "ids": []})
         b["total"] += 1
@@ -392,7 +393,7 @@ def score_v2(manifest: dict, claims, *, assigned, judged) -> dict:
     if duplicate_ids:
         raise ValueError(f"duplicate manifest canary id(s): {duplicate_ids}")
 
-    by_class = {}
+    by_class: dict[str, dict[str, Any]] = {}
     for cls in ("catchable", "undetectable", "bait"):
         class_ids = {c["id"] for c in canaries if c["cls"] == cls}
         class_assigned = class_ids & assigned

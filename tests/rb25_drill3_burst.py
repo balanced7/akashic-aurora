@@ -50,6 +50,7 @@ import os
 import sys
 import time
 import uuid
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -132,7 +133,7 @@ def main():
     storm_id = uuid.uuid4().hex[:12]
 
     # --- Build the message plan ---
-    plan = []
+    plan: list[dict[str, Any]] = []
     for kind, count, to_spec, desc in STORM_KINDS:
         to_agent = _resolve_target(to_spec, runner_id, target_id)
         for _i in range(count):

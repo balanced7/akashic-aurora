@@ -411,7 +411,7 @@ class AgentMemory:
         for d in decisions:
             n = normalize_title(d.title)
             by_title.setdefault(n, []).append(d)
-        long = []
+        long: list[dict[str, Any]] = []
         for title_n, group in by_title.items():
             if len(group) > t:
                 newest = max(group, key=lambda d: d.created_at)

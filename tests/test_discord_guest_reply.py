@@ -93,3 +93,17 @@ def test_reply_text_is_attributed_and_clipped():
     assert len(ops) == 1
     assert ops[0]["frm"] == "dsh_agent"
     assert len(ops[0]["text"]) <= 1900
+
+
+def test_unanswered_link_is_a_visible_drop_once_per_id():
+    """A message linked to no tracked guest posts nothing and reports one drop per id."""
+    t = G.GuestReplyTracker()
+    t.track("g1", "chan")
+    drops: list[dict] = []
+    batch = [
+        {"id": "r1", "frm": "claude", "kind": "reply", "meta": {"reply_id": "nobody"}, "text": "hi"},
+        {"id": "r2", "frm": "claude", "kind": "chat", "meta": {}, "text": "ambient"},
+    ]
+    assert t.poll(batch, on_drop=drops.append) == []
+    assert t.poll(batch, on_drop=drops.append) == []  # redelivery: no second receipt
+    assert [(d["id"], d["reason"]) for d in drops] == [("r1", "untracked"), ("r2", "unlinked")]

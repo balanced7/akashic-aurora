@@ -156,7 +156,7 @@ import re
 import struct
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, NotRequired, TypedDict, cast, overload
 
 from . import nashville as nv
 
@@ -1617,7 +1617,26 @@ def lint(ps: dict) -> list[str]:
 
 
 # ================================================================================================= seeds
-SEEDS = (
+class Seed(TypedDict):
+    """One curated seed: the make_pattern_set arguments plus its id, title and a line on why it works."""
+
+    id: str
+    title: str
+    loop: str
+    key: str
+    bpm: float
+    bars: int
+    bass: str
+    drums: str
+    why: str
+    comp: NotRequired[bool]
+    pad: NotRequired[bool]
+    fill: NotRequired[bool]
+    shell: NotRequired[bool]
+    dropout: NotRequired[float]
+
+
+SEEDS: tuple[Seed, ...] = (
     {
         "id": "db-ballad-lift",
         "title": "Db ballad lift",

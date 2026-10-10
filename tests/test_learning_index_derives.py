@@ -44,7 +44,7 @@ def _fresh_store():
     from core.foundation.store import FileStore
 
     d = tempfile.mkdtemp(prefix="lidx-")
-    return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()  # pyright: ignore[reportCallIssue]  # LATENT: dead branch, FileStore has no base_dir
+    return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()  # ty: ignore[unknown-argument]  # pyright: ignore[reportCallIssue]  # LATENT: dead branch, FileStore has no base_dir
 
 
 @pytest.fixture
@@ -165,11 +165,11 @@ def test_p5_no_reader_sees_a_partial_index_during_rebuild():
             seen.append(len(s.store.lrange(INDEX, 0, -1)))
         return real_delete(*keys)
 
-    s.store.delete = watching_delete
+    s.store.delete = watching_delete  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         _record(s, "one_more")
     finally:
-        s.store.delete = real_delete
+        s.store.delete = real_delete  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     assert s.store.lrange(INDEX, 0, -1), "index must be non-empty after a rebuild"
 
 

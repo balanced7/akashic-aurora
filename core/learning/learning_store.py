@@ -40,7 +40,7 @@ import json
 import logging
 import re
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from core.foundation.accel import rust
@@ -499,7 +499,7 @@ class LearningStore:
             )
 
         original = self._load_experiment(of) or {}
-        now = datetime.utcnow()
+        now = datetime.now(UTC).replace(tzinfo=None)
         elapsed = 0.0
         try:
             ts = original.get("timestamp")
@@ -595,7 +595,7 @@ class LearningStore:
                     "experiments": experiment_id,
                     "reason": str(reason or existing.get("root_cause") or existing.get("recommendation") or ""),
                     "severity": "medium",
-                    "first_seen": datetime.utcnow().isoformat(),
+                    "first_seen": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 },
             )
             return True
@@ -622,7 +622,7 @@ class LearningStore:
             self.store.hset(
                 key,
                 mapping={
-                    "graduated": "" if undo else datetime.utcnow().isoformat(),
+                    "graduated": "" if undo else datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     "enforced_by": "" if undo else str(enforced_by or ""),
                 },
             )
@@ -649,7 +649,7 @@ class LearningStore:
             self.store.hset(
                 key,
                 mapping={
-                    "benched": "" if undo else datetime.utcnow().isoformat(),
+                    "benched": "" if undo else datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     "bench_reason": "" if undo else str(reason or ""),
                 },
             )
@@ -687,7 +687,7 @@ class LearningStore:
                             for r in related[:5]
                         ]
                     ),
-                    "related_stamped": datetime.utcnow().isoformat(),
+                    "related_stamped": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 },
             )
             return True
@@ -711,7 +711,7 @@ class LearningStore:
                 buf = []
             buf.append(
                 {
-                    "at": datetime.utcnow().isoformat(),
+                    "at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     "draft": str(draft or "")[:400],
                     "reasons": [str(r)[:200] for r in (reasons or [])][:5],
                 }
@@ -739,7 +739,7 @@ class LearningStore:
                         {
                             "draft": str(draft),
                             "verdict": str(verdict or ""),
-                            "at": datetime.utcnow().isoformat(),
+                            "at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                             "by": str(by or ""),
                             "rationale": str(rationale or "")[:200],
                         }
@@ -785,8 +785,8 @@ class LearningStore:
                 mapping={
                     "recommendation": str(new_recommendation),
                     "forge_previous_text": str(rec.get("recommendation") or ""),
-                    "forged_at": datetime.utcnow().isoformat(),
-                    "forge_provisional": datetime.utcnow().isoformat(),
+                    "forged_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
+                    "forge_provisional": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                     "forge_gate": json.dumps(gate_summary or {}, default=str),
                     # counters snapshot at apply time -- the Tier-1 watch (F4) computes its
                     # rollback/confirm deltas against exactly this
@@ -814,7 +814,7 @@ class LearningStore:
                     "recommendation": prev,
                     "forge_previous_text": "",
                     "forge_provisional": "",
-                    "forge_rolled_back": datetime.utcnow().isoformat(),
+                    "forge_rolled_back": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 },
             )
             return True
@@ -865,7 +865,9 @@ class LearningStore:
 
         Semantic Relationship: Learning indexed_in Store
         """
-        experiment_id = learning_signal.get("experiment_name", f"exp_{datetime.utcnow().isoformat()}")
+        experiment_id = learning_signal.get(
+            "experiment_name", f"exp_{datetime.now(UTC).replace(tzinfo=None).isoformat()}"
+        )
 
         # Normalize success once, here, so the stored field and the success
         # score are derived from the same canonical value -- they can never
@@ -886,7 +888,7 @@ class LearningStore:
             "actual": _s(learning_signal.get("actual_outcome")),
             "metrics": json.dumps(learning_signal.get("metrics") or {}),
             "success": success,
-            "timestamp": _s(learning_signal.get("timestamp"), datetime.utcnow().isoformat()),
+            "timestamp": _s(learning_signal.get("timestamp"), datetime.now(UTC).replace(tzinfo=None).isoformat()),
             "recommendation": _s(learning_signal.get("recommendation")),
             "anti_pattern": _s(learning_signal.get("anti_pattern")),
             "root_cause": _s(learning_signal.get("root_cause")),
@@ -949,7 +951,7 @@ class LearningStore:
                     "experiments": experiment_id,
                     "reason": _s(learning_signal.get("root_cause")),
                     "severity": _s(learning_signal.get("severity"), "medium"),
-                    "first_seen": datetime.utcnow().isoformat(),
+                    "first_seen": datetime.now(UTC).replace(tzinfo=None).isoformat(),
                 },
             )
 

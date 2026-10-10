@@ -41,7 +41,7 @@ import urllib.error
 import urllib.request
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeGuard, cast
+from typing import TYPE_CHECKING, Any, TypeGuard, cast
 
 if TYPE_CHECKING:
     import io
@@ -191,7 +191,7 @@ def validate_cue(cue) -> dict:
         raise CueError("a sequence needs steps, a non-empty list of {at_ms, type, notes, ...}")
     if len(steps) > MAX_STEPS:
         raise CueError(f"a sequence has at most {MAX_STEPS} steps (got {len(steps)})")
-    clean = []
+    clean: list[dict[str, Any]] = []
     for i, step in enumerate(steps):
         where = f"steps[{i}]."
         if not isinstance(step, dict):
@@ -459,7 +459,7 @@ def build_replay_cue(
         i = bisect_right(mark_times, t + 25) - 1  # the page logs the chord a few ms after the strike
         return marks[i] if i >= 0 and t - marks[i]["t_ms"] < 4000 else None
 
-    steps = []
+    steps: list[dict[str, Any]] = []
     carried = []
     for span in _note_spans(events):
         if span["t_ms"] < start_ms < span["end_ms"]:

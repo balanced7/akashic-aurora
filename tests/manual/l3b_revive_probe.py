@@ -71,7 +71,7 @@ def fake_launch(tag, **k):
     return {"ok": True, "pid": 12345}
 
 
-L.kill, L.launch = fake_kill, fake_launch
+L.kill, L.launch = fake_kill, fake_launch  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 
 res = L.revive(tag)
 assert [x[0] for x in calls] == ["kill", "launch"], calls
@@ -83,10 +83,10 @@ print(f"[PASS] revive(): kill -> freed lock -> launch (killed_pid={res['killed_p
 # --- _restart(): exponential backoff, hard cap, then stop (no more launches) ---
 LM.RESTART_BACKOFF_BASE = 0.01
 LM.RESTART_MAX_ATTEMPTS = 3
-LM.RESTART_RESET_S = 300
+LM.RESTART_RESET_S = 300  # ty: ignore[invalid-assignment]  # probe patches a module constant
 launches = []
-L.launch = lambda tag, **k: (launches.append(tag), {"ok": True})[1]
-L._free_lock_for_relaunch = lambda aid, dead_pid: None
+L.launch = lambda tag, **k: (launches.append(tag), {"ok": True})[1]  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
+L._free_lock_for_relaunch = lambda aid, dead_pid: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 for _ in range(5):
     L._restart(tag)
 assert len(launches) == 3, ("must launch up to the cap then stop", launches)

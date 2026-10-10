@@ -16,7 +16,7 @@ import html
 import math
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from .. import scene as sc
 
@@ -351,7 +351,7 @@ def polyline(conn: dict) -> list[tuple[float, float]]:
 def shorten(points: Sequence[tuple[float, float]], head: str, by: float = HEAD_SHORTEN) -> list[tuple[float, float]]:
     """Pull a headed line's end(s) back a few units so the arrowhead touches the box edge
     instead of poking into it."""
-    pts = cast("list[tuple[float, float]]", [tuple(p) for p in points])
+    pts = [(p[0], p[1]) for p in points]
     if len(pts) < 2 or by <= 0:
         return pts
 

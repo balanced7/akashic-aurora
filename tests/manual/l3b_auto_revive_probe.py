@@ -37,12 +37,12 @@ print("parse OK: launcher.py")
 
 LM.RESTART_MAX_ATTEMPTS = 3
 LM.RESTART_BACKOFF_BASE = 0.05
-LM.RESTART_RESET_S = 300
+LM.RESTART_RESET_S = 300  # ty: ignore[invalid-assignment]  # probe patches a module constant
 
 L = Launcher()
 tag = aid = "l3ba_probe"
 L._specs[tag] = AgentSpec(agent_id=aid, runtime="python_runner", description="t", command=["x"])
-L._reload = lambda: None  # keep the synthetic spec (registry() would otherwise reload real specs over it)
+L._reload = lambda: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double; keep the synthetic spec (registry() would otherwise reload real specs over it)
 L._procs[aid] = AgentProcess(agent_id=aid, pid=111, handle=None, status="running", started_at="")
 c = liveness._client()
 assert c is not None
@@ -60,7 +60,7 @@ def set_worklive(phase, age):
 
 
 revives = []
-L.revive = lambda tag, reason="manual": (revives.append((tag, reason)), {"ok": True})[1]
+L.revive = lambda tag, reason="manual": (revives.append((tag, reason)), {"ok": True})[1]  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 
 # arm/disarm plumbing + registry reflects it
 assert L.arm_revive(tag, True)["auto_revive"] is True

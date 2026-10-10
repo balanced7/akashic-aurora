@@ -94,7 +94,7 @@ def spawn(argv, log_path, **kw):
     p = subprocess.Popen(
         [PY, *argv], cwd=str(REPO), env=child_env(), stdout=f, stderr=subprocess.STDOUT, text=True, **kw
     )
-    p._logf = f  # pyright: ignore[reportAttributeAccessIssue]  # ad-hoc attribute: keeps the log handle alive with the child
+    p._logf = f  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]  # ad-hoc attribute: keeps the log handle alive with the child
     return p
 
 

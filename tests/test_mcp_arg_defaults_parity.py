@@ -44,7 +44,11 @@ def _arg_defaults_keys(src: str) -> set:
             if isinstance(call, ast.Call):
                 keys = {kw.arg for kw in call.keywords if kw.arg}
                 keys |= {
-                    k.value for a in call.args if isinstance(a, ast.Dict) for k in a.keys if isinstance(k, ast.Constant)
+                    k.value
+                    for a in call.args
+                    if isinstance(a, ast.Dict)
+                    for k in a.keys
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str)
                 }
                 if keys:
                     return keys

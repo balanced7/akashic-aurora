@@ -89,7 +89,7 @@ def _same_subject(left: Any, right: Any) -> bool:
 
 def _mapping(value: Any) -> dict[str, Any]:
     if is_dataclass(value):
-        return asdict(cast("Any", value))  # instance or class: asdict decides, exactly as before
+        return asdict(cast("Any", value))  # ty: ignore[redundant-cast]  # pyright narrows to type[DataclassInstance] too; asdict decides, exactly as before
     if isinstance(value, Mapping):
         return dict(value)
     return {"_unreadable": repr(value)}

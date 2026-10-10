@@ -688,7 +688,7 @@ def enforce_action(action_type: str):
         def wrapper(*args, **kwargs):
             he = get_harness_enforcer()
 
-            details = {"function": func.__name__}
+            details = {"function": func.__name__}  # ty: ignore[unresolved-attribute]  # archived dead code
             if args:
                 details["args"] = str(args)[:100]
 

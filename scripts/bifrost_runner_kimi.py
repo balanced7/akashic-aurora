@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -112,7 +112,7 @@ PULSE_GEN = [0]
 
 # T078 W1: per-peer token deltas, drained after each turn by _process_one.
 _token_deltas: dict = {}
-_RUN_STATS = {"turns": 0, "last_error": ""}
+_RUN_STATS: dict[str, Any] = {"turns": 0, "last_error": ""}
 # T078 W1: the DAILY token journal the doctor's cost line reads. Distinct from METER below:
 # METER is this seat's in-session dollar conscience (it can refuse work); the journal is the
 # cross-seat daily aggregate for the dashboard. kimi had the first and not the second, so the
@@ -197,8 +197,7 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
     n_kept = n_total - n_dropped
     # T120 pin: NAME distinct sections (a 40x-repeated heading must not drown the unique
     # ones past the cap); counts stay raw so the contour never understates the cut.
-    _seen = set()
-    distinct = [s for s in dropped if not (s in _seen or _seen.add(s))]
+    distinct = list(dict.fromkeys(dropped))
     named = "; ".join(distinct[:8]) if distinct else "tail content (cut mid-section)"
     more = f" (+{len(distinct) - 8} more distinct)" if len(distinct) > 8 else ""
     contour = f"{n_kept}/{n_total} sections kept"
@@ -998,7 +997,13 @@ def main() -> int:
     # disk. It answers on its own thread while the main loop is dead.
     from core.comm.control_channel import ControlChannel
 
-    _progress = {"last_msg_at": None, "last_msg_from": None, "handled": 0, "loop_beats": 0, "started": time.time()}
+    _progress: dict[str, Any] = {
+        "last_msg_at": None,
+        "last_msg_from": None,
+        "handled": 0,
+        "loop_beats": 0,
+        "started": time.time(),
+    }
 
     _control = ControlChannel(args.agent)
 

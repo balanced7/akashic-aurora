@@ -15,6 +15,7 @@ Run: py -m pytest tests/test_t382_revive_controlword.py -q
 
 import os
 import sys
+from typing import Any
 
 import pytest
 
@@ -48,7 +49,7 @@ class _Bus:
 def _call(text, author=ROOT_ID, reviver="unset"):
     calls = []
     reacts = []
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if reviver == "unset":
         kwargs["reviver"] = lambda t, o: calls.append((t, o))
     elif reviver is not None:

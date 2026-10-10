@@ -319,8 +319,10 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
     assert watcher._toolbox.agent_id == "sol"
     assert watcher._toolbox.allow_exec is True
     assert watcher._toolbox.trust is True
-    assert "command" not in AURORA_READ_VERB_TOOL["inputSchema"]["properties"]
-    advertised_verbs = set(AURORA_READ_VERB_TOOL["inputSchema"]["properties"]["verb"]["enum"])
+    # AURORA_READ_VERB_TOOL is an unannotated literal, so its nested schema needs a cast to index
+    schema_props = AURORA_READ_VERB_TOOL["inputSchema"]["properties"]
+    assert "command" not in schema_props
+    advertised_verbs = set(schema_props["verb"]["enum"])
     assert {"task", "fence", "notes"}.isdisjoint(advertised_verbs)
 
     monkeypatch.setattr(registry, "resolve", lambda _agent: Grant(False))
@@ -1081,7 +1083,7 @@ def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     sends = []
-    bus.send = lambda *args, **kwargs: sends.append((args, kwargs)) or "70-0"
+    bus.send = lambda *args, **kwargs: sends.append((args, kwargs)) or "70-0"  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     state = WakeState.open(
         tmp_path / "state.json",
         agent="sol",

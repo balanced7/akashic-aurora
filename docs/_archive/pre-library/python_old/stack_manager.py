@@ -356,10 +356,10 @@ def resolve_tiers(services: dict | None = None) -> list:
     """Kahn's algorithm → list of parallel-safe launch tiers."""
     if services is None:
         services = SERVICES
-    in_degree = {n: len(c["depends"]) for n, c in services.items()}
+    in_degree = {n: len(c["depends"]) for n, c in services.items()}  # ty: ignore[invalid-argument-type]  # archived dead code
     dependents = defaultdict(set)
     for name, cfg in services.items():
-        for dep in cfg["depends"]:
+        for dep in cfg["depends"]:  # ty: ignore[not-iterable]  # archived dead code
             dependents[dep].add(name)
     queue = deque([n for n, d in in_degree.items() if d == 0])
     tiers = []
@@ -401,7 +401,7 @@ class PortManager:
         for name, cfg in services.items():
             ports = cfg.get("ports", [])
             if ports:
-                result[name] = sorted(ports)
+                result[name] = sorted(ports)  # ty: ignore[invalid-argument-type]  # archived dead code
         return result
 
     def detect_conflicts(self, services: dict | None = None) -> list[str]:
@@ -414,7 +414,7 @@ class PortManager:
             services = SERVICES
         port_to_services = defaultdict(list)
         for name, cfg in services.items():
-            for port in cfg.get("ports", []):
+            for port in cfg.get("ports", []):  # ty: ignore[not-iterable]  # archived dead code
                 port_to_services[port].append(name)
 
         conflicts = []
@@ -443,14 +443,14 @@ class PortManager:
         in_use = {}
         seen = set()
         for cfg in SERVICES.values():
-            for port in cfg.get("ports", []):
+            for port in cfg.get("ports", []):  # ty: ignore[not-iterable]  # archived dead code
                 if port not in seen:
                     seen.add(port)
-                    if self.check_port_in_use(port):
+                    if self.check_port_in_use(port):  # ty: ignore[invalid-argument-type]  # archived dead code
                         in_use[port] = "IN USE"
                     else:
                         in_use[port] = "free"
-        return in_use
+        return in_use  # ty: ignore[invalid-return-type]  # archived dead code
 
     def sync_to_redis(self):
         """Write current port allocations to Redis port registry."""
@@ -461,15 +461,15 @@ class PortManager:
         for name, cfg in SERVICES.items():
             ports = cfg.get("ports", [])
             endpoint = cfg.get("endpoint", {})
-            for port in ports:
+            for port in ports:  # ty: ignore[not-iterable]  # archived dead code
                 key = f"port:{name.replace('-', '_')}"
-                if port != (endpoint.get("port") or ports[0]):
+                if port != (endpoint.get("port") or ports[0]):  # ty: ignore[invalid-argument-type, not-subscriptable, unresolved-attribute]  # archived dead code
                     key = f"port:{name.replace('-', '_')}_{port}"
                 r.hset(
                     key,
                     mapping={
                         "port": str(port),
-                        "protocol": endpoint.get("protocol", "tcp"),
+                        "protocol": endpoint.get("protocol", "tcp"),  # ty: ignore[unresolved-attribute]  # archived dead code
                         "description": cfg["description"],
                         "service": name,
                         "updated_at": now,
@@ -483,11 +483,11 @@ class PortManager:
         print(f" {'-' * 8} {'-' * 26} {'-' * 10} {'-' * 40}")
         seen = set()
         for name, cfg in SERVICES.items():
-            for port in cfg.get("ports", []):
+            for port in cfg.get("ports", []):  # ty: ignore[not-iterable]  # archived dead code
                 if port in seen:
                     continue
                 seen.add(port)
-                status = "IN USE" if self.check_port_in_use(port) else "free"
+                status = "IN USE" if self.check_port_in_use(port) else "free"  # ty: ignore[invalid-argument-type]  # archived dead code
                 sc = "G" if status == "IN USE" else "D"
                 print(f" {port:<8} {name:<26} {c(sc, status):<18} {cfg['description']}")
 
@@ -591,9 +591,9 @@ class RoutingTable:
             if ep:
                 self.register(
                     name,
-                    ep.get("host", "127.0.0.1"),
-                    ep.get("port", 0),
-                    ep.get("protocol", "tcp"),
+                    ep.get("host", "127.0.0.1"),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
+                    ep.get("port", 0),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
+                    ep.get("protocol", "tcp"),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
                     status="defined",
                 )
 
@@ -684,8 +684,8 @@ class ResourceTracker:
 
         for cfg in services.values():
             res = cfg.get("resources", {})
-            total_cpu += res.get("cpu_cores", 0)
-            total_ram += res.get("ram_mb", 0)
+            total_cpu += res.get("cpu_cores", 0)  # ty: ignore[unresolved-attribute, unsupported-operator]  # archived dead code
+            total_ram += res.get("ram_mb", 0)  # ty: ignore[unresolved-attribute, unsupported-operator]  # archived dead code
 
         warnings = []
         if total_cpu > system["cpu_cores_logical"] * 0.85:
@@ -719,9 +719,9 @@ class ResourceTracker:
         print(f" {'-' * 26} {'-' * 5} {'-' * 8} {'-' * 9}")
         for name, cfg in SERVICES.items():
             res = cfg.get("resources", {})
-            cpu = res.get("cpu_cores", 0)
-            ram = res.get("ram_mb", 0)
-            gpu = res.get("gpu_vram_mb", 0)
+            cpu = res.get("cpu_cores", 0)  # ty: ignore[unresolved-attribute]  # archived dead code
+            ram = res.get("ram_mb", 0)  # ty: ignore[unresolved-attribute]  # archived dead code
+            gpu = res.get("gpu_vram_mb", 0)  # ty: ignore[unresolved-attribute]  # archived dead code
             print(f" {name:<26} {cpu:>4.1f}  {ram:>5} MB  {gpu:>4} MB")
 
 
@@ -1033,9 +1033,9 @@ def cmd_start():
                         if ep:
                             routes.register(
                                 name,
-                                ep.get("host", "127.0.0.1"),
-                                ep.get("port", 0),
-                                ep.get("protocol", "tcp"),
+                                ep.get("host", "127.0.0.1"),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
+                                ep.get("port", 0),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
+                                ep.get("protocol", "tcp"),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
                                 status="healthy",
                             )
                         stats["healthy"] += 1
@@ -1124,9 +1124,9 @@ def cmd_stop():
             runtime = cfg.get("runtime", "")
             try:
                 if runtime == "wsl":
-                    _out, ok = _run_wsl(stop_cmd, timeout=10)
+                    _out, ok = _run_wsl(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
                 else:
-                    _out, ok = _run_ps(stop_cmd, timeout=10)
+                    _out, ok = _run_ps(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
                 icon = "\u2713" if ok else "\u26a0"
                 log(icon, name, "Stopped", "G" if ok else "Y")
             except Exception as e:
@@ -1148,7 +1148,7 @@ def cmd_stop():
     docker_stop = SERVICES.get("docker-redis", {}).get("stop", "")
     if docker_stop:
         log("\u25b6", "docker-global", "Stopping Docker containers...", "Y")
-        subprocess.run(
+        subprocess.run(  # ty: ignore[no-matching-overload]  # archived dead code
             docker_stop,
             shell=True,
             capture_output=True,
@@ -1223,9 +1223,9 @@ def cmd_restart(name: str):
     if stop_cmd:
         runtime = cfg.get("runtime", "")
         if runtime == "wsl":
-            _run_wsl(stop_cmd, timeout=10)
+            _run_wsl(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
         else:
-            _run_ps(stop_cmd, timeout=10)
+            _run_ps(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
         time.sleep(1)
     routes.update_status(name, "restarting")
     launch_service(name, cfg)

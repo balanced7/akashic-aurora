@@ -742,8 +742,12 @@ reportUnnecessaryTypeIgnoreComment = "error"
 [tool.ty.environment]
 # Plan G4.P1/P4: ty runs informationally (`poe types-ty`) over the same scope as basedpyright.
 python-version = "3.11"
+# Aurora runs on Linux, macOS and Windows: Windows-only stdlib members (ctypes.WinDLL, msvcrt)
+# are real, not unresolved.
+python-platform = "all"
 python = ".venv"
 extra-paths = [
+    "tests",  # tests import their siblings (isolate_canonical, redis_test_helpers) by bare name
     "scripts",
     "scripts/checkers",
     "scripts/generators",
@@ -756,6 +760,24 @@ extra-paths = [
     "tests/fixtures",
     "tooling-upgrade",
 ]
+
+[tool.ty.analysis]
+# Optional stacks, imported lazily behind a fallback or a hint (the same sets as [tool.deptry]
+# DEP001/DEP004, plus the retired stacks the history trees still import). No deployment installs
+# them, so ty sees them as Unknown instead of unresolved.
+allowed-unresolved-imports = [
+    "aurora_rs", "bifrost.**", "flvfx",
+    "sentence_transformers", "deepmultilingualpunctuation", "transformers", "torch", "torch_directml",
+    "torchaudio", "faiss", "faster_whisper", "kokoro_tts",
+    "playwright.**", "patchright.**", "playwright_stealth", "selenium.**", "webdriver_manager.**",
+    "fastapi.**", "flask", "flask_cors", "websocket", "brotli", "cv2", "pdfplumber", "openpyxl.**",
+    "pyautogui", "pygetwindow", "uiautomation",
+]
+
+[[tool.ty.overrides]]
+# History trees: archived modules import siblings that were deleted with the rest of their stack.
+include = ["docs/_archive/**", "research/in-flight/t342/dead-modules/**"]
+rules = { unresolved-import = "ignore" }
 
 [tool.ty.src]
 # ty honours .gitignore (oracle snapshots); exclude = the same ARCHIVAL list as [tool.ruff].

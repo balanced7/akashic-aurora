@@ -38,7 +38,7 @@ import contextlib
 import os
 import sys
 import time
-from typing import Any, cast
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -139,9 +139,9 @@ def evaluate(
         blocked = True  # the deferral lapsed: inherited failures are owned now
 
     lines: list[str] = []
-    if expired:
+    if expired and age is not None:
         lines.append(
-            f"BLOCKED: baseline EXPIRED ({int(cast('float', age) / 3600)}h old, TTL "
+            f"BLOCKED: baseline EXPIRED ({int(age / 3600)}h old, TTL "
             f"{int(ttl_s / 3600)}h). {len(inherited)} failure(s) have been "
             f"'inherited' past the deferral window -- they are owned, not inherited. "
             f"Fix them, or re-record the baseline deliberately and say why."

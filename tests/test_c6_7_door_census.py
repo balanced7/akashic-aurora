@@ -25,6 +25,7 @@ import json
 import os
 import sys
 import uuid
+from typing import Any
 
 import pytest
 
@@ -56,7 +57,7 @@ def _ns():
 # committed artifact: a new xadd in these files WITHOUT a corresponding entry here
 # FAILS the census -- the author must register the new door with its lane-routing status.
 
-DOOR_CENSUS = {
+DOOR_CENSUS: dict[str, dict[str, Any]] = {
     # core/comm/bus.py -- the Bus class (central write machinery)
     "bus._emit.lane_xadd": {
         "file": "core/comm/bus.py",

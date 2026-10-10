@@ -1818,7 +1818,7 @@ def extended_readings(pcs: list[int], bass_pc: int | None, templates: list[dict]
     for t in templates:
         if t["suffix"] in READING_BASES and t["suffix"] not in by_suffix:
             by_suffix[t["suffix"]] = t
-    out = []
+    out: list[dict[str, Any]] = []
     for root in roots if roots is not None else sorted(pcset):
         rel = {(p - root) % 12 for p in pcset}
         if 0 not in rel:
@@ -4764,7 +4764,7 @@ def key_evidence(doc: dict, snd: dict) -> dict:
         after = pc_profile(heard_pc, t, min(nxt["end_ms"], t + EVIDENCE_MS))
         sa, sb = key_scale(prev["key"]), key_scale(nxt["key"])
         tonic = _key_info(prev["key"])["tonic"]
-        swapped = []
+        swapped: list[dict[str, Any]] = []
         for pc in sorted(sa ^ sb, key=lambda p: (p not in sa, (p - tonic) % 12)):
             owner = prev["key"] if pc in sa else nxt["key"]
             swapped.append(
@@ -5291,7 +5291,7 @@ def touch_data(doc: dict, snd: dict) -> dict | None:
             "p50": q(0.5),
             "p90": q(0.9),
             "max": vels[-1],
-            "loudest_at": clock_tenths(loud["on_ms"]),  # pyright: ignore[reportOptionalSubscript]  # LATENT: no velocities -> ZeroDivisionError above first; output for that case is a judgement call
+            "loudest_at": clock_tenths(loud["on_ms"]),  # ty: ignore[not-subscriptable]  # pyright: ignore[reportOptionalSubscript]  # LATENT: no velocities -> ZeroDivisionError above first; output for that case is a judgement call
             "per_minute": per_minute,
         }
         if vels
@@ -5565,7 +5565,7 @@ def name_data(tokens, key: str | None = None, theory_source=None, node: str | No
         name = spell(m % 12)
         return f"{name}{(m - _spelling(name)[1]) // 12 - 1}"
 
-    w = {"pcs": pcs, "bass": bass, "bass_share": 1.0}
+    w: dict[str, Any] = {"pcs": pcs, "bass": bass, "bass_share": 1.0}
     _analyse(w, info, templates)
     if w["over_third"] and w["from"] == "detect":
         _take_reading(w, w["over_third"])  # a voicing on its own: heard from its bass

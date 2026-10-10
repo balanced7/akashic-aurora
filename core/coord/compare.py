@@ -202,15 +202,9 @@ def _files_touched(since: float | None = None, **_) -> set[str]:
 
 
 def _lessons_all(**_) -> set[str]:
-    from core.learning.store import (  # pyright: ignore[reportMissingImports]  # LATENT: no such module; compare() reports this domain as an error
-        get_learning_store_instance,
-    )
+    from core.learning.learning_store import get_learning_store_instance
 
-    store = get_learning_store_instance()
-    return {
-        str(getattr(x, "experiment_name", None) or x.get("experiment_name", ""))
-        for x in (store.list_experiments() if hasattr(store, "list_experiments") else [])
-    } - {""}
+    return {str(x.get("experiment_name", "")) for x in get_learning_store_instance().get_all_learnings()} - {""}
 
 
 #: name -> (collector, key_type). The key_type is what makes a comparison legal; two

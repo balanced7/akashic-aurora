@@ -203,7 +203,7 @@ class ErrorDoc:
 
         # Update cache
         ErrorDoc._summary_cache = summary
-        ErrorDoc._summary_cache_time = time.time()
+        ErrorDoc._summary_cache_time = time.time()  # ty: ignore[invalid-assignment]  # archived dead code
 
         return summary
 

@@ -39,7 +39,7 @@ for k in ("deepseek", "l3bh_probe"):
     r.srem(AUTO_REVIVE_KEY, k)
 
 L = Launcher()
-L._bus_note = lambda *a, **k: None
+L._bus_note = lambda *a, **k: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 
 # arm persists to Redis
 assert L.arm_revive("deepseek", True)["auto_revive"] is True
@@ -60,15 +60,15 @@ print("[PASS] disarm persists")
 # storm-disarm persists to Redis (not just in-memory)
 LM.RESTART_MAX_ATTEMPTS = 2
 LM.RESTART_BACKOFF_BASE = 0.01
-LM.AUTO_REVIVE_JITTER = 0
+LM.AUTO_REVIVE_JITTER = 0  # ty: ignore[invalid-assignment]  # probe patches a module constant
 tag = aid = "l3bh_probe"
 L._specs[tag] = AgentSpec(agent_id=aid, runtime="python_runner", description="t", command=["x"])
-L._reload = lambda: None
+L._reload = lambda: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 L._set_armed(aid, True)
 L._auto_attempts.pop(aid, None)
 L._auto_last.pop(aid, None)
 revives = []
-L.revive = lambda tag, reason="manual": (revives.append(tag), {"ok": True})[1]
+L.revive = lambda tag, reason="manual": (revives.append(tag), {"ok": True})[1]  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 for _ in range(4):
     L._reviving.discard(aid)
     L._auto_revive_run(tag, aid, {"phase": "thinking", "stuck_seconds": 400})

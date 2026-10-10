@@ -152,7 +152,7 @@ def _notes_head() -> str:
 
         mem = get_agent_memory()
         stamps: list[str] = []
-        for pull in (lambda: mem.get_decisions(days=90), lambda: mem.get_experiences(days=90)):  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentMemory has no get_experiences; suppress() hides it
+        for pull in (lambda: mem.get_decisions(days=90), lambda: mem.get_experiences(days=90)):  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentMemory has no get_experiences; suppress() hides it
             with contextlib.suppress(Exception):
                 stamps += [str(x.created_at) for x in (pull() or [])]
         return max(stamps) if stamps else "0"

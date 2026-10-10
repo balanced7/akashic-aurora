@@ -39,7 +39,7 @@ import os
 import re
 import tempfile
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 # T120 F2 (G11b): the ONE title-shaped-query heuristic. The CLI (cmd_recall), the
@@ -400,7 +400,7 @@ def _bench_probe_due(rec: dict[str, Any]) -> bool:
             when = when.replace(tzinfo=None)
     except Exception:
         return True
-    return (datetime.utcnow() - when).total_seconds() >= _BENCH_PROBE_DAYS * 86400
+    return (datetime.now(UTC).replace(tzinfo=None) - when).total_seconds() >= _BENCH_PROBE_DAYS * 86400
 
 
 def _bench_probe_set(recs: list[dict[str, Any]], is_benched) -> set:

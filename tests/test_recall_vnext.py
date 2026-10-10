@@ -15,7 +15,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from core.recall import at_action as aa
 from core.recall import curator as cu
@@ -40,7 +41,7 @@ class FakeLearningStore:
             self.recs[name]["benched"] = ""
             self.unbenched.append(name)
         else:
-            self.recs[name]["benched"] = datetime.utcnow().isoformat()
+            self.recs[name]["benched"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
             self.benched.append(name)
         return True
 
@@ -172,7 +173,7 @@ def test_parse_trigger_extracts_the_use_when_clause():
 
 
 def test_trigger_dominates_prose_matching():
-    items = [
+    items: list[dict[str, Any]] = [
         {
             "text": "Use when editing pretooluse hooks: pin the matcher config first",
             "trigger": "editing pretooluse hooks",
@@ -246,8 +247,8 @@ def test_self_echo_suppressed_for_author_only_then_expires():
     # A local-now() fixture masked the tz bug the live flight test caught -- never again.
     from datetime import datetime as dt
 
-    fresh = {"agent_id": "claude", "timestamp": dt.utcnow().isoformat()}
-    old = {"agent_id": "claude", "timestamp": (dt.utcnow() - timedelta(hours=3)).isoformat()}
+    fresh = {"agent_id": "claude", "timestamp": dt.now(UTC).replace(tzinfo=None).isoformat()}
+    old = {"agent_id": "claude", "timestamp": (dt.now(UTC).replace(tzinfo=None) - timedelta(hours=3)).isoformat()}
     now = time.time()
     assert aa._self_echo(fresh, "claude", now) is True
     assert aa._self_echo(fresh, "deepseek", now) is False  # other agents still see it

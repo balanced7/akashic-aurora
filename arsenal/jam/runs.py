@@ -710,6 +710,7 @@ class RunStore:
             used_at = at
             if op in ("tempo", "next", "set") and at in ("now", "beat"):
                 used_at = "bar"  # tempo segments, def versions and settings start on bar lines (9.1, 4.3)
+            land: dict[str, Any]
             if used_at == "now":
                 land = {"bar": T.bar_at(segs, m, now)["bar"], "beat": 0, "epoch_ms": now}
             else:

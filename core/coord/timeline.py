@@ -274,7 +274,7 @@ def gather(*, sources: list[tuple[str, Callable]] | None = None, since: float | 
             # Named, never silent: an unreadable domain is a FACT about the report.
             failed[name] = f"{e.__class__.__name__}: {e}"
             continue
-        normed = [
+        normed: list[dict[str, Any]] = [
             dict(_norm(r, name), plane=PLANE_OF.get(name, "UNKNOWN"), **({"born": r["born"]} if r.get("born") else {}))
             for r in got
         ]

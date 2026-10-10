@@ -24,7 +24,7 @@ print(f"[PASS] no stale exceptions ({len(w.EXCEPTIONS)} all genuinely unwired)")
 
 # a brand-new unwired module must FAIL the gate
 orig = w.analyze
-w.analyze = lambda: (set(), {"x"}, sorted([*list(orig()[2]), "core/comm/__probe_unwired__.py"]))
+w.analyze = lambda: (set(), {"x"}, sorted([*list(orig()[2]), "core/comm/__probe_unwired__.py"]))  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
 assert w.main() == 1, "a new unwired core module must FAIL the gate"
 w.analyze = orig
 print("[PASS] a new unwired module FAILS the gate (latent capability can't accumulate)")

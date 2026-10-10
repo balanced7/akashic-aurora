@@ -184,7 +184,7 @@ def collect_report(
     """Single observability payload (ports + logging + infra)."""
     from session_supervisor import (
         allow_infra_start,
-        ensure_infra,  # pyright: ignore[reportAssignmentType]  # LATENT: shadows the ensure_infra flag, so the flag is ignored
+        ensure_infra,  # ty: ignore[invalid-assignment]  # pyright: ignore[reportAssignmentType]  # LATENT: shadows the ensure_infra flag, so the flag is ignored
         infra_status,
     )
 
@@ -208,7 +208,7 @@ def collect_report(
 
     if ensure_infra:
         if allow_infra_start():
-            report["ensure_infra"] = ensure_infra(infra_tier.strip().lower(), infra_agent)  # pyright: ignore[reportCallIssue]  # LATENT: same shadowing as the import above; this calls the imported function
+            report["ensure_infra"] = ensure_infra(infra_tier.strip().lower(), infra_agent)  # ty: ignore[call-non-callable]  # pyright: ignore[reportCallIssue]  # LATENT: same shadowing as the import above; this calls the imported function
         else:
             report["ensure_infra"] = {
                 "ok": False,

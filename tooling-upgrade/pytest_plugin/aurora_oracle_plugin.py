@@ -23,6 +23,7 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     outcome = report.outcome
     if hasattr(report, "wasxfail"):
         outcome = "xfailed" if report.skipped else "xpassed"
+    assert report.when is not None  # runtest reports always carry their phase
     rec[report.when] = outcome
 
 

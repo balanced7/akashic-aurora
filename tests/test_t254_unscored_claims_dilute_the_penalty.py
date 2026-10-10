@@ -119,4 +119,6 @@ def test_the_flat_policy_is_unaffected():
         claim("flooder", 200 + i, "unverified") for i in range(60)
     ]
     totals = score_round(honest + flooder, policy="v1_doc")["totals"]
-    assert totals["honest"] == totals["flooder"] == 3 * POLICIES["v1_doc"]["refuted"], totals
+    refuted = POLICIES["v1_doc"]["refuted"]
+    assert isinstance(refuted, int | float), refuted
+    assert totals["honest"] == totals["flooder"] == 3 * refuted, totals

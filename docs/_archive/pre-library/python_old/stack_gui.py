@@ -201,9 +201,9 @@ async def api_stop_service(name: str):
     runtime = cfg.get("runtime", "")
     try:
         if runtime == "wsl":
-            _, ok = _run_wsl(stop_cmd, timeout=10)
+            _, ok = _run_wsl(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
         else:
-            _, ok = _run_ps(stop_cmd, timeout=10)
+            _, ok = _run_ps(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
         routes_tbl.update_status(name, "stopped")
         return {"service": name, "stopped": ok}
     except Exception as e:
@@ -220,9 +220,9 @@ async def api_restart_service(name: str):
     if stop_cmd:
         runtime = cfg.get("runtime", "")
         if runtime == "wsl":
-            _run_wsl(stop_cmd, timeout=10)
+            _run_wsl(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
         else:
-            _run_ps(stop_cmd, timeout=10)
+            _run_ps(stop_cmd, timeout=10)  # ty: ignore[invalid-argument-type]  # archived dead code
         time.sleep(1)  # noqa: ASYNC251  # archived code: the blocking call stays (no behaviour change)
     routes_tbl.update_status(name, "restarting")
     launch_service(name, cfg)
@@ -245,9 +245,9 @@ async def api_start_all():
                 ep = cfg["endpoint"]
                 routes_tbl.register(
                     name,
-                    ep.get("host", "127.0.0.1"),
-                    ep.get("port", 0),
-                    ep.get("protocol", "tcp"),
+                    ep.get("host", "127.0.0.1"),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
+                    ep.get("port", 0),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
+                    ep.get("protocol", "tcp"),  # ty: ignore[invalid-argument-type, unresolved-attribute]  # archived dead code
                     status="healthy" if healthy else "failed",
                 )
     ports_mgr.sync_to_redis()
@@ -367,7 +367,7 @@ async def api_troubleshoot_dep_graph():
                 "ports": cfg.get("ports", []),
             }
         )
-        edges.extend({"from": dep, "to": name} for dep in cfg.get("depends", []))
+        edges.extend({"from": dep, "to": name} for dep in cfg.get("depends", []))  # ty: ignore[not-iterable]  # archived dead code
 
     return {"nodes": nodes, "edges": edges, "tiers": [sorted(t) for t in tiers]}
 

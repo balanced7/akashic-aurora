@@ -27,6 +27,9 @@ recall-curate        bench surfaced-never-credited lessons + prune ghost counter
 audit                belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry<->parser)
 injections           the injection ledger: what recall pushed into contexts + cost
 harnesses            integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers
+hooks                register / remove / switch off-on / inspect the harness hooks (user or project scope)
+link                 fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd)
+setup                onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes
 fleet                local-model dispatch: roster (list) + capability select + direct one-shot call
 triage               sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review
 recall-counters      sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies)

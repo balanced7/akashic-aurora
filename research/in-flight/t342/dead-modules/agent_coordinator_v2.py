@@ -394,7 +394,7 @@ class AgentCoordinator:
             json.dump({**lock.__dict__, "priority": lock.priority.value}, f, indent=2)
 
         # Broadcast lock
-        self._broadcast_lock(lock, "acquired")  # pyright: ignore[reportArgumentType]  # LATENT: passes a ResourceLock, json.dumps fails and the broadcast is silently dropped
+        self._broadcast_lock(lock, "acquired")  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # LATENT: passes a ResourceLock, json.dumps fails and the broadcast is silently dropped
 
         return lock
 

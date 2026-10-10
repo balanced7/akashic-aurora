@@ -290,7 +290,10 @@ def from_pdf(path, url: str | None = None) -> Document:
                 walk(it, level + 1)
                 continue
             try:
-                marks.append((reader.get_destination_page_number(it), level, str(it.title).strip()))  # pyright: ignore[reportArgumentType]  # LATENT: pypdf returns None for a dangling outline target; the sort below would raise
+                page_no = reader.get_destination_page_number(it)
+                if page_no is None:
+                    continue  # dangling outline target: a None page would break the sort below
+                marks.append((page_no, level, str(it.title).strip()))
             except Exception:
                 continue
 

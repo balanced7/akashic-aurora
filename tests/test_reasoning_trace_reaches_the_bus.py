@@ -69,7 +69,7 @@ def _agent(chunks, *, think):
     traces = []
     a = dc.Agent(
         _FakeClient(chunks),
-        toolbox=None,  # pyright: ignore[reportArgumentType]  # no toolbox: the canned stream never calls a tool
+        toolbox=None,  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # no toolbox: the canned stream never calls a tool
         model="deepseek-v4-pro",
         system="s",
         think=think,

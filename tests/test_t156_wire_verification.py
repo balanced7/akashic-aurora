@@ -127,7 +127,7 @@ def test_a4_rotate_terminates_when_deletion_is_impossible(tmp_path):
     for _ in range(5):
         j.record(model="m", status=200)
     real_remove = os.remove
-    os.remove = lambda p: None  # deletion "succeeds" but frees nothing
+    os.remove = lambda p: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double; deletion "succeeds" but frees nothing
     old = WJ.MAX_FILES
     try:
         WJ.MAX_FILES = 1

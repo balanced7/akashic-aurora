@@ -25,7 +25,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import pytest
 
@@ -621,7 +621,7 @@ def test_moments_merge_by_card_id():
     assert set(moments["cards"]) <= set(CARDS)
     for cid in IDS:
         entry = moments["cards"].get(cid, {})
-        merged = {
+        merged: dict[str, Any] = {
             **copy.deepcopy(CARDS[cid]),
             **entry,
             "rev": 1,

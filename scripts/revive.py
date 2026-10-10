@@ -98,7 +98,7 @@ def _procs() -> list[str]:
             errors="replace",
             creationflags=_NO_WINDOW,
         )
-        return (r.stdout or "").splitlines()
+        return r.stdout.splitlines() if r.stdout else []
     except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return []
 

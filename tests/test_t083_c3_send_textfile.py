@@ -40,7 +40,7 @@ def _run(argv, monkeypatch):
     _FakeBus.sent = None
     parser = agent_cli.build_parser() if hasattr(agent_cli, "build_parser") else None
     if parser is None:  # fall back to main() with argv
-        return agent_cli.main(argv)  # pyright: ignore[reportCallIssue]  # dead fallback: build_parser exists
+        return agent_cli.main(argv)  # ty: ignore[too-many-positional-arguments]  # pyright: ignore[reportCallIssue]  # dead fallback: build_parser exists
     args = parser.parse_args(argv)
     return args.fn(args)
 
@@ -98,7 +98,7 @@ def test_no_text_at_all_refuses(monkeypatch):
     # tests/test_w06_stdin_send.py does; pytest's capture stdin reports isatty() False and
     # raises on read(), which is a harness artifact, not the contract under test.
     tty_in = io.StringIO("")
-    tty_in.isatty = lambda: True
+    tty_in.isatty = lambda: True  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     monkeypatch.setattr(sys, "stdin", tty_in)
     rc = _run(["bifrost-send", "claude", "--to", "deepseek"], monkeypatch)
     assert rc == 2

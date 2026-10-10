@@ -178,11 +178,11 @@ def main() -> int:
     guards = _added_guards(days)
     ungated = []
     try:
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
 
         from core.events.event_query import get_event_query
 
-        since = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        since = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)).isoformat()
         ungated = get_event_query().search("", kind="ungated_ship", since=since, top_k=10)
     except Exception:
         pass

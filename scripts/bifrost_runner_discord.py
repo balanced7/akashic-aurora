@@ -989,7 +989,7 @@ def main(argv=None) -> int:
                         "text": str(text),
                     }
                 )
-            for op in tracker.poll(batch, on_drop=_drop_loud):  # pyright: ignore[reportCallIssue]  # LATENT: GuestReplyTracker.poll() takes no on_drop; this TypeError ends the guest-reply task
+            for op in tracker.poll(batch, on_drop=_drop_loud):
                 try:
                     await op["channel_key"].channel.send(f"[reply from {op['frm']}]\n{op['text']}")
                     print(f"[discord-in] guest reply posted ({op['frm']})", flush=True)

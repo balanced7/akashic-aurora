@@ -257,7 +257,7 @@ def test_usefulness_reranks_equally_relevant():
         },
     ]
     orig = aa._cached_items
-    aa._cached_items = lambda ls: items  # both equally relevant to "consolidator"; B is proven-useful
+    aa._cached_items = lambda ls: items  # ty: ignore[invalid-assignment]  # monkeypatch with a test double; both equally relevant to "consolidator"; B is proven-useful
     try:
         out, total = aa._lessons("consolidator", None, 2, 0.0)
         assert out, f"proven-useful lesson should rank first: {[o['source'] for o in out]}"
@@ -427,14 +427,14 @@ def test_render_staleness_cue_only_when_old():
     """First-party fold-in 2026-07-08: an OLD lesson on the surface earns one [age] line; fresh
     or unstamped lessons stay silent (the cue must earn its tokens -- surface discipline).
     Timestamps are production-shaped (naive utcnow, the renew flight-test rule)."""
-    from datetime import datetime, timedelta
+    from datetime import UTC, datetime, timedelta
 
-    old_ts = (datetime.utcnow() - timedelta(days=45)).isoformat()
+    old_ts = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=45)).isoformat()
     out = render({"lessons": [{"text": "t", "source": "learn:experiment:x", "timestamp": old_ts}], "locks": []})
     assert "[age]" in out, out
     assert "~45d" in out or "~44d" in out, out
     assert "verify named files/flags still exist" in out
-    fresh_ts = datetime.utcnow().isoformat()
+    fresh_ts = datetime.now(UTC).replace(tzinfo=None).isoformat()
     assert "[age]" not in render(
         {"lessons": [{"text": "t", "source": "learn:experiment:x", "timestamp": fresh_ts}], "locks": []}
     ), "a fresh lesson must not carry the staleness cue"

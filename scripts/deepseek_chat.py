@@ -647,7 +647,7 @@ class Agent:
 
 # ---- commands + REPL --------------------------------------------------------
 
-HELP = cast("str", __doc__).split("In-chat commands:", 1)[1].split("NOTE:", 1)[0].rstrip()
+HELP = (__doc__ or "").split("In-chat commands:", 1)[1].split("NOTE:", 1)[0].rstrip()
 
 
 def read_paste():

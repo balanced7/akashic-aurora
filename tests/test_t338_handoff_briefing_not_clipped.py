@@ -130,7 +130,7 @@ def test_p5_a_store_failure_degrades_and_never_raises():
         raise RuntimeError("store down")
 
     real = _am.get_agent_memory
-    _am.get_agent_memory = _boom
+    _am.get_agent_memory = _boom  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         confessions: list = []
         out = fn("Z" * 4000, 1000, "note", confessions, to_agent="claude", by_agent="claude")

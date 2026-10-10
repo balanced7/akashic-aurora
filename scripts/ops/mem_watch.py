@@ -46,6 +46,7 @@ import os
 import sys
 import time
 from datetime import UTC, datetime
+from typing import Any
 
 
 def _pyl() -> str:
@@ -186,7 +187,7 @@ def _pool_tags(top: int | None = 8, min_mb: float = 0.0) -> list[dict]:
         if status != 0 or len(raw) < 8:
             return []
         count = int.from_bytes(raw[0:4], "little")
-        rows = []
+        rows: list[dict[str, Any]] = []
         for i in range(count):
             rec = raw[8 + i * 40 : 8 + (i + 1) * 40]
             if len(rec) < 40:

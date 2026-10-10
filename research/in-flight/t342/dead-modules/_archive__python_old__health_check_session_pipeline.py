@@ -154,10 +154,10 @@ def summarize_log_tail(lines: int = 5) -> dict:
     if primary.exists():
         try:
             data = primary.read_text(encoding="utf-8", errors="replace").splitlines()
-            out["session_all.jsonl"]["approx_lines"] = len(data)
+            out["session_all.jsonl"]["approx_lines"] = len(data)  # ty: ignore[invalid-assignment]  # archived dead code
             out["session_all.jsonl"]["tail_lines"] = data[-lines:]
         except Exception as e:
-            out["session_all.jsonl"]["error"] = str(e)
+            out["session_all.jsonl"]["error"] = str(e)  # ty: ignore[invalid-assignment]  # archived dead code
     return out
 
 
@@ -279,7 +279,7 @@ def inference_gpu_report() -> dict:
 
     # ROCm-style device exposure
     for hint in gpu_hints:
-        devs = hint.get("devices_inspect", {}).get("Devices") or []
+        devs = hint.get("devices_inspect", {}).get("Devices") or []  # ty: ignore[unresolved-attribute]  # archived dead code
         hint["has_dri_or_kfd"] = any(
             isinstance(d, dict)
             and ("/dev/dri" in str(d.get("PathOnHost", "")) or "/dev/kfd" in str(d.get("PathOnHost", "")))

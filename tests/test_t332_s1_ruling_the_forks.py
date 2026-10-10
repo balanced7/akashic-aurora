@@ -170,7 +170,7 @@ def test_p8_you_cannot_ask_a_kind_question_without_naming_the_plane():
     two-argument call could not tell which one was being asked about -- so it answered
     confidently about the bus every time, including when the caller meant a beat."""
     with pytest.raises(TypeError):
-        K.resolve("note", "salient")  # type: ignore[call-arg]  # deliberate bad call: the test pins the TypeError
+        K.resolve("note", "salient")  # ty: ignore[missing-argument]  # type: ignore[call-arg]  # deliberate bad call: the test pins the TypeError
 
 
 def test_p9_a_plane_mismatch_is_unclassified_with_a_reason_never_a_silent_false():

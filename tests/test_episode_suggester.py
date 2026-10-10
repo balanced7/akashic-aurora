@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import tempfile
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -78,7 +79,7 @@ def _switched():
 
 
 def _ev(**kw):
-    base = {
+    base: dict[str, Any] = {
         "chapter_track": "ai-setup",
         "span_start": "2026-07-07T10:00:00",
         "beats": [_B("2026-07-07T10:05:00", "b1", "ai-setup"), _B("2026-07-07T10:05:30", "b2", "ai-setup")],

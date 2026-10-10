@@ -135,6 +135,7 @@ def rebuild_track_chapter_list(store, track_id: str, current_ids: list[str]) -> 
         track = Track(id=track_id, title=track_id, chapters=[])
 
     merged: list[str] = []
+    span_of: dict[str, str] = {}
     seen = set()
     for cid in list(track.chapters or []) + list(current_ids):
         if cid in seen:
@@ -143,11 +144,10 @@ def rebuild_track_chapter_list(store, track_id: str, current_ids: list[str]) -> 
         ch = load_chapter_from_store(store, cid)
         if ch is not None and is_active_chapter(ch):
             merged.append(cid)
+            span_of[cid] = ch.span_start or ""
 
-    merged.sort(
-        key=lambda cid: load_chapter_from_store(store, cid).span_start or "",  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: re-read; a chapter removed since the filter above raises
-        reverse=True,
-    )
+    # Sort on the chapters read above: a re-read could find one removed since the filter.
+    merged.sort(key=lambda cid: span_of[cid], reverse=True)
     track.chapters = merged
     store.set(track_key(track_id), json.dumps(track.to_dict()))
     return track

@@ -21,9 +21,15 @@ from agent.harness import registry
 # nothing to pin, so it skips (with the reason) instead of failing collection for the suite.
 pytest.importorskip("agent.harness.hooks.codex_common", reason="codex_* hook adapters are not in this tree")
 
-from agent.harness.hooks import codex_common as common  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
-from agent.harness.hooks import codex_posttooluse as post  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
-from agent.harness.hooks import codex_pretooluse as pre  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
+from agent.harness.hooks import (
+    codex_common as common,  # ty: ignore[unresolved-import]  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
+)
+from agent.harness.hooks import (
+    codex_posttooluse as post,  # ty: ignore[unresolved-import]  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
+)
+from agent.harness.hooks import (
+    codex_pretooluse as pre,  # ty: ignore[unresolved-import]  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "codex_payloads"

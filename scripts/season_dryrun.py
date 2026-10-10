@@ -33,7 +33,6 @@ import os
 import subprocess
 import sys
 import tempfile
-from typing import cast
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -268,7 +267,7 @@ def run(
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=cast("str", __doc__).splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--k", type=int, default=9)
     ap.add_argument("--seed", type=int, default=20260804)
     ap.add_argument("--policy", default="v1_doc")

@@ -39,7 +39,7 @@ import argparse
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -279,7 +279,7 @@ def render(rep: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--root", default="")
     ap.add_argument("--history", action="store_true", help="scan every blob ever committed, not just the working tree")
     ap.add_argument("--staged", action="store_true", help="only what is staged")

@@ -33,7 +33,7 @@ import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")
 GST_LAUNCH = GST_ROOT / "bin" / "gst-launch-1.0.exe"
@@ -751,7 +751,7 @@ def summarize_pass_memory(
 ) -> dict:
     """Memory series for one pass plus stats over its steady window, which runs from the first
     fpsdisplaysink report (frames flowing, pools allocated) to EOS."""
-    rows = []
+    rows: list[dict[str, Any]] = []
     for sample in samples:
         by_luid = sample["gpu_dedicated_by_luid"]
         if by_luid is None:

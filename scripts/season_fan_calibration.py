@@ -26,7 +26,7 @@ import random
 import sys
 import tempfile
 import time
-from typing import cast
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -257,10 +257,10 @@ def summarize(manifest: dict, call_plan, branches) -> dict:
     if len(call_plan) != len(branches):
         raise ValueError(f"call plan has {len(call_plan)} slots but fan returned {len(branches)} branches")
     defect_ids = {c["id"] for c in manifest.get("canaries", []) if c.get("cls") in {"catchable", "undetectable"}}
-    arms = {}
+    arms: dict[str, dict[str, Any]] = {}
 
     for arm in ("replication", "sharding"):
-        positions = []
+        positions: list[dict[str, Any]] = []
         assigned = set()
         judged = set()
         claimed = set()
@@ -577,7 +577,7 @@ def run(
 def main() -> int:
     import argparse
 
-    ap = argparse.ArgumentParser(description=cast("str", __doc__).splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--seed", type=int, default=20260805)
     ap.add_argument("--snippet-chars", type=int, default=1200)
     ap.add_argument("--model", default="deepseek-v4-pro")

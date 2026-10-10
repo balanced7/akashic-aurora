@@ -18,7 +18,11 @@ runner lane redelivers on crash; a guest must not receive the same answer twice)
 
 from __future__ import annotations
 
-from typing import Any
+import contextlib
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: Discord's message cap is 2000; the runner already clips at 1900 (stillbirth confessor).
 MAX_POST_CHARS = 1900
@@ -49,14 +53,21 @@ class GuestReplyTracker:
     def __init__(self) -> None:
         self._tracked: dict[str, Any] = {}
         self._posted: set = set()
+        self._dropped: set[str] = set()  # reply ids already reported as dropped
 
     def track(self, bus_id: str, channel_key: Any) -> None:
         """Register a guest message by its bus id, so replies to it can find their way out."""
         self._tracked[str(bus_id)] = channel_key
 
-    def poll(self, msgs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def poll(
+        self, msgs: list[dict[str, Any]], on_drop: Callable[[dict[str, Any]], None] | None = None
+    ) -> list[dict[str, Any]]:
         """Return the POST ops for this batch: {channel_key, frm, text} per reply that
-        answers a tracked guest. Never raises; a malformed message is a no-op, not a crash."""
+        answers a tracked guest. Never raises; a malformed message is a no-op, not a crash.
+
+        A message whose link does not resolve to a tracked guest makes no post op; it fires
+        ``on_drop({id, frm, reply_to, reason, kind, text})`` once per message id, so a reply
+        that never reaches Discord leaves a receipt instead of dying on a bare `continue`."""
         ops: list[dict[str, Any]] = []
         for m in msgs or []:
             if not isinstance(m, dict):
@@ -66,10 +77,24 @@ class GuestReplyTracker:
             # Two link forms, one seam: bus.send_reply stamps meta.reply_id; the CLI's
             # --answers stamps meta.answers (the ladder's strict link). Either answers
             # a guest; the tracker follows both so the door and the ladder never fork.
-            reply_to = str(meta.get("reply_id") or meta.get("answers") or "")
-            chan = self._tracked.get(reply_to)
-            if chan is None:
-                continue  # not answering a guest we admitted -- ambient
+            reply_to = str(meta.get("reply_id") or meta.get("answers") or "").strip()
+            chan = self._tracked.get(reply_to) if reply_to else None
+            if chan is None:  # not answering a guest we admitted: a visible drop, once per id
+                if on_drop is not None and (not rid or rid not in self._dropped):
+                    with contextlib.suppress(Exception):  # the callback must not break the batch
+                        on_drop(
+                            {
+                                "id": rid,
+                                "frm": str(m.get("frm") or "seat"),
+                                "reply_to": reply_to,
+                                "reason": "untracked" if reply_to else "unlinked",
+                                "kind": str(m.get("kind") or ""),
+                                "text": str(m.get("text") or "")[:120],
+                            }
+                        )
+                    if rid:
+                        self._dropped.add(rid)
+                continue
             if str(m.get("kind") or "") in CONTROL_KINDS:
                 continue  # answered, never steered -- the tier's law, outbound
             if rid and rid in self._posted:

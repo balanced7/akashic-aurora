@@ -51,6 +51,7 @@ import os
 import subprocess
 import sys
 import uuid
+from typing import Any
 
 import pytest
 
@@ -72,7 +73,7 @@ SID8 = SESSION[:8]
 # HOME cwd + a command naming NEITHER "ai-setup" NOR "agent_cli.py". This payload is
 # deliberately OUT of _in_scope's target scope and IN session scope -- the exact shape that
 # the scope gate drops and that a correctly-placed beat must still serve (W2).
-PAYLOAD = {
+PAYLOAD: dict[str, Any] = {
     "hook_event_name": "PostToolUse",
     "tool_name": "Bash",
     "session_id": SESSION,

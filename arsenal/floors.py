@@ -18,6 +18,7 @@ Standalone: numpy + av only, no arsenal.* imports (the analysis.py rule).
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import av
 import numpy as np
@@ -226,7 +227,7 @@ def check(path, *, region=None, floors: list[str] | None = None, exemptions=None
     decls = validate_declarations(exemptions)
     rgb = load_rgb(path)
     names = floors or list(FLOORS)
-    results = []
+    results: list[dict[str, Any]] = []
     for name in names:
         fn = FLOORS[name]
         accepted = inspect.signature(fn).parameters

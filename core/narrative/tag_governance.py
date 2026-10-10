@@ -90,7 +90,7 @@ class TagGovernor:
             return (False, None)
         hist = TagHistory.from_list(beat.tag_history)
         if hist.rollback_to(value, at=at) is None:
-            return (False, hist.current_value(default=beat.track))  # pyright: ignore[reportArgumentType]  # default is returned as-is; None is a valid result here
+            return (False, hist.current_value(default=beat.track))  # ty: ignore[invalid-argument-type]  # pyright: ignore[reportArgumentType]  # default is returned as-is; None is a valid result here
         return self._apply(beat, hist, at)
 
     def current(self, beat_id: str) -> str | None:

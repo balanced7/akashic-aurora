@@ -260,7 +260,7 @@ def build_orientation(
         "landmarks_total": len(landmarks),
     }
 
-    focus = None
+    focus: dict[str, Any] | None = None
     routes = []
     aggregate_blind = []
     if target_row is not None:

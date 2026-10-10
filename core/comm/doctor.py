@@ -871,7 +871,7 @@ def unwedge(agent: str) -> dict[str, Any]:
         from core.comm import locks
 
         lm = locks.LockManager(agent)
-        held = lm.list_held() if hasattr(lm, "list_held") else []  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: LockManager has no list_held; always []
+        held = lm.list_held() if hasattr(lm, "list_held") else []  # ty: ignore[call-non-callable]  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: LockManager has no list_held; always []
         evidence["locks"] = held[:20]
     except Exception:
         pass
@@ -1225,7 +1225,7 @@ def flightdeck(agent: str | None = None, *, commit_hours: float = 6.0) -> dict[s
             aid = a_row["id"]
             try:
                 lm = locks.LockManager(aid)
-                lk_rows[aid] = lm.list_held() if hasattr(lm, "list_held") else []  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: LockManager has no list_held; always []
+                lk_rows[aid] = lm.list_held() if hasattr(lm, "list_held") else []  # ty: ignore[call-non-callable]  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: LockManager has no list_held; always []
             except Exception:
                 lk_rows[aid] = []
     except Exception:

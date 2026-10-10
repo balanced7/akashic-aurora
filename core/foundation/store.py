@@ -151,7 +151,7 @@ class Store(ABC):
     def sadd(self, key: str, *members: str) -> int: ...
 
     @abstractmethod
-    def smembers(self, key: str) -> set: ...  # pyright: ignore[reportGeneralTypeIssues]  # runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API)
+    def smembers(self, key: str) -> set: ...  # ty: ignore[invalid-type-form]  # pyright: ignore[reportGeneralTypeIssues]  # runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API)
 
     @abstractmethod
     def sismember(self, key: str, member: str) -> bool: ...

@@ -36,7 +36,7 @@ def _observe(cmdlines):
     import scripts.revive as revive
 
     orig = revive._cmdlines
-    revive._cmdlines = lambda: "\n".join(cmdlines) + "\n"
+    revive._cmdlines = lambda: "\n".join(cmdlines) + "\n"  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         return revive.observe()
     finally:

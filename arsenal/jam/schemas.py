@@ -37,7 +37,7 @@ import copy
 import json
 import math
 import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DEF_API, RUN_API, SEED_API, SEED_MOMENTS_API, tempomap
@@ -132,7 +132,17 @@ BASS_RANGE = (28, 50)  # E1..D3 (10.1)
 FULL_TOP_MAX = 69  # A4, hard
 COMP_TOP_MAX = 64  # E4: only the defining altered colour reaches it
 SEGMENT_TOLERANCE_MS = 0.1  # a stored segment epoch against the tempo map (DATA 6.3 keeps 0.1 ms)
-CARD_DEFAULTS = {
+
+
+class _CardDefaults(TypedDict):
+    tempo: dict[str, Any]
+    voicing: dict[str, Any]
+    playback: dict[str, Any]
+    backing: str
+    pulse_from_bpm: int
+
+
+CARD_DEFAULTS: _CardDefaults = {
     "tempo": {"bpm": 66, "beats_per_bar": 4, "feel": "straight"},
     "voicing": {"style": "spread", "voice_lead": False, "octave": None},
     "playback": {"velocity": 48, "arpeggio_ms": 0, "hold": "legato", "count": None},
@@ -929,7 +939,7 @@ def pair_problems(cards: Sequence[dict]) -> list[tuple[str, str]]:
             out.append((cid, f"names {other['id']!r}, whose pair does not name {cid!r} back"))
         elif back.get("role") == pair.get("role"):
             out.append((cid, f"and {other['id']}'s pair are both {pair.get('role')!r}; one asks, one answers"))
-    return out
+    return out  # ty: ignore[invalid-return-type]  # an id-less card keys as None; callers pass cards that validate_card already gave ids
 
 
 # ======================================================================================================== def

@@ -60,7 +60,7 @@ def test_forced_routing_failure_is_visible():
             raise RuntimeError("induced routing failure")
 
     orig = tr.get_track_router
-    tr.get_track_router = lambda: Boom()
+    tr.get_track_router = lambda: Boom()  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
     try:
         beat = bl.emit("commit", "x", "git:x", at="2026-01-01T00:00:00", hint=RouteHint(paths=["core/x.py"]))
     finally:

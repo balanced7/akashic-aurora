@@ -31,6 +31,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -73,7 +74,7 @@ def test_b1_knowledge_map_returns_graph():
 
 
 def test_b2_ack_marks_handled(monkeypatch):
-    calls = {}
+    calls: dict[str, Any] = {}
 
     def fake_ack(by, msg_id, note="", **kw):
         calls.update(by=by, msg_id=msg_id, note=note)

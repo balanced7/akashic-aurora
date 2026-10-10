@@ -55,9 +55,9 @@ class _quiet_fanout:
         # the ambient flag is cleared for its scope and restored on exit.
         self._iso = os.environ.pop("_AISETUP_TEST_ISOLATED", None)
         self._saved = (agent_cli.project_notes, ev.capture_event, bl.get_beat_log, am._agent_memory)
-        agent_cli.project_notes = lambda *a, **k: None
-        ev.capture_event = lambda *a, **k: None
-        bl.get_beat_log = lambda: SimpleNamespace(emit=lambda *a, **k: None)
+        agent_cli.project_notes = lambda *a, **k: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
+        ev.capture_event = lambda *a, **k: None  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
+        bl.get_beat_log = lambda: SimpleNamespace(emit=lambda *a, **k: None)  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
         self.mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "mem.json")))
         am._agent_memory = self.mem
         return self
@@ -65,7 +65,7 @@ class _quiet_fanout:
     def __exit__(self, *exc):
         if self._iso is not None:
             os.environ["_AISETUP_TEST_ISOLATED"] = self._iso
-        (agent_cli.project_notes, self._ev.capture_event, self._bl.get_beat_log, self._am._agent_memory) = self._saved
+        (agent_cli.project_notes, self._ev.capture_event, self._bl.get_beat_log, self._am._agent_memory) = self._saved  # ty: ignore[invalid-assignment]  # monkeypatch with a test double
         return False
 
 
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     print("STORAGE-INTAKE CLIP CONFESSION TESTS (RB-5 class)")
     print("=" * 60)
     test_5k_note_arg_stores_whole()
-    test_over_cap_note_confesses_in_result_and_in_band()  # pyright: ignore[reportCallIssue]  # LATENT: __main__ runner predates its fixtures
+    test_over_cap_note_confesses_in_result_and_in_band()  # ty: ignore[missing-argument]  # pyright: ignore[reportCallIssue]  # LATENT: __main__ runner predates its fixtures
     test_json_mode_carries_confession()
     test_small_note_unchanged()
     print("\n" + "=" * 60)

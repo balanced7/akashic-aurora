@@ -1906,7 +1906,7 @@ class ToolBox:
                 scope = it.get("scope") or []
                 if not scope:
                     continue
-                if any(_intent.scope_matches(s, rel) for s in scope):  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: intent.scope_matches never existed; except swallows, tag is always ""
+                if any(_intent.scope_matches(s, rel) for s in scope):  # ty: ignore[unresolved-attribute]  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: intent.scope_matches never existed; except swallows, tag is always ""
                     return str(it.get("intent", ""))
         except Exception:
             pass

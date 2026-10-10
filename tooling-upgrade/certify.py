@@ -430,7 +430,7 @@ def t2() -> tuple[bool, str]:
 
 
 _SUPP = re.compile(
-    r"#\s*(noqa(?::\s*[A-Z0-9, ]+)?|type:\s*ignore(?:\[[^\]]*\])?|"
+    r"#\s*(noqa(?::\s*[A-Z0-9, ]+)?|type:\s*ignore(?:\[[^\]]*\])?|ty:\s*ignore(?:\[[^\]]*\])?|"
     r"pyright:\s*ignore(?:\[[^\]]*\])?|ruff:\s*noqa[^\n]*|pyright:\s*[a-zA-Z]+[^\n]*|"
     r"fmt:\s*(?:off|skip))",
     re.I,
@@ -449,8 +449,10 @@ def suppressions() -> list[tuple[str, int, str, str]]:
             if "#" not in line:
                 continue
             for m in _SUPP.finditer(line):
-                rest = line[m.end() :]
-                reason = rest.split("#", 1)[1].strip() if "#" in rest else ""
+                # the reason is the first comment after the form that is not itself a suppression
+                # (a ty ignore chained before a pyright ignore shares the one trailing reason)
+                rest = [c.strip() for c in line[m.end() :].split("#")[1:]]
+                reason = next((c for c in rest if not _SUPP.match("#" + c)), "")
                 out.append((f, i, m.group(1).strip(), reason))
     return out
 
@@ -461,7 +463,7 @@ def blanket(form: str) -> bool:
     return (
         f == "noqa"
         or f.startswith("ruff:noqa")
-        or f == "type:ignore"
+        or f in {"type:ignore", "ty:ignore"}
         or (f.startswith("pyright:") and not f.startswith(("pyright:ignore[", "pyright:strict")))
     )
 
@@ -815,7 +817,7 @@ def _exec(spec: int | list[str] | Callable[[Path], int], t: Path, goal: str) -> 
     if isinstance(spec, int):  # a presence probe that already answered with an exit code
         return spec
     if callable(spec):
-        return spec(t)
+        return spec(t)  # ty: ignore[invalid-return-type]  # ty keeps `list[str] & Callable` after callable()
     argv = [a.replace("{python}", sys.executable).replace("{goal}", goal) for a in spec]
     env = oracle.oracle_env({"UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"), "UV_NO_SYNC": "1"})
     try:
@@ -829,7 +831,7 @@ def run_drill(did: str, goal: str) -> str:
     _desc, fault, gate, presence = DRILLS[did]
     with drill_tree() as t:
         pres = presence(t) if callable(presence) else presence
-        if _exec(pres, t, goal) != 0:
+        if _exec(pres, t, goal) != 0:  # ty: ignore[invalid-argument-type]  # callable() narrowing, as in _exec
             return "MISSED (gate absent)"
         clean_rc = _exec(gate, t, goal)
         if clean_rc != 0:
@@ -1155,7 +1157,7 @@ def gate_problems(tasks: dict[str, Any], members: list[str]) -> list[str]:
         return ["gate is not a sequence task"]
     names = [
         s if isinstance(s, str) else cast("dict[str, Any]", s).get("ref", "") if isinstance(s, dict) else ""
-        for s in cast("list[Any]", seq)
+        for s in cast("list[Any]", seq)  # ty: ignore[redundant-cast]  # basedpyright sees list[Unknown]
     ]
     problems = [f"gate step {n!r} is not a plan gate task" for n in names if n not in GATE_TASKS]
     order = [n for n in GATE_TASKS if n in names]
@@ -2086,7 +2088,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         p.add_argument("--tamper-only", action="store_true", help="T1-T7 only (the D15 gate)")
         a = p.parse_args(argv)
         return certify(a.goal, a.phase, a.drills, a.tamper_only)
-    p = argparse.ArgumentParser(prog="certify.py", description=cast("str", __doc__).split("\n\n")[0])
+    p = argparse.ArgumentParser(prog="certify.py", description=(__doc__ or "").split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("assert-branch")
     sub.add_parser("assert-checks-files")
