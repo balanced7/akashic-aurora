@@ -212,7 +212,7 @@ jobs:
           export PATH="$bin:$PATH"
           set -x
           aurora self version
-          aurora discover | head -5
+          aurora discover > discover.txt && head -5 discover.txt  # no truncating pipe: Windows Python exits 120 on a closed stdout
           aurora status
           aurora learn smoke --experiment ci_smoke_install --tried "installed aurora with the install script" --result "every command answered" --recommend "keep the install smoke test green on every OS"
           aurora recall ci_smoke_install | grep -q ci_smoke_install
