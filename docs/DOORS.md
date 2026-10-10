@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (114 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (115 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -57,6 +57,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `friction` | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only | `<agent_id>*` `--window-h` `--json` |
 | `gateway` | the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation) | `<action> {status,restart}` `--json` |
 | `glance` | T079/T060: bounded read-only WorldSnapshot projections over named authorities | `<glance_projection>* {program}` |
+| `grade` | meta-harness graders (task 05): grade runs, compare candidates, power, calibration | `<action>* {run,compare,noise,power,label,agreement}` `--candidate` `--against` `--scenario` `--judge` `--scenarios-n` `--trials` `--delta` `--criterion` `--person` `--judge-call` `--ref` `--json` |
 | `graduate` | retire a lesson from recall surfacing -- automation now enforces its rule | `<agent_id>*` `--experiment` `--enforced-by` `--undo` `--json` |
 | `grant` | S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring | `--bootstrap` `<agent_id>` `--role` `--by` `--reason` `--hours` `--permanent` `--caps` `--path-scope` `--request-ref` `--revoke` `--list` `--dry-run` `--json` |
 | `ground` | typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity | `<target>*` `--agent` `--continuity` `--json` |
