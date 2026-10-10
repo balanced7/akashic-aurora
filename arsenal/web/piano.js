@@ -3870,6 +3870,155 @@ function hideToast(message) {  // only while that message is the one showing
   clearTimeout(toastTimer);
   el.hidden = true;
 }
+// The smooth preview (Daniel, 2026-10-09: "Studio crystal looks amazing but the edges are aliased"). At Detail 4K the drawing
+// buffer is 2160 x 3840 and the canvas is shown about 710 px wide. Chromium composites a WebGL canvas with plain bilinear
+// filtering and no mipmaps, so a 3x minification reads a few of every nine source pixels: thin lines dash, edges stair-step.
+// The frame itself is clean (the same 4K frame box-filtered to the shown size is smooth), and CSS image-rendering cannot ask
+// for better (smooth and high-quality fall back to auto in Chromium; crisp-edges is worse). So a 2D canvas the size of the
+// shown pixels sits over the WebGL one and copies each rendered frame into itself, filtered properly.
+// How it filters (measured 2026-10-09, headless Brave on the RX 9070 XT with canvas, compositing and WebGL all hardware
+// accelerated; edge error = mean error on edge pixels against the box-filtered frame, lower is smoother). A single drawImage
+// at imageSmoothingQuality "high" (or "medium") is mipmapped, but Chromium builds the mip chain of the whole 4K snapshot every
+// frame: 4.0 ms of GPU per frame. Instead the frame is drawn with plain bilinear to 2^k times the shown size (a minification
+// of 2 or less, which bilinear samples well), then halved k times (bilinear at exactly one half is an exact 2 x 2 box
+// average): 0.6 ms, and smoother. Edge error browser / "high" / these steps: 4.77 / 3.29 / 3.03 at ratio 3.04 (4K, 710 px
+// wide), 5.90 / 3.04 / 1.73 at 4.45, 4.83 / 4.44 / 3.95 at 2.03 (1440p), 4.52 / 4.42 / 4.19 at 1.90; but 3.94 / 3.99 / 4.11
+// at 1.75 and 3.78 / 3.78 / 4.45 at 1.52 (1080p, 710 px wide), where no copy beats the browser's own bilinear (the dashes
+// left there are in the frame itself). Hence SMOOTH_MIN_RATIO 1.8.
+// It is only what you see. REC captures the WebGL canvas itself (captureStream) and snapshot() reads it at full size; the
+// copy is neither. It takes no pointer events, so the gallery camera still drags on the canvas. It never asks for a frame of
+// its own, so a paused render stays exactly as it was. It stands aside (hidden, no draws, no backing stores but a held frame
+// until the next rendered one) when the buffer is at most SMOOTH_MIN_RATIO times its screen pixels on both axes, when it is
+// turned off (Studio > Capture > Rendering; arsenal.piano.smooth-preview, default on), or when the browser gives no 2D
+// context. It sits right after the canvas in the stage with z-index auto, so everything the stage shows over the canvas
+// (the glass, the HUD, captions, the idle hint, toasts, the drawers) still paints above it. It is placed by the stage itself,
+// not by coordinates: an absolutely positioned child of a flex container with no left/top sits where the container would put
+// it as its only item, and the stage centres its one item, the canvas. At the canvas's size the copy lands on the canvas to
+// the sub-pixel through every layout change (a docked drawer's padding, fullscreen, a resize the ResizeObserver has not
+// reported yet), where measured coordinates would lag a layout behind and show a doubled frame.
+const SMOOTH_PREF = "arsenal.piano.smooth-preview";
+const SMOOTH_MIN_RATIO = 1.8;
+// steps: the canvases each frame is drawn through, the largest first and the visible one (el) last. drawn: el holds a frame
+// of its current size (a resize clears a canvas; until it is filled again it stays hidden and the WebGL canvas shows
+// through, so a resize never flashes black). failed: a copy threw, or a step had no 2D context; off until the setting is
+// turned on again. held: the largest step of a chain that was taken down while it held a frame, kept (with the drawing
+// buffer size that frame came from) until the next rendered frame replaces it. A new chain is filled from it at once, so a
+// paused render keeps its picture, smooth, through a resize, fullscreen or the setting turned off and on. Asking for a frame
+// instead would draw one at the live clock: trails fade, weather moves, the camera eases, and the frozen picture moves on
+// (review 2026-10-10, measured: frames 8 -> 9 -> 10 and a mean change of 1.18 per channel over a paused resize round trip).
+// The WebGL canvas itself cannot be read again: with preserveDrawingBuffer off, drawImage after the browser has composited
+// gets the cleared buffer (Brave, SwiftShader and the RX 9070 XT alike: opaque black). The first chain's step is kept, not
+// a later one's, so a round trip back to the first size redraws the same pixels from the same source.
+const smooth = { on: safeGet(SMOOTH_PREF) !== "off", active: false, drawn: false, failed: false, ratio: 1, el: null, ctx: null, steps: [],
+                 held: null, frameW: 0, frameH: 0 };
+// opaque (alpha false): the compositor can skip the WebGL layer under the visible copy, and nothing has to be blended
+const smoothCanvas = (w, h) => {
+  const el = document.createElement("canvas");
+  el.width = w;
+  el.height = h;
+  return { el, ctx: el.getContext("2d", { alpha: false }) };
+};
+try {
+  // the context is taken now, so a probe that asks every canvas for webgl2 (lanes/alias_verify.mjs) finds this one 2D
+  // instead of giving it a WebGL context
+  const view = smoothCanvas(0, 0);
+  if (view.ctx) {
+    view.el.className = "smooth-preview";
+    view.el.setAttribute("aria-hidden", "true");
+    view.el.hidden = true;
+    canvas.after(view.el);  // the stage's first canvas stays the WebGL one (deck.js and studio.js find it by querySelector)
+    smooth.el = view.el;
+    smooth.ctx = view.ctx;
+  }
+} catch (e) { console.warn("[piano] smooth preview unavailable:", e); }
+// A frame from a drawing buffer of this size is still the WebGL canvas's frame. A new size (Detail, framing) clears the
+// canvas, and a 9:16 frame must never be stretched over 16:9; those paths ask for a new frame of their own.
+const frameCurrent = (w, h) => w === canvas.width && h === canvas.height;
+// Hidden and drawing nothing: the WebGL canvas shows its own last frame as it is, and the backing stores go back, all but
+// the largest step of a chain holding the canvas's current frame, which becomes the held frame (unless one is held already:
+// that one is closer to the source).
+function smoothAside() {
+  if (smooth.el) smooth.el.hidden = true;
+  if (smooth.drawn && !smooth.held && smooth.steps.length > 1 && frameCurrent(smooth.frameW, smooth.frameH)) {
+    smooth.held = { ...smooth.steps.shift(), w: smooth.frameW, h: smooth.frameH };
+  }
+  for (const s of smooth.steps) s.el.width = s.el.height = 0;
+  smooth.steps = [];
+  smooth.active = smooth.drawn = false;
+}
+function dropHeld() {
+  if (!smooth.held) return;
+  smooth.held.el.width = smooth.held.el.height = 0;
+  smooth.held = null;
+}
+// fitCanvas, with the canvas's CSS size. Called for every resize, framing, render quality (applyFraming), fullscreen,
+// screen density and toggle change: each can move the ratio across the line.
+function placeSmooth(cssW, cssH) {
+  if (smooth.held && !frameCurrent(smooth.held.w, smooth.held.h)) dropHeld();  // smoothAside keeps no stale frame either
+  const dpr = window.devicePixelRatio || 1;
+  const rx = canvas.width / Math.max(1, cssW * dpr), ry = canvas.height / Math.max(1, cssH * dpr);
+  smooth.ratio = Math.max(rx, ry);
+  const el = smooth.el;
+  if (!el || !smooth.on || smooth.failed || smooth.ratio <= SMOOTH_MIN_RATIO) { smoothAside(); return; }
+  el.style.width = `${cssW}px`;
+  el.style.height = `${cssH}px`;
+  const w = Math.round(cssW * dpr), h = Math.round(cssH * dpr);
+  const k = Math.max(1, Math.ceil(Math.log2(smooth.ratio) - 1));  // halvings: the first step minifies by 2 or less
+  const first = smooth.steps[0];
+  if (smooth.active && el.width === w && el.height === h && first && first.el.width === w << k && first.el.height === h << k) return;
+  smoothAside();
+  for (let i = k; i >= 1; i--) {
+    const step = smoothCanvas(w << i, h << i);
+    smooth.steps.push(step);
+    if (!step.ctx) { smooth.failed = true; smoothAside(); return; }
+  }
+  el.width = w;
+  el.height = h;
+  smooth.steps.push({ el, ctx: smooth.ctx });
+  smooth.active = true;
+  // Filled now from the held frame when there is one. Otherwise el stays hidden (the WebGL canvas showing through) until
+  // drawSmooth has put a rendered frame on it: no frame is asked for here, so a paused render stays exactly as it was.
+  if (smooth.held) fillSmooth(smooth.held.el);
+}
+// Draws src through the steps into el and shows it. False when a draw threw: the copy has turned itself off.
+function fillSmooth(src) {
+  try {
+    for (const s of smooth.steps) {
+      s.ctx.imageSmoothingEnabled = true;  // a resize resets a 2D context's state, so both are set on every draw
+      s.ctx.imageSmoothingQuality = "low";  // plain bilinear: "medium" and "high" add the 4 ms mip chain
+      s.ctx.drawImage(src, 0, 0, s.el.width, s.el.height);
+      src = s.el;
+    }
+    if (!smooth.drawn) { smooth.drawn = true; smooth.el.hidden = false; }
+    return true;
+  } catch (e) {
+    console.warn("[piano] smooth preview turned itself off:", e);
+    smooth.failed = true;  // until the setting is turned on again
+    dropHeld();
+    smooth.drawn = false;  // nothing of this chain is kept
+    smoothAside();
+    return false;
+  }
+}
+// renderFrame, once the canvas holds the whole frame (the overlay included) and in the same task, so the copy and the
+// frame reach the screen together; with preserveDrawingBuffer off the buffer is only readable until the browser composites.
+// It never throws: REC's requestFrame and the glass come after it in the frame, so a failing copy turns itself off instead.
+// Every rendered frame lets the held one go, whether or not the copy is in use.
+function drawSmooth() {
+  dropHeld();
+  if (!smooth.active || !fillSmooth(canvas)) return;
+  smooth.frameW = canvas.width;
+  smooth.frameH = canvas.height;
+}
+// Turned on while the render is paused with no frame held (it was off when the render paused), the copy shows from the
+// next rendered frame; until then the WebGL canvas shows the paused frame as it is.
+function setSmoothPreview(on) {
+  smooth.on = !!on;
+  smooth.failed = false;
+  safeSet(SMOOTH_PREF, smooth.on ? "on" : "off");
+  fitCanvas();
+  return smooth.on;
+}
 // The canvas fits the stage, less the right drawer that is docked: the deck or the Studio, each 380 px (8.11 item 7; each
 // keeps its dock width frozen while REC runs, so a take never reflows). The two close each other, so at most one is open;
 // while REC runs one that was just closed may still hold its frozen width, so the wider of the two is taken, never the sum
@@ -3887,6 +4036,7 @@ function fitCanvas() {
     const cssW = Math.floor(framing.w * scale), cssH = Math.floor(framing.h * scale);
     canvas.style.width = `${cssW}px`;
     canvas.style.height = `${cssH}px`;
+    placeSmooth(cssW, cssH);  // the smooth preview takes the same size (and, as the stage centres it, the same place)
     if (jamGlass) {  // the glass takes the canvas's exact CSS box, at the screen's pixel density
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       // sub-pixel placement: offsetLeft/offsetTop are whole pixels, and a centred canvas often sits at x.5
@@ -4386,6 +4536,14 @@ function wireUi() {
   $("btn-full").addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", fitCanvas);
   new ResizeObserver(fitCanvas).observe($("stage"));
+  // A new screen density (browser zoom, or the window moved to another monitor, which can keep the stage's CSS size) moves
+  // the smooth preview's ratio and the glass's backing size. The query matches one density only, so it is renewed each time.
+  (function watchDensity() {
+    try {
+      matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`)
+        .addEventListener("change", () => { fitCanvas(); watchDensity(); }, { once: true });
+    } catch { /* no matchMedia: resizes still refit */ }
+  })();
 
   const resumeAudio = () => { if (audioIn.ctx && audioIn.ctx.state === "suspended") audioIn.ctx.resume().catch(() => {}); };
   window.addEventListener("pointerdown", resumeAudio);
@@ -4522,6 +4680,7 @@ function renderFrame() {
   renderer.autoClear = false;
   renderer.render(overlayScene, overlayCam);
   renderer.autoClear = true;
+  drawSmooth();  // the display copy of this frame (fitCanvas decides whether one is needed); never recorded
   drawGlass(t);  // after the camera has moved for this frame; the glass is never recorded
   if (rec.state === "recording" && rec.videoTrack) {
     rec.frameAcc += dt;
@@ -4577,14 +4736,20 @@ function loop() {
 document.addEventListener('visibilitychange', () => {
   cancelAnimationFrame(renderRaf); renderRaf=0;
   if (!document.hidden && !renderPaused) { lastT=clock();requestRender(); }
+  // paused: no frame, even when the smooth preview was resized while hidden (placeSmooth fills it from the held frame)
 });
 
 // --------------------------------------------------------------- debug/boot --
 // window.__piano is for the CDP receipt and for poking at the page from DevTools.
 window.__piano = {
   ready: false,
-  rendering: () => ({ paused:renderPaused, refresh:refreshMode, width:canvas.width, height:canvas.height, frames:renderFrames }),
+  // smoothPreview: on is the setting; active means the copy over the canvas is in use (ratio: drawing buffer / screen
+  // pixels); shown, that it holds a frame and is on screen; held, that a frame is kept to refill it (see smooth.held)
+  rendering: () => ({ paused:renderPaused, refresh:refreshMode, width:canvas.width, height:canvas.height, frames:renderFrames,
+                      smoothPreview: { on: smooth.on, active: smooth.active, ratio: +smooth.ratio.toFixed(2), shown: smooth.drawn,
+                                       held: !!smooth.held } }),
   setRenderPaused,
+  setSmoothPreview: (on) => setSmoothPreview(on),  // the Studio's Smooth preview (display only; REC never sees it)
   setRefreshMode(value) { if (!['native','60'].includes(value)) return false; refreshMode=value;safeSet('arsenal.piano.refresh',value);return true; },
   get galleryCamera() { return galleryCamera; },
   get ornamentalMotion() { return ornamentalMotion; },

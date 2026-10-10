@@ -327,6 +327,18 @@ select:hover { border-color: var(--ink-3); }
   pointer-events: none;
 }
 
+/* The smooth preview (piano.js, placeSmooth): a copy of each frame at the canvas's
+   shown size, filtered down in steps so a 4K buffer shown small does not alias. It
+   is not part of the canvas, so REC never records it. No left/top on purpose:
+   the flex stage centres it exactly as it centres the canvas. No z-index: it
+   sits right after the canvas, so every later overlay in the stage paints above
+   it. Pointer events fall through to the canvas (the gallery camera drags there). */
+.smooth-preview {
+  position: absolute;
+  pointer-events: none;
+}
+.smooth-preview[hidden] { display: none; }
+
 .stage:fullscreen { background: #000; }
 .stage:fullscreen #piano-canvas { box-shadow: none; }
 
