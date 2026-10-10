@@ -147,3 +147,15 @@ aurora recall first_try
 The alias lasts for this terminal session and works from inside the repo.
 
 Next: read [`AGENTS.md`](https://github.com/balanced7/akashic-aurora/blob/master/AGENTS.md) in the repo.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| AGENTS.md | [AGENTS.md](https://agents.md/) · [Codex](https://learn.chatgpt.com/docs/agent-configuration/agents-md) · [Cursor](https://cursor.com/docs/rules#agentsmd) · [Amp](https://ampcode.com/docs/customize/agents-md) · [Windsurf](https://docs.devin.ai/desktop/cascade/agents-md) · [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/custom-instructions#_use-an-agentsmd-file) · [Claude Code](https://code.claude.com/docs/en/memory#agents-md) | A plain Markdown file in a repo that tells coding agents how to work on it. |
+| CLAUDE.md | [Claude Code](https://code.claude.com/docs/en/memory#claude-md-files) | A file of standing instructions you write, loaded at the start of every session. |
+| GEMINI.md | [Gemini CLI](https://geminicli.com/docs/cli/gemini-md/#understand-the-context-hierarchy) | Markdown files of project rules that Gemini CLI sends with every prompt. |
+
+**How Aurora differs:** Aurora's AGENTS.md is a normal one. It tells each agent to boot, learn and recall. The lessons live in shared memory, not in the file.
+
+</Callout>
