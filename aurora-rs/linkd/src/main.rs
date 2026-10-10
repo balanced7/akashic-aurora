@@ -67,6 +67,9 @@ enum Cmd {
         /// Local UDP address to bind (ip:port).
         #[arg(long)]
         bind: Option<std::net::SocketAddr>,
+        /// Relay only: no direct IP paths (every byte through a relay).
+        #[arg(long)]
+        relay_only: bool,
         /// Log every RPC request and response.
         #[arg(long)]
         trace_rpc: bool,
@@ -99,6 +102,7 @@ fn main() -> anyhow::Result<()> {
             no_n0,
             no_mdns,
             bind,
+            relay_only,
             trace_rpc,
         } => {
             let home = cli.home.unwrap_or(std::env::current_dir()?);
@@ -110,6 +114,7 @@ fn main() -> anyhow::Result<()> {
                 relays,
                 no_relay,
                 bind,
+                relay_only,
             };
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()

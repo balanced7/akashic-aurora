@@ -10012,6 +10012,7 @@ def build_parser():
     lk.add_argument("--no-mdns", action="store_true", help="serve: no LAN discovery")
     lk.add_argument("--bind", default=None, help="serve: local UDP ip:port")
     lk.add_argument("--trace-rpc", action="store_true", help="serve: log every RPC line")
+    lk.add_argument("--relay-only", action="store_true", help="serve: no direct IP paths; everything via a relay")
     lk.add_argument("--once", action="store_true", help="serve: one pump pass, then stop")
     lk.add_argument("--dry-run", action="store_true", help="import-legacy: show what would be imported")
     lk.add_argument("--json", action="store_true")

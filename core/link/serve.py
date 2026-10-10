@@ -40,6 +40,7 @@ def daemon_flags(
     no_n0: bool = False,
     no_mdns: bool = False,
     bind: str | None = None,
+    relay_only: bool = False,
     trace_rpc: bool = False,
 ) -> list[str]:
     """The daemon's serve flags from `aurora link serve` options."""
@@ -56,6 +57,8 @@ def daemon_flags(
         flags.append("--no-mdns")
     if bind:
         flags += ["--bind", bind]
+    if relay_only:
+        flags.append("--relay-only")
     if trace_rpc:
         flags.append("--trace-rpc")
     return flags

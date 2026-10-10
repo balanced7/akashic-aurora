@@ -582,6 +582,7 @@ def main(args: Any) -> int:
             no_mdns=bool(getattr(args, "no_mdns", False)),
             bind=getattr(args, "bind", None),
             trace_rpc=bool(getattr(args, "trace_rpc", False)),
+            relay_only=bool(getattr(args, "relay_only", False)),
         )
         return serve.run(flags=flags, mailbox=action == "mailbox", once=bool(getattr(args, "once", False)))
     try:

@@ -47,11 +47,27 @@ What a link adds on top of the transport (two daemons in process, loopback):
 The record rate includes signing, sealing, the ACL check, decryption and two SQLite writes per
 record. Mail volume between fleets is many orders of magnitude below it.
 
+## Through a public relay, with no direct path
+
+Two real daemons on this machine, each started with `--relay-only` (`aurora-linkd serve --relay-only`
+switches off every IP transport). So they can meet only the way two fleets on different networks
+behind NAT do: through n0's production relay over the internet (`euc1-1.relay.n0.iroh.link`). Both
+reported no IP addresses at all.
+
+| | |
+|---|---|
+| network join, by invite code | 0.23 s (fingerprint matched the code) |
+| a question, A to B | 0.10 s |
+| a reply with a 1 MiB attachment, B to A | 0.04 s for the record; 15 s for the blob, mostly the fetcher's 15 s poll |
+| B stopped, A wrote, B restarted | B caught up on reconnect, with no duplicates |
+
+Run it with `python3 relay_only_internet.py <aurora-linkd> <scratch dir>` (it needs internet access).
+
 ## What is not measured here, and where it is covered
 
-- **Two networks, through a public relay.** Not reproducible on one machine. The relayed row forces
-  every byte through a relay, which is the slow path. The first real link between two fleets should
-  post its `aurora link status` and `net.status` numbers on the issue.
+- **Two physical networks.** The relay-only run above takes the same path two NATed fleets take, but
+  both ends were on one machine. The first real link between two fleets should post its
+  `aurora link status` and `net.status` on the issue.
 - **macOS and Windows.** CI's `link-os` job builds the daemon and runs the link tests, including
   the `ManagedChild` restart and the named-pipe RPC, on macOS and Windows. Windows is non-blocking
   until it has a green record, like the existing Windows smoke job.

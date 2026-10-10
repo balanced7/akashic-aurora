@@ -28,6 +28,7 @@ async fn node(label: &str) -> (Shared, Arc<Net>, std::path::PathBuf) {
         relays: vec![],
         no_relay: true,
         bind: Some("127.0.0.1:0".parse().unwrap()),
+        relay_only: false,
     };
     let net = Net::start(d.clone(), opts).await.unwrap();
     (d, net, dir)

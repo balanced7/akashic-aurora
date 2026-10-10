@@ -16,9 +16,9 @@
 | agent_cli.py | 2678 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 2747 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 3560 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12164 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12380 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12405 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12165 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12381 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12406 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 517 | `noqa: RUF013` | pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 517 | `pyright: ignore[reportArgumentType]` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 521 | `noqa: ASYNC109` | MCP tool parameter (input schema O4c) |
@@ -202,6 +202,7 @@
 | peer_connect.py | 211 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
 | research/drafts/t097-s1-progress-stamp-draft.py | 38 | `pyright: ignore[reportCallIssue]` | LATENT: Bus() now requires agent_id; this research draft predates that |
 | research/in-flight/link-phase0-transport-2026-10-10/control_pypi_iroh.py | 8 | `pyright: ignore[reportMissingImports]` | the control runs in its own venv (see report.md) |
+| research/in-flight/link-phase0-transport-2026-10-10/relay_only_internet.py | 22 | `noqa: SIM115` | held for the daemon's lifetime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py | 399 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: client is None when Sentinel is down; the except below logs it and returns None |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 33 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 64 | `pyright: ignore[reportPossiblyUnboundVariable]` | attribute annotation, never evaluated at runtime |

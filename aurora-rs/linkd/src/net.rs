@@ -50,6 +50,9 @@ pub struct NetOpts {
     pub relays: Vec<String>,
     pub no_relay: bool,
     pub bind: Option<std::net::SocketAddr>,
+    /// No IP transports at all: every byte goes through a relay. For fleets behind networks that
+    /// block UDP, and for testing what two fleets on different networks see.
+    pub relay_only: bool,
 }
 
 pub struct Net {
@@ -401,6 +404,9 @@ impl Net {
         }
         if opts.mdns {
             builder = builder.address_lookup(iroh_mdns_address_lookup::MdnsAddressLookup::builder());
+        }
+        if opts.relay_only {
+            builder = builder.clear_ip_transports();
         }
         if let Some(bind) = opts.bind {
             builder = builder.bind_addr(bind)?;
