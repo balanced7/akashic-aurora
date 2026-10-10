@@ -291,7 +291,6 @@
 - `door.py` — web door -- the house fetch/search engine (task W-slice v0, night of 2026-09-01).
 
 ## entry points (repo root)
-- `_scratch_edges_heimdall.py` — (no docstring)
 - `agent_cli.py` — agent_cli.py -- THE single door an external agent (e.g. OpenCode) uses.
 - `ai_setup_mcp.py` — ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 - `bootstrap.py` — Bootstrap — system entry point & honest status check
@@ -377,7 +376,6 @@
 - `vfx_probe_chroma.py` — Probe: chroma-aware structured metrics over real bench PNGs.
 - `vfx_probe_metrics.py` — Probe: do structured metrics surface anything a PNG does not?
 - `vfx_render.py` — Render something in the VFX bench from the command line, and get a file path back.
-- `web_door.py` — web_door -- CLI shim over core.web.door until the agent_cli verb wiring lands.
 - `wire_journal.py` — The API wire journal -- Wireshark-grade forensics for our own model traffic (T156 WIRE-A).
 - `worktree.py` — worktree.py -- per-agent git worktrees (Concurrency design C1).
 - `world_diff.py` — What differs between two worlds, minus what should differ.
