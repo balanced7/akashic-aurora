@@ -21,9 +21,9 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.foundation.store import FileStore  # noqa: E402
-from core.learning import scope  # noqa: E402
-from core.learning.learning_store import LearningStore  # noqa: E402
+from core.foundation.store import FileStore  # noqa: E402  # sys.path bootstrap
+from core.learning import scope  # noqa: E402  # sys.path bootstrap
+from core.learning.learning_store import LearningStore  # noqa: E402  # sys.path bootstrap
 
 CODEX_X = {"harness": "codex-cli", "model": "gpt-5.3-codex"}
 CLAUDE_Y = {"harness": "claude-code", "model": "claude-opus-5-5"}

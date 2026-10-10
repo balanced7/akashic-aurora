@@ -25,7 +25,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.metaharness import corpus, redact, transcripts  # noqa: E402
+from core.metaharness import corpus, redact, transcripts  # noqa: E402  # sys.path bootstrap
 
 FAKE_KEY = "sk-ant-api03-" + "A1b2C3d4E5f6G7h8I9j0" * 2
 # Assembled at runtime: the repo's secrets checker blocks the literal marker in tracked files.
