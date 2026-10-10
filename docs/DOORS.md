@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `uv run agent_cli.py <verb>` (111 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (112 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -66,7 +66,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `kata` | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') | `<agent_id>*` `<name>*` |
 | `kit` | install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor) | `<agent_id>*` `<kit_name>` `--show` `--json` |
 | `knowledge-map` | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) | `<query>*` `--per-layer` `--json` |
-| `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` `--root-cause` `--files-affected` |
+| `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` `--root-cause` `--files-affected` `--scope` |
 | `link` | fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd) | `<action>* {init,whoami,renew,cert,certify,create,list,status,invite,join,accept,decline,verify,remove-member,remove-device,add-device,rotate-key,revoke-invite,set-role,leave,serve,mailbox,sync,peer,inbox,show,promote,blob,send,export,import,policy,rebuild,import-legacy,relay-config}` `<args>*` `--label` `--role` `--ttl` `--multi` `--approval` `--out` `--to` `--by` `--yes` `--again` `--mark` `--kind` `--link` `--kinds` `--retention-days` `--limit` `--phrase-stdin` `--passphrase-env` `--no-xwing` `--addr` `--relay-url` `--no-relay` `--no-n0` `--no-mdns` `--bind` `--trace-rpc` `--relay-only` `--once` `--dry-run` `--json` |
 | `list` | list ALL lessons in memory | `--json` |
 | `lock` | claim an advisory path-lock (C2) | `<agent_id>*` `<path>*` `--ttl` `--json` |
@@ -83,7 +83,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
 | `provenance` | show this session's harness, model, effort and environment record (task 01) | `--session` `--agent` `--json` |
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
-| `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` `--agent` |
+| `recall` | search past lessons (no query = list all) | `<query>` `--tree` `--json` `--full` `--agent` |
 | `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--gesture` `--subject` `--domain` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |
@@ -96,6 +96,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `resident` | callsign ceremony: nominate / ratify / show a resident's designation | `<sub> {nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration}` |
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` `--by-agent` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
+| `scope` | lesson applicability (task 02): show, set, widen by evidence, list proposals, tree | `<action>* {show,set,widen,proposals,tree}` `--experiment` `--scope` `--kinds` `--force` `--json` |
 | `scout` | read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict | `<text>*` `--wearer` `--by` `--blind` `--shape` `--json` |
 | `season-score` | T165: score a Season 1 round, or --compare the two rule sets over the same claims | `--round-file` `--policy` `--compare` `--policies` `--json` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
