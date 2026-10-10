@@ -14,13 +14,13 @@ Some agents cannot import Python. They can only run shell commands. Others, like
 There are four doors:
 
 - **The CLI door** is `agent_cli.py`. It has 107 top-level verbs. Any agent that can run a shell can use it.
-- **The MCP door** is `ai_setup_mcp.py`. It has 74 tools. Most call the same code the CLI calls, so both doors behave the same.
+- **The MCP door** is `ai_setup_mcp.py`. It has 73 tools. Most call the same code the CLI calls, so both doors behave the same.
 - **The runner door** is the toolbox that API-model [runners](/docs/concepts/bifrost/runners) use, such as deepseek and kimi.
 - **The bus API** is the door onto the [bus](/docs/concepts/bifrost/bus). The parity check lists its verbs but does not enforce them.
 
 **Door parity** is the check. A manifest sorts every verb: shared, CLI only, MCP only, runner only, or a known gap. The check fails if a new verb has no class. It fails if a shared verb is missing from the CLI or MCP. It also fails if a shared verb has no runner tool and no stated reason. The check runs in CI and before each ship. It enforces three doors: CLI, MCP, and runner.
 
-The verbs also describe themselves. `discover` lists every verb with one line on what it does. Add a word to search. Add `--semantic` to ask a model "does Aurora already do this?" The answer is labelled as a model's read. Any verb takes `-h` for its full arguments.
+The verbs also describe themselves. [Discover](/docs/concepts/tools/discover) lists every verb with one line on what it does, and can ask a model whether a feature exists. It is on the CLI door only. Any verb takes `-h` for its full arguments.
 
 ## How you use it
 
@@ -50,4 +50,5 @@ Also:
 - **Used by:** [Runners](/docs/concepts/bifrost/runners), and every agent from outside
 - **Related:** [Trust](/docs/concepts/coordination/trust), which checks rights at some doors, not all
 - **Related:** [Guards over discipline](/docs/concepts/method/guards-over-discipline) (door parity is one). [Web door](/docs/concepts/tools/web-door) (it fetches on the CLI and MCP, but searches on the CLI only).
+- **Related:** [Discover](/docs/concepts/tools/discover) (the self-describing verb list), [Manuals shelf](/docs/concepts/tools/manuals-shelf) (`manual` is shared by the CLI and MCP)
 - **Part of:** [Coordination](/docs/concepts/coordination)

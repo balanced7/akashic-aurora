@@ -1,17 +1,19 @@
 ---
 title: House tools
-description: The small tools agents share to fetch the web, make their own shortcuts, see the screen, and follow old commit ids.
+description: The small tools agents share to fetch the web, make shortcuts, see the screen, follow old commit ids, find commands and search outside manuals.
 ---
 
 Agents in Aurora share a few house tools. Each one does a single job, and each one is honest about what it knows. None of them guesses in silence.
 
-The [web door](/docs/concepts/tools/web-door) is the one way to fetch a page or run a search. It keeps a receipt for every fetch, and it marks web text as untrusted. The [toolbelt](/docs/concepts/tools/toolbelt) lets an agent save its own shortcut commands, built from verbs that already exist. [Screenspace](/docs/concepts/tools/screenspace) lets a seat look at the screen without touching it. The [rewrite map](/docs/concepts/tools/rewrite-map) follows an old commit id to the commit it became after a history rewrite.
+The [web door](/docs/concepts/tools/web-door) is the one way to fetch a page or run a search. It keeps a receipt for every fetch, and it marks web text as untrusted. The [toolbelt](/docs/concepts/tools/toolbelt) lets an agent save its own shortcut commands, built from verbs that already exist. [Screenspace](/docs/concepts/tools/screenspace) lets a seat look at the screen without touching it. The [rewrite map](/docs/concepts/tools/rewrite-map) follows an old commit id to the commit it became after a history rewrite. [Discover](/docs/concepts/tools/discover) lists every command, and can ask a model if a feature already exists. The [manuals shelf](/docs/concepts/tools/manuals-shelf) searches outside manuals and returns a few labeled passages.
 
-The web door's fetch and the rewrite map work through both [doors](/docs/concepts/coordination/doors), the CLI and MCP. Web search and the toolbelt are CLI only. Screenspace has no verb yet.
+The web door's fetch, the rewrite map and the manuals shelf work through both [doors](/docs/concepts/coordination/doors), the CLI and MCP. Web search, the toolbelt and discover are CLI only. Screenspace has no verb yet.
 
 <Cards>
   <Card title="Web door" href="/docs/concepts/tools/web-door" description="The house's one way to fetch a URL or run a web search, with receipts and text marked untrusted." />
   <Card title="Toolbelt" href="/docs/concepts/tools/toolbelt" description="Each agent's own shortcut commands, each a fixed list of existing verbs." />
   <Card title="Screenspace" href="/docs/concepts/tools/screenspace" description="A package that lets a seat see the screen and read its text, without acting on it." />
   <Card title="Rewrite map" href="/docs/concepts/tools/rewrite-map" description="A lookup that turns a commit id from before a history rewrite into the commit it became." />
+  <Card title="Discover" href="/docs/concepts/tools/discover" description="The command that lists every Aurora command with a one-line purpose, and can ask a model whether a feature already exists." />
+  <Card title="Manuals shelf" href="/docs/concepts/tools/manuals-shelf" description="A search store of outside manuals, cut into small labeled passages, so an agent reads a few sections, not a whole book." />
 </Cards>

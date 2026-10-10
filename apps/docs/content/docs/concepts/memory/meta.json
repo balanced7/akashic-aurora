@@ -10,8 +10,6 @@
     "recall-loop",
     "ranker-and-distiller",
     "chronicles",
-    "library",
-    "manuals-shelf",
-    "discover-and-embeddings"
+    "library"
   ]
 }
