@@ -86,3 +86,11 @@ def test_project_install_enrols_under_the_launcher(data, tmp_path, monkeypatch):
     res = inst.install("claude", "project", project=data)
     assert any("enrolled" in n for n in res.notes)
     assert str(data.resolve()) in inst.enrolled_roots()
+
+
+def test_git_bash_paths_read_as_drive_paths_on_windows(monkeypatch):
+    monkeypatch.setattr(scope.os, "name", "nt")
+    assert scope._native("/d/a/_temp/proj") == "D:/a/_temp/proj"
+    assert scope._native("/home/u") == "/home/u", "only a one-letter first segment is a drive"
+    monkeypatch.setattr(scope.os, "name", "posix")
+    assert scope._native("/d/a") == "/d/a", "elsewhere /d/a is just a path"

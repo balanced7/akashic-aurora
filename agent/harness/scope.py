@@ -56,13 +56,20 @@ def _inside(a: str, root: str) -> bool:
     return a == root or a.startswith(root.rstrip(os.sep) + os.sep)
 
 
+def _native(p: str) -> str:
+    """git-bash spells D:\\x as /d/x; on Windows, read it as the drive path it names."""
+    if os.name == "nt" and len(p) >= 3 and p[0] == "/" and p[1].isalpha() and p[2] == "/":
+        return f"{p[1].upper()}:{p[2:]}"
+    return p
+
+
 def under_root(p: str) -> bool:
     """True iff `p` is the repo root or inside it, or inside an enrolled project
     (case-normalized, absolute)."""
     if not p:
         return False
     try:
-        a = os.path.normcase(os.path.abspath(p))
+        a = os.path.normcase(os.path.abspath(_native(p)))
     except Exception:
         return False
     if _inside(a, _ROOT):

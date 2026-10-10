@@ -225,7 +225,8 @@ jobs:
           aurora hooks install --harness claude --scope user
           aurora hooks enroll
           aurora hooks status
-          payload='{"session_id":"ci","cwd":"'"$PWD"'","hook_event_name":"UserPromptSubmit","prompt":"keep the install smoke test green on every OS"}'
+          here="$PWD"; [ "$RUNNER_OS" = "Windows" ] && here="$(pwd -W)"  # Claude Code sends native paths
+          payload='{"session_id":"ci","cwd":"'"$here"'","hook_event_name":"UserPromptSubmit","prompt":"keep the install smoke test green on every OS"}'
           out="$(printf '%s' "$payload" | aurora agent/harness/hooks/claude_userpromptsubmit.py)"
           echo "$out"
           echo "$out" | grep -q ci_smoke_install
