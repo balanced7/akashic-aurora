@@ -5,6 +5,7 @@ Every oracle component gets an EQUAL fixture and a DIFF fixture, built in tmp_pa
 component that cannot tell "same" from "different" is caught before it judges a real change.
 """
 
+import contextlib
 import json
 import os
 import sys
@@ -836,3 +837,102 @@ def test_an_escaped_exclusion_entry_discounts_nothing():
     """With any backslash in pyproject.toml, parsed entries may differ from their raw text: fail closed."""
     text = '[tool.ruff]\nextend-exclude = ["research\\\\a\\\\b.py"]\n[tool.poe.tasks]\nx = "python research/a/b.py"\n'
     assert O.only_in_exclusions("pyproject.toml", text) == (set(), set())
+
+
+# ----------------------------------------------------------------------------- sharded suite (CI)
+
+
+def test_shard_plan_covers_every_file_once_and_balances_by_measured_time():
+    """Each file lands in exactly one shard; a measured slow file gets a shard to itself."""
+    files = [f"tests/test_{i:02d}.py" for i in range(12)]
+    durations = {"tests/test_00.py": 600.0, **{f"tests/test_{i:02d}.py": 10.0 for i in range(1, 12)}}
+    plan = O.shard_plan(files, 3, durations)
+    assert sorted(f for s in plan for f in s) == files
+    assert ["tests/test_00.py"] in plan
+    assert O.shard_plan(files, 3, durations) == plan  # deterministic
+
+
+def test_shard_plan_weighs_an_unmeasured_file_as_the_median_one():
+    """A new file has no measurement yet; it counts as a typical file, not as free."""
+    durations = {"tests/test_a.py": 10.0, "tests/test_b.py": 20.0, "tests/test_c.py": 30.0}
+    plan = O.shard_plan([*durations, "tests/test_new.py"], 2, durations)
+    # weighed 20 (the median), new pairs with b; weighed 0 it would have joined c instead
+    assert plan == [["tests/test_a.py", "tests/test_c.py"], ["tests/test_b.py", "tests/test_new.py"]]
+
+
+def test_shard_zero_is_the_rust_backed_files_and_the_rest_never_holds_them(tmp_path: Path):
+    """Shard 0 runs where the Rust builds are; shards 1..N split everything else."""
+    for name in (*O.RUST_BACKED, "tests/test_x.py", "tests/sub/test_y.py", "tests/helper.py"):
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text("", encoding="utf-8")
+    assert O.test_files(tmp_path) == sorted([*O.RUST_BACKED, "tests/sub/test_y.py", "tests/test_x.py"])
+    assert O.shard_files(tmp_path, 0, 2) == list(O.RUST_BACKED)
+    rest = O.shard_files(tmp_path, 1, 2) + O.shard_files(tmp_path, 2, 2)
+    assert sorted(rest) == ["tests/sub/test_y.py", "tests/test_x.py"]
+
+
+def test_durations_sum_per_file_from_junit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """junit classnames (module path plus test classes) become per-file seconds."""
+    xml = tmp_path / "j.xml"
+    xml.write_text(
+        '<testsuites><testsuite><testcase classname="tests.test_a" name="t1" time="1.5"/>'
+        '<testcase classname="tests.test_a.TestThing" name="t2" time="2.0"/>'
+        '<testcase classname="tests.sub.test_b" name="t3" time="0.25"/></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(O, "DURATIONS", tmp_path / "durations.json")
+    assert O.write_durations([xml]) == {"tests/test_a.py": 3.5, "tests/sub/test_b.py": 0.25}
+    assert json.loads((tmp_path / "durations.json").read_text(encoding="utf-8"))["tests/test_a.py"] == 3.5
+
+
+def test_suite_merge_refuses_a_missing_shard(tmp_path: Path):
+    """A merge with a shard missing would read as tests no longer collected: refuse it."""
+    for i in (0, 1, 3):
+        d = tmp_path / f"s{i:d}"
+        d.mkdir()
+        (d / "shard.json").write_text(json.dumps({"shard": [i, 3]}), encoding="utf-8")
+    with pytest.raises(SystemExit, match="every shard must be present"):
+        O.suite_merge("x", [tmp_path / "s0", tmp_path / "s1", tmp_path / "s3"])
+
+
+def test_suite_merge_joins_shards_into_one_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Outcomes and collection errors from every shard become one O1 run, as a single pass would."""
+    for i, (nid, out) in enumerate((("tests/test_a.py::t", "passed"), ("tests/test_b.py::t", "failed"))):
+        d = tmp_path / f"s{i:d}"
+        d.mkdir()
+        run = {
+            "results": {nid: {"setup": "passed", "call": out}},
+            "collect_errors": ["tests/test_c.py"] if i == 1 else [],
+            "exitstatus": i,
+            "duration_s": 10.0 * (i + 1),
+        }
+        tests = {nid: {"outcomes": [out]} | ({"reruns": ["failed", "failed"]} if out == "failed" else {})}
+        (d / "shard.json").write_text(json.dumps({"shard": [i, 1], "run": run, "tests": tests}), encoding="utf-8")
+
+    def fake_tree(_commit: str) -> contextlib.AbstractContextManager[Path]:
+        return contextlib.nullcontext(tmp_path)
+
+    def nothing(*_a: object, **_k: object) -> None:
+        return None
+
+    def head(*_a: object, **_k: object) -> str:
+        return "c0ffee\n"
+
+    def digest(_commit: str) -> str:
+        return "d1g3st"
+
+    def o10(*_a: object) -> dict[str, Any]:
+        return {"packages": {"core": 70.0}}
+
+    monkeypatch.setattr(O, "SNAPSHOTS", tmp_path / "snaps")
+    monkeypatch.setattr(O, "run_tree", fake_tree)
+    monkeypatch.setattr(O, "run", nothing)
+    monkeypatch.setattr(O, "git", head)
+    monkeypatch.setattr(O, "relevant_digest", digest)
+    monkeypatch.setattr(O, "o10_record", o10)
+    dest = O.suite_merge("suite", [tmp_path / "s0", tmp_path / "s1"])
+    o1 = json.loads((dest / "O1.json").read_text(encoding="utf-8"))
+    assert o1["runs"][0]["counts"] == {"failed": 1, "passed": 1}
+    assert o1["runs"][0]["collect_errors"] == ["tests/test_c.py"]
+    assert o1["tests"]["tests/test_b.py::t"]["class"] == O.o1_class(["failed"])
+    assert json.loads((dest / "O10.json").read_text(encoding="utf-8"))["packages"] == {"core": 70.0}
