@@ -217,6 +217,30 @@ def checkout_of(world: str, root: Path | None = None, env: Mapping[str, str] | N
     return next((c for c in candidates if c.is_dir()), candidates[0])
 
 
+def main_checkout_of(root: Path) -> Path | None:
+    """The main checkout a git worktree belongs to, or None when `root` is not a worktree.
+
+    A worktree's `.git` is a FILE reading `gitdir: <main>/.git/worktrees/<name>`, and that
+    directory's `commondir` names the shared `.git`. Read both rather than shell out to git:
+    this runs on every process start and must never raise.
+    """
+    try:
+        dot_git = root / ".git"
+        if not dot_git.is_file():
+            return None
+        line = dot_git.read_text(encoding="utf-8", errors="replace").strip()
+        if not line.startswith("gitdir:"):
+            return None
+        gitdir = Path(line.split(":", 1)[1].strip())
+        gitdir = gitdir if gitdir.is_absolute() else (root / gitdir)
+        common = (gitdir / "commondir").read_text(encoding="utf-8", errors="replace").strip()
+        common_dir = Path(common) if Path(common).is_absolute() else (gitdir / common)
+        main = common_dir.resolve().parent
+    except (OSError, ValueError):
+        return None
+    return main if main != root.resolve() and main.is_dir() else None
+
+
 def resolve(root: Path | None = None, env: Mapping[str, str] | None = None) -> World:
     """Resolve the world. Never raises -- an unresolvable checkout gets UNKNOWN."""
     env = os.environ if env is None else env
@@ -248,7 +272,16 @@ def resolve(root: Path | None = None, env: Mapping[str, str] | None = None) -> W
     if guess:
         return replace(WORLDS[guess], source="derived", why=f"the checkout is named {root.name!r}")
 
-    # 4. UNKNOWN. Deliberately not prod.
+    # 4. a git worktree inherits the world of the checkout it was cut from. A worktree is the
+    #    same body on another branch, not a clone: it shares that checkout's .git, so it
+    #    serves the same world. Only rungs 2 and 3 are inherited -- the env already had its say.
+    main = main_checkout_of(root)
+    if main is not None:
+        parent = resolve(main, env={})
+        if parent.name != "unknown":
+            return replace(parent, source="inherited", why=f"a worktree of {main.name!r}, where {parent.why}")
+
+    # 5. UNKNOWN. Deliberately not prod.
     return replace(
         UNKNOWN, why=f"the checkout is named {root.name!r}, which matches no world, and no {MARKER} was found in it"
     )
