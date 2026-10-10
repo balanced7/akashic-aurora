@@ -38,12 +38,12 @@ HARNESSES = {
         "tiers": {
             "T0": "yes -- shell (Bash/PowerShell) + ai_setup_mcp.py",
             "T1": "yes -- .claude/settings.json env",
-            "T2": "yes -- SessionStart additionalContext (light whisper, tiered by cwd)",
-            "T3": "yes, AT the action -- PreToolUse can inject on allow",
+            "T2": "yes -- SessionStart additionalContext (light whisper, tiered by cwd) (once installed: `hooks status`)",
+            "T3": "yes, AT the action -- PreToolUse can inject on allow (once installed: `hooks status`)",
             "T4": "yes -- transcript-synthesized FAIL (PostToolUse never fires on failure) "
             "+ PostToolUseFailure fast path; conservative _is_success",
-            "T5": "yes -- UserPromptSubmit injects plan-time recall + unread-bus line",
-            "T6": "yes -- SessionEnd/PreCompact -> chronicles/last-session-draft.md",
+            "T5": "yes -- UserPromptSubmit injects plan-time recall + unread-bus line (once installed: `hooks status`)",
+            "T6": "yes -- SessionEnd/PreCompact -> chronicles/last-session-draft.md (once installed: `hooks status`)",
         },
     },
     "deepseek-harness": {

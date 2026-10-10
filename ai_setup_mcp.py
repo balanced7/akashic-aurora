@@ -2,8 +2,9 @@
 """
 ai_setup_mcp.py -- the MCP-transport door into the Akashic Aurora (System 5).
 
-This is the MCP twin of ``agent_cli.py``. It exposes the SAME verbs
-(boot / learn / recall / status / log / story / events / handoff) as MCP tools,
+This is the MCP twin of ``agent_cli.py``. It exposes most of the same verbs (boot /
+learn / recall / status / discover / handoff / bifrost_* ...; check_door_parity.py's
+MANIFEST lists which stay CLI-only and why) as MCP tools,
 and it implements them by calling ``agent_cli``'s own ``cmd_*`` functions under a
 stdout capture. That is deliberate: there is ONE source of truth for what each verb
 does (the CLI), and two doors onto it -- the shell (OpenCode and humans) and MCP
@@ -20,7 +21,7 @@ Transport: stdio by default (no port, no manual start -- Cursor/Claude spawn it)
     py -3 ai_setup_mcp.py              # stdio (default)
     py -3 ai_setup_mcp.py --http --port 18765   # optional shared HTTP process
 
-Cursor MCP config key (see mcp_global/cursor.mcp.json): ``akashic-aurora`` — not the
+Cursor MCP config key (see scripts/static/mcp/cursor.mcp.json): ``akashic-aurora`` — not the
 legacy ``breakthrough-stack`` name.
 
 Cross-agent continuity: every write verb (learn / log / handoff) persists through the

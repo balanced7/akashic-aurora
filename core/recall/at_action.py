@@ -1666,7 +1666,7 @@ def _floor_default() -> float:
 
 # --- T311 capability-recall: the verb channel -------------------------------------------------
 # This surface already pushes lessons and locks at the moment of action. It did not push VERBS,
-# and the door has 85 of them. Measured 2026-08-15: a seat met a YouTube URL, reached for a web
+# and the door has over a hundred of them (`agent_cli.py discover`). Measured 2026-08-15: a seat met a YouTube URL, reached for a web
 # fetch, then grepped the repo for a script, while `captions` sat on the door with tests behind
 # it. Daniel: "We forget it every time Q__Q".
 #

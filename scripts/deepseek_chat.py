@@ -14,9 +14,9 @@ It holds the full conversation, so you can follow up and it remembers the thread
 Key: env DEEPSEEK_API_KEY, else the gitignored .secrets/deepseek.key. OpenAI-compatible API, so this
 uses the `openai` client pointed at api.deepseek.com. deepseek-v4-pro = smartest (1M context).
 
-TOOLS exposed to DeepSeek (read-only ones run automatically; the loop chains them):
-  read_file · list_directory · find_files · search_files · git_log · git_diff · git_show ·
-  git_status · knowledge_recall · knowledge_boot · run_command(gated) · web_search(best-effort)
+TOOLS exposed to DeepSeek (read-only ones run automatically; the loop chains them): the runner
+ToolBox, core/comm/toolbox.py (~48 tools: files, git, knowledge_*, run_command(gated), web, ...).
+Its _fn registrations are the list; this docstring no longer copies it, because copies drift.
 
 SAFETY (a remote model is driving your machine -- guards live in this harness, not in the prompt):
   * File access is scoped to --root (default: this repo). Paths outside it are refused.

@@ -10,16 +10,16 @@
 > py agent_cli.py list                                                 # see all lessons
 > py agent_cli.py recall-at --path <file>                              # relevant lessons/locks BEFORE you edit
 > ```
-> Hooks (recall-at-action, locks, git-guard, FAIL→SUCCESS credit) are wired for **Claude
-> Code** (user-level, absolute paths — they fire for ANY session cwd, including this
-> read-bootstrap flow, and stay silent outside the repo) AND for **Cursor** (project
-> `.cursor/hooks.json`; your agent id there is `composer`, set automatically at
-> sessionStart). What your runtime actually delivers, tier by tier:
+> Hooks (recall-at-action, locks, git-guard, FAIL→SUCCESS credit) fire automatically once
+> installed: **`uv run agent_cli.py setup`** walks you through it, and
+> **`agent_cli.py hooks status`** shows what is wired where (user or project scope, for
+> Claude Code, Codex and Cursor; Cursor's agent id is `composer`, set at sessionStart).
+> What your runtime actually delivers, tier by tier:
 > **`py agent_cli.py harnesses`** (story: `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`). Only run
 > `recall-at` by hand if your harness has **no hook wiring at all** (bare CLI follows
 > this contract manually).
-> The full contract is in **`AGENTS.md`** (read that, not the internals). Use `py`,
-> not `python` (the `python` alias may be unset on Windows). Do **not** import the
+> The full contract is in **`AGENTS.md`** (read that, not the internals). Use `uv run`
+> (or `py` on Windows without uv; never bare `python`, which may be unset there). Do **not** import the
 > internal Python modules directly — `agent_cli.py` is the supported door.
 >
 > Lost, or arriving from another directory? Get a machine-readable map of exactly
@@ -79,8 +79,8 @@ py agent_cli.py boot <your_agent_id> --task "<what you are doing>"
 
 - **All layers built & in use**: Store + Ledger (System 0), Memory · Signals ·
   Coordination (1–3), Context pillar (System 4), Agent Interface `agent_cli.py` (System 5),
-  plus the harness adapter layer (`agent/harness/` + `scripts/hooks/` — Claude Code and
-  Cursor both wired; `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`).
+  plus the harness adapter layer (`agent/harness/`, hooks in `agent/harness/hooks/`, wired by
+  `agent_cli.py hooks install`; `docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md`).
 - Knowledge store: live on Redis 16379 db0 + file mirror. **Counts rot in prose** — get
   them generated: `py agent_cli.py stats` (lessons + funnel value), `list`, `story`.
 - Guardrails (`scripts/checkers/check_boundaries.py`, `scripts/checkers/check_doc_freshness.py`):

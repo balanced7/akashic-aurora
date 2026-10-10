@@ -101,34 +101,32 @@ To use a real Redis instead:
   `REDIS_PORT=6379 py agent_cli.py status`.
 - **Sandbox for experiments:** set `REDIS_DB=15` to keep all reads/writes off the canonical database (db 0).
 
-## 6. Recall-at-action (Claude Code hooks)
+## 6. Recall-at-action (harness hooks)
 
 Akashic Aurora can surface the right lessons + peer-lock warnings **at the moment you edit a file** via a
-Claude Code `PreToolUse` hook, and pre-warm its cache at session start. There are two ways to wire it.
+`PreToolUse` hook, boot you at session start, and recall at plan time on each prompt. The hooks live in
+`agent/harness/hooks/` and are registered by the CLI, never by hand-editing settings files:
 
-### Option A — launch Claude from the repo (zero setup)
-The repo ships a project-level [`.claude/settings.json`](../.claude/settings.json) with the hooks already
-wired (relative paths). Launch Claude Code **from the repo directory** and recall-at-action + the git/lock
-guards are live. **On macOS/Linux**, change the hook command `py` → `python3` in that file.
-
-### Option B — fire from any directory (the "read bootstrap" flow)
-Register the hooks in your **user-level** settings (`~/.claude/settings.json`) with **absolute** paths and a
-scope guard so they're silent outside this repo. Adjust the path and use `python3` on macOS/Linux:
-
-```json
-{
-  "env": { "AKASHIC_AGENT_ID": "your_agent_id" },
-  "hooks": {
-    "PreToolUse": [
-      { "matcher": "Bash",                  "hooks": [{ "type": "command", "command": "py /abs/path/to/akashic-aurora/scripts/hooks/claude_pretooluse.py" }] },
-      { "matcher": "Edit|Write|NotebookEdit","hooks": [{ "type": "command", "command": "py /abs/path/to/akashic-aurora/scripts/hooks/claude_pretooluse.py" }] }
-    ],
-    "SessionStart": [
-      { "hooks": [{ "type": "command", "command": "py /abs/path/to/akashic-aurora/scripts/hooks/claude_sessionstart.py" }] }
-    ]
-  }
-}
+```bash
+uv run agent_cli.py setup                                # guided: picks scope per harness, teaches each command
+uv run agent_cli.py hooks status                         # what is registered where
+uv run agent_cli.py hooks install --scope user           # Claude Code, every project (~/.claude/settings.json)
+uv run agent_cli.py hooks install --scope project --project <dir>   # one project (.claude/settings.local.json)
+uv run agent_cli.py hooks disable --scope user           # off, remembered ...
+uv run agent_cli.py hooks enable --scope user            # ... and back on exactly as it was
+uv run agent_cli.py hooks install --harness cursor --scope project  # also: --harness codex
 ```
+
+- **User scope** fires for any session cwd (the hooks scope themselves and stay silent outside the repo).
+  **Project scope** writes the personal, gitignored `.claude/settings.local.json`; add `--shared` to write the
+  committed `.claude/settings.json` instead.
+- **One surface per hook.** A hook registered in two settings files fires twice and double-counts recall, so
+  `install` skips any hook another file in play already registers and tells you which file holds it.
+- Commands are absolute and carry `uv run --project <repo>`, so they work from any cwd. On Windows they use
+  `uvw` (no console window); without uv they fall back to `python3`.
+- Older registrations that point at `scripts/hooks/*.py` keep working (those files are shims onto
+  `agent/harness/hooks/`); `hooks status` flags them and `hooks install` modernises them.
+- `uv run agent_cli.py doctor --deploy` reports the hook state alongside the rest of the install.
 
 The hook is a **silent no-op outside the repo**, **fail-open** (never blocks an action), capped, and
 faithfulness-gated. Knobs:

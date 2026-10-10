@@ -103,9 +103,9 @@ def render(verbs):
         "## Runner ToolBox door (KNOWN GAP, v0)",
         "",
         "`core/comm/toolbox.py` is the deepseek/sol/kimi runner tool surface (read_file,",
-        "write_file, run_command, bifrost_send, ...). Its `_fn`-registered schemas are the",
-        "third door check_door_parity does not yet see (T067-1) -- projecting it is M2's",
-        "second slice.",
+        "write_file, run_command, bifrost_send, ...). check_door_parity enforces it as the",
+        "third door (since T067-1: shared verbs need a ToolBox name, alias or exemption), but",
+        "its `_fn`-registered schemas are not projected into this table yet -- M2's second slice.",
         "",
     ]
     return "\n".join(lines)

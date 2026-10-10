@@ -236,11 +236,12 @@ where the defect lives.
 ```bash
 git clone https://github.com/balanced7/akashic-aurora.git && cd akashic-aurora
 uv sync                                   # the locked environment, on the Python in .python-version
+uv run agent_cli.py setup                 # wire the harness hooks; teaches each command it runs
 uv run bootstrap.py --agent-init          # status probe: prints the init command + store state
 uv run agent_cli.py boot me --task "trying Akashic Aurora"
 uv run agent_cli.py learn me --experiment first_try --tried "cloned the repo" --result "it booted"
 uv run agent_cli.py recall-at --path core/foundation/store.py   # what surfaces before editing this?
-uv run agent_cli.py fence                 # verify the execution guard yourself
+uv run agent_cli.py discover              # every verb, one line each (MCP: discover)
 ```
 
 **No uv?** Python 3.11+ works too: on Windows use the `py` launcher
@@ -250,12 +251,13 @@ The other examples in this README are written as `py agent_cli.py ...`; with uv,
 
 **Zero required dependencies** — the core runs on the Python standard library alone. Redis is an
 optional accelerator; every store degrades to files without it. Full setup, including the Claude
-Code hooks, is in [`docs/DEPLOY.md`](docs/DEPLOY.md).
+Code hooks (`agent_cli.py hooks status|install|enable|disable`), is in [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ## For operators: the doors
 
-The CLI is self-describing — **91 verbs**, each of which explains itself, with **37** exposed as
-MCP tools. That gap is deliberate and tracked: `scripts/checkers/check_door_parity.py` fails CI
+The CLI is self-describing: `agent_cli.py discover` lists every verb with its purpose (the full
+generated table is [`docs/DOORS.md`](docs/DOORS.md)), and most are also MCP tools. The CLI-only
+remainder is deliberate and tracked: `scripts/checkers/check_door_parity.py` fails CI
 on undeclared drift, so CLI-only doors are known debt rather than an accident.
 
 ```bash

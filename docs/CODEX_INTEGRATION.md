@@ -33,10 +33,15 @@ Codex and Claude hook payloads are not interchangeable. Codex uses:
   and recall-at-action;
 - `PostToolUse` -> direct Codex outcome payload, including nonzero `Bash` exits.
 
-Implementations live under `agent/harness/hooks/codex_*.py`; the executable
-wrappers live under `scripts/hooks/codex_*.py`. User and repository hook files
-can both match; the adapter performs atomic payload deduplication. Bounded raw
-payload captures go to `%TEMP%/akashic_recall/codex_payloads`.
+**What is wired today (2026-10-10):** the `codex_*` adapters described above were
+never committed, so `.codex/hooks.json` runs the canonical Claude adapters in
+`agent/harness/hooks/claude_*.py` (registered by
+`uv run agent_cli.py hooks install --harness codex --scope project`; `--scope user`
+writes `~/.codex/hooks.json`). Codex payload parity with those adapters is
+unobserved, which is why the registry's `codex-desktop` tiers T2-T6 stay
+`pending`, and `tests/test_codex_hook_contract.py` stays red until the adapters
+land. The Claude adapters' dedup backstop still absorbs a user + repository
+double match.
 
 The current task predates these hook changes. A fresh interactive Codex task and
 the app's `/hooks` review are still required for live T2-T5 receipts. Until
