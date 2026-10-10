@@ -654,8 +654,12 @@ async fn dialer(net: Arc<Net>) {
 /// Fetch blobs our links list but our store lacks, from whoever is live on that link.
 async fn blob_fetcher(net: Arc<Net>) {
     let downloader = net.blobs.downloader(&net.endpoint);
+    let every = std::env::var("AURORA_LINKD_BLOB_POLL_S")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(15);
     loop {
-        tokio::time::sleep(Duration::from_secs(15)).await;
+        tokio::time::sleep(Duration::from_secs(every)).await;
         let wanted: Vec<(String, Vec<String>)> = {
             let links = net.d.links.lock().expect("links");
             links
@@ -719,11 +723,21 @@ pub async fn blob_get(ctx: &Ctx, p: &Params) -> Result<Value, RpcError> {
             .iter()
             .filter_map(|p| endpoint_id(p).ok())
             .collect();
-        net.blobs
-            .downloader(&net.endpoint)
-            .download(hash, providers)
-            .await
-            .map_err(|e| RpcError::unavailable(format!("fetch failed: {e}")))?;
+        let downloader = net.blobs.downloader(&net.endpoint);
+        let mut last = String::new();
+        for attempt in 0..3u64 {
+            match downloader.download(hash, providers.clone()).await {
+                Ok(_) => {
+                    last.clear();
+                    break;
+                }
+                Err(e) => last = e.to_string(),
+            }
+            tokio::time::sleep(Duration::from_millis(500 * (attempt + 1))).await;
+        }
+        if !last.is_empty() && !store.blobs().has(hash).await.unwrap_or(false) {
+            return Err(RpcError::unavailable(format!("fetch failed: {last}")));
+        }
     }
     let ct = store
         .blobs()

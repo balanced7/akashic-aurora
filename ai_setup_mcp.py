@@ -1053,17 +1053,53 @@ async def bifrost_sync(agent: str, limit: int = 10, consume: bool = False) -> st
 
 
 @mcp.tool()
+async def link(action: str = "list", link: str = "", record: str = "", limit: int = 20) -> str:
+    """Fleet links (read-only here): action="list" (every link), "status" (members, devices,
+    receipts, alarms of LINK), "inbox" (LINK's quarantine: mail from other fleets that has NOT
+    reached the bus), "show" (one quarantined RECORD of LINK). To write to another fleet, use
+    bifrost_send with to="@fleet/seat". Promotion onto the bus, invites and membership changes
+    are a person's decision and live only in the terminal (`aurora link ...`) and the console."""
+
+    def _body():
+        import json as _json
+
+        from core.link import quarantine
+        from core.link.client import LinkdMissing, LinkRpcError, connect
+
+        if action not in ("list", "status", "inbox", "show"):
+            return f"link({action!r}) is not on this door: promotion and membership are a person's call (`aurora link {action}` in a terminal)"
+        try:
+            with connect() as c:
+                if action == "list":
+                    return _json.dumps(c.call("link.list"), indent=1)
+                if not link:
+                    return "say which link (name or id)"
+                if action == "status":
+                    return _json.dumps(c.call("link.status", link=link), indent=1, default=str)
+                if action == "inbox":
+                    return _json.dumps(quarantine.inbox(c, link, limit=max(1, min(int(limit), 200))), indent=1)
+                return _json.dumps(c.call("record.get", link=link, record_id=record), indent=1, default=str)
+        except (LinkdMissing, LinkRpcError) as e:
+            return f"link unavailable: {e}"
+
+    return await _athread(_body)
+
+
+@mcp.tool()
 async def bifrost_send(
     from_agent: str, to: str, kind: str = "chat", text: str = "", expect_reply_within: int = 0
 ) -> str:
     """Send a direct real-time message to another agent's Bifrost inbox (live, low-latency).
     expect_reply_within=SECONDS (RB-29, clamped >=30) arms a sender-side reply deadline:
-    3 redrives then a loud expectation_dead, swept at boot/bifrost-sync."""
+    3 redrives then a loud expectation_dead, swept at boot/bifrost-sync. A remote address
+    (to="@fleet/seat" or "@fleet") goes to a fleet link instead, under local export policy."""
 
     def _body():
         from core.comm.bus import Bus
 
         mid = Bus(from_agent).send(to, kind, text)
+        if to.startswith("@"):
+            return f"written to the fleet link as record {mid}" if mid else f"NOT SENT to {to}: see the server log"
         if mid and expect_reply_within:
             from core.comm.expectations import arm
 

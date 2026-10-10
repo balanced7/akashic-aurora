@@ -783,6 +783,13 @@ class Handler(BaseHTTPRequestHandler):
 
             _probe = "probe=1" in (self.path.split("?", 1)[1] if "?" in self.path else "")
             return self._json({"status": _bs.status(probe=_probe), "actions": _bs.actions()})
+        # FLEET LINKS (RFC #70): the model lives in core/link/panel.py; this is paint over a dict.
+        if path == "/api/link":
+            from core.link import panel as _lp
+
+            return self._json(_lp.snapshot())
+        if path == "/link-panel.js":
+            return self._static("scripts/link-panel.js", "application/javascript")
         if path == "/events":
             return self._events()
         if path == "/launcher/status":
@@ -1304,6 +1311,10 @@ class Handler(BaseHTTPRequestHandler):
         # REMEDIATION. A POST, never a GET, and `confirm` must be sent explicitly -- so
         # rendering a page can never restart a listener or put another fleet's words on the
         # bus. The module refuses on its own too; this is the outer half of that pair.
+        if path == "/api/link/act":  # promote / accept / decline / verify: a person, with confirm
+            from core.link import panel as _lp
+
+            return self._json(_lp.act(str(data.get("action") or ""), data, confirm=bool(data.get("confirm"))))
         if path == "/api/remote/act":
             from core.comm import bridge_status as _bs
 
@@ -5602,6 +5613,7 @@ initViz();
 <script src="/presence-rail.js"></script>
 <script src="/presence-cloud.js"></script>
 <script src="/rail.js"></script>
+<script src="/link-panel.js"></script>
 <script src="/timeline.js"></script>
 <script src="/agent-avatar.js"></script>
 <script src="/activity-line.js"></script>

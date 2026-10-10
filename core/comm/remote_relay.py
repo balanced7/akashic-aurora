@@ -110,17 +110,7 @@ SKEW_WINDOW_S = 300
 #: (test_bridge_allowlist_contains_no_control_kind) fails red the moment a control verb
 #: appears here. A shared constant would have made the two questions un-askable separately;
 #: a pin lets them differ and still catches the mistake.
-BRIDGE_KINDS = frozenset(
-    {
-        "chat",
-        "question",
-        "handoff",
-        "reply",
-        "completion",
-        "blocker",
-        "note",
-    }
-)
+from core.link.kinds import BRIDGE_KINDS  # noqa: E402  # ONE allowlist, shared with fleet links
 
 #: Where un-acked outbound mail waits. Durable ON DISK because the whole point is surviving a
 #: crash between enqueue and delivery — an in-memory queue is a comment, not a guarantee.

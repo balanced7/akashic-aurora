@@ -1152,6 +1152,13 @@ def cmd_fleet(args):
 
 
 # --------------------------------------------------------------------- hooks / setup
+def cmd_link(args):
+    """Fleet links (RFC #70): a thin door onto aurora-linkd. Every rule lives in the daemon."""
+    from core.link.cli import main as link_main
+
+    return link_main(args)
+
+
 def cmd_hooks(args):
     """Register, remove, switch off/on, or inspect Aurora's harness hooks (agent/harness/install.py).
     Scope `user` fires for every project; `project` writes one project's config (Claude: the
@@ -6456,10 +6463,23 @@ def cmd_doctor(args):
         rep["acl"] = acl_status()
     except Exception as _e:
         rep["acl"] = {"floor_in_force": None, "error": f"acl_status unavailable: {type(_e).__name__}"}
+    try:  # RFC #70: fleet links -- alarms, unverified safety numbers, a stopped daemon
+        from core.link.health import health as _link_health
+
+        rep["links"] = _link_health()
+    except Exception as _e:
+        rep["links"] = {"error": f"link health unavailable: {type(_e).__name__}"}
     if args.json:
         print(json.dumps(rep, indent=2, default=str))
         return 0
     print(rep["summary"])
+    try:
+        from core.link.health import render as _link_render
+
+        for _line in _link_render(rep.get("links") or {}):
+            print(_line)
+    except Exception:
+        pass
     for f in rep["findings"]:
         print(f"  [{f['grade']:^9}] {f['line']}")
         print(f"              drill: {f['drill']}")
@@ -7625,6 +7645,64 @@ def cmd_reply(args):
     return 0 if (out.get("ok") and out.get("delivery") != "FAILED") else 1
 
 
+def _read_send_text(args):
+    """bifrost-send's body: --text-file, else argv, else piped stdin. Returns (text, None) or
+    (None, exit code) after printing why nothing was sent."""
+    # T083-C3-1: --text-file beats argv text. Flag-shaped prose ('--foo' in a sentence) is hostile
+    # input to argparse, and shell quoting multiplies the risk (live receipt 2026-07-16: a message
+    # BODY containing '--sources-json' aborted the send). git commit -F precedent: long or
+    # flag-bearing bodies ride a file, never argv.
+    if getattr(args, "text_file", None):
+        try:
+            with open(args.text_file, encoding="utf-8") as _tf:
+                text = _tf.read().strip()
+        except Exception as e:
+            print(f"[bifrost-send] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
+            return None, 2
+        if not text:
+            print("[bifrost-send] --text-file is empty -- not sent.")
+            return None, 2
+    else:
+        text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
+        if not text.strip():
+            # W06 (folded 2026-07-19, five argv strikes in one day): empty argv falls through to
+            # STDIN -- `... | py agent_cli.py bifrost-send claude --to X --kind reply` just works,
+            # making the safe path the effortless one. A TTY with no pipe still refuses loudly.
+            piped = False
+            with contextlib.suppress(Exception):
+                piped = not sys.stdin.isatty()
+            if piped:
+                text = sys.stdin.read().strip()
+                if text:
+                    print(f"[bifrost-send] body from stdin ({len(text)} chars) -- the W06 path")
+            if not text.strip():
+                print("[bifrost-send] no message text (positional, --text-file, or piped stdin) -- not sent.")
+                return None, 2
+    return text, None
+
+
+def _bifrost_send_remote(args):
+    """--to @fleet/seat: write to a fleet link instead of the bus (RFC #70 §7.7). The record lands in
+    our feed and syncs whenever a path to that fleet opens; the bus is not needed for it."""
+    from core.link.client import LinkdMissing, LinkRpcError
+    from core.link.export import ExportRefused, send_remote
+
+    text, _rc = _read_send_text(args)
+    if text is None:
+        return _rc
+    meta = {"answers": args.answers} if getattr(args, "answers", None) else None
+    try:
+        rid = send_remote(args.agent_id, args.to, args.kind, text, meta=meta)
+    except (ExportRefused, LinkdMissing, LinkRpcError) as e:
+        print(f"[bifrost-send] not sent to {args.to}: {e}")
+        return 1
+    if args.json:
+        print(json.dumps({"sent": True, "id": rid, "to": args.to, "kind": args.kind, "via": "link"}))
+    else:
+        print(f"[bifrost-send] -> {args.to} [{args.kind}] via fleet link (record {rid[:12]}; syncs when a path opens)")
+    return 0
+
+
 def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
@@ -7641,41 +7719,18 @@ def cmd_bifrost_send(args):
     if _refusal:
         print(f"[bifrost-send] {_refusal}")
         return 2
+    from core.link.export import is_remote_address
+
+    if not args.broadcast and is_remote_address(args.to):
+        return _bifrost_send_remote(args)
     bus = Bus(args.agent_id)
     if not bus.online:
         print("[bifrost-send] bus OFFLINE (Redis down) -- not sent.")
         return 1
     bus.register()
-    # T083-C3-1: --text-file beats argv text. Flag-shaped prose ('--foo' in a sentence) is hostile
-    # input to argparse, and shell quoting multiplies the risk (live receipt 2026-07-16: a message
-    # BODY containing '--sources-json' aborted the send). git commit -F precedent: long or
-    # flag-bearing bodies ride a file, never argv.
-    if getattr(args, "text_file", None):
-        try:
-            with open(args.text_file, encoding="utf-8") as _tf:
-                text = _tf.read().strip()
-        except Exception as e:
-            print(f"[bifrost-send] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
-            return 2
-        if not text:
-            print("[bifrost-send] --text-file is empty -- not sent.")
-            return 2
-    else:
-        text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
-        if not text.strip():
-            # W06 (folded 2026-07-19, five argv strikes in one day): empty argv falls through to
-            # STDIN -- `... | py agent_cli.py bifrost-send claude --to X --kind reply` just works,
-            # making the safe path the effortless one. A TTY with no pipe still refuses loudly.
-            piped = False
-            with contextlib.suppress(Exception):
-                piped = not sys.stdin.isatty()
-            if piped:
-                text = sys.stdin.read().strip()
-                if text:
-                    print(f"[bifrost-send] body from stdin ({len(text)} chars) -- the W06 path")
-            if not text.strip():
-                print("[bifrost-send] no message text (positional, --text-file, or piped stdin) -- not sent.")
-                return 2
+    text, _rc = _read_send_text(args)
+    if text is None:
+        return _rc
     # T263: SPILL AN OVERSIZE BODY, exactly as the tool door has since T113. Until now
     # spill_tool_text had three callers and all three were in toolbox.py, so a long CLI
     # message was clipped at RENDER time and the reader was handed a STREAM-ID pointer --
@@ -9922,6 +9977,45 @@ def build_parser():
     hk.add_argument("--all", action="store_true", help="status: also list config files with no Aurora hooks")
     hk.add_argument("--json", action="store_true")
     hk.set_defaults(fn=cmd_hooks)
+
+    lk = sub.add_parser(
+        "link",
+        help="fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd)",
+    )
+    from core.link.cli import ACTIONS as _LINK_ACTIONS
+
+    lk.add_argument("action", choices=_LINK_ACTIONS, help="what to do; `aurora link status` shows every link")
+    lk.add_argument("args", nargs="*", help="the action's operands: a link, a member, a record, a code or a file")
+    lk.add_argument("--label", default=None, help="init/create/join: our fleet's name as members see it")
+    lk.add_argument("--role", default=None, help="invite: owner > admin > writer > reader > mailbox (default writer)")
+    lk.add_argument("--ttl", default=None, help="invite: lifetime like 30m, 24h or 7d (default 24h)")
+    lk.add_argument("--multi", action="store_true", help="invite: reusable until it expires")
+    lk.add_argument("--approval", action="store_true", help="invite: the join waits for `aurora link accept`")
+    lk.add_argument("--out", default=None, help="invite/join/export/cert/blob: write a file")
+    lk.add_argument("--to", default=None, help="promote: the local seat (default: the seat it was addressed to)")
+    lk.add_argument("--by", default=None, help="promote: who decided (default person:<os user>)")
+    lk.add_argument("--yes", action="store_true", help="promote: skip the terminal confirm")
+    lk.add_argument("--again", action="store_true", help="promote: resend an already promoted record")
+    lk.add_argument("--mark", action="store_true", help="verify: record that the safety number was compared")
+    lk.add_argument("--kind", default=None, help="send: the message kind (default chat)")
+    lk.add_argument("--link", default=None, help="send: which link, when the fleet shares several with us")
+    lk.add_argument("--kinds", default=None, help="create: comma-separated kinds the link carries")
+    lk.add_argument("--retention-days", type=int, default=None, help="create: drop bodies after N days (default 90)")
+    lk.add_argument("--limit", type=int, default=None, help="inbox: how many records")
+    lk.add_argument("--phrase-stdin", action="store_true", help="init/renew: read the recovery phrase from stdin")
+    lk.add_argument("--passphrase-env", default=None, help="init/renew: env var holding the root's passphrase")
+    lk.add_argument("--no-xwing", action="store_true", help="init: no post-quantum X-Wing key on this device")
+    lk.add_argument("--addr", action="append", default=None, help="peer: a direct ip:port hint (repeatable)")
+    lk.add_argument("--relay-url", default=None, help="serve/peer: a relay URL (a self-hosted iroh-relay)")
+    lk.add_argument("--no-relay", action="store_true", help="serve: direct addresses only")
+    lk.add_argument("--no-n0", action="store_true", help="serve: no n0 DNS address publishing or lookup")
+    lk.add_argument("--no-mdns", action="store_true", help="serve: no LAN discovery")
+    lk.add_argument("--bind", default=None, help="serve: local UDP ip:port")
+    lk.add_argument("--trace-rpc", action="store_true", help="serve: log every RPC line")
+    lk.add_argument("--once", action="store_true", help="serve: one pump pass, then stop")
+    lk.add_argument("--dry-run", action="store_true", help="import-legacy: show what would be imported")
+    lk.add_argument("--json", action="store_true")
+    lk.set_defaults(fn=cmd_link)
 
     su = sub.add_parser("setup", help="onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes")
     su.add_argument("--yes", action="store_true", help="non-interactive: take every default (or the flags below)")

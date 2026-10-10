@@ -287,8 +287,10 @@ dependencies = [
 name = "aurora-py"
 version = "0.1.0"
 dependencies = [
+ "aurora-link",
  "aurora-text",
  "pyo3",
+ "serde_json",
 ]
 
 [[package]]

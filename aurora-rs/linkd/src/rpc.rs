@@ -424,6 +424,16 @@ pub async fn dispatch(ctx: &Ctx, method: &str, params: Value) -> Result<Value, R
     if let Some(unknown) = p.0.keys().find(|k| !spec.params.iter().any(|(n, _, _)| n == k)) {
         return Err(RpcError::invalid(format!("unknown parameter {unknown}")));
     }
+    let wants_net = spec.network || (method == "link.join" && p.0.get("acl").is_none_or(Value::is_null));
+    if wants_net && !ctx.offline {
+        // The endpoint comes up a moment after start (or after identity.init); wait for it.
+        for _ in 0..100 {
+            if ctx.net().is_some() || ctx.d.device().is_err() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    }
     if spec.network && ctx.net().is_none() {
         return Err(RpcError::unavailable(
             "this needs the network: start `aurora link serve`",
@@ -504,7 +514,11 @@ pub async fn dispatch(ctx: &Ctx, method: &str, params: Value) -> Result<Value, R
             }
             let mut body = daemon::body_from(&raw)?;
             if let Some(atts) = p.opt::<Vec<Value>>("attachments")? {
-                let blobs = crate::net::blob_store(&d.dirs).await.map_err(RpcError::internal)?;
+                // One FsStore per directory: reuse the network's, or open one when offline.
+                let blobs = match ctx.net() {
+                    Some(net) => net.blobs.clone(),
+                    None => crate::net::blob_store(&d.dirs).await.map_err(RpcError::internal)?,
+                };
                 for a in atts {
                     let path: String = serde_json::from_value(a.get("path").cloned().unwrap_or(Value::Null))
                         .map_err(|_| RpcError::invalid("attachment needs a path"))?;

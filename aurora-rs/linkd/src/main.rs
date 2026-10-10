@@ -13,6 +13,8 @@
 
 mod daemon;
 mod net;
+#[cfg(test)]
+mod net_tests;
 mod rpc;
 
 use std::path::PathBuf;
@@ -236,7 +238,11 @@ mod tests {
     fn every_method_is_dispatched() {
         let src = include_str!("rpc.rs");
         for m in crate::rpc::METHODS {
-            assert!(src.contains(&format!("\"{}\" =>", m.name)), "{} has no dispatch arm", m.name);
+            assert!(
+                src.contains(&format!("\"{}\" =>", m.name)),
+                "{} has no dispatch arm",
+                m.name
+            );
         }
     }
 }

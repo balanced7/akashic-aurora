@@ -423,6 +423,8 @@ MANIFEST = {
     "discover": "shared",  # the self-describing door; MCP clients had no way to list verbs
     "console_log": "cli_only",
     "harnesses": "cli_only",
+    "link": "shared",  # fleet links (RFC #70): MCP carries the read-only actions; promote, invites and
+    # membership stay on the person's doors (terminal, console), so an agent cannot let remote words in
     "hooks": "cli_only",  # writes harness config files on THIS machine; not a remote-door action
     "setup": "cli_only",  # interactive onboarding (input()); an MCP client has no terminal to answer it
     "recall_counters": "cli_only",
@@ -588,6 +590,10 @@ TOOLBOX_EXEMPT = {
     "assign": "ceremony write approved by Daniil 2026-08-26; provenance derives from by, never forged",
     "adopt": "doc write approved by Daniil 2026-08-26; adopt is non-destructive by construction",
     "sift": "nested-ask read approved by Daniil 2026-08-26; tiered dissent, adjudication stops on purpose",
+    "link": (
+        "fleet links (RFC #70): runner seats write to another fleet through bifrost_send(to='@fleet/seat'); "
+        "the quarantine and promotion are a person's doors, never an in-task tool"
+    ),
 }
 
 
