@@ -958,6 +958,16 @@ def cmd_corpus(args):
     return corpus_main(args)
 
 
+def cmd_replay(args):
+    """Meta-harness replay runner (task 04); logic in core/metaharness/cli.py."""
+    from core.metaharness.cli import replay_main
+
+    if args.redis_db == 0:
+        print("ERROR: --redis-db 0 is the live store; a replay never runs there")
+        return 2
+    return replay_main(args)
+
+
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
@@ -9992,6 +10002,32 @@ def build_parser():
     cp.add_argument("--cap-mb", dest="cap_mb", type=int, default=None, help="archive: size cap in MB (default 2048)")
     cp.add_argument("--json", action="store_true")
     cp.set_defaults(fn=cmd_corpus)
+
+    rp = sub.add_parser(
+        "replay", help="meta-harness replay (task 04): run a scenario against a candidate harness, isolated"
+    )
+    rp.add_argument("action", choices=["run", "candidates", "new"])
+    rp.add_argument("--candidate", default="", help="candidate name (`baseline` = the repo's own config)")
+    rp.add_argument("--scenario", default="", help="corpus scenario id (run)")
+    rp.add_argument("--trials", type=int, default=1)
+    rp.add_argument("--parallel", type=int, default=1, help="trials at once")
+    rp.add_argument(
+        "--budget-usd", dest="budget_usd", type=float, default=None, help="stop scheduling at this batch spend"
+    )
+    rp.add_argument(
+        "--redis-db", dest="redis_db", type=int, default=15, help="the sandbox's Redis logical db (never 0)"
+    )
+    rp.add_argument(
+        "--keep-sandbox", dest="keep_sandbox", action="store_true", help="keep the sandbox clone for inspection"
+    )
+    rp.add_argument("--harness", default="", help="new: claude-code or codex-cli")
+    rp.add_argument("--model", default="")
+    rp.add_argument("--effort", default="")
+    rp.add_argument("--parent", default="")
+    rp.add_argument("--hypothesis", default="")
+    rp.add_argument("--overlay", default="", help="new: a folder of config files to lay over the sandbox")
+    rp.add_argument("--json", action="store_true")
+    rp.set_defaults(fn=cmd_replay)
 
     pv = sub.add_parser(
         "provenance", help="show this session's harness, model, effort and environment record (task 01)"
