@@ -338,7 +338,7 @@ def proposals_now(learning_store: Any, *, event_limit: int = 5000) -> list[dict[
             learning_store.store.hgetall(f"learn:repeat:{rid}")
             for rid in learning_store.store.smembers(learning_store.REPEAT_INDEX)
         ]
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: no repeat counters means no evidence
         repeats = []
     ev = evidence(events, repeats, provenance.get)
     return widening_proposals(learning_store.load_all_learnings_from_store(), ev)
