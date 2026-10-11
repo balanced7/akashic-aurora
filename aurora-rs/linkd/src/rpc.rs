@@ -790,11 +790,19 @@ mod pipe_security {
 
     pub struct OwnerOnly {
         sd: PSECURITY_DESCRIPTOR,
-        pub attrs: SECURITY_ATTRIBUTES,
+        attrs: SECURITY_ATTRIBUTES,
     }
 
     // SAFETY: the descriptor is owned by this value alone and only read by the OS.
     unsafe impl Send for OwnerOnly {}
+
+    impl OwnerOnly {
+        /// The attributes for `create_with_security_attributes_raw`. A method rather than a field
+        /// borrow, so a closure captures the whole (Send) value and not the raw-pointer field.
+        pub fn attrs_ptr(&mut self) -> *mut core::ffi::c_void {
+            std::ptr::from_mut(&mut self.attrs).cast()
+        }
+    }
 
     impl Drop for OwnerOnly {
         fn drop(&mut self) {
@@ -871,7 +879,7 @@ pub async fn serve_socket(ctx: Arc<Ctx>, path: std::path::PathBuf) -> anyhow::Re
         let mut opts = ServerOptions::new();
         opts.first_pipe_instance(first).reject_remote_clients(true);
         // SAFETY: `security.attrs` points at a valid descriptor that outlives the call.
-        unsafe { opts.create_with_security_attributes_raw(&name, std::ptr::from_mut(&mut security.attrs).cast()) }
+        unsafe { opts.create_with_security_attributes_raw(&name, security.attrs_ptr()) }
     };
     let mut server = create(true)?;
     loop {
