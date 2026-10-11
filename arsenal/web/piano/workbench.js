@@ -1,5 +1,11 @@
 // UI only: reuse the host's controls and APIs so MIDI, saved looks, cues and capture keep one owner.
 import { footerStatus } from './midi-hint-model.mjs';
+import { handleHtml, loadOrder, makeReorderable, saveOrder } from './studio/reorder.js';
+// The camera presets, in the order Daniel keeps them with their grips (studio/reorder.js). The top one is his default: the page
+// opens with it and returns to it when he picks an instrument (gallery-camera.js itself starts at 'auto' and keeps nothing).
+const CAMERAS=[['auto','Instrument portrait'],['performance','Performance · follow the keys'],['sculpture','Full sculpture'],['detail','Inside the mechanism'],['orbit','Free orbit']];
+const CAMERA_ORDER='arsenal.piano.camera-order', INSTRUMENT_ORDER='arsenal.piano.instrument-order', CRYSTAL=['aether','solstice','nocturne'];
+const cameraRow=([id,name])=>`<div class="camera-row" data-id="${id}" data-label="${name}">${handleHtml(name)}<label class="camera-choice"><input type="radio" name="studio-camera-mode" value="${id}"><span class="camera-name">${name}</span><span class="camera-default">Default</span></label></div>`;
 const DETAILS = {
   aether: ['Crystal collection', 'Aether', 'Prism, platinum & suspended light.', '#a5e2e7', '01'],
   solstice: ['Crystal collection', 'Solstice', 'Opal, champagne brass & living light.', '#edc38f', '02'],
@@ -42,7 +48,7 @@ export function mountWorkbench(page) {
     <aside class="studio-inspector" aria-label="Studio inspector" hidden>
       <div class="inspector-heading"><span id="inspector-eyebrow">YOUR COLLECTION</span><button id="inspector-close" aria-label="Close studio panel">×</button></div>
       <section id="studio-instruments" aria-label="Instrument collection" hidden><h1>Find your<br><em>instrument.</em></h1><p class="inspector-intro">A different world for every piece.</p><div id="instrument-cards"></div><div id="instrument-menu"></div><div id="instrument-options"></div><button id="open-looks" class="studio-wide-button">Saved looks <span>↗</span></button></section>
-      <section id="studio-scene" aria-label="Scene controls" hidden><h1>Set the<br><em>scene.</em></h1><p class="inspector-intro">Shape the space around your music.</p><label class="studio-field">Camera<select id="studio-camera"><option value="auto">Instrument portrait</option><option value="performance">Performance · follow the keys</option><option value="sculpture">Full sculpture</option><option value="detail">Inside the mechanism</option><option value="orbit">Free orbit</option></select></label><button id="studio-home" class="studio-wide-button">Reset view <span>↺</span></button><label class="studio-field" id="studio-canopy-field" hidden>Solstice overhead lights<select id="studio-canopy"><option value="ribbons">Layered LED ribbons</option><option value="fan">Radial fan</option><option value="halo">Halo bands</option><option value="sails">Opal sails</option></select></label><label class="studio-check"><input id="studio-motion" type="checkbox" checked> Ornamental motion</label><div class="control-section" id="scene-look-controls"><h2>Notes & colour</h2></div><div id="environment-mount"></div></section>
+      <section id="studio-scene" aria-label="Scene controls" hidden><h1>Set the<br><em>scene.</em></h1><p class="inspector-intro">Shape the space around your music.</p><div class="studio-field camera-field"><span id="camera-heading">Camera</span><div id="studio-camera-list" class="camera-list" role="radiogroup" aria-labelledby="camera-heading">${loadOrder(CAMERA_ORDER,CAMERAS.map(c=>c[0])).map(id=>cameraRow(CAMERAS.find(c=>c[0]===id))).join('')}</div><p class="camera-hint">The top camera is your default: the page opens with it and returns to it when you pick an instrument. Drag a grip to change the order.</p><select id="studio-camera" hidden tabindex="-1">${CAMERAS.map(([id,name])=>`<option value="${id}">${name}</option>`).join('')}</select></div><button id="studio-home" class="studio-wide-button">Reset view <span>↺</span></button><label class="studio-field" id="studio-canopy-field" hidden>Solstice overhead lights<select id="studio-canopy"><option value="ribbons">Layered LED ribbons</option><option value="fan">Radial fan</option><option value="halo">Halo bands</option><option value="sails">Opal sails</option></select></label><label class="studio-check"><input id="studio-motion" type="checkbox" checked> Ornamental motion</label><div class="control-section" id="scene-look-controls"><h2>Notes & colour</h2></div><div id="environment-mount"></div></section>
       <section id="studio-play" aria-label="Playing controls" hidden><h1>Make it<br><em>your own.</em></h1><p class="inspector-intro">Your keyboard, your harmony, your practice.</p><div class="control-section" id="input-controls"><h2>Your instrument</h2></div><div class="control-section" id="theory-controls"><h2>Harmony & notation</h2></div><div class="control-section" id="metro-controls"><h2>Metronome</h2><p>A click to play to. Its beats are recorded with your notes, which is what lets a score know where the beat really was instead of guessing it from the notes themselves.</p></div><div class="control-section" id="log-controls"><h2>Practice log</h2></div><details class="studio-shortcuts"><summary>Computer keyboard</summary><p>Z–/ and Q–P play notes.<br>Space holds sustain.<br>← → shift the octave.<br>H shows performance details.</p><p>Use Practice for exercises and Saved looks for your visual presets.</p></details><button id="open-practice" class="studio-wide-button">Open practice library <span>↗</span></button></section>
       <section id="studio-capture" aria-label="Capture controls" hidden><h1>Keep the<br><em>moment.</em></h1><p class="inspector-intro">The piano and its light, ready to share.</p><div class="control-section" id="frame-controls"><h2>Canvas framing</h2></div><div class="control-section" id="audio-controls"><h2>Recording sound</h2><p>Choose an audio input to include sound in the recording.</p></div><div class="control-section" id="render-controls"><h2>Rendering</h2><label class="studio-field">Detail<select id="studio-quality"><option value="studio">1080p</option><option value="ultra">1440p</option><option value="cinema">4K</option></select></label><label class="studio-field">Refresh rate<select id="studio-refresh"><option value="native">Monitor native</option><option value="60">60 fps</option></select></label><label class="studio-check" title="When the render is about twice the screen's pixels or more, it is filtered down in smooth steps instead of by the browser, so thin lines and edges stay clean"><input id="studio-smooth" type="checkbox" checked> Smooth preview</label><p>Smooths edges on screen when the render is much larger than its window. Only what you see changes, never the recording.</p><p>Recordings capture at up to 60 fps. Pause render gives the GPU a rest.</p><output id="studio-render-size"></output></div></section>
       <section id="studio-companion" aria-label="Companion controls" hidden><h1>Room for<br><em>another voice.</em></h1><p class="inspector-intro">Play, listen and explore together.</p><div class="control-section" id="companion-controls"><h2>Claude</h2></div></section>
@@ -84,7 +90,7 @@ export function mountWorkbench(page) {
   const caption=document.createElement('div');caption.className='studio-scene-caption';caption.innerHTML='<span id="scene-collection">THE INSTRUMENTS</span><h2 id="scene-title">Piano</h2><p id="scene-description"></p>';stage.append(caption);
   const tip=document.createElement('div');tip.className='studio-stage-tip';tip.textContent='DRAG TO EXPLORE  ↗';stage.append(tip);
   const footer=document.createElement('footer');footer.className='studio-status';footer.innerHTML='<span><i></i><span id="studio-midi-status">Keyboard ready</span></span><span id="studio-harmony">A space for your music.</span><span id="studio-health"></span>';app.append(footer);
-  const collection=$('instrument-cards');let section='';
+  const collection=$('instrument-cards');
   // Card art (assets/instrument-art, made by scripts/piano_card_art.py): a hidden-line wireframe of the live model, tinted by --card-accent
   // through a CSS mask, and a matted render from the same camera that fades in on hover, focus and the chosen card. Both load only as a
   // card nears view in the open panel; an instrument without a wireframe keeps the drawn silhouette(). The wireframe probe fetches in CORS
@@ -95,22 +101,41 @@ export function mountWorkbench(page) {
     const b=e.target,box=b.querySelector('.instrument-art'),u=artUrl(b.dataset.instrument,'wire'),img=new Image();reveal.unobserve(b);img.crossOrigin='anonymous';img.src=u;
     img.decode().then(()=>{box.style.setProperty('--wire',`url("${u}")`);box.innerHTML='<span class="art-look"></span><span class="art-wire"></span>';b.classList.add('has-art');if(b.getAttribute('aria-pressed')==='true')look(b);},()=>{box.innerHTML=silhouette(b.dataset.instrument);});
   }},{root:inspector,rootMargin:'0px 0px 360px'});
-  // Crystal studies are curated first; all existing instruments stay in the collection below.
-  const items=page.looks().instruments;
-  for(const item of [...items.filter(i=>['aether','solstice','nocturne'].includes(i.id)),...items.filter(i=>!['aether','solstice','nocturne'].includes(i.id))]){
-    const d=DETAILS[item.id]||['The instruments',item.name,'', '#b3cbd0'];
-    if(section!==d[0]){section=d[0];const h=document.createElement('h2');h.textContent=section;collection.append(h);}
-    const button=document.createElement('button');button.className=`instrument-card${d[4]?' featured':''}`;button.dataset.instrument=item.id;button.style.setProperty('--card-accent',d[3]);button.setAttribute('aria-pressed','false');
-    button.innerHTML=`<span class="instrument-art" aria-hidden="true"></span><span class="instrument-copy"><span class="instrument-index">${d[4]||'◈'}</span><strong>${d[1]}</strong><small>${d[2]}</small></span><span class="instrument-picked">✓</span>`;
-    button.setAttribute('aria-label',`Choose ${d[1]}`);
-    button.addEventListener('pointerenter',()=>look(button));button.addEventListener('focus',()=>look(button));
-    button.addEventListener('click',async()=>{
-      const token=++chooseToken;button.classList.add('loading');
-      try {const ok=await page.selectInstrument(item.id);if(ok){page.galleryCamera.setMode('auto');$('studio-camera').value='auto';page.requestRender();if(innerWidth<1000)open(null);}}
-      finally {button.classList.remove('loading');if(token===chooseToken)sync();}
-    });collection.append(button);reveal.observe(button);
+  // Crystal studies are curated first; all existing instruments stay in the collection below. Each section keeps the order Daniel
+  // drags its cards into (one list for all sections, arsenal.piano.instrument-order): a card never leaves its section, and an
+  // instrument added later joins the end of its own. The grip sits beside the card, never in it, so it never chooses the instrument.
+  const items=page.looks().instruments, sections=new Map();
+  for(const item of [...items.filter(i=>CRYSTAL.includes(i.id)),...items.filter(i=>!CRYSTAL.includes(i.id))]){const d=DETAILS[item.id]||['The instruments',item.name,'','#b3cbd0'];if(!sections.has(d[0]))sections.set(d[0],new Map());sections.get(d[0]).set(item.id,[item,d]);}
+  const keepInstruments=()=>saveOrder(INSTRUMENT_ORDER,[...collection.querySelectorAll('.instrument-row')].map(r=>r.dataset.id));
+  for(const [name,cards] of sections){
+    const box=document.createElement('div');box.className='instrument-section';const h=document.createElement('h2');h.textContent=name;box.append(h);collection.append(box);
+    for(const id of loadOrder(INSTRUMENT_ORDER,[...cards.keys()])){
+      const [item,d]=cards.get(id);
+      const row=document.createElement('div');row.className='instrument-row';row.dataset.id=item.id;row.dataset.label=d[1];row.style.setProperty('--card-accent',d[3]);row.innerHTML=handleHtml(d[1]);
+      const button=document.createElement('button');button.className=`instrument-card${d[4]?' featured':''}`;button.dataset.instrument=item.id;button.setAttribute('aria-pressed','false');
+      button.innerHTML=`<span class="instrument-art" aria-hidden="true"></span><span class="instrument-copy"><span class="instrument-index">${d[4]||'◈'}</span><strong>${d[1]}</strong><small>${d[2]}</small></span><span class="instrument-picked">✓</span>`;
+      button.setAttribute('aria-label',`Choose ${d[1]}`);
+      row.addEventListener('pointerenter',()=>look(button));button.addEventListener('focus',()=>look(button));
+      button.addEventListener('click',async()=>{
+        const token=++chooseToken;button.classList.add('loading');
+        try {const ok=await page.selectInstrument(item.id);if(ok){page.galleryCamera.setMode(topCamera());paintCamera();page.requestRender();if(innerWidth<1000)open(null);}}
+        finally {button.classList.remove('loading');if(token===chooseToken)sync();}
+      });row.append(button);box.append(row);reveal.observe(button);
+    }
+    makeReorderable(box,{item:'.instrument-row',onReorder:keepInstruments});
   }
-  $('studio-camera').addEventListener('change',e=>page.galleryCamera.setMode(e.target.value));
+  // The camera list: a radio per preset (Tab reaches the chosen one, the arrows choose another) and a grip to reorder; reordering
+  // never changes the camera in use. #studio-camera stays as a hidden select kept in step both ways, for scripts that set it and
+  // dispatch 'change'; REC disables the list as it did the select.
+  const cameraList=$('studio-camera-list'), cameraSelect=$('studio-camera');
+  const topCamera=()=>cameraList.querySelector('.camera-row')?.dataset.id||'auto';
+  function paintCamera(rec){const mode=page.galleryCamera.mode;cameraSelect.value=mode;for(const r of cameraList.querySelectorAll('input'))r.checked=r.value===mode;if(rec===undefined)return;cameraSelect.disabled=rec;cameraList.setAttribute('aria-disabled',String(rec));for(const b of cameraList.querySelectorAll('input,button'))b.disabled=rec;}
+  const setCamera=id=>{page.galleryCamera.setMode(id);paintCamera();};
+  cameraList.addEventListener('click',e=>{if(e.detail&&e.target.closest('label'))setTimeout(()=>{const a=document.activeElement;if(a?.name==='studio-camera-mode')a.blur();});});  // a pointer pick leaves no focus behind (the label focuses its radio): letter keys stay the note keyboard
+  cameraList.addEventListener('change',e=>{if(e.target.name==='studio-camera-mode')setCamera(e.target.value);});
+  cameraSelect.addEventListener('change',()=>setCamera(cameraSelect.value));
+  makeReorderable(cameraList,{item:'.camera-row',onReorder:ids=>saveOrder(CAMERA_ORDER,ids)});
+  page.galleryCamera.setMode(topCamera());
   $('studio-home').addEventListener('click',()=>page.galleryCamera.home());
   $('studio-motion').addEventListener('change',e=>page.setOrnamentalMotion(e.target.checked));
   $('studio-canopy').addEventListener('change',e=>{page.instrument?.setCanopy?.(e.target.value);page.requestRender();});
@@ -151,9 +176,9 @@ export function mountWorkbench(page) {
     }
     syncInstrumentOptions(id,d[1],s.rec);
     $('studio-canopy-field').hidden=id!=='solstice';if(id==='solstice')$('studio-canopy').value=page.instrument?.canopy||'ribbons';
-    $('studio-camera').value=page.galleryCamera.mode;
+    paintCamera(s.rec!=='idle');
     $('studio-quality').value=page.spectacle?.settings.quality||'ultra';$('studio-refresh').value=render.refresh;
-    $('studio-quality').disabled=s.rec!=='idle';$('studio-camera').disabled=s.rec!=='idle';$('studio-canopy').disabled=s.rec!=='idle';
+    $('studio-quality').disabled=s.rec!=='idle';$('studio-canopy').disabled=s.rec!=='idle';
     for(const b of collection.querySelectorAll('button'))b.disabled=s.rec!=='idle';
     pause.disabled=s.rec!=='idle';pause.textContent=render.paused?'Resume render':'Pause render';pause.setAttribute('aria-pressed',String(render.paused));
     const smooth=render.smoothPreview;if(smooth)$('studio-smooth').checked=smooth.on;

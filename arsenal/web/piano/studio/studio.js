@@ -5,6 +5,7 @@
 //             nothing reaches the practice log, the key tracker, the chord reader, the Nashville row, the staff or REC audio.
 //   Looks     saved looks (looks/store.js: four built-in starters, then his own, favourites first) and the live visual
 //             settings (looks/registry.js), always applied through the registry (its verified order, its REC refusal).
+//             Each of his own looks has a grip (reorder.js) to reorder it within its row; the order is the store's.
 //
 // Layout follows the deck (deck.js computeLayout and relayout, deck.js:1507-1552): 380 px wide (the deck's width, so swapping
 // drawers never moves the canvas); it docks (.studio-dock on the stage, onLayout so the page refits the canvas) when the
@@ -28,7 +29,8 @@
 // page.cues.voice, page.beforeExerciseStart). The drawer uses load, play, pause, resume, stop, next, prev, playChord,
 // showChord, setTranspose, setBpm, setLoops, setAutoAdvance, view and state.
 // looks.registry: the registry module (LOOK_SETTINGS, snapshot, diff, applyLook, applySetting, recording).
-// looks.store: createLooksStore() (load, list, status, save, rename, duplicate, setFavourite, delete).
+// looks.store: createLooksStore() (load, list, status, save, rename, duplicate, setFavourite, delete, and reorder: without it
+// the looks have no grips).
 //
 // Page hooks, all optional (`page` is also the object the registry reads and sets): isRecording() (else the registry's
 // recording(page), else stats().rec !== "idle"); framing() -> { w, h } or "9:16" (else stats().framing); canvas; pad();
@@ -38,6 +40,7 @@
 
 import { nashvilleFromName, parseKey, formatNumber } from "../nashville.js";
 import { keyContext } from "../spell.js";
+import { handleHtml, makeReorderable } from "./reorder.js";
 
 export const STUDIO_API = "arsenal.piano.studio/v1";
 export const STUDIO_WIDTH = 380;     // the deck's width too (deck.js:30)
@@ -804,6 +807,7 @@ export function mountStudio({
   const others = () => L.list.filter((p) => !isBuiltIn(p) && !p.favourite);
   const ordered = () => [...favourites(), ...others()];  // the order Insert and Delete step through
   const presetById = (id) => L.list.find((p) => p.id === id) || null;
+  const canReorder = () => !!lstore && typeof lstore.reorder === "function";
   function readStore() {
     if (!lstore) return;
     L.list = (safe(() => lstore.list(), []) || []).filter((p) => p && p.id && p.name);
@@ -863,16 +867,48 @@ export function mountStudio({
     const rec = S.recording;
     const changed = active && L.changed.length > 0;
     const meta = isBuiltIn(p) ? ["built in", lookOf(p).framing].filter(Boolean).join(" · ") : presetMeta(p);
-    return `<button type="button" class="sl-chip" data-id="${esc(p.id)}" aria-pressed="${active}" data-applying="${L.applying === p.id}"
+    const chip = `<button type="button" class="sl-chip" data-id="${esc(p.id)}" aria-pressed="${active}" data-applying="${L.applying === p.id}"
         ${rec || !registry || L.applying ? "disabled" : ""} title="${esc(rec ? "Stop recording to change the look" : `Use “${p.name}”`)}">
       <span class="sl-chipname">${esc(p.name)}</span><span class="sl-chipmeta">${esc(meta)}</span>
       <span class="sl-chipdot" ${changed ? "" : "hidden"}></span><span class="studio-sr">${changed ? ", changed since you picked it" : ""}</span></button>`;
+    // A look of his own gets a grip beside its chip. A starter gets none: the order lives in the server's list, which never
+    // holds a starter, so a starter keeps its built-in place at the head of Favourites (a duplicate of it moves freely).
+    // A grip waits while REC runs, as the chips do.
+    const movable = canReorder() && !isBuiltIn(p);
+    const grip = movable ? handleHtml(p.name, { disabled: rec, title: rec ? "Stop recording to reorder" : "Drag to reorder, or use the arrow keys" }) : "";
+    return `<div class="sl-item${movable ? " rr-movable" : ""}" data-id="${esc(p.id)}" data-label="${esc(p.name)}">${grip}${chip}</div>`;
   }
+  // A new order for his own looks in one row (Favourites, or Your other looks), from the grips. It shows at once: L.list takes
+  // the order before the store answers, so the ticker's repaint never flicks a chip back while the server is asked. The store's
+  // own list (its answer, or the old order and its words when it refuses) replaces it once no move is still on its way.
+  let reordering = 0;
+  async function reorderLooks(ids) {
+    if (!canReorder()) return;
+    const want = new Map(ids.map((id, i) => [id, i]));
+    const slots = L.list.flatMap((p, i) => (want.has(p.id) ? [i] : []));
+    const moving = slots.map((i) => L.list[i]).sort((a, b) => want.get(a.id) - want.get(b.id));
+    const next = L.list.slice();
+    slots.forEach((s, k) => { next[s] = moving[k]; });
+    L.list = next;
+    paintPresets();
+    reordering++;
+    try { await lstore.reorder(ids); } catch (e) { lookMsg((e && e.message) || String(e), true); } finally { reordering--; }
+    if (!reordering) { readStore(); paintPresets(); }
+  }
+  // One grip list per row; the rows are redrawn from L.list (moveDom: false), so the store's order is the only order.
+  const lookGrips = [favChips, otherChips].map((list) => makeReorderable(list, { item: ".sl-item.rr-movable", moveDom: false,
+    disabled: () => S.recording || !canReorder(), onReorder: (ids) => reorderLooks(ids) }));
+  let favHtml = null, otherHtml = null;
   function paintPresets() {
     const rec = S.recording;
     const favs = favourites(), rest = others();
-    favChips.innerHTML = favs.map(chipHtml).join("") || `<p class="studio-empty">No looks yet.</p>`;
-    otherChips.innerHTML = rest.map(chipHtml).join("");
+    // Only a row that changed is drawn again: the ticker repaints every second, and a rebuilt row would take the focus from
+    // a grip mid-move (and a hover from under the pointer). Nothing is redrawn under a lifted chip; its drop draws the row.
+    if (!lookGrips.some((g) => g.dragging())) {
+      const f = favs.map(chipHtml).join("") || `<p class="studio-empty">No looks yet.</p>`, o = rest.map(chipHtml).join("");
+      if (f !== favHtml) { favChips.innerHTML = f; favHtml = f; }
+      if (o !== otherHtml) { otherChips.innerHTML = o; otherHtml = o; }
+    }
     otherWrap.hidden = !rest.length;
     const active = presetById(L.active);
     const changed = !!active && L.changed.length > 0;
@@ -1442,6 +1478,7 @@ export function mountStudio({
     clearTimeout(P.noticeT);
     if (rangeFrame) win.cancelAnimationFrame(rangeFrame);
     if (keys) win.removeEventListener("keydown", onKey);
+    for (const g of lookGrips) g.destroy();
     if (ro) ro.disconnect();
     if (deckObs) deckObs.disconnect();
     if (mountObs) mountObs.disconnect();

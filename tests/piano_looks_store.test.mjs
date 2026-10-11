@@ -236,12 +236,103 @@ for (const status of [404, 405, 501, 503, 403]) {
   check("... each resolves to its own look", a.name === "One" && b.name === "Two" && c.name === "Three");
 }
 
+// --------------------------------------------------------------- reorder --
+// The drawer's grips: reorder(ids) names saved looks in their new order; they take the places those looks hold.
+const own = (store) => store.list().filter((p) => !p.builtIn).map((p) => p.name);
+const byIdJson = (presets) => JSON.stringify(clone(presets).sort((a, b) => (a.id < b.id ? -1 : 1)));
+{
+  const srv = fakeServer(), storage = fakeStorage();
+  const store = make(srv, storage);
+  await store.load();
+  const a = await store.save("A", LOOK), b = await store.save("B", LOOK), c = await store.save("C", LOOK);
+  const before = byIdJson(srv.presets);
+  srv.calls.length = 0;
+  const listed = await store.reorder([c.id, b.id, a.id]);
+  eq("reorder: the server keeps the new order", srv.presets.map((p) => p.name), ["C", "B", "A"]);
+  eq("... in one PUT", srv.calls, ["PUT"]);
+  eq("... it resolves to the list, starters first", listed.map((p) => p.name), [...STARTER_PRESETS.map((p) => p.name), "C", "B", "A"]);
+  eq("... the browser copy has it too", JSON.parse(storage.getItem(CACHE_KEY)).presets.map((p) => p.name), ["C", "B", "A"]);
+  check("... only the places change: every look is as it was (no new updated stamp)", byIdJson(srv.presets) === before);
+  await store.reorder([a.id, c.id]);
+  eq("reordering some looks: they trade the places they hold, the others stay put", srv.presets.map((p) => p.name), ["A", "B", "C"]);
+  await store.reorder(["look-gone", c.id, "look-also-gone", a.id, c.id]);
+  eq("ids that aren't saved are skipped, a repeated id counts once", srv.presets.map((p) => p.name), ["C", "B", "A"]);
+  srv.calls.length = 0;
+  await store.reorder([c.id, b.id, a.id]);
+  await store.reorder([b.id]);
+  eq("an order that changes nothing isn't sent", srv.calls, []);
+  await rejects("a starter look can't be placed", store.reorder(["builtin:classic", a.id]), "builtin");
+  await rejects("an order is a list", store.reorder(`${c.id},${a.id}`), "order");
+  await rejects("... of look ids", store.reorder([1, 2]), "order");
+  eq("... refusals never reach the server", srv.calls, []);
+  check("starter looks are never sent to the server", !srv.presets.some((p) => /^builtin:/.test(p.id)) && srv.presets.length === 3);
+}
+{
+  const srv = fakeServer();
+  const store = make(srv);
+  await store.load();
+  const a = await store.save("A", LOOK), b = await store.save("B", LOOK), c = await store.save("C", LOOK);
+  srv.calls.length = 0;
+  // another window saves first: it renames B and adds D
+  srv.beforePut.push((s) => {
+    s.rev += 1;
+    s.presets = [...s.presets.map((p) => (p.id === b.id ? { ...p, name: "B, renamed elsewhere" } : p)), { id: "look-d", name: "D", settings: { colour: "mono" } }];
+  });
+  await store.reorder([c.id, a.id, b.id]);
+  eq("409 on a reorder: load the server's list, replay the order by look id, retry once", srv.calls, ["PUT", "GET", "PUT"]);
+  eq("... my order lands, their rename and their new look are kept", srv.presets.map((p) => p.name), ["C", "A", "B, renamed elsewhere", "D"]);
+  // another window deletes a look this window is moving
+  srv.beforePut.push((s) => { s.rev += 1; s.presets = s.presets.filter((p) => p.id !== a.id); });
+  await store.reorder([b.id, a.id, c.id]);
+  eq("... a look deleted elsewhere is skipped, the rest keep the order asked for", srv.presets.map((p) => p.name), ["B, renamed elsewhere", "C", "D"]);
+  check("... and the drawer agrees with the server", own(store).join("|") === srv.presets.map((p) => p.name).join("|"));
+}
+{
+  const srv = fakeServer(), storage = fakeStorage();
+  const store = make(srv, storage);
+  await store.load();
+  const a = await store.save("A", LOOK), b = await store.save("B", LOOK), c = await store.save("C", LOOK);
+  srv.down = true;
+  const listed = await store.reorder([c.id, b.id, a.id]);
+  eq("no server: the new order is kept in this browser, one change pending", [store.status().offline, store.status().pending], [true, 1]);
+  eq("... the drawer shows it", [own(store), listed.filter((p) => !p.builtIn).map((p) => p.name)], [["C", "B", "A"], ["C", "B", "A"]]);
+  eq("... the server still has the old order", srv.presets.map((p) => p.name), ["A", "B", "C"]);
+  const reopened = make(srv, storage);
+  eq("... a reload while the server is away starts from it", own(reopened), ["C", "B", "A"]);
+  srv.down = false;
+  srv.rev += 1;
+  srv.presets = [...srv.presets, { id: "look-e", name: "E, saved on another device", settings: { colour: "pitch" } }];
+  await reopened.load();
+  eq("back online: the pending order is replayed onto the server's newer list", srv.presets.map((p) => p.name),
+    ["C", "B", "A", "E, saved on another device"]);
+  eq("... nothing pending, not offline", [reopened.status().pending, reopened.status().offline], [0, false]);
+}
+{
+  const doc = { rev: 1, presets: [{ id: "look-a", name: "A", settings: { colour: "pitch" } }, { id: "look-b", name: "B", settings: { colour: "pitch" } }],
+    pending: [{ kind: "order", ids: ["look-b", "look-a"] }, { kind: "order", ids: "look-b" }, { kind: "order", ids: [3] }] };
+  const store = make(fakeServer(), fakeStorage({ [CACHE_KEY]: JSON.stringify(doc) }));
+  eq("a pending order in the browser copy is kept and shown; malformed ones are dropped", [own(store), store.status().pending], [["B", "A"], 1]);
+}
+{
+  const srv = fakeServer();
+  const store = make(srv);
+  await store.load();
+  const a = await store.save("A", LOOK), b = await store.save("B", LOOK);
+  srv.calls.length = 0;
+  await Promise.all([store.reorder([b.id, a.id]), store.reorder([a.id, b.id])]);
+  eq("a move and a quick move back both go, one after another", [srv.calls, srv.presets.map((p) => p.name)], [["PUT", "PUT"], ["A", "B"]]);
+}
+
 // --------------------------------------------------------------- applyOp --
 {
   const list = [{ id: "a", name: "A", settings: {} }, { id: "b", name: "B", settings: {} }];
   eq("applyOp save replaces in place", applyOp(list, { kind: "save", preset: { id: "a", name: "A2", settings: {} } }).map((p) => p.name), ["A2", "B"]);
   eq("applyOp delete of a missing id is a no-op", applyOp(list, { kind: "delete", id: "z" }).length, 2);
   check("applyOp never changes its input", list[0].name === "A" && list.length === 2);
+  const four = ["a", "b", "c", "d"].map((id) => ({ id, name: id.toUpperCase(), settings: {} }));
+  eq("applyOp order: the named looks take the places they hold", applyOp(four, { kind: "order", ids: ["d", "b"] }).map((p) => p.id), ["a", "d", "c", "b"]);
+  eq("applyOp order: unknown and repeated ids are ignored", applyOp(four, { kind: "order", ids: ["c", "x", "c", "a"] }).map((p) => p.id), ["c", "b", "a", "d"]);
+  check("applyOp order never changes its input", four.map((p) => p.id).join("") === "abcd");
 }
 
 console.log(`${pass} passed, ${fail} failed`);

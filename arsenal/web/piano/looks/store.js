@@ -6,11 +6,14 @@
 //   list(), get(id), status()  -> starters first, then saved looks; { offline, pending, rev, loaded, lastError, count, max }
 //   save(name, settings, { id, favourite })  -> the saved look (a new one, or the look with that id overwritten)
 //   rename(id, name), duplicate(id, name?), setFavourite(id, on), delete(id)  (remove is the same as delete)
+//   reorder(ids)               -> the list; the saved looks named in ids, in that order, take the places those same looks
+//                                 hold (the drawer's grips: one row of chips at a time, the other looks stay put)
+// The order of the saved looks is the order of the server's list, so a new order travels like every other change.
 // Every change is sent as the whole list with the rev it was based on. When another window saved first (409), the store
 // loads the server's list, applies the same changes to it by look id, and tries once more. When the server can't be
 // reached (no answer, a refusal from another address, or a server from before this route), the change is kept in the
 // browser copy as pending and sent with the next load() or change that gets through. Starter looks are read-only;
-// duplicate one to make your own.
+// duplicate one to make your own. They have no place in the server's list, so reorder() refuses them: they are never sent.
 import { cleanLook } from "./registry.js";
 
 export const LOOKS_URL = "/api/piano/looks";
@@ -43,7 +46,7 @@ export class LooksError extends Error {
     super(message);
     this.name = "LooksError";
     this.status = status;
-    this.code = code;  // unreachable | conflict | refused | full | name | settings | builtin | missing | id
+    this.code = code;  // unreachable | conflict | refused | full | name | settings | builtin | missing | id | order
   }
 }
 
@@ -75,8 +78,24 @@ function checkSettings(settings) {
 const wellFormed = (p) => !!p && typeof p === "object" && typeof p.id === "string" && ID.test(p.id)
   && typeof p.name === "string" && !!p.settings && typeof p.settings === "object" && !Array.isArray(p.settings);
 
+// A new order: a list of saved look ids, each once. A starter in it is refused rather than skipped, so a drawer that tried
+// to place one hears why instead of seeing its move silently undone.
+function checkOrder(ids) {
+  if (!Array.isArray(ids) || !ids.every((x) => typeof x === "string")) {
+    throw new LooksError("Name the looks in their new order.", { code: "order" });
+  }
+  if (ids.some((x) => STARTER_PRESETS.some((p) => p.id === x))) {
+    throw new LooksError("Starter looks keep their place. Duplicate one to put your own copy where you like.", { code: "builtin" });
+  }
+  return [...new Set(ids)];
+}
+const sameOrder = (a, b) => a.length === b.length && a.every((p, i) => p.id === b[i].id);
+
 // One change applied to a list of saved looks, by look id. The same change replays onto a fresher list after a 409:
 // a rename or favourite of a look another window deleted does nothing, and a delete of a look already gone does nothing.
+// An order names looks, never places, for the same reason: replayed onto a list another window changed, it moves the
+// named looks that are still there among the places they hold there now. A look added elsewhere keeps its place, a look
+// deleted elsewhere is skipped, and a rename or favourite made elsewhere is kept, because the looks move whole.
 export function applyOp(presets, op) {
   const list = presets.map(copy);
   const id = op.kind === "save" ? op.preset.id : op.id;
@@ -85,11 +104,18 @@ export function applyOp(presets, op) {
   else if (op.kind === "rename" && at >= 0) Object.assign(list[at], { name: op.name, updated: op.at });
   else if (op.kind === "favourite" && at >= 0) Object.assign(list[at], { favourite: op.on, updated: op.at });
   else if (op.kind === "delete" && at >= 0) list.splice(at, 1);
+  else if (op.kind === "order") {
+    const want = op.ids.filter((x, i) => op.ids.indexOf(x) === i && list.some((p) => p.id === x));
+    const slots = list.flatMap((p, i) => (want.includes(p.id) ? [i] : []));
+    const byId = new Map(list.map((p) => [p.id, p]));
+    slots.forEach((slot, k) => { list[slot] = byId.get(want[k]); });
+  }
   return list;
 }
 
 const validOp = (op) => !!op && ((op.kind === "save" && wellFormed(op.preset))
-  || (["rename", "favourite", "delete"].includes(op.kind) && typeof op.id === "string"));
+  || (["rename", "favourite", "delete"].includes(op.kind) && typeof op.id === "string")
+  || (op.kind === "order" && Array.isArray(op.ids) && op.ids.every((x) => typeof x === "string")));
 
 export function createLooksStore({ fetch: fetchImpl = globalThis.fetch ? globalThis.fetch.bind(globalThis) : null,
   storage = browserStorage(), url = LOOKS_URL, now = () => Date.now(), newId = null, onChange = null } = {}) {
@@ -175,6 +201,9 @@ export function createLooksStore({ fetch: fetchImpl = globalThis.fetch ? globalT
   function mutate(op, result) {
     return serial(async () => {
       const ops = [...state.pending, op];
+      // A look dropped where it already was changes nothing: nothing is sent. Asked here, in turn, and not when the move
+      // was made: a move back made while the first move is still on its way must be sent, not judged against the old list.
+      if (op.kind === "order" && sameOrder(view(), view(ops))) return result();
       if (view(ops).length > MAX_PRESETS) throw fullError();
       try {
         await sync(ops);
@@ -257,6 +286,7 @@ export function createLooksStore({ fetch: fetchImpl = globalThis.fetch ? globalT
       return { id: makeId(), name: text, settings: checkSettings(from.settings), created: at, updated: at };
     }, (preset) => mutate({ kind: "save", preset }, () => copy(findSaved(preset.id)))),
     delete: (id) => attempt(() => ownLook(id), () => mutate({ kind: "delete", id }, () => true)),
+    reorder: (ids) => attempt(() => checkOrder(ids), (clean) => mutate({ kind: "order", ids: clean }, () => api.list())),
   };
   api.remove = api.delete;
   return api;

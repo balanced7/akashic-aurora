@@ -523,6 +523,16 @@
 .sl-chipmeta { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
 .sl-chipdot, .sl-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .sl-chipdot { position: absolute; top: 7px; right: 7px; }
+/* A look of his own carries a grip (reorder.js) on its leading edge: drag it, or focus it and use the arrow keys, to change
+   the order within its row. Starter looks have none: they stay first in Favourites, in their built-in order. The grip is the
+   chip's sibling, laid over its left edge, so a press on it never applies the look. It is 26 px wide by the chip's height
+   (WCAG 2.2 2.5.8 asks for 24 x 24, and it touches the chip, so it must reach that by itself), and the chip's text starts
+   clear of it. A finger gets a wider grip (the touch block below the grips). */
+.sl-item { position: relative; min-width: 0; }
+.sl-item.rr-movable > .sl-chip { padding-left: 30px; }
+.sl-item > .rr-handle { position: absolute; z-index: 1; top: 1px; bottom: 1px; left: 1px; width: 26px; color: var(--ink-3); }
+.sl-item > .rr-handle:hover, .sl-item > .rr-handle:focus-visible { color: var(--accent); }
+.sl-item.rr-lifted > .sl-chip { border-color: var(--accent); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5); }
 .sl-using { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
 .sl-using[data-changed="true"] { color: var(--ink); }
 .sl-usingtext { flex: 1 1 180px; min-width: 0; }
@@ -573,6 +583,35 @@
 
 .sl-rec { border-color: color-mix(in srgb, var(--rec) 55%, var(--rule)); background: color-mix(in srgb, var(--rec) 8%, var(--panel)); }
 .sl-recdot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: var(--rec); box-shadow: 0 0 8px var(--rec); }
+
+/* --------------------------------------------------- grips (reorder.js) -- */
+
+/* The drag handle every preset list shares: the saved looks here, the camera presets and instrument cards in the workbench
+   (workbench.css places and tints those). A press on it must never scroll the page (touch-action), and while a row is
+   lifted nothing under the pointer selects text or shows another cursor. */
+.rr-handle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  cursor: grab;
+  touch-action: none;
+}
+.rr-handle svg { display: block; width: 8px; height: 14px; pointer-events: none; }
+.rr-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rr-handle:disabled { cursor: not-allowed; opacity: 0.35; }
+html.rr-dragging, html.rr-dragging * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
+/* A finger is wider than a cursor, and a tap that misses a grip lands on what it sits beside: a look chip applies the look
+   (an instrument card chooses the instrument and, on a small screen, closes the panel; workbench.css widens those grips).
+   So on a touch screen the grip grows to about a fingertip; the dots stay the same size. */
+@media (pointer: coarse) {
+  .sl-item.rr-movable > .sl-chip { padding-left: 42px; }
+  .sl-item > .rr-handle { width: 38px; }
+}
 
 /* A short stage (a laptop, a small window): the Looks tab scrolls as one column, so the controls are never squeezed
    under the saved looks. */
