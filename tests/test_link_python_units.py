@@ -21,6 +21,7 @@ import socket
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -138,7 +139,19 @@ def status(link: str = LINK, name: str = "ops", members: list[dict[str, Any]] | 
         "quarantine_unpromoted": 0,
         "sent": [],
         "alarms": [],
-        "dropped_acl_entries": [],
+        "acl_tip": {"term": 1, "seq": 4, "hash": "c" * 64},
+        "sequencer": {
+            "device": "e" * 64,
+            "label": "home/home-pc",
+            "term": 1,
+            "handoff_to": None,
+            "next": "e" * 64,
+            "next_label": "home/home-pc",
+            "next_term": 1,
+            "me": True,
+        },
+        "equivocation": None,
+        "proposals": [],
     }
     s.update(kw)
     return s
@@ -962,6 +975,47 @@ def test_health_with_stores_but_no_binary_names_the_install(home, monkeypatch):
     assert lines[-1] == f"  ! {lc.MISSING}"
 
 
+def test_health_names_an_equivocation_a_waiting_handoff_and_stuck_or_refused_proposals(home, monkeypatch):
+    """Round 5: a halted chain names the takeover; a handoff waiting for its target, proposals that
+    wait over 10 minutes, and refused ones are each a problem with what to do."""
+    use_links(home)
+    old = time.time() - 3600
+    st = status(
+        equivocation={"term": 2, "seq": 9, "sequencer": "e" * 64, "ours": "a" * 64, "theirs": "b" * 64},
+        sequencer={**status()["sequencer"], "handoff_to": "f" * 64, "next": "f" * 64, "next_term": 3, "me": False},
+        proposals=[
+            {"id": "1" * 64, "kind": "invite", "status": "queued", "why": None, "at": old},
+            {"id": "2" * 64, "kind": "invite", "status": "queued", "why": None, "at": time.time()},
+            {"id": "3" * 64, "kind": "set_role", "status": "refused", "why": "only the owner may", "at": old},
+        ],
+    )
+    ident = {"device": "d", "label": "home", "fingerprint": "fp", "cert_expires": 1_900_000_000, "needs_renewal": False}
+    d = health_daemon(st, ident)
+    monkeypatch.setattr(health, "find_linkd", lambda: "/bin/linkd")
+    monkeypatch.setattr(health, "running_addr", lambda: "sock")
+    monkeypatch.setattr(health, "connect", d.client)
+    h = health.health()
+    assert h["links"][0]["halted"] is True
+    text = "\n".join(h["problems"])
+    assert "EQUIVOCATION" in text
+    assert "aurora link takeover ops --phrase-stdin" in text
+    assert "handed to ffffffffffffffff" in text
+    assert "1 membership change(s) wait for the sequencer" in text
+    assert "refused our set_role: only the owner may" in text
+
+
+def test_a_halt_below_the_held_tip_names_both_takeover_choices():
+    """Round 6: halted below its own tip, a replica's takeover needs `--after`; the hint names the
+    common prefix (drops both branches) and the held tip (keeps this one). Halted at the next
+    position, the plain command is right."""
+    eq = {"term": 2, "seq": 9, "sequencer": "e" * 64, "ours": "a" * 64, "theirs": "b" * 64}
+    below = health.takeover_hint({"name": "ops", "equivocation": eq, "acl_held_tip": {"seq": 12}})
+    assert "aurora link takeover ops --phrase-stdin --after 8` (drops both branches" in below
+    assert "--after 12` (keeps this replica's branch" in below
+    at_next = health.takeover_hint({"name": "ops", "equivocation": eq, "acl_held_tip": {"seq": 8}})
+    assert at_next == "`aurora link takeover ops --phrase-stdin`"
+
+
 def test_health_reports_every_problem_with_its_remedy(home, monkeypatch):
     """Renewal, alarms, unverified members, rotation, pending approvals and no serve are named."""
     use_links(home)
@@ -996,6 +1050,8 @@ def test_health_reports_every_problem_with_its_remedy(home, monkeypatch):
             "unverified": ["serge"],
             "quarantine": 4,
             "rotation_due": True,
+            "sequencer": "e" * 64,
+            "halted": False,
         }
     ]
     text = "\n".join(h["problems"])

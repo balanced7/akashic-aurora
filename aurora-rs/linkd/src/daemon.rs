@@ -4,7 +4,8 @@
 //!
 //! - `state/link/<link_id>.db`: one SQLite store per link (aurora-link's `Store`);
 //! - `state/link/blobs/`: the iroh-blobs store (encrypted attachments only);
-//! - `state/link/linkd.sock`: the RPC socket while `serve` runs (a named pipe on Windows);
+//! - `state/link/rpc/linkd.sock`: the RPC socket while `serve` runs, in a folder only this user
+//!   can enter (a named pipe with an owner-only DACL on Windows);
 //! - `<secrets>/link/device.json`: this install's keys and certificate (mode 0600);
 //! - `<secrets>/link/root.json`: the fleet root, sealed under a passphrase (Argon2id), only when the
 //!   operator chose to keep it here (otherwise the recovery phrase re-derives it on demand);
@@ -12,6 +13,15 @@
 //!
 //! The daemon holds keys and parses untrusted bytes. It has no Redis credentials and no shell,
 //! and never touches the bus: admitted records leave only as `events.wait` results.
+//!
+//! Each link is behind its own lock (`Held`, `LinkCell`); the map of links is locked only to find
+//! or add one. Sessions and RPCs on one link run one at a time, and never wait for another link's,
+//! except where a call reads every link (`link.list`, `events.wait`): it takes each link's lock in
+//! turn, so it waits at most for the frame or call in progress on each. Waiting for a link's lock
+//! and the work under it run off the async workers (`LinkCell::with`), so a busy link holds up no
+//! worker, and with it no other link, timer or the RPC socket. `peer_links`, which the inbound
+//! gates and the dialer read, takes no link's lock: each link keeps a copy of who may sync on it,
+//! refreshed after every change (review finding R9-3).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -22,7 +32,7 @@ use aurora_link::acl::{self, Policy, Role};
 use aurora_link::codec::{self, hex, now};
 use aurora_link::crypto;
 use aurora_link::ed25519_dalek;
-use aurora_link::engine::{Admit, Link};
+use aurora_link::engine::{Acted, Admit, Link, Offered};
 use aurora_link::identity::{self, Device, DeviceCert, fleet_fingerprint, grouped, safety_number};
 use aurora_link::invite::InviteCode;
 use aurora_link::record::{Body, Record};
@@ -35,7 +45,12 @@ use crate::rpc::{Params, RpcError};
 #[derive(Clone, Debug)]
 pub enum Push {
     Records(Vec<Record>),
+    /// New chain entries (a contiguous run).
     Acl(Vec<acl::Entry>),
+    /// A proposal on its way to the sequencer.
+    Proposal(acl::Proposal),
+    /// A sequencer's refusal on its way back to the proposer.
+    Refusal(acl::ProposalRefusal),
 }
 
 #[derive(Clone, Debug)]
@@ -77,10 +92,11 @@ impl Dirs {
     pub fn addr_file(&self) -> PathBuf {
         self.state.join("linkd.addr")
     }
-    /// The RPC socket: beside the store when the path is short enough for AF_UNIX (about 108
-    /// bytes), otherwise in the runtime or temp directory under a name derived from the home.
+    /// The RPC socket: in a private folder beside the store when the path is short enough for
+    /// AF_UNIX (about 108 bytes), otherwise in the runtime or temp directory under a name derived
+    /// from the home. Either way its folder is ours alone (`private_socket_dir`).
     pub fn socket(&self) -> PathBuf {
-        let near = self.state.join("linkd.sock");
+        let near = self.state.join("rpc").join("linkd.sock");
         if near.as_os_str().len() <= 100 {
             return near;
         }
@@ -101,10 +117,12 @@ impl Dirs {
 /// The member a person named: an exact root first, then exactly one live member whose label or
 /// root prefix matches. Never "the first match": labels are chosen by the members themselves.
 pub fn member_root(l: &Link, key: &str) -> Result<String, RpcError> {
-    let members = &l.state().members;
+    let s = l.state();
+    let members = &s.members;
     if members.contains_key(key) {
         return Ok(key.to_owned());
     }
+    // Labels are unique among live members (the chain refuses a second one).
     let hits: Vec<&String> = members
         .values()
         .filter(|m| !m.removed && (m.label == key || (key.len() >= 8 && m.root.starts_with(key))))
@@ -119,29 +137,90 @@ pub fn member_root(l: &Link, key: &str) -> Result<String, RpcError> {
     }
 }
 
-/// Write a secret file readable by its owner only.
+/// Create a folder for secrets as ours alone (mode 0700), tightening one we already own.
+pub fn private_dir(dir: &Path) -> anyhow::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+        if !dir.exists() {
+            std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+        }
+        let meta = std::fs::symlink_metadata(dir)?;
+        if !meta.is_dir() || meta.uid() != user_tag().parse::<u32>().unwrap_or(u32::MAX) {
+            bail!(
+                "{} is not a folder of this user; refusing to keep secrets there",
+                dir.display()
+            );
+        }
+        if meta.permissions().mode() & 0o077 != 0 {
+            std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+        }
+    }
+    #[cfg(not(unix))]
+    std::fs::create_dir_all(dir)?;
+    Ok(())
+}
+
+/// Write a secret file readable by its owner only: into a fresh, randomly named file that must
+/// not exist yet (so a planted file or symlink is never opened, let alone followed), mode 0600
+/// set explicitly whatever the umask, then renamed over the target.
 pub fn write_secret(path: &Path, data: &[u8]) -> anyhow::Result<()> {
+    use std::io::Write;
+    let dir = path
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    private_dir(dir)?;
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let tmp = dir.join(format!(".{name}.{}.tmp", hex(&crypto::random_bytes(8))));
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let written = (|| -> anyhow::Result<()> {
+        let mut f = opts.open(&tmp)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+        }
+        f.write_all(data)?;
+        f.sync_all()?;
+        std::fs::rename(&tmp, path)?;
+        Ok(())
+    })();
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    written
+}
+
+/// The refusal log is capped: past this size it is rotated to `<name>.1` (one old file kept).
+pub const REFUSALS_LOG_MAX: u64 = 1024 * 1024;
+
+/// Append one line to a log, rotating it first when the line would take it past `cap`.
+pub fn append_capped(path: &Path, line: &str, cap: u64) -> std::io::Result<()> {
+    use std::io::Write;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let tmp = path.with_extension("tmp");
-    #[cfg(unix)]
-    {
-        use std::io::Write;
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&tmp)?;
-        f.write_all(data)?;
-        f.sync_all()?;
+    let len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    if len > 0 && len + line.len() as u64 > cap {
+        let mut old = path.as_os_str().to_owned();
+        old.push(".1");
+        std::fs::rename(path, PathBuf::from(old))?;
     }
-    #[cfg(not(unix))]
-    std::fs::write(&tmp, data)?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?
+        .write_all(line.as_bytes())
 }
 
 /// A per-user tag for the private socket folder.
@@ -160,23 +239,22 @@ fn user_tag() -> String {
     }
 }
 
-/// Create the socket's folder as ours alone, refusing one that someone else owns or can enter.
+/// Create the socket's folder as ours alone (mode 0700), refusing one that someone else owns or
+/// can enter. Our own folder with a looser mode (an older layout) is tightened.
 #[cfg(unix)]
 pub fn private_socket_dir(socket: &Path) -> anyhow::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
     let Some(dir) = socket.parent() else { return Ok(()) };
-    if !dir
-        .file_name()
-        .is_some_and(|n| n.to_string_lossy().starts_with("aurora-linkd-"))
-    {
-        return Ok(()); // the usual place, under state/link/, guarded by the socket's own mode
-    }
     if !dir.exists() {
         std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
     }
-    let meta = std::fs::metadata(dir)?;
+    let meta = std::fs::symlink_metadata(dir)?;
     let mine = user_tag().parse::<u32>().unwrap_or(u32::MAX);
-    if meta.uid() != mine || meta.permissions().mode() & 0o077 != 0 {
+    if meta.is_dir() && meta.uid() == mine && meta.permissions().mode() & 0o077 != 0 {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+    }
+    let meta = std::fs::symlink_metadata(dir)?;
+    if !meta.is_dir() || meta.uid() != mine || meta.permissions().mode() & 0o077 != 0 {
         bail!(
             "{} is not a private folder of this user; refusing to serve RPC there",
             dir.display()
@@ -185,15 +263,99 @@ pub fn private_socket_dir(socket: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// One link this daemon holds, behind its own lock: work on one link never waits for another's
+/// (round 8). The name is kept beside it, so resolving a link by name takes no link's lock.
+pub struct Held {
+    pub name: String,
+    pub link: LinkCell,
+}
+
+impl Held {
+    fn new(link: Link) -> Self {
+        Self {
+            name: link.name().to_owned(),
+            link: LinkCell::new(link),
+        }
+    }
+}
+
+/// The devices that may sync on a link: by its state (narrowed while halted), and by its held
+/// state (`sync::may_sync`, `sync::may_sync_acl`).
+type SyncSets = (Arc<BTreeSet<String>>, Arc<BTreeSet<String>>);
+
+/// One link behind its lock, with a copy of who may sync on it that is read without the lock.
+///
+/// A body runs off the async workers (review finding R9-3): the link's lock is a std `Mutex`, and
+/// sessions of one busy link that wait for it each held a tokio worker, so once they outnumbered
+/// the workers every other link's sessions, the RPC socket and the timers waited too. Within a
+/// multi-threaded runtime the wait and the body run in `block_in_place`, which hands the worker's
+/// other tasks to another thread first.
+#[derive(Clone)]
+pub struct LinkCell {
+    link: Arc<Mutex<Link>>,
+    /// The link's `SyncSets`, refreshed after every body that moved them: what `peer_links` (the
+    /// inbound gates and the dialer) reads, without waiting for any link's lock (R9-3).
+    sync: Arc<RwLock<SyncSets>>,
+}
+
+impl LinkCell {
+    fn new(link: Link) -> Self {
+        let sync = (link.acl.sync_devices(), link.acl.held_sync_devices());
+        Self {
+            link: Arc::new(Mutex::new(link)),
+            sync: Arc::new(RwLock::new(sync)),
+        }
+    }
+
+    /// Run `f` on the link under its lock, off the async workers.
+    pub fn with<T>(&self, f: impl FnOnce(&mut Link) -> T) -> T {
+        off_worker(|| {
+            let mut link = self.link.lock().expect("link lock");
+            let out = f(&mut link);
+            let (view, held) = (link.acl.sync_devices(), link.acl.held_sync_devices());
+            let same = {
+                let s = self.sync.read().expect("sync lock");
+                Arc::ptr_eq(&s.0, &view) && Arc::ptr_eq(&s.1, &held)
+            };
+            if !same {
+                *self.sync.write().expect("sync lock") = (view, held);
+            }
+            out
+        })
+    }
+
+    /// Who may sync on this link, as of the last body that ran on it: no link lock is taken.
+    pub fn sync_sets(&self) -> SyncSets {
+        self.sync.read().expect("sync lock").clone()
+    }
+}
+
+/// Run `f`, which may block on a link's lock, without holding up the tokio worker it was called
+/// on (review finding R9-3). Outside a multi-threaded runtime (tests, one-shot commands) it just
+/// runs.
+fn off_worker<T>(f: impl FnOnce() -> T) -> T {
+    match tokio::runtime::Handle::try_current() {
+        Ok(h) if h.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => tokio::task::block_in_place(f),
+        _ => f(),
+    }
+}
+
 pub struct Daemon {
     pub dirs: Dirs,
     pub mailbox: bool,
     pub device: RwLock<Option<Arc<Device>>>,
-    pub links: Mutex<BTreeMap<String, Link>>,
+    /// The links, by id. The map's lock is held only to find or add a link, and never while a
+    /// link's own lock is awaited; no code holds two links' locks at once.
+    pub links: Mutex<BTreeMap<String, Held>>,
     pub events: Notify,
     pushes: Mutex<BTreeMap<String, broadcast::Sender<Push>>>,
     /// Wakes the dialer (a new peer hint, a gossip advert, `sync.now`).
     pub wake: Notify,
+    /// Set with a wake that should also forget every dial backoff (`sync.now`, a join), not just
+    /// cut a sleep short (a gossip advert).
+    pub reset_backoff: std::sync::atomic::AtomicBool,
+    /// Serialises appends to (and rotation of) the refusal log.
+    refusals: Mutex<()>,
     pub started: u64,
 }
 
@@ -213,7 +375,7 @@ impl Daemon {
             if path.extension().is_some_and(|e| e == "db") {
                 match Link::open(&path) {
                     Ok(link) => {
-                        links.insert(link.id().to_owned(), link);
+                        links.insert(link.id().to_owned(), Held::new(link));
                     }
                     Err(e) => tracing::warn!("skipping {}: {e}", path.display()),
                 }
@@ -227,6 +389,8 @@ impl Daemon {
             events: Notify::new(),
             pushes: Mutex::new(BTreeMap::new()),
             wake: Notify::new(),
+            reset_backoff: std::sync::atomic::AtomicBool::new(false),
+            refusals: Mutex::new(()),
             started: now(),
         }))
     }
@@ -263,13 +427,13 @@ impl Daemon {
     }
 
     /// Resolve a link by id, unique id prefix (8+ characters) or unique name.
-    pub fn resolve(&self, links: &BTreeMap<String, Link>, key: &str) -> Result<String, RpcError> {
+    pub fn resolve(&self, links: &BTreeMap<String, Held>, key: &str) -> Result<String, RpcError> {
         if links.contains_key(key) {
             return Ok(key.to_owned());
         }
         let hits: Vec<&String> = links
             .iter()
-            .filter(|(id, l)| l.name() == key || (key.len() >= 8 && id.starts_with(key)))
+            .filter(|(id, h)| h.name == key || (key.len() >= 8 && id.starts_with(key)))
             .map(|(id, _)| id)
             .collect();
         match hits.as_slice() {
@@ -281,11 +445,39 @@ impl Daemon {
         }
     }
 
-    /// Run `f` on one link under the lock.
+    /// Run `f` on one link under its own lock (the map's lock is released first), off the async
+    /// workers (`LinkCell::with`).
     pub fn with_link<T>(&self, key: &str, f: impl FnOnce(&mut Link) -> Result<T, RpcError>) -> Result<T, RpcError> {
-        let mut links = self.links.lock().expect("links lock");
-        let id = self.resolve(&links, key)?;
-        f(links.get_mut(&id).expect("resolved"))
+        let cell = {
+            let links = self.links.lock().expect("links lock");
+            let id = self.resolve(&links, key)?;
+            links[&id].link.clone()
+        };
+        cell.with(f)
+    }
+
+    /// Every link we hold, by id, without holding the map's lock while each is used.
+    pub fn held_links(&self) -> Vec<(String, LinkCell)> {
+        self.links
+            .lock()
+            .expect("links lock")
+            .iter()
+            .map(|(id, h)| (id.clone(), h.link.clone()))
+            .collect()
+    }
+
+    /// The ids of the links we hold.
+    pub fn link_ids(&self) -> Vec<String> {
+        self.links.lock().expect("links lock").keys().cloned().collect()
+    }
+
+    /// Hold `link` (tests that build a link by hand).
+    #[cfg(test)]
+    pub fn hold(&self, link: Link) {
+        self.links
+            .lock()
+            .expect("links lock")
+            .insert(link.id().to_owned(), Held::new(link));
     }
 
     fn certified(&self) -> BTreeSet<String> {
@@ -301,17 +493,48 @@ impl Daemon {
         write_secret(&self.dirs.certified_file(), &serde_json::to_vec_pretty(&set)?)
     }
 
-    /// After the ACL of a link changed: an admin's upkeep, self-monitoring, and a push to peers.
-    pub fn after_acl_change(&self, link: &mut Link, before: &BTreeSet<String>) -> Result<(), RpcError> {
+    /// Wake the dialer and forget every dial backoff (an operator asked, or a join just landed).
+    pub fn wake_now(&self) {
+        self.reset_backoff.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.wake.notify_waiters();
+    }
+
+    /// After the ACL of a link changed (or a membership action was taken): upkeep (the
+    /// sequencer includes what it holds), self-monitoring, and a push to peers: the new chain
+    /// entries since `before`, and our own new proposals. The push reaches every live session of
+    /// the link, and each one re-checks its peer's membership before it sends anything: a removed
+    /// device's session closes there.
+    pub fn after_acl_change(&self, link: &mut Link, before: &acl::AclPos) -> Result<(), RpcError> {
         let device = self.device()?;
         let t = now();
-        link.upkeep(&device, t)?;
+        for acted in link.upkeep(&device, t)? {
+            if let Acted::Proposed(p) = acted {
+                self.push(link.id(), Push::Proposal(p));
+            }
+        }
         link.self_monitor(&device.id_hex(), device.root_hex(), &self.certified(), t)?;
-        let fresh = link.acl.missing_for(before);
+        let fresh = acl_since(link, before);
         if !fresh.is_empty() {
             self.push(link.id(), Push::Acl(fresh));
         }
         Ok(())
+    }
+
+    /// A membership action's result for the RPC caller, after pushing it to peers.
+    fn acted(&self, link: &mut Link, acted: &Acted, before: &acl::AclPos) -> Result<Value, RpcError> {
+        if let Acted::Proposed(p) = acted {
+            self.push(link.id(), Push::Proposal(p.clone()));
+        }
+        self.after_acl_change(link, before)?;
+        let s = link.state();
+        let (sequencer, _) = s.next_sequencer();
+        Ok(match acted {
+            Acted::Entry(e) => json!({"entry": e.hash()?, "epoch": s.epoch, "rotation_due": s.rotation_due}),
+            Acted::Proposed(p) => json!({
+                "proposal": p.id()?, "queued": true, "sequencer": sequencer, "epoch": s.epoch,
+                "rotation_due": s.rotation_due,
+            }),
+        })
     }
 
     // ------------------------------------------------------------------------------- identity
@@ -386,18 +609,16 @@ impl Daemon {
         let device = Arc::new(device);
         *self.device.write().expect("device lock") = Some(device.clone());
         let mut renewed = Vec::new();
-        let mut links = self.links.lock().expect("links lock");
-        for link in links.values_mut() {
-            if link.state().active_device(&device.id_hex()).is_some() {
-                let before = link.acl.hashes();
-                let op = acl::Op::AddDevice(acl::AddDevice {
-                    cert: device.cert.clone(),
-                    wraps: vec![],
-                });
-                link.append(&device, op, t)?;
-                self.after_acl_change(link, &before)?;
-                renewed.push(link.id().to_owned());
-            }
+        for (_, cell) in self.held_links() {
+            cell.with(|link| {
+                if link.state().active_device(&device.id_hex()).is_some() {
+                    let before = link.acl.tip();
+                    let acted = link.add_device(&device, device.cert.clone(), t)?;
+                    self.acted(link, &acted, &before)?;
+                    renewed.push(link.id().to_owned());
+                }
+                Ok::<_, RpcError>(())
+            })?;
         }
         Ok(json!({"cert_expires": device.cert.not_after, "links": renewed}))
     }
@@ -427,13 +648,13 @@ impl Daemon {
             policy.retention_days = days;
         }
         let mut links = self.links.lock().expect("links lock");
-        if links.values().any(|l| l.name() == name) {
+        if links.values().any(|h| h.name == name) {
             return Err(RpcError::refused(format!("a link called {name:?} already exists here")));
         }
         let label = p.opt_str("label")?.unwrap_or_else(|| device.cert.label.clone());
         let link = Link::create(Some(&self.dirs.state), &device, &name, &label, policy, now())?;
         let id = link.id().to_owned();
-        links.insert(id.clone(), link);
+        links.insert(id.clone(), Held::new(link));
         let root = codec::unhex::<32>(device.root_hex())?;
         Ok(json!({"link": id, "name": name, "fingerprint": grouped(&fleet_fingerprint(&root))}))
     }
@@ -446,18 +667,19 @@ impl Daemon {
             .as_ref()
             .map(|d| d.id_hex())
             .unwrap_or_default();
-        let links = self.links.lock().expect("links lock");
         Ok(Value::Array(
-            links
-                .values()
-                .map(|l| {
-                    let s = l.state();
-                    json!({
-                        "link": l.id(), "name": l.name(), "epoch": s.epoch,
-                        "role": s.active_device(&me).map(|(m, _)| m.role.as_str()),
-                        "members": s.members.values().filter(|m| !m.removed).count(),
-                        "alarms": l.store.alarms().map(|a| a.len()).unwrap_or(0),
-                        "last_cursor": l.store.last_cursor().unwrap_or(0),
+            self.held_links()
+                .into_iter()
+                .map(|(_, cell)| {
+                    cell.with(|l| {
+                        let s = l.state();
+                        json!({
+                            "link": l.id(), "name": l.name(), "epoch": s.epoch,
+                            "role": s.active_device(&me).map(|(m, _)| m.role.as_str()),
+                            "members": s.members.values().filter(|m| !m.removed).count(),
+                            "alarms": l.store.alarms().map(|a| a.len()).unwrap_or(0),
+                            "last_cursor": l.store.last_cursor().unwrap_or(0),
+                        })
                     })
                 })
                 .collect(),
@@ -478,15 +700,20 @@ impl Daemon {
         let approval = p.opt_bool("approval")?.unwrap_or(false);
         let root = codec::unhex::<32>(device.root_hex())?;
         self.with_link(&p.str("link")?, |l| {
-            let before = l.acl.hashes();
+            let before = l.acl.tip();
             let t = now();
-            let secret = l.invite(&device, role, ttl, single_use, approval, t)?;
+            let ticket = l.invite(&device, role, ttl, single_use, approval, t)?;
+            let queued = !l.state().invites.contains_key(&ticket.entry);
+            if queued && let Some(q) = l.store.proposals("queued")?.into_iter().find(|q| q.id == ticket.entry) {
+                self.push(l.id(), Push::Proposal(q.proposal));
+            }
             self.after_acl_change(l, &before)?;
             let code = InviteCode {
                 v: 1,
                 link: l.id().to_owned(),
                 name: l.name().to_owned(),
-                secret: hex(&secret),
+                secret: hex(&ticket.secret),
+                invite: ticket.entry.clone(),
                 node: device.id_hex(),
                 relay: relay.clone(),
                 addrs: addrs.clone(),
@@ -496,23 +723,43 @@ impl Daemon {
                 "code": code.encode()?, "link": l.id(), "role": role.as_str(), "approval": approval,
                 "expires": t + ttl.clamp(60, acl::MAX_INVITE_TTL_S),
                 "fingerprint": grouped(&fleet_fingerprint(&root)),
-                "invite": hex(&crypto::public_of(&acl::invite_key(&secret))),
-                "acl": l.acl.missing_for(&BTreeSet::new()),
+                "invite": ticket.entry, "invite_key": ticket.key(), "queued": queued,
+                "acl": l.acl.all(),
             }))
         })
     }
 
-    /// The offline half of a join: given the inviter's log, write our join entry and adopt the
-    /// link locally. The network join (net.rs) calls this with entries it fetched.
+    /// The offline half of a join: given the inviter's chain, sign our join proposal. The
+    /// network join (net.rs) calls this with entries it fetched.
     pub fn join_with(
         &self,
         code: &InviteCode,
         entries: Vec<acl::Entry>,
         label: &str,
-    ) -> Result<(acl::Entry, String), RpcError> {
+    ) -> Result<(acl::Proposal, String), RpcError> {
         let device = self.device()?;
-        let entry = aurora_link::sync::join_entry(&entries, &device, &code.secret_bytes()?, label, now())?;
-        Ok((entry, code.link.clone()))
+        // The chain must be the link the code names, and the invite in it published by the fleet
+        // whose fingerprint the code carries; otherwise nothing is signed or sent.
+        let (proposal, _inviter) = aurora_link::sync::join_proposal_for(&entries, &device, code, label, now())?;
+        Ok((proposal, code.link.clone()))
+    }
+
+    /// What a joiner shows before its join is included: both fingerprints and the safety number,
+    /// from the inviter's chain alone.
+    pub fn pending_join_summary(&self, code: &InviteCode, entries: &[acl::Entry]) -> Result<Value, RpcError> {
+        let device = self.device()?;
+        let chain = aurora_link::sync::chain_of(entries)?;
+        let mine = codec::unhex::<32>(device.root_hex())?;
+        let inviter = codec::unhex::<32>(&code.inviter(chain.state())?)?;
+        Ok(json!({
+            "link": chain.link_id(), "name": chain.state().name,
+            "our_fingerprint": grouped(&fleet_fingerprint(&mine)),
+            "their_fingerprint": grouped(&code.fingerprint),
+            "inviter_root": hex(&inviter), "owner_root": chain.state().owner,
+            "safety_number": grouped(&safety_number(&mine, &inviter)),
+            "fingerprint_matches_code": fleet_fingerprint(&inviter) == code.fingerprint,
+            "pending": true, "has_key": false,
+        }))
     }
 
     pub fn adopt(&self, entries: Vec<acl::Entry>) -> Result<String, RpcError> {
@@ -523,11 +770,14 @@ impl Daemon {
             .find(|e| e.seq == 0)
             .ok_or_else(|| RpcError::refused("no genesis"))?;
         let id = genesis.hash()?;
-        if let Some(link) = links.get_mut(&id) {
-            let before = link.acl.hashes();
-            link.add_acl(entries, now())?;
-            self.after_acl_change(link, &before)?;
-            return Ok(id);
+        if let Some(cell) = links.get(&id).map(|h| h.link.clone()) {
+            drop(links);
+            return cell.with(|link| {
+                let before = link.acl.tip();
+                link.add_acl(entries, now())?;
+                self.after_acl_change(link, &before)?;
+                Ok(id)
+            });
         }
         let mut link = Link::adopt(Some(&self.dirs.state), entries, now())?;
         if !link.state().devices.contains_key(&device.id_hex()) {
@@ -538,9 +788,13 @@ impl Daemon {
             }
             return Err(RpcError::refused("this device is not in that link's log"));
         }
-        let before = BTreeSet::new();
+        let before = acl::AclPos {
+            term: 0,
+            seq: 0,
+            hash: String::new(),
+        };
         self.after_acl_change(&mut link, &before)?;
-        links.insert(id.clone(), link);
+        links.insert(id.clone(), Held::new(link));
         Ok(id)
     }
 
@@ -549,14 +803,17 @@ impl Daemon {
         self.with_link(id, |l| {
             let mine = codec::unhex::<32>(device.root_hex())?;
             let s = l.state();
-            let owner = codec::unhex::<32>(&s.owner)?;
+            // The fleet that published the invite (an admin, not necessarily the owner) is the
+            // one whose fingerprint the code carries and whose safety number the person compares.
+            let inviter = codec::unhex::<32>(&code.inviter(s)?)?;
             let member = s.members.get(device.root_hex());
             Ok(json!({
                 "link": l.id(), "name": l.name(),
                 "our_fingerprint": grouped(&fleet_fingerprint(&mine)),
                 "their_fingerprint": grouped(&code.fingerprint),
-                "safety_number": grouped(&safety_number(&mine, &owner)),
-                "fingerprint_matches_code": fleet_fingerprint(&owner) == code.fingerprint,
+                "inviter_root": hex(&inviter), "owner_root": s.owner,
+                "safety_number": grouped(&safety_number(&mine, &inviter)),
+                "fingerprint_matches_code": fleet_fingerprint(&inviter) == code.fingerprint,
                 "pending": member.is_none_or(|m| m.pending),
                 "has_key": l.read_key(&device, s.epoch).is_ok(),
             }))
@@ -566,7 +823,7 @@ impl Daemon {
     pub fn link_accept(&self, p: &Params, decline: bool) -> Result<Value, RpcError> {
         let device = self.device()?;
         self.with_link(&p.str("link")?, |l| {
-            let before = l.acl.hashes();
+            let before = l.acl.tip();
             let join = p.str("join")?;
             let s = l.state();
             let join = s
@@ -575,13 +832,12 @@ impl Daemon {
                 .find(|j| j.starts_with(&join))
                 .cloned()
                 .ok_or_else(|| RpcError::refused("no such pending join"))?;
-            let e = if decline {
+            let acted = if decline {
                 l.decline(&device, &join, now())?
             } else {
                 l.accept(&device, &join, now())?
             };
-            self.after_acl_change(l, &before)?;
-            Ok(json!({"entry": e.hash()?}))
+            self.acted(l, &acted, &before)
         })
     }
 
@@ -600,10 +856,9 @@ impl Daemon {
                 .map(|m| m.root.clone())
                 .collect();
             for root in roots {
-                let m = &l.state().members[&root];
                 if only
                     .as_ref()
-                    .is_some_and(|o| !root.starts_with(o.as_str()) && m.label != *o)
+                    .is_some_and(|o| !root.starts_with(o.as_str()) && l.state().label_of(&root) != *o)
                 {
                     continue;
                 }
@@ -612,8 +867,10 @@ impl Daemon {
                 if mark {
                     l.store.mark_verified(&root, &sn, now())?;
                 }
-                out.push(json!({"member": root, "label": m.label, "safety_number": grouped(&sn),
-                                "verified": l.store.verified(&root)?.is_some_and(|v| v == sn)}));
+                out.push(
+                    json!({"member": root, "label": l.state().label_of(&root), "safety_number": grouped(&sn),
+                                "verified": l.store.verified(&root)?.is_some_and(|v| v == sn)}),
+                );
             }
             Ok(Value::Array(out))
         })
@@ -622,7 +879,7 @@ impl Daemon {
     pub fn link_membership(&self, p: &Params, what: &str) -> Result<Value, RpcError> {
         let device = self.device()?;
         self.with_link(&p.str("link")?, |l| {
-            let before = l.acl.hashes();
+            let before = l.acl.tip();
             let t = now();
             let member = |l: &Link, key: &str| member_root(l, key);
             let e = match what {
@@ -664,31 +921,43 @@ impl Daemon {
                 "add_device" => {
                     let cert: DeviceCert = p.parse("cert")?;
                     cert.verify()?;
-                    let s = l.state().clone();
-                    let reads = s.members.get(&cert.root).is_some_and(|m| m.role.reads());
-                    let wraps = if reads {
-                        let mut tmp = s.clone();
-                        tmp.devices.insert(
-                            cert.device.clone(),
-                            acl::DeviceState {
-                                cert: cert.clone(),
-                                member: cert.root.clone(),
-                                cut: None,
-                            },
-                        );
-                        tmp.make_wraps(&l.read_key(&device, s.epoch)?.0, s.epoch, &[cert.device.clone()].into())?
-                    } else {
-                        vec![]
-                    };
                     if cert.root == device.root_hex() {
                         self.add_certified(&cert.device).map_err(RpcError::internal)?;
                     }
-                    l.append(&device, acl::Op::AddDevice(acl::AddDevice { cert, wraps }), t)?
+                    l.add_device(&device, cert, t)?
+                }
+                "handoff" => {
+                    let key = p.str("device")?;
+                    let to = l
+                        .state()
+                        .devices
+                        .keys()
+                        .find(|d| d.starts_with(&key))
+                        .cloned()
+                        .ok_or_else(|| RpcError::refused("no such device"))?;
+                    l.handoff(&device, &to, t)?
                 }
                 other => return Err(RpcError::invalid(format!("unknown membership op {other}"))),
             };
+            self.acted(l, &e, &before)
+        })
+    }
+
+    /// The owner's takeover: with the fleet root (the recovery phrase, or root.json and its
+    /// passphrase), this device sequences a new term after entry `after` (default: the last entry
+    /// this replica holds; required while halted below it, see `AclChain::takeover`). Later
+    /// entries of older terms are dropped on every replica.
+    pub fn link_takeover(&self, p: &Params) -> Result<Value, RpcError> {
+        let root = self.root_from(p)?.ok_or_else(|| {
+            RpcError::unavailable("a takeover needs the fleet root: give the phrase, or the passphrase for root.json")
+        })?;
+        let device = self.device()?;
+        let after = p.opt::<u64>("after")?;
+        self.with_link(&p.str("link")?, |l| {
+            let before = l.acl.tip();
+            let e = l.takeover(&device, &root, after, now())?;
             self.after_acl_change(l, &before)?;
-            Ok(json!({"entry": e.hash()?, "epoch": l.state().epoch, "rotation_due": l.state().rotation_due}))
+            Ok(json!({"entry": e.hash()?, "term": e.term, "seq": e.seq, "sequencer": device.id_hex()}))
         })
     }
 
@@ -743,7 +1012,7 @@ impl Daemon {
             Ok(json!({
                 "record_id": rid, "status": sr.status, "reason": sr.reason, "received_at": sr.received_at,
                 "device": sr.record.author, "seq": sr.record.seq, "epoch": sr.record.epoch,
-                "fleet_root": fleet_root, "fleet": s.members.get(&fleet_root).map(|m| m.label.clone()),
+                "fleet_root": fleet_root, "fleet": s.members.get(&fleet_root).map(|_| s.label_of(&fleet_root)),
                 "body": sr.body.as_deref().map(serde_json::from_str::<Value>).transpose().map_err(|e| RpcError::internal(e.into()))?,
                 "promoted": l.store.promoted(&rid)?.map(|(seat, by, bus, at)| json!({"seat": seat, "by": by, "bus_id": bus, "at": at})),
             }))
@@ -752,11 +1021,10 @@ impl Daemon {
 
     /// Admitted records past each link's cursor (all links when `cursors` names none).
     pub fn events_after(&self, cursors: &BTreeMap<String, i64>, limit: u32) -> Result<Vec<Value>, RpcError> {
-        let links = self.links.lock().expect("links lock");
         let mut out = Vec::new();
-        for (id, l) in links.iter() {
-            let c = cursors.get(id).copied().unwrap_or(0);
-            out.extend(l.events_after(c, limit)?);
+        for (id, cell) in self.held_links() {
+            let c = cursors.get(&id).copied().unwrap_or(0);
+            out.extend(cell.with(|l| l.events_after(c, limit))?);
         }
         Ok(out)
     }
@@ -809,8 +1077,16 @@ impl Daemon {
     pub fn bundle_export(&self, p: &Params) -> Result<Value, RpcError> {
         let with_records = p.opt_bool("records")?.unwrap_or(true);
         self.with_link(&p.str("link")?, |l| {
-            let records = if with_records { l.missing_for(&BTreeMap::new(), usize::MAX)? } else { vec![] };
-            Ok(json!({"v": 1, "kind": "aurora-link-bundle", "link": l.id(), "acl": l.acl.missing_for(&BTreeSet::new()), "records": records}))
+            let records = if with_records {
+                l.missing_for(&BTreeMap::new(), usize::MAX)?
+            } else {
+                vec![]
+            };
+            let proposals: Vec<acl::Proposal> = l.outstanding(usize::MAX)?;
+            Ok(
+                json!({"v": 2, "kind": "aurora-link-bundle", "link": l.id(), "acl": l.acl.all(), "records": records,
+                      "proposals": proposals}),
+            )
         })
     }
 
@@ -820,26 +1096,53 @@ impl Daemon {
             .map_err(|e| RpcError::invalid(format!("bundle acl: {e}")))?;
         let records: Vec<Record> = serde_json::from_value(bundle.get("records").cloned().unwrap_or(json!([])))
             .map_err(|e| RpcError::invalid(format!("bundle records: {e}")))?;
+        let proposals: Vec<acl::Proposal> =
+            serde_json::from_value(bundle.get("proposals").cloned().unwrap_or(json!([])))
+                .map_err(|e| RpcError::invalid(format!("bundle proposals: {e}")))?;
         let id = self.adopt(entries)?;
-        let mut links = self.links.lock().expect("links lock");
-        let link = links.get_mut(&id).expect("adopted");
+        let device = self.device()?;
+        let cell = self.links.lock().expect("links lock")[&id].link.clone();
+        cell.with(|link| self.take_bundle(link, &id, &device, proposals, records))
+    }
+
+    /// The rest of `bundle_import`, on the adopted link under its lock.
+    fn take_bundle(
+        &self,
+        link: &mut Link,
+        id: &str,
+        device: &Device,
+        proposals: Vec<acl::Proposal>,
+        records: Vec<Record>,
+    ) -> Result<Value, RpcError> {
+        // Proposals in a bundle (an offline join, or queued changes): the sequencer includes
+        // them; anyone else keeps them to relay.
+        let before = link.acl.tip();
+        let mut included = 0;
+        for p in &proposals {
+            if let Ok(Offered::Included(_)) = link.offer(device, p, now()) {
+                included += 1;
+            }
+        }
+        if included > 0 {
+            self.after_acl_change(link, &before)?;
+        }
         let mut sorted = records;
         sorted.sort_by_key(|r| r.seq);
         let admits = self.take_records(link, sorted, "bundle")?;
         let stored = admits.iter().filter(|a| matches!(a, Admit::Stored { .. })).count();
         let refused = admits.iter().filter(|a| matches!(a, Admit::Refused(_))).count();
-        Ok(json!({"link": id, "acl_entries": link.acl.len(), "records_stored": stored, "records_refused": refused}))
+        Ok(
+            json!({"link": id, "acl_entries": link.acl.prefix_len(), "records_stored": stored, "records_refused": refused,
+                  "proposals_included": included}),
+        )
     }
 
     /// Retention, and certificate renewal when the root is at hand. Run hourly by `serve`.
     pub fn housekeeping(&self) -> Result<Value, RpcError> {
         let t = now();
         let mut retired = 0;
-        {
-            let links = self.links.lock().expect("links lock");
-            for l in links.values() {
-                retired += l.retire(t)?;
-            }
+        for (_, cell) in self.held_links() {
+            retired += cell.with(|l| l.retire(t))?;
         }
         let mut renewed = false;
         if let Ok(d) = self.device()
@@ -851,8 +1154,22 @@ impl Daemon {
         Ok(json!({"retired": retired, "renewed": renewed}))
     }
 
-    /// Every device of every link we sync with, and which links each one shares with us.
+    /// Every device of every link we sync with, and which links each one shares with us: the
+    /// transport's view (dialing, the inbound gates, gossip). While a link is halted this reads
+    /// its held state, not the narrowed one (review finding R7-2): a device added past the halt's
+    /// prefix, this one included, must still reach and be reached by the owner's takeover. What a
+    /// session then grants is the sync protocol's own check (`sync::may_sync`, narrowed).
     pub fn peer_links(&self) -> BTreeMap<String, Vec<String>> {
+        self.links_by(true)
+    }
+
+    /// `peer_links` as the narrowed state of a halted link says: who may fetch record data such
+    /// as blobs.
+    pub fn record_peer_links(&self) -> BTreeMap<String, Vec<String>> {
+        self.links_by(false)
+    }
+
+    fn links_by(&self, held: bool) -> BTreeMap<String, Vec<String>> {
         let me = self
             .device
             .read()
@@ -860,15 +1177,18 @@ impl Daemon {
             .as_ref()
             .map(|d| d.id_hex())
             .unwrap_or_default();
-        let links = self.links.lock().expect("links lock");
         let mut out: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for (id, l) in links.iter() {
-            if l.state().active_device(&me).is_none() {
+        // Each link's kept copy of who may sync: no link's lock is taken, so the inbound gates
+        // and the dialer never wait for a busy link (review finding R9-3).
+        for (id, cell) in self.held_links() {
+            let (view, held_sets) = cell.sync_sets();
+            let s = if held { held_sets } else { view };
+            if !s.contains(&me) {
                 continue;
             }
-            for d in l.state().sync_devices() {
-                if d != me {
-                    out.entry(d).or_default().push(id.clone());
+            for d in s.iter() {
+                if *d != me {
+                    out.entry(d.clone()).or_default().push(id.clone());
                 }
             }
         }
@@ -880,25 +1200,111 @@ impl Daemon {
     }
 
     pub fn log_refusal(&self, device: &str, alpn: &str, why: &str) {
+        // One line per refusal whatever the peer put in it: no newlines from the wire.
+        let why: String = why
+            .chars()
+            .take(300)
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect();
         let line = format!("{} {} {} {}\n", now(), device, alpn, why);
-        let path = self.dirs.refusals_log();
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
+        {
+            let _one = self.refusals.lock().expect("refusals lock");
+            let _ = append_capped(&self.dirs.refusals_log(), &line, REFUSALS_LOG_MAX);
         }
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut f| {
-                use std::io::Write;
-                f.write_all(line.as_bytes())
-            });
         tracing::info!("refused {device} on {alpn}: {why}");
     }
+}
+
+/// The chain entries a link holds after `before`: from the first entry that differs, when a
+/// takeover replaced part of the chain since (the peer drops what it replaces).
+pub fn acl_since(link: &Link, before: &acl::AclPos) -> Vec<acl::Entry> {
+    if before.hash.is_empty() {
+        return link.acl.all();
+    }
+    let mut from = before.seq.min(link.acl.prefix_len().saturating_sub(1) as u64);
+    while from > 0
+        && link.acl.hash_at(from) != Some(before.hash.as_str())
+        && link.acl.entry(from).is_some_and(|e| e.term > before.term)
+    {
+        from -= 1;
+    }
+    link.acl.range(from, u64::MAX, usize::MAX)
 }
 
 /// Parse a JSON body into the record body type, strictly.
 pub fn body_from(v: &Value) -> Result<Body, RpcError> {
     let b: Body = serde_json::from_value(v.clone()).map_err(|e| RpcError::invalid(format!("body: {e}")))?;
     Ok(b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("linkd-daemon-{tag}-{}", hex(&crypto::random_bytes(6))));
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_secret_is_written_0600_in_a_0700_folder_and_never_through_a_planted_link() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = scratch("secret");
+        let dir = base.join("secrets").join("link");
+        let target = dir.join("device.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        // The old temp name was predictable: plant a symlink there pointing elsewhere.
+        let elsewhere = base.join("elsewhere");
+        std::fs::write(&elsewhere, b"untouched").unwrap();
+        std::os::unix::fs::symlink(&elsewhere, dir.join("device.tmp")).unwrap();
+        write_secret(&target, b"{\"secret\": 1}").unwrap();
+        assert_eq!(
+            std::fs::read(&elsewhere).unwrap(),
+            b"untouched",
+            "the planted link was followed"
+        );
+        assert_eq!(std::fs::read(&target).unwrap(), b"{\"secret\": 1}");
+        let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&target), 0o600);
+        assert_eq!(mode(&dir), 0o700);
+        let left: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp") && n != "device.tmp")
+            .collect();
+        assert!(left.is_empty(), "temp files left behind: {left:?}");
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_rpc_socket_is_bound_inside_a_private_folder() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = scratch("sock");
+        let dirs = Dirs::new(&base, None);
+        std::fs::create_dir_all(&dirs.state).unwrap();
+        let sock = dirs.socket();
+        private_socket_dir(&sock).unwrap();
+        let folder = sock.parent().unwrap();
+        assert_ne!(folder, dirs.state.as_path(), "the socket shares the store's folder");
+        assert_eq!(std::fs::metadata(folder).unwrap().permissions().mode() & 0o777, 0o700);
+        let _ = std::fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn the_refusal_log_is_capped_and_keeps_one_rotated_file() {
+        let base = scratch("refusals");
+        let log = base.join("logs").join("linkd-refusals.log");
+        let line = format!("{}\n", "x".repeat(99));
+        for _ in 0..100 {
+            append_capped(&log, &line, 1000).unwrap();
+        }
+        assert!(std::fs::metadata(&log).unwrap().len() <= 1000);
+        let rotated = base.join("logs").join("linkd-refusals.log.1");
+        assert!(std::fs::metadata(&rotated).unwrap().len() <= 1000);
+        assert_eq!(std::fs::read_dir(base.join("logs")).unwrap().count(), 2);
+        let _ = std::fs::remove_dir_all(base);
+    }
 }

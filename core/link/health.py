@@ -12,6 +12,23 @@ from typing import Any
 from core.link.client import MISSING, LinkdMissing, LinkRpcError, connect, find_linkd, running_addr, state_dir
 
 
+def takeover_hint(s: dict[str, Any]) -> str:
+    """The takeover command for a link halted by an equivocation (its `link.status`). Halted below
+    this replica's held tip, the owner must choose `--after`: the common prefix drops both branches
+    and every replica can take it; the held tip keeps this replica's branch, but replicas holding
+    the other one stay halted until a takeover at or below the common prefix reaches them."""
+    eq = s.get("equivocation") or {}
+    cmd = f"`aurora link takeover {s['name']} --phrase-stdin"
+    held = (s.get("acl_held_tip") or {}).get("seq")
+    if eq and held is not None and held >= eq["seq"]:
+        prefix = eq["seq"] - 1
+        return (
+            f"{cmd} --after {prefix}` (drops both branches; every replica can take it) or "
+            f"{cmd} --after {held}` (keeps this replica's branch; the other side stays halted)"
+        )
+    return f"{cmd}`"
+
+
 def health() -> dict[str, Any]:
     """{in_use, available, running, identity, links: [...], problems: [...]}. Never raises."""
     out: dict[str, Any] = {"in_use": False, "available": False, "running": False, "links": [], "problems": []}
@@ -50,6 +67,8 @@ def health() -> dict[str, Any]:
                     "unverified": unverified,
                     "quarantine": s["quarantine_unpromoted"],
                     "rotation_due": s["rotation_due"],
+                    "sequencer": (s.get("sequencer") or {}).get("device"),
+                    "halted": bool(s.get("equivocation")),
                 }
                 out["links"].append(link)
                 for a in s["alarms"]:
@@ -60,8 +79,31 @@ def health() -> dict[str, Any]:
                     )
                 if s["rotation_due"]:
                     out["problems"].append(
-                        f"{s['name']}: a key rotation is due; an admin's `aurora link serve` appends it"
+                        f"{s['name']}: a key rotation is due; the sequencer's `aurora link serve` appends it, or takes one from any key holder after 1 h"
                     )
+                eq = s.get("equivocation")
+                if eq:
+                    out["problems"].append(
+                        f"{s['name']}: EQUIVOCATION: the sequencer signed two ACL entries at term {eq['term']} seq {eq['seq']}; "
+                        f"membership is halted and no new mail is sealed until the owner runs {takeover_hint(s)}"
+                    )
+                seq = s.get("sequencer") or {}
+                if seq.get("handoff_to"):
+                    out["problems"].append(
+                        f"{s['name']}: the sequencer was handed to {str(seq['handoff_to'])[:16]}, which has not started its term yet: "
+                        "membership changes wait for its `aurora link serve`"
+                    )
+                now = time.time()
+                waiting = [p for p in s.get("proposals", []) if p.get("status") == "queued"]
+                old = [p for p in waiting if now - float(p.get("at") or now) > 600]
+                if old:
+                    out["problems"].append(
+                        f"{s['name']}: {len(old)} membership change(s) wait for the sequencer {str(seq.get('device', ''))[:16]} "
+                        "for over 10 min: records still flow; changes land when a sync reaches it (or the owner hands off or takes over)"
+                    )
+                for p in s.get("proposals", []):
+                    if p.get("status") == "refused":
+                        out["problems"].append(f"{s['name']}: the sequencer refused our {p['kind']}: {p.get('why')}")
                 for p in s["pending_joins"]:
                     if p["needs_approval"]:
                         out["problems"].append(

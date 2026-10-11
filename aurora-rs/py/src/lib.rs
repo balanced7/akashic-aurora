@@ -54,7 +54,7 @@ fn fingerprint(root: &str, other: Option<&str>) -> PyResult<String> {
 fn parse_invite(code: &str) -> PyResult<String> {
     let c = aurora_link::invite::InviteCode::parse(code).map_err(refused)?;
     Ok(serde_json::json!({
-        "link": c.link, "name": c.name, "node": c.node, "relay": c.relay, "addrs": c.addrs,
+        "link": c.link, "name": c.name, "invite": c.invite, "node": c.node, "relay": c.relay, "addrs": c.addrs,
         "fingerprint": c.fingerprint,
     })
     .to_string())

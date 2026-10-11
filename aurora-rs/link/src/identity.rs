@@ -7,7 +7,10 @@
 //!   entries and records.
 //! - **Device KEM keys.** X25519 always, X-Wing optionally; random, never converted from Ed25519.
 //! - **Certificate.** `{device, root, label, x25519, xwing?, not_before, not_after}` signed by the
-//!   root, valid for at most 90 days.
+//!   root, valid for at most 90 days, and signed by the device key itself over the same body
+//!   (`pop`, purpose `cert-pop`): proof that whoever holds the device key agreed to be certified
+//!   under that root with those KEM keys. Without it any root could certify another fleet's device
+//!   id and squat it in a link (review finding R4-4).
 
 use std::collections::BTreeMap;
 
@@ -15,7 +18,8 @@ use ed25519_dalek::SigningKey;
 use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
-use zeroize::Zeroize;
+use unicode_normalization::UnicodeNormalization;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::codec::{self, b64, hex, unb64, unhex};
 use crate::crypto::{self, KemPublics, KemSecrets, Secret32};
@@ -33,29 +37,32 @@ pub const MAX_LABEL: usize = 64;
 const HARDENED: u32 = 0x8000_0000;
 
 /// SLIP-10 for Ed25519 (hardened derivation only, as the spec allows). Owned rather than taken
-/// from a crate: it is forty lines, and the spec's test vectors pin it below.
-pub fn slip10_ed25519(seed: &[u8], path: &[u32]) -> ([u8; 32], [u8; 32]) {
+/// from a crate: it is forty lines, and the spec's test vectors pin it below. Every intermediate
+/// (HMAC output, key, chain code) is wiped; the results wipe themselves on drop.
+pub fn slip10_ed25519(seed: &[u8], path: &[u32]) -> (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>) {
     let mut mac = Hmac::<Sha512>::new_from_slice(b"ed25519 seed").expect("HMAC takes any key length");
     mac.update(seed);
-    let i = mac.finalize().into_bytes();
+    let mut i = mac.finalize().into_bytes();
     let (mut key, mut chain) = split64(&i);
+    i.as_mut_slice().zeroize();
     for index in path {
-        let mut mac = Hmac::<Sha512>::new_from_slice(&chain).expect("HMAC takes any key length");
+        let mut mac = Hmac::<Sha512>::new_from_slice(&chain[..]).expect("HMAC takes any key length");
         mac.update(&[0u8]);
-        mac.update(&key);
+        mac.update(&key[..]);
         mac.update(&(index | HARDENED).to_be_bytes());
-        let i = mac.finalize().into_bytes();
-        key.zeroize();
+        let mut i = mac.finalize().into_bytes();
         (key, chain) = split64(&i);
+        i.as_mut_slice().zeroize();
     }
     (key, chain)
 }
 
-fn split64(i: &[u8]) -> ([u8; 32], [u8; 32]) {
-    (
-        i[..32].try_into().expect("64-byte HMAC"),
-        i[32..].try_into().expect("64-byte HMAC"),
-    )
+fn split64(i: &[u8]) -> (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>) {
+    let mut key = Zeroizing::new([0u8; 32]);
+    let mut chain = Zeroizing::new([0u8; 32]);
+    key.copy_from_slice(&i[..32]);
+    chain.copy_from_slice(&i[32..64]);
+    (key, chain)
 }
 
 /// A fresh 24-word recovery phrase.
@@ -68,18 +75,15 @@ pub fn new_phrase() -> String {
 
 /// The fleet root key a recovery phrase derives. The phrase is checked (words and checksum).
 pub fn root_from_phrase(phrase: &str) -> Result<SigningKey> {
-    let normalized = phrase.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
+    let normalized = Zeroizing::new(phrase.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase());
     let mnemonic = bip39::Mnemonic::parse_normalized(&normalized)
         .map_err(|e| refused(format!("recovery phrase is not valid BIP39: {e}")))?;
     if mnemonic.word_count() != 24 {
         return Err(refused("the recovery phrase must have 24 words"));
     }
-    let mut seed = mnemonic.to_seed_normalized("");
-    let (mut key, _) = slip10_ed25519(&seed, &[44, AURORA_COIN, 0]);
-    seed.zeroize();
-    let root = crypto::signing_key(&key);
-    key.zeroize();
-    Ok(root)
+    let seed = Zeroizing::new(mnemonic.to_seed_normalized(""));
+    let (key, _chain) = slip10_ed25519(&seed[..], &[44, AURORA_COIN, 0]);
+    Ok(crypto::signing_key(&key))
 }
 
 // ----------------------------------------------------------------------------------- certificate
@@ -96,7 +100,11 @@ pub struct DeviceCert {
     pub xwing: Option<String>,
     pub not_before: u64,
     pub not_after: u64,
+    /// The root's signature over the body (purpose `cert`).
     pub sig: String,
+    /// The device key's own signature over the same body (purpose `cert-pop`): proof of
+    /// possession of the device key.
+    pub pop: String,
 }
 
 #[derive(Serialize)]
@@ -126,9 +134,11 @@ impl DeviceCert {
         })
     }
 
+    /// Certify `device` (its signing key: the certificate carries its proof of possession) under
+    /// `root`.
     pub fn issue(
         root: &SigningKey,
-        device: &[u8; 32],
+        device: &SigningKey,
         kem: &KemPublics,
         label: &str,
         not_before: u64,
@@ -139,7 +149,7 @@ impl DeviceCert {
         }
         let mut cert = DeviceCert {
             v: 1,
-            device: hex(device),
+            device: hex(&crypto::public_of(device)),
             root: hex(&crypto::public_of(root)),
             label: label.to_owned(),
             x25519: hex(&kem.x25519),
@@ -147,18 +157,22 @@ impl DeviceCert {
             not_before,
             not_after: not_before + lifetime_s.min(CERT_MAX_LIFETIME_S),
             sig: String::new(),
+            pop: String::new(),
         };
-        cert.sig = b64(&crypto::sign(root, "cert", &cert.body_bytes()?));
+        let body = cert.body_bytes()?;
+        cert.sig = b64(&crypto::sign(root, "cert", &body));
+        cert.pop = b64(&crypto::sign(device, "cert-pop", &body));
         Ok(cert)
     }
 
-    /// Signature, shape and lifetime. Not the clock: callers decide which time to check against.
+    /// Both signatures (the root's, and the device's proof of possession), shape and lifetime.
+    /// Not the clock: callers decide which time to check against.
     pub fn verify(&self) -> Result<()> {
         if self.v != 1 {
             return Err(refused("unknown certificate version"));
         }
         let root = unhex::<32>(&self.root)?;
-        unhex::<32>(&self.device)?;
+        let device = unhex::<32>(&self.device)?;
         unhex::<32>(&self.x25519)?;
         if let Some(xw) = &self.xwing
             && unb64(xw)?.len() != 1216
@@ -171,7 +185,10 @@ impl DeviceCert {
         if self.not_after <= self.not_before || self.not_after - self.not_before > CERT_MAX_LIFETIME_S {
             return Err(refused("certificate lifetime is empty or longer than 90 days"));
         }
-        crypto::verify(&root, "cert", &self.body_bytes()?, &unb64(&self.sig)?)
+        let body = self.body_bytes()?;
+        crypto::verify(&root, "cert", &body, &unb64(&self.sig)?)?;
+        crypto::verify(&device, "cert-pop", &body, &unb64(&self.pop)?)
+            .map_err(|_| refused("the certificate carries no proof of possession of its device key"))
     }
 
     pub fn valid_at(&self, t: u64) -> bool {
@@ -228,14 +245,7 @@ impl Device {
             x25519: kem.x25519_public(),
             xwing: kem.xwing_public(),
         };
-        let cert = DeviceCert::issue(
-            root,
-            &crypto::public_of(&sign),
-            &publics,
-            label,
-            now,
-            CERT_MAX_LIFETIME_S,
-        )?;
+        let cert = DeviceCert::issue(root, &sign, &publics, label, now, CERT_MAX_LIFETIME_S)?;
         Ok(Self { sign, kem, cert })
     }
 
@@ -257,7 +267,7 @@ impl Device {
             return Err(refused("that root did not certify this device"));
         }
         let publics = self.cert.kem()?;
-        self.cert = DeviceCert::issue(root, &self.id(), &publics, &self.cert.label, now, CERT_MAX_LIFETIME_S)?;
+        self.cert = DeviceCert::issue(root, &self.sign, &publics, &self.cert.label, now, CERT_MAX_LIFETIME_S)?;
         Ok(())
     }
 
@@ -265,43 +275,74 @@ impl Device {
         self.cert.not_after.saturating_sub(now) < CERT_RENEW_WITHIN_S
     }
 
-    pub fn to_json(&self) -> Result<Vec<u8>> {
-        let file = DeviceFile {
+    /// The device file. It holds every secret of this device, so it wipes itself on drop; the
+    /// encoded strings it was built from are wiped as soon as it is written.
+    pub fn to_json(&self) -> Result<Zeroizing<Vec<u8>>> {
+        let sign = Zeroizing::new(self.sign.to_bytes());
+        let mut file = DeviceFile {
             v: 1,
-            sign: b64(&self.sign.to_bytes()),
+            sign: b64(&sign[..]),
             x25519: b64(&self.kem.x25519),
-            xwing: self.kem.xwing.map(|k| b64(&k)),
+            xwing: self.kem.xwing.as_ref().map(|k| b64(k)),
             cert: self.cert.clone(),
         };
-        serde_json::to_vec_pretty(&file).map_err(|e| LinkError::Unavailable(e.to_string()))
+        // Sized up front so the buffer never reallocates (a reallocation leaves a copy behind).
+        let mut out = Zeroizing::new(Vec::with_capacity(16 * 1024));
+        let written = serde_json::to_writer_pretty(&mut *out, &file);
+        file.wipe();
+        written.map_err(|e| LinkError::Unavailable(e.to_string()))?;
+        Ok(out)
     }
 
     pub fn from_json(raw: &[u8]) -> Result<Self> {
-        let file: DeviceFile = codec::parse(raw, "device file")?;
-        let seed: [u8; 32] = unb64(&file.sign)?
-            .try_into()
-            .map_err(|_| refused("device key has the wrong length"))?;
-        let x25519: [u8; 32] = unb64(&file.x25519)?
-            .try_into()
-            .map_err(|_| refused("X25519 key has the wrong length"))?;
-        let xwing = match file.xwing {
-            Some(s) => Some(
-                unb64(&s)?
-                    .try_into()
-                    .map_err(|_| refused("X-Wing seed has the wrong length"))?,
-            ),
-            None => None,
-        };
+        let mut file: DeviceFile = codec::parse(raw, "device file")?;
+        let keys = Self::keys_of(&file);
+        file.wipe();
+        let (seed, x25519, xwing) = keys?;
         let device = Self {
             sign: crypto::signing_key(&seed),
-            kem: KemSecrets { x25519, xwing },
-            cert: file.cert,
+            kem: KemSecrets {
+                x25519: *x25519,
+                xwing: xwing.as_deref().copied(),
+            },
+            cert: file.cert.clone(),
         };
         device.cert.verify()?;
         if device.cert.device != device.id_hex() {
             return Err(refused("the device file's certificate is for another key"));
         }
         Ok(device)
+    }
+}
+
+type DeviceKeys = (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>, Option<Zeroizing<[u8; 32]>>);
+
+impl Device {
+    fn keys_of(file: &DeviceFile) -> Result<DeviceKeys> {
+        let key32 = |s: &str, what: &str| -> Result<Zeroizing<[u8; 32]>> {
+            let raw = Zeroizing::new(unb64(s)?);
+            let mut out = Zeroizing::new([0u8; 32]);
+            if raw.len() != 32 {
+                return Err(refused(format!("{what} has the wrong length")));
+            }
+            out.copy_from_slice(&raw);
+            Ok(out)
+        };
+        Ok((
+            key32(&file.sign, "device key")?,
+            key32(&file.x25519, "X25519 key")?,
+            file.xwing.as_deref().map(|s| key32(s, "X-Wing seed")).transpose()?,
+        ))
+    }
+}
+
+impl DeviceFile {
+    fn wipe(&mut self) {
+        self.sign.zeroize();
+        self.x25519.zeroize();
+        if let Some(x) = self.xwing.as_mut() {
+            x.zeroize();
+        }
     }
 }
 
@@ -323,50 +364,86 @@ struct SealedRoot {
 }
 
 const ROOT_AAD: &[u8] = b"aurora-link/v1/root";
+/// The sealed-root format: v2 binds its KDF parameters into the AEAD's associated data.
+const ROOT_FORMAT: u32 = 2;
+/// Argon2id parameters: what `seal_root` writes, and the window `open_root` accepts. A file
+/// asking for less would let whoever planted it make guessing cheap; one asking for much more
+/// would make opening it a denial of service.
+const ROOT_M_KIB: u32 = 64 * 1024;
+const ROOT_M_KIB_MAX: u32 = 256 * 1024;
+const ROOT_T: u32 = 3;
+const ROOT_T_MAX: u32 = 8;
+const ROOT_P_MAX: u32 = 4;
+
+/// The passphrase as Argon2 sees it: NFC, so the same words typed on two systems (composed or
+/// decomposed accents) open the same root.
+fn nfc(passphrase: &str) -> Zeroizing<String> {
+    Zeroizing::new(passphrase.nfc().collect())
+}
+
+/// The associated data: the domain, then every format field, so none can be altered unseen.
+fn root_aad(f: &SealedRoot) -> Result<Vec<u8>> {
+    let fields = codec::jcs(&serde_json::json!({
+        "v": f.v, "kdf": f.kdf, "m_kib": f.m_kib, "t": f.t, "p": f.p, "salt": f.salt,
+    }))?;
+    Ok([ROOT_AAD, b"\0", &fields].concat())
+}
 
 fn root_kek(passphrase: &str, salt: &[u8], m_kib: u32, t: u32, p: u32) -> Result<Secret32> {
     let params = argon2::Params::new(m_kib, t, p, Some(32)).map_err(|e| refused(format!("argon2 parameters: {e}")))?;
     let argon = argon2::Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
-    let mut out = [0u8; 32];
+    let mut out = Secret32([0u8; 32]);
     argon
-        .hash_password_into(passphrase.as_bytes(), salt, &mut out)
+        .hash_password_into(nfc(passphrase).as_bytes(), salt, &mut out.0)
         .map_err(|e| refused(format!("argon2: {e}")))?;
-    Ok(Secret32(out))
+    Ok(out)
 }
 
 pub fn seal_root(root: &SigningKey, passphrase: &str) -> Result<Vec<u8>> {
-    if passphrase.chars().count() < 12 {
+    if nfc(passphrase).chars().count() < 12 {
         return Err(refused("the passphrase must have at least 12 characters"));
     }
     let salt = crypto::random_bytes(16);
-    let (m_kib, t, p) = (64 * 1024, 3, 1);
-    let kek = root_kek(passphrase, &salt, m_kib, t, p)?;
-    let sealed = crypto::seal(&kek.0, &root.to_bytes(), ROOT_AAD);
-    let file = SealedRoot {
-        v: 1,
+    let mut file = SealedRoot {
+        v: ROOT_FORMAT,
         kdf: "argon2id".into(),
-        m_kib,
-        t,
-        p,
+        m_kib: ROOT_M_KIB,
+        t: ROOT_T,
+        p: 1,
         salt: b64(&salt),
-        sealed: b64(&sealed),
+        sealed: String::new(),
     };
+    let kek = root_kek(passphrase, &salt, file.m_kib, file.t, file.p)?;
+    let seed = Zeroizing::new(root.to_bytes());
+    file.sealed = b64(&crypto::seal(&kek.0, &seed[..], &root_aad(&file)?));
     serde_json::to_vec_pretty(&file).map_err(|e| LinkError::Unavailable(e.to_string()))
 }
 
 pub fn open_root(raw: &[u8], passphrase: &str) -> Result<SigningKey> {
     let f: SealedRoot = codec::parse(raw, "sealed root")?;
-    if f.v != 1 || f.kdf != "argon2id" || f.m_kib > 1024 * 1024 || f.t > 16 || f.p > 16 {
-        return Err(refused("sealed root has an unknown format"));
+    if f.v != ROOT_FORMAT || f.kdf != "argon2id" {
+        return Err(refused(
+            "sealed root has an unknown format (seal it again with `identity.init --force`)",
+        ));
+    }
+    if !(ROOT_M_KIB..=ROOT_M_KIB_MAX).contains(&f.m_kib)
+        || !(ROOT_T..=ROOT_T_MAX).contains(&f.t)
+        || !(1..=ROOT_P_MAX).contains(&f.p)
+    {
+        return Err(refused(
+            "sealed root asks for Argon2 parameters outside the accepted window",
+        ));
     }
     let kek = root_kek(passphrase, &unb64(&f.salt)?, f.m_kib, f.t, f.p)?;
-    let mut seed = crypto::open(&kek.0, &unb64(&f.sealed)?, ROOT_AAD)
-        .map_err(|_| refused("the root did not open with that passphrase"))?;
-    let arr: [u8; 32] = seed
-        .as_slice()
-        .try_into()
-        .map_err(|_| refused("sealed root holds a malformed key"))?;
-    seed.zeroize();
+    let seed = Zeroizing::new(
+        crypto::open(&kek.0, &unb64(&f.sealed)?, &root_aad(&f)?)
+            .map_err(|_| refused("the root did not open with that passphrase"))?,
+    );
+    let mut arr = Zeroizing::new([0u8; 32]);
+    if seed.len() != 32 {
+        return Err(refused("sealed root holds a malformed key"));
+    }
+    arr.copy_from_slice(&seed);
     Ok(crypto::signing_key(&arr))
 }
 
@@ -435,20 +512,20 @@ mod tests {
         let seed = unhex_vec("000102030405060708090a0b0c0d0e0f");
         let (k, c) = slip10_ed25519(&seed, &[]);
         assert_eq!(
-            hex(&k),
+            hex(&k[..]),
             "2b4be7f19ee27bbf30c667b642d5f4aa69fd169872f8fc3059c08ebae2eb19e7"
         );
         assert_eq!(
-            hex(&c),
+            hex(&c[..]),
             "90046a93de5380a72b5e45010748567d5ea02bbf6522f979e05c0d8d8ca9fffb"
         );
         let (k, c) = slip10_ed25519(&seed, &[0]);
         assert_eq!(
-            hex(&k),
+            hex(&k[..]),
             "68e0fe46dfb67e368c75379acec591dad19df3cde26e63b93a8e704f1dade7a3"
         );
         assert_eq!(
-            hex(&c),
+            hex(&c[..]),
             "8b59aa11380b624e81507a27fedda59fea6d0b779a778918a2fd3590e16e9c69"
         );
         assert_eq!(
@@ -482,6 +559,20 @@ mod tests {
         let mut forged = device.cert.clone();
         forged.label = "evil".into();
         assert!(forged.verify().is_err());
+        // R4-4: a root certifying a device key it does not hold has no proof of possession.
+        let thief = Device::create(&other_root, "thief", false, 1_000).unwrap();
+        let mut squat =
+            DeviceCert::issue(&other_root, &thief.sign, &device.cert.kem().unwrap(), "x", 1_000, 3600).unwrap();
+        squat.device = device.cert.device.clone();
+        squat.sig = b64(&crypto::sign(&other_root, "cert", &squat.body_bytes().unwrap()));
+        let err = squat.verify().unwrap_err();
+        assert!(err.to_string().contains("proof of possession"), "{err}");
+        let mut no_pop = device.cert.clone();
+        no_pop.pop = device.cert.sig.clone();
+        assert!(
+            no_pop.verify().is_err(),
+            "the root's signature is not a proof of possession"
+        );
         let back = Device::from_json(&device.to_json().unwrap()).unwrap();
         assert_eq!(back.id(), device.id());
     }
@@ -496,6 +587,39 @@ mod tests {
         );
         assert!(open_root(&sealed, "wrong horse battery").is_err());
         assert!(seal_root(&root, "short").is_err());
+    }
+
+    #[test]
+    fn a_sealed_root_refuses_kdf_parameters_outside_the_window() {
+        let root = root_from_phrase(&new_phrase()).unwrap();
+        let sealed = seal_root(&root, "correct horse battery").unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&sealed).unwrap();
+        assert_eq!((v["m_kib"].as_u64(), v["t"].as_u64()), (Some(65536), Some(3)));
+        for (field, value) in [
+            ("m_kib", 8192u64),
+            ("t", 1),
+            ("m_kib", 4 * 1024 * 1024),
+            ("t", 64),
+            ("p", 0),
+        ] {
+            let mut weak = v.clone();
+            weak[field] = value.into();
+            let err = open_root(&serde_json::to_vec(&weak).unwrap(), "correct horse battery").unwrap_err();
+            assert!(err.to_string().contains("window"), "{field}={value}: {err}");
+        }
+        let mut old = v.clone();
+        old["v"] = 1.into();
+        assert!(open_root(&serde_json::to_vec(&old).unwrap(), "correct horse battery").is_err());
+    }
+
+    #[test]
+    fn the_passphrase_is_nfc_normalised_on_seal_and_open() {
+        let root = root_from_phrase(&new_phrase()).unwrap();
+        let composed = "caf\u{e9} cr\u{e8}me br\u{fb}l\u{e9}e";
+        let decomposed = "cafe\u{301} cre\u{300}me bru\u{302}le\u{301}e";
+        assert_ne!(composed, decomposed);
+        let sealed = seal_root(&root, composed).unwrap();
+        assert_eq!(open_root(&sealed, decomposed).unwrap().to_bytes(), root.to_bytes());
     }
 
     #[test]

@@ -38,7 +38,7 @@ class IdentityStatusParams(TypedDict):
 
 
 class IdentityRenewParams(TypedDict):
-    """Renew the device certificate (needs the phrase, or the passphrase for root.age) and announce it in every link."""
+    """Renew the device certificate (needs the phrase, or the passphrase for the sealed root.json) and announce it in every link."""
 
     phrase: NotRequired[str]
     passphrase: NotRequired[str]
@@ -64,13 +64,13 @@ class LinkListParams(TypedDict):
 
 
 class LinkStatusParams(TypedDict):
-    """Members, devices, heads, receipts, invites and alarms of one link."""
+    """Members, devices, heads, receipts, invites and alarms of one link; the ACL chain tip, its sequencer (term, a pending handoff), an equivocation if one halted the chain, and this device's queued or refused proposals."""
 
     link: str
 
 
 class LinkInviteParams(TypedDict):
-    """Publish an invite and return its code. The code also carries the bundle-free dial hints."""
+    """Publish an invite and return its code. The code also carries the bundle-free dial hints. `invite` is the id of the action that issued it (joins and revocations name it), `invite_key` its public key. On a device that does not sequence the link the invite is a proposal (`queued`): the code works once the sequencer includes it."""
 
     link: str
     role: NotRequired[str]
@@ -80,7 +80,7 @@ class LinkInviteParams(TypedDict):
 
 
 class LinkJoinParams(TypedDict):
-    """Join with an invite code. With `acl` (the inviter's log from a bundle) it works offline and returns our join entry as a bundle; without, it dials the inviter."""
+    """Join with an invite code. With `acl` (the inviter's chain from a bundle) it works offline and returns our join proposal in a bundle for the inviter to import; without, it dials the inviter. The result names the link, both fleet fingerprints, `inviter_root` (the fleet that published the invite), `owner_root`, the safety number, `fingerprint_matches_code`, `pending`, `has_key`, and `queued` when the join waits for the link's sequencer."""
 
     code: str
     label: NotRequired[str]
@@ -88,7 +88,7 @@ class LinkJoinParams(TypedDict):
 
 
 class LinkAcceptParams(TypedDict):
-    """Admit a pending join (wraps the read key to it)."""
+    """Admit a pending join (wraps the read key to it). Appended on the sequencer; elsewhere a proposal (`proposal`, `queued`)."""
 
     link: str
     join: str
@@ -110,14 +110,14 @@ class LinkVerifyParams(TypedDict):
 
 
 class LinkRemoveMemberParams(TypedDict):
-    """Remove a fleet and rotate the read key."""
+    """Remove a fleet and rotate the read key. Appended on the sequencer; elsewhere a proposal for it to include."""
 
     link: str
     member: str
 
 
 class LinkLeaveParams(TypedDict):
-    """Leave a link (an admin's daemon then rotates the key)."""
+    """Leave a link (a proposal; the sequencer then rotates the key, or any device holding the key after the grace)."""
 
     link: str
 
@@ -137,16 +137,32 @@ class LinkAddDeviceParams(TypedDict):
 
 
 class LinkRotateKeyParams(TypedDict):
-    """Start a new read-key epoch."""
+    """Start a new read-key epoch. An admin that cannot read the key in force (junk wrapped to it by a rogue key holder) re-keys from the last epoch it can read."""
 
     link: str
 
 
 class LinkRevokeInviteParams(TypedDict):
-    """Kill an unused invite."""
+    """Kill an unused invite, named by the hash of the entry that issued it (`invite` in `link.invite` and `link.status`)."""
 
     link: str
     invite: str
+
+
+class LinkHandoffParams(TypedDict):
+    """Hand the link's sequencer to another active owner or admin device (by the current sequencer, or proposed by an owner device). Its next entry starts the next term."""
+
+    link: str
+    device: str
+
+
+class LinkTakeoverParams(TypedDict):
+    """The owner's takeover when the sequencer is lost or compromised: the fleet root (the phrase, or the passphrase for root.json) makes this device the sequencer of a new term after entry `after` (default: this replica's last held entry, so nothing it holds is dropped). Later entries of older terms are dropped on every replica; an equivocation halt ends. While halted below its last held entry, `after` is required: the halt's seq - 1 drops both branches and every replica can take it; the last held entry keeps this replica's branch, and replicas holding the other branch stay halted until a takeover at or below the halt's seq - 1 reaches them."""
+
+    link: str
+    phrase: NotRequired[str]
+    passphrase: NotRequired[str]
+    after: NotRequired[int]
 
 
 class LinkSetRoleParams(TypedDict):
@@ -199,7 +215,7 @@ class PromotionRecordParams(TypedDict):
 
 
 class BundleExportParams(TypedDict):
-    """The whole log and records of a link, for sneakernet."""
+    """The whole log and the records of a link, for sneakernet."""
 
     link: str
     records: NotRequired[bool]
@@ -271,6 +287,8 @@ METHODS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "link.add_device": (("link", "cert"), ()),
     "link.rotate_key": (("link",), ()),
     "link.revoke_invite": (("link", "invite"), ()),
+    "link.handoff": (("link", "device"), ()),
+    "link.takeover": (("link",), ("phrase", "passphrase", "after")),
     "link.set_role": (("link", "member", "role"), ()),
     "link.send": (("link", "body"), ("source", "attachments")),
     "link.read": (("link", "record_ids"), ()),

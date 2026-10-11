@@ -294,7 +294,21 @@ def test_status_text_shows_members_devices_receipts_and_alarms(h):
         quarantine_unpromoted=3,
         sent=[{"seq": 4, "kind": "chat", "receipts": []}, {"seq": 5, "kind": "note", "receipts": ["serge"]}],
         alarms=[{"kind": "fork", "author": "a" * 64, "detail": "two heads"}],
-        dropped_acl_entries=[{"entry": "e" * 64, "why": "bad sig"}],
+        sequencer={
+            "device": "e" * 64,
+            "label": "serge/pc",
+            "term": 3,
+            "handoff_to": "f" * 64,
+            "next": "f" * 64,
+            "next_label": "home/laptop",
+            "next_term": 4,
+            "me": False,
+        },
+        equivocation={"term": 3, "seq": 12, "sequencer": "e" * 64, "ours": "a" * 64, "theirs": "b" * 64},
+        proposals=[
+            {"id": "1" * 64, "kind": "invite", "status": "queued", "why": None, "at": 1_700_000_000},
+            {"id": "2" * 64, "kind": "set_role", "status": "refused", "why": "no admin", "at": 1_700_000_000},
+        ],
     )
     h.d.handlers.update({"link.list": [{"link": LINK}], "link.status": s})
     code, out = h.run("status")
@@ -316,7 +330,14 @@ def test_status_text_shows_members_devices_receipts_and_alarms(h):
         "sent #4 chat: not yet delivered",
         "sent #5 note: ['serge']",
         "ALARM fork: aaaaaaaaaaaaaaaa two heads",
-        "dropped ACL entry eeeeeeeeeeeeeeee: bad sig",
+        "sequencer serge/pc (eeeeeeeeeeeeeeee), term 3",
+        "HANDOFF to home/laptop (ffffffffffffffff)",
+        "starts term 4",
+        "EQUIVOCATION: the sequencer signed two entries at term 3 seq 12",
+        "halted at seq 11",
+        "aurora link takeover ops --phrase-stdin",
+        "proposal 1111111111111111 invite waits for the sequencer",
+        "proposal 2222222222222222 set_role REFUSED by the sequencer: no admin",
     ):
         assert needle in out, needle
     h.d.handlers["link.list"] = []
@@ -463,6 +484,42 @@ def test_membership_changes_report_entry_epoch_and_due_rotation(h):
         assert out.startswith("done ("), action
         assert "rotation" not in out, action
         assert h.d.calls[-1][0] == method
+
+
+def test_a_change_made_off_the_sequencer_is_reported_as_a_proposal(h):
+    """On a device that does not sequence the link a change is a proposal: the CLI says so and
+    names the sequencer; a due rotation is the sequencer's."""
+    h.d.handlers["link.remove_member"] = {
+        "proposal": "9" * 64,
+        "queued": True,
+        "sequencer": "a" * 64,
+        "epoch": 4,
+        "rotation_due": False,
+    }
+    code, out = h.run("remove-member", "ops", "serge")
+    assert code == 0
+    assert out.startswith(f"done proposed ({'9' * 16}); the sequencer {'a' * 16} includes it")
+    h.d.handlers["link.accept"] = {"proposal": "8" * 64, "queued": True, "sequencer": "a" * 64}
+    _code, out = h.run("accept", "ops", "j")
+    assert "accepted; the read key is wrapped to them proposed (8888888888888888)" in out
+
+
+def test_handoff_names_the_device_and_takeover_needs_the_root(h, monkeypatch):
+    """handoff passes the target device; takeover refuses without the root, reads the phrase from
+    stdin, and passes --after."""
+    h.d.handlers["link.handoff"] = {"entry": "4" * 64, "epoch": 2}
+    code, out = h.run("handoff", "ops", "abcd1234")
+    assert code == 0
+    assert out.startswith("done (4444444444444444)")
+    assert h.params("link.handoff") == {"link": "ops", "device": "abcd1234"}
+    assert h.run("takeover", "ops")[0] == 2, "no phrase, no passphrase: a usage error before any call"
+    assert not any(m == "link.takeover" for m, _ in h.d.calls)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("word " * 24 + "\n"))
+    h.d.handlers["link.takeover"] = {"entry": "5" * 64, "term": 4, "seq": 12, "sequencer": "e" * 64}
+    code, out = h.run("takeover", "ops", phrase_stdin=True, after=11)
+    assert code == 0
+    assert h.params("link.takeover") == {"link": "ops", "phrase": ("word " * 24).strip(), "after": 11}
+    assert "term 4 starts at seq 12" in out
 
 
 def test_add_device_reads_the_certificate_file(h, tmp_path):

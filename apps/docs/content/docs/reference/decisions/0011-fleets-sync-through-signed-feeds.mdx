@@ -5,13 +5,23 @@ description: Fleets share a link with a signed member list; each machine writes 
 
 **Status:** accepted
 
-Fleets talk through a **link**: a shared space whose member list is a signed, ordered log. Each machine writes its mail into its own feed. Every record is signed, sealed with the link's read key, and chained to the record before it. Fleets sync by asking each other for what they lack, over iroh, or through a mailbox member that cannot read what it stores. So a gap of any length closes on its own, and a third party never holds anything it can read.
+Fleets talk through a **link**: a shared space whose member list is a signed chain with one order. One device, the link's **sequencer**, puts every membership change in that order. Other members sign proposals that it checks and adds, or refuses with a signed reason. Each machine writes its mail into its own feed. Every record is signed, sealed with the link's read key, and chained to the record before it. Fleets sync by asking each other for what they lack, over iroh, or through a mailbox member that cannot read what it stores. So a gap of any length closes on its own. The mailbox still sees the member list, who wrote each record and when, and a size bucket for each record and file.
 
 Why? The old bridge needed both fleets awake at once, and one shared secret per direction. It had no members, no key rotation and no store-and-forward. In September 2026 a closed door lost 13 days of mail.
 
 The daemon, `aurora-linkd`, is Rust, and it is the only implementation of the protocol. Two implementations of a signature scheme can disagree on what was signed, and that disagreement is the hole. The daemon holds the keys and reads every untrusted byte, so it runs as its own process. It never sees the bus. Python owns promotion, policy and every door an agent uses ([0008](/docs/reference/decisions/0008-park-peer-mail)).
 
-We evaluated p2panda's group libraries first and built our own log instead. Two valid messages crashed their receivers, and their store could not link beside ours. We kept their rule that an entry must be valid where its author stood.
+We evaluated p2panda's group libraries first and built our own log instead. Two valid messages crashed their receivers, and their store could not link beside ours.
+
+## Amended 2026-10-11: one sequencer instead of a DAG
+
+At first the member list was a DAG, as in p2panda. Each entry named every open branch its author knew. The rules decided between entries that did not see each other. Five clean-room security reviews in one day each found new critical or high issues in those rules. The cause was the same each time. In a DAG the author picks an entry's parents, so it picks what the entry "did not see". A dormant device could sign an entry on old parents and date it later. Then every rule that read time or order from a missing link became a weapon. That covered late joins, a decline that beats an accept, and the lower of two role changes winning. It also covered the rotation grace, caps counted in an entry's past, and cycles of removals. Each fix added more structure than it took away. The fifth review said the design was not converging. It proposed one owner or admin device to order the member list, handed on by a signed message. Records would still have many writers.
+
+So the member list became a chain that one key orders. Each entry names the one before it, and only the sequencer of its term signs it. Membership is applying the entries in order. Every check runs against the state at that point, and nobody can put an entry before an earlier one. Proposals keep their author's signature, so authority stays checkable. The clock rules read the time the sequencer stamps: invite expiry, the rotation grace, certificate validity. That time never goes down along the chain.
+
+The sequencer is trusted for order and time, and for nothing else. It cannot sign for anyone else. Its job moves by a signed handoff to another owner or admin device. If it is lost or compromised, the owner's fleet root (the recovery phrase) signs a takeover. That starts a new term after a point the owner names, and every replica drops what came after it there. The sequencer might sign two different entries for one place. Then replicas keep both as evidence and take no new entries until the owner takes over. Two entries count only if each would apply on its own at that place. A stopped replica never goes back to an older member list. It keeps its own list and grants only what both that list and the last agreed entry grant, and it seals no new mail. Once a takeover, or a term begun by another member, follows that place, the second entry is an alarm only. So does a term the same member began, once the owner or another member has removed or demoted the old device. So an old sequencer's key keeps no lasting veto. A replica keeps one pair of entries per place and signer, and at most 256 pairs.
+
+What this gives up: while the sequencer is offline, membership changes queue. Records, which stay many-writer, keep flowing. Liveness depends on the sequencer and on the owner holding the phrase.
 
 <Callout title="In other agent tools">
 

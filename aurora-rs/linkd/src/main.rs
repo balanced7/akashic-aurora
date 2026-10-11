@@ -49,7 +49,8 @@ enum Cmd {
         /// No network at all: identity, ACL and bundle work only.
         #[arg(long)]
         offline: bool,
-        /// Pull-only mailbox: stores and serves ciphertext, never holds a read key.
+        /// Mailbox: stores and serves ciphertext for the link. Its role (mailbox) holds no read key;
+        /// peers push to it and pull from it. This flag sets how the daemon reports itself.
         #[arg(long)]
         mailbox: bool,
         /// Relay URL(s) to use instead of n0's (a self-hosted iroh-relay, say).
@@ -115,6 +116,7 @@ fn main() -> anyhow::Result<()> {
                 no_relay,
                 bind,
                 relay_only,
+                idle: None,
             };
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -191,7 +193,7 @@ async fn serve(
                 tokio::time::sleep(Duration::from_secs(60)).await;
                 ticks += 1;
                 if let Ok(device) = d.device() {
-                    let ids: Vec<String> = d.links.lock().expect("links").keys().cloned().collect();
+                    let ids = d.link_ids();
                     for id in ids {
                         let rec = d.with_link(&id, |l| {
                             let ack = l.ack(&device, vec![], aurora_link::codec::now())?;

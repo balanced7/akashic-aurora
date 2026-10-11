@@ -176,7 +176,7 @@ pub const SUITE_X25519: u8 = 1;
 pub const SUITE_X25519_XWING: u8 = 2;
 
 /// A device's key-agreement keys. X25519 is mandatory; X-Wing is additive.
-#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct KemSecrets {
     pub x25519: [u8; 32],
     pub xwing: Option<[u8; 32]>,
@@ -211,13 +211,32 @@ pub struct KemPublics {
     pub xwing: Option<Vec<u8>>,
 }
 
-fn wrap_info(info: &[u8]) -> Vec<u8> {
-    framed("wrap", info)
+/// The public name of a read key, `SHA-256(CONTEXT || "key-id" || 0x00 || epoch_be || K)`. Every
+/// key change and every wrap names it, so a key can only ever be filed under the epoch it was
+/// made for, and a reader checks each key it unwraps or unseals against it.
+pub fn key_id(epoch: u64, key: &[u8; 32]) -> [u8; 32] {
+    sha256(&[CONTEXT, b"key-id\0", &epoch.to_be_bytes(), key])
+}
+
+/// HPKE `info`: the caller's binding plus the suite byte, so a wrap made for one suite never
+/// opens as another (an X-Wing wrap cannot be stripped down to its inner X25519 layer).
+fn wrap_info(info: &[u8], suite: u8) -> Vec<u8> {
+    let mut bound = info.to_vec();
+    bound.push(b'|');
+    bound.push(suite);
+    framed("wrap", &bound)
 }
 
 /// Seal a 32-byte key to one device. Returns (suite, encapsulated key(s), ciphertext).
 pub fn wrap(key: &[u8; 32], to: &KemPublics, info: &[u8]) -> Result<(u8, Vec<u8>, Vec<u8>)> {
-    let info = wrap_info(info);
+    let info = wrap_info(
+        info,
+        if to.xwing.is_some() {
+            SUITE_X25519_XWING
+        } else {
+            SUITE_X25519
+        },
+    );
     let x_pk = <X25519HkdfSha256 as hpke::Kem>::PublicKey::from_bytes(&to.x25519)
         .map_err(|_| refused("X25519 public key is invalid"))?;
     let (enc1, ct1) =
@@ -237,7 +256,7 @@ pub fn wrap(key: &[u8; 32], to: &KemPublics, info: &[u8]) -> Result<(u8, Vec<u8>
 }
 
 pub fn unwrap(suite: u8, enc: &[u8], ct: &[u8], me: &KemSecrets, info: &[u8]) -> Result<Secret32> {
-    let info = wrap_info(info);
+    let info = wrap_info(info, suite);
     let x_sk = <X25519HkdfSha256 as hpke::Kem>::PrivateKey::from_bytes(&me.x25519)
         .map_err(|_| refused("own X25519 key is unusable"))?;
     let (enc1, inner_ct) = match suite {
@@ -328,5 +347,49 @@ mod tests {
             let other = KemSecrets::generate(with_xwing);
             assert!(unwrap(suite, &enc, &ct, &other, b"link|epoch").is_err());
         }
+    }
+
+    #[test]
+    fn a_wrap_is_bound_to_its_suite() {
+        let me = KemSecrets::generate(true);
+        let publics = KemPublics {
+            x25519: me.x25519_public(),
+            xwing: None,
+        };
+        let key = random32();
+        let (suite, enc, ct) = wrap(&key, &publics, b"info").unwrap();
+        assert_eq!(suite, SUITE_X25519);
+        assert!(unwrap(suite, &enc, &ct, &me, b"info").is_ok());
+        // The same bytes presented under another suite byte never open: the suite is in `info`.
+        let with_xwing = KemPublics {
+            x25519: me.x25519_public(),
+            xwing: me.xwing_public(),
+        };
+        let (_, enc, ct) = wrap(&key, &with_xwing, b"info").unwrap();
+        // Peel the X-Wing layer by hand and offer the inner X25519 layer as a suite-1 wrap.
+        let (enc1, enc2) = enc.split_at(32);
+        let xw_sk = <XWing as hpke::Kem>::PrivateKey::from_bytes(&me.xwing.unwrap()).unwrap();
+        let enc2 = <XWing as hpke::Kem>::EncappedKey::from_bytes(enc2).unwrap();
+        let inner = hpke::single_shot_open::<HpkeChaCha, HkdfSha256, XWing>(
+            &OpModeR::Base,
+            &xw_sk,
+            &enc2,
+            &wrap_info(b"info", SUITE_X25519_XWING),
+            &ct,
+            enc1,
+        )
+        .unwrap();
+        assert!(
+            unwrap(SUITE_X25519, enc1, &inner, &me, b"info").is_err(),
+            "the inner layer of an X-Wing wrap does not open as a suite-1 wrap"
+        );
+    }
+
+    #[test]
+    fn key_ids_bind_epoch_and_key() {
+        let k = random32();
+        assert_ne!(key_id(1, &k), key_id(2, &k));
+        assert_ne!(key_id(1, &k), key_id(1, &random32()));
+        assert_eq!(key_id(1, &k), key_id(1, &k));
     }
 }

@@ -21,6 +21,7 @@ from typing import Any
 
 from core.link import export, promote, quarantine
 from core.link.client import MISSING, Client, LinkdMissing, LinkRpcError, connect
+from core.link.health import takeover_hint
 
 ACTIONS = (
     "init",
@@ -43,6 +44,8 @@ ACTIONS = (
     "revoke-invite",
     "set-role",
     "leave",
+    "handoff",
+    "takeover",
     "serve",
     "mailbox",
     "sync",
@@ -206,13 +209,42 @@ def do_list(c: Client, args: Any) -> int:
     return 0
 
 
+def _sequencer_text(s: dict[str, Any]) -> list[str]:
+    """Who orders the link's ACL chain, a handoff waiting for its target, and an equivocation."""
+    lines = []
+    seq = s.get("sequencer") or {}
+    if seq:
+        who = "this device" if seq.get("me") else f"{seq.get('label') or '?'} ({str(seq.get('device', ''))[:16]})"
+        lines.append(f"  sequencer {who}, term {seq.get('term')}")
+        if seq.get("handoff_to"):
+            lines.append(
+                f"  HANDOFF to {seq.get('next_label') or '?'} ({str(seq['handoff_to'])[:16]}): "
+                "membership changes wait until it starts term "
+                f"{seq.get('next_term')}"
+            )
+    eq = s.get("equivocation")
+    if eq:
+        lines.append(
+            f"  EQUIVOCATION: the sequencer signed two entries at term {eq['term']} seq {eq['seq']}; "
+            f"the link is halted at seq {eq['seq'] - 1} (no new mail is sealed; this device grants only what "
+            f"both its chain tip and seq {eq['seq'] - 1} grant) until the owner runs {takeover_hint(s)}"
+        )
+    for p in s.get("proposals", []):
+        if p.get("status") == "refused":
+            lines.append(f"  proposal {p['id'][:16]} {p['kind']} REFUSED by the sequencer: {p.get('why')}")
+        else:
+            lines.append(f"  proposal {p['id'][:16]} {p['kind']} waits for the sequencer since {_when(p.get('at'))}")
+    return lines
+
+
 def _status_text(s: dict[str, Any]) -> str:
     lines = [
         f"{s['name']}  {s['link']}",
         f"  epoch {s['epoch']}  our role {s['my_role']}  acl entries {s['acl_entries']}",
     ]
+    lines.extend(_sequencer_text(s))
     if s.get("rotation_due"):
-        lines.append("  ROTATION DUE: an admin's daemon appends it when online")
+        lines.append("  ROTATION DUE: the sequencer appends it; after 1 h it takes one from any device holding the key")
     for m in s["members"]:
         flag = " (us)" if m["us"] else ""
         state = "removed" if m["removed"] else "pending" if m["pending"] else m["role"]
@@ -241,7 +273,6 @@ def _status_text(s: dict[str, Any]) -> str:
         f"  sent #{r['seq']} {r['kind']}: {r['receipts'] or 'not yet delivered'}" for r in s.get("sent", [])[:5]
     )
     lines.extend(f"  ALARM {a['kind']}: {a['author'][:16]} {a['detail']}" for a in s.get("alarms", []))
-    lines.extend(f"  dropped ACL entry {d['entry'][:16]}: {d['why']}" for d in s.get("dropped_acl_entries", []))
     return "\n".join(lines)
 
 
@@ -270,6 +301,12 @@ def do_invite(c: Client, args: Any) -> int:
     text = [
         f"invite for {out['role']} in {link}, single-use, expires {_when(out['expires'])}"
         + (" (needs your approval after they join)" if out["approval"] else ""),
+    ]
+    if out.get("queued"):
+        text.append(
+            "this device does not sequence the link: the invite is a proposal, and the code works once the sequencer includes it"
+        )
+    text += [
         "",
         out["code"],
         "",
@@ -292,9 +329,17 @@ def do_join(c: Client, args: Any) -> int:
     bundle = out.pop("bundle", None)
     if bundle and getattr(args, "out", None):
         Path(args.out).write_text(json.dumps(bundle) + "\n", encoding="utf-8")
+    if out.get("queued"):
+        head = (
+            f"join for {out['name']} ({out['link'][:16]}) handed over; it waits for the link's sequencer: "
+            "run the same join again later"
+        )
+    else:
+        head = f"joined {out['name']} ({out['link'][:16]})" + (
+            " -- waiting for the inviter to accept" if out["pending"] else ""
+        )
     lines = [
-        f"joined {out['name']} ({out['link'][:16]})"
-        + (" -- waiting for the inviter to accept" if out["pending"] else ""),
+        head,
         f"their fingerprint {out['their_fingerprint']}"
         + ("" if out["fingerprint_matches_code"] else "  MISMATCH: the log's owner is not who the code named"),
         f"our fingerprint   {out['our_fingerprint']}",
@@ -303,7 +348,8 @@ def do_join(c: Client, args: Any) -> int:
     ]
     if bundle:
         lines.append(
-            f"offline join: hand {getattr(args, 'out', None) or '(pass --out FILE)'} back to the inviter (`aurora link import`)"
+            f"offline join: hand {getattr(args, 'out', None) or '(pass --out FILE)'} back to the inviter (`aurora link import`), "
+            "then import the bundle it exports (`aurora link export`): the link is ours once its sequencer includes the join"
         )
     _print(args, out, "\n".join(lines))
     return 0 if out["fingerprint_matches_code"] else 3
@@ -314,17 +360,27 @@ def _two(args: Any, usage: str) -> tuple[str, str]:
     return rest[0], rest[1]
 
 
+def _done(out: dict[str, Any], what: str) -> str:
+    """How a membership change landed: on the chain, or as a proposal for the sequencer."""
+    if out.get("proposal"):
+        return (
+            f"{what} proposed ({out['proposal'][:16]}); the sequencer {str(out.get('sequencer', ''))[:16]} "
+            "includes it when a sync reaches it (`aurora link status` shows it until then)"
+        )
+    return f"{what} ({out['entry'][:16]})"
+
+
 def do_accept(c: Client, args: Any) -> int:
     link, join = _two(args, "accept <link> <join id>")
     out = c.call("link.accept", link=link, join=join)
-    _print(args, out, f"accepted; the read key is wrapped to them ({out['entry'][:16]})")
+    _print(args, out, _done(out, "accepted; the read key is wrapped to them"))
     return 0
 
 
 def do_decline(c: Client, args: Any) -> int:
     link, join = _two(args, "decline <link> <join id>")
     out = c.call("link.decline", link=link, join=join)
-    _print(args, out, f"declined ({out['entry'][:16]})")
+    _print(args, out, _done(out, "declined"))
     return 0
 
 
@@ -348,10 +404,32 @@ def _membership(c: Client, args: Any, method: str, usage: str, names: tuple[str,
     if method == "link.add_device":
         params["cert"] = json.loads(Path(rest[1]).read_text(encoding="utf-8"))
     out = c.call(method, **params)
-    msg = f"done ({out['entry'][:16]}); epoch {out['epoch']}"
+    msg = f"{_done(out, 'done')}; epoch {out['epoch']}"
     if out.get("rotation_due"):
-        msg += "; a key rotation is due and an admin's daemon will append it"
+        msg += "; a key rotation is due: the sequencer appends it (after 1 h it takes one from any key holder)"
     _print(args, out, msg)
+    return 0
+
+
+def do_takeover(c: Client, args: Any) -> int:
+    """The owner's takeover when the sequencer is lost, compromised or equivocated: the fleet root
+    (the recovery phrase on stdin, or the sealed root's passphrase) makes this device sequence a
+    new term after `--after` (default: this device's last held entry, so nothing it holds is
+    dropped). Entries of older terms after that point are dropped everywhere. While halted below
+    its last held entry, `--after` is required: the halt's seq - 1 drops both branches and every
+    replica can take it; the last held entry keeps this branch, and replicas on the other one stay
+    halted until a takeover at or below the halt's seq - 1 reaches them."""
+    (link,) = _need(args, 1, "takeover <link> --phrase-stdin [--after SEQ]")[:1]
+    phrase, passphrase = _read_phrase(args), _passphrase(args)
+    if not phrase and not passphrase:
+        raise UsageError("a takeover needs the fleet root: --phrase-stdin, or --passphrase-env VAR for root.json")
+    out = c.call("link.takeover", link=link, phrase=phrase, passphrase=passphrase, after=getattr(args, "after", None))
+    _print(
+        args,
+        out,
+        f"this device now sequences {link}: term {out['term']} starts at seq {out['seq']} ({out['entry'][:16]}); "
+        "every replica drops what the old sequencer appended after it",
+    )
     return 0
 
 
@@ -552,6 +630,8 @@ HANDLERS = {
     "revoke-invite": lambda c, a: _membership(c, a, "link.revoke_invite", "revoke-invite <link> <invite>", ("invite",)),
     "set-role": lambda c, a: _membership(c, a, "link.set_role", "set-role <link> <member> <role>", ("member", "role")),
     "leave": lambda c, a: _membership(c, a, "link.leave", "leave <link>", ()),
+    "handoff": lambda c, a: _membership(c, a, "link.handoff", "handoff <link> <device>", ("device",)),
+    "takeover": do_takeover,
     "inbox": do_inbox,
     "show": do_show,
     "promote": do_promote,
@@ -592,7 +672,12 @@ def main(args: Any) -> int:
                 out = c.call(
                     "link.add_device", link=rest[0], cert=json.loads(Path(rest[1]).read_text(encoding="utf-8"))
                 )
-                _print(args, out, f"device added ({out['entry'][:16]}); it now holds the read key")
+                text = (
+                    f"device added ({out['entry'][:16]}); it now holds the read key"
+                    if out.get("entry")
+                    else _done(out, "device added")
+                )
+                _print(args, out, text)
                 return 0
             return HANDLERS[action](c, args)
     except LinkdMissing:

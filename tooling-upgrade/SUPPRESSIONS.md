@@ -17,9 +17,9 @@
 | agent_cli.py | 2678 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 2747 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 3560 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12167 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12383 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12408 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12179 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12395 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12420 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 517 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 517 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
@@ -247,6 +247,7 @@
 | research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 106 | `noqa: SIM115` | held for the daemon's lifetime |
 | research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 124 | `noqa: BLE001` | not up yet |
 | research/in-flight/link-phase0-transport-2026-10-10/three_networks_docker.py | 205 | `noqa: BLE001` | still fetching |
+| research/in-flight/link-phase0-transport-2026-10-10/two_machines.py | 40 | `noqa: SIM115` | held for the daemon's lifetime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py | 399 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: client is None when Sentinel is down; the except below logs it and returns None |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 33 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 64 | `pyright: ignore[reportPossiblyUnboundVariable]` | attribute annotation, never evaluated at runtime |
@@ -709,8 +710,8 @@
 | tests/test_link_daemon_e2e.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
-| tests/test_link_python_units.py | 33 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_python_units.py | 34 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_python_units.py | 35 | `noqa: E402` | sys.path bootstrap |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_narrative_health.py | 63 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double |
 | tests/test_newborn_gauntlet.py | 200 | `ty: ignore[invalid-assignment]` | monkeypatch with a test double; never touch the real bus -- we test the ACL verdict only |

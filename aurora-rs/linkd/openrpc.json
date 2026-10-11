@@ -119,7 +119,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Renew the device certificate (needs the phrase, or the passphrase for root.age) and announce it in every link.",
+      "summary": "Renew the device certificate (needs the phrase, or the passphrase for the sealed root.json) and announce it in every link.",
       "x-network": false
     },
     {
@@ -208,7 +208,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Members, devices, heads, receipts, invites and alarms of one link.",
+      "summary": "Members, devices, heads, receipts, invites and alarms of one link; the ACL chain tip, its sequencer (term, a pending handoff), an equivocation if one halted the chain, and this device's queued or refused proposals.",
       "x-network": false
     },
     {
@@ -255,7 +255,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Publish an invite and return its code. The code also carries the bundle-free dial hints.",
+      "summary": "Publish an invite and return its code. The code also carries the bundle-free dial hints. `invite` is the id of the action that issued it (joins and revocations name it), `invite_key` its public key. On a device that does not sequence the link the invite is a proposal (`queued`): the code works once the sequencer includes it.",
       "x-network": false
     },
     {
@@ -288,7 +288,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Join with an invite code. With `acl` (the inviter's log from a bundle) it works offline and returns our join entry as a bundle; without, it dials the inviter.",
+      "summary": "Join with an invite code. With `acl` (the inviter's chain from a bundle) it works offline and returns our join proposal in a bundle for the inviter to import; without, it dials the inviter. The result names the link, both fleet fingerprints, `inviter_root` (the fleet that published the invite), `owner_root`, the safety number, `fingerprint_matches_code`, `pending`, `has_key`, and `queued` when the join waits for the link's sequencer.",
       "x-network": false
     },
     {
@@ -314,7 +314,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Admit a pending join (wraps the read key to it).",
+      "summary": "Admit a pending join (wraps the read key to it). Appended on the sequencer; elsewhere a proposal (`proposal`, `queued`).",
       "x-network": false
     },
     {
@@ -399,7 +399,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Remove a fleet and rotate the read key.",
+      "summary": "Remove a fleet and rotate the read key. Appended on the sequencer; elsewhere a proposal for it to include.",
       "x-network": false
     },
     {
@@ -418,7 +418,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Leave a link (an admin's daemon then rotates the key).",
+      "summary": "Leave a link (a proposal; the sequencer then rotates the key, or any device holding the key after the grace).",
       "x-network": false
     },
     {
@@ -489,7 +489,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Start a new read-key epoch.",
+      "summary": "Start a new read-key epoch. An admin that cannot read the key in force (junk wrapped to it by a rogue key holder) re-keys from the last epoch it can read.",
       "x-network": false
     },
     {
@@ -515,7 +515,73 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "Kill an unused invite.",
+      "summary": "Kill an unused invite, named by the hash of the entry that issued it (`invite` in `link.invite` and `link.status`).",
+      "x-network": false
+    },
+    {
+      "name": "link.handoff",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "device",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "Hand the link's sequencer to another active owner or admin device (by the current sequencer, or proposed by an owner device). Its next entry starts the next term.",
+      "x-network": false
+    },
+    {
+      "name": "link.takeover",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "name": "link",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "phrase",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "passphrase",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "after",
+          "required": false,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {}
+      },
+      "summary": "The owner's takeover when the sequencer is lost or compromised: the fleet root (the phrase, or the passphrase for root.json) makes this device the sequencer of a new term after entry `after` (default: this replica's last held entry, so nothing it holds is dropped). Later entries of older terms are dropped on every replica; an equivocation halt ends. While halted below its last held entry, `after` is required: the halt's seq - 1 drops both branches and every replica can take it; the last held entry keeps this replica's branch, and replicas holding the other branch stay halted until a takeover at or below the halt's seq - 1 reaches them.",
       "x-network": false
     },
     {
@@ -746,7 +812,7 @@
         "name": "result",
         "schema": {}
       },
-      "summary": "The whole log and records of a link, for sneakernet.",
+      "summary": "The whole log and the records of a link, for sneakernet.",
       "x-network": false
     },
     {
