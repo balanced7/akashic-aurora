@@ -27,7 +27,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 
-use anyhow::{Context, bail};
+use anyhow::Context;
 use aurora_link::acl::{self, Policy, Role};
 use aurora_link::codec::{self, hex, now};
 use aurora_link::crypto;
@@ -147,7 +147,7 @@ pub fn private_dir(dir: &Path) -> anyhow::Result<()> {
         }
         let meta = std::fs::symlink_metadata(dir)?;
         if !meta.is_dir() || meta.uid() != user_tag().parse::<u32>().unwrap_or(u32::MAX) {
-            bail!(
+            anyhow::bail!(
                 "{} is not a folder of this user; refusing to keep secrets there",
                 dir.display()
             );
@@ -255,7 +255,7 @@ pub fn private_socket_dir(socket: &Path) -> anyhow::Result<()> {
     }
     let meta = std::fs::symlink_metadata(dir)?;
     if !meta.is_dir() || meta.uid() != mine || meta.permissions().mode() & 0o077 != 0 {
-        bail!(
+        anyhow::bail!(
             "{} is not a private folder of this user; refusing to serve RPC there",
             dir.display()
         );
