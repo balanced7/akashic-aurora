@@ -5,7 +5,7 @@ use std::sync::{Mutex, OnceLock};
 
 use aurora_link::engine::Link;
 use aurora_link::identity::{Device, new_phrase, root_from_phrase};
-use aurora_link::sync::{self, Session};
+use aurora_link::sync::{self, JoinDoor, Session};
 use libfuzzer_sys::fuzz_target;
 
 fn fixture() -> &'static Mutex<(Link, Device)> {
@@ -31,8 +31,9 @@ fuzz_target!(|data: &[u8]| {
     let (link, dev) = &mut *guard;
     let me = dev.id_hex();
     let mut s = Session::new();
+    let mut door = JoinDoor::new();
     for f in frames {
         let _ = s.on_frame(link, dev, &me, f.clone(), aurora_link::codec::now());
-        let _ = sync::serve_join(link, dev, &me, f, aurora_link::codec::now());
+        let _ = door.on_frame(link, dev, &me, f, aurora_link::codec::now());
     }
 });

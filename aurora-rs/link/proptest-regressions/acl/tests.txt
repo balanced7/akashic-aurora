@@ -5,3 +5,9 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc f346b1ced96338b9bfd580fddef9e3cc856022bc81001b6f6166b6d9dba7b90c # shrinks to plans = [[Invite(0)], [Invite(0)], [Invite(0)]], order = [0, 1, 2]
+cc 6e2e3be5c298f2ecfb80213c8719bf070d9fd2135ddbb2151dbf5d5243b3f6d8 # shrinks to plans = [[Invite(0), Demote(0)], [Rotate, Promote(1)], [Remove(0), Rotate]], order = [2, 1, 0]
+cc afaf4ad16e91a3625d0b9e83d878b84eae9b93675349b290912b5f284a5a1616 # shrinks to plans = [[Promote(1), Demote(1)], [Rotate, Remove(1), Invite(1)], [Rotate]], order = [0, 2, 1]
+cc ecbc2c10fd5ba8eaa9d23bb70a17791de33dbb8409e12008663cb3d1c55c8e04 # shrinks to steps = [(0, Own { member: 1, dev: 1 }), (2, Admin { admin: 2, target: 1, device: Some(1) }), (1, Admin { admin: 1, target: 2, device: Some(0) })]
+cc d54fadad26ddab0c0b2f0e5d4240487a786b91320d8295305b039a91d4737b3c # shrinks to steps = [(1, 18), (0, 23), (0, 6), (0, 35)], at = Index(0), how = 0
+cc cea74170052765f722239d8a357b6eb559a153397a8cd5daf57f528a3b341471 # shrinks to steps = [(0, 13), (2, 4)], evidence = [(Index(5675921253449092805), 0, 0), (Index(0), 0, 0)], proposals = [], as_sequencer = false
+cc 378c11505e4430fb73fcc2dd06d381501bb07e87cc8e59f150fe9f6887c1c3f5 # shrinks to steps = [(0, 0)], evidence = [], proposals = [(6, 0), (6, 0), (6, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (6, 0), (0, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (0, 0), (0, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (0, 0), (0, 0), (6, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (6, 0), (6, 0), (6, 0), (6, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (0, 0), (6, 0), (6, 0), (6, 0), (6, 0), (6, 0), (6, 0)], as_sequencer = false

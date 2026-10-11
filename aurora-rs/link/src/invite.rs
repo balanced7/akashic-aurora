@@ -8,8 +8,10 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::{Deserialize, Serialize};
 
+use crate::acl::{AclState, InviteTicket};
 use crate::codec::{self, unhex};
 use crate::error::{Result, refused};
+use crate::identity::fleet_fingerprint;
 
 pub const PREFIX: &str = "aurora-invite1:";
 const MAX_CODE: usize = 4096;
@@ -22,6 +24,9 @@ pub struct InviteCode {
     pub name: String,
     /// The 32-byte invite secret, hex.
     pub secret: String,
+    /// The hash of the ACL entry that issued the invite: the join names it, so another admin
+    /// publishing the same key cannot take the join over.
+    pub invite: String,
     /// The inviter's device id (its iroh node id).
     pub node: String,
     /// Relay URL the inviter is reachable through, if any.
@@ -56,6 +61,7 @@ impl InviteCode {
         }
         unhex::<32>(&c.link)?;
         unhex::<32>(&c.secret)?;
+        unhex::<32>(&c.invite)?;
         unhex::<32>(&c.node)?;
         if c.fingerprint.len() != 30 || !c.fingerprint.bytes().all(|b| b.is_ascii_digit()) {
             return Err(refused("invite fingerprint must be 30 digits"));
@@ -74,6 +80,51 @@ impl InviteCode {
     pub fn secret_bytes(&self) -> Result<[u8; 32]> {
         unhex::<32>(&self.secret)
     }
+
+    /// The invite key's public half, as the issuing entry names it.
+    pub fn invite_key(&self) -> Result<String> {
+        Ok(self.ticket()?.key())
+    }
+
+    /// The secret and the issuing entry, as a join needs them.
+    pub fn ticket(&self) -> Result<InviteTicket> {
+        Ok(InviteTicket {
+            secret: self.secret_bytes()?,
+            entry: self.invite.clone(),
+        })
+    }
+
+    /// The root of the fleet that published this code's invite in `state`, if it did: the
+    /// entry the code names issued an invite under this code's key.
+    pub fn inviter(&self, state: &AclState) -> Result<String> {
+        let inv = state
+            .invites
+            .get(&self.invite)
+            .ok_or_else(|| refused("the inviter's log holds no invite for this code"))?;
+        if inv.key != self.invite_key()? {
+            return Err(refused("the invite the code names was issued under another key"));
+        }
+        Ok(inv.by.clone())
+    }
+
+    /// Check an inviter's log against this code before joining it: the log is the link the code
+    /// names (its genesis hashes to `link`), it holds this code's invite, and the fleet that
+    /// published the invite (not necessarily the owner) has the fingerprint the code carries.
+    /// Returns that fleet's root.
+    pub fn check_log(&self, state: &AclState) -> Result<String> {
+        if state.link_id != self.link {
+            return Err(refused(
+                "the inviter's log is another link than the code names; not joining",
+            ));
+        }
+        let by = self.inviter(state)?;
+        if fleet_fingerprint(&unhex::<32>(&by)?) != self.fingerprint {
+            return Err(refused(
+                "the invite was published by a fleet whose fingerprint is not the one in the code; not joining",
+            ));
+        }
+        Ok(by)
+    }
 }
 
 #[cfg(test)]
@@ -87,6 +138,7 @@ mod tests {
             link: "11".repeat(32),
             name: "partners".into(),
             secret: "22".repeat(32),
+            invite: "44".repeat(32),
             node: "33".repeat(32),
             relay: Some("https://relay.example".into()),
             addrs: vec!["100.64.0.7:7777".into()],

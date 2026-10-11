@@ -1,8 +1,14 @@
 //! Records: the signed, sealed, hash-chained unit of a device's feed.
 //!
-//! The header is readable by anyone who stores the record (a mailbox, a relaying member) and
-//! says nothing about content. The body is sealed with the link's read key for `epoch`, using
-//! the canonical header as additional data, and padded to a bucket.
+//! The header is readable by anyone who stores the record (a mailbox, a relaying member). It
+//! carries no content, but it is not silent: it shows the link, the author device, its seq and
+//! signed write time, the ACL chain position and epoch, the deps, the body's padding bucket, and the ids
+//! and padded sizes of attached blobs. The body is sealed with the link's read key for `epoch`,
+//! using the canonical header as additional data, and padded to a bucket.
+//!
+//! Blobs are padded too, to a power of two of at least 4 KiB (`blob_ct_len`), so a blob's size
+//! on the wire and in the header says only which bucket it fell in. Each `BlobRef` carries
+//! `key_hash`, a commitment to its key, so a blob opens to one plaintext only.
 //!
 //! The signature covers the canonical header, which includes `ct_hash`, the SHA-256 of the
 //! ciphertext. That is the RFC's `canonical(header) || ct` with the ciphertext hashed first, and
@@ -16,16 +22,49 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::acl::BRIDGE_KINDS;
+use crate::acl::{AclPos, BRIDGE_KINDS};
 use crate::codec::{self, b64, hex, unb64, unhex};
-use crate::crypto::{self, PAD_BUCKETS};
+use crate::crypto::{self, CONTEXT, PAD_BUCKETS};
 use crate::error::{Result, refused};
 use crate::identity::{Device, MAX_LABEL};
 
 pub const ACK_KIND: &str = "ack";
 pub const MAX_DEPS: usize = 16;
+/// 2: a record names one ACL chain position (`acl`), not a set of DAG heads.
+pub const RECORD_VERSION: u32 = 2;
 pub const MAX_BLOBS: usize = 16;
 pub const MAX_ADDRESS: usize = 128;
+
+/// Largest attachment, in plaintext bytes. A larger `BlobRef` is refused at write and at read.
+pub const MAX_BLOB_BYTES: u64 = 64 << 20;
+/// Smallest blob padding bucket: every blob is padded to a power of two of at least this.
+pub const MIN_BLOB_BUCKET: u64 = 4096;
+/// AEAD overhead on a blob: nonce and tag.
+pub const BLOB_OVERHEAD: u64 = (crypto::NONCE_LEN + crypto::TAG_LEN) as u64;
+/// Largest blob ciphertext anyone fetches or serves for a record.
+pub const MAX_BLOB_CT_BYTES: u64 = blob_ct_len(MAX_BLOB_BYTES);
+
+/// The ciphertext length of a blob of `plain` bytes: padded to its bucket, plus the AEAD overhead.
+pub const fn blob_ct_len(plain: u64) -> u64 {
+    let b = if plain < MIN_BLOB_BUCKET {
+        MIN_BLOB_BUCKET
+    } else {
+        plain
+    };
+    b.next_power_of_two() + BLOB_OVERHEAD
+}
+
+/// Whether `n` is a ciphertext length `blob_ct_len` can produce, within the cap.
+pub fn is_blob_ct_len(n: u64) -> bool {
+    n <= MAX_BLOB_CT_BYTES
+        && n.checked_sub(BLOB_OVERHEAD)
+            .is_some_and(|b| b >= MIN_BLOB_BUCKET && b.is_power_of_two())
+}
+
+/// The commitment to a blob key that travels in its `BlobRef`.
+pub fn blob_key_hash(key: &[u8]) -> String {
+    hex(&crypto::sha256(&[CONTEXT, b"blob-key\0", key]))
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -34,12 +73,19 @@ pub struct Record {
     pub link: String,
     pub author: String,
     pub seq: u64,
+    /// When the author wrote it (its clock, signed). Retention and certificate validity are
+    /// judged by this, bounded by our own clock: never more than the allowed skew ahead.
+    pub ts: u64,
     pub prev: String,
     pub deps: Vec<String>,
     /// Ids of the blobs the body references: signed and in the clear, so a mailbox that cannot
-    /// open the body still knows which blobs travel with the record (and nothing else about them).
+    /// open the body still knows which blobs travel with the record.
     pub blobs: Vec<String>,
-    pub acl: String,
+    /// The padded ciphertext length of each blob in `blobs` (`blob_ct_len`), so a mailbox can cap
+    /// what it fetches and a fetcher knows the exact size to expect.
+    pub blob_sizes: Vec<u64>,
+    /// The ACL chain position the writer stood on; `epoch` must be the epoch in force there.
+    pub acl: AclPos,
     pub epoch: u64,
     pub size_class: u64,
     pub ct_hash: String,
@@ -55,6 +101,8 @@ pub struct BlobRef {
     /// BLAKE3 of the blob's ciphertext: the hash iroh-blobs fetches and verifies by.
     pub id: String,
     pub key: String,
+    /// `blob_key_hash(key)`: commits the reference to its key.
+    pub key_hash: String,
     pub name: String,
     pub bytes: u64,
 }
@@ -114,8 +162,15 @@ impl Body {
         }
         for b in &self.blobs {
             unhex::<32>(&b.id)?;
-            if unb64(&b.key)?.len() != 32 || b.name.chars().count() > 255 || b.name.chars().any(char::is_control) {
+            let key = unb64(&b.key)?;
+            if key.len() != 32 || b.name.chars().count() > 255 || b.name.chars().any(char::is_control) {
                 return Err(refused("blob reference is malformed"));
+            }
+            if b.key_hash != blob_key_hash(&key) {
+                return Err(refused("blob key does not match its commitment"));
+            }
+            if b.bytes > MAX_BLOB_BYTES {
+                return Err(refused(format!("blob is larger than {MAX_BLOB_BYTES} bytes")));
             }
         }
         for author in self.acks.keys() {
@@ -132,9 +187,11 @@ impl Body {
 pub struct Seal<'a> {
     pub link: &'a str,
     pub seq: u64,
+    /// The write time signed into the header.
+    pub ts: u64,
     pub prev: &'a str,
     pub deps: Vec<String>,
-    pub acl: &'a str,
+    pub acl: &'a AclPos,
     pub epoch: u64,
     pub key: &'a [u8; 32],
 }
@@ -142,8 +199,9 @@ pub struct Seal<'a> {
 impl Record {
     fn header_value(&self) -> serde_json::Value {
         json!({
-            "v": self.v, "link": self.link, "author": self.author, "seq": self.seq, "prev": self.prev,
-            "deps": self.deps, "blobs": self.blobs, "acl": self.acl, "epoch": self.epoch, "size_class": self.size_class,
+            "v": self.v, "link": self.link, "author": self.author, "seq": self.seq, "ts": self.ts,
+            "prev": self.prev, "deps": self.deps, "blobs": self.blobs, "blob_sizes": self.blob_sizes,
+            "acl": {"term": self.acl.term, "seq": self.acl.seq, "hash": self.acl.hash}, "epoch": self.epoch, "size_class": self.size_class,
             "ct_hash": self.ct_hash,
         })
     }
@@ -174,14 +232,16 @@ impl Record {
         let plain = codec::canonical(body)?;
         let (padded, bucket) = crypto::pad(&plain)?;
         let mut r = Record {
-            v: 1,
+            v: RECORD_VERSION,
             link: s.link.to_owned(),
             author: device.id_hex(),
             seq: s.seq,
+            ts: s.ts,
             prev: s.prev.to_owned(),
             deps: s.deps,
             blobs: body.blobs.iter().map(|b| b.id.clone()).collect(),
-            acl: s.acl.to_owned(),
+            blob_sizes: body.blobs.iter().map(|b| blob_ct_len(b.bytes)).collect(),
+            acl: s.acl.clone(),
             epoch: s.epoch,
             size_class: bucket as u64,
             ct_hash: String::new(),
@@ -198,13 +258,23 @@ impl Record {
 
     /// Everything that can be checked without a read key or the ACL: shape, sizes, the hash of
     /// the ciphertext and the author's signature. Returns the record id.
+    /// What sending this record costs, in bytes, as the sync budgets count it: its ciphertext and
+    /// a fixed allowance for the header.
+    pub fn frame_cost(&self) -> usize {
+        self.ct.as_ref().map_or(0, String::len) + 1024
+    }
+
     pub fn verify(&self) -> Result<String> {
-        if self.v != 1 {
+        if self.v != RECORD_VERSION {
             return Err(refused("unknown record version"));
         }
         unhex::<32>(&self.link)?;
         let author = unhex::<32>(&self.author)?;
-        unhex::<32>(&self.acl)?;
+        unhex::<32>(&self.acl.hash)?;
+        if self.acl.term == 0 || self.acl.term > crate::codec::MAX_SAFE_INT || self.acl.seq > crate::codec::MAX_SAFE_INT
+        {
+            return Err(refused("a record's ACL position is out of range"));
+        }
         unhex::<32>(&self.ct_hash)?;
         if self.seq == 0 || (self.seq == 1) != self.prev.is_empty() {
             return Err(refused("seq starts at 1, and only seq 1 has no prev"));
@@ -220,6 +290,9 @@ impl Record {
         }
         for b in &self.blobs {
             unhex::<32>(b)?;
+        }
+        if self.blob_sizes.len() != self.blobs.len() || !self.blob_sizes.iter().all(|n| is_blob_ct_len(*n)) {
+            return Err(refused("blob sizes do not match the blobs, or are not padding buckets"));
         }
         for d in &self.deps {
             unhex::<32>(d)?;
@@ -247,7 +320,13 @@ impl Record {
         let padded = crypto::open(key, &ct, &self.aad()?)?;
         let body: Body = codec::parse(&crypto::unpad(&padded)?, "record body")?;
         body.check(kinds)?;
-        if body.blobs.iter().map(|b| &b.id).ne(self.blobs.iter()) {
+        if body.blobs.iter().map(|b| &b.id).ne(self.blobs.iter())
+            || body
+                .blobs
+                .iter()
+                .map(|b| blob_ct_len(b.bytes))
+                .ne(self.blob_sizes.iter().copied())
+        {
             return Err(refused("body blobs do not match the signed header"));
         }
         Ok(body)
@@ -264,31 +343,43 @@ impl Record {
 
 // ------------------------------------------------------------------------------------------ blobs
 
-/// Encrypt one attachment under its own random key. Returns (reference, ciphertext).
+/// Encrypt one attachment under its own random key, zero-padded to its bucket. Returns
+/// (reference, ciphertext). An attachment over `MAX_BLOB_BYTES` still seals, but the record that
+/// names it is refused at write.
 pub fn seal_blob(name: &str, plain: &[u8]) -> (BlobRef, Vec<u8>) {
     let key = crypto::random32();
-    let ct = crypto::seal(&key, plain, b"aurora-link/v1/blob");
+    let mut padded = plain.to_vec();
+    padded.resize((blob_ct_len(plain.len() as u64) - BLOB_OVERHEAD) as usize, 0);
+    let ct = crypto::seal(&key, &padded, b"aurora-link/v1/blob");
     let r = BlobRef {
         id: hex(&crypto::blake3(&ct)),
         key: b64(&key),
+        key_hash: blob_key_hash(&key),
         name: name.to_owned(),
         bytes: plain.len() as u64,
     };
     (r, ct)
 }
 
-/// Verify a blob's ciphertext against its id, then open it.
+/// Verify a blob's ciphertext against its id, size and key commitment, then open and unpad it.
 pub fn open_blob(r: &BlobRef, ct: &[u8]) -> Result<Vec<u8>> {
     if hex(&crypto::blake3(ct)) != r.id {
         return Err(refused("blob does not match its content address"));
     }
+    if r.bytes > MAX_BLOB_BYTES || ct.len() as u64 != blob_ct_len(r.bytes) {
+        return Err(refused("blob length does not match its reference"));
+    }
     let key: [u8; 32] = unb64(&r.key)?
         .try_into()
         .map_err(|_| refused("blob key has the wrong length"))?;
-    let plain = crypto::open(&key, ct, b"aurora-link/v1/blob")?;
-    if plain.len() as u64 != r.bytes {
-        return Err(refused("blob length does not match its reference"));
+    if r.key_hash != blob_key_hash(&key) {
+        return Err(refused("blob key does not match its commitment"));
     }
+    let mut plain = crypto::open(&key, ct, b"aurora-link/v1/blob")?;
+    if plain[r.bytes as usize..].iter().any(|b| *b != 0) {
+        return Err(refused("blob padding is not zero"));
+    }
+    plain.truncate(r.bytes as usize);
     Ok(plain)
 }
 
@@ -365,12 +456,17 @@ mod tests {
 
     fn write(d: &Device, key: &[u8; 32], b: &Body) -> Result<Record> {
         let link = "11".repeat(32);
-        let acl = "22".repeat(32);
+        let acl = AclPos {
+            term: 1,
+            seq: 0,
+            hash: "22".repeat(32),
+        };
         Record::seal(
             d,
             Seal {
                 link: &link,
                 seq: 1,
+                ts: 5,
                 prev: "",
                 deps: vec![],
                 acl: &acl,
@@ -479,6 +575,69 @@ mod tests {
         let mut bad = ct.clone();
         bad[30] ^= 1;
         assert!(open_blob(&r, &bad).is_err());
+    }
+
+    #[test]
+    fn blobs_are_padded_to_buckets() {
+        for (n, want) in [(0, 4096), (5, 4096), (4096, 4096), (4097, 8192), (100_000, 131_072)] {
+            let plain = vec![9u8; n];
+            let (r, ct) = seal_blob("f", &plain);
+            assert_eq!(ct.len() as u64, want + BLOB_OVERHEAD, "{n}");
+            assert_eq!(ct.len() as u64, blob_ct_len(n as u64));
+            assert!(is_blob_ct_len(ct.len() as u64));
+            assert_eq!(open_blob(&r, &ct).unwrap(), plain);
+        }
+        assert!(!is_blob_ct_len(5000) && !is_blob_ct_len(MAX_BLOB_CT_BYTES * 2 - BLOB_OVERHEAD));
+        // A reference that understates its size does not open.
+        let (mut r, ct) = seal_blob("f", b"abc");
+        r.bytes = 2;
+        assert!(open_blob(&r, &ct).is_err());
+    }
+
+    #[test]
+    fn blob_references_commit_to_their_key() {
+        let (r, ct) = seal_blob("f", b"abc");
+        assert_eq!(r.key_hash, blob_key_hash(&unb64(&r.key).unwrap()));
+        let mut other = r.clone();
+        other.key_hash = blob_key_hash(&crypto::random32());
+        assert!(open_blob(&other, &ct).is_err());
+        let d = device();
+        let key = crypto::random32();
+        let mut b = body("note");
+        b.blobs.push(other);
+        assert!(
+            write(&d, &key, &b).is_err(),
+            "a body naming an uncommitted key is refused"
+        );
+        b.blobs[0] = r.clone();
+        let rec = write(&d, &key, &b).unwrap();
+        assert_eq!(rec.blob_sizes, vec![blob_ct_len(3)]);
+        assert_eq!(rec.open(&key, &kinds()).unwrap().blobs, vec![r.clone()]);
+        // Oversized references are refused at write.
+        let mut big = r;
+        big.bytes = MAX_BLOB_BYTES + 1;
+        b.blobs[0] = big;
+        assert!(write(&d, &key, &b).is_err());
+    }
+
+    #[test]
+    fn blob_sizes_are_signed_and_bucketed() {
+        let d = device();
+        let key = crypto::random32();
+        let (br, _) = seal_blob("f", b"abc");
+        let mut b = body("note");
+        b.blobs.push(br);
+        let r = write(&d, &key, &b).unwrap();
+        r.verify().unwrap();
+        let mut x = r.clone();
+        x.blob_sizes = vec![5000];
+        assert!(x.verify().is_err());
+        let mut x = r.clone();
+        x.blob_sizes = vec![];
+        assert!(x.verify().is_err());
+        let mut x = r.clone();
+        x.ts += 1;
+        assert!(x.verify().is_err(), "the write time is signed");
     }
 
     #[test]

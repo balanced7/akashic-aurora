@@ -10396,8 +10396,20 @@ def build_parser():
     lk.add_argument("--kinds", default=None, help="create: comma-separated kinds the link carries")
     lk.add_argument("--retention-days", type=int, default=None, help="create: drop bodies after N days (default 90)")
     lk.add_argument("--limit", type=int, default=None, help="inbox: how many records")
-    lk.add_argument("--phrase-stdin", action="store_true", help="init/renew: read the recovery phrase from stdin")
-    lk.add_argument("--passphrase-env", default=None, help="init/renew: env var holding the root's passphrase")
+    lk.add_argument(
+        "--phrase-stdin", action="store_true", help="init/renew/takeover: read the recovery phrase from stdin"
+    )
+    lk.add_argument("--passphrase-env", default=None, help="init/renew/takeover: env var holding the root's passphrase")
+    lk.add_argument(
+        "--after",
+        type=int,
+        default=None,
+        help=(
+            "takeover: continue after this ACL seq (default: this device's last held entry, nothing it holds is "
+            "dropped; required while halted below it: the halt's seq - 1 drops both branches and every replica "
+            "takes it, the last held entry keeps this branch and the other side stays halted)"
+        ),
+    )
     lk.add_argument("--no-xwing", action="store_true", help="init: no post-quantum X-Wing key on this device")
     lk.add_argument("--addr", action="append", default=None, help="peer: a direct ip:port hint (repeatable)")
     lk.add_argument("--relay-url", default=None, help="serve/peer: a relay URL (a self-hosted iroh-relay)")

@@ -17,9 +17,9 @@
 | agent_cli.py | 2880 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 2949 | `noqa: PLC0415, RUF100` | lazy: as every agent_cli verb |
 | agent_cli.py | 3762 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
-| agent_cli.py | 12559 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| agent_cli.py | 12775 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| agent_cli.py | 12800 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12571 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| agent_cli.py | 12787 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| agent_cli.py | 12812 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | ai_setup_mcp.py | 174 | `ty: ignore[invalid-assignment]` | deliberate process-wide monkeypatch with a subclass |
 | ai_setup_mcp.py | 518 | `noqa: RUF013` | MCP tool input schema (O4c) must stay byte-identical |
 | ai_setup_mcp.py | 518 | `ty: ignore[invalid-parameter-default]` | MCP tool input schema (O4c) must stay byte-identical |
@@ -734,8 +734,8 @@
 | tests/test_link_daemon_e2e.py | 23 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_daemon_e2e.py | 48 | `noqa: SIM115` | kept for the daemon's lifetime |
-| tests/test_link_python_units.py | 33 | `noqa: E402` | sys.path bootstrap |
 | tests/test_link_python_units.py | 34 | `noqa: E402` | sys.path bootstrap |
+| tests/test_link_python_units.py | 35 | `noqa: E402` | sys.path bootstrap |
 | tests/test_liveness_bare_id_finds_its_incarnation.py | 39 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_compress.py | 29 | `noqa: E402` | sys.path bootstrap |
 | tests/test_metaharness_corpus.py | 28 | `noqa: E402` | sys.path bootstrap |

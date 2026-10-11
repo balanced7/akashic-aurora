@@ -317,6 +317,57 @@ def _try_blob(f: Fleet, link: str, rid: str, out: Path, name: str = "playbook.md
         return False
 
 
+def test_proposals_reach_the_sequencer_then_a_handoff_and_a_root_takeover_move_it(fleets):
+    """Review round 5: the ACL is a chain one sequencer orders. B, an admin that does not sequence,
+    invites C: a proposal that reaches A over sync. C joins through B, which hands the join on to A.
+    A hands the sequencer to B, whose next entry starts term 2, and A's own change becomes a
+    proposal B includes. Then A's owner takes it back with the recovery phrase: term 3."""
+    a, b, c = fleets("a").up(), fleets("b").up(), fleets("c").up()
+    first = a.call("identity.init", label="a")
+    b.call("identity.init", label="b")
+    c.call("identity.init", label="c")
+    for f in (a, b, c):
+        f.wait_net()
+    link = a.call("link.create", name="p")["link"]
+    b.call("link.join", code=a.call("link.invite", link="p", role="admin")["code"], label="b")
+    introduce(a, b)
+
+    def invites(f: Fleet) -> set:
+        return {i["invite"] for i in f.call("link.status", link=link)["invites"]}
+
+    inv = b.call("link.invite", link=link, role="writer")
+    assert inv["queued"], "B does not sequence the link: its invite is a proposal"
+    wait_for(lambda: inv["invite"] in invites(a), what="A to include B's invite")
+    wait_for(lambda: inv["invite"] in invites(b), what="B to see its invite on the chain")
+    joined = c.call("link.join", code=inv["code"], label="c")
+    assert not joined.get("queued"), joined
+    assert joined["fingerprint_matches_code"]
+    introduce(a, b, c)
+    a.call("link.send", link=link, body={"kind": "note", "seat": "claude", "to": "@c", "content": "hello c"})
+    wait_for(lambda: any(e["body"].get("content") == "hello c" for e in c.events()), what="C to read A's mail")
+    # A hands the sequencer to B.
+    bdev = b.call("identity.status")["device"]
+    a.call("link.handoff", link=link, device=bdev)
+    wait_for(lambda: b.call("link.status", link=link)["sequencer"]["me"], what="B to sequence the link")
+    out = a.call("link.set_role", link=link, member="c", role="reader")
+    assert out["queued"]
+    assert out["sequencer"] == bdev
+    wait_for(
+        lambda: {m["label"]: m["role"] for m in b.call("link.status", link=link)["members"]}.get("c") == "reader",
+        what="B to include A's role change",
+    )
+    assert b.call("link.status", link=link)["sequencer"]["term"] == 2
+    # The owner takes the sequencer back with its root.
+    t = a.call("link.takeover", link=link, phrase=first["phrase"])
+    assert t["term"] == 3
+    adev = a.call("identity.status")["device"]
+    wait_for(
+        lambda: b.call("link.status", link=link)["sequencer"]["device"] == adev,
+        what="B to follow the takeover",
+    )
+    assert a.call("link.status", link=link)["acl_tip"] == b.call("link.status", link=link)["acl_tip"]
+
+
 def test_a_used_invite_is_refused_and_logged(fleets):
     a, b, c = fleets("a").up(), fleets("b").up(), fleets("c").up()
     a.call("identity.init", label="a")

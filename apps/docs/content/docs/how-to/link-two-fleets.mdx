@@ -3,7 +3,7 @@ title: Link two fleets
 description: Join your fleet to a partner's with one invite code, check the safety number, and let their mail in by your own rule.
 ---
 
-A [fleet link](/docs/concepts/bifrost/bridge) joins two or more Aurora installs. You need no open port, no firewall rule and no pasted secret. Links need the `akashic-aurora-linkd` package, which the `aurora` installer adds where a wheel exists for your platform.
+A [fleet link](/docs/concepts/bifrost/bridge) joins two or more Aurora installs. You need no port forwarding, no firewall rule and no pasted secret. Links need the `akashic-aurora-linkd` package, which the `aurora` installer adds where a wheel exists for your platform.
 
 ## 1. Make your fleet's identity
 
@@ -32,6 +32,8 @@ aurora link invite partners --role writer
 
 The invite prints one code and your fleet's fingerprint. The code works once and expires after 24 hours. Send it to your partner over a channel you trust. Add `--approval` if you want to accept the join yourself.
 
+The machine that created the link is its **sequencer**: it puts every membership change in order. On any other admin machine, an invite is a proposal, and so is every other change. It waits until a sync reaches the sequencer. The invite says so. `aurora link status partners` shows the sequencer and anything still waiting for it.
+
 ## 4. Your partner joins
 
 On their machine, with their daemon running:
@@ -40,7 +42,7 @@ On their machine, with their daemon running:
 aurora link join "aurora-invite1:..." --label their-fleet
 ```
 
-Their output shows both fingerprints and the safety number. It warns if the link's owner is not the fleet the code named.
+Their output shows both fingerprints and the safety number. The join stops if the inviter hands back another link than the code names. It also stops if the fleet that made the invite does not have the fingerprint in the code. If the inviter is not the sequencer and cannot reach it, the join waits there: run the same `join` again later.
 
 ## 5. Compare the safety number
 
@@ -77,11 +79,36 @@ aurora link init --label mailbox
 aurora link mailbox
 ```
 
-Invite it with `--role mailbox`. It stores and forwards mail and files, and it cannot read any of them.
+Invite it with `--role mailbox`. It stores and forwards mail and files, and it cannot read any of them. It does see the member list, who wrote each record and when, and a size bucket for each record and file.
 
 ## When something is wrong
 
 Run `aurora doctor` and read its LINKS section. It names alarms, safety numbers you have not compared, joins that wait for you, and a stopped daemon. For one link, run `aurora link status partners` to see each member's devices, last contact and receipts.
+
+Right after a member leaves, or an admin removes one, new mail waits for a new read key. The sequencer adds one at once; if it is offline, it takes one from any device that holds the key after an hour. Then mail flows again.
+
+## Moving or replacing the sequencer
+
+To retire the sequencer machine, hand its job to another owner or admin machine first:
+
+```bash
+aurora link handoff partners <device>
+```
+
+If the sequencer is lost, stolen or broken, membership changes queue and mail keeps flowing. The owner takes it over on another of its machines with the recovery phrase:
+
+```bash
+aurora link takeover partners --phrase-stdin
+```
+
+Every member then drops the entries the old sequencer added after the last one this machine holds. Nothing this machine holds is dropped. Pass `--after <seq>` to go back further, for example past entries a thief added.
+
+`aurora doctor` may report an EQUIVOCATION: the sequencer signed two different entries for one place in the chain. The link then takes no new entries, and nobody writes new mail. Each member keeps the member list it holds. It grants only what both that list and the last entry everyone agrees on grant. A sequencer that has handed its job to another member cannot stop the link this way, and nor can one the owner has removed after it handed on. Its old key signing twice is only an alarm. Members that joined after the last agreed entry keep exchanging the chain with the others, so the takeover reaches them too.
+
+To end the stop, the owner runs the takeover with `--after`, as `aurora doctor` shows:
+
+- `--after` the last agreed entry drops both versions, and every member can take it.
+- `--after` this machine's last entry keeps this machine's version. Members that hold the other version stay stopped until a takeover from the last agreed entry reaches them.
 
 <Callout title="In other agent tools">
 

@@ -13,23 +13,45 @@ use std::path::Path;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::acl::Entry;
+use crate::acl::{Entry, Evidence, EvidenceKey, EvidenceKind, Proposal, ProposalRefusal};
 use crate::error::Result;
 use crate::record::Record;
 
-pub const SCHEMA_VERSION: i64 = 1;
+/// 2: records carry their signed write time (`written_at`), and blobs are listed per record.
+/// 3: ACL entries name a set of parents and an author sequence; records name a set of ACL heads.
+/// 4: a join counts toward no author sequence, and pruned ACL entries leave a stub.
+/// 5: no stubs (review finding R4-2); certificates carry a proof of possession; joins name the
+///    entry that issued their invite.
+/// 6: the ACL is a linear chain ordered by one sequencer (review round 5): entries by seq,
+///    equivocation evidence, proposals, and the chain position each record names.
+/// 7: proposals carry an expiry, and each relayed proposal names its origin (`grp`: the
+///    proposer's root, or the invite a join uses), so no origin fills the relay queue (review
+///    round 6).
+/// 8: equivocation evidence is kept as pairs, one per position and signer, each with what it did
+///    (`halt`, `alarm` or `past`), and at most `acl::MAX_EVIDENCE_PAIRS` of them (review round 7).
+pub const SCHEMA_VERSION: i64 = 8;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS acl_entries(
-  hash TEXT PRIMARY KEY, seq INTEGER NOT NULL, json TEXT NOT NULL, received_at INTEGER NOT NULL);
+  seq INTEGER PRIMARY KEY, hash TEXT NOT NULL, term INTEGER NOT NULL, json TEXT NOT NULL,
+  received_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS acl_evidence(
+  signer TEXT NOT NULL, term INTEGER NOT NULL, seq INTEGER NOT NULL, ours TEXT NOT NULL, theirs TEXT NOT NULL,
+  kind TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY(signer, term, seq));
+CREATE TABLE IF NOT EXISTS proposals(
+  id TEXT PRIMARY KEY, json TEXT NOT NULL, mine INTEGER NOT NULL, status TEXT NOT NULL, why TEXT,
+  refusal TEXT, at INTEGER NOT NULL, grp TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS records(
   id TEXT PRIMARY KEY, author TEXT NOT NULL, seq INTEGER NOT NULL, epoch INTEGER NOT NULL,
   header TEXT NOT NULL, ct TEXT, status TEXT NOT NULL, body TEXT, reason TEXT,
-  received_at INTEGER NOT NULL, cursor INTEGER UNIQUE, UNIQUE(author, seq));
+  received_at INTEGER NOT NULL, written_at INTEGER NOT NULL, cursor INTEGER UNIQUE,
+  acl_seq INTEGER NOT NULL, acl_hash TEXT NOT NULL, UNIQUE(author, seq));
 CREATE TABLE IF NOT EXISTS heads(author TEXT PRIMARY KEY, seq INTEGER NOT NULL, id TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS records_by_author_received ON records(author, received_at);
 CREATE TABLE IF NOT EXISTS blobs(
-  id TEXT PRIMARY KEY, record_id TEXT NOT NULL, name TEXT NOT NULL, bytes INTEGER NOT NULL);
+  id TEXT NOT NULL, record_id TEXT NOT NULL, author TEXT NOT NULL, name TEXT NOT NULL,
+  ct_bytes INTEGER NOT NULL, PRIMARY KEY(id, record_id));
 CREATE TABLE IF NOT EXISTS keys(epoch INTEGER PRIMARY KEY, wrap TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS promotions(
   record_id TEXT PRIMARY KEY, seat TEXT NOT NULL, by TEXT NOT NULL, bus_id TEXT, at INTEGER NOT NULL);
@@ -59,6 +81,21 @@ pub const RECEIPT: &str = "receipt";
 /// A promotion: (seat, promoted by, bus message id, when).
 pub type Promotion = (String, String, Option<String>, u64);
 
+/// A proposal's status, the reason it was refused, and the sequencer's signed refusal.
+pub type ProposalStatus = (String, Option<String>, Option<ProposalRefusal>);
+
+/// A proposal this replica holds: its own, or one it relays toward the sequencer.
+#[derive(Clone, Debug)]
+pub struct StoredProposal {
+    pub id: String,
+    pub proposal: Proposal,
+    pub mine: bool,
+    pub status: String,
+    pub why: Option<String>,
+    pub refusal: Option<ProposalRefusal>,
+    pub at: u64,
+}
+
 pub struct Store {
     pub conn: Connection,
 }
@@ -87,7 +124,14 @@ impl Store {
             "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema', ?1)",
             params![SCHEMA_VERSION.to_string()],
         )?;
-        Ok(Self { conn })
+        let store = Self { conn };
+        if store.meta("schema")?.as_deref() != Some(SCHEMA_VERSION.to_string().as_str()) {
+            return Err(crate::error::LinkError::Unavailable(format!(
+                "{} was written in an older link format; remove it and sync the link again",
+                path.display()
+            )));
+        }
+        Ok(store)
     }
 
     pub fn in_memory() -> Result<Self> {
@@ -112,23 +156,231 @@ impl Store {
     }
 
     // ---- ACL
-    pub fn put_acl(&self, hash: &str, e: &Entry, now: u64) -> Result<()> {
-        let json = serde_json::to_string(e).expect("entries serialise");
-        self.conn.execute(
-            "INSERT OR IGNORE INTO acl_entries(hash, seq, json, received_at) VALUES (?1, ?2, ?3, ?4)",
-            params![hash, e.seq as i64, json, now as i64],
-        )?;
+    /// Rewrite the stored chain from `from` on with `entries` (the chain's entries from `from`).
+    pub fn put_acl_from(&self, from: u64, entries: &[Entry], now: u64) -> Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM acl_entries WHERE seq >= ?1", params![from as i64])?;
+        for e in entries {
+            let json = serde_json::to_string(e).expect("entries serialise");
+            tx.execute(
+                "INSERT INTO acl_entries(seq, hash, term, json, received_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![e.seq as i64, e.hash()?, e.term as i64, json, now as i64],
+            )?;
+        }
+        tx.commit()?;
         Ok(())
     }
 
+    /// The stored chain, genesis first.
     pub fn acl_entries(&self) -> Result<Vec<Entry>> {
-        let mut st = self.conn.prepare("SELECT json FROM acl_entries ORDER BY seq, hash")?;
+        Self::entries_of(&self.conn, "SELECT json FROM acl_entries ORDER BY seq")
+    }
+
+    fn entries_of(conn: &Connection, sql: &str) -> Result<Vec<Entry>> {
+        let mut st = conn.prepare(sql)?;
         let rows = st.query_map([], |r| r.get::<_, String>(0))?;
         let mut out = Vec::new();
         for row in rows {
             out.push(serde_json::from_str(&row?).map_err(|e| crate::error::refused(format!("stored ACL entry: {e}")))?);
         }
         Ok(out)
+    }
+
+    /// Keep an evidence pair, the first one for its position and signer (review finding R7-1),
+    /// within `cap` pairs. At the cap an alarm-only pair is not kept, and a halt's pair replaces
+    /// the oldest pair that is not a halt (the oldest of any other kind first). Returns whether it
+    /// was kept.
+    pub fn put_evidence(&self, ev: &Evidence, now: u64, cap: u32) -> Result<bool> {
+        let (signer, term, seq) = ev.key();
+        let n: i64 = self
+            .conn
+            .query_row("SELECT count(*) FROM acl_evidence", [], |r| r.get(0))?;
+        if n >= i64::from(cap) {
+            if ev.kind != EvidenceKind::Halt {
+                return Ok(false);
+            }
+            self.conn.execute(
+                "DELETE FROM acl_evidence WHERE rowid IN
+                   (SELECT rowid FROM acl_evidence WHERE kind != 'halt'
+                    ORDER BY kind = 'past' DESC, at, seq LIMIT ?1)",
+                params![n - i64::from(cap) + 1],
+            )?;
+        }
+        Ok(self.conn.execute(
+            "INSERT OR IGNORE INTO acl_evidence(signer, term, seq, ours, theirs, kind, at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                signer,
+                term as i64,
+                seq as i64,
+                serde_json::to_string(&ev.ours).expect("entries serialise"),
+                serde_json::to_string(&ev.theirs).expect("entries serialise"),
+                ev.kind.as_str(),
+                now as i64
+            ],
+        )? > 0)
+    }
+
+    /// Only the pair of the current halt (`halt`, as its key) stays a `halt`: one that a lower halt
+    /// or a takeover replaced is `past`, and is not checked again on a restart.
+    pub fn settle_evidence(&self, halt: Option<&EvidenceKey>) -> Result<()> {
+        let (signer, term, seq) = halt.cloned().unwrap_or_default();
+        self.conn.execute(
+            "UPDATE acl_evidence SET kind = 'past'
+             WHERE kind = 'halt' AND NOT (signer = ?1 AND term = ?2 AND seq = ?3)",
+            params![signer, term as i64, seq as i64],
+        )?;
+        Ok(())
+    }
+
+    /// Every evidence pair kept, oldest first. A row that no longer parses is skipped.
+    pub fn evidence(&self) -> Result<Vec<Evidence>> {
+        let mut st = self
+            .conn
+            .prepare("SELECT ours, theirs, kind FROM acl_evidence ORDER BY at, signer, term, seq")?;
+        let rows = st.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (ours, theirs, kind) = row?;
+            if let (Ok(ours), Ok(theirs), Some(kind)) = (
+                serde_json::from_str(&ours),
+                serde_json::from_str(&theirs),
+                EvidenceKind::parse(&kind),
+            ) {
+                out.push(Evidence { ours, theirs, kind });
+            }
+        }
+        Ok(out)
+    }
+
+    // ---- proposals
+    /// Keep a proposal: ours (`mine`), or one we relay toward the sequencer. A known one keeps
+    /// its status.
+    pub fn put_proposal(&self, id: &str, p: &Proposal, mine: bool, now: u64) -> Result<bool> {
+        let grp = match p.parsed() {
+            Ok(crate::acl::Op::Join(j)) => format!("invite:{}", j.invite),
+            _ => p.proposer.root.clone(),
+        };
+        Ok(self.conn.execute(
+            "INSERT OR IGNORE INTO proposals(id, json, mine, status, at, grp) VALUES (?1, ?2, ?3, 'queued', ?4, ?5)",
+            params![
+                id,
+                serde_json::to_string(p).expect("proposals serialise"),
+                mine as i64,
+                now as i64,
+                grp
+            ],
+        )? > 0)
+    }
+
+    /// Mark a proposal `included` or `refused` (with the sequencer's signed refusal).
+    pub fn set_proposal(
+        &self,
+        id: &str,
+        status: &str,
+        why: Option<&str>,
+        refusal: Option<&ProposalRefusal>,
+    ) -> Result<()> {
+        self.conn.execute(
+            "UPDATE proposals SET status = ?2, why = ?3, refusal = ?4 WHERE id = ?1",
+            params![
+                id,
+                status,
+                why,
+                refusal.map(|r| serde_json::to_string(r).expect("refusals serialise"))
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// A proposal row (`id, json, mine, status, why, refusal, at`); `None` when its JSON no longer
+    /// parses (an older format).
+    fn row_to_proposal(r: &rusqlite::Row<'_>) -> rusqlite::Result<Option<StoredProposal>> {
+        let json: String = r.get(1)?;
+        let refusal: Option<String> = r.get(5)?;
+        Ok(serde_json::from_str(&json).ok().map(|proposal| StoredProposal {
+            id: r.get(0).unwrap_or_default(),
+            proposal,
+            mine: r.get::<_, i64>(2).unwrap_or(0) != 0,
+            status: r.get(3).unwrap_or_default(),
+            why: r.get(4).unwrap_or_default(),
+            refusal: refusal.and_then(|x| serde_json::from_str(&x).ok()),
+            at: r.get::<_, i64>(6).unwrap_or(0) as u64,
+        }))
+    }
+
+    /// Proposals with `status`, oldest first.
+    pub fn proposals(&self, status: &str) -> Result<Vec<StoredProposal>> {
+        let mut st = self.conn.prepare(
+            "SELECT id, json, mine, status, why, refusal, at FROM proposals WHERE status = ?1 ORDER BY at, id",
+        )?;
+        let rows = st.query_map(params![status], Self::row_to_proposal)?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.extend(row?);
+        }
+        Ok(out)
+    }
+
+    /// One proposal we hold, whatever its status.
+    pub fn proposal(&self, id: &str) -> Result<Option<StoredProposal>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT id, json, mine, status, why, refusal, at FROM proposals WHERE id = ?1",
+                params![id],
+                Self::row_to_proposal,
+            )
+            .optional()?
+            .flatten())
+    }
+
+    /// One proposal's status and reason, if we hold it.
+    pub fn proposal_status(&self, id: &str) -> Result<Option<ProposalStatus>> {
+        let row: Option<(String, Option<String>, Option<String>)> = self
+            .conn
+            .query_row(
+                "SELECT status, why, refusal FROM proposals WHERE id = ?1",
+                params![id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()?;
+        Ok(row.map(|(s, w, r)| (s, w, r.and_then(|r| serde_json::from_str(&r).ok()))))
+    }
+
+    /// Keep the proposals of others bounded, whatever their status (queued to relay, refused, or
+    /// included): at most `per_origin` per origin (a proposer's root, or the invite a join uses),
+    /// so no origin flushes the others out, and at most `cap` in all, the oldest dropped first.
+    /// Our own are never dropped.
+    pub fn trim_relayed(&self, cap: u32, per_origin: u32) -> Result<()> {
+        self.conn.execute(
+            "DELETE FROM proposals WHERE mine = 0 AND id IN
+               (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY grp ORDER BY at DESC, id) AS n
+                                FROM proposals WHERE mine = 0) WHERE n > ?1)",
+            params![per_origin],
+        )?;
+        self.conn.execute(
+            "DELETE FROM proposals WHERE mine = 0 AND id NOT IN
+               (SELECT id FROM proposals WHERE mine = 0 ORDER BY at DESC, id LIMIT ?1)",
+            params![cap],
+        )?;
+        Ok(())
+    }
+
+    /// Records that name one of `hashes` (chain positions a takeover dropped) are withheld for
+    /// good with `reason`, wherever they were: no longer surfaced, and their body forgotten.
+    pub fn lose_positions(&self, hashes: &[String], reason: &str) -> Result<usize> {
+        let mut n = 0;
+        for h in hashes {
+            n += self.conn.execute(
+                "UPDATE records SET status = ?2, reason = ?3, body = NULL, cursor = NULL
+                 WHERE acl_hash = ?1 AND status != ?2",
+                params![h, WITHHELD, reason],
+            )?;
+        }
+        Ok(n)
     }
 
     // ---- records
@@ -161,6 +413,7 @@ impl Store {
     }
 
     /// Store a verified record and advance its author's head. The caller has checked the chain.
+    /// Its age for retention is its signed write time, never later than when it reached us.
     pub fn put_record(
         &self,
         id: &str,
@@ -181,8 +434,9 @@ impl Store {
         };
         let tx = self.conn.unchecked_transaction()?;
         tx.execute(
-            "INSERT INTO records(id, author, seq, epoch, header, ct, status, body, reason, received_at, cursor)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            "INSERT INTO records(id, author, seq, epoch, header, ct, status, body, reason, received_at, written_at,
+                                 cursor, acl_seq, acl_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 id,
                 r.author,
@@ -194,7 +448,10 @@ impl Store {
                 body,
                 reason,
                 now as i64,
-                cursor
+                r.ts.min(now) as i64,
+                cursor,
+                r.acl.seq as i64,
+                r.acl.hash
             ],
         )?;
         tx.execute(
@@ -228,14 +485,19 @@ impl Store {
         Ok(self.conn.query_row(&sql, params![id], Self::row_to_stored).optional()?)
     }
 
-    /// One author's records with `from < seq <= to`, in order.
-    pub fn range(&self, author: &str, from: u64, to: u64) -> Result<Vec<Record>> {
+    /// One author's records with `from < seq <= to`, in order, at most `limit` of them: only those
+    /// are read (review finding R8-2).
+    pub fn range(&self, author: &str, from: u64, to: u64, limit: usize) -> Result<Vec<Record>> {
         let sql = format!(
-            "SELECT {} FROM records WHERE author = ?1 AND seq > ?2 AND seq <= ?3 ORDER BY seq",
+            "SELECT {} FROM records WHERE author = ?1 AND seq > ?2 AND seq <= ?3 ORDER BY seq LIMIT ?4",
             Self::COLS
         );
         let mut st = self.conn.prepare(&sql)?;
-        let rows = st.query_map(params![author, from as i64, to as i64], Self::row_to_stored)?;
+        let int = |n: u64| i64::try_from(n).unwrap_or(i64::MAX);
+        let rows = st.query_map(
+            params![author, int(from), int(to), int(limit as u64)],
+            Self::row_to_stored,
+        )?;
         Ok(rows
             .map(|r| r.map(|s| s.record))
             .collect::<std::result::Result<_, _>>()?)
@@ -284,10 +546,36 @@ impl Store {
         Ok(n as u64)
     }
 
-    /// Retire bodies older than `before`: drop ciphertext and cached plaintext, keep headers.
+    /// When an author at its hourly quota (`quota` records received since `since`, an hour
+    /// before now) may have one more admitted: an hour after the receipt that must leave the
+    /// window for the count to drop below the quota (review finding R9-1). Reads the
+    /// `records(author, received_at)` index.
+    pub fn quota_frees_at(&self, author: &str, since: u64, quota: u64) -> Result<u64> {
+        if quota == 0 {
+            return Ok(u64::MAX);
+        }
+        let count = self.count_recent(author, since)?;
+        let t: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT received_at FROM records WHERE author = ?1 AND received_at >= ?2 \
+                 ORDER BY received_at LIMIT 1 OFFSET ?3",
+                params![author, since as i64, count.saturating_sub(quota) as i64],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(t.map_or(since, |t| t as u64).saturating_add(3601))
+    }
+
+    /// Retire bodies written before `before`: drop ciphertext, cached plaintext and the record's
+    /// blob listing, keep headers.
     pub fn retire_before(&self, before: u64) -> Result<usize> {
+        self.conn.execute(
+            "DELETE FROM blobs WHERE record_id IN (SELECT id FROM records WHERE written_at < ?1)",
+            params![before as i64],
+        )?;
         Ok(self.conn.execute(
-            "UPDATE records SET ct = NULL, body = NULL WHERE received_at < ?1 AND (ct IS NOT NULL OR body IS NOT NULL)",
+            "UPDATE records SET ct = NULL, body = NULL WHERE written_at < ?1 AND (ct IS NOT NULL OR body IS NOT NULL)",
             params![before as i64],
         )?)
     }
@@ -327,18 +615,44 @@ impl Store {
             .is_some())
     }
 
-    pub fn put_blob(&self, id: &str, record_id: &str, name: &str, bytes: u64) -> Result<()> {
+    /// List blob `id` as travelling with `record_id`; `ct_bytes` is its padded ciphertext length.
+    /// The caller (`Link`) decides whether it may be listed at all.
+    pub fn put_blob(&self, id: &str, record_id: &str, author: &str, name: &str, ct_bytes: u64) -> Result<()> {
         self.conn.execute(
-            "INSERT OR IGNORE INTO blobs(id, record_id, name, bytes) VALUES (?1, ?2, ?3, ?4)",
-            params![id, record_id, name, bytes as i64],
+            "INSERT OR IGNORE INTO blobs(id, record_id, author, name, ct_bytes) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, record_id, author, name, ct_bytes as i64],
         )?;
         Ok(())
     }
 
-    pub fn blob_ids(&self) -> Result<Vec<String>> {
-        let mut st = self.conn.prepare("SELECT id FROM blobs")?;
-        let rows = st.query_map([], |r| r.get(0))?;
+    /// Every blob this link lists, with the ciphertext length its record signed.
+    pub fn wanted_blobs(&self) -> Result<Vec<(String, u64)>> {
+        let mut st = self
+            .conn
+            .prepare("SELECT id, MAX(ct_bytes) FROM blobs GROUP BY id ORDER BY id")?;
+        let rows = st.query_map([], |r| Ok((r.get(0)?, r.get::<_, i64>(1)? as u64)))?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// The listed ciphertext length of `id`, if this link lists it.
+    pub fn blob_listed(&self, id: &str) -> Result<Option<u64>> {
+        Ok(self
+            .conn
+            .query_row("SELECT MAX(ct_bytes) FROM blobs WHERE id = ?1", params![id], |r| {
+                r.get::<_, Option<i64>>(0)
+            })?
+            .map(|n| n as u64))
+    }
+
+    /// Total ciphertext bytes of the blobs listed, each blob once (optionally one author's only).
+    pub fn blob_bytes(&self, author: Option<&str>) -> Result<u64> {
+        let n: i64 = self.conn.query_row(
+            "SELECT COALESCE(SUM(b), 0) FROM
+               (SELECT MAX(ct_bytes) AS b FROM blobs WHERE ?1 IS NULL OR author = ?1 GROUP BY id)",
+            params![author],
+            |r| r.get(0),
+        )?;
+        Ok(n as u64)
     }
 
     pub fn contact(&self, device: &str, via: &str, now: u64) -> Result<()> {
@@ -363,6 +677,17 @@ impl Store {
     }
 
     /// Record a receipt; returns true when it is new.
+    /// A `delivered` receipt from `fleet` for each of `author`'s records up to `upto`, in one
+    /// statement (no record is read into memory).
+    pub fn delivered_upto(&self, author: &str, upto: u64, fleet: &str, now: u64) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO receipts(record_id, fleet, state, at)
+             SELECT id, ?3, 'delivered', ?4 FROM records WHERE author = ?1 AND seq <= ?2",
+            params![author, i64::try_from(upto).unwrap_or(i64::MAX), fleet, now as i64],
+        )?;
+        Ok(())
+    }
+
     pub fn receipt(&self, record_id: &str, fleet: &str, state: &str, now: u64) -> Result<bool> {
         Ok(self.conn.execute(
             "INSERT OR IGNORE INTO receipts(record_id, fleet, state, at) VALUES (?1, ?2, ?3, ?4)",

@@ -2,12 +2,24 @@
 //!
 //! - `aurora/link/1`: sync sessions (aurora_link::sync), one bi-stream per session;
 //! - `aurora/link-join/1`: an invitee fetching the log and handing over its join entry;
-//! - iroh-gossip: signed head adverts on a per-link topic, so peers sync as soon as there is news;
+//! - iroh-gossip: signed head adverts on a per-link topic, so peers sync as soon as there is news.
+//!   The topic id is derived from the link's genesis entry, which only those who were given the
+//!   log hold (the link id alone, which invite codes carry, does not give it), and an advert
+//!   counts only when it arrives from a device of that link;
 //! - iroh-blobs: encrypted attachments. Push is disabled, `get_many` is disabled, and `get` is
 //!   allowed only for a blob of a link the requesting device is a member of.
 //!
 //! Every protocol except join refuses a device that is not a member of any of our links, with
 //! one uniform close code and no reason on the wire. The real reason goes to the local log.
+//! (A member that asks for a blob its links don't list gets iroh-blobs' own permission refusal;
+//! only members can see that difference.)
+//! Join attempts are rate-limited per remote id and per IP address, and joins and sync sessions
+//! each have a cap on how many run at once. A device holds at most `MAX_SESSIONS_PER_PEER_LINK`
+//! sync sessions per link with us, and a session with no frame for `IDLE_TIMEOUT` is closed;
+//! each side sends a `ping` every `PING_EVERY`, so a quiet but live session stays open (review
+//! finding R5-4). A device opens at most `SESSION_STARTS_PER_MIN` sessions per link a minute with
+//! us, and what its frames spend of the sync budgets (`lsync::Budget`) is kept per link and device
+//! across sessions, so a reconnect starts where the last session left off (review finding R8-3).
 
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
@@ -20,9 +32,12 @@ use aurora_link::crypto;
 use aurora_link::invite::InviteCode;
 use aurora_link::record::{self, BlobRef, HeadAdvert};
 use aurora_link::sync::{self as lsync, Frame, Session};
-use iroh::endpoint::{Connection, RecvStream, SendStream, presets};
+use iroh::endpoint::{Accepting, Connection, IncomingAddr, RecvStream, SendStream, presets};
 use iroh::protocol::{AcceptError, ProtocolHandler, Router};
 use iroh::{Endpoint, EndpointAddr, EndpointId, RelayMode, RelayUrl, SecretKey};
+use iroh_blobs::api::downloader::{DownloadProgressItem, Downloader};
+use iroh_blobs::api::proto::BlobStatus;
+use iroh_blobs::protocol::{ChunkRanges, ChunkRangesExt, GetRequest};
 use iroh_blobs::provider::events::{AbortReason, ConnectMode, EventMask, EventSender, ProviderMessage, RequestMode};
 use iroh_blobs::store::fs::FsStore;
 use iroh_blobs::{BlobsProtocol, Hash};
@@ -30,17 +45,73 @@ use iroh_gossip::api::{Event, GossipSender};
 use iroh_gossip::{Gossip, TopicId};
 use n0_future::StreamExt;
 use serde_json::{Value, json};
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 
 use crate::daemon::{Dirs, Push, Shared};
 use crate::rpc::{Ctx, Params, RpcError};
 
 pub const LINK_ALPN: &[u8] = lsync::ALPN;
-pub const JOIN_ALPN: &[u8] = b"aurora/link-join/1";
+pub const JOIN_ALPN: &[u8] = b"aurora/link-join/2";
 /// The one close code every refusal gets.
 pub const CLOSE_REFUSED: u32 = 1;
 const DIAL_EVERY: Duration = Duration::from_secs(30);
 const MAX_BACKOFF_S: u64 = 600;
+/// Join attempts one remote id, and one IP address, may make per minute.
+const JOINS_PER_ID_PER_MIN: u32 = 6;
+const JOINS_PER_IP_PER_MIN: u32 = 20;
+/// Joins, and sync sessions, served at once.
+const MAX_JOINS_AT_ONCE: usize = 8;
+const MAX_SESSIONS_AT_ONCE: usize = 256;
+/// Sync sessions one device may hold with us per link at once (review finding R5-4).
+pub const MAX_SESSIONS_PER_PEER_LINK: usize = 2;
+/// Sync sessions one device may open with us per link a minute (review finding R8-3). Honest
+/// dialers try a peer they are not talking to every 30 s, with a backoff on failure.
+pub const SESSION_STARTS_PER_MIN: u32 = 10;
+/// A session with no frame from its peer for this long is closed (pings count).
+pub const IDLE_TIMEOUT: Duration = Duration::from_secs(120);
+/// How often each side of a session sends a ping.
+const PING_EVERY: Duration = Duration::from_secs(45);
+/// How long the join door waits for the sequencer to include a join it handed on.
+const JOIN_WAIT: Duration = Duration::from_secs(20);
+/// At most one gossip-triggered wake of the dialer per link this often.
+const ADVERT_WAKE_EVERY_S: u64 = 2;
+
+/// At most `max` events per key per `window_s` seconds (a fixed window). The table is bounded:
+/// when it is full of live windows, a new key is refused rather than an old one forgotten.
+#[derive(Debug)]
+pub struct Limiter {
+    max: u32,
+    window_s: u64,
+    seen: Mutex<HashMap<String, (u64, u32)>>,
+}
+
+const LIMITER_KEYS: usize = 4096;
+
+impl Limiter {
+    pub fn new(max: u32, window_s: u64) -> Self {
+        Self {
+            max,
+            window_s,
+            seen: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn allow(&self, key: &str, t: u64) -> bool {
+        let mut seen = self.seen.lock().expect("limiter");
+        if seen.len() >= LIMITER_KEYS && !seen.contains_key(key) {
+            seen.retain(|_, (start, _)| *start + self.window_s > t);
+            if seen.len() >= LIMITER_KEYS {
+                return false;
+            }
+        }
+        let e = seen.entry(key.to_owned()).or_insert((t, 0));
+        if e.0 + self.window_s <= t {
+            *e = (t, 0);
+        }
+        e.1 = e.1.saturating_add(1);
+        e.1 <= self.max
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct NetOpts {
@@ -53,6 +124,8 @@ pub struct NetOpts {
     /// No IP transports at all: every byte goes through a relay. For fleets behind networks that
     /// block UDP, and for testing what two fleets on different networks see.
     pub relay_only: bool,
+    /// Close a session with no frame for this long (default `IDLE_TIMEOUT`; tests shorten it).
+    pub idle: Option<Duration>,
 }
 
 pub struct Net {
@@ -62,8 +135,21 @@ pub struct Net {
     pub blobs: FsStore,
     router: OnceLock<Router>,
     live: Mutex<HashMap<(String, String), u64>>,
+    /// Sync sessions per (link, peer), both directions.
+    pub sessions: Arc<SessionCount>,
+    idle: Duration,
     topics: Mutex<BTreeMap<String, GossipSender>>,
     backoff: Mutex<HashMap<(String, String), (u64, u64)>>,
+    joins_by_id: Limiter,
+    joins_by_ip: Limiter,
+    join_slots: Arc<Semaphore>,
+    session_slots: Arc<Semaphore>,
+    /// When each link last woke the dialer from gossip.
+    advert_wakes: Mutex<HashMap<String, u64>>,
+    /// New sync sessions per (link, peer), a minute.
+    session_starts: Limiter,
+    /// What each (link, peer) has spent of the sync budgets this minute, across its sessions.
+    budgets: Mutex<HashMap<(String, String), lsync::Budget>>,
 }
 
 pub async fn blob_store(dirs: &Dirs) -> anyhow::Result<FsStore> {
@@ -88,8 +174,15 @@ pub async fn put_blob(store: &FsStore, name: &str, plain: &[u8]) -> anyhow::Resu
     Ok(r)
 }
 
-fn topic(link: &str) -> TopicId {
-    TopicId::from_bytes(crypto::blake3(format!("aurora-link/v1/gossip/{link}").as_bytes()))
+/// A link's gossip topic: derived from its whole genesis entry (signature included), which every
+/// member holds and keeps across key rotations, and which the link id (its hash, carried in
+/// invite codes) does not reveal. A device that never got the log cannot even name the topic.
+pub(crate) fn topic(l: &aurora_link::engine::Link) -> anyhow::Result<TopicId> {
+    let genesis = l.acl.entry(0).context("the link's genesis entry is missing")?;
+    let bytes = aurora_link::codec::canonical(genesis)?;
+    Ok(TopicId::from_bytes(crypto::blake3(
+        &[b"aurora-link/v2/gossip-topic\0".as_slice(), &bytes].concat(),
+    )))
 }
 
 fn endpoint_id(device: &str) -> anyhow::Result<EndpointId> {
@@ -146,8 +239,9 @@ async fn read_frame(recv: &mut RecvStream) -> anyhow::Result<Option<Frame>> {
     read_frame_max(recv, lsync::MAX_FRAME).await
 }
 
-/// The first frame of a connection comes from a peer nobody has checked yet: keep it small.
-const MAX_FIRST_FRAME: usize = 64 * 1024;
+/// The first frame of a connection comes from a peer nobody has checked yet: keep it small. A
+/// hello always fits (`aurora_link::sync::hello`), however large the log.
+const MAX_FIRST_FRAME: usize = lsync::MAX_FIRST_FRAME;
 const FIRST_FRAME_WITHIN: Duration = Duration::from_secs(30);
 
 async fn read_frame_max(recv: &mut RecvStream, max: usize) -> anyhow::Result<Option<Frame>> {
@@ -165,14 +259,67 @@ async fn read_frame_max(recv: &mut RecvStream, max: usize) -> anyhow::Result<Opt
     Ok(Some(lsync::decode(&body)?))
 }
 
-/// A join reply: ACL frames up to `synced`. None when the inviter closed instead.
-async fn read_log(recv: &mut RecvStream) -> anyhow::Result<Option<Vec<aurora_link::acl::Entry>>> {
+/// What the inviter answered on a join stream.
+enum JoinReply {
+    /// The chain, up to `synced`.
+    Chain(Vec<aurora_link::acl::Entry>),
+    /// A `bye` with its reason (a join queued for the sequencer, or refused by it).
+    Bye(String),
+    /// The inviter closed.
+    Closed,
+}
+
+async fn read_log(recv: &mut RecvStream) -> anyhow::Result<JoinReply> {
     let mut out = Vec::new();
     loop {
         match read_frame(recv).await? {
             Some(Frame::Acl { entries }) => out.extend(entries),
-            Some(Frame::Synced { .. }) => return Ok(Some(out)),
-            _ => return Ok(None),
+            Some(Frame::Synced { .. }) => return Ok(JoinReply::Chain(out)),
+            Some(Frame::Bye { reason }) => return Ok(JoinReply::Bye(reason)),
+            _ => return Ok(JoinReply::Closed),
+        }
+    }
+}
+
+/// Live sync sessions per (link, peer): at most `MAX_SESSIONS_PER_PEER_LINK` each.
+#[derive(Debug, Default)]
+pub struct SessionCount(Mutex<HashMap<(String, String), usize>>);
+
+impl SessionCount {
+    /// A slot for one more session of `peer` on `link`, if it has fewer than the cap.
+    pub fn take(self: &Arc<Self>, link: &str, peer: &str) -> Option<SessionSlot> {
+        let key = (link.to_owned(), peer.to_owned());
+        let mut m = self.0.lock().expect("sessions");
+        let n = m.entry(key.clone()).or_insert(0);
+        if *n >= MAX_SESSIONS_PER_PEER_LINK {
+            return None;
+        }
+        *n += 1;
+        Some(SessionSlot(self.clone(), key))
+    }
+
+    #[cfg(test)]
+    pub fn count(&self, link: &str, peer: &str) -> usize {
+        self.0
+            .lock()
+            .expect("sessions")
+            .get(&(link.to_owned(), peer.to_owned()))
+            .copied()
+            .unwrap_or(0)
+    }
+}
+
+/// One session's place in `SessionCount`, given back on drop.
+pub struct SessionSlot(Arc<SessionCount>, (String, String));
+
+impl Drop for SessionSlot {
+    fn drop(&mut self) {
+        let mut m = self.0.0.lock().expect("sessions");
+        if let Some(n) = m.get_mut(&self.1) {
+            *n = n.saturating_sub(1);
+            if *n == 0 {
+                m.remove(&self.1);
+            }
         }
     }
 }
@@ -250,7 +397,40 @@ impl ProtocolHandler for LinkProto {
             refuse(&net, &conn, "link", "not a member of the link it asked for");
             return Ok(());
         }
-        if let Err(e) = run_session(net.clone(), link, peer.clone(), conn.clone(), send, recv, Some(first)).await {
+        if !net.session_starts.allow(&format!("{link} {peer}"), now()) {
+            refuse(
+                &net,
+                &conn,
+                "link",
+                "too many new sync sessions from this device for this link this minute",
+            );
+            return Ok(());
+        }
+        let Ok(_slot) = net.session_slots.clone().try_acquire_owned() else {
+            refuse(&net, &conn, "link", "too many sync sessions at once");
+            return Ok(());
+        };
+        let Some(per_peer) = net.sessions.take(&link, &peer) else {
+            refuse(
+                &net,
+                &conn,
+                "link",
+                "too many sync sessions from this device for this link",
+            );
+            return Ok(());
+        };
+        if let Err(e) = run_session(
+            net.clone(),
+            link,
+            peer.clone(),
+            conn.clone(),
+            send,
+            recv,
+            Some(first),
+            per_peer,
+        )
+        .await
+        {
             tracing::debug!("session with {peer}: {e:#}");
         }
         Ok(())
@@ -261,8 +441,29 @@ impl ProtocolHandler for LinkProto {
 struct JoinProto(Arc<NetRef>);
 
 impl ProtocolHandler for JoinProto {
+    /// Before the handshake costs us anything: a per-IP budget for join attempts.
+    async fn on_accepting(&self, accepting: Accepting) -> Result<Connection, AcceptError> {
+        if let (Some(net), IncomingAddr::Ip(sa)) = (self.0.get(), accepting.remote_addr())
+            && !net.joins_by_ip.allow(&sa.ip().to_string(), now())
+        {
+            net.d
+                .log_refusal("?", "join", &format!("too many join attempts from {}", sa.ip()));
+            return Err(AcceptError::from_err(std::io::Error::other("rate limited")));
+        }
+        Ok(accepting.await?)
+    }
+
     async fn accept(&self, conn: Connection) -> Result<(), AcceptError> {
         let Some(net) = self.0.get() else { return Ok(()) };
+        let peer = hex(conn.remote_id().as_bytes());
+        if !net.joins_by_id.allow(&peer, now()) {
+            refuse(&net, &conn, "join", "too many join attempts from this device");
+            return Ok(());
+        }
+        let Ok(_slot) = net.join_slots.clone().try_acquire_owned() else {
+            refuse(&net, &conn, "join", "too many joins at once");
+            return Ok(());
+        };
         let Ok((mut send, mut recv)) = conn.accept_bi().await else {
             return Ok(());
         };
@@ -270,8 +471,9 @@ impl ProtocolHandler for JoinProto {
             Ok(d) => d,
             Err(_) => return Ok(()),
         };
-        // At most two frames, JoinHello then Join, from a peer nobody has vouched for: small and quick.
-        let peer = hex(conn.remote_id().as_bytes());
+        // At most two frames, JoinHello then Join, from a peer nobody has vouched for: small and
+        // quick. The door ties the Join to the verified JoinHello of this same stream.
+        let mut door = lsync::JoinDoor::new();
         for _ in 0..2 {
             let frame = match tokio::time::timeout(FIRST_FRAME_WITHIN, read_frame_max(&mut recv, MAX_FIRST_FRAME)).await
             {
@@ -280,31 +482,55 @@ impl ProtocolHandler for JoinProto {
             };
             let link_id = match &frame {
                 Frame::JoinHello { link, .. } => link.clone(),
-                Frame::Join { entry } => entry.link.clone(),
+                Frame::Join { proposal } => proposal.link.clone(),
                 _ => {
                     refuse(&net, &conn, "join", "unexpected frame");
                     return Ok(());
                 }
             };
-            let is_join = matches!(frame, Frame::Join { .. });
+            let proposal = match &frame {
+                Frame::Join { proposal } => Some(proposal.clone()),
+                _ => None,
+            };
             let result = net.d.with_link(&link_id, |l| {
-                let before = l.acl.hashes();
-                let out = lsync::serve_join(l, &device, &peer, frame, now())?;
-                if is_join {
+                let before = l.acl.tip();
+                let out = door.on_frame(l, &device, &peer, frame, now())?;
+                if proposal.is_some() {
                     net.d.after_acl_change(l, &before)?;
                 }
                 Ok(out)
             });
-            match result {
-                Ok(replies) => {
-                    for r in replies {
-                        if write_frame(&mut send, &r).await.is_err() {
-                            return Ok(());
-                        }
-                    }
-                }
+            let mut replies = match result {
+                Ok(replies) => replies,
                 Err(e) => {
                     refuse(&net, &conn, "join", &e.message);
+                    return Ok(());
+                }
+            };
+            // A join this replica cannot include (it does not sequence the link) goes on toward
+            // the sequencer; the joiner waits a little for it here.
+            if let (Some(p), true) = (proposal, door.queued.is_some()) {
+                net.d.push(&link_id, Push::Proposal(p));
+                let deadline = tokio::time::Instant::now() + JOIN_WAIT;
+                replies = loop {
+                    match net.d.with_link(&link_id, |l| Ok(door.poll(l))) {
+                        Ok(Some(Ok(frames))) => break frames,
+                        Ok(Some(Err(e))) => {
+                            refuse(&net, &conn, "join", &e.to_string());
+                            return Ok(());
+                        }
+                        _ if tokio::time::Instant::now() >= deadline => {
+                            break vec![Frame::Bye {
+                                reason: "queued: the join waits for the link's sequencer; run the join again later"
+                                    .into(),
+                            }];
+                        }
+                        _ => tokio::time::sleep(Duration::from_millis(250)).await,
+                    }
+                };
+            }
+            for r in replies {
+                if write_frame(&mut send, &r).await.is_err() {
                     return Ok(());
                 }
             }
@@ -443,14 +669,44 @@ impl Net {
             blobs,
             router: OnceLock::new(),
             live: Mutex::new(HashMap::new()),
+            sessions: Arc::new(SessionCount::default()),
+            idle: opts.idle.unwrap_or(IDLE_TIMEOUT),
             topics: Mutex::new(BTreeMap::new()),
             backoff: Mutex::new(HashMap::new()),
+            joins_by_id: Limiter::new(JOINS_PER_ID_PER_MIN, 60),
+            joins_by_ip: Limiter::new(JOINS_PER_IP_PER_MIN, 60),
+            join_slots: Arc::new(Semaphore::new(MAX_JOINS_AT_ONCE)),
+            session_slots: Arc::new(Semaphore::new(MAX_SESSIONS_AT_ONCE)),
+            advert_wakes: Mutex::new(HashMap::new()),
+            session_starts: Limiter::new(SESSION_STARTS_PER_MIN, 60),
+            budgets: Mutex::new(HashMap::new()),
         });
         let _ = net.router.set(router);
         let _ = handle.0.set(Arc::downgrade(&net));
         tokio::spawn(dialer(net.clone()));
         tokio::spawn(blob_fetcher(net.clone()));
         Ok(net)
+    }
+
+    /// What `peer` has spent of the sync budgets on `link` this minute, over all its sessions.
+    pub fn budget(&self, link: &str, peer: &str, now: u64) -> lsync::Budget {
+        self.budgets
+            .lock()
+            .expect("budgets")
+            .get(&(link.to_owned(), peer.to_owned()))
+            .cloned()
+            .filter(|b| b.current(now))
+            .unwrap_or_default()
+    }
+
+    /// Keep `peer`'s budget on `link` after a frame. Only budgets of the current minute are kept,
+    /// and only members reach a session, so the table holds at most one per member device and link.
+    pub fn keep_budget(&self, link: &str, peer: &str, b: lsync::Budget, now: u64) {
+        let mut budgets = self.budgets.lock().expect("budgets");
+        if budgets.len() >= 4096 {
+            budgets.retain(|_, b| b.current(now));
+        }
+        budgets.insert((link.to_owned(), peer.to_owned()), b);
     }
 
     pub async fn shutdown(&self) {
@@ -490,11 +746,12 @@ impl Net {
     }
 
     fn blob_shared_with(&self, blob: &str, device: &str) -> bool {
-        let links = self.d.peer_links();
+        // Record data: the narrowed view of a halted link (review finding R7-2).
+        let links = self.d.record_peer_links();
         let Some(shared) = links.get(device) else { return false };
         shared.iter().any(|l| {
             self.d
-                .with_link(l, |link| Ok(link.store.blob_ids()?.iter().any(|b| b == blob)))
+                .with_link(l, |link| Ok(link.blob_allowed(blob)?))
                 .unwrap_or(false)
         })
     }
@@ -526,6 +783,10 @@ impl Net {
             return Ok(s.clone());
         }
         let me = self.d.device().map_err(|e| anyhow!(e.message))?.id_hex();
+        let topic_id = self
+            .d
+            .with_link(link, |l| topic(l).map_err(RpcError::internal))
+            .map_err(|e| anyhow!(e.message))?;
         let bootstrap: Vec<EndpointId> = self
             .d
             .peer_links()
@@ -533,7 +794,7 @@ impl Net {
             .filter(|(d, ls)| *d != me && ls.iter().any(|l| l == link))
             .filter_map(|(d, _)| endpoint_id(&d).ok())
             .collect();
-        let (sender, mut receiver) = self.gossip.subscribe(topic(link), bootstrap).await?.split();
+        let (sender, mut receiver) = self.gossip.subscribe(topic_id, bootstrap).await?.split();
         self.topics
             .lock()
             .expect("topics")
@@ -546,18 +807,21 @@ impl Net {
                     let Ok(advert) = serde_json::from_slice::<HeadAdvert>(&msg.content) else {
                         continue;
                     };
-                    if advert.link != link || advert.verify().is_err() {
-                        continue;
-                    }
-                    let behind = net
-                        .d
-                        .with_link(&link, |l| {
-                            let known = l.state().devices.contains_key(&advert.author);
-                            Ok(known && l.store.head(&advert.author)?.map(|h| h.0).unwrap_or(0) < advert.seq)
-                        })
-                        .unwrap_or(false);
-                    if behind {
-                        net.d.wake.notify_waiters();
+                    let from = hex(msg.delivered_from.as_bytes());
+                    let says = net.d.with_link(&link, |l| {
+                        // Per topic: only a device of this link may tell us about it.
+                        if !lsync::may_sync(l, &from) {
+                            return Ok(None);
+                        }
+                        Ok(Some(lsync::check_advert(l, &advert, now())?))
+                    });
+                    match says {
+                        Ok(Some(lsync::AdvertSays::Behind)) => net.advert_wake(&link, &advert.author),
+                        Ok(Some(lsync::AdvertSays::Equivocation)) => net.d.events.notify_waiters(),
+                        Ok(None) => net
+                            .d
+                            .log_refusal(&from, "gossip", "advert from a device not in that link"),
+                        _ => {}
                     }
                 }
             }
@@ -566,9 +830,27 @@ impl Net {
         Ok(sender)
     }
 
-    /// Join through the inviter named in the code: fetch its log, hand over our join entry,
-    /// take the log back (with our accept when the invite needs no approval), then sync.
-    pub async fn join(self: &Arc<Self>, code: &InviteCode, label: &str) -> Result<String, RpcError> {
+    /// An advert says a peer is ahead: forget that peer's dial backoff (it is evidently online)
+    /// and wake the dialer, at most once per link every few seconds however many adverts arrive.
+    fn advert_wake(&self, link: &str, author: &str) {
+        self.backoff
+            .lock()
+            .expect("backoff")
+            .remove(&(link.to_owned(), author.to_owned()));
+        let t = now();
+        let mut last = self.advert_wakes.lock().expect("advert wakes");
+        if last.get(link).is_some_and(|at| t < at + ADVERT_WAKE_EVERY_S) {
+            return;
+        }
+        last.insert(link.to_owned(), t);
+        self.d.wake.notify_waiters();
+    }
+
+    /// Join through the inviter named in the code: fetch its chain, hand over our join proposal,
+    /// take the chain back (with our accept when the invite needs no approval), then sync. When
+    /// the inviter is not the sequencer and the sequencer is out of reach, the join is queued:
+    /// the result is then the pending summary, and the same code fetches the chain later.
+    pub async fn join(self: &Arc<Self>, code: &InviteCode, label: &str) -> Result<Joined, RpcError> {
         let mut addr = EndpointAddr::new(endpoint_id(&code.node).map_err(RpcError::internal)?);
         for a in &code.addrs {
             if let Ok(sa) = a.parse() {
@@ -585,25 +867,60 @@ impl Net {
             .map_err(|e| fail(&e))?;
         let (mut send, mut recv) = conn.open_bi().await.map_err(|e| fail(&e))?;
         let me = self.d.device()?;
-        let hello = lsync::join_hello(&code.link, &me, &code.secret_bytes()?)?;
+        let hello = lsync::join_hello(&code.link, &me, &code.ticket()?)?;
         write_frame(&mut send, &hello).await.map_err(|e| fail(&e))?;
         let refused = || RpcError::refused("the inviter refused: the code is used, expired, revoked or not theirs");
-        let entries = read_log(&mut recv).await.map_err(|e| fail(&e))?.ok_or_else(refused)?;
-        let (entry, _) = self.d.join_with(code, entries, label)?;
-        write_frame(&mut send, &Frame::Join { entry })
-            .await
-            .map_err(|e| fail(&e))?;
-        let entries = read_log(&mut recv).await.map_err(|e| fail(&e))?.ok_or_else(refused)?;
+        let first = match read_log(&mut recv).await.map_err(|e| fail(&e))? {
+            JoinReply::Chain(entries) => entries,
+            JoinReply::Bye(why) => return Err(RpcError::refused(format!("the inviter said: {why}"))),
+            JoinReply::Closed => return Err(refused()),
+        };
+        let mine = aurora_link::sync::chain_of(&first)?
+            .state()
+            .devices
+            .contains_key(&me.id_hex());
+        let entries = if mine {
+            // Our join was included since we last asked (it was queued): just take the chain.
+            first
+        } else {
+            let (proposal, _) = self.d.join_with(code, first.clone(), label)?;
+            write_frame(&mut send, &Frame::Join { proposal })
+                .await
+                .map_err(|e| fail(&e))?;
+            match read_log(&mut recv).await.map_err(|e| fail(&e))? {
+                JoinReply::Chain(entries) => entries,
+                JoinReply::Bye(why) if why.starts_with("queued") => {
+                    let _ = send.finish();
+                    conn.close(0u32.into(), b"");
+                    let mut summary = self.d.pending_join_summary(code, &first)?;
+                    summary["queued"] = json!(true);
+                    summary["note"] = json!(why);
+                    return Ok(Joined::Queued(summary));
+                }
+                JoinReply::Bye(why) => return Err(RpcError::refused(format!("the join was refused: {why}"))),
+                JoinReply::Closed => return Err(refused()),
+            }
+        };
         let _ = send.finish();
         conn.close(0u32.into(), b"");
+        // The log handed back must still be the link the code names.
+        let genesis = entries
+            .iter()
+            .find(|e| e.seq == 0)
+            .ok_or_else(|| RpcError::refused("the inviter's log has no genesis"))?;
+        if genesis.hash()? != code.link {
+            return Err(RpcError::refused(
+                "the inviter handed back another link than the code names; not joining",
+            ));
+        }
         let id = self.d.adopt(entries)?;
         if !code.addrs.is_empty() || code.relay.is_some() {
             let p =
                 Params::new(json!({"device": code.node, "addrs": code.addrs, "relay": code.relay})).expect("object");
             let _ = peers_add(&self.d.dirs, &p);
         }
-        self.d.wake.notify_waiters();
-        Ok(id)
+        self.d.wake_now();
+        Ok(Joined::Adopted(id))
     }
 
     async fn dial(self: Arc<Self>, link: String, peer: String) {
@@ -619,10 +936,13 @@ impl Net {
             Ok(a) => a,
             Err(_) => return,
         };
+        let Some(slot) = self.sessions.take(&link, &peer) else {
+            return;
+        };
         let result = async {
             let conn = tokio::time::timeout(Duration::from_secs(30), self.endpoint.connect(addr, LINK_ALPN)).await??;
             let (send, recv) = conn.open_bi().await?;
-            run_session(self.clone(), link.clone(), peer.clone(), conn, send, recv, None).await
+            run_session(self.clone(), link.clone(), peer.clone(), conn, send, recv, None, slot).await
         }
         .await;
         let mut backoff = self.backoff.lock().expect("backoff");
@@ -642,7 +962,7 @@ impl Net {
 /// Dial every member we are not already talking to, every 30 s or when woken.
 async fn dialer(net: Arc<Net>) {
     loop {
-        let links: Vec<String> = net.d.links.lock().expect("links").keys().cloned().collect();
+        let links = net.d.link_ids();
         for link in &links {
             let _ = net.topic_sender(link).await;
         }
@@ -661,7 +981,11 @@ async fn dialer(net: Arc<Net>) {
         tokio::select! {
             _ = tokio::time::sleep(DIAL_EVERY) => {}
             _ = net.d.wake.notified() => {
-                net.backoff.lock().expect("backoff").clear();
+                // Only an explicit `sync.now` (or a join) forgets every backoff; a gossip advert
+                // already cleared the one peer it concerns.
+                if net.d.reset_backoff.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                    net.backoff.lock().expect("backoff").clear();
+                }
             }
         }
     }
@@ -676,14 +1000,16 @@ async fn blob_fetcher(net: Arc<Net>) {
         .unwrap_or(15);
     loop {
         tokio::time::sleep(Duration::from_secs(every)).await;
-        let wanted: Vec<(String, Vec<String>)> = {
-            let links = net.d.links.lock().expect("links");
-            links
-                .iter()
-                .map(|(id, l)| (id.clone(), l.store.blob_ids().unwrap_or_default()))
-                .collect()
-        };
-        for (link, ids) in wanted {
+        let wanted: Vec<(String, Vec<(String, u64)>)> = net
+            .d
+            .held_links()
+            .into_iter()
+            .map(|(id, cell)| {
+                let blobs = cell.with(|l| l.wanted_blobs().unwrap_or_default());
+                (id, blobs)
+            })
+            .collect();
+        for (link, blobs) in wanted {
             let providers: Vec<EndpointId> = net
                 .live_peers(&link)
                 .iter()
@@ -692,17 +1018,52 @@ async fn blob_fetcher(net: Arc<Net>) {
             if providers.is_empty() {
                 continue;
             }
-            for id in ids {
+            for (id, ct_len) in blobs {
                 let Ok(raw) = unhex::<32>(&id) else { continue };
                 let hash = Hash::from_bytes(raw);
                 if net.blobs.blobs().has(hash).await.unwrap_or(false) {
                     continue;
                 }
-                if downloader.download(hash, providers.clone()).await.is_ok() {
+                if fetch_listed_blob(&net.blobs, &downloader, hash, ct_len, providers.clone())
+                    .await
+                    .is_ok()
+                {
                     let _ = net.blobs.tags().set(format!("aurora-link/{id}"), hash).await;
                 }
             }
         }
+    }
+}
+
+/// Download one listed blob, asking for no more than the exact ciphertext length its record
+/// signed (`ct_len`) and aborting if the provider sends more. The blob counts as fetched only when
+/// it is complete at exactly that length; anything else is left untagged.
+async fn fetch_listed_blob(
+    store: &FsStore,
+    downloader: &Downloader,
+    hash: Hash,
+    ct_len: u64,
+    providers: Vec<EndpointId>,
+) -> anyhow::Result<()> {
+    if ct_len == 0 || ct_len > record::MAX_BLOB_CT_BYTES {
+        bail!("listed blob length {ct_len} is out of range");
+    }
+    let request = GetRequest::blob_ranges(hash, ChunkRanges::bytes(..ct_len));
+    let mut progress = downloader.download(request, providers).stream().await?;
+    while let Some(item) = progress.next().await {
+        match item {
+            // Dropping the stream on return abandons the download.
+            DownloadProgressItem::Progress(n) if n > ct_len => {
+                bail!("blob is longer than the {ct_len} bytes its record signed")
+            }
+            DownloadProgressItem::Error(e) => bail!("blob download failed: {e}"),
+            DownloadProgressItem::DownloadError => bail!("blob download failed"),
+            _ => {}
+        }
+    }
+    match store.blobs().status(hash).await? {
+        BlobStatus::Complete { size } if size == ct_len => Ok(()),
+        _ => bail!("blob does not have the {ct_len} bytes its record signed"),
     }
 }
 
@@ -730,6 +1091,10 @@ pub async fn blob_get(ctx: &Ctx, p: &Params) -> Result<Value, RpcError> {
         None => blob_store(&ctx.d.dirs).await.map_err(RpcError::internal)?,
     };
     let hash = Hash::from_bytes(unhex::<32>(&r.id)?);
+    let ct_len = ctx
+        .d
+        .with_link(&link, |l| Ok(l.store.blob_listed(&r.id)?))?
+        .ok_or_else(|| RpcError::unavailable("this link does not list that blob"))?;
     if !store.blobs().has(hash).await.unwrap_or(false) {
         let net = ctx
             .net()
@@ -742,8 +1107,8 @@ pub async fn blob_get(ctx: &Ctx, p: &Params) -> Result<Value, RpcError> {
         let downloader = net.blobs.downloader(&net.endpoint);
         let mut last = String::new();
         for attempt in 0..3u64 {
-            match downloader.download(hash, providers.clone()).await {
-                Ok(_) => {
+            match fetch_listed_blob(&store, &downloader, hash, ct_len, providers.clone()).await {
+                Ok(()) => {
                     last.clear();
                     break;
                 }
@@ -767,6 +1132,7 @@ pub async fn blob_get(ctx: &Ctx, p: &Params) -> Result<Value, RpcError> {
 
 // ------------------------------------------------------------------------------------- sessions
 
+#[allow(clippy::too_many_arguments)]
 async fn run_session(
     net: Arc<Net>,
     link: String,
@@ -775,6 +1141,7 @@ async fn run_session(
     mut send: SendStream,
     mut recv: RecvStream,
     first: Option<Frame>,
+    _slot: SessionSlot,
 ) -> anyhow::Result<()> {
     let device = net.d.device().map_err(|e| anyhow!(e.message))?;
     let key = (link.clone(), peer.clone());
@@ -799,21 +1166,50 @@ async fn run_session(
         .d
         .with_link(&link, |l| Ok(lsync::hello(l, &device)?))
         .map_err(|e| anyhow!(e.message))?;
-    tx.send(hello).await?;
+    for f in hello {
+        tx.send(f).await?;
+    }
     let mut pending = first;
+    let mut ping = tokio::time::interval(PING_EVERY.min(net.idle / 2));
+    ping.tick().await;
+    let mut last_frame = tokio::time::Instant::now();
     loop {
         let frame = if let Some(f) = pending.take() {
             f
         } else {
             tokio::select! {
-                f = read_frame(&mut recv) => match f? { Some(f) => f, None => break },
+                f = read_frame(&mut recv) => match f? { Some(f) => { last_frame = tokio::time::Instant::now(); f }, None => break },
+                _ = tokio::time::sleep_until(last_frame + net.idle) => {
+                    refuse(&net, &conn, "link", "no frame from the peer for too long");
+                    break;
+                }
+                _ = ping.tick() => {
+                    tx.send(Frame::Ping {}).await?;
+                    continue;
+                }
                 p = pushes.recv() => {
+                    // Every push (an ACL change included) re-checks the peer first: a device
+                    // removed since the session began gets nothing more, and the session closes.
+                    // A device of the held tip that a halt leaves out still gets the chain's
+                    // entries (the takeover), and nothing else (review finding R7-2).
+                    let (member, chain) = net
+                        .d
+                        .with_link(&link, |l| Ok((lsync::may_sync(l, &peer), lsync::may_sync_acl(l, &peer))))
+                        .unwrap_or((false, false));
+                    if !member && !chain {
+                        refuse(&net, &conn, "link", "peer is no longer a member");
+                        break;
+                    }
                     match p {
+                        Ok(Push::Acl(entries)) => for f in lsync::acl_frames(entries) { tx.send(f).await?; },
+                        _ if !member => {}
                         Ok(Push::Records(rs)) => for f in session.push(&rs) { tx.send(f).await?; },
-                        Ok(Push::Acl(entries)) => tx.send(Frame::Acl { entries }).await?,
+                        Ok(Push::Proposal(proposal)) => tx.send(Frame::Propose { proposal }).await?,
+                        Ok(Push::Refusal(refusal)) => tx.send(Frame::Refusal { refusal }).await?,
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
-                            let h = net.d.with_link(&link, |l| Ok(l.heads()?)).map_err(|e| anyhow!(e.message))?;
-                            tx.send(Frame::Synced { heads: h }).await?;
+                            let h = net.d.with_link(&link, |l| Ok(lsync::heads_of(l)?)).map_err(|e| anyhow!(e.message))?;
+                            // Pushes were dropped: tell the peer we hold more, so it asks.
+                            tx.send(Frame::Synced { heads: h, more: true }).await?;
                         }
                         Err(_) => break,
                     }
@@ -825,9 +1221,14 @@ async fn run_session(
             break;
         }
         let outcome = net.d.with_link(&link, |l| {
-            let before = l.acl.hashes();
-            let out = session.on_frame(l, &device, &peer, frame, now())?;
-            if out.acl_added > 0 {
+            let before = l.acl.tip();
+            let t = now();
+            // The peer's budgets carry over from its other and earlier sessions (R8-3).
+            session.budget = net.budget(&link, &peer, t);
+            let out = session.on_frame(l, &device, &peer, frame, t);
+            net.keep_budget(&link, &peer, std::mem::take(&mut session.budget), t);
+            let out = out?;
+            if out.acl_added > 0 || l.acl.tip() != before {
                 net.d.after_acl_change(l, &before)?;
             }
             Ok(out)
@@ -841,6 +1242,12 @@ async fn run_session(
         };
         for f in outcome.replies {
             tx.send(f).await?;
+        }
+        for p in outcome.relay {
+            net.d.push(&link, Push::Proposal(p));
+        }
+        for r in outcome.refusals {
+            net.d.push(&link, Push::Refusal(r));
         }
         if !outcome.stored.is_empty() {
             net.d.push(&link, Push::Records(outcome.stored));
@@ -858,6 +1265,14 @@ impl Drop for LiveGuard {
     fn drop(&mut self) {
         self.0.live.lock().expect("live").remove(&self.1);
     }
+}
+
+/// What a network join became.
+pub enum Joined {
+    /// The join is on the chain: the link is adopted here.
+    Adopted(String),
+    /// The join waits for the link's sequencer: the pending summary.
+    Queued(Value),
 }
 
 /// Peers we have refused recently, for `doctor`.

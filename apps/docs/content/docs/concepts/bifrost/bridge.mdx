@@ -32,12 +32,13 @@ Three questions get three different answers.
 The parts:
 
 - **Identity.** A 24-word recovery phrase makes the fleet's root key. Each machine gets its own device key, signed by the root for 90 days. People compare a 60-digit safety number once, over a call or a chat they already trust.
-- **Membership.** Invites, joins, removals and key changes are signed entries in one log. Every member checks every entry. If two admins write at once, every member settles the clash the same way.
-- **Records.** Each record names the record before it. A gap, a reorder or a forged record shows up at once. Replays do nothing, whatever the clock says.
-- **Encryption.** Only members can read content, kinds and seat names. Removing a member changes the read key, so they cannot read new mail.
-- **Transport.** Daemons dial each other by key over iroh, a QUIC network that crosses NATs. There is no open port and no firewall rule. A device that is not a member gets the same silent refusal as any stranger.
-- **Mailbox.** A mailbox member stores and forwards mail it cannot read. Two fleets that are never online together still get their mail.
-- **Files.** Attachments travel as encrypted blobs. They arrive even when the sender has gone offline.
+- **Membership.** Invites, joins, removals and key changes are entries in one chain, in one order. One device puts them in order: the **sequencer**. At first it is the owner's first machine. Any other member signs a *proposal* and its daemon passes it on, directly or through other members. The sequencer checks it against the member list as it stands right then. Then it adds the proposal to the chain with the member's signature still on it, or it refuses it and signs the reason. A member that passes proposals on keeps only those that hold on the chain it has. A refusal counts against the member that proposed it, not the one that passed it on. It counts once, however often anyone sends that proposal again. Every member checks every entry again. Nobody but the sequencer can place an entry, so nobody can slip one in before an earlier one. The sequencer is trusted for the order and for the time on each entry, and for nothing else. It cannot act for anyone.
+- **The sequencer.** The sequencer can hand its job to another owner or admin machine. If it is lost or stolen, the owner's recovery phrase makes another machine the sequencer. Every member then drops what the old one added after that point. The sequencer might sign two different entries for one place in the chain. Every member that sees both raises an alarm and takes no new entries. It keeps the member list it holds. It grants only what both that list and the last agreed entry grant. Nobody writes new mail until the owner takes over. A sequencer that has handed its job to another member cannot stop the link this way. Nor can one the owner removed after it handed on. Its old key signing twice is only an alarm. Members that joined after the last agreed entry still exchange the chain with the others, so the owner's takeover reaches them. Each member keeps at most one proof per place in the chain, and at most 256 in all. While the sequencer is offline, membership changes wait in a queue. Mail keeps flowing.
+- **Records.** Each record names the record before it. A gap, a reorder or a forged record shows up at once. Replays do nothing, whatever the clock says. Each record also names the place in the chain where its writer stood, and its key must match that place. A record from a place the owner's takeover dropped is held back, on every member alike. A record that arrives after the link's retention keeps only its signed header. Each member sends another at most 16 MiB of missing records a minute, so a large backlog arrives over a few minutes. A backlog over a writer's hourly limit arrives once the limit allows more, in the same session. So do records that waited for a membership change.
+- **Encryption.** Only members with read access can read content, kinds and seat names. A mailbox member cannot. Each read key carries the key before it, so a new member can read the link's history. Removing a member, or taking its read access away, changes the read key. If the removal does not carry the new key, the sequencer adds one at once. After one hour it takes a new key from any member device that holds the key. Until then nobody writes new mail. So a removed member cannot read mail written after the change.
+- **Transport.** Daemons dial each other by key over iroh, a QUIC network that crosses NATs. You need no port forwarding and no firewall rule. Each daemon still listens on a UDP port. It also announces itself on the local network, unless it runs with `--no-mdns`. A device that is not a member gets one close code and no reason, after at most one opening message. The join door is the one exception. It answers anyone who holds a live invite code, and it limits how often each device and address may try. A member device may open only a few sessions a minute for each link. What its messages may make the daemon do each minute is counted across all its sessions, so reconnecting does not reset it. Every message counts, keepalives included. A busy link does not slow the daemon's other links.
+- **Mailbox.** A mailbox member stores and forwards mail it cannot read. Two fleets that are never online together still get their mail. A mailbox still sees the member list, who wrote each record and when, and a size bucket for each record and file.
+- **Files.** Attachments travel as encrypted blobs, padded to a size bucket. They arrive even when the sender has gone offline.
 
 The daemon is `aurora-linkd`, written in Rust. It holds the keys and reads every untrusted byte. It never sees the bus. Python runs the quarantine, the promotion policy and every door an agent uses.
 
@@ -51,7 +52,7 @@ The daemon is `aurora-linkd`, written in Rust. It holds the keys and reads every
 | Agent Card signing | [A2A](https://a2a-protocol.org/latest/specification/#84-agent-card-signing) | Signing an Agent Card so clients can check it is real and unchanged. |
 | Remote Subagents (A2A) | [Gemini CLI](https://geminicli.com/docs/core/remote-agents/#defining-remote-subagents) | Subagents on other services, reached over the A2A protocol. |
 
-**How Aurora differs:** A link carries mail, never tasks or control. Every record is signed, and only members can read it. It needs no server: a mailbox can relay mail it cannot read.
+**How Aurora differs:** A link carries mail, never tasks or control. Every record is signed, and only members with read access can read it. It needs no server: a mailbox can relay mail it cannot read.
 
 </Callout>
 
@@ -67,6 +68,9 @@ aurora link serve                           # the daemon, supervised
 aurora bifrost-send claude "hi" --to @partner/codex
 aurora link inbox partners                  # the quarantine
 aurora link promote partners <record>       # let one record onto the bus
+aurora link status partners                 # the sequencer, and changes still waiting for it
+aurora link handoff partners <device>       # hand the sequencer to another admin machine
+aurora link takeover partners --phrase-stdin  # the owner, if the sequencer is lost
 ```
 
 [Link two fleets](/docs/how-to/link-two-fleets) walks through it.

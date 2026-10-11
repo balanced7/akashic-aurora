@@ -28,6 +28,10 @@ bytes = "1"
 clap = { version = "4", features = ["derive", "env"] }
 n0-future = "0.3.2"
 
+[target.'cfg(windows)'.dependencies]
+# The RPC pipe's owner-only DACL (rpc.rs, `pipe_security`).
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading"] }
+
 [dev-dependencies]
 # A real relay server (with access control) in process, for the relay tests and Phase 0 numbers.
 iroh = { version = "=1.3.0", features = ["test-utils"] }
