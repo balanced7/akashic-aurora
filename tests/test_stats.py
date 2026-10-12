@@ -39,6 +39,7 @@ def _run_stats(monkeypatch, tmp_path, recs, use, flip_recs, hours=24, as_json=Fa
     import core.learning.learning_store as ls
 
     monkeypatch.setattr(fs, "create_store", lambda *a, **k: _FakeStore(use))
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     monkeypatch.setattr(ls, "get_learning_store", lambda *a, **k: _FakeLearningStore(recs))
     monkeypatch.setattr(aa, "_FLIP_DIR", str(tmp_path / "flips"))
     monkeypatch.setattr(aa, "_INJ_DIR", str(tmp_path / "inj"))  # hermetic: never the real ledger
@@ -91,12 +92,12 @@ def test_stats_json_funnel(tmp_path, monkeypatch):
     assert w["lessons_per_flip"] == 0.5
 
 
-def test_stats_human_output_ascii(tmp_path, monkeypatch):
+def test_stats_agent_output_ascii(tmp_path, monkeypatch):
     recs, use, flips = _fixture(time.time())
     out = _run_stats(monkeypatch, tmp_path, recs, use, flips)
-    assert "RECALL-VALUE FUNNEL" in out
-    assert "lessons-per-flip=0.5" in out
-    assert "value rate ((useful+helped)/surfaced): 37.5%" in out
+    assert "corpus_lessons: 2" in out
+    assert "lessons_per_flip: 0.5" in out
+    assert "value_rate_pct: 37.5" in out
     assert out == out.encode("ascii", errors="replace").decode(), "ASCII-only (Windows console)"
 
 
@@ -105,7 +106,7 @@ def test_stats_no_impressions_no_value_rate(tmp_path, monkeypatch):
     out = json.loads(_run_stats(monkeypatch, tmp_path, [], {}, [], as_json=True))
     assert out["value_rate"] is None
     human = _run_stats(monkeypatch, tmp_path, [], {}, [])
-    assert "value rate" not in human
+    assert "value_rate" not in human
 
 
 def test_stats_empty_everything_is_calm(tmp_path, monkeypatch):
@@ -247,14 +248,14 @@ def test_stats_days_prints_trend_and_pace(tmp_path, monkeypatch):
     monkeypatch.setattr(fs, "create_store", lambda *a, **k: _FakeStore(use))
     monkeypatch.setattr(ls, "get_learning_store", lambda *a, **k: _FakeLearningStore(recs))
     monkeypatch.setattr(aa, "_FLIP_DIR", str(tmp_path / "flips"))
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     os.makedirs(str(tmp_path / "flips"), exist_ok=True)
     args = types.SimpleNamespace(hours=24, days=7, json=False)
     buf = io.StringIO()
     with redirect_stdout(buf):
         assert agent_cli.cmd_stats(args) == 0
     out = buf.getvalue()
-    assert "TREND (last 7d" in out
-    assert "30d pace:" in out
-    assert "flips=1" in out
-    assert "credited=1" in out
+    assert "trend[7]{date,lessons,flips,credited}:" in out
+    assert "pace_30d: " in out
+    assert ",1,1,1" in out, "today: one lesson, one flip, one credited"
     assert out == out.encode("ascii", errors="replace").decode(), "ASCII-only (Windows console)"

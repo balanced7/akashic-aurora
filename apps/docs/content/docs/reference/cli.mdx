@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 40 converted to agent and human output.
+121 verbs; 41 converted to agent and human output.
 
 ## `alias`
 
@@ -2269,7 +2269,10 @@ help[1]:
 | | |
 |---|---|
 | Does | recall-value funnel: surfaced -&gt; helped -&gt; flips -&gt; captured |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 302 before, 320 after (+6%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/stats.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2277,6 +2280,36 @@ help[1]:
 | `--days` |   |   | ALSO print a per-day trend over N days (durable records) + the 30d pace |
 | `--silence` |   |   | R2 denominator: fired/silent/by_reason over --hours + replay pointer |
 | `--json` |   |   |   |
+
+Agent output of `aurora stats` on the bench data:
+
+```text
+corpus_lessons: 3
+tracked_by_recall: 0
+surfaced_impressions: 0
+votes_useful: 0
+votes_noise: 0
+helped_credits: 0
+lessons_with_track_record: 0
+repeats: 1
+repeats_are: "lesson existed, mistake happened anyway -- a FLOOR, never a rate"
+most_violated[1]{lesson,times}:
+  git_blanket_staging,1
+repeats_by_recall_outcome:
+  unrecorded: 1
+recall_outcome_means: fired = reading failure; suppressed = targeting failure
+window:
+  hours: 24
+  flips: 0
+  flips_credited: 0
+  flips_corpus_gap: 0
+  lessons_recorded: 3
+  lessons_per_flip: null
+push_cost:
+  injections: 3
+  tokens_approx: 495
+... (3 more lines)
+```
 
 ## `status`
 

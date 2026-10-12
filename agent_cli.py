@@ -6388,6 +6388,10 @@ def cmd_stats(args):
     the census bar's numbers, on the door agents already use (capability_without_a_door)."""
     import json as _json
 
+    from core.axi import out as axi
+
+    cli = _cli()
+    me = os.getenv("AKASHIC_AGENT_ID") or "<you>"
     if getattr(args, "silence", False):
         from core.recall.at_action import silence_rate
 
@@ -6396,17 +6400,22 @@ def cmd_stats(args):
             print(_json.dumps(s, indent=1))
             return 0
         n = max(1, s["calls"])
-        print(f"# RECALL SILENCE (R2 denominator, last {args.hours or 24}h)")
-        print(
-            f"  calls {s['calls']} | fired {s['fired']} | silent {s['silent']} "
-            f"({100 * s['silent'] // n}% -- census floor: >=27% once the gate lands)"
-        )
-        for r, c in sorted((s.get("by_reason") or {}).items(), key=lambda kv: -kv[1]):
-            print(f"    {r:18} {c}")
-        if s["calls"] == 0:
-            print("  (no rows -- calls==0 is 'nothing recorded', NOT '0% silent')")
-        print(f"  pack replay (frozen-30 vs the reconciled bar): {_pyl()} -m core.recall.pack_replay")
-        return 0
+        doc: dict = {
+            "window_hours": args.hours or 24,
+            "calls": s["calls"],
+            "fired": s["fired"],
+            "silent": s["silent"],
+            "silent_pct": 100 * s["silent"] // n,
+            "census_floor": ">=27% silent once the gate lands",
+        }
+        if s.get("by_reason"):
+            doc["by_reason"] = dict(sorted(s["by_reason"].items(), key=lambda kv: -kv[1]))
+        if s["calls"] == 0:  # AXI section 5: say what the zero means
+            doc["note"] = "no rows -- calls 0 means nothing was recorded, NOT 0% silent"
+        # `uv run -m` is not a command: under uv the launcher needs `python` before `-m`.
+        pyl = _pyl()
+        replay = f"{pyl} {'python ' if pyl.endswith('uv run') else ''}-m core.recall.pack_replay"
+        return axi.emit(doc, hints=[replay], title="Recall silence (R2 denominator)")
     from core.recall.funnel import TARGET_LESSONS_30D, snapshot, trend
 
     hours = float(args.hours or 24)
@@ -6418,14 +6427,15 @@ def cmd_stats(args):
             out = {**out, "trend": tr}
         print(_json.dumps(out, indent=2))
         return 0
-    use_n, window = out["tracked_sources"], out["window"]
-    print("RECALL-VALUE FUNNEL  (all-time counters + a recent window)")
-    print(f"  corpus: {out['corpus_lessons']} lesson(s), {use_n} tracked by recall")
-    print(
-        f"  surfaced impressions: {out['surfaced_impressions']} | "
-        f"votes: useful={out['votes']['useful']} noise={out['votes']['noise']}"
-    )
-    print(f"  helped credits (flips that credited a surfaced lesson): {out['helped_credits']}")
+    window = out["window"]
+    doc = {
+        "corpus_lessons": out["corpus_lessons"],
+        "tracked_by_recall": out["tracked_sources"],
+        "surfaced_impressions": out["surfaced_impressions"],
+        "votes_useful": out["votes"]["useful"],
+        "votes_noise": out["votes"]["noise"],
+        "helped_credits": out["helped_credits"],
+    }
     if out.get("value_rate") is not None:
         # T253: the denominator counts EVERY surfacing while the numerator needs someone to
         # have acted, so this is dominated by feedback COVERAGE, not by quality. Measured
@@ -6435,76 +6445,63 @@ def cmd_stats(args):
         # author. The label stays so the historical series remains comparable.
         _v, _n = out["votes"]["useful"], out["votes"]["noise"]
         _judged = _v + _n
-        print(
-            f"  value rate ((useful+helped)/surfaced): {out['value_rate'] * 100:.1f}%"
-            " -- COVERAGE-dominated, not a quality verdict"
-        )
+        doc["value_rate_pct"] = round(out["value_rate"] * 100, 1)
+        doc["value_rate_is"] = "(useful+helped)/surfaced -- COVERAGE-dominated, not a quality verdict"
         if out["surfaced_impressions"] and _judged:
-            print(
-                f"    of which judged at all: {_judged}/{out['surfaced_impressions']}"
-                f" ({_judged / out['surfaced_impressions'] * 100:.1f}%) -- the rest is"
-                " UNLABELLED, not negative"
+            doc["judged"] = (
+                f"{_judged}/{out['surfaced_impressions']} "
+                f"({_judged / out['surfaced_impressions'] * 100:.1f}%) -- the rest is UNLABELLED, not negative"
             )
-            print(
-                f"    of those judged: {_v}/{_judged} ({_v / _judged * 100:.0f}%) rated useful"
-                " -- self-selected votes, so read as a sample"
+            doc["judged_useful"] = (
+                f"{_v}/{_judged} ({_v / _judged * 100:.0f}%) -- self-selected votes, so read as a sample"
             )
-    print(f"  lessons with a track record (helped or useful > 0): {out['lessons_with_track_record']}")
-
+    doc["lessons_with_track_record"] = out["lessons_with_track_record"]
+    hints = []
     # T253: the honest successor, deliberately printed NEXT TO the figure it corrects. This one
     # can only move if the system actually prevents something -- and it is a FLOOR, never a rate.
     try:
         from core.learning.learning_store import get_learning_store
 
         _rep = get_learning_store().repeat_report()
+        doc["repeats"] = _rep["count"]
         if _rep["count"]:
-            print(
-                f"  REPEATS (lesson existed, mistake happened anyway): {_rep['count']}"
-                "  -- a FLOOR: only what someone noticed, never a rate"
-            )
-            for _name, _n in _rep["most_violated"][:3]:
-                print(f"    {_n}x  {_name}")
+            doc["repeats_are"] = "lesson existed, mistake happened anyway -- a FLOOR, never a rate"
+            doc["most_violated"] = [{"lesson": name, "times": n} for name, n in _rep["most_violated"][:3]]
             if _rep["by_recall_outcome"]:
-                print(
-                    f"    by what recall did: {_rep['by_recall_outcome']}"
-                    "  (fired = reading failure; suppressed = targeting failure)"
-                )
+                doc["repeats_by_recall_outcome"] = dict(_rep["by_recall_outcome"])
+                doc["recall_outcome_means"] = "fired = reading failure; suppressed = targeting failure"
         else:
-            print(
-                "  REPEATS: none recorded yet -- `learn <you> --repeat-of <lesson>` when a"
-                " lesson you already had gets violated again"
-            )
+            hints.append(f"{cli} learn {me} --repeat-of <lesson> --tried <what happened>")
     except Exception:
         pass
-    print(
-        f"  last {hours:g}h: flips={window['flips']} (credited={window['flips_credited']}, "
-        f"corpus-gap={window['flips_corpus_gap']}) | lessons recorded={window['lessons_recorded']}"
-        f" | lessons-per-flip={window['lessons_per_flip']}"
-    )
+    doc["window"] = {
+        "hours": hours,
+        "flips": window["flips"],
+        "flips_credited": window["flips_credited"],
+        "flips_corpus_gap": window["flips_corpus_gap"],
+        "lessons_recorded": window["lessons_recorded"],
+        "lessons_per_flip": window["lessons_per_flip"],
+    }
     if window["flips_corpus_gap"] and not window["lessons_recorded"]:
-        print(
-            "  hint: flips happened where NO stored lesson helped and nothing was recorded --"
-            " `wrap` has pre-filled candidates."
-        )
+        doc["capture_gap"] = "flips happened where NO stored lesson helped and nothing was recorded"
+        hints.insert(0, f"{cli} wrap")  # wrap has pre-filled candidates
     if window.get("injections"):
-        print(
-            f"  push cost last {hours:g}h: {window['injections']} injection(s), "
-            f"~{window['injected_tokens_approx']} tokens -- `injections` for the ledger"
-        )
+        doc["push_cost"] = {"injections": window["injections"], "tokens_approx": window["injected_tokens_approx"]}
+        hints.append(f"{cli} injections")
     if tr:
-        print(f"\nTREND (last {tr['days']}d, durable records: lesson timestamps + flip events)")
-        for b in tr["per_day"]:
-            bar = "#" * min(b["lessons"], 40)
-            print(f"  {b['date']}  lessons={b['lessons']:<3} flips={b['flips']:<3} credited={b['credited']:<3} {bar}")
-        pace = tr["lessons_30d"] / 30.0
-        need = TARGET_LESSONS_30D / 30.0
-        print(
-            f"  30d pace: {tr['lessons_30d']} recorded vs target {tr['target_30d']} "
-            f"({pace:.1f}/day vs {need:.1f}/day needed)"
+        doc["trend"] = [
+            {"date": b["date"], "lessons": b["lessons"], "flips": b["flips"], "credited": b["credited"]}
+            for b in tr["per_day"]
+        ]
+        doc["pace_30d"] = (
+            f"{tr['lessons_30d']} recorded vs target {tr['target_30d']} "
+            f"({tr['lessons_30d'] / 30.0:.1f}/day vs {TARGET_LESSONS_30D / 30.0:.1f}/day needed)"
         )
         if tr["events_capped"]:
-            print("  note: event scan hit its cap -- older flips may be missing from the trend.")
-    return 0
+            doc["trend_note"] = "event scan hit its cap -- older flips may be missing from the trend"
+    else:
+        hints.append(f"{cli} stats --days 7")
+    return axi.emit(doc, hints=hints, title="Recall-value funnel (all-time counters + a recent window)")
 
 
 LAST_SESSION_DRAFT = "last-session-draft.md"  # under chronicles/; auto-captured by the SessionEnd/PreCompact hook

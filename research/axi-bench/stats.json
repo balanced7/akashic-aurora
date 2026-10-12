@@ -1,0 +1,204 @@
+{
+  "verb": "stats",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 302,
+    "stdout_chars": 969,
+    "stdout_lines": 16,
+    "cost_usd": 0.0241,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the corpus?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many repeats (a lesson violated again) are recorded?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson was violated again? Give its name only.",
+        "expected": "git_blanket_staging",
+        "answers": [
+          "git_blanket_staging",
+          "git_blanket_staging",
+          "git_blanket_staging",
+          "git_blanket_staging",
+          "git_blanket_staging"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to run the pack replay? Give the command only.",
+        "expected": [
+          "-m core.recall.pack_replay"
+        ],
+        "answers": [
+          "uv run -m core.recall.pack_replay",
+          "uv run -m core.recall.pack_replay",
+          "uv run -m core.recall.pack_replay",
+          "uv run -m core.recall.pack_replay",
+          "uv run -m core.recall.pack_replay"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Over how many hours is this silence window measured?",
+        "expected": 24,
+        "answers": [
+          "24",
+          "24",
+          "24",
+          "24",
+          "24"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "funnel": {
+        "argv": [
+          "stats"
+        ],
+        "exit": 0,
+        "stdout": "RECALL-VALUE FUNNEL  (all-time counters + a recent window)\n  corpus: 3 lesson(s), 0 tracked by recall\n  surfaced impressions: 0 | votes: useful=0 noise=0\n  helped credits (flips that credited a surfaced lesson): 0\n  lessons with a track record (helped or useful > 0): 0\n  REPEATS (lesson existed, mistake happened anyway): 1  -- a FLOOR: only what someone noticed, never a rate\n    1x  git_blanket_staging\n    by what recall did: {'unrecorded': 1}  (fired = reading failure; suppressed = targeting failure)\n  last 24h: flips=0 (credited=0, corpus-gap=0) | lessons recorded=3 | lessons-per-flip=None\n  push cost last 24h: 3 injection(s), ~495 tokens -- `injections` for the ledger\n"
+      },
+      "silence": {
+        "argv": [
+          "stats",
+          "--silence"
+        ],
+        "exit": 0,
+        "stdout": "# RECALL SILENCE (R2 denominator, last 24h)\n  calls 811 | fired 5 | silent 806 (99% -- census floor: >=27% once the gate lands)\n    floor_silent       794\n    excluded_silent    10\n    empty_query        2\n  pack replay (frozen-30 vs the reconciled bar): uv run -m core.recall.pack_replay\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 320,
+    "stdout_chars": 889,
+    "stdout_lines": 39,
+    "cost_usd": 0.0233,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the corpus?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many repeats (a lesson violated again) are recorded?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson was violated again? Give its name only.",
+        "expected": "git_blanket_staging",
+        "answers": [
+          "git_blanket_staging",
+          "git_blanket_staging",
+          "git_blanket_staging",
+          "git_blanket_staging",
+          "git_blanket_staging"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to run the pack replay? Give the command only.",
+        "expected": [
+          "-m core.recall.pack_replay"
+        ],
+        "answers": [
+          "uv run python -m core.recall.pack_replay",
+          "uv run python -m core.recall.pack_replay",
+          "uv run python -m core.recall.pack_replay",
+          "uv run python -m core.recall.pack_replay",
+          "uv run python -m core.recall.pack_replay"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Over how many hours is this silence window measured?",
+        "expected": 24,
+        "answers": [
+          "24",
+          "24",
+          "24",
+          "24",
+          "24"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "funnel": {
+        "argv": [
+          "stats"
+        ],
+        "exit": 0,
+        "stdout": "corpus_lessons: 3\ntracked_by_recall: 0\nsurfaced_impressions: 0\nvotes_useful: 0\nvotes_noise: 0\nhelped_credits: 0\nlessons_with_track_record: 0\nrepeats: 1\nrepeats_are: \"lesson existed, mistake happened anyway -- a FLOOR, never a rate\"\nmost_violated[1]{lesson,times}:\n  git_blanket_staging,1\nrepeats_by_recall_outcome:\n  unrecorded: 1\nrecall_outcome_means: fired = reading failure; suppressed = targeting failure\nwindow:\n  hours: 24\n  flips: 0\n  flips_credited: 0\n  flips_corpus_gap: 0\n  lessons_recorded: 3\n  lessons_per_flip: null\npush_cost:\n  injections: 3\n  tokens_approx: 495\nhelp[2]:\n  uv run agent_cli.py injections\n  uv run agent_cli.py stats --days 7\n"
+      },
+      "silence": {
+        "argv": [
+          "stats",
+          "--silence"
+        ],
+        "exit": 0,
+        "stdout": "window_hours: 24\ncalls: 819\nfired: 5\nsilent: 814\nsilent_pct: 99\ncensus_floor: >=27% silent once the gate lands\nby_reason:\n  floor_silent: 802\n  excluded_silent: 10\n  empty_query: 2\nhelp[1]:\n  uv run python -m core.recall.pack_replay\n"
+      }
+    }
+  }
+}
