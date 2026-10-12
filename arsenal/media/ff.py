@@ -88,7 +88,7 @@ class MediaError(RuntimeError):
 
 def state_dir() -> Path:
     """Where arsenal.media keeps its config, caps cache, catalog, sidecars and receipts (gitignored)."""
-    return Path(os.environ.get(STATE_ENV) or (_REPO_ROOT / "state" / "arsenal" / "media"))
+    return Path(os.environ.get(STATE_ENV) or _default_state_dir())
 
 
 def config_path() -> Path:
@@ -136,10 +136,18 @@ def _from_env() -> Optional[str]:
                      f"{FFMPEG_ENV}")
 
 
+def _default_state_dir() -> Path:
+    return _REPO_ROOT / "state" / "arsenal" / "media"
+
+
 def _from_config() -> Optional[str]:
-    data = _read_json(config_path()) or {}
-    p = data.get("ffmpeg")
-    return p if p and os.path.isfile(p) else None
+    """The saved choice in <state>, then in the repo's default state: a test that relocates state for isolation
+    still finds the house build."""
+    for cfg in dict.fromkeys([config_path(), _default_state_dir() / "config.json"]):
+        p = (_read_json(cfg) or {}).get("ffmpeg")
+        if p and os.path.isfile(p):
+            return p
+    return None
 
 
 def _bundled() -> Optional[str]:
