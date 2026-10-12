@@ -15466,13 +15466,52 @@ def cmd_pulse(args):
     """pulse [agent]: fleet pressure-map — where is pressure building? READ-only v1
     (W25, deepseek design, LIFEWORKERS caste). Companion to vitals: vitals tells you
     who is alive/dying; pulse tells you where pressure is building."""
+    from core.axi import out
     from core.comm.doctor import format_pulse
     from core.comm.doctor import pulse as pulse_fn
 
     agents = [args.agent] if args.agent else None
     p = pulse_fn(agents)
-    print(format_pulse(p, json_mode=getattr(args, "json", False)))
-    return 1 if p["zones"]["critical"] else 0
+    code = 1 if p["zones"]["critical"] else 0  # critical pressure exits 1, as before
+    if getattr(args, "json", False):
+        print(format_pulse(p, json_mode=True))
+        return code
+    # Zones ordered by pressure, so the worst rows lead. pulse calls an agent with no work-lane
+    # cursor "absent"; it is said as "no lane" (the bench reader did not take "legacy" to mean it).
+    order = {"critical": 0, "elevated": 1, "normal": 2, "absent": 3}
+    rows = sorted(
+        (
+            {
+                "agent": a,
+                "zone": "no lane" if r.get("zone") == "absent" else r.get("zone"),
+                "backlog": r.get("backlog", 0),
+            }
+            for a, r in p["readings"].items()
+        ),
+        key=lambda r: (order.get("absent" if r["zone"] == "no lane" else str(r["zone"]), 9), -int(r["backlog"] or 0)),
+    )
+    doc = {
+        "summary": p["summary"],
+        "agents": len(p["agents"]),
+        **{z: len(ids) for z, ids in p["zones"].items() if ids and z != "absent"},
+    }
+    if p["zones"].get("absent"):
+        doc["no_lane"] = len(p["zones"]["absent"])
+    doc["readings"] = rows or "0 agents seen (no seat, runner, presence or recent inbox)"
+    hot = [r["agent"] for r in rows if r["zone"] in ("critical", "elevated")]
+    hints = [f"{_cli()} unwedge {hot[0]}"] if hot else []
+    out.emit(doc, hints=hints, human=_human_pulse, title="Pulse")
+    return code
+
+
+def _human_pulse(console, doc):
+    """Human view of `pulse`: the summary coloured by the worst zone, then one table."""
+    from core.axi import out
+
+    colour = "red" if doc.get("critical") else ("yellow" if doc.get("elevated") else "green")
+    console.print(f"[{colour}]{out._esc(doc['summary'])}[/]")
+    if isinstance(doc["readings"], list):
+        console.print(out.table(doc["readings"]))
 
 
 def cmd_flightdeck(args):

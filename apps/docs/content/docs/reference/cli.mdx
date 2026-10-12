@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 67 converted to agent and human output.
+121 verbs; 68 converted to agent and human output.
 
 ## `alias`
 
@@ -2034,12 +2034,32 @@ unknown[3]: harness_version,model,effort
 | | |
 |---|---|
 | Does | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 64% before, 76% after |
+| Output tokens | 77 before, 138 after (+79%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/pulse.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent>` |   |   | optional: single agent to read (default: fleet) |
 | `--json` |   |   |   |
+
+Agent output of `aurora pulse` on the bench data:
+
+```text
+summary: "pulse: 1 elevated (alice), 1 normal — watch the elevated lanes"
+agents: 4
+elevated: 1
+normal: 1
+no_lane: 2
+readings[4]{agent,zone,backlog}:
+  alice,elevated,11
+  bob,normal,0
+  bench,no lane,0
+  carol,no lane,0
+help[1]:
+  uv run agent_cli.py unwedge alice
+```
 
 ## `recall`
 

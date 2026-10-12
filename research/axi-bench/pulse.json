@@ -1,0 +1,196 @@
+{
+  "verb": "pulse",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.64,
+    "correct": 16,
+    "asked": 25,
+    "output_tokens": 77,
+    "stdout_chars": 167,
+    "stdout_lines": 4,
+    "cost_usd": 0.0242,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which agent has elevated pressure?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "Alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages are in alice's backlog?",
+        "expected": 11,
+        "answers": [
+          "11",
+          "11",
+          "11",
+          "11",
+          "11"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is any agent in the critical zone? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "no"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Which agents have no work lane? List them separated by commas.",
+        "expected": [
+          "bench",
+          "carol"
+        ],
+        "answers": [
+          "bench, carol",
+          "bench, carol",
+          "bench, carol",
+          "bench, carol",
+          "bench, carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command diagnoses the agent under the most pressure? Give the command only.",
+        "expected": [
+          "unwedge",
+          "alice"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "fleet": {
+        "argv": [
+          "pulse"
+        ],
+        "exit": 0,
+        "stdout": "pulse: 1 elevated (alice), 1 normal \u2014 watch the elevated lanes\n  elevated: alice (backlog=11)\n  normal: bob (backlog=0)\n  absent: bench (backlog=0), carol (backlog=0)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.76,
+    "correct": 19,
+    "asked": 25,
+    "output_tokens": 138,
+    "stdout_chars": 266,
+    "stdout_lines": 12,
+    "cost_usd": 0.0201,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which agent has elevated pressure?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages are in alice's backlog?",
+        "expected": 11,
+        "answers": [
+          "11",
+          "11",
+          "11",
+          "11",
+          "11"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is any agent in the critical zone? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "UNKNOWN",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which agents have no work lane? List them separated by commas.",
+        "expected": [
+          "bench",
+          "carol"
+        ],
+        "answers": [
+          "bench, carol",
+          "bench, carol",
+          "bench, carol",
+          "bench, carol",
+          "bench, carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command diagnoses the agent under the most pressure? Give the command only.",
+        "expected": [
+          "unwedge",
+          "alice"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "fleet": {
+        "argv": [
+          "pulse"
+        ],
+        "exit": 0,
+        "stdout": "summary: \"pulse: 1 elevated (alice), 1 normal \u2014 watch the elevated lanes\"\nagents: 4\nelevated: 1\nnormal: 1\nno_lane: 2\nreadings[4]{agent,zone,backlog}:\n  alice,elevated,11\n  bob,normal,0\n  bench,no lane,0\n  carol,no lane,0\nhelp[1]:\n  uv run agent_cli.py unwedge alice\n"
+      }
+    }
+  }
+}
