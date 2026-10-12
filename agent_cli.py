@@ -11027,21 +11027,23 @@ def cmd_shell_home(args):
     terminals never move. The profile line runs at snapshot GENERATION, so --set is
     live from the NEXT session; the current session stays covered by the cwd-guard.
     Rebuild-ordering vs harness cwd tracking is MEASURED at next boot, not assumed."""
+    from core.axi import out
+
     home_file = os.path.join(os.path.expanduser("~"), ".claude", "shell-home")
     bashrc = os.path.join(os.path.expanduser("~"), ".bashrc")
+    cli = _cli()
     if getattr(args, "clear", False):
         if os.path.exists(home_file):
             os.remove(home_file)
-            print("[shell-home] cleared -- fresh harness shells land at the session launch dir again")
-        else:
-            print("[shell-home] nothing set")
-        return 0
+            return out.emit({"cleared": True, "lands_at": "the session launch dir"}, title="Shell home")
+        return out.emit({"cleared": False, "reason": "nothing set"}, title="Shell home")
     target = getattr(args, "set", None)
     if target:
         target = os.path.abspath(target)
         if not os.path.isdir(target):
-            print(f"ERROR: not a directory: {target}")
-            return 2
+            return out.fail(
+                f"not a directory: {target}", code="USAGE", exit_code=2, hints=[f"{cli} shell-home --set <dir>"]
+            )
         os.makedirs(os.path.dirname(home_file), exist_ok=True)
         with open(home_file, "w", encoding="ascii") as f:
             f.write(target.replace("\\", "/"))
@@ -11057,10 +11059,14 @@ def cmd_shell_home(args):
                 hook_state = "installed into ~/.bashrc"
         except OSError as exc:
             hook_state = f"bashrc hook NOT installed ({exc}) -- add the block by hand"
-        print(f"[shell-home] {target.replace(chr(92), '/')}")
-        print(f"  hook: {hook_state}")
-        print("  live from the NEXT session's shell snapshot; this session stays covered by the cwd-guard")
-        return 0
+        return out.emit(
+            {
+                "home": target.replace(chr(92), "/"),
+                "hook": hook_state,
+                "live_from": "the next session's shell snapshot; this session stays covered by the cwd-guard",
+            },
+            title="Shell home set",
+        )
     cur = ""
     if os.path.exists(home_file):
         with open(home_file, encoding="ascii", errors="replace") as f:
@@ -11069,13 +11075,17 @@ def cmd_shell_home(args):
     if os.path.exists(bashrc):
         with open(bashrc, encoding="utf-8", errors="replace") as f:
             hooked = _SHELL_HOME_MARK in f.read()
-    print(f"shell is at : {os.getcwd()}")
-    print(f"home mapping: {cur or '(none -- fresh harness shells land at the session launch dir)'}")
-    print(f"profile hook: {'installed' if hooked else 'absent'}")
-    print(
-        f"harness shell: {'yes' if os.getenv('CLAUDE_CODE_SESSION_ID') else 'no (operator terminal -- hook never fires here)'}"
-    )
-    return 0
+    harness = bool(os.getenv("CLAUDE_CODE_SESSION_ID"))
+    doc = {
+        "shell_at": os.getcwd(),
+        "home_mapping": cur or None,
+        "fresh_shells_land_at": cur or "the session launch dir",
+        "profile_hook": "installed" if hooked else "absent",
+        # An operator terminal never moves: the hook fires only in harness shells.
+        "harness_shell": "yes" if harness else "no (operator terminal -- the hook never fires here)",
+    }
+    hint = f"{cli} shell-home --clear" if cur else f"{cli} shell-home --set <dir>"
+    return out.emit(doc, hints=[hint], title="Shell home")
 
 
 def cmd_boop(args):

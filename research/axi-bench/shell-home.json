@@ -1,0 +1,192 @@
+{
+  "verb": "shell-home",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 78,
+    "stdout_chars": 205,
+    "stdout_lines": 4,
+    "cost_usd": 0.0227,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Is a shell home mapping set? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the profile hook installed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is this shell a harness shell? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Where do fresh harness shells land right now? Answer in a few words.",
+        "expected": [
+          "launch"
+        ],
+        "answers": [
+          "The session launch dir",
+          "The session launch dir",
+          "the session launch dir",
+          "the session launch dir",
+          "The session launch dir"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to map fresh harness shells to a directory? Give the command only.",
+        "expected": [
+          "shell-home --set"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "read": {
+        "argv": [
+          "shell-home"
+        ],
+        "exit": 0,
+        "stdout": "shell is at : /tmp/axi-bench-mnnz8kj0/before\nhome mapping: (none -- fresh harness shells land at the session launch dir)\nprofile hook: absent\nharness shell: no (operator terminal -- hook never fires here)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 137,
+    "stdout_chars": 304,
+    "stdout_lines": 7,
+    "cost_usd": 0.0251,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Is a shell home mapping set? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "home_mapping: null\n\nAnswer: no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Is the profile hook installed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is this shell a harness shell? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Where do fresh harness shells land right now? Answer in a few words.",
+        "expected": [
+          "launch"
+        ],
+        "answers": [
+          "The session launch dir",
+          "the session launch dir",
+          "the session launch dir",
+          "the session launch dir",
+          "the session launch dir"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to map fresh harness shells to a directory? Give the command only.",
+        "expected": [
+          "shell-home --set"
+        ],
+        "answers": [
+          "uv run agent_cli.py shell-home --set <dir>",
+          "uv run agent_cli.py shell-home --set <dir>",
+          "uv run agent_cli.py shell-home --set <dir>",
+          "uv run agent_cli.py shell-home --set <dir>",
+          "uv run agent_cli.py shell-home --set <dir>"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "read": {
+        "argv": [
+          "shell-home"
+        ],
+        "exit": 0,
+        "stdout": "shell_at: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a20fa37a432d330a0\nhome_mapping: null\nfresh_shells_land_at: the session launch dir\nprofile_hook: absent\nharness_shell: no (operator terminal -- the hook never fires here)\nhelp[1]:\n  uv run agent_cli.py shell-home --set <dir>\n"
+      }
+    }
+  }
+}

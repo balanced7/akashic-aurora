@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 76 converted to agent and human output.
+121 verbs; 77 converted to agent and human output.
 
 ## `alias`
 
@@ -2736,12 +2736,27 @@ resolved_from: binding
 | | |
 |---|---|
 | Does | where the shell is now + where fresh harness shells land (cwd-guard's other half) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 96% after |
+| Output tokens | 78 before, 137 after (+76%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/shell-home.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--set` |   |   | teleport target for fresh HARNESS shells (writes ~/.claude/shell-home + installs the ~/.bashrc hook; operator terminals unaffected) |
 | `--clear` |   |   | remove the mapping |
+
+Agent output of `aurora shell-home` on the bench data:
+
+```text
+shell_at: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a20fa37a432d330a0
+home_mapping: null
+fresh_shells_land_at: the session launch dir
+profile_hook: absent
+harness_shell: no (operator terminal -- the hook never fires here)
+help[1]:
+  uv run agent_cli.py shell-home --set <dir>
+```
 
 ## `sift`
 
