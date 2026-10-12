@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 94 converted to agent and human output.
+121 verbs; 95 converted to agent and human output.
 
 ## `alias`
 
@@ -751,7 +751,10 @@ help[1]:
 | | |
 |---|---|
 | Does | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 97% before, 100% after |
+| Output tokens | 6,582 before, 2,638 after (-60%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/defer.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -762,6 +765,37 @@ help[1]:
 | `--list` |   |   | show pending items |
 | `--done` |   |   | discharge one item |
 | `--receipt` |   |   | REQUIRED with --done: what happened |
+| `--fields` |   |   | --list: extra columns: why,filed_at, or 'all' (default: id,needs,by,filed,cmd) |
+
+Agent output of `aurora defer bench --list` on the bench data:
+
+```text
+seat: bench
+seat_status: "not confirmed: the fleet roster is unknown here"
+pending: 20
+items[20]{id,needs,by,filed,cmd}:
+  fd3e244095,exec,claude,2026-08-20,fix the 5 remaining credential-constant readers (ledger T365)
+  c7f905eddc,exec,claude,2026-08-23,"classify the suite-baseline delta 43->63 (@2d7a050 -> @42da709): diff the two failure sets, attribute each new failure to sibling mid-flight work / environment / a real regression from the 2026-08-22 ship day (t380 ladder, t375 registry, gateway rotations); log /x/suite-run-20260822.txt"
+  d14d0f4209,a doc-verb retitle/arc-edit surface (doc verb only has new/adopt today),claude,2026-08-24,"retitle the SA-1 arc label at its atoms so generated ARCS/SHELVES stop embedding the dead path docs/security-amendment-deepseek-scoped-admin-2026-07-22.md (real file: docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md); then REMOVE the REF_ALLOWLIST entry in scripts/chec... (truncated, 331 chars total)"
+  bc2a01244d,"its own fence or task -- Heimdall ruled it out of t384's scope (V11) to keep the instance-split fence focused, and I accepted",claude,2026-08-24,"close the exec-shadows-write hole: a seat holding exec can git commit / write files through the shell regardless of its write cap, so the ACL's write restriction is advisory for any exec-holder (toolbox_door_shadows_the_acl family). Decide: a mediated git/write seam that checks the cap, or an explic... (truncated, 387 chars total)"
+  b6bbdd9706,write,claude,2026-08-25,"Bifrost UI: surface deepseek-CLI + Rill reasoning as a first-class stream"
+  9bfea82ae7,net,claude,2026-08-26,"py agent_cli.py boot claude --task 'adjudication loop: survey, adjudicate vs corpus, score forecasts, draft the delta'"
+  8c881ab628,write,claude,2026-08-26,make a CLEAN runner exit retract its own phase card -- a drained runner currently leaves a page-grade 'HARD WEDGE' behind
+  c5ba1ebad6,exec,claude,2026-08-26,"triage the CI test suite: 70 FAILED + 11 ERROR + a 5.5-minute HANG that cancelled the job at 66%"
+  b19e6adadc,write,claude,2026-08-26,dsh web --help BOOTS A SECOND INSTANCE instead of printing help
+  934f8ee505,write,claude,2026-08-26,"sandbox escalation has no middle rung: a seat needing one file outside its workspace must ask for danger-full-access"
+  224ac54766,write,claude,2026-08-27,"investigate: THIRTEEN concurrent ai_setup_mcp.py processes share the bus cursor keyspace, and a foreign claude seat cursor exists (bifrost:cursor:seat:claude#a80c9db9, not the live session 25cd3074). Found 2026-08-26 by following learn:experiment:recurring_symptom_is_the_root_cause_signal after the... (truncated, 1210 chars total)"
+  adea6faf73,exec,claude,2026-08-27,"settle: a LESSON'S PREMISE CONTRADICTS CURRENT SOURCE, and the source did not change under it. learn:experiment:wake_deadline_measures_session_age_so_a_long_session_cycles_instantly (claude, 2026-08-15) states that bifrost_wake's cycle line measures SESSION age, citing an arm that 'reported after 7.... (truncated, 1918 chars total)"
+  86bcb9f586,exec,claude,2026-09-02,"measure at next session boot: does the first Bash call print the [shell-home] teleport line and pwd=/e/AI-Setup with zero cd? That receipt settles harness-tracking-vs-profile ordering; if harness wins, escalate shell-home into the snapshot layer"
+  689846581e,write,claude,2026-09-02,"build the seed_import loader (installer manifest a9dbfe names op seed_import; no tracked code implements it) and decide the seed's ship vehicle -- sanitized-seed.jsonl deliberately rides NO clone (research/in-flight, untracked, held for the operator's FORMAL seed gate + Heimdall's sanitizer fixes: t... (truncated, 500 chars total)"
+  bbb15a64fd,exec,claude,2026-09-03,"controlled experiment: why does the (now single) SessionEnd hook still report 'Hook cancelled' on claude -p sprouts -- teardown timing vs hook timeout? Spawn a disposable -p seat, watch hook execution; also unify the diverged hook-file twins (scripts/hooks/ vs agent/harness/hooks/, T238 class, sessi... (truncated, 367 chars total)"
+  5fe1752aab,exec,claude,2026-09-04,"atom-plane redaction pass: supersede/regenerate the ~8 tracked docs carrying operator-interiority quote fragments or charters/daniel pointers (the-plan 2d7bb1+a84b0d, cold-question-battery 55f371, corpus-sweep-map 62f28c, draft-directive-arc-map a82c7e, WISHLIST, ONBOARDING-BRIDGE, directive-registe... (truncated, 477 chars total)"
+  9a85e7cfa2,exec,claude,2026-09-04,"auto-stamp the model self-report: call core.fleet.seat_model.report(agent, session, model, harness) from the SessionStart/Stop hook path (scripts/hooks/claude_sessionstart.py) so every seat's model appears in !model without a manual stamp -- today only a hand-run report() populates it, so the displa... (truncated, 346 chars total)"
+  44f88b3da6,write,claude,2026-09-06,"fix conductor_gate false ACTIVATION: sweep stale pid-61024 orphan marker + make runner activation consult live roster beat (evaluate_succession already returns activate=False while runners activate anyway; seen 3x at markers 93s/272s/666s; same in-band-input class as the wake work; drill by replayin... (truncated, 325 chars total)"
+  ec0a21cab0,exec,claude,2026-09-09,"root-cause the load/timing flake in tests/test_t078_w3_mcp_door.py::test_p6: the events tool answers '# 0 event(s) matching' for the probe agent when the machine is loaded or the tree is a fresh worktree, and '2' on a quiet main tree -- start at core/events/event_query.py::search + get_event_log() (... (truncated, 478 chars total)"
+  ea0b68c752,write,claude,2026-09-09,"fix agent_cli.py ask --get: render result['warnings'] (EVIDENCE CLIPPED / EVIDENCE SKIPPED / LENS LEDGER lines) exactly as the foreground fan path prints them as '!! ' lines; RED pin first: a --bg fan whose --with pack overruns AKASHIC_ASK_CONTEXT_CHARS (40000) must show 'EVIDENCE CLIPPED' in the --... (truncated, 584 chars total)"
+... (3 more lines)
+```
 
 ## `delta`
 

@@ -38,7 +38,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `compress` | meta-harness compression (task 11): pieces, usage telemetry, staged search for the pieces that matter | `<action>* {pieces,telemetry,run}` `--candidate` `--scenario` `--root` `--max-runs` `--trials` `--json` |
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `corpus` | meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status | `<action>* {archive,mine,list,show,accept,reject,validate,retire,status}` `<id>` `--limit` `--status` `--reason` `--by` `--cap-mb` `--fields` `--json` |
-| `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
+| `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` `--fields` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
 | `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
 | `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |

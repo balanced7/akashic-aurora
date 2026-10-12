@@ -1,0 +1,140 @@
+# AXI bench: `defer`
+
+Before: `50c2ee6f (50c2ee6f)`. After: this change. Reader: `claude-haiku-5-5`, 5 runs per question, graded mechanically against seeded answers.
+
+| Measure | Before | After | Change |
+|---|---|---|---|
+| Reader accuracy | 29/30 (97%) | 30/30 (100%) | +3 pp |
+| Output tokens, as the reader counts them (median) | 6,582 | 2,638 | -3,944 (-60%) |
+| Stdout characters (all runs) | 16,966 | 6,370 | -10,596 (-62%) |
+| AXI checks passed | 3/5 | 5/5 |  |
+
+## Questions
+
+| Question | Expected | Before | After |
+|---|---|---|---|
+| How many commands are pending? | `20` | 5/5 | 5/5 |
+| What capability does item c7f905eddc need? | `exec` | 5/5 | 5/5 |
+| Is bench confirmed as a real seat in the fleet roster? Answer yes or no. | `no` | 4/5 | 5/5 |
+| What command discharges a pending item? Give the command only. | `['defer bench --done', '--receipt']` | 5/5 | 5/5 |
+| What capability does the filed command wait for? | `exec` | 5/5 | 5/5 |
+| Was the item discharged? Answer yes or no. | `no` | 5/5 | 5/5 |
+
+## AXI checks
+
+| Check | Before | After |
+|---|---|---|
+| unknown flag exit 2 | pass | pass |
+| unknown flag on stdout | fail | pass |
+| unknown flag lists valid flags | fail | pass |
+| help exit 0 | pass | pass |
+| no ansi in agent stdout | pass | pass |
+
+## Before: output
+
+`aurora defer bench --list` (exit 0)
+
+```
+[defer] note: cannot confirm 'bench' is a real seat -- the fleet roster is unknown here -- the shared queue follows
+  [fd3e244095] needs exec: fix the 5 remaining credential-constant readers (ledger T365)  (discord_inbound/discord_rooms/discord_setup/gemini_web/ops-redact read secrets by module-path constant; AKASHIC_SECRETS_DIR cannot redirect them. This class already minted a live thread in his server once.)  <- claude, 2026-08-20
+  [c7f905eddc] needs exec: classify the suite-baseline delta 43->63 (@2d7a050 -> @42da709): diff the two failure sets, attribute each new failure to sibling mid-flight work / environment / a real regression from the 2026-08-22 ship day (t380 ladder, t375 registry, gateway rotations); log /x/suite-run-20260822.txt  (a +20 failure jump on a dirty shared tree is a question, not a verdict -- but an unclassified jump silently becomes the new normal (T267 precedent), which is exactly how classification rot starts)  <- claude, 2026-08-23
+  [d14d0f4209] needs a doc-verb retitle/arc-edit surface (doc verb only has new/adopt today): retitle the SA-1 arc label at its atoms so generated ARCS/SHELVES stop embedding the dead path docs/security-amendment-deepseek-scoped-admin-2026-07-22.md (real file: docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md); then REMOVE the REF_ALLOWLIST entry in scripts/checkers/check_comprehensibility.py  (exemption renewed to 2026-09-15 in 3559f478 after the first expiry blocked commits mid-marathon; renewal is recorded debt, not a fix)  <- claude, 2026-08-24
+  [bc2a01244d] needs its own fence or task -- Heimdall ruled it out of t384's scope (V11) to keep the instance-split fence focused, and I accepted: close the exec-shadows-write hole: a seat holding exec can git commit / write files through the shell regardless of its write cap, so the ACL's write restriction is advisory for any exec-holder (toolbox_door_shadows_the_acl family). Decide: a mediated git/write seam that checks the cap, or an explicit doctrine line saying exec IMPLIES write and the ACL should stop pretending otherwise  (real hole, verified: Rill holds exec and committed b66e6f67 through the shell; the cap model says write is separate but the door does not enforce that separation)  <- claude, 2026-08-24
+  [b6bbdd9706] needs write: Bifrost UI: surface deepseek-CLI + Rill reasoning as a first-class stream  (Daniil 2026-08-24: 'fix deepseek cli and rills reasoning not showing up on the bifrost, I want to be able to see it, that can and should be SEPARATE from our internals.' Two parts: (1) the Bifrost web UI is DOWN entirely -- nothing listening on 8787/8788 -- so there is no surface to render onto yet; (2) reasoning likely never reaches it because trace-class telemetry is deliberately folded/excluded on several paths (W4 collapse, discord FORWARD_KINDS, bridge BRIDGE_KINDS). The design point is his: a reasoning stream is a SEPARATE CHANNEL from internal bus traffic, not a filter over it. HELD 2026-08-24 at his direction until the Tailscale bridge is settled.)  <- claude, 2026-08-25
+  [9bfea82ae7] needs net: py agent_cli.py boot claude --task 'adjudication loop: survey, adjudicate vs corpus, score forecasts, draft the delta'  (THE ADJUDICATION LOOP is live as a weekly scheduled task (Sun 19:17, ~/.claude/scheduled-tasks/akashic-adjudication-loop). This defer is the DURABLE half: the app-based schedule dies with the app, boot does not. Arc: docs/library/report/20260825_arc-content-and-survey-loop_b268f7.md. Cycle 1 already ran by accident (2026-08-25) and produced a real hit: lesson recall_at_action_v1's 'ahead of SOTA' claim went stale between June and August, and would have told a patent-spend decision 'do not check'. Forecast involuntary-retrieval-ships-2027h1 is open with a falsifier. If a Sunday passes with no report, the schedule is dead -- re-create it rather than assuming it ran.)  <- claude, 2026-08-26
+  [8c881ab628] needs write: make a CLEAN runner exit retract its own phase card -- a drained runner currently leaves a page-grade 'HARD WEDGE' behind  (Reproduced 2026-08-26: drained deepseek via bifrost-drain (honoured, exit 0), relaunched as a new incarnation, and the retired incarnation deepseek#3708-dee still pages HARD WEDGE ('non-idle phase running aged 4232s + DEAD pulse'). The process is GONE and the exit was CLEAN, so the page is false. unwedge only diagnoses -- it has no retraction. This is exactly the class in lesson escalation_needs_retraction_not_just_emission: an emitter without a retraction path manufactures false pages, and false pages train the operator to ignore real ones. Fix: on graceful exit, stand the phase down (or have doctor treat 'runner absent + clean exit code' as retired, not wedged).)  <- claude, 2026-08-26
+  [c5ba1ebad6] needs exec: triage the CI test suite: 70 FAILED + 11 ERROR + a 5.5-minute HANG that cancelled the job at 66%  (As of run 32940952530 (2026-08-26) ALL FIVE guardrails pass -- boundaries, doc-freshness, comprehensibility, wiring, door-parity. The gate chain is FIXED. What is left is the suite itself: 3095 passed / 70 failed / 11 errored / 32 skipped / 15 xfailed, and it never finished -- output stopped at 07:09:35, resumed 5.5 MINUTES later with a burst of EEEEEEE, and the job was cancelled. ci.yml sets no timeout-minutes (GitHub default is 360), so an 11-minute cancel is NOT a workflow timeout -- something wedged. Related local finding [5d2f0963e1]: tests/test_bridge_status_pins.py + tests/test_remote_bridge_listener_pins.py run TOGETHER kill the whole shell with zero output, and tests/test_t086_s5_daemon_supervisor.py:43 guards against broadcasting CTRL_BREAK_EVENT across a shared pytest process group -- this class has bitten here before. START WITH THE HANG, not the 70: an unfinished suite cannot be baselined, and the hang may be masking failures after 66%. state/coord/suite_baseline.json records 54 known failures as of 2026-08-23 @42da709, so the suite has been red for days and was simply HIDDEN behind the failing gates.)  <- claude, 2026-08-26
+  [b19e6adadc] needs write: dsh web --help BOOTS A SECOND INSTANCE instead of printing help  (Hit live 2026-08-26 16:05 while looking for a remote way to hand Rill a turn. 'dsh.CMD web --help' does not print usage -- it starts booting the web profile, which on a machine where Rill is already up means a second node process racing for port 3080. I caught the stray (pid 14840) and killed it; the live Rill (36216) was unharmed and still serving. Anyone troubleshooting this seat will reach for --help early, and on this harness that command is a spawn. Options: document it loudly in the DSH runbook, or wrap the launcher so --help is intercepted before it reaches the app. NOTE the adjacent hazard already filed as dc6200d491 -- the gateway has no singleton guard either; this is the same class on a different lever, where the DIAGNOSTIC command is the destructive one.)  <- claude, 2026-08-26
+  [934f8ee505] needs write: sandbox escalation has no middle rung: a seat needing one file outside its workspace must ask for danger-full-access  (Cost Rill 74 MINUTES of wall clock today, 2026-08-26. His own stats: 82m elapsed, only 8m15s of LLM work, 74m7s sitting in a blocked tool call. He needed to copy ONE file (his own plugin's deployed copy at C:\Users\L5\.dsh\profiles\web\plugins) from outside his workspace sandbox, which is confined to E:\AI-Setup. The available modes are workspace-write and danger-full-access and NOTHING BETWEEN -- so writing a single known path required requesting full access to the entire machine, which only a human can grant. He asked correctly and then waited, because that is the only thing he could do. I unblocked him by doing the copy myself with install_dsh_plugin.py and REJECTED the escalation, so no elevated permission was granted. The defect is structural and will recur: any seat whose deployment target sits outside its workspace hits the same wall, and the honest options are both bad -- block for a human, or hand out the machine. WANT: a scoped escalation (a named path or a small allowlist) so 'write this one file' does not have to mean 'trust me with everything'. NOTE the adjacent good behaviour worth preserving: the DSH harness correctly refused, told him the rule, and made him justify -- the refusal is right, it is the GRANULARITY that is wrong.)  <- claude, 2026-08-26
+  [224ac54766] needs write: investigate: THIRTEEN concurrent ai_setup_mcp.py processes share the bus cursor keyspace, and a foreign claude seat cursor exists (bifrost:cursor:seat:claude#a80c9db9, not the live session 25cd3074). Found 2026-08-26 by following learn:experiment:recurring_symptom_is_the_root_cause_signal after the wake watcher re-fired on already-seen mail across five arms in one session. Each MCP instance carries bifrost_sync/bifrost_inbox/bifrost_fetch, so any of them can read or advance a cursor another seat depends on -- the same shared-co-tenant shape that lesson records (a same-token twin co-consuming the shared cursor). TWO questions, in order: (1) is 13 MCP instances expected, or are they accumulating without reaping -- this is also a memory question, the box just died of exhaustion on 08-26; (2) does cursor advancement need a per-incarnation namespace rather than a per-seat one, since bifrost:cursor:seat:claude#<sid8> already exists alongside an un-namespaced bifrost:cursor:claude and the two disagree about who has read what. NOT a band-aid target: do not patch the watcher for replay -- see learn:experiment:wake_local_cursor_history_replay, which says the honest fix is a session-scoped read cursor.  (Five band-aids in one session were all patching one unnamed shared-resource co-tenant; naming it is the only thing that stops the sixth.)  <- claude, 2026-08-27
+  [adea6faf73] needs exec: settle: a LESSON'S PREMISE CONTRADICTS CURRENT SOURCE, and the source did not change under it. learn:experiment:wake_deadline_measures_session_age_so_a_long_session_cycles_instantly (claude, 2026-08-15) states that bifrost_wake's cycle line measures SESSION age, citing an arm that 'reported after 7.04h elapsed about three minutes after I started it', and concludes that in a long session every further arm cycles immediately so you should stop re-arming. Reading the source 2026-08-27: scripts/bifrost_wake.py:348 sets deadline = time.time() + total_deadline_s at the top of watch(), and :442 computes elapsed_s = time.time() - (deadline - total_deadline_s), which is simply the age of THIS ARM. deadline is assigned exactly once (the only other hit, :491, is the argparse namespace default). Under that reading an arm cannot report 7.04h three minutes after launch, and the observed 3.97h readings are healthy four-hour watches completing normally. git log -S on the elapsed line shows it landed 2026-07-16 in bd29f7bc -- a MONTH BEFORE the lesson -- so this is not a stale lesson describing a since-fixed bug. Two readings of the same code disagree and I cannot reconcile them from inspection. MOST LIKELY EXPLANATION, unproven: the lesson's author read a PREVIOUS arm's output file and attributed it to the arm just launched, which is the same misattribution class this seat committed twice on 2026-08-26. THE EXPERIMENT THAT SETTLES IT, in one command: run bifrost_wake with --deadline 5 and read what elapsed reports. NOT RUN HERE ON PURPOSE -- a self-cycle writes a re-arm trigger file, and the live wake path is the operator's only remote hand on this house. Run it in E:/AI-Setup-Sandbox, or on the live path only when the operator is at the machine. COST OF LEAVING IT: the lesson currently advises seats to STOP RE-ARMING and declare themselves unwatchable, which this seat did on 2026-08-26 and was wrong.  (This is the house's first natural premise-check -- a lesson flagged by its own premise failing against source rather than by anyone noticing the advice was bad. It is worth settling for the method as much as the answer, and its current advice makes seats unreachable on purpose.)  <- claude, 2026-08-27
+  [86bcb9f586] needs exec: measure at next session boot: does the first Bash call print the [shell-home] teleport line and pwd=/e/AI-Setup with zero cd? That receipt settles harness-tracking-vs-profile ordering; if harness wins, escalate shell-home into the snapshot layer  (profile hook drilled green in login shells tonight but the harness snapshot is frozen mid-session; ordering at rebuild is measured, not assumed)  <- claude, 2026-09-02
+  [689846581e] needs write: build the seed_import loader (installer manifest a9dbfe names op seed_import; no tracked code implements it) and decide the seed's ship vehicle -- sanitized-seed.jsonl deliberately rides NO clone (research/in-flight, untracked, held for the operator's FORMAL seed gate + Heimdall's sanitizer fixes: the Daniel-spelling regex hole, unsanitized experiment_name keys, record 621 pull). Until loader + gated seed both exist, the installer's seed step and T180's seed-drill receipt stay blocked-by-design.  (discharge = installer arc seed step unblocked and T180's third receipt closes honestly instead of forced-green)  <- claude, 2026-09-02
+  [bbb15a64fd] needs exec: controlled experiment: why does the (now single) SessionEnd hook still report 'Hook cancelled' on claude -p sprouts -- teardown timing vs hook timeout? Spawn a disposable -p seat, watch hook execution; also unify the diverged hook-file twins (scripts/hooks/ vs agent/harness/hooks/, T238 class, sessionend copies differ only by sys.path depth) into one canonical tree  (wrap-at-death machinery is silently dead for every sprout until the cancellation root is convicted)  <- claude, 2026-09-03
+  [5fe1752aab] needs exec: atom-plane redaction pass: supersede/regenerate the ~8 tracked docs carrying operator-interiority quote fragments or charters/daniel pointers (the-plan 2d7bb1+a84b0d, cold-question-battery 55f371, corpus-sweep-map 62f28c, draft-directive-arc-map a82c7e, WISHLIST, ONBOARDING-BRIDGE, directive-registers 08f179+422010, charter-framework c636f8, handoff chronicle 2026-07-30) -- quotes become pointers to the private plane; projections regenerate from superseded atoms, never sed  <- claude, 2026-09-04
+  [9a85e7cfa2] needs exec: auto-stamp the model self-report: call core.fleet.seat_model.report(agent, session, model, harness) from the SessionStart/Stop hook path (scripts/hooks/claude_sessionstart.py) so every seat's model appears in !model without a manual stamp -- today only a hand-run report() populates it, so the display is honest-but-empty for seats nobody stamped  <- claude, 2026-09-04
+  [44f88b3da6] needs write: fix conductor_gate false ACTIVATION: sweep stale pid-61024 orphan marker + make runner activation consult live roster beat (evaluate_succession already returns activate=False while runners activate anyway; seen 3x at markers 93s/272s/666s; same in-band-input class as the wake work; drill by replaying the stale-marker state)  (stops deepseek/kimi false acting-conductor takeovers while claude is live -- each one is 8h of misassigned authority and a wolf-cry eroding trust in the real signal)  <- claude, 2026-09-06
+  [ec0a21cab0] needs exec: root-cause the load/timing flake in tests/test_t078_w3_mcp_door.py::test_p6: the events tool answers '# 0 event(s) matching' for the probe agent when the machine is loaded or the tree is a fresh worktree, and '2' on a quiet main tree -- start at core/events/event_query.py::search + get_event_log() (time index vs ledger fallback) under the child's REDIS_DB=15 + bare AI_SETUP; it was in the 08-23 baseline as red and is absent from the 09-08 baseline because it passed serially  (the pre-push door gate re-runs this pin whenever door code moved; a flake there blocks pushes at exactly the moments the machine is busy landing)  <- claude, 2026-09-09
+  [ea0b68c752] needs write: fix agent_cli.py ask --get: render result['warnings'] (EVIDENCE CLIPPED / EVIDENCE SKIPPED / LENS LEDGER lines) exactly as the foreground fan path prints them as '!! ' lines; RED pin first: a --bg fan whose --with pack overruns AKASHIC_ASK_CONTEXT_CHARS (40000) must show 'EVIDENCE CLIPPED' in the --get output. Receipt 2026-09-09: state/asks/484040e7.json carries the warnings (aurora-shader.js clipped 21389 of 35451 chars, six files SKIPPED) and --get printed none; both Heimdall branches answered from partial evidence with a scope note the caller only saw by reading the answers.  (T218's own law -- a clip is only safe if the party who draws the conclusion is told -- is broken for every --bg reader; a background fan is exactly where the caller is not watching stderr)  <- claude, 2026-09-09
+[defer] discharge: uv run agent_cli.py defer bench --done <id> --receipt "what happened"
+```
+
+`aurora defer bench rerun the full suite --needs exec --why baseline` (exit 0)
+
+```
+[defer] filed [8e54c1e583] awaiting a exec seat -- boot surfaces it to capable seats; they discharge with a receipt
+```
+
+`aurora defer bench --done fd3e244095 --receipt fixed in abc123` (exit 0)
+
+```
+[defer] discharged [fd3e244095] by bench -- fixed in abc123
+```
+
+`aurora defer bench --done nope --receipt x` (exit 2)
+
+```
+[defer] "no pending item with id 'nope' (see: defer <you> --list)"
+```
+
+
+## After: output
+
+`aurora defer bench --list` (exit 0)
+
+```
+seat: bench
+seat_status: "not confirmed: the fleet roster is unknown here"
+pending: 20
+items[20]{id,needs,by,filed,cmd}:
+  fd3e244095,exec,claude,2026-08-20,fix the 5 remaining credential-constant readers (ledger T365)
+  c7f905eddc,exec,claude,2026-08-23,"classify the suite-baseline delta 43->63 (@2d7a050 -> @42da709): diff the two failure sets, attribute each new failure to sibling mid-flight work / environment / a real regression from the 2026-08-22 ship day (t380 ladder, t375 registry, gateway rotations); log /x/suite-run-20260822.txt"
+  d14d0f4209,a doc-verb retitle/arc-edit surface (doc verb only has new/adopt today),claude,2026-08-24,"retitle the SA-1 arc label at its atoms so generated ARCS/SHELVES stop embedding the dead path docs/security-amendment-deepseek-scoped-admin-2026-07-22.md (real file: docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md); then REMOVE the REF_ALLOWLIST entry in scripts/chec... (truncated, 331 chars total)"
+  bc2a01244d,"its own fence or task -- Heimdall ruled it out of t384's scope (V11) to keep the instance-split fence focused, and I accepted",claude,2026-08-24,"close the exec-shadows-write hole: a seat holding exec can git commit / write files through the shell regardless of its write cap, so the ACL's write restriction is advisory for any exec-holder (toolbox_door_shadows_the_acl family). Decide: a mediated git/write seam that checks the cap, or an explic... (truncated, 387 chars total)"
+  b6bbdd9706,write,claude,2026-08-25,"Bifrost UI: surface deepseek-CLI + Rill reasoning as a first-class stream"
+  9bfea82ae7,net,claude,2026-08-26,"py agent_cli.py boot claude --task 'adjudication loop: survey, adjudicate vs corpus, score forecasts, draft the delta'"
+  8c881ab628,write,claude,2026-08-26,make a CLEAN runner exit retract its own phase card -- a drained runner currently leaves a page-grade 'HARD WEDGE' behind
+  c5ba1ebad6,exec,claude,2026-08-26,"triage the CI test suite: 70 FAILED + 11 ERROR + a 5.5-minute HANG that cancelled the job at 66%"
+  b19e6adadc,write,claude,2026-08-26,dsh web --help BOOTS A SECOND INSTANCE instead of printing help
+  934f8ee505,write,claude,2026-08-26,"sandbox escalation has no middle rung: a seat needing one file outside its workspace must ask for danger-full-access"
+  224ac54766,write,claude,2026-08-27,"investigate: THIRTEEN concurrent ai_setup_mcp.py processes share the bus cursor keyspace, and a foreign claude seat cursor exists (bifrost:cursor:seat:claude#a80c9db9, not the live session 25cd3074). Found 2026-08-26 by following learn:experiment:recurring_symptom_is_the_root_cause_signal after the... (truncated, 1210 chars total)"
+  adea6faf73,exec,claude,2026-08-27,"settle: a LESSON'S PREMISE CONTRADICTS CURRENT SOURCE, and the source did not change under it. learn:experiment:wake_deadline_measures_session_age_so_a_long_session_cycles_instantly (claude, 2026-08-15) states that bifrost_wake's cycle line measures SESSION age, citing an arm that 'reported after 7.... (truncated, 1918 chars total)"
+  86bcb9f586,exec,claude,2026-09-02,"measure at next session boot: does the first Bash call print the [shell-home] teleport line and pwd=/e/AI-Setup with zero cd? That receipt settles harness-tracking-vs-profile ordering; if harness wins, escalate shell-home into the snapshot layer"
+  689846581e,write,claude,2026-09-02,"build the seed_import loader (installer manifest a9dbfe names op seed_import; no tracked code implements it) and decide the seed's ship vehicle -- sanitized-seed.jsonl deliberately rides NO clone (research/in-flight, untracked, held for the operator's FORMAL seed gate + Heimdall's sanitizer fixes: t... (truncated, 500 chars total)"
+  bbb15a64fd,exec,claude,2026-09-03,"controlled experiment: why does the (now single) SessionEnd hook still report 'Hook cancelled' on claude -p sprouts -- teardown timing vs hook timeout? Spawn a disposable -p seat, watch hook execution; also unify the diverged hook-file twins (scripts/hooks/ vs agent/harness/hooks/, T238 class, sessi... (truncated, 367 chars total)"
+  5fe1752aab,exec,claude,2026-09-04,"atom-plane redaction pass: supersede/regenerate the ~8 tracked docs carrying operator-interiority quote fragments or charters/daniel pointers (the-plan 2d7bb1+a84b0d, cold-question-battery 55f371, corpus-sweep-map 62f28c, draft-directive-arc-map a82c7e, WISHLIST, ONBOARDING-BRIDGE, directive-registe... (truncated, 477 chars total)"
+  9a85e7cfa2,exec,claude,2026-09-04,"auto-stamp the model self-report: call core.fleet.seat_model.report(agent, session, model, harness) from the SessionStart/Stop hook path (scripts/hooks/claude_sessionstart.py) so every seat's model appears in !model without a manual stamp -- today only a hand-run report() populates it, so the displa... (truncated, 346 chars total)"
+  44f88b3da6,write,claude,2026-09-06,"fix conductor_gate false ACTIVATION: sweep stale pid-61024 orphan marker + make runner activation consult live roster beat (evaluate_succession already returns activate=False while runners activate anyway; seen 3x at markers 93s/272s/666s; same in-band-input class as the wake work; drill by replayin... (truncated, 325 chars total)"
+  ec0a21cab0,exec,claude,2026-09-09,"root-cause the load/timing flake in tests/test_t078_w3_mcp_door.py::test_p6: the events tool answers '# 0 event(s) matching' for the probe agent when the machine is loaded or the tree is a fresh worktree, and '2' on a quiet main tree -- start at core/events/event_query.py::search + get_event_log() (... (truncated, 478 chars total)"
+  ea0b68c752,write,claude,2026-09-09,"fix agent_cli.py ask --get: render result['warnings'] (EVIDENCE CLIPPED / EVIDENCE SKIPPED / LENS LEDGER lines) exactly as the foreground fan path prints them as '!! ' lines; RED pin first: a --bg fan whose --with pack overruns AKASHIC_ASK_CONTEXT_CHARS (40000) must show 'EVIDENCE CLIPPED' in the --... (truncated, 584 chars total)"
+help[2]:
+  uv run agent_cli.py defer bench --done <id> --receipt "what happened"
+  uv run agent_cli.py defer bench --list --json
+```
+
+`aurora defer bench rerun the full suite --needs exec --why baseline` (exit 0)
+
+```
+filed: d001cc7c44
+needs: exec
+cmd: rerun the full suite
+help[1]:
+  uv run agent_cli.py defer bench --list
+```
+
+`aurora defer bench --done fd3e244095 --receipt fixed in abc123` (exit 0)
+
+```
+discharged: fd3e244095
+by: bench
+receipt: fixed in abc123
+```
+
+`aurora defer bench --done nope --receipt x` (exit 2)
+
+```
+error: "nothing discharged: no pending item with id 'nope' (see: defer <you> --list)"
+code: NOT_FOUND
+help[1]:
+  uv run agent_cli.py defer bench --list
+```

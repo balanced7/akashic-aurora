@@ -15240,6 +15240,12 @@ def build_parser():
     df.add_argument("--list", action="store_true", help="show pending items")
     df.add_argument("--done", default=None, metavar="ID", help="discharge one item")
     df.add_argument("--receipt", default="", help="REQUIRED with --done: what happened")
+    df.add_argument(
+        "--fields",
+        default=None,
+        help=f"--list: extra columns: {','.join(_DEFER_ALL_FIELDS[len(_DEFER_FIELDS) :])}, or 'all' "
+        f"(default: {','.join(_DEFER_FIELDS)})",
+    )
     df.set_defaults(fn=cmd_defer)
 
     wd = sub.add_parser(
@@ -16729,83 +16735,104 @@ def cmd_defer(args):
     the capability-gated standing queue (W33, seat-zero wave B3). Commands that wait for
     a seat with a capability you lack; boot surfaces them to capable seats; discharge
     REQUIRES a receipt (the queue is also the discharge ledger)."""
+    from core.axi import out
     from core.coord import defer_queue as dq
 
+    cli, me = _cli(), args.agent_id
     if getattr(args, "done", None):
         try:
-            item = dq.mark_done(args.done, seat=args.agent_id, receipt=str(getattr(args, "receipt", "") or ""))
-        except (ValueError, KeyError) as e:
-            print(f"[defer] {e}")
-            return 2
-        print(f"[defer] discharged [{item['id']}] by {item['done_by']} -- {item['receipt']}")
-        return 0
+            item = dq.mark_done(args.done, seat=me, receipt=str(getattr(args, "receipt", "") or ""))
+        except KeyError as e:
+            msg = f"nothing discharged: {str(e).strip(chr(34) + chr(39))}"
+            return out.fail(msg, code="NOT_FOUND", hints=[f"{cli} defer {me} --list"], exit_code=2)
+        except ValueError as e:
+            return out.fail(
+                str(e),
+                code="USAGE",
+                hints=[f'{cli} defer {me} --done {args.done} --receipt "what happened"'],
+                exit_code=2,
+            )
+        doc = {"discharged": item["id"], "by": item["done_by"], "receipt": item["receipt"]}
+        return out.emit(doc, title="Defer · discharged")  # a confirmation: nothing left to do
     if getattr(args, "list", False):
+        try:
+            fields = out.fields_arg(getattr(args, "fields", None), _DEFER_FIELDS, _DEFER_ALL_FIELDS)
+        except ValueError as e:
+            return out.fail(str(e), code="USAGE", hints=[f"{cli} defer {me} --list --fields why"], exit_code=2)
         items = dq.pending()
-        if items:
-            # The queue is shared, so it lists the same for any id -- which is exactly why an
-            # UNKNOWN id must still be named as such: otherwise a typo'd seat reads the queue
-            # and looks legitimate (the empty-queue branch below learned this 2026-08-20).
-            try:
-                from core.comm.doctor import known_agents
+        # The queue is shared, so it lists the same for any id -- which is exactly why an UNKNOWN
+        # id must still be named as such: otherwise a typo'd seat reads the queue and looks
+        # legitimate. ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY: until 2026-08-20 an
+        # unknown seat's queue printed the same cheerful "queue empty" as a real one, so an
+        # unsubstituted $SELF$ (or a plain typo) read a phantom queue and reported nothing waiting
+        # while the real queue filled (same class as eye_get_says_no_event_when_it_means_bad_address).
+        # We teach rather than refuse: a brand-new seat legitimately has no queue yet, so an
+        # unknown id is a note, not a wall. And the seat is ALWAYS named, roster or not, so a
+        # reader seeing an id they did not intend spots the typo without any fleet lookup.
+        try:
+            from core.comm.doctor import known_agents
 
-                roster = set(known_agents())
-            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
-                roster = set()
-            if roster and args.agent_id not in roster:
-                print(
-                    f"[defer] note: {args.agent_id!r} is UNKNOWN to the fleet roster "
-                    f"(known: {', '.join(sorted(roster)[:8])}"
-                    f"{' ...' if len(roster) > 8 else ''}) -- the shared queue follows"
-                )
-            elif not roster:
-                print(
-                    f"[defer] note: cannot confirm {args.agent_id!r} is a real seat -- the "
-                    f"fleet roster is unknown here -- the shared queue follows"
-                )
-        if not items:
-            # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown
-            # seat's queue printed the same cheerful "queue empty" as a real one, so an
-            # unsubstituted $SELF$ (or a plain typo) read a phantom queue and reported nothing
-            # waiting while the real queue filled. Same class as
-            # eye_get_says_no_event_when_it_means_bad_address, on a different door. We teach
-            # rather than refuse: a brand-new seat legitimately has no queue yet, so an unknown
-            # id is a HINT, not a wall.
-            try:
-                from core.comm.doctor import known_agents
-
-                roster = set(known_agents())
-            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
-                roster = set()  # cannot tell -> say nothing extra, never a false alarm
-            if roster and args.agent_id not in roster:
-                print(
-                    f"[defer] no queue for {args.agent_id!r} -- and that id is UNKNOWN to the "
-                    f"fleet roster. Empty because the seat does not exist, not because nothing "
-                    f"awaits. Known: {', '.join(sorted(roster)[:8])}"
-                    f"{' ...' if len(roster) > 8 else ''}"
-                )
-                return 0
-            # NAME THE SUBJECT OF THE ANSWER. Roster-free and therefore honest in every
-            # environment: a reader seeing an id they did not intend spots the typo without any
-            # fleet lookup. The roster hint above is an ENHANCEMENT when context exists, never
-            # the only thing standing between a phantom queue and a cheerful negative.
-            print(f"[defer] queue empty for {args.agent_id!r} -- nothing awaits a capable seat")
-            return 0
+            roster = set(known_agents())
+        except Exception:  # noqa: BLE001  # fail-soft: cannot tell -> say so, never a false alarm
+            roster = set()
+        doc: dict = {"seat": me}
+        if not roster:
+            doc["seat_status"] = "not confirmed: the fleet roster is unknown here"
+        elif me in roster:
+            doc["seat_status"] = "known"
+        else:
+            known = ", ".join(sorted(roster)[:8]) + (" ..." if len(roster) > 8 else "")
+            doc["seat_status"] = f"UNKNOWN to the fleet roster (known: {known})"
+        rows = []
         for i in items:
-            why = f"  ({i['why']})" if i.get("why") else ""
-            print(f"  [{i['id']}] needs {i['needs']}: {i['cmd']}{why}  <- {i['by']}, {i['filed_at'][:10]}")
-        print(f'[defer] discharge: {_cli()} defer {args.agent_id} --done <id> --receipt "what happened"')
-        return 0
+            full = {
+                "id": i["id"],
+                "needs": i["needs"],
+                "by": i["by"],
+                "filed": str(i.get("filed_at", ""))[:10],
+                "cmd": out.truncate(i["cmd"], 300)[0],
+                "why": out.truncate(i.get("why"), 300)[0] or None,
+                "filed_at": i.get("filed_at"),
+            }
+            rows.append({f: full[f] for f in fields})
+        doc.update(pending=len(rows), items=rows)
+        if not rows:  # AXI section 5: the zero is the answer, said with whose queue was read
+            return out.emit(doc, hints=[f'{cli} defer {me} "<command>" --needs exec'], title="Deferred queue")
+        hints = [f'{cli} defer {me} --done <id> --receipt "what happened"']
+        if any(str(r.get("cmd") or "").endswith("chars total)") for r in rows):
+            hints.append(f"{cli} defer {me} --list --json")  # the full commands
+        return out.emit(doc, hints=hints, human=_human_defer, title=f"Deferred queue · {len(rows)} pending")
     text = " ".join(args.cmd_text) if isinstance(args.cmd_text, list) else str(args.cmd_text or "")
     try:
-        item = dq.add(args.agent_id, text, needs=args.needs or "exec", why=str(getattr(args, "why", "") or ""))
+        item = dq.add(me, text, needs=args.needs or "exec", why=str(getattr(args, "why", "") or ""))
     except ValueError as e:
-        print(f"[defer] {e}")
-        return 2
-    print(
-        f"[defer] filed [{item['id']}] awaiting a {item['needs']} seat -- boot surfaces "
-        f"it to capable seats; they discharge with a receipt"
-    )
-    return 0
+        return out.fail(str(e), code="USAGE", hints=[f'{cli} defer {me} "<command>" --needs exec'], exit_code=2)
+    # Boot surfaces it to seats holding the capability; they discharge it with a receipt.
+    doc = {"filed": item["id"], "needs": item["needs"], "cmd": out.truncate(item["cmd"], 300)[0]}
+    return out.emit(doc, hints=[f"{cli} defer {me} --list"], title="Defer · filed")
+
+
+#: `defer --list` columns: the default agent schema, and every field --fields can add.
+_DEFER_FIELDS = ("id", "needs", "by", "filed", "cmd")
+_DEFER_ALL_FIELDS = ("id", "needs", "by", "filed", "cmd", "why", "filed_at")
+
+
+def _human_defer(console, doc):
+    """Human view of `defer --list`: whose queue and whether that seat is known (yellow when it
+    is not), then one table with each command shortened to a line a person can scan."""
+    from core.axi import out
+
+    status = str(doc.get("seat_status", ""))
+    colour = "green" if status == "known" else "yellow"
+    console.print(f"[dim]seat[/] {out._esc(str(doc['seat']))}  [{colour}]{out._esc(status)}[/]")
+    rows = [
+        {
+            k: (out.truncate(v, 90)[0] if k in ("cmd", "why", "needs") and isinstance(v, str) else v)
+            for k, v in r.items()
+        }
+        for r in doc["items"]
+    ]
+    console.print(out.table(rows))
 
 
 def cmd_kit(args, *, belt=None):
