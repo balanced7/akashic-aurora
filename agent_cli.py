@@ -15620,8 +15620,13 @@ def _kata_check(steps):
             results.append((True, argv, ""))
         except SystemExit:
             lines = [ln for ln in err.getvalue().strip().splitlines() if ln]
-            said = [ln for ln in lines if ln.startswith(("error:", "agent_cli.py: error:"))] or lines[-1:]
-            results.append((False, argv, (said or ["parse error"])[0]))
+            # Agent mode writes `error: "<message>"` (TOON), human mode `✗ error: <message>`;
+            # either way the step's error is the message after the first "error:".
+            said = [ln[ln.index("error:") + 6 :].strip() for ln in lines if "error:" in ln]
+            if said and said[0].startswith('"'):
+                with contextlib.suppress(ValueError):
+                    said[0] = json.loads(said[0])
+            results.append((False, argv, f"error: {said[0]}" if said else (lines[-1:] or ["parse error"])[0]))
         except Exception as e:  # a parser action that raises on parse
             results.append((False, argv, f"{type(e).__name__}: {e}"))
     return all(r[0] for r in results), results
@@ -15681,35 +15686,79 @@ def cmd_tool_run(args):
 def cmd_kata(args):
     """kata <agent> <name>: 'the tool that tells you when your tools are real' (kimi). Runs the
     alias's steps through the door's grammar; all-parse -> GUESS/INFER levels up to VERIFIED."""
+    import shlex
+
+    from core.axi import out
     from core.toolbelt.registry import Toolbelt
 
-    tb = Toolbelt(args.agent_id)
+    cli, me = _cli(), args.agent_id
+    tb = Toolbelt(me)
     try:
         entry = tb.get(args.name)
         before = entry["evidence"]
         dummies = ["KATA"] * int(entry.get("params", 0) or 0)
         steps = tb.resolve(args.name, args=dummies)  # macros kata under dummy substitution
-    except (KeyError, ValueError) as e:
-        print(f"[kata] {e}")
-        return 1
-    ok, results = _kata_check(steps)
-    for good, argv, err in results:
-        print(f"  {'OK ' if good else 'FAIL'} {' '.join(argv)}" + (f"   <- {err}" if err else ""))
-    if not ok:
-        print(
-            f"[kata] {args.name}: a step failed the door's grammar -- evidence stays {before}. "
-            "Fix the alias (re-mint) and kata again."
+    except KeyError:
+        return out.fail(
+            f"{me} has no active alias named {args.name!r}",
+            code="NOT_FOUND",
+            details={"aliases": sorted(tb.active())},
+            hints=[f"{cli} alias {me} list"],
         )
-        return 1
-    if before == "VERIFIED":
-        print(f"[kata] {args.name}: already VERIFIED -- steps re-confirmed clean.")
-        return 0
+    except ValueError as e:
+        return out.fail(str(e), code="REFUSED", hints=[f"{cli} alias {me} history {args.name}"])
+    ok, results = _kata_check(steps)
+    rows = []
+    for good, argv, err in results:
+        row = {"status": "ok" if good else "fail", "step": shlex.join(str(a) for a in argv)}
+        if not ok:  # an error column only when some step has an error to show
+            row["error"] = err.removeprefix("error: ") or None
+        rows.append(row)
+    doc: dict = {"alias": args.name}
+    if not ok:
+        failed = sum(1 for r in results if not r[0])
+        doc.update(verdict="failed", evidence=before, evidence_change="none", version=entry["version"], failed=failed)
+        doc["steps"] = rows
+        verb = next(str(a[0]) for good, a, _ in results if not good and a)
+        out.emit(
+            doc,
+            hints=[f"{cli} {verb} --help", f"{cli} alias {me} mint {args.name} --step '<fixed step>'"],
+            human=_human_kata,
+            title=f"Kata · {args.name}",
+        )
+        return 1  # a failed kata is a finding with an exit code, as before
+    # Every step parsed: the count says so; listing each one as "ok" would only repeat it.
+    if before == "VERIFIED":  # steps re-confirmed; nothing to level up
+        doc.update(verdict="already verified", evidence=before, evidence_change="none", version=entry["version"])
+        doc["steps_checked"] = len(rows)
+        return out.emit(doc, human=_human_kata, title=f"Kata · {args.name}")
     e = _kata_apply(tb, args.name, results)
-    print(
-        f"[kata] {args.name} LEVELED UP: {before} -> {e['evidence']} v{e['version']} "
-        f"(tested_against={e['tested_against']})"
+    doc.update(
+        verdict="leveled up",
+        evidence=e["evidence"],
+        evidence_change=f"{before} -> {e['evidence']}",
+        version=e["version"],
+        tested_against=e["tested_against"],
+        steps_checked=len(rows),
     )
-    return 0
+    return out.emit(doc, hints=[f"{cli} run {me} {args.name}"], human=_human_kata, title=f"Kata · {args.name}")
+
+
+def _human_kata(console, doc):
+    """Human view of `kata`: the verdict first, coloured, then each step with its grammar check."""
+    from core.axi import out
+
+    v = doc["verdict"]
+    if v == "failed":
+        console.print(f"[red]✗ {doc['failed']} step(s) fail the CLI's grammar; evidence stays {doc['evidence']}[/]")
+    elif v == "leveled up":
+        console.print(f"[green]✓ leveled up: {doc['evidence_change']} (v{doc['version']}, {doc['tested_against']})[/]")
+    else:
+        console.print(f"[green]✓ already {doc['evidence']}: every step still parses[/]")
+    if "steps" in doc:
+        console.print(out.table(doc["steps"]))
+    else:
+        console.print(f"[dim]{doc['steps_checked']} step(s) checked against the CLI's grammar[/]")
 
 
 def cmd_toast(args, *, bus_send=None, note_write=None, store=None):

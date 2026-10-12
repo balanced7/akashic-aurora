@@ -1,0 +1,356 @@
+{
+  "verb": "kata",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.9,
+    "correct": 27,
+    "asked": 30,
+    "output_tokens": 57,
+    "stdout_chars": 767,
+    "stdout_lines": 12,
+    "cost_usd": 0.0246,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "What evidence level does the alias have now?",
+        "expected": "VERIFIED",
+        "answers": [
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED v2"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What version number is the alias now?",
+        "expected": 2,
+        "answers": [
+          "v2",
+          "2",
+          "2",
+          "v2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which step failed the grammar check? Give the step's command only.",
+        "expected": [
+          "--nope"
+        ],
+        "answers": [
+          "alias bench list --nope",
+          "alias bench list --nope",
+          "alias bench list --nope",
+          "alias bench list --nope",
+          "alias bench list --nope"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What evidence level does the alias have after this check?",
+        "expected": "GUESS",
+        "answers": [
+          "The output says \"evidence stays GUESS.\"\n\nGUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Did this check change the alias's evidence level? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does bench have an alias called ghost? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "yes",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "mint_good": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "good",
+          "--step",
+          "locks",
+          "--step",
+          "alias bench list"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted good v1 [GUESS] (UNSORTED) (2 step(s)) -- run: uv run agent_cli.py run bench good\n"
+      },
+      "mint_bad": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "bad",
+          "--step",
+          "locks",
+          "--step",
+          "alias bench list --nope"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted bad v1 [GUESS] (UNSORTED) (2 step(s)) -- run: uv run agent_cli.py run bench bad\n"
+      },
+      "mint_done": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "done",
+          "--step",
+          "locks",
+          "--evidence",
+          "VERIFIED",
+          "--tested-against",
+          "pin-1"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted done v1 [VERIFIED] (UNSORTED) (1 step(s)) -- run: uv run agent_cli.py run bench done\n"
+      },
+      "good": {
+        "argv": [
+          "kata",
+          "bench",
+          "good"
+        ],
+        "exit": 0,
+        "stdout": "  OK  locks\n  OK  alias bench list\n[kata] good LEVELED UP: GUESS -> VERIFIED v2 (tested_against=kata-20261012-162402)\n"
+      },
+      "bad": {
+        "argv": [
+          "kata",
+          "bench",
+          "bad"
+        ],
+        "exit": 1,
+        "stdout": "  OK  locks\n  FAIL alias bench list --nope   <- agent_cli.py: error: unrecognized arguments: --nope\n[kata] bad: a step failed the door's grammar -- evidence stays GUESS. Fix the alias (re-mint) and kata again.\n"
+      },
+      "done": {
+        "argv": [
+          "kata",
+          "bench",
+          "done"
+        ],
+        "exit": 0,
+        "stdout": "  OK  locks\n[kata] done: already VERIFIED -- steps re-confirmed clean.\n"
+      },
+      "missing": {
+        "argv": [
+          "kata",
+          "bench",
+          "ghost"
+        ],
+        "exit": 1,
+        "stdout": "[kata] \"no active toolbelt entry 'ghost' for bench (have: bad, done, good)\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 90,
+    "stdout_chars": 1199,
+    "stdout_lines": 58,
+    "cost_usd": 0.0281,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "What evidence level does the alias have now?",
+        "expected": "VERIFIED",
+        "answers": [
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What version number is the alias now?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "version: 2",
+          "version: 2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which step failed the grammar check? Give the step's command only.",
+        "expected": [
+          "--nope"
+        ],
+        "answers": [
+          "alias bench list --nope",
+          "alias bench list --nope",
+          "alias bench list --nope",
+          "alias bench list --nope",
+          "alias bench list --nope"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What evidence level does the alias have after this check?",
+        "expected": "GUESS",
+        "answers": [
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did this check change the alias's evidence level? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does bench have an alias called ghost? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "mint_good": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "good",
+          "--step",
+          "locks",
+          "--step",
+          "alias bench list"
+        ],
+        "exit": 0,
+        "stdout": "alias: good\nresult: minted\nversion: 1\nevidence: GUESS\nfamily: UNSORTED\nsteps: 2\nhelp[2]:\n  uv run agent_cli.py run bench good\n  uv run agent_cli.py kata bench good\n"
+      },
+      "mint_bad": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "bad",
+          "--step",
+          "locks",
+          "--step",
+          "alias bench list --nope"
+        ],
+        "exit": 0,
+        "stdout": "alias: bad\nresult: minted\nversion: 1\nevidence: GUESS\nfamily: UNSORTED\nsteps: 2\nhelp[2]:\n  uv run agent_cli.py run bench bad\n  uv run agent_cli.py kata bench bad\n"
+      },
+      "mint_done": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "done",
+          "--step",
+          "locks",
+          "--evidence",
+          "VERIFIED",
+          "--tested-against",
+          "pin-1"
+        ],
+        "exit": 0,
+        "stdout": "alias: done\nresult: minted\nversion: 1\nevidence: VERIFIED\nfamily: UNSORTED\nsteps: 1\nhelp[1]:\n  uv run agent_cli.py run bench done\n"
+      },
+      "good": {
+        "argv": [
+          "kata",
+          "bench",
+          "good"
+        ],
+        "exit": 0,
+        "stdout": "alias: good\nverdict: leveled up\nevidence: VERIFIED\nevidence_change: GUESS -> VERIFIED\nversion: 2\ntested_against: kata-20261012-162450\nsteps_checked: 2\nhelp[1]:\n  uv run agent_cli.py run bench good\n"
+      },
+      "bad": {
+        "argv": [
+          "kata",
+          "bench",
+          "bad"
+        ],
+        "exit": 1,
+        "stdout": "alias: bad\nverdict: failed\nevidence: GUESS\nevidence_change: none\nversion: 1\nfailed: 1\nsteps[2]{status,step,error}:\n  ok,locks,null\n  fail,alias bench list --nope,\"unrecognized arguments: --nope\"\nhelp[2]:\n  uv run agent_cli.py alias --help\n  uv run agent_cli.py alias bench mint bad --step '<fixed step>'\n"
+      },
+      "done": {
+        "argv": [
+          "kata",
+          "bench",
+          "done"
+        ],
+        "exit": 0,
+        "stdout": "alias: done\nverdict: already verified\nevidence: VERIFIED\nevidence_change: none\nversion: 1\nsteps_checked: 1\n"
+      },
+      "missing": {
+        "argv": [
+          "kata",
+          "bench",
+          "ghost"
+        ],
+        "exit": 1,
+        "stdout": "error: bench has no active alias named 'ghost'\ncode: NOT_FOUND\naliases[3]: bad,done,good\nhelp[1]:\n  uv run agent_cli.py alias bench list\n"
+      }
+    }
+  }
+}

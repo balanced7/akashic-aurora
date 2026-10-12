@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 82 converted to agent and human output.
+121 verbs; 83 converted to agent and human output.
 
 ## `alias`
 
@@ -1457,12 +1457,29 @@ help[1]:
 | | |
 |---|---|
 | Does | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 90% before, 100% after |
+| Output tokens | 57 before, 90 after (+58%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/kata.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` | yes |   | whose toolbelt |
 | `<name>` | yes |   | the alias to kata |
+
+Agent output of `aurora alias bench mint good --step locks --step alias bench list` on the bench data:
+
+```text
+alias: good
+result: minted
+version: 1
+evidence: GUESS
+family: UNSORTED
+steps: 2
+help[2]:
+  uv run agent_cli.py run bench good
+  uv run agent_cli.py kata bench good
+```
 
 ## `kit`
 
