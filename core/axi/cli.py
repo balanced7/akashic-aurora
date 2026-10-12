@@ -110,9 +110,56 @@ def deepest(parser: argparse.ArgumentParser, ns: argparse.Namespace) -> argparse
         current = nxt
 
 
+def _target(parser: argparse.ArgumentParser, argv: list[str]) -> tuple[argparse.ArgumentParser, list[str]]:
+    """(the subcommand parser argv names, the tokens after it), read from the words alone."""
+    current, rest = parser, list(argv)
+    while True:
+        action = _subparsers_action(current)
+        if action is None:
+            return current, rest
+        idx = next((i for i, tok in enumerate(rest) if tok in action.choices), None)
+        if idx is None:
+            return current, rest
+        current, rest = action.choices[rest[idx]], rest[idx + 1 :]
+
+
+def unknown_flags(parser: argparse.ArgumentParser, argv: list[str]) -> list[str]:
+    """`--flags` in argv that the named subcommand does not define, skipping the value of an
+    option that takes one. Abbreviations argparse would accept count as known."""
+    target, rest = _target(parser, argv)
+    takes_value = {}
+    for action in target._actions:
+        for opt in action.option_strings:
+            takes_value[opt] = action.nargs != 0
+    unknown, skip = [], False
+    for tok in rest:
+        if skip:
+            skip = False
+            continue
+        if tok == "--":
+            break
+        if not tok.startswith("--") or len(tok) == 2:
+            continue
+        name, has_value = tok.split("=", 1)[0], "=" in tok
+        known = name in takes_value or (
+            target.allow_abbrev and len([o for o in takes_value if o.startswith(name)]) == 1
+        )
+        if not known:
+            unknown.append(tok)
+            continue
+        full = name if name in takes_value else next(o for o in takes_value if o.startswith(name))
+        skip = takes_value[full] and not has_value
+    return unknown
+
+
 def parse(parser: argparse.ArgumentParser, argv: list[str]) -> argparse.Namespace:
     """parse_args, except an unrecognized argument is reported by the subcommand it was given to,
-    so the error lists that command's flags rather than the top level's."""
+    so the error lists that command's flags rather than the top level's. An unknown flag is named
+    first, before argparse would complain about missing arguments: `lock --stat` should say
+    --stat is not a flag of lock, not only that the agent id and path are missing."""
+    bad = unknown_flags(parser, argv)
+    if bad:
+        _target(parser, argv)[0].error(f"unrecognized arguments: {' '.join(bad)}")
     ns, extras = parser.parse_known_args(argv)
     if extras:
         deepest(parser, ns).error(f"unrecognized arguments: {' '.join(extras)}")

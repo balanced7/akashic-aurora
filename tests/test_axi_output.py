@@ -151,6 +151,56 @@ def test_unknown_flag_names_the_subcommands_flags(no_harness, monkeypatch, capsy
     assert 'valid_flags[2]: "--help","--json"' in text
 
 
+def _lock_parser():
+    p = AxiArgumentParser(prog="agent_cli.py")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    lock = sub.add_parser("lock")
+    lock.add_argument("agent_id")
+    lock.add_argument("path")
+    lock.add_argument("--ttl", type=int)
+    lock.add_argument("--json", action="store_true")
+    return p
+
+
+def test_an_unknown_flag_is_named_before_missing_arguments(no_harness, monkeypatch, capsys):
+    monkeypatch.setenv(mode.ENV, "agent")
+    with pytest.raises(SystemExit) as e:
+        parse(_lock_parser(), ["lock", "--stat"])
+    text = capsys.readouterr().out
+    assert e.value.code == 2
+    assert "unrecognized arguments: --stat" in text
+    assert '"--ttl"' in text
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["lock", "a", "p", "--ttl", "60"],
+        ["lock", "a", "p", "--ttl=60"],
+        ["lock", "a", "p", "--tt", "60"],  # an abbreviation argparse accepts
+    ],
+)
+def test_known_flags_and_their_values_pass(no_harness, monkeypatch, argv):
+    monkeypatch.setenv(mode.ENV, "agent")
+    assert parse(_lock_parser(), argv).cmd == "lock"
+
+
+def test_the_scan_stops_at_a_bare_double_dash():
+    from core.axi.cli import unknown_flags
+
+    assert unknown_flags(_lock_parser(), ["lock", "a", "--", "--stat"]) == []
+
+
+def test_a_value_that_looks_like_a_flag_is_not_flagged():
+    from core.axi.cli import unknown_flags
+
+    p = AxiArgumentParser(prog="agent_cli.py")
+    sub = p.add_subparsers(dest="cmd")
+    send = sub.add_parser("send")
+    send.add_argument("--text")
+    assert unknown_flags(p, ["send", "--text", "--looks-like-a-flag"]) == []
+
+
 def test_unknown_command_suggests_the_nearest(no_harness, monkeypatch, capsys):
     monkeypatch.setenv(mode.ENV, "agent")
     with pytest.raises(SystemExit):
