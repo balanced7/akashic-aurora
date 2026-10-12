@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 61 converted to agent and human output.
+121 verbs; 62 converted to agent and human output.
 
 ## `alias`
 
@@ -574,7 +574,10 @@ help[1]:
 | | |
 |---|---|
 | Does | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 53% before, 100% after |
+| Output tokens | 0 before, 112 after (n/a) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/compare.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -583,6 +586,23 @@ help[1]:
 | `--list` |   |   | show comparable domains |
 | `--limit` |   |   | rows per side (default 40) |
 | `--json` |   |   |   |
+
+Agent output of `aurora compare --list` on the bench data:
+
+```text
+total: 7
+note: only domains with the same key type can be compared
+domains[7]{domain,keys}:
+  "files:touched",path
+  "files:tracked",path
+  "lessons:all",lesson
+  "terms:code",term
+  "terms:lexicon",term
+  "verbs:cli",verb
+  "verbs:mcp",verb
+help[1]:
+  uv run agent_cli.py compare files:touched files:tracked
+```
 
 ## `compress`
 

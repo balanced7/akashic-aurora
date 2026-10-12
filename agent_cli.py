@@ -2387,6 +2387,7 @@ def cmd_compare(args):
     result UNRELIABLE when either side was incompletely collected -- because every
     uncollected element of the short side surfaces as a false finding on the other.
     """
+    from core.axi import out
     from core.coord import compare as cmp_mod
 
     # Domains that register themselves on import must actually BE imported, or they are
@@ -2394,38 +2395,88 @@ def cmd_compare(args):
     # tonight. Imported here rather than from compare.py, which terms.py imports.
     from core.coord import terms as _terms_domain  # noqa: F401  # registers on import
 
+    cli = _cli()
+    domains = sorted(cmp_mod.DOMAINS.items())
     if getattr(args, "list", False) or not args.a:
-        print("# comparable domains (only like key-types may be diffed)")
-        for name, (_fn, kt) in sorted(cmp_mod.DOMAINS.items()):
-            print(f"  {name:<18} keys: {kt}")
-        return 0
+        rows = [{"domain": name, "keys": kt} for name, (_fn, kt) in domains]
+        # A real pair to try: the first two domains that share a key type.
+        by_type: dict = {}
+        for r in rows:
+            by_type.setdefault(r["keys"], []).append(r["domain"])
+        pair = next((v[:2] for v in by_type.values() if len(v) > 1), None)
+        return out.emit(
+            {"total": len(rows), "note": "only domains with the same key type can be compared", "domains": rows},
+            hints=[f"{cli} compare {pair[0]} {pair[1]}"] if pair else [],
+            title="Comparable domains",
+        )
+
+    if not args.json:
+        # An unknown name used to surface as a key-type refusal ("'nope' (?)"), which reads as
+        # a rule broken rather than a typo. Name it, and the domains that exist.
+        unknown = [d for d in (args.a, args.b) if d not in cmp_mod.DOMAINS]
+        if unknown:
+            return out.fail(
+                f"unknown domain {unknown[0]!r}" if unknown[0] else "compare needs two domains",
+                code="USAGE",
+                hints=[f"{cli} compare --list"],
+                exit_code=out.EXIT_USAGE,
+                details={"domains": [n for n, _ in domains]},
+            )
 
     r = cmp_mod.run(args.a, args.b)
     if args.json:
         print(json.dumps(r, ensure_ascii=False, default=str))
         return 0
-    if not r["ok"]:
-        print(f"REFUSED: {r['why']}", file=sys.stderr)
-        return 2
-
     a, b = r["a"], r["b"]
-    print(f"# {a['name']} ({a['n']}) vs {b['name']} ({b['n']})  keys={r['key_type']}")
+    if not r["ok"]:
+        return out.fail(
+            r["why"],
+            code="REFUSED",
+            hints=[f"{cli} compare --list"],
+            exit_code=out.EXIT_USAGE,
+            details={"key_types": {a["name"]: a["key_type"], b["name"]: b["key_type"]}},
+        )
+
+    limit = int(args.limit or 40)
+    doc: dict = {"a": a["name"], "b": b["name"], "key_type": r["key_type"], "reliable": r["reliable"]}
     if not r["reliable"]:
-        print(f"  UNRELIABLE: {r['why']}", file=sys.stderr)
-    for label, side, _other in (("only in", "only_a", a), ("only in", "only_b", b)):
-        rows = r[side]
-        who = a["name"] if side == "only_a" else b["name"]
-        print(f"\n{label} {who} ({len(rows)}):")
-        for k in rows[: int(args.limit or 40)]:
-            print(f"    {k}")
-        if len(rows) > int(args.limit or 40):
-            print(f"    ... {len(rows) - int(args.limit or 40)} more")
-    print(f"\nin both: {len(r['both'])}")
-    for name, why in (a.get("failed") or {}).items():
-        print(f"  {a['name']} FAILED [{name}]: {why}", file=sys.stderr)
-    for name, why in (b.get("failed") or {}).items():
-        print(f"  {b['name']} FAILED [{name}]: {why}", file=sys.stderr)
-    return 0
+        doc["why"] = r["why"]
+    failed = {f"{s['name']}:{k}": v for s in (a, b) for k, v in (s.get("failed") or {}).items()}
+    if failed:
+        doc["failed"] = failed
+    doc["counts"] = {"a": a["n"], "b": b["n"], "only_a": len(r["only_a"]), "only_b": len(r["only_b"]),
+                     "both": len(r["both"])}  # fmt: skip
+    doc["identical"] = r["identical"]
+    cut = False
+    for side in ("only_a", "only_b"):
+        keys = r[side]
+        doc[side] = keys[:limit]
+        cut = cut or len(keys) > limit
+    hints = [f"{cli} compare {a['name']} {b['name']} --limit {max(len(r['only_a']), len(r['only_b']))}"] if cut else []
+    return out.emit(doc, hints=hints, human=_human_compare, title=f"{a['name']} vs {b['name']}")
+
+
+def _human_compare(console, doc):
+    """Human view of `compare`: reliability first, the counts, then each side's extra keys."""
+    from core.axi import out
+
+    c = doc["counts"]
+    if doc["reliable"]:
+        console.print(f"[green]reliable[/] [dim]· keys: {out._esc(doc['key_type'])}[/]")
+    else:
+        console.print(f"[yellow]UNRELIABLE:[/] {out._esc(doc.get('why', ''))}")
+    for name, why in (doc.get("failed") or {}).items():
+        console.print(f"[red]failed {out._esc(name)}:[/] {out._esc(why)}")
+    console.print(
+        f"{out._esc(doc['a'])} [bold]{c['a']}[/]  {out._esc(doc['b'])} [bold]{c['b']}[/]  in both [bold]{c['both']}[/]"
+    )
+    for side, name in (("only_a", doc["a"]), ("only_b", doc["b"])):
+        keys = doc[side]
+        more = f", {c[side] - len(keys)} more not shown" if c[side] > len(keys) else ""
+        console.print()
+        console.print(f"[bold]only in {out._esc(name)}[/] [dim]({c[side]}{more})[/]")
+        for k in keys:
+            console.print(f"  {out._esc(str(k))}")
 
 
 def cmd_timeline(args):

@@ -1,0 +1,246 @@
+{
+  "verb": "compare",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.533,
+    "correct": 16,
+    "asked": 30,
+    "output_tokens": 0,
+    "stdout_chars": 397,
+    "stdout_lines": 15,
+    "cost_usd": 0.0317,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "What kind of key does the files:tracked domain use?",
+        "expected": "path",
+        "answers": [
+          "path",
+          "path",
+          "path",
+          "keys: path",
+          "path"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many comparable domains are listed?",
+        "expected": 7,
+        "answers": [
+          "7",
+          "7",
+          "7",
+          "7",
+          "7"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many keys are in both sides?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is this comparison result reliable? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "UNKNOWN",
+          "yes",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Was the comparison carried out? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "no",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "What kind of key does the verbs:cli domain use?",
+        "expected": "verb",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "compare",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "# comparable domains (only like key-types may be diffed)\n  files:touched      keys: path\n  files:tracked      keys: path\n  lessons:all        keys: lesson\n  terms:code         keys: term\n  terms:lexicon      keys: term\n  verbs:cli          keys: verb\n  verbs:mcp          keys: verb\n"
+      },
+      "same": {
+        "argv": [
+          "compare",
+          "lessons:all",
+          "lessons:all"
+        ],
+        "exit": 0,
+        "stdout": "# lessons:all (3) vs lessons:all (3)  keys=lesson\n\nonly in lessons:all (0):\n\nonly in lessons:all (0):\n\nin both: 3\n"
+      },
+      "refused": {
+        "argv": [
+          "compare",
+          "verbs:cli",
+          "files:tracked"
+        ],
+        "exit": 2,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 112,
+    "stdout_chars": 747,
+    "stdout_lines": 32,
+    "cost_usd": 0.0279,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "What kind of key does the files:tracked domain use?",
+        "expected": "path",
+        "answers": [
+          "path",
+          "path",
+          "path",
+          "path",
+          "path"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many comparable domains are listed?",
+        "expected": 7,
+        "answers": [
+          "7",
+          "7",
+          "7",
+          "7",
+          "7"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many keys are in both sides?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is this comparison result reliable? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the comparison carried out? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What kind of key does the verbs:cli domain use?",
+        "expected": "verb",
+        "answers": [
+          "verb",
+          "verb",
+          "verb",
+          "verb",
+          "verb"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "compare",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "total: 7\nnote: only domains with the same key type can be compared\ndomains[7]{domain,keys}:\n  \"files:touched\",path\n  \"files:tracked\",path\n  \"lessons:all\",lesson\n  \"terms:code\",term\n  \"terms:lexicon\",term\n  \"verbs:cli\",verb\n  \"verbs:mcp\",verb\nhelp[1]:\n  uv run agent_cli.py compare files:touched files:tracked\n"
+      },
+      "same": {
+        "argv": [
+          "compare",
+          "lessons:all",
+          "lessons:all"
+        ],
+        "exit": 0,
+        "stdout": "a: \"lessons:all\"\nb: \"lessons:all\"\nkey_type: lesson\nreliable: true\ncounts:\n  a: 3\n  b: 3\n  only_a: 0\n  only_b: 0\n  both: 3\nidentical: true\nonly_a: []\nonly_b: []\n"
+      },
+      "refused": {
+        "argv": [
+          "compare",
+          "verbs:cli",
+          "files:tracked"
+        ],
+        "exit": 2,
+        "stdout": "error: \"refusing to compare 'verbs:cli' (verb) with 'files:tracked' (path) -- different kinds of key, so any difference would be large, confident and meaningless\"\ncode: REFUSED\nkey_types:\n  \"verbs:cli\": verb\n  \"files:tracked\": path\nhelp[1]:\n  uv run agent_cli.py compare --list\n"
+      }
+    }
+  }
+}

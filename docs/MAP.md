@@ -172,7 +172,7 @@ Class: reference
 |---|---|---|---|---|
 | `capability_search.py` | capability_search -- "does this system already do X?", asked at the level of MEANING. | GAP | GAP |  |
 | `cognitive_metrics.py` | Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine. | tests/test_cognitive_metrics.py | GAP |  |
-| `compare.py` | compare -- the cross-domain set difference, with a name (T213). | tests/test_t213_compare.py | GAP |  |
+| `compare.py` | compare -- the cross-domain set difference, with a name (T213). | tests/test_axi_compare.py | GAP |  |
 | `conductor.py` | Conductor — the impure orchestration shell over the pure task ledger (Slice D). | tests/drill_conductor_gate.py | docs/library/chronicle/20260723_session-reflection-fable-s-conductor-nig_415441.md | `AKASHIC_PROPOSED_STALE_DAYS`, `AKASHIC_TASKS_PATH` |
 | `continuity.py` | Bounded, non-authoritative continuity evidence for exactly one seat. | tests/test_continuity_drift.py | docs/library/design/20260701_continuity-of-mode-institutionalizing-st_e1eb96.md | `AURORA_LAUNCHER` |
 | `dawe_census.py` | dawe_census -- which verbs are structurally UNVERIFIABLE, not which verbs are bad. | tests/test_w164_dawe_census.py | GAP |  |
