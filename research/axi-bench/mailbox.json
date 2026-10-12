@@ -1,0 +1,240 @@
+{
+  "verb": "mailbox",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 254,
+    "stdout_chars": 573,
+    "stdout_lines": 7,
+    "cost_usd": 0.0284,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many messages addressed to bench are still unhandled (not yet consumed)?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages has bench consumed?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agents sent the unhandled messages? List them separated by commas.",
+        "expected": [
+          "dave",
+          "erin"
+        ],
+        "answers": [
+          "dave, erin",
+          "dave, erin",
+          "dave, erin",
+          "dave, erin",
+          "dave, erin"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What kind of message did dave send?",
+        "expected": "request",
+        "answers": [
+          "request",
+          "request",
+          "request",
+          "request",
+          "request"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command reads the full body of one of these messages? Give the command only.",
+        "expected": [
+          "mailbox",
+          "bench",
+          "--open"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many messages are addressed to nobody?",
+        "expected": 0,
+        "answers": [
+          "The output reads \"mailbox nobody: empty (index_lag 0, evicted 0)\", which states the mailbox is empty, so zero messages are addressed to nobody.\n\n0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "mailbox",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "# mailbox bench: unhandled=2 | consumed=3 (index_lag 0, evicted 0)\n  [consumed] 16706fae93 request    from alice          ts 2026-10-12T15:36:20.836520+00:00\n  [consumed] 1e8f900b21 question   from carol          ts 2026-10-12T15:36:21.979706+00:00\n  [consumed] 458ff1f9e6 chat       from bob            ts 2026-10-12T15:36:21.358704+00:00\n  [unhandled] 7f5dfe661b request    from dave           ts 2026-10-12T15:36:23.146551+00:00\n  [unhandled] 6d40f15222 chat       from erin           ts 2026-10-12T15:36:23.721541+00:00\n"
+      },
+      "none": {
+        "argv": [
+          "mailbox",
+          "nobody"
+        ],
+        "exit": 0,
+        "stdout": "# mailbox nobody: empty (index_lag 0, evicted 0)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 298,
+    "stdout_chars": 602,
+    "stdout_lines": 18,
+    "cost_usd": 0.0328,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many messages addressed to bench are still unhandled (not yet consumed)?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages has bench consumed?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agents sent the unhandled messages? List them separated by commas.",
+        "expected": [
+          "dave",
+          "erin"
+        ],
+        "answers": [
+          "dave, erin",
+          "dave, erin",
+          "dave, erin",
+          "dave, erin",
+          "Unhandled messages: dave (request, 199fb590cffe) and erin (chat, 260c77a0c905).\n\nAnswer: dave, erin"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What kind of message did dave send?",
+        "expected": "request",
+        "answers": [
+          "request",
+          "request",
+          "request",
+          "request",
+          "request"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command reads the full body of one of these messages? Give the command only.",
+        "expected": [
+          "mailbox",
+          "bench",
+          "--open"
+        ],
+        "answers": [
+          "uv run agent_cli.py mailbox bench --open <sha>",
+          "uv run agent_cli.py mailbox bench --open <sha>",
+          "uv run agent_cli.py mailbox bench --open <sha>",
+          "uv run agent_cli.py mailbox bench --open <sha>",
+          "uv run agent_cli.py mailbox bench --open <sha>"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages are addressed to nobody?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "total: 0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "mailbox",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "agent: bench\ntotal: 5\nunhandled: 2\nconsumed: 3\nmessages[5]{sha,tier,kind,from,at}:\n  0eb3f2a24db4,consumed,request,alice,\"2026-10-12 15:37\"\n  abf84401aba3,consumed,question,carol,\"2026-10-12 15:37\"\n  ae3b427b7a42,consumed,chat,bob,\"2026-10-12 15:37\"\n  199fb590cffe,unhandled,request,dave,\"2026-10-12 15:37\"\n  260c77a0c905,unhandled,chat,erin,\"2026-10-12 15:37\"\nhelp[3]:\n  uv run agent_cli.py mailbox bench --open <sha>\n  uv run agent_cli.py mailbox bench --intent <sha> --as act|decline|defer|delegate\n  uv run agent_cli.py bifrost-sync bench --consume\n"
+      },
+      "none": {
+        "argv": [
+          "mailbox",
+          "nobody"
+        ],
+        "exit": 0,
+        "stdout": "agent: nobody\ntotal: 0\nunhandled: 0\nmessages: []\n"
+      }
+    }
+  }
+}

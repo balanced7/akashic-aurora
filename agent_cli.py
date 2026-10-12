@@ -10471,25 +10471,27 @@ def cmd_packet_trace(args):
 
 
 def _mailbox_refusal(out, agent_id):
-    """Print a mailbox id refusal so the reader can tell WHICH of the four states they are in.
+    """Report a mailbox id refusal so the reader can tell WHICH of the four states they are in.
 
-    The whole T095 M2 defect was one sentence doing duty for four facts. Printing only `reason`
-    here would keep that fixed for code and broken for people.
+    The whole T095 M2 defect was one sentence doing duty for four facts. Reporting only `reason`
+    here would keep that fixed for code and broken for people: `how` becomes the error code, and
+    an ambiguous prefix carries the candidates it matched.
     """
-    how = out.get("how") or "?"
-    print(f"[mailbox] {out.get('reason') or 'refused'}")
+    from core.axi import out as axi
+
+    cli = _cli()
+    how = out.get("how") or "refused"
+    details: dict = {}
+    hints = []
     cands = out.get("candidates") or []
     if how == "ambiguous" and cands:
         shown = cands[:10]
-        matched = out.get("matched") or len(cands)
-        tail = "" if len(shown) == matched else f" of {matched} that matched"
-        print(f"  showing {len(shown)}{tail}:")
-        for c in shown:
-            print(f"    {c}")
-        print(f"  -> re-run with more characters, e.g. --open {shown[0][:16]}")
+        details["matched"] = out.get("matched") or len(cands)
+        details["candidates"] = list(shown)
+        hints.append(f"{cli} mailbox {agent_id} --open {shown[0][:16]}")
     elif how == "absent":
-        print(f"  -> list what IS here:  {_cli()} mailbox {agent_id}")
-    return 1
+        hints.append(f"{cli} mailbox {agent_id}")
+    return axi.fail(str(out.get("reason") or "refused"), code=how.upper(), hints=hints, details=details or None)
 
 
 def cmd_mailbox(args):
@@ -10497,10 +10499,13 @@ def cmd_mailbox(args):
     state?' -- evidence ladder acked > replied/auto_acked > consumed > unhandled,
     derived read-only from the streams (docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md sec 2).
     Observation only: touches no cursor, ack, wake, or delivery state."""
+    from core.axi import out as axi
     from core.comm import mailbox
     from core.comm.bus import Bus
 
     bus = Bus("mailbox-observer", promote=False)
+    cli, me = _cli(), args.agent_id
+    intent_hint = f"{cli} mailbox {me} --intent <sha> --as act|decline|defer|delegate"
 
     # ---- M1 verbs. Built is not wired: these existed in core/comm/mailbox.py with tests green
     # while NO door exposed them, so no agent could actually use them. This is the door.
@@ -10510,7 +10515,7 @@ def cmd_mailbox(args):
         apply = bool(getattr(args, "apply", False))
         out = mailbox.retire_ghost_mail(
             bus.ns,
-            args.agent_id,
+            me,
             client=bus._client,
             dry_run=not apply,
             min_age_h=float(getattr(args, "min_age_h", 24.0)),
@@ -10521,85 +10526,86 @@ def cmd_mailbox(args):
             print(json.dumps(out, indent=2, default=str))
             return 0
         if not out.get("ok"):
-            print(f"[mailbox] ghost sweep failed: {out.get('reason')}")
-            return 1
+            return axi.fail(f"ghost sweep failed: {out.get('reason')}", code="SWEEP_FAILED")
         cands = out.get("candidates") or []
-        print(
-            f"# ghost sweep for {args.agent_id}: scanned {out['scanned']} of {out.get('total', '?')}, "
-            f"{len(cands)} from senders with no live seat"
-            + ("" if apply else "  (REPORT ONLY -- add --apply to write)")
-        )
+        doc: dict = {"agent": me, "mode": "applied" if apply else "report only", "scanned": out["scanned"]}
+        doc["total"] = out.get("total")
         if out.get("truncated"):
-            print(
-                f"  !! {out['unscanned']} entr(ies) NOT scanned (cap {args.limit_scan}). "
-                f"'0 ghosts' here does NOT mean the mailbox is clean -- raise --limit-scan."
-            )
-        for c in cands[:40]:
-            print(f"  {c['sha'][:10]}  {c['kind']:<10} from {c['frm']:<26} {c['age_h']}h old")
+            # '0 ghosts' from a capped scan does NOT mean the mailbox is clean -- say what was left.
+            doc["unscanned"] = out["unscanned"]
+        doc["ghosts"] = len(cands)
         if len(cands) > 40:
-            print(f"  ... and {len(cands) - 40} more")
+            doc["shown"] = 40
         if apply:
-            print(
-                f"[mailbox] declined {out['retired']} ghost message(s) -- they stay readable, "
-                f"stop competing with live work, and no longer wake a seat"
+            doc["declined"] = out["retired"]  # they stay readable; they stop competing and waking
+        doc["candidates"] = [
+            {"sha": c["sha"][:12], "kind": c["kind"], "from": c["frm"], "age_h": c["age_h"]} for c in cands[:40]
+        ]
+        hints = []
+        if out.get("truncated"):
+            hints.append(
+                f"{cli} mailbox {me} --retire-ghosts --limit-scan {int(out['scanned']) + int(out['unscanned'])}"
             )
-        return 0
+        if cands and not apply:
+            hints.append(f"{cli} mailbox {me} --retire-ghosts --apply")
+        return axi.emit(doc, hints=hints, title=f"Mailbox · ghost sweep for {me}")
 
     if getattr(args, "open_sha", None):
-        out = mailbox.open(bus.ns, args.agent_id, args.open_sha, incarnation=inc, client=bus._client)
+        out = mailbox.open(bus.ns, me, args.open_sha, incarnation=inc, client=bus._client)
         if args.json:
             print(json.dumps(out, indent=2, default=str))
             return 0
         if not out.get("ok"):
-            return _mailbox_refusal(out, args.agent_id)
-        readers = ", ".join(r["incarnation"] for r in out["seen_by"]) or "(none)"
-        print(f"[mailbox-open] {out['sha'][:12]} kind={out['kind']} frm={out['frm']}")
-        print(
-            f"  seen by: {readers}"
-            f"{'  (first open by this incarnation)' if out['first_open_by_this_incarnation'] else ''}"
-        )
-        print("  SEEN only -- not consumed, not handled, not settled. Cursor untouched.")
+            return _mailbox_refusal(out, me)
+        doc = {"sha": out["sha"][:12], "kind": out["kind"], "from": out["frm"]}
+        doc["seen_by"] = [r["incarnation"] for r in out["seen_by"]]
+        doc["first_open"] = bool(out["first_open_by_this_incarnation"])
+        doc["state"] = "seen only: not consumed, not handled, not settled; cursor untouched"
         if not out.get("body_available"):
-            print(f"  !! NO BODY STORED: {out['body_unavailable_reason']}")
-            return 0
-        if out["truncated"]:
-            print(f"  !! body truncated at {len(out['body'])} of {out['body_len']} chars")
-        print("-" * 60)
-        print(out["body"])
-        return 0
+            doc["body"] = None
+            doc["no_body"] = out["body_unavailable_reason"]
+        else:
+            if out["truncated"]:
+                doc["body_stored"] = f"{len(out['body'])} of {out['body_len']} chars"
+            doc["body"] = out["body"]  # the full-body door: never cut here
+        return axi.emit(
+            doc, hints=[intent_hint.replace("<sha>", doc["sha"])], human=_human_mailbox_open, title="Mailbox · open"
+        )
     if getattr(args, "backfill", False):
-        out = mailbox.backfill_bodies(bus.ns, args.agent_id, client=bus._client)
+        out = mailbox.backfill_bodies(bus.ns, me, client=bus._client)
         if args.json:
             print(json.dumps(out, indent=2, default=str))
             return 0
-        print(
-            f"[mailbox-backfill] {out['scanned']} bodyless entrie(s) scanned; "
-            f"{out['filled']} recovered from transport; {out['unrecoverable']} unrecoverable"
-        )
+        doc = {"scanned": out["scanned"], "recovered": out["filled"], "unrecoverable": out["unrecoverable"]}
         if out["unrecoverable"]:
-            print(f"  {out['note']}")
-        return 0
+            doc["note"] = out["note"]
+        return axi.emit(doc, title="Mailbox · backfill")
     if getattr(args, "state_sha", None):
-        out = mailbox.state_for(bus.ns, args.agent_id, args.state_sha, client=bus._client)
+        out = mailbox.state_for(bus.ns, me, args.state_sha, client=bus._client)
         if args.json:
             print(json.dumps(out, indent=2, default=str))
             return 0
         if not out.get("found"):
-            return _mailbox_refusal(out, args.agent_id)
-        print(f"[mailbox-state] {out['sha'][:12]} kind={out['kind']} frm={out['frm']}")
-        print(f"  opened by : {', '.join(r['incarnation'] for r in out['seen_by']) or '(nobody)'}")
-        print(f"  intent    : {out['intent'] or 'NONE DECLARED'}")
+            return _mailbox_refusal(out, me)
+        doc = {"sha": out["sha"][:12], "kind": out["kind"], "from": out["frm"]}
+        doc["opened_by"] = [r["incarnation"] for r in out["seen_by"]]
+        doc["intent"] = out["intent"] or "none declared"
         if out["read_but_undeclared"]:
-            print("  >> READ BUT UNDECLARED -- a seat opened this and said nothing about acting.")
-        print(f"  retention : {out['retention_s'] // 86400}d   identity basis on entry stored")
-        return 0
+            doc["read_but_undeclared"] = True  # a seat opened this and said nothing about acting
+        doc["retention_days"] = out["retention_s"] // 86400
+        hints = [] if out["intent"] else [intent_hint.replace("<sha>", doc["sha"])]
+        return axi.emit(doc, hints=hints, title="Mailbox · state")
     if getattr(args, "intent_sha", None):
         if not args.intent_kind:
-            print("[mailbox] --intent needs --as act|decline|delegate|defer")
-            return 2
+            return axi.fail(
+                "--intent needs --as act|decline|delegate|defer",
+                code="USAGE",
+                hints=[intent_hint.replace("<sha>", args.intent_sha)],
+                exit_code=axi.EXIT_USAGE,
+            )
         out = mailbox.declare_intent(
             bus.ns,
-            args.agent_id,
+            me,
             args.intent_sha,
             args.intent_kind,
             incarnation=inc,
@@ -10611,58 +10617,116 @@ def cmd_mailbox(args):
             print(json.dumps(out, indent=2, default=str))
             return 0
         if not out.get("ok"):
-            return _mailbox_refusal(out, args.agent_id)
-        print(
-            f"[mailbox-intent] {out.get('sha', args.intent_sha)[:12]} -> {out['intent']}"
-            f"{' to ' + out['to'] if out['to'] else ''} (by {out['by']})"
-        )
-        return 0
+            return _mailbox_refusal(out, me)
+        doc = {"sha": str(out.get("sha", args.intent_sha))[:12], "intent": out["intent"]}
+        if out["to"]:
+            doc["to"] = out["to"]
+        doc["by"] = out["by"]
+        return axi.emit(doc, title="Mailbox · intent declared")
 
     if args.rebuild:
-        out = mailbox.rebuild(bus.ns, args.agent_id, client=bus._client)
+        out = mailbox.rebuild(bus.ns, me, client=bus._client)
     elif args.explain:
-        out = mailbox.explain(bus.ns, args.agent_id, args.explain, client=bus._client)
+        out = mailbox.explain(bus.ns, me, args.explain, client=bus._client)
     else:
-        out = mailbox.query(bus.ns, args.agent_id, client=bus._client, min_evidence=args.min_evidence)
+        out = mailbox.query(bus.ns, me, client=bus._client, min_evidence=args.min_evidence)
     if args.json:
         print(json.dumps(out, indent=2, default=str))
         return 0
     if not out.get("available"):
-        print(f"[mailbox] {out.get('reason', 'unavailable')}")
-        return 1
+        return axi.fail(str(out.get("reason", "unavailable")), code="UNAVAILABLE")
     if args.rebuild:
-        print(
-            f"[mailbox] rebuilt {out['entries']} entrie(s); divergence vs incremental: "
-            f"{out['divergence']}" + (" (DETERMINISM HOLDS)" if out["divergence"] == 0 else " (!! INVESTIGATE)")
+        div = out["divergence"]
+        axi.emit(
+            {"entries": out["entries"], "divergence": div, "determinism": "holds" if div == 0 else "INVESTIGATE"},
+            title="Mailbox · rebuild",
         )
-        return 0 if out["divergence"] == 0 else 1
+        return 0 if div == 0 else 1
     if args.explain:
         if not out.get("found"):
-            print(f"[mailbox] no entry matches ref '{out.get('ref', args.explain)}'")
-            return 1
-        print(
-            f"[mailbox-explain] {out['sha'][:12]} kind={out['kind']} frm={out['frm']} "
-            f"ts={out['ts']} -> TIER: {out['tier']}"
-        )
-        for c in out["cursor_comparisons"]:
-            print(
-                f"  {c['source']}: id {c['stream_id']} vs cursor {c['cursor'] or '(none)'} -> consumed={c['consumed']}"
+            return axi.fail(
+                f"no entry matches ref {out.get('ref', args.explain)!r}",
+                code="NOT_FOUND",
+                hints=[f"{cli} mailbox {me}"],
             )
-        for sid, acks in (out.get("acks") or {}).items():
-            if acks:
-                print(f"  ack on {sid}: {acks}")
-        for sid, ans in (out.get("answered_by") or {}).items():
-            print(f"  answered ({sid}): by {ans.get('by')} at {ans.get('ts')}")
-        return 0
+        doc = {"sha": out["sha"][:12], "kind": out["kind"], "from": out["frm"], "ts": out["ts"], "tier": out["tier"]}
+        doc["cursors"] = [
+            {
+                "source": c["source"],
+                "stream_id": c["stream_id"],
+                "cursor": c["cursor"] or None,
+                "consumed": c["consumed"],
+            }
+            for c in out["cursor_comparisons"]
+        ]
+        acks = {sid: a for sid, a in (out.get("acks") or {}).items() if a}
+        if acks:
+            doc["acks"] = acks
+        if out.get("answered_by"):
+            doc["answered_by"] = [
+                {"stream": sid, "by": a.get("by"), "at": a.get("ts")} for sid, a in out["answered_by"].items()
+            ]
+        return axi.emit(doc, title="Mailbox · explain")
     counts = out["counts"]
-    tier_line = " | ".join(
-        f"{t}={counts[t]}" for t in ("unhandled", "consumed", "auto_acked", "replied", "acked") if counts.get(t)
-    )
-    print(f"# mailbox {args.agent_id}: {tier_line or 'empty'} (index_lag {out['index_lag']}, evicted {out['evicted']})")
-    for e in out["entries"]:
-        if e["tier"] in ("unhandled", "consumed"):
-            print(f"  [{e['tier']}] {e['sha'][:10]} {e['kind']:<10} from {e['frm']:<14} ts {e['ts']}")
-    return 0
+    tiers = ("unhandled", "consumed", "auto_acked", "replied", "acked")
+    doc = {"agent": me, "total": sum(counts.values())}
+    doc.update({t: counts.get(t, 0) for t in tiers if t == "unhandled" or counts.get(t)})
+    if out["index_lag"] or out["evicted"]:
+        doc["index_lag"], doc["evicted"] = out["index_lag"], out["evicted"]
+    # The rows are the mail still in play: unhandled and consumed-but-unsettled. Settled tiers
+    # are counted above, not listed.
+    doc["messages"] = [
+        {
+            "sha": e["sha"][:12],
+            "tier": e["tier"],
+            "kind": e["kind"],
+            "from": e["frm"],
+            "at": str(e["ts"])[:16].replace("T", " "),
+        }
+        for e in out["entries"]
+        if e["tier"] in ("unhandled", "consumed")
+    ]
+    rows = doc["messages"]
+    hints = []
+    if rows:
+        sha = rows[0]["sha"] if len(rows) == 1 else "<sha>"  # one row: no guessing involved
+        hints.append(f"{cli} mailbox {me} --open {sha}")
+        hints.append(intent_hint.replace("<sha>", sha))
+    if doc["unhandled"]:
+        hints.append(f"{cli} bifrost-sync {me} --consume")
+    return axi.emit(doc, hints=hints, human=_human_mailbox, title=f"Mailbox · {me}")
+
+
+def _human_mailbox(console, doc):
+    """Human view of the mailbox listing: the tier counts on one line, unhandled in yellow, then
+    the messages still in play as a table."""
+    from core.axi import out
+
+    tiers = [k for k in ("unhandled", "consumed", "auto_acked", "replied", "acked") if k in doc]
+    parts = [
+        f"[{'yellow' if k == 'unhandled' and doc[k] else 'green' if k != 'unhandled' else 'dim'}]{doc[k]} {k}[/]"
+        for k in tiers
+    ]
+    console.print(f"[bold]{doc['total']}[/] addressed to {out._esc(doc['agent'])}: " + ", ".join(parts))
+    if doc.get("index_lag") or doc.get("evicted"):
+        console.print(f"[dim]index lag {doc.get('index_lag', 0)}, evicted {doc.get('evicted', 0)}[/]")
+    if doc["messages"]:
+        console.print(out.table(doc["messages"]))
+
+
+def _human_mailbox_open(console, doc):
+    """Human view of `mailbox --open`: who and what on one line, then the body as written."""
+    from core.axi import out
+
+    console.print(f"[bold]{out._esc(doc['kind'])}[/] from [bold]{out._esc(doc['from'])}[/]  [dim]{doc['sha']}[/]")
+    console.print(f"[dim]seen by {out._esc(', '.join(doc['seen_by']) or 'nobody')} · {doc['state']}[/]")
+    if doc.get("no_body"):
+        console.print(f"[red]no body stored:[/] {out._esc(doc['no_body'])}")
+        return
+    if doc.get("body_stored"):
+        console.print(f"[yellow]body stored truncated: {doc['body_stored']}[/]")
+    console.print()
+    console.print(out._esc(doc["body"]))
 
 
 def cmd_packet_stats(args):

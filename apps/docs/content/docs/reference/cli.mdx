@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 27 converted to agent and human output.
+121 verbs; 28 converted to agent and human output.
 
 ## `alias`
 
@@ -1345,7 +1345,10 @@ help[2]:
 | | |
 |---|---|
 | Does | T095 M0 shadow mailbox: per-message state for an agent (observation only) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 97% after |
+| Output tokens | 254 before, 298 after (+17%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/mailbox.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1366,6 +1369,25 @@ help[2]:
 | `--backfill` |   |   | M1: recover bodies for entries indexed before body storage, WITHOUT dropping the index (unlike --rebuild). Unrecoverable entries keep their state and stay honestly marked. |
 | `--incarnation` |   |   | your session suffix. Defaults to $AKASHIC_SESSION8 or 'unknown'. It is load-bearing: seen receipts are keyed per incarnation so a FRESH seat can tell that a PRIOR one read this and declared nothing. |
 | `--json` |   |   |   |
+
+Agent output of `aurora mailbox bench` on the bench data:
+
+```text
+agent: bench
+total: 5
+unhandled: 2
+consumed: 3
+messages[5]{sha,tier,kind,from,at}:
+  0eb3f2a24db4,consumed,request,alice,"2026-10-12 15:37"
+  abf84401aba3,consumed,question,carol,"2026-10-12 15:37"
+  ae3b427b7a42,consumed,chat,bob,"2026-10-12 15:37"
+  199fb590cffe,unhandled,request,dave,"2026-10-12 15:37"
+  260c77a0c905,unhandled,chat,erin,"2026-10-12 15:37"
+help[3]:
+  uv run agent_cli.py mailbox bench --open <sha>
+  uv run agent_cli.py mailbox bench --intent <sha> --as act|decline|defer|delegate
+  uv run agent_cli.py bifrost-sync bench --consume
+```
 
 ## `manual`
 
