@@ -1,0 +1,236 @@
+{
+  "verb": "recall-counters",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 117,
+    "stdout_chars": 539,
+    "stdout_lines": 8,
+    "cost_usd": 0.0289,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many bare-slug counters would be merged?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many credited ghost counters are kept?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which credited ghosts are kept? List their sources separated by commas.",
+        "expected": [
+          "learn:experiment:renamed_away",
+          "learn:experiment:retired_rule"
+        ],
+        "answers": [
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did this run change anything? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many zero-credit ghosts were pruned?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command applies the fix? Give the command only.",
+        "expected": [
+          "recall-counters",
+          "--fold"
+        ],
+        "answers": [
+          "aurora recall-counters --fold",
+          "aurora recall-counters --fold",
+          "aurora recall-counters --fold",
+          "aurora recall-counters --fold",
+          "UNKNOWN"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "recall-counters"
+        ],
+        "exit": 0,
+        "stdout": "# COUNTER HYGIENE (S2a)  -- report only; apply with --fold\n  bare-slug counters to merge : 0   []\n  zero-credit ghosts to prune : 0   []\n  credited ghosts (KEPT; S2 adjudicates): 2   ['learn:experiment:renamed_away', 'learn:experiment:retired_rule']\n"
+      },
+      "fold": {
+        "argv": [
+          "recall-counters",
+          "--fold"
+        ],
+        "exit": 0,
+        "stdout": "[OK] folded 0 bare-slug counter(s) into canonical keys.\n[OK] pruned 0 zero-credit ghost(s): []\n[!] KEPT 2 credited ghost(s) -- these carry earned signal and\n    need an S2 decision (fold credit into the successor lesson): ['learn:experiment:renamed_away', 'learn:experiment:retired_rule']\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 122,
+    "stdout_chars": 379,
+    "stdout_lines": 12,
+    "cost_usd": 0.0294,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many bare-slug counters would be merged?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many credited ghost counters are kept?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which credited ghosts are kept? List their sources separated by commas.",
+        "expected": [
+          "learn:experiment:renamed_away",
+          "learn:experiment:retired_rule"
+        ],
+        "answers": [
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule",
+          "learn:experiment:renamed_away, learn:experiment:retired_rule"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did this run change anything? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many zero-credit ghosts were pruned?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "The output shows `pruned: 0`, so no ghosts were pruned.\n\n0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command applies the fix? Give the command only.",
+        "expected": [
+          "recall-counters",
+          "--fold"
+        ],
+        "answers": [
+          "uv run agent_cli.py recall-counters --fold",
+          "uv run agent_cli.py recall-counters --fold",
+          "uv run agent_cli.py recall-counters --fold",
+          "uv run agent_cli.py recall-counters --fold",
+          "uv run agent_cli.py recall-counters --fold"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "recall-counters"
+        ],
+        "exit": 0,
+        "stdout": "mode: report only\nbare_slugs_to_merge: 0\nghosts_to_prune: 0\ncredited_ghosts_kept: 2\ncredited_ghosts[2]: \"learn:experiment:renamed_away\",\"learn:experiment:retired_rule\"\nhelp[2]:\n  uv run agent_cli.py recall-counters --fold\n  uv run agent_cli.py triage\n"
+      },
+      "fold": {
+        "argv": [
+          "recall-counters",
+          "--fold"
+        ],
+        "exit": 0,
+        "stdout": "merged: 0\npruned: 0\ncredited_ghosts_kept: 2\ncredited_ghosts[2]: \"learn:experiment:renamed_away\",\"learn:experiment:retired_rule\"\n"
+      }
+    }
+  }
+}

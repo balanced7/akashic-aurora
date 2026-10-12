@@ -1574,14 +1574,27 @@ def cmd_recall_counters(args):
                 ).append(src)
     except Exception:
         pass
+    from core.axi import out
+
+    cli = _cli()
     if not args.fold:
-        print("# COUNTER HYGIENE (S2a)  -- report only; apply with --fold")
-        print(f"  bare-slug counters to merge : {len(bare)}   {bare[:6]}")
-        print(f"  zero-credit ghosts to prune : {len(ghosts_zero)}   {ghosts_zero[:6]}")
-        print(f"  credited ghosts (KEPT; S2 adjudicates): {len(ghosts_credited)}   {ghosts_credited[:6]}")
+        doc: dict = {
+            "mode": "report only",
+            "bare_slugs_to_merge": len(bare),
+            "ghosts_to_prune": len(ghosts_zero),
+            # earned history: --fold keeps these for a human to fold into the successor lesson
+            "credited_ghosts_kept": len(ghosts_credited),
+        }
+        for key, names in (("bare_slugs", bare), ("ghosts", ghosts_zero), ("credited_ghosts", ghosts_credited)):
+            if names:
+                doc[key] = names[:_COUNTER_NAMES]
         if not (bare or ghosts_zero or ghosts_credited):
-            print("  -> counters are clean.")
-        return 0
+            doc["result"] = "counters are clean"
+            return out.emit(doc, title="Recall counters")
+        hints = [f"{cli} recall-counters --fold"]
+        if ghosts_credited:  # triage shows each credited ghost's votes, for the human decision
+            hints.append(f"{cli} triage")
+        return out.emit(doc, hints=hints, title="Recall counters")
     merged = merge_use_counters(store=store, learning_store=ls)
     res = prune_ghost_counters(store=store, learning_store=ls)
     try:  # counters feed the warm cache's ranking -- rebuild so the fix takes effect now
@@ -1598,12 +1611,17 @@ def cmd_recall_counters(args):
         agent_id=args.agent_id or os.getenv("AKASHIC_AGENT_ID"),
         detail={"merged": merged, "pruned": res["pruned"], "kept_credited": res["kept_credited"]},
     )
-    print(f"[OK] folded {merged} bare-slug counter(s) into canonical keys.")
-    print(f"[OK] pruned {len(res['pruned'])} zero-credit ghost(s): {res['pruned'][:8]}")
+    doc = {"merged": merged, "pruned": len(res["pruned"]), "credited_ghosts_kept": len(res["kept_credited"])}
+    if res["pruned"]:
+        doc["pruned_ghosts"] = res["pruned"][:_COUNTER_NAMES]
     if res["kept_credited"]:
-        print(f"[!] KEPT {len(res['kept_credited'])} credited ghost(s) -- these carry earned signal and")
-        print(f"    need an S2 decision (fold credit into the successor lesson): {res['kept_credited']}")
-    return 0
+        # They carry earned signal: an S2 decision folds their credit into the successor lesson.
+        doc["credited_ghosts"] = res["kept_credited"][:_COUNTER_NAMES]
+    return out.emit(doc, title="Recall counters · folded")  # a confirmation answers itself: no hints
+
+
+#: How many counter names `recall-counters` lists per kind; the counts give the totals.
+_COUNTER_NAMES = 10
 
 
 # --------------------------------------------------------------------- fleet
