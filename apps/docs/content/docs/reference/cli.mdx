@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 51 converted to agent and human output.
+121 verbs; 52 converted to agent and human output.
 
 ## `alias`
 
@@ -2135,7 +2135,10 @@ help[1]:
 | | |
 |---|---|
 | Does | answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 46 before, 76 after (+65%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/reply.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2145,6 +2148,16 @@ help[1]:
 | `--as` |   |   | override the sender (default: this seat's id -- never a positional) |
 | `--model` |   |   | stamp the model answering (alias like 'sonnet' or a full id) to the self-report `!model` reads -- best-effort, never blocks the reply |
 | `--json` |   |   |   |
+
+Agent output of `aurora reply the parser fix is in` on the bench data:
+
+```text
+sent: true
+delivery: SENT_NO_FAILURE_RECORDED
+to: daniil
+id: 1791819647793-0
+why: "on the bus, nothing has confessed a failure -- which is not the same fact as the operator having read it"
+```
 
 ## `report`
 

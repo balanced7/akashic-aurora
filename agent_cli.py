@@ -9403,6 +9403,7 @@ def cmd_reply(args):
     positional, so a message CANNOT land in a sender slot; and the verdict distinguishes
     'nothing confessed a failure' from 'delivered', because conflating those is what made
     the silence invisible. Logic + pins: core/comm/operator_reply.py."""
+    from core.axi import out as axi
     from core.comm import operator_reply as _or
 
     if getattr(args, "text_file", None):
@@ -9410,20 +9411,47 @@ def cmd_reply(args):
             with open(args.text_file, encoding="utf-8") as fh:
                 body = fh.read().strip()
         except OSError as e:
-            print(f"[reply] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
-            return 2
+            return axi.fail(
+                f"--text-file unreadable ({type(e).__name__}: {e}) -- not sent",
+                code="USAGE",
+                details={"sent": False, "path": args.text_file},
+                exit_code=axi.EXIT_USAGE,
+            )
     else:
         body = " ".join(args.text or [])
     out = _or.reply(
         body, sender=getattr(args, "as_seat", None), to=getattr(args, "to", None), model=getattr(args, "model", None)
     )
-    if getattr(args, "json", False):
-        print(json.dumps(out, indent=1))
-    else:
-        print(_or.render(out))
     # A recorded post FAILURE is a non-zero exit even though the bus accepted it: the seat
     # must be able to tell, from the exit code alone, that the operator did not get it.
-    return 0 if (out.get("ok") and out.get("delivery") != "FAILED") else 1
+    code = 0 if (out.get("ok") and out.get("delivery") != "FAILED") else 1
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=1))
+        return code
+    # Every one of the four verdicts stays a field (`delivery`), never folded into "sent":
+    # SENT_NO_FAILURE_RECORDED is not "delivered", and a stop hook must be able to tell.
+    to = (getattr(args, "to", None) or _or.operator_id()).strip()
+    if code:
+        details = {"sent": bool(out.get("ok")), "delivery": out.get("delivery"), "to": to}
+        if out.get("id"):
+            details["id"] = out["id"]
+        return axi.fail(str(out.get("why")), code=str(out.get("delivery") or "FAILED"), details=details)
+    doc = {"sent": True, "delivery": out.get("delivery"), "to": to, "id": out.get("id"), "why": out.get("why")}
+    if out.get("model_stamped"):
+        doc["model_stamped"] = True
+    return axi.emit(doc, human=_human_reply)  # the verdict answers itself: no hints
+
+
+def _human_reply(console, doc):
+    from core.axi import out
+
+    colour = "green" if doc["delivery"] == "SENT_NO_FAILURE_RECORDED" else "yellow"
+    word = {"SENT_NO_FAILURE_RECORDED": "sent", "UNKNOWN": "sent (unverified)"}.get(doc["delivery"], doc["delivery"])
+    stamp = " · model stamped" if doc.get("model_stamped") else ""
+    console.print(
+        f"[{colour}]{out._esc(word)}[/] to [bold]{out._esc(doc['to'])}[/]  [dim]{out._esc(str(doc['id']))}[/]"
+    )
+    console.print(f"  {out._esc(str(doc['why']))}{stamp}")
 
 
 def _read_send_text(args):

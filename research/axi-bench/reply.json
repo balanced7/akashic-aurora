@@ -1,0 +1,244 @@
+{
+  "verb": "reply",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 46,
+    "stdout_chars": 373,
+    "stdout_lines": 3,
+    "cost_usd": 0.0294,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Did the bus accept the reply? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the output confirm that the operator has read the reply? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who is the reply addressed to?",
+        "expected": "daniil",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Was the reply sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Why was nothing sent? Answer in one word.",
+        "expected": [
+          "empty"
+        ],
+        "answers": [
+          "EMPTY",
+          "EMPTY",
+          "Empty",
+          "Empty",
+          "Empty"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which file could not be read? Give the path only.",
+        "expected": "/nonexistent/reply.txt",
+        "answers": [
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "sent": {
+        "argv": [
+          "reply",
+          "the parser fix is in"
+        ],
+        "exit": 0,
+        "stdout": "[reply] sent -> 1791819604104-0 :: on the bus, nothing has confessed a failure -- which is not the same fact as the operator having read it\n"
+      },
+      "empty": {
+        "argv": [
+          "reply"
+        ],
+        "exit": 1,
+        "stdout": "[reply] refusing an EMPTY reply -- a header with nothing under it is indistinguishable from a failed send\n"
+      },
+      "unreadable": {
+        "argv": [
+          "reply",
+          "--text-file",
+          "/nonexistent/reply.txt"
+        ],
+        "exit": 2,
+        "stdout": "[reply] --text-file unreadable (FileNotFoundError: [Errno 2] No such file or directory: '/nonexistent/reply.txt') -- not sent.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 76,
+    "stdout_chars": 529,
+    "stdout_lines": 14,
+    "cost_usd": 0.0281,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Did the bus accept the reply? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the output confirm that the operator has read the reply? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who is the reply addressed to?",
+        "expected": "daniil",
+        "answers": [
+          "daniil",
+          "daniil",
+          "daniil",
+          "daniil",
+          "daniil"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the reply sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Why was nothing sent? Answer in one word.",
+        "expected": [
+          "empty"
+        ],
+        "answers": [
+          "Empty",
+          "EMPTY",
+          "EMPTY",
+          "EMPTY",
+          "Empty"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which file could not be read? Give the path only.",
+        "expected": "/nonexistent/reply.txt",
+        "answers": [
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt",
+          "/nonexistent/reply.txt"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "sent": {
+        "argv": [
+          "reply",
+          "the parser fix is in"
+        ],
+        "exit": 0,
+        "stdout": "sent: true\ndelivery: SENT_NO_FAILURE_RECORDED\nto: daniil\nid: 1791819647793-0\nwhy: \"on the bus, nothing has confessed a failure -- which is not the same fact as the operator having read it\"\n"
+      },
+      "empty": {
+        "argv": [
+          "reply"
+        ],
+        "exit": 1,
+        "stdout": "error: refusing an EMPTY reply -- a header with nothing under it is indistinguishable from a failed send\ncode: REFUSED\nsent: false\ndelivery: REFUSED\nto: daniil\n"
+      },
+      "unreadable": {
+        "argv": [
+          "reply",
+          "--text-file",
+          "/nonexistent/reply.txt"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--text-file unreadable (FileNotFoundError: [Errno 2] No such file or directory: '/nonexistent/reply.txt') -- not sent\"\ncode: USAGE\nsent: false\npath: /nonexistent/reply.txt\n"
+      }
+    }
+  }
+}
