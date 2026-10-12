@@ -1,0 +1,328 @@
+{
+  "verb": "grant",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.943,
+    "correct": 33,
+    "asked": 35,
+    "output_tokens": 105,
+    "stdout_chars": 895,
+    "stdout_lines": 22,
+    "cost_usd": 0.0326,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many grants are stored?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which role does bob hold?",
+        "expected": "restricted",
+        "answers": [
+          "restricted",
+          "restricted",
+          "bob",
+          "restricted",
+          "bob"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which agents hold permanent grants? List them separated by commas.",
+        "expected": [
+          "bob",
+          "boss"
+        ],
+        "answers": [
+          "bob, boss",
+          "bob, boss",
+          "bob, boss",
+          "bob, boss",
+          "bob, boss"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who granted alice her role?",
+        "expected": "boss",
+        "answers": [
+          "boss",
+          "boss",
+          "boss",
+          "boss",
+          "boss"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was anything written? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the grant succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which role did carol hold before this command?",
+        "expected": "member",
+        "answers": [
+          "member",
+          "member",
+          "member",
+          "member",
+          "member"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "grant"
+        ],
+        "exit": 0,
+        "stdout": "## GRANTS (4) -- source of truth: security/acl.json\n  carol                  member       2026-10-12T23:41:53Z   by=boss\n      one-day pairing\n  alice                  member       2026-10-13T15:41:52Z   by=boss\n      bench seat for tests\n  bob                    restricted   permanent              by=boss\n      read-only helper\n  boss                   super_admin  permanent              by=operator\n      bench super-admin\n"
+      },
+      "dry": {
+        "argv": [
+          "grant",
+          "dave",
+          "--role",
+          "member",
+          "--by",
+          "boss",
+          "--reason",
+          "trial",
+          "--hours",
+          "4",
+          "--dry-run"
+        ],
+        "exit": 0,
+        "stdout": "{\n  \"agent_id\": \"dave\",\n  \"role\": \"member\",\n  \"by\": \"boss\",\n  \"hours\": 4.0,\n  \"permanent\": false,\n  \"caps\": null,\n  \"path_scope\": null,\n  \"reason\": \"trial\"\n}\n[grant] DRY RUN -- nothing written. Authority guards run on the real call.\n"
+      },
+      "refused": {
+        "argv": [
+          "grant",
+          "dave",
+          "--role",
+          "member",
+          "--by",
+          "alice",
+          "--reason",
+          "trial",
+          "--hours",
+          "1"
+        ],
+        "exit": 2,
+        "stdout": "grant REFUSED: 'alice' resolves to role 'member', which does not hold admin.grant. Only a super-admin mints grants. (This door refuses; it does not authenticate -- see the module docstring.)\n"
+      },
+      "revoke": {
+        "argv": [
+          "grant",
+          "carol",
+          "--revoke",
+          "--by",
+          "boss",
+          "--reason",
+          "pairing over"
+        ],
+        "exit": 0,
+        "stdout": "[grant] REVOKED carol (was member) by boss\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 111,
+    "stdout_chars": 1110,
+    "stdout_lines": 29,
+    "cost_usd": 0.0267,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many grants are stored?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which role does bob hold?",
+        "expected": "restricted",
+        "answers": [
+          "restricted",
+          "restricted",
+          "restricted",
+          "restricted",
+          "restricted"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agents hold permanent grants? List them separated by commas.",
+        "expected": [
+          "bob",
+          "boss"
+        ],
+        "answers": [
+          "bob, boss",
+          "bob, boss",
+          "bob, boss",
+          "bob, boss",
+          "bob, boss"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who granted alice her role?",
+        "expected": "boss",
+        "answers": [
+          "boss",
+          "boss",
+          "boss",
+          "boss",
+          "boss"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was anything written? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the grant succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which role did carol hold before this command?",
+        "expected": "member",
+        "answers": [
+          "member",
+          "member",
+          "member",
+          "member",
+          "member"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "grant"
+        ],
+        "exit": 0,
+        "stdout": "acl: /tmp/axi-grant-dkhm1jnx/acl.json\ntotal: 4\ngrants[4]{agent,role,expires,by,reason}:\n  carol,member,\"2026-10-12T23:42:40Z\",boss,one-day pairing\n  alice,member,\"2026-10-13T15:42:40Z\",boss,bench seat for tests\n  bob,restricted,permanent,boss,read-only helper\n  boss,super_admin,permanent,operator,bench super-admin\nhelp[2]:\n  uv run agent_cli.py grant <agent_id> --role member --by <your_id> --reason \"<why>\" --hours 24\n  uv run agent_cli.py grant <agent_id> --revoke --by <your_id> --reason \"<why>\"\n"
+      },
+      "dry": {
+        "argv": [
+          "grant",
+          "dave",
+          "--role",
+          "member",
+          "--by",
+          "boss",
+          "--reason",
+          "trial",
+          "--hours",
+          "4",
+          "--dry-run"
+        ],
+        "exit": 0,
+        "stdout": "dry_run: true\nwritten: false\nwould_grant:\n  agent_id: dave\n  role: member\n  by: boss\n  hours: 4\n  reason: trial\nnote: \"the authority guards run only on the real call, so this does not say it would pass\"\nhelp[1]:\n  uv run agent_cli.py grant dave --role member --by boss --reason trial --hours 4\n"
+      },
+      "refused": {
+        "argv": [
+          "grant",
+          "dave",
+          "--role",
+          "member",
+          "--by",
+          "alice",
+          "--reason",
+          "trial",
+          "--hours",
+          "1"
+        ],
+        "exit": 2,
+        "stdout": "error: \"grant refused: 'alice' resolves to role 'member', which does not hold admin.grant. Only a super-admin mints grants. (This door refuses; it does not authenticate -- see the module docstring.)\"\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py grant --list\n"
+      },
+      "revoke": {
+        "argv": [
+          "grant",
+          "carol",
+          "--revoke",
+          "--by",
+          "boss",
+          "--reason",
+          "pairing over"
+        ],
+        "exit": 0,
+        "stdout": "revoked: carol\nwas: member\nby: boss\nreason: pairing over\n"
+      }
+    }
+  }
+}

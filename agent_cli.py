@@ -9235,54 +9235,87 @@ def cmd_grant(args):
     What it buys is that every grant is atomic, schema-validated, time-boxed unless someone said
     otherwise out loud, carries a reason, and can be undone with --revoke instead of an edit.
     """
-    from core.trust import grant_writer
+    import shlex
+
+    from core.axi import out
+    from core.trust import grant_writer, registry
+
+    cli = _cli()
+    acl = str(registry.acl_path())
 
     def _emit(payload):
         if getattr(args, "json", False):
             print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
         return 0
 
+    def _refused(e):  # the writer refuses rather than half-writing; exit 2 as it always was
+        code = "REFUSED" if isinstance(e, PermissionError) else "INVALID"
+        return out.fail(f"grant refused: {e}", code=code, hints=[f"{cli} grant --list"], exit_code=out.EXIT_USAGE)
+
     if args.bootstrap:
         # t384 peer-side ceremony: stamp the instance marker into the LOCAL acl.json so the
         # split commit's upstream delete meets a local modify (a loud conflict, never a silent
         # deletion). Grants untouched; refuses on missing/corrupt. Run BEFORE pulling the split.
         try:
-            out = grant_writer.bootstrap(by=os.environ.get("AKASHIC_AGENT_ID") or "operator")
-            if args.json:
-                return _emit(out)
-            print(
-                f"[grant] BOOTSTRAPPED instance {out['hostname']} "
-                f"({out['grants_preserved']} grants preserved) -- the file is now "
-                f"instance-local; the next pull of the split commit will CONFLICT (keep local)"
-            )
-            return 0
+            res = grant_writer.bootstrap(by=os.environ.get("AKASHIC_AGENT_ID") or "operator")
         except (PermissionError, ValueError) as e:
-            print(f"grant REFUSED: {e}")
-            return 2
+            return _refused(e)
+        if args.json:
+            return _emit(res)
+        doc = {
+            "bootstrapped": res["hostname"],
+            "grants_preserved": res["grants_preserved"],
+            "acl": acl,
+            "next": "the next pull of the split commit will CONFLICT on this file: keep the local copy",
+        }
+        return out.emit(doc, title="Grant · bootstrap")
 
     if args.list or (not args.agent_id and not args.revoke):
-        rows = grant_writer.listing()
+        try:
+            rows = grant_writer.listing()
+        except FileNotFoundError:
+            rows = None
         if args.json:
+            if rows is None:  # as before, a missing ACL is not something --json papers over
+                raise FileNotFoundError(acl)
             return _emit(rows)
-        print(f"## GRANTS ({len(rows)}) -- source of truth: security/acl.json")
-        for g in rows:
-            exp = g.get("expires_at") or "permanent"
-            print(f"  {g.get('agent_id')!s:<22} {g.get('role')!s:<12} {exp:<22} by={g.get('granted_by')}")
-            if g.get("reason"):
-                print(f"      {str(g['reason'])[:110]}")
-        return 0
+        if rows is None:  # AXI section 5: no file is a state worth saying, not a traceback
+            return out.emit(
+                {"acl": f"{acl} (missing: only the code's bootstrap roles apply)", "total": 0, "grants": []},
+                hints=[f"cp security/acl.example.json {shlex.quote(acl)}"],
+                title="Grants",
+            )
+        table = [
+            {
+                "agent": g.get("agent_id"),
+                "role": g.get("role"),
+                "expires": g.get("expires_at") or "permanent",
+                "by": g.get("granted_by"),
+                "reason": out.truncate(g.get("reason"), 120)[0] or None,
+            }
+            for g in rows
+        ]
+        hints = [
+            f'{cli} grant <agent_id> --role member --by <your_id> --reason "<why>" --hours 24',
+            f'{cli} grant <agent_id> --revoke --by <your_id> --reason "<why>"',
+        ]
+        return out.emit({"acl": acl, "total": len(rows), "grants": table}, hints=hints, title=f"Grants · {len(rows)}")
 
     if not args.agent_id:
-        print("grant: name the agent (or pass --list)")
-        return 2
+        return out.fail(
+            "name the agent (or pass --list)",
+            code="USAGE",
+            hints=[f"{cli} grant --list"],
+            exit_code=out.EXIT_USAGE,
+        )
 
     try:
         if args.revoke:
-            out = grant_writer.revoke(args.agent_id, by=args.by, reason=args.reason or "")
+            res = grant_writer.revoke(args.agent_id, by=args.by, reason=args.reason or "")
             if args.json:
-                return _emit(out)
-            print(f"[grant] REVOKED {args.agent_id} (was {out['was'].get('role')}) by {args.by}")
-            return 0
+                return _emit(res)
+            doc = {"revoked": args.agent_id, "was": res["was"].get("role"), "by": args.by, "reason": args.reason}
+            return out.emit(doc, title="Grant · revoked")  # a confirmation answers itself
 
         caps = [c.strip() for c in args.caps.split(",") if c.strip()] if args.caps else None
         scope = [s.strip() for s in args.path_scope.split(",") if s.strip()] if args.path_scope else None
@@ -9291,23 +9324,30 @@ def cmd_grant(args):
             # Build nothing, write nothing -- just say what would land. Deliberately does not
             # run the guards: a dry run that passed while the real call would be REFUSED would
             # be worse than no preview, so this prints the intent and names its own limit.
-            print(
-                json.dumps(
-                    {
-                        "agent_id": args.agent_id,
-                        "role": args.role,
-                        "by": args.by,
-                        "hours": args.hours,
-                        "permanent": bool(args.permanent),
-                        "caps": caps,
-                        "path_scope": scope,
-                        "reason": args.reason,
-                    },
-                    indent=2,
-                )
-            )
-            print("[grant] DRY RUN -- nothing written. Authority guards run on the real call.")
-            return 0
+            intent = {
+                "agent_id": args.agent_id,
+                "role": args.role,
+                "by": args.by,
+                "hours": args.hours,
+                "permanent": bool(args.permanent),
+                "caps": caps,
+                "path_scope": scope,
+                "reason": args.reason,
+            }
+            if args.json:
+                print(json.dumps(intent, indent=2))
+                print("[grant] DRY RUN -- nothing written. Authority guards run on the real call.")
+                return 0
+            doc = {"dry_run": True, "written": False, "would_grant": {k: v for k, v in intent.items() if v}}
+            doc["note"] = "the authority guards run only on the real call, so this does not say it would pass"
+            again = f"{cli} grant {shlex.quote(args.agent_id)}"
+            for flag, value in (("--role", args.role), ("--by", args.by), ("--reason", args.reason)):
+                if value:
+                    again += f" {flag} {shlex.quote(str(value))}"
+            again += " --permanent" if args.permanent else (f" --hours {args.hours:g}" if args.hours else "")
+            again += f" --caps {shlex.quote(args.caps)}" if args.caps else ""
+            again += f" --path-scope {shlex.quote(args.path_scope)}" if args.path_scope else ""
+            return out.emit(doc, hints=[again], title="Grant · dry run")
 
         rec = grant_writer.grant(
             args.agent_id,
@@ -9322,11 +9362,16 @@ def cmd_grant(args):
         )
         if args.json:
             return _emit(rec)
-        print(f"[grant] {rec['agent_id']} -> {rec['role']} ({rec['expires_at'] or 'permanent'}) by {rec['granted_by']}")
-        return 0
+        doc = {
+            "granted": rec["agent_id"],
+            "role": rec["role"],
+            "expires": rec["expires_at"] or "permanent",
+            "by": rec["granted_by"],
+            "caps": rec["caps"],
+        }
+        return out.emit(doc, title="Grant · minted")
     except (PermissionError, ValueError) as e:
-        print(f"grant REFUSED: {e}")
-        return 2
+        return _refused(e)
 
 
 def cmd_resident(args):

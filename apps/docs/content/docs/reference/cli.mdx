@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 106 converted to agent and human output.
+121 verbs; 107 converted to agent and human output.
 
 ## `alias`
 
@@ -1491,7 +1491,10 @@ recall_slots: no (history kept)
 | | |
 |---|---|
 | Does | S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 94% before, 100% after |
+| Output tokens | 105 before, 111 after (+6%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/grant.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1509,6 +1512,21 @@ recall_slots: no (history kept)
 | `--list` |   |   | show stored grants, expiring first |
 | `--dry-run` |   |   | print the record, write nothing |
 | `--json` |   |   |   |
+
+Agent output of `aurora grant` on the bench data:
+
+```text
+acl: /tmp/axi-grant-dkhm1jnx/acl.json
+total: 4
+grants[4]{agent,role,expires,by,reason}:
+  carol,member,"2026-10-12T23:42:40Z",boss,one-day pairing
+  alice,member,"2026-10-13T15:42:40Z",boss,bench seat for tests
+  bob,restricted,permanent,boss,read-only helper
+  boss,super_admin,permanent,operator,bench super-admin
+help[2]:
+  uv run agent_cli.py grant <agent_id> --role member --by <your_id> --reason "<why>" --hours 24
+  uv run agent_cli.py grant <agent_id> --revoke --by <your_id> --reason "<why>"
+```
 
 ## `ground`
 
