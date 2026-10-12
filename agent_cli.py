@@ -16049,13 +16049,34 @@ def cmd_toast(args, *, bus_send=None, note_write=None, store=None):
             store=store,
         )
     except ValueError as e:
-        print(f"[toast] {e}")
-        return 2
+        if getattr(args, "json", False):  # --json callers keep the line they had
+            print(f"[toast] {e}")
+            return 2
+        from core.axi import out
+
+        cli, msg = _cli(), str(e)
+        base = f"{cli} toast {args.agent_id} {args.to} {args.receipt}"
+        if "credit" in msg and "REFUSED" not in msg:  # the credit is missing or too long
+            hints = [f'{base} --credit "<what their lesson saved you, under 400 chars>"']
+        else:  # the receipt did not verify: look it up, or send it labelled GUESS
+            hints = [f'{cli} recall "{args.receipt}"', f'{base} --credit "..." --force']
+        msg = msg.removeprefix("toast REFUSED: ").replace("pass force=True", "pass --force")
+        return out.fail(msg, code="REFUSED", hints=hints, exit_code=2)
     if getattr(args, "json", False):
         print(json.dumps(res))
         return 0
-    print(toast.render_result(res))
-    return 0
+    from core.axi import out
+
+    doc = {
+        "to": args.to,
+        "receipt": args.receipt,
+        "tier": res["tier"],
+        "verified_by": res["found_by"],
+        "bus": res["bus"],
+        "note": res["note"],
+        "note_title": res["note_title"],
+    }
+    return out.emit(doc, title=f"Toast · {res['tier']}")  # a confirmation: nothing left to do
 
 
 def _agent_acl_caps(agent_id: str) -> set:

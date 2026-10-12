@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 92 converted to agent and human output.
+121 verbs; 93 converted to agent and human output.
 
 ## `alias`
 
@@ -3330,7 +3330,10 @@ help[1]:
 | | |
 |---|---|
 | Does | gratitude-with-receipt (T099 BETA-2): toast a peer whose lesson saved you hops; receipt verifies against the learning store or the send REFUSES |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 67 before, 72 after (+7%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/toast.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -3340,6 +3343,18 @@ help[1]:
 | `--credit` |   |   | what did their lesson save you? (required, short) |
 | `--force` |   |   | send an unverified receipt honestly labeled GUESS |
 | `--json` |   |   |   |
+
+Agent output of `aurora toast bench alice port_clash --credit saved two hours of bisecting` on the bench data:
+
+```text
+to: alice
+receipt: port_clash
+tier: VERIFIED
+verified_by: exact experiment id
+bus: sent
+note: written
+note_title: "toast:alice-port-clash"
+```
 
 ## `tool`
 

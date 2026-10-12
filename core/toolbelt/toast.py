@@ -181,12 +181,3 @@ def send(
     except Exception as e:
         res["note"] = f"failed ({type(e).__name__})"
     return res
-
-
-def render_result(res: dict[str, Any]) -> str:
-    return (
-        f"toast [{res['tier']}] ({res['found_by']})\n"
-        f"  bus : {res['bus']}\n"
-        f"  note: {res['note']} -> {res['note_title']}\n"
-        f"  line: {res['line']}"
-    )

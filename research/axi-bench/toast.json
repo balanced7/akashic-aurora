@@ -1,0 +1,314 @@
+{
+  "verb": "toast",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 67,
+    "stdout_chars": 887,
+    "stdout_lines": 11,
+    "cost_usd": 0.0283,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the receipt verified? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the bus message sent? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verification tier is the toast labelled with?",
+        "expected": "GUESS",
+        "answers": [
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the toast sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent does the port_clash lesson belong to?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag must be added for the command to work? Give the flag only.",
+        "expected": [
+          "--credit"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "ok": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "port_clash",
+          "--credit",
+          "saved two hours of bisecting"
+        ],
+        "exit": 0,
+        "stdout": "toast [VERIFIED] (exact experiment id)\n  bus : sent\n  note: written -> toast:alice-port-clash\n  line: [VERIFIED] \ud83e\uddeb @alice: saved two hours of bisecting (receipt: port_clash)\n"
+      },
+      "forced": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "made_up_thing",
+          "--credit",
+          "thanks anyway",
+          "--force"
+        ],
+        "exit": 0,
+        "stdout": "toast [GUESS] (no experiment matching 'made_up_thing' in the store)\n  bus : sent\n  note: written -> toast:alice-made-up-thing\n  line: [GUESS :unverified receipt] \ud83e\uddeb @alice: thanks anyway (claimed receipt: made_up_thing)\n"
+      },
+      "refused": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "made_up_thing",
+          "--credit",
+          "thanks anyway"
+        ],
+        "exit": 2,
+        "stdout": "[toast] toast REFUSED: receipt does not verify (no experiment matching 'made_up_thing' in the store). Re-check the experiment name, or pass force=True to send it honestly labeled GUESS.\n"
+      },
+      "wrong_owner": {
+        "argv": [
+          "toast",
+          "bench",
+          "carol",
+          "port_clash",
+          "--credit",
+          "thanks"
+        ],
+        "exit": 2,
+        "stdout": "[toast] toast REFUSED: receipt does not verify (experiment 'port_clash' belongs to alice, not carol). Re-check the experiment name, or pass force=True to send it honestly labeled GUESS.\n"
+      },
+      "no_credit": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "port_clash"
+        ],
+        "exit": 2,
+        "stdout": "[toast] toast needs the credit (what did their lesson save you?) -- gratitude without the receipt-detail is a hollow ping\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 72,
+    "stdout_chars": 1188,
+    "stdout_lines": 28,
+    "cost_usd": 0.0305,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the receipt verified? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the bus message sent? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verification tier is the toast labelled with?",
+        "expected": "GUESS",
+        "answers": [
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS",
+          "GUESS"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the toast sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent does the port_clash lesson belong to?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag must be added for the command to work? Give the flag only.",
+        "expected": [
+          "--credit"
+        ],
+        "answers": [
+          "--credit",
+          "--credit",
+          "--credit",
+          "--credit",
+          "--credit"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ok": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "port_clash",
+          "--credit",
+          "saved two hours of bisecting"
+        ],
+        "exit": 0,
+        "stdout": "to: alice\nreceipt: port_clash\ntier: VERIFIED\nverified_by: exact experiment id\nbus: sent\nnote: written\nnote_title: \"toast:alice-port-clash\"\n"
+      },
+      "forced": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "made_up_thing",
+          "--credit",
+          "thanks anyway",
+          "--force"
+        ],
+        "exit": 0,
+        "stdout": "to: alice\nreceipt: made_up_thing\ntier: GUESS\nverified_by: no experiment matching 'made_up_thing' in the store\nbus: sent\nnote: written\nnote_title: \"toast:alice-made-up-thing\"\n"
+      },
+      "refused": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "made_up_thing",
+          "--credit",
+          "thanks anyway"
+        ],
+        "exit": 2,
+        "stdout": "error: \"receipt does not verify (no experiment matching 'made_up_thing' in the store). Re-check the experiment name, or pass --force to send it honestly labeled GUESS.\"\ncode: REFUSED\nhelp[2]:\n  uv run agent_cli.py recall \"made_up_thing\"\n  uv run agent_cli.py toast bench alice made_up_thing --credit \"...\" --force\n"
+      },
+      "wrong_owner": {
+        "argv": [
+          "toast",
+          "bench",
+          "carol",
+          "port_clash",
+          "--credit",
+          "thanks"
+        ],
+        "exit": 2,
+        "stdout": "error: \"receipt does not verify (experiment 'port_clash' belongs to alice, not carol). Re-check the experiment name, or pass --force to send it honestly labeled GUESS.\"\ncode: REFUSED\nhelp[2]:\n  uv run agent_cli.py recall \"port_clash\"\n  uv run agent_cli.py toast bench carol port_clash --credit \"...\" --force\n"
+      },
+      "no_credit": {
+        "argv": [
+          "toast",
+          "bench",
+          "alice",
+          "port_clash"
+        ],
+        "exit": 2,
+        "stdout": "error: toast needs the credit (what did their lesson save you?) -- gratitude without the receipt-detail is a hollow ping\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py toast bench alice port_clash --credit \"<what their lesson saved you, under 400 chars>\"\n"
+      }
+    }
+  }
+}
