@@ -8475,11 +8475,42 @@ def _human_lock(console, doc):
 
 
 def cmd_unlock(args):
-    from core.comm.locks import LockManager
+    from core.axi import out
+    from core.comm.locks import LockManager, normalize_path
 
-    ok = LockManager(args.agent_id).release(args.path)
-    print(f"[unlock] {'released' if ok else 'not yours / not held'}: {args.path}")
-    return 0 if ok else 1
+    mgr = LockManager(args.agent_id)
+    # release() is one bool for three cases; reading the holder first lets a refusal say which
+    # (nobody holds it, a peer holds it, or the bus is down). The exit code stays what it was:
+    # 1 whenever nothing was released, including a path that was already free.
+    before = mgr.holder(args.path)
+    ok = mgr.release(args.path)
+    path = normalize_path(args.path)
+    cli = _cli()
+    if ok:
+        return out.emit(
+            {"unlock": "released", "path": path, "agent": args.agent_id},
+            hints=[f"{cli} locks {args.agent_id}"],
+            human=lambda console, d: console.print(
+                f"[green]✓[/] released [bold]{out._esc(d['path'])}[/] [dim]({out._esc(d['agent'])})[/]"
+            ),
+        )
+    if not mgr.online:
+        return out.fail(
+            "bus offline (Redis down): no advisory locking available", code="OFFLINE", hints=[f"{cli} status"]
+        )
+    if before and before.get("agent") != args.agent_id:
+        return out.fail(
+            f"{path} is held by {before.get('agent')}",  # a peer's lock is not yours to release
+            code="NOT_YOURS",
+            details={"path": path, "held_by": before.get("agent")},
+            hints=[f"{cli} locks {args.agent_id}"],
+        )
+    return out.fail(
+        f"{path} is not locked",
+        code="NOT_HELD",
+        details={"path": path},
+        hints=[f"{cli} locks {args.agent_id}"],
+    )
 
 
 def cmd_captions(args):

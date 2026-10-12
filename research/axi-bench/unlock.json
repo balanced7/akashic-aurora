@@ -1,0 +1,226 @@
+{
+  "verb": "unlock",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.24,
+    "correct": 6,
+    "asked": 25,
+    "output_tokens": 13,
+    "stdout_chars": 111,
+    "stdout_lines": 3,
+    "cost_usd": 0.0297,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the lock on core/a.py released? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent holds the lock on docs/x.md?",
+        "expected": "bob",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Is core/a.py locked by anyone right now? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "no",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Did the command fail because nobody holds docs/x.md, or because another agent holds it? Answer nobody or another.",
+        "expected": "another",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "nobody"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What command shows who holds which locks? Give the command only.",
+        "expected": [
+          "locks"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "release": {
+        "argv": [
+          "unlock",
+          "alice",
+          "core/a.py"
+        ],
+        "exit": 0,
+        "stdout": "[unlock] released: core/a.py\n"
+      },
+      "peer": {
+        "argv": [
+          "unlock",
+          "alice",
+          "docs/x.md"
+        ],
+        "exit": 1,
+        "stdout": "[unlock] not yours / not held: docs/x.md\n"
+      },
+      "free": {
+        "argv": [
+          "unlock",
+          "alice",
+          "core/a.py"
+        ],
+        "exit": 1,
+        "stdout": "[unlock] not yours / not held: core/a.py\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 47,
+    "stdout_chars": 314,
+    "stdout_lines": 16,
+    "cost_usd": 0.0212,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the lock on core/a.py released? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent holds the lock on docs/x.md?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is core/a.py locked by anyone right now? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "NO",
+          "NO",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command fail because nobody holds docs/x.md, or because another agent holds it? Answer nobody or another.",
+        "expected": "another",
+        "answers": [
+          "another",
+          "another",
+          "another",
+          "another",
+          "another"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command shows who holds which locks? Give the command only.",
+        "expected": [
+          "locks"
+        ],
+        "answers": [
+          "uv run agent_cli.py locks alice",
+          "uv run agent_cli.py locks alice",
+          "uv run agent_cli.py locks alice",
+          "locks alice",
+          "uv run agent_cli.py locks alice"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "release": {
+        "argv": [
+          "unlock",
+          "alice",
+          "core/a.py"
+        ],
+        "exit": 0,
+        "stdout": "unlock: released\npath: core/a.py\nagent: alice\nhelp[1]:\n  uv run agent_cli.py locks alice\n"
+      },
+      "peer": {
+        "argv": [
+          "unlock",
+          "alice",
+          "docs/x.md"
+        ],
+        "exit": 1,
+        "stdout": "error: docs/x.md is held by bob\ncode: NOT_YOURS\npath: docs/x.md\nheld_by: bob\nhelp[1]:\n  uv run agent_cli.py locks alice\n"
+      },
+      "free": {
+        "argv": [
+          "unlock",
+          "alice",
+          "core/a.py"
+        ],
+        "exit": 1,
+        "stdout": "error: core/a.py is not locked\ncode: NOT_HELD\npath: core/a.py\nhelp[1]:\n  uv run agent_cli.py locks alice\n"
+      }
+    }
+  }
+}

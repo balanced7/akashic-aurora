@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 4 converted to agent and human output.
+121 verbs; 5 converted to agent and human output.
 
 ## `alias`
 
@@ -1900,12 +1900,25 @@ help[1]:
 | | |
 |---|---|
 | Does | release your advisory path-lock |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 24% before, 100% after |
+| Output tokens | 13 before, 47 after (+262%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/unlock.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` | yes |   |   |
 | `<path>` | yes |   |   |
+
+Agent output of `aurora unlock alice core/a.py` on the bench data:
+
+```text
+unlock: released
+path: core/a.py
+agent: alice
+help[1]:
+  uv run agent_cli.py locks alice
+```
 
 ## `unwedge`
 
