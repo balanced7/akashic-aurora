@@ -11,9 +11,11 @@
 //   state.pressed / pedal / chord / notes keep the shape every shipped instrument and scheme already reads.
 //
 // The page's own functions are sliced out of piano.js (the house pattern, tests/piano_keysig.test.mjs:213) and run against
-// stubs, so this is the page's code, not a copy of it.
+// stubs, so this is the page's code, not a copy of it. The chord-boundary gate is the page's real one (piano/boundary.js
+// is pure), and the random walk runs under both boundary modes: the mode changes the label, never the sounding set.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { createBoundaryGate } from "../arsenal/web/piano/boundary.js";
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 const pianoSrc = readFileSync(here("../arsenal/web/piano.js"), "utf8");
@@ -44,7 +46,7 @@ function declSource(name) {
 }
 
 const DECLS = ["KEY", "looks", "sounding", "strikeCount", "sustain", "lookEvent", "lookNoteOn", "lookNoteOff", "lookNoteEnd",
-  "refreshSounding", "noteOn", "noteOff", "setSustain", "allNotesOff"];
+  "refreshSounding", "hasRinging", "noteOn", "noteOff", "setSustain", "allNotesOff"];
 const decls = DECLS.map((n) => [n, declSource(n)]);
 check("piano.js declares the notes engine and the looks host this test drives", decls.every(([, x]) => x),
   decls.filter(([, x]) => !x).map(([n]) => n).join(", "));
@@ -53,12 +55,13 @@ if (!decls.every(([, x]) => x)) { console.log(`${pass} passed, ${fail} failed`);
 // ---------------------------------------------------------------- the page, with the rest of it stubbed --
 const STUBS = ["clock", "spectacle", "beforeChange", "afterChange", "trails", "logged", "pageSec", "keys", "glowLevel",
   "noteColor", "burst", "lightNote", "hintCamera", "jamRest", "jamHeard", "hideIdleHint", "demo", "Theory", "stats",
-  "detectDirty", "pcHistory", "pcHistoryAt", "lookFailed"];
-function makePage() {
+  "detectDirty", "pcHistory", "pcHistoryAt", "lookFailed", "midiHint", "theoryUi", "boundaryGate"];
+function makePage({ boundary = "notes" } = {}) {
   let now = 0;
   const events = [];   // what the scheme host was told, in order
   const keyMap = new Map();
   for (let m = 21; m <= 108; m++) keyMap.set(m, { target: 0, glowTarget: 0, color: {} });
+  const gate = createBoundaryGate();
   const stubs = {
     clock: () => now,
     spectacle: null,
@@ -80,6 +83,9 @@ function makePage() {
     pcHistory: new Array(12).fill(0),
     pcHistoryAt: 0,
     lookFailed: (kind, entry, method, e) => { throw e; },
+    midiHint: null,             // the page's own value until boot() creates the Rescan hint; noteOn reads it with ?.
+    theoryUi: { boundary },     // the Studio's chord-boundary select ("notes" is the page default)
+    boundaryGate: gate,
   };
   const body = decls.map(([, x]) => x).join("\n");
   const page = new Function(...STUBS,
@@ -88,6 +94,7 @@ function makePage() {
   page.at = (t) => { now = t; };
   page.events = events;
   page.keys = keyMap;
+  page.gate = gate;
   // what an instrument is handed: the host refreshes state.sounding in place, once a frame (updateLooks)
   page.frame = () => { page.refreshSounding(page.looks.state.sounding); return page.looks.state; };
   return page;
@@ -212,8 +219,10 @@ check("the instrument-host header documents state.sounding and its pitfall",
 }
 
 // ---------------------------------------------------------------- 7. the mirror never lags the page by a frame --
-{
-  const p = makePage();
+// Under both chord boundaries: "pedal" latches the label (piano/boundary.js) and must leave the sounding set alone.
+for (const boundary of ["notes", "pedal"]) {
+  const p = makePage({ boundary });
+  let latched = 0;
   const live = () => { const m = new Map(); for (const [k, v] of p.sounding) if (k >= 21 && k <= 108) m.set(k, v); return m; };
   const same = () => {
     const a = live(), b = p.frame().sounding;
@@ -236,9 +245,14 @@ check("the instrument-host header documents state.sounding and its pitfall",
     else if (r < 0.95) p.setSustain(rnd() < 0.5);
     else p.allNotesOff();
     if (!same()) bad++;
+    if (p.gate.since !== null) latched++;
   }
-  report.push(`random walk: 4000 events, ${p.sounding.size} sounding at the end, ${p.looks.state.sounding.size} mirrored`);
-  check("4000 random note/pedal/panic events: the mirror equals the page's own sounding map every time", bad === 0, String(bad));
+  report.push(`random walk (${boundary}): 4000 events, ${p.sounding.size} sounding at the end, `
+    + `${p.looks.state.sounding.size} mirrored, the label latched after ${latched}`);
+  check(`4000 random note/pedal/panic events (${boundary}): the mirror equals the page's own sounding map every time`,
+    bad === 0, String(bad));
+  check(`the chord-boundary gate latches only in pedal mode (${boundary})`,
+    boundary === "pedal" ? latched > 0 : latched === 0, String(latched));
 }
 
 for (const line of report) console.log(line);
