@@ -58,6 +58,8 @@ TARGETS: Dict[str, str] = {
     "kimi.key":                  "Kimi/Moonshot API key",
     "gemini.key":                "Gemini API key",
     "cursor.key":                "Cursor API key",
+    "riot_dev.key":              "Riot Games developer API key (developer.riotgames.com; a personal "
+                                 "dev key expires every 24 h -- recapture it here when it does)",
     "claude_oauth.token":        "long-lived Claude Code OAuth token (claude setup-token) — "
                                  "the credential !spawn hands a fresh seat, so resuscitation "
                                  "stops dying with the interactive session",
