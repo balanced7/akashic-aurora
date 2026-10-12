@@ -10660,12 +10660,34 @@ def cmd_suite_baseline(args):
     --show: the test-suite receipt the next seat DIFFS instead of re-classifying (W34).
     record = snapshot failures + auto-classified lanes + claims + provenance; check =
     node-id delta (new/fixed/inherited -- churn visible even at identical counts)."""
+    from core.axi import out
     from core.coord import suite_baseline as sb
 
+    cli = _cli()
+    me = args.agent_id
     if getattr(args, "show", False):
-        line = sb.render_boot_line()
-        print(line or "[suite-baseline] none recorded yet")
-        return 0
+        summ = sb.summary()
+        if not summ:  # AXI section 5: no receipt is an answer, said outright
+            return out.emit(
+                {"baseline": "none recorded", "failures": 0},
+                hints=[f"{cli} suite-baseline {me} --from-file <pytest output>"],
+                title="Suite baseline",
+            )
+        doc: dict = {
+            "sha": summ["sha"],
+            "seat": summ["seat"],
+            "age_h": None if summ["age_h"] is None else round(summ["age_h"], 1),
+            "failures": summ["failures"],
+        }
+        if summ["closed_lanes"]:  # kimi (b): a lane closed since means the classification rotted
+            doc["closed_lanes"] = summ["closed_lanes"]
+            doc["advice"] = "re-run and re-record (classification rots)"
+        return out.emit(
+            doc,
+            hints=[f"{cli} suite-baseline {me} --check --from-file <pytest output>"],
+            human=_human_suite_show,
+            title="Suite baseline",
+        )
 
     # T208 --whose: run the tests AND attribute every failure, in one command. This is
     # the ergonomic point: on 2026-08-06 four failures each cost a manual git-stash
@@ -10698,27 +10720,28 @@ def cmd_suite_baseline(args):
             print(json.dumps(v, ensure_ascii=False, default=str))
             return 0
         if not nodes:
-            print("[suite-baseline] 0 failures")
-            return 0
-        prov = (
-            f"baseline @{v['baseline_sha']} vs HEAD @{v['head_sha']}" if v["has_baseline"] else "NO baseline recorded"
-        )
-        print(
-            f"# {len(nodes)} failure(s) -- {prov}"
-            + ("  [STALE: attribution is limited]" if v["stale"] else "  [current]")
-        )
-        for verdict in ("YOURS", "UNKNOWN", "LIKELY_INHERITED", "INHERITED"):
-            hits = [n for n, row in v["by_node"].items() if row["verdict"] == verdict]
-            if not hits:
-                continue
-            print(f"\n{verdict} ({len(hits)}): {sb.VERDICT_NEXT[verdict]}")
-            for n in hits:
-                print(f"    {n}")
+            return out.emit({"failures": 0}, title="Whose failures")
+        order = ("YOURS", "UNKNOWN", "LIKELY_INHERITED", "INHERITED")
+        doc = {
+            "failures": len(nodes),
+            "baseline": f"@{v['baseline_sha']} vs HEAD @{v['head_sha']}" if v["has_baseline"] else "none recorded",
+            "stale": v["stale"],  # stale = attribution is limited
+            "verdicts": [
+                {"verdict": k, "count": v["counts"][k], "next": sb.VERDICT_NEXT[k]} for k in order if v["counts"].get(k)
+            ],
+            "nodes": [
+                {"node": n, "verdict": row["verdict"]}
+                for k in order
+                for n, row in v["by_node"].items()
+                if row["verdict"] == k
+            ],
+        }
         if v["fixed"]:
-            print(f"\nfixed since baseline ({len(v['fixed'])}) -- re-record to keep attribution sharp:")
-            for n in v["fixed"][:10]:
-                print(f"    {n}")
-        elif v["not_evaluated"]:
+            doc["fixed"] = len(v["fixed"])
+            doc["fixed_nodes"] = v["fixed"][:10]
+        hints = [f"{cli} suite-baseline {me} --from-file <pytest output>"] if v["fixed"] else []
+        out.emit(doc, hints=hints, human=_human_suite_whose, title="Whose failures")
+        if not v["fixed"] and v["not_evaluated"]:
             print(
                 f"\n{len(v['not_evaluated'])} baseline failure(s) NOT RUN by this "
                 f"selection -- not fixed, just unevaluated. Do NOT re-record from a "
@@ -10732,22 +10755,32 @@ def cmd_suite_baseline(args):
 
     path = getattr(args, "from_file", None)
     if not path:
-        print("[suite-baseline] need --from-file <pytest output> (or --show)")
-        return 2
+        return out.fail(
+            "need --from-file <pytest output> (or --show, or --whose)",
+            code="USAGE",
+            hints=[
+                f"{cli} suite-baseline {me} --from-file <pytest output>",
+                f"{cli} suite-baseline {me} --show",
+            ],
+            exit_code=out.EXIT_USAGE,
+        )
     try:
         with open(path, encoding="utf-8") as f:
             nodes = sb.ingest_pytest(f.read())
     except Exception as e:
-        print(f"[suite-baseline] unreadable {path}: {type(e).__name__}: {e}")
-        return 2
+        return out.fail(
+            f"unreadable {path}: {type(e).__name__}: {e}",
+            code="NOT_FOUND",
+            hints=[f"{cli} suite-baseline {me} --check --from-file <pytest output>"],
+            exit_code=out.EXIT_USAGE,
+        )
     if getattr(args, "check", False):
         d = sb.delta(nodes)
-        print(
-            f"[suite-baseline] vs baseline: {len(d['new'])} NEW, {len(d['fixed'])} fixed, "
-            f"{len(d['inherited'])} inherited"
-        )
-        for n in d["new"]:
-            print(f"  NEW: {n}")
+        doc = {"new": len(d["new"]), "fixed": len(d["fixed"]), "inherited": len(d["inherited"])}
+        if d["new"]:
+            doc["new_failures"] = d["new"]
+        hints = [f'{cli} suite-baseline {me} --whose "{d["new"][0]}"'] if d["new"] else []
+        out.emit(doc, hints=hints, human=_human_suite_check, title="Suite baseline · check")
         return 1 if d["new"] else 0
     sha = getattr(args, "sha", "") or ""
     if not sha:
@@ -10765,11 +10798,60 @@ def cmd_suite_baseline(args):
             sha = ""
     rec = sb.record(nodes, seat=args.agent_id, sha=sha)
     lanes = sum(1 for f in rec["failures"] if f["lane"])
-    print(
-        f"[suite-baseline] recorded {len(rec['failures'])} failure(s) @{rec['sha'][:7]} "
-        f"({lanes} lane-classified) -- the next seat diffs instead of re-deriving"
+    return out.emit(
+        {"recorded": len(rec["failures"]), "sha": rec["sha"][:7], "classified": lanes},
+        hints=[f"{cli} suite-baseline {me} --show"],
+        title="Suite baseline recorded",
     )
-    return 0
+
+
+def _human_suite_show(console, doc):
+    """Human view of `suite-baseline --show`: provenance and age on one line, then the advice
+    when a classified lane has closed since."""
+    from core.axi import out
+
+    h = doc["age_h"]
+    age = "age unknown" if h is None else (f"{h / 24:.0f} days old" if h >= 48 else f"{_human_secs(int(h * 3600))} old")
+    console.print(
+        f"[bold]{doc['failures']}[/] known failures at [cyan]{out._esc(doc['sha'])}[/] "
+        f"recorded by {out._esc(str(doc['seat']))}, {age}"
+    )
+    if doc.get("closed_lanes"):
+        console.print(f"[yellow]lanes closed since: {out._esc(', '.join(doc['closed_lanes']))}[/]")
+        console.print(f"[yellow]{out._esc(doc['advice'])}[/]")
+
+
+def _human_suite_check(console, doc):
+    """Human view of `suite-baseline --check`: the new/fixed/inherited counts, new ones red."""
+    from core.axi import out
+
+    colour = "red" if doc["new"] else "green"
+    console.print(
+        f"[{colour}]{doc['new']} new[/]  [green]{doc['fixed']} fixed[/]  [dim]{doc['inherited']} inherited[/]"
+    )
+    for n in doc.get("new_failures") or []:
+        console.print(f"  [red]NEW[/] {out._esc(n)}")
+
+
+def _human_suite_whose(console, doc):
+    """Human view of `suite-baseline --whose`: per verdict the count and what to do, then the
+    failing nodes with theirs coloured (YOURS red, UNKNOWN yellow, inherited dim)."""
+    from core.axi import out
+
+    if not doc["failures"]:
+        console.print("[green]0 failures[/]")
+        return
+    stale = "[yellow]stale: attribution is limited[/]" if doc["stale"] else "[green]current[/]"
+    console.print(f"[bold]{doc['failures']}[/] failures, baseline {out._esc(doc['baseline'])} ({stale})")
+    colour = {"YOURS": "red", "UNKNOWN": "yellow", "LIKELY_INHERITED": "dim", "INHERITED": "dim"}
+    for row in doc["verdicts"]:
+        c = colour.get(row["verdict"], "white")
+        console.print(f"\n[{c}]{row['verdict']} ({row['count']})[/]: {out._esc(row['next'])}")
+        for n in doc["nodes"]:
+            if n["verdict"] == row["verdict"]:
+                console.print(f"    {out._esc(n['node'])}")
+    if doc.get("fixed"):
+        console.print(f"\n[green]fixed since baseline ({doc['fixed']})[/]: re-record to keep attribution sharp")
 
 
 def cmd_bifrost_drain(args):

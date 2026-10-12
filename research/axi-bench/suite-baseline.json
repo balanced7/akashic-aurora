@@ -1,0 +1,248 @@
+{
+  "verb": "suite-baseline",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 61,
+    "stdout_chars": 368,
+    "stdout_lines": 4,
+    "cost_usd": 0.0271,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many known failures does the recorded baseline hold?",
+        "expected": 100,
+        "answers": [
+          "100",
+          "100",
+          "100",
+          "100",
+          "100"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "At which commit sha was the baseline recorded?",
+        "expected": "5ba81ba",
+        "answers": [
+          "5ba81ba",
+          "5ba81ba",
+          "5ba81ba",
+          "5ba81ba",
+          "5ba81ba"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many NEW failures does this run have against the baseline?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which test is the new failure? Give its node id.",
+        "expected": "test_parser_roundtrip.py::test_new_flag_survives",
+        "answers": [
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "NEW: tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "NEW: tests/test_parser_roundtrip.py::test_new_flag_survives"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of this run's failures were already in the baseline?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag must be given to record or check a baseline? Give the flag only.",
+        "expected": "--from-file",
+        "answers": [
+          "--from-file",
+          "--from-file",
+          "--from-file",
+          "--from-file",
+          "--from-file"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "suite-baseline",
+          "bench",
+          "--show"
+        ],
+        "exit": 0,
+        "stdout": "# suite baseline @5ba81ba (807.2h old, by claude): 100 known failure(s) -- 1 classified lane(s) since closed (T275): re-run advised (classification rots even when the receipt is young)\n"
+      },
+      "check": {
+        "argv": [
+          "suite-baseline",
+          "bench",
+          "--check",
+          "--from-file",
+          "/tmp/axi-suite-zkgq_38e/pytest.txt"
+        ],
+        "exit": 1,
+        "stdout": "[suite-baseline] vs baseline: 1 NEW, 98 fixed, 2 inherited\n  NEW: tests/test_parser_roundtrip.py::test_new_flag_survives\n"
+      },
+      "no_file": {
+        "argv": [
+          "suite-baseline",
+          "bench"
+        ],
+        "exit": 2,
+        "stdout": "[suite-baseline] need --from-file <pytest output> (or --show)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 95,
+    "stdout_chars": 643,
+    "stdout_lines": 19,
+    "cost_usd": 0.0266,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many known failures does the recorded baseline hold?",
+        "expected": 100,
+        "answers": [
+          "100",
+          "100",
+          "100",
+          "100",
+          "100"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "At which commit sha was the baseline recorded?",
+        "expected": "5ba81ba",
+        "answers": [
+          "5ba81ba",
+          "5ba81ba",
+          "5ba81ba",
+          "sha: 5ba81ba",
+          "5ba81ba"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many NEW failures does this run have against the baseline?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which test is the new failure? Give its node id.",
+        "expected": "test_parser_roundtrip.py::test_new_flag_survives",
+        "answers": [
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "tests/test_parser_roundtrip.py::test_new_flag_survives",
+          "tests/test_parser_roundtrip.py::test_new_flag_survives"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of this run's failures were already in the baseline?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag must be given to record or check a baseline? Give the flag only.",
+        "expected": "--from-file",
+        "answers": [
+          "--from-file",
+          "--from-file",
+          "--from-file",
+          "--from-file",
+          "--from-file"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "suite-baseline",
+          "bench",
+          "--show"
+        ],
+        "exit": 0,
+        "stdout": "sha: 5ba81ba\nseat: claude\nage_h: 807.3\nfailures: 100\nclosed_lanes[1]: T275\nadvice: re-run and re-record (classification rots)\nhelp[1]:\n  uv run agent_cli.py suite-baseline bench --check --from-file <pytest output>\n"
+      },
+      "check": {
+        "argv": [
+          "suite-baseline",
+          "bench",
+          "--check",
+          "--from-file",
+          "/tmp/axi-suite-zkgq_38e/pytest.txt"
+        ],
+        "exit": 1,
+        "stdout": "new: 1\nfixed: 98\ninherited: 2\nnew_failures[1]: \"tests/test_parser_roundtrip.py::test_new_flag_survives\"\nhelp[1]:\n  uv run agent_cli.py suite-baseline bench --whose \"tests/test_parser_roundtrip.py::test_new_flag_survives\"\n"
+      },
+      "no_file": {
+        "argv": [
+          "suite-baseline",
+          "bench"
+        ],
+        "exit": 2,
+        "stdout": "error: \"need --from-file <pytest output> (or --show, or --whose)\"\ncode: USAGE\nhelp[2]:\n  uv run agent_cli.py suite-baseline bench --from-file <pytest output>\n  uv run agent_cli.py suite-baseline bench --show\n"
+      }
+    }
+  }
+}

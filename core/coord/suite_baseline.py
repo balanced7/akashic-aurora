@@ -222,28 +222,46 @@ def verdicts(current_nodes: list[str], *, now_sha: str | None = None, full_suite
     }
 
 
-def render_boot_line() -> str:
-    """One boot line: count + provenance + age + the DECAY advisory (kimi (b)):
-    classified lanes that have since CLOSED mean the classification rotted even if
-    the receipt is young. '' when no baseline (fail-open, never a shout)."""
+def summary() -> dict[str, Any] | None:
+    """The baseline's headline as data: provenance, age, failure count, and the classified
+    lanes that have CLOSED since (kimi (b): the classification rotted even if the receipt is
+    young). None when no baseline is recorded. render_boot_line() and `suite-baseline --show`
+    both read this."""
     rec = read()
     if not rec:
-        return ""
+        return None
     try:
         at_s = str(rec["at"])
         dt = datetime.fromisoformat(at_s)
         # T119 dual-era read: one-clock stamps carry their offset; legacy naive rows
         # were LOCAL wall-clock and keep their historical meaning.
         then = dt.timestamp() if dt.tzinfo is not None else time.mktime(time.strptime(at_s, "%Y-%m-%dT%H:%M:%S"))
-        age_h = max(0.0, (time.time() - then) / 3600.0)
+        age_h: float | None = max(0.0, (time.time() - then) / 3600.0)
     except Exception:
-        age_h = -1.0
-    n = len(rec.get("failures", []))
+        age_h = None
     lanes_then = {f["lane"] for f in rec.get("failures", []) if f.get("lane")}
     now = _ledger_claims()
-    closed = sorted(lane for lane in lanes_then if now.get(lane, "").lower() in ("done", "abandoned"))
-    age_s = f"{age_h:.1f}h old" if age_h >= 0 else "age unknown"
-    line = f"# suite baseline @{rec.get('sha', '?')[:7]} ({age_s}, by {rec.get('seat', '?')}): {n} known failure(s)"
+    return {
+        "sha": str(rec.get("sha", "?"))[:7],
+        "seat": rec.get("seat", "?"),
+        "at": rec.get("at"),
+        "age_h": age_h,
+        "failures": len(rec.get("failures", [])),
+        "lanes": len(lanes_then),
+        "closed_lanes": sorted(lane for lane in lanes_then if now.get(lane, "").lower() in ("done", "abandoned")),
+    }
+
+
+def render_boot_line() -> str:
+    """One boot line: count + provenance + age + the DECAY advisory (kimi (b)):
+    classified lanes that have since CLOSED mean the classification rotted even if
+    the receipt is young. '' when no baseline (fail-open, never a shout)."""
+    s = summary()
+    if not s:
+        return ""
+    n, closed = s["failures"], s["closed_lanes"]
+    age_s = f"{s['age_h']:.1f}h old" if s["age_h"] is not None else "age unknown"
+    line = f"# suite baseline @{s['sha']} ({age_s}, by {s['seat']}): {n} known failure(s)"
     if closed:
         line += (
             f" -- {len(closed)} classified lane(s) since closed ({', '.join(closed)}): "

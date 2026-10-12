@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 105 converted to agent and human output.
+121 verbs; 106 converted to agent and human output.
 
 ## `alias`
 
@@ -3418,7 +3418,10 @@ help[2]:
 | | |
 |---|---|
 | Does | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 61 before, 95 after (+56%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/suite-baseline.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -3428,6 +3431,19 @@ help[2]:
 | `--check` |   |   | diff --from-file against the baseline instead of recording |
 | `--show` |   |   | print the baseline boot line |
 | `--whose` |   |   | run the tests and ATTRIBUTE every failure: YOURS / UNKNOWN / LIKELY_INHERITED / INHERITED, each with what to do. Replaces the manual git-stash bisect. Says UNKNOWN rather than guessing when the baseline is stale -- and UNKNOWN never exits nonzero, because 'I cannot tell' must not become an accusation. e.g. --whose "tests/ -k ask" |
+
+Agent output of `aurora suite-baseline bench --show` on the bench data:
+
+```text
+sha: 5ba81ba
+seat: claude
+age_h: 807.3
+failures: 100
+closed_lanes[1]: T275
+advice: re-run and re-record (classification rots)
+help[1]:
+  uv run agent_cli.py suite-baseline bench --check --from-file <pytest output>
+```
 
 ## `sweep`
 
