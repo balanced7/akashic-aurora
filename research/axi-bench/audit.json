@@ -1,0 +1,232 @@
+{
+  "verb": "audit",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 2069,
+    "stdout_chars": 4578,
+    "stdout_lines": 42,
+    "cost_usd": 0.0317,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many rows have the verdict DRIFT in total?",
+        "expected": 17,
+        "answers": [
+          "17",
+          "17",
+          "17",
+          "17",
+          "17"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict does the entry deepseek:parse-gate have?",
+        "expected": "MATCH",
+        "answers": [
+          "MATCH",
+          "MATCH",
+          "MATCH",
+          "MATCH",
+          "MATCH"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which rule fired for the entry deepseek:vitals?",
+        "expected": "sugar-only",
+        "answers": [
+          "sugar-only",
+          "sugar-only",
+          "sugar-only",
+          "sugar-only",
+          "sugar-only"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many rows did the stale-receipt rule fire on?",
+        "expected": 14,
+        "answers": [
+          "14",
+          "14",
+          "14",
+          "14",
+          "14"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict does the SPEND domain's only row have?",
+        "expected": "UNKNOWN",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which domain names can be audited? List them separated by commas.",
+        "expected": [
+          "VERBS",
+          "SPEND",
+          "LEXICON"
+        ],
+        "answers": [
+          "VERBS, SPEND, LEXICON",
+          "VERBS, SPEND, LEXICON",
+          "VERBS, SPEND, LEXICON",
+          "VERBS, SPEND, LEXICON",
+          "VERBS, SPEND, LEXICON"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "audit"
+        ],
+        "exit": 0,
+        "stdout": "# audit \u2014 31 row(s) across 3 domain(s)\n# verdicts: 13 MATCH, 17 DRIFT, 1 UNKNOWN\n# ground-truth source: registry\n\n[VERBS] 23 row(s) (6M/17D/0U)\n  DRIFT   claude:standby-hard      [stale-receipt] registry claims VERIFIED but kata receipt kata-20260721-020106 (02:01:06) is older than updated_at 2026-07-21T02:04:56\n  DRIFT   claude:ask-peer          [stale-receipt] registry claims VERIFIED but kata receipt kata-20260721-005225 (00:52:25) is older than updated_at 2026-07-21T00:55:11\n  DRIFT   claude:ask-peer          [argparse-eaten] argparse-eaten token(s): step[1][10] \u2014 the '--' positional separator is silently consumed; delivered text is not what was written\n  DRIFT   claude:drain-decide      [stale-receipt] registry claims VERIFIED but kata receipt kata-20260721-020107 (02:01:07) is older than updated_at 2026-07-21T02:04:56\n  DRIFT   claude:cycle-open        [stale-receipt] registry claims VERIFIED but kata receipt kata-20260827-194259 (19:42:59) is older than updated_at 2026-08-27T23:42:59.657072+00:00\n  DRIFT   claude:cycle-tie-up      [stale-receipt] registry claims VERIFIED but kata receipt kata-20260827-194300 (19:43:00) is older than updated_at 2026-08-27T23:43:00.276388+00:00\n  DRIFT   claude:cycle-reflect     [stale-receipt] registry claims VERIFIED but kata receipt kata-20260827-194300 (19:43:00) is older than updated_at 2026-08-27T23:43:00.865995+00:00\n  DRIFT   claude:cycle-land        [stale-receipt] registry claims VERIFIED but kata receipt kata-20260827-194301 (19:43:01) is older than updated_at 2026-08-27T23:43:01.481936+00:00\n  MATCH   claude:calibrate         VERIFIED receipt session 25cd3074, 2026-08-26: both steps run clean; forecast list renders 14 registered with 4 scored (3 hit, 1 voided) and stats renders the coverage/quality pair plus REPEATS updated 03:31\n  DRIFT   deepseek:scar-springboard [stale-receipt] registry claims VERIFIED but kata receipt kata-20260720-232707 (23:27:07) is older than updated_at 2026-07-20T23:48:10\n  DRIFT   deepseek:orient          [stale-receipt] registry claims VERIFIED but kata receipt kata-20260720-232707 (23:27:07) is older than updated_at 2026-07-20T23:48:10\n  MATCH   deepseek:parse-gate      VERIFIED receipt kata-20261001-093758 updated 07:37\n  MATCH   deepseek:toast           VERIFIED receipt kata-20261001-093758 updated 07:37\n  MATCH   deepseek:muse            VERIFIED receipt kata-20261001-093758 updated 07:37\n  DRIFT   deepseek:premise-check   [sugar-only] step[2] verb 'bifrost-inbox' is not a known agent_cli verb (121 verbs in parser)\n  MATCH   deepseek:nightcap        GUESS updated 04:35\n  DRIFT   deepseek:vitals          [sugar-only] step[1] verb 'bifrost_dashboard' is not a known agent_cli verb (121 verbs in parser)\n  DRIFT   dsh_agent:rillsitrep     [stale-receipt] registry claims VERIFIED but kata receipt kata-20260825-203133 (20:31:33) is older than updated_at 2026-08-26T00:31:33.185010+00:00\n  MATCH   kimi:drain-decide        VERIFIED receipt kata-20260721-020107 updated 02:01\n  DRIFT   kimi:fence               [stale-receipt] registry claims VERIFIED but kata receipt kata-20260720-233836 (23:38:36) is older than updated_at 2026-07-20T23:48:10\n  DRIFT   kimi:boot-now            [stale-receipt] registry claims VERIFIED but kata receipt kata-20260720-233836 (23:38:36) is older than updated_at 2026-07-20T23:48:10\n  DRIFT   sol:pressure             [stale-receipt] registry claims VERIFIED but kata receipt kata-20260826-234516 (23:45:16) is older than updated_at 2026-08-27T03:48:19.972179+00:00\n  DRIFT   sol:dosage               [stale-receipt] registry claims VERIFIED but kata receipt kata-20260826-234842 (23:48:42) is older than updated_at 2026-08-27T04:41:01.425625+00:00\n\n[SPEND] 1 row(s) (0M/0D/1U)\n  UNKNOWN kimi:spend               spend meter sidecar unreadable \u2014 no spend rows computable\n\n[LEXICON] 7 row(s) (7M/0D/0U)\n  MATCH   confidence::learning_loader.py categorical high/medium/low -> boot importance 5/3/2\n  MATCH   confidence::tagging.py   a FINITE float clamped to [0,1] on the narrative plane\n  MATCH   drained::bus.py          the agent-keyed cursor -- inbox + broadcast position\n  MATCH   drained::bus.py          the per-incarnation seat cursor (T108)\n  MATCH   drained::bus.py          the lane consumer's durable cursor (T039/T045)\n  MATCH   undetectable::canary_oracle.py the planted shape the gate cannot see (class definition)\n  MATCH   undetectable::canary_oracle.py score_v2's reading: reaching one is a CAPABILITY observation, not contamination\n\n"
+      },
+      "bad": {
+        "argv": [
+          "audit",
+          "--domain",
+          "nope"
+        ],
+        "exit": 0,
+        "stdout": "[audit] unknown domain(s) ['NOPE'] -- available: VERBS, SPEND, LEXICON\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 1056,
+    "stdout_chars": 1950,
+    "stdout_lines": 55,
+    "cost_usd": 0.0281,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many rows have the verdict DRIFT in total?",
+        "expected": 17,
+        "answers": [
+          "17",
+          "17",
+          "17",
+          "17",
+          "17"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict does the entry deepseek:parse-gate have?",
+        "expected": "MATCH",
+        "answers": [
+          "MATCH",
+          "MATCH",
+          "MATCH",
+          "MATCH",
+          "MATCH"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which rule fired for the entry deepseek:vitals?",
+        "expected": "sugar-only",
+        "answers": [
+          "sugar-only",
+          "sugar-only",
+          "sugar-only",
+          "sugar-only",
+          "sugar-only"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many rows did the stale-receipt rule fire on?",
+        "expected": 14,
+        "answers": [
+          "14",
+          "14",
+          "14",
+          "14",
+          "14"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict does the SPEND domain's only row have?",
+        "expected": "UNKNOWN",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which domain names can be audited? List them separated by commas.",
+        "expected": [
+          "VERBS",
+          "SPEND",
+          "LEXICON"
+        ],
+        "answers": [
+          "VERBS, SPEND, LEXICON",
+          "VERBS, SPEND, LEXICON",
+          "VERBS,SPEND,LEXICON",
+          "VERBS, SPEND, LEXICON",
+          "VERBS,SPEND,LEXICON"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "audit"
+        ],
+        "exit": 0,
+        "stdout": "total: 31\nmatch: 13\ndrift: 17\nunknown: 1\nground: registry\ndomains[3]{domain,rows,match,drift,unknown}:\n  VERBS,23,6,17,0\n  SPEND,1,0,0,1\n  LEXICON,7,7,0,0\nby_rule:\n  \"stale-receipt\": 14\n  \"argparse-eaten\": 1\n  \"sugar-only\": 2\n  \"meter-missing\": 1\nrows[31]{domain,entry,verdict,rule}:\n  VERBS,\"claude:standby-hard\",DRIFT,stale-receipt\n  VERBS,\"claude:ask-peer\",DRIFT,stale-receipt\n  VERBS,\"claude:ask-peer\",DRIFT,argparse-eaten\n  VERBS,\"claude:drain-decide\",DRIFT,stale-receipt\n  VERBS,\"claude:cycle-open\",DRIFT,stale-receipt\n  VERBS,\"claude:cycle-tie-up\",DRIFT,stale-receipt\n  VERBS,\"claude:cycle-reflect\",DRIFT,stale-receipt\n  VERBS,\"claude:cycle-land\",DRIFT,stale-receipt\n  VERBS,\"claude:calibrate\",MATCH,null\n  VERBS,\"deepseek:scar-springboard\",DRIFT,stale-receipt\n  VERBS,\"deepseek:orient\",DRIFT,stale-receipt\n  VERBS,\"deepseek:parse-gate\",MATCH,null\n  VERBS,\"deepseek:toast\",MATCH,null\n  VERBS,\"deepseek:muse\",MATCH,null\n  VERBS,\"deepseek:premise-check\",DRIFT,sugar-only\n  VERBS,\"deepseek:nightcap\",MATCH,null\n  VERBS,\"deepseek:vitals\",DRIFT,sugar-only\n  VERBS,\"dsh_agent:rillsitrep\",DRIFT,stale-receipt\n  VERBS,\"kimi:drain-decide\",MATCH,null\n  VERBS,\"kimi:fence\",DRIFT,stale-receipt\n  VERBS,\"kimi:boot-now\",DRIFT,stale-receipt\n  VERBS,\"sol:pressure\",DRIFT,stale-receipt\n  VERBS,\"sol:dosage\",DRIFT,stale-receipt\n  SPEND,\"kimi:spend\",UNKNOWN,meter-missing\n  LEXICON,\"confidence::learning_loader.py\",MATCH,null\n  LEXICON,\"confidence::tagging.py\",MATCH,null\n  LEXICON,\"drained::bus.py\",MATCH,null\n  LEXICON,\"drained::bus.py\",MATCH,null\n  LEXICON,\"drained::bus.py\",MATCH,null\n  LEXICON,\"undetectable::canary_oracle.py\",MATCH,null\n  LEXICON,\"undetectable::canary_oracle.py\",MATCH,null\nhelp[2]:\n  uv run agent_cli.py audit --fields detail\n  uv run agent_cli.py alias claude history standby-hard\n"
+      },
+      "bad": {
+        "argv": [
+          "audit",
+          "--domain",
+          "nope"
+        ],
+        "exit": 2,
+        "stdout": "error: unknown domain(s) NOPE\ncode: USAGE\navailable[3]: VERBS,SPEND,LEXICON\nhelp[2]:\n  uv run agent_cli.py audit --domain VERBS\n  uv run agent_cli.py audit\n"
+      }
+    }
+  }
+}

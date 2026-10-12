@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 14 converted to agent and human output.
+121 verbs; 15 converted to agent and human output.
 
 ## `alias`
 
@@ -72,13 +72,47 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | | |
 |---|---|
 | Does | belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry&lt;-&gt;parser) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 2,069 before, 1,056 after (-49%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/audit.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--domain` |   |   | comma-separated domain filter (default: all registered) |
 | `--ground` |   |   | which source renders as canonical -- wording only, never the verdict |
+| `--fields` |   |   | extra columns: detail,belief_a,source_a,belief_b,source_b, or 'all' (default: domain,entry,verdict,rule) |
 | `--json` |   |   |   |
+
+Agent output of `aurora audit` on the bench data:
+
+```text
+total: 31
+match: 13
+drift: 17
+unknown: 1
+ground: registry
+domains[3]{domain,rows,match,drift,unknown}:
+  VERBS,23,6,17,0
+  SPEND,1,0,0,1
+  LEXICON,7,7,0,0
+by_rule:
+  "stale-receipt": 14
+  "argparse-eaten": 1
+  "sugar-only": 2
+  "meter-missing": 1
+rows[31]{domain,entry,verdict,rule}:
+  VERBS,"claude:standby-hard",DRIFT,stale-receipt
+  VERBS,"claude:ask-peer",DRIFT,stale-receipt
+  VERBS,"claude:ask-peer",DRIFT,argparse-eaten
+  VERBS,"claude:drain-decide",DRIFT,stale-receipt
+  VERBS,"claude:cycle-open",DRIFT,stale-receipt
+  VERBS,"claude:cycle-tie-up",DRIFT,stale-receipt
+  VERBS,"claude:cycle-reflect",DRIFT,stale-receipt
+  VERBS,"claude:cycle-land",DRIFT,stale-receipt
+  VERBS,"claude:calibrate",MATCH,null
+... (25 more lines)
+```
 
 ## `bench`
 

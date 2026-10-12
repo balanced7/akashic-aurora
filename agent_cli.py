@@ -1771,20 +1771,106 @@ def cmd_audit(args):
     caches nothing -- the auditor never becomes a surface that itself drifts. v1 domain:
     VERBS (registry <-> parser). Direction-neutral: --ground flips WORDING only, never
     a verdict."""
+    from core.axi import out
     from core.toolbelt import audit as _audit
 
+    cli = _cli()
     domains = None
     if getattr(args, "domain", None):
         wanted = {d.strip().upper() for d in args.domain.split(",") if d.strip()}
         domains = [d for d in _audit.DOMAINS if d.name.upper() in wanted]
         if not domains:
-            known = ", ".join(d.name for d in _audit.DOMAINS)
-            print(f"[audit] unknown domain(s) {sorted(wanted)} -- available: {known}")
-            return
+            known = [d.name for d in _audit.DOMAINS]
+            return out.fail(
+                f"unknown domain(s) {', '.join(sorted(wanted))}",
+                code="USAGE",
+                hints=[f"{cli} audit --domain {known[0]}", f"{cli} audit"],
+                exit_code=out.EXIT_USAGE,
+                details={"available": known},
+            )
     if args.json:
         print(json.dumps(_audit.json_result(domains=domains, ground_truth_source=args.ground), indent=2))
-    else:
-        print(_audit.render(domains=domains, ground_truth_source=args.ground))
+        return 0
+    try:
+        fields = out.fields_arg(getattr(args, "fields", None), _AUDIT_FIELDS, _AUDIT_ALL_FIELDS)
+    except ValueError as e:
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} audit --fields detail"], exit_code=out.EXIT_USAGE)
+    if not getattr(args, "fields", None) and not out.is_agent():
+        fields.append("detail")  # a person reads the why in the same table; an agent asks for it
+    rows = _audit.run(domains=domains, ground_truth_source=args.ground)
+    verdicts = {v.lower(): sum(1 for r in rows if r.verdict == v) for v in _audit.VERDICTS}
+    doc: dict = {"total": len(rows), **verdicts, "ground": args.ground}
+    if not rows:  # AXI section 5: no rows is an answer (an empty registry), said outright
+        doc["rows"] = []
+        return out.emit(doc, hints=[f"{cli} audit --json"], human=_human_audit, title="Audit")
+    # Pre-computed aggregates (AXI section 4): per domain and per rule, so "how much drift, and
+    # of which kind" is read off, not counted row by row.
+    names = list(dict.fromkeys(r.domain for r in rows))
+    doc["domains"] = [
+        {"domain": n, "rows": sum(1 for r in rows if r.domain == n)}
+        | {v.lower(): sum(1 for r in rows if r.domain == n and r.verdict == v) for v in _audit.VERDICTS}
+        for n in names
+    ]
+    rules: dict[str, int] = {}
+    for r in rows:
+        if r.rule:
+            rules[r.rule] = rules.get(r.rule, 0) + 1
+    if rules:
+        doc["by_rule"] = rules
+    table = []
+    for r in rows:
+        full = {
+            "domain": r.domain,
+            "entry": r.entry_ref,
+            "verdict": r.verdict,
+            "rule": r.rule or None,
+            "detail": out.truncate(r.detail, 300)[0] or None,
+            "belief_a": None if r.belief_a is None else str(r.belief_a),
+            "source_a": r.source_a,
+            "belief_b": None if r.belief_b is None else str(r.belief_b),
+            "source_b": r.source_b,
+        }
+        table.append({f: full[f] for f in fields})
+    doc["rows"] = table
+    hints = [] if "detail" in fields else [f"{cli} audit --fields detail"]
+    # A drifted VERBS row is an alias entry (agent:name): its history is the next thing to read.
+    drift = next((r for r in rows if r.verdict == "DRIFT" and r.domain == "VERBS" and ":" in r.entry_ref), None)
+    if drift:
+        agent, name = drift.entry_ref.split(":", 1)
+        hints.append(f"{cli} alias {agent} history {name}")
+    return out.emit(doc, hints=hints, human=_human_audit, title="Audit")
+
+
+#: `audit` columns: the default agent schema, and every field --fields can add.
+_AUDIT_FIELDS = ("domain", "entry", "verdict", "rule")
+_AUDIT_ALL_FIELDS = ("domain", "entry", "verdict", "rule", "detail", "belief_a", "source_a", "belief_b", "source_b")
+
+
+def _human_audit(console, doc):
+    """Human view of `audit`: the verdict counts first, then one table per domain with DRIFT
+    rows on top, each with the rule that fired and why."""
+    from core.axi import out
+
+    n = doc["total"]
+    console.print(
+        f"[bold]{n}[/] row{'s' if n != 1 else ''}: [green]{doc['match']} match[/], "
+        f"[red]{doc['drift']} drift[/], [yellow]{doc['unknown']} unknown[/]  "
+        f"[dim](ground truth worded as: {out._esc(str(doc['ground']))})[/]"
+    )
+    order = {"DRIFT": 0, "UNKNOWN": 1, "MATCH": 2}
+    for d in doc.get("domains") or []:
+        rows = sorted(
+            (r for r in doc["rows"] if r.get("domain", d["domain"]) == d["domain"]),
+            key=lambda r: order.get(r["verdict"], 3),
+        )
+        cols = [c for c in rows[0] if c != "domain"] if rows else []
+        console.print()
+        console.print(
+            out.table(
+                [{c: r.get(c) for c in cols} for r in rows],
+                title=f"{d['domain']} · {d['rows']} row{'s' if d['rows'] != 1 else ''}, {d['drift']} drift",
+            )
+        )
 
 
 def cmd_injections(args):
@@ -11279,6 +11365,12 @@ def build_parser():
     au.add_argument("--domain", help="comma-separated domain filter (default: all registered)")
     au.add_argument(
         "--ground", default="registry", help="which source renders as canonical -- wording only, never the verdict"
+    )
+    au.add_argument(
+        "--fields",
+        default=None,
+        help=f"extra columns: {','.join(_AUDIT_ALL_FIELDS[len(_AUDIT_FIELDS) :])}, or 'all' "
+        f"(default: {','.join(_AUDIT_FIELDS)})",
     )
     au.add_argument("--json", action="store_true")
     au.set_defaults(fn=cmd_audit)
