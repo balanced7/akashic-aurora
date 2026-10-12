@@ -294,7 +294,7 @@ Class: reference
 | `app_package.py` | app_package -- the rung the ladder did not have on 2026-08-24. | tests/test_app_package_rung.py | GAP | `AKASHIC_APP_PACKAGE` |
 | `caller.py` | The direct caller -- one-shot invocation of a local model for a BOUNDED subtask. | tests/test_recall_error_is_not_silence.py | GAP |  |
 | `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
-| `provenance.py` | Session provenance -- which harness, model, effort and environment a session ran in. | tests/test_provenance.py | GAP |  |
+| `provenance.py` | Session provenance -- which harness, model, effort and environment a session ran in. | tests/test_axi_provenance.py | GAP |  |
 | `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md | `AURORA_LAUNCHER` |
 | `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_t292_scout_role.py | GAP |  |
 | `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launcher_sunshine_red.py | GAP | `DSH_HOME` |

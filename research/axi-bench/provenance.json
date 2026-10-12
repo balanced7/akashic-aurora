@@ -1,0 +1,214 @@
+{
+  "verb": "provenance",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.92,
+    "correct": 23,
+    "asked": 25,
+    "output_tokens": 222,
+    "stdout_chars": 621,
+    "stdout_lines": 14,
+    "cost_usd": 0.0282,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Which agent id does this session record name?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "agent_id is alice? The output's `agent_id` field reads `alice`.\n\nWait, I should answer with only the answer, no explanation, so: alice",
+          "alice"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which harness did this session run in?",
+        "expected": "shell",
+        "answers": [
+          "shell",
+          "shell",
+          "The output lists `harness` as `shell` (and `harness_version` as `unknown`).",
+          "shell",
+          "shell"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which fields of the record are still unknown? List the field names separated by commas.",
+        "expected": [
+          "harness_version",
+          "model",
+          "effort"
+        ],
+        "answers": [
+          "harness_version, model, effort",
+          "harness_version, model, effort",
+          "harness_version, model, effort",
+          "harness_version, model, effort",
+          "harness_version, model, effort"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a provenance record found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the provenance record of a session whose id you know? Give the command only.",
+        "expected": [
+          "provenance",
+          "--session"
+        ],
+        "answers": [
+          "aurora provenance --session <id>",
+          "<command-name>aurora provenance --session <id></command-name>",
+          "aurora provenance --session <id>",
+          "aurora provenance --session <id>",
+          "<answer>aurora provenance --session <id></answer>"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "provenance",
+          "--session",
+          "s-bench-1"
+        ],
+        "exit": 0,
+        "stdout": "session_id           s-bench-1\nagent_id             alice\nharness              shell\nharness_version      unknown\nmodel                unknown\neffort               unknown\nproject_fingerprint  d63ac28d8678ae7b\nuser_fingerprint     67d937f810ccbfc3\ngit_sha              53736d61900e3a4d4be08d119728bfb74e452513\nbranch               worktree-agent-a7f65ec701d4c3c3d\nos                   linux\ncwd                  /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a7f65ec701d4c3c3d\nstarted_at           2026-10-12T14:15:44+00:00\n"
+      },
+      "none": {
+        "argv": [
+          "provenance"
+        ],
+        "exit": 1,
+        "stdout": "no provenance record (no session id in this process; pass --session <id>)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 243,
+    "stdout_chars": 621,
+    "stdout_lines": 18,
+    "cost_usd": 0.0178,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Which agent id does this session record name?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harness did this session run in?",
+        "expected": "shell",
+        "answers": [
+          "shell",
+          "shell",
+          "shell",
+          "shell",
+          "shell"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which fields of the record are still unknown? List the field names separated by commas.",
+        "expected": [
+          "harness_version",
+          "model",
+          "effort"
+        ],
+        "answers": [
+          "harness_version,model,effort",
+          "harness_version,model,effort",
+          "harness_version, model, effort",
+          "harness_version, model, effort",
+          "harness_version, model, effort"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a provenance record found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the provenance record of a session whose id you know? Give the command only.",
+        "expected": [
+          "provenance",
+          "--session"
+        ],
+        "answers": [
+          "uv run agent_cli.py provenance --session <id>",
+          "uv run agent_cli.py provenance --session <id>",
+          "uv run agent_cli.py provenance --session <id>",
+          "uv run agent_cli.py provenance --session <id>",
+          "uv run agent_cli.py provenance --session <id>"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "provenance",
+          "--session",
+          "s-bench-1"
+        ],
+        "exit": 0,
+        "stdout": "session_id: s-bench-1\nagent_id: alice\nharness: shell\nharness_version: unknown\nmodel: unknown\neffort: unknown\nproject_fingerprint: d63ac28d8678ae7b\nuser_fingerprint: 67d937f810ccbfc3\ngit_sha: dbfd237b2297f46557be0bd4f76afb358c00c56d\nbranch: worktree-agent-a7f65ec701d4c3c3d\nos: linux\ncwd: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a7f65ec701d4c3c3d\nstarted_at: \"2026-10-12T14:16:19+00:00\"\nunknown[3]: harness_version,model,effort\n"
+      },
+      "none": {
+        "argv": [
+          "provenance"
+        ],
+        "exit": 1,
+        "stdout": "error: \"no provenance record: this process has no session id (it runs outside a harness)\"\ncode: NO_SESSION\nhelp[1]:\n  uv run agent_cli.py provenance --session <id>\n"
+      }
+    }
+  }
+}

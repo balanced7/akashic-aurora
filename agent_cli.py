@@ -1232,15 +1232,32 @@ def cmd_compress(args):
 def cmd_provenance(args):
     """Show (and, if missing, write) the session provenance record: harness, model, effort and
     environment. With no --session, the current session; outside a harness there is none."""
+    from core.axi import out
     from core.fleet import provenance
 
     sid = args.session or provenance.current_session_id()
     rec = provenance.ensure(session_id=sid, agent_id=args.agent or "") if sid else {}
     if args.json:
         print(json.dumps({"pointer": provenance.pointer(sid), "record": rec or None}))
-    else:
-        print(provenance.render(rec))
-    return 0 if rec else 1
+        return 0 if rec else 1
+    if not rec:  # still exit 1: callers read "no record" from the exit code
+        if not sid:
+            return out.fail(
+                "no provenance record: this process has no session id (it runs outside a harness)",
+                code="NO_SESSION",
+                hints=[f"{_cli()} provenance --session <id>"],
+            )
+        return out.fail(f"no provenance record for session {sid!r}: the store could not be read", code="STORE_DOWN")
+    doc: dict = {f: rec.get(f, provenance.UNKNOWN) for f in provenance.FIELDS}
+    # Pre-computed: which fields the session has not learned yet (they fill in later, task 01).
+    doc["unknown"] = [f for f in provenance.FIELDS if doc[f] == provenance.UNKNOWN]
+    # A record answers itself: no hints. A person sees the unknown fields in yellow in place,
+    # so the human view leaves out the list an agent gets.
+    return out.emit(
+        doc,
+        human=lambda console, d: out.render_human(console, {k: v for k, v in d.items() if k != "unknown"}),
+        title=f"Provenance · {sid}",
+    )
 
 
 # ------------------------------------------------------------------------- recall

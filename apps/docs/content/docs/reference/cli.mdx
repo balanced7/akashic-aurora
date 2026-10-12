@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 13 converted to agent and human output.
+121 verbs; 14 converted to agent and human output.
 
 ## `alias`
 
@@ -1435,13 +1435,35 @@ help[2]:
 | | |
 |---|---|
 | Does | show this session's harness, model, effort and environment record (task 01) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 92% before, 100% after |
+| Output tokens | 222 before, 243 after (+9%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/provenance.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--session` |   |   | a session id (default: this process's harness session) |
 | `--agent` |   |   | agent id to record if the session has none yet |
 | `--json` |   |   |   |
+
+Agent output of `aurora provenance --session s-bench-1` on the bench data:
+
+```text
+session_id: s-bench-1
+agent_id: alice
+harness: shell
+harness_version: unknown
+model: unknown
+effort: unknown
+project_fingerprint: d63ac28d8678ae7b
+user_fingerprint: 67d937f810ccbfc3
+git_sha: dbfd237b2297f46557be0bd4f76afb358c00c56d
+branch: worktree-agent-a7f65ec701d4c3c3d
+os: linux
+cwd: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a7f65ec701d4c3c3d
+started_at: "2026-10-12T14:16:19+00:00"
+unknown[3]: harness_version,model,effort
+```
 
 ## `pulse`
 
