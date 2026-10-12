@@ -1,0 +1,81 @@
+{
+  "id": "media.peaks",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "peaks",
+      "type": "analysis.features"
+    },
+    {
+      "port": "files",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "track",
+      "unit": "index",
+      "range": [
+        0,
+        31
+      ]
+    },
+    {
+      "name": "spp",
+      "unit": "samples",
+      "range": [
+        2,
+        1048576
+      ]
+    },
+    {
+      "name": "bits",
+      "unit": "bits",
+      "range": [
+        8,
+        16
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 100
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "pin",
+      "what": "On Opus and FLAC tracks, mono and split, 8- and 16-bit, spp 500: length == ceil(samples / spp) and every pixel's min/max equal numpy's over exactly its samples (the last pixel covers only the leftover samples); .dat header and body, JSON v2 and the wavesurfer file round-trip.",
+      "measured": {
+        "exact_pixels": true
+      },
+      "how": "py -m pytest tests/test_arsenal_media_peaks.py -q"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "measure",
+      "what": "2026-10-11 17-51-11.mp4 (33 min Opus track) at spp 512: 190,149 pixels from 97,356,168 samples in 3.3 s (decode+reduce 3.1 s, streamed in 2 MB chunks), .dat 380,322 bytes (371 KB), JSON 951 KB; the browser pane fetched the JSON and read length 190149.",
+      "measured": {
+        "seconds_33min": 3.3,
+        "dat_bytes": 380322,
+        "pixels": 190149
+      },
+      "how": "py -m arsenal.media peaks \"recording.mp4\""
+    }
+  ],
+  "notes": "arsenal/media/peaks.py: waveform peaks without BBC audiowaveform. One ffmpeg decode to s16 PCM streamed through numpy; writes audiowaveform v2 .dat and .json (peaks.js, waveform-data.js, any canvas: pixel x covers samples [x*spp, (x+1)*spp) after start_s) and a wavesurfer.js v7 peaks file. Cached per source id + params under <state>/peaks/. The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}

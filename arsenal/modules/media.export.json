@@ -1,0 +1,96 @@
+{
+  "id": "media.export",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "file",
+      "type": "asset.reference"
+    },
+    {
+      "port": "qc",
+      "type": "analysis.features"
+    }
+  ],
+  "params": [
+    {
+      "name": "start",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "end",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "crop_x",
+      "unit": "ratio",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "audio_gain_db",
+      "unit": "dB",
+      "range": [
+        -96,
+        24
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 2000
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "pin",
+      "what": "Every preset on a 10 s synthetic excerpt (1280x720p60 + 3 Opus tracks, or 640x360p30 ffv1 with a moving soft alpha): youtube_4k60, youtube_4k60_fast and shorts land at -14.0 LUFS / -1.7 dBTP (target -14 / -1.5) with exactly 600 frames; proxy_edit and mezzanine_dnxhr keep all three tracks with their names; alpha_webm (VP9 alpha_mode 1), alpha_prores4444 (yuva444p12le) and alpha_webp_anim keep graded alpha with exactly 300 frames. alpha_webp_anim through Pillow: alpha error 0 on all 300 frames; the same clip through ffmpeg's libwebp: 66 at frame 1, 249 at frame 30.",
+      "measured": {
+        "youtube_4k60_render_s": 9.4,
+        "youtube_4k60_fast_render_s": 9.5,
+        "shorts_render_s": 2.5,
+        "proxy_render_s": 1.5,
+        "webp_render_s": 23.2,
+        "pillow_alpha_err": 0,
+        "ffmpeg_webp_alpha_err_f30": 249
+      },
+      "how": "ARSENAL_MEDIA_SLOW=1 py -m pytest tests/test_arsenal_media_export.py -q (about 70 s; 21 s without the 4K presets and the 10 s WebP)"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "measure",
+      "what": "shorts_1080x1920 on 10 s of 2026-10-11 17-51-11 (1590-1600 s): -41.2 LUFS in, -14.1 LUFS / -1.6 dBTP out in 5.5 s; the first AAC render read back at -1.4 dBTP (over -1.5, the studio's old miss) and the re-render with the overshoot subtracted fixed it. proxy_edit on the same range: 600 frames in 1.9 s.",
+      "measured": {
+        "I_in": -41.16,
+        "I_out": -14.1,
+        "TP_out": -1.6,
+        "renders": 2
+      },
+      "how": "export.export(src, 'shorts_1080x1920', out, start=1590, end=1600)"
+    }
+  ],
+  "notes": "arsenal/media/export.py: presets from arsenal/media/presets.json (promoted from the studio's export_presets.json; alpha_webp_anim encoded with Pillow). Audio is rendered first (mix of the chosen tracks, measured two-pass loudnorm read back after the final codec, one corrective re-render) and stream-copied into the single video encode; qc checks frames, duration to one frame, loudness and true peak, track names and alpha. AMF encodes of ranges over 30 s hold the house GPU lock. Pillow (HPND) encodes the WebP. The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}

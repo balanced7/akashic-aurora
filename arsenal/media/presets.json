@@ -1,0 +1,423 @@
+{
+  "_about": "Export presets for arsenal.media.export (promoted from the studio's production-pipeline export_presets.json, 2026-10-12). Numbers cite their source in 'why'. Loudness targets are applied by a measured two-pass loudnorm whose output is read back, never by a fixed gain. 'measured' rows are this machine's runs of tests/test_arsenal_media_export.py on a 10 s synthetic excerpt.",
+  "_sources": {
+    "youtube_upload": "https://support.google.com/youtube/answer/1722171 (H.264 High, 2 B-frames, CABAC, closed GOP of half the frame rate, 4:2:0, BT.709, AAC-LC or Opus 48 kHz, stereo 384 kbps, 2160p60 SDR 53-68 Mbps, moov atom at front)",
+    "youtube_loudness": "YouTube turns down audio louder than about -14 LUFS and does not turn up quieter audio (no official Google page; see https://workflow.frame.io/guide/loudness-for-youtube and verify with Stats for nerds 'Volume / Normalized')",
+    "shorts": "1080x1920 9:16, up to 3 min since Oct 2024 (https://riverside.com/blog/how-long-can-youtube-shorts-be); A/B title/thumbnail tests do NOT run on Shorts (https://support.google.com/youtube/answer/16391400)",
+    "safe_zones": "https://dev.to/tanglement/tiktok-reels-and-shorts-safe-zones-in-pixels-44kh ; cross-platform caption box 900x1400 centered (https://kreateflo.com/blog/safe-caption-placement-for-1080x1920-vertical-videos-1)",
+    "true_peak_margin": "TP set to -1.5 dBTP (not -1.0): first test render measured -0.9 dBTP after AAC encode with a -1.0 target (test/shorts_test.mp4.json)"
+  },
+  "loudness_targets": {
+    "youtube": {
+      "I": -14.0,
+      "TP": -1.5,
+      "LRA": 11.0
+    },
+    "shorts": {
+      "I": -14.0,
+      "TP": -1.5,
+      "LRA": 9.0
+    },
+    "vo_stem": {
+      "I": -16.0,
+      "TP": -1.5,
+      "LRA": 7.0
+    },
+    "none": null
+  },
+  "presets": {
+    "youtube_4k60": {
+      "why": "Final long-form upload. 2160p gets YouTube's VP9/AV1 ladder (widely reported, not an official Google statement), and the 4K master leaves room for 2x punch-ins from a 4K capture. CRF 16 x264 'slow' lands above Google's 53-68 Mbps table on busy League frames; the 9950X3D encodes it in software.",
+      "width": 3840,
+      "height": 2160,
+      "fps": 60,
+      "fit": "pad",
+      "vcodec": [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "slow",
+        "-crf",
+        "16",
+        "-profile:v",
+        "high",
+        "-pix_fmt",
+        "yuv420p",
+        "-g",
+        "30",
+        "-bf",
+        "2",
+        "-flags",
+        "+cgop",
+        "-coder",
+        "1",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv"
+      ],
+      "acodec": [
+        "-c:a",
+        "aac",
+        "-b:a",
+        "384k",
+        "-ar",
+        "48000",
+        "-ac",
+        "2"
+      ],
+      "container": "mp4",
+      "faststart": true,
+      "loudness": "youtube",
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 1280x720p60 H.264 + 3 Opus tracks, pink noise mix at -54.9 LUFS",
+          "render_s": 9.4,
+          "MB": 44.85,
+          "I": -14.0,
+          "TP": -1.7,
+          "loudnorm_mode": "linear",
+          "renders": 1,
+          "frames": 600
+        }
+      ]
+    },
+    "youtube_4k60_fast": {
+      "why": "Same delivery shape on the RX 9070 XT's AMF encoder: minutes instead of an hour, for drafts you will actually upload unlisted to check. Fixed 80 Mbps so YouTube's re-encode has headroom.",
+      "width": 3840,
+      "height": 2160,
+      "fps": 60,
+      "fit": "pad",
+      "vcodec": [
+        "-c:v",
+        "h264_amf",
+        "-usage",
+        "transcoding",
+        "-quality",
+        "quality",
+        "-rc",
+        "vbr_peak",
+        "-b:v",
+        "80M",
+        "-maxrate",
+        "100M",
+        "-bufsize",
+        "160M",
+        "-g",
+        "30",
+        "-bf",
+        "2",
+        "-pix_fmt",
+        "yuv420p",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv"
+      ],
+      "acodec": [
+        "-c:a",
+        "aac",
+        "-b:a",
+        "384k",
+        "-ar",
+        "48000",
+        "-ac",
+        "2"
+      ],
+      "container": "mp4",
+      "faststart": true,
+      "loudness": "youtube",
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 1280x720p60 H.264 + 3 Opus tracks, pink noise mix at -54.9 LUFS",
+          "render_s": 9.5,
+          "MB": 95.33,
+          "I": -14.0,
+          "TP": -1.7,
+          "loudnorm_mode": "linear",
+          "renders": 1,
+          "frames": 600
+        }
+      ]
+    },
+    "shorts_1080x1920": {
+      "why": "YouTube Shorts / TikTok / Reels. Center 9:16 crop of a 16:9 source by default (crop_x lets the studio follow the action); from a 4K source the 1215x2160 crop downsamples to 1080x1920 with no upscale.",
+      "width": 1080,
+      "height": 1920,
+      "fps": 60,
+      "fit": "crop",
+      "vcodec": [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "slow",
+        "-crf",
+        "17",
+        "-profile:v",
+        "high",
+        "-pix_fmt",
+        "yuv420p",
+        "-g",
+        "30",
+        "-bf",
+        "2",
+        "-flags",
+        "+cgop",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv"
+      ],
+      "acodec": [
+        "-c:a",
+        "aac",
+        "-b:a",
+        "320k",
+        "-ar",
+        "48000",
+        "-ac",
+        "2"
+      ],
+      "container": "mp4",
+      "faststart": true,
+      "loudness": "shorts",
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 1280x720p60 H.264 + 3 Opus tracks, pink noise mix at -54.9 LUFS",
+          "render_s": 2.5,
+          "MB": 7.37,
+          "I": -14.0,
+          "TP": -1.7,
+          "loudnorm_mode": "linear",
+          "renders": 1,
+          "frames": 600
+        },
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s of 2026-10-11 17-51-11.mp4 at 1590-1600 s (HEVC 1080p60, Opus)",
+          "render_s": 5.5,
+          "MB": 19.75,
+          "I_before": -41.16,
+          "I": -14.1,
+          "TP": -1.6,
+          "loudnorm_mode": "dynamic",
+          "renders": 2,
+          "note": "the first AAC render read back at -1.4 dBTP (over -1.5); the re-render with the overshoot subtracted landed at -1.6",
+          "frames": 600
+        }
+      ]
+    },
+    "proxy_edit": {
+      "why": "Edit/scrub proxy for the web timeline (WebCodecs) and Kdenlive/Resolve: 1080p H.264 with a keyframe every 0.25 s so scrubbing never decodes 4 s of GOP. Never delivered.",
+      "width": 1920,
+      "height": 1080,
+      "fps": "source",
+      "fit": "pad",
+      "vcodec": [
+        "-c:v",
+        "h264_amf",
+        "-usage",
+        "transcoding",
+        "-quality",
+        "speed",
+        "-rc",
+        "cqp",
+        "-qp_i",
+        "22",
+        "-qp_p",
+        "24",
+        "-g",
+        "15",
+        "-bf",
+        "0",
+        "-pix_fmt",
+        "yuv420p"
+      ],
+      "acodec": [
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-ar",
+        "48000"
+      ],
+      "container": "mp4",
+      "faststart": true,
+      "loudness": "none",
+      "keep_all_audio": true,
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 1280x720p60 H.264 + 3 Opus tracks, pink noise mix at -54.9 LUFS",
+          "render_s": 1.5,
+          "MB": 22.95,
+          "I": -54.9,
+          "TP": -42.6,
+          "frames": 600
+        },
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s of 2026-10-11 17-51-11.mp4 at 1590-1600 s (HEVC 1080p60, Opus)",
+          "render_s": 1.9,
+          "MB": 19.78,
+          "frames": 600
+        }
+      ]
+    },
+    "mezzanine_dnxhr": {
+      "why": "Intermediate for a hand-off to Resolve free or Blender when a long-GOP HEVC original is too heavy to scrub. DNxHR HQ 8-bit 4:2:2, PCM audio, all-intra. Large: plan on roughly 0.4-0.8 GB per minute at 4K60 (estimate, measure on first use).",
+      "width": "source",
+      "height": "source",
+      "fps": "source",
+      "fit": "none",
+      "vcodec": [
+        "-c:v",
+        "dnxhd",
+        "-profile:v",
+        "dnxhr_hq",
+        "-pix_fmt",
+        "yuv422p"
+      ],
+      "acodec": [
+        "-c:a",
+        "pcm_s24le",
+        "-ar",
+        "48000"
+      ],
+      "container": "mov",
+      "faststart": false,
+      "loudness": "none",
+      "keep_all_audio": true,
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 1280x720p60 H.264 + 3 Opus tracks, pink noise mix at -54.9 LUFS",
+          "render_s": 0.7,
+          "MB": 250.52,
+          "I": -54.8,
+          "TP": -42.5,
+          "frames": 600
+        }
+      ]
+    },
+    "alpha_webm": {
+      "why": "Transparent overlay/sticker clip for the web and for compositing (VP9 with alpha). The answer to 'gifs transparent where we want': GIF has 1-bit alpha only.",
+      "width": "source",
+      "height": "source",
+      "fps": "source",
+      "fit": "none",
+      "vcodec": [
+        "-c:v",
+        "libvpx-vp9",
+        "-pix_fmt",
+        "yuva420p",
+        "-b:v",
+        "0",
+        "-crf",
+        "24",
+        "-row-mt",
+        "1",
+        "-auto-alt-ref",
+        "0",
+        "-deadline",
+        "good",
+        "-cpu-used",
+        "4"
+      ],
+      "acodec": [
+        "-an"
+      ],
+      "container": "webm",
+      "faststart": false,
+      "loudness": "none",
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 640x360p30 ffv1 bgra, moving radial alpha",
+          "render_s": 2.6,
+          "MB": 1.55,
+          "frames": 300
+        }
+      ]
+    },
+    "alpha_prores4444": {
+      "why": "Alpha overlay for Resolve/Blender/Kdenlive timelines (ProRes 4444 keeps an 8-16 bit alpha channel).",
+      "width": "source",
+      "height": "source",
+      "fps": "source",
+      "fit": "none",
+      "vcodec": [
+        "-c:v",
+        "prores_ks",
+        "-profile:v",
+        "4444",
+        "-pix_fmt",
+        "yuva444p10le",
+        "-alpha_bits",
+        "16"
+      ],
+      "acodec": [
+        "-an"
+      ],
+      "container": "mov",
+      "faststart": false,
+      "loudness": "none",
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 640x360p30 ffv1 bgra, moving radial alpha",
+          "render_s": 0.5,
+          "MB": 101.02,
+          "frames": 300
+        }
+      ]
+    },
+    "alpha_webp_anim": {
+      "why": "Animated WebP with full 8-bit alpha: the 'transparent GIF' for chat, Discord and the web. Loops forever. Encoded with Pillow, not ffmpeg: ffmpeg's libwebp_anim piles up opacity on soft edges frame by frame (alpha error 39 by frame 1, 111 by frame 30, studio alpha smoke 2026-10-12); ffmpeg here cannot decode animated WebP either, so it is read back with Pillow too.",
+      "width": 720,
+      "height": "auto",
+      "fps": 30,
+      "fit": "scale",
+      "acodec": [
+        "-an"
+      ],
+      "container": "webp",
+      "faststart": false,
+      "loudness": "none",
+      "encoder": "pillow",
+      "pillow": {
+        "lossless": false,
+        "quality": 80,
+        "alpha_quality": 100,
+        "method": 4,
+        "loop": 0,
+        "minimize_size": false
+      },
+      "measured": [
+        {
+          "date": "2026-10-12",
+          "excerpt": "10 s synthetic, 640x360p30 ffv1 bgra, moving radial alpha",
+          "render_s": 23.2,
+          "MB": 11.13,
+          "frames": 300,
+          "alpha_error_max": 0
+        }
+      ]
+    }
+  }
+}

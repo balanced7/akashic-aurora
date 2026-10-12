@@ -1,0 +1,99 @@
+{
+  "id": "media.mix",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    },
+    {
+      "port": "spans",
+      "type": "timeline.sequence"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "mix",
+      "type": "asset.reference"
+    },
+    {
+      "port": "loudness",
+      "type": "analysis.features"
+    }
+  ],
+  "params": [
+    {
+      "name": "gain_db",
+      "unit": "dB",
+      "range": [
+        -96,
+        24
+      ]
+    },
+    {
+      "name": "mute",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "loudnorm",
+      "unit": "LUFS",
+      "range": [
+        -40,
+        -5
+      ]
+    },
+    {
+      "name": "tp",
+      "unit": "dBTP",
+      "range": [
+        -9,
+        0
+      ]
+    },
+    {
+      "name": "sample_rate",
+      "unit": "Hz",
+      "range": [
+        8000,
+        192000
+      ]
+    },
+    {
+      "name": "fade_s",
+      "unit": "s",
+      "range": [
+        0,
+        10
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 500
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "pin",
+      "what": "gains {0: 0, 1: -6} with track 2 muted on same-phase 997 Hz sines at -20/-26/-30 dBFS: predicted coherent sum -18.054 LUFS, measured -18.1 (WAV and AAC). Three spans from two tracks placed at 0, 2 and 3 s on a 4 s timeline: every sample within 1 LSB of the source (the float path), the gaps exactly silent, length exactly 192000 samples.",
+      "measured": {
+        "mix_predicted_lufs": -18.054,
+        "mix_measured_lufs": -18.1,
+        "span_max_lsb_error": 1
+      },
+      "how": "py -m pytest tests/test_arsenal_media_audio.py -q -k mix"
+    }
+  ],
+  "notes": "arsenal/media/audio.py mix(): one stereo file from per-track dB gains and mutes, over one source or a list of spans {src, start, end, at, tracks, gains_db, mute, gain_db, fade_in_s, fade_out_s} (the editor's render audio). Each span is one input trimmed at the input (sample-exact on 1/sr timebases, 1 ms grid on MKV), resampled to stereo, gained, summed with amix normalize=0 (no hidden 1/N), delayed to its timeline sample. loudnorm= runs the measured two-pass loudnorm on the mix. The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}

@@ -1,0 +1,116 @@
+{
+  "id": "media.audio",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "tracks",
+      "type": "analysis.features"
+    },
+    {
+      "port": "loudness",
+      "type": "analysis.features"
+    },
+    {
+      "port": "silences",
+      "type": "control.event"
+    },
+    {
+      "port": "stems",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "track",
+      "unit": "index",
+      "range": [
+        0,
+        31
+      ]
+    },
+    {
+      "name": "noise_db",
+      "unit": "dBFS",
+      "range": [
+        -90,
+        0
+      ]
+    },
+    {
+      "name": "min_s",
+      "unit": "s",
+      "range": [
+        0.01,
+        600
+      ]
+    },
+    {
+      "name": "target_i",
+      "unit": "LUFS",
+      "range": [
+        -40,
+        -5
+      ]
+    },
+    {
+      "name": "tp",
+      "unit": "dBTP",
+      "range": [
+        -9,
+        0
+      ]
+    },
+    {
+      "name": "lra",
+      "unit": "LU",
+      "range": [
+        1,
+        20
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 300
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "pin",
+      "what": "Synthetic 3-track MP4s (997 Hz sines at -20/-26/-30 dBFS on both channels, FLAC and Opus) read back at exactly -20.0/-26.0/-30.0 LUFS (tolerance 0.1). demux copy: Opus -> .ogg, AAC -> .m4a, FLAC -> .flac, each decoding bit-identical to the source track; the Ogg ends on the nominal length (288000 samples for 6 s; WebM/MKV keep 648 samples of padding). split_channels gives each channel bit-exact. loudnorm_2pass from pink noise at -48.6 LUFS lands at -14.1 (AAC, TP -3.5) and modulated tones at -14.0 (WAV) after one corrective re-render (loudnorm's own meter read the tones 0.33 LU apart from ebur128).",
+      "measured": {
+        "sine_lufs_error": 0.0,
+        "ogg_samples_6s": 288000,
+        "loudnorm_pink_I": -14.1,
+        "loudnorm_tones_I": -14.0
+      },
+      "how": "py -m pytest tests/test_arsenal_media_audio.py -q"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "measure",
+      "what": "2026-10-11 17-51-11.mp4 (33 min, one Opus track named by the map: Mix): loudness of the whole track 5.0 s (-41.7 LUFS, LRA 12.3, TP -19.3), demux copy to Ogg 0.25 s (warm cache, 41 MB). Chromium (the desktop app's browser pane) plays every demux output in <audio> and decodeAudioData: Ogg Opus decodes to exactly 288000 samples for 6 s, the 33-min Ogg reports 2028.26 s and seeks to 1000 s in 51 ms, but only from a server that answers HTTP Range requests (python http.server does not: duration Infinity, seeks fail).",
+      "measured": {
+        "loudness_33min_s": 5.0,
+        "demux_33min_s": 0.25,
+        "chromium_seek_1000s_ms": 51
+      },
+      "how": "audio.loudness / audio.demux on the recording; a Range-serving page with fetch + decodeAudioData"
+    }
+  ],
+  "notes": "arsenal/media/audio.py: every audio track of a recording. tracks() names each a:N (a stream's own title wins; generic encoder names do not count; else the studio's 6-track OBS map HOUSE_TRACKS). loudness: ebur128 I/LRA/TP per track in one decode. silences: silencedetect on the source clock. demux: one Chromium-playable file per track (Chromium has no audioTracks). split_channels: mono WAV per channel. loudnorm_2pass: measured two-pass loudnorm, read back, re-rendered once on a miss. The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}

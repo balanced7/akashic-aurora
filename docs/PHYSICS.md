@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at e906b452. A bound you discover by collision is not awareness -- this sheet
+> Derived at 3f55e119. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (337 numeric constants)
+## Mechanical bounds (338 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -605,6 +605,7 @@ Class: reference
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |
 | `_CAP_MAX` | 200 | agent/harness/capture.py |  |
 | `_CAP_STR` | 400 | agent/harness/capture.py |  |
+| `_CMDLINE_MAX` | 32,000 | arsenal/media/audio.py |  |
 | `_CTX_FLOOR` | 32,000 | core/fleet/caller.py |  |
 | `_DEFAULT_BUDGET_LINES` | 12 | agent/harness/context.py | W6; AKASHIC_WHISPER_LINES overrides (R6) |
 | `_DONE_CAP` | 8,192 | core/comm/packet_spec.py |  |

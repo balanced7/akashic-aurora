@@ -1,0 +1,102 @@
+{
+  "id": "media.qc",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "report",
+      "type": "analysis.features"
+    },
+    {
+      "port": "problems",
+      "type": "control.event"
+    }
+  ],
+  "params": [
+    {
+      "name": "black_pix_th",
+      "unit": "ratio",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "black_min_s",
+      "unit": "s",
+      "range": [
+        0.04,
+        60
+      ]
+    },
+    {
+      "name": "freeze_noise_db",
+      "unit": "dB",
+      "range": [
+        -90,
+        0
+      ]
+    },
+    {
+      "name": "freeze_min_s",
+      "unit": "s",
+      "range": [
+        0.1,
+        60
+      ]
+    },
+    {
+      "name": "silence_db",
+      "unit": "dBFS",
+      "range": [
+        -90,
+        0
+      ]
+    },
+    {
+      "name": "silence_min_s",
+      "unit": "s",
+      "range": [
+        0.1,
+        60
+      ]
+    },
+    {
+      "name": "I_tol",
+      "unit": "LU",
+      "range": [
+        0.05,
+        5
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 300
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "pin",
+      "what": "A copy of a 3-track file with two tracks dropped is flagged 'expected 3 audio streams, found 1' and nothing else; the whole file passes with titles, frame count 180, 160x90@30 and I -20 within 0.2. A file with 1.5 s of black, a 3 s frozen tail and audio that stops at 4 s gets exactly three problems (black at 1.0-2.53 s, freeze from 6.0 s, silence from 4.0 s).",
+      "measured": {
+        "dropped_track_flagged": true,
+        "defects_found": 3
+      },
+      "how": "py -m pytest tests/test_arsenal_media_audio.py -q -k qc"
+    }
+  ],
+  "notes": "arsenal/media/audio.py qc(): one decode pass over a finished file: ebur128 + silencedetect on every audio track, blackdetect + freezedetect on a 320 px copy of the video (d3d11va decode), the stream inventory with exact packet counts (ffprobe -count_packets) and the duration; expect= {video_streams, audio_streams, duration_s, frames, w, h, fps, titles, I, I_tol, TP_max, no_black, no_freeze, no_silence} turns misses into one-line problems. The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}
