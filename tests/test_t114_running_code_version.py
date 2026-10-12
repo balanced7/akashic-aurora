@@ -162,17 +162,23 @@ def test_p6_unknown_is_not_stale(seat):
 
 
 # --------------------------------------------------------------- P5
-def test_p5_the_human_render_says_it(seat):
+def test_p5_the_human_render_says_it(seat, monkeypatch, capsys):
     """A finding that reaches only --json is the T112 P11 defect: a notice on a channel
-    the reader does not use."""
-    from core.comm import roster
+    the reader does not use. Since the AXI conversion the stale code is the seat row's `code`
+    column, in both the agent and the human view of `roster`."""
+    import argparse
+
+    import agent_cli
 
     agent, sid8, _wl = seat
     _set_seat_sha(agent, sid8, "0" * 12)
-    text = "\n".join(roster.render_roster(NS))
-    assert "stale-code" in text.lower() or "stale code" in text.lower(), (
-        f"the operator-facing render must name it:\n{text}"
-    )
+    monkeypatch.setenv("BIFROST_NAMESPACE", NS)
+    for mode in ("agent", "human"):
+        monkeypatch.setenv("AURORA_OUTPUT", mode)
+        monkeypatch.setenv("NO_COLOR", "1")
+        agent_cli.cmd_roster(argparse.Namespace(json=False, reap=False, by_agent=False))
+        text = capsys.readouterr().out
+        assert "stale" in text.lower(), f"the {mode} view must name it:\n{text}"
 
 
 # --------------------------------------------------------------- P7

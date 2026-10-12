@@ -93,11 +93,20 @@ def test_p2_dead_seat_never_live():
     assert all(r.get("state") != "LIVE" for r in rows), f"an empty namespace must contain no LIVE seats: {rows}"
 
 
-def test_p3_w84_contract_in_render():
+def test_p3_w84_contract_in_render(monkeypatch, capsys):
+    """The W84 confession is part of what `roster` prints (its checked / not_checked fields since
+    the AXI conversion retired the old text renderer)."""
+    import argparse
+
+    import agent_cli
+
     ro = _ro()
     ro.heartbeat(NS + "w", AGENT, SEAT_A, phase="idle")
-    lines = ro.render_roster(NS + "w")
-    joined = "\n".join(lines).lower()
+    monkeypatch.setenv("BIFROST_NAMESPACE", NS + "w")
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
+    agent_cli.cmd_roster(argparse.Namespace(json=False, reap=False, by_agent=False))
+    lines = capsys.readouterr().out.splitlines()
+    joined = "\n".join(lines).lower().replace("_", " ")
     assert "checked" in joined, (
         "W84: the roster must render what it CHECKED and what it did NOT -- a roster that "
         "cannot confess its blind spots is unwedge all over again:\n" + "\n".join(lines)

@@ -327,35 +327,6 @@ def by_agent(rows, *, churn_window_s: float | None = None, churn_at: int | None 
     return out
 
 
-def render_by_agent(ns: str, *, client=None) -> list[str]:
-    """The per-agent render. Churn is the headline; the graveyard total is context."""
-    groups = by_agent(roster(ns, client=client))
-    lines = [f"# seat roster BY AGENT -- {len(groups)} agent(s) (raw incarnations: `roster` without --by-agent)"]
-    for g in groups:
-        beat = f"{g['beat_age_s']:.1f}s" if g["beat_age_s"] is not None else "never"
-        who = f"#{g['live_sid8']}" if g["live_sid8"] else ("SPLIT" if g["split_brain"] else "-")
-        churn = ""
-        if g["churning"]:
-            mins = int(g["churn_window_s"] // 60)
-            churn = f"  <<< CHURNING: {g['deaths_in_window']} death(s) in {mins}m"
-        elif g["deaths_in_window"]:
-            churn = f"  ({g['deaths_in_window']} recent)"
-        if g["split_brain"]:
-            churn += (
-                f"  <<< SPLIT-BRAIN: {g['n_live']} live incarnations "
-                f"({', '.join(g['live_sids'])}) -- directed delivery splits between them"
-            )
-        # A negative beat age is clock skew between the seat and this reader, not freshness.
-        # Say so rather than rendering a confident -0.4s that reads like a very fresh beat.
-        if g["beat_age_s"] is not None and float(g["beat_age_s"]) < 0:
-            churn += "  [clock skew: beat timestamped ahead of this reader]"
-        lines.append(
-            f"  [{g['state']:<5}] {g['agent']:<20} {who:<10} beat={beat:>9} "
-            f"phase={g['phase']:<9} dead={g['n_dead']:<3}{churn}"
-        )
-    return lines
-
-
 def roster(ns: str, *, client=None, now: float | None = None) -> list[dict[str, Any]]:
     """Every known seat in `ns`, with its PROVEN state. Read-only; derives everything from
     worklive keys + cursor hashes (a projection -- rebuild-safe by construction)."""
@@ -429,34 +400,3 @@ def roster(ns: str, *, client=None, now: float | None = None) -> list[dict[str, 
         )
     rows.sort(key=lambda r: (r["agent"], -(r["beat_ts"] or 0)))
     return rows
-
-
-def render_roster(ns: str, *, client=None) -> list[str]:
-    """Human render with the W84 contract: what this roster CHECKED, and what it did NOT."""
-    rows = roster(ns, client=client)
-    out = [f"# seat roster ({ns}) -- {len(rows)} seat(s)"]
-    for r in rows:
-        age = f"{r['beat_age_s']}s" if r["beat_age_s"] is not None else "?"
-        have = ",".join(f"{k}@{str(v)[-9:]}" for k, v in (r.get("have") or {}).items())
-        out.append(
-            f"  [{r['state']:5}] {r['seat']:24} phase={r['phase']:10} beat={age:>7} seq={r['seq']:<5} have: {have}"
-        )
-        # T114: a seat can be perfectly alive and running the defect you already fixed.
-        # Only STALE earns a line -- current is the silent default, unknown says so plainly.
-        if r.get("code_state") == "stale":
-            out.append(
-                f"          ^ STALE-CODE: running {r['code_sha'][:12]}, "
-                f"HEAD is {_head_code_sha()[:12]} -- restart to pick up fixes"
-            )
-    if not rows:
-        out.append("  (no per-seat worklive keys -- no seat has ever heartbeat in this ns)")
-    # W84: the confession line. A roster that cannot name its blind spots is unwedge again.
-    out.append(
-        f"  checked:     {ns}:worklive:<agent>#<sid8> keys (TTL {WORKLIVE_TTL_S}s, "
-        f"fresh<= {FRESH_S:g}s) + cursor positions (have-summary)"
-    )
-    out.append(
-        "  NOT checked: process liveness (a beating loop can host a wedged model) | "
-        "wake watcher armed | runner locks | role-queue claims -- doctor covers those"
-    )
-    return out

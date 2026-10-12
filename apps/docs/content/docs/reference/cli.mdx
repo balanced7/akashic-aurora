@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 24 converted to agent and human output.
+121 verbs; 25 converted to agent and human output.
 
 ## `alias`
 
@@ -1874,13 +1874,31 @@ help[1]:
 | | |
 |---|---|
 | Does | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 73% before, 100% after |
+| Output tokens | 281 before, 182 after (-35%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/roster.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--json` |   |   |   |
 | `--reap` |   |   | S4: explicitly re-home provably-dead seats' stranded mail now |
 | `--by-agent` |   |   | T183: one line per LOGICAL agent, stating churn (deaths in the last hour) instead of leaving it to be inferred from N last-beat ages. Compresses the render, never the record -- raw rows are the default |
+
+Agent output of `aurora roster` on the bench data:
+
+```text
+namespace: bifrost
+seats: 2
+live: 2
+seat_rows[2]{seat,state,phase,beat_age_s,code}:
+  alice#benchsea,LIVE,sync,1.1,current
+  bob#benchsea,LIVE,sync,0.5,current
+checked: "worklive keys (TTL 180s, fresh <= 45s) and cursor positions"
+not_checked: "process liveness, wake watcher, runner locks, role-queue claims (doctor covers those)"
+help[1]:
+  uv run agent_cli.py doctor
+```
 
 ## `run`
 

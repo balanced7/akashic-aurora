@@ -1,0 +1,228 @@
+{
+  "verb": "roster",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.733,
+    "correct": 22,
+    "asked": 30,
+    "output_tokens": 281,
+    "stdout_chars": 838,
+    "stdout_lines": 8,
+    "cost_usd": 0.0292,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many seats does the roster list?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What state is alice's seat in?",
+        "expected": "LIVE",
+        "answers": [
+          "LIVE",
+          "LIVE, phase=sync",
+          "LIVE, phase=sync",
+          "LIVE, phase=sync",
+          "LIVE (phase=sync)"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Which phase was bob's seat in at its last beat?",
+        "expected": "sync",
+        "answers": [
+          "sync",
+          "sync",
+          "sync",
+          "sync",
+          "sync"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is any agent churning? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "no"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Does this roster check whether the seat's process is actually alive? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command checks the things this roster does not? Give the command only.",
+        "expected": [
+          "doctor"
+        ],
+        "answers": [
+          "aurora doctor",
+          "aurora doctor",
+          "aurora doctor",
+          "aurora doctor",
+          "aurora doctor"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "raw": {
+        "argv": [
+          "roster"
+        ],
+        "exit": 0,
+        "stdout": "# seat roster (bifrost) -- 2 seat(s)\n  [LIVE ] alice#benchsea           phase=sync       beat=   1.4s seq=1     have: legacy_inbox_shared@0,seat_inbox@0,reaper@0,lane_inbox_shared@0\n  [LIVE ] bob#benchsea             phase=sync       beat=   0.7s seq=1     have: legacy_inbox_shared@0,seat_inbox@0,reaper@0,lane_inbox_shared@0\n  checked:     bifrost:worklive:<agent>#<sid8> keys (TTL 180s, fresh<= 45s) + cursor positions (have-summary)\n  NOT checked: process liveness (a beating loop can host a wedged model) | wake watcher armed | runner locks | role-queue claims -- doctor covers those\n"
+      },
+      "by_agent": {
+        "argv": [
+          "roster",
+          "--by-agent"
+        ],
+        "exit": 0,
+        "stdout": "# seat roster BY AGENT -- 2 agent(s) (raw incarnations: `roster` without --by-agent)\n  [LIVE ] alice                #benchsea  beat=     1.9s phase=sync      dead=0  \n  [LIVE ] bob                  #benchsea  beat=     1.2s phase=sync      dead=0  \n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 182,
+    "stdout_chars": 611,
+    "stdout_lines": 18,
+    "cost_usd": 0.0263,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many seats does the roster list?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What state is alice's seat in?",
+        "expected": "LIVE",
+        "answers": [
+          "LIVE",
+          "LIVE",
+          "LIVE",
+          "LIVE",
+          "LIVE"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which phase was bob's seat in at its last beat?",
+        "expected": "sync",
+        "answers": [
+          "sync",
+          "sync",
+          "sync",
+          "sync",
+          "sync"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is any agent churning? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this roster check whether the seat's process is actually alive? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command checks the things this roster does not? Give the command only.",
+        "expected": [
+          "doctor"
+        ],
+        "answers": [
+          "uv run agent_cli.py doctor",
+          "uv run agent_cli.py doctor",
+          "uv run agent_cli.py doctor",
+          "uv run agent_cli.py doctor",
+          "uv run agent_cli.py doctor"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "raw": {
+        "argv": [
+          "roster"
+        ],
+        "exit": 0,
+        "stdout": "namespace: bifrost\nseats: 2\nlive: 2\nseat_rows[2]{seat,state,phase,beat_age_s,code}:\n  alice#benchsea,LIVE,sync,1.1,current\n  bob#benchsea,LIVE,sync,0.5,current\nchecked: \"worklive keys (TTL 180s, fresh <= 45s) and cursor positions\"\nnot_checked: \"process liveness, wake watcher, runner locks, role-queue claims (doctor covers those)\"\nhelp[1]:\n  uv run agent_cli.py doctor\n"
+      },
+      "by_agent": {
+        "argv": [
+          "roster",
+          "--by-agent"
+        ],
+        "exit": 0,
+        "stdout": "namespace: bifrost\nagents: 2\nby_agent[2]{agent,state,live_seat,beat_age_s,dead,recent_deaths,churning}:\n  alice,LIVE,benchsea,1.5,0,0,false\n  bob,LIVE,benchsea,0.9,0,0,false\nhelp[2]:\n  uv run agent_cli.py roster\n  uv run agent_cli.py doctor\n"
+      }
+    }
+  }
+}

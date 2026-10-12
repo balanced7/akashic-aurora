@@ -8448,38 +8448,128 @@ def cmd_report(args):
 
 def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
+    from core.axi import out
     from core.comm.bus import NS as DEFAULT_NS
-    from core.comm.roster import by_agent, render_by_agent, render_roster, roster
+    from core.comm.roster import FRESH_S, WORKLIVE_TTL_S, by_agent, roster
 
     ns = os.environ.get("BIFROST_NAMESPACE", DEFAULT_NS)
+    as_json = getattr(args, "json", False)
+    reaped = None
     if getattr(args, "reap", False):
         from core.comm.reaper import reap
 
         recs = reap(ns)
-        print(
-            f"[reaper] {len(recs)} message(s) re-homed"
-            if recs
-            else "[reaper] nothing to re-home (no provably-dead seats with stranded mail)"
-        )
-        for r in recs:
-            print(f"  {r['kind']} {r['original_mid']} from {r['seat']} -> {r['rehomed_mid']}")
+        if as_json:  # --json keeps its old bytes: the reaper lines, then the JSON
+            print(
+                f"[reaper] {len(recs)} message(s) re-homed"
+                if recs
+                else "[reaper] nothing to re-home (no provably-dead seats with stranded mail)"
+            )
+            for r in recs:
+                print(f"  {r['kind']} {r['original_mid']} from {r['seat']} -> {r['rehomed_mid']}")
+        else:
+            reaped = [
+                {"kind": r["kind"], "from_seat": r["seat"], "message": r["original_mid"], "now": r["rehomed_mid"]}
+                for r in recs
+            ]
+    cli = _cli()
     # T183: --by-agent states churn instead of leaving it to be inferred from N last-beat ages.
     # NOT the default: a fenced wavefront showed the raw view's noise is load-bearing (a
     # crash-loop is visible there as clustered deaths), so this compresses the render on request
     # while the record and the raw view stay exactly as they were.
     if getattr(args, "by_agent", False):
-        if getattr(args, "json", False):
-            print(json.dumps(by_agent(roster(ns)), indent=2, default=str))
+        groups = by_agent(roster(ns))
+        if as_json:
+            print(json.dumps(groups, indent=2, default=str))
             return 0
-        for ln in render_by_agent(ns):
-            print(ln)
+        doc: dict = {"namespace": ns, "agents": len(groups)}
+        if reaped is not None:
+            doc["reaped"] = reaped
+        doc["by_agent"] = [
+            {
+                "agent": g["agent"],
+                "state": g["state"],
+                # the one address to send to; SPLIT when two incarnations are live (delivery splits)
+                "live_seat": g["live_sid8"] or ("SPLIT" if g["split_brain"] else None),
+                "beat_age_s": g["beat_age_s"],
+                "dead": g["n_dead"],
+                "recent_deaths": g["deaths_in_window"],
+                "churning": g["churning"],
+            }
+            for g in groups
+        ]
+        if not groups:
+            doc["by_agent"] = "no seat has ever heartbeat in this namespace"
+        return out.emit(doc, hints=[f"{cli} roster", f"{cli} doctor"], human=_human_roster, title="Roster · by agent")
+    rows = roster(ns)
+    if as_json:
+        print(json.dumps(rows, indent=2, default=str))
         return 0
-    if getattr(args, "json", False):
-        print(json.dumps(roster(ns), indent=2, default=str))
-        return 0
-    for ln in render_roster(ns):
-        print(ln)
-    return 0
+    doc = {"namespace": ns, "seats": len(rows)}
+    if rows:
+        doc["live"] = sum(1 for r in rows if r["state"] == "LIVE")
+    if reaped is not None:
+        doc["reaped"] = reaped
+    doc["seat_rows"] = [
+        {
+            "seat": r["seat"],
+            "state": r["state"],
+            "phase": r["phase"],
+            "beat_age_s": r["beat_age_s"],
+            # T114: a seat can be alive and running the defect already fixed; stale = restart it
+            "code": r.get("code_state") or "unknown",
+        }
+        for r in rows
+    ] or "no seat has ever heartbeat in this namespace"
+    # W84: the confession. A roster that cannot name its blind spots is unwedge again.
+    doc["checked"] = f"worklive keys (TTL {WORKLIVE_TTL_S}s, fresh <= {FRESH_S:g}s) and cursor positions"
+    doc["not_checked"] = "process liveness, wake watcher, runner locks, role-queue claims (doctor covers those)"
+    hints = [f"{cli} doctor"]
+    down = next((r["agent"] for r in rows if r["state"] != "LIVE"), None)
+    if down:
+        hints.append(f"{cli} unwedge {down}")
+    return out.emit(doc, hints=hints, human=_human_roster, title=f"Roster · {ns}")
+
+
+def _human_roster(console, doc):
+    """Human view of `roster`: seats as one table, state coloured (LIVE green, STALE yellow,
+    DEAD red), ages in readable units, the blind spots in dim text below."""
+    from core.axi import out
+
+    key = "by_agent" if "by_agent" in doc else "seat_rows"
+    rows = doc[key]
+    if isinstance(rows, str):
+        console.print(f"[yellow]0 seats[/] [dim]-- {out._esc(rows)}[/]")
+    else:
+        colour = {"LIVE": "green", "STALE": "yellow", "OFFLINE": "dim", "DEAD": "red"}
+        table = []
+        for r in rows:
+            age = r.get("beat_age_s")
+            shown = {k: v for k, v in r.items() if k not in ("state", "beat_age_s")}
+            if "churning" in shown:  # not churning is the good case: plain text, not a red "no"
+                shown["churning"] = "CHURNING" if shown["churning"] else ""
+            table.append(
+                {
+                    "state": f"[{colour.get(r['state'], 'white')}]{r['state']}[/]",
+                    **shown,
+                    "last beat": "—" if age is None else f"{_human_secs(max(0, int(age)))} ago",
+                }
+            )
+        from rich import box
+        from rich.table import Table
+
+        t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+        for c in table[0]:
+            t.add_column(c.replace("_", " "))
+        for r in table:
+            t.add_row(*(v if k == "state" else out.styled(v) for k, v in r.items()))
+        console.print(t)
+    for k in ("reaped",):
+        if k in doc:
+            console.print(f"[bold]re-homed:[/] {len(doc[k])} message(s)")
+    if doc.get("not_checked"):
+        console.print(f"[dim]checked: {out._esc(doc['checked'])}[/]")
+        console.print(f"[dim]not checked: {out._esc(doc['not_checked'])}[/]")
 
 
 def cmd_bifrost_sync(args):
