@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 36 converted to agent and human output.
+121 verbs; 37 converted to agent and human output.
 
 ## `alias`
 
@@ -238,7 +238,10 @@ effect: drops its current work at the next round boundary and switches to this
 | | |
 |---|---|
 | Does | freeze bus auto-responders (human barge-in); --soft to let seats finish first |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 67 before, 92 after (+37%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/bifrost-pause.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -247,6 +250,19 @@ effect: drops its current work at the next round boundary and switches to this
 | `--ttl` |   |   | self-heal seconds (RB-30) -- ceremony/automation pauses should ALWAYS set this so a mid-ceremony crash can't freeze the fleet |
 | `--soft` |   |   | PAUSE NUDGE: seats FINISH the message in hand, then hold. Default (hard) pause is a mid-turn interrupt and ABANDONS in-flight work; drain is graceful but EXITS the runner. --soft is the third thing: graceful AND resumable without a relaunch |
 | `--json` |   |   |   |
+
+Agent output of `aurora bifrost-pause --reason operator barge-in --ttl 600` on the bench data:
+
+```text
+status: paused
+mode: hard
+self_heals_in_s: 600
+in_flight_work: "abandoned: runners freeze mid-turn (--soft lets them finish)"
+by: user
+reason: operator barge-in
+help[1]:
+  uv run agent_cli.py bifrost-resume
+```
 
 ## `bifrost-resume`
 

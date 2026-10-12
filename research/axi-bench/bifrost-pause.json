@@ -1,0 +1,214 @@
+{
+  "verb": "bifrost-pause",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 67,
+    "stdout_chars": 310,
+    "stdout_lines": 2,
+    "cost_usd": 0.0232,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Is in-flight work abandoned by this pause? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "After how many seconds does the pause clear itself?",
+        "expected": 600,
+        "answers": [
+          "600",
+          "600",
+          "600",
+          "600",
+          "600"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is in-flight work abandoned by this pause? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this pause clear itself after a time limit? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What command ends the pause? Give the command only.",
+        "expected": [
+          "bifrost-resume"
+        ],
+        "answers": [
+          "bifrost-resume",
+          "bifrost-resume",
+          "bifrost-resume",
+          "bifrost-resume",
+          "bifrost-resume"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "hard": {
+        "argv": [
+          "bifrost-pause",
+          "--reason",
+          "operator barge-in",
+          "--ttl",
+          "600"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost] PAUSED (self-heals in 600s) -- runners frozen mid-turn (in-flight work is abandoned); for a graceful stop use `--soft`; resume with `bifrost-resume`\n"
+      },
+      "soft": {
+        "argv": [
+          "bifrost-pause",
+          "--reason",
+          "wind down",
+          "--soft"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost] SOFT PAUSE -- seats FINISH the message in hand, then hold. In-flight work is NOT abandoned and no runner exits; resume with `bifrost-resume`\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 92,
+    "stdout_chars": 423,
+    "stdout_lines": 16,
+    "cost_usd": 0.0235,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Is in-flight work abandoned by this pause? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "After how many seconds does the pause clear itself?",
+        "expected": 600,
+        "answers": [
+          "600",
+          "600",
+          "600",
+          "600",
+          "600"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is in-flight work abandoned by this pause? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this pause clear itself after a time limit? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command ends the pause? Give the command only.",
+        "expected": [
+          "bifrost-resume"
+        ],
+        "answers": [
+          "uv run agent_cli.py bifrost-resume",
+          "uv run agent_cli.py bifrost-resume",
+          "uv run agent_cli.py bifrost-resume",
+          "uv run agent_cli.py bifrost-resume",
+          "uv run agent_cli.py bifrost-resume"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "hard": {
+        "argv": [
+          "bifrost-pause",
+          "--reason",
+          "operator barge-in",
+          "--ttl",
+          "600"
+        ],
+        "exit": 0,
+        "stdout": "status: paused\nmode: hard\nself_heals_in_s: 600\nin_flight_work: \"abandoned: runners freeze mid-turn (--soft lets them finish)\"\nby: user\nreason: operator barge-in\nhelp[1]:\n  uv run agent_cli.py bifrost-resume\n"
+      },
+      "soft": {
+        "argv": [
+          "bifrost-pause",
+          "--reason",
+          "wind down",
+          "--soft"
+        ],
+        "exit": 0,
+        "stdout": "status: paused\nmode: soft\nself_heals: never; holds until bifrost-resume\nin_flight_work: \"finished first, then the seat holds; no runner exits\"\nby: user\nreason: wind down\nhelp[1]:\n  uv run agent_cli.py bifrost-resume\n"
+      }
+    }
+  }
+}

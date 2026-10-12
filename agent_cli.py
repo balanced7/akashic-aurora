@@ -9690,21 +9690,36 @@ def cmd_bifrost_pause(args):
     if args.json:
         print(json.dumps(control.pause_status(), default=str))
         return 0 if ok else 1
-    tag = f" (self-heals in {ttl}s)" if ttl else ""
+    from core.axi import out
+
+    cli = _cli()
     if not ok:
-        print("[bifrost] pause failed (bus offline)")
-    elif soft:
-        print(
-            f"[bifrost] SOFT PAUSE{tag} -- seats FINISH the message in hand, then hold. "
-            "In-flight work is NOT abandoned and no runner exits; resume with "
-            "`bifrost-resume`"
-        )
+        return out.fail("pause failed (bus offline)", code="BUS_OFFLINE", details={"paused": False})
+    doc: dict = {"status": "paused", "mode": "soft" if soft else "hard"}
+    # Say outright whether it ends by itself: a pause with no ttl holds until someone resumes it.
+    if ttl:
+        doc["self_heals_in_s"] = ttl
     else:
-        print(
-            f"[bifrost] PAUSED{tag} -- runners frozen mid-turn (in-flight work is "
-            "abandoned); for a graceful stop use `--soft`; resume with `bifrost-resume`"
-        )
-    return 0 if ok else 1
+        doc["self_heals"] = "never; holds until bifrost-resume"
+    if soft:
+        doc["in_flight_work"] = "finished first, then the seat holds; no runner exits"
+    else:
+        doc["in_flight_work"] = "abandoned: runners freeze mid-turn (--soft lets them finish)"
+    doc["by"] = args.by or "user"
+    if args.reason:
+        doc["reason"] = args.reason
+    return out.emit(doc, hints=[f"{cli} bifrost-resume"], human=_human_pause)
+
+
+def _human_pause(console, doc):
+    from core.axi import out
+
+    word = "SOFT PAUSE" if doc["mode"] == "soft" else "PAUSED"
+    heal = f"self-heals in {_human_secs(doc['self_heals_in_s'])}" if "self_heals_in_s" in doc else doc["self_heals"]
+    console.print(f"[yellow]{word}[/] -- {out._esc(heal)}")
+    console.print(f"  in-flight work: {out._esc(doc['in_flight_work'])}")
+    why = f": {doc['reason']}" if doc.get("reason") else ""
+    console.print(f"  by {out._esc(doc['by'] + why)}")
 
 
 def cmd_bifrost_resume(args):
