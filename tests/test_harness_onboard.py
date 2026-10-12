@@ -159,6 +159,8 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(core.paths, "cli_command", lambda: "AUR")
     monkeypatch.setattr(onboard, "_launcher", lambda: "PYL")
     monkeypatch.setattr(onboard, "detect_harnesses", list)
+    # The operator step reads git config; keep it off the recorded calls and off this machine.
+    monkeypatch.setattr(onboard, "_git_user", lambda cwd: "Test Op <op@example.com>")
     fake = FakeInst(tmp_path)
     monkeypatch.setattr(onboard, "inst", fake)
     calls: list[Any] = []

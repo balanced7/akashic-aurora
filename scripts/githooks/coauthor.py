@@ -37,12 +37,25 @@ import re
 import subprocess
 from pathlib import Path
 
-# The operator's GitHub-linked address. A noreply address is deliberate: it is the one
-# GitHub resolves without exposing a real mailbox.
+# The default operator's GitHub-linked address. A noreply address is deliberate: it is the one
+# GitHub resolves without exposing a real mailbox. The live value comes from
+# core.comm.seat_identity.operator_identity(), so a machine whose operator is someone else
+# credits that person, not this default.
 OPERATOR = "balanced7 <61030820+balanced7@users.noreply.github.com>"
 OPERATOR_EMAIL = "61030820+balanced7@users.noreply.github.com"
 
 _TRAILER_RE = re.compile(r"^\s*co-authored-by:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
+
+
+def operator() -> tuple[str, str]:
+    """(trailer value, email) for this machine's operator; the defaults when unresolvable."""
+    try:
+        from core.comm.seat_identity import operator_identity
+
+        name, email = operator_identity()
+        return f"{name} <{email}>", email
+    except Exception:
+        return OPERATOR, OPERATOR_EMAIL
 
 
 def author_email(run=subprocess.run) -> str:
@@ -62,9 +75,10 @@ def needs_credit(text: str, email: str) -> bool:
     co-author line already names his address -- the hook must be idempotent across amends
     and rebases or a message grows a trailer per attempt.
     """
-    if not email or email == OPERATOR_EMAIL.lower():
+    op_email = operator()[1].lower()
+    if not email or email == op_email:
         return False
-    return all(OPERATOR_EMAIL.lower() not in existing.lower() for existing in _TRAILER_RE.findall(text))
+    return all(op_email not in existing.lower() for existing in _TRAILER_RE.findall(text))
 
 
 def ensure_operator_coauthor(msg_path, *, run=subprocess.run) -> str | None:
@@ -87,7 +101,7 @@ def ensure_operator_coauthor(msg_path, *, run=subprocess.run) -> str | None:
             joined += "\n"
         if not joined.rstrip("\n").endswith(">"):
             joined += "\n"  # a blank line before a trailer block
-        joined += f"Co-authored-by: {OPERATOR}\n"
+        joined += f"Co-authored-by: {operator()[0]}\n"
         p.write_text(joined + "".join(comments), encoding="utf-8")
         return "commit-msg: credited the operator as co-author (t384 keeps the seat as author)"
     except Exception:

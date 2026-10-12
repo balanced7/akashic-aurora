@@ -66,6 +66,59 @@ class Asker:
         return self.ask(question, "y" if default else "n", ("y", "n")) == "y"
 
 
+def _git_user(cwd: Path) -> str:
+    """'Name <email>' from git config as seen from cwd, or '' when either part is unset."""
+    vals = []
+    for key in ("user.name", "user.email"):
+        try:
+            r = subprocess.run(["git", "-C", str(cwd), "config", key], capture_output=True, text=True, timeout=10)
+            vals.append(r.stdout.strip())
+        except Exception:
+            vals.append("")
+    return f"{vals[0]} <{vals[1]}>" if all(vals) else ""
+
+
+def _parse_ident(text: str) -> tuple[str, str] | None:
+    """'Name <email>' -> (name, email), or None when it is not that shape."""
+    text = (text or "").strip()
+    if not text.endswith(">") or "<" not in text:
+        return None
+    name, _, email = text[:-1].partition("<")
+    return (name.strip(), email.strip()) if name.strip() and email.strip() else None
+
+
+def _ask_operator(ask: Asker, here: Path, cli: str, dry: bool, flag: str | None) -> None:
+    """Record whose name goes on commits that agents make here.
+
+    Seats commit as the operator, never as themselves (core/comm/seat_identity.py), and the
+    pre-commit guard refuses a seat commit under any other name. Without this step the operator
+    is the built-in default, which names someone else on every clone but its author's.
+    """
+    from core.comm.seat_identity import operator_file, operator_identity, set_operator
+
+    current = "{} <{}>".format(*operator_identity())
+    default = flag or _git_user(here) or current
+    while True:
+        answer = ask.ask("whose name goes on commits agents make (Name <email>)?", default)
+        ident = _parse_ident(answer)
+        if ident:
+            break
+        if ask.assume_yes:
+            say("3/5", f"operator: {answer!r} is not 'Name <email>'; kept {current}")
+            return
+        print("        please answer as: Name <email>")
+    if "{} <{}>".format(*ident) == current and os.path.isfile(operator_file()):
+        say("3/5", f"operator already {current}")
+    elif dry:
+        say("3/5", f"operator would be {ident[0]} <{ident[1]}> in {operator_file()}")
+    else:
+        try:
+            say("3/5", f"operator {ident[0]} <{ident[1]}> recorded in {set_operator(*ident)}")
+        except ValueError as e:
+            say("3/5", f"operator not recorded: {e}")
+    later(f'{cli} setup --operator "Name <email>"   # change whose name goes on agent commits')
+
+
 def detect_harnesses() -> list[str]:
     home = Path(os.path.expanduser("~"))
     found = []
@@ -203,6 +256,7 @@ def run(args) -> int:
         later(f'edit "env": {{"AKASHIC_AGENT_ID": "..."}} in {claude_target}')
     else:
         say("3/5", "agent id: skipped (no Claude hooks set up); set AKASHIC_AGENT_ID in your harness env")
+    _ask_operator(ask, here, cli, dry, getattr(args, "operator", None))
 
     # 4. MCP door --------------------------------------------------------------------------
     mcp = _mcp_command(repo)
