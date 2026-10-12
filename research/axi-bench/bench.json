@@ -1,0 +1,224 @@
+{
+  "verb": "bench",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 14,
+    "stdout_chars": 185,
+    "stdout_lines": 4,
+    "cost_usd": 0.0197,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many asks are parked on bench's triage bench?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message parked? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What must be added to this command for park to work? Answer in a few words.",
+        "expected": [
+          "stream id"
+        ],
+        "answers": [
+          "An inbox stream id",
+          "An inbox stream id",
+          "An inbox stream id",
+          "an inbox stream id",
+          "An inbox stream id"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a parked ask with that id found on the bench? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "bench",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "# triage bench: bench -- empty (fresh mail flows)\n"
+      },
+      "park_missing": {
+        "argv": [
+          "bench",
+          "bench",
+          "park",
+          "9999999999999-0"
+        ],
+        "exit": 1,
+        "stdout": "[bench] no message 9999999999999-0 on bench's inbox streams\n"
+      },
+      "park_noref": {
+        "argv": [
+          "bench",
+          "bench",
+          "park"
+        ],
+        "exit": 2,
+        "stdout": "[bench] park needs an inbox stream id\n"
+      },
+      "unpark_missing": {
+        "argv": [
+          "bench",
+          "bench",
+          "unpark",
+          "abcdef123456"
+        ],
+        "exit": 1,
+        "stdout": "[bench] no parked entry abcdef123456\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 47,
+    "stdout_chars": 458,
+    "stdout_lines": 18,
+    "cost_usd": 0.0206,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many asks are parked on bench's triage bench?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message parked? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What must be added to this command for park to work? Answer in a few words.",
+        "expected": [
+          "stream id"
+        ],
+        "answers": [
+          "An inbox stream id",
+          "An inbox stream id",
+          "An inbox stream id",
+          "An inbox stream id",
+          "An inbox stream id"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a parked ask with that id found on the bench? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "NO"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "bench",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "agent: bench\nparked: 0\nbench: []\nhelp[1]:\n  uv run agent_cli.py bifrost-sync bench\n"
+      },
+      "park_missing": {
+        "argv": [
+          "bench",
+          "bench",
+          "park",
+          "9999999999999-0"
+        ],
+        "exit": 1,
+        "stdout": "error: no message 9999999999999-0 on bench's inbox streams\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py mailbox bench\n"
+      },
+      "park_noref": {
+        "argv": [
+          "bench",
+          "bench",
+          "park"
+        ],
+        "exit": 2,
+        "stdout": "error: park needs an inbox stream id\ncode: USAGE\nhelp[2]:\n  uv run agent_cli.py mailbox bench\n  uv run agent_cli.py bench bench park <stream-id> --reason stale\n"
+      },
+      "unpark_missing": {
+        "argv": [
+          "bench",
+          "bench",
+          "unpark",
+          "abcdef123456"
+        ],
+        "exit": 1,
+        "stdout": "error: no parked entry abcdef123456\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py bench bench\n"
+      }
+    }
+  }
+}

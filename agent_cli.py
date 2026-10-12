@@ -14490,61 +14490,96 @@ def cmd_bench(args):
     """Scry-to-bottom by hand (S0-alpha): the operator's park/unpark until S0-beta wires it
     into the consume loop behind the Anvil's fence. Park pulls the message from the agent's
     inbox stream BY ID (full fidelity), benches it durably, notifies the sender."""
+    from core.axi import out
     from core.comm import triage_park
 
+    cli, me = _cli(), args.agent_id
     if args.action == "list":
-        print(triage_park.render(args.agent_id))
-        return 0
-    by = args.by or args.agent_id
+        bench = triage_park.list_parked(me)
+        rows = [
+            {
+                "parked_id": e["parked_id"],
+                "kind": e.get("msg", {}).get("kind", "?"),
+                "from": e.get("msg", {}).get("frm", "?"),
+                "reason": e.get("reason", "?"),
+                "text": out.truncate(str(e.get("msg", {}).get("content", "")), 300)[0],
+            }
+            for e in bench
+        ]
+        # Bottomed, never dropped: the count is the answer, and zero means fresh mail flows.
+        doc = {"agent": me, "parked": len(rows), "bench": rows}
+        if rows:
+            pid = rows[0]["parked_id"] if len(rows) == 1 else "<parked_id>"
+            hints = [f"{cli} bench {me} unpark {pid}"]
+        else:
+            hints = [f"{cli} bifrost-sync {me}"]
+        return out.emit(doc, hints=hints, human=_human_bench, title=f"Triage bench · {me}")
+    by = args.by or me
     if args.action == "park":
         if not args.ref:
-            print("[bench] park needs an inbox stream id")
-            return 2
+            return out.fail(
+                "park needs an inbox stream id",
+                code="USAGE",
+                hints=[f"{cli} mailbox {me}", f"{cli} bench {me} park <stream-id> --reason stale"],
+                exit_code=out.EXIT_USAGE,
+            )
         from core.comm.bus import Bus
 
-        c = Bus(args.agent_id)._client
+        c = Bus(me)._client
         if c is None:
-            print("[bench] bus offline")
-            return 2
+            return out.fail("bus offline", code="BUS_OFFLINE", exit_code=2)
         ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
         msg = None
-        for key in (f"{ns}:work:inbox:{args.agent_id}", f"{ns}:inbox:{args.agent_id}"):
+        for key in (f"{ns}:work:inbox:{me}", f"{ns}:inbox:{me}"):
             got = c.xrange(key, min=args.ref, max=args.ref)
             if got:
                 sid, f = got[0]
                 msg = {
                     "id": str(sid),
                     "frm": str(f.get("frm", "")),
-                    "to": args.agent_id,
+                    "to": me,
                     "kind": str(f.get("kind", "")),
                     "content": _capture_decode(f.get("content") or f.get("text") or ""),
                     "ts": str(f.get("ts", "")),
                 }
                 break
         if msg is None:
-            print(f"[bench] no message {args.ref} on {args.agent_id}'s inbox streams")
-            return 1
-        e = triage_park.park(args.agent_id, msg, reason=args.reason, by=by)
-        print(
-            f"[bench] parked {args.ref} -> {e['parked_id']} ({args.reason}); sender "
-            f"{msg['frm'] or '?'} notified. Bottomed, not dropped."
-        )
-        return 0
+            return out.fail(
+                f"no message {args.ref} on {me}'s inbox streams", code="NOT_FOUND", hints=[f"{cli} mailbox {me}"]
+            )
+        e = triage_park.park(me, msg, reason=args.reason, by=by)
+        doc = {"parked": args.ref, "parked_id": e["parked_id"], "reason": args.reason, "by": by}
+        doc["sender"] = msg["frm"] or None
+        doc["sender_notified"] = bool(msg["frm"] and msg["frm"] != me)  # RB-29: never silent
+        return out.emit(doc, hints=[f"{cli} bench {me} unpark {e['parked_id']}"], title="Triage bench · parked")
     if args.action == "unpark":
-        e = triage_park.unpark(args.agent_id, args.ref)
+        if not args.ref:
+            return out.fail(
+                "unpark needs a parked_id", code="USAGE", hints=[f"{cli} bench {me}"], exit_code=out.EXIT_USAGE
+            )
+        e = triage_park.unpark(me, args.ref)
         if e is None:
-            print(f"[bench] no parked entry {args.ref}")
-            return 1
+            return out.fail(f"no parked entry {args.ref}", code="NOT_FOUND", hints=[f"{cli} bench {me}"])
         m = e["msg"]
-        print(
-            f"[bench] returned {e['parked_id']}: [{m.get('kind')}] from {m.get('frm')} -- "
-            f"re-process it now:\n{str(m.get('content', ''))[:400]}"
-        )
-        return 0
-    return 2
+        # The bench forgets what it returns, so the whole ask comes back: re-process it now.
+        doc = {"returned": e["parked_id"], "id": m.get("id"), "kind": m.get("kind"), "from": m.get("frm")}
+        doc["content"] = str(m.get("content", ""))
+        return out.emit(doc, title="Triage bench · returned")
+    return out.EXIT_USAGE
 
 
-# ---------------------------------------------------------------- T099 V0.1: kata (kimi's hunt B4)
+def _human_bench(console, doc):
+    """Human view of the triage bench: the count, then one table of what is parked and why."""
+    from core.axi import out
+
+    n = doc["parked"]
+    if not n:
+        console.print(f"[green]0 parked[/] [dim]-- fresh mail flows for {out._esc(doc['agent'])}[/]")
+        return
+    console.print(f"[yellow]{n} parked[/] [dim](bottomed, never dropped)[/]")
+    console.print(out.table(doc["bench"]))
+
+
 def _kata_check(steps):
     """Grammar-check every step against the door's OWN parser (parse-only; nothing executes).
     Returns (all_ok, [(ok, argv, error_line), ...]) -- the failing step is always NAMED."""

@@ -129,19 +129,3 @@ def unpark(agent: str, parked_id: str) -> dict[str, Any] | None:
             c.lrem(_key(agent), 1, raw)
             return e
     return None
-
-
-def render(agent: str) -> str:
-    bench = list_parked(agent)
-    if not bench:
-        return f"# triage bench: {agent} -- empty (fresh mail flows)"
-    rows = [f"# triage bench: {agent} -- {len(bench)} parked (bottomed, never dropped)"]
-    for e in bench:
-        m = e.get("msg", {})
-        rows.append(
-            f"  {e['parked_id']}  [{m.get('kind', '?')}] from {m.get('frm', '?')} "
-            f"({e.get('reason', '?')}, parked {e.get('parked_at', '?')})"
-        )
-        rows.append(f"      {str(m.get('content', ''))[:110]}")
-    rows.append(f"  return one: {_cli()} bench {agent} unpark <parked_id>")
-    return "\n".join(rows)
