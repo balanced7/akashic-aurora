@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 3 converted to agent and human output.
+121 verbs; 4 converted to agent and human output.
 
 ## `alias`
 
@@ -1011,7 +1011,10 @@ lessons[25]{name,category,status,lesson}:
 | | |
 |---|---|
 | Does | claim an advisory path-lock (C2) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 60% before, 96% after |
+| Output tokens | 18 before, 58 after (+222%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/lock.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1019,6 +1022,18 @@ lessons[25]{name,category,status,lesson}:
 | `<path>` | yes |   |   |
 | `--ttl` |   |   |   |
 | `--json` |   |   |   |
+
+Agent output of `aurora lock alice core/a.py --ttl 600` on the bench data:
+
+```text
+lock: acquired
+path: core/a.py
+agent: alice
+ttl_s: 600
+token: 2
+help[1]:
+  uv run agent_cli.py unlock alice core/a.py
+```
 
 ## `locks`
 

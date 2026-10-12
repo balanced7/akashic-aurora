@@ -1,0 +1,238 @@
+{
+  "verb": "lock",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.6,
+    "correct": 15,
+    "asked": 25,
+    "output_tokens": 18,
+    "stdout_chars": 197,
+    "stdout_lines": 3,
+    "cost_usd": 0.0266,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Did alice get the lock on core/a.py? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What token number does the lock carry?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "token 2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was this a brand-new lock, or a refresh of a lock alice already held? Answer new or refreshed.",
+        "expected": "refreshed",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which agent holds the lock on docs/x.md?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command releases this lock when alice is done? Give the command only.",
+        "expected": [
+          "unlock",
+          "alice",
+          "core/a.py"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "take": {
+        "argv": [
+          "lock",
+          "alice",
+          "core/a.py",
+          "--ttl",
+          "600"
+        ],
+        "exit": 0,
+        "stdout": "[lock] held: core/a.py  (you=alice, token 2)\n"
+      },
+      "again": {
+        "argv": [
+          "lock",
+          "alice",
+          "core/a.py",
+          "--ttl",
+          "300"
+        ],
+        "exit": 0,
+        "stdout": "[lock] held: core/a.py  (you=alice, token 2)\n"
+      },
+      "denied": {
+        "argv": [
+          "lock",
+          "alice",
+          "docs/x.md"
+        ],
+        "exit": 1,
+        "stdout": "[lock] DENIED: docs/x.md is held by bob (token 1). Edit a file you hold, or request a handoff via the bus.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 58,
+    "stdout_chars": 455,
+    "stdout_lines": 22,
+    "cost_usd": 0.0256,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Did alice get the lock on core/a.py? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What token number does the lock carry?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "token: 2",
+          "token: 2",
+          "",
+          "2"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Was this a brand-new lock, or a refresh of a lock alice already held? Answer new or refreshed.",
+        "expected": "refreshed",
+        "answers": [
+          "refreshed",
+          "refreshed",
+          "refreshed",
+          "refreshed",
+          "refreshed"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent holds the lock on docs/x.md?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command releases this lock when alice is done? Give the command only.",
+        "expected": [
+          "unlock",
+          "alice",
+          "core/a.py"
+        ],
+        "answers": [
+          "uv run agent_cli.py unlock alice core/a.py",
+          "uv run agent_cli.py unlock alice core/a.py",
+          "uv run agent_cli.py unlock alice core/a.py",
+          "uv run agent_cli.py unlock alice core/a.py",
+          "The output's help line gives the unlock command for this lock: `uv run agent_cli.py unlock alice core/a.py`"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "take": {
+        "argv": [
+          "lock",
+          "alice",
+          "core/a.py",
+          "--ttl",
+          "600"
+        ],
+        "exit": 0,
+        "stdout": "lock: acquired\npath: core/a.py\nagent: alice\nttl_s: 600\ntoken: 2\nhelp[1]:\n  uv run agent_cli.py unlock alice core/a.py\n"
+      },
+      "again": {
+        "argv": [
+          "lock",
+          "alice",
+          "core/a.py",
+          "--ttl",
+          "300"
+        ],
+        "exit": 0,
+        "stdout": "lock: refreshed\npath: core/a.py\nagent: alice\nttl_s: 300\ntoken: 2\nhelp[1]:\n  uv run agent_cli.py unlock alice core/a.py\n"
+      },
+      "denied": {
+        "argv": [
+          "lock",
+          "alice",
+          "docs/x.md"
+        ],
+        "exit": 1,
+        "stdout": "error: docs/x.md is held by bob\ncode: LOCK_HELD\npath: docs/x.md\nheld_by: bob\ntoken: 1\nhelp[2]:\n  uv run agent_cli.py locks alice\n  uv run agent_cli.py bifrost-send alice \"may I take docs/x.md?\" --to bob --kind request\n"
+      }
+    }
+  }
+}

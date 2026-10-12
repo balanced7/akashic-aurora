@@ -8415,23 +8415,63 @@ def cmd_seat_identity(args) -> int:
 def cmd_lock(args):
     """Claim an advisory path-lock so the peer sees you're editing it (C2). Re-claiming
     your own lock refreshes its TTL. Advisory: it coordinates, it does not OS-enforce."""
+    from core.axi import out
     from core.comm.locks import LockManager
 
-    res = LockManager(args.agent_id).acquire(args.path, ttl=args.ttl or 900)
+    mgr = LockManager(args.agent_id)
+    ttl = args.ttl or 900
+    # acquire() answers the same for a fresh claim and a refresh of your own lock; one read of
+    # the holder first lets the output say which it was (AXI asks a mutation to say whether it
+    # changed anything). Not on the --json path, whose bytes stay as they were.
+    before = None if args.json else mgr.holder(args.path)
+    res = mgr.acquire(args.path, ttl=ttl)
     if args.json:
         print(json.dumps(res, default=str))
         return 0 if res.get("ok") else 1
+    cli = _cli()
     if not res.get("online"):
-        print("[lock] bus OFFLINE (Redis down) -- no advisory locking available.")
-        return 1
-    if res.get("ok"):
-        print(f"[lock] held: {res['path']}  (you={args.agent_id}, token {res['token']})")
-        return 0
-    print(
-        f"[lock] DENIED: {res['path']} is held by {res['held_by']} (token {res['token']}). "
-        f"Edit a file you hold, or request a handoff via the bus."
+        return out.fail(
+            "bus offline (Redis down): no advisory locking available",
+            code="OFFLINE",
+            hints=[f"{cli} status"],
+        )
+    path = res["path"]
+    if not res.get("ok"):
+        holder = res.get("held_by")
+        return out.fail(
+            f"{path} is held by {holder}",
+            code="LOCK_HELD",
+            details={"path": path, "held_by": holder, "token": res.get("token")},
+            hints=[
+                f"{cli} locks {args.agent_id}",
+                f'{cli} bifrost-send {args.agent_id} "may I take {path}?" --to {holder} --kind request',
+            ],
+        )
+    refreshed = bool(before and before.get("agent") == args.agent_id)
+    doc = {
+        # "acquired", not "taken": a reader took "lock: taken" to mean someone else had it.
+        "lock": "refreshed" if refreshed else "acquired",
+        "path": path,
+        "agent": args.agent_id,
+        "ttl_s": ttl,
+        "token": res.get("token"),
+    }
+    return out.emit(
+        doc,
+        hints=[f"{cli} unlock {args.agent_id} {path}"],
+        human=_human_lock,
     )
-    return 1
+
+
+def _human_lock(console, doc):
+    """Human view of `lock`: one line -- what happened, the path, whose, and when it expires."""
+    from core.axi import out
+
+    verb = "refreshed your lock on" if doc["lock"] == "refreshed" else "locked"
+    console.print(
+        f"[green]✓[/] {verb} [bold]{out._esc(doc['path'])}[/] for {out._esc(doc['agent'])}"
+        f"  [dim]expires in {_human_secs(doc['ttl_s'])} · token {doc['token']}[/]"
+    )
 
 
 def cmd_unlock(args):
