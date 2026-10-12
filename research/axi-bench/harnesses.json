@@ -1,0 +1,186 @@
+{
+  "verb": "harnesses",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 3716,
+    "stdout_chars": 4717,
+    "stdout_lines": 51,
+    "cost_usd": 0.0265,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many tiers does the cursor harness automate?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent id does the deepseek-harness use?",
+        "expected": "dsh_agent",
+        "answers": [
+          "dsh_agent",
+          "dsh_agent",
+          "dsh_agent",
+          "dsh_agent",
+          "dsh_agent"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harnesses automate tier T5? List them separated by commas.",
+        "expected": [
+          "claude-code"
+        ],
+        "answers": [
+          "claude-code",
+          "claude-code",
+          "claude-code",
+          "claude-code",
+          "claude-code"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "In one word or hyphenated phrase, what is the cursor harness's status for tier T3?",
+        "expected": "one-beat-late",
+        "answers": [
+          "one-beat-late",
+          "one-beat-late",
+          "one-beat-late",
+          "one-beat-late",
+          "one-beat-late"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many harnesses are listed?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "matrix": {
+        "argv": [
+          "harnesses"
+        ],
+        "exit": 0,
+        "stdout": "# INTEGRATION TIERS  (T0 door .. T6 close; the story: docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md)\n\n## claude-code  (agent id: claude; 7/7 tiers automated)\n   adapters: agent/harness/hooks/claude_*.py (`agent_cli.py hooks install`: user or project scope, scope-guarded; check with `hooks status`)\n   + T0: yes -- shell (Bash/PowerShell) + ai_setup_mcp.py\n   + T1: yes -- .claude/settings.json env\n   + T2: yes -- SessionStart additionalContext (light whisper, tiered by cwd) (once installed: `hooks status`)\n   + T3: yes, AT the action -- PreToolUse can inject on allow (once installed: `hooks status`)\n   + T4: yes -- transcript-synthesized FAIL (PostToolUse never fires on failure) + PostToolUseFailure fast path; conservative _is_success\n   + T5: yes -- UserPromptSubmit injects plan-time recall + unread-bus line (once installed: `hooks status`)\n   + T6: yes -- SessionEnd/PreCompact -> chronicles/last-session-draft.md (once installed: `hooks status`)\n\n## deepseek-harness  (agent id: dsh_agent; 5/7 tiers automated)\n   adapters: out-of-tree dsh-posttool (cordis) plugin -> core/recall/actions.py::recall_context (importable contract)\n   + T0: yes -- exec proven: the dsh seat drives the house CLI (uv run agent_cli.py) and messages peers over the Bifrost bus\n   + T1: yes -- $DSH_HOME/.env user-env layer (dsh-launch-environment) stamps AKASHIC_AGENT_ID=dsh_agent + AKASHIC_REPO; verified live 2026-08-24: child processes inherit the stamp across a host restart\n   - T2: pending -- session/created -> boot-whisper listener wired; first live observation rides the next fresh session (plugin mounted mid-session 2026-08-24)\n   + T3: one-beat-late -- post-execute recall attaches via decision.additionalContexts (the harness contract, pinned in tests/test_dsh_contract.py); recall-at contexts observed arriving at the next step in live sessions 2026-08-24 (they ride the loop's active batch, same shape as cursor's tier)\n   + T4: yes -- tools/post-execute carries a direct fail signal; outcome-credit wired. The stale-generation doubt is RETIRED: post-reboot 2026-08-24 the plugin writes c:-normalized targets (stage file evidence), so the V27 join keys surface and resolve identically; the first real flip-credit is the remaining unobserved event\n   - T5: pending -- trigger observed live 2026-08-24 (user/message captured, planPending set post-mount) and the plan-recall door verified end-to-end; the assemble-time injection itself is still unobserved\n   + T6: yes -- session/disposed+flush fire presence-offline + the DSH-native session-end shim (zstd log -> last-session-draft + session_signals); shim dogfooded end-to-end 2026-08-24, first live fire rides the next session close\n\n## cursor  (agent id: composer; 6/7 tiers automated)\n   adapters: agent/harness/hooks/cursor_*.py (project .cursor/hooks.json)\n   + T0: yes -- Shell tool + scripts/static/mcp/ (cursor MCP config)\n   + T1: yes -- sessionStart hook returns env (propagates all session hooks) + MCP config env\n   + T2: yes -- sessionStart additional_context\n   + T3: one-beat-late -- preToolUse is deny-only (cannot inject on allow); recall rides postToolUse/postToolUseFailure additional_context\n   + T4: yes, DIRECT -- postToolUseFailure is a real fail event (no transcript synthesis needed)\n   - T5: unavailable -- beforeSubmitPrompt cannot inject context\n   + T6: yes -- sessionEnd -> chronicles/last-session-draft.md\n\n## codex-desktop  (agent id: sol; 2/7 tiers automated)\n   adapters: agent/harness/codex_app_server.py (owned app-server child) + the claude_* hooks via .codex/hooks.json (`agent_cli.py hooks install --harness codex`)\n   + T0: yes -- shell + ai_setup_mcp.py (.codex/config.toml)\n   + T1: yes -- .codex/config.toml env (AKASHIC_AGENT_ID)\n   - T2: pending -- SessionStart wiring declared; no live receipt yet (docs/CODEX_INTEGRATION.md)\n   - T3: pending -- PreToolUse runs the claude_* adapter; Codex payload parity unobserved\n   - T4: pending -- PostToolUse runs the claude_* adapter; Codex payload parity unobserved\n   - T5: pending -- UserPromptSubmit not yet observed live\n   - T6: pending -- no Codex transcript parser; close/draft unbuilt\n\n## bare-cli  (agent id: <set AKASHIC_AGENT_ID>; 1/7 tiers automated)\n   adapters: none -- the AGENTS.md contract, followed manually\n   + T0: yes -- uv run agent_cli.py (the one door)\n   - T1: manual -- export AKASHIC_AGENT_ID before working\n   - T2: manual -- uv run agent_cli.py boot <id> --task ...\n   - T3: manual -- uv run agent_cli.py recall-at --path/--command before acting\n   - T4: manual -- uv run agent_cli.py learn / recall-feedback\n   - T5: unavailable -- no per-prompt seam exists\n   - T6: manual -- uv run agent_cli.py wrap --commit\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 2006,
+    "stdout_chars": 602,
+    "stdout_lines": 11,
+    "cost_usd": 0.0257,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many tiers does the cursor harness automate?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent id does the deepseek-harness use?",
+        "expected": "dsh_agent",
+        "answers": [
+          "dsh_agent",
+          "dsh_agent",
+          "dsh_agent",
+          "dsh_agent",
+          "dsh_agent"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harnesses automate tier T5? List them separated by commas.",
+        "expected": [
+          "claude-code"
+        ],
+        "answers": [
+          "claude-code",
+          "claude-code",
+          "claude-code",
+          "claude-code",
+          "claude-code"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "In one word or hyphenated phrase, what is the cursor harness's status for tier T3?",
+        "expected": "one-beat-late",
+        "answers": [
+          "one-beat-late",
+          "one-beat-late",
+          "one-beat-late",
+          "one-beat-late",
+          "one-beat-late"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many harnesses are listed?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "matrix": {
+        "argv": [
+          "harnesses"
+        ],
+        "exit": 0,
+        "stdout": "tiers: 7\nharnesses[5]{harness,agent_id,automated,T0,T1,T2,T3,T4,T5,T6}:\n  claude-code,claude,7,yes,yes,yes,\"yes, AT the action\",yes,yes,yes\n  deepseek-harness,dsh_agent,5,yes,yes,pending,one-beat-late,yes,pending,yes\n  cursor,composer,6,yes,yes,yes,one-beat-late,\"yes, DIRECT\",unavailable,yes\n  codex-desktop,sol,2,yes,yes,pending,pending,pending,pending,pending\n  bare-cli,null,1,yes,manual,manual,manual,manual,unavailable,manual\nstory: docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md\nhelp[2]:\n  uv run agent_cli.py harnesses --json\n  uv run agent_cli.py hooks status\n"
+      }
+    }
+  }
+}

@@ -2016,24 +2016,78 @@ def cmd_harnesses(args):
     docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md). An honest 'unavailable' beats a pretended capability -- plan
     around what your runtime does, not what you wish it did."""
     from agent.harness.registry import HARNESSES, TIERS, supported
+    from core.axi import out
 
     if args.json:
         print(json.dumps({"tiers": list(TIERS), "harnesses": HARNESSES}, indent=2))
         return 0
-    print(
-        "# INTEGRATION TIERS  (T0 door .. T6 close; the story: docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md)"
-    )
+    # One row per harness, one cell per tier: the cell is the status word that leads each
+    # capability string ("yes", "one-beat-late", "pending", ...); the prose after " -- " is the
+    # how, which --json carries in full. `automated` is supported()'s count, so a reader never
+    # has to decide which words count as automation.
+    rows = []
     for name, spec in HARNESSES.items():
-        auto = sum(1 for t in TIERS if supported(name, t))
-        print(
-            f"\n## {name}  (agent id: {spec.get('default_agent_id') or '<set AKASHIC_AGENT_ID>'}; "
-            f"{auto}/{len(TIERS)} tiers automated)"
-        )
-        print(f"   adapters: {spec.get('adapters')}")
+        row = {
+            "harness": name,
+            "agent_id": spec.get("default_agent_id") or None,
+            "automated": sum(1 for t in TIERS if supported(name, t)),
+        }
         for t in TIERS:
-            mark = "+" if supported(name, t) else "-"
-            print(f"   {mark} {t}: {spec['tiers'][t]}")
-    return 0
+            row[t] = str(spec["tiers"][t]).split(" -- ")[0].strip()
+        rows.append(row)
+    doc = {"tiers": len(TIERS), "harnesses": rows, "story": _HARNESS_STORY}
+    return out.emit(
+        doc,
+        hints=[f"{_cli()} harnesses --json", f"{_cli()} hooks status"],
+        human=_human_harnesses(supported),
+        title=f"Integration tiers · {len(rows)} harnesses",
+    )
+
+
+_HARNESS_STORY = "docs/library/design/20260709_integration-tiers-what-each-harness-actu_38278c.md"
+
+
+def _human_harnesses(supported):
+    """Human view of `harnesses`: the matrix as one table, automated tiers green, pending and
+    one-beat-late yellow, manual dim, unavailable red."""
+
+    def render(console, doc):
+        from rich import box
+        from rich.table import Table
+
+        from core.axi import out
+
+        tiers = [k for k in doc["harnesses"][0] if k.startswith("T")] if doc["harnesses"] else []
+        t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+        t.add_column("harness", no_wrap=True)
+        t.add_column("agent id", no_wrap=True)
+        t.add_column("auto", no_wrap=True, justify="right")
+        for c in tiers:
+            t.add_column(c, no_wrap=True, justify="center")
+        for r in doc["harnesses"]:
+            cells = []
+            for tier in tiers:
+                low = r[tier].lower()
+                # One mark per cell so seven tiers fit a terminal; the legend spells them out.
+                if low.startswith(("unavailable", "no ")):
+                    cells.append("[red]✗[/]")
+                elif low.startswith("manual"):
+                    cells.append("[dim]m[/]")
+                elif not supported(r["harness"], tier):
+                    cells.append("[yellow]?[/]")
+                elif low.startswith("one-beat-late"):
+                    cells.append("[yellow]~[/]")
+                else:
+                    cells.append("[green]✓[/]")
+            n = r["automated"]
+            ratio = f"[{'green' if n == len(tiers) else 'yellow' if n > 1 else 'red'}]{n}/{len(tiers)}[/]"
+            t.add_row(out._esc(r["harness"]), out._esc(r["agent_id"] or "—"), ratio, *cells)
+        console.print(t)
+        console.print("[dim]✓ automated   ~ automated, one beat late   ? declared, not wired yet[/]")
+        console.print("[dim]m the agent does it by hand   ✗ the harness cannot[/]")
+        console.print(f"[dim]T0 door .. T6 close; what each tier means: {out._esc(doc['story'])}[/]")
+
+    return render
 
 
 # --------------------------------------------------------------------- injections
