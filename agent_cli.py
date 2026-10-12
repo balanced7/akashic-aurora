@@ -9589,17 +9589,22 @@ def cmd_bifrost_drain(args):
     """Request a runner's graceful exit (finish current message -> release lock -> exit 0).
     TTL'd (control.DRAIN_TTL_S); the runner honors it at its next loop top. Relaunch after
     it lands -- no TaskStop tree-kill ghosts, no thrown-away in-flight context."""
+    from core.axi import out
     from core.comm import control
 
     ok = control.drain(args.to, by=args.agent_id, reason=args.reason or "")
-    if ok:
-        print(
-            f"[drain] requested for {args.to} (self-clears in {control.DRAIN_TTL_S}s if "
-            f"unhonored) -- the runner exits clean at its next loop top; relaunch when it lands"
-        )
-        return 0
-    print("[drain] bus OFFLINE -- not requested")
-    return 1
+    if not ok:
+        return out.fail("bus OFFLINE -- drain not requested", code="BUS_OFFLINE", details={"requested": False})
+    doc = {
+        "status": "requested",
+        "runner": args.to,
+        "clears_in_s": control.DRAIN_TTL_S,  # self-clears if the runner never honors it
+        "runner_will": "finish the message in hand, release its lock, exit 0",
+        "after_exit": "relaunch it",
+    }
+    if args.reason:
+        doc["reason"] = args.reason
+    return out.emit(doc, title="Drain")  # the relaunch is the caller's own command: no hint to guess
 
 
 def cmd_bifrost_pause(args):

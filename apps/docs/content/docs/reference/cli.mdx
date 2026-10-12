@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 32 converted to agent and human output.
+121 verbs; 33 converted to agent and human output.
 
 ## `alias`
 
@@ -161,13 +161,27 @@ help[1]:
 | | |
 |---|---|
 | Does | request a runner's GRACEFUL exit: finish current message -&gt; release lock -&gt; exit 0 (the TaskStop restart-tax killer) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 46 before, 62 after (+35%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/bifrost-drain.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` | yes |   | you (the requester) |
 | `--to` | yes |   | the runner agent to drain (e.g. deepseek) |
 | `--reason` |   |   | why (rides the runner's exit line) |
+
+Agent output of `aurora bifrost-drain claude --to deepseek --reason new code landed` on the bench data:
+
+```text
+status: requested
+runner: deepseek
+clears_in_s: 300
+runner_will: "finish the message in hand, release its lock, exit 0"
+after_exit: relaunch it
+reason: new code landed
+```
 
 ## `bifrost-fetch`
 

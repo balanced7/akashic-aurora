@@ -1,0 +1,172 @@
+{
+  "verb": "bifrost-drain",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 46,
+    "stdout_chars": 137,
+    "stdout_lines": 1,
+    "cost_usd": 0.019,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Which runner was asked to drain?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "After how many seconds does the request clear itself if the runner ignores it?",
+        "expected": 300,
+        "answers": [
+          "300",
+          "300",
+          "300",
+          "300",
+          "300"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the runner abandon the message it is working on? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What should be done once the runner has exited? Answer with one verb.",
+        "expected": [
+          "relaunch"
+        ],
+        "answers": [
+          "Relaunch",
+          "Relaunch",
+          "relaunch",
+          "relaunch",
+          "relaunch"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "drain": {
+        "argv": [
+          "bifrost-drain",
+          "claude",
+          "--to",
+          "deepseek",
+          "--reason",
+          "new code landed"
+        ],
+        "exit": 0,
+        "stdout": "[drain] requested for deepseek (self-clears in 300s if unhonored) -- the runner exits clean at its next loop top; relaunch when it lands\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 62,
+    "stdout_chars": 168,
+    "stdout_lines": 6,
+    "cost_usd": 0.0167,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Which runner was asked to drain?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "After how many seconds does the request clear itself if the runner ignores it?",
+        "expected": 300,
+        "answers": [
+          "300",
+          "300",
+          "300",
+          "300",
+          "300"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the runner abandon the message it is working on? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What should be done once the runner has exited? Answer with one verb.",
+        "expected": [
+          "relaunch"
+        ],
+        "answers": [
+          "relaunch",
+          "relaunch",
+          "Relaunch",
+          "relaunch",
+          "after_exit field says \"relaunch it\", so the answer is:\n\nrelaunch"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "drain": {
+        "argv": [
+          "bifrost-drain",
+          "claude",
+          "--to",
+          "deepseek",
+          "--reason",
+          "new code landed"
+        ],
+        "exit": 0,
+        "stdout": "status: requested\nrunner: deepseek\nclears_in_s: 300\nrunner_will: \"finish the message in hand, release its lock, exit 0\"\nafter_exit: relaunch it\nreason: new code landed\n"
+      }
+    }
+  }
+}
