@@ -13,10 +13,6 @@ from typing import Any
 from core.axi import out
 
 
-def _print(obj: Any, as_json: bool, text: str) -> None:
-    print(json.dumps(obj, indent=1, default=str) if as_json else text)
-
-
 def _json(obj: Any) -> None:
     """The --json output, byte for byte what it always was."""
     print(json.dumps(obj, indent=1, default=str))
@@ -874,35 +870,68 @@ def compress_main(args) -> int:
 
     from core.metaharness import compress, replay
 
-    a = args.action
+    a, cli = args.action, _cli()
     if a == "pieces":
         root = Path(args.root) if args.root else compress.ROOT_DEFAULT
         rows = compress.pieces(root)
-        _print(rows, args.json, "\n".join(f"  {p['id']:<56} group={p['group']}" for p in rows) or "no pieces found")
-        return 0
+        if args.json:
+            _json(rows)
+            return 0
+        by_kind: dict[str, int] = {}
+        for p in rows:
+            by_kind[p["kind"]] = by_kind.get(p["kind"], 0) + 1
+        # The id already names the file or section; `group` (what switches together) only
+        # differs from it for skills and hooks, so it stays in --json.
+        table = [{"id": p["id"], "kind": p["kind"]} for p in rows]
+        if not table:  # AXI section 5: a tree with no switchable pieces is said outright
+            return out.emit({"root": str(root), "total": 0, "pieces": []}, title="Harness pieces")
+        return out.emit(
+            {"root": str(root), "total": len(table), "by_kind": by_kind, "pieces": table},
+            hints=[f"{cli} compress telemetry --candidate baseline --scenario <id>"],
+            title="Harness pieces",
+        )
     if a == "telemetry":
         if not (args.candidate and args.scenario):
-            print("ERROR: `compress telemetry` needs --candidate and --scenario ...")
-            return 2
+            return _usage(
+                "`compress telemetry` needs --candidate and --scenario ...",
+                f"{cli} compress telemetry --candidate {args.candidate or 'baseline'} --scenario <id>",
+            )
         root = Path(args.root) if args.root else compress.ROOT_DEFAULT
         items = compress.pieces(root)
         runs = [rd for s in args.scenario for rd in replay.runs_for(args.candidate, s)]
         uses = compress.telemetry(runs, items)
-        _print(
-            uses,
-            args.json,
-            "\n".join(f"  {k:<56} {v}" for k, v in sorted(uses.items(), key=lambda kv: kv[1]))
-            + f"\n({len(runs)} runs read)",
-        )
-        return 0
+        if args.json:
+            _json(uses)
+            return 0
+        # Least used first: a piece no run ever used is a drop candidate at no cost.
+        table = [{"piece": k, "uses": v} for k, v in sorted(uses.items(), key=lambda kv: kv[1])]
+        doc = {
+            "candidate": args.candidate,
+            "runs_read": len(runs),
+            "pieces": len(table),
+            "unused": sum(1 for r in table if not r["uses"]),
+            "uses": table,
+        }
+        if not runs:  # zero uses mean nothing when no run was read: say how to get runs instead
+            scen = " ".join(f"--scenario {s}" for s in args.scenario)
+            return out.emit(
+                {k: v for k, v in doc.items() if k not in ("unused", "uses")},
+                hints=[f"{cli} replay run --candidate {args.candidate} {scen} --budget-usd 2"],
+                title="Piece usage",
+            )
+        return out.emit(doc, title="Piece usage")
     if a == "run":
         if not (args.candidate and args.scenario and args.max_runs):
-            print("ERROR: `compress run` needs --candidate, --scenario ... and --max-runs (real runs cost money)")
-            return 2
+            return _usage(
+                "`compress run` needs --candidate, --scenario ... and --max-runs (real runs cost money)",
+                f"{cli} compress run --candidate {args.candidate or 'baseline'} --scenario <id> --max-runs 20",
+            )
         res = compress.run_compression(
             args.candidate, args.scenario, repo=compress.ROOT_DEFAULT, max_runs=args.max_runs, trials=args.trials
         )
-        _print(res, args.json, json.dumps(res, indent=1))
+        if args.json:
+            _json(res)
+            return 0 if res.get("built") else 1
+        out.emit(res, title="Harness compression")
         return 0 if res.get("built") else 1
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+    return _usage(f"unknown action {a!r}", f"{cli} compress --help")

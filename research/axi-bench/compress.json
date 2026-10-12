@@ -1,0 +1,210 @@
+{
+  "verb": "compress",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 811,
+    "stdout_chars": 3281,
+    "stdout_lines": 42,
+    "cost_usd": 0.0204,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many switchable harness pieces are there in total?",
+        "expected": 20,
+        "answers": [
+          "20",
+          "20",
+          "20",
+          "20",
+          "20"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of the pieces are skills?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many replay runs were read?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this compress run command? Give the flag only.",
+        "expected": "--max-runs",
+        "answers": [
+          "--max-runs",
+          "--max-runs",
+          "--max-runs",
+          "--max-runs",
+          "--max-runs"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "pieces": {
+        "argv": [
+          "compress",
+          "pieces"
+        ],
+        "exit": 0,
+        "stdout": "  section:AGENTS.md#at-the-start-of-your-task-run-this-and-r group=AGENTS.md#at-the-start-of-your-task-run-this-and-r\n  section:AGENTS.md#when-you-learn-something-worth-keeping-r group=AGENTS.md#when-you-learn-something-worth-keeping-r\n  section:AGENTS.md#to-search-memory-mid-task              group=AGENTS.md#to-search-memory-mid-task\n  section:AGENTS.md#before-you-edit-a-file-or-run-a-command- group=AGENTS.md#before-you-edit-a-file-or-run-a-command-\n  section:AGENTS.md#who-does-what-no-fixed-split           group=AGENTS.md#who-does-what-no-fixed-split\n  section:AGENTS.md#bifrost-live-agent-mail-durable-salient- group=AGENTS.md#bifrost-live-agent-mail-durable-salient-\n  section:AGENTS.md#session-hygiene-don-t-burn-tokens-on-his group=AGENTS.md#session-hygiene-don-t-burn-tokens-on-his\n  section:AGENTS.md#reporting-your-work-communication-contra group=AGENTS.md#reporting-your-work-communication-contra\n  section:AGENTS.md#trial-mode-sandbox-recommended-for-your- group=AGENTS.md#trial-mode-sandbox-recommended-for-your-\n  section:AGENTS.md#details-optional                       group=AGENTS.md#details-optional\n  section:AGENTS.md#if-a-command-errors                    group=AGENTS.md#if-a-command-errors\n  section:AGENTS.md#which-command-for-what-when-more-than-on group=AGENTS.md#which-command-for-what-when-more-than-on\n  skill:akashic-memory                                     group=skills\n  skill:plan-with-the-corpus                               group=skills\n  skill:root-cause-before-fixes                            group=skills\n  skill:shader-craft                                       group=skills\n  skill:verified-done                                      group=skills\n  hook:PostToolUse:claude_posttooluse.py                   group=hooks:PostToolUse\n  hook:PreToolUse:claude_trace.py                          group=hooks:PreToolUse\n  hook:Stop:claude_stop.py                                 group=hooks:Stop\n"
+      },
+      "telemetry": {
+        "argv": [
+          "compress",
+          "telemetry",
+          "--candidate",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 0,
+        "stdout": "  section:AGENTS.md#at-the-start-of-your-task-run-this-and-r 0\n  section:AGENTS.md#when-you-learn-something-worth-keeping-r 0\n  section:AGENTS.md#to-search-memory-mid-task              0\n  section:AGENTS.md#before-you-edit-a-file-or-run-a-command- 0\n  section:AGENTS.md#who-does-what-no-fixed-split           0\n  section:AGENTS.md#bifrost-live-agent-mail-durable-salient- 0\n  section:AGENTS.md#session-hygiene-don-t-burn-tokens-on-his 0\n  section:AGENTS.md#reporting-your-work-communication-contra 0\n  section:AGENTS.md#trial-mode-sandbox-recommended-for-your- 0\n  section:AGENTS.md#details-optional                       0\n  section:AGENTS.md#if-a-command-errors                    0\n  section:AGENTS.md#which-command-for-what-when-more-than-on 0\n  skill:akashic-memory                                     0\n  skill:plan-with-the-corpus                               0\n  skill:root-cause-before-fixes                            0\n  skill:shader-craft                                       0\n  skill:verified-done                                      0\n  hook:PostToolUse:claude_posttooluse.py                   0\n  hook:PreToolUse:claude_trace.py                          0\n  hook:Stop:claude_stop.py                                 0\n(0 runs read)\n"
+      },
+      "run": {
+        "argv": [
+          "compress",
+          "run",
+          "--candidate",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: `compress run` needs --candidate, --scenario ... and --max-runs (real runs cost money)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 640,
+    "stdout_chars": 1669,
+    "stdout_lines": 38,
+    "cost_usd": 0.0194,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many switchable harness pieces are there in total?",
+        "expected": 20,
+        "answers": [
+          "20",
+          "20",
+          "20",
+          "20",
+          "20"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of the pieces are skills?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many replay runs were read?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "runs_read: 0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this compress run command? Give the flag only.",
+        "expected": "--max-runs",
+        "answers": [
+          "--max-runs",
+          "--max-runs",
+          "--max-runs",
+          "--max-runs",
+          "--max-runs"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "pieces": {
+        "argv": [
+          "compress",
+          "pieces"
+        ],
+        "exit": 0,
+        "stdout": "root: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a7f65ec701d4c3c3d\ntotal: 20\nby_kind:\n  section: 12\n  skill: 5\n  hook: 3\npieces[20]{id,kind}:\n  \"section:AGENTS.md#at-the-start-of-your-task-run-this-and-r\",section\n  \"section:AGENTS.md#when-you-learn-something-worth-keeping-r\",section\n  \"section:AGENTS.md#to-search-memory-mid-task\",section\n  \"section:AGENTS.md#before-you-edit-a-file-or-run-a-command-\",section\n  \"section:AGENTS.md#who-does-what-no-fixed-split\",section\n  \"section:AGENTS.md#bifrost-live-agent-mail-durable-salient-\",section\n  \"section:AGENTS.md#session-hygiene-don-t-burn-tokens-on-his\",section\n  \"section:AGENTS.md#reporting-your-work-communication-contra\",section\n  \"section:AGENTS.md#trial-mode-sandbox-recommended-for-your-\",section\n  \"section:AGENTS.md#details-optional\",section\n  \"section:AGENTS.md#if-a-command-errors\",section\n  \"section:AGENTS.md#which-command-for-what-when-more-than-on\",section\n  \"skill:akashic-memory\",skill\n  \"skill:plan-with-the-corpus\",skill\n  \"skill:root-cause-before-fixes\",skill\n  \"skill:shader-craft\",skill\n  \"skill:verified-done\",skill\n  \"hook:PostToolUse:claude_posttooluse.py\",hook\n  \"hook:PreToolUse:claude_trace.py\",hook\n  \"hook:Stop:claude_stop.py\",hook\nhelp[1]:\n  uv run agent_cli.py compress telemetry --candidate baseline --scenario <id>\n"
+      },
+      "telemetry": {
+        "argv": [
+          "compress",
+          "telemetry",
+          "--candidate",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 0,
+        "stdout": "candidate: baseline\nruns_read: 0\npieces: 20\nhelp[1]:\n  uv run agent_cli.py replay run --candidate baseline --scenario T1-abc --budget-usd 2\n"
+      },
+      "run": {
+        "argv": [
+          "compress",
+          "run",
+          "--candidate",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 2,
+        "stdout": "error: \"`compress run` needs --candidate, --scenario ... and --max-runs (real runs cost money)\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py compress run --candidate baseline --scenario <id> --max-runs 20\n"
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 93 converted to agent and human output.
+121 verbs; 94 converted to agent and human output.
 
 ## `alias`
 
@@ -637,7 +637,10 @@ help[1]:
 | | |
 |---|---|
 | Does | meta-harness compression (task 11): pieces, usage telemetry, staged search for the pieces that matter |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 811 before, 640 after (-21%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/compress.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -648,6 +651,36 @@ help[1]:
 | `--max-runs` |   |   | run: the task-run cap (required) |
 | `--trials` |   |   |   |
 | `--json` |   |   |   |
+
+Agent output of `aurora compress pieces` on the bench data:
+
+```text
+root: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a7f65ec701d4c3c3d
+total: 20
+by_kind:
+  section: 12
+  skill: 5
+  hook: 3
+pieces[20]{id,kind}:
+  "section:AGENTS.md#at-the-start-of-your-task-run-this-and-r",section
+  "section:AGENTS.md#when-you-learn-something-worth-keeping-r",section
+  "section:AGENTS.md#to-search-memory-mid-task",section
+  "section:AGENTS.md#before-you-edit-a-file-or-run-a-command-",section
+  "section:AGENTS.md#who-does-what-no-fixed-split",section
+  "section:AGENTS.md#bifrost-live-agent-mail-durable-salient-",section
+  "section:AGENTS.md#session-hygiene-don-t-burn-tokens-on-his",section
+  "section:AGENTS.md#reporting-your-work-communication-contra",section
+  "section:AGENTS.md#trial-mode-sandbox-recommended-for-your-",section
+  "section:AGENTS.md#details-optional",section
+  "section:AGENTS.md#if-a-command-errors",section
+  "section:AGENTS.md#which-command-for-what-when-more-than-on",section
+  "skill:akashic-memory",skill
+  "skill:plan-with-the-corpus",skill
+  "skill:root-cause-before-fixes",skill
+  "skill:shader-craft",skill
+  "skill:verified-done",skill
+... (5 more lines)
+```
 
 ## `console-log`
 
