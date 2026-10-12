@@ -3924,6 +3924,8 @@ try {
   const view = smoothCanvas(0, 0);
   if (view.ctx) {
     view.el.className = "smooth-preview";
+    // a copy of the render, not a render: lanes/alias_verify.mjs lists it apart instead of judging the page's fill by it
+    view.el.dataset.displayCopy = "";
     view.el.setAttribute("aria-hidden", "true");
     view.el.hidden = true;
     canvas.after(view.el);  // the stage's first canvas stays the WebGL one (deck.js and studio.js find it by querySelector)

@@ -10,6 +10,12 @@
 // WHAT IT REPORTS, per devicePixelRatio:
 //   - every canvas: backing store, CSS size, DPR, and the FILL RATIO backing / (css * dpr).
 //     1.0 means honest pixel-for-pixel rendering; below 1.0 means the page is drawing soft.
+//     A canvas that is not shown (display:none, or a 0 x 0 box) has fill null: it draws nothing on
+//     screen, soft or sharp. Before this rule a hidden canvas read fill 0 (its 0 x 0 box clamped the
+//     want to 1 pixel, its backing store was 0) and made min_fill a false "drawing soft".
+//   - a DISPLAY COPY (a canvas marked data-display-copy, like the piano's smooth preview) is listed
+//     apart, in display_copies, and kept out of min_fill: the page sizes it to the screen, so its
+//     fill says nothing about the render underneath it.
 //   - the WebGL context: whether `antialias` was GRANTED (a request is not a grant), MAX_SAMPLES,
 //     the unmasked renderer, and the drawing-buffer size the GPU actually got.
 //   - a frame-time distribution at rest (p50/p95/p99 + dropped-frame count against the refresh).
@@ -22,6 +28,10 @@
 //   node arsenal/lanes/alias_verify.mjs
 //   node arsenal/lanes/alias_verify.mjs --url http://127.0.0.1:8793/piano --dpr 1,1.5,2
 //   node arsenal/lanes/alias_verify.mjs --window 2560x1440 --json
+//   node arsenal/lanes/alias_verify.mjs --storage 'arsenal.piano.spectacle={"quality":"cinema"}'
+//     --storage key=value (repeatable) seeds the page's localStorage before its scripts run, on every
+//     load: the profile is fresh each run, so a setting the page keeps there (the piano's Detail:
+//     studio 1080p, ultra 1440p, cinema 4K) is otherwise always its default.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -40,6 +50,7 @@ const { values: opt } = parseArgs({
     window: { type: "string", default: "1920x1080" },
     frames: { type: "string", default: "180" },
     out: { type: "string" },
+    storage: { type: "string", multiple: true, default: [] },
     headless: { type: "boolean", default: true },
     json: { type: "boolean", default: false },
     "keep-profile": { type: "boolean", default: false },
@@ -50,6 +61,11 @@ const { values: opt } = parseArgs({
 const [winW, winH] = opt.window.split("x").map((n) => parseInt(n, 10));
 const DPRS = opt.dpr.split(",").map((s) => parseFloat(s.trim())).filter((n) => n > 0);
 const FRAMES = parseInt(opt.frames, 10);
+const STORAGE = opt.storage.map((kv) => {
+  const at = kv.indexOf("=");
+  if (at < 1) throw new Error(`--storage wants key=value, got ${JSON.stringify(kv)}`);
+  return [kv.slice(0, at), kv.slice(at + 1)];
+});
 const outDir = opt.out || join(REPO, "state", "arsenal", "receipts", "alias", `run-${stamp()}`);
 mkdirSync(outDir, { recursive: true });
 
@@ -124,7 +140,9 @@ const RESOLUTION_PROBE = `(() => {
     const cv = all[i];
     const rect = cv.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    const want = Math.max(1, Math.round(rect.width * dpr)) * Math.max(1, Math.round(rect.height * dpr));
+    // not shown: no pixels on screen to want, so no fill (the 1-pixel clamp below would read it as 0)
+    const shown = getComputedStyle(cv).display !== 'none' && rect.width > 0 && rect.height > 0;
+    const want = shown ? Math.max(1, Math.round(rect.width * dpr)) * Math.max(1, Math.round(rect.height * dpr)) : null;
     const got = cv.width * cv.height;
     let gl = null, attrs = null, maxSamples = null, renderer = null, drawing = null;
     try {
@@ -141,12 +159,14 @@ const RESOLUTION_PROBE = `(() => {
       index: i,
       id: cv.id || null,
       cls: cv.className || null,
+      displayCopy: cv.hasAttribute('data-display-copy'),
+      shown,
       backing: [cv.width, cv.height],
       css: [Math.round(rect.width * 100) / 100, Math.round(rect.height * 100) / 100],
       dpr,
       wantPixels: want,
       gotPixels: got,
-      fill: want > 0 ? Math.round((got / want) * 1000) / 1000 : null,
+      fill: shown ? Math.round((got / want) * 1000) / 1000 : null,
       antialias: attrs ? attrs.antialias : null,
       preserved: attrs ? attrs.preserveDrawingBuffer : null,
       alpha: attrs ? attrs.alpha : null,
@@ -233,6 +253,15 @@ async function run() {
 
     // Emulation has NO enable method (calling one is an "wasn't found" error, learned here).
     for (const domain of ["Page", "Runtime"]) await page.send(`${domain}.enable`);
+    if (STORAGE.length) {
+      // Before the page's own scripts on every load, and only on the measured page's origin (about:blank has no storage).
+      const origin = new URL(opt.url).origin;
+      await page.send("Page.addScriptToEvaluateOnNewDocument", {
+        source: `if (location.origin === ${JSON.stringify(origin)}) {
+          for (const [k, v] of ${JSON.stringify(STORAGE)}) { try { localStorage.setItem(k, v); } catch (e) {} }
+        }`,
+      });
+    }
 
     const rows = [];
     for (const dpr of DPRS) {
@@ -258,19 +287,29 @@ async function run() {
     }
 
     await page.send("Page.navigate", { url: "about:blank" }).catch(() => {});
-    const verdict = rows.map((r) => ({
-      dpr: r.dpr,
-      canvases: r.resolution.canvases.length,
-      min_fill: r.resolution.canvases.length ? Math.min(...r.resolution.canvases.map((c) => (c.fill === null ? 1 : c.fill))) : null,
-      antialias_granted: r.resolution.canvases.map((c) => c.antialias),
-      p95_ms: r.frame_stats.p95,
-    }));
+    // canvases, min_fill and antialias_granted are about the renders (display copies listed apart); min_fill is over the
+    // canvases on screen, and null when none is (never 1: an empty minimum is no evidence of honest pixels).
+    const verdict = rows.map((r) => {
+      const renders = r.resolution.canvases.filter((c) => !c.displayCopy);
+      const fills = renders.map((c) => c.fill).filter((f) => f !== null);
+      return {
+        dpr: r.dpr,
+        canvases: renders.length,
+        min_fill: fills.length ? Math.min(...fills) : null,
+        not_shown: renders.filter((c) => !c.shown).map((c) => c.id || c.cls || `#${c.index}`),
+        antialias_granted: renders.map((c) => c.antialias),
+        display_copies: r.resolution.canvases.filter((c) => c.displayCopy)
+          .map((c) => ({ index: c.index, cls: c.cls, shown: c.shown, backing: c.backing, css: c.css, fill: c.fill })),
+        p95_ms: r.frame_stats.p95,
+      };
+    });
 
     const report = {
       lane: "arsenal.alias_verify",
       url: opt.url,
       window: [winW, winH],
       headless: opt.headless,
+      storage: STORAGE.length ? Object.fromEntries(STORAGE) : null,
       out_dir: outDir,
       rows,
       verdict,
@@ -279,6 +318,7 @@ async function run() {
         "headless rendering can differ from the visible window (compositor path, vsync); treat the numbers as a floor, and re-run with --no-headless on an idle machine before quoting them as the operator's experience",
         "devicePixelRatio is forced by the emulation override, so this says what the page DOES at each DPR, not what his display reports",
         "a page that has not been clicked may be paused by its own autoplay or idle logic; the still is the evidence for what was on screen",
+        "a display copy is known only by its data-display-copy mark: an unmarked one is judged as a render, and a shown copy covering a render means min_fill describes the buffer, not the picture the eye gets",
       ],
     };
     console.log(JSON.stringify(report, opt.json ? null : 2));
