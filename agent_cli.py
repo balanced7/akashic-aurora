@@ -326,8 +326,9 @@ def _warn_unmirrored(soft=False, status=None):
 
 # --------------------------------------------------------------------------- boot
 def cmd_boot(args):
-    from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section, print_boot_locks_section
+    from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section
     from agent.initializer import derive_agent_context_from_startup_sources
+    from core.axi import out
 
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
     bifrost = collect_boot_bifrost(args.agent_id, limit=8)
@@ -350,18 +351,21 @@ def cmd_boot(args):
         )
     except Exception:
         pass
+    # The lines below were printed ahead of everything, --json included. They are collected now so
+    # the agent and human views can place them, and --json still gets them first, byte for byte.
+    pre: dict = {}
     # Pre-warm recall-at-action so the agent's FIRST edit this session gets instant recall (boot is
     # the universal session-start ritual -> covers the read-bootstrap flow). Prune stale state too.
-    # W09 (kimi F2): print the ARMED line so downstream silence reads as CALIBRATED (the surface
+    # W09 (kimi F2): say the surface is ARMED so downstream silence reads as CALIBRATED (the surface
     # is live, nothing was relevant), never as a suspected-dead hook (kimi mis-diagnosed absence).
     try:
         from core.recall.at_action import prune_state, warm_cache
 
         _warm_n = warm_cache()
         prune_state()
-        print(_recall_armed_line(_warm_n, _recall_hook_registered()))
+        pre["recall_at"] = _recall_armed_line(_warm_n, _recall_hook_registered())
     except Exception:
-        print(_recall_armed_line(None))
+        pre["recall_at"] = _recall_armed_line(None)
     # T258: a resident boots knowing WHO IT IS and WHY. Front-loaded deliberately -- kimi's
     # provenance-laundering objection was that a callsign asserts an archive the boot may not
     # carry, measured at 0/8 receipts present before this landed. Silent for a non-resident:
@@ -371,7 +375,7 @@ def cmd_boot(args):
 
         _who = _res.boot_block(args.agent_id)
         if _who:
-            print(_who)
+            pre["identity"] = _who
     except Exception:
         pass  # identity is orientation, never a reason a boot fails
     # T133: GHOST MAIL RECONCILES ITSELF, on the same terms as the heal below -- cheap no-op when
@@ -385,13 +389,16 @@ def cmd_boot(args):
         from core.comm import mailbox as _mbx
 
         _g = _mbx.maybe_retire_ghosts(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent_id)
+        _mail = []
         if _g.get("retired"):
-            print(
+            _mail.append(
                 f"# mail: declined {_g['retired']} message(s) from retired seats "
                 f"(they stay readable; they stop competing with live work)"
             )
         if _g.get("truncated"):
-            print(f"# mail: {_g['unscanned']} entr(ies) beyond the sweep cap were NOT examined")
+            _mail.append(f"# mail: {_g['unscanned']} entr(ies) beyond the sweep cap were NOT examined")
+        if _mail:
+            pre["mail_hygiene"] = "\n".join(_mail)
     except Exception:
         pass  # boot must never fail on mail hygiene
     # Cold-start safety net (ported from the retired StoreReconciler): if Redis was down during past
@@ -411,9 +418,12 @@ def cmd_boot(args):
     except Exception:
         pass
     if args.json:
+        for _line in pre.values():
+            print(_line)
         print(json.dumps({"status": res.get("status"), "context": ctx, "bifrost": bifrost}, indent=2, default=str))
         return 0 if res.get("status") == "success" else 1
 
+    cli = _cli()
     sk = (ctx.get("skeleton") or "").strip()
     secs = ctx.get("sections") or {}
     if getattr(args, "sources_json", None):  # T081-W6: sidecar of normalized lesson sources (best-effort)
@@ -422,9 +432,14 @@ def cmd_boot(args):
                 json.dump({"sources": _boot_source_list(secs)}, _sf)
         except Exception:
             pass
-    print(f"# CONTEXT for {args.agent_id}" + (f" -- task: {args.task}" if args.task else ""))
-    print(f"# {len(secs.get('learnings', []))} lesson(s), {len(secs.get('blockers', []))} blocker(s)")
-    print(_transport_line())  # T081-W1: what door this seat came through (can I use tools?)
+    blockers = secs.get("blockers", [])
+    # AXI: who and what first, then the orientation head, then the ranked context. Every section
+    # below is one key, so an agent reads the boot as data and a person reads it as a sheet.
+    doc: dict = {"agent": args.agent_id}
+    if args.task:
+        doc["task"] = args.task
+    doc["lessons"] = len(secs.get("learnings", []))
+    doc["blockers"] = len(blockers)
     # P2/T022 ORIENTATION HEADER (deepseek consumer spec, research/reviewed/deepseek-p2-spec-
     # 2026-07-09.md): the first ~15 lines carry the map, the governing arc, THE current
     # where-we-are, the precedence doctrine, and a COMPACT ledger bar -- every line DERIVED
@@ -433,14 +448,32 @@ def cmd_boot(args):
     _pa = _primer_aware()
     if _pa:
         # W13: the dedup is SAID, never silent (the packet law) -- and reversible.
-        print(
-            "# (primer-aware boot: funnel/draft/mail/delta ride the SessionStart whisper "
-            "-- W13; AKASHIC_BOOT_FULL=1 for the legacy full boot)"
+        doc["primer_aware"] = (
+            "funnel/draft/mail/delta ride the SessionStart whisper (W13); AKASHIC_BOOT_FULL=1 for the full boot"
         )
-    print(_orientation_header(args.agent_id, primer_aware=_pa))
-    print("#" + "-" * 60)
-    print("## LESSONS / CONTEXT (most relevant first)")
-    print(sk if sk else "  (none yet -- you are the first agent to contribute)")
+    doc["orientation"] = _boot_lines(_orientation_header(args.agent_id, primer_aware=_pa))
+    doc["recall_at"] = _unhash(pre["recall_at"]).removeprefix("recall-at: ")
+    doc["door"] = _unhash(_transport_line()).removeprefix("door: ")  # T081-W1: can I use tools?
+    if pre.get("identity"):
+        doc["identity"] = _boot_lines(pre["identity"])
+    if pre.get("mail_hygiene"):
+        doc["mail_hygiene"] = _boot_lines(pre["mail_hygiene"])
+    # The ranked context, best first, each entry with the source it can be drilled by. The rows come
+    # from the same distillation that renders the skeleton, so content and order are unchanged.
+    entries = [e for e in (ctx.get("skeleton_entries") or []) if isinstance(e, dict)]
+    if entries and len(entries) == len(sk.splitlines()):
+        doc["context"] = [
+            {
+                "summary": e.get("summary", ""),
+                **({"relates": e["relates"]} if any(x.get("relates") for x in entries) else {}),
+                "source": e.get("source", ""),
+            }
+            for e in entries
+        ]
+    elif sk:
+        doc["context"] = _boot_lines(sk)
+    else:
+        doc["context"] = "none yet -- you are the first agent to contribute"
     try:  # ARCH SLICE (RENEW Strand E gap #2 / deferred step #3): orient the agent to the code
         # region of THIS task -- a stable projection over docs/ARCHITECTURE.md, show-nothing when the
         # task matches no subsystem. Both doors get it (MCP boot delegates to cmd_boot). Fail-open.
@@ -448,17 +481,15 @@ def cmd_boot(args):
 
         arch = load_arch_slice(args.task or "")
         if arch:
-            print("\n## ARCH SLICE (orientation for this task)")
-            for a in arch:
-                loc = f" -> {a['path']}" if a.get("path") else ""
-                print(f"  {a['heading']}{loc}")
+            doc["arch_slice"] = [{"heading": a["heading"], "path": a.get("path") or None} for a in arch]
     except Exception:
         pass
-    blockers = secs.get("blockers", [])
     if blockers:
-        print("\n## ACTIVE BLOCKERS")
-        for b in blockers[:5]:
-            print(f"  [{b.get('severity', '?')}] {_clip(b.get('description', ''), 120)}")
+        doc["active_blockers"] = [
+            {"severity": b.get("severity", "?"), "description": _clip(b.get("description", ""), 120)}
+            for b in blockers[:5]
+        ]
+    hints = [f'{cli} learn {args.agent_id} --experiment NAME --tried "..." --result "..." --recommend "..."']
     try:  # durable project notes (write-once) -- the resume ANCHOR (where-we-are / open-docket /
         # handoff). RENEW Strand E (2026-07-07): a flat 110-char clip made the boot payload
         # INSUFFICIENT to resume -- dense multi-item notes (open-docket) collapsed to one line,
@@ -474,19 +505,19 @@ def cmd_boot(args):
             # in-boot duplication is the same disease as whisper/boot duplication.
             notes = [d for d in notes if d.title != "where-we-are"]
         if notes:
-            print("\n## RECENT NOTES (durable project memory)")
             _budgets = [900, 500, 500, 220, 220, 220]  # by recency: resume-anchor first, then taper
             shown = notes[: len(_budgets)]
-            for d, budget in zip(shown, _budgets, strict=False):
-                print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, budget)}")
+            doc["notes"] = [
+                {"date": d.created_at[:10], "title": d.title, "note": _clip(d.decision, budget)}
+                for d, budget in zip(shown, _budgets, strict=False)
+            ]
             if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets, strict=False)):
                 # M1 (kimi seat-zero counter): the verb shipped, the teaching text must
                 # retire the old dance in the same breath -- one hop, no JSON pipe.
-                print(f"  (clipped; ONE full body: {_cli()} note <you> --get <title>)")
+                hints.append(f"{cli} note {args.agent_id} --get <title>")
         else:
             # RB-12 [GAP]: zero notes, empty store -- no crash, no wrong line
-            print("\n## RECENT NOTES (durable project memory)")
-            print("  [GAP] (no durable notes yet)")
+            doc["notes"] = "[GAP] no durable notes yet"
     except Exception:
         pass
     try:  # P7 (T027, deepseek C3): the durable decision trail, compact, each with a drill
@@ -499,29 +530,29 @@ def cmd_boot(args):
 
         evs, more = promoted_page(limit=5, with_acks=True, now=_t2.time(), unhandled_hours=unhandled_threshold_hours())
         if evs:
-            print("\n## RECENT DECISIONS (durable salient bus -- drill: events --get <ref>)")
+            rows = []
             for e in evs:
                 d = e.get("detail") or {}
-                mark = (
-                    "UNHANDLED"
-                    if e.get("unhandled")
-                    else ("acked:" + ",".join(a["by"] for a in e.get("acks", [])) if e.get("acks") else "")
+                acks = ",".join(a["by"] for a in e.get("acks", []))
+                rows.append(
+                    {
+                        "kind": d.get("kind", "?"),
+                        "state": "UNHANDLED" if e.get("unhandled") else (f"acked:{acks}" if acks else None),
+                        "from": d.get("frm", "?"),
+                        "to": d.get("to", "?"),
+                        "content": _clip(str(d.get("content", "")), 110),
+                    }
                 )
-                print(
-                    f"  [{d.get('kind', '?')}{' ' + mark if mark else ''}] "
-                    f"{d.get('frm', '?')} -> {d.get('to', '?')}: "
-                    f"{_clip(str(d.get('content', '')), 110)}"
-                )
+            doc["decisions"] = rows
             if more:
-                print(f"  (+ older salient records beyond this page -- {_cli()} promoted)")
+                doc["decisions_more"] = f"older salient records beyond this page -- {cli} promoted"
     except Exception:
         pass
     if not _pa:  # W13: the whisper carries the funnel pulse for harness sessions
         try:  # T3: one-line funnel pulse -- watch the loop's trend without a separate command
             from core.recall.funnel import snapshot, summary_line
 
-            print(f"\n## FUNNEL (recall value -- full: {_cli()} stats --days 7)")
-            print("  " + summary_line(snapshot(hours=7 * 24)))
+            doc["funnel"] = summary_line(snapshot(hours=7 * 24))
         except Exception:
             pass
     try:  # METHOD DRIFT (2026-07-27): the one method number on a channel with proven
@@ -532,7 +563,7 @@ def cmd_boot(args):
 
         _ml = _mdrift()
         if _ml:
-            print(f"\n## METHOD\n  {_ml}")
+            doc["method"] = _ml
     except Exception:
         pass
     try:  # L2 (T030): the doctor's one-liner -- progress, not presence; findings drill
@@ -540,13 +571,11 @@ def cmd_boot(args):
         from core.comm.doctor import examine_fleet
 
         rep = examine_fleet()
-        line = rep["summary"]
+        doc["doctor"] = rep["summary"]
         pages = rep.get("pages") or []
         banners = [f for f in rep["findings"] if f["grade"] == "banner"]
-        print(f"\n## DOCTOR (fleet liveness -- full: {_cli()} doctor)")
-        print("  " + line)
-        for f in (pages + banners)[:4]:
-            print(f"  !! {f['line']}")
+        if pages or banners:
+            doc["doctor_findings"] = [{"line": f["line"]} for f in (pages + banners)[:4]]
     except Exception:
         pass
     if not _pa:  # W13: the whisper carries the draft pointer for harness sessions
@@ -555,43 +584,168 @@ def cmd_boot(args):
 
             dp = last_session_draft_path()
             if os.path.isfile(dp) and (_t.time() - os.path.getmtime(dp)) < 2 * 86400:
-                print(f"\n## LAST-SESSION DRAFT (auto-captured) -> {dp}")
-                print(f"   review it; promote with: {_cli()} wrap --commit")
+                doc["last_session_draft"] = dp
+                hints.append(f"{cli} wrap --commit")
         except Exception:
             pass
     if not _pa:  # R14: the unread peek rides the whisper's mail count; locks stay below
-        print_boot_bifrost_section(bifrost)
-    print_boot_locks_section(bifrost, args.agent_id)
-    print("\n## TO CONTRIBUTE A LESSON, run:")
-    print(f'  {_cli()} learn {args.agent_id} --experiment NAME --tried "..." --result "..." --recommend "..."')
-    print("\n## BIFROST (live + durable)")
-    print(f"  {_cli()} bifrost-sync <agent>     # peek unread (same as boot section)")
-    print(f"  {_cli()} promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
+        _mail_rows = _boot_lines(
+            "\n".join(
+                ln for ln in _printed(print_boot_bifrost_section, bifrost).splitlines() if not ln.startswith("##")
+            )
+        )
+        doc["unread_bifrost"] = _mail_rows[0]["line"] if len(_mail_rows) == 1 else _mail_rows
+    locks = bifrost.get("locks") or []
+    if locks:  # who is editing what (C2); only when some lock is held
+        doc["path_locks"] = [
+            {
+                "path": lk.get("path"),
+                "agent": f"{lk.get('agent')} (you)" if lk.get("agent") == args.agent_id else lk.get("agent"),
+            }
+            for lk in locks
+        ]
+    hints += [f"{cli} bifrost-sync {args.agent_id}", f"{cli} promoted --limit 10"]
     # T052 delta door: render what moved since this agent's last boot, then stamp the
     # seen mark AFTER the full context above was delivered (mark-lag contract, D1 ruling
-    # -- a crash before this line leaves the old mark and the whole gap redelivers).
+    # -- a crash before the stamp leaves the old mark and the whole gap redelivers).
     # W13/R15: a primer-aware boot renders NO delta, so it advances NO mark (a mark
     # moves only when content was delivered) -- `delta <agent>` stays addressable
     # after boot, which also closes T062's self-defeating pointer on this path.
+    _dcommit = None
     if not _pa:
         try:
             from agent.harness.delta import delta_boot_block
 
             _dtext, _dcommit = delta_boot_block(args.agent_id)
             if _dtext:
-                print("\n## DELTA (what moved since your last boot -- T052)")
-                print(_dtext)
-            _dcommit()
+                doc["delta"] = _boot_lines(_dtext)
         except Exception:
-            pass
-    _warn_unmirrored(soft=True)  # heads-up if you're resuming on top of unmirrored work
+            _dcommit = None
+    _unmirrored = _printed(_warn_unmirrored, soft=True)  # heads-up if resuming on unmirrored work
+    if _unmirrored.strip():
+        doc["unmirrored"] = _boot_lines(_unmirrored)
     if not os.getenv("AKASHIC_AGENT_ID"):
-        print(
-            "\n[i] AKASHIC_AGENT_ID not set -- peer-lock enforcement (C2/C4) is degraded: "
+        doc["warning"] = (
+            "AKASHIC_AGENT_ID not set -- peer-lock enforcement (C2/C4) is degraded: "
             "edits/commits to a peer-locked path fail CLOSED until it's set. Set it per agent "
             "(e.g. .claude/settings.json env)."
         )
+    out.emit(doc, hints=hints, human=_human_boot, title=f"Boot · {args.agent_id}")
+    if _dcommit is not None:
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            _dcommit()  # the mark moves only after the context above was printed
     return 0 if res.get("status") == "success" else 1
+
+
+def _unhash(line: str) -> str:
+    """A boot line without its '# ' marker: the marker was for a text reader skimming headers;
+    in a keyed document the key already says what the line is."""
+    return str(line).strip().lstrip("#").strip()
+
+
+def _boot_lines(text: str) -> list:
+    """Pre-rendered boot text as one row per non-empty line, '#' markers dropped. Indented
+    lines (ledger items, constraints under their heading) keep a '> ' so the nesting survives
+    the TOON row, which would otherwise quote and strip it."""
+    bodies = [
+        raw.lstrip("#").rstrip() for raw in str(text).splitlines() if raw.strip() and not set(raw.strip()) <= {"#", "-"}
+    ]
+    base = min((len(b) - len(b.lstrip()) for b in bodies), default=0)
+    return [{"line": ("> " if len(b) - len(b.lstrip()) > base else "") + b.strip()} for b in bodies]
+
+
+def _printed(fn, *a, **kw) -> str:
+    """What a printing helper would have printed, as text -- for the few boot sections whose
+    render lives in a shared module that other callers still print from."""
+    import contextlib
+    import io
+
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            fn(*a, **kw)
+    except Exception:
+        pass
+    return buf.getvalue()
+
+
+#: Boot sections in the human view: key -> heading. Keys not listed print in the generic layout.
+_BOOT_SECTIONS = {
+    "identity": "Identity",
+    "mail_hygiene": "Mail hygiene",
+    "context": "Lessons and context (most relevant first)",
+    "arch_slice": "Arch slice (orientation for this task)",
+    "active_blockers": "Active blockers",
+    "notes": "Recent notes (durable project memory)",
+    "decisions": "Recent decisions (durable salient bus -- drill: events --get <ref>)",
+    "funnel": "Funnel (recall value)",
+    "method": "Method",
+    "doctor": "Doctor (fleet liveness)",
+    "last_session_draft": "Last-session draft (auto-captured)",
+    "unread_bifrost": "Unread Bifrost (live bus)",
+    "path_locks": "Advisory path-locks (who's editing what)",
+    "delta": "Delta (what moved since your last boot)",
+    "unmirrored": "Unmirrored work",
+}
+
+
+def _human_boot(console, doc):
+    """Human view of `boot`: the task and counts, the orientation head, then one titled block
+    per section -- lessons with their source dimmed, gaps and warnings in yellow."""
+    from core.axi import out
+
+    def line(text: str) -> str:
+        t = out._esc(str(text))
+        if text.startswith("> "):
+            return f"    [dim]{out._esc(text[2:])}[/]"
+        if "[GAP]" in text or "STALE" in text or "DRIFT" in text or "MISSING" in text:
+            return f"  [yellow]{t}[/]"
+        return f"  {t}"
+
+    task = f" -- {out._esc(doc['task'])}" if doc.get("task") else ""
+    console.print(f"[bold]{doc['lessons']}[/] lesson(s), [bold]{doc['blockers']}[/] blocker(s){task}")
+    if doc.get("primer_aware"):
+        console.print(f"[dim]primer-aware boot: {out._esc(doc['primer_aware'])}[/]")
+    console.print()
+    for r in doc.get("orientation", []):
+        console.print(line(r["line"]))
+    console.print(f"  [dim]recall-at: {out._esc(doc.get('recall_at', ''))}[/]")
+    console.print(f"  [dim]door: {out._esc(doc.get('door', ''))}[/]")
+    for key, title in _BOOT_SECTIONS.items():
+        v = doc.get(key)
+        if v in (None, "", []):
+            continue
+        console.print()
+        console.print(f"[bold cyan]{title}[/]")
+        if isinstance(v, str):
+            console.print(line(v))
+        elif key == "context" and v and "summary" in v[0]:
+            for r in v:
+                rel = f" [dim]\\[relates: {out._esc(str(r['relates']))}][/]" if r.get("relates") else ""
+                console.print(f"  • {out._esc(r['summary'])}{rel} [dim]({out._esc(str(r['source']))})[/]")
+        elif key == "arch_slice":
+            for r in v:
+                console.print(
+                    f"  {out._esc(r['heading'])}" + (f" [dim]-> {out._esc(r['path'])}[/]" if r.get("path") else "")
+                )
+        elif key == "notes":
+            for r in v:
+                console.print(f"  [dim]{r['date']}[/] [bold]{out._esc(r['title'])}[/]: {out._esc(r['note'])}")
+        elif v and set(v[0]) == {"line"}:
+            for r in v:
+                console.print(line(r["line"]))
+        else:
+            console.print(out.table(v))
+        if key == "decisions" and doc.get("decisions_more"):
+            console.print(f"  [dim]+ {out._esc(doc['decisions_more'])}[/]")
+        if key == "doctor":
+            for r in doc.get("doctor_findings", []):
+                console.print(f"  [red]!! {out._esc(r['line'])}[/]")
+    if doc.get("warning"):
+        console.print()
+        console.print(f"[yellow]! {out._esc(doc['warning'])}[/]")
 
 
 # -------------------------------------------------------------------------- delta: T052

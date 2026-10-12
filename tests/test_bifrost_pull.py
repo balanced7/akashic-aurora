@@ -79,6 +79,7 @@ def test_boot_prints_bifrost_section(monkeypatch):
     # flipped the mode out from under the assert. This pin means the FULL boot
     # contract; say so via the R13 hatch instead of inheriting ambient env.
     monkeypatch.setenv("AKASHIC_BOOT_FULL", "1")
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     c = _redis_client()
     agent = f"cursor_pull_{uuid.uuid4().hex[:6]}"
     try:
@@ -87,7 +88,7 @@ def test_boot_prints_bifrost_section(monkeypatch):
         with redirect_stdout(buf):
             agent_cli.cmd_boot(argparse.Namespace(agent_id=agent, task="test", json=False))
         out = buf.getvalue()
-        assert "UNREAD BIFROST" in out
+        assert "unread_bifrost" in out
         assert "pull-side test" in out
     finally:
         for key in (f"bifrost:inbox:{agent}", f"bifrost:cursor:{agent}", f"bifrost:presence:{agent}"):

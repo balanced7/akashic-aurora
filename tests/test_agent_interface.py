@@ -33,6 +33,7 @@ def run(*args, redis_port=None, timeout=60):
     """Invoke the CLI as a subprocess, like OpenCode would. Returns (rc, out, err)."""
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"  # clean capture; we separately assert ASCII
+    env["AURORA_OUTPUT"] = "agent"  # the subprocess door an agent like OpenCode reads
     if redis_port is not None:
         env["REDIS_PORT"] = str(redis_port)
     r = subprocess.run(
@@ -63,8 +64,8 @@ def test_boot_output_front_loaded_and_ascii():
     # P2/T022: the head contract is the ORIENTATION HEADER (map/arc/precedence), not the
     # old token-budget meta line -- the stateless peer's trimmed onboarding folds only the
     # head, so orientation beats accounting there (deepseek consumer spec, waste item 2).
-    assert "CONTEXT for agent_x" in head, "identity line must be in first 8 lines"
-    assert "# Map: docs/ARCHITECTURE.md" in head, "orientation map must be in first 8 lines"
+    assert "agent: agent_x" in head, "identity line must be in first 8 lines"
+    assert '"Map: docs/ARCHITECTURE.md' in head, "orientation map must be in first 8 lines"
     ok("boot output is front-loaded + ASCII-safe")
 
 

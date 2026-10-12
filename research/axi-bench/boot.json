@@ -1,0 +1,224 @@
+{
+  "verb": "boot",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 2508,
+    "stdout_chars": 5829,
+    "stdout_lines": 62,
+    "cost_usd": 0.0283,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which port should be checked when tests hang at start?",
+        "expected": 16379,
+        "answers": [
+          "Two sources in the output name a port. The `port_clash` lesson says: \"Use when tests hang at start: check that port 16379 is free first.\" The ledger's `port_clash` entry is the only one about tests hanging at start, and the Redis note confirms 16379 as the embedded Redis port.\n\n16379",
+          "16379",
+          "16379",
+          "16379",
+          "16379"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent left alice a handoff?",
+        "expected": "bench",
+        "answers": [
+          "bench",
+          "bench",
+          "bench",
+          "bench",
+          "bench"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which file is locked by bob?",
+        "expected": "core/ledger.py",
+        "answers": [
+          "core/ledger.py",
+          "core/ledger.py",
+          "core/ledger.py",
+          "core/ledger.py",
+          "core/ledger.py"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "According to the where-we-are note, what comes next? Answer in a few words.",
+        "expected": [
+          "ledger table"
+        ],
+        "answers": [
+          "Migrate the ledger table",
+          "Migrate the ledger table",
+          "Migrate the ledger table",
+          "migrate the ledger table",
+          "Migrate the ledger table."
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons does this startup context carry?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command alice would run to record a new lesson? Give the command only.",
+        "expected": [
+          "learn alice",
+          "--experiment"
+        ],
+        "answers": [
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\""
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "boot": {
+        "argv": [
+          "boot",
+          "alice",
+          "--task",
+          "tests hang at start"
+        ],
+        "exit": 0,
+        "stdout": "# recall-at: cache warm (2 lesson(s)) but the hook is NOT installed -- edits get no hints, so silence means nothing. Turn it on: uv run agent_cli.py hooks install\n# CONTEXT for alice -- task: tests hang at start\n# 2 lesson(s), 0 blocker(s)\n# door: CLI-shell -- this PROCESS carries no door stamp, so it cannot tell whether your SEAT has akashic tools; a shell-out from an MCP seat looks identical here. If yours are attached, ignore this line. If not: user-scoped MCP w/ absolute paths [T081-W2] or cd /tmp/axi-bench-v14b33g6/before && restart\n# Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)\n# Method: docs/method-baseline-2026-07.md (the HOW contract -- fenced dual passes on load-bearing work, pre-registered acceptance, kill drills; gated slices cite their reconciled build spec)\n# [GAP] Governing arc: (none active -- check notes/ledger)\n# where-we-are: Wave 3 of the payment refactor is done; next: migrate the ledger table.\n# [GAP] CURRENT DIRECTIVE: (none set -- use `wrap --focus` to set priority)\n# deferred: 20 command(s) await a seat with a doc-verb retitle/arc-edit surface (doc verb only has new/adopt today)/exec/its own fence or task -- Heimdall ruled it out of t384's scope (V11) to keep the instance-split fence focused, and I accepted/net/write -- not you; a capable seat discharges via `defer <it> --list`\n# suite baseline @5ba81ba (805.8h old, by claude): 100 known failure(s) -- 1 classified lane(s) since closed (T275): re-run advised (classification rots even when the receipt is young)\n# Precedence when sources conflict: TASK LEDGER (git-durable, gated transitions) beats durable\n# NOTES (write-once, superseded-by-title) beats PROMOTED bus messages (salient, immutable) beats\n# LIVE BUS (ephemeral).  [STALE] = a newer source supersedes this; absent = retired.\n# Ledger: 170 done @4a1887fd | 26 active | 38 next | 0 blocked | 103 proposed (103 STALE -- re-approve or abandon) -- RULE: DONE is closed, the ledger beats old messages (details: task list)\n#   T079 - T079: Engine-room observability (Daniel directive 2026-07-15 night: fold his ...[truncated]  (in_progress, sol)\n#   T084 - T084: Ironman augmentation arc (Daniel directive 2026-07-16 pre-sleep verbatim: 'what can ...[truncated]  (claimed, sol)\n#   T108 - N-seat mailbox architecture: unshare everything but the role queue (Daniel 2026-07-28 ...[truncated]  (claimed, claude)\n#   next: T003 - UI: one presence surface -- remove duplicate top status rows + floating bubbles\n#   next: T007 - Verify Void theme + aurora perf bench -> confirm defaults\n# LIVE CONSTRAINTS (docs/LIVE_CONSTRAINTS.md -- forget one and it breaks you (+6 more in the doc)):\n#   RB-26 crash-redelivery: the work cursor advances AFTER processing; a crash redelivers the same message -- consumers stay idempotent; never drop a work-lane copy (T066 refinement).\n#   RB-29: timeout/error NOTES never settle an expectation (redrives stay alive); only ANSWER_KINDS reply/handoff/completion settle (T061).\n#   T026 ack semantics: a reply that answers a handoff = handled (auto-ack); a timeout note never acks; senders cannot ack their own ask.\n#   T039a/T044 dual-write is LIVE until T047: every message exists on TWO streams (work lane + legacy) -- dedupe by sha/reply_id, never by stream id.\n#   T045 lane consumption: work lane FIRST, legacy is a straggler net; consume with the seat's lane env (BIFROST_CONSUME_LANE) or cursors diverge into wake loops.\n#   T066 reply path: directed ANSWERS ride bus.send_reply (lane-first, meta.reply_id); receiver dedup drops LEGACY twins only -- work copies always deliver.\n# STANCE (conduct-v1, docs/CONDUCT.md): intent before task | Daniel's words verbatim | one calibrated question per ask | red is a gem (credit the finder, help the lane, never blame) | 'no' is information | own, don't assign\n# LICENSE: the laws are a FLOOR, not a ceiling -- exceed them, and file divergences that WORK as wishes/lessons to be amended in at a gate (the anti-fossil clause). Inheriting the forms WITHOUT this license is the known failure mode; the forms alone are a compliance checklist, not a culture.\n# stretch (alice): none recorded in charters/alice/CHARTER.md -- L7 wants one per arc; unrecorded is a GAP, not a zero\n# restored: 4/4 planes clean (notes-store, defer-queue, suite-baseline, task-ledger)\n#------------------------------------------------------------\n## LESSONS / CONTEXT (most relevant first)\n- handoff from bench: finish the ledger migration  (source: bench:0)\n- Wave 3 of the payment refactor is done; next: migrate the ledger table.  (source: ADR_1012161319_47756d1f)\n- Stage explicit paths, never git add -A.  (source: git_blanket_staging)\n- Use when tests hang at start: check that port 16379 is free first.  (source: port_clash)\n\n## ARCH SLICE (orientation for this task)\n  Foundation \u00b7 Pillar 0 (`core/foundation/`) -> core/foundation/\n\n## RECENT NOTES (durable project memory)\n  [2026-10-12] where-we-are: Wave 3 of the payment refactor is done; next: migrate the ledger table.\n\n## FUNNEL (recall value -- full: uv run agent_cli.py stats --days 7)\n  2 lessons | surfaced 0 | votes useful=0 noise=0 | helped 0 | last 7d: +2 lesson(s), 0 flip(s)\n\n## DOCTOR (fleet liveness -- full: uv run agent_cli.py doctor)\n  doctor: fleet healthy (1 agent(s), 0 findings) | watches 2/2 [T079, T385]\n\n## UNREAD BIFROST (live bus)\n  (no new messages -- peek only; cursor unchanged)\n\n## ADVISORY PATH-LOCKS (who's editing what -- C2)\n  core/ledger.py  <- bob  token 1\n\n## TO CONTRIBUTE A LESSON, run:\n  uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"\n\n## BIFROST (live + durable)\n  uv run agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)\n  uv run agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 2582,
+    "stdout_chars": 5958,
+    "stdout_lines": 54,
+    "cost_usd": 0.0377,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which port should be checked when tests hang at start?",
+        "expected": 16379,
+        "answers": [
+          "16379",
+          "16379",
+          "16379",
+          "16379",
+          "16379"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent left alice a handoff?",
+        "expected": "bench",
+        "answers": [
+          "bench",
+          "bench",
+          "bench",
+          "bench",
+          "bench"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which file is locked by bob?",
+        "expected": "core/ledger.py",
+        "answers": [
+          "core/ledger.py",
+          "core/ledger.py",
+          "core/ledger.py",
+          "core/ledger.py",
+          "core/ledger.py"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "According to the where-we-are note, what comes next? Answer in a few words.",
+        "expected": [
+          "ledger table"
+        ],
+        "answers": [
+          "Migrate the ledger table.",
+          "Ask: what comes next, per the where-we-are note.\n\nNext: migrate the ledger table.",
+          "Migrate the ledger table",
+          "migrate the ledger table",
+          "Wave 3 of the payment refactor is done; next: migrate the ledger table."
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons does this startup context carry?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command alice would run to record a new lesson? Give the command only.",
+        "expected": [
+          "learn alice",
+          "--experiment"
+        ],
+        "answers": [
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"",
+          "uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\""
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "boot": {
+        "argv": [
+          "boot",
+          "alice",
+          "--task",
+          "tests hang at start"
+        ],
+        "exit": 0,
+        "stdout": "agent: alice\ntask: tests hang at start\nlessons: 2\nblockers: 0\norientation[28]{line}:\n  \"Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)\"\n  \"Method: docs/method-baseline-2026-07.md (the HOW contract -- fenced dual passes on load-bearing work, pre-registered acceptance, kill drills; gated slices cite their reconciled build spec)\"\n  \"[GAP] Governing arc: (none active -- check notes/ledger)\"\n  \"where-we-are: Wave 3 of the payment refactor is done; next: migrate the ledger table.\"\n  \"[GAP] CURRENT DIRECTIVE: (none set -- use `wrap --focus` to set priority)\"\n  \"deferred: 20 command(s) await a seat with a doc-verb retitle/arc-edit surface (doc verb only has new/adopt today)/exec/its own fence or task -- Heimdall ruled it out of t384's scope (V11) to keep the instance-split fence focused, and I accepted/net/write -- not you; a capable seat discharges via `defer <it> --list`\"\n  \"suite baseline @5ba81ba (805.8h old, by claude): 100 known failure(s) -- 1 classified lane(s) since closed (T275): re-run advised (classification rots even when the receipt is young)\"\n  \"Precedence when sources conflict: TASK LEDGER (git-durable, gated transitions) beats durable\"\n  \"NOTES (write-once, superseded-by-title) beats PROMOTED bus messages (salient, immutable) beats\"\n  \"LIVE BUS (ephemeral).  [STALE] = a newer source supersedes this; absent = retired.\"\n  \"Ledger: 170 done @4a1887fd | 26 active | 38 next | 0 blocked | 103 proposed (103 STALE -- re-approve or abandon) -- RULE: DONE is closed, the ledger beats old messages (details: task list)\"\n  \"> T079 - T079: Engine-room observability (Daniel directive 2026-07-15 night: fold his ...[truncated]  (in_progress, sol)\"\n  \"> T084 - T084: Ironman augmentation arc (Daniel directive 2026-07-16 pre-sleep verbatim: 'what can ...[truncated]  (claimed, sol)\"\n  \"> T108 - N-seat mailbox architecture: unshare everything but the role queue (Daniel 2026-07-28 ...[truncated]  (claimed, claude)\"\n  \"> next: T003 - UI: one presence surface -- remove duplicate top status rows + floating bubbles\"\n  \"> next: T007 - Verify Void theme + aurora perf bench -> confirm defaults\"\n  \"LIVE CONSTRAINTS (docs/LIVE_CONSTRAINTS.md -- forget one and it breaks you (+6 more in the doc)):\"\n  \"> RB-26 crash-redelivery: the work cursor advances AFTER processing; a crash redelivers the same message -- consumers stay idempotent; never drop a work-lane copy (T066 refinement).\"\n  \"> RB-29: timeout/error NOTES never settle an expectation (redrives stay alive); only ANSWER_KINDS reply/handoff/completion settle (T061).\"\n  \"> T026 ack semantics: a reply that answers a handoff = handled (auto-ack); a timeout note never acks; senders cannot ack their own ask.\"\n  \"> T039a/T044 dual-write is LIVE until T047: every message exists on TWO streams (work lane + legacy) -- dedupe by sha/reply_id, never by stream id.\"\n  \"> T045 lane consumption: work lane FIRST, legacy is a straggler net; consume with the seat's lane env (BIFROST_CONSUME_LANE) or cursors diverge into wake loops.\"\n  \"> T066 reply path: directed ANSWERS ride bus.send_reply (lane-first, meta.reply_id); receiver dedup drops LEGACY twins only -- work copies always deliver.\"\n  \"STANCE (conduct-v1, docs/CONDUCT.md): intent before task | Daniel's words verbatim | one calibrated question per ask | red is a gem (credit the finder, help the lane, never blame) | 'no' is information | own, don't assign\"\n  \"LICENSE: the laws are a FLOOR, not a ceiling -- exceed them, and file divergences that WORK as wishes/lessons to be amended in at a gate (the anti-fossil clause). Inheriting the forms WITHOUT this license is the known failure mode; the forms alone are a compliance checklist, not a culture.\"\n  \"stretch (alice): none recorded in charters/alice/CHARTER.md -- L7 wants one per arc; unrecorded is a GAP, not a zero\"\n  \"[continuity DRIFT] the repo has moved since these were written: next-focus MISSING, grounding-pointer MISSING -- they describe an OLDER system than the one you are booting into. Refresh at wrap (uv run agent_cli.py wrap --focus/--grounding, note where-we-are).\"\n  \"restored: 4/4 planes clean (notes-store, defer-queue, suite-baseline, task-ledger)\"\nrecall_at: \"armed (2 lesson(s) warm) -- listening at every edit; downstream silence is CALIBRATED (nothing relevant), not a dead hook\"\ndoor: \"CLI-shell -- this PROCESS carries no door stamp, so it cannot tell whether your SEAT has akashic tools; a shell-out from an MCP seat looks identical here. If yours are attached, ignore this line. If not: user-scoped MCP w/ absolute paths [T081-W2] or cd /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-aa75295f17f742157 && restart\"\ncontext[4]{summary,source}:\n  \"handoff from bench: finish the ledger migration\",\"bench:0\"\n  \"Wave 3 of the payment refactor is done; next: migrate the ledger table.\",ADR_1012161401_c379dbeb\n  \"Stage explicit paths, never git add -A.\",git_blanket_staging\n  \"Use when tests hang at start: check that port 16379 is free first.\",port_clash\narch_slice[1]{heading,path}:\n  Foundation \u00b7 Pillar 0 (`core/foundation/`),core/foundation/\nnotes[1]{date,title,note}:\n  2026-10-12,where-we-are,\"Wave 3 of the payment refactor is done; next: migrate the ledger table.\"\nfunnel: \"2 lessons | surfaced 0 | votes useful=0 noise=0 | helped 0 | last 7d: +2 lesson(s), 0 flip(s)\"\nmethod: \"method drift: M3 pre-registration 0/17 clean (0%) -- pins are landing WITH their implementation, so git holds no evidence the acceptance came first. Commit the RED pin alone, then the fix. (uv run scripts/arc_scorecard.py)\"\ndoctor: \"doctor: fleet healthy (1 agent(s), 0 findings) | watches 2/2 [T079, T385]\"\nunread_bifrost: (no new messages -- peek only; cursor unchanged)\npath_locks[1]{path,agent}:\n  core/ledger.py,bob\nhelp[3]:\n  uv run agent_cli.py learn alice --experiment NAME --tried \"...\" --result \"...\" --recommend \"...\"\n  uv run agent_cli.py bifrost-sync alice\n  uv run agent_cli.py promoted --limit 10\n"
+      }
+    }
+  }
+}

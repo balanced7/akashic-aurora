@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 5 converted to agent and human output.
+121 verbs; 6 converted to agent and human output.
 
 ## `alias`
 
@@ -253,7 +253,10 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | | |
 |---|---|
 | Does | print an agent's startup context |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 2,508 before, 2,582 after (+3%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/boot.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -261,6 +264,36 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | `--task` |   |   |   |
 | `--json` |   |   |   |
 | `--sources-json` |   |   | T081-W6: also write \{'sources':[...]\} (normalized lesson-source pointers) to PATH, so a runner can tag boot-known lessons without regex-parsing the text |
+
+Agent output of `aurora boot alice --task tests hang at start` on the bench data:
+
+```text
+agent: alice
+task: tests hang at start
+lessons: 2
+blockers: 0
+orientation[28]{line}:
+  "Map: docs/ARCHITECTURE.md (the living skeleton) + AGENTS.md (the door contract)"
+  "Method: docs/method-baseline-2026-07.md (the HOW contract -- fenced dual passes on load-bearing work, pre-registered acceptance, kill drills; gated slices cite their reconciled build spec)"
+  "[GAP] Governing arc: (none active -- check notes/ledger)"
+  "where-we-are: Wave 3 of the payment refactor is done; next: migrate the ledger table."
+  "[GAP] CURRENT DIRECTIVE: (none set -- use `wrap --focus` to set priority)"
+  "deferred: 20 command(s) await a seat with a doc-verb retitle/arc-edit surface (doc verb only has new/adopt today)/exec/its own fence or task -- Heimdall ruled it out of t384's scope (V11) to keep the instance-split fence focused, and I accepted/net/write -- not you; a capable seat discharges via `defer <it> --list`"
+  "suite baseline @5ba81ba (805.8h old, by claude): 100 known failure(s) -- 1 classified lane(s) since closed (T275): re-run advised (classification rots even when the receipt is young)"
+  "Precedence when sources conflict: TASK LEDGER (git-durable, gated transitions) beats durable"
+  "NOTES (write-once, superseded-by-title) beats PROMOTED bus messages (salient, immutable) beats"
+  "LIVE BUS (ephemeral).  [STALE] = a newer source supersedes this; absent = retired."
+  "Ledger: 170 done @4a1887fd | 26 active | 38 next | 0 blocked | 103 proposed (103 STALE -- re-approve or abandon) -- RULE: DONE is closed, the ledger beats old messages (details: task list)"
+  "> T079 - T079: Engine-room observability (Daniel directive 2026-07-15 night: fold his ...[truncated]  (in_progress, sol)"
+  "> T084 - T084: Ironman augmentation arc (Daniel directive 2026-07-16 pre-sleep verbatim: 'what can ...[truncated]  (claimed, sol)"
+  "> T108 - N-seat mailbox architecture: unshare everything but the role queue (Daniel 2026-07-28 ...[truncated]  (claimed, claude)"
+  "> next: T003 - UI: one presence surface -- remove duplicate top status rows + floating bubbles"
+  "> next: T007 - Verify Void theme + aurora perf bench -> confirm defaults"
+  "LIVE CONSTRAINTS (docs/LIVE_CONSTRAINTS.md -- forget one and it breaks you (+6 more in the doc)):"
+  "> RB-26 crash-redelivery: the work cursor advances AFTER processing; a crash redelivers the same message -- consumers stay idempotent; never drop a work-lane copy (T066 refinement)."
+  "> RB-29: timeout/error NOTES never settle an expectation (redrives stay alive); only ANSWER_KINDS reply/handoff/completion settle (T061)."
+... (30 more lines)
+```
 
 ## `captions`
 

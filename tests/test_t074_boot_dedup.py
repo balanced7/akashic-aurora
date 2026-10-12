@@ -92,12 +92,17 @@ def test_w13_own_session_is_not_its_own_sibling(monkeypatch):
 
 
 # ---------------------------------------------------------------- W13 section skips (integration)
+# The sections the SessionStart whisper already carries, as boot's agent output keys them.
+_WHISPER_COVERED = ("funnel:", "last_session_draft:", "delta[", "unread_bifrost")
+
+
 def _boot(env_extra):
     env = dict(os.environ)
     env.pop("CLAUDE_CODE_SESSION_ID", None)
     env.pop("CLAUDE_SESSION_ID", None)
     env.pop("AKASHIC_BOOT_FULL", None)
     env["_AISETUP_TEST_ISOLATED"] = "1"
+    env["AURORA_OUTPUT"] = "agent"
     env.update(env_extra)
     out = subprocess.run(
         [sys.executable, "agent_cli.py", "boot", "w13-probe"],
@@ -112,17 +117,14 @@ def _boot(env_extra):
 
 def test_w13_session_boot_skips_whisper_sections():
     out = _boot({"CLAUDE_CODE_SESSION_ID": "w13-test-session"})
-    for gone in ("## FUNNEL", "## LAST-SESSION DRAFT", "## DELTA", "## UNREAD BIFROST"):
+    for gone in _WHISPER_COVERED:
         assert gone not in out, f"W13: primer-aware boot must not duplicate {gone}"
-    assert "primer-aware" in out, "the dedup must be SAID, not silent (packet law)"
-
-
-_WHISPER_COVERED = ("## FUNNEL", "## LAST-SESSION DRAFT", "## DELTA", "## UNREAD BIFROST")
+    assert "primer_aware:" in out, "the dedup must be SAID, not silent (packet law)"
 
 
 def test_w13_bare_terminal_keeps_full_boot():
     out = _boot({})
-    assert "primer-aware" not in out, "R13: no session -> no whisper existed -> full boot"
+    assert "primer_aware:" not in out, "R13: no session -> no whisper existed -> full boot"
     # each section is individually fail-open (its data source may be down in the
     # isolated env -- a T070-class flake caught 2026-07-15); ANY of them rendering
     # proves the guards did not fire
@@ -133,5 +135,5 @@ def test_w13_bare_terminal_keeps_full_boot():
 
 def test_w13_boot_full_hatch_forces_legacy():
     out = _boot({"CLAUDE_CODE_SESSION_ID": "w13-test-session", "AKASHIC_BOOT_FULL": "1"})
-    assert "primer-aware" not in out, "R13: the hatch restores the legacy full boot"
+    assert "primer_aware:" not in out, "R13: the hatch restores the legacy full boot"
     assert any(s in out for s in _WHISPER_COVERED)

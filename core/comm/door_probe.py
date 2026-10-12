@@ -257,7 +257,9 @@ def _child_flow(timeout_s: float) -> dict:
                     timeout=timeout_s,
                 )
                 text = "".join(getattr(c, "text", "") for c in out.content)
-                if "# CONTEXT for door-probe" not in text:
+                # boot's head names the agent: `agent: door-probe` for an agent reader (the MCP
+                # door captures a pipe), `Boot · door-probe` for a person.
+                if "agent: door-probe" not in text and "Boot · door-probe" not in text:
                     return _verdict(
                         RED,
                         stage,

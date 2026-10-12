@@ -103,7 +103,7 @@ def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
                     timeout=5.0,
                 )
                 text = "".join(getattr(c, "text", "") for c in out.content)
-                assert f"# CONTEXT for {agent}" in text
+                assert f"agent: {agent}" in text
                 assert "door: MCP-native" in text
 
             audit = await s.call_tool(

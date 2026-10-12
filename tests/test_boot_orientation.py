@@ -133,6 +133,7 @@ def test_cold_start_drill_answers_the_four_questions(tmp_path):
         "AI_SETUP": str(tmp_path),
         "REDIS_DB": os.environ.get("REDIS_DB", "15"),
         "_AISETUP_TEST_ISOLATED": "1",
+        "AURORA_OUTPUT": "agent",
     }
     (tmp_path / "session_logs").mkdir(parents=True, exist_ok=True)
 
@@ -156,8 +157,8 @@ def test_cold_start_drill_answers_the_four_questions(tmp_path):
 
     p = cli("boot", f"drill-{uuid.uuid4().hex[:8]}", "--task", "cold start")
     head = "\n".join((p.stdout or "").splitlines()[:16])
-    assert "# Map: docs/ARCHITECTURE.md" in head, "where is the map"
-    assert "# Method: docs/method-baseline-2026-07.md" in head, (
+    assert "Map: docs/ARCHITECTURE.md" in head, "where is the map"
+    assert "Method: docs/method-baseline-2026-07.md" in head, (
         "HOW we work here answerable from boot alone (Daniel 2026-07-11: best from fresh "
         "bootup -- the method rides beside the map in the cold-start head)"
     )
@@ -166,8 +167,7 @@ def test_cold_start_drill_answers_the_four_questions(tmp_path):
     # ("# where-we-are (full): ..."); bare terminals keep the one-liner. The gate pins
     # the QUESTION (what is current), not the line shape -- both forms must answer it.
     assert (
-        "# where-we-are: drill state: seeded corpus" in head
-        or "# where-we-are (full): drill state: seeded corpus" in head
+        "where-we-are: drill state: seeded corpus" in head or "where-we-are (full): drill state: seeded corpus" in head
     ), "what is current"
     assert "Precedence when sources conflict" in head, "who wins on conflict"
     assert "RULE: DONE is closed" in head, "what must I not redo"
