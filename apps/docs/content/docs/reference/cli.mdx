@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 22 converted to agent and human output.
+121 verbs; 23 converted to agent and human output.
 
 ## `alias`
 
@@ -1709,11 +1709,36 @@ noise_votes: 0
 | | |
 |---|---|
 | Does | S2: what recall PREVENTED (stage-log contrastive record) -- observation only, never a grade |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 96% after |
+| Output tokens | 371 before, 187 after (-50%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/recall-prevention.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--json` |   |   |   |
+
+Agent output of `aurora recall-prevention` on the bench data:
+
+```text
+authority: observation only -- never a grade; writes no credit and steers no ranking
+stage_rows: 0
+observations: 0
+lessons: 0
+prevention_candidates: 0
+control_arm: 0
+rescue_flips: 0
+verdicts:
+  VIOLATED: 0
+  UNKNOWABLE: 0
+  COMPLIED: 0
+settled: 0
+coverage: 0
+unattributed_repeats: 0
+result: no action outcomes logged yet -- the harness hooks write the stage log
+help[1]:
+  uv run agent_cli.py hooks status
+```
 
 ## `reentry`
 

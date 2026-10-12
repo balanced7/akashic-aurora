@@ -1,0 +1,184 @@
+{
+  "verb": "recall-prevention",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 371,
+    "stdout_chars": 905,
+    "stdout_lines": 9,
+    "cost_usd": 0.0223,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many stage rows did the report read?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many prevention candidates are there?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the coverage, as a number?",
+        "expected": 0,
+        "answers": [
+          "0.0000",
+          "0.0000",
+          "0.0000",
+          "0.0000",
+          "0.0000"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many observations were VIOLATED?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this report change lesson rankings or credit? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "recall-prevention"
+        ],
+        "exit": 0,
+        "stdout": "# recall-prevention -- observation only, never a grade\n  stage rows 0 -> 0 observation(s) over 0 lesson(s)\n  PREVENTION candidates 0  |  CONTROL arm 0  |  rescue flips 0\n  verdicts: VIOLATED 0 \u00b7 UNKNOWABLE 0 \u00b7 COMPLIED 0 (unmintable without the Eye)\n  settled 0 -> coverage 0.0000  (unattributed repeats: 0)\n  ! exposure-bias: a lesson surfaces BECAUSE the matcher judged the moment risky, so surfaced actions are not a random sample -- the control arm is not a matched control\n  ! self-inflation: the positive feedback loop credits whatever was surfaced at flip time (resolve_action_outcome) with no causal check; this report deliberately ignores that counter\n  ! self-sealing demotion: a benched lesson stops surfacing, so it can never earn the credit that would redeem it -- absence of exposure is not absence of value\n  ! COMPLIED is unprovable from this join: silence is UNKNOWABLE, never compliance\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 187,
+    "stdout_chars": 406,
+    "stdout_lines": 17,
+    "cost_usd": 0.0243,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many stage rows did the report read?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many prevention candidates are there?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the coverage, as a number?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "",
+          "0"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many observations were VIOLATED?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this report change lesson rankings or credit? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "recall-prevention"
+        ],
+        "exit": 0,
+        "stdout": "authority: observation only -- never a grade; writes no credit and steers no ranking\nstage_rows: 0\nobservations: 0\nlessons: 0\nprevention_candidates: 0\ncontrol_arm: 0\nrescue_flips: 0\nverdicts:\n  VIOLATED: 0\n  UNKNOWABLE: 0\n  COMPLIED: 0\nsettled: 0\ncoverage: 0\nunattributed_repeats: 0\nresult: no action outcomes logged yet -- the harness hooks write the stage log\nhelp[1]:\n  uv run agent_cli.py hooks status\n"
+      }
+    }
+  }
+}

@@ -474,36 +474,60 @@ def cmd_recall_prevention(args):
     if getattr(args, "json", False):
         print(_json.dumps(rep, default=str, indent=2))
         return 0
+    from core.axi import out
+
     v = rep["verdicts"]
-    print("# recall-prevention -- observation only, never a grade")
-    print(
-        f"  stage rows {rep['stage_rows']} -> {rep['observations']} observation(s) "
-        f"over {len(rep['per_lesson'])} lesson(s)"
-    )
-    print(
-        f"  PREVENTION candidates {rep['prevention_candidates']}  |  CONTROL arm "
-        f"{rep['control_arm']}  |  rescue flips {rep['rescue_flips']}"
-    )
-    print(
-        f"  verdicts: VIOLATED {v['VIOLATED']} · UNKNOWABLE {v['UNKNOWABLE']} "
-        f"· COMPLIED {v['COMPLIED']} (unmintable without the Eye)"
-    )
-    print(
-        f"  settled {rep['settled']} -> coverage {rep['coverage']:.4f}  "
-        f"(unattributed repeats: {len(rep.get('unattributed_repeats') or [])})"
+    doc: dict = {
+        "authority": "observation only -- never a grade; writes no credit and steers no ranking",
+        "stage_rows": rep["stage_rows"],
+    }
+    doc.update(
+        observations=rep["observations"],
+        lessons=len(rep["per_lesson"]),
+        prevention_candidates=rep["prevention_candidates"],
+        control_arm=rep["control_arm"],
+        rescue_flips=rep["rescue_flips"],
+        # COMPLIED cannot be minted from this join (it needs the Eye), so it reads 0 by construction.
+        verdicts={"VIOLATED": v["VIOLATED"], "UNKNOWABLE": v["UNKNOWABLE"], "COMPLIED": v["COMPLIED"]},
+        settled=rep["settled"],
+        coverage=rep["coverage"],
+        unattributed_repeats=len(rep.get("unattributed_repeats") or []),
     )
     c = rep["contrast"]
     if c["success_rate_when_surfaced"] is not None and c["success_rate_when_not_surfaced"] is not None:
-        d = c["success_rate_when_surfaced"] - c["success_rate_when_not_surfaced"]
-        print(
-            f"  success surfaced {c['success_rate_when_surfaced']:.4f} vs control "
-            f"{c['success_rate_when_not_surfaced']:.4f}  (raw delta {d:+.4f} -- NOT an effect size)"
-        )
+        doc["success_rate"] = {
+            "surfaced": round(c["success_rate_when_surfaced"], 4),
+            "control": round(c["success_rate_when_not_surfaced"], 4),
+            "raw_delta": round(c["success_rate_when_surfaced"] - c["success_rate_when_not_surfaced"], 4),
+            "note": "NOT an effect size -- read the confounds",
+        }
     viol = {k: x for k, x in rep["per_lesson"].items() if x["VIOLATED"]}
-    if viol:
-        print("  fired-then-violated (1:1 with a filed repeat):")
-        for k, x in sorted(viol.items(), key=lambda i: -i[1]["VIOLATED"]):
-            print(f"    {x['VIOLATED']}x {k.replace('learn:experiment:', '')}")
-    for line in rep["confounds"]:
-        print(f"  ! {line}")
-    return 0
+    if viol:  # fired-then-violated, 1:1 with a filed repeat
+        doc["violated"] = [
+            {"lesson": k.replace("learn:experiment:", ""), "times": x["VIOLATED"]}
+            for k, x in sorted(viol.items(), key=lambda i: -i[1]["VIOLATED"])
+        ]
+    if not rep["stage_rows"]:
+        # AXI section 5: the zero, and why it can be zero. Only the harness hooks write the stage
+        # log, when an action resolves; with nothing logged there is no number for a confound to
+        # qualify, so the four of them would be pure cost.
+        doc["result"] = "no action outcomes logged yet -- the harness hooks write the stage log"
+        return out.emit(doc, hints=[f"{_cli()} hooks status"], human=_human_prevention, title="Recall prevention")
+    doc["confounds"] = list(rep["confounds"])  # named beside every number, as the stage log asks
+    return out.emit(
+        doc, hints=[f"{_cli()} repeat --report", f"{_cli()} triage"], human=_human_prevention, title="Recall prevention"
+    )
+
+
+def _human_prevention(console, doc):
+    """Human view of `recall-prevention`: the counts as an aligned list, violated lessons as a
+    table, the confounds dimmed under a warning sign."""
+    from core.axi import out
+
+    console.print(f"[yellow]{out._esc(doc['authority'])}[/]")
+    rest = {k: v for k, v in doc.items() if k not in ("authority", "violated", "confounds")}
+    out.render_human(console, rest)
+    if doc.get("violated"):
+        console.print(out.table(doc["violated"], title="fired, then violated"))
+    for line in doc.get("confounds", []):
+        console.print(f"[yellow]![/] [dim]{out._esc(line)}[/]")
