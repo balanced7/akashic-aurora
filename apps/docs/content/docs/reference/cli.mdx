@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 17 converted to agent and human output.
+121 verbs; 18 converted to agent and human output.
 
 ## `alias`
 
@@ -1630,7 +1630,10 @@ help[2]:
 | | |
 |---|---|
 | Does | mark a recalled lesson useful/noise (teaches recall what helps) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 33 before, 45 after (+36%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/recall-feedback.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1638,6 +1641,16 @@ help[2]:
 | `--useful` |   |   | it changed what you did (default) |
 | `--noise` |   |   | it was off-target |
 | `--domain` |   |   | which domain it was useful IN (system\|vfx) -- credit in 2+ domains promotes the lesson to domain-general |
+
+Agent output of `aurora recall-feedback --source learn:experiment:tonemap_order --useful --domain vfx` on the bench data:
+
+```text
+recorded: useful
+source: "learn:experiment:tonemap_order"
+domain: vfx
+useful_votes: 1
+noise_votes: 0
+```
 
 ## `recall-prevention`
 

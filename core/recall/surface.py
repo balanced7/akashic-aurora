@@ -219,24 +219,35 @@ def cmd_recall_feedback(args):
     """Teach recall what's load-bearing: mark a surfaced lesson 'useful' (it changed what you did) or
     'noise' (off-target). Boosts/decays it in future recall ranking. Source = the lesson's pointer,
     e.g. learn:experiment:NAME."""
-    from core.recall.at_action import is_general, record_feedback
+    from core.axi import out
+    from core.recall.at_action import _load_use, _store, canonicalize_source, is_general, record_feedback
 
     kind = "noise" if args.noise else "useful"
     dom = getattr(args, "domain", None)
     ok = record_feedback(args.source, kind, domain=dom)
-    print(
-        f"[recall-feedback] {'recorded' if ok else 'failed'}: {kind} <- {args.source}"
-        + (f" (domain: {dom})" if dom and kind == "useful" else "")
-    )
+    if not ok:
+        return out.fail(
+            f"could not record the {kind} vote for {args.source} (the store refused or is down)",
+            code="NOT_RECORDED",
+            hints=[f"{_cli()} status"],
+        )
+    doc: dict = {"recorded": kind, "source": args.source}
+    if dom and kind == "useful":
+        doc["domain"] = dom
+    # The lesson's counters after this vote: the aggregate a voter would otherwise look up.
+    # Best-effort -- the vote is recorded either way.
+    try:
+        use = _load_use(_store(), canonicalize_source(args.source))
+        doc["useful_votes"] = int(use.get("useful", 0) or 0)
+        doc["noise_votes"] = int(use.get("noise", 0) or 0)
+    except Exception:
+        use = None
     # Promotion is EARNED and it is worth saying out loud the moment it happens -- a lesson that has
     # now proved itself in two domains starts surfacing in both, and that is a change in behaviour
     # the operator should hear about rather than discover.
-    if ok and kind == "useful" and is_general(args.source):
-        print(
-            "[recall-feedback] this lesson has now earned credit in 2+ domains -- "
-            "it is DOMAIN-GENERAL and will surface everywhere."
-        )
-    return 0 if ok else 1
+    if kind == "useful" and is_general(args.source, use=use):
+        doc["domain_general"] = "yes -- credited in 2+ domains, it now surfaces everywhere"
+    return out.emit(doc, title="Recall feedback")  # a confirmation answers itself: no hints
 
 
 def cmd_recall_curate(args):

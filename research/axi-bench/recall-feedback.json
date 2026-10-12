@@ -1,0 +1,236 @@
+{
+  "verb": "recall-feedback",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 33,
+    "stdout_chars": 352,
+    "stdout_lines": 4,
+    "cost_usd": 0.0227,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the vote recorded? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "In which domain was the lesson credited?",
+        "expected": "vfx",
+        "answers": [
+          "vfx",
+          "vfx",
+          "vfx",
+          "vfx",
+          "vfx"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Will this lesson now surface in every domain? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Yes",
+          "yes",
+          "Yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many useful votes does this lesson have now?",
+        "expected": 2,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What kind of vote was recorded: useful or noise?",
+        "expected": "noise",
+        "answers": [
+          "noise",
+          "noise",
+          "noise",
+          "noise",
+          "noise"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "vfx": {
+        "argv": [
+          "recall-feedback",
+          "--source",
+          "learn:experiment:tonemap_order",
+          "--useful",
+          "--domain",
+          "vfx"
+        ],
+        "exit": 0,
+        "stdout": "[recall-feedback] recorded: useful <- learn:experiment:tonemap_order (domain: vfx)\n"
+      },
+      "system": {
+        "argv": [
+          "recall-feedback",
+          "--source",
+          "learn:experiment:tonemap_order",
+          "--useful",
+          "--domain",
+          "system"
+        ],
+        "exit": 0,
+        "stdout": "[recall-feedback] recorded: useful <- learn:experiment:tonemap_order (domain: system)\n[recall-feedback] this lesson has now earned credit in 2+ domains -- it is DOMAIN-GENERAL and will surface everywhere.\n"
+      },
+      "noise": {
+        "argv": [
+          "recall-feedback",
+          "--source",
+          "learn:experiment:noisy_one",
+          "--noise"
+        ],
+        "exit": 0,
+        "stdout": "[recall-feedback] recorded: noise <- learn:experiment:noisy_one\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 45,
+    "stdout_chars": 365,
+    "stdout_lines": 15,
+    "cost_usd": 0.0206,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the vote recorded? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "In which domain was the lesson credited?",
+        "expected": "vfx",
+        "answers": [
+          "vfx",
+          "vfx",
+          "vfx",
+          "vfx",
+          "vfx"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Will this lesson now surface in every domain? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many useful votes does this lesson have now?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What kind of vote was recorded: useful or noise?",
+        "expected": "noise",
+        "answers": [
+          "noise",
+          "noise",
+          "noise",
+          "noise",
+          "noise"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "vfx": {
+        "argv": [
+          "recall-feedback",
+          "--source",
+          "learn:experiment:tonemap_order",
+          "--useful",
+          "--domain",
+          "vfx"
+        ],
+        "exit": 0,
+        "stdout": "recorded: useful\nsource: \"learn:experiment:tonemap_order\"\ndomain: vfx\nuseful_votes: 1\nnoise_votes: 0\n"
+      },
+      "system": {
+        "argv": [
+          "recall-feedback",
+          "--source",
+          "learn:experiment:tonemap_order",
+          "--useful",
+          "--domain",
+          "system"
+        ],
+        "exit": 0,
+        "stdout": "recorded: useful\nsource: \"learn:experiment:tonemap_order\"\ndomain: system\nuseful_votes: 2\nnoise_votes: 0\ndomain_general: \"yes -- credited in 2+ domains, it now surfaces everywhere\"\n"
+      },
+      "noise": {
+        "argv": [
+          "recall-feedback",
+          "--source",
+          "learn:experiment:noisy_one",
+          "--noise"
+        ],
+        "exit": 0,
+        "stdout": "recorded: noise\nsource: \"learn:experiment:noisy_one\"\nuseful_votes: 0\nnoise_votes: 1\n"
+      }
+    }
+  }
+}
