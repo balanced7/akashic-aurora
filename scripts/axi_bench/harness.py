@@ -356,6 +356,36 @@ def report_md(verb: str, before_ref: str, before: dict, after: dict, model: str,
     return "\n".join(lines).rstrip() + "\n"
 
 
+def recheck(a, spec) -> int:
+    """Refresh the AXI checks of an existing report against this tree.
+
+    A verb measured on one branch and landed on a later master keeps the same code and the same
+    output, so its reader accuracy and token counts still hold. What a later shared change can
+    move is the parser's behaviour on bad flags, which only the checks see. Running them again
+    costs seconds and no reader calls.
+    """
+    stem = a.verb.replace(" ", "-")
+    path = REPORTS / f"{stem}.json"
+    rep = json.loads(path.read_text(encoding="utf-8"))
+    verb_argv = next(iter(spec.RUNS.values()))[: len(spec.VERB.split())]
+    with tempfile.TemporaryDirectory(prefix="axi-recheck-") as tmp:
+        base = Path(tmp)
+        before_tree = export_tree(a.before, base / "before")
+        sandbox = Sandbox(base, a.db)
+        for side, tree in (("before", before_tree), ("after", ROOT)):
+            sandbox.reset()
+            conf = conformance(tree, spec, sandbox, verb_argv)
+            conf["no_ansi_in_agent_stdout"] = not any(ANSI.search(r["stdout"]) for r in rep[side]["runs"].values())
+            rep[side]["conformance"] = conf
+            rep[side]["conformance_passed"] = f"{sum(conf.values())}/{len(conf)}"
+        sandbox.reset()
+    md = report_md(a.verb, rep["before_ref"], rep["before"], rep["after"], rep["model"], rep["repeats"])
+    path.write_text(json.dumps(rep, indent=2) + "\n", encoding="utf-8")
+    (REPORTS / f"{stem}.md").write_text(md, encoding="utf-8")
+    print(md)
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="AXI before/after bench for one CLI verb")
     ap.add_argument("verb")
@@ -373,8 +403,16 @@ def main(argv=None) -> int:
         help="Redis logical db for the sandbox (flushed); give parallel benches different ones",
     )
     ap.add_argument("--no-write", action="store_true", help="print the report, write nothing")
+    ap.add_argument(
+        "--recheck",
+        action="store_true",
+        help="re-run only the AXI checks on this tree and rewrite the existing report; reader "
+        "results stay as measured (valid while the verb's code and output are unchanged)",
+    )
     a = ap.parse_args(argv)
     spec = load_spec(a.verb)
+    if a.recheck:
+        return recheck(a, spec)
     with tempfile.TemporaryDirectory(prefix="axi-bench-") as tmp:
         base = Path(tmp)
         before_tree = export_tree(a.before, base / "before")
