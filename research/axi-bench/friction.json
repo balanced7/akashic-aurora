@@ -1,0 +1,192 @@
+{
+  "verb": "friction",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 415,
+    "stdout_chars": 858,
+    "stdout_lines": 12,
+    "cost_usd": 0.0192,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many of bench's asks are still open?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of bench's asks were answered?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which peers still have an open ask from bench? List them separated by commas.",
+        "expected": [
+          "bob",
+          "dave"
+        ],
+        "answers": [
+          "bob, dave",
+          "bob, dave",
+          "bob, dave",
+          "bob, dave",
+          "bob, dave"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the dead rate, as a percentage?",
+        "expected": 0,
+        "answers": [
+          "0.0%",
+          "0.0%",
+          "The output's first line reads \"open 2 | answered 2 | echo 0 | dead 0 | dead-rate 0.0%\".\n\n0.0%",
+          "0.0%",
+          "0.0%"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Did any ask die? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "bench": {
+        "argv": [
+          "friction",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "# friction -- bench (window 168h)\nopen 2 | answered 2 | echo 0 | dead 0 | dead-rate 0.0%\ntime-to-settle p50 2.0s p90 2.9s\nby peer (worst first):\n  alice                  answered   1 | dead   0 | echo   0 | open   0 | dead-rate   0% | median 3s\n  bob                    answered   0 | dead   0 | echo   0 | open   1 | dead-rate  n/a | median n/a\n  carol                  answered   1 | dead   0 | echo   0 | open   0 | dead-rate   0% | median 2s\n  dave                   answered   0 | dead   0 | echo   0 | open   1 | dead-rate  n/a | median n/a\n  ANSWERED        1791814493363-0 -> alice | took 2.9s | redrives 0\n  ANSWERED        1791814494300-0 -> carol | took 2.0s | redrives 0\n  OPEN.DISPATCHED 1791814493819-0 -> bob | age 2.9s | redrives 0 | deadline in 1797.1s\n  OPEN.DISPATCHED 1791814494790-0 -> dave | age 1.9s | redrives 0 | deadline in 1798.1s\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 290,
+    "stdout_chars": 500,
+    "stdout_lines": 22,
+    "cost_usd": 0.0191,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many of bench's asks are still open?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of bench's asks were answered?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which peers still have an open ask from bench? List them separated by commas.",
+        "expected": [
+          "bob",
+          "dave"
+        ],
+        "answers": [
+          "bob, dave",
+          "bob, dave",
+          "bob, dave",
+          "bob, dave",
+          "bob, dave"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the dead rate, as a percentage?",
+        "expected": 0,
+        "answers": [
+          "0%",
+          "0%",
+          "0%",
+          "0%",
+          "0%"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did any ask die? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "bench": {
+        "argv": [
+          "friction",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "agent: bench\nwindow_h: 168\nopen: 2\nanswered: 2\necho: 0\ndead: 0\ndead_rate: 0\nsettle_p50_s: 1.9\nsettle_p90_s: 2.9\npeers[4]{peer,open,answered,dead,dead_rate}:\n  alice,0,1,0,0\n  bob,1,0,0,null\n  carol,0,1,0,0\n  dave,1,0,0,null\nepisodes: 4\nasks[4]{ask_id,peer,status,secs,redrives}:\n  1791814530453-0,bob,open (dispatched),2.8,0\n  1791814531362-0,dave,open (dispatched),1.9,0\n  1791814529964-0,alice,answered,2.9,0\n  1791814530915-0,carol,answered,1.9,0\nhelp[1]:\n  uv run agent_cli.py bifrost-sync bench\n"
+      }
+    }
+  }
+}

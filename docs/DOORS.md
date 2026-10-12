@@ -55,7 +55,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `focus` | check in/out: attribute THIS session's tool calls to a task | `<agent_id>` `--set` `--clear` `--dismiss` `--quiet` `--health` `--session` `--json` |
 | `followup` | charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat | `<agent_id>*` `--on*` `--to*` `--ask*` `--needs` `--json` |
 | `forecast` | T375 engineering forecast registry -- register bets at gates, score at review, render calibration | `<action>* {register,score,list}` `<id_pos>` `--id` `--task` `--by` `--statement` `--metric` `--target` `--horizon` `--mechanism` `--dies-when` `--observed` `--evidence` `--verdict` `--calibration` |
-| `friction` | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only | `<agent_id>*` `--window-h` `--json` |
+| `friction` | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only | `<agent_id>*` `--window-h` `--limit` `--json` |
 | `gateway` | the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation) | `<action> {status,restart}` `--json` |
 | `glance` | T079/T060: bounded read-only WorldSnapshot projections over named authorities | `<glance_projection>* {program}` |
 | `grade` | meta-harness graders (task 05): grade runs, compare candidates, power, calibration | `<action>* {run,compare,noise,power,label,agreement}` `--candidate` `--against` `--scenario` `--judge` `--scenarios-n` `--trials` `--delta` `--criterion` `--person` `--judge-call` `--ref` `--json` |

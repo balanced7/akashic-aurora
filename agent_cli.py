@@ -5486,82 +5486,158 @@ def cmd_friction(args):
         print(json.dumps(rep, ensure_ascii=False, default=str))
         return 0
 
+    from core.axi import out
+
     a = rep["agg"]
 
-    def _s(v, suffix="s"):
-        return "n/a" if v is None else f"{round(float(v), 1)}{suffix}"
+    def _sec(v):
+        return None if v is None else round(float(v), 1)
 
-    print(f"# friction -- {args.agent_id} (window {args.window_h}h)")
-    rate = "n/a (nothing closed)" if a["dead_rate"] is None else f"{a['dead_rate']:.1%}"
-    print(
-        f"open {a['n_open']} | answered {a['n_answered']} | echo {a['n_echo']} | dead {a['n_dead']} | dead-rate {rate}"
-    )
-    print(
-        f"time-to-settle p50 {_s(a['settle_p50_s'])} p90 {_s(a['settle_p90_s'])}"
-        + (f" | duration unknown for {a['n_duration_unknown']} episode(s)" if a["n_duration_unknown"] else "")
-    )
+    doc: dict = {
+        "agent": args.agent_id,
+        "window_h": args.window_h,
+        "open": a["n_open"],
+        "answered": a["n_answered"],
+        "echo": a["n_echo"],
+        "dead": a["n_dead"],
+        # None (not 0.0) over zero closed episodes: "nothing ever dies" would be a fabrication.
+        "dead_rate": None if a["dead_rate"] is None else round(a["dead_rate"], 3),
+        "settle_p50_s": _sec(a["settle_p50_s"]),
+        "settle_p90_s": _sec(a["settle_p90_s"]),
+    }
+    if a["n_duration_unknown"]:
+        doc["duration_unknown"] = a["n_duration_unknown"]
     # T197: WHY they died, not just how many. Each verdict names a different bug with a
-    # different action, so the line carries the action -- a partition an operator has to
+    # different action, so the row carries the action -- a partition an operator has to
     # translate is a partition that gets read as one number again.
     if a["n_dead"]:
-        print("why they died:")
-        for key, label, action in (
-            ("dead_absent", "absent", "nobody was ever home -- launch the peer"),
-            ("dead_vanished", "vanished", "it died mid-flight -- chase the crash"),
-            ("dead_ignored", "ignored", "home the whole time -- chase the consumer"),
-            ("dead_arrived_late", "arrived_late", "came up late and still went silent"),
-            ("dead_peer_unknown", "unknown", "no peer observation (pre-T197, or probe unreadable) -- NOT back-filled"),
-        ):
-            n = a.get(key, 0)
-            if n:
-                print(f"  {label:<13} {n:>3}  {action}")
-    # T199: does presence predict an answer? The question T197 shipped autolaunch on and
-    # could not test. Rendered BEFORE the per-episode list because it is the finding.
+        doc["dead_by_reason"] = [
+            {"reason": label, "count": a.get(key, 0), "action": action}
+            for key, label, action in _FRICTION_DEAD_REASONS
+            if a.get(key, 0)
+        ]
+    # T199: does presence predict an answer? (correlation, not cause). Before the episode list
+    # because it is the finding.
     pe = a.get("presence_effect") or {}
-    obs = sum(pe.get(k, {}).get("n", 0) for k in ("ATTENDED", "UNATTENDED"))
-    if obs:
-        print("does presence predict an answer? (correlation, not cause)")
-        for state in ("ATTENDED", "UNATTENDED"):
-            b = pe.get(state) or {}
-            if not b.get("n"):
-                continue
-            rate = "n/a" if b.get("answer_rate") is None else f"{b['answer_rate']:.0%}"
-            print(f"  peer {state:<11} {b['n_answered']}/{b['n']} answered ({rate})")
+    if sum(pe.get(k, {}).get("n", 0) for k in ("ATTENDED", "UNATTENDED")):
+        doc["presence_effect"] = {
+            state.lower(): {
+                "asks": pe[state]["n"],
+                "answered": pe[state]["n_answered"],
+                "answer_rate": None if pe[state]["answer_rate"] is None else round(pe[state]["answer_rate"], 3),
+            }
+            for state in ("ATTENDED", "UNATTENDED")
+            if (pe.get(state) or {}).get("n")
+        }
         if pe.get("n_unobserved"):
-            print(
-                f"  unobserved  {pe['n_unobserved']:>4}  no peer reading taken "
-                f"(pre-T197) -- excluded from both rates, never back-filled"
-            )
+            doc["presence_effect"]["unobserved"] = pe["n_unobserved"]
     by = a.get("by_peer") or {}
-    if by:
-        print("by peer (worst first):")
-        for name, p in list(by.items())[:12]:
-            rate = "n/a" if p["dead_rate"] is None else f"{p['dead_rate']:.0%}"
-            med = "n/a" if p["settle_median_s"] is None else f"{p['settle_median_s']:.0f}s"
-            print(
-                f"  {name:<22} answered {p['n_answered']:>3} | dead {p['n_dead']:>3} "
-                f"| echo {p['n_echo']:>3} | open {p['n_open']:>3} "
-                f"| dead-rate {rate:>4} | median {med}"
-            )
-    for e in rep["episodes"]:
+    show_echo = any(p["n_echo"] for p in by.values())
+    doc["peers"] = [
+        {
+            "peer": name,
+            "open": p["n_open"],
+            "answered": p["n_answered"],
+            "dead": p["n_dead"],
+            **({"echo": p["n_echo"]} if show_echo else {}),
+            "dead_rate": None if p["dead_rate"] is None else round(p["dead_rate"], 3),
+        }
+        for name, p in by.items()
+    ]
+    # Open asks first: they are the ones a reader can still act on.
+    eps = sorted(rep["episodes"], key=lambda e: e["outcome"] != "open")
+    limit = max(1, int(getattr(args, "limit", None) or 20))
+    rows = []
+    for e in eps[:limit]:
         if e["outcome"] == "open":
-            print(
-                f"  OPEN.{e['state'].upper():<10} {e['ask_id']} -> {e['peer']} "
-                f"| age {_s(e['age_s'])} | redrives {e['redrives']} "
-                f"| deadline in {_s(e['deadline_in_s'])}"
-            )
+            status, secs = f"open ({e['state']})", e.get("age_s")
+        elif e["outcome"] == "dead" and e.get("peer_verdict") not in (None, "unknown"):
+            status, secs = f"dead ({e['peer_verdict']})", e.get("duration_s")
         else:
-            peer_bit = ""
-            if e["outcome"] == "dead" and e.get("peer_verdict") != "unknown":
-                peer_bit = f" | {e['peer_verdict']} ({e.get('peer_at_ask')}->{e.get('peer_at_death')})"
-            print(
-                f"  {e['outcome'].upper():<15} {e['ask_id']} -> {e['peer']} "
-                f"| took {_s(e['duration_s'])} | redrives {e['redrives']}{peer_bit}"
-            )
+            status, secs = e["outcome"], e.get("duration_s")
+        rows.append(
+            {"ask_id": e["ask_id"], "peer": e["peer"], "status": status, "secs": _sec(secs), "redrives": e["redrives"]}
+        )
+    doc["episodes"] = len(eps)
+    if len(eps) > limit:
+        doc["shown"] = limit
+    doc["asks"] = rows
+    cli = _cli()
+    hints = []
+    if a["n_open"]:
+        hints.append(f"{cli} bifrost-sync {args.agent_id}")  # the sweep settles, redrives or kills open asks
+    if len(eps) > limit:
+        hints.append(f"{cli} friction {args.agent_id} --limit {len(eps)}")
+    if not eps:
+        hints.append(f"{cli} friction {args.agent_id} --window-h {int(args.window_h) * 4}")
+    out.emit(doc, hints=hints, human=_human_friction, title=f"Friction · {args.agent_id} · last {args.window_h:g}h")
+    # The blind list stays on stderr for every reader (pinned by T200): the numbers above must
+    # never travel without the confession of what they cannot see, and must never be mixed in.
     print("blind (what this reader cannot see):", file=sys.stderr)
     for b in rep["blind"]:
         print(f"  - {b}", file=sys.stderr)
     return 0
+
+
+#: friction's dead-episode partition: (aggregate key, label, what to do about it).
+_FRICTION_DEAD_REASONS = (
+    ("dead_absent", "absent", "nobody was ever home -- launch the peer"),
+    ("dead_vanished", "vanished", "it died mid-flight -- chase the crash"),
+    ("dead_ignored", "ignored", "home the whole time -- chase the consumer"),
+    ("dead_arrived_late", "arrived_late", "came up late and still went silent"),
+    ("dead_peer_unknown", "unknown", "no peer observation (pre-T197, or probe unreadable) -- NOT back-filled"),
+)
+
+
+def _human_friction(console, doc):
+    """Human view of `friction`: the outcome counts and dead rate first, then why asks died,
+    the per-peer table (worst first) and the asks themselves, open ones on top."""
+    from core.axi import out
+
+    def secs(v):
+        return "—" if v is None else _human_secs(round(v)) if v >= 1 else f"{v}s"
+
+    rate = "n/a (nothing closed)" if doc["dead_rate"] is None else f"{doc['dead_rate']:.0%}"
+    rate_colour = "dim" if doc["dead_rate"] is None else ("green" if doc["dead_rate"] == 0 else "red")
+    console.print(
+        f"[yellow]{doc['open']} open[/]  [green]{doc['answered']} answered[/]  {doc['echo']} echo  "
+        f"[red]{doc['dead']} dead[/]   dead rate [{rate_colour}]{rate}[/]"
+    )
+    console.print(f"[dim]time to settle: median {secs(doc['settle_p50_s'])}, p90 {secs(doc['settle_p90_s'])}[/]")
+    if doc.get("duration_unknown"):
+        console.print(f"[dim]duration unknown for {doc['duration_unknown']} episode(s)[/]")
+    if doc.get("dead_by_reason"):
+        console.print()
+        console.print(out.table(doc["dead_by_reason"], title="why they died"))
+    if doc.get("presence_effect"):
+        console.print()
+        console.print("[bold]does presence predict an answer?[/] [dim](correlation, not cause)[/]")
+        for state, b in doc["presence_effect"].items():
+            if isinstance(b, dict):
+                r = "n/a" if b["answer_rate"] is None else f"{b['answer_rate']:.0%}"
+                console.print(f"  peer {state}: {b['answered']}/{b['asks']} answered ({r})")
+            else:
+                console.print(f"  [dim]{b} unobserved (pre-T197), excluded from both rates[/]")
+    if doc["peers"]:
+        console.print()
+        peers = [{**p, "dead_rate": None if p["dead_rate"] is None else f"{p['dead_rate']:.0%}"} for p in doc["peers"]]
+        console.print(out.table(peers, title="by peer (worst first)"))
+    if doc["asks"]:
+        console.print()
+        shown = f"{doc['shown']} of " if doc.get("shown") else ""
+        rows = [
+            {
+                "ask": r["ask_id"],
+                "peer": r["peer"],
+                "status": r["status"],
+                "age / took": secs(r["secs"]),
+                "redrives": r["redrives"],
+            }
+            for r in doc["asks"]
+        ]
+        console.print(out.table(rows, title=f"asks ({shown}{doc['episodes']})"))
+    else:
+        console.print(f"[dim]no asks from {out._esc(doc['agent'])} in the window[/]")
 
 
 def _ledger_claim_arc(seat: str):
@@ -12842,6 +12918,9 @@ def build_parser():
     fr.add_argument("agent_id", help="whose asks to report on (the sender seat)")
     fr.add_argument(
         "--window-h", dest="window_h", type=float, default=168, help="terminal-event window in hours (default 168 = 7d)"
+    )
+    fr.add_argument(
+        "--limit", type=int, default=20, help="how many asks to list (default 20; the count gives the total)"
     )
     fr.add_argument("--json", action="store_true")
     fr.set_defaults(fn=cmd_friction)

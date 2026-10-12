@@ -125,7 +125,7 @@ Class: reference
 | `failure_class.py` | failure_class -- name the cause of a dead ask, and say what to do about it (T202). | tests/test_t202_failure_class.py | GAP |  |
 | `fence_phase.py` | fence_phase -- the method board's state source (T079-E2). | GAP | GAP |  |
 | `flow_trace.py` | flow_trace (R3 / T054) -- the OTel-style waterfall over lanes: what HAPPENED, in causal | tests/test_flow_trace.py | GAP | `AKASHIC_FLOW_NO_COUNT`, `BIFROST_NAMESPACE` |
-| `friction.py` | friction -- read the collaboration tax from evidence that already exists (T196a). | tests/test_t196a_friction.py | docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md |  |
+| `friction.py` | friction -- read the collaboration tax from evidence that already exists (T196a). | tests/test_axi_friction.py | docs/library/design/20260701_night-friction-program-every-pain-point_70f449.md |  |
 | `incarnation.py` | incarnation -- who else is HERE right now, per agent id (T074 W3/R4). | tests/test_liveness_bare_id_finds_its_incarnation.py | GAP | `AKASHIC_INCARNATION_TTL_MIN`, `BIFROST_NAMESPACE` |
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `kinds.py` | T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision. | tests/test_t175_skip_kinds_names_what_it_skips.py | GAP |  |

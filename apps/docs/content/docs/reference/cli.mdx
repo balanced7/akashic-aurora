@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 83 converted to agent and human output.
+121 verbs; 84 converted to agent and human output.
 
 ## `alias`
 
@@ -1196,13 +1196,44 @@ help[1]:
 | | |
 |---|---|
 | Does | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 96% before, 100% after |
+| Output tokens | 415 before, 290 after (-30%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/friction.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` | yes |   | whose asks to report on (the sender seat) |
 | `--window-h` |   |   | terminal-event window in hours (default 168 = 7d) |
+| `--limit` |   |   | how many asks to list (default 20; the count gives the total) |
 | `--json` |   |   |   |
+
+Agent output of `aurora friction bench` on the bench data:
+
+```text
+agent: bench
+window_h: 168
+open: 2
+answered: 2
+echo: 0
+dead: 0
+dead_rate: 0
+settle_p50_s: 1.9
+settle_p90_s: 2.9
+peers[4]{peer,open,answered,dead,dead_rate}:
+  alice,0,1,0,0
+  bob,1,0,0,null
+  carol,0,1,0,0
+  dave,1,0,0,null
+episodes: 4
+asks[4]{ask_id,peer,status,secs,redrives}:
+  1791814530453-0,bob,open (dispatched),2.8,0
+  1791814531362-0,dave,open (dispatched),1.9,0
+  1791814529964-0,alice,answered,2.9,0
+  1791814530915-0,carol,answered,1.9,0
+help[1]:
+  uv run agent_cli.py bifrost-sync bench
+```
 
 ## `gateway`
 
