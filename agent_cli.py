@@ -8052,12 +8052,74 @@ def cmd_bifrost_ack(args):
 
 def cmd_console_log(args):
     """Query durable console control-plane events (interjection/bus_control/file_drop -> Ledger)."""
-    from agent.bifrost_pull import format_console_events
+    from agent.bifrost_pull import _content_str
+    from core.axi import out
     from core.comm.promoter import console_events
 
-    evs = console_events(limit=args.limit or 20, since=args.since, until=args.until)
-    print(format_console_events(evs, json_out=bool(args.json)))
-    return 0
+    limit = args.limit or 20
+    if args.json:
+        print(json.dumps(console_events(limit=limit, since=args.since, until=args.until), indent=2, default=str))
+        return 0
+    # One past the page, so a full page can say whether anything older exists.
+    evs = console_events(limit=limit + 1, since=args.since, until=args.until)
+    more, evs = len(evs) > limit, evs[:limit]
+    rows = []
+    for ev in evs:
+        d = ev.get("detail") or {}
+        kind = ev.get("kind", "?")
+        row = {"ref": ev.get("_ref") or ev.get("id") or "", "kind": kind, "by": d.get("by") or ev.get("agent_id")}
+        # Each kind's one fact: what was said to whom, what the collaboration did and why, which file.
+        if kind == "interjection":
+            row["kind"] = f"interjection:{d.get('intent', '?')}"
+            row["to"] = d.get("to") or None
+            text = _content_str(d.get("text"))
+        elif kind == "bus_control":
+            row["kind"] = str(d.get("action", "control"))
+            text = _content_str(d.get("reason", "")) or "(no reason)"
+        elif kind == "file_drop":
+            text = f"{d.get('path', '?')} ({d.get('bytes', '?')} bytes)"
+        else:
+            text = _content_str(ev.get("summary", ""))
+        row["text"] = out.truncate(text, 300)[0]
+        rows.append(row)
+    if any("to" in r for r in rows):  # a column only when some event was addressed
+        rows = [{"ref": r["ref"], "kind": r["kind"], "by": r["by"], "to": r.get("to"), "text": r["text"]} for r in rows]
+    doc: dict = {"count": len(rows)}
+    if more:
+        doc["more"] = True
+    doc["events"] = rows
+    cli = _cli()
+    drill = rows[0]["ref"] if len(rows) == 1 else "<ref>"
+    hints = [f"{cli} events --get {drill}" if rows else f"{cli} promoted"]
+    if more:
+        hints.append(f"{cli} console-log --limit {limit * 2}")
+    return out.emit(doc, hints=hints, human=_human_console_log, title=f"Console log · {len(rows)} events")
+
+
+def _human_console_log(console, doc):
+    """Human view of `console-log`: one table, newest first, pauses in yellow and resumes in green."""
+    from core.axi import out
+
+    if not doc["events"]:
+        console.print("[dim]0 durable console events (interjection / pause / resume / file drop)[/]")
+        return
+    rows = []
+    for r in doc["events"]:
+        colour = {"pause": "yellow", "resume": "green"}.get(r["kind"])
+        kind = out._esc(r["kind"])
+        who = out._esc(str(r["by"] or "?")) + (f" → {out._esc(r['to'])}" if r.get("to") else "")
+        rows.append({"kind": f"[{colour}]{kind}[/]" if colour else kind, "who": who, "what": out._esc(r["text"])})
+    from rich import box
+    from rich.table import Table
+
+    t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+    for c in ("kind", "who", "what"):
+        t.add_column(c, overflow="fold")
+    for r in rows:
+        t.add_row(r["kind"], r["who"], r["what"])
+    console.print(t)
+    if doc.get("more"):
+        console.print("[yellow]older events beyond this page[/]")
 
 
 def cmd_season_score(args):

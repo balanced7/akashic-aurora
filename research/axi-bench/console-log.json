@@ -1,0 +1,206 @@
+{
+  "verb": "console-log",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.92,
+    "correct": 23,
+    "asked": 25,
+    "output_tokens": 254,
+    "stdout_chars": 892,
+    "stdout_lines": 24,
+    "cost_usd": 0.0213,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many console events are listed?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "Looking at the output, there are four event lines, each starting with a bracketed type tag: `[control]`, `[file_drop]`, `[control]`, and `[interjection:steer]`. The header also says \"4 durable console event(s)\".\n\n4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent was the interjection addressed to?",
+        "expected": "claude",
+        "answers": [
+          "claude",
+          "claude",
+          "claude",
+          "claude",
+          "claude"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Why was the collaboration paused?",
+        "expected": [
+          "auth"
+        ],
+        "answers": [
+          "Reviewing the auth change",
+          "reviewing the auth change",
+          "reviewing the auth change",
+          "reviewing the auth change",
+          "reviewing the auth change"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many bytes was the shared file docs/spec.md?",
+        "expected": 2048,
+        "answers": [
+          "2048",
+          "2048",
+          "2048",
+          "2048",
+          "2048"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output show every console event there is? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "console-log"
+        ],
+        "exit": 0,
+        "stdout": "# 4 durable console event(s) (live cockpit -> Ledger)\n  [control] user resume  2026-10-12T15:40:07\n    (no reason)\n    ref: event:events:raw:1791819607503-0\n  [file_drop] user shared  2026-10-12T15:40:07\n    docs/spec.md (2048 bytes)\n    ref: event:events:raw:1791819607078-0\n  [control] user pause  2026-10-12T15:40:06\n    reviewing the auth change\n    ref: event:events:raw:1791819606586-0\n  [interjection:steer] user -> claude  2026-10-12T15:40:06\n    also cover the null case\n    ref: event:events:raw:1791819606133-0\n\nDrill: uv run agent_cli.py events --get <ref>\n"
+      },
+      "page": {
+        "argv": [
+          "console-log",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "# 2 durable console event(s) (live cockpit -> Ledger)\n  [control] user resume  2026-10-12T15:40:07\n    (no reason)\n    ref: event:events:raw:1791819607503-0\n  [file_drop] user shared  2026-10-12T15:40:07\n    docs/spec.md (2048 bytes)\n    ref: event:events:raw:1791819607078-0\n\nDrill: uv run agent_cli.py events --get <ref>\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 185,
+    "stdout_chars": 696,
+    "stdout_lines": 16,
+    "cost_usd": 0.0249,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many console events are listed?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent was the interjection addressed to?",
+        "expected": "claude",
+        "answers": [
+          "claude",
+          "claude",
+          "claude",
+          "claude",
+          "claude"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Why was the collaboration paused?",
+        "expected": [
+          "auth"
+        ],
+        "answers": [
+          "reviewing the auth change",
+          "reviewing the auth change",
+          "reviewing the auth change",
+          "reviewing the auth change",
+          "reviewing the auth change"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many bytes was the shared file docs/spec.md?",
+        "expected": 2048,
+        "answers": [
+          "2048",
+          "2048",
+          "2048",
+          "2048",
+          "2048"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output show every console event there is? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "console-log"
+        ],
+        "exit": 0,
+        "stdout": "count: 4\nevents[4]{ref,kind,by,to,text}:\n  \"event:events:raw:1791819649173-0\",resume,user,null,(no reason)\n  \"event:events:raw:1791819648717-0\",file_drop,user,null,docs/spec.md (2048 bytes)\n  \"event:events:raw:1791819648265-0\",pause,user,null,reviewing the auth change\n  \"event:events:raw:1791819647789-0\",\"interjection:steer\",user,claude,also cover the null case\nhelp[1]:\n  uv run agent_cli.py events --get <ref>\n"
+      },
+      "page": {
+        "argv": [
+          "console-log",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "count: 2\nmore: true\nevents[2]{ref,kind,by,text}:\n  \"event:events:raw:1791819649173-0\",resume,user,(no reason)\n  \"event:events:raw:1791819648717-0\",file_drop,user,docs/spec.md (2048 bytes)\nhelp[2]:\n  uv run agent_cli.py events --get <ref>\n  uv run agent_cli.py console-log --limit 4\n"
+      }
+    }
+  }
+}
