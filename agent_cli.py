@@ -9369,32 +9369,43 @@ def cmd_scout(args):
     (deepseek default) or a blind tier-0 branch. The verdict files itself under
     role=Scout and waits, visibly unadjudicated, for an operator to rule.
     """
+    from core.axi import out
     from core.fleet import scout as SC
 
+    cli = _cli()
     q = " ".join(args.text or []).strip()
     if not q:
-        print(f'usage: {_cli()} scout "is anyone mid-flight on <area>?"', file=sys.stderr)
-        return 2
+        return out.fail(
+            "scout needs a question -- the scout answers, it does not roam",
+            code="USAGE",
+            exit_code=2,
+            hints=[f'{cli} scout "is anyone mid-flight on <area>?"'],
+        )
     try:
         r = SC.scout_ask(
             q, wearer=args.wearer, by=(args.by or "claude"), blind=bool(args.blind), question_shape=args.shape
         )
     except ValueError as e:
-        print(f"[scout] {e}", file=sys.stderr)
-        return 1
+        return out.fail(str(e), code="REFUSED", hints=[f'{cli} scout "{q}" --blind'])
     if args.json:
         print(json.dumps(r, ensure_ascii=False, default=str))
         return 0 if r.get("ok") else 1
     secs = (r.get("pack_meta") or {}).get("sections") or {}
-    bounds = ", ".join(f"{k}={v}" for k, v in sorted(secs.items()))
-    print(f"# scout [{r['tier']}] ask {r['ask_id']}  (pack: {bounds})")
-    print(r.get("answer") or f"(no answer -- {r.get('why') or 'ask failed'})")
-    print(
-        f"\n-- verdict filed unadjudicated. When you have CHECKED this answer: "
-        f"{_cli()} resident adjudicate {r['ask_id']} --outcome confirmed|refuted "
-        f"--by <operator>",
-        file=sys.stderr,
-    )
+    # The answer is cut at 800 characters with its full size noted. There is no re-read hatch
+    # on purpose: asking again would spend a model call and file a second verdict.
+    answer = out.truncate(r["answer"], 800)[0] if r.get("answer") else None
+    doc: dict[str, Any] = {"ok": bool(r.get("ok")), "tier": r.get("tier"), "ask_id": r["ask_id"], "answer": answer}
+    if not r.get("answer"):
+        doc["why"] = r.get("why") or "ask failed"
+    doc["pack"] = dict(sorted(secs.items()))
+    # The verdict files itself whether or not the model answered; it waits for an operator to
+    # rule on it, so the adjudication command is the next step either way.
+    doc["verdict"] = "filed, unadjudicated"
+    hints = [f"{cli} resident adjudicate {r['ask_id']} --outcome confirmed|refuted --by <operator>"]
+    m = re.search(r"\.secrets/(\S+)", str(r.get("why") or ""))
+    if m and not r.get("ok"):  # a closed door: name the vault command that opens it
+        hints.insert(0, f"{cli} secret {m.group(1)}")
+    out.emit(doc, hints=hints, title=f"Scout · {r.get('tier')}")
     return 0 if r.get("ok") else 1
 
 

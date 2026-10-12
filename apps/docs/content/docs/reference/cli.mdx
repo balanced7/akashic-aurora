@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 84 converted to agent and human output.
+121 verbs; 85 converted to agent and human output.
 
 ## `alias`
 
@@ -2739,7 +2739,10 @@ help[2]:
 | | |
 |---|---|
 | Does | read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 56% before, 100% after |
+| Output tokens | 108 before, 216 after (+100%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/scout.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2749,6 +2752,25 @@ help[2]:
 | `--blind` |   |   | tier-0: no identity, no archive -- the uncorrelated control arm |
 | `--shape` |   |   | question shape for the verdict (descriptive\|normative\|generative\|coverage; scout questions are usually descriptive or coverage) |
 | `--json` |   |   |   |
+
+Agent output of `aurora scout is anyone working on core/axi --blind` on the bench data:
+
+```text
+ok: false
+tier: blind
+ask_id: scout-e2a6eb998985
+answer: null
+why: "no DEEPSEEK_API_KEY and no .secrets/deepseek.key -- the deepseek door is closed, which is a configuration state and not a model failure"
+pack:
+  in_flight: 24
+  locks: 0
+  recently_done: 12
+  scout_memory: 0
+verdict: "filed, unadjudicated"
+help[2]:
+  uv run agent_cli.py secret deepseek.key
+  uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>
+```
 
 ## `season-score`
 

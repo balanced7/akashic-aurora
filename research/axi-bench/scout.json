@@ -1,0 +1,226 @@
+{
+  "verb": "scout",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.56,
+    "correct": 14,
+    "asked": 25,
+    "output_tokens": 108,
+    "stdout_chars": 255,
+    "stdout_lines": 2,
+    "cost_usd": 0.0195,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Did the scout produce an answer? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "yes"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which credential is missing for the scout to answer? Answer in a few words.",
+        "expected": [
+          "deepseek"
+        ],
+        "answers": [
+          "DeepSeek API key (`DEEPSEEK_API_KEY` or `.secrets/deepseek.key`)",
+          "DeepSeek API key (`DEEPSEEK_API_KEY` or `.secrets/deepseek.key`)",
+          "DeepSeek API key (`DEEPSEEK_API_KEY` or `.secrets/deepseek.key`)",
+          "DeepSeek API key (DEEPSEEK_API_KEY or .secrets/deepseek.key)",
+          "DeepSeek API key"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many in-flight tasks did the scout's pack hold?",
+        "expected": 24,
+        "answers": [
+          "24",
+          "24",
+          "24",
+          "24",
+          "24"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to adjudicate the verdict this scout filed? Give the command only.",
+        "expected": [
+          "resident adjudicate scout-"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Did the resident scout run? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "blind": {
+        "argv": [
+          "scout",
+          "is",
+          "anyone",
+          "working",
+          "on",
+          "core/axi",
+          "--blind"
+        ],
+        "exit": 1,
+        "stdout": "# scout [blind] ask scout-024f03801bf8  (pack: in_flight=24, locks=0, recently_done=12, scout_memory=0)\n(no answer -- no DEEPSEEK_API_KEY and no .secrets/deepseek.key -- the deepseek door is closed, which is a configuration state and not a model failure)\n"
+      },
+      "resident": {
+        "argv": [
+          "scout",
+          "is",
+          "anyone",
+          "working",
+          "on",
+          "core/axi"
+        ],
+        "exit": 1,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 216,
+    "stdout_chars": 802,
+    "stdout_lines": 18,
+    "cost_usd": 0.0273,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Did the scout produce an answer? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which credential is missing for the scout to answer? Answer in a few words.",
+        "expected": [
+          "deepseek"
+        ],
+        "answers": [
+          "DeepSeek API key (`DEEPSEEK_API_KEY` or `.secrets/deepseek.key`)",
+          "DEEPSEEK_API_KEY (or the `.secrets/deepseek.key` file)",
+          "DEEPSEEK_API_KEY (or .secrets/deepseek.key)",
+          "DEEPSEEK_API_KEY (or the `.secrets/deepseek.key` file)",
+          "DeepSeek API key (DEEPSEEK_API_KEY or .secrets/deepseek.key)"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many in-flight tasks did the scout's pack hold?",
+        "expected": 24,
+        "answers": [
+          "24",
+          "24",
+          "The pack held 24 in-flight tasks (`in_flight: 24`).",
+          "24",
+          "24"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to adjudicate the verdict this scout filed? Give the command only.",
+        "expected": [
+          "resident adjudicate scout-"
+        ],
+        "answers": [
+          "uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>",
+          "uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>",
+          "`uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>`",
+          "`uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>`",
+          "uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the resident scout run? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "blind": {
+        "argv": [
+          "scout",
+          "is",
+          "anyone",
+          "working",
+          "on",
+          "core/axi",
+          "--blind"
+        ],
+        "exit": 1,
+        "stdout": "ok: false\ntier: blind\nask_id: scout-e2a6eb998985\nanswer: null\nwhy: \"no DEEPSEEK_API_KEY and no .secrets/deepseek.key -- the deepseek door is closed, which is a configuration state and not a model failure\"\npack:\n  in_flight: 24\n  locks: 0\n  recently_done: 12\n  scout_memory: 0\nverdict: \"filed, unadjudicated\"\nhelp[2]:\n  uv run agent_cli.py secret deepseek.key\n  uv run agent_cli.py resident adjudicate scout-e2a6eb998985 --outcome confirmed|refuted --by <operator>\n"
+      },
+      "resident": {
+        "argv": [
+          "scout",
+          "is",
+          "anyone",
+          "working",
+          "on",
+          "core/axi"
+        ],
+        "exit": 1,
+        "stdout": "error: \"refused: 'deepseek' is not a resident (no ratified designation), so there is no identity sheet to carry a role. Run the ceremony first: uv run agent_cli.py resident nominate deepseek --callsign <name> --receipt <their lesson> --by <peer>\"\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py scout \"is anyone working on core/axi\" --blind\n"
+      }
+    }
+  }
+}

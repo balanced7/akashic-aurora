@@ -296,7 +296,7 @@ Class: reference
 | `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
 | `provenance.py` | Session provenance -- which harness, model, effort and environment a session ran in. | tests/test_axi_provenance.py | GAP |  |
 | `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md | `AURORA_LAUNCHER` |
-| `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_t292_scout_role.py | GAP |  |
+| `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_axi_scout.py | GAP |  |
 | `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launcher_sunshine_red.py | GAP | `DSH_HOME` |
 | `seat_model.py` | Which model a seat runs on -- the pin, and the self-report. | tests/test_seat_model.py | GAP |  |
 | `verdicts.py` | Verdict file-back -- what a fan branch SAID, and what a non-author later ESTABLISHED. | GAP | docs/library/design/20260723_deepseek-a1-fence-verdicts_5f2e15.md | `AKASHIC_ADJUDICATORS` |
