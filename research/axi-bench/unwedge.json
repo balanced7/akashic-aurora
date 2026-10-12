@@ -1,0 +1,206 @@
+{
+  "verb": "unwedge",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 60,
+    "stdout_chars": 382,
+    "stdout_lines": 7,
+    "cost_usd": 0.0229,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "What is carol's status, in one word?",
+        "expected": "down",
+        "answers": [
+          "Haiku 5.5 ... wait, no. The answer is in the output: the status line is \"no runner process found\" and \"runner: absent\".\n\nabsent",
+          "Carol's status is absent: the runner is absent, with no runner process found.",
+          "absent",
+          "absent",
+          "absent"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many messages wait in carol's work backlog?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command does the output recommend running? Give the command only.",
+        "expected": [
+          "bifrost_runner_deepseek.py",
+          "--agent carol"
+        ],
+        "answers": [
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is a runner process alive for alice? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the output report any page-grade findings for alice? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No.",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "carol": {
+        "argv": [
+          "unwedge",
+          "carol"
+        ],
+        "exit": 1,
+        "stdout": "carol: no runner process found (no live lock, no presence)\n  recommendation: start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic\n  lane depths: legacy=1, work=1, work_backlog=1\n  runner: absent\n"
+      },
+      "alice": {
+        "argv": [
+          "unwedge",
+          "alice"
+        ],
+        "exit": 1,
+        "stdout": "alice: no runner process found (no live lock, no presence)\n  recommendation: start: uv run scripts/bifrost_runner_deepseek.py --agent alice --agentic\n  runner: absent\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 107,
+    "stdout_chars": 457,
+    "stdout_lines": 14,
+    "cost_usd": 0.0223,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "What is carol's status, in one word?",
+        "expected": "down",
+        "answers": [
+          "down",
+          "down",
+          "down",
+          "down",
+          "down"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages wait in carol's work backlog?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command does the output recommend running? Give the command only.",
+        "expected": [
+          "bifrost_runner_deepseek.py",
+          "--agent carol"
+        ],
+        "answers": [
+          "start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic",
+          "start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is a runner process alive for alice? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the output report any page-grade findings for alice? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "UNKNOWN"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "carol": {
+        "argv": [
+          "unwedge",
+          "carol"
+        ],
+        "exit": 1,
+        "stdout": "agent: carol\nstatus: down\nverdict: \"carol: no runner process found (no live lock, no presence)\"\nrecommendation: \"start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic\"\nrunner: absent\nlane_depths:\n  legacy: 1\n  work: 1\n  work_backlog: 1\n"
+      },
+      "alice": {
+        "argv": [
+          "unwedge",
+          "alice"
+        ],
+        "exit": 1,
+        "stdout": "agent: alice\nstatus: down\nverdict: \"alice: no runner process found (no live lock, no presence)\"\nrecommendation: \"start: uv run scripts/bifrost_runner_deepseek.py --agent alice --agentic\"\nrunner: absent\n"
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 56 converted to agent and human output.
+121 verbs; 57 converted to agent and human output.
 
 ## `alias`
 
@@ -2785,12 +2785,29 @@ help[1]:
 | | |
 |---|---|
 | Does | W31 (deepseek): one-verb wedge diagnosis -- why is this agent stuck? READ-only v1 (recommends, never acts) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 96% after |
+| Output tokens | 60 before, 107 after (+78%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/unwedge.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent>` | yes |   | the agent to diagnose |
 | `--json` |   |   |   |
+
+Agent output of `aurora unwedge carol` on the bench data:
+
+```text
+agent: carol
+status: down
+verdict: "carol: no runner process found (no live lock, no presence)"
+recommendation: "start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic"
+runner: absent
+lane_depths:
+  legacy: 1
+  work: 1
+  work_backlog: 1
+```
 
 ## `watch`
 

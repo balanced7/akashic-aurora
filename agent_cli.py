@@ -15183,11 +15183,65 @@ def cmd_unwedge(args):
     """unwedge <agent>: one-verb diagnosis -- why is this agent stuck. READ-only v1
     (W31, deepseek design). Synthesizes doctor + lane health + depths + locks + runner
     into one verdict and recommendation. Returns exit 0 healthy, 1 if page-grade."""
+    from core.axi import out
     from core.comm.doctor import format_unwedge, unwedge
 
     r = unwedge(args.agent)
-    print(format_unwedge(r, json_mode=getattr(args, "json", False)))
-    return 1 if r["status"] in ("wedged", "stalled", "frozen", "down") else 0
+    code = 1 if r["status"] in ("wedged", "stalled", "frozen", "down") else 0
+    if getattr(args, "json", False):
+        print(format_unwedge(r, json_mode=True))
+        return code
+    ev = r.get("evidence") or {}
+    # The verdict first, then the evidence it was read from, each piece only when it says
+    # something. The recommendation already carries the commands, so there are no hints.
+    doc: dict = {"agent": r["agent"], "status": r["status"], "verdict": r["verdict"]}
+    doc["recommendation"] = r["recommendation"]
+    doc["runner"] = ev.get("runner_status", "unknown")
+    pages = [f for f in ev.get("findings", []) if f.get("grade") == "page"]
+    if pages:
+        doc["page_findings"] = [
+            {"state": p["state"], "line": out.truncate(p["line"], 300)[0], "drill": p.get("drill") or None}
+            for p in pages
+        ]
+    lh = ev.get("lane_health") or {}
+    lane = {
+        k: v
+        for k, v in (("age_s", lh.get("age_s")), ("depth", lh.get("depth")), ("stragglers", lh.get("straggler")))
+        if v
+    }
+    if lane:
+        doc["lane_cursor"] = {k: int(v) for k, v in lane.items()}
+    depths = {k: v for k, v in sorted((ev.get("lane_depths") or {}).items()) if v}
+    if depths:
+        doc["lane_depths"] = depths
+    if ev.get("locks"):
+        doc["locks_held"] = [str(lk) for lk in ev["locks"][:5]]
+    out.emit(doc, human=_human_unwedge, title=f"Unwedge · {r['agent']}")
+    return code  # 1 for wedged, stalled, frozen or down, as before
+
+
+def _human_unwedge(console, doc):
+    """Human view of `unwedge`: the verdict coloured by status, the recommendation under it, then
+    the evidence."""
+    from core.axi import out
+
+    colour = "green" if doc["status"] in ("healthy",) else ("yellow" if doc["status"] == "backlogged" else "red")
+    console.print(f"[bold {colour}]{out._esc(doc['verdict'])}[/]")
+    console.print(f"  [dim]do:[/] {out._esc(doc['recommendation'])}")
+    console.print(f"  [dim]runner:[/] {out.styled(doc['runner'])}")
+    for p in doc.get("page_findings", []):
+        console.print(f"  [red]page[/] [{out._esc(p['state'])}] {out._esc(p['line'])}")
+        if p.get("drill"):
+            console.print(f"       [dim]drill:[/] {out._esc(p['drill'])}")
+    if doc.get("lane_cursor"):
+        lc = doc["lane_cursor"]
+        bits = [f"{_human_secs(lc['age_s'])} behind" if "age_s" in lc else ""]
+        bits += [f"{k} {v}" for k, v in lc.items() if k != "age_s"]
+        console.print(f"  [dim]lane cursor:[/] {', '.join(b for b in bits if b)}")
+    if doc.get("lane_depths"):
+        console.print(f"  [dim]lane depths:[/] {', '.join(f'{k}={v}' for k, v in doc['lane_depths'].items())}")
+    if doc.get("locks_held"):
+        console.print(f"  [dim]locks held:[/] {out._esc(', '.join(doc['locks_held']))}")
 
 
 def cmd_followup(args):
