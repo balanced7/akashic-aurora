@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 91 converted to agent and human output.
+121 verbs; 92 converted to agent and human output.
 
 ## `alias`
 
@@ -2010,7 +2010,10 @@ help[2]:
 | | |
 |---|---|
 | Does | meta-harness memory modes (task 10): show, compare the four arms, per-lesson placement, stale compiled lessons |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 96% after |
+| Output tokens | 30 before, 52 after (+73%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/modes.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2021,6 +2024,15 @@ help[2]:
 | `--trials` |   |   |   |
 | `--daily-usd` |   |   | compare: spend cap |
 | `--json` |   |   |   |
+
+Agent output of `aurora modes show` on the bench data:
+
+```text
+mode: interpretive
+harness: unknown
+set_by: AKASHIC_MEMORY_MODE
+modes[3]: interpretive,precompiled,hybrid
+```
 
 ## `note`
 

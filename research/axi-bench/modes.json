@@ -1,0 +1,244 @@
+{
+  "verb": "modes",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 30,
+    "stdout_chars": 317,
+    "stdout_lines": 5,
+    "cost_usd": 0.0214,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which memory mode is active?",
+        "expected": "interpretive",
+        "answers": [
+          "interpretive",
+          "interpretive",
+          "interpretive",
+          "interpretive",
+          "interpretive"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which environment variable sets the memory mode? Give the name only.",
+        "expected": "AKASHIC_MEMORY_MODE",
+        "answers": [
+          "AKASHIC_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What move is planned for the lesson short_titles?",
+        "expected": "keep",
+        "answers": [
+          "keep",
+          "keep",
+          "keep",
+          "keep",
+          "keep"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many compiled lessons are stale?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flags are missing from this modes compare command? List them separated by commas.",
+        "expected": [
+          "--compiled",
+          "--scenario"
+        ],
+        "answers": [
+          "--compiled, --scenario",
+          "--compiled, --scenario",
+          "--compiled, --scenario",
+          "--compiled, --scenario",
+          "--compiled, --scenario"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "modes",
+          "show"
+        ],
+        "exit": 0,
+        "stdout": "memory mode: interpretive (AKASHIC_MEMORY_MODE); active harness: unknown\n"
+      },
+      "placement": {
+        "argv": [
+          "modes",
+          "placement"
+        ],
+        "exit": 0,
+        "stdout": "  short_titles                             keep       stays interpretive\n  no_force_push                            keep       stays interpretive\n"
+      },
+      "stale": {
+        "argv": [
+          "modes",
+          "stale"
+        ],
+        "exit": 0,
+        "stdout": "no compiled lesson has changed\n"
+      },
+      "compare": {
+        "argv": [
+          "modes",
+          "compare",
+          "--base",
+          "baseline"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: `modes compare` needs --base, --compiled and --scenario ...\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 52,
+    "stdout_chars": 503,
+    "stdout_lines": 18,
+    "cost_usd": 0.0239,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which memory mode is active?",
+        "expected": "interpretive",
+        "answers": [
+          "interpretive",
+          "interpretive",
+          "interpretive",
+          "interpretive",
+          "interpretive"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which environment variable sets the memory mode? Give the name only.",
+        "expected": "AKASHIC_MEMORY_MODE",
+        "answers": [
+          "AKASHIC_MEMORY_MODE",
+          "AUTHENTICATED_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE",
+          "AKASHIC_MEMORY_MODE"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What move is planned for the lesson short_titles?",
+        "expected": "keep",
+        "answers": [
+          "keep",
+          "keep",
+          "keep",
+          "keep",
+          "keep"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many compiled lessons are stale?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flags are missing from this modes compare command? List them separated by commas.",
+        "expected": [
+          "--compiled",
+          "--scenario"
+        ],
+        "answers": [
+          "--compiled, --scenario",
+          "--compiled, --scenario",
+          "--compiled, --scenario",
+          "--compiled, --scenario",
+          "--compiled, --scenario"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "modes",
+          "show"
+        ],
+        "exit": 0,
+        "stdout": "mode: interpretive\nharness: unknown\nset_by: AKASHIC_MEMORY_MODE\nmodes[3]: interpretive,precompiled,hybrid\n"
+      },
+      "placement": {
+        "argv": [
+          "modes",
+          "placement"
+        ],
+        "exit": 0,
+        "stdout": "total: 2\nmoves:\n  keep: 2\nlessons[2]{lesson,move,why}:\n  short_titles,keep,stays interpretive\n  no_force_push,keep,stays interpretive\nhelp[1]:\n  uv run agent_cli.py precompile plan\n"
+      },
+      "stale": {
+        "argv": [
+          "modes",
+          "stale"
+        ],
+        "exit": 0,
+        "stdout": "stale: 0\nlessons: []\n"
+      },
+      "compare": {
+        "argv": [
+          "modes",
+          "compare",
+          "--base",
+          "baseline"
+        ],
+        "exit": 2,
+        "stdout": "error: \"`modes compare` needs --base, --compiled and --scenario ...\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py modes compare --base baseline --compiled <candidate> --scenario <id> --daily-usd 5\n"
+      }
+    }
+  }
+}

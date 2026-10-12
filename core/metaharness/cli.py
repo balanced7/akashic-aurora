@@ -806,40 +806,66 @@ def modes_main(args) -> int:
     from core.learning.learning_store import get_learning_store_instance
     from core.metaharness import modes
 
-    a = args.action
+    a, cli = args.action, _cli()
     if a == "show":
-        out = {"mode": modes.mode(), "harness": modes._harness_now() or "unknown"}
-        _print(out, args.json, f"memory mode: {out['mode']} (AKASHIC_MEMORY_MODE); active harness: {out['harness']}")
-        return 0
+        st = {"mode": modes.mode(), "harness": modes._harness_now() or "unknown"}
+        if args.json:
+            _json(st)
+            return 0
+        # The mode comes from AKASHIC_MEMORY_MODE (interpretive when unset or unknown).
+        doc = {**st, "set_by": "AKASHIC_MEMORY_MODE", "modes": list(modes.MODES)}
+        return out.emit(doc, title="Memory mode")  # a status answers itself
     if a == "compare":
         if not (args.base and args.compiled and args.scenario):
-            print("ERROR: `modes compare` needs --base, --compiled and --scenario ...")
-            return 2
+            return _usage(
+                "`modes compare` needs --base, --compiled and --scenario ...",
+                f"{cli} modes compare --base {args.base or 'baseline'} --compiled {args.compiled or '<candidate>'} "
+                "--scenario <id> --daily-usd 5",
+            )
         rep = modes.compare(args.base, args.compiled, args.scenario, trials=args.trials, daily_usd=args.daily_usd)
-        lines = [f"{rep['harness']} / {rep['model'] or 'default model'}: default mode -> {rep['default_mode']}"]
-        lines += [
-            f"  {arm:<13} pass={s.get('pass_rate')} tokens={s.get('tokens')} cost={s.get('cost_usd')}"
+        if args.json:
+            _json(rep)
+            return 0
+        arms = [
+            {"arm": arm, "pass_rate": s.get("pass_rate"), "tokens": s.get("tokens"), "cost_usd": s.get("cost_usd")}
             for arm, s in rep["scores"].items()
         ]
-        _print(rep, args.json, "\n".join(lines))
-        return 0
+        doc = {
+            "harness": rep["harness"],
+            "model": rep["model"] or "default",
+            "default_mode": rep["default_mode"],
+            "arms": arms,
+        }
+        return out.emit(doc, title="Memory modes compared")
     if a == "placement":
         ls = get_learning_store_instance()
         rows = modes.placement(ls.load_all_learnings_from_store(), store=ls.store)
-        _print(
-            rows, args.json, "\n".join(f"  {r['lesson']:<40} {r['move']:<10} {r['why']}" for r in rows) or "no lessons"
-        )
-        return 0
+        if args.json:
+            _json(rows)
+            return 0
+        table = [{"lesson": r["lesson"], "move": r["move"], "why": r["why"]} for r in rows]
+        moves: dict[str, int] = {}
+        for r in table:
+            moves[r["move"]] = moves.get(r["move"], 0) + 1
+        if not table:  # AXI section 5: no lessons is said outright
+            return out.emit({"total": 0, "lessons": []}, title="Lesson placement")
+        hint = f"{cli} precompile build" if moves.get("compile") else f"{cli} precompile plan"
+        return out.emit({"total": len(table), "moves": moves, "lessons": table}, hints=[hint], title="Lesson placement")
     if a == "stale":
         rows = modes.recompile_queue()
-        _print(
-            rows,
-            args.json,
-            "\n".join(f"  {r['lesson']}: {r['why']} at {r['at']}" for r in rows) or "no compiled lesson has changed",
+        if args.json:
+            _json(rows)
+            return 0
+        table = [{"lesson": r["lesson"], "why": r["why"], "at": r["at"]} for r in rows]
+        if not table:  # AXI section 5: nothing stale is said outright
+            return out.emit({"stale": 0, "lessons": []}, title="Stale compiled lessons")
+        names = sorted({r["lesson"] for r in table})
+        return out.emit(
+            {"stale": len(table), "lessons": table},
+            hints=[f"{cli} precompile build" + "".join(f" --lesson {n}" for n in names)],
+            title="Stale compiled lessons",
         )
-        return 0
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+    return _usage(f"unknown action {a!r}", f"{cli} modes --help")
 
 
 def compress_main(args) -> int:
