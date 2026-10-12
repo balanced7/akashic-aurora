@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at fee17374. A bound you discover by collision is not awareness -- this sheet
+> Derived at dc6131ac. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -276,7 +276,7 @@ Class: reference
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py |
 | `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py, scripts/ops/archive_transcripts.py |
 | `PYTHONPATH` | `""` | agent_cli.py, core/__init__.py, scripts/quiet/sitecustomize.py |
-| `REDIS_DB` | `` | core/foundation/redis_connection.py |
+| `REDIS_DB` | `` | core/foundation/redis_connection.py, scripts/axi_bench/specs/link.py |
 | `REDIS_HOST` | `"localhost"` | core/foundation/redis_connection.py, research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, scripts/ops/archive_ephemeral.py |
 | `REDIS_PASSWORD` | `""` | research/in-flight/t342/dead-modules/deployment_framework.py |
 | `REDIS_PORT` | `"6379"` | core/foundation/redis_connection.py, research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, scripts/axi_bench/harness.py +1 |

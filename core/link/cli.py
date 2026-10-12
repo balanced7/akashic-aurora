@@ -4,6 +4,9 @@ Each action is one call (or a few) to aurora-linkd. Nothing here decides anythin
 membership or records: the daemon does, and refuses what it must. What stays here is the part
 that touches people and agents: wording, files, the confirm before a promotion.
 
+The read paths (list, status, whoami, inbox) and every error print through core/axi: TOON for an
+agent, a layout for a person. The other actions answer in one line of text in both modes.
+
 Promotion is a person's decision by default (ADR 0008, RFC #70 §7.6), so `promote` asks for a
 confirmation on a terminal unless `--yes` is given, and the MCP door has no promote at all.
 """
@@ -19,6 +22,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from core.axi import out as axi
 from core.link import export, promote, quarantine
 from core.link.client import MISSING, Client, LinkdMissing, LinkRpcError, connect
 from core.link.health import takeover_hint
@@ -94,6 +98,13 @@ def _when(ts: Any) -> str:
         return "-"
 
 
+def _cli() -> str:
+    """The CLI as a printed command names it: `aurora` installed, else `<launcher> agent_cli.py`."""
+    from core.paths import cli_command
+
+    return cli_command()
+
+
 def _print(args: Any, data: Any, text: str) -> None:
     print(json.dumps(data, indent=1, default=str) if getattr(args, "json", False) else text)
 
@@ -140,16 +151,22 @@ def do_init(c: Client, args: Any) -> int:
 
 def do_whoami(c: Client, args: Any) -> int:
     out = c.call("identity.status")
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=1, default=str))
+        return 0 if out.get("initialized") else 1
     if not out.get("initialized"):
-        _print(args, out, "no fleet identity on this install yet: run `aurora link init`")
-        return 1
-    _print(
-        args,
-        out,
-        f"device {out['device'][:16]}  label {out['label']}\nfingerprint {out['fingerprint']}\n"
-        f"certificate valid until {_when(out['cert_expires'])}{'  (renew soon)' if out['needs_renewal'] else ''}",
-    )
-    return 0
+        return axi.fail(
+            "no fleet identity on this install yet", code="NO_IDENTITY", hints=[f"{_cli()} link init --label <name>"]
+        )
+    doc = {
+        "device": out["device"][:16],
+        "label": out["label"],
+        "fingerprint": out["fingerprint"],
+        "cert_expires": _when(out["cert_expires"]),
+        "renew_soon": bool(out["needs_renewal"]),
+    }
+    hints = [f"{_cli()} link renew"] if out["needs_renewal"] else []  # a detail view answers itself
+    return axi.emit(doc, hints=hints, title="Fleet identity")
 
 
 def do_renew(c: Client, args: Any) -> int:
@@ -200,13 +217,27 @@ def do_create(c: Client, args: Any) -> int:
 
 def do_list(c: Client, args: Any) -> int:
     rows = c.call("link.list") or []
-    text = "\n".join(
-        f"{r['name']:<20} {r['link'][:16]}  role {r['role'] or '-':<8} members {r['members']}  epoch {r['epoch']}"
-        + (f"  ALARMS {r['alarms']}" if r["alarms"] else "")
-        for r in rows
-    )
-    _print(args, rows, text or "no links yet: `aurora link create <name>`, or `aurora link join <code>`")
-    return 0
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=1, default=str))
+        return 0
+    cli = _cli()
+    if not rows:  # AXI section 5: the zero is the answer
+        return axi.emit(
+            {"total": 0, "links": []},
+            hints=[f"{cli} link create <name>", f"{cli} link join <code>"],
+            title="Links",
+        )
+    table = []
+    for r in rows:
+        row = {"name": r["name"], "link": r["link"][:16], "role": r["role"] or None, "members": r["members"]}
+        row["epoch"] = r["epoch"]
+        if any(x["alarms"] for x in rows):  # a column only when some link has alarms
+            row["alarms"] = r["alarms"]
+        table.append(row)
+    alarmed = next((r["name"] for r in rows if r["alarms"]), None)
+    hints = [f"{cli} link status {alarmed or (rows[0]['name'] if len(rows) == 1 else '<name>')}"]
+    hints.append(f"{cli} link invite {rows[0]['name'] if len(rows) == 1 else '<name>'}")
+    return axi.emit({"total": len(rows), "links": table}, hints=hints, title=f"Links · {len(rows)}")
 
 
 def _sequencer_text(s: dict[str, Any]) -> list[str]:
@@ -276,12 +307,103 @@ def _status_text(s: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _status_doc(s: dict[str, Any]) -> dict[str, Any]:
+    """One link's status as data: scalars first, then members and devices as rows, and every
+    condition that needs a person (handoff, equivocation, proposals, rotation) as a notice."""
+    doc: dict[str, Any] = {
+        "name": s["name"],
+        "link": s["link"],
+        "epoch": s["epoch"],
+        "role": s["my_role"],
+        "acl_entries": s["acl_entries"],
+    }
+    seq = s.get("sequencer") or {}
+    if seq:
+        who = "this device" if seq.get("me") else f"{seq.get('label') or '?'} ({str(seq.get('device', ''))[:16]})"
+        doc["sequencer"] = f"{who}, term {seq.get('term')}"
+    doc["quarantine_unpromoted"] = s["quarantine_unpromoted"]
+    if s.get("live_sessions"):
+        doc["live_sessions"] = len(s["live_sessions"])
+    doc["members"] = [
+        {
+            "fleet": m["label"],
+            "state": "removed" if m["removed"] else "pending" if m["pending"] else m["role"],
+            "verified": "us" if m["us"] else ("yes" if m["verified"] else "no"),
+        }
+        for m in s["members"]
+    ]
+    doc["devices"] = [
+        {
+            "fleet": m["label"],
+            "device": d["label"],
+            "id": d["device"][:16],
+            "head": d["head"],
+            "last_contact": _when(d["last_contact"]) if d.get("last_contact") else "never",
+            "state": "removed"
+            if d["removed"]
+            else "frozen"
+            if d.get("frozen")
+            else "cert expired"
+            if d["cert_expired"]
+            else "ok",
+        }
+        for m in s["members"]
+        for d in m["devices"]
+    ]
+    if s.get("pending_joins"):
+        doc["pending_joins"] = [
+            {"join": p["join"][:16], "from": p["label"], "needs_accept": bool(p["needs_approval"])}
+            for p in s["pending_joins"]
+        ]
+    if s.get("sent"):
+        doc["sent"] = [
+            {"seq": r["seq"], "kind": r["kind"], "delivered_to": ", ".join(map(str, r["receipts"])) or "nobody yet"}
+            for r in s["sent"][:5]
+        ]
+    if s.get("alarms"):
+        doc["alarms"] = [{"kind": a["kind"], "author": a["author"][:16], "detail": a["detail"]} for a in s["alarms"]]
+    notices = [line.strip() for line in _sequencer_text(s) if not line.strip().startswith("sequencer ")]
+    if s.get("rotation_due"):
+        notices.insert(
+            0, "ROTATION DUE: the sequencer appends it; after 1 h it takes one from any device holding the key"
+        )
+    if notices:
+        doc["notices"] = notices
+    return doc
+
+
+def _status_hints(docs: list[dict[str, Any]]) -> list[str]:
+    """What a person or agent does next about these links: the first open item of each kind."""
+    cli, hints = _cli(), []
+    for d in docs:
+        name = d["name"]
+        if any(m["verified"] == "no" for m in d["members"]):
+            hints.append(f"{cli} link verify {name} --mark")
+        hints += [f"{cli} link accept {name} {p['join']}" for p in d.get("pending_joins", []) if p["needs_accept"]]
+        if d["quarantine_unpromoted"]:
+            hints.append(f"{cli} link inbox {name}")
+    if not hints:  # nothing open: the usual next move is to bring someone in
+        hints.append(f"{cli} link invite {docs[0]['name'] if len(docs) == 1 else '<name>'}")
+    return list(dict.fromkeys(hints))[:3]
+
+
 def do_status(c: Client, args: Any) -> int:
     rest = list(getattr(args, "args", None) or [])
     links = rest[:1] or [r["link"] for r in c.call("link.list") or []]
     out = [c.call("link.status", link=link) for link in links]
-    _print(args, out, "\n\n".join(_status_text(s) for s in out) or "no links yet")
-    return 0
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=1, default=str))
+        return 0
+    if not out:
+        return axi.emit({"total": 0, "links": []}, hints=[f"{_cli()} link create <name>"], title="Links")
+    docs = [_status_doc(s) for s in out]
+    # One link is the common case: its fields at the top level, not nested one deep.
+    doc = docs[0] if len(docs) == 1 else {"total": len(docs), "links": docs}
+
+    def human(console, _doc):  # the person's view keeps the prose layout, which reads well
+        console.print(axi._esc("\n\n".join(_status_text(s) for s in out)))
+
+    return axi.emit(doc, hints=_status_hints(docs), human=human, title="Link status")
 
 
 def do_invite(c: Client, args: Any) -> int:
@@ -438,13 +560,35 @@ def do_takeover(c: Client, args: Any) -> int:
 
 def do_inbox(c: Client, args: Any) -> int:
     (link,) = _need(args, 1, "inbox <link> [--limit 20]")[:1]
-    rows = quarantine.inbox(c, link, limit=int(getattr(args, "limit", None) or 20))
-    text = "\n".join(
-        f"{r['record_id'][:12]}  {r['kind']:<10} {r['fleet']}/{r['seat_claim']} -> {r['to'] or '(link)'}: {r['content'][:100]}"
+    limit = int(getattr(args, "limit", None) or 20)
+    rows = quarantine.inbox(c, link, limit=limit)
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=1, default=str))
+        return 0
+    cli = _cli()
+    if not rows:
+        return axi.emit(
+            {"link": link, "quarantined": 0, "records": []}, hints=[f"{cli} link status {link}"], title="Quarantine"
+        )
+    records = [
+        {
+            "record": r["record_id"][:12],
+            "kind": r["kind"],
+            "from": f"{r['fleet']}/{r['seat_claim']}",
+            "to": r["to"] or "(link)",
+            "content": axi.truncate(r["content"], 200)[0],
+        }
         for r in rows
-    )
-    _print(args, rows, text or "quarantine is empty")
-    return 0
+    ]
+    doc: dict[str, Any] = {"link": link, "shown": len(rows)}
+    if len(rows) >= limit:  # the inbox reads newest-first up to --limit; there may be more
+        doc["limit"] = limit
+    doc["records"] = records
+    first = records[0]["record"] if len(records) == 1 else "<record>"
+    hints = [f"{cli} link show {link} {first}", f"{cli} link promote {link} {first}"]
+    if len(rows) >= limit:
+        hints.append(f"{cli} link inbox {link} --limit {limit * 2}")
+    return axi.emit(doc, hints=hints, title=f"Quarantine · {link}")
 
 
 def _full_id(c: Client, link: str, prefix: str) -> str:
@@ -681,14 +825,13 @@ def main(args: Any) -> int:
                 return 0
             return HANDLERS[action](c, args)
     except LinkdMissing:
-        print(f"[link] {MISSING}")
-        return 2
+        return axi.fail(
+            MISSING, code="LINKD_MISSING", hints=["uv pip install akashic-aurora-linkd"], exit_code=axi.EXIT_USAGE
+        )
     except UsageError as e:
-        print(f"[link] {e}")
-        return 2
+        return axi.fail(str(e), code="USAGE", hints=[f"{_cli()} link --help"], exit_code=axi.EXIT_USAGE)
     except LinkRpcError as e:
-        print(f"[link] {e.message}")
-        return 1
+        code = "REFUSED" if e.code == -32001 else "DAEMON_ERROR"
+        return axi.fail(e.message, code=code, hints=[f"{_cli()} link list"])
     except (export.ExportRefused, promote.PromotionRefused) as e:
-        print(f"[link] refused: {e}")
-        return 1
+        return axi.fail(f"refused: {e}", code="REFUSED")

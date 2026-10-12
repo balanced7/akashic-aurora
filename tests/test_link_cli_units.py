@@ -63,6 +63,12 @@ class Harness:
         return next(p for m, p in self.d.calls if m == method)
 
 
+@pytest.fixture(autouse=True)
+def agent_output(monkeypatch):
+    """The read paths and errors print through core/axi; pin the agent rendering (TOON)."""
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
+
+
 @pytest.fixture
 def h(monkeypatch, capsys, home) -> Harness:
     return Harness(monkeypatch, capsys)
@@ -84,13 +90,17 @@ def test_missing_daemon_is_exit_2_with_the_install_line(monkeypatch, capsys):
 
     monkeypatch.setattr(cli, "connect", missing)
     assert cli.main(SimpleNamespace(action="list", args=[])) == 2
-    assert capsys.readouterr().out == f"[link] {lc.MISSING}\n"
+    out = capsys.readouterr().out
+    assert "akashic-aurora-linkd" in out
+    assert "code: LINKD_MISSING" in out
 
 
 def test_daemon_refusal_is_exit_1_with_its_message(h):
     """A LinkRpcError from the daemon prints its message and exits 1."""
     h.d.handlers["link.status"] = lambda _p: (_ for _ in ()).throw(Refuse(-32001, "refused: unknown link"))
-    assert h.run("status", "nope") == (1, "[link] refused: unknown link\n")
+    code, out = h.run("status", "nope")
+    assert code == 1
+    assert 'error: "refused: unknown link"\ncode: REFUSED' in out
 
 
 def test_usage_errors_are_exit_2_with_the_usage(h):
@@ -118,7 +128,8 @@ def test_usage_errors_are_exit_2_with_the_usage(h):
     ]:
         code, out = h.run(action)
         assert code == 2, (action, out)
-        assert out.startswith(f"[link] usage: aurora link {usage}"), (action, out)
+        assert out.startswith(f'error: "usage: aurora link {usage}'), (action, out)
+        assert "code: USAGE" in out, (action, out)
     assert h.d.calls == []
 
 
@@ -206,7 +217,10 @@ def test_init_without_a_new_phrase_prints_no_phrase_block(h):
 def test_whoami_before_and_after_init(h):
     """No identity: exit 1 with the next step; with one: device, fingerprint, cert expiry."""
     h.d.handlers["identity.status"] = {"initialized": False}
-    assert h.run("whoami") == (1, "no fleet identity on this install yet: run `aurora link init`\n")
+    code, out = h.run("whoami")
+    assert code == 1
+    assert "error: no fleet identity on this install yet\ncode: NO_IDENTITY" in out
+    assert "link init --label <name>" in out
     h.d.handlers["identity.status"] = {
         "initialized": True,
         "device": "f" * 64,
@@ -217,8 +231,9 @@ def test_whoami_before_and_after_init(h):
     }
     code, out = h.run("whoami")
     assert code == 0
-    assert f"device {'f' * 16}  label home" in out
-    assert "(renew soon)" in out
+    assert f"device: {'f' * 16}\nlabel: home" in out
+    assert "renew_soon: true" in out
+    assert "link renew" in out
 
 
 def test_renew_reports_the_new_expiry_and_links(h):
@@ -263,14 +278,16 @@ def test_create_writes_both_local_policies(h, home):
 def test_list_with_and_without_links(h):
     """list prints one row per link with alarms flagged, or the way to make one."""
     h.d.handlers["link.list"] = []
-    assert h.run("list")[1].startswith("no links yet")
+    out = h.run("list")[1]
+    assert out.startswith("total: 0\nlinks: []")
+    assert "link create <name>" in out
     h.d.handlers["link.list"] = [
         {"name": "ops", "link": LINK, "role": None, "members": 2, "epoch": 3, "alarms": 1},
     ]
     out = h.run("list")[1]
-    assert out.startswith("ops")
-    assert "role -" in out
-    assert "ALARMS 1" in out
+    assert "total: 1\nlinks[1]{name,link,role,members,epoch,alarms}:" in out
+    assert f"ops,{LINK[:16]},null,2,3,1" in out
+    assert "link status ops" in out  # the alarmed link is the one to look at
 
 
 def test_status_text_shows_members_devices_receipts_and_alarms(h):
@@ -316,21 +333,21 @@ def test_status_text_shows_members_devices_receipts_and_alarms(h):
     assert h.params("link.status") == {"link": LINK}, "no link named: every link"
     for needle in (
         "ROTATION DUE",
-        "home (us): owner",
-        "serge: writer  NOT VERIFIED",
-        "gone: removed",
-        "wait: pending",
-        "last contact never",
-        " FROZEN",
-        " CERT EXPIRED",
-        " REMOVED",
-        "(needs: aurora link accept)",
-        "live sessions: 1",
-        "quarantine: 3 unpromoted",
-        "sent #4 chat: not yet delivered",
-        "sent #5 note: ['serge']",
-        "ALARM fork: aaaaaaaaaaaaaaaa two heads",
-        "sequencer serge/pc (eeeeeeeeeeeeeeee), term 3",
+        "home,owner,us",
+        "serge,writer,no",
+        "gone,removed,yes",
+        "wait,pending,yes",
+        ",never,ok",
+        ",frozen",
+        ",cert expired",
+        ",removed",
+        f"pending_joins[1]{{join,from,needs_accept}}:\n  {'j' * 16},wait,true",
+        "live_sessions: 1",
+        "quarantine_unpromoted: 3",
+        "4,chat,nobody yet",
+        "5,note,serge",
+        "fork,aaaaaaaaaaaaaaaa,two heads",
+        'sequencer: "serge/pc (eeeeeeeeeeeeeeee), term 3"',
         "HANDOFF to home/laptop (ffffffffffffffff)",
         "starts term 4",
         "EQUIVOCATION: the sequencer signed two entries at term 3 seq 12",
@@ -338,10 +355,16 @@ def test_status_text_shows_members_devices_receipts_and_alarms(h):
         "aurora link takeover ops --phrase-stdin",
         "proposal 1111111111111111 invite waits for the sequencer",
         "proposal 2222222222222222 set_role REFUSED by the sequencer: no admin",
+        # the open items, as next steps
+        "link verify ops --mark",
+        f"link accept ops {'j' * 16}",
+        "link inbox ops",
     ):
         assert needle in out, needle
     h.d.handlers["link.list"] = []
-    assert h.run("status") == (0, "no links yet\n")
+    code, out = h.run("status")
+    assert code == 0
+    assert out.startswith("total: 0\nlinks: []")
 
 
 def test_invite_passes_ttl_and_writes_an_offline_bundle(h, tmp_path):
@@ -556,10 +579,11 @@ def test_inbox_lists_quarantine_or_says_it_is_empty(h, monkeypatch):
     mail_daemon(h, monkeypatch)
     code, out = h.run("inbox", "ops", limit="5")
     assert code == 0
-    assert out.startswith(REC[:12])
-    assert "serge/chronos -> @home/claude: msg 1" in out
+    assert "records[1]{record,kind,from,to,content}:" in out
+    assert f"{REC[:12]},chat,serge/chronos,@home/claude,msg 1" in out
+    assert f"link show ops {REC[:12]}" in out
     h.d.handlers["events.wait"] = {"events": []}
-    assert h.run("inbox", "ops")[1] == "quarantine is empty\n"
+    assert h.run("inbox", "ops")[1].startswith("link: ops\nquarantined: 0\nrecords: []")
 
 
 def test_show_resolves_a_record_prefix_from_the_quarantine(h, monkeypatch):
@@ -640,7 +664,8 @@ def test_promote_of_a_refused_record_is_exit_1(h, monkeypatch):
     mail_daemon(h, monkeypatch, rec_status="own")
     code, out = h.run("promote", "ops", REC, yes=True)
     assert code == 1
-    assert out.startswith("[link] refused: record is own")
+    assert out.startswith('error: "refused: record is own')
+    assert "code: REFUSED" in out
 
 
 def test_promote_legacy_needs_to_and_confirmation(h, monkeypatch):
@@ -696,7 +721,7 @@ def test_send_to_an_unknown_fleet_is_refused(h):
 
 def test_export_needs_out_and_writes_the_bundle(h, tmp_path):
     """export refuses without --out, then writes the whole bundle."""
-    assert h.run("export", "ops")[1] == "[link] export needs --out FILE\n"
+    assert h.run("export", "ops")[1].startswith("error: export needs --out FILE\ncode: USAGE")
     h.d.handlers["bundle.export"] = {"acl": [1, 2], "records": [3]}
     target = tmp_path / "bundle.json"
     code, out = h.run("export", "ops", out=str(target))

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 99 converted to agent and human output.
+121 verbs; 100 converted to agent and human output.
 
 ## `alias`
 
@@ -1751,7 +1751,10 @@ help[2]:
 | | |
 |---|---|
 | Does | fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 97% before, 100% after |
+| Output tokens | 52 before, 104 after (+100%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/link.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1788,6 +1791,18 @@ help[2]:
 | `--once` |   |   | serve: one pump pass, then stop |
 | `--dry-run` |   |   | import-legacy: show what would be imported |
 | `--json` |   |   |   |
+
+Agent output of `aurora link list` on the bench data:
+
+```text
+total: 2
+links[2]{name,link,role,members,epoch}:
+  teamlink,313084abfc26282b,owner,1,0
+  opslink,4645d05e062e396e,owner,1,0
+help[2]:
+  uv run agent_cli.py link status <name>
+  uv run agent_cli.py link invite <name>
+```
 
 ## `list`
 

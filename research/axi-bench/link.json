@@ -1,0 +1,302 @@
+{
+  "verb": "link",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.971,
+    "correct": 34,
+    "asked": 35,
+    "output_tokens": 52,
+    "stdout_chars": 581,
+    "stdout_lines": 12,
+    "cost_usd": 0.0344,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many links does this fleet have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is our role in the link opslink?",
+        "expected": "owner",
+        "answers": [
+          "owner",
+          "owner",
+          "opslink \u2014 role owner",
+          "owner",
+          "owner"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What is the label of our own fleet in the link teamlink?",
+        "expected": "benchfleet",
+        "answers": [
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records wait unpromoted in teamlink's quarantine?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is this device's label?",
+        "expected": "benchfleet",
+        "answers": [
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records are in teamlink's quarantine?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "link",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "teamlink             315b758b746b3066  role owner    members 1  epoch 0\nopslink              6e6cf0380465a480  role owner    members 1  epoch 0\n"
+      },
+      "status": {
+        "argv": [
+          "link",
+          "status",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "teamlink  315b758b746b3066988c6739f00f05ed2adb0d97ecabba1b4f8a333639331b43\n  epoch 0  our role owner  acl entries 1\n  benchfleet (us): owner\n    benchfleet     26f22ffb5949141d head 0     last contact never\n  quarantine: 0 unpromoted\n"
+      },
+      "whoami": {
+        "argv": [
+          "link",
+          "whoami"
+        ],
+        "exit": 0,
+        "stdout": "device 26f22ffb5949141d  label benchfleet\nfingerprint 15998 20376 66087 14030 92504 96482\ncertificate valid until 2027-01-10 15:24\n"
+      },
+      "inbox": {
+        "argv": [
+          "link",
+          "inbox",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "quarantine is empty\n"
+      },
+      "usage": {
+        "argv": [
+          "link",
+          "inbox"
+        ],
+        "exit": 2,
+        "stdout": "[link] usage: aurora link inbox <link> [--limit 20]\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 104,
+    "stdout_chars": 921,
+    "stdout_lines": 33,
+    "cost_usd": 0.0253,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many links does this fleet have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is our role in the link opslink?",
+        "expected": "owner",
+        "answers": [
+          "owner",
+          "owner",
+          "owner",
+          "owner",
+          "owner"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the label of our own fleet in the link teamlink?",
+        "expected": "benchfleet",
+        "answers": [
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records wait unpromoted in teamlink's quarantine?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is this device's label?",
+        "expected": "benchfleet",
+        "answers": [
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet",
+          "benchfleet"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records are in teamlink's quarantine?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "The output shows `quarantined: 0` and `records: []`, so the quarantine holds zero records.\n\n0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "link",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "total: 2\nlinks[2]{name,link,role,members,epoch}:\n  teamlink,313084abfc26282b,owner,1,0\n  opslink,4645d05e062e396e,owner,1,0\nhelp[2]:\n  uv run agent_cli.py link status <name>\n  uv run agent_cli.py link invite <name>\n"
+      },
+      "status": {
+        "argv": [
+          "link",
+          "status",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "name: teamlink\nlink: 313084abfc26282b2b628b41082b149ef11638ff23b508f9dfdacf3e87726aa7\nepoch: 0\nrole: owner\nacl_entries: 1\nquarantine_unpromoted: 0\nmembers[1]{fleet,state,verified}:\n  benchfleet,owner,us\ndevices[1]{fleet,device,id,head,last_contact,state}:\n  benchfleet,benchfleet,26f22ffb5949141d,0,never,ok\nhelp[1]:\n  uv run agent_cli.py link invite teamlink\n"
+      },
+      "whoami": {
+        "argv": [
+          "link",
+          "whoami"
+        ],
+        "exit": 0,
+        "stdout": "device: 26f22ffb5949141d\nlabel: benchfleet\nfingerprint: 15998 20376 66087 14030 92504 96482\ncert_expires: \"2027-01-10 15:24\"\nrenew_soon: false\n"
+      },
+      "inbox": {
+        "argv": [
+          "link",
+          "inbox",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "link: teamlink\nquarantined: 0\nrecords: []\nhelp[1]:\n  uv run agent_cli.py link status teamlink\n"
+      },
+      "usage": {
+        "argv": [
+          "link",
+          "inbox"
+        ],
+        "exit": 2,
+        "stdout": "error: \"usage: aurora link inbox <link> [--limit 20]\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py link --help\n"
+      }
+    }
+  }
+}
