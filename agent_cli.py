@@ -1128,76 +1128,140 @@ def cmd_scope(args):
     """Lesson applicability (meta-harness task 02). `show`/`set` one lesson's scope, `widen` it
     once evidence from two harnesses or models supports that, list `proposals`, or print the
     `tree` of every lesson grouped by scope level. `set` and `widen` touch only the scope field."""
+    from core.axi import out
     from core.learning import scope as _scope
     from core.learning.learning_store import get_learning_store
 
+    cli = _cli()
     ls = get_learning_store()
     if args.action == "tree":
         t = _scope.tree(ls.load_all_learnings_from_store())
         if args.json:
             print(json.dumps(t))
             return 0
+        # One row per scope, broadest level first and the biggest group first within a level;
+        # a group names its first five lessons and counts the rest (AXI section 3).
+        rows = []
         for lvl, groups in t.items():
-            print(f"{lvl}  ({sum(len(v) for v in groups.values())} lesson(s))")
             for sc, names in sorted(groups.items(), key=lambda kv: -len(kv[1])):
                 more = f" +{len(names) - 5} more" if len(names) > 5 else ""
-                print(f"  {sc}: {', '.join(names[:5])}{more}")
-        return 0
+                rows.append({"level": lvl, "scope": sc, "count": len(names), "lessons": ", ".join(names[:5]) + more})
+        if not rows:  # AXI section 5: the zero is the answer
+            return out.emit(
+                {"total": 0, "scopes": []},
+                hints=[f"{cli} learn <agent_id> --experiment <name> --tried ..."],
+                title="Lesson scopes",
+            )
+        return out.emit(
+            {"total": sum(len(names) for groups in t.values() for names in groups.values()), "scopes": rows},
+            hints=[f"{cli} scope show --experiment <name>", f"{cli} scope proposals"],
+            title="Lesson scopes",
+        )
     if args.action == "proposals":
         props = _scope.proposals_now(ls)
         if args.json:
             print(json.dumps(props))
             return 0
-        if not props:
-            print("no widening proposals (a lesson needs credit or repeats under 2+ harnesses or models)")
-        for pr in props:
-            print(f"  {pr['experiment']}: {pr['scope']} -> {pr['proposed']}  evidence: {pr['evidence']}")
-            print(f"    apply: {_cli()} scope widen --experiment {pr['experiment']}")
-        return 0
+        if not props:  # AXI section 5: the zero is the answer, with what it would take
+            return out.emit(
+                {"total": 0, "proposals": [], "needs": "credit or a repeat under 2+ harnesses or 2+ model families"},
+                hints=[f"{cli} scope tree"],
+                title="Scope widening proposals",
+            )
+        rows = [
+            {
+                "experiment": pr["experiment"],
+                "scope": pr["scope"],
+                "proposed": pr["proposed"],
+                "evidence": "; ".join(f"{k}: {', '.join(v)}" for k, v in pr["evidence"].items()),
+            }
+            for pr in props
+        ]
+        return out.emit(
+            {"total": len(rows), "proposals": rows},
+            hints=[f"{cli} scope widen --experiment {rows[0]['experiment']}"],
+            title="Scope widening proposals",
+        )
     if not args.experiment:
-        print(f"ERROR: --experiment is required for `scope {args.action}`")
-        return 2
+        return out.fail(
+            f"--experiment is required for `scope {args.action}`",
+            code="USAGE",
+            hints=[f"{cli} scope {args.action} --experiment <name>", f"{cli} scope tree"],
+            exit_code=out.EXIT_USAGE,
+        )
     rec = ls._load_experiment(args.experiment)
     if not rec:
-        print(f"ERROR: no lesson '{args.experiment}'")
-        return 1
+        return out.fail(
+            f"no lesson {args.experiment!r}",
+            code="NOT_FOUND",
+            hints=[f"{cli} recall {_quote_arg(args.experiment)}", f"{cli} scope tree"],
+        )
     current = _scope.of(rec)
     if args.action == "show":
-        out = {"experiment": args.experiment, "scope": _scope.render(current), "level": _scope.level(current)}
-        print(json.dumps(out) if args.json else f"{args.experiment}: {out['scope']}  (level: {out['level']})")
-        return 0
+        doc = {"experiment": args.experiment, "scope": _scope.render(current), "level": _scope.level(current)}
+        if args.json:
+            print(json.dumps(doc))
+            return 0
+        return out.emit(doc, title=f"Scope · {args.experiment}")  # a detail view answers itself
+    banner = None
     if args.action == "set":
         try:
             new = _scope.parse(args.scope)
         except ValueError as e:
-            print(f"ERROR: {e}")
-            return 2
+            return out.fail(
+                str(e),
+                code="USAGE",
+                hints=[f"{cli} scope set --experiment {args.experiment} --scope universal"],
+                exit_code=out.EXIT_USAGE,
+            )
         if not new:
-            print("ERROR: --scope is required for `scope set`")
-            return 2
+            return out.fail(
+                "--scope is required for `scope set`",
+                code="USAGE",
+                hints=[f"{cli} scope set --experiment {args.experiment} --scope universal"],
+                exit_code=out.EXIT_USAGE,
+            )
     else:  # widen
         prop = next((p for p in _scope.proposals_now(ls) if p["experiment"] == args.experiment), None)
         kinds = args.kinds.split() if args.kinds else list((prop or {}).get("evidence", {}))
         if not kinds:
-            print(f"no evidence-backed widening for '{args.experiment}'; pass --kinds to widen anyway")
-            return 1
+            return out.fail(
+                f"no evidence-backed widening for {args.experiment!r}; pass --kinds to widen anyway",
+                code="NO_EVIDENCE",
+                hints=[f'{cli} scope widen --experiment {args.experiment} --kinds "harness model"'],
+            )
         # Verify before promotion: a lesson whose named files or symbols are gone must not
         # reach more agents. Advisory UNCHECKED (no anchors) passes with its banner shown.
         from core.recall import anchors
 
         review = anchors.review(rec)
-        print(review.banner)
+        banner = review.banner
+        if args.json:  # --json kept its old shape: the banner line, then the result
+            print(banner)
         if any(v.status == "MISSING" for v in review.verdicts) and not args.force:
-            print("refused: a premise anchor is MISSING -- fix or re-record the lesson first (or --force)")
-            return 1
+            if args.json:
+                print("refused: a premise anchor is MISSING -- fix or re-record the lesson first (or --force)")
+                return 1
+            return out.fail(
+                "refused: a premise anchor is MISSING -- fix or re-record the lesson first",
+                code="ANCHOR_MISSING",
+                details={"anchors": banner},
+                hints=[
+                    f"{cli} recall --full learn:experiment:{args.experiment}",
+                    f"{cli} scope widen --experiment {args.experiment} --force",
+                ],
+            )
         new = _scope.widen(current, kinds)
     ok = ls.set_scope(args.experiment, _scope.render(new))
-    print(
-        json.dumps({"experiment": args.experiment, "scope": _scope.render(new), "ok": ok})
-        if args.json
-        else f"[{'OK' if ok else 'FAIL'}] {args.experiment}: {_scope.render(current)} -> {_scope.render(new)}"
-    )
-    return 0 if ok else 1
+    if args.json:
+        print(json.dumps({"experiment": args.experiment, "scope": _scope.render(new), "ok": ok}))
+        return 0 if ok else 1
+    if not ok:
+        return out.fail(f"could not write the scope of {args.experiment!r}", code="WRITE_FAILED")
+    doc = {"experiment": args.experiment, "from": _scope.render(current), "to": _scope.render(new)}
+    if banner:
+        doc["anchors"] = banner
+    return out.emit(doc, title=f"Scope · {args.experiment}")  # a confirmation answers itself
 
 
 def cmd_corpus(args):

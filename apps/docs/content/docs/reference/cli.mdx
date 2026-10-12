@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 59 converted to agent and human output.
+121 verbs; 60 converted to agent and human output.
 
 ## `alias`
 
@@ -2327,7 +2327,10 @@ help[1]:
 | | |
 |---|---|
 | Does | lesson applicability (task 02): show, set, widen by evidence, list proposals, tree |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 97% before, 93% after |
+| Output tokens | 93 before, 143 after (+54%) |
+| AXI checks | 3/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/scope.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2337,6 +2340,19 @@ help[1]:
 | `--kinds` |   |   | widen: which kinds to drop, e.g. 'harness model' (default: the proposal's) |
 | `--force` |   |   | widen even when a premise anchor is MISSING |
 | `--json` |   |   |   |
+
+Agent output of `aurora scope tree` on the bench data:
+
+```text
+total: 5
+scopes[3]{level,scope,count,lessons}:
+  universal,universal,3,"uni_3, uni_2, uni_1"
+  harness,"harness:codex-cli",1,codex_only
+  "model:family","harness:codex-cli model:gpt",1,gpt_on_codex
+help[2]:
+  uv run agent_cli.py scope show --experiment <name>
+  uv run agent_cli.py scope proposals
+```
 
 ## `scout`
 

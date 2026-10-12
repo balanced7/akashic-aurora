@@ -1,0 +1,272 @@
+{
+  "verb": "scope",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 27,
+    "stdout_chars": 370,
+    "stdout_lines": 9,
+    "cost_usd": 0.0296,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": false,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/6",
+    "questions": [
+      {
+        "q": "How many lessons are there in total, across all scopes?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons apply universally?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "universal: uni_3, uni_2, uni_1",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson is scoped to harness:codex-cli alone?",
+        "expected": "codex_only",
+        "answers": [
+          "codex_only",
+          "codex_only",
+          "codex_only",
+          "codex_only",
+          "codex_only"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the scope of the lesson gpt_on_codex?",
+        "expected": [
+          "harness:codex-cli",
+          "model:gpt"
+        ],
+        "answers": [
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many scope widening proposals are there?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "no widening proposals",
+          "0"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Does a lesson named no_such_lesson exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "tree": {
+        "argv": [
+          "scope",
+          "tree"
+        ],
+        "exit": 0,
+        "stdout": "universal  (3 lesson(s))\n  universal: uni_3, uni_2, uni_1\nharness  (1 lesson(s))\n  harness:codex-cli: codex_only\nmodel:family  (1 lesson(s))\n  harness:codex-cli model:gpt: gpt_on_codex\n"
+      },
+      "show": {
+        "argv": [
+          "scope",
+          "show",
+          "--experiment",
+          "gpt_on_codex"
+        ],
+        "exit": 0,
+        "stdout": "gpt_on_codex: harness:codex-cli model:gpt  (level: model:family)\n"
+      },
+      "proposals": {
+        "argv": [
+          "scope",
+          "proposals"
+        ],
+        "exit": 0,
+        "stdout": "no widening proposals (a lesson needs credit or repeats under 2+ harnesses or models)\n"
+      },
+      "missing": {
+        "argv": [
+          "scope",
+          "show",
+          "--experiment",
+          "no_such_lesson"
+        ],
+        "exit": 1,
+        "stdout": "ERROR: no lesson 'no_such_lesson'\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 66,
+    "stdout_chars": 649,
+    "stdout_lines": 21,
+    "cost_usd": 0.0415,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are there in total, across all scopes?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons apply universally?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson is scoped to harness:codex-cli alone?",
+        "expected": "codex_only",
+        "answers": [
+          "codex_only",
+          "codex_only",
+          "codex_only",
+          "codex_only",
+          "codex_only"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the scope of the lesson gpt_on_codex?",
+        "expected": [
+          "harness:codex-cli",
+          "model:gpt"
+        ],
+        "answers": [
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt",
+          "harness:codex-cli model:gpt"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many scope widening proposals are there?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does a lesson named no_such_lesson exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "tree": {
+        "argv": [
+          "scope",
+          "tree"
+        ],
+        "exit": 0,
+        "stdout": "total: 5\nscopes[3]{level,scope,count,lessons}:\n  universal,universal,3,\"uni_3, uni_2, uni_1\"\n  harness,\"harness:codex-cli\",1,codex_only\n  \"model:family\",\"harness:codex-cli model:gpt\",1,gpt_on_codex\nhelp[2]:\n  uv run agent_cli.py scope show --experiment <name>\n  uv run agent_cli.py scope proposals\n"
+      },
+      "show": {
+        "argv": [
+          "scope",
+          "show",
+          "--experiment",
+          "gpt_on_codex"
+        ],
+        "exit": 0,
+        "stdout": "experiment: gpt_on_codex\nscope: \"harness:codex-cli model:gpt\"\nlevel: \"model:family\"\n"
+      },
+      "proposals": {
+        "argv": [
+          "scope",
+          "proposals"
+        ],
+        "exit": 0,
+        "stdout": "total: 0\nproposals: []\nneeds: credit or a repeat under 2+ harnesses or 2+ model families\nhelp[1]:\n  uv run agent_cli.py scope tree\n"
+      },
+      "missing": {
+        "argv": [
+          "scope",
+          "show",
+          "--experiment",
+          "no_such_lesson"
+        ],
+        "exit": 1,
+        "stdout": "error: no lesson 'no_such_lesson'\ncode: NOT_FOUND\nhelp[2]:\n  uv run agent_cli.py recall no_such_lesson\n  uv run agent_cli.py scope tree\n"
+      }
+    }
+  }
+}

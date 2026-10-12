@@ -210,7 +210,7 @@ Class: reference
 | `consolidation.py` | Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle. | tests/test_consolidation.py | docs/library/design/20260709_s2-the-consolidation-pass-that-sharpens_68d42c.md |  |
 | `domains.py` | Recall domains — the boundary line, and why it is not a tag. | GAP | GAP |  |
 | `learning_store.py` | Learning Store: Persists and retrieves experiment outcomes via the Store. | GAP | docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md |  |
-| `scope.py` | Lesson scope -- WHERE a lesson applies, as opposed to what it is about. | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AKASHIC_SCOPE_FILTER` |
+| `scope.py` | Lesson scope -- WHERE a lesson applies, as opposed to what it is about. | tests/test_axi_scope.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AKASHIC_SCOPE_FILTER` |
 | `vfx_chunk_lessons.py` | Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration. | GAP | GAP |  |
 
 ## core/recall/  (18 modules)
@@ -338,7 +338,7 @@ Class: reference
 | `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_axi_bifrost_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
 | `onboard.py` | `agent_cli.py setup` -- the onboarding sequence, and a mini-tutorial of the CLI it drives. | tests/test_harness_onboard.py | docs/ONBOARDING-BRIDGE.md | `AURORA_CLI_VERSION` |
 | `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AURORA_LAUNCHER` |
-| `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AI_SETUP` |
+| `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_axi_scope.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AI_SETUP` |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | tests/test_w162_seat_seen_family.py | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |
 | `trace.py` | Push display-only trace lines (tool calls) onto the Bifrost bus so the console shows what | tests/test_axi_packet_trace.py | docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md | `AKASHIC_AGENT_ID`, `AKASHIC_TRACE` |
 
