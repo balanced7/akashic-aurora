@@ -122,12 +122,15 @@ def test_cmd_graduate_and_list_tag(monkeypatch):
     # the full-corpus view keeps it, wearing the tag (history preserved, reason visible)
     import agent_cli
 
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     args = types.SimpleNamespace(query="", json=False, full=None)
     buf = io.StringIO()
     with redirect_stdout(buf):
         assert agent_cli.cmd_recall(args) == 0
     listing = buf.getvalue()
-    assert "git_blanket [graduated]" in listing
+    # Since the AXI conversion the tag is the row's status column.
+    row = next(line for line in listing.splitlines() if line.strip().startswith("git_blanket,"))
+    assert ",graduated," in row
 
 
 if __name__ == "__main__":

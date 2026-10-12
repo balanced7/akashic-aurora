@@ -1,0 +1,144 @@
+{
+  "verb": "list",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 3,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 12,
+    "asked": 12,
+    "output_tokens": 912,
+    "stdout_chars": 2056,
+    "stdout_lines": 27,
+    "cost_usd": 0.02,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are stored in memory in total?",
+        "expected": 28,
+        "answers": [
+          "28",
+          "28",
+          "28"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Does this output show every stored lesson? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which category is the lesson filler_07 in?",
+        "expected": "testing",
+        "answers": [
+          "testing",
+          "testing",
+          "testing"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "How many lessons does this output show?",
+        "expected": 25,
+        "answers": [
+          "25",
+          "25",
+          "25"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "# 28 all lessons\n  - [docs] filler_28: Lesson number 28. (source: learn:experiment:filler_28)\n  - [testing] filler_27: Lesson number 27. (source: learn:experiment:filler_27)\n  - [docs] filler_26: Lesson number 26. (source: learn:experiment:filler_26)\n  - [testing] filler_25: Lesson number 25. (source: learn:experiment:filler_25)\n  - [docs] filler_24: Lesson number 24. (source: learn:experiment:filler_24)\n  - [testing] filler_23: Lesson number 23. (source: learn:experiment:filler_23)\n  - [docs] filler_22: Lesson number 22. (source: learn:experiment:filler_22)\n  - [testing] filler_21: Lesson number 21. (source: learn:experiment:filler_21)\n  - [docs] filler_20: Lesson number 20. (source: learn:experiment:filler_20)\n  - [testing] filler_19: Lesson number 19. (source: learn:experiment:filler_19)\n  - [docs] filler_18: Lesson number 18. (source: learn:experiment:filler_18)\n  - [testing] filler_17: Lesson number 17. (source: learn:experiment:filler_17)\n  - [docs] filler_16: Lesson number 16. (source: learn:experiment:filler_16)\n  - [testing] filler_15: Lesson number 15. (source: learn:experiment:filler_15)\n  - [docs] filler_14: Lesson number 14. (source: learn:experiment:filler_14)\n  - [testing] filler_13: Lesson number 13. (source: learn:experiment:filler_13)\n  - [docs] filler_12: Lesson number 12. (source: learn:experiment:filler_12)\n  - [testing] filler_11: Lesson number 11. (source: learn:experiment:filler_11)\n  - [docs] filler_10: Lesson number 10. (source: learn:experiment:filler_10)\n  - [testing] filler_09: Lesson number 9. (source: learn:experiment:filler_09)\n  - [docs] filler_08: Lesson number 8. (source: learn:experiment:filler_08)\n  - [testing] filler_07: Lesson number 7. (source: learn:experiment:filler_07)\n  - [docs] filler_06: Lesson number 6. (source: learn:experiment:filler_06)\n  - [testing] filler_05: Lesson number 5. (source: learn:experiment:filler_05)\n  - [docs] filler_04: Lesson number 4. (source: learn:experiment:filler_04)\n# 25 of 28 lesson(s) shown; `recall --json` with the same query returns all matches\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 12,
+    "asked": 12,
+    "output_tokens": 575,
+    "stdout_chars": 1249,
+    "stdout_lines": 31,
+    "cost_usd": 0.0144,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are stored in memory in total?",
+        "expected": 28,
+        "answers": [
+          "28",
+          "28",
+          "28"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Does this output show every stored lesson? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which category is the lesson filler_07 in?",
+        "expected": "testing",
+        "answers": [
+          "testing",
+          "testing",
+          "testing"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "How many lessons does this output show?",
+        "expected": 25,
+        "answers": [
+          "25",
+          "25",
+          "25"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "total: 28\nshown: 25\nlessons[25]{name,category,status,lesson}:\n  filler_28,docs,active,Lesson number 28.\n  filler_27,testing,active,Lesson number 27.\n  filler_26,docs,active,Lesson number 26.\n  filler_25,testing,active,Lesson number 25.\n  filler_24,docs,active,Lesson number 24.\n  filler_23,testing,active,Lesson number 23.\n  filler_22,docs,active,Lesson number 22.\n  filler_21,testing,active,Lesson number 21.\n  filler_20,docs,active,Lesson number 20.\n  filler_19,testing,active,Lesson number 19.\n  filler_18,docs,active,Lesson number 18.\n  filler_17,testing,active,Lesson number 17.\n  filler_16,docs,active,Lesson number 16.\n  filler_15,testing,active,Lesson number 15.\n  filler_14,docs,active,Lesson number 14.\n  filler_13,testing,active,Lesson number 13.\n  filler_12,docs,active,Lesson number 12.\n  filler_11,testing,active,Lesson number 11.\n  filler_10,docs,active,Lesson number 10.\n  filler_09,testing,active,Lesson number 9.\n  filler_08,docs,active,Lesson number 8.\n  filler_07,testing,active,Lesson number 7.\n  filler_06,docs,active,Lesson number 6.\n  filler_05,testing,active,Lesson number 5.\n  filler_04,docs,active,Lesson number 4.\nhelp[2]:\n  uv run agent_cli.py recall --full learn:experiment:<name>\n  uv run agent_cli.py list --limit 28\n"
+      }
+    }
+  }
+}

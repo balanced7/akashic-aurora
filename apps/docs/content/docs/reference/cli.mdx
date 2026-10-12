@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 1 converted to agent and human output.
+121 verbs; 3 converted to agent and human output.
 
 ## `alias`
 
@@ -965,11 +965,46 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | | |
 |---|---|
 | Does | list ALL lessons in memory |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 912 before, 575 after (-37%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/list.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--json` |   |   |   |
+| `--limit` |   |   | how many lessons to show (default 25; the count gives the total) |
+| `--fields` |   |   | extra columns, as for recall --fields |
+
+Agent output of `aurora list` on the bench data:
+
+```text
+total: 28
+shown: 25
+lessons[25]{name,category,status,lesson}:
+  filler_28,docs,active,Lesson number 28.
+  filler_27,testing,active,Lesson number 27.
+  filler_26,docs,active,Lesson number 26.
+  filler_25,testing,active,Lesson number 25.
+  filler_24,docs,active,Lesson number 24.
+  filler_23,testing,active,Lesson number 23.
+  filler_22,docs,active,Lesson number 22.
+  filler_21,testing,active,Lesson number 21.
+  filler_20,docs,active,Lesson number 20.
+  filler_19,testing,active,Lesson number 19.
+  filler_18,docs,active,Lesson number 18.
+  filler_17,testing,active,Lesson number 17.
+  filler_16,docs,active,Lesson number 16.
+  filler_15,testing,active,Lesson number 15.
+  filler_14,docs,active,Lesson number 14.
+  filler_13,testing,active,Lesson number 13.
+  filler_12,docs,active,Lesson number 12.
+  filler_11,testing,active,Lesson number 11.
+  filler_10,docs,active,Lesson number 10.
+  filler_09,testing,active,Lesson number 9.
+  filler_08,docs,active,Lesson number 8.
+... (7 more lines)
+```
 
 ## `lock`
 
@@ -1278,7 +1313,10 @@ help[2]:
 | | |
 |---|---|
 | Does | search past lessons (no query = list all) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 60 before, 90 after (+50%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/recall.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1287,6 +1325,19 @@ help[2]:
 | `--json` |   |   |   |
 | `--full` |   |   | pull the FULL record for one lesson's source pointer (e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface |
 | `--agent` |   |   | T260: scope to ONE author's archive -- 'what has Navi learned about X'. The weak-match confession respects the scope (a degraded answer stays a subset of the normal one) |
+| `--limit` |   |   | how many lessons to show (default 25; the count gives the total) |
+| `--fields` |   |   | extra columns: source,success,agent,scope,tried,result, or 'all' (default: name,category,status,lesson) |
+
+Agent output of `aurora recall port` on the bench data:
+
+```text
+query: port
+total: 1
+lessons[1]{name,category,status,lesson}:
+  port_clash,performance,active,"Use when tests hang at start: check that port 16379 is free first."
+help[1]:
+  uv run agent_cli.py recall --full learn:experiment:port_clash
+```
 
 ## `recall-at`
 

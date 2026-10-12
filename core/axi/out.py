@@ -39,6 +39,34 @@ def is_agent(stream=None) -> bool:
     return _mode.resolve(stream) == _mode.AGENT
 
 
+# ------------------------------------------------------------------ building blocks
+
+
+def truncate(text: str | None, limit: int = 800) -> tuple[str, bool]:
+    """(text cut to `limit` characters with a size note, was it cut). AXI section 3: never drop a
+    long field, show a preview and say how much is missing."""
+    text = "" if text is None else " ".join(str(text).split())
+    if len(text) <= limit:
+        return text, False
+    return f"{text[:limit].rstrip()}... (truncated, {len(text)} chars total)", True
+
+
+def fields_arg(requested: str | None, default: Sequence[str], available: Sequence[str]) -> list[str]:
+    """Resolve a --fields value: the default schema plus any extra fields asked for by name, in
+    the available order. `--fields all` gives every available field. Unknown names raise
+    ValueError naming them and the valid ones."""
+    if not requested:
+        return list(default)
+    asked = [f.strip() for f in requested.split(",") if f.strip()]
+    if asked == ["all"]:
+        return list(available)
+    unknown = [f for f in asked if f not in available]
+    if unknown:
+        raise ValueError(f"unknown field(s) {', '.join(unknown)}; available: {', '.join(available)}")
+    want = {*default, *asked}
+    return [f for f in available if f in want]
+
+
 # ------------------------------------------------------------------ emit / fail
 
 

@@ -71,7 +71,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `knowledge-map` | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) | `<query>*` `--per-layer` `--json` |
 | `learn` | record a lesson | `<agent_id>*` `--experiment` `--repeat-of` `--recall-outcome` `--tried` `--result` `--expected` `--recommend` `--category` `--success` `--confidence` `--json` `--anti-pattern` `--root-cause` `--files-affected` `--scope` |
 | `link` | fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd) | `<action>* {init,whoami,renew,cert,certify,create,list,status,invite,join,accept,decline,verify,remove-member,remove-device,add-device,rotate-key,revoke-invite,set-role,leave,handoff,takeover,serve,mailbox,sync,peer,inbox,show,promote,blob,send,export,import,policy,rebuild,import-legacy,relay-config}` `<args>*` `--label` `--role` `--ttl` `--multi` `--approval` `--out` `--to` `--by` `--yes` `--again` `--mark` `--kind` `--link` `--kinds` `--retention-days` `--limit` `--phrase-stdin` `--passphrase-env` `--after` `--no-xwing` `--addr` `--relay-url` `--no-relay` `--no-n0` `--no-mdns` `--bind` `--trace-rpc` `--relay-only` `--once` `--dry-run` `--json` |
-| `list` | list ALL lessons in memory | `--json` |
+| `list` | list ALL lessons in memory | `--json` `--limit` `--fields` |
 | `lock` | claim an advisory path-lock (C2) | `<agent_id>*` `<path>*` `--ttl` `--json` |
 | `locks` | show who holds which advisory path-locks | `<agent_id>` `--json` |
 | `log` | record an arbitrary narrative Beat | `<kind>` `--summary` `--source` `--category` `--task` `--json` |
@@ -90,7 +90,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `promoted` | query durable salient Bifrost msgs (kind=bifrost_msg / B2) | `--limit` `--since` `--until` `--json` |
 | `provenance` | show this session's harness, model, effort and environment record (task 01) | `--session` `--agent` `--json` |
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
-| `recall` | search past lessons (no query = list all) | `<query>` `--tree` `--json` `--full` `--agent` |
+| `recall` | search past lessons (no query = list all) | `<query>` `--tree` `--json` `--full` `--agent` `--limit` `--fields` |
 | `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--gesture` `--subject` `--domain` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |

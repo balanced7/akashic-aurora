@@ -1043,6 +1043,9 @@ def cmd_recall(args):
     """Search lessons by keyword; with no query, list ALL lessons. --full SOURCE pulls the whole
     stored record behind one recalled lesson's source pointer, including fields beyond the
     selected recommendation (e.g. learn:experiment:NAME)."""
+    from core.axi import out
+
+    cli = _cli()
     full = getattr(args, "full", None)
     if full:
         from core.recall.at_action import full_record
@@ -1052,10 +1055,12 @@ def cmd_recall(args):
             print(json.dumps(rec, default=str))
             return 0
         if not rec:
-            print(f"# no record found for '{full}'")
-            return 1
-        for k, v in rec.items():
-            print(f"  {k}: {v}")
+            return out.fail(
+                f"no record found for {full!r}",
+                code="NOT_FOUND",
+                hints=[f'{cli} recall "<query>"', f"{cli} list"],
+            )
+        doc = {"source": full, **{k: v for k, v in rec.items() if v not in (None, "", [], {})}}
         # Anchor review: does this lesson's premise still hold? Advisory only -- it never
         # retires, demotes or hides anything, and it says UNCHECKED rather than "clean" when
         # it cannot tell. Read verb only, deliberately not on the recall hot path in v1.
@@ -1063,10 +1068,10 @@ def cmd_recall(args):
         try:
             from core.recall import anchors
 
-            print(f"  {anchors.review(rec).banner}")
+            doc["anchors"] = anchors.review(rec).banner
         except Exception:
             pass  # a resolver fault must never break the record it annotates
-        return 0
+        return out.emit(doc, title=f"Lesson · {full}")  # a full record answers itself: no hints
     if getattr(args, "tree", False):  # task 02: the scope hierarchy, same as `scope tree`
         args.action, args.experiment = "tree", ""
         return cmd_scope(args)
@@ -1086,13 +1091,31 @@ def cmd_recall(args):
         else:
             hits = ls.search_learnings_by_keyword(_clip(query, 200), agent=scope_agent)
     except Exception as e:
-        print(f"ERROR searching: {type(e).__name__}: {e}")
-        return 1
+        return out.fail(f"search failed: {type(e).__name__}: {e}", code="SEARCH_FAILED")
     if args.json:
         print(json.dumps(hits, indent=2, default=str))
         return 0
-    label = "all lessons" if not query else f"lesson(s) matching '{query}'"
-    print(f"# {len(hits)} {label}")
+    try:
+        fields = out.fields_arg(getattr(args, "fields", None), _RECALL_FIELDS, _RECALL_ALL_FIELDS)
+    except ValueError as e:
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} recall --fields scope,tried"], exit_code=out.EXIT_USAGE)
+    doc: dict = {}
+    if query:
+        doc["query"] = query
+    if scope_agent:
+        doc["author"] = scope_agent
+    if not hits:  # AXI section 5: the zero is the answer, said outright
+        doc.update(total=0, lessons=[])
+        return out.emit(
+            doc,
+            hints=[f'{cli} recall "<broader query>"', f"{cli} learn <agent_id> --experiment <name> --tried ..."],
+            human=_human_recall,
+            title="Recall",
+        )
+    limit = max(1, int(getattr(args, "limit", None) or 25))
+    doc["total"] = len(hits)
+    if len(hits) > limit:
+        doc["shown"] = limit
     # T120 F2 (deepseek): exact-title-miss flag — when the query looks like a title
     # (underscore-separated, colon-prefixed, or slug-shaped) and no hit's experiment_name
     # matches it exactly, confess the miss instead of letting the runner assume the top
@@ -1102,42 +1125,105 @@ def cmd_recall(args):
 
         from core.recall.at_action import TITLE_SHAPED_RE
 
-        _looks_like_title = bool(_re.match(TITLE_SHAPED_RE, query.strip(), _re.IGNORECASE))
-        if _looks_like_title:
+        if _re.match(TITLE_SHAPED_RE, query.strip(), _re.IGNORECASE):
             _q_lower = query.strip().lower()
-            _exact = any(
+            if not any(
                 str(h.get("experiment_name", "")).lower() == _q_lower or str(h.get("source", "")).lower() == _q_lower
                 for h in hits
-            )
-            if not _exact:
-                print(
-                    f"  [title-miss] '{query}' not found by exact title in these "
-                    f"results — it may exist under a different spelling, or in the "
-                    f'full corpus; try knowledge_full(source="<source>") if you '
-                    f"have the source pointer, or recall without quotes to broaden"
-                )
+            ):
+                doc["exact_title"] = f'"{query}" is not the exact name of any of these lessons'
     from core.learning import scope as _scope
 
     _ctx = _scope.current_context()
-    for h in hits[:25]:
-        rec = h.get("recommendation") or h.get("actual") or h.get("what_tried", "")
-        # [graduated] = rule now enforced by automation (see `graduate`); [benched] = curator
-        # retired it for surfaced-never-credited (reversible; see `recall-curate`). Both keep
-        # history, both are excluded from recall surfacing -- the tag says WHY.
-        flag = (
-            " [graduated]"
-            if str(h.get("graduated") or "").strip()
-            else (" [benched]" if str(h.get("benched") or "").strip() else "")
-        )
-        # Task 02: plain recall still lists a lesson scoped elsewhere -- searching is not acting --
-        # but says so, because recall-at and boot will not push it to this agent.
-        if _ctx and not _scope.lesson_applies(h, _ctx):
-            flag += f" [scope: {_scope.render(_scope.of(h))} -- not this agent]"
-        source = h.get("source") or f"learn:experiment:{h.get('experiment_name', '?')}"
-        print(f"  - [{h.get('category', '?')}] {h.get('experiment_name', '?')}{flag}: {rec} (source: {source})")
-    if len(hits) > 25:
-        print(f"# 25 of {len(hits)} lesson(s) shown; `recall --json` with the same query returns all matches")
-    return 0
+    rows, cut_sources = [], []
+    for h in hits[:limit]:
+        name = h.get("experiment_name", "?")
+        # graduated = rule now enforced by automation (see `graduate`); benched = curator retired
+        # it for surfaced-never-credited (reversible; see `recall-curate`). Both keep history, both
+        # are excluded from recall surfacing. Task 02: a lesson scoped elsewhere is still listed
+        # -- searching is not acting -- but recall-at and boot will not push it to this agent.
+        if str(h.get("graduated") or "").strip():
+            status = "graduated"
+        elif str(h.get("benched") or "").strip():
+            status = "benched"
+        elif _ctx and not _scope.lesson_applies(h, _ctx):
+            status = f"other scope ({_scope.render(_scope.of(h))})"
+        else:
+            status = "active"
+        lesson, was_cut = out.truncate(h.get("recommendation") or h.get("actual") or h.get("what_tried", ""), 300)
+        source = h.get("source") or f"learn:experiment:{name}"
+        if was_cut:
+            cut_sources.append(source)
+        full_row = {
+            "name": name,
+            "category": h.get("category") or None,
+            "status": status,
+            "lesson": lesson,
+            "source": source,
+            "success": h.get("success") or None,
+            "agent": h.get("agent_id") or h.get("agent") or None,
+            "scope": _scope.render(_scope.of(h)),
+            "tried": out.truncate(h.get("what_tried"), 300)[0] or None,
+            "result": out.truncate(h.get("actual"), 300)[0] or None,
+        }
+        rows.append({f: full_row[f] for f in fields})
+    doc["lessons"] = rows
+    # The --full hint names a real source when there is no guessing involved: the one lesson
+    # whose text was cut, or the only lesson shown. Otherwise a placeholder (AXI section 9).
+    if cut_sources:
+        hints = [f"{cli} recall --full {cut_sources[0]}"]
+    elif len(rows) == 1:
+        only = hits[0].get("source") or f"learn:experiment:{hits[0].get('experiment_name', '?')}"
+        hints = [f"{cli} recall --full {only}"]
+    else:
+        hints = [f"{cli} recall --full learn:experiment:<name>"]
+    if len(hits) > limit:  # AXI section 9: say how to see the rest of a cut list
+        verb = "list" if getattr(args, "cmd", "") == "list" else f"recall {_quote_arg(query)}".rstrip()
+        hints.append(f"{cli} {verb} --limit {len(hits)}")
+    return out.emit(doc, hints=hints, human=_human_recall, title="Recall")
+
+
+#: `recall` columns: the default agent schema, and every field --fields can add.
+_RECALL_FIELDS = ("name", "category", "status", "lesson")
+_RECALL_ALL_FIELDS = ("name", "category", "status", "lesson", "source", "success", "agent", "scope", "tried", "result")
+
+
+def _quote_arg(query: str) -> str:
+    """A query as it would be typed again; nothing for an empty query."""
+    import shlex
+
+    return shlex.quote(query) if query else ""
+
+
+def _human_recall(console, doc):
+    """Human view of `recall`: the count, then one block per lesson -- name and status on the
+    first line, the lesson text indented under it."""
+    from core.axi import out
+
+    what = f'matching [bold]"{out._esc(doc["query"])}"[/]' if doc.get("query") else "in memory"
+    by = f" by {out._esc(doc['author'])}" if doc.get("author") else ""
+    if not doc["total"]:
+        console.print(f"[yellow]0 lessons {what}{by}[/]")
+        return
+    shown = f"{doc['shown']} of " if doc.get("shown") else ""
+    console.print(f"[dim]{shown}{doc['total']} lesson{'s' if doc['total'] != 1 else ''} {what}{by}[/]")
+    if doc.get("exact_title"):
+        console.print(f"[yellow]! {out._esc(doc['exact_title'])}[/]")
+    for row in doc["lessons"]:
+        head = f"[bold]{out._esc(str(row.get('name', '')))}[/]"
+        if row.get("category"):
+            head += f"  [cyan]{out._esc(str(row['category']))}[/]"
+        if row.get("status"):
+            st = str(row["status"])
+            colour = "green" if st == "active" else "yellow"
+            head += f"  [{colour}]{out._esc(st)}[/]"
+        console.print()
+        console.print(head)
+        for k, v in row.items():
+            if k in ("name", "category", "status") or v in (None, ""):
+                continue
+            label = "" if k == "lesson" else f"[dim]{k}:[/] "
+            console.print(f"  {label}{out._esc(str(v))}")
 
 
 # --------------------------------------------------------------------------- list
@@ -10361,10 +10447,23 @@ def build_parser():
         "The weak-match confession respects the scope (a degraded answer stays a "
         "subset of the normal one)",
     )
+    r.add_argument(
+        "--limit", type=int, default=25, help="how many lessons to show (default 25; the count gives the total)"
+    )
+    r.add_argument(
+        "--fields",
+        default=None,
+        help=f"extra columns: {','.join(_RECALL_ALL_FIELDS[len(_RECALL_FIELDS) :])}, or 'all' "
+        f"(default: {','.join(_RECALL_FIELDS)})",
+    )
     r.set_defaults(fn=cmd_recall)
 
     li = sub.add_parser("list", help="list ALL lessons in memory")
     li.add_argument("--json", action="store_true")
+    li.add_argument(
+        "--limit", type=int, default=25, help="how many lessons to show (default 25; the count gives the total)"
+    )
+    li.add_argument("--fields", default=None, help="extra columns, as for recall --fields")
     li.set_defaults(fn=cmd_list)
 
     ra = sub.add_parser("recall-at", help="recall-at-action: relevant lessons/locks for a path or command")

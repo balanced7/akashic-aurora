@@ -1,0 +1,220 @@
+{
+  "verb": "recall",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 3,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 12,
+    "asked": 15,
+    "output_tokens": 60,
+    "stdout_chars": 1122,
+    "stdout_lines": 7,
+    "cost_usd": 0.0205,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which port should be checked when tests hang at start?",
+        "expected": 16379,
+        "answers": [
+          "16379",
+          "16379",
+          "16379"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which category is the port_clash lesson in?",
+        "expected": "performance",
+        "answers": [
+          "performance",
+          "performance",
+          "performance"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Is the git_blanket_staging lesson active, or has it been graduated? Answer active or graduated.",
+        "expected": "graduated",
+        "answers": [
+          "graduated",
+          "graduated",
+          "graduated"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "How many lessons matched the search?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What exact command would show the complete record of the auth_token_refresh lesson? Give the command only.",
+        "expected": [
+          "--full",
+          "learn:experiment:auth_token_refresh"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "port": {
+        "argv": [
+          "recall",
+          "port"
+        ],
+        "exit": 0,
+        "stdout": "# 1 lesson(s) matching 'port'\n  - [performance] port_clash: Use when tests hang at start: check that port 16379 is free first. (source: learn:experiment:port_clash)\n"
+      },
+      "git": {
+        "argv": [
+          "recall",
+          "git"
+        ],
+        "exit": 0,
+        "stdout": "# 1 lesson(s) matching 'git'\n  - [correction] git_blanket_staging [graduated]: Stage explicit paths, never git add -A. (source: learn:experiment:git_blanket_staging)\n"
+      },
+      "auth": {
+        "argv": [
+          "recall",
+          "token"
+        ],
+        "exit": 0,
+        "stdout": "# 1 lesson(s) matching 'token'\n  - [security] auth_token_refresh: Use when a token refresh fails with 401 after an idle period, before retrying the request: refresh the token once, then retry. The refresh window is 300 seconds and a second failure means the session is revoked. The refresh window is 300 seconds and a second failure means the session is revoked. The refresh window is 300 seconds and a second failure means the session is revoked. The refresh window is 300 seconds and a second failure means the session is revoked. The refresh window is 300 seconds and a second failure means the session is revoked. The refresh window is 300 seconds and a second failure means the session is revoked.  (source: learn:experiment:auth_token_refresh)\n"
+      },
+      "none": {
+        "argv": [
+          "recall",
+          "nonexistent_xyz"
+        ],
+        "exit": 0,
+        "stdout": "# 0 lesson(s) matching 'nonexistent_xyz'\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 15,
+    "asked": 15,
+    "output_tokens": 90,
+    "stdout_chars": 1151,
+    "stdout_lines": 24,
+    "cost_usd": 0.0203,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which port should be checked when tests hang at start?",
+        "expected": 16379,
+        "answers": [
+          "16379",
+          "16379",
+          "16379"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which category is the port_clash lesson in?",
+        "expected": "performance",
+        "answers": [
+          "performance",
+          "performance",
+          "performance"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Is the git_blanket_staging lesson active, or has it been graduated? Answer active or graduated.",
+        "expected": "graduated",
+        "answers": [
+          "graduated",
+          "graduated",
+          "graduated"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "How many lessons matched the search?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "Output: \"0\"\n\nWait \u2014 the question asks how many lessons matched. The output shows `total: 0` and `lessons: []`, so the answer is 0.\n\n**0**",
+          "0"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What exact command would show the complete record of the auth_token_refresh lesson? Give the command only.",
+        "expected": [
+          "--full",
+          "learn:experiment:auth_token_refresh"
+        ],
+        "answers": [
+          "uv run agent_cli.py recall --full learn:experiment:auth_token_refresh",
+          "uv run agent_cli.py recall --full learn:experiment:auth_token_refresh",
+          "uv run agent_cli.py recall --full learn:experiment:auth_token_refresh"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "port": {
+        "argv": [
+          "recall",
+          "port"
+        ],
+        "exit": 0,
+        "stdout": "query: port\ntotal: 1\nlessons[1]{name,category,status,lesson}:\n  port_clash,performance,active,\"Use when tests hang at start: check that port 16379 is free first.\"\nhelp[1]:\n  uv run agent_cli.py recall --full learn:experiment:port_clash\n"
+      },
+      "git": {
+        "argv": [
+          "recall",
+          "git"
+        ],
+        "exit": 0,
+        "stdout": "query: git\ntotal: 1\nlessons[1]{name,category,status,lesson}:\n  git_blanket_staging,correction,graduated,\"Stage explicit paths, never git add -A.\"\nhelp[1]:\n  uv run agent_cli.py recall --full learn:experiment:git_blanket_staging\n"
+      },
+      "auth": {
+        "argv": [
+          "recall",
+          "token"
+        ],
+        "exit": 0,
+        "stdout": "query: token\ntotal: 1\nlessons[1]{name,category,status,lesson}:\n  auth_token_refresh,security,active,\"Use when a token refresh fails with 401 after an idle period, before retrying the request: refresh the token once, then retry. The refresh window is 300 seconds and a second failure means the session is revoked. The refresh window is 300 seconds and a second failure means the session is revoked. The... (truncated, 636 chars total)\"\nhelp[1]:\n  uv run agent_cli.py recall --full learn:experiment:auth_token_refresh\n"
+      },
+      "none": {
+        "argv": [
+          "recall",
+          "nonexistent_xyz"
+        ],
+        "exit": 0,
+        "stdout": "query: nonexistent_xyz\ntotal: 0\nlessons: []\nhelp[2]:\n  uv run agent_cli.py recall \"<broader query>\"\n  uv run agent_cli.py learn <agent_id> --experiment <name> --tried ...\n"
+      }
+    }
+  }
+}

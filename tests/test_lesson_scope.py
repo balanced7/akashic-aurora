@@ -231,4 +231,5 @@ def test_plain_recall_still_lists_an_out_of_scope_lesson_with_a_tag():
     )
     out = _cli("recall", name, env=other).stdout
     assert name in out
-    assert "[scope: harness:codex-cli model:gpt -- not this agent]" in out
+    # Since the AXI conversion the tag is the row's status: listed, and marked as scoped elsewhere.
+    assert "other scope (harness:codex-cli model:gpt)" in out

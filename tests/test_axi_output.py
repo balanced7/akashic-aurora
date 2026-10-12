@@ -112,6 +112,21 @@ def test_fail_in_human_mode_goes_to_stderr(no_harness, monkeypatch, capsys):
     assert "x list" in cap.err
 
 
+def test_truncate_says_how_much_is_missing():
+    text, cut = out.truncate("abcdef" * 300, 100)
+    assert cut
+    assert text.endswith("(truncated, 1800 chars total)")
+    assert out.truncate("short", 100) == ("short", False)
+
+
+def test_fields_arg():
+    assert out.fields_arg(None, ["id"], ["id", "a", "b"]) == ["id"]
+    assert out.fields_arg("b", ["id"], ["id", "a", "b"]) == ["id", "b"]
+    assert out.fields_arg("all", ["id"], ["id", "a", "b"]) == ["id", "a", "b"]
+    with pytest.raises(ValueError, match="nope"):
+        out.fields_arg("nope", ["id"], ["id"])
+
+
 # ---------------------------------------------------------------- parser
 
 
