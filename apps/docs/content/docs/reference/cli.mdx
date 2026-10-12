@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 12 converted to agent and human output.
+121 verbs; 13 converted to agent and human output.
 
 ## `alias`
 
@@ -560,7 +560,10 @@ help[1]:
 | | |
 |---|---|
 | Does | session bookends: current episode, close+draft, accept |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 87% after |
+| Output tokens | 19 before, 52 after (+174%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/episode.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -573,6 +576,18 @@ help[1]:
 | `--accept-desc` |   |   | (close, one-shot) finalize immediately with this description |
 | `--accept-why` |   |   | (close, one-shot) finalize immediately with this why |
 | `--json` |   |   |   |
+
+Agent output of `aurora episode current` on the bench data:
+
+```text
+episode: ch_1791814003_2564
+status: open
+title: null
+beats: 2
+duration_s: 1
+help[1]:
+  uv run agent_cli.py episode close
+```
 
 ## `events`
 

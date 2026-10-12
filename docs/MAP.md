@@ -263,7 +263,7 @@ Class: reference
 | `chapter_lifecycle.py` | Chapter lifecycle helpers (Slice 7) — bi-temporal stamping, in-place regeneration, | GAP | GAP |  |
 | `chronicler.py` | Chronicler (Slice 3) — distill narrative Beats into Chapters + Storyline + Atlas. | tests/test_chronicler.py | GAP |  |
 | `drift.py` | drift_check -- lightweight SEMANTIC drift detector over the narrative spine (prototype). | tests/test_boot_surfaces_method_drift.py | docs/library/report/20260711_deepseek-l2-verify-gate-green-3-drifts-v_3395cc.md |  |
-| `episode.py` | Session bookends -- the live EPISODE layer over the narrative Chapter (Slice S1). | tests/test_episode.py | docs/library/report/20260716_w8-gauge-honesty-episode-auto-close-prio_79e195.md |  |
+| `episode.py` | Session bookends -- the live EPISODE layer over the narrative Chapter (Slice S1). | tests/test_axi_episode.py | docs/library/report/20260716_w8-gauge-honesty-episode-auto-close-prio_79e195.md |  |
 | `episode_suggester.py` | Episode auto-suggester (bookends Slice S3) -- ADVISORY phase-boundary suggestions, never a forced close. | tests/test_episode_suggester.py | GAP | `AKASHIC_AGENT_ID` |
 | `event_bridge.py` | EventBridge (Slice 4) -- join the narrative timeline to the raw event firehose. | tests/test_event_bridge.py | GAP |  |
 | `event_promoter.py` | EventPromoter (Slice 5) -- promote salient raw events into narrative Beats. | tests/test_event_promoter.py | GAP |  |

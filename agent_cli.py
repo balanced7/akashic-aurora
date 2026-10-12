@@ -6469,32 +6469,85 @@ def cmd_episode(args):
     if getattr(args, "json", False):
         print(json.dumps(out, indent=2, default=str))
         return 0 if "error" not in out else 1
-    # compact human view
-    if "error" in out:
-        print(f"[episode] {out['error']}")
-        return 1
-    if act == "current":
-        c = out.get("current_chapter")
-        if not c:
-            print("[episode] no current episode")
-        else:
-            print(
-                f"[episode] current: {c['title'] or '(untitled, open)'} "
-                f"({c['duration_seconds']}s, {c['beats_count']} beats)"
+    return _emit_episode(act, out)
+
+
+def _emit_episode(act: str, res: dict) -> int:
+    """Report one `episode` action: the open episode, the draft a close produced, or the
+    finalized chapter. The draft's chapter id rides in the accept hint, because that is the
+    one value the next command needs and the reader would otherwise have to copy it out."""
+    from core.axi import out
+
+    cli = _cli()
+    if "error" in res:
+        err = str(res["error"])
+        if err.startswith("accept needs"):
+            return out.fail(
+                err, code="USAGE", exit_code=2, hints=[f"{cli} episode accept <chapter_id> --title <title>"]
             )
-            if c.get("why"):
-                print(f"  why: {c['why']}")
-    elif act == "close":
-        d = out.get("draft") or {}
-        print(f"[episode] closed {d.get('chapter_id')}")
-        print(f"  title: {d.get('title')}")
-        print(f"  desc : {d.get('description')}")
-        print(f"  why  : {d.get('why')}")
-        print(f"  (edit + finalize: {_cli()} episode accept {d.get('chapter_id')} --title ... --why ...)")
-    elif act == "accept":
-        c = out.get("chapter") or {}
-        print(f"[episode] finalized {c.get('id')}: {c.get('title')}")
-    return 0
+        if err == "unknown_chapter":
+            return out.fail(
+                f"no episode {res.get('chapter_id')} to finalize",
+                code="NOT_FOUND",
+                hints=[f"{cli} episode close"],
+            )
+        return out.fail(err, code=err.upper(), details={k: v for k, v in res.items() if k != "error"})
+    if act == "current":
+        c = res.get("current_chapter")
+        if not c:
+            return out.emit(
+                {"episode": "none open"}, hints=[f"{cli} episode current"], title="Episode"
+            )  # auto-open failed
+        doc = {
+            "episode": c.get("id"),
+            "status": "open",
+            "title": c.get("title") or None,
+            "beats": int(c.get("beats_count") or 0),
+            "duration_s": int(c.get("duration_seconds") or 0),
+        }
+        if c.get("why"):
+            doc["why"] = out.truncate(c["why"], 300)[0]
+        sug = c.get("suggestion")
+        if sug:  # the suggester thinks this is a good moment to close: say so, and why
+            doc["suggest_close"] = {"title": sug.get("title"), "reason": sug.get("reason")}
+        return out.emit(
+            doc,
+            hints=[f"{cli} episode close"] if doc["beats"] else [f"{cli} log <kind> --summary <text>"],
+            human=_human_episode_current,
+            title="Episode",
+        )
+    if act == "close":
+        d = res.get("draft")
+        if not d:
+            return out.emit({"closed": "none", "reason": "no open episode with beats to close"}, title="Episode")
+        doc = {
+            "closed": d.get("chapter_id"),
+            "title": d.get("title"),
+            "description": out.truncate(d.get("description"), 300)[0],
+            "why": out.truncate(d.get("why"), 300)[0],
+            "final": False,
+            "next_episode": (res.get("new_current_chapter") or {}).get("id"),
+        }
+        return out.emit(
+            doc,
+            hints=[f'{cli} episode accept {d.get("chapter_id")} --title "{d.get("title") or ""}"'],
+            title="Episode closed · draft",
+        )
+    c = res.get("chapter") or {}
+    return out.emit({"finalized": c.get("id"), "title": c.get("title"), "why": c.get("why")}, title="Episode")
+
+
+def _human_episode_current(console, doc):
+    from core.axi import out
+
+    title = out._esc(doc["title"]) if doc.get("title") else "[dim](untitled)[/]"
+    console.print(f"[green]open[/]  {title}  [dim]{doc['episode']}[/]")
+    console.print(f"  {doc['beats']} beat(s), open for {_human_secs(doc['duration_s'])}")
+    if doc.get("why"):
+        console.print(f"  [dim]why:[/] {out._esc(doc['why'])}")
+    sug = doc.get("suggest_close")
+    if sug:
+        console.print(f"  [yellow]suggest closing:[/] {out._esc(str(sug.get('reason') or ''))}")
 
 
 # ------------------------------------------------------------------------ task (coordination door)

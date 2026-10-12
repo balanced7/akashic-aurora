@@ -1,0 +1,256 @@
+{
+  "verb": "episode",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 19,
+    "stdout_chars": 354,
+    "stdout_lines": 7,
+    "cost_usd": 0.0255,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many beats are in the current episode?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the current episode have a title yet? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to close this episode and draft its title? Give the command only.",
+        "expected": [
+          "episode close"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What title was drafted for the closed episode?",
+        "expected": "fixed the port clash in tests",
+        "answers": [
+          "fixed the port clash in tests",
+          "fixed the port clash in tests",
+          "fixed the port clash in tests",
+          "fixed the port clash in tests",
+          "fixed the port clash in tests"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to finalize the episode that was just closed? Give the command only.",
+        "expected": [
+          "episode accept ch_"
+        ],
+        "answers": [
+          "uv run agent_cli.py episode accept ch_1791813966_5735 --title ... --why ...",
+          "uv run agent_cli.py episode accept ch_1791813966_5735 --title ... --why ...",
+          "uv run agent_cli.py episode accept ch_1791813966_5735 --title ... --why ...",
+          "uv run agent_cli.py episode accept ch_1791813966_5735 --title ... --why ...",
+          "uv run agent_cli.py episode accept ch_1791813966_5735 --title ... --why ..."
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did finalizing the episode succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "current": {
+        "argv": [
+          "episode",
+          "current"
+        ],
+        "exit": 0,
+        "stdout": "[episode] current: (untitled, open) (1s, 2 beats)\n"
+      },
+      "close": {
+        "argv": [
+          "episode",
+          "close"
+        ],
+        "exit": 0,
+        "stdout": "[episode] closed ch_1791813966_5735\n  title: fixed the port clash in tests\n  desc : fixed the port clash in tests \u00b7 renamed the config loader\n  why  : fixed the port clash in tests\n  (edit + finalize: uv run agent_cli.py episode accept ch_1791813966_5735 --title ... --why ...)\n"
+      },
+      "accept_missing": {
+        "argv": [
+          "episode",
+          "accept",
+          "ch_does_not_exist",
+          "--title",
+          "x"
+        ],
+        "exit": 1,
+        "stdout": "[episode] unknown_chapter\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.867,
+    "correct": 26,
+    "asked": 30,
+    "output_tokens": 52,
+    "stdout_chars": 551,
+    "stdout_lines": 19,
+    "cost_usd": 0.024,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many beats are in the current episode?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "The output says `beats: 2`.\n\n2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the current episode have a title yet? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "The output has `title: null`, so the current episode has no title yet.\n\n**No**"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What is the full command to close this episode and draft its title? Give the command only.",
+        "expected": [
+          "episode close"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "uv run agent_cli.py episode close",
+          "uv run agent_cli.py episode close",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 2
+      },
+      {
+        "q": "What title was drafted for the closed episode?",
+        "expected": "fixed the port clash in tests",
+        "answers": [
+          "fixed the port clash in tests",
+          "fixed the port clash in tests",
+          "fixed the port clash in tests",
+          "fixed the port clash in tests",
+          "fixed the port clash in tests"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to finalize the episode that was just closed? Give the command only.",
+        "expected": [
+          "episode accept ch_"
+        ],
+        "answers": [
+          "uv run agent_cli.py episode accept ch_1791814003_2564 --title \"fixed the port clash in tests\"",
+          "uv run agent_cli.py episode accept ch_1791814003_2564 --title \"fixed the port clash in tests\"",
+          "uv run agent_cli.py episode accept ch_1791814003_2564 --title \"fixed the port clash in tests\"",
+          "uv run agent_cli.py episode accept ch_1791814003_2564 --title \"fixed the port clash in tests\"",
+          "uv run agent_cli.py episode accept ch_1791814003_2564 --title \"fixed the port clash in tests\""
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did finalizing the episode succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "current": {
+        "argv": [
+          "episode",
+          "current"
+        ],
+        "exit": 0,
+        "stdout": "episode: ch_1791814003_2564\nstatus: open\ntitle: null\nbeats: 2\nduration_s: 1\nhelp[1]:\n  uv run agent_cli.py episode close\n"
+      },
+      "close": {
+        "argv": [
+          "episode",
+          "close"
+        ],
+        "exit": 0,
+        "stdout": "closed: ch_1791814003_2564\ntitle: fixed the port clash in tests\ndescription: fixed the port clash in tests \u00b7 renamed the config loader\nwhy: fixed the port clash in tests\nfinal: false\nnext_episode: ch_1791814005_2912\nhelp[1]:\n  uv run agent_cli.py episode accept ch_1791814003_2564 --title \"fixed the port clash in tests\"\n"
+      },
+      "accept_missing": {
+        "argv": [
+          "episode",
+          "accept",
+          "ch_does_not_exist",
+          "--title",
+          "x"
+        ],
+        "exit": 1,
+        "stdout": "error: no episode ch_does_not_exist to finalize\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py episode close\n"
+      }
+    }
+  }
+}
