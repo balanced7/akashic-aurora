@@ -170,3 +170,21 @@ def _isolate_conductor_gate_provenance(tmp_path_factory, monkeypatch):
     d = tmp_path_factory.mktemp("conductor_gate_prov")
     monkeypatch.setenv(PROVENANCE_ENV, str(d / "conductor_gate.provenance.log"))
     _reset_heartbeat()  # rate-limit state must not leak between tests
+
+
+# 2026-10-12: the operator whose name goes on agent commits is per-machine state
+# (core.comm.seat_identity.operator_file). A machine that ran `aurora setup` records its own
+# person there, and the identity pins assert the built-in default -- so without this, the
+# suite passes on one machine and fails on the next. Same autouse reasoning as above.
+
+
+@pytest.fixture(autouse=True)
+def _isolate_operator_identity(tmp_path_factory, monkeypatch):
+    try:
+        from core.comm.seat_identity import OPERATOR_EMAIL_ENV, OPERATOR_FILE_ENV, OPERATOR_NAME_ENV
+    except Exception:  # noqa: BLE001  # fail-soft: module absent/renamed
+        return
+    d = tmp_path_factory.mktemp("operator_identity")
+    monkeypatch.setenv(OPERATOR_FILE_ENV, str(d / "operator.json"))
+    monkeypatch.delenv(OPERATOR_NAME_ENV, raising=False)
+    monkeypatch.delenv(OPERATOR_EMAIL_ENV, raising=False)

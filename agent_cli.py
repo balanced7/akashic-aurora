@@ -10038,6 +10038,9 @@ def build_parser():
     su.add_argument("--scope", choices=["user", "project", "skip"], default=None)
     su.add_argument("--project", default=None)
     su.add_argument("--agent-id", default=None)
+    su.add_argument(
+        "--operator", default=None, help='"Name <email>" whose name goes on agent commits (default: your git user)'
+    )
     su.add_argument("--dry-run", action="store_true")
     su.set_defaults(fn=cmd_setup)
 

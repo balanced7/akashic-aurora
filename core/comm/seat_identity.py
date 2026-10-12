@@ -26,7 +26,8 @@ row. The session discriminator keeps them distinct while still reading as unreso
 
 PHYSICS: this module is in core/ and imports NOTHING outward -- no scripts/, no agent/, no
 harness. It touches one file per session in the OS temp dir, the same plane wake_seat uses for
-session markers, so a crashed session leaves no durable garbage in the repo.
+session markers, so a crashed session leaves no durable garbage in the repo. The one durable
+file it reads is the machine's operator record (operator_file()), in gitignored instance state.
 """
 
 from __future__ import annotations
@@ -163,12 +164,97 @@ def resolved_from(session_id: str, binding_dir: str | None = None, env_var: str 
 GIT_IDENTITY_DOMAIN = "akashic-aurora.local"
 
 
-#: The operator's GitHub-linked identity. A noreply address is deliberate: GitHub resolves it
-#: to his account without exposing a mailbox. This is the ONE place it is spelled -- a second
-#: copy would drift, which is the defect mirror.py already paid for by re-deriving a seat
-#: address inline instead of asking this module.
+#: The default operator's GitHub-linked identity. A noreply address is deliberate: GitHub
+#: resolves it to his account without exposing a mailbox. This is the ONE place it is spelled --
+#: a second copy would drift, which is the defect mirror.py already paid for by re-deriving a
+#: seat address inline instead of asking this module.
 OPERATOR_NAME = "balanced7"
 OPERATOR_EMAIL = "61030820+balanced7@users.noreply.github.com"
+
+#: Overrides for operator_identity(): both names set, or a file to read instead of the default.
+OPERATOR_NAME_ENV = "AKASHIC_OPERATOR_NAME"
+OPERATOR_EMAIL_ENV = "AKASHIC_OPERATOR_EMAIL"
+OPERATOR_FILE_ENV = "AKASHIC_OPERATOR_FILE"
+
+
+def operator_file() -> str:
+    """Where this machine records its operator: <state root>/state/identity/operator.json.
+
+    Instance state, never tracked: it names a person, and which person runs a clone is a fact
+    about that machine, not about the code.
+    """
+    override = (os.getenv(OPERATOR_FILE_ENV) or "").strip()
+    if override:
+        return override
+    try:
+        from core.paths import state_root
+
+        base = str(state_root())
+    except Exception:  # a path helper failing must not break identity
+        base = tempfile.gettempdir()
+    return os.path.join(base, "state", "identity", "operator.json")
+
+
+def _clean_operator(name, email) -> tuple[str, str] | None:
+    """(name, email) when both are usable in a git identity, else None."""
+    name = str(name or "").strip()
+    email = str(email or "").strip()
+    if not name or not email or "@" not in email:
+        return None
+    if any(c in name + email for c in "<>\n\r\0"):
+        return None  # would corrupt an ident line, or smuggle a second one
+    return name, email
+
+
+def operator_identity() -> tuple[str, str]:
+    """(name, email) of the person whose name goes on this machine's agent commits.
+
+    THE OPERATOR WAS HARD-CODED, AND THAT WAS A DEFECT FOR EVERY CLONE BUT ONE (2026-10-12).
+    T411 below puts the operator in both git identity fields, and the pre-commit guard insists
+    on it whenever a seat commits. With the operator spelled as a constant, a seat on anyone
+    else's machine either committed under balanced7's name or was refused outright -- measured
+    on a fork whose own author is s1-f0, where `aurora setup` turned the guard on and the next
+    commit was blocked. The constant stays as the default, so balanced7's machines behave
+    exactly as before.
+
+    Order: both AKASHIC_OPERATOR_NAME and AKASHIC_OPERATOR_EMAIL (a launcher or a test) ->
+    operator_file(), which `aurora setup` writes -> the default above. A malformed source is
+    skipped, never trusted.
+    """
+    env = _clean_operator(os.getenv(OPERATOR_NAME_ENV), os.getenv(OPERATOR_EMAIL_ENV))
+    if env:
+        return env
+    try:
+        import json
+
+        with open(operator_file(), encoding="utf-8") as fh:
+            doc = json.load(fh)
+        rec = _clean_operator(doc.get("name"), doc.get("email"))
+        if rec:
+            return rec
+    except Exception:
+        pass  # absent or unreadable -> the default
+    return OPERATOR_NAME, OPERATOR_EMAIL
+
+
+def set_operator(name: str, email: str) -> str:
+    """Record this machine's operator (what `aurora setup` asks for). Returns the file path.
+
+    Raises ValueError for a name or email that cannot be a git identity.
+    """
+    rec = _clean_operator(name, email)
+    if not rec:
+        raise ValueError(f"not a usable git identity: {name!r} <{email!r}>")
+    import json
+
+    path = operator_file()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"name": rec[0], "email": rec[1]}, fh, indent=2)
+        fh.write("\n")
+    os.replace(tmp, path)
+    return path
 
 
 def git_identity_env(agent_id) -> dict:
@@ -210,11 +296,12 @@ def git_identity_env(agent_id) -> dict:
     aid = str(agent_id).strip() if agent_id else ""
     if not valid(aid):
         return {}
+    name, email = operator_identity()
     return {
-        "GIT_AUTHOR_NAME": OPERATOR_NAME,
-        "GIT_AUTHOR_EMAIL": OPERATOR_EMAIL,
-        "GIT_COMMITTER_NAME": OPERATOR_NAME,
-        "GIT_COMMITTER_EMAIL": OPERATOR_EMAIL,
+        "GIT_AUTHOR_NAME": name,
+        "GIT_AUTHOR_EMAIL": email,
+        "GIT_COMMITTER_NAME": name,
+        "GIT_COMMITTER_EMAIL": email,
     }
 
 

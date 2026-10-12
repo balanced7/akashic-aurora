@@ -189,7 +189,10 @@ def check_author_matches_seat(agent, author_ident):
         return True, ""  # malformed id: nothing to assert against
     expected = f"{want['GIT_AUTHOR_NAME']} <{want['GIT_AUTHOR_EMAIL']}>"
     fix = (
-        f"Fix -- stamp the identity in the LAUNCHER that spawned this process, or for a\n"
+        f"If that is not the right person, record this machine's operator:\n"
+        f'  {_pyl()} agent_cli.py setup --operator "Name <email>"\n'
+        f"If a settings file stamps GIT_AUTHOR_* for the seat (the superseded t384 rule), remove it.\n"
+        f"Otherwise stamp the identity in the LAUNCHER that spawned this process, or for a\n"
         f"one-off:\n"
         f"  GIT_AUTHOR_NAME={want['GIT_AUTHOR_NAME']} "
         f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} \\\n"
