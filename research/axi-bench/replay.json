@@ -1,0 +1,256 @@
+{
+  "verb": "replay",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 24,
+    "asked": 30,
+    "output_tokens": 21,
+    "stdout_chars": 283,
+    "stdout_lines": 4,
+    "cost_usd": 0.0343,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many candidate harnesses are listed?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harness does the candidate codex-low use?",
+        "expected": "codex-cli",
+        "answers": [
+          "codex-cli",
+          "codex-cli",
+          "codex-cli",
+          "codex-cli",
+          "codex-cli"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What effort level is opus-high set to?",
+        "expected": "high",
+        "answers": [
+          "high",
+          "opus-high is set to effort=high",
+          "high",
+          "high",
+          "high"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Did the replay run start? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which Redis db number should be passed instead so the run is allowed? Give the number only.",
+        "expected": 15,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which flag is missing from this replay run command? Give the flag only.",
+        "expected": "--scenario",
+        "answers": [
+          "--scenario",
+          "--scenario",
+          "--scenario",
+          "--scenario",
+          "--scenario"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "candidates": {
+        "argv": [
+          "replay",
+          "candidates"
+        ],
+        "exit": 0,
+        "stdout": "  codex-low            codex-cli    model=gpt-5 effort=low  \n  opus-high            claude-code  model=claude-opus-5-5 effort=high  more effort fixes more scenarios\n"
+      },
+      "live_db": {
+        "argv": [
+          "replay",
+          "run",
+          "--candidate",
+          "opus-high",
+          "--scenario",
+          "T1-abc",
+          "--redis-db",
+          "0"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: --redis-db 0 is the live store; a replay never runs there\n"
+      },
+      "missing": {
+        "argv": [
+          "replay",
+          "run",
+          "--candidate",
+          "opus-high"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: `replay run` needs --candidate C --scenario S\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 87,
+    "stdout_chars": 757,
+    "stdout_lines": 16,
+    "cost_usd": 0.0264,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many candidate harnesses are listed?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harness does the candidate codex-low use?",
+        "expected": "codex-cli",
+        "answers": [
+          "The candidate `codex-low` uses the `codex-cli` harness.",
+          "codex-cli",
+          "codex-cli",
+          "codex-cli",
+          "codex-cli"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What effort level is opus-high set to?",
+        "expected": "high",
+        "answers": [
+          "high",
+          "high",
+          "high",
+          "high",
+          "high"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the replay run start? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which Redis db number should be passed instead so the run is allowed? Give the number only.",
+        "expected": 15,
+        "answers": [
+          "15",
+          "15",
+          "15",
+          "15",
+          "15"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this replay run command? Give the flag only.",
+        "expected": "--scenario",
+        "answers": [
+          "--scenario",
+          "--scenario",
+          "--scenario",
+          "--scenario",
+          "--scenario"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "candidates": {
+        "argv": [
+          "replay",
+          "candidates"
+        ],
+        "exit": 0,
+        "stdout": "total: 2\ncandidates[2]{name,harness,model,effort,hypothesis}:\n  codex-low,codex-cli,gpt-5,low,null\n  opus-high,claude-code,claude-opus-5-5,high,more effort fixes more scenarios\nhelp[2]:\n  uv run agent_cli.py replay run --candidate codex-low --scenario <id> --budget-usd 2\n  uv run agent_cli.py replay new --candidate <name> --harness codex-cli --model <model>\n"
+      },
+      "live_db": {
+        "argv": [
+          "replay",
+          "run",
+          "--candidate",
+          "opus-high",
+          "--scenario",
+          "T1-abc",
+          "--redis-db",
+          "0"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--redis-db 0 is the live store; a replay never runs there\"\ncode: LIVE_DB_REFUSED\nhelp[1]:\n  uv run agent_cli.py replay run --candidate opus-high --scenario T1-abc --redis-db 15\n"
+      },
+      "missing": {
+        "argv": [
+          "replay",
+          "run",
+          "--candidate",
+          "opus-high"
+        ],
+        "exit": 2,
+        "stdout": "error: `replay run` needs --candidate C --scenario S\ncode: USAGE\nhelp[2]:\n  uv run agent_cli.py replay run --candidate opus-high --scenario <id> --budget-usd 2\n  uv run agent_cli.py corpus list --status accepted\n"
+      }
+    }
+  }
+}

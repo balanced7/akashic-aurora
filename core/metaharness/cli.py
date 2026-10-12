@@ -181,22 +181,37 @@ def replay_main(args) -> int:
     """`replay <action>` -- run scenarios against candidate harnesses (task 04)."""
     from core.metaharness import replay
 
-    a = args.action
+    a, cli = args.action, _cli()
     if a == "candidates":
         rows = [replay.candidate(n) for n in (replay.list_candidates() or ["baseline"])]
-        _print(
-            rows,
-            args.json,
-            "\n".join(
-                f"  {r['name']:<20} {r['harness']:<12} model={r['model'] or '-'} effort={r['effort'] or '-'}  {r['hypothesis'][:60]}"
-                for r in rows
-            ),
+        if args.json:
+            _json(rows)
+            return 0
+        table = [
+            {
+                "name": r["name"],
+                "harness": r["harness"],
+                "model": r["model"] or None,
+                "effort": r["effort"] or None,
+                "hypothesis": out.truncate(r["hypothesis"], 60)[0] or None,
+            }
+            for r in rows
+        ]
+        # A run spends model budget, so the suggested command carries a budget cap.
+        first = table[0]["name"]
+        return out.emit(
+            {"total": len(table), "candidates": table},
+            hints=[
+                f"{cli} replay run --candidate {first} --scenario <id> --budget-usd 2",
+                f"{cli} replay new --candidate <name> --harness codex-cli --model <model>",
+            ],
+            title="Replay candidates",
         )
-        return 0
     if a == "new":
         if not args.candidate:
-            print("ERROR: `replay new` needs --candidate NAME")
-            return 2
+            return _usage(
+                "`replay new` needs --candidate NAME", f"{cli} replay new --candidate <name> --harness claude-code"
+            )
         card = {
             k: v
             for k, v in (
@@ -209,12 +224,18 @@ def replay_main(args) -> int:
             if v
         }
         c = replay.create_candidate(args.candidate, overlay_from=args.overlay or None, **card)
-        _print(c, args.json, f"[OK] candidate {c['name']} ({c['harness']}); overlay: {c['overlay']}")
-        return 0
+        if args.json:
+            _json(c)
+            return 0
+        doc = {k: c[k] or None for k in ("name", "harness", "model", "effort", "parent", "overlay")}
+        return out.emit(doc, hints=[f"{cli} replay candidates"], title="Replay candidate created")
     if a == "run":
         if not (args.candidate and args.scenario):
-            print("ERROR: `replay run` needs --candidate C --scenario S")
-            return 2
+            return _usage(
+                "`replay run` needs --candidate C --scenario S",
+                f"{cli} replay run --candidate {args.candidate or 'baseline'} --scenario {args.scenario or '<id>'} --budget-usd 2",
+                f"{cli} corpus list --status accepted",
+            )
         try:
             res = replay.run(
                 args.candidate,
@@ -226,19 +247,41 @@ def replay_main(args) -> int:
                 keep_sandbox=args.keep_sandbox,
             )
         except KeyError as e:
-            print(f"ERROR: {e}")
-            return 1
-        lines = [
-            f"  t{r.get('trial')}: {r.get('exit_reason')} wall={r.get('wall_s', 0)}s cost=${r.get('cost_usd', 0):.4f} "
-            f"tokens={r.get('tokens_in', 0)}/{r.get('tokens_out', 0)} diff={r.get('diff_lines', 0)} lines"
-            + (f" INFRA: {r['infra_failures']}" if r.get("infra_failures") else "")
-            + (f"\n      {r['run_dir']}" if r.get("run_dir") else "")
-            for r in res
-        ]
-        _print(res, args.json, f"{args.candidate} x {args.scenario}, {len(res)} trial(s)\n" + "\n".join(lines))
-        return 0 if all(r.get("exit_reason") in ("ok", "error", "timeout", "budget") for r in res) else 1
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+            return out.fail(
+                str(e).strip("\"'"), code="NOT_FOUND", hints=[f"{cli} replay candidates", f"{cli} corpus list"]
+            )
+        ok = all(r.get("exit_reason") in ("ok", "error", "timeout", "budget") for r in res)
+        if args.json:
+            _json(res)
+            return 0 if ok else 1
+        trials = []
+        for r in res:
+            row = {
+                "trial": r.get("trial"),
+                "exit_reason": r.get("exit_reason"),
+                "wall_s": r.get("wall_s", 0),
+                "cost_usd": round(float(r.get("cost_usd") or 0), 4),
+                "tokens_in": r.get("tokens_in", 0),
+                "tokens_out": r.get("tokens_out", 0),
+                "diff_lines": r.get("diff_lines", 0),
+                "infra_failures": r.get("infra_failures") or None,
+                "run_dir": r.get("run_dir") or None,
+            }
+            trials.append(row)
+        doc = {
+            "candidate": args.candidate,
+            "scenario": args.scenario,
+            "trials": len(trials),
+            "cost_usd": round(sum(float(r.get("cost_usd") or 0) for r in res), 4),
+            "results": trials,
+        }
+        out.emit(
+            doc,
+            hints=[f"{cli} grade run --candidate {args.candidate} --scenario {args.scenario}"],
+            title=f"Replay · {args.candidate} x {args.scenario}",
+        )
+        return 0 if ok else 1
+    return _usage(f"unknown action {a!r}", f"{cli} replay --help")
 
 
 def grade_main(args) -> int:

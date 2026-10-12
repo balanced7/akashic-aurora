@@ -1275,9 +1275,20 @@ def cmd_replay(args):
     """Meta-harness replay runner (task 04); logic in core/metaharness/cli.py."""
     from core.metaharness.cli import replay_main
 
-    if args.redis_db == 0:
-        print("ERROR: --redis-db 0 is the live store; a replay never runs there")
-        return 2
+    if args.redis_db == 0:  # by design: a replay never touches the live store
+        from core.axi import out
+
+        return out.fail(
+            "--redis-db 0 is the live store; a replay never runs there",
+            code="LIVE_DB_REFUSED",
+            hints=[
+                (
+                    f"{_cli()} replay {args.action} --candidate {args.candidate or '<name>'} "
+                    f"--scenario {args.scenario or '<id>'} --redis-db 15"
+                )
+            ],
+            exit_code=out.EXIT_USAGE,
+        )
     return replay_main(args)
 
 

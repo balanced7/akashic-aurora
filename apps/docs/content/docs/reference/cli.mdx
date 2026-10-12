@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 70 converted to agent and human output.
+121 verbs; 71 converted to agent and human output.
 
 ## `alias`
 
@@ -2358,7 +2358,10 @@ help[1]:
 | | |
 |---|---|
 | Does | meta-harness replay (task 04): run a scenario against a candidate harness, isolated |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 97% after |
+| Output tokens | 21 before, 87 after (+314%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/replay.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2377,6 +2380,18 @@ help[1]:
 | `--hypothesis` |   |   |   |
 | `--overlay` |   |   | new: a folder of config files to lay over the sandbox |
 | `--json` |   |   |   |
+
+Agent output of `aurora replay candidates` on the bench data:
+
+```text
+total: 2
+candidates[2]{name,harness,model,effort,hypothesis}:
+  codex-low,codex-cli,gpt-5,low,null
+  opus-high,claude-code,claude-opus-5-5,high,more effort fixes more scenarios
+help[2]:
+  uv run agent_cli.py replay run --candidate codex-low --scenario <id> --budget-usd 2
+  uv run agent_cli.py replay new --candidate <name> --harness codex-cli --model <model>
+```
 
 ## `reply`
 
