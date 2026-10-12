@@ -8,6 +8,7 @@ instance state, one row per commit, appended and never edited.
 Run: uv run pytest tests/test_local_authorship_ledger.py -q
 """
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -43,8 +44,18 @@ def test_the_default_is_the_worlds_shared_state(tmp_path, monkeypatch):
     import core.paths
 
     monkeypatch.delenv(al.LEDGER_ENV)
-    monkeypatch.setattr(core.paths, "shared_state_root", lambda: tmp_path)
+    # raising=False: a tree without the per-world home (core.paths.shared_state_root) still pins
+    # that the ledger asks for it.
+    monkeypatch.setattr(core.paths, "shared_state_root", lambda: tmp_path, raising=False)
     assert al.ledger_path() == tmp_path / "state" / "authorship" / "seats.jsonl"
+
+
+def test_without_a_shared_state_root_the_ledger_stays_in_ignored_state(monkeypatch):
+    import core.paths
+
+    monkeypatch.delenv(al.LEDGER_ENV)
+    monkeypatch.delattr(core.paths, "shared_state_root", raising=False)
+    assert al.ledger_path() == al.LEGACY
 
 
 def test_the_ledger_is_not_tracked():
@@ -109,6 +120,23 @@ def _commit_env(monkeypatch):
     monkeypatch.setenv("CLAUDE_EFFORT", "high")
 
 
+#: Session provenance (core/fleet/provenance.py, meta-harness 01) is what fills these rows. A tree
+#: without it records the seat alone -- pinned by test_without_provenance_the_row_keeps_the_seat.
+needs_provenance = pytest.mark.skipif(
+    importlib.util.find_spec("core.fleet.provenance") is None, reason="needs core.fleet.provenance"
+)
+
+
+def test_without_provenance_the_row_keeps_the_seat(monkeypatch, no_legacy):
+    _commit_env(monkeypatch)
+    monkeypatch.setitem(sys.modules, "core.fleet.provenance", None)  # import fails
+    assert post_commit.main() == 0
+    (row,) = _rows(al.ledger_path())
+    assert row["seat"] == "claude"
+    assert "session_id" not in row
+
+
+@needs_provenance
 def test_a_commit_row_carries_session_harness_model_and_effort(monkeypatch, no_legacy):
     _commit_env(monkeypatch)
     assert post_commit.main() == 0
@@ -124,6 +152,7 @@ def test_a_commit_row_carries_session_harness_model_and_effort(monkeypatch, no_l
     assert len(row["sha"]) == 12
 
 
+@needs_provenance
 def test_an_unknown_field_is_left_out_not_guessed(monkeypatch, no_legacy):
     _commit_env(monkeypatch)
     monkeypatch.delenv("CLAUDE_EFFORT")
