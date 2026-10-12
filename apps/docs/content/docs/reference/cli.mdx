@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 10 converted to agent and human output.
+121 verbs; 11 converted to agent and human output.
 
 ## `alias`
 
@@ -713,7 +713,10 @@ help[1]:
 | | |
 |---|---|
 | Does | check in/out: attribute THIS session's tool calls to a task |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 97% after |
+| Output tokens | 33 before, 77 after (+133%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/focus.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -725,6 +728,18 @@ help[1]:
 | `--health` |   |   | is the drift nudge earning its keep? |
 | `--session` |   |   | override the session id (default: this session) |
 | `--json` |   |   |   |
+
+Agent output of `aurora focus bench --session s1` on the bench data:
+
+```text
+focus: T001
+calls: 0
+on_task_files: 0
+elsewhere: 0
+miss_streak: 0
+help[1]:
+  uv run agent_cli.py focus bench --session s1 --clear
+```
 
 ## `followup`
 

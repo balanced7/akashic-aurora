@@ -9519,62 +9519,90 @@ def cmd_focus(args):
     active under `claude`, so it refused every time and 172 done tasks carry zero cost data. Owner
     matching cannot disambiguate nine open tasks; a session saying which one it is on can.
     """
+    from core.axi import out
     from core.coord import session_focus as SF
 
+    cli = _cli()
     sid = getattr(args, "session", "") or SF.this_session()
+    # Hints repeat --session only when it was given: without it the next call resolves the same
+    # session from the environment, and with it the next call would otherwise lose the session.
+    sess = f" --session {args.session}" if getattr(args, "session", "") else ""
+    me = f" {args.agent_id}" if args.agent_id else ""
     if getattr(args, "health", False):
-        print(json.dumps(SF.health(), indent=2))
-        return 0
+        h = SF.health()
+        if args.json:
+            print(json.dumps(h, indent=2))
+            return 0
+        return out.emit(h, title="Focus · drift nudge health")  # a verdict answers itself
     if not sid:
-        print("ERROR: no session id (CLAUDE_CODE_SESSION_ID unset). Pass --session <id>.")
-        return 2
+        return out.fail(
+            "no session id (CLAUDE_CODE_SESSION_ID is unset)",
+            code="NO_SESSION",
+            hints=[f"{cli} focus{me} --session <id>"],
+            exit_code=out.EXIT_USAGE,  # 2, as before the conversion
+        )
     if getattr(args, "clear", False):
-        out = SF.clear_focus(sid)
-        if out.get("was"):
-            print(
-                f"# checked out of {out['was']} -- {out.get('calls', 0)} tool call(s) attributed "
-                f"({out.get('hits', 0)} on its files, {out.get('misses', 0)} elsewhere)"
-            )
-        else:
-            print("# this session had no focus")
-        return 0
+        res = SF.clear_focus(sid)
+        if not res.get("was"):
+            return out.emit({"focus": "none", "cleared": 0}, title="Focus")  # nothing to check out of
+        return out.emit(
+            {
+                "checked_out": res["was"],
+                "calls": res.get("calls", 0),
+                "on_task_files": res.get("hits", 0),
+                "elsewhere": res.get("misses", 0),
+            },
+            hints=[f"{cli} focus{me}{sess} --set T###"],
+            title="Focus · checked out",
+        )
     if getattr(args, "dismiss", False):
         st = SF.dismiss(sid)
         left = max(0, SF.DISMISS_QUIET - int(st.get("dismissed", 0) or 0))
-        print(
-            f"# noted. {'Drift notes now silent for this session.' if left <= 0 else f'{left} more dismissal(s) and it stops asking by itself.'}"
-        )
-        return 0
+        return out.emit(
+            {"dismissed": int(st.get("dismissed", 0) or 0), "drift_notes": "silent" if left <= 0 else "on",
+             "dismissals_until_silent": left},
+            title="Focus · drift note dismissed",
+        )  # fmt: skip
     if getattr(args, "quiet", False):
         SF.quiet(sid)
-        print("# drift notes silenced for this session; attribution continues")
-        return 0
+        return out.emit({"drift_notes": "silent", "attribution": "on"}, title="Focus")
     if getattr(args, "set", ""):
         r = SF.set_focus(sid, args.set, agent=args.agent_id or "")
         if not r.get("ok"):
-            print(f"ERROR: {r.get('error')}")
-            return 2
-        print(f"# focused {r['task']} ({r.get('status')}) -- {r.get('title', '')[:70]}")
-        if r.get("files"):
-            print(f"#   drift watched against: {', '.join(r['files'][:4])}{' ...' if len(r['files']) > 4 else ''}")
+            err = str(r.get("error") or "could not set focus")
+            return out.fail(
+                err,
+                code="NOT_FOUND" if err.startswith("no task") else "ERROR",
+                hints=[f"{cli} task list"],
+                exit_code=out.EXIT_USAGE,  # 2, as before the conversion
+            )
+        files = list(r.get("files") or [])
+        doc = {"focus": r["task"], "status": r.get("status"), "title": out.truncate(r.get("title", ""), 120)[0]}
+        if files:
+            doc["drift_watched"] = files[:4]
+            if len(files) > 4:
+                doc["drift_watched_total"] = len(files)
         if r.get("note"):
-            print(f"#   note: {r['note']}")
-        return 0
+            doc["note"] = r["note"]
+        return out.emit(doc, hints=[f"{cli} focus{me}{sess}", f"{cli} focus{me}{sess} --clear"], title="Focus · set")
     st = SF.current(sid)
     if args.json:
         print(json.dumps(st or {}, indent=2))
         return 0
     if not st:
-        print(f"# no focus. Set one: {_cli()} focus --set T###")
-        return 0
-    print(
-        f"# focus {st['task']}: {st.get('calls', 0)} call(s) attributed "
-        f"({st.get('hits', 0)} on its files, {st.get('misses', 0)} elsewhere, "
-        f"streak {st.get('streak', 0)})"
-    )
+        return out.emit({"focus": "none"}, hints=[f"{cli} focus{me}{sess} --set T###"], title="Focus")
+    doc = {
+        "focus": st["task"],
+        "calls": st.get("calls", 0),
+        "on_task_files": st.get("hits", 0),
+        "elsewhere": st.get("misses", 0),
+        # consecutive calls off the task's files; the drift note speaks when this runs long
+        "miss_streak": st.get("streak", 0),
+    }
     if st.get("nudges"):
-        print(f"#   drift notes: {st['nudges']} sent, {st.get('dismissed', 0)} dismissed")
-    return 0
+        doc["drift_notes_sent"] = st["nudges"]
+        doc["drift_notes_dismissed"] = st.get("dismissed", 0)
+    return out.emit(doc, hints=[f"{cli} focus{me}{sess} --clear"], title=f"Focus · {st['task']}")
 
 
 def cmd_locks(args):

@@ -1,0 +1,270 @@
+{
+  "verb": "focus",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 33,
+    "stdout_chars": 242,
+    "stdout_lines": 4,
+    "cost_usd": 0.0292,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which task is this session focused on?",
+        "expected": "T001",
+        "answers": [
+          "T001",
+          "T001",
+          "T001",
+          "T001",
+          "T001"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many tool calls have been attributed to the focused task?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this session have a focus? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which files does the drift check watch for this task? List them separated by commas.",
+        "expected": [
+          "core/auth.py",
+          "core/session.py"
+        ],
+        "answers": [
+          "core/auth.py, core/session.py",
+          "core/auth.py, core/session.py",
+          "core/auth.py, core/session.py",
+          "core/auth.py, core/session.py",
+          "core/auth.py, core/session.py"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the ledger status of the focused task?",
+        "expected": "proposed",
+        "answers": [
+          "proposed",
+          "proposed",
+          "proposed",
+          "proposed",
+          "proposed"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command checks this session out of its focus? Give the command only.",
+        "expected": [
+          "focus",
+          "--clear"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "focus",
+          "bench",
+          "--session",
+          "s1"
+        ],
+        "exit": 0,
+        "stdout": "# focus T001: 0 call(s) attributed (0 on its files, 0 elsewhere, streak 0)\n"
+      },
+      "none": {
+        "argv": [
+          "focus",
+          "bench",
+          "--session",
+          "s2"
+        ],
+        "exit": 0,
+        "stdout": "# no focus. Set one: uv run agent_cli.py focus --set T###\n"
+      },
+      "set": {
+        "argv": [
+          "focus",
+          "bench",
+          "--session",
+          "s3",
+          "--set",
+          "T001"
+        ],
+        "exit": 0,
+        "stdout": "# focused T001 (proposed) -- Fix the login redirect\n#   drift watched against: core/auth.py, core/session.py\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 77,
+    "stdout_chars": 426,
+    "stdout_lines": 17,
+    "cost_usd": 0.0246,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which task is this session focused on?",
+        "expected": "T001",
+        "answers": [
+          "T001",
+          "T001",
+          "T001",
+          "T001",
+          "T001"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many tool calls have been attributed to the focused task?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this session have a focus? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which files does the drift check watch for this task? List them separated by commas.",
+        "expected": [
+          "core/auth.py",
+          "core/session.py"
+        ],
+        "answers": [
+          "core/auth.py,core/session.py",
+          "core/auth.py,core/session.py",
+          "core/auth.py,core/session.py",
+          "core/auth.py,core/session.py",
+          "core/auth.py,core/session.py"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the ledger status of the focused task?",
+        "expected": "proposed",
+        "answers": [
+          "proposed",
+          "The status is proposed.",
+          "proposed",
+          "proposed",
+          "proposed"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What exact command checks this session out of its focus? Give the command only.",
+        "expected": [
+          "focus",
+          "--clear"
+        ],
+        "answers": [
+          "uv run agent_cli.py focus bench --session s1 --clear",
+          "uv run agent_cli.py focus bench --session s1 --clear",
+          "uv run agent_cli.py focus bench --session s1 --clear",
+          "uv run agent_cli.py focus bench --session s1 --clear",
+          "uv run agent_cli.py focus bench --session s1 --clear"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "focus",
+          "bench",
+          "--session",
+          "s1"
+        ],
+        "exit": 0,
+        "stdout": "focus: T001\ncalls: 0\non_task_files: 0\nelsewhere: 0\nmiss_streak: 0\nhelp[1]:\n  uv run agent_cli.py focus bench --session s1 --clear\n"
+      },
+      "none": {
+        "argv": [
+          "focus",
+          "bench",
+          "--session",
+          "s2"
+        ],
+        "exit": 0,
+        "stdout": "focus: none\nhelp[1]:\n  uv run agent_cli.py focus bench --session s2 --set T###\n"
+      },
+      "set": {
+        "argv": [
+          "focus",
+          "bench",
+          "--session",
+          "s3",
+          "--set",
+          "T001"
+        ],
+        "exit": 0,
+        "stdout": "focus: T001\nstatus: proposed\ntitle: Fix the login redirect\ndrift_watched[2]: core/auth.py,core/session.py\nhelp[2]:\n  uv run agent_cli.py focus bench --session s3\n  uv run agent_cli.py focus bench --session s3 --clear\n"
+      }
+    }
+  }
+}
