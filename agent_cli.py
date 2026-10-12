@@ -10411,12 +10411,18 @@ def cmd_blob(args):
     the pointer is decoration -- which is precisely how the lookback battery broke
     (content preserved, retrieval handle unreachable), so this verb is not a
     convenience, it is the half that makes the spill lossless."""
+    from core.axi import out as axi
     from core.comm.blobs import get_blob_store
 
+    cli = _cli()
     ref = str(getattr(args, "get", "") or "").strip()
     if not ref:
-        print(f"usage: {_cli()} bifrost-fetch --get blob:<sha>|<stream-id>  [--out FILE]")
-        return 2
+        return axi.fail(
+            "bifrost-fetch needs --get with a blob:<sha> ref or a bus stream id",
+            code="USAGE",
+            hints=[f"{cli} bifrost-fetch --get blob:<sha>"],
+            exit_code=axi.EXIT_USAGE,
+        )
     data = get_blob_store().get(ref)
     if data is None and _looks_like_stream_id(ref):
         # T222: the SECOND address space, added because T220 minted pointers into this door
@@ -10427,19 +10433,21 @@ def cmd_blob(args):
         # rewriting the pointer to name some other door would only move the lie.
         data = _fetch_bus_body(ref, agent=str(getattr(args, "agent", "") or ""))
     if data is None:
-        print(
-            f"# no blob or bus message for {ref}\n"
-            f"# (blob refs are content-addressed and never rewritten -- a miss means it was "
-            f"never stored or the store dir differs. A stream id misses when it is not in "
-            f"any stream this agent can read: check the namespace and the lane.)"
-        )
-        return 1
-    out = str(getattr(args, "out", "") or "").strip()
-    if out:
-        with open(out, "wb") as f:
+        # A miss stays LOUD (T222), and says which of the two address spaces it looked in.
+        if _looks_like_stream_id(ref):
+            why = "not in any stream this agent can read; another seat's streams need --agent"
+            hints = [f"{cli} bifrost-fetch --get {ref} --agent <agent_id>"]
+        else:
+            why = "blob refs are content-addressed and never rewritten: never stored, or another store dir"
+            hints = []
+        return axi.fail(f"no blob or bus message for {ref}", code="NOT_FOUND", hints=hints, details={"why": why})
+    dest = str(getattr(args, "out", "") or "").strip()
+    if dest:
+        with open(dest, "wb") as f:
             f.write(data)
-        print(f"# wrote {len(data)} bytes -> {out}")
-        return 0
+        return axi.emit({"ref": ref, "bytes": len(data), "wrote": dest}, title="Fetched")
+    # The payload IS the answer, so it goes out verbatim in every mode: byte-faithful, pipeable,
+    # and readable as written. Wrapping it in TOON would escape every newline of a long body.
     sys.stdout.write(data.decode("utf-8", "replace"))
     return 0
 

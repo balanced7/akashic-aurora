@@ -1,0 +1,216 @@
+{
+  "verb": "bifrost-fetch",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 61,
+    "stdout_chars": 12728,
+    "stdout_lines": 4,
+    "cost_usd": 0.0179,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Who is named as the owner at the end of the release plan?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many bytes were written?",
+        "expected": 12345,
+        "answers": [
+          "12345",
+          "12345",
+          "12345",
+          "12345",
+          "12345"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What argument must be added to this command for it to work? Give the flag only.",
+        "expected": "--get",
+        "answers": [
+          "--get",
+          "--get",
+          "--get",
+          "--get",
+          "--get"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "blob": {
+        "argv": [
+          "bifrost-fetch",
+          "--get",
+          "blob:57fd5a6d25cc5185c1c1eb8e"
+        ],
+        "exit": 0,
+        "stdout": "Release plan for the v2 parser. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. OWNER: carol."
+      },
+      "out": {
+        "argv": [
+          "bifrost-fetch",
+          "--get",
+          "blob:57fd5a6d25cc5185c1c1eb8e",
+          "--out",
+          "/dev/null"
+        ],
+        "exit": 0,
+        "stdout": "# wrote 12345 bytes -> /dev/null\n"
+      },
+      "miss": {
+        "argv": [
+          "bifrost-fetch",
+          "--get",
+          "9999999999999-0"
+        ],
+        "exit": 1,
+        "stdout": "# no blob or bus message for 9999999999999-0\n# (blob refs are content-addressed and never rewritten -- a miss means it was never stored or the store dir differs. A stream id misses when it is not in any stream this agent can read: check the namespace and the lane.)\n"
+      },
+      "usage": {
+        "argv": [
+          "bifrost-fetch"
+        ],
+        "exit": 2,
+        "stdout": "usage: uv run agent_cli.py bifrost-fetch --get blob:<sha>|<stream-id>  [--out FILE]\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 83,
+    "stdout_chars": 12794,
+    "stdout_lines": 12,
+    "cost_usd": 0.014,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Who is named as the owner at the end of the release plan?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many bytes were written?",
+        "expected": 12345,
+        "answers": [
+          "12345",
+          "12345",
+          "12345",
+          "12345",
+          "12345"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What argument must be added to this command for it to work? Give the flag only.",
+        "expected": "--get",
+        "answers": [
+          "--get",
+          "--get",
+          "--get",
+          "--get",
+          "--get"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "blob": {
+        "argv": [
+          "bifrost-fetch",
+          "--get",
+          "blob:57fd5a6d25cc5185c1c1eb8e"
+        ],
+        "exit": 0,
+        "stdout": "Release plan for the v2 parser. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. Step: migrate one module, run the suite. OWNER: carol."
+      },
+      "out": {
+        "argv": [
+          "bifrost-fetch",
+          "--get",
+          "blob:57fd5a6d25cc5185c1c1eb8e",
+          "--out",
+          "/dev/null"
+        ],
+        "exit": 0,
+        "stdout": "ref: \"blob:57fd5a6d25cc5185c1c1eb8e\"\nbytes: 12345\nwrote: /dev/null\n"
+      },
+      "miss": {
+        "argv": [
+          "bifrost-fetch",
+          "--get",
+          "9999999999999-0"
+        ],
+        "exit": 1,
+        "stdout": "error: no blob or bus message for 9999999999999-0\ncode: NOT_FOUND\nwhy: not in any stream this agent can read; another seat's streams need --agent\nhelp[1]:\n  uv run agent_cli.py bifrost-fetch --get 9999999999999-0 --agent <agent_id>\n"
+      },
+      "usage": {
+        "argv": [
+          "bifrost-fetch"
+        ],
+        "exit": 2,
+        "stdout": "error: \"bifrost-fetch needs --get with a blob:<sha> ref or a bus stream id\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py bifrost-fetch --get blob:<sha>\n"
+      }
+    }
+  }
+}
