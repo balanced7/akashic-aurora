@@ -1,0 +1,208 @@
+{
+  "verb": "flightdeck",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 2037,
+    "stdout_chars": 2360,
+    "stdout_lines": 50,
+    "cost_usd": 0.0203,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many agents does the flightdeck list?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does carol have a work lane? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many locks does alice hold?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is carol's status in the detail section, in one word?",
+        "expected": "down",
+        "answers": [
+          "down",
+          "down",
+          "down",
+          "down",
+          "down"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command shows the full detail for one agent? Give the command only.",
+        "expected": [
+          "flightdeck",
+          "--agent"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "fleet": {
+        "argv": [
+          "flightdeck"
+        ],
+        "exit": 0,
+        "stdout": "\u2550\u2550 FLEET FLIGHTDECK \u2550\u2550\n\ncomposed_of: doctor + pulse + lane_health + locks + commits + asks + turns + last_turn\n\ndoctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2\npulse: no lane-mode agents (6 agent(s), all legacy)\n\nAGENT          PULSE      STATUS                 LANE                   LOCKS\n------------------------------------------------------------------------------------------\nalice          absent     ok                     legacy                 0\nalice#benchsea absent     ok                     legacy                 0\nbench          absent     ok                     legacy                 0\nbob            absent     ok                     legacy                 0\nbob#benchsea   absent     ok                     legacy                 0\ncarol          absent     ok                     legacy                 0\n\n\u2500\u2500 open asks (asks) \u2500\u2500\n  bench: 1 open\n\n\u2500\u2500 in-flight turns (turns) \u2500\u2500\n  alice#benchsea: sync 2.2s (?)\n  bob#benchsea: sync 1.6s (?)\n"
+      },
+      "carol": {
+        "argv": [
+          "flightdeck",
+          "--agent",
+          "carol"
+        ],
+        "exit": 0,
+        "stdout": "\u2550\u2550 FLEET FLIGHTDECK \u2550\u2550\n\ncomposed_of: doctor + pulse + lane_health + locks + commits + asks + turns + last_turn + unwedge\n\ndoctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2\npulse: no lane-mode agents (6 agent(s), all legacy)\n\nAGENT          PULSE      STATUS                 LANE                   LOCKS\n------------------------------------------------------------------------------------------\nalice          absent     ok                     legacy                 0\nalice#benchsea absent     ok                     legacy                 0\nbench          absent     ok                     legacy                 0\nbob            absent     ok                     legacy                 0\nbob#benchsea   absent     ok                     legacy                 0\ncarol          absent     ok                     legacy                 0\n\n\u2500\u2500 open asks (asks) \u2500\u2500\n  bench: 1 open\n\n\u2500\u2500 in-flight turns (turns) \u2500\u2500\n  alice#benchsea: sync 3.2s (?)\n  bob#benchsea: sync 2.7s (?)\n\n\u2500\u2500 carol detail \u2500\u2500\n  status: down\n  verdict: carol: no runner process found (no live lock, no presence)\n  recommendation: start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic\n    [dashboard] carol: OFFLINE \u2014 1 unread but the agent is GONE (no worklive, no runner, no wake seat). The backlog is ghost mail from a retired seat \u2014 retire the inbox or ignore.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 2165,
+    "stdout_chars": 1972,
+    "stdout_lines": 42,
+    "cost_usd": 0.0248,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many agents does the flightdeck list?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does carol have a work lane? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many locks does alice hold?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is carol's status in the detail section, in one word?",
+        "expected": "down",
+        "answers": [
+          "down",
+          "down",
+          "down",
+          "down",
+          "down"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command shows the full detail for one agent? Give the command only.",
+        "expected": [
+          "flightdeck",
+          "--agent"
+        ],
+        "answers": [
+          "uv run agent_cli.py flightdeck --agent <agent>",
+          "uv run agent_cli.py flightdeck --agent <agent>",
+          "uv run agent_cli.py flightdeck --agent <agent>",
+          "uv run agent_cli.py flightdeck --agent <agent>",
+          "uv run agent_cli.py flightdeck --agent <agent>"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "fleet": {
+        "argv": [
+          "flightdeck"
+        ],
+        "exit": 0,
+        "stdout": "composed_of[8]: doctor,pulse,lane_health,locks,commits,asks,turns,last_turn\ndoctor: \"doctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2\"\npulse: \"pulse: no lane-mode agents (6 agent(s), all legacy)\"\nagents[6]{agent,pulse,status,findings,lane,locks}:\n  alice,legacy,ok,0,legacy,0\n  alice#benchsea,legacy,ok,0,legacy,0\n  bench,legacy,ok,0,legacy,0\n  bob,legacy,ok,0,legacy,0\n  bob#benchsea,legacy,ok,0,legacy,0\n  carol,legacy,ok,1,legacy,0\nopen_asks[1]{agent,open,redriving,overdue}:\n  bench,1,0,0\nturns_in_flight[2]{agent,phase,elapsed_s,kind}:\n  alice#benchsea,sync,2.3,?\n  bob#benchsea,sync,1.7,?\ncommits_6h: 15+\nrecent_commits[5]: d1b8e9fc wip unwedge,3fa0342b wip doctor,2d3cdaf1 wip roster,3468b3bc wip task,03aaef2e wip focus\nhelp[1]:\n  uv run agent_cli.py flightdeck --agent <agent>\n"
+      },
+      "carol": {
+        "argv": [
+          "flightdeck",
+          "--agent",
+          "carol"
+        ],
+        "exit": 0,
+        "stdout": "composed_of[9]: doctor,pulse,lane_health,locks,commits,asks,turns,last_turn,unwedge\ndoctor: \"doctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2\"\npulse: \"pulse: no lane-mode agents (6 agent(s), all legacy)\"\nagents[6]{agent,pulse,status,findings,lane,locks}:\n  alice,legacy,ok,0,legacy,0\n  alice#benchsea,legacy,ok,0,legacy,0\n  bench,legacy,ok,0,legacy,0\n  bob,legacy,ok,0,legacy,0\n  bob#benchsea,legacy,ok,0,legacy,0\n  carol,legacy,ok,1,legacy,0\nopen_asks[1]{agent,open,redriving,overdue}:\n  bench,1,0,0\nturns_in_flight[2]{agent,phase,elapsed_s,kind}:\n  alice#benchsea,sync,3.4,?\n  bob#benchsea,sync,2.9,?\ncommits_6h: 15+\nrecent_commits[5]: d1b8e9fc wip unwedge,3fa0342b wip doctor,2d3cdaf1 wip roster,3468b3bc wip task,03aaef2e wip focus\ndetail:\n  agent: carol\n  status: down\n  verdict: \"carol: no runner process found (no live lock, no presence)\"\n  recommendation: \"start: uv run scripts/bifrost_runner_deepseek.py --agent carol --agentic\"\n  findings[1]: \"[dashboard] carol: OFFLINE \u2014 1 unread but the agent is GONE (no worklive, no runner, no wake seat). The backlog is ghost mail from a retired seat \u2014 retire the inbox or ignore.\"\n"
+      }
+    }
+  }
+}

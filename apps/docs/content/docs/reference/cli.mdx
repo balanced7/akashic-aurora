@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 60 converted to agent and human output.
+121 verbs; 61 converted to agent and human output.
 
 ## `alias`
 
@@ -968,12 +968,39 @@ help[1]:
 | | |
 |---|---|
 | Does | W25 (deepseek): cockpit one-pager — fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 2,037 before, 2,165 after (+6%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/flightdeck.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--agent` |   |   | focus one agent (default: fleet-wide) |
 | `--json` |   |   |   |
+
+Agent output of `aurora flightdeck` on the bench data:
+
+```text
+composed_of[8]: doctor,pulse,lane_health,locks,commits,asks,turns,last_turn
+doctor: "doctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2"
+pulse: "pulse: no lane-mode agents (6 agent(s), all legacy)"
+agents[6]{agent,pulse,status,findings,lane,locks}:
+  alice,legacy,ok,0,legacy,0
+  alice#benchsea,legacy,ok,0,legacy,0
+  bench,legacy,ok,0,legacy,0
+  bob,legacy,ok,0,legacy,0
+  bob#benchsea,legacy,ok,0,legacy,0
+  carol,legacy,ok,1,legacy,0
+open_asks[1]{agent,open,redriving,overdue}:
+  bench,1,0,0
+turns_in_flight[2]{agent,phase,elapsed_s,kind}:
+  alice#benchsea,sync,2.3,?
+  bob#benchsea,sync,1.7,?
+commits_6h: 15+
+recent_commits[5]: d1b8e9fc wip unwedge,3fa0342b wip doctor,2d3cdaf1 wip roster,3468b3bc wip task,03aaef2e wip focus
+help[1]:
+  uv run agent_cli.py flightdeck --agent <agent>
+```
 
 ## `flow`
 
@@ -2328,8 +2355,8 @@ help[1]:
 |---|---|
 | Does | lesson applicability (task 02): show, set, widen by evidence, list proposals, tree |
 | Output | Agent mode (TOON) and human mode (colour). |
-| Reader accuracy | 97% before, 93% after |
-| Output tokens | 93 before, 143 after (+54%) |
+| Reader accuracy | 97% before, 100% after |
+| Output tokens | 27 before, 66 after (+144%) |
 | AXI checks | 3/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/scope.md) |
 
 | Flag | Required | Values | What it does |

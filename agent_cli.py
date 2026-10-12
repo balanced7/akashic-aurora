@@ -15245,12 +15245,122 @@ def cmd_flightdeck(args):
     """flightdeck [--agent <a>]: the cockpit one-pager — fleet at a glance. READ-only
     v1 (deepseek design, LIFEWORKERS caste). Composes doctor + pulse + lane-health +
     locks + recent commits into one view. --agent drills one seat."""
+    from core.axi import out
     from core.comm.doctor import flightdeck as flightdeck_fn
     from core.comm.doctor import format_flightdeck
 
     fd = flightdeck_fn(agent=getattr(args, "agent", None))
-    print(format_flightdeck(fd, json_mode=getattr(args, "json", False)))
-    return 0
+    if getattr(args, "json", False):
+        print(format_flightdeck(fd, json_mode=True))
+        return 0
+    sec = fd.get("sections", {})
+    dr, pu = sec.get("doctor", {}), sec.get("pulse", {})
+    # pulse's "absent" zone is an agent with no work lane: "legacy", as `pulse` itself says
+    zone_of = {a: ("legacy" if z == "absent" else z) for z, ids in (pu.get("zones") or {}).items() for a in ids}
+    doc: dict = {
+        # the declared recipe: what this cockpit is a view over (the composed_of contract)
+        "composed_of": fd.get("composed_of") or [],
+        "doctor": dr.get("summary") or dr.get("error"),
+        "pulse": pu.get("summary") or pu.get("error"),
+    }
+    rows, asks, turns, last = [], [], [], []
+    for a in fd.get("agents", []):
+        aid = a["id"]
+        lh = sec.get("lane_health", {}).get(aid) or {}
+        if not lh:
+            lane = "legacy"
+        else:
+            bits = [f"age {int(lh['age_s'])}s"] if lh.get("age_s") is not None else []
+            bits += [f"depth {lh['depth']}"] if lh.get("depth") else []
+            bits += [f"stragglers {lh['straggler']}"] if lh.get("straggler") else []
+            lane = " ".join(bits) or "healthy"
+        page = a.get("doctor_page")
+        rows.append(
+            {
+                "agent": aid,
+                "pulse": zone_of.get(aid) or None,
+                # the page-grade doctor state when there is one, else ok
+                "status": page["state"] if page else "ok",
+                "findings": a.get("doctor_findings", 0),
+                "lane": lane,
+                "locks": len(sec.get("locks", {}).get(aid) or []),
+            }
+        )
+        ask = sec.get("asks", {}).get(aid) or {}
+        if ask.get("n_open"):  # silent when nothing waits; an overdue ask is the anomaly
+            asks.append({"agent": aid, "open": ask["n_open"], "redriving": ask.get("n_redriving", 0),
+                         "overdue": ask.get("n_overdue", 0)})  # fmt: skip
+        tv = sec.get("turns", {}).get(aid)
+        if tv:  # None is idle: only live turns show
+            turns.append({"agent": aid, "phase": tv.get("phase"), "elapsed_s": tv.get("elapsed_s"),
+                          "kind": tv.get("ask_kind") or None})  # fmt: skip
+        lt = sec.get("last_turn", {}).get(aid)
+        if lt:
+            last.append({"agent": aid, "kind": lt.get("ask_kind") or None, "duration_s": lt.get("duration_s"),
+                         "age_s": lt.get("age_s")})  # fmt: skip
+    doc["agents"] = rows or "0 agents seen (no seat, runner, presence or recent inbox)"
+    if asks:
+        doc["open_asks"] = asks
+    if turns:
+        doc["turns_in_flight"] = turns
+    if last:
+        doc["last_turn"] = last
+    commits = sec.get("commits") or []
+    if commits:
+        # flightdeck keeps at most 15, so a full list is a floor, not a count
+        doc["commits_6h"] = f"{len(commits)}+" if len(commits) >= 15 else len(commits)
+        doc["recent_commits"] = commits[:5]
+    uw = sec.get("unwedge") if not fd.get("fleet") else None
+    if uw is not None:
+        doc["detail"] = (
+            {
+                "agent": fd.get("agent"),
+                "status": uw.get("status"),
+                "verdict": uw.get("verdict"),
+                "recommendation": uw.get("recommendation"),
+                "findings": [
+                    f"[{f['grade']}] {out.truncate(f['line'], 200)[0]}"
+                    for f in (uw.get("evidence") or {}).get("findings", [])[:6]
+                ],
+            }
+            if uw.get("verdict")
+            else uw
+        )
+    hints = []
+    flagged = next((r["agent"] for r in rows if r["status"] != "ok"), None)
+    if flagged and fd.get("fleet"):
+        hints.append(f"{_cli()} flightdeck --agent {flagged}")
+    elif rows and fd.get("fleet"):
+        hints.append(f"{_cli()} flightdeck --agent <agent>")
+    return out.emit(doc, hints=hints, human=_human_flightdeck, title="Flightdeck")
+
+
+def _human_flightdeck(console, doc):
+    """Human view of `flightdeck`: the doctor and pulse lines, one table of agents, then the
+    sections that have something to say."""
+    from core.axi import out
+
+    console.print(f"[dim]a view over: {' + '.join(doc['composed_of'])}[/]")
+    for k in ("doctor", "pulse"):
+        if doc.get(k):
+            console.print(out._esc(str(doc[k])))
+    if isinstance(doc["agents"], list):
+        console.print(out.table(doc["agents"]))
+    else:
+        console.print(f"[yellow]{out._esc(doc['agents'])}[/]")
+    for key, label in (("open_asks", "Open asks"), ("turns_in_flight", "In-flight turns"), ("last_turn", "Last turn")):
+        if doc.get(key):
+            console.print(out.table(doc[key], title=label))
+    if doc.get("recent_commits"):
+        console.print(f"[bold]Recent commits[/] [dim]({doc['commits_6h']} in 6h)[/]")
+        for c in doc["recent_commits"]:
+            console.print(f"  {out._esc(c)}")
+    if doc.get("detail"):
+        d = doc["detail"]
+        console.print(f"[bold]{out._esc(str(d.get('agent', '')))}[/] {out.styled(d.get('status'))}")
+        for k in ("verdict", "recommendation"):
+            if d.get(k):
+                console.print(f"  [dim]{k}:[/] {out._esc(str(d[k]))}")
 
 
 def cmd_stand_down(args):
