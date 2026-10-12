@@ -1,0 +1,200 @@
+{
+  "verb": "tag-anti-pattern",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.95,
+    "correct": 19,
+    "asked": 20,
+    "output_tokens": 36,
+    "stdout_chars": 157,
+    "stdout_lines": 2,
+    "cost_usd": 0.0177,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the lesson tagged? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "Yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What anti-pattern name was given to the lesson?",
+        "expected": "retry-loop",
+        "answers": [
+          "[OK] tagged 'blind_retry' as anti-pattern 'retry-loop' -- recall will now warn on it",
+          "retry-loop",
+          "retry-loop",
+          "retry-loop",
+          "retry-loop"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command must be run first to create the lesson? Give the verb only.",
+        "expected": [
+          "learn"
+        ],
+        "answers": [
+          "learn",
+          "learn",
+          "learn",
+          "learn",
+          "learn"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "tag": {
+        "argv": [
+          "tag-anti-pattern",
+          "bench",
+          "--experiment",
+          "blind_retry",
+          "--name",
+          "retry-loop",
+          "--reason",
+          "locks the account"
+        ],
+        "exit": 0,
+        "stdout": "[OK] tagged 'blind_retry' as anti-pattern 'retry-loop' -- recall will now warn on it\n"
+      },
+      "missing": {
+        "argv": [
+          "tag-anti-pattern",
+          "bench",
+          "--experiment",
+          "no_such_lesson",
+          "--name",
+          "x"
+        ],
+        "exit": 1,
+        "stdout": "[FAIL] no lesson 'no_such_lesson' to tag (record it first with `learn`)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 33,
+    "stdout_chars": 241,
+    "stdout_lines": 8,
+    "cost_usd": 0.0191,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the lesson tagged? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What anti-pattern name was given to the lesson?",
+        "expected": "retry-loop",
+        "answers": [
+          "retry-loop",
+          "retry-loop",
+          "retry-loop",
+          "retry-loop",
+          "retry-loop"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command must be run first to create the lesson? Give the verb only.",
+        "expected": [
+          "learn"
+        ],
+        "answers": [
+          "learn",
+          "learn",
+          "learn",
+          "learn",
+          "learn"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "tag": {
+        "argv": [
+          "tag-anti-pattern",
+          "bench",
+          "--experiment",
+          "blind_retry",
+          "--name",
+          "retry-loop",
+          "--reason",
+          "locks the account"
+        ],
+        "exit": 0,
+        "stdout": "tagged: true\nexperiment: blind_retry\nanti_pattern: retry-loop\nrecall: warns on it now\n"
+      },
+      "missing": {
+        "argv": [
+          "tag-anti-pattern",
+          "bench",
+          "--experiment",
+          "no_such_lesson",
+          "--name",
+          "x"
+        ],
+        "exit": 1,
+        "stdout": "error: no lesson 'no_such_lesson' -- record it first with learn\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py learn bench --experiment no_such_lesson ...\n"
+      }
+    }
+  }
+}

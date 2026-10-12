@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 41 converted to agent and human output.
+121 verbs; 42 converted to agent and human output.
 
 ## `alias`
 
@@ -2395,7 +2395,10 @@ spine_counters:
 | | |
 |---|---|
 | Does | tag an EXISTING lesson as a reusable known-bad |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 95% before, 100% after |
+| Output tokens | 36 before, 33 after (-8%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/tag-anti-pattern.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2404,6 +2407,15 @@ spine_counters:
 | `--name` | yes |   | the anti-pattern name/slug |
 | `--reason` |   |   |   |
 | `--json` |   |   |   |
+
+Agent output of `aurora tag-anti-pattern bench --experiment blind_retry --name retry-loop --reason locks the account` on the bench data:
+
+```text
+tagged: true
+experiment: blind_retry
+anti_pattern: retry-loop
+recall: warns on it now
+```
 
 ## `tally`
 

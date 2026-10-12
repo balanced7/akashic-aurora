@@ -1109,11 +1109,19 @@ def cmd_tag_anti_pattern(args):
     ok = get_learning_store().tag_anti_pattern(args.experiment, args.name, reason=args.reason)
     if args.json:
         print(json.dumps({"tagged": bool(ok), "experiment": args.experiment, "anti_pattern": args.name}))
-    elif ok:
-        print(f"[OK] tagged '{args.experiment}' as anti-pattern '{args.name}' -- recall will now warn on it")
-    else:
-        print(f"[FAIL] no lesson '{args.experiment}' to tag (record it first with `learn`)")
-    return 0 if ok else 1
+        return 0 if ok else 1
+    from core.axi import out
+
+    if not ok:
+        who = getattr(args, "agent_id", None) or "<agent_id>"
+        return out.fail(
+            f"no lesson {args.experiment!r} -- record it first with learn",
+            code="NOT_FOUND",
+            hints=[f"{_cli()} learn {who} --experiment {args.experiment} ..."],
+        )
+    # A confirmation answers itself: no hints, and the reason the caller just typed is not echoed.
+    doc = {"tagged": True, "experiment": args.experiment, "anti_pattern": args.name, "recall": "warns on it now"}
+    return out.emit(doc, title="Anti-pattern")
 
 
 def cmd_scope(args):
