@@ -2456,50 +2456,62 @@ def cmd_discover(args):
         if args.json:
             print(json.dumps(r, ensure_ascii=False, default=str))
             return 0
-        print(f"# does this system already do it?  '{args.query}'")
-        print(f"  EXISTS: {r['exists']}" + ("" if r["confident"] else "   [NOT CONFIDENT -- do not act on this]"))
-        for label, key in (("WHAT", "what"), ("GAP", "gap"), ("NEAREST MISS", "nearest_miss")):
-            if r.get(key):
-                print(f"  {label}: {r[key]}")
-        if r.get("why"):
-            print(f"  why: {r['why']}", file=sys.stderr)
-        spend = f"${r['usd']:.4f}" if r.get("usd") is not None else "unpriced"
-        print(
-            f"  -- a MODEL READ of the verb table + module index (not a lookup) | {r.get('model') or '?'} | {spend}",
-            file=sys.stderr,
-        )
-        # UNKNOWN is not a "no". This tool exists because absence gets inferred; it must
-        # never be the thing that infers one.
-        return 0
+        return _emit_discover_semantic(args.query or "", r)
 
     verbs = list_verbs(args.query)
     if args.json:
         print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2))
         return 0
-    q = (args.query or "").strip()
-    from core.paths import cli_command
+    from core.axi import out
 
-    print(
-        f"# agent_cli.py - {len(verbs)} verb(s)"
-        + (f" matching '{q}'" if q else "")
-        + f"   (run `{cli_command()} <verb> -h` for arguments)"
-    )
-    width = max((len(n) for n, _ in verbs), default=0)
-    for n, h in verbs:
-        print(f"  {n.ljust(width)}  {h}")
+    q = (args.query or "").strip()
+    cli = _cli()
+    doc: dict[str, Any] = {"query": q} if q else {}
+    doc["total"] = len(verbs)
+    doc["verbs"] = [{"verb": n, "purpose": h} for n, h in verbs]
     # ZERO MATCHES IS THE MOMENT THE POINTER IS WORTH MOST, and the moment it was
     # missing: asked "check whether a test failure is pre-existing" this path returns 0
     # while `suite-baseline` sits in the list it just searched. A substring search cannot
-    # match meaning, and saying so here is the difference between an honest empty result
-    # and one that reads as "no such thing".
+    # match meaning, so the empty answer says what it searched and hands over the semantic
+    # command -- on stdout, where an agent reads, not on stderr where it used to go.
     if q and not verbs:
-        print(
-            f"\n0 matches -- but this is a SUBSTRING search and cannot match meaning. "
-            f"Ask at the level of meaning before concluding it does not exist:\n"
-            f'  {_cli()} discover --semantic "{q}"',
-            file=sys.stderr,
-        )
-    return 0
+        doc["search"] = "substring of verb names and purposes; it cannot match meaning"
+        hints = [f'{cli} discover --semantic "{q}"', f"{cli} discover"]
+    else:
+        hints = [f"{cli} {verbs[0][0] if len(verbs) == 1 else '<verb>'} --help"]
+    noun = "verb" if len(verbs) == 1 else "verbs"
+    return out.emit(
+        doc,
+        hints=hints,
+        title=f"{len(verbs)} {noun}" + (f' matching "{q}"' if q else ""),
+        human=_human_discover,
+    )
+
+
+def _human_discover(console, doc):
+    from core.axi import out
+
+    if doc["verbs"]:
+        console.print(out.table(doc["verbs"]))
+    else:
+        console.print(f"[yellow]no verb matches[/] -- {out._esc(doc.get('search') or '')}")
+
+
+def _emit_discover_semantic(query: str, r: dict) -> int:
+    """`discover --semantic`: a model's READING of the verb table, labelled as one. UNKNOWN is
+    not a "no" -- this tool exists because absence gets inferred, so the not-confident flag
+    and the method travel with every answer instead of hiding on stderr."""
+    from core.axi import out
+
+    doc: dict[str, Any] = {"query": query, "exists": r.get("exists"), "confident": bool(r.get("confident"))}
+    for key in ("what", "gap", "nearest_miss", "why"):
+        if r.get(key):
+            doc[key] = out.truncate(r[key], 500)[0]
+    doc["method"] = "a model read of the verb table and module index, not a lookup"
+    doc["model"] = r.get("model")
+    doc["usd"] = r.get("usd")
+    hints = [] if doc["confident"] and doc["exists"] != "UNKNOWN" else [f'{_cli()} discover --semantic "{query}"']
+    return out.emit(doc, hints=hints, title="Does this system already do it?")
 
 
 # ----------------------------------------------------------------------------- note

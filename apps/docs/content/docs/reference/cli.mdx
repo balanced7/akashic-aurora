@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 58 converted to agent and human output.
+121 verbs; 59 converted to agent and human output.
 
 ## `alias`
 
@@ -712,13 +712,46 @@ help[1]:
 | | |
 |---|---|
 | Does | list every verb + its purpose (the self-describing door) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 1,745 before, 2,018 after (+16%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/discover.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<query>` |   |   | optional substring to filter verbs by name/purpose |
 | `--json` |   |   |   |
 | `--semantic` |   |   | ask at the level of MEANING instead of substring: 'does this system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS over the verb table + module index. Costs one model call (~20s, under a cent). A failed or malformed call renders UNKNOWN, never 'no' -- this verb exists to stop absence being inferred, so it must never infer one |
+
+Agent output of `aurora discover` on the bench data:
+
+```text
+total: 121
+verbs[121]{verb,purpose}:
+  boot,print an agent's startup context
+  delta,what changed since this agent's last boot (T052 delta door)
+  compare,what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled
+  timeline,one chronological view across domains (events + git + task transitions) -- line the domains up by time and the cause becomes visible
+  discover,list every verb + its purpose (the self-describing door)
+  learn,record a lesson
+  scope,"lesson applicability (task 02): show, set, widen by evidence, list proposals, tree"
+  wish,"file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back)"
+  wish-curate,"the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id)"
+  web,"the house web door: fetch a URL (cleaned+raw, etag-cached, receipted, fenced UNTRUSTED) or search"
+  ask,"ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call)"
+  discord,"watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists"
+  gateway,"the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation)"
+  sift,"the NESTED ask (T217): evidence -> hat fan -> curator pairs -> DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary"
+  friction,"collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only"
+  report,scaffold a visual report with the design kit inlined (T275)
+  resident,"callsign ceremony: nominate / ratify / show a resident's designation"
+  scout,"read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict"
+  doc,seed a new doc with its header contract (library door)
+  tag-anti-pattern,tag an EXISTING lesson as a reusable known-bad
+  corpus,"meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status"
+  replay,"meta-harness replay (task 04): run a scenario against a candidate harness, isolated"
+... (101 more lines)
+```
 
 ## `doc`
 

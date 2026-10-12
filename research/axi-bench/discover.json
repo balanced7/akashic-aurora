@@ -1,0 +1,246 @@
+{
+  "verb": "discover",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 1745,
+    "stdout_chars": 15513,
+    "stdout_lines": 136,
+    "cost_usd": 0.0321,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many verbs does this CLI have in total?",
+        "expected": 121,
+        "answers": [
+          "121",
+          "121",
+          "121",
+          "121",
+          "121"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which verb is described as the smallest verb in the house?",
+        "expected": "boop",
+        "answers": [
+          "boop",
+          "boop",
+          "boop",
+          "boop",
+          "boop"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many verbs matched the search?",
+        "expected": 12,
+        "answers": [
+          "12",
+          "12",
+          "12",
+          "12",
+          "12"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which verb releases an advisory path-lock?",
+        "expected": "unlock",
+        "answers": [
+          "unlock",
+          "unlock",
+          "unlock",
+          "unlock",
+          "unlock"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many verbs matched the search?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "No verb matched. What is the full command to search for the capability by meaning instead? Give the command only.",
+        "expected": [
+          "discover --semantic",
+          "zzzz_nothing"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "discover"
+        ],
+        "exit": 0,
+        "stdout": "# agent_cli.py - 121 verb(s)   (run `uv run agent_cli.py <verb> -h` for arguments)\n  boot                 print an agent's startup context\n  delta                what changed since this agent's last boot (T052 delta door)\n  compare              what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled\n  timeline             one chronological view across domains (events + git + task transitions) -- line the domains up by time and the cause becomes visible\n  discover             list every verb + its purpose (the self-describing door)\n  learn                record a lesson\n  scope                lesson applicability (task 02): show, set, widen by evidence, list proposals, tree\n  wish                 file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back)\n  wish-curate          the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id)\n  web                  the house web door: fetch a URL (cleaned+raw, etag-cached, receipted, fenced UNTRUSTED) or search\n  ask                  ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call)\n  discord              watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists\n  gateway              the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation)\n  sift                 the NESTED ask (T217): evidence -> hat fan -> curator pairs -> DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary\n  friction             collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only\n  report               scaffold a visual report with the design kit inlined (T275)\n  resident             callsign ceremony: nominate / ratify / show a resident's designation\n  scout                read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict\n  doc                  seed a new doc with its header contract (library door)\n  tag-anti-pattern     tag an EXISTING lesson as a reusable known-bad\n  corpus               meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status\n  replay               meta-harness replay (task 04): run a scenario against a candidate harness, isolated\n  grade                meta-harness graders (task 05): grade runs, compare candidates, power, calibration\n  review               meta-harness review queue (task 06): the human final check-off, apply, rollback, watch\n  loop                 meta-harness proposer loop (task 07): archive, lineage, status, run within a daily budget\n  memreplay            meta-harness memory replay (task 08): does a lesson change outcomes? snapshot, queue, run, drain\n  precompile           meta-harness precompiler (task 09): lessons into skills, subagents, guards, instruction lines\n  modes                meta-harness memory modes (task 10): show, compare the four arms, per-lesson placement, stale compiled lessons\n  compress             meta-harness compression (task 11): pieces, usage telemetry, staged search for the pieces that matter\n  provenance           show this session's harness, model, effort and environment record (task 01)\n  recall               search past lessons (no query = list all)\n  list                 list ALL lessons in memory\n  recall-at            recall-at-action: relevant lessons/locks for a path or command\n  recall-feedback      mark a recalled lesson useful/noise (teaches recall what helps)\n  repeat               record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken\n  recall-prevention    S2: what recall PREVENTED (stage-log contrastive record) -- observation only, never a grade\n  recall-curate        bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)\n  audit                belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry<->parser)\n  injections           the injection ledger: what recall pushed into contexts + cost\n  harnesses            integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers\n  hooks                register / remove / switch off-on / inspect the harness hooks (user or project scope)\n  link                 fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd)\n  setup                onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes\n  fleet                local-model dispatch: roster (list) + capability select + direct one-shot call\n  triage               sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review\n  recall-counters      sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies)\n  graduate             retire a lesson from recall surfacing -- automation now enforces its rule\n  sha                  resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410)\n  note                 record a durable project note (write-once; re-note same title to update)\n  notes                list active project notes (--project regenerates chronicles/memory.md)\n  wrap                 distill this session (commits+lessons+notes) into a DRAFT where-we-are note\n  status               honest system status\n  stats                recall-value funnel: surfaced -> helped -> flips -> captured\n  log                  record an arbitrary narrative Beat\n  episode              session bookends: current episode, close+draft, accept\n  task                 task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door)\n  story                print narrative story views\n  handoff              hand work to another agent (writes a briefing its next boot reads)\n  events               search / drill / capture the raw event firehose\n  roster               S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries\n  season-score         T165: score a Season 1 round, or --compare the two rule sets over the same claims\n  grant                S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring\n  doctor               fleet liveness doctor (L2): progress, not presence\n  promoted             query durable salient Bifrost msgs (kind=bifrost_msg / B2)\n  lookback             one question over the rationale corpus: the strategic WHY, layered + drillable (P7)\n  knowledge-map        WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8)\n  fence                fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2)\n  flow                 OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3)\n  packet-trace         N0 dry-run: explain the static route for one packet kind (no send)\n  packet-stats         N0 bounded shadow route/mirror counters\n  mailbox              T095 M0 shadow mailbox: per-message state for an agent (observation only)\n  bifrost-ack          durably record you HANDLED a salient bus message (P6)\n  console-log          durable console events (interjection/bus_control/file_drop)\n  bifrost-sync         Bifrost pull floor: presence + unread inbox peek\n  bifrost-standby      T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task)\n  forecast             T375 engineering forecast registry -- register bets at gates, score at review, render calibration\n  bifrost-send         send a message to another agent on the bus\n  suite-baseline       the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited)\n  bifrost-drain        request a runner's GRACEFUL exit: finish current message -> release lock -> exit 0 (the TaskStop restart-tax killer)\n  bifrost-pause        freeze bus auto-responders (human barge-in); --soft to let seats finish first\n  bifrost-resume       un-freeze bus auto-responders\n  bifrost-skip-to-now  T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason)\n  bifrost-nudge        targeted fidelity signal to ONE peer (interrupt|steer|inform)\n  seat-identity        declare/show THIS session's seat id (binding beats the shared env)\n  lock                 claim an advisory path-lock (C2)\n  unlock               release your advisory path-lock\n  focus                check in/out: attribute THIS session's tool calls to a task\n  locks                show who holds which advisory path-locks\n  bifrost-fetch        fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill)\n  captions             YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here)\n  reply                answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable)\n  boop                 the smallest verb in the house: zero arguments, always answered\n  find                 find a file BY NAME anywhere on the machine (Search Everything / es.exe)\n  manual               the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as labelled passages; ingest a folder; list what is shelved\n  shell-home           where the shell is now + where fresh harness shells land (cwd-guard's other half)\n  sweep                the awareness snapshot: bus, bench, health, moved -- one bounded read-only block\n  orient               VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral\n  shadow               zero-effect intent shadow: preview one typed ToolBox action before reality changes\n  college              source packet -> immutable authored lecture -> independent claim audit -> teach-back -> append-only errata (records the chain; does not browse or call a model)\n  ground               typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity\n  eye                  THE EYE: the transcript plane as terrain -- ingest (incremental, coverage-honest), find (phrase, S0; the grammar lands S1), get (address -> verbatim L0)\n  capture              full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb)\n  alias                toolbelt authoring: mint/list/retire agent-authored verb compositions (sugar-only; honesty labels; quota)\n  run                  execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed)\n  bench                S0 triage bench (scry-to-bottom): list/park/unpark stale asks -- bottomed so fresh mail flows, NEVER dropped; sender always notified (RB-29)\n  tool                 play-tier sandbox: list/run draft tools (data/play/<agent>/)\n  kata                 grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real')\n  toast                gratitude-with-receipt (T099 BETA-2): toast a peer whose lesson saved you hops; receipt verifies against the learning store or the send REFUSES\n  clobber-scan         W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt\n  tally                W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance\n  pulse                W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only\n  reentry              T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only\n  glance               T079/T060: bounded read-only WorldSnapshot projections over named authorities\n  secret               the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show.\n  flightdeck           W25 (deepseek): cockpit one-pager \u2014 fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat\n  stand-down           yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat)\n  unwedge              W31 (deepseek): one-verb wedge diagnosis -- why is this agent stuck? READ-only v1 (recommends, never acts)\n  followup             charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat\n  defer                the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt\n  watch                the out-of-band deadman: declare a run so SILENCE becomes a finding, checkpoint while it lives, stand down when done\n  kit                  install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor)\n"
+      },
+      "lock": {
+        "argv": [
+          "discover",
+          "lock"
+        ],
+        "exit": 0,
+        "stdout": "# agent_cli.py - 12 verb(s) matching 'lock'   (run `uv run agent_cli.py <verb> -h` for arguments)\n  ask              ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call)\n  scout            read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict\n  recall-at        recall-at-action: relevant lessons/locks for a path or command\n  task             task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door)\n  bifrost-standby  T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task)\n  bifrost-drain    request a runner's GRACEFUL exit: finish current message -> release lock -> exit 0 (the TaskStop restart-tax killer)\n  lock             claim an advisory path-lock (C2)\n  unlock           release your advisory path-lock\n  locks            show who holds which advisory path-locks\n  sweep            the awareness snapshot: bus, bench, health, moved -- one bounded read-only block\n  flightdeck       W25 (deepseek): cockpit one-pager \u2014 fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat\n  followup         charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat\n"
+      },
+      "none": {
+        "argv": [
+          "discover",
+          "zzzz_nothing"
+        ],
+        "exit": 0,
+        "stdout": "# agent_cli.py - 0 verb(s) matching 'zzzz_nothing'   (run `uv run agent_cli.py <verb> -h` for arguments)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 2018,
+    "stdout_chars": 14146,
+    "stdout_lines": 149,
+    "cost_usd": 0.0352,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many verbs does this CLI have in total?",
+        "expected": 121,
+        "answers": [
+          "121",
+          "121",
+          "121",
+          "121",
+          "121"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which verb is described as the smallest verb in the house?",
+        "expected": "boop",
+        "answers": [
+          "boop",
+          "boop",
+          "boop",
+          "boop",
+          "boop"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many verbs matched the search?",
+        "expected": 12,
+        "answers": [
+          "12",
+          "12",
+          "12",
+          "12",
+          "12"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which verb releases an advisory path-lock?",
+        "expected": "unlock",
+        "answers": [
+          "unlock",
+          "unlock",
+          "unlock",
+          "unlock",
+          "unlock"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many verbs matched the search?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "No verb matched. What is the full command to search for the capability by meaning instead? Give the command only.",
+        "expected": [
+          "discover --semantic",
+          "zzzz_nothing"
+        ],
+        "answers": [
+          "uv run agent_cli.py discover --semantic \"zzzz_nothing\"",
+          "uv run agent_cli.py discover --semantic \"zzzz_nothing\"",
+          "uv run agent_cli.py discover --semantic \"zzzz_nothing\"",
+          "uv run agent_cli.py discover --semantic \"zzzz_nothing\"",
+          "uv run agent_cli.py discover --semantic \"zzzz_nothing\""
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "discover"
+        ],
+        "exit": 0,
+        "stdout": "total: 121\nverbs[121]{verb,purpose}:\n  boot,print an agent's startup context\n  delta,what changed since this agent's last boot (T052 delta door)\n  compare,what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled\n  timeline,one chronological view across domains (events + git + task transitions) -- line the domains up by time and the cause becomes visible\n  discover,list every verb + its purpose (the self-describing door)\n  learn,record a lesson\n  scope,\"lesson applicability (task 02): show, set, widen by evidence, list proposals, tree\"\n  wish,\"file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back)\"\n  wish-curate,\"the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id)\"\n  web,\"the house web door: fetch a URL (cleaned+raw, etag-cached, receipted, fenced UNTRUSTED) or search\"\n  ask,\"ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call)\"\n  discord,\"watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists\"\n  gateway,\"the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation)\"\n  sift,\"the NESTED ask (T217): evidence -> hat fan -> curator pairs -> DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary\"\n  friction,\"collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only\"\n  report,scaffold a visual report with the design kit inlined (T275)\n  resident,\"callsign ceremony: nominate / ratify / show a resident's designation\"\n  scout,\"read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict\"\n  doc,seed a new doc with its header contract (library door)\n  tag-anti-pattern,tag an EXISTING lesson as a reusable known-bad\n  corpus,\"meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status\"\n  replay,\"meta-harness replay (task 04): run a scenario against a candidate harness, isolated\"\n  grade,\"meta-harness graders (task 05): grade runs, compare candidates, power, calibration\"\n  review,\"meta-harness review queue (task 06): the human final check-off, apply, rollback, watch\"\n  loop,\"meta-harness proposer loop (task 07): archive, lineage, status, run within a daily budget\"\n  memreplay,\"meta-harness memory replay (task 08): does a lesson change outcomes? snapshot, queue, run, drain\"\n  precompile,\"meta-harness precompiler (task 09): lessons into skills, subagents, guards, instruction lines\"\n  modes,\"meta-harness memory modes (task 10): show, compare the four arms, per-lesson placement, stale compiled lessons\"\n  compress,\"meta-harness compression (task 11): pieces, usage telemetry, staged search for the pieces that matter\"\n  provenance,\"show this session's harness, model, effort and environment record (task 01)\"\n  recall,search past lessons (no query = list all)\n  list,list ALL lessons in memory\n  recall-at,\"recall-at-action: relevant lessons/locks for a path or command\"\n  recall-feedback,mark a recalled lesson useful/noise (teaches recall what helps)\n  repeat,record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken\n  recall-prevention,\"S2: what recall PREVENTED (stage-log contrastive record) -- observation only, never a grade\"\n  recall-curate,bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)\n  audit,\"belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry<->parser)\"\n  injections,\"the injection ledger: what recall pushed into contexts + cost\"\n  harnesses,\"integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers\"\n  hooks,register / remove / switch off-on / inspect the harness hooks (user or project scope)\n  link,\"fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd)\"\n  setup,\"onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes\"\n  fleet,\"local-model dispatch: roster (list) + capability select + direct one-shot call\"\n  triage,\"sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review\"\n  recall-counters,\"sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies)\"\n  graduate,retire a lesson from recall surfacing -- automation now enforces its rule\n  sha,resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410)\n  note,record a durable project note (write-once; re-note same title to update)\n  notes,list active project notes (--project regenerates chronicles/memory.md)\n  wrap,distill this session (commits+lessons+notes) into a DRAFT where-we-are note\n  status,honest system status\n  stats,\"recall-value funnel: surfaced -> helped -> flips -> captured\"\n  log,record an arbitrary narrative Beat\n  episode,\"session bookends: current episode, close+draft, accept\"\n  task,\"task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door)\"\n  story,print narrative story views\n  handoff,hand work to another agent (writes a briefing its next boot reads)\n  events,search / drill / capture the raw event firehose\n  roster,\"S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries\"\n  season-score,\"T165: score a Season 1 round, or --compare the two rule sets over the same claims\"\n  grant,\"S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring\"\n  doctor,\"fleet liveness doctor (L2): progress, not presence\"\n  promoted,query durable salient Bifrost msgs (kind=bifrost_msg / B2)\n  lookback,\"one question over the rationale corpus: the strategic WHY, layered + drillable (P7)\"\n  knowledge-map,\"WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8)\"\n  fence,\"fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2)\"\n  flow,\"OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3)\"\n  packet-trace,\"N0 dry-run: explain the static route for one packet kind (no send)\"\n  packet-stats,N0 bounded shadow route/mirror counters\n  mailbox,\"T095 M0 shadow mailbox: per-message state for an agent (observation only)\"\n  bifrost-ack,durably record you HANDLED a salient bus message (P6)\n  console-log,durable console events (interjection/bus_control/file_drop)\n  bifrost-sync,\"Bifrost pull floor: presence + unread inbox peek\"\n  bifrost-standby,\"T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task)\"\n  forecast,\"T375 engineering forecast registry -- register bets at gates, score at review, render calibration\"\n  bifrost-send,send a message to another agent on the bus\n  suite-baseline,\"the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited)\"\n  bifrost-drain,\"request a runner's GRACEFUL exit: finish current message -> release lock -> exit 0 (the TaskStop restart-tax killer)\"\n  bifrost-pause,freeze bus auto-responders (human barge-in); --soft to let seats finish first\n  bifrost-resume,un-freeze bus auto-responders\n  bifrost-skip-to-now,\"T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason)\"\n  bifrost-nudge,targeted fidelity signal to ONE peer (interrupt|steer|inform)\n  seat-identity,declare/show THIS session's seat id (binding beats the shared env)\n  lock,claim an advisory path-lock (C2)\n  unlock,release your advisory path-lock\n  focus,\"check in/out: attribute THIS session's tool calls to a task\"\n  locks,show who holds which advisory path-locks\n  bifrost-fetch,fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill)\n  captions,\"YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here)\"\n  reply,\"answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable)\"\n  boop,\"the smallest verb in the house: zero arguments, always answered\"\n  find,find a file BY NAME anywhere on the machine (Search Everything / es.exe)\n  manual,\"the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as labelled passages; ingest a folder; list what is shelved\"\n  shell-home,where the shell is now + where fresh harness shells land (cwd-guard's other half)\n  sweep,\"the awareness snapshot: bus, bench, health, moved -- one bounded read-only block\"\n  orient,\"VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral\"\n  shadow,\"zero-effect intent shadow: preview one typed ToolBox action before reality changes\"\n  college,source packet -> immutable authored lecture -> independent claim audit -> teach-back -> append-only errata (records the chain; does not browse or call a model)\n  ground,\"typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity\"\n  eye,\"THE EYE: the transcript plane as terrain -- ingest (incremental, coverage-honest), find (phrase, S0; the grammar lands S1), get (address -> verbatim L0)\"\n  capture,\"full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb)\"\n  alias,\"toolbelt authoring: mint/list/retire agent-authored verb compositions (sugar-only; honesty labels; quota)\"\n  run,\"execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed)\"\n  bench,\"S0 triage bench (scry-to-bottom): list/park/unpark stale asks -- bottomed so fresh mail flows, NEVER dropped; sender always notified (RB-29)\"\n  tool,\"play-tier sandbox: list/run draft tools (data/play/<agent>/)\"\n  kata,\"grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real')\"\n  toast,\"gratitude-with-receipt (T099 BETA-2): toast a peer whose lesson saved you hops; receipt verifies against the learning store or the send REFUSES\"\n  clobber-scan,\"W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt\"\n  tally,\"W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance\"\n  pulse,\"W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only\"\n  reentry,\"T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only\"\n  glance,\"T079/T060: bounded read-only WorldSnapshot projections over named authorities\"\n  secret,\"the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show.\"\n  flightdeck,\"W25 (deepseek): cockpit one-pager \u2014 fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat\"\n  stand-down,yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat)\n  unwedge,\"W31 (deepseek): one-verb wedge diagnosis -- why is this agent stuck? READ-only v1 (recommends, never acts)\"\n  followup,\"charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat\"\n  defer,\"the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt\"\n  watch,\"the out-of-band deadman: declare a run so SILENCE becomes a finding, checkpoint while it lives, stand down when done\"\n  kit,\"install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor)\"\nhelp[1]:\n  uv run agent_cli.py <verb> --help\n"
+      },
+      "lock": {
+        "argv": [
+          "discover",
+          "lock"
+        ],
+        "exit": 0,
+        "stdout": "query: lock\ntotal: 12\nverbs[12]{verb,purpose}:\n  ask,\"ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call)\"\n  scout,\"read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict\"\n  recall-at,\"recall-at-action: relevant lessons/locks for a path or command\"\n  task,\"task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door)\"\n  bifrost-standby,\"T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task)\"\n  bifrost-drain,\"request a runner's GRACEFUL exit: finish current message -> release lock -> exit 0 (the TaskStop restart-tax killer)\"\n  lock,claim an advisory path-lock (C2)\n  unlock,release your advisory path-lock\n  locks,show who holds which advisory path-locks\n  sweep,\"the awareness snapshot: bus, bench, health, moved -- one bounded read-only block\"\n  flightdeck,\"W25 (deepseek): cockpit one-pager \u2014 fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat\"\n  followup,\"charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat\"\nhelp[1]:\n  uv run agent_cli.py <verb> --help\n"
+      },
+      "none": {
+        "argv": [
+          "discover",
+          "zzzz_nothing"
+        ],
+        "exit": 0,
+        "stdout": "query: zzzz_nothing\ntotal: 0\nverbs: []\nsearch: substring of verb names and purposes; it cannot match meaning\nhelp[2]:\n  uv run agent_cli.py discover --semantic \"zzzz_nothing\"\n  uv run agent_cli.py discover\n"
+      }
+    }
+  }
+}
