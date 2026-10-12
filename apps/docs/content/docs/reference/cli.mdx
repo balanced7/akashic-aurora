@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 0 converted to agent and human output.
+121 verbs; 1 converted to agent and human output.
 
 ## `alias`
 
@@ -18,9 +18,9 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose toolbelt (the author) |
-| `&lt;action&gt;` | yes | mint,list,retire,history |   |
-| `&lt;name&gt;` |   |   | alias name (mint/retire/history) |
+| `<agent_id>` | yes |   | whose toolbelt (the author) |
+| `<action>` | yes | mint,list,retire,history |   |
+| `<name>` |   |   | alias name (mint/retire/history) |
 | `--step` |   |   | one step per flag, shell-style quoted; steps run in order (mint) |
 | `--evidence` |   |   | VERIFIED\|INFER\|GUESS (default GUESS -- untested sugar confesses) |
 | `--tested-against` |   |   | pin id proving this alias (upgrades evidence) |
@@ -38,7 +38,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;text&gt;` | yes |   | the question (or use --prompt-file) |
+| `<text>` | yes |   | the question (or use --prompt-file) |
 | `--prompt-file` |   |   | read the question from PATH |
 | `--system` |   |   | override the helper's system prompt |
 | `--as-resident` |   |   | T261 tier-1: the branch answers AS a ratified resident -- its callsign, receipts and a catch-up pack of its OWN archive lessons ride the system context, and the reply is stamped tier=resident with the designation. NOT --as, which is the SENDER identity: one flag carrying both meanings is the T174 homonym class. A non-resident refuses BEFORE any model call. |
@@ -89,9 +89,9 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose bench |
-| `&lt;action&gt;` |   | list,park,unpark |   |
-| `&lt;ref&gt;` |   |   | park: inbox stream id \| unpark: parked_id |
+| `<agent_id>` | yes |   | whose bench |
+| `<action>` |   | list,park,unpark |   |
+| `<ref>` |   |   | park: inbox stream id \| unpark: parked_id |
 | `--reason` |   |   | park: why (rides the receipt + sender note) |
 | `--by` |   |   | who authorizes (defaults to agent_id) |
 
@@ -104,8 +104,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable agent id (the actor) |
-| `&lt;msg_id&gt;` | yes |   | the bus message id (from promoted/bifrost-sync output) |
+| `<agent_id>` | yes |   | your stable agent id (the actor) |
+| `<msg_id>` | yes |   | the bus message id (from promoted/bifrost-sync output) |
 | `--note` |   |   | optional one-line what-was-done |
 | `--json` |   |   |   |
 
@@ -118,7 +118,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | you (the requester) |
+| `<agent_id>` | yes |   | you (the requester) |
 | `--to` | yes |   | the runner agent to drain (e.g. deepseek) |
 | `--reason` |   |   | why (rides the runner's exit line) |
 
@@ -144,8 +144,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable agent id (the sender, e.g. claude) |
-| `&lt;text&gt;` | yes |   | what you need the peer to look at / adopt |
+| `<agent_id>` | yes |   | your stable agent id (the sender, e.g. claude) |
+| `<text>` | yes |   | what you need the peer to look at / adopt |
 | `--to` |   |   | the ONE peer to signal (e.g. deepseek) |
 | `--mode` |   |   | interrupt (hard, default) \| steer (soft, fold into current task) \| inform (ambient) |
 | `--json` |   |   |   |
@@ -181,8 +181,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable agent id (the SENDER, e.g. claude) |
-| `&lt;text&gt;` |   |   | the message text (or use --text-file for long/flag-bearing bodies) |
+| `<agent_id>` | yes |   | your stable agent id (the SENDER, e.g. claude) |
+| `<text>` |   |   | the message text (or use --text-file for long/flag-bearing bodies) |
 | `--text-file` |   |   | T083-C3-1: read the message body from PATH instead of argv -- USE THIS when the body contains anything flag-shaped ('--foo') or is long (git commit -F precedent; argv text with flags in prose WILL misparse) |
 | `--to` |   |   | recipient agent id (e.g. deepseek); omit with --broadcast |
 | `--kind` |   |   | chat\|request\|question\|handoff\|... (default chat) |
@@ -201,7 +201,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose cursors to skip |
+| `<agent_id>` | yes |   | whose cursors to skip |
 | `--by` | yes |   | who authorizes (rides the audit event) |
 | `--reason` | yes |   | why (refuse-loud without one) |
 | `--json` |   |   |   |
@@ -215,7 +215,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable agent id (e.g. claude) |
+| `<agent_id>` | yes |   | your stable agent id (e.g. claude) |
 | `--session` |   |   | session id for the per-session wake seat (default: harness session env) |
 | `--no-listen` |   |   | drain + report only; do not block |
 | `--limit` |   |   |   |
@@ -229,7 +229,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable agent id (e.g. cursor) |
+| `<agent_id>` | yes |   | your stable agent id (e.g. cursor) |
 | `--limit` |   |   |   |
 | `--consume` |   |   | read inbox and advance cursor (ack) |
 | `--digest` |   |   | cheap one-line-per-unread headlines (no bodies) |
@@ -257,7 +257,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
 | `--task` |   |   |   |
 | `--json` |   |   |   |
 | `--sources-json` |   |   | T081-W6: also write \{'sources':[...]\} (normalized lesson-source pointers) to PATH, so a runner can tag boot-known lessons without regex-parsing the text |
@@ -271,7 +271,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;url&gt;` | yes |   | the YouTube watch URL |
+| `<url>` | yes |   | the YouTube watch URL |
 | `--out` |   |   | output dir (default ~/Desktop/captions) |
 | `--langs` |   |   | yt-dlp sub-langs spec (default en.*) |
 | `--keep-vtt` |   |   | keep the raw .vtt beside the .txt |
@@ -286,7 +286,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;ref&gt;` |   |   | stream id (e.g. 1784600898568-0); omit with --from-agent |
+| `<ref>` |   |   | stream id (e.g. 1784600898568-0); omit with --from-agent |
 | `--from-agent` |   |   | newest messages from this sender instead of an id |
 | `--count` |   |   | with --from-agent: how many (default 3) |
 | `--persist` |   |   | write a verbatim capture file (Status header + body) to PATH |
@@ -309,7 +309,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;path&gt;` | yes |   | the file to scan (a ceremony/diff under review) |
+| `<path>` | yes |   | the file to scan (a ceremony/diff under review) |
 | `--json` |   |   |   |
 
 ## `college`
@@ -321,7 +321,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;college_action&gt;` | yes | start,source,lecture,audit,teachback,teach-back,erratum,show,status |   |
+| `<college_action>` | yes | start,source,lecture,audit,teachback,teach-back,erratum,show,status |   |
 
 ## `compare`
 
@@ -332,8 +332,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;a&gt;` |   |   | left domain (see --list) |
-| `&lt;b&gt;` |   |   | right domain |
+| `<a>` |   |   | left domain (see --list) |
+| `<b>` |   |   | right domain |
 | `--list` |   |   | show comparable domains |
 | `--limit` |   |   | rows per side (default 40) |
 | `--json` |   |   |   |
@@ -347,7 +347,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | pieces,telemetry,run |   |
+| `<action>` | yes | pieces,telemetry,run |   |
 | `--candidate` |   |   | telemetry/run: the candidate to read or compress |
 | `--scenario` |   |   | telemetry/run: scenario id (repeatable) |
 | `--root` |   |   | pieces/telemetry: the tree whose pieces to list (default: this repo) |
@@ -378,8 +378,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | archive,mine,list,show,accept,reject,validate,retire,status |   |
-| `&lt;id&gt;` |   |   | scenario id (show/accept/reject/validate) |
+| `<action>` | yes | archive,mine,list,show,accept,reject,validate,retire,status |   |
+| `<id>` |   |   | scenario id (show/accept/reject/validate) |
 | `--limit` |   |   | mine: keep only the N most informative candidates |
 | `--status` |   |   | list: only this status (candidate/accepted/rejected/retired) |
 | `--reason` |   |   | accept/reject: why (kept in the scenario's history) |
@@ -396,8 +396,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | you (the filing or discharging seat) |
-| `&lt;cmd_text&gt;` |   |   | the command to file (quote it; or use --list / --done) |
+| `<agent_id>` | yes |   | you (the filing or discharging seat) |
+| `<cmd_text>` |   |   | the command to file (quote it; or use --list / --done) |
 | `--needs` |   |   | capability required (exec\|write\|net) |
 | `--why` |   |   | one line: what the discharge unblocks |
 | `--list` |   |   | show pending items |
@@ -413,7 +413,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
 | `--ack` |   |   | advance the seen mark to current positions after reading |
 
 ## `discord`
@@ -425,7 +425,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` |   | status,test,send | status = is it configured and what forwards; EXITS 0 EVEN WHEN UNCONFIGURED, because opt-in-and-unset is a state rather than a failure, and it prints the setup steps. test = post a real line so you can confirm it lands. send = forward one message, and an explicit send BYPASSES the kind allowlist (the person typing the command is the selection); only the automatic feed filters. |
+| `<action>` |   | status,test,send | status = is it configured and what forwards; EXITS 0 EVEN WHEN UNCONFIGURED, because opt-in-and-unset is a state rather than a failure, and it prints the setup steps. test = post a real line so you can confirm it lands. send = forward one message, and an explicit send BYPASSES the kind allowlist (the person typing the command is the selection); only the automatic feed filters. |
 | `--text` |   |   | body for `send` |
 | `--kind` |   |   | kind for `send` (default chat) |
 | `--json` |   |   |   |
@@ -439,7 +439,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;query&gt;` |   |   | optional substring to filter verbs by name/purpose |
+| `<query>` |   |   | optional substring to filter verbs by name/purpose |
 | `--json` |   |   |   |
 | `--semantic` |   |   | ask at the level of MEANING instead of substring: 'does this system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS over the verb table + module index. Costs one model call (~20s, under a cent). A failed or malformed call renders UNKNOWN, never 'no' -- this verb exists to stop absence being inferred, so it must never infer one |
 
@@ -452,7 +452,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;sub&gt;` |   | new,adopt,arc |   |
+| `<sub>` |   | new,adopt,arc |   |
 
 ## `doctor`
 
@@ -478,8 +478,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | current,close,accept | what to do |
-| `&lt;chapter_id&gt;` |   |   | (accept) the closed chapter to finalize |
+| `<action>` | yes | current,close,accept | what to do |
+| `<chapter_id>` |   |   | (accept) the closed chapter to finalize |
 | `--title` |   |   | (accept) set the title |
 | `--desc` |   |   | (accept) set the description |
 | `--why` |   |   | (accept) set the why/intent |
@@ -524,7 +524,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;eye_cmd&gt;` | yes | ingest,find,get,freq,stats,overview,zoom,trace,standing,look,go,back,since,inherit,route |   |
+| `<eye_cmd>` | yes | ingest,find,get,freq,stats,overview,zoom,trace,standing,look,go,back,since,inherit,route |   |
 
 ## `fence`
 
@@ -535,8 +535,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | open,write,seal,pv,status,list |   |
-| `&lt;fence_id&gt;` |   |   | fence id (e.g. t054-design) |
+| `<action>` | yes | open,write,seal,pv,status,list |   |
+| `<fence_id>` |   |   | fence id (e.g. t054-design) |
 | `--question` |   |   | open: the question at stake (M1-BRIEF charter seed) |
 | `--tier` |   | full,lite | open: fence tier (default full) |
 | `--slot` |   | brief,half_a,half_b,reconciliation | write/seal: which slot |
@@ -554,7 +554,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;query&gt;` | yes |   | Everything search term -- a bare word matches any filename substring, case-insensitive |
+| `<query>` | yes |   | Everything search term -- a bare word matches any filename substring, case-insensitive |
 | `--limit` |   |   | max results (default 0 = no cap, return everything) |
 | `--offset` |   |   | skip this many ranked results before returning (paging past --limit) |
 | `--path` |   |   | match against the full path, not just the name |
@@ -582,7 +582,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` |   | list,select,call | list the roster \| select a model for a capability \| call a model once |
+| `<action>` |   | list,select,call | list the roster \| select a model for a capability \| call a model once |
 | `--capability` |   |   | capability label to filter/route on (generalist, tool-use, extract, summarize, classify, faithful, ...) |
 | `--status` |   |   | filter by status (active\|tested\|candidate\|gated) |
 | `--probe` |   |   | list: also check live Ollama availability (/api/tags) |
@@ -617,7 +617,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent&gt;` |   |   | only flows touching this agent |
+| `<agent>` |   |   | only flows touching this agent |
 | `--window` |   |   | how far back (e.g. 30m, 6h, 1d; default 6h) |
 | `--limit` |   |   | max flows rendered (default 12) |
 | `--json` |   |   |   |
@@ -631,7 +631,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` |   |   |   |
+| `<agent_id>` |   |   |   |
 | `--set` |   |   | check in: focus this task |
 | `--clear` |   |   | check out, and report what was attributed |
 | `--dismiss` |   |   | wave off one drift note (two of these and it stops asking by itself) |
@@ -649,7 +649,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | you (the asker) |
+| `<agent_id>` | yes |   | you (the asker) |
 | `--on` | yes |   | the verdict/report file to question (must exist; append-only) |
 | `--to` | yes |   | the seat responsible for answering |
 | `--ask` | yes |   | the question |
@@ -665,8 +665,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | register,score,list |   |
-| `&lt;id_pos&gt;` |   |   | forecast id (for score) |
+| `<action>` | yes | register,score,list |   |
+| `<id_pos>` |   |   | forecast id (for score) |
 | `--id` |   |   | forecast id (for register) |
 | `--task` |   |   | ledger task ref (e.g. T375) |
 | `--by` |   |   | registering/scoring seat |
@@ -690,7 +690,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose asks to report on (the sender seat) |
+| `<agent_id>` | yes |   | whose asks to report on (the sender seat) |
 | `--window-h` |   |   | terminal-event window in hours (default 168 = 7d) |
 | `--json` |   |   |   |
 
@@ -703,7 +703,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` |   | status,restart | status = report the live gateway pid(s); restart = kill + relaunch the gateway detached with stdio -&gt; its log |
+| `<action>` |   | status,restart | status = report the live gateway pid(s); restart = kill + relaunch the gateway detached with stdio -&gt; its log |
 | `--json` |   |   |   |
 
 ## `glance`
@@ -715,7 +715,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;glance_projection&gt;` | yes | program |   |
+| `<glance_projection>` | yes | program |   |
 
 ## `grade`
 
@@ -726,7 +726,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | run,compare,noise,power,label,agreement |   |
+| `<action>` | yes | run,compare,noise,power,label,agreement |   |
 | `--candidate` |   |   | the candidate being graded (B in a comparison) |
 | `--against` |   |   | compare/noise: the candidate it is compared with (A) |
 | `--scenario` |   |   | scenario id (repeatable) |
@@ -749,7 +749,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | who is graduating it (you) |
+| `<agent_id>` | yes |   | who is graduating it (you) |
 | `--experiment` |   |   | the lesson's experiment name |
 | `--enforced-by` |   |   | the automation that enforces it, e.g. "git-guard PreToolUse hook (C0)" |
 | `--undo` |   |   | reverse a graduation (it surfaces again) |
@@ -765,7 +765,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--bootstrap` |   |   | t384: stamp the instance marker into the local acl.json (peer-side ceremony BEFORE pulling the split; grants untouched) |
-| `&lt;agent_id&gt;` |   |   | the seat receiving the grant |
+| `<agent_id>` |   |   | the seat receiving the grant |
 | `--role` |   |   | super_admin\|admin\|member\|restricted\|quarantined |
 | `--by` |   |   | the GRANTER's agent id (must hold admin.grant) |
 | `--reason` |   |   | why -- required; an unexplained grant is the one nobody can safely revoke later |
@@ -788,7 +788,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;target&gt;` | yes |   | typed target: verb:&lt;name&gt; or seat:&lt;id&gt; |
+| `<target>` | yes |   | typed target: verb:&lt;name&gt; or seat:&lt;id&gt; |
 | `--agent` |   |   | subject whose effective grant is resolved (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--continuity` |   |   | required with seat:&lt;id&gt;; assemble evidence without inferring identity |
 | `--json` |   |   | emit ground.result.v1 JSON |
@@ -802,7 +802,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | who is handing off (you) |
+| `<agent_id>` | yes |   | who is handing off (you) |
 | `--to` |   |   | target agent who picks the work up |
 | `--task` |   |   | what the target should do |
 | `--note` |   |   | free-form context note for the target |
@@ -830,7 +830,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | status,install,uninstall,enable,disable,enroll,unenroll |   |
+| `<action>` | yes | status,install,uninstall,enable,disable,enroll,unenroll |   |
 | `--harness` |   | claude,codex,cursor | default: claude |
 | `--scope` |   | user,project | default: user (every project) |
 | `--project` |   |   | project dir for --scope project and enroll (default: cwd) |
@@ -861,8 +861,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose toolbelt |
-| `&lt;name&gt;` | yes |   | the alias to kata |
+| `<agent_id>` | yes |   | whose toolbelt |
+| `<name>` | yes |   | the alias to kata |
 
 ## `kit`
 
@@ -873,8 +873,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | the installing seat |
-| `&lt;kit_name&gt;` |   |   | which kit (default recovery-kit) |
+| `<agent_id>` | yes |   | the installing seat |
+| `<kit_name>` |   |   | which kit (default recovery-kit) |
 | `--show` |   |   | print the kit JSON without installing |
 | `--json` |   |   |   |
 
@@ -887,7 +887,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;query&gt;` | yes |   | the topic to walk, plain words |
+| `<query>` | yes |   | the topic to walk, plain words |
 | `--per-layer` |   |   | max nodes per layer (default 6) |
 | `--json` |   |   |   |
 
@@ -900,7 +900,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
 | `--experiment` |   |   |   |
 | `--repeat-of` |   |   | record that this EXISTING lesson was violated again -- evidence ABOUT a lesson, not a new one. Use --tried for what happened. The count is a FLOOR (only what someone noticed), never a rate. |
 | `--recall-outcome` |   |   | with --repeat-of: what recall did at that moment (fired / floor_silent / excluded_silent:antirepeat / excluded_silent:self_echo). FIRED means a reading failure; SUPPRESSED means a targeting failure -- opposite fixes. |
@@ -926,8 +926,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | init,whoami,renew,cert,certify,create,list,status,invite,join,accept,decline,verify,remove-member,remove-device,add-device,rotate-key,revoke-invite,set-role,leave,handoff,takeover,serve,mailbox,sync,peer,inbox,show,promote,blob,send,export,import,policy,rebuild,import-legacy,relay-config | what to do; `aurora link status` shows every link |
-| `&lt;args&gt;` | yes |   | the action's operands: a link, a member, a record, a code or a file |
+| `<action>` | yes | init,whoami,renew,cert,certify,create,list,status,invite,join,accept,decline,verify,remove-member,remove-device,add-device,rotate-key,revoke-invite,set-role,leave,handoff,takeover,serve,mailbox,sync,peer,inbox,show,promote,blob,send,export,import,policy,rebuild,import-legacy,relay-config | what to do; `aurora link status` shows every link |
+| `<args>` | yes |   | the action's operands: a link, a member, a record, a code or a file |
 | `--label` |   |   | init/create/join: our fleet's name as members see it |
 | `--role` |   |   | invite: owner &gt; admin &gt; writer &gt; reader &gt; mailbox (default writer) |
 | `--ttl` |   |   | invite: lifetime like 30m, 24h or 7d (default 24h) |
@@ -980,8 +980,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
-| `&lt;path&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
+| `<path>` | yes |   |   |
 | `--ttl` |   |   |   |
 | `--json` |   |   |   |
 
@@ -990,12 +990,28 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | | |
 |---|---|
 | Does | show who holds which advisory path-locks |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 93% before, 100% after |
+| Output tokens | 101 before, 119 after (+18%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/locks.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` |   |   |   |
+| `<agent_id>` |   |   |   |
 | `--json` |   |   |   |
+
+Agent output of `aurora locks` on the bench data:
+
+```text
+count: 3
+locks[3]{path,agent,ttl_s,age_s}:
+  core/a.py,alice,600,1
+  docs/x.md,bob,120,0
+  scripts/y.py,alice,600,0
+help[2]:
+  uv run agent_cli.py unlock <agent_id> <path>
+  uv run agent_cli.py recall-at --path <path>
+```
 
 ## `log`
 
@@ -1006,7 +1022,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;kind&gt;` |   |   | beat kind (session/note/commit/learning/...) |
+| `<kind>` |   |   | beat kind (session/note/commit/learning/...) |
 | `--summary` |   |   | summary of what happened |
 | `--source` |   |   | source identifier (who:action) |
 | `--category` |   |   | route hint category |
@@ -1022,7 +1038,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;question&gt;` | yes |   | the why/what question, plain words |
+| `<question>` | yes |   | the why/what question, plain words |
 | `--per-layer` |   |   | hits per corpus layer (default 3) |
 | `--layers` |   |   | narrow: docs,research,notes,promoted,chapters,git |
 | `--json` |   |   |   |
@@ -1036,7 +1052,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | run,status,archive,lineage |   |
+| `<action>` | yes | run,status,archive,lineage |   |
 | `--candidate` |   |   | run: the parent to improve (default baseline); lineage: the candidate |
 | `--iterations` |   |   |   |
 | `--proposals` |   |   | proposals per iteration (scaled by proposer accuracy) |
@@ -1055,7 +1071,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose mailbox to inspect |
+| `<agent_id>` | yes |   | whose mailbox to inspect |
 | `--explain` |   |   | evidence chain for one message (sha prefix or stream id) |
 | `--rebuild` |   |   | drop + rebuild the index from the log (determinism receipt) |
 | `--retire-ghosts` |   |   | declare `decline` on old unadjudicated mail from senders with no live seat (report only; add --apply to write). The operator is never a ghost. |
@@ -1082,8 +1098,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;manual_cmd&gt;` | yes | search,ingest,list | search &lt;question&gt; \| ingest SHELF PATH \| list |
-| `&lt;words&gt;` | yes |   | search: the question; ingest: SHELF PATH |
+| `<manual_cmd>` | yes | search,ingest,list | search &lt;question&gt; \| ingest SHELF PATH \| list |
+| `<words>` | yes |   | search: the question; ingest: SHELF PATH |
 | `--shelf` |   |   | search only this shelf (e.g. apple-hig, one-ui) |
 | `--limit` |   |   | passages to return (default 8) |
 | `--max-chars` |   |   | cap on the total passage text returned (default 6000) |
@@ -1100,7 +1116,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | snapshot,queue,run,drain |   |
+| `<action>` | yes | snapshot,queue,run,drain |   |
 | `--lesson` |   |   | run: the lesson to measure |
 | `--base` |   |   | run/drain: the candidate harness every arm shares |
 | `--scenario` |   |   | run: scenario id (repeatable; default: the most related) |
@@ -1119,7 +1135,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | show,compare,placement,stale |   |
+| `<action>` | yes | show,compare,placement,stale |   |
 | `--base` |   |   | compare: the candidate carrying harness and model |
 | `--compiled` |   |   | compare: a precompiled candidate (precompile build) |
 | `--scenario` |   |   | compare: scenario id (repeatable) |
@@ -1136,7 +1152,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
 | `--title` |   |   | short stable title (re-noting it supersedes the prior; required for writes -- --get/--retire stand alone) |
 | `--note` |   |   | the note / decision body |
 | `--context` |   |   | optional supporting context |
@@ -1171,7 +1187,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;target&gt;` |   |   | typed destination: verb:&lt;name&gt;, seat:&lt;your-id&gt;, or thread:&lt;ref&gt; |
+| `<target>` |   |   | typed destination: verb:&lt;name&gt;, seat:&lt;your-id&gt;, or thread:&lt;ref&gt; |
 | `--agent` |   |   | bound subject (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--density` |   | compact,standard,wide | how many landmarks stay nearby; the rest remain contoured |
 | `--depth` |   | surface,evidence | surface leaves a drillable contour; evidence expands the focus |
@@ -1198,7 +1214,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;kind&gt;` | yes |   | wire kind, e.g. handoff, reply, narration |
+| `<kind>` | yes |   | wire kind, e.g. handoff, reply, narration |
 | `--json` |   |   |   |
 
 ## `precompile`
@@ -1210,7 +1226,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | plan,build,check |   |
+| `<action>` | yes | plan,build,check |   |
 | `--lesson` |   |   | limit to these lessons (repeatable) |
 | `--base` |   |   | build: the candidate to compile on top of |
 | `--harness` |   | claude-code,codex-cli,cursor,runner | build: targets (default all) |
@@ -1254,7 +1270,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent&gt;` |   |   | optional: single agent to read (default: fleet) |
+| `<agent>` |   |   | optional: single agent to read (default: fleet) |
 | `--json` |   |   |   |
 
 ## `recall`
@@ -1266,7 +1282,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;query&gt;` |   |   |   |
+| `<query>` |   |   |   |
 | `--tree` |   |   | group every lesson by scope level (task 02) |
 | `--json` |   |   |   |
 | `--full` |   |   | pull the FULL record for one lesson's source pointer (e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface |
@@ -1368,7 +1384,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;source&gt;` |   |   | the violated lesson: a bare experiment name or learn:experiment:NAME |
+| `<source>` |   |   | the violated lesson: a bare experiment name or learn:experiment:NAME |
 | `--what` |   |   | what actually happened -- the repeat is only useful if it is specific |
 | `--recall-outcome` |   |   | what recall did at the moment: fired (a READING failure) vs suppressed/silent (a TARGETING failure) vs gate_caught. This field is what turns a tally into a diagnosis |
 | `--agent` |   |   | who repeated it (defaults to AKASHIC_AGENT_ID) |
@@ -1384,7 +1400,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | run,candidates,new |   |
+| `<action>` | yes | run,candidates,new |   |
 | `--candidate` |   |   | candidate name (`baseline` = the repo's own config) |
 | `--scenario` |   |   | corpus scenario id (run) |
 | `--trials` |   |   |   |
@@ -1409,7 +1425,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;text&gt;` | yes |   | the reply body -- the only argument |
+| `<text>` | yes |   | the reply body -- the only argument |
 | `--text-file` |   |   | read the body from PATH (long or flag-bearing prose) |
 | `--to` |   |   | override the recipient (default: the operator) |
 | `--as` |   |   | override the sender (default: this seat's id -- never a positional) |
@@ -1439,7 +1455,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;sub&gt;` |   | nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration |   |
+| `<sub>` |   | nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration |   |
 
 ## `review`
 
@@ -1450,8 +1466,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | list,add,show,decide,apply,rollback,watch,disagreements |   |
-| `&lt;id&gt;` |   |   | review item id |
+| `<action>` | yes | list,add,show,decide,apply,rollback,watch,disagreements |   |
+| `<id>` |   |   | review item id |
 | `--candidate` |   |   | add: the candidate to queue |
 | `--against` |   |   | add: the live harness candidate it is compared with |
 | `--scenario` |   |   | add: scenario id (repeatable) |
@@ -1484,9 +1500,9 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | whose toolbelt |
-| `&lt;name&gt;` | yes |   | the alias to run |
-| `&lt;args&gt;` |   |   | macro args ($1 $2 ... substitution) |
+| `<agent_id>` | yes |   | whose toolbelt |
+| `<name>` | yes |   | the alias to run |
+| `<args>` |   |   | macro args ($1 $2 ... substitution) |
 | `--dry` |   |   | print the resolved steps, execute nothing |
 
 ## `scope`
@@ -1498,7 +1514,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;action&gt;` | yes | show,set,widen,proposals,tree |   |
+| `<action>` | yes | show,set,widen,proposals,tree |   |
 | `--experiment` |   |   | the lesson (show/set/widen) |
 | `--scope` |   |   | the new scope (set) |
 | `--kinds` |   |   | widen: which kinds to drop, e.g. 'harness model' (default: the proposal's) |
@@ -1514,7 +1530,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;text&gt;` | yes |   | the pre-flight question |
+| `<text>` | yes |   | the pre-flight question |
 | `--wearer` |   |   | which RESIDENT wears the role for this ask (default deepseek, the workhorse). The role's memory is shared across wearers. |
 | `--by` |   |   | who is invoking (the assigner of record) |
 | `--blind` |   |   | tier-0: no identity, no archive -- the uncorrelated control arm |
@@ -1545,7 +1561,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` |   |   | the seat id to bind; omit to just show the current resolution |
+| `<agent_id>` |   |   | the seat id to bind; omit to just show the current resolution |
 | `--session` |   |   | session id (default: this process's) |
 | `--clear` |   |   | drop this session's binding |
 
@@ -1558,7 +1574,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;target&gt;` |   |   | allowlisted name (see bare `secret` for the list) |
+| `<target>` |   |   | allowlisted name (see bare `secret` for the list) |
 | `--stdin` |   |   | headless path: read the value from stdin instead of a window (pipe it: Get-Clipboard \| uv run agent_cli.py secret X --stdin) |
 
 ## `setup`
@@ -1587,7 +1603,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;sha&gt;` | yes |   | one or more commit SHAs, 7-40 hex characters |
+| `<sha>` | yes |   | one or more commit SHAs, 7-40 hex characters |
 | `--maps` |   |   | list the rewrite maps this checkout carries, and flag any that live only in .git (where the next rewrite overwrites them) |
 | `--verbose` |   |   | show each hop of the chase |
 | `--no-remote` |   |   | skip the clone-visibility check (offline; every answer becomes a statement about THIS checkout only) |
@@ -1601,7 +1617,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;target&gt;` | yes |   | typed action, e.g. toolbox:bifrost_nudge |
+| `<target>` | yes |   | typed action, e.g. toolbox:bifrost_nudge |
 | `--agent` |   |   | bound subject (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--args-json` |   |   | proposed arguments as one JSON object |
 | `--json` |   |   | emit intent.shadow.v1 JSON |
@@ -1627,7 +1643,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;terms&gt;` | yes |   | the word(s) to examine, one dossier each |
+| `<terms>` | yes |   | the word(s) to examine, one dossier each |
 | `--hats` |   |   | comma-separated subset of the hats. Default is all of them, because a shared blind spot shows up as AGREEMENT and diverse hats are the only defence against it |
 | `--planes` |   |   | comma-separated: source\|test\|doc. Default source, because two meanings in the MECHANISM is a defect while two in prose is often just English |
 | `--junction` |   |   | use JUNCTION evidence instead of breadth: pairs of sites where the term is WRITTEN with sites where it is READ. Ask for this when the question is 'do the senses MEET' -- a breadth sample can enumerate senses but structurally cannot show a producer and its consumer in one frame, which is what made the junction hat vote NO_FORK on a term whose fork cost six turns |
@@ -1646,7 +1662,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent&gt;` | yes |   | the agent id whose seat this session is holding |
+| `<agent>` | yes |   | the agent id whose seat this session is holding |
 
 ## `stats`
 
@@ -1703,7 +1719,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | the recording seat |
+| `<agent_id>` | yes |   | the recording seat |
 | `--from-file` |   |   | pytest terminal output to ingest |
 | `--sha` |   |   | commit sha (default: git rev-parse HEAD) |
 | `--check` |   |   | diff --from-file against the baseline instead of recording |
@@ -1719,7 +1735,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` |   |   | seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback) |
+| `<agent_id>` |   |   | seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--json` |   |   | emit observation.snapshot.v1 JSON |
 
 ## `tag-anti-pattern`
@@ -1731,7 +1747,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
 | `--experiment` | yes |   |   |
 | `--name` | yes |   | the anti-pattern name/slug |
 | `--reason` |   |   |   |
@@ -1746,7 +1762,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;opening&gt;` | yes |   | the opening file (repo-relative or absolute) |
+| `<opening>` | yes |   | the opening file (repo-relative or absolute) |
 | `--research-dir` |   |   | directory scanned for counters (default: research) |
 | `--json` |   |   | emit the matrix as JSON |
 
@@ -1759,7 +1775,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;rest&gt;` | yes |   | conductor subcommand + args, e.g. task list / task propose "title" / task done T001 --commit abc123 --verified-by pytest |
+| `<rest>` | yes |   | conductor subcommand + args, e.g. task list / task propose "title" / task done T001 --commit abc123 --verified-by pytest |
 
 ## `timeline`
 
@@ -1783,9 +1799,9 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | you (the toaster) |
-| `&lt;to&gt;` | yes |   | the peer being toasted |
-| `&lt;receipt&gt;` | yes |   | their experiment name (the receipt) |
+| `<agent_id>` | yes |   | you (the toaster) |
+| `<to>` | yes |   | the peer being toasted |
+| `<receipt>` | yes |   | their experiment name (the receipt) |
 | `--credit` |   |   | what did their lesson save you? (required, short) |
 | `--force` |   |   | send an unverified receipt honestly labeled GUESS |
 | `--json` |   |   |   |
@@ -1799,7 +1815,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;tool_cmd&gt;` |   | list,run |   |
+| `<tool_cmd>` |   | list,run |   |
 
 ## `triage`
 
@@ -1822,8 +1838,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   |   |
-| `&lt;path&gt;` | yes |   |   |
+| `<agent_id>` | yes |   |   |
+| `<path>` | yes |   |   |
 
 ## `unwedge`
 
@@ -1834,7 +1850,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent&gt;` | yes |   | the agent to diagnose |
+| `<agent>` | yes |   | the agent to diagnose |
 | `--json` |   |   |   |
 
 ## `watch`
@@ -1846,7 +1862,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | you (the seat declaring or closing the expectation) |
+| `<agent_id>` | yes |   | you (the seat declaring or closing the expectation) |
 | `--declare` |   |   | open an expectation: from now until --stand-down, going quiet alarms |
 | `--grace` |   |   | seconds of silence allowed before it is wrong (default 1800) |
 | `--checkpoint` |   |   | say 'still here' |
@@ -1862,7 +1878,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;web_cmd&gt;` | yes | fetch,search |   |
+| `<web_cmd>` | yes | fetch,search |   |
 
 ## `wish`
 
@@ -1873,8 +1889,8 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable seat id (wishes are attributed) |
-| `&lt;text&gt;` | yes |   | the wish (or use --text-file for flag-bearing prose) |
+| `<agent_id>` | yes |   | your stable seat id (wishes are attributed) |
+| `<text>` | yes |   | the wish (or use --text-file for flag-bearing prose) |
 | `--text-file` |   |   | read the wish body from PATH |
 | `--trigger` |   |   | what hurt (one clause) |
 | `--land` |   |   | suggested landing arc/slice |
@@ -1888,7 +1904,7 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `&lt;agent_id&gt;` | yes |   | your stable seat id (dispositions are attributed) |
+| `<agent_id>` | yes |   | your stable seat id (dispositions are attributed) |
 | `--id` |   |   | the wish to dispose of, e.g. W159 |
 | `--as` |   | fold,keep,decline | fold (needs --task) \| keep (needs --reason) \| decline (needs --reason) |
 | `--reason` |   |   | why -- required for keep and decline |

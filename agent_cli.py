@@ -8980,30 +8980,81 @@ def cmd_focus(args):
 
 def cmd_locks(args):
     """Awareness: who holds what right now (across both agents)."""
+    from core.axi import out
     from core.comm.locks import LockManager
 
     locks = LockManager(args.agent_id or "viewer").list_locks()
     if args.json:
         print(json.dumps(locks, indent=2, default=str))
         return 0
+    cli = _cli()
     if not locks:
-        print("# no advisory path-locks held")
-        return 0
-    print(f"# {len(locks)} advisory path-lock(s) held")
+        return out.emit(
+            {"locks": "0 advisory path-locks held"},
+            hints=[f"{cli} lock <agent_id> <path>"],
+            title="Locks",
+        )
+    rows = []
     for lk in locks:
-        mine = " (you)" if lk.get("agent") == args.agent_id else ""
-        why = f"  why: {lk.get('note')}" if lk.get("note") else ""
-        age = ""
         try:
             from core.foundation.timeutil import to_epoch
 
-            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))
-            ttl = int(lk.get("ttl") or 0)
-            age = f"  [{secs}s old, ttl {ttl}s]"
+            age = max(0, int(time.time() - to_epoch(lk.get("ts"))))
         except Exception:
-            pass
-        print(f"  {lk.get('path')}  <- {lk.get('agent')}{mine}  token {lk.get('token')}{age}{why}")
-    return 0
+            age = None
+        row = {
+            "path": lk.get("path"),
+            "agent": lk.get("agent"),
+            "ttl_s": int(lk.get("ttl") or 0),
+            "age_s": age,
+        }
+        if any(x.get("note") for x in locks):  # a column only when some lock says why
+            row["why"] = lk.get("note") or None
+        rows.append(row)
+    doc: dict = {"count": len(rows)}
+    if args.agent_id:
+        doc["yours"] = sum(1 for r in rows if r["agent"] == args.agent_id)
+    doc["locks"] = rows
+    who = args.agent_id or "<agent_id>"
+    return out.emit(
+        doc,
+        hints=[f"{cli} unlock {who} <path>", f"{cli} recall-at --path <path>"],
+        human=_human_locks(args.agent_id),
+        title=f"Locks · {len(rows)} held",
+    )
+
+
+def _human_locks(me):
+    """Human view of `locks`: one table, your own locks marked, short ttls in yellow."""
+
+    def render(console, doc):
+        from core.axi import out
+
+        rows = []
+        for r in doc["locks"]:
+            mine = r["agent"] == me
+            ttl_left = None if r["age_s"] is None else max(0, r["ttl_s"] - r["age_s"])
+            rows.append(
+                {
+                    "path": r["path"],
+                    "held by": f"{r['agent']} (you)" if mine else r["agent"],
+                    "age": "—" if r["age_s"] is None else _human_secs(r["age_s"]),
+                    "expires in": "—" if ttl_left is None else _human_secs(ttl_left),
+                    **({"why": r.get("why")} if "why" in r else {}),
+                }
+            )
+        console.print(out.table(rows))
+
+    return render
+
+
+def _human_secs(s: int) -> str:
+    s = int(s)
+    if s < 120:
+        return f"{s}s"
+    if s < 7200:
+        return f"{s // 60}m"
+    return f"{s // 3600}h{(s % 3600) // 60:02d}m"
 
 
 def cmd_packet_trace(args):

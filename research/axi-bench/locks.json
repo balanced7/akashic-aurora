@@ -1,0 +1,170 @@
+{
+  "verb": "locks",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 3,
+  "before": {
+    "accuracy": 0.933,
+    "correct": 14,
+    "asked": 15,
+    "output_tokens": 101,
+    "stdout_chars": 185,
+    "stdout_lines": 4,
+    "cost_usd": 0.0229,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which agent holds the lock on docs/x.md?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "How many locks are held in total?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which paths does alice hold locks on? List them separated by commas.",
+        "expected": [
+          "core/a.py",
+          "scripts/y.py"
+        ],
+        "answers": [
+          "core/a.py, scripts/y.py",
+          "core/a.py, scripts/y.py",
+          "core/a.py, scripts/y.py"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What is the TTL, in seconds, of the lock on docs/x.md?",
+        "expected": 120,
+        "answers": [
+          "120",
+          "120",
+          "120"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Does carol hold any lock? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "no",
+          "no"
+        ],
+        "correct": 2
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "locks"
+        ],
+        "exit": 0,
+        "stdout": "# 3 advisory path-lock(s) held\n  core/a.py  <- alice  token 1  [1s old, ttl 600s]\n  docs/x.md  <- bob  token 2  [0s old, ttl 120s]\n  scripts/y.py  <- alice  token 3  [0s old, ttl 600s]\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 15,
+    "asked": 15,
+    "output_tokens": 119,
+    "stdout_chars": 218,
+    "stdout_lines": 8,
+    "cost_usd": 0.026,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which agent holds the lock on docs/x.md?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "How many locks are held in total?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which paths does alice hold locks on? List them separated by commas.",
+        "expected": [
+          "core/a.py",
+          "scripts/y.py"
+        ],
+        "answers": [
+          "core/a.py, scripts/y.py",
+          "core/a.py, scripts/y.py",
+          "core/a.py, scripts/y.py"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What is the TTL, in seconds, of the lock on docs/x.md?",
+        "expected": 120,
+        "answers": [
+          "120",
+          "120",
+          "120"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Does carol hold any lock? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "locks"
+        ],
+        "exit": 0,
+        "stdout": "count: 3\nlocks[3]{path,agent,ttl_s,age_s}:\n  core/a.py,alice,600,1\n  docs/x.md,bob,120,0\n  scripts/y.py,alice,600,0\nhelp[2]:\n  uv run agent_cli.py unlock <agent_id> <path>\n  uv run agent_cli.py recall-at --path <path>\n"
+      }
+    }
+  }
+}
