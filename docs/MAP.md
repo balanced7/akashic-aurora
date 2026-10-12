@@ -192,7 +192,7 @@ Class: reference
 | `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | docs/library/report/20260807_t207-grounding-ab-preregistration_b423f7.md |  |
 | `session_focus.py` | Session focus -- which task THIS session's tool calls belong to, and a nudge when they drift. | tests/test_t056b_session_focus.py | GAP | `AKASHIC_SESSION_ID`, `AURORA_LAUNCHER`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
-| `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_g4_latent_sift_junction_record.py | GAP |  |
+| `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_axi_sift.py | GAP |  |
 | `suite_baseline.py` | suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4). | tests/test_axi_suite_baseline.py | GAP |  |
 | `task_costs.py` | Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed. | GAP | GAP | `BIFROST_NAMESPACE` |
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `AKASHIC_TASKS_PATH`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |

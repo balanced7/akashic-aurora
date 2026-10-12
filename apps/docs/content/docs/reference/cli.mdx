@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 107 converted to agent and human output.
+121 verbs; 108 converted to agent and human output.
 
 ## `alias`
 
@@ -3281,7 +3281,10 @@ help[1]:
 | | |
 |---|---|
 | Does | the NESTED ask (T217): evidence -&gt; hat fan -&gt; curator pairs -&gt; DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 97% before, 100% after |
+| Output tokens | 683 before, 771 after (+13%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/sift.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -3294,6 +3297,33 @@ help[1]:
 | `--max-occurrences` |   |   | cap per pack. The cap SAMPLES ROUND-ROBIN ACROSS FILES -- every file contributes its first occurrence before any file contributes a second -- so a term in 163 files still reaches the helper as 163 files, not as the first few alphabetically. (It is also always reported in the pack's blind list; a rate over a cap is not a rate over the corpus.) |
 | `--out` |   |   | write the full JSON record here (the dossiers are the durable artifact; the console render is a summary and clips) |
 | `--json` |   |   |   |
+
+Agent output of `aurora sift wakeable cursor_lease --dry-run` on the bench data:
+
+```text
+dry_run: true
+spent_usd: 0
+terms: 2
+hats[6]: outsider,junction,linguist,historian,adversary,jester
+planes[1]: source
+evidence: breadth
+packs[2]{term,occurrences,files,sha,capped}:
+  wakeable,22,9,82fd8cc94b8a,false
+  cursor_lease,0,0,3cb19df41d2b,false
+samples[5]{term,where,text}:
+  wakeable,"agent/bifrost_pull.py:814","- a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- listening here"
+  wakeable,"agent/bifrost_pull.py:829","f\"standby: NOT listening (live twin is the wakeable seat-holder; \""
+  wakeable,"agent/harness/hooks/claude_stop.py:1","\"\"\"Stop hook: keep THIS Claude session wakeable from idle + audit the turn's ending."
+  wakeable,"agent/harness/hooks/claude_stop.py:6","agent, BLOCK the stop and tell the model to re-arm -- turning \"always wakeable\" from fragile"
+  wakeable,"agent/harness/hooks/claude_stop.py:433","# T086-S3b: a LIVE TWIN session holds the consumer seat -- the twin is the wakeable"
+blind[3]{terms,blind}:
+  wakeable cursor_lease,"PLANE: this pack contains ['source'] only. A term can be coherent in source and forked in docs, or the reverse, and this pack cannot see the difference"
+  wakeable,"EXCLUDED BY PLANE, not absent: doc=46, out-of-corpus=3, test=32. Vendored trees (ComfyUI-Zluda et al) are a different project's vocabulary; history/research record the past. Counted here so the exclusion is a stated decision rather than a silent one"
+  cursor_lease,"occurrences are LINE-level: a fork visible only across a function boundary or in code shape rather than in a line containing the token is invisible here"
+real_run: "12 tier-1 branches (2 terms x 6 hats) to a paid model, then curator pairs"
+help[1]:
+  uv run agent_cli.py sift wakeable cursor_lease --out sift.json
+```
 
 ## `stand-down`
 

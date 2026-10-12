@@ -5444,15 +5444,35 @@ def cmd_sift(args):
     rate on evidence identity. Adjudication stops here on purpose -- T207 measured that
     step as the one a helper gets confidently wrong.
     """
+    import shlex
+
+    from core.axi import out
     from core.comm.ask import ask_many
     from core.coord import sift as S
+
+    cli = _cli()
+    # --json keeps its stdout byte for byte: the '#' progress lines, then the record. Every
+    # other reader gets one document at the end, and the progress of a paid run on stderr.
+    legacy = bool(args.json)
+
+    def say(line=""):
+        print(line, file=None if legacy else sys.stderr)
 
     hats = [h.strip() for h in args.hats.split(",") if h.strip()] or list(S.DEFAULT_HATS)
     planes = tuple(p.strip() for p in args.planes.split(",") if p.strip())
     unknown = [h for h in hats if h not in S.DEFAULT_HATS]
     if unknown:
-        print(f"unknown hat(s) {unknown}; known: {sorted(S.DEFAULT_HATS)}")
-        return 2
+        if legacy:
+            print(f"unknown hat(s) {unknown}; known: {sorted(S.DEFAULT_HATS)}")
+            return 2
+        return out.fail(
+            f"unknown hat(s): {', '.join(unknown)}",
+            code="USAGE",
+            details={"known_hats": sorted(S.DEFAULT_HATS)},
+            # without --hats every hat runs, which is the default for a reason (see --hats)
+            hints=[f"{cli} sift {' '.join(shlex.quote(t) for t in args.terms)} --dry-run"],
+            exit_code=out.EXIT_USAGE,
+        )
 
     # ---- tier 0: evidence, and the chance to stop before spending anything
     mode = "junction" if args.junction else "breadth"
@@ -5460,29 +5480,80 @@ def cmd_sift(args):
         packs = {t: S.junction_pack(t, planes=planes) for t in args.terms}
     else:
         packs = {t: S.evidence_pack(t, planes=planes, max_occurrences=args.max_occurrences) for t in args.terms}
-    print(f"# sift: {len(args.terms)} term(s) x {len(hats)} hat(s), planes={list(planes)}, evidence={mode}")
+    if legacy:
+        print(f"# sift: {len(args.terms)} term(s) x {len(hats)} hat(s), planes={list(planes)}, evidence={mode}")
+    pack_rows = []
     for t, p in packs.items():
         if isinstance(p, S.JunctionPack):  # == args.junction: the pack type follows the mode
             cross = sum(1 for j in p.junctions if not j["same_file"])
-            print(f"  {t:<12} junctions={len(p.junctions):<4} cross-file={cross:<4} sha={p.sha}")
+            pack_rows.append({"term": t, "junctions": len(p.junctions), "cross_file": cross, "sha": p.sha})
+            line = f"  {t:<12} junctions={len(p.junctions):<4} cross-file={cross:<4} sha={p.sha}"
         else:
             files = len({o["file"] for o in p.occurrences})
-            flag = " CAPPED" if p.truncated else ""
-            print(f"  {t:<12} occ={len(p.occurrences):<4} files={files:<4} sha={p.sha}{flag}")
+            pack_rows.append(
+                {"term": t, "occurrences": len(p.occurrences), "files": files, "sha": p.sha, "capped": p.truncated}
+            )
+            line = (
+                f"  {t:<12} occ={len(p.occurrences):<4} files={files:<4} sha={p.sha}{' CAPPED' if p.truncated else ''}"
+            )
+        if legacy:
+            print(line)
+    n_branches = len(args.terms) * len(hats)
+    terms_arg = " ".join(shlex.quote(t) for t in args.terms)
     if args.dry_run:
-        print("\n# DRY RUN -- nothing spent. Read one pack before trusting any finding:")
+        if legacy:
+            print("\n# DRY RUN -- nothing spent. Read one pack before trusting any finding:")
+            for t, p in packs.items():
+                if isinstance(p, S.JunctionPack):  # == args.junction
+                    print(f"\n--- {t}: {len(p.junctions)} junction(s) ---")
+                    for j in p.junctions[:3]:
+                        print(f"  {j['crossing']}{'  [same file]' if j['same_file'] else ''}")
+                else:
+                    print(f"\n--- {t} (first 5 of {len(p.occurrences)}) ---")
+                    for o in p.occurrences[:5]:
+                        print(f"  [{o['plane']}] {o['file']}:{o['line']}: {o['text'][:100]}")
+                for b in p.blind[:2]:
+                    print(f"  BLIND: {b[:150]}")
+            return 0
+        samples, blind = [], []
         for t, p in packs.items():
             if isinstance(p, S.JunctionPack):  # == args.junction
-                print(f"\n--- {t}: {len(p.junctions)} junction(s) ---")
-                for j in p.junctions[:3]:
-                    print(f"  {j['crossing']}{'  [same file]' if j['same_file'] else ''}")
+                samples += [
+                    {"term": t, "junction": j["crossing"], "same_file": j["same_file"]} for j in p.junctions[:3]
+                ]
             else:
-                print(f"\n--- {t} (first 5 of {len(p.occurrences)}) ---")
                 for o in p.occurrences[:5]:
-                    print(f"  [{o['plane']}] {o['file']}:{o['line']}: {o['text'][:100]}")
+                    row = {"term": t, "where": f"{o['file']}:{o['line']}", "text": out.truncate(o["text"], 100)[0]}
+                    if len(planes) > 1:  # with one plane asked for, every row would repeat it
+                        row["plane"] = o["plane"]
+                    samples.append(row)
+            # A caveat that holds for several terms is said once, naming them all.
             for b in p.blind[:2]:
-                print(f"  BLIND: {b[:150]}")
-        return 0
+                text = out.truncate(b, 300)[0]
+                seen = next((r for r in blind if r["blind"] == text), None)
+                if seen:
+                    seen["terms"] += f" {t}"
+                else:
+                    blind.append({"terms": t, "blind": text})
+        doc = {
+            "dry_run": True,
+            "spent_usd": 0,
+            "terms": len(args.terms),
+            "hats": hats,
+            "planes": list(planes),
+            "evidence": mode,
+            "packs": pack_rows,
+            "samples": samples,  # read one pack before trusting any finding
+            "blind": blind,
+            "real_run": f"{n_branches} tier-1 branches ({len(args.terms)} terms x {len(hats)} hats) to a paid model, "
+            "then curator pairs",
+        }
+        return out.emit(
+            doc,
+            hints=[f"{cli} sift {terms_arg} --out sift.json"],
+            human=_human_sift,
+            title=f"Sift dry run · {len(args.terms)} term(s), nothing spent",
+        )
 
     # ---- tier 1: the hat fan. Evidence is INLINED rather than passed as a file so the
     # bytes each helper reads are exactly the bytes we hashed. T216 was the other choice
@@ -5492,7 +5563,7 @@ def cmd_sift(args):
         for h in hats:
             prompts.append(f"{p.blob}\n\n{S.hat_prompt(h, cast('S.EvidencePack', p))}")  # reads only .term
             index.append((t, h))
-    print(f"\n# tier 1: fanning {len(prompts)} branches, {args.workers} workers ...")
+    say(f"\n# tier 1: fanning {len(prompts)} branches, {args.workers} workers ...")
     fan = ask_many(prompts, max_workers=args.workers)
     branches = (fan.detail or {}).get("branches", [])
 
@@ -5511,14 +5582,15 @@ def cmd_sift(args):
         if fd.get("n_ok", 0) < fd.get("n", 0)
         else ["all branches landed"],
     )
-    print(
+    aggregate = "DONE" if bool(agg) else ("PARTIAL" if agg.ok else "FAILED")
+    say(
         f"# tier 1: {fd.get('n_ok')}/{fd.get('n')} landed"
         f"{'' if usd1 is None else f'  ${usd1:.4f}'}"
         f"  diversity={fd.get('diversity')}"
-        f"  aggregate={'DONE' if bool(agg) else ('PARTIAL' if agg.ok else 'FAILED')}"
+        f"  aggregate={aggregate}"
     )
     if agg.why:
-        print(f"#   {agg.why}")
+        say(f"#   {agg.why}")
 
     # ---- tier 2: curator PAIRS, per term. Both members read the identical bundle, so any
     # disagreement between them is about curation -- which is the only reason a flip rate
@@ -5534,7 +5606,7 @@ def cmd_sift(args):
                 cur_index.append({**member, "evidence_sha": ev_sha})
     dossiers = []
     if cur_prompts:
-        print(f"# tier 2: {len(cur_prompts)} curators over {len(analyses)} term(s) ...")
+        say(f"# tier 2: {len(cur_prompts)} curators over {len(analyses)} term(s) ...")
         cur = ask_many(cur_prompts, max_workers=args.workers)
         for meta, b in zip(cur_index, (cur.detail or {}).get("branches", []), strict=False):
             if not b.get("ok"):
@@ -5585,30 +5657,69 @@ def cmd_sift(args):
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(record, f, ensure_ascii=False, indent=2, default=str)
-        print(f"# full record -> {args.out}")
+        say(f"# full record -> {args.out}")
     if args.json:
         print(json.dumps(record, ensure_ascii=False, default=str))
         return 0
 
-    print("\n" + "=" * 68)
+    # Dissent first: it is the finding. Agreement is weaker evidence, and is listed after it.
+    doc = {
+        "terms": len(args.terms),
+        "packs": pack_rows,
+        "tier1": {
+            "landed": fd.get("n_ok"),
+            "n": fd.get("n"),
+            "usd": usd1,
+            "diversity": fd.get("diversity"),
+            "aggregate": aggregate,
+        },
+    }
     if cmp_.get("refused"):
-        print("REFUSED: " + cmp_["refused"])
+        doc["refused"] = cmp_["refused"]
     else:
-        print(
-            f"DISSENT ({len(cmp_['dissents'])} of "
-            f"{len(cmp_['dissents']) + len(cmp_['agreements'])} terms) -- READ THIS FIRST"
-        )
-        for d in cmp_["dissents"]:
-            print(f"  ! {d['term']:<12} {d['verdicts']}  hats={d['hats']}")
+        doc["dissents"] = [{"term": d["term"], "verdicts": d["verdicts"], "hats": d["hats"]} for d in cmp_["dissents"]]
         if cmp_.get("triage_required"):
-            print(f"\nTRIAGE: {cmp_['triage_reason']}")
-        print(f"\nagreement ({len(cmp_['agreements'])}) -- weaker evidence than dissent:")
-        for a in cmp_["agreements"]:
-            print(f"    {a['term']:<12} {a['verdicts']}")
-        print(f"\nflip_rate={cmp_['flip_rate']}")
-    for b in cmp_.get("blind", []):
-        print(f"BLIND: {b}")
-    return 0
+            doc["triage"] = cmp_["triage_reason"]
+        doc["agreements"] = [{"term": a["term"], "verdicts": a["verdicts"]} for a in cmp_["agreements"]]
+        doc["flip_rate"] = cmp_["flip_rate"]
+    doc["blind"] = list(cmp_.get("blind", []))
+    if args.out:
+        doc["record"] = args.out
+    hints = [] if args.out else [f"{cli} sift {terms_arg} --out sift.json"]
+    return out.emit(doc, hints=hints, human=_human_sift, title="Sift")
+
+
+def _human_sift(console, doc):
+    """Human view of `sift`: the dry run's packs and samples, or a run's dissent first."""
+    from core.axi import out
+
+    if doc.get("dry_run"):
+        console.print("[green]dry run: nothing spent[/]")
+    console.print(out.table(doc["packs"], title="evidence packs"))
+    if doc.get("samples"):
+        console.print(out.table(doc["samples"], title="samples (read one before trusting a finding)"))
+    if doc.get("refused"):
+        console.print(f"[red]REFUSED: {out._esc(doc['refused'])}[/]")
+    if "dissents" in doc:
+        console.print(f"[bold yellow]DISSENT ({len(doc['dissents'])})[/] -- read this first")
+        for d in doc["dissents"]:
+            console.print(
+                f"  [yellow]![/] {out._esc(d['term'])}  {out._esc(str(d['verdicts']))}  hats={out._esc(str(d['hats']))}"
+            )
+        if doc.get("triage"):
+            console.print(f"[yellow]TRIAGE: {out._esc(doc['triage'])}[/]")
+        console.print(f"[dim]agreement ({len(doc['agreements'])}) -- weaker evidence than dissent[/]")
+        for a in doc["agreements"]:
+            console.print(f"    {out._esc(a['term'])}  {out._esc(str(a['verdicts']))}")
+        console.print(f"[dim]flip rate[/] {out.styled(doc.get('flip_rate'))}")
+    if doc.get("tier1"):
+        t1 = doc["tier1"]
+        console.print(f"[dim]tier 1: {t1['landed']}/{t1['n']} landed, {t1['aggregate']}[/]")
+    for b in doc.get("blind") or []:
+        text = b["blind"] if isinstance(b, dict) else b
+        console.print(f"[dim]blind: {out._esc(str(text))}[/]")
+    if doc.get("real_run"):
+        console.print(f"[yellow]a real run: {out._esc(doc['real_run'])}[/]")
 
 
 def cmd_friction(args):

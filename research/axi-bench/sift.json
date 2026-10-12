@@ -1,0 +1,248 @@
+{
+  "verb": "sift",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 683,
+    "stdout_chars": 1707,
+    "stdout_lines": 19,
+    "cost_usd": 0.028,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many occurrences of 'wakeable' are in its evidence pack?",
+        "expected": 22,
+        "answers": [
+          "22",
+          "22",
+          "22",
+          "22",
+          "22"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "In how many files does 'wakeable' occur?",
+        "expected": 9,
+        "answers": [
+          "9",
+          "9",
+          "9",
+          "9",
+          "9"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many occurrences of 'cursor_lease' were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was any money spent on model calls by this command? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which hats does sift accept? List them separated by commas.",
+        "expected": [
+          "adversary",
+          "historian",
+          "jester",
+          "junction",
+          "linguist",
+          "outsider"
+        ],
+        "answers": [
+          "adversary, historian, jester, junction, linguist, outsider",
+          "adversary, historian, jester, junction, linguist, outsider",
+          "adversary, historian, jester, junction, linguist, outsider",
+          "adversary, historian, jester, junction, linguist, outsider",
+          "adversary, historian, jester, junction, linguist, outsider"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "no",
+          "yes"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "dry": {
+        "argv": [
+          "sift",
+          "wakeable",
+          "cursor_lease",
+          "--dry-run"
+        ],
+        "exit": 0,
+        "stdout": "# sift: 2 term(s) x 6 hat(s), planes=['source'], evidence=breadth\n  wakeable     occ=22   files=9    sha=4d8be47ee0ff\n  cursor_lease occ=0    files=0    sha=3cb19df41d2b\n\n# DRY RUN -- nothing spent. Read one pack before trusting any finding:\n\n--- wakeable (first 5 of 22) ---\n  [source] agent/bifrost_pull.py:814: - a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- listening here\n  [source] agent/bifrost_pull.py:829: f\"standby: NOT listening (live twin is the wakeable seat-holder; \"\n  [source] agent/harness/hooks/claude_stop.py:1: \"\"\"Stop hook: keep THIS Claude session wakeable from idle + audit the turn's ending.\n  [source] agent/harness/hooks/claude_stop.py:6: agent, BLOCK the stop and tell the model to re-arm -- turning \"always wakeable\" from fragile\n  [source] agent/harness/hooks/claude_stop.py:433: # T086-S3b: a LIVE TWIN session holds the consumer seat -- the twin is the wakeable\n  BLIND: PLANE: this pack contains ['source'] only. A term can be coherent in source and forked in docs, or the reverse, and this pack cannot see the differenc\n  BLIND: EXCLUDED BY PLANE, not absent: doc=46, out-of-corpus=3, test=22. Vendored trees (ComfyUI-Zluda et al) are a different project's vocabulary; history/re\n\n--- cursor_lease (first 5 of 0) ---\n  BLIND: PLANE: this pack contains ['source'] only. A term can be coherent in source and forked in docs, or the reverse, and this pack cannot see the differenc\n  BLIND: occurrences are LINE-level: a fork visible only across a function boundary or in code shape rather than in a line containing the token is invisible he\n"
+      },
+      "badhat": {
+        "argv": [
+          "sift",
+          "wakeable",
+          "--hats",
+          "nosuchhat",
+          "--dry-run"
+        ],
+        "exit": 2,
+        "stdout": "unknown hat(s) ['nosuchhat']; known: ['adversary', 'historian', 'jester', 'junction', 'linguist', 'outsider']\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 771,
+    "stdout_chars": 1913,
+    "stdout_lines": 27,
+    "cost_usd": 0.0267,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many occurrences of 'wakeable' are in its evidence pack?",
+        "expected": 22,
+        "answers": [
+          "22",
+          "22",
+          "22",
+          "22",
+          "22"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "In how many files does 'wakeable' occur?",
+        "expected": 9,
+        "answers": [
+          "9",
+          "9",
+          "9",
+          "9",
+          "9"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many occurrences of 'cursor_lease' were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was any money spent on model calls by this command? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which hats does sift accept? List them separated by commas.",
+        "expected": [
+          "adversary",
+          "historian",
+          "jester",
+          "junction",
+          "linguist",
+          "outsider"
+        ],
+        "answers": [
+          "adversary,historian,jester,junction,linguist,outsider",
+          "adversary,historian,jester,junction,linguist,outsider",
+          "adversary,historian,jester,junction,linguist,outsider",
+          "adversary,historian,jester,junction,linguist,outsider",
+          "adversary,historian,jester,junction,linguist,outsider"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "dry": {
+        "argv": [
+          "sift",
+          "wakeable",
+          "cursor_lease",
+          "--dry-run"
+        ],
+        "exit": 0,
+        "stdout": "dry_run: true\nspent_usd: 0\nterms: 2\nhats[6]: outsider,junction,linguist,historian,adversary,jester\nplanes[1]: source\nevidence: breadth\npacks[2]{term,occurrences,files,sha,capped}:\n  wakeable,22,9,82fd8cc94b8a,false\n  cursor_lease,0,0,3cb19df41d2b,false\nsamples[5]{term,where,text}:\n  wakeable,\"agent/bifrost_pull.py:814\",\"- a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- listening here\"\n  wakeable,\"agent/bifrost_pull.py:829\",\"f\\\"standby: NOT listening (live twin is the wakeable seat-holder; \\\"\"\n  wakeable,\"agent/harness/hooks/claude_stop.py:1\",\"\\\"\\\"\\\"Stop hook: keep THIS Claude session wakeable from idle + audit the turn's ending.\"\n  wakeable,\"agent/harness/hooks/claude_stop.py:6\",\"agent, BLOCK the stop and tell the model to re-arm -- turning \\\"always wakeable\\\" from fragile\"\n  wakeable,\"agent/harness/hooks/claude_stop.py:433\",\"# T086-S3b: a LIVE TWIN session holds the consumer seat -- the twin is the wakeable\"\nblind[3]{terms,blind}:\n  wakeable cursor_lease,\"PLANE: this pack contains ['source'] only. A term can be coherent in source and forked in docs, or the reverse, and this pack cannot see the difference\"\n  wakeable,\"EXCLUDED BY PLANE, not absent: doc=46, out-of-corpus=3, test=32. Vendored trees (ComfyUI-Zluda et al) are a different project's vocabulary; history/research record the past. Counted here so the exclusion is a stated decision rather than a silent one\"\n  cursor_lease,\"occurrences are LINE-level: a fork visible only across a function boundary or in code shape rather than in a line containing the token is invisible here\"\nreal_run: \"12 tier-1 branches (2 terms x 6 hats) to a paid model, then curator pairs\"\nhelp[1]:\n  uv run agent_cli.py sift wakeable cursor_lease --out sift.json\n"
+      },
+      "badhat": {
+        "argv": [
+          "sift",
+          "wakeable",
+          "--hats",
+          "nosuchhat",
+          "--dry-run"
+        ],
+        "exit": 2,
+        "stdout": "error: \"unknown hat(s): nosuchhat\"\ncode: USAGE\nknown_hats[6]: adversary,historian,jester,junction,linguist,outsider\nhelp[1]:\n  uv run agent_cli.py sift wakeable --dry-run\n"
+      }
+    }
+  }
+}
