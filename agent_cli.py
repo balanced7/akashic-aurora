@@ -6119,7 +6119,17 @@ def cmd_wrap(args):
     records the draft as a note (supersede-by-title) so it surfaces at the next boot."""
     from datetime import datetime
 
+    from core.axi import out
     from core.learning.agent_memory import get_agent_memory
+
+    cli = _cli()
+    # Every side effect below reports into `notices` instead of printing as it goes, so the whole
+    # wrap is one document: the agent reads each receipt as a row, a person reads the same list.
+    notices: list = []
+    hints: list = []
+
+    def notice(kind: str, message: str) -> None:
+        notices.append({"kind": kind, "message": " ".join(str(message).split())})
 
     # STANDING PRACTICE (2026-08-01): land any new corpus digests before distilling. A 59-agent
     # sweep produced 2,484 structured digests -- what each artifact IS, what it SETTLED, whether
@@ -6140,7 +6150,7 @@ def cmd_wrap(args):
         )
         for _line in (_r.stdout or "").splitlines():
             if "new," in _line:
-                print(f"[wrap] {_line.strip()}")
+                notice("corpus_digests", _line.strip())
                 break
     except Exception:
         pass
@@ -6167,38 +6177,39 @@ def cmd_wrap(args):
                 (d for d in mem_g.get_decisions(days=3650) if d.title == "grounding-pointer" and not d.superseded), None
             )
             if gp is not None and mem_g.retire_decision(gp.id):
-                print(
-                    "[wrap] grounding pointer declared NONE this wrap -- retired "
-                    f"(was {gp.decision[:80]}); the next seat boots without one, by choice."
+                notice(
+                    "grounding",
+                    "grounding pointer declared NONE this wrap -- retired "
+                    f"(was {gp.decision[:80]}); the next seat boots without one, by choice.",
                 )
             else:
-                print("[wrap] grounding declared none (no pointer was set).")
+                notice("grounding", "grounding declared none (no pointer was set).")
         else:
             try:
                 g_id = mem_g.decide_with_retry("grounding-pointer", _clip(str(args.grounding), 400), curated=True)
-                print(
-                    f"[wrap] grounding pointer set -> {args.grounding} (id {g_id}); "
-                    "boot renders it GROUND FIRST with an age stamp."
+                notice(
+                    "grounding",
+                    f"grounding pointer set -> {args.grounding} (id {g_id}); "
+                    "boot renders it GROUND FIRST with an age stamp.",
                 )
             except Exception as e:
-                print(f"WARN: grounding pointer not recorded: {e}")
+                notice("warning", f"grounding pointer not recorded: {e}")
     # F4: --focus sets the CURRENT DIRECTIVE independently of the draft commit -- the whole
     # T268: ROUTE TOMORROW'S TARGETS. --focus records INTENT; this records WHICH ITEMS, which
     # is what an overnight pre-chew consumes. Found by running the first manual sleep shift:
     # its highest-value job could not run because nothing said what tomorrow was. Routing is a
     # PRECONDITION of precompute, not a property of the world -- the scheduler is us.
     if getattr(args, "route", None):
-        _wrap_route(args)
+        # _wrap_route's render is its own; its lines ride along as routing rows.
+        for row in _boot_lines(_printed(_wrap_route, args)):
+            notice("routing", row["line"].removeprefix("[wrap] "))
     elif not getattr(args, "focus", None):
         # THE NUDGE. A rule that lives only in a document needs someone to remember it, which
         # is the failure this whole slice fixes. It names the CONSEQUENCE, not just the
         # omission -- an instruction without a reason is the checklist-fatigue shape -- and it
         # NEVER blocks: a hygiene prompt that can fail a wrap is one people route around.
-        print(
-            "[wrap] no routing set for the next window -- the night shift cannot pre-chew "
-            "without targets.\n"
-            f"       Set them with: {_cli()} wrap --route T123,T124 --commit"
-        )
+        notice("routing", "no routing set for the next window -- the night shift cannot pre-chew without targets.")
+        hints.append(f"{cli} wrap --route T123,T124 --commit")
 
     # point is to capture priority intent THE MOMENT it is decided, even on a bare wrap.
     if getattr(args, "focus", None):
@@ -6208,39 +6219,40 @@ def cmd_wrap(args):
             # DIRECTIVE line) -- curated, unlike the mechanical draft below.
             f_id = mem.decide_with_retry("next-focus", _clip(args.focus, 1000), curated=True)
         except Exception as e:
-            print(f"WARN: --focus note lost a title race and gave up: {e}")
+            notice("warning", f"--focus note lost a title race and gave up: {e}")
             f_id = ""
         with contextlib.suppress(Exception):
             project_notes()
-        print(
-            f"[OK] current directive set -> note 'next-focus' (id {f_id}); boot renders it ABOVE the NEXT list."
-            if f_id
-            else "WARN: --focus note not recorded (store unavailable?)"
-        )
+        if f_id:
+            notice(
+                "directive",
+                f"current directive set -> note 'next-focus' (id {f_id}); boot renders it ABOVE the NEXT list.",
+            )
+        else:
+            notice("warning", "--focus note not recorded (store unavailable?)")
     if not args.commit:
-        print(
-            f"# DRAFT where-we-are (review it; record with: {_cli()} wrap --commit "
-            "-- the default title supersedes the prior where-we-are)\n"
-        )
-        print(draft)
-        print(f"\n# from {len(commits)} commit(s), {len(lessons)} lesson(s), {len(notes)} note(s) this session")
+        doc: dict = {
+            "state": "draft -- not recorded",
+            "record_with": f"{cli} wrap --commit (records it as {args.title or 'where-we-are'}, superseding the prior one)",
+            "sources": {"commits": len(commits), "lessons": len(lessons), "notes": len(notes)},
+            "draft": [{"line": ln} for ln in draft.splitlines() if ln.strip()],
+        }
         try:  # T031 hook 3: the wrap-time M-practice scorecard (a reader, fail-open)
             import subprocess as _sp
 
-            print()
-            print(
-                _sp.run(
-                    [
-                        sys.executable,
-                        os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "arc_scorecard.py"),
-                        "--days",
-                        str(max(1, (args.hours or 12)) / 24.0),
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                ).stdout.rstrip()
-            )
+            card = _sp.run(
+                [
+                    sys.executable,
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "arc_scorecard.py"),
+                    "--days",
+                    str(max(1, (args.hours or 12)) / 24.0),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            ).stdout
+            if card.strip():
+                doc["scorecard"] = [{"line": ln.rstrip()} for ln in card.splitlines() if ln.strip()]
         except Exception:
             pass
         try:  # curator nudge (vNext loop 1): surface the bench bucket at the reflective moment
@@ -6248,16 +6260,19 @@ def cmd_wrap(args):
 
             rep = curation_report()
             if rep.get("bench") or rep.get("unbench"):
-                print(
-                    f"\n# [recall-curate] {len(rep['bench'])} lesson(s) are pure surface cost, "
-                    f"{len(rep['unbench'])} earned their way back -> {_cli()} recall-curate --apply"
+                notice(
+                    "recall-curate",
+                    f"{len(rep['bench'])} lesson(s) are pure surface cost, {len(rep['unbench'])} earned their way back",
                 )
+                hints.append(f"{cli} recall-curate --apply")
             if rep.get("forge_rollback") or rep.get("forge_confirm") or rep.get("forge_expire"):
-                print(
-                    f"# [forge-watch] rollback {len(rep['forge_rollback'])} / confirm "
-                    f"{len(rep['forge_confirm'])} / expire {len(rep['forge_expire'])} "
-                    f"-> {_cli()} recall-curate --apply"
+                notice(
+                    "forge-watch",
+                    f"rollback {len(rep['forge_rollback'])} / confirm {len(rep['forge_confirm'])} / "
+                    f"expire {len(rep['forge_expire'])}",
                 )
+                if f"{cli} recall-curate --apply" not in hints:
+                    hints.append(f"{cli} recall-curate --apply")
         except Exception:
             pass
         try:  # stale-claim sweep: a lesson's ANCHORS can resolve while its CLAIM has gone
@@ -6265,15 +6280,18 @@ def cmd_wrap(args):
 
             _st = _stale_sweep()  # wrap because that is
             if _st.get("stale"):  # the reflective moment
-                print(
-                    f"\n# [stale-claims] {len(_st['stale'])} lesson(s) assert a count or "
-                    f"absence their own artifact now refutes "
-                    f"({_st['checkable']} checkable of {_st['examined']} examined)"
+                notice(
+                    "stale-claims",
+                    f"{len(_st['stale'])} lesson(s) assert a count or absence their own artifact now refutes "
+                    f"({_st['checkable']} checkable of {_st['examined']} examined); this proposes a RE-READ, "
+                    "it never retracts a lesson",
                 )
                 for _s in _st["stale"][:3]:
-                    print(f"    {_s['lesson']}: {_s['claim'][:90]}")
-                    print(f"      refuted in {_s['artifact']}: {(_s['evidence'] or [''])[0][:90]}")
-                print("    (proposes a RE-READ; it never retracts a lesson)")
+                    notice(
+                        "stale-claim",
+                        f"{_s['lesson']}: {_s['claim'][:90]} -- refuted in {_s['artifact']}: "
+                        f"{(_s['evidence'] or [''])[0][:90]}",
+                    )
         except Exception:
             pass
         try:  # Forge F2 nudge: pending optimizer proposals want the human's eyes
@@ -6281,13 +6299,15 @@ def cmd_wrap(args):
 
             props = pending_proposals()
             if props:
-                print(
-                    f"# [forge] {len(props)} optimizer proposal(s) pending review "
-                    f"-> {_cli()} recall-curate --forge-proposals"
-                )
+                notice("forge", f"{len(props)} optimizer proposal(s) pending review")
+                hints.append(f"{cli} recall-curate --forge-proposals")
         except Exception:
             pass
-        return 0
+        if notices:
+            doc["notices"] = notices
+        # Review it, then record it: the default title supersedes the prior where-we-are.
+        hints.insert(0, f"{cli} wrap --commit")
+        return out.emit(doc, hints=hints, human=_human_wrap, title="Wrap · draft where-we-are")
     # P1/T021: the default title is BARE on purpose -- a dated title defeats the
     # update-by-title supersession that wrap itself wires two lines below, which is
     # exactly how 4 co-active where-we-are notes accumulated (T016 F1a). The date
@@ -6302,25 +6322,24 @@ def cmd_wrap(args):
         if cur is not None and getattr(cur, "curated", None) is True:
             from datetime import date as _date
 
-            print(
-                f"WARNING: the current '{title}' note is CURATED (hand-written). "
-                "This wrap draft is MECHANICAL and would overwrite it.\n"
-                "  To supersede deliberately: re-run with --force (review the draft first).\n"
-                f"  To record alongside:      {_cli()} wrap --commit --title "
-                f'"{title}-{_date.today().isoformat()}"\n'
-                "(nothing written)"
+            return out.fail(
+                f"the current {title!r} note is CURATED (hand-written); this wrap draft is MECHANICAL and "
+                "would overwrite it (nothing written)",
+                code="CURATED_HEAD",
+                hints=[
+                    f"{cli} wrap --commit --force",
+                    f'{cli} wrap --commit --title "{title}-{_date.today().isoformat()}"',
+                ],
+                details={"notices": notices} if notices else None,
             )
-            return 1
     try:  # RB-8: race-safe resolve+claim replaces the read-title-then-write race
         # T074 W2: wrap output is a MECHANICAL distillation -- flag it so the whisper
         # renders (auto, Nh ago) and the Phase-2 guard can protect curated handoffs.
         dec_id = mem.decide_with_retry(title, draft, curated=False)
     except Exception as e:
-        print(f"ERROR recording the wrapped note (title race): {e}")
-        return 1
+        return out.fail(f"recording the wrapped note failed (title race): {e}", code="SUPERSEDE_RACE")
     if not dec_id:
-        print("ERROR recording the wrapped note")
-        return 1
+        return out.fail("recording the wrapped note failed", code="WRITE_FAILED")
     with contextlib.suppress(Exception):
         project_notes()
     # W36 (the stale-directive ROOT CAUSE; claude+kimi consensus 2026-07-21): a landed
@@ -6328,7 +6347,7 @@ def cmd_wrap(args):
     # presumptively consumed by the session just wrapped. One set WITHIN the window is
     # fresh intent (possibly another seat's) and survives. kimi's blocking amendments:
     # (a) ORDERING -- this block runs only here, AFTER dec_id landed above; a wrap that
-    # dies earlier never tombstones the only directive. (b) RECEIPT -- loud line below;
+    # dies earlier never tombstones the only directive. (b) RECEIPT -- a loud notice;
     # silent retirement is how one banner bit three seats. Scope: ONLY next-focus.
     # (--focus in this same call already superseded it with fresh intent up in F4.)
     if not getattr(args, "focus", None):
@@ -6349,16 +6368,16 @@ def cmd_wrap(args):
                         )
                     except Exception:
                         pass
-                    print(
-                        f"[wrap] retired stale next-focus (id {nf.id}, "
-                        f"{str(nf.created_at)[:10]}) -- consumed by this session; "
-                        f"directive slot now empty. Set fresh intent: "
-                        f'{_cli()} wrap --focus "..."'
+                    notice(
+                        "directive",
+                        f"retired stale next-focus (id {nf.id}, {str(nf.created_at)[:10]}) -- consumed by this "
+                        "session; directive slot now empty.",
                     )
+                    hints.append(f'{cli} wrap --focus "..."')
         except Exception:
             pass  # the retire is a courtesy; the wrap itself already landed
     # W37 (kimi (b)): the kept-pointer rule is SPELLED, never silent -- a fresh pointer
-    # (< GROUNDING_FRESH_DAYS) is kept with a receipt line; an old one keeps rendering
+    # (< GROUNDING_FRESH_DAYS) is kept with a receipt; an old one keeps rendering
     # but the wrap says so loudly (re-point or declare none).
     if not getattr(args, "grounding", None):
         try:
@@ -6370,12 +6389,12 @@ def cmd_wrap(args):
 
                 age_d = (_dtg.now() - _dtg.fromisoformat(str(gp.created_at))).days
                 if age_d < GROUNDING_FRESH_DAYS:
-                    print(f"[wrap] grounding pointer kept: {gp.decision[:80]} ({age_d}d old)")
+                    notice("grounding", f"grounding pointer kept: {gp.decision[:80]} ({age_d}d old)")
                 else:
-                    print(
-                        f"[wrap] grounding pointer is {age_d}d old ({gp.decision[:60]}) -- "
-                        "re-point with wrap --grounding <path>, or declare none with "
-                        "--grounding none"
+                    notice(
+                        "grounding",
+                        f"grounding pointer is {age_d}d old ({gp.decision[:60]}) -- re-point with wrap "
+                        "--grounding <path>, or declare none with --grounding none",
                     )
         except Exception:
             pass
@@ -6384,12 +6403,44 @@ def cmd_wrap(args):
         superseded_prior = (json.loads(raw) or {}).get("supersedes") if raw else None
     except Exception:
         superseded_prior = None
-    print(
-        f"[OK] wrapped this session -> note '{title}' (id {dec_id})"
-        + (f" - superseded prior {superseded_prior}" if superseded_prior else "")
-        + "\n     surfaces at your next `boot`; edit by re-noting the same title."
-    )
-    return 0
+    doc = {
+        "wrapped": title,
+        "id": dec_id,
+        "superseded": superseded_prior or "none (first note with this title)",
+        "surfaces": "at your next boot; edit by re-noting the same title",
+    }
+    if notices:
+        doc["notices"] = notices
+    return out.emit(doc, hints=hints, human=_human_wrap, title="Wrap recorded")
+
+
+def _human_wrap(console, doc):
+    """Human view of `wrap`: the draft (or the recorded note), then every receipt and nudge."""
+    from core.axi import out
+
+    if "draft" in doc:
+        s = doc["sources"]
+        console.print(
+            f"[yellow]draft, not recorded[/] [dim]-- from {s['commits']} commit(s), {s['lessons']} lesson(s), "
+            f"{s['notes']} note(s) this session[/]"
+        )
+        console.print()
+        for r in doc["draft"]:
+            console.print(out._esc(r["line"]))
+        if doc.get("scorecard"):
+            console.print()
+            for r in doc["scorecard"]:
+                console.print(f"[dim]{out._esc(r['line'])}[/]")
+    else:
+        console.print(f"[green]✓ wrapped[/] -> note [bold]{out._esc(doc['wrapped'])}[/] [dim]id {doc['id']}[/]")
+        if not str(doc["superseded"]).startswith("none"):
+            console.print(f"  [dim]superseded prior {out._esc(str(doc['superseded']))}[/]")
+        console.print(f"  [dim]surfaces {out._esc(doc['surfaces'])}[/]")
+    if doc.get("notices"):
+        console.print()
+        for n in doc["notices"]:
+            colour = "yellow" if n["kind"] in ("warning", "routing", "stale-claims", "stale-claim") else "cyan"
+            console.print(f"[{colour}]{out._esc(n['kind'])}[/]  {out._esc(n['message'])}")
 
 
 def cmd_stats(args):
