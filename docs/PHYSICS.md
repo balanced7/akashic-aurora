@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 2d5a3bfe. A bound you discover by collision is not awareness -- this sheet
+> Derived at 1c85a697. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (340 numeric constants)
+## Mechanical bounds (343 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -379,6 +379,8 @@ Class: reference
 | `DISCORD_MAX` | 2,000 | core/comm/discord_bridge.py |  |
 | `DRAIN_FLUSH_JOIN_SEC` | 2 | core/comm/launcher.py |  |
 | `DRAIN_TTL_S` | 300 | core/comm/control.py |  |
+| `DROP_MTIME_TOL_MS` | 2,000 | arsenal/media/catalog.py | FAT/exFAT store mtimes to 2 s; NTFS and the browser agree to the millisecond |
+| `DROP_SCAN_DEPTH` | 2 | arsenal/media/catalog.py | root/name, root/x/name, root/x/y/name |
 | `ENGINE_MAX` | 40 | arsenal/jam/schemas.py |  |
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py |  |
 | `EVIDENCE_MS` | 30,000 | arsenal/practice.py | a key change's evidence compares the notes heard this long on either side of it |
@@ -556,6 +558,7 @@ Class: reference
 | `SEEN_CAP` | 1,000 | scripts/bifrost_wake.py | newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake |
 | `SENTINEL_DOWN_AFTER_MS` | 5,000 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py |  |
 | `SETTLEMENT` | 2 | core/comm/wake_tiers.py | an answer to something I asked -- closes my own open loop. |
+| `SHEET_MAX` | 48 | arsenal/media/shots.py | one representative frame per shot, at most this many on the sheet |
 | `SHORT_PENALTY_MS` | 50,000 | arsenal/practice.py | (a soft wall: shorter windows exist only as whole phrases) |
 | `SIGNIFICANCE_THRESHOLD` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__smart_log.py |  |
 | `SILENCE_SPLIT_MS` | 700 | arsenal/practice.py | silence at least this long always ends a window |

@@ -1,0 +1,70 @@
+{
+  "id": "media.shots",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "cuts",
+      "type": "control.event"
+    },
+    {
+      "port": "shots",
+      "type": "timeline.sequence"
+    },
+    {
+      "port": "proxy",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "threshold",
+      "unit": "score",
+      "range": [
+        0,
+        100
+      ]
+    },
+    {
+      "name": "min_shot_s",
+      "unit": "s",
+      "range": [
+        0,
+        10
+      ]
+    },
+    {
+      "name": "proxy_height",
+      "unit": "px",
+      "range": [
+        144,
+        1080
+      ]
+    },
+    {
+      "name": "proxy_fps",
+      "unit": "fps",
+      "range": [
+        1,
+        60
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 600
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/shots.py: scene detection on a cached 360p30 proxy. auto = PySceneDetect ContentDetector (threshold 27) when scenedetect is installed, else ffmpeg's scene score + the house spike rule (>= 0.30, or >= 0.12 and 8x the 2-s median). F1 on media-oracles synthetic2 (bench matching): spike 0.844, content 0.851. League clock-map jumps are added as cuts. threshold is 0-100 for content and 0-1 for spike. py -m arsenal.media shots <video> [--sheet]."
+}

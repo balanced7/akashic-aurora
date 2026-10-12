@@ -1,0 +1,62 @@
+{
+  "id": "media.import",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "catalog",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "recursive",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "proxy",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "shots",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "peaks",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0",
+  "latency_ms": {
+    "base": 150
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/catalog.py ingest(): probe + sidecar + catalog row + time links for every file first (the editor's quick import: proxy/shots/peaks False), then on request the keyframe index, the 360p analysis proxy, scene cuts, waveform peaks and the League clock map. Files are never copied or changed. Drop path: arsenal/tools/media-import.cmd. py -m arsenal.media import <files or folders> [--quick]."
+}

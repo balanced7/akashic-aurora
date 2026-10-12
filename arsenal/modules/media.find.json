@@ -1,0 +1,33 @@
+{
+  "id": "media.find",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "inputs": [],
+  "outputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "params": [
+    {
+      "name": "limit",
+      "unit": "count",
+      "range": [
+        1,
+        100000
+      ]
+    }
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0",
+  "latency_ms": {
+    "base": 5
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/catalog.py: query the media catalog (SQLite, WAL, rebuilt from the sidecars) by kind, recorded date, track count, tag or artifact; resolve_dropped(name, size, lastModified) turns a browser drop into the real path without copying; link() ties a recording to practice sessions and Riot matches by wall time. py -m arsenal.media find [--kind] [--after] [--resolve NAME SIZE MS] [--rebuild]."
+}

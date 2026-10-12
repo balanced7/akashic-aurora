@@ -1,0 +1,54 @@
+{
+  "id": "media.probe",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "facts",
+      "type": "analysis.features"
+    }
+  ],
+  "params": [
+    {
+      "name": "keyframes",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "mediainfo",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "refresh",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 110
+  },
+  "degradation": {
+    "on_failure": "stall"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/probe.py: one ffprobe read of a file's facts (streams, audio track names, keyframe interval, OBS encoder, recorded time, kind), remembered as a sidecar under <state>/sidecars/<id>.json; never beside or inside the original. ~110 ms cold on a 33-min 2.4 GB recording, ~3 ms from the sidecar; the full keyframe index adds ~1 s. py -m arsenal.media probe <video>."
+}
