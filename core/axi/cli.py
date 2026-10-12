@@ -127,6 +127,10 @@ def unknown_flags(parser: argparse.ArgumentParser, argv: list[str]) -> list[str]
     """`--flags` in argv that the named subcommand does not define, skipping the value of an
     option that takes one. Abbreviations argparse would accept count as known."""
     target, rest = _target(parser, argv)
+    if any(a.nargs in (argparse.REMAINDER, argparse.PARSER) for a in target._actions if not a.option_strings):
+        # The command hands the rest of its arguments to a parser of its own (`task` does, to
+        # the conductor); only that parser knows its flags, so it is the one to refuse them.
+        return []
     takes_value = {}
     for action in target._actions:
         for opt in action.option_strings:

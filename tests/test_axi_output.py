@@ -185,6 +185,25 @@ def test_known_flags_and_their_values_pass(no_harness, monkeypatch, argv):
     assert parse(_lock_parser(), argv).cmd == "lock"
 
 
+def test_flags_for_an_inner_parser_are_left_to_it():
+    """`task propose ... --by x` forwards everything after the action to the conductor's own
+    parser; the scan must not refuse flags only that parser defines."""
+    import argparse
+
+    from core.axi.cli import unknown_flags
+
+    p = AxiArgumentParser(prog="agent_cli.py")
+    sub = p.add_subparsers(dest="cmd")
+    task = sub.add_parser("task")
+    task.add_argument("rest", nargs=argparse.REMAINDER)
+    assert unknown_flags(p, ["task", "propose", "x", "--by", "bench"]) == []
+
+
+def test_task_flags_reach_the_conductor():
+    r = _cli("task", "list", "--help")
+    assert r.returncode == 0
+
+
 def test_the_scan_stops_at_a_bare_double_dash():
     from core.axi.cli import unknown_flags
 
