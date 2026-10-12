@@ -1,0 +1,24 @@
+{
+  "schema": "arsenal.media.league.hud_boxes/v0",
+  "what": "Named League of Legends HUD boxes as FRACTIONS (x, y, w, h) of the frame, one set per layout. hud.box() turns them into pixels for any frame size. Measured on 1920x1080 recordings at the default HUD scale; 4K is the same fractions, untested until a 4K replay is read.",
+  "layouts": {
+    "replay": {
+      "measured_on": [1920, 1080],
+      "source": "2026-10-11 17-51-11 (replay viewer, HUD on): clock under the score banner, playback speed in the replay bar",
+      "boxes": {
+        "clock": [0.484375, 0.077778, 0.046875, 0.024074],
+        "speed": [0.353125, 0.975926, 0.020833, 0.022222]
+      }
+    },
+    "live": {
+      "measured_on": [1920, 1080],
+      "source": "2026-10-10 21-35-21 (live game): the top-right stats strip",
+      "boxes": {
+        "clock": [0.967708, 0.011111, 0.032292, 0.024074],
+        "kda": [0.870833, 0.011111, 0.032292, 0.024074],
+        "cs": [0.930208, 0.011111, 0.017708, 0.024074],
+        "teamkills": [0.816667, 0.011111, 0.046875, 0.024074]
+      }
+    }
+  }
+}

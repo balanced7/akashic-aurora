@@ -1,0 +1,157 @@
+{
+  "id": "media.clockmap",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "clockmap",
+      "type": "analysis.features"
+    },
+    {
+      "port": "jumps",
+      "type": "control.event"
+    }
+  ],
+  "params": [
+    {
+      "name": "every",
+      "unit": "s",
+      "range": [
+        0.04,
+        60
+      ],
+      "default": "keyframes",
+      "note": "'keyframes' (the default: every keyframe, no inter-frame decode) or seconds between reads"
+    },
+    {
+      "name": "start",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ],
+      "default": 0
+    },
+    {
+      "name": "dur",
+      "unit": "s",
+      "range": [
+        0.04,
+        86400
+      ],
+      "default": null,
+      "note": "None (the default) reads to the end; 0 or less is refused"
+    },
+    {
+      "name": "edge_fit",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ],
+      "default": 1
+    },
+    {
+      "name": "eps_frames",
+      "unit": "frames",
+      "range": [
+        0,
+        4
+      ],
+      "default": 1
+    },
+    {
+      "name": "min_pass_s",
+      "unit": "s",
+      "range": [
+        0,
+        5
+      ],
+      "default": 0.25
+    },
+    {
+      "name": "tick_every_s",
+      "unit": "s",
+      "range": [
+        10,
+        3600
+      ],
+      "default": 300
+    },
+    {
+      "name": "max_tick_windows",
+      "unit": "count",
+      "range": [
+        0,
+        50
+      ],
+      "default": 5
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 25000
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane D (claude subagent), for Vandor's review",
+      "kind": "oracle",
+      "what": "OCR clockmap of 2026-10-11 17-51-11 (replay study, 33 min, 1080p60) against the 11 hand-calibrated passes of rec_17-51-11.clockmap.json: all 11 reproduced with the same speed (59 OCR passes, 8 seek transients); the four tight ones differ by +0.010 (early_1x, tol 0.03), -0.008 (A_1x), -0.008 (A_0.25x) and -0.042 s (C_1x, tol 0.05); the seven spot-checked ones by at most 0.40 s (tol 0.5). rec_16-50-20: both passes within 0.022 s. The live recording 2026-10-10 21-35-21 maps as ONE 1x pass, offset -151.633 (ticks at file 300.633/600.633/1200.633/1500.617 s read in software decode agree); the spec's -152 was the keyframe-quantised bench value. to_file(1442.051) returns exactly the 1x pass (file 1596.60) and the 0.25x pass (file 1621.021, 0.75 frame from the TTK-measured death frame 1621.033).",
+      "measured": {
+        "hand_passes_reproduced": "11/11",
+        "early_1x_diff_s": 0.01,
+        "A_1x_diff_s": -0.008,
+        "A_0.25x_diff_s": -0.008,
+        "C_1x_diff_s": -0.042,
+        "live_offset_s": -151.633,
+        "to_file_24_02_quarter_vs_ttk_frames": 0.75,
+        "seconds_17_51_11_edge_fit": 22.0,
+        "seconds_17_51_11_keyframes_only": 4.8,
+        "seconds_21_35_21": 6.3,
+        "windows_17_51_11": 40
+      },
+      "how": "py -m pytest tests/test_arsenal_media_league_clock.py -q (templates built once with clockmap --train-templates)"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane D (claude subagent), for Vandor's review",
+      "kind": "measure",
+      "what": "Digit-template reader (the fallback while rapidocr is not installed): templates cut from 826 keyframe clock crops of 17-51-11 (replay), 21-35-21 (live) and 16-50-20 (replay) that RapidOCR labelled in the research venv; even keyframes build, odd ones test: 412/412 held-out reads right, 0 wrong, 0 refused; about 0.4 ms a read. A 2x upscaled (3840x2160) replay frame reads 24:02 through the same fractions. A synthetic 720p replay (Hershey-font clock, rewind at 12 s, 0.25x from 20 s, 1x from 32 s) is recovered exactly: every offset and every join within one frame.",
+      "measured": {
+        "labelled_crops": 826,
+        "held_out_right": 412,
+        "held_out_wrong": 0,
+        "ms_per_read": 0.4,
+        "training_seconds": 40.9
+      },
+      "how": "py -m arsenal.media clockmap --train-templates <17-51-11> <21-35-21> <16-50-20> --ocr-python <tv venv python>"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane D (claude subagent), review fix pass, for Vandor's review",
+      "kind": "measure",
+      "what": "Review fixes re-measured. every=<s> samples through frames.at_times (each frame named by its own pts; the fps filter's output tick had made two fake pauses, a fake skip and a fake rewind): every=1 and every=2.5 on the synthetic replay now give the 4 true passes, offsets within one frame. A slow run with no tick of its own no longer borrows the next pass's first tick (_settle): the synthetic 2 s 0.25x tap now says 109.16 +-0.33 for a truth of 109.4 (it said 109.475 +-0.008), a span cut at 30 s says 98.72 +-0.22 for 98.7 (it said 98.925 +-0.008). On 17-51-11 the 11 hand passes and to_file(1442.051) are unchanged; 59 passes, 7 seek transients; 4 short slow passes (file 27.4, 470.9, 716.9, 1470.7 s) that claimed +-0.004 s from the next pass's tick now fit from their reads at +-0.29 to 0.37 s. Events carry tol_s. A range with no frame or a map with no pass fails closed.",
+      "measured": {
+        "hand_passes_reproduced": "11/11",
+        "passes_17_51_11": 59,
+        "transients_17_51_11": 7,
+        "joins_now_reads_fit": 4,
+        "seconds_17_51_11_edge_fit": 22.2
+      },
+      "how": "py -m pytest tests/test_arsenal_media_league_clock.py -q"
+    }
+  ],
+  "notes": "arsenal/media/league/clock.py: League of Legends HUD clock -> studio.clockmap.v1 (game_t = speed * file_t + offset per replay pass; rewinds, skips, 0.25x/0.5x/2x/4x and pauses). Reads the clock on every keyframe, then decodes the joins and one window per tick-less run at the full frame rate so the seconds tick pins each offset to one frame x speed. Reader: rapidocr when installed, else digit templates under <state>/league/digit_templates (local only: Riot's font). to_game / to_file / as_clockmaps (timebase.ClockMap per pass). league/live.py gives an exact map for live games from the Live Client Data API. py -m arsenal.media clockmap <video>."
+}

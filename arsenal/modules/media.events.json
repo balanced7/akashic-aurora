@@ -1,0 +1,131 @@
+{
+  "id": "media.events",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    },
+    {
+      "port": "clockmap",
+      "type": "analysis.features"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "events",
+      "type": "control.event"
+    },
+    {
+      "port": "fights",
+      "type": "timeline.sequence"
+    }
+  ],
+  "params": [
+    {
+      "name": "rules.kill.lead_s",
+      "unit": "s",
+      "range": [
+        0,
+        120
+      ],
+      "default": 15,
+      "note": "windows(rules={'kill': (lead_s, after_s)}): game seconds before a kill"
+    },
+    {
+      "name": "rules.kill.after_s",
+      "unit": "s",
+      "range": [
+        0,
+        60
+      ],
+      "default": 5
+    },
+    {
+      "name": "rules.death.lead_s",
+      "unit": "s",
+      "range": [
+        0,
+        120
+      ],
+      "default": 40,
+      "note": "the player's own death (with player=...)"
+    },
+    {
+      "name": "rules.death.after_s",
+      "unit": "s",
+      "range": [
+        0,
+        60
+      ],
+      "default": 5
+    },
+    {
+      "name": "rules.objective.lead_s",
+      "unit": "s",
+      "range": [
+        0,
+        120
+      ],
+      "default": 30,
+      "note": "ELITE_MONSTER_KILL and BUILDING_KILL"
+    },
+    {
+      "name": "rules.objective.after_s",
+      "unit": "s",
+      "range": [
+        0,
+        60
+      ],
+      "default": 10
+    },
+    {
+      "name": "merge_gap_s",
+      "unit": "s",
+      "range": [
+        0,
+        120
+      ],
+      "default": 10,
+      "note": "windows merge, in order of their start, when one starts within this of the previous one's end"
+    }
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0",
+  "latency_ms": {
+    "base": 15
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane D (claude subagent), for Vandor's review",
+      "kind": "oracle",
+      "what": "NA1_5658447097 (patch 16.20, 1629 s) from cached match.json + timeline.json: every participant's kills and deaths in the summary equal the CHAMPION_KILL counts (Draven 31/8); Draven's boots (3006) are reported from participant.roleBoundItem. Joined through the OCR clockmap of 17-51-11: the 24:02 MF-kills-Draven event lands at file 1621.021 in the 0.25x pass, 0.0125 s (0.75 frame) from the death frame the TTK work measured (1612.0 + 542/60 s); the final-fight kills (Mord 26:14.879, Galio 26:17.143, Swain 26:17.310, Amumu 26:18.364) land 0.033 s from the hand-calibrated 0.25x pass.",
+      "measured": {
+        "kda_agree": "10/10",
+        "ttk_death_frame_diff_frames": 0.75,
+        "final_fight_diff_s": 0.033,
+        "join_ms_1009_events": 8
+      },
+      "how": "py -m pytest tests/test_arsenal_media_league_events.py -q"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane D (claude subagent), review fix pass, for Vandor's review",
+      "kind": "oracle",
+      "what": "Fight windows now merge in order of window start, so a death after a kill keeps its 40 s lead-in. NA1_5658447097 with player=Draven: 0 of his 8 deaths lose lead-in (3 did before: 4:20, 12:28 and 17:56 lost 14-24 s); 14 fights, disjoint by more than merge_gap_s. An unknown player and a missing video now fail closed with one line; the clockmap cache is <state>/clockmap/<media id>.clockmap.json, the catalog's key.",
+      "measured": {
+        "draven_deaths": 8,
+        "death_lead_ins_truncated": 0,
+        "fights_player_draven": 14
+      },
+      "how": "py -m pytest tests/test_arsenal_media_league_events.py -q"
+    }
+  ],
+  "notes": "arsenal/media/league/riot.py + events.py: a match's cached Riot record (match-v5 + timeline, typed Kill/ItemEvent/WardEvent/Objective/LevelUp/SkillUp, builds including roleBoundItem, mm:ss) joined onto a recording through its clockmap: every event with every file time that shows it (pass, speed), and fights (15/5 s around a kill, 40/5 s around the player's death, 30/10 s around an objective, merged within 10 s) with their file spans. v0 reads cached JSON only; nothing calls Riot. py -m arsenal.media events <video> --match NA1_5658447097 [--player <name>] [--csv out]."
+}
