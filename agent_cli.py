@@ -15346,21 +15346,26 @@ def _human_alias_list(console, doc):
 def cmd_run(args):
     """Execute an authored alias. Steps re-enter THIS door as subprocesses -- sugar-only by
     construction; the alias can do nothing an agent couldn't type at the CLI itself."""
+    import shlex
     import subprocess
 
+    from core.axi import out
     from core.toolbelt.registry import Toolbelt
 
-    tb = Toolbelt(args.agent_id)
+    cli, me = _cli(), args.agent_id
+    tb = Toolbelt(me)
     try:
         steps = tb.resolve(args.name, args=args.args)
-    except (KeyError, ValueError) as e:
-        print(f"[run] {e}")
-        return 1
+    except KeyError as e:
+        return out.fail(str(e).strip("\"'"), code="NOT_FOUND", hints=[f"{cli} alias {me} list"])
+    except ValueError as e:  # a macro given too few arguments; exit 1 as before
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} run {me} {args.name} --dry <args>"])
     if args.dry:
-        for s in steps:
-            print("  " + " ".join(s))
-        return 0
+        doc = {"alias": args.name, "total": len(steps), "steps": [shlex.join(s) for s in steps]}
+        return out.emit(doc, hints=[f"{cli} run {me} {shlex.join([args.name, *args.args])}"], title="Dry run")
     here = os.path.abspath(__file__)
+    agent = out.is_agent()
+    ran: list[tuple[list[str], int]] = []
 
     def _invoke(argv):
         # stdout-surfacing (Daniil pin 6ba50eab34). The old subprocess.call inherited handles, so
@@ -15369,7 +15374,12 @@ def cmd_run(args):
         # removes the whole class: we read the child's bytes explicitly and write them to OUR
         # current stdout, so a step's real output always reaches the caller regardless of tty,
         # buffering mode, or who launched agent_cli.py. rc still governs stop-at-first-failure.
-        print(f"[run:{args.name}] -> {' '.join(argv)}", flush=True)
+        # The step's own output is the step's: only the header line before it is run's framing.
+        n = f"{len(ran) + 1}/{len(steps)}"
+        if agent:
+            print(f"step {n}: {shlex.join(argv)}", flush=True)
+        else:
+            out._console(sys.stdout).print(f"[bold cyan]▸ step {n}[/]  {out._esc(shlex.join(argv))}")
         r = subprocess.run(
             [sys.executable, here, *list(argv)], capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
@@ -15379,11 +15389,37 @@ def cmd_run(args):
         if r.stderr:
             sys.stderr.write(r.stderr)
             sys.stderr.flush()
+        ran.append((argv, r.returncode))
         return r.returncode
 
     rc = tb.resolve_and_run(args.name, runner=_invoke, args=args.args)
-    print(f"[run:{args.name}] {'done' if rc == 0 else f'stopped rc={rc}'}")
+    doc: dict = {"alias": args.name, "status": "done" if rc == 0 else "stopped", "steps": len(steps), "ran": len(ran)}
+    hints: list[str] = []
+    if rc != 0:  # AXI section 4: say which step stopped it and what never ran, not only the rc
+        failed, code = ran[-1] if ran else ([], rc)
+        doc.update(failed_step=len(ran), failed=shlex.join(failed), exit=code, skipped=len(steps) - len(ran))
+        hints = [f"{cli} {shlex.join(failed)}", f"{cli} kata {me} {args.name}"]
+    if not agent:
+        print()
+    out.emit(doc, hints=hints, human=_human_run, title=None)
     return rc
+
+
+def _human_run(console, doc):
+    """Human view of `run`'s closing line: a green tick when every step ran, else which step
+    stopped it, with what exit code, and how many never ran."""
+    from core.axi import out
+
+    name = out._esc(str(doc["alias"]))
+    if doc["status"] == "done":
+        console.print(f"[green]✓ {name}: {doc['ran']}/{doc['steps']} steps ran[/]")
+        return
+    console.print(
+        f"[red]✗ {name} stopped at step {doc['failed_step']}/{doc['steps']} "
+        f"({out._esc(doc['failed'])}, exit {doc['exit']})[/]"
+    )
+    if doc["skipped"]:
+        console.print(f"[yellow]  {doc['skipped']} step(s) not run[/]")
 
 
 # ---------------------------------------------------------------- S0-alpha: the triage bench

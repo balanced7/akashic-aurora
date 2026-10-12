@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 78 converted to agent and human output.
+121 verbs; 79 converted to agent and human output.
 
 ## `alias`
 
@@ -2593,7 +2593,10 @@ help[1]:
 | | |
 |---|---|
 | Does | execute a toolbelt alias: run &lt;agent&gt; &lt;name&gt; (explicit door -- a real verb can never be shadowed) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 33% before, 90% after |
+| Output tokens | 82 before, 208 after (+154%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/run.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2601,6 +2604,21 @@ help[1]:
 | `<name>` | yes |   | the alias to run |
 | `<args>` |   |   | macro args ($1 $2 ... substitution) |
 | `--dry` |   |   | print the resolved steps, execute nothing |
+
+Agent output of `aurora alias bench mint check --step alias bench list --step locks` on the bench data:
+
+```text
+alias: check
+result: minted
+version: 1
+kind: alias
+evidence: GUESS
+family: UNSORTED
+steps[2]: alias bench list,locks
+help[2]:
+  uv run agent_cli.py run bench check
+  uv run agent_cli.py kata bench check
+```
 
 ## `scope`
 

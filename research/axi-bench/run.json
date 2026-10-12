@@ -1,0 +1,364 @@
+{
+  "verb": "run",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.333,
+    "correct": 10,
+    "asked": 30,
+    "output_tokens": 82,
+    "stdout_chars": 988,
+    "stdout_lines": 19,
+    "cost_usd": 0.0301,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Did every step of the alias finish successfully? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which step number failed?",
+        "expected": 2,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What exit code did the failing step return?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the step `alias bench list` run? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "UNKNOWN",
+          "no",
+          "UNKNOWN",
+          "no"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What exact command would the first step run? Give the command only.",
+        "expected": [
+          "alias bench history land"
+        ],
+        "answers": [
+          "alias bench history land",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Which aliases does bench have? List them separated by commas.",
+        "expected": [
+          "broken",
+          "check",
+          "hist"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "broken, check, hist",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      }
+    ],
+    "runs": {
+      "mint_ok": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "check",
+          "--step",
+          "alias bench list",
+          "--step",
+          "locks"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted check v1 [GUESS] (UNSORTED) (2 step(s)) -- run: uv run agent_cli.py run bench check\n"
+      },
+      "mint_bad": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "broken",
+          "--step",
+          "locks",
+          "--step",
+          "defer bench --done nope --receipt x",
+          "--step",
+          "alias bench list"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted broken v1 [GUESS] (UNSORTED) (3 step(s)) -- run: uv run agent_cli.py run bench broken\n"
+      },
+      "mint_macro": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "hist",
+          "--step",
+          "alias bench history $1"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted hist v1 [GUESS] (UNSORTED) (1 step(s)) -- run: uv run agent_cli.py run bench hist\n"
+      },
+      "ok": {
+        "argv": [
+          "run",
+          "bench",
+          "check"
+        ],
+        "exit": 0,
+        "stdout": "[run:check] -> alias bench list\n# toolbelt: bench -- 3 active (quota 20; evidence confesses: GUESS = never pinned)\n  [UNSORTED]\n    broken               v1  [GUESS]  3 step(s): locks -> defer -> alias\n    check                v1  [GUESS]  2 step(s): alias -> locks\n    hist                 v1  [GUESS]  1 step(s): alias\n[run:check] -> locks\n# no advisory path-locks held\n[run:check] done\n"
+      },
+      "bad": {
+        "argv": [
+          "run",
+          "bench",
+          "broken"
+        ],
+        "exit": 2,
+        "stdout": "[run:broken] -> locks\n# no advisory path-locks held\n[run:broken] -> defer bench --done nope --receipt x\n[defer] \"no pending item with id 'nope' (see: defer <you> --list)\"\n[run:broken] stopped rc=2\n"
+      },
+      "dry": {
+        "argv": [
+          "run",
+          "bench",
+          "hist",
+          "land",
+          "--dry"
+        ],
+        "exit": 0,
+        "stdout": "  alias bench history land\n"
+      },
+      "missing": {
+        "argv": [
+          "run",
+          "bench",
+          "ghost"
+        ],
+        "exit": 1,
+        "stdout": "[run] \"no active toolbelt entry 'ghost' for bench (have: broken, check, hist)\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.9,
+    "correct": 27,
+    "asked": 30,
+    "output_tokens": 208,
+    "stdout_chars": 1813,
+    "stdout_lines": 75,
+    "cost_usd": 0.0272,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Did every step of the alias finish successfully? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "Yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which step number failed?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exit code did the failing step return?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the step `alias bench list` run? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would the first step run? Give the command only.",
+        "expected": [
+          "alias bench history land"
+        ],
+        "answers": [
+          "alias bench history land",
+          "alias bench history land",
+          "bench history land",
+          "alias bench history land",
+          "alias bench history land"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which aliases does bench have? List them separated by commas.",
+        "expected": [
+          "broken",
+          "check",
+          "hist"
+        ],
+        "answers": [
+          "broken, check, hist",
+          "broken, check, hist",
+          "UNKNOWN",
+          "UNKNOWN",
+          "broken, check, hist"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "mint_ok": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "check",
+          "--step",
+          "alias bench list",
+          "--step",
+          "locks"
+        ],
+        "exit": 0,
+        "stdout": "alias: check\nresult: minted\nversion: 1\nkind: alias\nevidence: GUESS\nfamily: UNSORTED\nsteps[2]: alias bench list,locks\nhelp[2]:\n  uv run agent_cli.py run bench check\n  uv run agent_cli.py kata bench check\n"
+      },
+      "mint_bad": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "broken",
+          "--step",
+          "locks",
+          "--step",
+          "defer bench --done nope --receipt x",
+          "--step",
+          "alias bench list"
+        ],
+        "exit": 0,
+        "stdout": "alias: broken\nresult: minted\nversion: 1\nkind: alias\nevidence: GUESS\nfamily: UNSORTED\nsteps[3]: locks,defer bench --done nope --receipt x,alias bench list\nhelp[2]:\n  uv run agent_cli.py run bench broken\n  uv run agent_cli.py kata bench broken\n"
+      },
+      "mint_macro": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "hist",
+          "--step",
+          "alias bench history $1"
+        ],
+        "exit": 0,
+        "stdout": "alias: hist\nresult: minted\nversion: 1\nkind: macro\nevidence: GUESS\nfamily: UNSORTED\nsteps[1]: alias bench history $1\nhelp[2]:\n  uv run agent_cli.py run bench hist <arg1>\n  uv run agent_cli.py kata bench hist\n"
+      },
+      "ok": {
+        "argv": [
+          "run",
+          "bench",
+          "check"
+        ],
+        "exit": 0,
+        "stdout": "step 1/2: alias bench list\nagent: bench\nactive: 3\nquota: 20\naliases[3]{name,family,version,evidence,steps}:\n  broken,UNSORTED,1,GUESS,locks -> defer -> alias\n  check,UNSORTED,1,GUESS,alias -> locks\n  hist,UNSORTED,1,GUESS,alias\nhelp[2]:\n  uv run agent_cli.py run bench <name>\n  uv run agent_cli.py kata bench <name>\nstep 2/2: locks\nlocks: 0 advisory path-locks held\nhelp[1]:\n  uv run agent_cli.py lock <agent_id> <path>\nalias: check\nstatus: done\nsteps: 2\nran: 2\n"
+      },
+      "bad": {
+        "argv": [
+          "run",
+          "bench",
+          "broken"
+        ],
+        "exit": 2,
+        "stdout": "step 1/3: locks\nlocks: 0 advisory path-locks held\nhelp[1]:\n  uv run agent_cli.py lock <agent_id> <path>\nstep 2/3: defer bench --done nope --receipt x\n[defer] \"no pending item with id 'nope' (see: defer <you> --list)\"\nalias: broken\nstatus: stopped\nsteps: 3\nran: 2\nfailed_step: 2\nfailed: defer bench --done nope --receipt x\nexit: 2\nskipped: 1\nhelp[2]:\n  uv run agent_cli.py defer bench --done nope --receipt x\n  uv run agent_cli.py kata bench broken\n"
+      },
+      "dry": {
+        "argv": [
+          "run",
+          "bench",
+          "hist",
+          "land",
+          "--dry"
+        ],
+        "exit": 0,
+        "stdout": "alias: hist\ntotal: 1\nsteps[1]: alias bench history land\nhelp[1]:\n  uv run agent_cli.py run bench hist land\n"
+      },
+      "missing": {
+        "argv": [
+          "run",
+          "bench",
+          "ghost"
+        ],
+        "exit": 1,
+        "stdout": "error: \"no active toolbelt entry 'ghost' for bench (have: broken, check, hist)\"\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py alias bench list\n"
+      }
+    }
+  }
+}
