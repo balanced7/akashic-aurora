@@ -652,38 +652,73 @@ def memreplay_main(args) -> int:
     """`memreplay <action>` -- replay the memory system before and after a lesson (task 08)."""
     from core.metaharness import memreplay
 
-    a = args.action
+    a, cli = args.action, _cli()
     if a == "snapshot":
         p = memreplay.capture(label=args.label or "manual", exclude=tuple(args.exclude or ()))
-        _print({"snapshot": str(p)}, args.json, f"[OK] snapshot {p}")
-        return 0
+        if args.json:
+            _json({"snapshot": str(p)})
+            return 0
+        try:
+            meta = json.loads(p.read_text(encoding="utf-8")).get("meta") or {}
+        except (OSError, ValueError):
+            meta = {}
+        doc = {"snapshot": str(p), "lessons": meta.get("lessons"), "excluded": meta.get("excluded") or []}
+        return out.emit(doc, title="Memory snapshot")  # a confirmation answers itself
     if a == "queue":
         rows = memreplay.queued()
-        _print(rows, args.json, "\n".join(f"  {r['lesson']}: {r['why']} at {r['at']}" for r in rows) or "queue empty")
-        return 0
+        if args.json:
+            _json(rows)
+            return 0
+        # Each lesson once, with its first queued record: the true "before" a replay compares.
+        table = [{"lesson": r["lesson"], "why": r["why"], "at": r["at"]} for r in rows]
+        if not table:  # AXI section 5: an empty queue is said outright
+            return out.emit(
+                {"queued": 0, "lessons": [], "fills": "when a lesson is recorded, edited, graduated or benched"},
+                title="Memory replay queue",
+            )
+        # Draining replays every queued lesson with real runs, so the hint carries a spend cap.
+        return out.emit(
+            {"queued": len(table), "lessons": table},
+            hints=[
+                f"{cli} memreplay run --lesson {table[0]['lesson']} --base baseline --daily-usd 5",
+                f"{cli} memreplay drain --base baseline --daily-usd 5",
+            ],
+            title="Memory replay queue",
+        )
     if a == "run":
         if not (args.lesson and args.base):
-            print("ERROR: `memreplay run` needs --lesson and --base (the candidate whose harness the arms share)")
-            return 2
-        out = memreplay.experiment(
+            return _usage(
+                "`memreplay run` needs --lesson and --base (the candidate whose harness the arms share)",
+                f"{cli} memreplay run --lesson {args.lesson or '<name>'} --base {args.base or 'baseline'} --daily-usd 5",
+            )
+        res = memreplay.experiment(
             args.lesson, args.base, scenarios=args.scenario or None, trials=args.trials, daily_usd=args.daily_usd
         )
-        _print(out, args.json, json.dumps(out.get("proven_effect") or out, indent=1))
-        return 0 if "error" not in out else 1
+        if args.json:
+            _json(res)
+            return 0 if "error" not in res else 1
+        if "error" in res:
+            return out.fail(str(res["error"]), code="REPLAY_FAILED", hints=[f"{cli} memreplay queue"])
+        eff = res.get("proven_effect") or res
+        return out.emit({"lesson": args.lesson, "base": args.base, **eff}, title=f"Memory replay · {args.lesson}")
     if a == "drain":
         if args.daily_usd is None or not args.base:
-            print("ERROR: `memreplay drain` needs --base and --daily-usd")
-            return 2
-        out = memreplay.drain(args.base, daily_usd=args.daily_usd, trials=args.trials)
-        _print(
-            out,
-            args.json,
-            "\n".join(f"  {o['lesson']}: {(o.get('proven_effect') or {}).get('verdict', o.get('error'))}" for o in out)
-            or "nothing queued",
+            return _usage(
+                "`memreplay drain` needs --base and --daily-usd",
+                f"{cli} memreplay drain --base {args.base or 'baseline'} --daily-usd 5",
+            )
+        res = memreplay.drain(args.base, daily_usd=args.daily_usd, trials=args.trials)
+        if args.json:
+            _json(res)
+            return 0
+        table = [
+            {"lesson": o.get("lesson"), "verdict": (o.get("proven_effect") or {}).get("verdict", o.get("error"))}
+            for o in res
+        ]
+        return out.emit(
+            {"replayed": len(table), "lessons": table}, hints=[f"{cli} memreplay queue"], title="Memory replay drain"
         )
-        return 0
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+    return _usage(f"unknown action {a!r}", f"{cli} memreplay --help")
 
 
 def precompile_main(args) -> int:

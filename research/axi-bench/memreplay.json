@@ -1,0 +1,246 @@
+{
+  "verb": "memreplay",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.76,
+    "correct": 19,
+    "asked": 25,
+    "output_tokens": 74,
+    "stdout_chars": 390,
+    "stdout_lines": 6,
+    "cost_usd": 0.0239,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are queued for a memory replay?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "UNKNOWN",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Why was the lesson stage_paths queued? Give the reason only.",
+        "expected": "new",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Was a snapshot written? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this memreplay run command? Give the flag only.",
+        "expected": "--base",
+        "answers": [
+          "--base",
+          "--base",
+          "--base",
+          "--base",
+          "--base"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this memreplay drain command? Give the flag only.",
+        "expected": "--daily-usd",
+        "answers": [
+          "--daily-usd",
+          "--daily-usd",
+          "--daily-usd",
+          "--daily-usd",
+          "--daily-usd"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "queue": {
+        "argv": [
+          "memreplay",
+          "queue"
+        ],
+        "exit": 0,
+        "stdout": "  port_clash: new at 2026-10-12T15:45:06+00:00\n  stage_paths: new at 2026-10-12T15:45:07+00:00\n  keep_me: new at 2026-10-12T15:45:07+00:00\n"
+      },
+      "snapshot": {
+        "argv": [
+          "memreplay",
+          "snapshot",
+          "--label",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "[OK] snapshot /tmp/axi-bench-52jbxqed/data/metaharness/memsnap/20261012T154509-bench-4422ffb8c377.json\n"
+      },
+      "run": {
+        "argv": [
+          "memreplay",
+          "run",
+          "--lesson",
+          "port_clash"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: `memreplay run` needs --lesson and --base (the candidate whose harness the arms share)\n"
+      },
+      "drain": {
+        "argv": [
+          "memreplay",
+          "drain",
+          "--base",
+          "baseline"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: `memreplay drain` needs --base and --daily-usd\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 79,
+    "stdout_chars": 800,
+    "stdout_lines": 19,
+    "cost_usd": 0.0267,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are queued for a memory replay?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Why was the lesson stage_paths queued? Give the reason only.",
+        "expected": "new",
+        "answers": [
+          "new",
+          "new",
+          "new",
+          "new",
+          "UNKNOWN"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Was a snapshot written? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this memreplay run command? Give the flag only.",
+        "expected": "--base",
+        "answers": [
+          "--base",
+          "--base",
+          "--base",
+          "--base",
+          "--base"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from this memreplay drain command? Give the flag only.",
+        "expected": "--daily-usd",
+        "answers": [
+          "--daily-usd",
+          "--daily-usd",
+          "--daily-usd",
+          "--daily-usd",
+          "--daily-usd"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "queue": {
+        "argv": [
+          "memreplay",
+          "queue"
+        ],
+        "exit": 0,
+        "stdout": "queued: 3\nlessons[3]{lesson,why,at}:\n  port_clash,new,\"2026-10-12T15:45:41+00:00\"\n  stage_paths,new,\"2026-10-12T15:45:41+00:00\"\n  keep_me,new,\"2026-10-12T15:45:42+00:00\"\nhelp[2]:\n  uv run agent_cli.py memreplay run --lesson port_clash --base baseline --daily-usd 5\n  uv run agent_cli.py memreplay drain --base baseline --daily-usd 5\n"
+      },
+      "snapshot": {
+        "argv": [
+          "memreplay",
+          "snapshot",
+          "--label",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "snapshot: /tmp/axi-bench-52jbxqed/data/metaharness/memsnap/20261012T154543-bench-0a818036d758.json\nlessons: 3\nexcluded: []\n"
+      },
+      "run": {
+        "argv": [
+          "memreplay",
+          "run",
+          "--lesson",
+          "port_clash"
+        ],
+        "exit": 2,
+        "stdout": "error: `memreplay run` needs --lesson and --base (the candidate whose harness the arms share)\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py memreplay run --lesson port_clash --base baseline --daily-usd 5\n"
+      },
+      "drain": {
+        "argv": [
+          "memreplay",
+          "drain",
+          "--base",
+          "baseline"
+        ],
+        "exit": 2,
+        "stdout": "error: `memreplay drain` needs --base and --daily-usd\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py memreplay drain --base baseline --daily-usd 5\n"
+      }
+    }
+  }
+}

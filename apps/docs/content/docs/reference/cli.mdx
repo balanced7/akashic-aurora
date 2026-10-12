@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 85 converted to agent and human output.
+121 verbs; 86 converted to agent and human output.
 
 ## `alias`
 
@@ -1933,7 +1933,10 @@ help[1]:
 | | |
 |---|---|
 | Does | meta-harness memory replay (task 08): does a lesson change outcomes? snapshot, queue, run, drain |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 76% before, 96% after |
+| Output tokens | 74 before, 79 after (+7%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/memreplay.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1946,6 +1949,19 @@ help[1]:
 | `--label` |   |   | snapshot: a label for the file name |
 | `--exclude` |   |   | snapshot: a lesson to leave out (repeatable) |
 | `--json` |   |   |   |
+
+Agent output of `aurora memreplay queue` on the bench data:
+
+```text
+queued: 3
+lessons[3]{lesson,why,at}:
+  port_clash,new,"2026-10-12T15:45:41+00:00"
+  stage_paths,new,"2026-10-12T15:45:41+00:00"
+  keep_me,new,"2026-10-12T15:45:42+00:00"
+help[2]:
+  uv run agent_cli.py memreplay run --lesson port_clash --base baseline --daily-usd 5
+  uv run agent_cli.py memreplay drain --base baseline --daily-usd 5
+```
 
 ## `modes`
 
