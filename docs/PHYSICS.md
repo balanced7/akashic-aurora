@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ae841229. A bound you discover by collision is not awareness -- this sheet
+> Derived at 2b9ee922. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (276 names)
+## Configuration flags (278 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -167,6 +167,7 @@ Class: reference
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `APPDATA` | `` | core/tools/everything.py |
+| `ARSENAL_MEDIA_RECEIPTS` | `` | arsenal/media/receipt.py |
 | `BIFROST_AGENT` | `` | scripts/wire_journal.py |
 | `BIFROST_AGENT_ID` | `` | core/comm/conductor_gate.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
@@ -254,7 +255,7 @@ Class: reference
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
-| `LOCALAPPDATA` | `""` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/infrastructure/background_stdio.py +2 |
+| `LOCALAPPDATA` | `""` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, arsenal/media/ff.py +3 |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
@@ -267,6 +268,7 @@ Class: reference
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py |
 | `PYTEST_CURRENT_TEST` | `` | core/comm/bus.py, core/comm/wake_seat.py, scripts/ops/archive_transcripts.py |
 | `PYTHONPATH` | `""` | agent_cli.py, core/__init__.py, scripts/quiet/sitecustomize.py |
+| `PYTHONUTF8` | `` | arsenal/media/ff.py |
 | `REDIS_DB` | `` | core/foundation/redis_connection.py |
 | `REDIS_HOST` | `"localhost"` | core/foundation/redis_connection.py, research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, scripts/ops/archive_ephemeral.py |
 | `REDIS_PASSWORD` | `""` | research/in-flight/t342/dead-modules/deployment_framework.py |
