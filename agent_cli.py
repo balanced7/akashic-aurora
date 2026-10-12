@@ -11603,22 +11603,57 @@ def cmd_captions(args):
     pulls video. The cleaner is pinned pure (tests/test_w154_captions_verb.py); the
     network half stays yt-dlp's contract. Named captions, never transcript: the eye
     owns that word, and load-bearing vocabulary does not fork for recreation."""
+    import shlex
     from pathlib import Path as _P
 
-    from scripts.yt_captions import fetch
+    from core.axi import out
+    from scripts.yt_captions import MISSING_YTDLP_HINT, fetch
 
-    out = args.out or str(_P.home() / "Desktop" / "captions")
+    cli = _cli()
+    out_dir = args.out or str(_P.home() / "Desktop" / "captions")
     try:
-        txts = fetch(args.url, out, args.langs, args.keep_vtt, args.punctuate)
+        txts = fetch(args.url, out_dir, args.langs, args.keep_vtt, args.punctuate)
     except RuntimeError as e:
-        print(str(e))
-        return 2
+        # Exit 2 as before. A missing yt-dlp is a setup state with one fix; anything else is
+        # yt-dlp's own failure, its stderr tail carried as the message.
+        missing = str(e) == MISSING_YTDLP_HINT
+        return out.fail(
+            "yt-dlp is not importable from this interpreter" if missing else str(e),
+            code="YTDLP_MISSING" if missing else "YTDLP_FAILED",
+            hints=[_install_hint("yt-dlp")] if missing else [],
+            exit_code=2,
+        )
     if not txts:
-        print("no caption tracks found (the video may have none in the requested langs)")
-        return 1
+        return out.fail(
+            "no caption tracks found (the video may have none in the requested langs)",
+            code="NO_CAPTIONS",
+            details={"langs": args.langs},
+            hints=[f"{cli} captions {shlex.quote(args.url)} --langs all"],
+        )
+    rows = []
     for t in txts:
-        print(t)
-    return 0
+        try:
+            chars = len(_P(t).read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            chars = None
+        rows.append({"file": str(t), "chars": chars})
+    return out.emit(
+        {"url": args.url, "out_dir": out_dir, "total": len(rows), "files": rows},
+        hints=[f"cat {shlex.quote(str(txts[0]))}"],
+        title=f"Captions · {len(rows)} file(s)",
+    )
+
+
+def _install_hint(package: str) -> str:
+    """The command that installs `package` into THIS interpreter: pip when it has pip, else uv
+    (a uv-made venv has no pip, so `python -m pip` would fail on the fleet's own checkouts)."""
+    import importlib.util
+    import shlex
+
+    exe = shlex.quote(sys.executable)
+    if importlib.util.find_spec("pip") is not None:
+        return f"{exe} -m pip install {package}"
+    return f"uv pip install --python {exe} {package}"
 
 
 def build_sweep(agent_id: str, *, providers=None) -> str:

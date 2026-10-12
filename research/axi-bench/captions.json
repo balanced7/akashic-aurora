@@ -1,0 +1,142 @@
+{
+  "verb": "captions",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.933,
+    "correct": 14,
+    "asked": 15,
+    "output_tokens": 89,
+    "stdout_chars": 248,
+    "stdout_lines": 3,
+    "cost_usd": 0.0143,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Were any caption files written? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "UNKNOWN",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which tool is missing? Give its name only.",
+        "expected": "yt-dlp",
+        "answers": [
+          "yt-dlp",
+          "yt-dlp",
+          "yt-dlp",
+          "yt-dlp",
+          "yt-dlp"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command installs the missing tool? Give the command only.",
+        "expected": [
+          "install",
+          "yt-dlp"
+        ],
+        "answers": [
+          "py -3.11 -m pip install yt-dlp",
+          "py -3.11 -m pip install yt-dlp",
+          "py -3.11 -m pip install yt-dlp",
+          "py -3.11 -m pip install yt-dlp",
+          "py -3.11 -m pip install yt-dlp"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "missing": {
+        "argv": [
+          "captions",
+          "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+        ],
+        "exit": 2,
+        "stdout": "yt-dlp is not importable from this interpreter. Install it into the fleet python:\n    py -3.11 -m pip install yt-dlp\n(then retry; the verb calls `<this python> -m yt_dlp`, so the install must land in the same interpreter family the CLI runs under)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.933,
+    "correct": 14,
+    "asked": 15,
+    "output_tokens": 104,
+    "stdout_chars": 221,
+    "stdout_lines": 4,
+    "cost_usd": 0.0132,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Were any caption files written? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "yes",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which tool is missing? Give its name only.",
+        "expected": "yt-dlp",
+        "answers": [
+          "yt-dlp",
+          "yt-dlp",
+          "yt-dlp",
+          "yt-dlp",
+          "yt-dlp"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command installs the missing tool? Give the command only.",
+        "expected": [
+          "install",
+          "yt-dlp"
+        ],
+        "answers": [
+          "uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp",
+          "uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp",
+          "uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp",
+          "uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp",
+          "uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "missing": {
+        "argv": [
+          "captions",
+          "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+        ],
+        "exit": 2,
+        "stdout": "error: yt-dlp is not importable from this interpreter\ncode: YTDLP_MISSING\nhelp[1]:\n  uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp\n"
+      }
+    }
+  }
+}

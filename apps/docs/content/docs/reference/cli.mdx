@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 115 converted to agent and human output.
+121 verbs; 116 converted to agent and human output.
 
 ## `alias`
 
@@ -539,7 +539,10 @@ orientation[28]{line}:
 | | |
 |---|---|
 | Does | YouTube captions -&gt; clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 93% before, 93% after |
+| Output tokens | 89 before, 104 after (+17%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/captions.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -548,6 +551,15 @@ orientation[28]{line}:
 | `--langs` |   |   | yt-dlp sub-langs spec (default en.*) |
 | `--keep-vtt` |   |   | keep the raw .vtt beside the .txt |
 | `--punctuate` |   | hybrid,gaps,model,line,none | derived-text pass: hybrid (default -- model boundaries + deterministic capitalization), gaps (VTT timing), model (fullstop raw), line (legacy per-cue), none (raw clean) |
+
+Agent output of `aurora captions https://www.youtube.com/watch?v=aaaaaaaaaaa` on the bench data:
+
+```text
+error: yt-dlp is not importable from this interpreter
+code: YTDLP_MISSING
+help[1]:
+  uv pip install --python /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.venv/bin/python yt-dlp
+```
 
 ## `capture`
 
