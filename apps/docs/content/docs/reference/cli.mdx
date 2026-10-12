@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 7 converted to agent and human output.
+121 verbs; 8 converted to agent and human output.
 
 ## `alias`
 
@@ -1407,7 +1407,10 @@ help[1]:
 | | |
 |---|---|
 | Does | recall-at-action: relevant lessons/locks for a path or command |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 215 before, 140 after (-35%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/recall-at.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1420,6 +1423,22 @@ help[1]:
 | `--limit` |   |   | max items to surface (default 3) |
 | `--hint-style` |   | cli,tool | escape-hint vocabulary: cli verbs (default) or tool-loop tool names (T048) |
 | `--json` |   |   |   |
+
+Agent output of `aurora recall-at --command bus hangs at start restart embedded redis` on the bench data:
+
+```text
+command: bus hangs at start restart embedded redis
+total: 2
+lessons[2]{status,by,lesson,source}:
+  partial advice,alice,"Use when the bus hangs at start: restart the embedded redis before retrying.","learn:experiment:bus_restart"
+  worked,carol,"Use when the bus hangs at start: read the embedded redis log first.","learn:experiment:bus_hang_logs"
+verbs[1]{verb,purpose}:
+  start,start one course and designate different lecturer/auditor seats
+legend: "worked=the author's own report; advice=a suggestion, not an observation"
+help[2]:
+  uv run agent_cli.py recall --full learn:experiment:bus_restart
+  uv run agent_cli.py recall-feedback --source learn:experiment:bus_restart --useful
+```
 
 ## `recall-counters`
 

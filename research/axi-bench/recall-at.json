@@ -1,0 +1,276 @@
+{
+  "verb": "recall-at",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 215,
+    "stdout_chars": 1369,
+    "stdout_lines": 13,
+    "cost_usd": 0.0285,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which agent wrote the bus_restart lesson?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the bus_restart lesson's author report that it worked, partly worked, or is it unverified? Answer worked, partial or unverified.",
+        "expected": "partial",
+        "answers": [
+          "partial",
+          "partial",
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent holds a lock on this path?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many relevant lessons cleared the floor in total?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many relevant lessons were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command shows the complete record of the lesson shown? Give the command only.",
+        "expected": [
+          "--full",
+          "learn:experiment:bus_restart"
+        ],
+        "answers": [
+          "recall --full learn:experiment:bus_restart",
+          "recall --full learn:experiment:bus_restart",
+          "recall --full learn:experiment:bus_restart",
+          "recall --full learn:experiment:bus_restart",
+          "recall --full learn:experiment:bus_restart"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "cmd": {
+        "argv": [
+          "recall-at",
+          "--command",
+          "bus hangs at start restart embedded redis"
+        ],
+        "exit": 0,
+        "stdout": "Recall-at-action (Akashic) - facts relevant to what you're about to do:\n[partial alice advice] Use when the bus hangs at start: restart the embedded redis before retrying. (source: learn:experiment:bus_restart)\n[worked carol] Use when the bus hangs at start: read the embedded redis log first. (source: learn:experiment:bus_hang_logs)\n[verb] `uv run agent_cli.py start` \u2014 start one course and designate different lecturer/auditor seats\n[legend] worked=self-reported | helped=auto credit | useful=vote | unverified=unconfirmed | anti-pattern=known-bad | advice=forward-looking\n"
+      },
+      "cut": {
+        "argv": [
+          "recall-at",
+          "--command",
+          "bus hangs at start restart embedded redis",
+          "--limit",
+          "1"
+        ],
+        "exit": 0,
+        "stdout": "Recall-at-action (Akashic) - facts relevant to what you're about to do:\n[partial alice advice] Use when the bus hangs at start: restart the embedded redis before retrying. (source: learn:experiment:bus_restart)\n[verb] `uv run agent_cli.py start` \u2014 start one course and designate different lecturer/auditor seats\n... 1 of 2 relevant lesson(s) shown \u2014 `recall-at --limit 2` for the rest, or `recall --full <source>` for any one's whole record\n[legend] worked=self-reported | helped=auto credit | useful=vote | unverified=unconfirmed | anti-pattern=known-bad | advice=forward-looking\n"
+      },
+      "path": {
+        "argv": [
+          "recall-at",
+          "--path",
+          "core/comm/bus.py"
+        ],
+        "exit": 0,
+        "stdout": "Recall-at-action (Akashic) - facts relevant to what you're about to do:\n[lock] bob holds an advisory lock on this path \u2014 coordinate before editing\n"
+      },
+      "none": {
+        "argv": [
+          "recall-at",
+          "--command",
+          "zzzq qqqz"
+        ],
+        "exit": 0,
+        "stdout": "# recall-at-action: nothing relevant (silence beats a weak hint)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 140,
+    "stdout_chars": 1458,
+    "stdout_lines": 32,
+    "cost_usd": 0.0287,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which agent wrote the bus_restart lesson?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the bus_restart lesson's author report that it worked, partly worked, or is it unverified? Answer worked, partial or unverified.",
+        "expected": "partial",
+        "answers": [
+          "partial",
+          "partial",
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent holds a lock on this path?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many relevant lessons cleared the floor in total?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many relevant lessons were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "total: 0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command shows the complete record of the lesson shown? Give the command only.",
+        "expected": [
+          "--full",
+          "learn:experiment:bus_restart"
+        ],
+        "answers": [
+          "uv run agent_cli.py recall --full learn:experiment:bus_restart",
+          "uv run agent_cli.py recall --full learn:experiment:bus_restart",
+          "uv run agent_cli.py recall --full learn:experiment:bus_restart",
+          "uv run agent_cli.py recall --full learn:experiment:bus_restart",
+          "uv run agent_cli.py recall --full learn:experiment:bus_restart"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "cmd": {
+        "argv": [
+          "recall-at",
+          "--command",
+          "bus hangs at start restart embedded redis"
+        ],
+        "exit": 0,
+        "stdout": "command: bus hangs at start restart embedded redis\ntotal: 2\nlessons[2]{status,by,lesson,source}:\n  partial advice,alice,\"Use when the bus hangs at start: restart the embedded redis before retrying.\",\"learn:experiment:bus_restart\"\n  worked,carol,\"Use when the bus hangs at start: read the embedded redis log first.\",\"learn:experiment:bus_hang_logs\"\nverbs[1]{verb,purpose}:\n  start,start one course and designate different lecturer/auditor seats\nlegend: \"worked=the author's own report; advice=a suggestion, not an observation\"\nhelp[2]:\n  uv run agent_cli.py recall --full learn:experiment:bus_restart\n  uv run agent_cli.py recall-feedback --source learn:experiment:bus_restart --useful\n"
+      },
+      "cut": {
+        "argv": [
+          "recall-at",
+          "--command",
+          "bus hangs at start restart embedded redis",
+          "--limit",
+          "1"
+        ],
+        "exit": 0,
+        "stdout": "command: bus hangs at start restart embedded redis\ntotal: 2\nshown: 1\nlessons[1]{status,by,lesson,source}:\n  partial advice,alice,\"Use when the bus hangs at start: restart the embedded redis before retrying.\",\"learn:experiment:bus_restart\"\nverbs[1]{verb,purpose}:\n  start,start one course and designate different lecturer/auditor seats\nlegend: \"advice=a suggestion, not an observation\"\nhelp[2]:\n  uv run agent_cli.py recall --full learn:experiment:bus_restart\n  uv run agent_cli.py recall-at --command 'bus hangs at start restart embedded redis' --limit 2\n"
+      },
+      "path": {
+        "argv": [
+          "recall-at",
+          "--path",
+          "core/comm/bus.py"
+        ],
+        "exit": 0,
+        "stdout": "path: core/comm/bus.py\ntotal: 0\nlocked_by[1]: bob\nhelp[1]:\n  uv run agent_cli.py locks\n"
+      },
+      "none": {
+        "argv": [
+          "recall-at",
+          "--command",
+          "zzzq qqqz"
+        ],
+        "exit": 0,
+        "stdout": "result: nothing relevant (silence beats a weak hint)\ncommand: zzzq qqqz\ntotal: 0\nhelp[1]:\n  uv run agent_cli.py recall \"<keyword>\"\n"
+      }
+    }
+  }
+}

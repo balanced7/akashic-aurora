@@ -45,11 +45,25 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 # ----------------------------------------------------------------------- recall-at
+#: What recall-at was asked about, as its flags name it.
+_TARGETS = ("command", "path", "gesture", "subject")
+#: The provenance words recall-at prints, defined in band (the hook's render() keeps its own legend).
+_LEGEND = {
+    "worked": "the author's own report",
+    "unverified": "never confirmed",
+    "advice": "a suggestion, not an observation",
+    "anti-pattern": "known-bad",
+    "probation": "benched, being re-tested",
+    "helped": "automatic credit",
+    "useful": "votes",
+}
+
+
 def cmd_recall_at(args):
     """Recall-at-action: given a file path and/or command, surface the FEW highest-signal active
     lessons + a lock/peer warning with source pointers. Deterministic, FAITH-gated, fail-soft.
     The same engine the PreToolUse hook calls to inject additionalContext at the moment of action."""
-    from core.recall.at_action import recall_at, render
+    from core.recall.at_action import recall_at
 
     res = recall_at(
         path=args.path,
@@ -63,9 +77,141 @@ def cmd_recall_at(args):
     if args.json:
         print(json.dumps(res, default=str))
         return 0
-    out = render(res, hint_style=getattr(args, "hint_style", "cli") or "cli")
-    print(out if out else "# recall-at-action: nothing relevant (silence beats a weak hint)")
-    return 0
+    # The PreToolUse hook does not come through here: it calls recall_at() and render() itself
+    # (agent/harness/actions.py recall_block), with anti-repeat and impression counting this verb
+    # does not do. render() stays the hook's surface; this is the verb's.
+    from core.axi import out
+    from core.recall.at_action import _STALE_CUE_DAYS, _provenance_tag
+
+    tool = (getattr(args, "hint_style", "cli") or "cli") == "tool"
+    cli = _cli()
+    doc: dict = {}
+    for key in _TARGETS:
+        if getattr(args, key, None):
+            doc[key] = getattr(args, key)
+    if res.get("error"):
+        # A failed recall is not an empty one: say the check did not run. Exit 0 as before --
+        # recall is fail-soft, and a caller deciding whether to act reads this, not the code.
+        out.fail(
+            f"recall unavailable: retrieval failed ({res['error']}); this is NOT 'no relevant lessons' -- "
+            "treat the action as unadvised",
+            code="RECALL_UNAVAILABLE",
+            details=doc,
+            hints=[f"{cli} status"],
+        )
+        return 0
+    lessons, locks, verbs = res.get("lessons") or [], res.get("locks") or [], res.get("verbs") or []
+    total = int(res.get("total") or 0)
+    if not (lessons or locks or verbs):
+        # Callers that relay this text test for "nothing relevant" near the top (core/comm/toolbox.py).
+        return out.emit(
+            {"result": "nothing relevant (silence beats a weak hint)", **doc, "total": 0},
+            hints=[f'{cli} recall "<keyword>"'] if not tool else ['knowledge_recall(query="<keyword>")'],
+            human=_human_recall_at,
+            title="Recall at action",
+        )
+    doc["total"] = total
+    if total > len(lessons):
+        doc["shown"] = len(lessons)
+    rows = []
+    for it in lessons:
+        # The provenance tag minus its author: the author gets its own column.
+        words = _provenance_tag(it)[1:-1].split()
+        author = str(it.get("agent_id") or "").strip()
+        if author and author in words:
+            words.remove(author)
+        rows.append(
+            {
+                "status": " ".join(words),
+                "by": author or None,
+                "lesson": out.truncate(it.get("text"), 800)[0],
+                "source": it.get("source"),
+            }
+        )
+    if rows:
+        doc["lessons"] = rows
+    if locks:
+        doc["locked_by"] = [lk.get("held_by") for lk in locks]
+    counter = res.get("counter") or {}
+    if counter.get("text"):
+        if counter.get("source") in {r["source"] for r in rows}:
+            doc["disputed_by"] = counter.get("source")  # the counter is already listed above
+        else:
+            doc["counter"] = {"lesson": out.truncate(counter["text"], 800)[0], "source": counter.get("source")}
+    if verbs:
+        doc["verbs"] = [{"verb": v.get("verb"), "purpose": v.get("purpose", "")} for v in verbs]
+    try:  # the staleness cue: an old lesson may name files and flags that have since moved
+        import time
+
+        from core.foundation.timeutil import to_epoch
+
+        ages = [(time.time() - to_epoch(it.get("timestamp"))) / 86400.0 for it in lessons if it.get("timestamp")]
+        if _STALE_CUE_DAYS > 0 and ages and max(ages) >= _STALE_CUE_DAYS:
+            doc["oldest_days"] = int(max(ages))
+    except Exception:
+        pass
+    # Define the provenance words in band, but only the ones on screen, and only when one could be
+    # taken for more than it is: "worked" alone is plain enough, "advice" or "unverified" is not.
+    on_screen = {w for r in rows for w in str(r["status"]).split()}
+    if on_screen - {"worked", "partial"}:
+        doc["legend"] = "; ".join(f"{w}={_LEGEND[w]}" for w in _LEGEND if w in on_screen)
+    hints = []
+    if rows:
+        top = rows[0]["source"]
+        hints.append(f'knowledge_full(source="{top}")' if tool else f"{cli} recall --full {top}")
+    if total > len(lessons):
+        if tool:
+            hints.append(f"recall_at(limit={total})")
+        else:
+            import shlex
+
+            target = "".join(f" --{k} {shlex.quote(str(v))}" for k, v in doc.items() if k in _TARGETS)
+            hints.append(f"{cli} recall-at{target} --limit {total}")
+    elif rows and not tool:
+        hints.append(f"{cli} recall-feedback --source {rows[0]['source']} --useful")
+    if locks and not tool:
+        hints.append(f"{cli} locks")
+    return out.emit(doc, hints=hints, human=_human_recall_at, title="Recall at action")
+
+
+def _human_recall_at(console, doc):
+    """Human view of `recall-at`: locks first in red (the most actionable fact), then each lesson
+    with its status in colour and the source under it, then any verb the door already has."""
+    from core.axi import out
+
+    target = doc.get("command") or doc.get("path") or doc.get("gesture") or doc.get("subject") or ""
+    if target:
+        console.print(f"[dim]for[/] {out._esc(str(target))}")
+    if not doc.get("total") and not doc.get("locked_by") and not doc.get("verbs"):
+        console.print("[yellow]Nothing relevant[/] [dim](silence beats a weak hint)[/]")
+        return
+    for who in doc.get("locked_by", []):
+        console.print(f"[bold red]locked[/] by {out._esc(str(who))} -- coordinate before editing")
+    if doc.get("lessons"):
+        shown = f"{doc['shown']} of " if doc.get("shown") else ""
+        console.print(f"[dim]{shown}{doc['total']} relevant lesson{'s' if doc['total'] != 1 else ''}[/]")
+    for row in doc.get("lessons", []):
+        st = row["status"]
+        colour = "red" if "anti-pattern" in st else "green" if st.startswith("worked") else "yellow"
+        by = f" [dim]by {out._esc(str(row['by']))}[/]" if row.get("by") else ""
+        console.print()
+        console.print(f"[{colour}]{out._esc(st)}[/]{by}")
+        console.print(f"  {out._esc(row['lesson'])}")
+        console.print(f"  [dim]{out._esc(str(row['source']))}[/]")
+    if doc.get("counter"):
+        console.print()
+        console.print(f"[yellow]counter:[/] {out._esc(doc['counter']['lesson'])}")
+        console.print(f"  [dim]{out._esc(str(doc['counter']['source']))}[/]")
+    if doc.get("disputed_by"):
+        console.print(f"[yellow]the top lesson is disputed by {out._esc(doc['disputed_by'])}[/]")
+    for v in doc.get("verbs", []):
+        console.print(f"[cyan]verb[/] {out._esc(str(v['verb']))} [dim]-- {out._esc(str(v['purpose']))}[/]")
+    if doc.get("oldest_days"):
+        console.print(
+            f"[yellow]oldest lesson is ~{doc['oldest_days']}d old -- check that what it names still exists[/]"
+        )
+    if doc.get("legend"):
+        console.print(f"[dim]{out._esc(doc['legend'])}[/]")
 
 
 # ------------------------------------------------------------------ recall-feedback
