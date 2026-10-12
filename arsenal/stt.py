@@ -82,14 +82,21 @@ def render(words: list, duration: float) -> str:
     return "\n".join(out)
 
 
-def transcribe(audio: str, stem: str, model_size: str = "small") -> dict:
+def transcribe(audio: str, stem: str, model_size: str = "small", *, vad: bool = False) -> dict:
+    """vad=True skips the stretches without speech (Silero VAD) before decoding. Off by default, as it always was:
+    on game audio it is what stops the repeated-word hallucinations (large-v3-turbo, beam 5, 120 s of 17-51-11:
+    "oh oh oh" in 3 of 3 runs with it off, no repeat in 4 runs with it on). On clean narration it cost nothing: the
+    studio animatic's scratch voice (463 s, the stand-in for Daniel's take, small) against its locked script gave a
+    word error rate of 10.8% with it on and 11.7% off, missing 4 script words against 15 (2026-10-12). That clears
+    the spec's bar for flipping this default, which is Daniel's or Vandor's call; until then it stays.
+    arsenal.media.words passes True."""
     from faster_whisper import WhisperModel  # imported here: the render needs no model
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
-    segments, info = model.transcribe(audio, word_timestamps=True, language="en", vad_filter=False, beam_size=5)
+    segments, info = model.transcribe(audio, word_timestamps=True, language="en", vad_filter=vad, beam_size=5)
     words = [{"start": round(w.start, 2), "end": round(w.end, 2), "word": w.word.strip(), "p": round(w.probability, 2)}
              for seg in segments for w in (seg.words or [])]
-    meta = {"model": f"faster-whisper {model_size}, int8, cpu", "duration_s": round(info.duration, 1),
-            "audio": Path(audio).name}
+    meta = {"model": f"faster-whisper {model_size}, int8, cpu" + (", vad" if vad else ""),
+            "duration_s": round(info.duration, 1), "audio": Path(audio).name}
     Path(stem + ".words.json").write_text(json.dumps({**meta, "words": words}, indent=1, ensure_ascii=False),
                                           encoding="utf-8", newline="\n")
     cadence = render(words, info.duration)

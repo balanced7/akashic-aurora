@@ -1,0 +1,44 @@
+{
+  "id": "media.words",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "inputs": [{"port": "media", "type": "asset.reference"}],
+  "outputs": [{"port": "words", "type": "media.subtitle_cue"}],
+  "params": [
+    {"name": "track", "unit": "index", "range": [0, 31]},
+    {"name": "vad", "unit": "bool", "range": [0, 1]},
+    {"name": "chunk_s", "unit": "s", "range": [30, 3600]}
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0 AND MIT AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {"base": 0},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "oracle",
+      "what": "Hallucination oracle: 120 s of game audio (17-51-11, 600-720 s), large-v3-turbo, beam 5 (stt's setting). VAD off wrote a run of 3+ repeated words every time: 'oh' x3 at 72.0 s in 3 of 3 runs (two through words(), one on the research track's 16 kHz wav), 'i' x7 at 101.8 s in one of them; the slow test passed once more. VAD on wrote none, 4 of 4 (60 words through words()). base without VAD wrote 'if' x3 in 1 of 3 runs and small in 0 of 2, so the oracle needs turbo.",
+      "measured": {"turbo_vad_off_runs_with_repeats": "3/3", "turbo_vad_on_runs_with_repeats": "0/4", "turbo_vad_on_words": 60},
+      "how": "ARSENAL_MEDIA_SLOW=1 py -m pytest tests/test_arsenal_media_words.py -q -k oracle (46 s)"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "measure",
+      "what": "Speed end to end through words() on the same 120 s (cut + model load + transcribe, CPU int8, VAD on), and span-vs-whole agreement of word start times (small, span 80-100 s, words matched by text).",
+      "measured": {"base_x_realtime": 55, "small_x_realtime": 36, "turbo_x_realtime": 18, "turbo_vad_off_x_realtime": 3.7, "span_words_matched": 16, "span_median_ms": 20, "span_within_50ms": "14/16"},
+      "how": "py -m pytest tests/test_arsenal_media_words.py -q (9 s; the span test loads small)"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C fix pass (claude subagent), for Vandor's review",
+      "kind": "measure",
+      "what": "Scratch-voice word error rate, the spec's gate for flipping stt's vad default: the studio animatic's vo_track.wav (463 s, the stand-in for Daniel's take) against its locked script vo.srt (1056 words), small, through words(). VAD on 10.8% (71 substituted, 4 deleted, 39 inserted), VAD off 11.7% (79, 15, 30): no loss, so the gate is cleared; the flip is Daniel's or Vandor's call. A 90 s span cannot resolve the gap: the first 90 s gave 11.4% on vs 7.3% off, all of it insertions from split proper nouns ('Yuumi' as 'you am i'), no deletions either way, so the slow test reports both rates and gates on deletions. Continuous narration leaves VAD little to skip: small ran at 8.1x realtime with VAD, 6.9x without.",
+      "measured": {"ref_words": 1056, "wer_vad_on": 0.108, "wer_vad_off": 0.117, "deleted_vad_on": 4, "deleted_vad_off": 15, "span90_wer_vad_on": 0.114, "span90_wer_vad_off": 0.073, "small_x_realtime_narration_vad": 8.1, "small_x_realtime_narration_novad": 6.9},
+      "how": "ARSENAL_MEDIA_SLOW=1 ARSENAL_MEDIA_VOICE_ORACLE=<the animatic folder> py -m pytest tests/test_arsenal_media_words.py -q -k wer (19 s, the first 90 s); the whole-track numbers from words(vo_track.wav, model='small', vad=True/False)"
+    }
+  ],
+  "notes": "Speech to text with word times on the source's clock: one audio track and span cut to 16 kHz mono through arsenal.media.ff, arsenal.stt.transcribe(vad=True) (faster-whisper, CPU int8; model small for indexing, large-v3-turbo for final captions), times shifted back by the span start. Every result lists its own repeat runs (3+ identical words), the hallucination signature. Offline: latency is the transcription time, not a stream delay. faster-whisper and the Whisper and Silero VAD weights are MIT. The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}

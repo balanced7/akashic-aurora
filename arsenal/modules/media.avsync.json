@@ -1,0 +1,42 @@
+{
+  "id": "media.avsync",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "arsenal",
+  "inputs": [
+    {"port": "a", "type": "asset.reference"},
+    {"port": "b", "type": "asset.reference"},
+    {"port": "events", "type": "control.event"}
+  ],
+  "outputs": [{"port": "sync", "type": "analysis.features"}],
+  "params": [
+    {"name": "a_track", "unit": "index", "range": [0, 31]},
+    {"name": "b_track", "unit": "index", "range": [0, 31]},
+    {"name": "max_offset_s", "unit": "s", "range": [0.05, 30]},
+    {"name": "window_s", "unit": "s", "range": [5, 600]},
+    {"name": "tol_ms", "unit": "ms", "range": [1, 500]}
+  ],
+  "isolation": "in-process",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {"base": 0},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "pin",
+      "what": "Synthetic truths generated at test time: an AAC copy shifted with -itsoffset 0.083 (the mp4 edit list rounds it to 82.333 ms, checked by raw sample cross-correlation) measures 82.34 ms; track 1 = track 0 + adelay 40 ms measures 40 ms; a drift of 12 / -5 / 0 ms per minute measures 12.04 / -5.008 / 0.002; a click track against its own times shifted 0 / 37.1 / 251.7 / -400 ms is off by at most 0.19 ms.",
+      "measured": {"itsoffset_ms": 82.34, "drift_12_ms_per_min": 12.04, "events_max_err_ms": 0.19},
+      "how": "py -m pytest tests/test_arsenal_media_avsync.py -q (13 s, the practice oracle and its strict xfail included when present)"
+    },
+    {
+      "at": "2026-10-12",
+      "by": "builder lane C (claude subagent), for Vandor's review",
+      "kind": "oracle",
+      "what": "Practice session 20261011-165503-f62d348c note-ons, placed by jam.align's L3 anchor (opened_at_client, 50 ms) and the OBS file-name time (whole seconds), against the 17-06-22 recording (41 min, one opus track): -628 ms with a second lobe at -535 ms, so the confidence reads 1.0; window offsets wander over about 100 ms. On this dense piano 32-35% of note-ons find an onset within 50 ms at ANY offset, so the raw count proves nothing: 5326 of 13824 matched at -628 ms against 4492 at offsets 0.5-1.5 s away (lift 1.19); the -535 ms lobe matches 5859; wrong offsets score 1.01-1.05 (0 ms 1.014, -300 ms 1.045, +300 ms 1.015, -1000 ms 1.019). The 16-56-57 recording: -140 ms (lift 1.52), second lobe -70 ms; there a beat alias at -1000 ms also scores 1.24, so the lift rules out typical wrong offsets, not every one. Both recordings carry two sounds per key (the keyboard heard by the mic and the browser synth on desktop audio, by the frame and the lobe spacing), so the spec's 16.7 ms steadiness is not met by this oracle (a strict xfail test holds that open for Vandor's ruling), and the 50 ms anchor agreement cannot be tested while the recording start is known only to the second. File mtime minus duration puts both starts 0.23-0.41 s after the audio-derived ones, consistent with OBS finishing the file after the last frame.",
+      "measured": {"offset_ms": -627.8, "second_lobe_ms": -535, "confidence": 1.0, "matched": 5326, "matched_chance": 4492, "match_lift": 1.19, "second_lobe_matched": 5859, "wrong_offset_lift_max": 1.045, "events_in_audio": 13824, "spread_ms": 102.2, "seconds_for_41_min": 7.5},
+      "how": "py -m arsenal.media avsync \"recording.mp4\" --events session:<practice-session-id>"
+    }
+  ],
+  "notes": "How far apart two recordings of the same moment are (ms), and whether the gap grows: each audio track is streamed from ffmpeg as 16 kHz mono into a log spectral-flux envelope (5 ms hop), the envelopes are cross-correlated within +-max_offset_s, the confidence is the peak over the best other lobe, and consecutive windows give the drift per minute. Against an event list (MIDI note-ons) each event becomes the envelope this method measures for a click at that time. Audio only: picture-vs-sound is avsync.visual (v1). Offline; uses numpy and scipy (BSD-3-Clause). The ffmpeg that arsenal.media.ff locates is a separate process whose licence depends on the build; the one saved on this machine is configured --enable-gpl --enable-version3, so it is not asserted here."
+}

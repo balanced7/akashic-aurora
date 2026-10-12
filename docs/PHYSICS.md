@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 3f55e119. A bound you discover by collision is not awareness -- this sheet
+> Derived at 2d5a3bfe. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (338 numeric constants)
+## Mechanical bounds (340 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -485,6 +485,7 @@ Class: reference
 | `MINOR_FLOOR` | 25 | core/coord/world_diff.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
 | `MIN_CELL_H` | 8 | arsenal/media/sheet.py | px: a shorter cell shows nothing a reader can use, so the layout refuses instead |
+| `MIN_EVENTS_PER_WINDOW` | 4 | arsenal/media/avsync.py |  |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |
@@ -538,6 +539,7 @@ Class: reference
 | `RETURN_MIN_MS` | 4,000 | arsenal/practice.py | chords with the parallel key's 3rd (and not the area's own) this long in a row: the mode f |
 | `RETURN_TONIC_MS` | 4,000 | arsenal/practice.py | 3rd and the tonic with that 3rd sounding this long, is its own key area (a return) |
 | `RUN_HOLD_MS` | 1,000 | arsenal/practice.py |  |
+| `RUN_MIN` | 3 | arsenal/media/words.py | a word said 3+ times in a row is reported as a repeat run |
 | `RUN_MIN_NOTES` | 5 | arsenal/practice.py | a note inside a one-way stepwise run this long (single notes at most RUN_STEP_MS apart, |
 | `RUN_STEP_MS` | 1,200 | arsenal/practice.py | key down at most RUN_HOLD_MS) is a passing note of the run when the key lacks it |
 | `SAME_HARMONY_MAX_MS` | 10,000 | arsenal/practice.py | a step merged from different chords spans at most this long |
