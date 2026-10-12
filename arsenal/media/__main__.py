@@ -35,7 +35,10 @@ VERBS = {
                                  "0.25x/0.5x slow motion)"),
     "events": ("league.events", "Riot match-v5 timeline events (kills, items, objectives) pinned to video "
                                 "frames; fight windows"),
-    "avsync": ("avsync", "audio/video sync offset and drift between two recordings, or audio vs MIDI events"),
+    "replay": ("league.replay_api", "League Replay API (127.0.0.1:2999): status, swagger fetch, drive a planned "
+                                    "take (seek, camera follow, speed, HUD off) while OBS records; capture run-sheet; "
+                                    "--dry-run sends nothing"),
+    "avsync": ("avsync","audio/video sync offset and drift between two recordings, or audio vs MIDI events"),
     "export": ("export", "export with platform presets (YouTube 4K, Shorts 9:16, edit proxy, alpha WebM/WebP) "
                          "and a loudness QC receipt"),
     "edit": ("edit", "the editor's timeline document: create, show, add clips/tracks, trim, render to a file"),
