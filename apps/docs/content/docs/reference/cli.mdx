@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 81 converted to agent and human output.
+121 verbs; 82 converted to agent and human output.
 
 ## `alias`
 
@@ -1767,7 +1767,10 @@ hits[2]{layer,status,score,excerpt,drill}:
 | | |
 |---|---|
 | Does | meta-harness proposer loop (task 07): archive, lineage, status, run within a daily budget |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 92% before, 92% after |
+| Output tokens | 38 before, 75 after (+97%) |
+| AXI checks | 3/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/loop.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1780,6 +1783,18 @@ hits[2]{layer,status,score,excerpt,drill}:
 | `--daily-usd` |   |   | run: the day's spend cap (required) |
 | `--proposer-model` |   |   | run: the proposer's model (default claude-opus-5-5) |
 | `--json` |   |   |   |
+
+Agent output of `aurora loop status` on the bench data:
+
+```text
+candidates: 3
+front: []
+spent_today_usd: 0
+proposers: []
+help[2]:
+  uv run agent_cli.py loop archive
+  uv run agent_cli.py loop run --candidate baseline --daily-usd 5
+```
 
 ## `mailbox`
 

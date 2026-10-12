@@ -568,31 +568,65 @@ def loop_main(args) -> int:
     """`loop <action>` -- the candidate archive and the proposer loop (task 07)."""
     from core.metaharness import archive, loop, proposer
 
-    a = args.action
+    a, cli = args.action, _cli()
+    # The loop spends real money, so every suggested `loop run` names its daily cap.
+    run_hint = f"{cli} loop run --candidate {args.candidate or 'baseline'} --daily-usd 5"
     if a == "status":
         rows = archive.index()
         rep = archive._read_json(proposer._rep_path(), {})
-        out = {"candidates": len(rows), "front": archive.front(), "spent_today": loop.spent_today(), "proposers": rep}
-        _print(out, args.json, json.dumps(out, indent=1))
-        return 0
+        st = {"candidates": len(rows), "front": archive.front(), "spent_today": loop.spent_today(), "proposers": rep}
+        if args.json:
+            _json(st)
+            return 0
+        doc: dict[str, Any] = {
+            "candidates": st["candidates"],
+            "front": st["front"],  # the Pareto front: candidates no other one beats on every axis
+            "spent_today_usd": round(st["spent_today"], 4),
+            "proposers": [
+                {"proposer": p, "hits": r.get("hits", 0), "checked": r.get("checked", 0)} for p, r in rep.items()
+            ],
+        }
+        hints = [f"{cli} loop archive", run_hint] if rows else [f"{cli} replay new --candidate <name>", run_hint]
+        return out.emit(doc, hints=hints, title="Proposer loop")
     if a == "archive":
         rows = archive.index()
-        _print(
-            rows,
-            args.json,
-            "\n".join(
-                f"  {r['name']:<30} parent={r['parent'] or '-':<24} pass={r['scores'].get('pass_rate')} tokens={r['scores'].get('tokens')}  {r['hypothesis'][:50]}"
-                for r in rows
-            ),
+        if args.json:
+            _json(rows)
+            return 0
+        table = [
+            {
+                "name": r["name"],
+                "parent": r["parent"] or None,
+                "pass_rate": r["scores"].get("pass_rate"),
+                "tokens": r["scores"].get("tokens"),
+                "hypothesis": out.truncate(r["hypothesis"], 50)[0] or None,
+            }
+            for r in rows
+        ]
+        if not table:  # AXI section 5: an empty archive is said outright
+            return out.emit({"total": 0, "candidates": []}, hints=[run_hint], title="Candidate archive")
+        return out.emit(
+            {"total": len(table), "candidates": table},
+            hints=[f"{cli} loop lineage --candidate {table[-1]['name']}"],
+            title="Candidate archive",
         )
-        return 0
     if a == "lineage":
-        _print(archive.lineage(args.candidate), args.json, " <- ".join(archive.lineage(args.candidate)))
-        return 0
+        if not args.candidate:
+            return _usage("`loop lineage` needs --candidate NAME", f"{cli} loop lineage --candidate <name>")
+        try:
+            chain = archive.lineage(args.candidate)
+        except KeyError as e:
+            return out.fail(_missing(e), code="NOT_FOUND", hints=[f"{cli} loop archive"])
+        if args.json:
+            _json(chain)
+            return 0
+        # Newest first, back to the root: the order the archive's parent links walk.
+        return out.emit({"candidate": args.candidate, "depth": len(chain), "lineage": chain}, title="Lineage")
     if a == "run":
         if args.daily_usd is None:
-            print("ERROR: `loop run` needs --daily-usd: the loop spends real money and has no default budget")
-            return 2
+            return _usage(
+                "`loop run` needs --daily-usd: the loop spends real money and has no default budget", run_hint
+            )
         logs = loop.run(
             args.candidate or "baseline",
             iterations=args.iterations,
@@ -602,10 +636,16 @@ def loop_main(args) -> int:
             mode=args.mode,
             proposer_card={"model": args.proposer_model} if args.proposer_model else None,
         )
-        _print(logs, args.json, "\n".join(json.dumps(x)[:400] for x in logs))
-        return 0
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+        if args.json:
+            _json(logs)
+            return 0
+        doc = {
+            "iterations": len(logs),
+            "spent_today_usd": round(loop.spent_today(), 4),
+            "logs": [out.truncate(json.dumps(x, default=str), 400)[0] for x in logs],
+        }
+        return out.emit(doc, hints=[f"{cli} loop status", f"{cli} review list"], title="Proposer loop run")
+    return _usage(f"unknown action {a!r}", f"{cli} loop --help")
 
 
 def memreplay_main(args) -> int:
