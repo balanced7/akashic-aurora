@@ -1,0 +1,188 @@
+{
+  "verb": "delta",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.7,
+    "correct": 14,
+    "asked": 20,
+    "output_tokens": 61,
+    "stdout_chars": 279,
+    "stdout_lines": 4,
+    "cost_usd": 0.0211,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Have the project notes been updated since alice's last boot? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command shows the notes that changed? Give the command only.",
+        "expected": [
+          "agent_cli.py notes"
+        ],
+        "answers": [
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "notes"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What exact command marks these changes as seen for alice? Give the command only.",
+        "expected": [
+          "delta alice",
+          "--ack"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Does carol have a delta mark yet? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "moved": {
+        "argv": [
+          "delta",
+          "alice"
+        ],
+        "exit": 0,
+        "stdout": "[delta alice] since your last boot (a5328d5 -> ?):\n  git: (unavailable -- repository not readable)\n  notes: updated since your mark -- uv run agent_cli.py notes\n"
+      },
+      "newborn": {
+        "argv": [
+          "delta",
+          "carol"
+        ],
+        "exit": 0,
+        "stdout": "[delta carol] no mark yet (newborn) -- the mark writes at your next boot; until then the full boot is the orientation\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 102,
+    "stdout_chars": 355,
+    "stdout_lines": 10,
+    "cost_usd": 0.0147,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Have the project notes been updated since alice's last boot? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command shows the notes that changed? Give the command only.",
+        "expected": [
+          "agent_cli.py notes"
+        ],
+        "answers": [
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command marks these changes as seen for alice? Give the command only.",
+        "expected": [
+          "delta alice",
+          "--ack"
+        ],
+        "answers": [
+          "uv run agent_cli.py delta alice --ack",
+          "uv run agent_cli.py delta alice --ack",
+          "uv run agent_cli.py delta alice --ack",
+          "uv run agent_cli.py delta alice --ack",
+          "uv run agent_cli.py delta alice --ack"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does carol have a delta mark yet? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "moved": {
+        "argv": [
+          "delta",
+          "alice"
+        ],
+        "exit": 0,
+        "stdout": "agent: alice\nstate: moved\nhead: a5328d5 -> a5328d5 (at your last boot -> now)\nmoved_since_last_boot[1]{area,change}:\n  notes,updated since your mark -- uv run agent_cli.py notes\nhelp[1]:\n  uv run agent_cli.py delta alice --ack\n"
+      },
+      "newborn": {
+        "argv": [
+          "delta",
+          "carol"
+        ],
+        "exit": 0,
+        "stdout": "agent: carol\nstate: newborn\nnote: no mark yet -- the mark writes at your next boot; until then the full boot is the orientation\n"
+      }
+    }
+  }
+}

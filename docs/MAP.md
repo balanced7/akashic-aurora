@@ -331,7 +331,7 @@ Class: reference
 | `codex_app_server.py` | Owned Codex App Server stdio host. | tests/test_codex_app_server.py | GAP | `AKASHIC_CODEX_BINARY`, `LOCALAPPDATA` |
 | `codex_bifrost_wake.py` | Zero-model Bifrost level watcher with an owned Codex turn starter. | GAP | GAP | `AKASHIC_CALLSIGN_HINT`, `AKASHIC_CALLSIGN_STATUS`, `LOCALAPPDATA` |
 | `context.py` | The auto-boot whisper shared by every harness adapter (Integration Tiers H0). | tests/test_context_hints_gate.py | docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md | `AKASHIC_AUTOBOOT`, `AKASHIC_WHISPER_LINES`, `AURORA_LAUNCHER` |
-| `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_g4_latent_vfx_probe_none_delta.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `AURORA_LAUNCHER`, `BIFROST_NAMESPACE` |
+| `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_axi_delta.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `AURORA_LAUNCHER`, `BIFROST_NAMESPACE` |
 | `draft_keepalive.py` | draft_keepalive -- make the auto-handoff survive an UNGRACEFUL death. | tests/test_draft_keepalive.py | GAP |  |
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
 | `install.py` | Hook installer: register Aurora's harness hooks at USER or PROJECT scope, and turn them off/on. | tests/test_hooks_installer.py | docs/library/contract/20260901_installer-manifest-v0_a9dbfe.md |  |

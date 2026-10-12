@@ -753,16 +753,67 @@ def cmd_delta(args):
     """The delta door (T052/R1): what moved since this agent's last boot. --ack advances
     the seen mark to current positions (the explicit commit surface; boot auto-commits)."""
     from agent.harness.delta import delta_boot_block, render_full
+    from core.axi import out
 
-    print(render_full(args.agent_id))
+    doc = _delta_doc(args.agent_id, render_full(args.agent_id))
+    hints = []
     if getattr(args, "ack", False):
         _t, commit = delta_boot_block(args.agent_id)
-        print(
-            "[delta] mark advanced to current positions"
-            if commit()
-            else "[delta] mark write failed (redis unreachable?)"
-        )
-    return 0
+        # A failed write still exits 0, as it always has: the delta was delivered, only the mark
+        # did not move, and the next boot or --ack retries it.
+        doc["mark"] = "advanced to current positions" if commit() else "write failed (redis unreachable?)"
+    elif doc["state"] == "moved":  # AXI section 9: the one next step that changes this answer
+        hints.append(f"{_cli()} delta {args.agent_id} --ack")
+    return out.emit(doc, hints=hints, human=_human_delta, title=f"Delta · {args.agent_id}")
+
+
+def _delta_doc(agent: str, text: str) -> dict:
+    """The delta render (agent/harness/delta.py, cached as text for 30s) as data: the state, the
+    span, one row per area that moved, and the commits under git."""
+    lines = str(text).splitlines()
+    head = lines[0] if lines else ""
+    doc: dict = {"agent": agent}
+    if "no mark yet" in head:
+        doc["state"] = "newborn"
+        doc["note"] = "no mark yet -- the mark writes at your next boot; until then the full boot is the orientation"
+        return doc
+    if "no changes since" in head:
+        doc.update(state="unchanged", moved_since_last_boot=0)
+        return doc
+    doc["state"] = "moved"
+    span = re.search(r"\(([^()]*->[^()]*)\)", head)
+    if span:
+        doc["head"] = f"{span.group(1).strip()} (at your last boot -> now)"
+    changes, commits = [], []
+    for ln in lines[1:]:
+        if ln.startswith("    "):
+            commits.append({"commit": ln.strip()})
+        elif ln.strip():
+            area, _, what = ln.strip().partition(": ")
+            changes.append({"area": area, "change": what})
+    doc["moved_since_last_boot"] = changes
+    if commits:
+        doc["commits"] = commits
+    return doc
+
+
+def _human_delta(console, doc):
+    """Human view of `delta`: the state in colour, then each area that moved and its commits."""
+    from core.axi import out
+
+    if doc["state"] == "newborn":
+        console.print(f"[yellow]newborn[/] -- {out._esc(doc['note'])}")
+    elif doc["state"] == "unchanged":
+        console.print("[green]no changes since your last boot[/]")
+    else:
+        console.print(f"[bold]moved[/] since your last boot [dim]({out._esc(doc.get('head', '?'))})[/]")
+        for r in doc["moved_since_last_boot"]:
+            console.print(f"  [cyan]{out._esc(r['area'])}[/]  {out._esc(r['change'])}")
+        for r in doc.get("commits", []):
+            console.print(f"      [dim]{out._esc(r['commit'])}[/]")
+    if doc.get("mark"):
+        colour = "green" if doc["mark"].startswith("advanced") else "red"
+        console.print(f"[{colour}]mark {out._esc(doc['mark'])}[/]")
 
 
 # ---------------------------------------------------------------------------- sha

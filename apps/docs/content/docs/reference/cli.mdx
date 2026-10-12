@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 6 converted to agent and human output.
+121 verbs; 7 converted to agent and human output.
 
 ## `alias`
 
@@ -442,12 +442,27 @@ orientation[28]{line}:
 | | |
 |---|---|
 | Does | what changed since this agent's last boot (T052 delta door) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 70% before, 100% after |
+| Output tokens | 61 before, 102 after (+67%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/delta.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` | yes |   |   |
 | `--ack` |   |   | advance the seen mark to current positions after reading |
+
+Agent output of `aurora delta alice` on the bench data:
+
+```text
+agent: alice
+state: moved
+head: a5328d5 -> a5328d5 (at your last boot -> now)
+moved_since_last_boot[1]{area,change}:
+  notes,updated since your mark -- uv run agent_cli.py notes
+help[1]:
+  uv run agent_cli.py delta alice --ack
+```
 
 ## `discord`
 
