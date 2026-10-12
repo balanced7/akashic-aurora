@@ -6062,22 +6062,30 @@ def _doc_arc(fam, atom_id: str, label: str, repo_root: str) -> int:
     """`doc arc`: relabel an atom's arc in place (AtomFamily.set_arc: a header-only version event, the body and
     its sha untouched) and re-render its projection. The rename door an arc label lacked: SA-1's label embedded
     the path of a doc that was later deleted, and the generated ARCS/SHELVES kept citing it."""
+    from core.axi import out
     from core.library.atoms import AtomError
     from core.library.projection import render_atom
 
     atom_id = (atom_id or "").strip()
     if not atom_id:
-        print("[doc] REFUSED: arc needs an atom id -- doc arc <atom_id> [label] (no label clears the arc)")
-        return 2
+        return out.fail(
+            "arc needs an atom id (no label clears the arc)",
+            code="USAGE",
+            hints=[f"{_cli()} doc arc <atom_id> [label]"],
+            exit_code=out.EXIT_USAGE,
+        )
     try:
         atom = fam.set_arc(atom_id, label)
     except AtomError as e:
-        print(f"[doc] REFUSED: {e}")
-        return 2
+        return out.fail(f"refused: {e}", code="REFUSED", exit_code=out.EXIT_USAGE)
     path = render_atom(atom, repo_root=repo_root)
-    print(f"[doc] atom {atom['id']}  arc: {atom['header'].get('arc') or '(none)'}  (v{atom.get('version', 1)})")
-    print(f"  projection -> {os.path.relpath(path, repo_root)}")
-    return 0
+    doc = {
+        "atom": atom["id"],
+        "arc": atom["header"].get("arc") or None,
+        "version": atom.get("version", 1),
+        "projection": os.path.relpath(path, repo_root).replace("\\", "/"),
+    }
+    return out.emit(doc, title="Doc · arc")  # a confirmation answers itself
 
 
 def cmd_doc(args):
@@ -6096,7 +6104,20 @@ def cmd_doc(args):
     the governed classifier merged with --category flags (cap 3, PRIMARY first) ·
     --draft births status:draft (wrap sweep + library lint curate drafts).
     """
+    from core.axi import out
+
+    cli = _cli()
     sub = getattr(args, "sub", "new")
+    if sub is None:  # bare `doc` used to crash (its parser had no handler): say what it offers
+        return out.fail(
+            "doc needs a subcommand: new, adopt or arc",
+            code="USAGE",
+            hints=[
+                f"{cli} doc new --type report --title <slug> --seats <you> --body-file <file.md>",
+                f"{cli} doc --help",
+            ],
+            exit_code=out.EXIT_USAGE,
+        )
     if sub == "arc":
         from core.foundation.store import create_store
         from core.library.atoms import AtomFamily
@@ -6113,12 +6134,15 @@ def cmd_doc(args):
         # is. An adopt that deleted its source would be a Scribe that can lose work.
         src = (getattr(args, "path", "") or "").strip()
         if not src:
-            print("[doc] REFUSED: adopt needs a path — doc adopt <file.md> [--type T] [--seats s]")
-            return 2
+            return out.fail(
+                "adopt needs a path",
+                code="USAGE",
+                hints=[f"{cli} doc adopt <file.md> [--type T] [--seats s]"],
+                exit_code=out.EXIT_USAGE,
+            )
         sp = Path(src)
         if not sp.is_file():
-            print(f"[doc] REFUSED: no such file: {src}")
-            return 2
+            return out.fail(f"refused: no such file: {src}", code="NOT_FOUND", exit_code=out.EXIT_USAGE)
         args.body_file = str(sp)
         stem = sp.stem
         if not (getattr(args, "title", "") or "").strip():
@@ -6127,19 +6151,21 @@ def cmd_doc(args):
             args.type = _adopt_type(stem)
         if not (getattr(args, "seats", "") or "").strip():
             args.seats = _adopt_seats(stem)
-        rel_src = str(sp).replace("\\", "/")
-        print(f"[doc] adopting {rel_src}")
-        print(
-            f"  inferred: type={args.type} title={args.title} "
-            f"seats={args.seats or '(none — pass --seats)'}   [override with flags]"
-        )
+        # What the filename gave, reported with the atom (every one overridable by its flag).
+        adopted = {
+            "adopted_from": str(sp).replace("\\", "/"),
+            "inferred": f"type={args.type} title={args.title} seats={args.seats or '(none: pass --seats)'}",
+        }
         sub = "new"
+    else:
+        adopted = {}
     if sub != "new":
-        print(
-            "[doc] only 'new', 'adopt' and 'arc' are implemented — pass 'doc new ...', 'doc adopt <path>' or "
-            "'doc arc <atom_id> [label]'"
+        return out.fail(
+            f"unknown doc subcommand {sub!r}: new, adopt or arc",
+            code="USAGE",
+            hints=[f"{cli} doc --help"],
+            exit_code=out.EXIT_USAGE,
         )
-        return 2
 
     typ = (getattr(args, "type", "") or "").strip().lower()
     title = (getattr(args, "title", "") or "").strip()
@@ -6150,21 +6176,25 @@ def cmd_doc(args):
     if from_bus:
         msg = _read_bus_message(from_bus)
         if msg is None:
-            print(
-                f"[doc] REFUSED: bus message {from_bus} not readable from inbox streams "
-                "(expired past legacy TTL? loud failure by design -- T043 genus)"
+            return out.fail(
+                f"refused: bus message {from_bus} not readable from inbox streams "
+                "(expired past legacy TTL? loud failure by design -- T043 genus)",
+                code="NOT_FOUND",
+                exit_code=out.EXIT_USAGE,
             )
-            return 2
         frm, kind, text = msg
         me = os.environ.get("AKASHIC_AGENT_ID", "claude")
         typ = typ or _BUS_KIND_TYPE.get(kind, "report")
         conv_kwargs = {"origin": "conversation", "speakers": [frm, me], "source_thread": from_bus, "settled": "live"}
 
     if not typ or not title:
-        print("[doc] REFUSED: --type and --title are required (--from-bus infers type from the message kind)")
-        print("  atom types: contract map design brief report chronicle ledger ruling")
-        print(f"  example: {_cli()} doc new --type report --title fence-x --seats claude --body-file x.md")
-        return 2
+        return out.fail(
+            "--type and --title are required (--from-bus infers type from the message kind)",
+            code="USAGE",
+            details={"atom_types": ["contract", "map", "design", "brief", "report", "chronicle", "ledger", "ruling"]},
+            hints=[f"{cli} doc new --type report --title fence-x --seats claude --body-file x.md"],
+            exit_code=out.EXIT_USAGE,
+        )
 
     body = getattr(args, "body", "") or ""
     body_file = getattr(args, "body_file", "") or ""
@@ -6172,8 +6202,7 @@ def cmd_doc(args):
         try:
             body = Path(body_file).read_text(encoding="utf-8")
         except OSError as e:
-            print(f"[doc] REFUSED: cannot read --body-file: {e}")
-            return 2
+            return out.fail(f"refused: cannot read --body-file: {e}", code="NOT_FOUND", exit_code=out.EXIT_USAGE)
     if from_bus:
         body = (body + "\n\n" if body else "") + text
 
@@ -6221,19 +6250,24 @@ def cmd_doc(args):
             **conv_kwargs,
         )
     except AtomError as e:
-        print(f"[doc] REFUSED: {e}")
-        return 2
+        return out.fail(f"refused: {e}", code="REFUSED", exit_code=out.EXIT_USAGE)
 
     path = render_atom(atom, repo_root=str(Path(__file__).resolve().parent))
     rel = str(Path(path).relative_to(Path(__file__).resolve().parent)).replace("\\", "/")
-    print(f"[doc] atom {atom['id']}  ({typ}, status: {status})")
-    print(f"  arc: {arc or '(none)'}  [{arc_src}]")
-    cat_render = ", ".join(f"{c}[{s}]" for c, s in zip(merged, cat_srcs, strict=False)) or "(none)"
-    print(f"  categories: {cat_render}")
-    print(f"  body_type: {atom['header'].get('body_type', 'markdown')}[{atom.get('body_type_source', 'unstated')}]")
-    print(f"  projection: {rel}  (read-only render; the atom is the truth)")
-    print("  wrong stamp? fix post-hoc at wrap/lint — never a write-time block")
-    return 0
+    # Each inferred stamp says where it came from (flag, auto, ledger claim): a wrong stamp is
+    # fixed post-hoc at wrap/lint, never blocked at write time.
+    doc = {
+        **adopted,
+        "atom": atom["id"],
+        "type": typ,
+        "status": status,
+        "arc": arc,
+        "arc_source": arc_src,
+        "categories": ", ".join(f"{c} ({s})" for c, s in zip(merged, cat_srcs, strict=False)) or None,
+        "body_type": f"{atom['header'].get('body_type', 'markdown')} ({atom.get('body_type_source', 'unstated')})",
+        "projection": rel,
+    }
+    return out.emit(doc, hints=[f"{cli} doc arc {atom['id']} <label>"], title="Doc · minted")
 
 
 def cmd_note(args, *, mem=None):
@@ -14056,6 +14090,7 @@ def build_parser():
 
     dsp = sub.add_parser("doc", help="seed a new doc with its header contract (library door)")
     dsps = dsp.add_subparsers(dest="sub")
+    dsp.set_defaults(fn=cmd_doc)  # bare `doc`: a usage error naming the subcommands, not a traceback
     dnew = dsps.add_parser("new", help="create a new doc with header + canon name + home")
     dnew.add_argument(
         "--type",

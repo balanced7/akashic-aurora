@@ -104,16 +104,22 @@ def test_p6_no_seat_in_name_yields_empty_not_a_guess():
 # ---------------------------------------------------------------- door behaviour
 
 
-def test_p7_adopt_refuses_a_missing_file_loudly(capsys):
+def test_p7_adopt_refuses_a_missing_file_loudly(capsys, monkeypatch):
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")  # since the AXI conversion: a structured refusal
     rc = agent_cli.cmd_doc(Args(sub="adopt", path="research/in-flight/no-such-file.md"))
     assert rc == 2
-    assert "REFUSED" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "refused: no such file" in out
+    assert "code: NOT_FOUND" in out
 
 
-def test_p8_adopt_refuses_with_no_path(capsys):
+def test_p8_adopt_refuses_with_no_path(capsys, monkeypatch):
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     rc = agent_cli.cmd_doc(Args(sub="adopt", path=""))
     assert rc == 2
-    assert "REFUSED" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "adopt needs a path" in out
+    assert "code: USAGE" in out
 
 
 def test_p9_adopt_is_non_destructive(tmp_path, monkeypatch, capsys):

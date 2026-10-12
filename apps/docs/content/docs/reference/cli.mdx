@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 114 converted to agent and human output.
+121 verbs; 115 converted to agent and human output.
 
 ## `alias`
 
@@ -951,11 +951,24 @@ verbs[121]{verb,purpose}:
 | | |
 |---|---|
 | Does | seed a new doc with its header contract (library door) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 28 before, 81 after (+189%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/doc.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<sub>` |   | new,adopt,arc |   |
+
+Agent output of `aurora doc` on the bench data:
+
+```text
+error: "doc needs a subcommand: new, adopt or arc"
+code: USAGE
+help[2]:
+  uv run agent_cli.py doc new --type report --title <slug> --seats <you> --body-file <file.md>
+  uv run agent_cli.py doc --help
+```
 
 ## `doctor`
 

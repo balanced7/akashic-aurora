@@ -1,0 +1,318 @@
+{
+  "verb": "doc",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 24,
+    "asked": 30,
+    "output_tokens": 28,
+    "stdout_chars": 554,
+    "stdout_lines": 6,
+    "cost_usd": 0.0213,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Which subcommands does the doc command offer? List them separated by commas.",
+        "expected": [
+          "new",
+          "adopt",
+          "arc"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which atom types does doc new accept? List them separated by commas.",
+        "expected": [
+          "contract",
+          "map",
+          "design",
+          "brief",
+          "report",
+          "chronicle",
+          "ledger",
+          "ruling"
+        ],
+        "answers": [
+          "contract, map, design, brief, report, chronicle, ledger, ruling",
+          "contract, map, design, brief, report, chronicle, ledger, ruling",
+          "contract, map, design, brief, report, chronicle, ledger, ruling",
+          "contract, map, design, brief, report, chronicle, ledger, ruling",
+          "contract map design brief report chronicle ledger ruling"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which type did the command reject? Give the type only.",
+        "expected": "bogus",
+        "answers": [
+          "bogus",
+          "bogus",
+          "bogus",
+          "bogus",
+          "bogus"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which atom id could not be found? Give the id only.",
+        "expected": "art_20990101_nope_000000",
+        "answers": [
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the adopt succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "bare": {
+        "argv": [
+          "doc"
+        ],
+        "exit": 1,
+        "stdout": ""
+      },
+      "notype": {
+        "argv": [
+          "doc",
+          "new",
+          "--title",
+          "probe-x"
+        ],
+        "exit": 2,
+        "stdout": "[doc] REFUSED: --type and --title are required (--from-bus infers type from the message kind)\n  atom types: contract map design brief report chronicle ledger ruling\n  example: uv run agent_cli.py doc new --type report --title fence-x --seats claude --body-file x.md\n"
+      },
+      "badtype": {
+        "argv": [
+          "doc",
+          "new",
+          "--type",
+          "bogus",
+          "--title",
+          "probe-x",
+          "--body",
+          "y"
+        ],
+        "exit": 2,
+        "stdout": "[doc] REFUSED: type 'bogus' not in DOC_TYPES ('contract', 'map', 'design', 'brief', 'report', 'chronicle', 'ledger', 'ruling') -- machine/file kinds stay files\n"
+      },
+      "noatom": {
+        "argv": [
+          "doc",
+          "arc",
+          "art_20990101_nope_000000",
+          "newlabel"
+        ],
+        "exit": 2,
+        "stdout": "[doc] REFUSED: cannot relabel unknown atom art_20990101_nope_000000\n"
+      },
+      "nofile": {
+        "argv": [
+          "doc",
+          "adopt",
+          "/nonexistent/axi-bench-nope.md"
+        ],
+        "exit": 2,
+        "stdout": "[doc] REFUSED: no such file: /nonexistent/axi-bench-nope.md\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 81,
+    "stdout_chars": 814,
+    "stdout_lines": 16,
+    "cost_usd": 0.0248,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Which subcommands does the doc command offer? List them separated by commas.",
+        "expected": [
+          "new",
+          "adopt",
+          "arc"
+        ],
+        "answers": [
+          "new, adopt, arc",
+          "new, adopt, arc",
+          "new, adopt, arc",
+          "new, adopt, arc",
+          "new, adopt, arc"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which atom types does doc new accept? List them separated by commas.",
+        "expected": [
+          "contract",
+          "map",
+          "design",
+          "brief",
+          "report",
+          "chronicle",
+          "ledger",
+          "ruling"
+        ],
+        "answers": [
+          "contract,map,design,brief,report,chronicle,ledger,ruling",
+          "contract,map,design,brief,report,chronicle,ledger,ruling",
+          "contract,map,design,brief,report,chronicle,ledger,ruling",
+          "contract,map,design,brief,report,chronicle,ledger,ruling",
+          "contract,map,design,brief,report,chronicle,ledger,ruling"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which type did the command reject? Give the type only.",
+        "expected": "bogus",
+        "answers": [
+          "bogus",
+          "bogus",
+          "bogus",
+          "bogus",
+          "bogus"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which atom id could not be found? Give the id only.",
+        "expected": "art_20990101_nope_000000",
+        "answers": [
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000",
+          "art_20990101_nope_000000"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the adopt succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "bare": {
+        "argv": [
+          "doc"
+        ],
+        "exit": 2,
+        "stdout": "error: \"doc needs a subcommand: new, adopt or arc\"\ncode: USAGE\nhelp[2]:\n  uv run agent_cli.py doc new --type report --title <slug> --seats <you> --body-file <file.md>\n  uv run agent_cli.py doc --help\n"
+      },
+      "notype": {
+        "argv": [
+          "doc",
+          "new",
+          "--title",
+          "probe-x"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--type and --title are required (--from-bus infers type from the message kind)\"\ncode: USAGE\natom_types[8]: contract,map,design,brief,report,chronicle,ledger,ruling\nhelp[1]:\n  uv run agent_cli.py doc new --type report --title fence-x --seats claude --body-file x.md\n"
+      },
+      "badtype": {
+        "argv": [
+          "doc",
+          "new",
+          "--type",
+          "bogus",
+          "--title",
+          "probe-x",
+          "--body",
+          "y"
+        ],
+        "exit": 2,
+        "stdout": "error: \"refused: type 'bogus' not in DOC_TYPES ('contract', 'map', 'design', 'brief', 'report', 'chronicle', 'ledger', 'ruling') -- machine/file kinds stay files\"\ncode: REFUSED\n"
+      },
+      "noatom": {
+        "argv": [
+          "doc",
+          "arc",
+          "art_20990101_nope_000000",
+          "newlabel"
+        ],
+        "exit": 2,
+        "stdout": "error: \"refused: cannot relabel unknown atom art_20990101_nope_000000\"\ncode: REFUSED\n"
+      },
+      "nofile": {
+        "argv": [
+          "doc",
+          "adopt",
+          "/nonexistent/axi-bench-nope.md"
+        ],
+        "exit": 2,
+        "stdout": "error: \"refused: no such file: /nonexistent/axi-bench-nope.md\"\ncode: NOT_FOUND\n"
+      }
+    }
+  }
+}
