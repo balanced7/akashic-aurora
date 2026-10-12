@@ -1,0 +1,248 @@
+{
+  "verb": "manual",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.76,
+    "correct": 19,
+    "asked": 25,
+    "output_tokens": 65,
+    "stdout_chars": 3367,
+    "stdout_lines": 45,
+    "cost_usd": 0.0241,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many passages are on the shelf in total?",
+        "expected": 20,
+        "answers": [
+          "20",
+          "20",
+          "20",
+          "20",
+          "The output shows \"manual list: 3 documents, 20 passages\" and the runbooks row lists 20 passages, so the shelf total is:\n\n20"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What is the name of the shelf?",
+        "expected": "runbooks",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which document did the top passage come from? Give its title.",
+        "expected": "unwedge",
+        "answers": [
+          "The top passage came from **The Unwedge Runbook** (document `unwedge-runbook-prevention-and-recovery`). The output has no separate title field, so this is taken from the passage's opening line, \"THE UNWEDGE RUNBOOK -- prevention laws + ranked recovery paths for harness wedges.\"",
+          "unwedge-runbook-prevention-and-recovery",
+          "unwedge-runbook-prevention-and-recovery",
+          "unwedge-runbook-prevention-and-recovery",
+          "unwedge-runbook-prevention-and-recovery"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the answer cut short by the size or count cap? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Yes",
+          "Yes",
+          "yes",
+          "Yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many passages matched the question?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "manual",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "manual list: 3 documents, 20 passages (/tmp/axi-bench-m8ed3r4j/data/state/manuals/manuals.db)\n  runbooks                     3 docs      20 passages\n"
+      },
+      "search": {
+        "argv": [
+          "manual",
+          "search",
+          "how",
+          "do",
+          "I",
+          "recover",
+          "a",
+          "wedged",
+          "seat",
+          "--mode",
+          "bm25",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "manual search: 2 passage(s) for 'how do I recover a wedged seat' (from 20 chunks in [runbooks])\n\n[1] unwedge-runbook-prevention-and-recovery  (runbooks)\n    file:///mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a1b90f0ed3d468da7/docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md\n    THE UNWEDGE RUNBOOK -- prevention laws + ranked recovery paths for harness wedges.\n    Born 2026-07-24 from the T104-M2 live incident: a mid-move gap between relocating hook\n    scripts and repointing their config fail-closed EVERY builtin tool for every seat sharing\n    the project config -- claude wedged, Daniel locked out (codex assisted his recovery),\n    deepseek's runner performed the first live mutual-revival through the bus write door.\n    Daniel's directive (verbatim): \"pay extra attention to not getting wedged and having\n    multiple recovery paths.\"\n\n[2] unwedge-runbook-prevention-and-recovery \u203a RECOVERY PATHS (ranked; keep >=2 alive at all times)  (runbooks)\n    file:///mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a1b90f0ed3d468da7/docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md#recovery-paths-ranked-keep-2-alive-at-all-times\n    R1. THE MCP DOOR -- akashic MCP tools ride a different matcher plane than builtin-tool\n        hooks; they survived today's total builtin wedge. From it: bus sends, nudges, notes,\n        status. The wedged seat keeps its voice even with no hands.\n    \n    R2. PEER RUNNER WRITE DOOR (T097, proven live today) -- bifrost_nudge mode=interrupt to\n        a live runner with EXACT small instructions (2-file byte-copy, nothing else).\n        deepseek restored three hook files in one round and improved on the ask (spotted the\n        third blocker unnamed). Precision of the ask is the safety: name files, name\n        byte-identical, name nothing-else.\n    \n    R3. THE HUMAN + CODEX SEAT (proven today by Daniel) -- a harness OUTSIDE the shared\n        project hook config; codex's tools do not read .claude/settings.json. Keep its\n        onboarding current (T090 lineage) so it can operate cold.\n    \n    R4. WATCHER-INDEPENDENT PROCESSES -- already-running background tasks (armed watchers,\n        daemons) predate the wedge and keep running; they are wake rails INTO a wedged\n        session and carry state OUT of it (task outputs readable next turn).\n    \n    R5. LAST RESORT: Daniel edits .claude/settings.json by hand (or restores files from\n        git) -- every hook command line is a plain relative path by design; keep it that way\n        (no wrappers, no indirection) precisely so a human can repair it in one edit.\n    \n    THE DRILL (A2/testing candidate)\n    Quarterly (or after any hook-surface change): simulate the wedge in a worktree -- move\n    one hook, confirm the builtin tools block, execute R2 end-to-end with a peer runner,\n    time it. The 2026-07-24 baseline: detection-to-recovery ~6 minutes, two agents.\n\n(answer capped by size; raise --max-chars or --limit for more)\n"
+      },
+      "none": {
+        "argv": [
+          "manual",
+          "search",
+          "zebra",
+          "unicorn",
+          "--mode",
+          "bm25"
+        ],
+        "exit": 0,
+        "stdout": "manual search: 0 of 20 chunks in [runbooks] matched ['zebra', 'unicorn'] -- the shelf may use other words for this; try synonyms, or `manual list` to see what is shelved\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 120,
+    "stdout_chars": 3353,
+    "stdout_lines": 30,
+    "cost_usd": 0.0212,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many passages are on the shelf in total?",
+        "expected": 20,
+        "answers": [
+          "20",
+          "20",
+          "20",
+          "20",
+          "20"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the name of the shelf?",
+        "expected": "runbooks",
+        "answers": [
+          "runbooks",
+          "runbooks",
+          "runbooks",
+          "runbooks",
+          "runbooks"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which document did the top passage come from? Give its title.",
+        "expected": "unwedge",
+        "answers": [
+          "THE UNWEDGE RUNBOOK",
+          "unwedge-runbook-prevention-and-recovery",
+          "THE UNWEDGE RUNBOOK",
+          "THE UNWEDGE RUNBOOK -- prevention laws + ranked recovery paths for harness wedges",
+          "THE UNWEDGE RUNBOOK"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the answer cut short by the size or count cap? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "Yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many passages matched the question?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "manual",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "shelves: 1\ndocuments: 3\npassages: 20\nembedded: 0\ndb: /tmp/axi-bench-m8ed3r4j/data/state/manuals/manuals.db\nby_shelf[1]{shelf,documents,passages}:\n  runbooks,3,20\nhelp[1]:\n  uv run agent_cli.py manual search <question> --shelf runbooks\n"
+      },
+      "search": {
+        "argv": [
+          "manual",
+          "search",
+          "how",
+          "do",
+          "I",
+          "recover",
+          "a",
+          "wedged",
+          "seat",
+          "--mode",
+          "bm25",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "query: how do I recover a wedged seat\nmode: bm25\nsearched_passages: 20\nshelves[1]: runbooks\ntotal: 2\ncapped: true\npassages[2]{shelf,document,section,source,text}:\n  runbooks,unwedge-runbook-prevention-and-recovery,null,\"file:///mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a1b90f0ed3d468da7/docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md\",\"THE UNWEDGE RUNBOOK -- prevention laws + ranked recovery paths for harness wedges. Born 2026-07-24 from the T104-M2 live incident: a mid-move gap between relocating hook scripts and repointing their config fail-closed EVERY builtin tool for every seat sharing the project config -- claude wedged, Daniel locked out (codex assisted his recovery), deepseek's runner performed the first live mutual-revival through the bus write door. Daniel's directive (verbatim): \\\"pay extra attention to not getting wedged and having multiple recovery paths.\\\"\"\n  runbooks,unwedge-runbook-prevention-and-recovery,RECOVERY PATHS (ranked; keep >=2 alive at all times),\"file:///mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a1b90f0ed3d468da7/docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md#recovery-paths-ranked-keep-2-alive-at-all-times\",\"R1. THE MCP DOOR -- akashic MCP tools ride a different matcher plane than builtin-tool hooks; they survived today's total builtin wedge. From it: bus sends, nudges, notes, status. The wedged seat keeps its voice even with no hands. R2. PEER RUNNER WRITE DOOR (T097, proven live today) -- bifrost_nudge mode=interrupt to a live runner with EXACT small instructions (2-file byte-copy, nothing else). deepseek restored three hook files in one round and improved on the ask (spotted the third blocker unnamed). Precision of the ask is the safety: name files, name byte-identical, name nothing-else. R3. THE HUMAN + CODEX SEAT (proven today by Daniel) -- a harness OUTSIDE the shared project hook config; codex's tools do not read .claude/settings.json. Keep its onboarding current (T090 lineage) so it can operate cold. R4. WATCHER-INDEPENDENT PROCESSES -- already-running background tasks (armed watchers, daemons) predate the wedge and keep running; they are wake rails INTO a wedged session and carry state OUT of it (task outputs readable next turn). R5. LAST RESORT: Daniel edits .claude/settings.json by hand (or restores files from git) -- every hook command line is a plain relative path by design; keep it that way (no wrappers, no indirection) precisely so a human can repair it in one edit. THE DRILL (A2/testing candidate) Quarterly (or after any hook-surface change): simulate the wedge in a worktree -- move one hook, confirm the builtin tools block, execute R2 end-to-end with a peer runne... (truncated, 1582 chars total)\"\nhelp[1]:\n  uv run agent_cli.py manual search how do I recover a wedged seat --max-chars 12000\n"
+      },
+      "none": {
+        "argv": [
+          "manual",
+          "search",
+          "zebra",
+          "unicorn",
+          "--mode",
+          "bm25"
+        ],
+        "exit": 0,
+        "stdout": "query: zebra unicorn\nmode: bm25\nsearched_passages: 20\nshelves[1]: runbooks\ntotal: 0\nterms[2]: zebra,unicorn\npassages: []\nhelp[2]:\n  uv run agent_cli.py manual search <other words>\n  uv run agent_cli.py manual list\n"
+      }
+    }
+  }
+}

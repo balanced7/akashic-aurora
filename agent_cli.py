@@ -11275,19 +11275,22 @@ def cmd_manual(args):
     not absence of the subject."""
     import json as _json
 
+    from core.axi import out
     from core.manuals.shelf import Shelf
 
+    cli = _cli()
     cmd = str(getattr(args, "manual_cmd", "") or "")
     words = [str(w) for w in (getattr(args, "words", None) or [])]
     shelf = Shelf(embedder="default")  # the cached MiniLM, loaded only if ingest/hybrid needs it
     if cmd == "search":
         question = " ".join(words).strip() or str(getattr(args, "query", "") or "").strip()
         if not question:
-            print(
-                f"usage: {_cli()} manual search <question> [--shelf NAME] [--mode bm25|hybrid] "
-                "[--limit N] [--max-chars N]"
+            return out.fail(
+                "manual search needs a question",
+                code="USAGE",
+                hints=[f"{cli} manual search how do I size a button"],
+                exit_code=out.EXIT_USAGE,
             )
-            return 2
         res = shelf.search(
             question,
             shelf=(getattr(args, "shelf", "") or None),
@@ -11295,29 +11298,133 @@ def cmd_manual(args):
             max_chars=int(getattr(args, "max_chars", 6000) or 6000),
             mode=str(getattr(args, "mode", None) or "hybrid"),
         )
-        print(res.to_json() if getattr(args, "json", False) else res.render())
-        return 1 if res.error else 0
+        if getattr(args, "json", False):
+            print(res.to_json())
+            return 1 if res.error else 0
+        return _emit_manual_search(res)
     if cmd == "ingest":
         if len(words) < 2:
-            print(f"usage: {_cli()} manual ingest SHELF PATH [--selector CSS]")
-            return 2
+            return out.fail(
+                "manual ingest needs a shelf name and a folder",
+                code="USAGE",
+                hints=[f"{cli} manual ingest <shelf> <folder>"],
+                exit_code=out.EXIT_USAGE,
+            )
         rep = shelf.ingest(words[0], words[1], html_selector=(getattr(args, "selector", "") or None))
-        print(rep.render())
+        doc: dict = {
+            "shelf": rep.shelf,
+            "added": rep.docs_added,
+            "replaced": rep.docs_replaced,
+            "unchanged": rep.docs_unchanged,
+            "removed": rep.docs_removed,
+            "passages_written": rep.chunks_written,
+            "embedded": rep.embedded,
+        }
+        if rep.vector_note:
+            doc["vectors"] = rep.vector_note
+        if rep.failed:
+            doc["failed_total"] = len(rep.failed)
+            doc["failed"] = rep.failed[:20]
+        out.emit(doc, hints=[f"{cli} manual search <question> --shelf {rep.shelf}"], title="Manual ingest")
         return 1 if rep.failed else 0
     if cmd == "list":
         st = shelf.stats()
         if getattr(args, "json", False):
             print(_json.dumps(st))
             return 0
-        if not st["shelves"]:
-            print(f"manual list: the shelf is empty ({st['db']}). Add one: {_cli()} manual ingest NAME FOLDER")
-            return 0
-        print(f"manual list: {st['docs']} documents, {st['chunks']} passages ({st['db']})")
-        for name, n in cast("dict[str, dict[str, int]]", st["shelves"]).items():
-            print(f"  {name:<24} {n['docs']:>5} docs  {n['chunks']:>6} passages")
-        return 0
-    print(f"usage: {_cli()} manual search|ingest|list ...")
-    return 2
+        shelves = cast("dict[str, dict[str, int]]", st["shelves"])
+        doc = {"shelves": len(shelves), "documents": st["docs"], "passages": st["chunks"]}
+        if shelves:
+            doc["embedded"] = st["embedded"]
+        doc["db"] = st["db"]
+        if not shelves:  # AXI section 5: an empty shelf, said outright, with how to fill it
+            doc["note"] = "the shelf is empty"
+            return out.emit(doc, hints=[f"{cli} manual ingest <shelf> <folder>"], title="Manuals")
+        doc["by_shelf"] = [{"shelf": n, "documents": v["docs"], "passages": v["chunks"]} for n, v in shelves.items()]
+        first = next(iter(shelves))
+        return out.emit(doc, hints=[f"{cli} manual search <question> --shelf {first}"], title="Manuals")
+    return out.fail(
+        f"unknown manual command {cmd!r}",
+        code="USAGE",
+        hints=[f"{cli} manual list", f"{cli} manual search <question>"],
+        exit_code=out.EXIT_USAGE,
+    )
+
+
+def _emit_manual_search(res) -> int:
+    """`manual search` for the current reader: what was searched (the denominator a zero needs),
+    then the passages with their breadcrumb and source."""
+    from core.axi import out
+
+    cli = _cli()
+    where = res.shelves or []
+    if res.error:
+        return out.fail(
+            f"could not search: {res.error}",
+            code="SEARCH_FAILED",
+            hints=[f"{cli} manual list"],
+            details={"searched_passages": res.searched_chunks, "shelves": where},
+        )
+    doc: dict = {
+        "query": res.query,
+        "mode": res.mode,
+        "searched_passages": res.searched_chunks,
+        "shelves": where,
+        "total": len(res.hits),
+    }
+    if res.note:
+        doc["note"] = res.note
+    if not res.hits:  # a zero names its denominator: absence of a match is not absence of the subject
+        doc["terms"] = res.terms
+        doc["passages"] = []
+        return out.emit(
+            doc,
+            hints=[f"{cli} manual search <other words>", f"{cli} manual list"],
+            human=_human_manual_search,
+            title="Manual search",
+        )
+    doc["capped"] = bool(res.truncated)
+    rows = []
+    for h in res.hits:
+        source = h.url or ""
+        if h.page:
+            source = f"{source} p.{h.page}".strip()
+        # The breadcrumb is "Document › Heading › Subheading": the document and the section
+        # are named apart, because a passage's own first line reads like a title too.
+        document, _, section = str(h.breadcrumb or h.title).partition(" › ")
+        rows.append(
+            {
+                "shelf": h.shelf,
+                "document": document,
+                "section": section or None,
+                "source": source or None,
+                "text": out.truncate(h.text, 1500)[0],
+            }
+        )
+    doc["passages"] = rows
+    hints = [f"{cli} manual search {res.query} --max-chars 12000"] if res.truncated else []
+    return out.emit(doc, hints=hints, human=_human_manual_search, title="Manual search")
+
+
+def _human_manual_search(console, doc):
+    """Human view of `manual search`: the count against what was searched, then each passage
+    under its breadcrumb with its source."""
+    from core.axi import out
+
+    where = ", ".join(doc["shelves"]) or "no shelves"
+    head = f"{doc['total']} passage{'s' if doc['total'] != 1 else ''} from {doc['searched_passages']} in [{where}]"
+    console.print(f"[{'dim' if doc['total'] else 'yellow'}]{out._esc(head)}[/]")
+    if doc.get("note"):
+        console.print(f"[dim]{out._esc(doc['note'])}[/]")
+    for i, p in enumerate(doc["passages"], 1):
+        console.print()
+        crumb = p["document"] + (f" › {p['section']}" if p.get("section") else "")
+        console.print(f"[bold]{i}. {out._esc(crumb)}[/]  [cyan]{out._esc(p['shelf'])}[/]")
+        if p.get("source"):
+            console.print(f"   [dim]{out._esc(p['source'])}[/]")
+        console.print(f"   {out._esc(p['text'])}")
+    if doc.get("capped"):
+        console.print("[yellow]answer capped by size: raise --max-chars or --limit for more[/]")
 
 
 def cmd_blob(args):

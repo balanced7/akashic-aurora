@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 72 converted to agent and human output.
+121 verbs; 73 converted to agent and human output.
 
 ## `alias`
 
@@ -1774,7 +1774,10 @@ help[3]:
 | | |
 |---|---|
 | Does | the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as labelled passages; ingest a folder; list what is shelved |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 76% before, 100% after |
+| Output tokens | 65 before, 120 after (+85%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/manual.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1786,6 +1789,20 @@ help[3]:
 | `--selector` |   |   | ingest: CSS selector of the HTML content container |
 | `--mode` |   | bm25,hybrid | search: hybrid (default: keywords + meaning via the cached MiniLM; right page in the top 5 for 39/40 blind questions) or bm25 (keywords only, no model load) |
 | `--json` |   |   |   |
+
+Agent output of `aurora manual list` on the bench data:
+
+```text
+shelves: 1
+documents: 3
+passages: 20
+embedded: 0
+db: /tmp/axi-bench-m8ed3r4j/data/state/manuals/manuals.db
+by_shelf[1]{shelf,documents,passages}:
+  runbooks,3,20
+help[1]:
+  uv run agent_cli.py manual search <question> --shelf runbooks
+```
 
 ## `memreplay`
 
