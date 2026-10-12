@@ -6619,27 +6619,74 @@ def cmd_handoff(args):
 
 
 # ------------------------------------------------------------------------- events
-def _print_events(evs, args, header):
-    """Render raw events ASCII-safe, front-loaded, with drill pointers."""
+def _print_events(evs, args, doc, *, limit, title, empty_hints=()):
+    """Render raw events for the current reader: one row per event with its drill pointer.
+
+    `doc` carries what was asked (query, agent, span); this adds the count and the rows. The
+    firehose is bounded and the read is capped at `limit`, so a full page says more may exist
+    instead of passing itself off as everything."""
+    from core.axi import out
+
     if args.json:
         print(json.dumps(evs, indent=2, default=str))
-        return
-    print(header)
-    if not evs:
-        print("  (none)")
-        return
+        return 0
+    cli = _cli()
+    doc = {**doc, "count": len(evs)}
+    if evs and len(evs) >= limit:
+        doc["more"] = f"may exist beyond --limit {limit}"
+    if not evs:  # AXI section 5: the zero is the answer, said outright
+        doc["events"] = []
+        return out.emit(doc, hints=list(empty_hints), human=_human_events, title=title)
+    with_track = any(e.get("track") for e in evs)  # a column only when some event has one
+    rows = []
     for e in evs:
-        at = render_iso(e.get("at", ""), tz="local")  # T119: the one display door, frame labeled
-        line = f"  [{e.get('kind', '?')}] {at}  {_clip(e.get('summary', ''), 90)}"
-        print(line)
-        tail = e.get("_ref", "")
+        row = {
+            "kind": e.get("kind") or "?",
+            "at": render_iso(e.get("at", ""), tz="local"),  # T119: the one display door, frame labeled
+            "agent": e.get("agent_id") or None,
+        }
+        if with_track:
+            row["track"] = e.get("track") or None
+        row["summary"] = out.truncate(e.get("summary", ""), 120)[0]  # the full text is one --get away
+        row["ref"] = e.get("_ref") or None
+        rows.append(row)
+    doc["events"] = rows
+    hints = [f"{cli} events --get {evs[0].get('_ref')}"]
+    if "more" in doc:
+        hints.append(f"{cli} events --limit {limit * 2}" + (f" --agent {args.agent}" if args.agent else ""))
+    return out.emit(doc, hints=hints, human=_human_events, title=title)
+
+
+def _human_events(console, doc):
+    """Human view of `events`: what was asked and how many, then one table of events."""
+    from core.axi import out
+
+    what = []
+    if doc.get("query"):
+        what.append(f'ranked by relevance to [bold]"{out._esc(doc["query"])}"[/]')
+    if doc.get("agent"):
+        what.append(f"by {out._esc(doc['agent'])}")
+    if doc.get("from"):
+        what.append(f"{out._esc(doc['from'])} -> {out._esc(doc['to'])}")
+    n = doc["count"]
+    line = f"{n} raw event{'s' if n != 1 else ''}" + (f" {' '.join(what)}" if what else "")
+    if not n:
+        console.print(f"[yellow]{line}[/]")
+        return
+    console.print(f"[dim]{line}[/]")
+    if doc.get("more"):
+        console.print(f"[yellow]more {out._esc(doc['more'])}[/]")
+    # One block per event rather than a table: summaries and pointers are too wide for columns.
+    for e in doc["events"]:
+        head = f"[bold cyan]{out._esc(str(e['kind']))}[/]  {out._esc(str(e['at']))}"
+        if e.get("agent"):
+            head += f"  by [bold]{out._esc(str(e['agent']))}[/]"
         if e.get("track"):
-            tail += f"   track={e['track']}"
-        if e.get("agent_id"):
-            tail += f"   by={e['agent_id']}"
-        print(f"      {tail}")
-    print("\nDrill into one:")
-    print(f"  {_cli()} events --get {evs[0].get('_ref')}")
+            head += f"  [dim]track[/] {out._esc(str(e['track']))}"
+        console.print()
+        console.print(head)
+        console.print(f"  {out._esc(str(e['summary']))}")
+        console.print(f"  [dim]{out._esc(str(e['ref']))}[/]")
 
 
 def _sid8_of(session_id) -> str:
@@ -6662,10 +6709,12 @@ def cmd_events(args):
       py agent_cli.py events --capture --kind K --summary "..." [--detail-json '{...}']
     Filters: --kind --agent --track --since ISO --until ISO --limit N --json
     """
+    from core.axi import out
     from core.events.event_log import get_event_log
     from core.events.event_query import get_event_query
 
     eq = get_event_query()
+    cli = _cli()
 
     # --capture: external-runtime write door (the agent shells in one raw event)
     if args.capture:
@@ -6674,31 +6723,42 @@ def cmd_events(args):
             try:
                 detail = json.loads(args.detail_json)
             except (ValueError, TypeError):
-                print("ERROR: --detail-json must be valid JSON.")
-                return 2
+                return out.fail(
+                    "--detail-json must be valid JSON",
+                    code="USAGE",
+                    hints=[f'{cli} events --capture --kind note --summary "..." --detail-json \'{{"key": 1}}\''],
+                    exit_code=out.EXIT_USAGE,
+                )
         refs = [r for r in (args.refs or "").split(",") if r.strip()] or None
         o = get_event_log().capture(
             args.kind or "note", args.summary or "", detail=detail, agent_id=args.agent, refs=refs, track=args.track
         )
-        # T179: three states, so the render has three. This used to read dict-or-None and print
-        # FAIL for anything that was not a clean dict -- including a write that LANDED with a
-        # convenience index behind. Reporting a stored event as lost is the defect being fixed;
-        # repeating it at the door would just move it.
-        state = "OK" if o else ("PARTIAL" if o.partial else "FAIL")
         if args.json:
             print(
                 json.dumps(
                     {"ok": o.ok, "partial": o.partial, "why": o.why, "ref": o.ref, "event": o.detail}, default=str
                 )
             )
-        else:
-            print(
-                f"[{state}] captured {args.kind or 'note'}: "
-                f"{_clip(args.summary or '', 80)}" + (f"  -> {o.ref}" if o.ref else "")
+            return 0 if o.ok else 1
+        # T179: three states, so the render has three. This used to read dict-or-None and print
+        # FAIL for anything that was not a clean dict -- including a write that LANDED with a
+        # convenience index behind. Reporting a stored event as lost is the defect being fixed;
+        # repeating it at the door would just move it.
+        if not o.ok:
+            return out.fail(
+                f"event not captured: {o.why or 'the write failed'}",
+                code="CAPTURE_FAILED",
+                details={"kind": args.kind or "note"},
             )
-            if o.why:
-                print(f"  {o.why}")
-        return 0 if o.ok else 1
+        doc = {
+            "status": "ok" if o else "partial",
+            "kind": args.kind or "note",
+            "summary": out.truncate(args.summary or "", 200)[0],
+            "ref": o.ref,
+        }
+        if o.why:
+            doc["why"] = o.why
+        return out.emit(doc, title="Event captured")  # a confirmation answers itself: no hints
 
     # --promote: consolidate salient raw events into Beats (reflection; rate-limited)
     if args.promote:
@@ -6709,27 +6769,39 @@ def cmd_events(args):
         )
         if args.json:
             print(json.dumps(rep))
-        else:
-            print(
-                f"# promotion: {rep['promoted']} promoted / {rep['eligible']} eligible "
-                f"(scanned {rep['scanned']}, skipped {rep['skipped_dup']} dup + "
-                f"{rep['skipped_beat']} already-beat)"
-            )
-        return 0
+            return 0
+        doc = {
+            "promoted": rep["promoted"],
+            "eligible": rep["eligible"],
+            "scanned": rep["scanned"],
+            "skipped_duplicate": rep["skipped_dup"],
+            "skipped_already_beat": rep["skipped_beat"],
+        }
+        return out.emit(doc, hints=[f"{cli} story --limit 10"] if rep["promoted"] else [], title="Event promotion")
 
     # --get: resolve one followable pointer (RB-7: a miss says WHETHER the payload aged
     # out of the bounded firehose -- an evicted drill target must never read as blank truth)
     if args.get:
         ev, why = eq.resolve(args.get)
         if not ev:
-            print(f"ERROR: {why}")
-            return 2
-        print(
-            json.dumps(ev, indent=2, default=str)
-            if args.json
-            else f"[{ev.get('kind')}] {ev.get('at')}\n  {ev.get('summary')}\n  detail: {ev.get('detail')}"
-        )
-        return 0
+            return out.fail(
+                str(why), code="NOT_FOUND", hints=[f'{cli} events --search "<query>"'], exit_code=out.EXIT_USAGE
+            )
+        if args.json:
+            print(json.dumps(ev, indent=2, default=str))
+            return 0
+        doc = {
+            "ref": ev.get("_ref") or args.get,
+            "kind": ev.get("kind"),
+            "at": render_iso(ev.get("at", ""), tz="local"),
+            "agent": ev.get("agent_id") or None,
+            "track": ev.get("track") or None,
+            "summary": ev.get("summary"),
+            "refs": ev.get("refs") or None,
+            "detail": ev.get("detail") or None,
+        }
+        # One event is a detail view: it answers itself, so no hints.
+        return out.emit({k: v for k, v in doc.items() if v is not None}, title="Event")
 
     # --around: the timeline bridge (chapter/beat/timestamp -> raw events under it)
     if args.around:
@@ -6744,19 +6816,27 @@ def cmd_events(args):
             limit=args.limit,
         )
         if res["span"] is None:
-            print(f"ERROR: could not resolve '{args.around}' to a chapter / beat / ISO timestamp.")
-            return 2
+            return out.fail(
+                f"could not resolve {args.around!r} to a chapter, beat or ISO timestamp",
+                code="NOT_FOUND",
+                hints=[f"{cli} events --around 2026-01-31T12:00:00 --window 30m", f"{cli} story"],
+                exit_code=out.EXIT_USAGE,
+            )
         sp = res["span"]
-        _print_events(
+        doc = {"from": render_iso(sp["start"], tz="local"), "to": render_iso(sp["end"], tz="local")}
+        # No --limit means every event in the window: nothing is cut, so nothing is "more".
+        return _print_events(
             res["events"],
             args,
-            f"# {len(res['events'])} raw event(s) in {render_iso(sp['start'], tz='local')} "
-            f"-> {render_iso(sp['end'], tz='local')}",
+            doc,
+            limit=args.limit or len(res["events"]) + 1,
+            title="Events in window",
+            empty_hints=[f"{cli} events --around {args.around} --window 2h"],
         )
-        return 0
 
     # --search: relevance-ranked; or default: recent
     if args.search is not None:
+        limit = args.limit or 10
         evs = eq.search(
             _clip(args.search, 200),
             kind=args.kind,
@@ -6764,13 +6844,32 @@ def cmd_events(args):
             track=args.track,
             since=args.since,
             until=args.until,
-            top_k=args.limit or 10,
+            top_k=limit,
         )
-        _print_events(evs, args, f"# {len(evs)} event(s) matching '{args.search}'")
-    else:
-        evs = get_event_log().recent(args.limit or 20, agent=args.agent)
-        _print_events(evs, args, f"# {len(evs)} recent raw event(s)" + (f" by {args.agent}" if args.agent else ""))
-    return 0
+        # A ranking, not a filter: every event inside the filters comes back best match first,
+        # so the reader must not take a listed event as one that contains the words.
+        doc = {"query": args.search, "order": "best match first (ranked, not filtered)"}
+        return _print_events(
+            evs,
+            args,
+            doc,
+            limit=limit,
+            title="Event search",
+            empty_hints=[f"{cli} events", f'{cli} events --search "<query>" --since <ISO>'],
+        )
+    limit = args.limit or 20
+    evs = get_event_log().recent(limit, agent=args.agent)
+    capture = f'{cli} events --capture --kind note --summary "..."'
+    if args.agent:
+        return _print_events(
+            evs,
+            args,
+            {"agent": args.agent},
+            limit=limit,
+            title="Recent events",
+            empty_hints=[f"{cli} events", f"{capture} --agent {args.agent}"],
+        )
+    return _print_events(evs, args, {}, limit=limit, title="Recent events", empty_hints=[capture])
 
 
 # ---------------------------------------------------------------------- promoted (B2 read side)

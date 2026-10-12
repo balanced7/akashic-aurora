@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 11 converted to agent and human output.
+121 verbs; 12 converted to agent and human output.
 
 ## `alias`
 
@@ -579,7 +579,10 @@ help[1]:
 | | |
 |---|---|
 | Does | search / drill / capture the raw event firehose |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 306 before, 329 after (+8%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/events.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -600,6 +603,19 @@ help[1]:
 | `--until` |   |   | search: ISO upper time bound |
 | `--limit` |   |   | max results |
 | `--json` |   |   | JSON output |
+
+Agent output of `aurora events` on the bench data:
+
+```text
+count: 4
+events[4]{kind,at,agent,track,summary,ref}:
+  note,"2026-10-12T16:09:36 CEST",alice,null,paused the release until the auth fix lands,"event:events:raw:1791814176071-0"
+  migration,"2026-10-12T16:09:35 CEST",carol,data,"migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope field for every row, rebuilt the... (truncated, 437 chars total)","event:events:raw:1791814175601-0"
+  test_run,"2026-10-12T16:09:35 CEST",bob,null,"ran suite: 3 failures in auth","event:events:raw:1791814175170-0"
+  deploy,"2026-10-12T16:09:34 CEST",alice,ops,deployed api v2 to staging,"event:events:raw:1791814174795-0"
+help[1]:
+  uv run agent_cli.py events --get event:events:raw:1791814176071-0
+```
 
 ## `eye`
 

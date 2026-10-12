@@ -1,0 +1,294 @@
+{
+  "verb": "events",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 306,
+    "stdout_chars": 1873,
+    "stdout_lines": 34,
+    "cost_usd": 0.0347,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many raw events does this output list?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent recorded the deploy event?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which track is the migration event on?",
+        "expected": "data",
+        "answers": [
+          "data",
+          "data",
+          "data",
+          "data",
+          "data"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the summary of the migration event shown in full? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the full record of the top-ranked event? Give the command only.",
+        "expected": [
+          "events",
+          "--get",
+          "event:events:raw:"
+        ],
+        "answers": [
+          "uv run agent_cli.py events --get event:events:raw:1791814127717-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814127717-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814127717-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814127717-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814127717-0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many events by agent dave are listed?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output show every stored raw event, with none left out? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "recent": {
+        "argv": [
+          "events"
+        ],
+        "exit": 0,
+        "stdout": "# 4 recent raw event(s)\n  [note] 2026-10-12T16:08:48 CEST  paused the release until the auth fix lands\n      event:events:raw:1791814128710-0   by=alice\n  [migration] 2026-10-12T16:08:48 CEST  migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope ...[truncated]\n      event:events:raw:1791814128226-0   track=data   by=carol\n  [test_run] 2026-10-12T16:08:47 CEST  ran suite: 3 failures in auth\n      event:events:raw:1791814127717-0   by=bob\n  [deploy] 2026-10-12T16:08:47 CEST  deployed api v2 to staging\n      event:events:raw:1791814127182-0   track=ops   by=alice\n\nDrill into one:\n  uv run agent_cli.py events --get event:events:raw:1791814128710-0\n"
+      },
+      "search": {
+        "argv": [
+          "events",
+          "--search",
+          "auth failures"
+        ],
+        "exit": 0,
+        "stdout": "# 4 event(s) matching 'auth failures'\n  [test_run] 2026-10-12T16:08:47 CEST  ran suite: 3 failures in auth\n      event:events:raw:1791814127717-0   by=bob\n  [note] 2026-10-12T16:08:48 CEST  paused the release until the auth fix lands\n      event:events:raw:1791814128710-0   by=alice\n  [migration] 2026-10-12T16:08:48 CEST  migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope ...[truncated]\n      event:events:raw:1791814128226-0   track=data   by=carol\n  [deploy] 2026-10-12T16:08:47 CEST  deployed api v2 to staging\n      event:events:raw:1791814127182-0   track=ops   by=alice\n\nDrill into one:\n  uv run agent_cli.py events --get event:events:raw:1791814127717-0\n"
+      },
+      "bob": {
+        "argv": [
+          "events",
+          "--agent",
+          "dave"
+        ],
+        "exit": 0,
+        "stdout": "# 0 recent raw event(s) by dave\n  (none)\n"
+      },
+      "capped": {
+        "argv": [
+          "events",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "# 2 recent raw event(s)\n  [note] 2026-10-12T16:08:48 CEST  paused the release until the auth fix lands\n      event:events:raw:1791814128710-0   by=alice\n  [migration] 2026-10-12T16:08:48 CEST  migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope ...[truncated]\n      event:events:raw:1791814128226-0   track=data   by=carol\n\nDrill into one:\n  uv run agent_cli.py events --get event:events:raw:1791814128710-0\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 329,
+    "stdout_chars": 2218,
+    "stdout_lines": 32,
+    "cost_usd": 0.0329,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many raw events does this output list?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent recorded the deploy event?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which track is the migration event on?",
+        "expected": "data",
+        "answers": [
+          "data",
+          "data",
+          "data",
+          "data",
+          "data"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the summary of the migration event shown in full? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the full record of the top-ranked event? Give the command only.",
+        "expected": [
+          "events",
+          "--get",
+          "event:events:raw:"
+        ],
+        "answers": [
+          "uv run agent_cli.py events --get event:events:raw:1791814175170-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814175170-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814175170-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814175170-0",
+          "uv run agent_cli.py events --get event:events:raw:1791814175170-0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many events by agent dave are listed?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "The output says `count: 0`.\n\n0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output show every stored raw event, with none left out? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "recent": {
+        "argv": [
+          "events"
+        ],
+        "exit": 0,
+        "stdout": "count: 4\nevents[4]{kind,at,agent,track,summary,ref}:\n  note,\"2026-10-12T16:09:36 CEST\",alice,null,paused the release until the auth fix lands,\"event:events:raw:1791814176071-0\"\n  migration,\"2026-10-12T16:09:35 CEST\",carol,data,\"migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope field for every row, rebuilt the... (truncated, 437 chars total)\",\"event:events:raw:1791814175601-0\"\n  test_run,\"2026-10-12T16:09:35 CEST\",bob,null,\"ran suite: 3 failures in auth\",\"event:events:raw:1791814175170-0\"\n  deploy,\"2026-10-12T16:09:34 CEST\",alice,ops,deployed api v2 to staging,\"event:events:raw:1791814174795-0\"\nhelp[1]:\n  uv run agent_cli.py events --get event:events:raw:1791814176071-0\n"
+      },
+      "search": {
+        "argv": [
+          "events",
+          "--search",
+          "auth failures"
+        ],
+        "exit": 0,
+        "stdout": "query: auth failures\norder: \"best match first (ranked, not filtered)\"\ncount: 4\nevents[4]{kind,at,agent,track,summary,ref}:\n  test_run,\"2026-10-12T16:09:35 CEST\",bob,null,\"ran suite: 3 failures in auth\",\"event:events:raw:1791814175170-0\"\n  note,\"2026-10-12T16:09:36 CEST\",alice,null,paused the release until the auth fix lands,\"event:events:raw:1791814176071-0\"\n  migration,\"2026-10-12T16:09:35 CEST\",carol,data,\"migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope field for every row, rebuilt the... (truncated, 437 chars total)\",\"event:events:raw:1791814175601-0\"\n  deploy,\"2026-10-12T16:09:34 CEST\",alice,ops,deployed api v2 to staging,\"event:events:raw:1791814174795-0\"\nhelp[1]:\n  uv run agent_cli.py events --get event:events:raw:1791814175170-0\n"
+      },
+      "bob": {
+        "argv": [
+          "events",
+          "--agent",
+          "dave"
+        ],
+        "exit": 0,
+        "stdout": "agent: dave\ncount: 0\nevents: []\nhelp[2]:\n  uv run agent_cli.py events\n  uv run agent_cli.py events --capture --kind note --summary \"...\" --agent dave\n"
+      },
+      "capped": {
+        "argv": [
+          "events",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "count: 2\nmore: may exist beyond --limit 2\nevents[2]{kind,at,agent,track,summary,ref}:\n  note,\"2026-10-12T16:09:36 CEST\",alice,null,paused the release until the auth fix lands,\"event:events:raw:1791814176071-0\"\n  migration,\"2026-10-12T16:09:35 CEST\",carol,data,\"migrated the lessons table to the v3 schema: renamed four columns, backfilled the scope field for every row, rebuilt the... (truncated, 437 chars total)\",\"event:events:raw:1791814175601-0\"\nhelp[2]:\n  uv run agent_cli.py events --get event:events:raw:1791814176071-0\n  uv run agent_cli.py events --limit 4\n"
+      }
+    }
+  }
+}

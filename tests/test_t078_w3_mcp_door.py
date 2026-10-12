@@ -116,7 +116,7 @@ def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
                 },
             )
             audit_text = "".join(getattr(c, "text", "") for c in audit.content)
-            assert "# 2 event(s) matching" in audit_text, audit_text
+            assert "count: 2" in audit_text, audit_text
 
     _run(flow())
 
