@@ -10825,19 +10825,22 @@ def _human_secs(s: int) -> str:
 
 def cmd_packet_trace(args):
     """T060 N0: explain the existing static kind-to-lane decision without sending."""
+    from core.axi import out as axi
     from core.comm.router import route
 
     out = route(args.kind).as_dict()
     if args.json:
         print(json.dumps(out, sort_keys=True))
         return 0
-    lane = out["lane"] if out["lane"] is not None else "(unmapped; legacy-only)"
-    print(f"# PACKET ROUTE -- {out['kind']}")
-    print(f"  lane: {lane}")
-    print(f"  rule: {out['rule_id']}")
-    print(f"  mode: {out['mode']} (observation only; no delivery behavior changes)")
-    print(f"  policy: {out['policy_version']}")
-    return 0
+    doc: dict = {"kind": out["kind"], "lane": out["lane"]}
+    if out["lane"] is None:  # an unmapped kind is an answer, not an error: it stays legacy-only
+        doc["mapped"] = False
+        doc["delivery"] = "legacy only"
+    doc["rule"] = out["rule_id"]
+    doc["mode"] = out["mode"]
+    doc["observation_only"] = True  # N0: the decision is recorded, delivery does not change
+    doc["policy"] = out["policy_version"]
+    return axi.emit(doc, title=f"Packet route · {out['kind']}")  # a lookup answers itself: no hints
 
 
 def _mailbox_refusal(out, agent_id):

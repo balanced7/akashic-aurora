@@ -1,0 +1,216 @@
+{
+  "verb": "packet-trace",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 70,
+    "stdout_chars": 499,
+    "stdout_lines": 15,
+    "cost_usd": 0.0216,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Which lane does a handoff packet route to?",
+        "expected": "work",
+        "answers": [
+          "lane: work",
+          "work",
+          "work",
+          "work",
+          "work"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lane does a narration packet route to?",
+        "expected": "trace",
+        "answers": [
+          "lane: trace",
+          "trace",
+          "trace",
+          "trace",
+          "trace"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which rule decided the route?",
+        "expected": "kind:handoff",
+        "answers": [
+          "kind:handoff",
+          "kind:handoff",
+          "kind:handoff",
+          "kind:handoff",
+          "kind:handoff"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the router have a lane mapped for bogus_kind? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this route decision change how messages are delivered today? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "handoff": {
+        "argv": [
+          "packet-trace",
+          "handoff"
+        ],
+        "exit": 0,
+        "stdout": "# PACKET ROUTE -- handoff\n  lane: work\n  rule: kind:handoff\n  mode: shadow (observation only; no delivery behavior changes)\n  policy: kind-lane:8b1a0308b554\n"
+      },
+      "narration": {
+        "argv": [
+          "packet-trace",
+          "narration"
+        ],
+        "exit": 0,
+        "stdout": "# PACKET ROUTE -- narration\n  lane: trace\n  rule: kind:narration\n  mode: shadow (observation only; no delivery behavior changes)\n  policy: kind-lane:8b1a0308b554\n"
+      },
+      "unknown": {
+        "argv": [
+          "packet-trace",
+          "bogus_kind"
+        ],
+        "exit": 0,
+        "stdout": "# PACKET ROUTE -- bogus_kind\n  lane: (unmapped; legacy-only)\n  rule: kind:_unknown\n  mode: shadow (observation only; no delivery behavior changes)\n  policy: kind-lane:8b1a0308b554\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 53,
+    "stdout_chars": 390,
+    "stdout_lines": 20,
+    "cost_usd": 0.0282,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Which lane does a handoff packet route to?",
+        "expected": "work",
+        "answers": [
+          "work",
+          "work",
+          "work",
+          "work",
+          "work"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lane does a narration packet route to?",
+        "expected": "trace",
+        "answers": [
+          "trace",
+          "trace",
+          "trace",
+          "trace",
+          "trace"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which rule decided the route?",
+        "expected": "kind:handoff",
+        "answers": [
+          "kind:handoff",
+          "kind:handoff",
+          "kind:handoff",
+          "kind:handoff",
+          "kind:handoff"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the router have a lane mapped for bogus_kind? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this route decision change how messages are delivered today? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "handoff": {
+        "argv": [
+          "packet-trace",
+          "handoff"
+        ],
+        "exit": 0,
+        "stdout": "kind: handoff\nlane: work\nrule: \"kind:handoff\"\nmode: shadow\nobservation_only: true\npolicy: \"kind-lane:8b1a0308b554\"\n"
+      },
+      "narration": {
+        "argv": [
+          "packet-trace",
+          "narration"
+        ],
+        "exit": 0,
+        "stdout": "kind: narration\nlane: trace\nrule: \"kind:narration\"\nmode: shadow\nobservation_only: true\npolicy: \"kind-lane:8b1a0308b554\"\n"
+      },
+      "unknown": {
+        "argv": [
+          "packet-trace",
+          "bogus_kind"
+        ],
+        "exit": 0,
+        "stdout": "kind: bogus_kind\nlane: null\nmapped: false\ndelivery: legacy only\nrule: \"kind:_unknown\"\nmode: shadow\nobservation_only: true\npolicy: \"kind-lane:8b1a0308b554\"\n"
+      }
+    }
+  }
+}

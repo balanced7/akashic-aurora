@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 46 converted to agent and human output.
+121 verbs; 47 converted to agent and human output.
 
 ## `alias`
 
@@ -1694,12 +1694,26 @@ help[1]:
 | | |
 |---|---|
 | Does | N0 dry-run: explain the static route for one packet kind (no send) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 70 before, 53 after (-24%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/packet-trace.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<kind>` | yes |   | wire kind, e.g. handoff, reply, narration |
 | `--json` |   |   |   |
+
+Agent output of `aurora packet-trace handoff` on the bench data:
+
+```text
+kind: handoff
+lane: work
+rule: "kind:handoff"
+mode: shadow
+observation_only: true
+policy: "kind-lane:8b1a0308b554"
+```
 
 ## `precompile`
 

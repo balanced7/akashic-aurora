@@ -340,7 +340,7 @@ Class: reference
 | `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AURORA_LAUNCHER` |
 | `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AI_SETUP` |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | tests/test_w162_seat_seen_family.py | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |
-| `trace.py` | Push display-only trace lines (tool calls) onto the Bifrost bus so the console shows what | tests/test_flow_trace.py | docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md | `AKASHIC_AGENT_ID`, `AKASHIC_TRACE` |
+| `trace.py` | Push display-only trace lines (tool calls) onto the Bifrost bus so the console shows what | tests/test_axi_packet_trace.py | docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md | `AKASHIC_AGENT_ID`, `AKASHIC_TRACE` |
 
 ## agent/  (2 modules)
 
