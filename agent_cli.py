@@ -2197,81 +2197,86 @@ def cmd_repeat(args):
     VIOLATING it. Measured the day this shipped: 1.9h, 1.8h, and 5.4 days. A short gap on a
     prose lesson is the signal that prose is the wrong instrument and a gate is the right one.
     """
+    from core.axi import out
     from core.learning.learning_store import LearningStore
 
     store = LearningStore()
+    cli = _cli()
+
+    def _gap(seconds) -> str:  # days past one day, hours below: the scale the gap is read at
+        s = float(seconds)
+        return f"{s / 86400:.1f}d" if s >= 86400 else f"{s / 3600:.1f}h"
 
     if args.report:
         rep = store.repeat_report()
         if args.json:
             print(json.dumps(rep, indent=1))
             return 0
-        print(f"# repeats: {rep.get('count', 0)} recorded -- {rep.get('caveat', '')}")
+        doc: dict = {"total": rep.get("count", 0), "caveat": rep.get("caveat", "")}
+        if not doc["total"]:
+            return out.emit(
+                doc, hints=[f'{cli} repeat <lesson> --what "<what happened>" --recall-outcome fired'], title="Repeats"
+            )
         by = rep.get("by_recall_outcome") or {}
-        if by:
-            print("  what recall did at the moment of the repeat:")
-            for k, v in sorted(by.items(), key=lambda kv: -kv[1]):
-                print(f"    {k:<46} {v}")
-            print("    (fired = a READING failure · silent/suppressed = a TARGETING failure)")
+        if by:  # what recall did at the moment of the repeat -- the field that makes a tally a diagnosis
+            doc["by_recall_outcome"] = dict(sorted(by.items(), key=lambda kv: -kv[1]))
+            doc["outcome_key"] = "fired = a reading failure; silent or suppressed = a targeting failure"
         mv = rep.get("most_violated") or []
         if mv:
-            print("  most violated:")
-            for name, n in mv[:8]:
-                print(f"    {str(name)[:56]:<56} x{n}")
+            doc["most_violated"] = [{"lesson": str(name), "repeats": n} for name, n in mv[:8]]
         # elapsed_s is the number this verb exists to surface: how long a lesson survived before
         # it was broken. A short gap on a prose lesson says prose was the wrong instrument.
         ent = [e for e in (rep.get("entries") or []) if e.get("elapsed_s")]
         if ent:
-            print("  ELAPSED between learning and violating (worst first):")
-            for e in sorted(ent, key=lambda e: float(e["elapsed_s"]))[:10]:
-                s = float(e["elapsed_s"])
-                gap = f"{s / 86400:6.1f}d" if s >= 86400 else f"{s / 3600:6.1f}h"
-                print(
-                    f"    {gap} ago-learned  {str(e.get('of', '?'))[:46]:<46} "
-                    f"[{e.get('recall_outcome', '') or 'unrecorded'}]"
-                )
-        return 0
+            doc["fastest_broken"] = [
+                {
+                    "lesson": str(e.get("of", "?")),
+                    "after": _gap(e["elapsed_s"]),
+                    "recall": e.get("recall_outcome", "") or "unrecorded",
+                }
+                for e in sorted(ent, key=lambda e: float(e["elapsed_s"]))[:10]
+            ]
+        hints = [f"{cli} recall-prevention"]
+        if mv:
+            hints.insert(0, f"{cli} recall --full learn:experiment:{mv[0][0]}")
+        return out.emit(doc, hints=hints, title="Repeats")
 
     if not args.source:
-        print("[repeat] name the lesson that was violated, or pass --report", file=sys.stderr)
-        return 2
+        return out.fail(
+            "name the lesson that was violated, or pass --report",
+            code="USAGE",
+            hints=[f'{cli} repeat <lesson> --what "<what happened>"', f"{cli} repeat --report"],
+            exit_code=out.EXIT_USAGE,
+        )
 
     of = args.source.split("learn:experiment:")[-1].strip()
     # A repeat against a lesson that does not exist is not a cautious record -- it is noise in
     # the only honest count we have, and it cannot be audited back to a source.
     known = {str(r.get("experiment_name", "")).strip() for r in (store.load_all_learnings_from_store() or [])}
     if of not in known:
-        print(
-            f"[repeat] no lesson named '{of}' -- a repeat is evidence ABOUT a lesson, so a "
-            f"dangling one inflates a count nobody can audit. Check: {_cli()} recall "
-            f"--full learn:experiment:{of}",
-            file=sys.stderr,
+        return out.fail(
+            f"no lesson named {of!r} -- a repeat is evidence about a lesson, and a dangling one inflates "
+            "a count nobody can audit",
+            code="NOT_FOUND",
+            hints=[f'{cli} recall "{of}"'],
+            exit_code=out.EXIT_USAGE,  # 2, as this error always exited
         )
-        return 2
 
-    out = store.record_repeat(
+    rec = store.record_repeat(
         of=of,
         agent_id=args.agent or os.getenv("AKASHIC_AGENT_ID", ""),
         what=args.what or "",
         recall_outcome=args.recall_outcome or "",
     )
     if args.json:
-        print(json.dumps(out, indent=1))
+        print(json.dumps(rec, indent=1))
         return 0
-    el = out.get("elapsed_s")
-    when = ""
+    doc = {"recorded": of}
+    el = rec.get("elapsed_s")
     if el:
-        when = (
-            f" -- {el / 86400:.1f} days after it was learned"
-            if el >= 86400
-            else f" -- {el / 3600:.1f} hours after it was learned"
-        )
-    print(f"[repeat] recorded against '{of}'{when}")
-    print(
-        "     the count is a floor over what was NOTICED; a short gap means prose is the "
-        "wrong instrument and a gate is the right one"
-    )
-    return 0
+        doc["after_learning"] = _gap(el)
+    doc["note"] = "a floor over what was noticed; a short gap says a gate, not prose, is the right instrument"
+    return out.emit(doc, hints=[f"{cli} repeat --report"], title="Repeat")
 
 
 # ------------------------------------------------------------------------ discover

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 45 converted to agent and human output.
+121 verbs; 46 converted to agent and human output.
 
 ## `alias`
 
@@ -2010,7 +2010,10 @@ help[1]:
 | | |
 |---|---|
 | Does | record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 96% after |
+| Output tokens | 210 before, 88 after (-58%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/repeat.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2020,6 +2023,16 @@ help[1]:
 | `--agent` |   |   | who repeated it (defaults to AKASHIC_AGENT_ID) |
 | `--report` |   |   | the multifaceted record: counts, ranking, and elapsed-since-learned. Never a rate -- it counts only what someone noticed |
 | `--json` |   |   |   |
+
+Agent output of `aurora repeat stage_paths --what staged everything again --recall-outcome fired --agent bob` on the bench data:
+
+```text
+recorded: stage_paths
+after_learning: 0.0h
+note: "a floor over what was noticed; a short gap says a gate, not prose, is the right instrument"
+help[1]:
+  uv run agent_cli.py repeat --report
+```
 
 ## `replay`
 

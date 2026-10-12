@@ -1,0 +1,234 @@
+{
+  "verb": "repeat",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 210,
+    "stdout_chars": 964,
+    "stdout_lines": 14,
+    "cost_usd": 0.021,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Against which lesson was the repeat recorded?",
+        "expected": "stage_paths",
+        "answers": [
+          "stage_paths",
+          "stage_paths",
+          "stage_paths",
+          "stage_paths",
+          "stage_paths"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many repeats are recorded in total?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson was violated most often?",
+        "expected": "stage_paths",
+        "answers": [
+          "stage_paths",
+          "stage_paths",
+          "stage_paths",
+          "stage_paths",
+          "stage_paths"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many repeats happened while recall had fired?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the repeat recorded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "record": {
+        "argv": [
+          "repeat",
+          "stage_paths",
+          "--what",
+          "staged everything again",
+          "--recall-outcome",
+          "fired",
+          "--agent",
+          "bob"
+        ],
+        "exit": 0,
+        "stdout": "[repeat] recorded against 'stage_paths' -- 0.0 hours after it was learned\n     the count is a floor over what was NOTICED; a short gap means prose is the wrong instrument and a gate is the right one\n"
+      },
+      "report": {
+        "argv": [
+          "repeat",
+          "--report"
+        ],
+        "exit": 0,
+        "stdout": "# repeats: 3 recorded -- counts only repeats that were NOTICED; the true denominator is unknown\n  what recall did at the moment of the repeat:\n    fired                                          2\n    silent                                         1\n    (fired = a READING failure \u00b7 silent/suppressed = a TARGETING failure)\n  most violated:\n    stage_paths                                              x2\n    port_check                                               x1\n  ELAPSED between learning and violating (worst first):\n       0.0h ago-learned  port_check                                     [silent]\n       0.0h ago-learned  stage_paths                                    [fired]\n       0.0h ago-learned  stage_paths                                    [fired]\n"
+      },
+      "unknown": {
+        "argv": [
+          "repeat",
+          "no_such_lesson",
+          "--what",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 88,
+    "stdout_chars": 902,
+    "stdout_lines": 25,
+    "cost_usd": 0.0237,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Against which lesson was the repeat recorded?",
+        "expected": "stage_paths",
+        "answers": [
+          "stage_paths",
+          "stage_paths",
+          "stage_paths",
+          "stage_paths",
+          "stage_paths"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many repeats are recorded in total?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson was violated most often?",
+        "expected": "stage_paths",
+        "answers": [
+          "stage_paths",
+          "stage_paths",
+          "most_violated[2]{lesson,repeats}: stage_paths,2 \u2014 so the answer is stage_paths.",
+          "stage_paths",
+          "stage_paths"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many repeats happened while recall had fired?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the repeat recorded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "record": {
+        "argv": [
+          "repeat",
+          "stage_paths",
+          "--what",
+          "staged everything again",
+          "--recall-outcome",
+          "fired",
+          "--agent",
+          "bob"
+        ],
+        "exit": 0,
+        "stdout": "recorded: stage_paths\nafter_learning: 0.0h\nnote: \"a floor over what was noticed; a short gap says a gate, not prose, is the right instrument\"\nhelp[1]:\n  uv run agent_cli.py repeat --report\n"
+      },
+      "report": {
+        "argv": [
+          "repeat",
+          "--report"
+        ],
+        "exit": 0,
+        "stdout": "total: 3\ncaveat: counts only repeats that were NOTICED; the true denominator is unknown\nby_recall_outcome:\n  fired: 2\n  silent: 1\noutcome_key: fired = a reading failure; silent or suppressed = a targeting failure\nmost_violated[2]{lesson,repeats}:\n  stage_paths,2\n  port_check,1\nfastest_broken[3]{lesson,after,recall}:\n  port_check,0.0h,silent\n  stage_paths,0.0h,fired\n  stage_paths,0.0h,fired\nhelp[2]:\n  uv run agent_cli.py recall --full learn:experiment:stage_paths\n  uv run agent_cli.py recall-prevention\n"
+      },
+      "unknown": {
+        "argv": [
+          "repeat",
+          "no_such_lesson",
+          "--what",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "error: \"no lesson named 'no_such_lesson' -- a repeat is evidence about a lesson, and a dangling one inflates a count nobody can audit\"\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py recall \"no_such_lesson\"\n"
+      }
+    }
+  }
+}
