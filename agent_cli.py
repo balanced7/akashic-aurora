@@ -14963,6 +14963,7 @@ def build_parser():
 
     # --- tool <list|run> (T099 · play-tier sandbox) --------------------------------
     tl = sub.add_parser("tool", help="play-tier sandbox: list/run draft tools (data/play/<agent>/)")
+    tl.set_defaults(fn=cmd_tool_usage)  # bare `tool` crashed on a missing fn; now it says what it takes
     tl_subs = tl.add_subparsers(dest="tool_cmd")
     tl_list = tl_subs.add_parser("list", help="list play tools for an agent or all seats")
     tl_list.add_argument("agent", nargs="?", default="", help="agent id to list (default: all seats)")
@@ -15740,22 +15741,71 @@ def _kata_apply(tb, name, results):
 
 def cmd_tool_list(args):
     """Play-tier sandbox: list draft tools for one agent or all seats."""
-    from core.toolbelt.play_sandbox import render_list
+    import os as _os
 
-    print(render_list(args.agent if args.agent else None))
+    from core.axi import out
+    from core.toolbelt import play_sandbox as ps
+
+    cli = _cli()
+    seats = [args.agent] if args.agent else ps.list_seats()
+    rows = []
+    for a in seats:
+        runs = _os.path.join(ps.PLAY, a, "runs")
+        receipts = _os.listdir(runs) if _os.path.isdir(runs) else []
+        rows.extend(
+            {
+                "agent": a,
+                "tool": t,
+                "bytes": _os.path.getsize(_os.path.join(ps.PLAY, a, f"{t}.py")),
+                "receipts": sum(1 for f in receipts if f.startswith(f"{t}-") and f.endswith(".json")),
+            }
+            for t in ps.list_tools(a)
+        )
+    doc: dict = {}
+    if args.agent:
+        doc["agent"] = args.agent
+    # Named for what they are: "total" and "tools" alone left a reader unsure what was counted.
+    doc.update(play_tools=len(rows), tools=rows)
+    if not rows:  # AXI section 5: the zero is the answer, with where tools would live
+        doc["where"] = f"data/play/{args.agent or '<agent>'}/<tool>.py"
+        return out.emit(doc, hints=[f"{cli} tool list"] if args.agent else [], title="Play tools")
+    ref = f"{rows[0]['agent']}/{rows[0]['tool']}" if len(rows) == 1 else "<agent>/<tool>"
+    return out.emit(doc, hints=[f"{cli} tool run {ref}"], title="Play tools · drafts, GUESS until kata'd")
+
+
+def cmd_tool_usage(args):
+    """Bare `tool`: a usage error naming the two subcommands."""
+    from core.axi import out
+
+    cli = _cli()
+    return out.fail(
+        "tool needs a subcommand: list or run",
+        code="USAGE",
+        hints=[f"{cli} tool list", f"{cli} tool run <agent>/<tool>"],
+        exit_code=out.EXIT_USAGE,
+    )
 
 
 def cmd_tool_run(args):
     """Play-tier sandbox: run one draft tool with sandbox bounds + receipt."""
+    from core.axi import out
     from core.toolbelt.play_sandbox import DEFAULT_TIMEOUT_S, find_tool, sandboxed_run
 
+    cli = _cli()
     try:
         agent, tool, path = find_tool(args.ref)
-    except (ValueError, FileNotFoundError) as e:
-        print(f"tool: {e}", file=sys.stderr)
-        return 1
+    except FileNotFoundError:
+        ref = str(args.ref).split("/", 1)
+        return out.fail(
+            f"no play tool {args.ref} (looked for data/play/{ref[0]}/{ref[-1]}.py)",
+            code="NOT_FOUND",
+            hints=[f"{cli} tool list"],
+        )
+    except ValueError as e:
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} tool list"])
     timeout = args.timeout if args.timeout > 0 else DEFAULT_TIMEOUT_S
     if args.no_sandbox:
+        # The tool prints straight to the terminal here, so the framing stays two plain lines.
         print(f"[tool] running {args.ref} UNSANDBOXED (operator override -- caveat emptor)")
         import subprocess as sp
 
@@ -15763,13 +15813,28 @@ def cmd_tool_run(args):
         print(f"[tool] exit {r.returncode} (unsandboxed — no receipt)")
         return r.returncode
     rec = sandboxed_run(agent, tool, path, args=args.args, timeout_s=timeout)
-    verdict = "PASS" if rec["rc"] == 0 else "FAIL"
+    verdict = "pass" if rec["rc"] == 0 else "fail"
     if rec.get("crash"):
-        verdict = "CRASH"
-    print(f"[tool] {verdict}  rc={rec['rc']}  {rec['duration_s']}s  {rec['output_kb']}KB  [{rec['evidence']}]")
-    if rec.get("violations"):
-        for v in rec["violations"]:
-            print(f"  ⚡ violation: {v}")
+        verdict = "crash"
+    doc = {
+        "tool": f"{agent}/{tool}",
+        "verdict": verdict,
+        "exit": rec["rc"],
+        "seconds": rec["duration_s"],
+        "output_kb": rec["output_kb"],
+        "evidence": rec["evidence"],
+        "violations": rec.get("violations") or [],
+    }
+    # The receipt the sandbox just wrote (it does not return the path): the newest one for
+    # this tool. Its .out sibling holds what the tool printed.
+    import glob
+
+    from core.toolbelt.play_sandbox import PLAY
+
+    written = glob.glob(os.path.join(PLAY, agent, "runs", f"{tool}-*.json"))
+    if written:
+        doc["receipt"] = os.path.relpath(max(written, key=os.path.getmtime), _repo_root_str()).replace(os.sep, "/")
+    out.emit(doc, hints=[f"{cli} tool list {agent}"] if verdict != "pass" else [], title="Play tool run")
     return 1 if rec["rc"] != 0 else 0
 
 

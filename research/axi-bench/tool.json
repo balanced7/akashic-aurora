@@ -1,0 +1,278 @@
+{
+  "verb": "tool",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.767,
+    "correct": 23,
+    "asked": 30,
+    "output_tokens": 72,
+    "stdout_chars": 509,
+    "stdout_lines": 15,
+    "cost_usd": 0.0245,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": false,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/6",
+    "questions": [
+      {
+        "q": "Which agents have play tools? List them separated by commas.",
+        "expected": [
+          "claude",
+          "kimi"
+        ],
+        "answers": [
+          "claude, kimi",
+          "claude, kimi",
+          "claude, kimi",
+          "claude, kimi",
+          "claude, kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many play tools are there in total?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many receipts does the verbthread tool have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the tool run succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "rc=-1 with a timeout violation, so the run did not succeed.\n\nNo",
+          "CRASH with rc=-1 and \"violation: timeout\" means the run did not complete, so it did not succeed.\n\nNo"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Does kimi have a play tool named ghost? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What exact command runs kimi's premonition tool? Give the command only.",
+        "expected": [
+          "tool run kimi/premonition"
+        ],
+        "answers": [
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "tool",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "# play tools \u2014 sandboxed drafts (GUESS until kata'd)\n  [claude]\n    campfire               5497B  1 receipt(s)\n    verbthread             5295B  4 receipt(s)\n  [kimi]\n    premonition            8092B  1 receipt(s)\n\n  run one: uv run agent_cli.py tool run <agent>/<tool>\n"
+      },
+      "list_kimi": {
+        "argv": [
+          "tool",
+          "list",
+          "kimi"
+        ],
+        "exit": 0,
+        "stdout": "# play tools \u2014 sandboxed drafts (GUESS until kata'd)\n  [kimi]\n    premonition            8092B  1 receipt(s)\n\n  run one: uv run agent_cli.py tool run <agent>/<tool>\n"
+      },
+      "timeout": {
+        "argv": [
+          "tool",
+          "run",
+          "kimi/premonition",
+          "--timeout",
+          "0.001"
+        ],
+        "exit": 1,
+        "stdout": "[tool] CRASH  rc=-1  0.002s  0KB  [GUESS]\n  \u26a1 violation: timeout (0.001s)\n"
+      },
+      "missing": {
+        "argv": [
+          "tool",
+          "run",
+          "kimi/ghost"
+        ],
+        "exit": 1,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 96,
+    "stdout_chars": 681,
+    "stdout_lines": 27,
+    "cost_usd": 0.0253,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which agents have play tools? List them separated by commas.",
+        "expected": [
+          "claude",
+          "kimi"
+        ],
+        "answers": [
+          "claude, kimi",
+          "claude, kimi",
+          "claude, kimi",
+          "claude, kimi",
+          "claude, kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many play tools are there in total?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "play_tools: 3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many receipts does the verbthread tool have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the tool run succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does kimi have a play tool named ghost? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command runs kimi's premonition tool? Give the command only.",
+        "expected": [
+          "tool run kimi/premonition"
+        ],
+        "answers": [
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition",
+          "uv run agent_cli.py tool run kimi/premonition"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "tool",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "play_tools: 3\ntools[3]{agent,tool,bytes,receipts}:\n  claude,campfire,5497,1\n  claude,verbthread,5295,4\n  kimi,premonition,8149,1\nhelp[1]:\n  uv run agent_cli.py tool run <agent>/<tool>\n"
+      },
+      "list_kimi": {
+        "argv": [
+          "tool",
+          "list",
+          "kimi"
+        ],
+        "exit": 0,
+        "stdout": "agent: kimi\nplay_tools: 1\ntools[1]{agent,tool,bytes,receipts}:\n  kimi,premonition,8149,1\nhelp[1]:\n  uv run agent_cli.py tool run kimi/premonition\n"
+      },
+      "timeout": {
+        "argv": [
+          "tool",
+          "run",
+          "kimi/premonition",
+          "--timeout",
+          "0.001"
+        ],
+        "exit": 1,
+        "stdout": "tool: kimi/premonition\nverdict: crash\nexit: -1\nseconds: 0.002\noutput_kb: 0\nevidence: GUESS\nviolations[1]: timeout (0.001s)\nreceipt: data/play/kimi/runs/premonition-1791814841.json\nhelp[1]:\n  uv run agent_cli.py tool list kimi\n"
+      },
+      "missing": {
+        "argv": [
+          "tool",
+          "run",
+          "kimi/ghost"
+        ],
+        "exit": 1,
+        "stdout": "error: no play tool kimi/ghost (looked for data/play/kimi/ghost.py)\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py tool list\n"
+      }
+    }
+  }
+}

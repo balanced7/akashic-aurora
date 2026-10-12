@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 86 converted to agent and human output.
+121 verbs; 87 converted to agent and human output.
 
 ## `alias`
 
@@ -3257,11 +3257,26 @@ help[1]:
 | | |
 |---|---|
 | Does | play-tier sandbox: list/run draft tools (data/play/&lt;agent&gt;/) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 77% before, 100% after |
+| Output tokens | 72 before, 96 after (+33%) |
+| AXI checks | 3/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/tool.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<tool_cmd>` |   | list,run |   |
+
+Agent output of `aurora tool list` on the bench data:
+
+```text
+play_tools: 3
+tools[3]{agent,tool,bytes,receipts}:
+  claude,campfire,5497,1
+  claude,verbthread,5295,4
+  kimi,premonition,8149,1
+help[1]:
+  uv run agent_cli.py tool run <agent>/<tool>
+```
 
 ## `triage`
 
