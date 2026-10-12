@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 38 converted to agent and human output.
+121 verbs; 39 converted to agent and human output.
 
 ## `alias`
 
@@ -1006,7 +1006,10 @@ help[1]:
 | | |
 |---|---|
 | Does | retire a lesson from recall surfacing -- automation now enforces its rule |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 93% before, 97% after |
+| Output tokens | 57 before, 43 after (-25%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/graduate.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1015,6 +1018,15 @@ help[1]:
 | `--enforced-by` |   |   | the automation that enforces it, e.g. "git-guard PreToolUse hook (C0)" |
 | `--undo` |   |   | reverse a graduation (it surfaces again) |
 | `--json` |   |   |   |
+
+Agent output of `aurora graduate bench --experiment blanket_staging --enforced-by pre-commit hook` on the bench data:
+
+```text
+experiment: blanket_staging
+graduated: true
+enforced_by: pre-commit hook
+recall_slots: no (history kept)
+```
 
 ## `grant`
 

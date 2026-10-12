@@ -96,6 +96,7 @@ def _run_cmd(monkeypatch, ls, **argv):
 
     monkeypatch.setattr(lsmod, "get_learning_store", lambda *a, **k: ls)
     monkeypatch.setattr(aa, "warm_cache", lambda *a, **k: 0)  # never touch the real tempdir cache
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     defaults = {"agent_id": "claude", "experiment": None, "enforced_by": None, "undo": False, "json": False}
     args = types.SimpleNamespace(**{**defaults, **argv})
     buf = io.StringIO()
@@ -107,9 +108,12 @@ def _run_cmd(monkeypatch, ls, **argv):
 def test_cmd_graduate_errors_teach(monkeypatch):
     rc, out = _run_cmd(monkeypatch, _isolated_ls())  # no experiment
     assert rc == 2
-    assert "Example:" in out
+    # Since the AXI conversion: a structured error naming what is missing, with the fixed command.
+    assert "code: USAGE" in out
+    assert "--enforced-by" in out
     rc, out = _run_cmd(monkeypatch, _isolated_ls(), experiment="nope", enforced_by="hook")
     assert rc == 1
+    assert "code: NOT_FOUND" in out
     assert "list" in out
 
 
@@ -118,7 +122,7 @@ def test_cmd_graduate_and_list_tag(monkeypatch):
     ls.record_learning(_lesson())
     rc, out = _run_cmd(monkeypatch, ls, experiment="git_blanket", enforced_by="git-guard hook (C0)")
     assert rc == 0
-    assert "[OK] graduated 'git_blanket'" in out
+    assert "experiment: git_blanket\ngraduated: true\nenforced_by: git-guard hook (C0)" in out
     # the full-corpus view keeps it, wearing the tag (history preserved, reason visible)
     import agent_cli
 

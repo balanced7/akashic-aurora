@@ -2125,24 +2125,23 @@ def cmd_graduate(args):
     competing for recall surface slots -- the automation does the reminding now. Reversible
     with --undo. (Greptile's 'disable what a deterministic tool covers', on our spectrum:
     forcing-function > just-in-time prompt > documentation > memory.)"""
+    from core.axi import out
     from core.learning.learning_store import get_learning_store
 
+    cli = _cli()
     exp = (args.experiment or "").strip()
     enforced = (args.enforced_by or "").strip()
     if not exp or (not args.undo and not enforced):
-        print(
-            'ERROR: need --experiment NAME and --enforced-by "<the automation that enforces it>"'
-            " (or --undo to reverse a graduation)."
+        missing = [f for f, v in (("--experiment", exp), ("--enforced-by", enforced or args.undo)) if not v]
+        return out.fail(
+            f"missing {' and '.join(missing)} (or pass --undo to reverse a graduation)",
+            code="USAGE",
+            hints=[f'{cli} graduate {args.agent_id} --experiment {exp or "<name>"} --enforced-by "<automation>"'],
+            exit_code=out.EXIT_USAGE,
         )
-        print(
-            f"Example: {_cli()} graduate claude --experiment git_blanket_staging "
-            '--enforced-by "git-guard PreToolUse hook (C0)"'
-        )
-        return 2
     ls = get_learning_store()
     if not ls.mark_graduated(exp, enforced, undo=bool(args.undo)):
-        print(f"ERROR: no lesson named '{exp}' -- check the name with `{_cli()} list`.")
-        return 1
+        return out.fail(f"no lesson named {exp!r}", code="NOT_FOUND", hints=[f"{cli} list"])
     try:  # recall must reflect graduation NOW, not at the next cache TTL expiry
         from core.recall.at_action import warm_cache
 
@@ -2164,12 +2163,13 @@ def cmd_graduate(args):
             )
         )
         return 0
-    if args.undo:
-        print(f"[OK] un-graduated '{exp}' -- it competes for recall surface slots again.")
-    else:
-        print(f"[OK] graduated '{exp}' -- enforced by: {enforced}")
-        print("     It keeps history (`list` tags it [graduated]) but no longer takes recall slots.")
-    return 0
+    # A confirmation answers itself: no hints. recall_slots is the effect, said outright: a graduated
+    # lesson keeps its history and its `list` status but stops taking recall surface slots.
+    doc: dict = {"experiment": exp, "graduated": not args.undo}
+    if not args.undo:
+        doc["enforced_by"] = enforced
+    doc["recall_slots"] = "yes" if args.undo else "no (history kept)"
+    return out.emit(doc, title="Graduate")
 
 
 # recall-feedback + recall-curate live in core/recall/surface.py (W169 slice 1)

@@ -1,0 +1,290 @@
+{
+  "verb": "graduate",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.933,
+    "correct": 28,
+    "asked": 30,
+    "output_tokens": 57,
+    "stdout_chars": 564,
+    "stdout_lines": 6,
+    "cost_usd": 0.0284,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "What automation now enforces the graduated lesson?",
+        "expected": "pre-commit hook",
+        "answers": [
+          "pre-commit hook",
+          "pre-commit hook",
+          "pre-commit hook",
+          "pre-commit hook",
+          "pre-commit hook"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Will the graduated lesson still take recall slots? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "yes",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Does tab_width compete for recall slots again? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "yes",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What command lists the lesson names to check the spelling? Give the command only.",
+        "expected": [
+          "list"
+        ],
+        "answers": [
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from the command?",
+        "expected": [
+          "--enforced-by"
+        ],
+        "answers": [
+          "--enforced-by",
+          "--enforced-by",
+          "--enforced-by",
+          "--enforced-by",
+          "The missing flag is --enforced-by."
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "grad": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "blanket_staging",
+          "--enforced-by",
+          "pre-commit hook"
+        ],
+        "exit": 0,
+        "stdout": "[OK] graduated 'blanket_staging' -- enforced by: pre-commit hook\n     It keeps history (`list` tags it [graduated]) but no longer takes recall slots.\n"
+      },
+      "undo": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "tab_width",
+          "--undo"
+        ],
+        "exit": 0,
+        "stdout": "[OK] un-graduated 'tab_width' -- it competes for recall surface slots again.\n"
+      },
+      "missing": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "no_such_lesson",
+          "--enforced-by",
+          "ci"
+        ],
+        "exit": 1,
+        "stdout": "ERROR: no lesson named 'no_such_lesson' -- check the name with `uv run agent_cli.py list`.\n"
+      },
+      "usage": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "blanket_staging"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: need --experiment NAME and --enforced-by \"<the automation that enforces it>\" (or --undo to reverse a graduation).\nExample: uv run agent_cli.py graduate claude --experiment git_blanket_staging --enforced-by \"git-guard PreToolUse hook (C0)\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 43,
+    "stdout_chars": 440,
+    "stdout_lines": 15,
+    "cost_usd": 0.0292,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "What automation now enforces the graduated lesson?",
+        "expected": "pre-commit hook",
+        "answers": [
+          "pre-commit hook",
+          "pre-commit hook",
+          "pre-commit hook",
+          "pre-commit hook",
+          "pre-commit hook"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Will the graduated lesson still take recall slots? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "Yes"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Does tab_width compete for recall slots again? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command lists the lesson names to check the spelling? Give the command only.",
+        "expected": [
+          "list"
+        ],
+        "answers": [
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list",
+          "uv run agent_cli.py list"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing from the command?",
+        "expected": [
+          "--enforced-by"
+        ],
+        "answers": [
+          "--enforced-by",
+          "--enforced-by",
+          "--enforced-by",
+          "--enforced-by",
+          "--enforced-by"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "grad": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "blanket_staging",
+          "--enforced-by",
+          "pre-commit hook"
+        ],
+        "exit": 0,
+        "stdout": "experiment: blanket_staging\ngraduated: true\nenforced_by: pre-commit hook\nrecall_slots: no (history kept)\n"
+      },
+      "undo": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "tab_width",
+          "--undo"
+        ],
+        "exit": 0,
+        "stdout": "experiment: tab_width\ngraduated: false\nrecall_slots: yes\n"
+      },
+      "missing": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "no_such_lesson",
+          "--enforced-by",
+          "ci"
+        ],
+        "exit": 1,
+        "stdout": "error: no lesson named 'no_such_lesson'\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py list\n"
+      },
+      "usage": {
+        "argv": [
+          "graduate",
+          "bench",
+          "--experiment",
+          "blanket_staging"
+        ],
+        "exit": 2,
+        "stdout": "error: missing --enforced-by (or pass --undo to reverse a graduation)\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py graduate bench --experiment blanket_staging --enforced-by \"<automation>\"\n"
+      }
+    }
+  }
+}
