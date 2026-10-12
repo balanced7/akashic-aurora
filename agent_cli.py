@@ -1674,42 +1674,162 @@ def cmd_hooks(args):
     Scope `user` fires for every project; `project` writes one project's config (Claude: the
     personal settings.local.json, or the committed settings.json with --shared). The hooks act
     only in the Aurora repo and in ENROLLED projects (enroll / unenroll; agent/harness/scope.py)."""
-    from agent.harness import install as inst
+    import shlex
 
+    from agent.harness import install as inst
+    from core.axi import out
+
+    cli = _cli()
+    # A project named on the command line rides every suggested command: without it the fix
+    # would land in the cwd's project, which is not the one this output describes.
+    proj = f" --project {shlex.quote(args.project)}" if args.project else ""
     if args.action == "status":
         if args.json:
             print(json.dumps({"files": inst.status(args.project), "enrolled": inst.enrolled_roots()}, indent=2))
             return 0
-        print("# Aurora harness hooks  (change with: hooks install|uninstall|enable|disable|enroll|unenroll)")
-        for line in inst.status_lines(args.project, only_present=not args.all):
-            print(line)
-        for line in inst.enrolment_lines():
-            print(line)
-        return 0
+        return _hooks_status(args, inst, cli, proj)
     if args.action in ("enroll", "unenroll"):
         fn = inst.enroll if args.action == "enroll" else inst.unenroll
-        print(("DRY RUN -- " if args.dry_run else "") + fn(args.project, args.everywhere, args.dry_run))
-        return 0
+        doc: dict = {"result": fn(args.project, args.everywhere, args.dry_run)}
+        if args.dry_run:
+            doc["dry_run"] = True
+            again = f"{cli} hooks {args.action}" + (" --everywhere" if args.everywhere else proj)
+            return out.emit(doc, hints=[again], title=f"Hooks · {args.action} (dry run)")
+        return out.emit(doc, hints=[f"{cli} hooks status{proj}"], title=f"Hooks · {args.action}")
     try:
         res = inst.ACTIONS[args.action](
             args.harness, args.scope, project=args.project, shared=args.shared, dry_run=args.dry_run
         )
-    except (ValueError, json.JSONDecodeError) as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        return 2
+    except json.JSONDecodeError as e:  # the installer never overwrites a file it cannot read
+        return out.fail(
+            f"a config file is not valid JSON: {e}",
+            code="UNREADABLE_CONFIG",
+            hints=[f"{cli} hooks status{proj}"],
+            exit_code=out.EXIT_USAGE,
+        )
+    except ValueError as e:  # a bad harness/scope pair: a usage error, as before
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} hooks --help"], exit_code=out.EXIT_USAGE)
     if args.json:
         print(json.dumps(res.as_dict(), indent=2))
         return 0
-    tag = "DRY RUN -- " if args.dry_run else ""
-    print(f"{tag}{args.action} {args.harness} hooks ({args.scope}): {res.path}")
+    doc = {"action": args.action, "harness": args.harness, "scope": args.scope, "path": str(res.path)}
+    if args.dry_run:
+        doc["dry_run"] = True
+    doc["written"] = bool(res.changed and not args.dry_run)
     for label, items in (("added", res.added), ("removed", res.removed), ("skipped", res.skipped)):
-        for it in items:
-            print(f"  {label:<8} {it}")
-    for n in res.notes:
-        print(f"  note     {n}")
+        if items:
+            doc[label] = list(items)
+    if res.notes:
+        doc["notes"] = list(res.notes)
     if not (res.added or res.removed or res.skipped or res.notes):
-        print("  already up to date")
-    return 0
+        doc["result"] = "already up to date"  # AXI section 5: nothing to do, said outright
+    which = f"--harness {args.harness} --scope {args.scope}" + (" --shared" if args.shared else "") + proj
+    if args.dry_run:
+        hints = [f"{cli} hooks {args.action} {which}"]  # the same change, for real
+    elif args.action == "disable" and res.removed:
+        hints = [f"{cli} hooks enable {which}", f"{cli} hooks status{proj}"]
+    else:
+        hints = [f"{cli} hooks status{proj}"]
+    title = f"Hooks · {args.action} {args.harness} ({args.scope})" + (" · dry run" if args.dry_run else "")
+    return out.emit(doc, hints=hints, title=title)
+
+
+def _hooks_status(args, inst, cli, proj):
+    """`hooks status`: one row per config file that carries Aurora hooks (every file with
+    --all), a state word per file, the enrolment, and the fixes as next steps."""
+    from agent.harness.scope import enrolled
+    from core.axi import out
+
+    rows, fixes, missing = [], [], []
+    for r in inst.status(args.project):
+        hooked = r["exists"] and bool(r["installed"] or r["stale"] or r["disabled"] or r["error"])
+        if not (hooked or args.all):
+            continue
+        scope = r["scope"].split(" ")[0]
+        which = f"--harness {r['harness']} --scope {scope}" + (" --shared" if "shared" in r["scope"] else "")
+        if r["error"]:
+            state = "unreadable"  # fixed by hand: the installer will not overwrite it
+        elif r["disabled"] and not r["installed"]:
+            state = "off"
+            fixes.append(f"{cli} hooks enable {which}{proj}")
+        elif r["stale"]:
+            state = "stale"  # the old scripts/hooks/ shim path: still works, install modernises it
+            fixes.append(f"{cli} hooks install {which}{proj}")
+        elif r["installed"]:
+            state = "on"
+        else:
+            state = "none"
+        if r["missing"]:
+            missing += [f"{r['harness']} {m}" for m in r["missing"]]
+            where = " --scope user" if r["harness"] == "claude" else f" --scope {scope}{proj}"
+            fixes.append(f"{cli} hooks install --harness {r['harness']}{where}")
+        rows.append(
+            {
+                "harness": r["harness"],
+                "scope": r["scope"],
+                "state": state,
+                "installed": len(r["installed"]),
+                "disabled": int(r["disabled"]),
+                "path": r["path"],
+                # columns only when some file has something to say in them
+                "stale": len(r["stale"]) or None,
+                "foreign": r["foreign"] or None,
+                "error": r["error"] or None,
+            }
+        )
+    for extra in ("stale", "foreign", "error"):
+        if all(row[extra] is None for row in rows):
+            for row in rows:
+                row.pop(extra)
+    en = enrolled()
+    doc: dict = {"hooked_files": sum(1 for row in rows if row["state"] != "none"), "files": rows}
+    if missing:
+        doc["missing"] = missing
+    if en["everywhere"]:
+        doc["enrolled"] = "everywhere"
+    else:
+        doc["enrolled"] = en["roots"] or "none -- the hooks speak up only in the Aurora repo"
+    if not doc["hooked_files"]:
+        hints = [f"{cli} setup", f"{cli} hooks install --harness claude --scope user"]
+    else:
+        hints = list(dict.fromkeys(fixes))[:3] or [
+            f"{cli} hooks disable --harness <harness> --scope <scope>{proj}",
+            f"{cli} hooks enroll --project <dir>",
+        ]
+    return out.emit(doc, hints=hints, human=_human_hooks, title="Aurora harness hooks")
+
+
+def _human_hooks(console, doc):
+    """Human view of `hooks status`: one table, each file's state coloured by meaning."""
+    from rich import box
+    from rich.table import Table
+
+    from core.axi import out
+
+    colour = {"on": "green", "off": "yellow", "stale": "yellow", "unreadable": "red", "none": "dim"}
+    if not doc["files"]:
+        console.print("[yellow]No Aurora hooks are registered in any config file.[/]")
+    else:
+        t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+        for c in ("harness", "scope", "state", "hooks", "file"):
+            t.add_column(c, overflow="fold")
+        for r in doc["files"]:
+            c = colour.get(r["state"], "white")
+            hooks = f"{r['installed']} on" + (f", {r['disabled']} off" if r["disabled"] else "")
+            t.add_row(r["harness"], r["scope"], f"[{c}]{r['state']}[/]", hooks, out._esc(r["path"]))
+        console.print(t)
+    for r in doc["files"]:
+        if r.get("error"):
+            console.print(f"[red]! {out._esc(r['path'])} is unreadable: {out._esc(r['error'])}[/]")
+    if doc.get("missing"):
+        console.print(f"[yellow]Not registered in any file: {out._esc(', '.join(doc['missing']))}[/]")
+    en = doc["enrolled"]
+    if isinstance(en, list):
+        console.print("[dim]Enrolled projects (the hooks speak up here):[/]")
+        for root in en:
+            console.print(f"  {out._esc(root)}")
+    else:
+        console.print(f"[dim]Enrolled:[/] {out._esc(en)}")
 
 
 def cmd_setup(args):

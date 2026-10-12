@@ -1,0 +1,276 @@
+{
+  "verb": "hooks",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 190,
+    "stdout_chars": 791,
+    "stdout_lines": 15,
+    "cost_usd": 0.0356,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many Aurora hooks are installed in the claude project settings file?",
+        "expected": 10,
+        "answers": [
+          "10",
+          "10",
+          "10",
+          "10",
+          "10"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harness has its Aurora hooks switched off (disabled)? Give the harness name only.",
+        "expected": "codex",
+        "answers": [
+          "codex",
+          "codex",
+          "codex",
+          "codex",
+          "codex"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many codex hooks are disabled?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command turns the disabled hooks back on? Give the command only.",
+        "expected": [
+          "hooks enable",
+          "--harness codex",
+          "--scope project"
+        ],
+        "answers": [
+          "agent_cli.py hooks enable --harness codex --scope project",
+          "agent_cli.py hooks enable --harness codex --scope project",
+          "agent_cli.py hooks enable --harness codex --scope project",
+          "agent_cli.py hooks enable --harness codex --scope project",
+          "agent_cli.py hooks enable --harness codex --scope project"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many projects are enrolled (where the hooks speak up)?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many cursor hooks would this install add?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did this command write anything to disk? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "hooks",
+          "status",
+          "--project",
+          "/tmp/axi-hooks-74yk0w6h"
+        ],
+        "exit": 0,
+        "stdout": "# Aurora harness hooks  (change with: hooks install|uninstall|enable|disable|enroll|unenroll)\nclaude  project          /tmp/axi-hooks-74yk0w6h/.claude/settings.local.json\n    10 installed\ncodex   project          /tmp/axi-hooks-74yk0w6h/.codex/hooks.json\n    0 installed, 5 disabled\n    turn back on: agent_cli.py hooks enable --harness codex --scope project\nenrolled (the hooks speak up here):\n  /tmp/axi-hooks-74yk0w6h\n"
+      },
+      "dry": {
+        "argv": [
+          "hooks",
+          "install",
+          "--harness",
+          "cursor",
+          "--scope",
+          "project",
+          "--project",
+          "/tmp/axi-hooks-74yk0w6h",
+          "--dry-run"
+        ],
+        "exit": 0,
+        "stdout": "DRY RUN -- install cursor hooks (project): /tmp/axi-hooks-74yk0w6h/.cursor/hooks.json\n  added    sessionStart:cursor_sessionstart.py\n  added    beforeShellExecution:cursor_beforeshell.py\n  added    preToolUse:cursor_pretooluse.py\n  added    postToolUse:cursor_posttooluse.py\n  added    postToolUseFailure:cursor_posttooluse.py\n  added    sessionEnd:cursor_sessionend.py\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 194,
+    "stdout_chars": 838,
+    "stdout_lines": 16,
+    "cost_usd": 0.0284,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many Aurora hooks are installed in the claude project settings file?",
+        "expected": 10,
+        "answers": [
+          "10",
+          "10",
+          "10",
+          "10",
+          "10"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which harness has its Aurora hooks switched off (disabled)? Give the harness name only.",
+        "expected": "codex",
+        "answers": [
+          "codex",
+          "codex",
+          "codex",
+          "codex",
+          "codex"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many codex hooks are disabled?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command turns the disabled hooks back on? Give the command only.",
+        "expected": [
+          "hooks enable",
+          "--harness codex",
+          "--scope project"
+        ],
+        "answers": [
+          "uv run agent_cli.py hooks enable --harness codex --scope project --project /tmp/axi-hooks-74yk0w6h",
+          "uv run agent_cli.py hooks enable --harness codex --scope project --project /tmp/axi-hooks-74yk0w6h",
+          "uv run agent_cli.py hooks enable --harness codex --scope project --project /tmp/axi-hooks-74yk0w6h",
+          "uv run agent_cli.py hooks enable --harness codex --scope project --project /tmp/axi-hooks-74yk0w6h",
+          "uv run agent_cli.py hooks enable --harness codex --scope project --project /tmp/axi-hooks-74yk0w6h"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many projects are enrolled (where the hooks speak up)?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many cursor hooks would this install add?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did this command write anything to disk? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "hooks",
+          "status",
+          "--project",
+          "/tmp/axi-hooks-74yk0w6h"
+        ],
+        "exit": 0,
+        "stdout": "hooked_files: 2\nfiles[2]{harness,scope,state,installed,disabled,path}:\n  claude,project,on,10,0,/tmp/axi-hooks-74yk0w6h/.claude/settings.local.json\n  codex,project,off,0,5,/tmp/axi-hooks-74yk0w6h/.codex/hooks.json\nenrolled[1]: /tmp/axi-hooks-74yk0w6h\nhelp[1]:\n  uv run agent_cli.py hooks enable --harness codex --scope project --project /tmp/axi-hooks-74yk0w6h\n"
+      },
+      "dry": {
+        "argv": [
+          "hooks",
+          "install",
+          "--harness",
+          "cursor",
+          "--scope",
+          "project",
+          "--project",
+          "/tmp/axi-hooks-74yk0w6h",
+          "--dry-run"
+        ],
+        "exit": 0,
+        "stdout": "action: install\nharness: cursor\nscope: project\npath: /tmp/axi-hooks-74yk0w6h/.cursor/hooks.json\ndry_run: true\nwritten: false\nadded[6]: \"sessionStart:cursor_sessionstart.py\",\"beforeShellExecution:cursor_beforeshell.py\",\"preToolUse:cursor_pretooluse.py\",\"postToolUse:cursor_posttooluse.py\",\"postToolUseFailure:cursor_posttooluse.py\",\"sessionEnd:cursor_sessionend.py\"\nhelp[1]:\n  uv run agent_cli.py hooks install --harness cursor --scope project --project /tmp/axi-hooks-74yk0w6h\n"
+      }
+    }
+  }
+}
