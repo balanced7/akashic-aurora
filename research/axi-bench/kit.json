@@ -1,0 +1,294 @@
+{
+  "verb": "kit",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 1061,
+    "stdout_chars": 3868,
+    "stdout_lines": 116,
+    "cost_usd": 0.0241,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many entries does the recovery-kit have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What evidence level does the drain-decide entry carry?",
+        "expected": "VERIFIED",
+        "answers": [
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which entry replaced an alias that already existed? Give its name only.",
+        "expected": "standby-hard",
+        "answers": [
+          "standby-hard",
+          "standby-hard",
+          "standby-hard",
+          "standby-hard",
+          "standby-hard"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which entries were refused? List them separated by commas.",
+        "expected": [
+          "vitals",
+          "premise-check"
+        ],
+        "answers": [
+          "vitals, premise-check",
+          "vitals, premise-check",
+          "vitals, premise-check",
+          "vitals, premise-check",
+          "vitals, premise-check"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the second install change any entry? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which kits are available? Give the names only.",
+        "expected": [
+          "recovery-kit"
+        ],
+        "answers": [
+          "recovery-kit",
+          "recovery-kit",
+          "recovery-kit",
+          "recovery-kit",
+          "recovery-kit"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "kit",
+          "bench",
+          "--show"
+        ],
+        "exit": 0,
+        "stdout": "{\n  \"name\": \"recovery-kit\",\n  \"version\": 2,\n  \"why\": \"the wake-loop/straggler/stall recovery floor, installable on any seat in one call. Harvested cross-seat 2026-07-21: claude's standby-hard (30+ live receipts), kimi's drain-decide (kata-VERIFIED), deepseek's vitals + premise-check (the eyes). The kit's thesis: recovery is a LOADOUT, not a memory -- a seat that has it installed never hand-types the ceremony.\",\n  \"entries\": [\n    {\n      \"name\": \"standby-hard\",\n      \"steps\": [\n        [\n          \"bifrost-pause\",\n          \"--reason\",\n          \"kit-standby\",\n          \"--by\",\n          \"$SELF$\",\n          \"--ttl\",\n          \"120\"\n        ],\n        [\n          \"bifrost-skip-to-now\",\n          \"$SELF$\",\n          \"--by\",\n          \"$SELF$\",\n          \"--reason\",\n          \"kit-standby-ceremony\"\n        ],\n        [\n          \"bifrost-resume\"\n        ]\n      ],\n      \"evidence\": \"VERIFIED\",\n      \"tested_against\": \"kata-20260721-020106\",\n      \"why\": \"claude's, 30+ live receipts: pause+skip+resume, the wake-loop breaker. ttl 120 self-heals a mid-ceremony crash (deepseek find 2026-07-21).\",\n      \"family\": \"ENGINEERS\"\n    },\n    {\n      \"name\": \"drain-decide\",\n      \"steps\": [\n        [\n          \"bifrost-sync\",\n          \"$SELF$\",\n          \"--consume\"\n        ],\n        [\n          \"bifrost-pause\",\n          \"--reason\",\n          \"drain-decide\",\n          \"--by\",\n          \"$SELF$\",\n          \"--ttl\",\n          \"120\"\n        ],\n        [\n          \"bifrost-skip-to-now\",\n          \"$SELF$\",\n          \"--by\",\n          \"$SELF$\",\n          \"--reason\",\n          \"straggler-triage\"\n        ],\n        [\n          \"bifrost-resume\"\n        ]\n      ],\n      \"evidence\": \"VERIFIED\",\n      \"tested_against\": \"kata-20260721-020107\",\n      \"why\": \"kimi's, kata-VERIFIED: consume-then-skip, the straggler triage. ttl 120 self-heals (same graduation as standby-hard).\",\n      \"family\": \"ENGINEERS\"\n    },\n    {\n      \"name\": \"vitals\",\n      \"steps\": [\n        [\n          \"doctor\"\n        ],\n        [\n          \"bifrost_dashboard\"\n        ]\n      ],\n      \"evidence\": \"GUESS\",\n      \"why\": \"deepseek's: is anyone dying silently. The kit's eyes-before-hands law.\",\n      \"family\": \"LIFEWORKERS\"\n    },\n    {\n      \"name\": \"premise-check\",\n      \"steps\": [\n        [\n          \"doctor\"\n        ],\n        [\n          \"delta\",\n          \"$SELF$\"\n        ],\n        [\n          \"bifrost-inbox\"\n        ]\n      ],\n      \"evidence\": \"GUESS\",\n      \"why\": \"deepseek's: is the system's story about itself true. C9-1's killer.\",\n      \"family\": \"SENTINELS\"\n    }\n  ]\n}\n"
+      },
+      "premint": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "standby-hard",
+          "--step",
+          "doctor"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted standby-hard v1 [GUESS] (UNSORTED) (1 step(s)) -- run: uv run agent_cli.py run bench standby-hard\n"
+      },
+      "install": {
+        "argv": [
+          "kit",
+          "bench"
+        ],
+        "exit": 1,
+        "stdout": "# kit install: recovery-kit v2 -> bench's belt\n  [ok] standby-hard       superseded -> v2  [VERIFIED]\n  [ok] drain-decide       minted  [VERIFIED]\n  [REFUSED] vitals             REFUSED (ValueError: unknown verb 'bifrost_dashboard' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities))\n  [REFUSED] premise-check      REFUSED (ValueError: unknown verb 'bifrost-inbox' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities))\nkit installed with REFUSALS (see above)\n"
+      },
+      "again": {
+        "argv": [
+          "kit",
+          "bench"
+        ],
+        "exit": 1,
+        "stdout": "# kit install: recovery-kit v2 -> bench's belt\n  [ok] standby-hard       no-op (exact re-install)  [VERIFIED]\n  [ok] drain-decide       no-op (exact re-install)  [VERIFIED]\n  [REFUSED] vitals             REFUSED (ValueError: unknown verb 'bifrost_dashboard' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities))\n  [REFUSED] premise-check      REFUSED (ValueError: unknown verb 'bifrost-inbox' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities))\nkit installed with REFUSALS (see above)\n"
+      },
+      "unknown": {
+        "argv": [
+          "kit",
+          "bench",
+          "nope-kit"
+        ],
+        "exit": 2,
+        "stdout": "[kit] unknown kit 'nope-kit' -- available: recovery-kit\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 393,
+    "stdout_chars": 2418,
+    "stdout_lines": 56,
+    "cost_usd": 0.0321,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many entries does the recovery-kit have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What evidence level does the drain-decide entry carry?",
+        "expected": "VERIFIED",
+        "answers": [
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which entry replaced an alias that already existed? Give its name only.",
+        "expected": "standby-hard",
+        "answers": [
+          "standby-hard",
+          "standby-hard",
+          "standby-hard",
+          "standby-hard",
+          "standby-hard"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which entries were refused? List them separated by commas.",
+        "expected": [
+          "vitals",
+          "premise-check"
+        ],
+        "answers": [
+          "vitals, premise-check",
+          "vitals, premise-check",
+          "vitals, premise-check",
+          "vitals, premise-check",
+          "vitals, premise-check"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the second install change any entry? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which kits are available? Give the names only.",
+        "expected": [
+          "recovery-kit"
+        ],
+        "answers": [
+          "recovery-kit",
+          "recovery-kit",
+          "recovery-kit",
+          "recovery-kit",
+          "recovery-kit"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "kit",
+          "bench",
+          "--show"
+        ],
+        "exit": 0,
+        "stdout": "kit: recovery-kit\nversion: 2\nwhy: \"the wake-loop/straggler/stall recovery floor, installable on any seat in one call. Harvested cross-seat 2026-07-21: claude's standby-hard (30+ live receipts), kimi's drain-decide (kata-VERIFIED), deepseek's vitals + premise-check (the eyes). The kit's thesis: recovery is a LOADOUT, not a memory -- a... (truncated, 358 chars total)\"\ntotal: 4\nentries[4]{name,family,evidence,steps}:\n  standby-hard,ENGINEERS,VERIFIED,bifrost-pause -> bifrost-skip-to-now -> bifrost-resume\n  drain-decide,ENGINEERS,VERIFIED,bifrost-sync -> bifrost-pause -> bifrost-skip-to-now -> bifrost-resume\n  vitals,LIFEWORKERS,GUESS,doctor -> bifrost_dashboard\n  premise-check,SENTINELS,GUESS,doctor -> delta -> bifrost-inbox\nhelp[1]:\n  uv run agent_cli.py kit bench recovery-kit\n"
+      },
+      "premint": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "standby-hard",
+          "--step",
+          "doctor"
+        ],
+        "exit": 0,
+        "stdout": "alias: standby-hard\nresult: minted\nversion: 1\nevidence: GUESS\nfamily: UNSORTED\nsteps: 1\nhelp[2]:\n  uv run agent_cli.py run bench standby-hard\n  uv run agent_cli.py kata bench standby-hard\n"
+      },
+      "install": {
+        "argv": [
+          "kit",
+          "bench"
+        ],
+        "exit": 1,
+        "stdout": "kit: recovery-kit\nversion: 2\nseat: bench\nstatus: installed with refusals\nchanged: 2\nminted: 1\nsuperseded: 1\nrefused: 2\nentries[4]{name,result,evidence,reason}:\n  standby-hard,superseded to v2,VERIFIED,null\n  drain-decide,minted,VERIFIED,null\n  vitals,refused,null,\"unknown verb 'bifrost_dashboard' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities)\"\n  premise-check,refused,null,\"unknown verb 'bifrost-inbox' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities)\"\nhelp[2]:\n  uv run agent_cli.py alias bench list\n  uv run agent_cli.py run bench standby-hard --dry\n"
+      },
+      "again": {
+        "argv": [
+          "kit",
+          "bench"
+        ],
+        "exit": 1,
+        "stdout": "kit: recovery-kit\nversion: 2\nseat: bench\nstatus: already installed; nothing changed; some refused\nchanged: 0\nunchanged: 2\nrefused: 2\nentries[4]{name,result,evidence,reason}:\n  standby-hard,unchanged,VERIFIED,null\n  drain-decide,unchanged,VERIFIED,null\n  vitals,refused,null,\"unknown verb 'bifrost_dashboard' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities)\"\n  premise-check,refused,null,\"unknown verb 'bifrost-inbox' -- sugar-only: every step must be an existing agent_cli verb (registry cannot mint capabilities)\"\nhelp[2]:\n  uv run agent_cli.py alias bench list\n  uv run agent_cli.py run bench standby-hard --dry\n"
+      },
+      "unknown": {
+        "argv": [
+          "kit",
+          "bench",
+          "nope-kit"
+        ],
+        "exit": 2,
+        "stdout": "error: unknown kit 'nope-kit'\ncode: USAGE\navailable[1]: recovery-kit\nhelp[1]:\n  uv run agent_cli.py kit bench recovery-kit --show\n"
+      }
+    }
+  }
+}

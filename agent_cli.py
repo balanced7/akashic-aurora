@@ -16791,23 +16791,89 @@ def cmd_kit(args, *, belt=None):
     """kit <me> [name] [--show]: install (or inspect) a kit bundle on a seat's belt
     (kimi's KIT tier, T099). install() rides Toolbelt.mint per entry -- a kit can never
     mint a capability mint can't; refusals land in the report, never silently skip."""
+    from core.axi import out
     from core.toolbelt import kit as kitmod
 
+    cli, me = _cli(), args.agent_id
     kits = {"recovery-kit": kitmod.RECOVERY_KIT}
     name = str(getattr(args, "kit_name", "") or "recovery-kit")
     k = kits.get(name)
     if k is None:
-        print(f"[kit] unknown kit {name!r} -- available: {', '.join(sorted(kits))}")
-        return 2
+        return out.fail(
+            f"unknown kit {name!r}",
+            code="USAGE",
+            details={"available": sorted(kits)},
+            hints=[f"{cli} kit {me} {sorted(kits)[0]} --show"],
+            exit_code=out.EXIT_USAGE,
+        )
     if getattr(args, "show", False):
-        print(json.dumps(k, indent=2))
-        return 0
+        if getattr(args, "json", False):  # the kit itself, exactly as --show printed it before
+            print(json.dumps(k, indent=2))
+            return 0
+        rows = [
+            {
+                "name": e.get("name"),
+                "family": e.get("family", "UNSORTED"),
+                "evidence": e.get("evidence", "GUESS"),
+                "steps": " -> ".join(str(s[0]) for s in e.get("steps", [])),
+            }
+            for e in k.get("entries", [])
+        ]
+        doc = {
+            "kit": k["name"],
+            "version": k.get("version", 1),
+            "why": out.truncate(k.get("why"), 300)[0],
+            "total": len(rows),
+            "entries": rows,
+        }
+        return out.emit(doc, hints=[f"{cli} kit {me} {name}"], title=f"Kit · {name}")
     if belt is None:
         from core.toolbelt.registry import Toolbelt
 
-        belt = Toolbelt(args.agent_id)
-    rep = kitmod.install(k, belt, agent=args.agent_id)
-    print(kitmod.render_report(rep))
+        belt = Toolbelt(me)
+    rep = kitmod.install(k, belt, agent=me)
+    if getattr(args, "json", False):
+        print(json.dumps(rep, indent=2, default=str))
+        return 0 if rep.get("ok") else 1
+    rows, counts = [], {"minted": 0, "superseded": 0, "unchanged": 0, "refused": 0}
+    for e in rep["entries"]:
+        res = str(e.get("result", ""))
+        # install() words each outcome as prose; one status word per row is what a reader scans.
+        word = (
+            "refused"
+            if res.startswith("REFUSED")
+            else "unchanged"
+            if res.startswith("no-op")
+            else "superseded"
+            if res.startswith("superseded")
+            else "minted"
+        )
+        counts[word] += 1
+        row = {"name": e.get("name"), "result": word, "evidence": e.get("evidence")}
+        if word == "superseded":
+            row["result"] = res.replace("superseded -> ", "superseded to ")
+        if any(str(x.get("result", "")).startswith("REFUSED") for x in rep["entries"]):
+            # install() words it "REFUSED (ValueError: <why>)"; the why is the part worth reading.
+            why = res[len("REFUSED (") : -1] if res.endswith(")") else res
+            row["reason"] = out.truncate(why.removeprefix("ValueError: "), 200)[0] if word == "refused" else None
+        rows.append(row)
+    # AXI section 4: derive the status. A re-install that changes nothing must not read "installed".
+    changed = counts["minted"] + counts["superseded"]
+    if rep.get("ok"):
+        status = "installed" if changed else "already installed; nothing changed"
+    else:
+        status = "installed with refusals" if changed else "already installed; nothing changed; some refused"
+    doc = {
+        "kit": rep["kit"],
+        "version": rep["version"],
+        "seat": rep["seat"],
+        "status": status,
+        "changed": changed,
+        **{c: n for c, n in counts.items() if n},
+        "entries": rows,
+    }
+    hints = [f"{cli} alias {me} list", f"{cli} run {me} {rows[0]['name']} --dry"] if rows else []
+    out.emit(doc, hints=hints, title=f"Kit install · {rep['kit']} -> {rep['seat']}")
     return 0 if rep.get("ok") else 1
 
 

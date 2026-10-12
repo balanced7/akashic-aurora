@@ -152,14 +152,3 @@ def install(kit: dict[str, Any], belt: Any, *, agent: str | None = None) -> dict
             report["ok"] = False
         report["entries"].append(row)
     return report
-
-
-def render_report(rep: dict[str, Any]) -> str:
-    rows = [f"# kit install: {rep['kit']} v{rep['version']} -> {rep['seat']}'s belt"]
-    for e in rep["entries"]:
-        mark = "ok" if not e["result"].startswith("REFUSED") else "REFUSED"
-        rows.append(
-            f"  [{mark}] {e['name']:<18} {e['result']}" + (f"  [{e.get('evidence')}]" if e.get("evidence") else "")
-        )
-    rows.append("kit %s" % ("installed clean" if rep["ok"] else "installed with REFUSALS (see above)"))
-    return "\n".join(rows)
