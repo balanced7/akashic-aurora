@@ -33,6 +33,11 @@ def _usage(message: str, *hints: str) -> int:
     return out.fail(message, code="USAGE", hints=list(hints), exit_code=out.EXIT_USAGE)
 
 
+def _missing(e: KeyError) -> str:
+    """A KeyError's message as written (str() of a KeyError wraps it in quotes)."""
+    return str(e.args[0]) if e.args else "not found"
+
+
 #: `corpus list` columns: the default agent schema, and every field --fields can add.
 _CORPUS_FIELDS = ("id", "status", "split", "oracle", "title")
 _CORPUS_ALL_FIELDS = ("id", "status", "split", "oracle", "title", "priority", "discrimination", "difficulty", "tags")
@@ -247,9 +252,7 @@ def replay_main(args) -> int:
                 keep_sandbox=args.keep_sandbox,
             )
         except KeyError as e:
-            return out.fail(
-                str(e).strip("\"'"), code="NOT_FOUND", hints=[f"{cli} replay candidates", f"{cli} corpus list"]
-            )
+            return out.fail(_missing(e), code="NOT_FOUND", hints=[f"{cli} replay candidates", f"{cli} corpus list"])
         ok = all(r.get("exit_reason") in ("ok", "error", "timeout", "budget") for r in res)
         if args.json:
             _json(res)
@@ -428,75 +431,137 @@ def review_main(args) -> int:
     """`review <action>` -- the human final check-off (task 06)."""
     from core.metaharness import graders, review
 
-    a = args.action
+    a, cli = args.action, _cli()
+    decide_hint = "--reviewer <you> --decision accept|reject|more_runs --reason <why>"
     if a == "list":
         rows = review.pending()
-        _print(
-            rows,
-            args.json,
-            "\n".join(
-                f"  {r['id']:<28} {r['candidate']} vs {r['against']}  {r['verdict'].get('pareto')}  needs {r['reviewers_needed']}  expires {r['expires']}"
-                for r in rows
-            )
-            or "queue empty",
+        if args.json:
+            _json(rows)
+            return 0
+        table = [
+            {
+                "id": r["id"],
+                "candidate": r["candidate"],
+                "against": r["against"],
+                "verdict": r["verdict"].get("pareto"),
+                "needs": r["reviewers_needed"],  # reviewers still to accept (2 for high-risk files)
+                "expires": r["expires"],
+            }
+            for r in rows
+        ]
+        if not table:  # AXI section 5: an empty queue is said outright
+            return out.emit({"pending": 0, "items": []}, hints=[f"{cli} review watch"], title="Review queue")
+        return out.emit(
+            {"pending": len(table), "items": table},
+            hints=[f"{cli} review show {table[0]['id']}", f"{cli} review decide {table[0]['id']} {decide_hint}"],
+            title="Review queue",
         )
-        return 0
     if a == "watch":
-        out = review.watch()
-        _print(
-            out,
-            args.json,
-            "\n".join(f"  {r['id']}: {r['status']}" + (f"  WORSE {r['worse']}" if r["worse"] else "") for r in out)
-            or "nothing applied under watch",
+        rows = review.watch()
+        if args.json:
+            _json(rows)
+            return 0
+        table = [{"id": r["id"], "status": r["status"], "worse": "; ".join(r["worse"]) or None} for r in rows]
+        return out.emit(
+            {"watching": len(table), "items": table},
+            hints=[] if table else [f"{cli} review list"],
+            title="Applied changes under watch",
         )
-        return 0
     if a == "disagreements":
         rows = review.disagreements()
-        _print(rows, args.json, "\n".join(json.dumps(r) for r in rows) or "no person/grader disagreements recorded")
-        return 0
+        if args.json:
+            _json(rows)
+            return 0
+        table = [{k: r.get(k) for k in ("item", "criterion", "person", "grader", "reviewer")} for r in rows]
+        return out.emit({"total": len(table), "disagreements": table}, title="Person/grader disagreements")
     if a == "add":
         if not (args.candidate and args.against and args.scenario):
-            print("ERROR: `review add` needs --candidate, --against and --scenario ...")
-            return 2
-        v = graders.compare(args.against, args.candidate, args.scenario)
-        it = review.enqueue(args.candidate, v, predicted=args.predicted)
+            return _usage(
+                "`review add` needs --candidate, --against and --scenario ...",
+                f"{cli} review add --candidate {args.candidate or '<B>'} --against {args.against or 'baseline'} "
+                "--scenario <id>",
+            )
+        try:
+            v = graders.compare(args.against, args.candidate, args.scenario)
+            it = review.enqueue(args.candidate, v, predicted=args.predicted)
+        except KeyError as e:
+            return out.fail(_missing(e), code="NOT_FOUND", hints=[f"{cli} replay candidates"])
         page = review.render(it["id"])
-        _print(it, args.json, f"[OK] queued {it['id']} ({v['pareto']}); review page: {page}")
-        return 0
+        if args.json:
+            _json(it)
+            return 0
+        return out.emit(
+            {"id": it["id"], "verdict": v["pareto"], "needs": it["reviewers_needed"], "page": str(page)},
+            hints=[f"{cli} review decide {it['id']} {decide_hint}"],
+            title="Queued for review",
+        )
     if not args.id:
-        print(f"ERROR: `review {a}` needs an item id")
-        return 2
+        return _usage(f"`review {a}` needs an item id", f"{cli} review {a} <id>", f"{cli} review list")
     try:
         if a == "show":
             page = review.render(args.id)
-            _print(review.item(args.id), args.json, f"review page: {page}")
-            return 0
+            it = review.item(args.id)
+            if args.json:
+                _json(it)
+                return 0
+            v = it.get("verdict") or {}
+            doc = {
+                "id": it["id"],
+                "candidate": it["candidate"],
+                "against": it.get("against"),
+                "status": it["status"],
+                "verdict": v.get("pareto"),
+                "wins": v.get("wins") or [],
+                "losses": v.get("losses") or [],
+                "files": len(it.get("files") or []),
+                "high_risk": bool(it.get("high_risk")),
+                "needs": it.get("reviewers_needed"),
+                "decisions": len(it.get("decisions") or []),
+                "expires": it.get("expires"),
+                "page": str(page),  # verdict table, config diff and the run diffs side by side
+            }
+            hints = [f"{cli} review decide {args.id} {decide_hint}"] if it["status"] == "pending" else []
+            return out.emit(doc, hints=hints, title=f"Review · {args.id}")
         if a == "decide":
             calls = dict(kv.split("=", 1) for kv in args.calls.replace(",", " ").split() if "=" in kv)
             it = review.decide(args.id, args.reviewer, args.decision, calls, args.reason)
-            _print(
-                it,
-                args.json,
-                f"[OK] {args.id}: {it['status']} ({len(it['decisions'])} decision(s), needs {it['reviewers_needed']})",
+            if args.json:
+                _json(it)
+                return 0
+            hint = f"{cli} review apply {args.id}" if it["status"] == "accepted" else f"{cli} review list"
+            return out.emit(
+                {
+                    "id": args.id,
+                    "status": it["status"],
+                    "decisions": len(it["decisions"]),
+                    "needs": it["reviewers_needed"],
+                },
+                hints=[hint],
+                title="Review decision",
             )
-            return 0
         if a == "apply":
             it = review.apply(args.id)
-            _print(
-                it,
-                args.json,
-                f"[OK] applied {args.id}: {len(it['manifest'])} file(s); watched until {it['watch_until']}",
+            if args.json:
+                _json(it)
+                return 0
+            return out.emit(
+                {"id": args.id, "status": it["status"], "files": len(it["manifest"]), "watch_until": it["watch_until"]},
+                hints=[f"{cli} review watch", f"{cli} review rollback {args.id} --reason <why>"],
+                title="Applied",
             )
-            return 0
         if a == "rollback":
             it = review.rollback(args.id, reason=args.reason or "operator rollback")
-            _print(it, args.json, f"[OK] rolled back {args.id}")
-            return 0
-    except (KeyError, ValueError, PermissionError) as e:
-        print(f"ERROR: {e}")
-        return 1
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+            if args.json:
+                _json(it)
+                return 0
+            return out.emit({"id": args.id, "status": it["status"]}, title="Rolled back")
+    except KeyError as e:
+        return out.fail(_missing(e), code="NOT_FOUND", hints=[f"{cli} review list"])
+    except PermissionError as e:  # apply without a recorded accept
+        return out.fail(str(e), code="REFUSED", hints=[f"{cli} review show {args.id}"])
+    except ValueError as e:
+        return out.fail(str(e), code="INVALID", hints=[f"{cli} review show {args.id}"])
+    return _usage(f"unknown action {a!r}", f"{cli} review --help")
 
 
 def loop_main(args) -> int:

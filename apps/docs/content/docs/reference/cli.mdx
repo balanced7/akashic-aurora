@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 77 converted to agent and human output.
+121 verbs; 78 converted to agent and human output.
 
 ## `alias`
 
@@ -2526,7 +2526,10 @@ why: "on the bus, nothing has confessed a failure -- which is not the same fact 
 | | |
 |---|---|
 | Does | meta-harness review queue (task 06): the human final check-off, apply, rollback, watch |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 97% after |
+| Output tokens | 14 before, 40 after (+186%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/review.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2541,6 +2544,18 @@ why: "on the bus, nothing has confessed a failure -- which is not the same fact 
 | `--calls` |   |   | decide: "functional=better correctness=same ..." |
 | `--reason` |   |   | decide/rollback: why |
 | `--json` |   |   |   |
+
+Agent output of `aurora review list` on the bench data:
+
+```text
+pending: 2
+items[2]{id,candidate,against,verdict,needs,expires}:
+  codex-low-ec6227,codex-low,baseline,no difference shown,1,"2026-10-19T15:40:13+00:00"
+  opus-high-e8ae74,opus-high,baseline,no difference shown,1,"2026-10-19T15:40:13+00:00"
+help[2]:
+  uv run agent_cli.py review show codex-low-ec6227
+  uv run agent_cli.py review decide codex-low-ec6227 --reviewer <you> --decision accept|reject|more_runs --reason <why>
+```
 
 ## `roster`
 

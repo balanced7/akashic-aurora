@@ -1,0 +1,260 @@
+{
+  "verb": "review",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 14,
+    "stdout_chars": 342,
+    "stdout_lines": 5,
+    "cost_usd": 0.0288,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many items are waiting for review?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many reviewers must accept the codex-low item before it is accepted?",
+        "expected": 1,
+        "answers": [
+          "Reviewer count for codex-low-e7ec2d is not stated in the output, so the answer is UNKNOWN.",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which candidate is the opus-high item compared against?",
+        "expected": "baseline",
+        "answers": [
+          "baseline",
+          "baseline",
+          "opus-high-b0ac33's comparison target is not stated in the output; only \"opus-high vs baseline\" appears.",
+          "baseline",
+          "baseline"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many applied changes are under watch?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "nothing applied under watch",
+          "0",
+          "0"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many person/grader disagreements are recorded?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the review item nope-123456 exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "yes",
+          "no",
+          "No",
+          "no",
+          "yes"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "review",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "  opus-high-b0ac33             opus-high vs baseline  no difference shown  needs 1  expires 2026-10-19T15:39:34+00:00\n  codex-low-e7ec2d             codex-low vs baseline  no difference shown  needs 1  expires 2026-10-19T15:39:35+00:00\n"
+      },
+      "watch": {
+        "argv": [
+          "review",
+          "watch"
+        ],
+        "exit": 0,
+        "stdout": "nothing applied under watch\n"
+      },
+      "disagreements": {
+        "argv": [
+          "review",
+          "disagreements"
+        ],
+        "exit": 0,
+        "stdout": "no person/grader disagreements recorded\n"
+      },
+      "missing": {
+        "argv": [
+          "review",
+          "show",
+          "nope-123456"
+        ],
+        "exit": 1,
+        "stdout": "ERROR: \"no review item 'nope-123456'\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 40,
+    "stdout_chars": 608,
+    "stdout_lines": 17,
+    "cost_usd": 0.0272,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many items are waiting for review?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many reviewers must accept the codex-low item before it is accepted?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which candidate is the opus-high item compared against?",
+        "expected": "baseline",
+        "answers": [
+          "baseline",
+          "baseline",
+          "baseline",
+          "baseline",
+          "baseline"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many applied changes are under watch?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "watching: 0",
+          "0",
+          "0",
+          "watching: 0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many person/grader disagreements are recorded?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the review item nope-123456 exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "yes",
+          "no"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "review",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "pending: 2\nitems[2]{id,candidate,against,verdict,needs,expires}:\n  codex-low-ec6227,codex-low,baseline,no difference shown,1,\"2026-10-19T15:40:13+00:00\"\n  opus-high-e8ae74,opus-high,baseline,no difference shown,1,\"2026-10-19T15:40:13+00:00\"\nhelp[2]:\n  uv run agent_cli.py review show codex-low-ec6227\n  uv run agent_cli.py review decide codex-low-ec6227 --reviewer <you> --decision accept|reject|more_runs --reason <why>\n"
+      },
+      "watch": {
+        "argv": [
+          "review",
+          "watch"
+        ],
+        "exit": 0,
+        "stdout": "watching: 0\nitems: []\nhelp[1]:\n  uv run agent_cli.py review list\n"
+      },
+      "disagreements": {
+        "argv": [
+          "review",
+          "disagreements"
+        ],
+        "exit": 0,
+        "stdout": "total: 0\ndisagreements: []\n"
+      },
+      "missing": {
+        "argv": [
+          "review",
+          "show",
+          "nope-123456"
+        ],
+        "exit": 1,
+        "stdout": "error: no review item 'nope-123456'\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py review list\n"
+      }
+    }
+  }
+}
