@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 42 converted to agent and human output.
+121 verbs; 43 converted to agent and human output.
 
 ## `alias`
 
@@ -873,14 +873,36 @@ help[1]:
 | | |
 |---|---|
 | Does | OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 84% before, 100% after |
+| Output tokens | 251 before, 205 after (-18%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/flow.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent>` |   |   | only flows touching this agent |
 | `--window` |   |   | how far back (e.g. 30m, 6h, 1d; default 6h) |
 | `--limit` |   |   | max flows rendered (default 12) |
+| `--fields` |   |   | extra row columns: lanes,size, or 'all' (default: id,answers,from,to,kind,gap,text, plus copies when something arrived twice) |
 | `--json` |   |   |   |
+
+Agent output of `aurora flow` on the bench data:
+
+```text
+window: 6h
+flows: 4
+messages: 4
+observed: 8
+duplicated: 4
+dropped_by_window: 0
+rows[4]{id,answers,from,to,kind,gap,copies,text}:
+  1791820387418-0,null,erin,alice,chat,0s,2,"status: idle"
+  1791820386912-0,null,carol,dave,handoff,0s,2,handing off the parser work
+  1791820386503-0,null,bob,alice,chat,0s,2,the build is green on main
+  1791820386040-0,null,alice,bob,request,0s,2,please review core/a.py
+help[1]:
+  uv run agent_cli.py bifrost-fetch --get <id> --agent <to>
+```
 
 ## `focus`
 

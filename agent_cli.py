@@ -7997,69 +7997,147 @@ def cmd_flow(args):
     answers WHY, knowledge-map answers WHAT'S NEAR -- this answers WHAT HAPPENED: which
     ask produced which answer, on which lane, with what gap, and whether one logical
     message arrived MORE than once (double-delivery renders as xN COPIES, never N rows)."""
+    from core.axi import out as axi
     from core.comm.flow_trace import flow_trace
 
+    cli = _cli()
     unit = {"m": 60_000, "h": 3_600_000, "d": 86_400_000}
     w = str(args.window or "6h").strip().lower()
     try:
         window_ms = int(float(w[:-1]) * unit[w[-1]]) if w and w[-1] in unit else int(w) * 60_000
     except Exception:
-        print(f"ERROR: bad --window {args.window!r} (use e.g. 30m, 6h, 1d)")
-        return 1
+        return axi.fail(
+            f"bad --window {args.window!r} (use e.g. 30m, 6h, 1d)",
+            code="USAGE",
+            hints=[f"{cli} flow --window 6h"],
+            exit_code=axi.EXIT_USAGE,
+        )
     out = flow_trace(args.agent, window_ms=window_ms)
     if args.json:
         print(json.dumps(out, indent=2, default=str))
         return 0
     if out.get("offline"):
-        print("# flow: bus offline (Redis unreachable)")
-        return 1
+        return axi.fail("bus offline (Redis unreachable)", code="BUS_OFFLINE", hints=[f"{cli} promoted"])
+    try:
+        fields = axi.fields_arg(getattr(args, "fields", None), _FLOW_FIELDS, _FLOW_ALL_FIELDS)
+    except ValueError as e:
+        return axi.fail(str(e), code="USAGE", hints=[f"{cli} flow --fields lanes,size"], exit_code=axi.EXIT_USAGE)
 
     def _dups(node):
         return (1 if node["copies"] > 1 else 0) + sum(_dups(c) for c in node["children"])
 
     c = out["counts"]
-    dup_nodes = sum(_dups(f["root"]) for f in out["flows"])
-    who = f" touching {args.agent}" if args.agent else ""
-    print(
-        f"# FLOW TRACE -- last {w}{who}   ({c['flows']} flow(s) | {c['nodes']} msg(s) | "
-        f"{c['copies']} observed | {dup_nodes} duplicated | window dropped {c['dropped_by_window']})"
+    flows = out["flows"]
+    limit = max(1, int(args.limit or 12))
+    doc: dict = {"window": w}
+    if args.agent:
+        doc["agent"] = args.agent
+    doc["flows"] = c["flows"]
+    if len(flows) > limit:
+        doc["shown"] = limit
+    doc.update(
+        messages=c["nodes"],
+        observed=c["copies"],
+        duplicated=sum(_dups(f["root"]) for f in flows),
+        dropped_by_window=c["dropped_by_window"],
     )
-    if not out["flows"]:
-        print("  (no flows in the window -- widen --window or check the bus)")
-        return 0
+    # The waterfall, flattened: one row per logical message, the tree kept by `answers` (the ask
+    # it replies to; outside the window when no row here has that id) and `gap` (time since the
+    # flow's first message). Copies are a count, never extra rows.
+    rows = []
 
-    def _fmt_ms(ms):
-        if ms < 1000:
-            return f"+{ms}ms"
-        s = ms / 1000.0
-        if s < 60:
-            return f"+{s:.1f}s"
-        m, sec = divmod(int(s), 60)
-        if m < 60:
-            return f"+{m}m{sec:02d}s"
-        h, m2 = divmod(m, 60)
-        return f"+{h}h{m2:02d}m"
-
-    def _row(n, depth):
-        pad = "  " * depth
-        off = "0ms" if not n["offset_ms"] else _fmt_ms(n["offset_ms"])
-        dup = f"  x{n['copies']} COPIES" if n["copies"] > 1 else ""
-        miss = f"  (answers {n['answers_missing']} -- outside window)" if n.get("answers_missing") else ""
-        kb = f"{n['len'] / 1024:.1f}KB" if n["len"] >= 1024 else f"{n['len']}B"
-        print(f"  {pad}{off:>9}  [{','.join(n['lanes'])}] {n['frm']} -> {n['to']}  {n['kind']}  {kb}{dup}{miss}")
-        if n.get("snippet"):
-            print(f"  {pad}           {n['snippet']!r}")
+    def _walk(n, parent):
+        rows.append(
+            {
+                "id": n["id"],
+                "answers": parent or n.get("answers_missing") or None,
+                "from": n["frm"],
+                "to": n["to"],
+                "kind": n["kind"],
+                "gap": _human_ms(n["offset_ms"]) if n["offset_ms"] else "0s",
+                "copies": n["copies"],
+                "lanes": ",".join(n["lanes"]),
+                "size": n["len"],
+                "text": _capture_decode(n.get("snippet") or ""),
+            }
+        )
         for ch in n["children"]:
-            _row(ch, depth + 1)
+            _walk(ch, n["id"])
 
-    for fl in out["flows"][: args.limit]:
-        span = _fmt_ms(fl["span_ms"]).lstrip("+") if fl["span_ms"] else "single"
-        print(f"\n[flow {fl['flow']}]  {fl['nodes']} msg, span {span}")
-        _row(fl["root"], 0)
-    hidden = len(out["flows"]) - min(len(out["flows"]), args.limit)
-    if hidden:
-        print(f"\n  (+{hidden} more flow(s) -- raise --limit)")
-    return 0
+    for fl in flows[:limit]:
+        _walk(fl["root"], None)
+    show = [f for f in fields if f != "copies" or any(r["copies"] > 1 for r in rows)]
+    doc["rows"] = [{f: r[f] for f in show} for r in rows]
+    hints = []
+    if len(flows) > limit:
+        hints.append(f"{cli} flow{' ' + args.agent if args.agent else ''} --window {w} --limit {len(flows)}")
+    if not flows:
+        hints.append(f"{cli} flow{' ' + args.agent if args.agent else ''} --window 1d")
+    elif len(rows) == 1:  # the body sits in the recipient's streams
+        hints.append(f"{cli} bifrost-fetch --get {rows[0]['id']} --agent {rows[0]['to']}")
+    elif rows:
+        hints.append(f"{cli} bifrost-fetch --get <id> --agent <to>")
+    return axi.emit(doc, hints=hints, human=_human_flow, title=f"Flow trace · last {w}")
+
+
+#: `flow` row columns: the default agent schema (copies only when something arrived twice), and
+#: every field --fields can add.
+_FLOW_FIELDS = ("id", "answers", "from", "to", "kind", "gap", "copies", "text")
+_FLOW_ALL_FIELDS = ("id", "answers", "from", "to", "kind", "gap", "copies", "lanes", "size", "text")
+
+
+def _human_ms(ms: int) -> str:
+    """A gap as people read it: 850ms, 4.2s, 3m05s, 2h10m."""
+    if ms < 1000:
+        return f"{ms}ms"
+    s = ms / 1000.0
+    if s < 60:
+        return f"{s:.1f}s"
+    m, sec = divmod(int(s), 60)
+    if m < 60:
+        return f"{m}m{sec:02d}s"
+    h, m2 = divmod(m, 60)
+    return f"{h}h{m2:02d}m"
+
+
+def _human_flow(console, doc):
+    """Human view of `flow`: the counts on one line, duplicates in yellow, then the waterfall as a
+    table with each answer indented under its ask."""
+    from core.axi import out
+
+    dup = f"[yellow]{doc['duplicated']} duplicated[/]" if doc["duplicated"] else "0 duplicated"
+    shown = f"{doc['shown']} of " if doc.get("shown") else ""
+    console.print(
+        f"[bold]{shown}{doc['flows']}[/] flows · {doc['messages']} messages · {doc['observed']} copies observed · "
+        f"{dup} · {doc['dropped_by_window']} outside the window"
+    )
+    if not doc["rows"]:
+        return
+    depth: dict = {}
+    t_rows = []
+    for r in doc["rows"]:
+        d = depth[r["answers"]] + 1 if r.get("answers") in depth else 0
+        depth[r.get("id")] = d
+        dupe = r.get("copies", 1) > 1
+        t_rows.append(
+            {
+                "gap": r.get("gap", ""),
+                "route": out._esc("  " * d + f"{r.get('from')} → {r.get('to')}"),
+                "kind": out._esc(str(r.get("kind"))),
+                "copies": f"[yellow]×{r['copies']}[/]" if dupe else "",
+                "message": out._esc(str(r.get("text", ""))),
+            }
+        )
+    from rich import box
+    from rich.table import Table
+
+    t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+    cols = [k for k in t_rows[0] if k != "copies" or any(x["copies"] for x in t_rows)]
+    for col in cols:
+        t.add_column(col, overflow="fold")
+    for r in t_rows:
+        t.add_row(*(r[k] for k in cols))
+    console.print(t)
 
 
 def _ack_refusal_hint(raw_ref: str, resolution_failed: bool) -> str:
@@ -12725,6 +12803,12 @@ def build_parser():
     fw.add_argument("agent", nargs="?", default=None, help="only flows touching this agent")
     fw.add_argument("--window", default="6h", help="how far back (e.g. 30m, 6h, 1d; default 6h)")
     fw.add_argument("--limit", type=int, default=12, help="max flows rendered (default 12)")
+    fw.add_argument(
+        "--fields",
+        default=None,
+        help="extra row columns: lanes,size, or 'all' (default: id,answers,from,to,kind,gap,text, plus copies "
+        "when something arrived twice)",
+    )
     fw.add_argument("--json", action="store_true")
     fw.set_defaults(fn=cmd_flow)
 

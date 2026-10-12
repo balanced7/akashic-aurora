@@ -1,0 +1,224 @@
+{
+  "verb": "flow",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.84,
+    "correct": 21,
+    "asked": 25,
+    "output_tokens": 251,
+    "stdout_chars": 1671,
+    "stdout_lines": 41,
+    "cost_usd": 0.0276,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many flows are in the window?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who did carol send the handoff to?",
+        "expected": "dave",
+        "answers": [
+          "dave",
+          "dave",
+          "dave",
+          "dave",
+          "dave"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many flows touch alice?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many flows does this output show?",
+        "expected": 2,
+        "answers": [
+          "4",
+          "4",
+          "2",
+          "4",
+          "4"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "What exact command would show every flow? Give the command only.",
+        "expected": [
+          "flow",
+          "--limit"
+        ],
+        "answers": [
+          "aurora flow --limit 4",
+          "aurora flow --limit 4",
+          "aurora flow --limit 4",
+          "aurora flow --limit 4",
+          "aurora flow --limit 4"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "flow"
+        ],
+        "exit": 0,
+        "stdout": "# FLOW TRACE -- last 6h   (4 flow(s) | 4 msg(s) | 8 observed | 4 duplicated | window dropped 0)\n\n[flow 1791820352386-0]  1 msg, span single\n        0ms  [legacy,work] erin -> alice  chat  175B  x2 COPIES\n             '\"status: idle\"'\n\n[flow 1791820351896-0]  1 msg, span single\n        0ms  [legacy,work] carol -> dave  handoff  194B  x2 COPIES\n             '\"handing off the parser work\"'\n\n[flow 1791820351445-0]  1 msg, span single\n        0ms  [legacy,work] bob -> alice  chat  187B  x2 COPIES\n             '\"the build is green on main\"'\n\n[flow 1791820351021-0]  1 msg, span single\n        0ms  [legacy,work] alice -> bob  request  189B  x2 COPIES\n             '\"please review core/a.py\"'\n"
+      },
+      "alice": {
+        "argv": [
+          "flow",
+          "alice"
+        ],
+        "exit": 0,
+        "stdout": "# FLOW TRACE -- last 6h touching alice   (3 flow(s) | 4 msg(s) | 8 observed | 3 duplicated | window dropped 0)\n\n[flow 1791820352386-0]  1 msg, span single\n        0ms  [legacy,work] erin -> alice  chat  175B  x2 COPIES\n             '\"status: idle\"'\n\n[flow 1791820351445-0]  1 msg, span single\n        0ms  [legacy,work] bob -> alice  chat  187B  x2 COPIES\n             '\"the build is green on main\"'\n\n[flow 1791820351021-0]  1 msg, span single\n        0ms  [legacy,work] alice -> bob  request  189B  x2 COPIES\n             '\"please review core/a.py\"'\n"
+      },
+      "cut": {
+        "argv": [
+          "flow",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "# FLOW TRACE -- last 6h   (4 flow(s) | 4 msg(s) | 8 observed | 4 duplicated | window dropped 0)\n\n[flow 1791820352386-0]  1 msg, span single\n        0ms  [legacy,work] erin -> alice  chat  175B  x2 COPIES\n             '\"status: idle\"'\n\n[flow 1791820351896-0]  1 msg, span single\n        0ms  [legacy,work] carol -> dave  handoff  194B  x2 COPIES\n             '\"handing off the parser work\"'\n\n  (+2 more flow(s) -- raise --limit)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 205,
+    "stdout_chars": 1272,
+    "stdout_lines": 39,
+    "cost_usd": 0.0253,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many flows are in the window?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who did carol send the handoff to?",
+        "expected": "dave",
+        "answers": [
+          "dave",
+          "dave",
+          "dave",
+          "dave",
+          "dave"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many flows touch alice?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many flows does this output show?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show every flow? Give the command only.",
+        "expected": [
+          "flow",
+          "--limit"
+        ],
+        "answers": [
+          "uv run agent_cli.py flow --window 6h --limit 4",
+          "uv run agent_cli.py flow --window 6h --limit 4",
+          "uv run agent_cli.py flow --window 6h --limit 4",
+          "uv run agent_cli.py flow --window 6h --limit 4",
+          "The help section lists `uv run agent_cli.py flow --window 6h --limit 4` as the command that shows more flows, but it doesn't say that it shows every flow. The output reports 4 flows total with 2 shown, so `--limit 4` would show all of them.\n\nuv run agent_cli.py flow --window 6h --limit 4"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "flow"
+        ],
+        "exit": 0,
+        "stdout": "window: 6h\nflows: 4\nmessages: 4\nobserved: 8\nduplicated: 4\ndropped_by_window: 0\nrows[4]{id,answers,from,to,kind,gap,copies,text}:\n  1791820387418-0,null,erin,alice,chat,0s,2,\"status: idle\"\n  1791820386912-0,null,carol,dave,handoff,0s,2,handing off the parser work\n  1791820386503-0,null,bob,alice,chat,0s,2,the build is green on main\n  1791820386040-0,null,alice,bob,request,0s,2,please review core/a.py\nhelp[1]:\n  uv run agent_cli.py bifrost-fetch --get <id> --agent <to>\n"
+      },
+      "alice": {
+        "argv": [
+          "flow",
+          "alice"
+        ],
+        "exit": 0,
+        "stdout": "window: 6h\nagent: alice\nflows: 3\nmessages: 4\nobserved: 8\nduplicated: 3\ndropped_by_window: 0\nrows[3]{id,answers,from,to,kind,gap,copies,text}:\n  1791820387418-0,null,erin,alice,chat,0s,2,\"status: idle\"\n  1791820386503-0,null,bob,alice,chat,0s,2,the build is green on main\n  1791820386040-0,null,alice,bob,request,0s,2,please review core/a.py\nhelp[1]:\n  uv run agent_cli.py bifrost-fetch --get <id> --agent <to>\n"
+      },
+      "cut": {
+        "argv": [
+          "flow",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "window: 6h\nflows: 4\nshown: 2\nmessages: 4\nobserved: 8\nduplicated: 4\ndropped_by_window: 0\nrows[2]{id,answers,from,to,kind,gap,copies,text}:\n  1791820387418-0,null,erin,alice,chat,0s,2,\"status: idle\"\n  1791820386912-0,null,carol,dave,handoff,0s,2,handing off the parser work\nhelp[2]:\n  uv run agent_cli.py flow --window 6h --limit 4\n  uv run agent_cli.py bifrost-fetch --get <id> --agent <to>\n"
+      }
+    }
+  }
+}
