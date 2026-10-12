@@ -15973,6 +15973,9 @@ def build_parser():
         help="headless path: read the value from stdin instead of a window "
         f"(pipe it: Get-Clipboard | {_cli()} secret X --stdin)",
     )
+    sec.add_argument(
+        "--fields", default=None, help="listing: extra columns: what, or 'all' (default: name,state,bytes)"
+    )
     sec.set_defaults(fn=cmd_secret)
 
     fd = sub.add_parser(
@@ -17128,24 +17131,44 @@ def cmd_secret(args):
     window is the whole point: the paste travels clipboard -> window -> file and never
     touches a transcript, which is how this house's two standing credential wounds
     happened. Every printed line here is transcript-safe by construction."""
-    from core.comm.secret_intake import TARGETS, IntakeError, inventory, save_secret
+    from core.axi import out
+    from core.comm.secret_intake import TARGETS, IntakeError, inventory, save_secret, secrets_dir
 
+    cli = _cli()
     if not args.target:
+        try:
+            fields = out.fields_arg(getattr(args, "fields", None), ("name", "state", "bytes"), _SECRET_FIELDS)
+        except ValueError as e:
+            return out.fail(str(e), code="USAGE", hints=[f"{cli} secret --fields what"], exit_code=out.EXIT_USAGE)
         inv = inventory()
-        print("# the vault (sizes only -- contents are never printed)")
+        rows = []
         for name, rec in inv.items():
-            state = f"present, {rec['bytes']}B" if rec["present"] else "absent"
-            print(f"  {name:<28} {state:<16} {rec['desc']}")
-        print(f"# capture one:  {_cli()} secret <name>")
-        return 0
+            full = {
+                "name": name,
+                "state": "present" if rec["present"] else "absent",
+                "bytes": rec["bytes"],
+                "what": rec["desc"],
+            }
+            rows.append({f: full[f] for f in fields})
+        doc = {
+            "vault": str(secrets_dir()),
+            "total": len(rows),
+            "present": sum(1 for r in inv.values() if r["present"]),
+            "note": "sizes only: contents are never printed",
+            "credentials": rows,
+        }
+        hints = [f"{cli} secret <name>", f"{cli} secret <name> --stdin"]
+        if "what" not in fields:
+            hints.append(f"{cli} secret --fields what")
+        return out.emit(doc, hints=hints, human=_human_secret, title="The vault")
 
     if args.target not in TARGETS:
-        print(
-            f"[vault] unknown target {args.target!r} -- bare `secret` lists the "
-            f"allowlist; the vault takes names, never paths",
-            file=sys.stderr,
+        return out.fail(
+            f"unknown target {args.target!r}: the vault takes allowlisted names, never paths",
+            code="UNKNOWN_TARGET",
+            hints=[f"{cli} secret"],
+            exit_code=out.EXIT_USAGE,
         )
-        return 2
 
     if args.stdin:
         value = sys.stdin.read()
@@ -17153,12 +17176,12 @@ def cmd_secret(args):
         try:
             import tkinter as tk
         except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
-            print(
-                f"[vault] no window available ({type(e).__name__}) -- use --stdin: "
-                f"Get-Clipboard | {_cli()} secret {args.target} --stdin",
-                file=sys.stderr,
+            return out.fail(
+                f"no window available ({type(e).__name__}): pipe the value on stdin instead",
+                code="NO_WINDOW",
+                hints=[f"Get-Clipboard | {cli} secret {args.target} --stdin"],
+                exit_code=out.EXIT_USAGE,
             )
-            return 2
         captured: dict[str, str | None] = {"value": None}
         root = tk.Tk()
         root.title(f"Akashic vault -- {args.target}")
@@ -17192,19 +17215,48 @@ def cmd_secret(args):
         root.mainloop()
         value = captured["value"]
         if value is None:
-            print("[vault] cancelled -- nothing written")
-            return 1
+            return out.fail("cancelled: nothing written", code="CANCELLED")
 
     try:
         receipt = save_secret(args.target, value)
     except IntakeError as e:
-        print(f"[vault] refused: {e}", file=sys.stderr)
-        return 2
-    print(
-        f"[vault] saved {receipt['bytes']} byte(s) to .secrets/{receipt['target']} "
-        f"-- the value exists in exactly one place"
-    )
-    return 0
+        return out.fail(f"refused: {e}", code="INVALID", exit_code=out.EXIT_USAGE)
+    # The receipt counts bytes it never shows: transcript-safe by construction.
+    doc = {"saved": receipt["target"], "bytes": receipt["bytes"], "path": f".secrets/{receipt['target']}"}
+    doc["note"] = "the value exists in exactly one place"
+    return out.emit(doc, title="Vault · saved")
+
+
+#: `secret` listing columns; --fields adds `what` (the allowlist's description of each name).
+_SECRET_FIELDS = ("name", "state", "bytes", "what")
+
+
+def _human_secret(console, doc):
+    """Human view of the vault: present names in green, absent ones dim, sizes only."""
+    from rich import box
+    from rich.table import Table
+
+    from core.axi import out
+
+    console.print(f"[dim]{out._esc(doc['vault'])} · sizes only, contents are never printed[/]")
+    console.print(f"[bold]{doc['present']}[/] of {doc['total']} credentials present")
+    cols = list(doc["credentials"][0]) if doc["credentials"] else []
+    t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+    for c in cols:
+        t.add_column(c, overflow="fold")
+    for r in doc["credentials"]:
+        here = r.get("state") == "present"
+        cells = []
+        for c in cols:
+            v = r[c]
+            if c == "state":
+                cells.append("[green]present[/]" if here else "[dim]absent[/]")
+            elif c == "bytes":
+                cells.append(f"{v} B" if here else "[dim]—[/]")
+            else:
+                cells.append(out._esc(str(v)) if here else f"[dim]{out._esc(str(v))}[/]")
+        t.add_row(*cells)
+    console.print(t)
 
 
 def cmd_pulse(args):

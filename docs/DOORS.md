@@ -109,7 +109,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `scout` | read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict | `<text>*` `--wearer` `--by` `--blind` `--shape` `--json` |
 | `season-score` | T165: score a Season 1 round, or --compare the two rule sets over the same claims | `--round-file` `--policy` `--compare` `--policies` `--json` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
-| `secret` | the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. | `<target>` `--stdin` |
+| `secret` | the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. | `<target>` `--stdin` `--fields` |
 | `setup` | onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes | `--yes` `--harness {claude,codex,cursor}` `--scope {user,project,skip}` `--project` `--agent-id` `--operator` `--dry-run` |
 | `sha` | resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410) | `<sha>*` `--maps` `--verbose` `--no-remote` |
 | `shadow` | zero-effect intent shadow: preview one typed ToolBox action before reality changes | `<target>*` `--agent` `--args-json` `--json` |

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 110 converted to agent and human output.
+121 verbs; 111 converted to agent and human output.
 
 ## `alias`
 
@@ -3158,12 +3158,46 @@ resolved_from: binding
 | | |
 |---|---|
 | Does | the vault door: capture a credential via a popup window -- paste lands in .secrets/&lt;target&gt;, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 97% after |
+| Output tokens | 897 before, 465 after (-48%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/secret.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<target>` |   |   | allowlisted name (see bare `secret` for the list) |
 | `--stdin` |   |   | headless path: read the value from stdin instead of a window (pipe it: Get-Clipboard \| uv run agent_cli.py secret X --stdin) |
+| `--fields` |   |   | listing: extra columns: what, or 'all' (default: name,state,bytes) |
+
+Agent output of `aurora secret` on the bench data:
+
+```text
+vault: /tmp/axi-secret-2lvab8ad
+total: 22
+present: 2
+note: "sizes only: contents are never printed"
+credentials[22]{name,state,bytes}:
+  chronos_inbound.key,absent,0
+  chronos_outbound.key,absent,0
+  claude_oauth.token,absent,0
+  cursor.key,absent,0
+  deepseek.key,absent,0
+  discord_bot.token,absent,0
+  discord_channel_heimdall.url,absent,0
+  discord_channel_navi.url,absent,0
+  discord_channel_rill.url,absent,0
+  discord_channel_sol.url,absent,0
+  discord_channel_vandor.url,absent,0
+  discord_forum_webhook.url,absent,0
+  discord_operator_id,absent,0
+  discord_webhook.url,absent,0
+  discord_webhook_2.url,absent,0
+  discord_webhook_3.url,absent,0
+  discord_webhook_4.url,absent,0
+  gemini.key,present,39
+  kimi.key,absent,0
+... (7 more lines)
+```
 
 ## `setup`
 
