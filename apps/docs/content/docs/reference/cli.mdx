@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 53 converted to agent and human output.
+121 verbs; 54 converted to agent and human output.
 
 ## `alias`
 
@@ -2416,11 +2416,23 @@ help[1]:
 | | |
 |---|---|
 | Does | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 73% before, 93% after |
+| Output tokens | 43 before, 67 after (+56%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/stand-down.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent>` | yes |   | the agent id whose seat this session is holding |
+
+Agent output of `aurora stand-down claude` on the bench data:
+
+```text
+error: no session id in the environment -- nothing to yield (CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)
+code: NO_SESSION
+yielded: false
+agent: claude
+```
 
 ## `stats`
 

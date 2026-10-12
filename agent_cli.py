@@ -14948,23 +14948,32 @@ def cmd_stand_down(args):
     the seat via the stop hook, so it out-competes its successor purely by still breathing while
     the successor is silently degraded to peek. Live incident 2026-07-28.
     """
+    from core.axi import out
     from core.comm import runner_lock
 
     token = runner_lock.session_holder_token()
     if not token:
-        print(
+        return out.fail(
             "no session id in the environment -- nothing to yield "
-            "(CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)"
+            "(CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)",
+            code="NO_SESSION",
+            details={"yielded": False, "agent": args.agent},
         )
-        return 1
     ok = runner_lock.stand_down(args.agent, token)
     held = runner_lock.holder(args.agent)
-    print(
-        f"[stand-down] {args.agent}: seat yielded by {token} -- ok={ok}; "
-        f"holder now {held.get('token') if held else 'NONE (successor may claim)'}"
-    )
-    print("[stand-down] this session can no longer re-claim the seat; it is tombstoned by record.")
-    return 0 if ok else 1
+    doc = {
+        "agent": args.agent,
+        "yielded": ok,
+        "by": token,
+        "holder_now": held.get("token") if held else None,
+        "successor_may_claim": not held,
+        "tombstoned": "this session can no longer re-claim the seat",
+    }
+    if not ok:  # the tombstone or the release failed: say so on the channel an agent reads
+        return out.fail(
+            f"stand-down of {args.agent} incomplete (tombstone or release failed)", code="NOT_YIELDED", details=doc
+        )
+    return out.emit(doc, title="Stand-down")  # a confirmation answers itself: no hints
 
 
 def cmd_unwedge(args):

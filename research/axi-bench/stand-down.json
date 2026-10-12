@@ -1,0 +1,136 @@
+{
+  "verb": "stand-down",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.733,
+    "correct": 11,
+    "asked": 15,
+    "output_tokens": 43,
+    "stdout_chars": 120,
+    "stdout_lines": 1,
+    "cost_usd": 0.0172,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the seat yielded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which environment variable must be set for this command to work? Give its name only.",
+        "expected": "CLAUDE_CODE_SESSION_ID",
+        "answers": [
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent's seat was this command about?",
+        "expected": "claude",
+        "answers": [
+          "UNKNOWN",
+          "claude",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      }
+    ],
+    "runs": {
+      "no_session": {
+        "argv": [
+          "stand-down",
+          "claude"
+        ],
+        "exit": 1,
+        "stdout": "no session id in the environment -- nothing to yield (CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.933,
+    "correct": 14,
+    "asked": 15,
+    "output_tokens": 67,
+    "stdout_chars": 173,
+    "stdout_lines": 4,
+    "cost_usd": 0.0115,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the seat yielded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "yes",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which environment variable must be set for this command to work? Give its name only.",
+        "expected": "CLAUDE_CODE_SESSION_ID",
+        "answers": [
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID",
+          "CLAUDE_CODE_SESSION_ID"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent's seat was this command about?",
+        "expected": "claude",
+        "answers": [
+          "claude",
+          "claude",
+          "claude",
+          "claude",
+          "claude"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "no_session": {
+        "argv": [
+          "stand-down",
+          "claude"
+        ],
+        "exit": 1,
+        "stdout": "error: no session id in the environment -- nothing to yield (CLAUDE_CODE_SESSION_ID unset; this door is for interactive seats)\ncode: NO_SESSION\nyielded: false\nagent: claude\n"
+      }
+    }
+  }
+}
