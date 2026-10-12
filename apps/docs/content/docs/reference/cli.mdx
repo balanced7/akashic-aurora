@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 71 converted to agent and human output.
+121 verbs; 72 converted to agent and human output.
 
 ## `alias`
 
@@ -953,7 +953,10 @@ help[1]:
 | | |
 |---|---|
 | Does | find a file BY NAME anywhere on the machine (Search Everything / es.exe) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 1,738 before, 204 after (-88%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/find.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -975,6 +978,18 @@ help[1]:
 | `--files` |   |   | files only (/a-d) |
 | `--scope` |   |   | restrict the search to this directory (-path &lt;dir&gt;) |
 | `--attrs` |   |   | DIR attribute mask, e.g. R/H/S (-a&lt;mask&gt;) |
+
+Agent output of `aurora find starship` on the bench data:
+
+```text
+query: starship
+engine: walk
+searched: 1030 dirs under 3 roots in 0.05s
+complete: true
+total: 1
+matches[1]{path,exact}:
+  /usr/local/bin/starship,true
+```
 
 ## `fleet`
 

@@ -1,0 +1,242 @@
+{
+  "verb": "find",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 1738,
+    "stdout_chars": 621,
+    "stdout_lines": 8,
+    "cost_usd": 0.0237,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "What is the full path of the match?",
+        "expected": "/usr/local/bin/starship",
+        "answers": [
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was this answered by the Everything index or by a directory walk? Answer index or walk.",
+        "expected": "walk",
+        "answers": [
+          "walk",
+          "walk",
+          "walk",
+          "walk",
+          "walk"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many matches were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Could more matches exist than the ones listed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "Yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is 'biggest' one of the allowed presets? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "Yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "one": {
+        "argv": [
+          "find",
+          "starship"
+        ],
+        "exit": 0,
+        "stdout": "1 match(es) for 'starship'  [engine: walk, walked 1030 dir(s) under 3 root(s) in 0.06s]:\n/usr/local/bin/starship\n"
+      },
+      "none": {
+        "argv": [
+          "find",
+          "zz_no_such_file_qq"
+        ],
+        "exit": 0,
+        "stdout": "(no matches for 'zz_no_such_file_qq' -- the walk COMPLETED: walked 1030 dir(s) under 3 root(s) in 0.06s. Not present under those roots.)\n"
+      },
+      "cut": {
+        "argv": [
+          "find",
+          "rocm",
+          "--limit",
+          "3"
+        ],
+        "exit": 0,
+        "stdout": "3 match(es) for 'rocm'  [engine: walk, walked 54 dir(s) under 2 root(s) in 0.0s]  [BOUNDED -- more may exist beyond the budget]:\n/opt/rocm-7.2.4/.info/version-rocm\n/opt/rocm-7.2.4/.info/version-rocm-hip\n/opt/rocm-7.2.4/.info/version-rocm-developer-tools\n"
+      },
+      "preset": {
+        "argv": [
+          "find",
+          "starship",
+          "--preset",
+          "nope"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: unknown preset 'nope' -- allowed: biggest, files, folders, newest, oldest, recent, recently-changed, smallest\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 204,
+    "stdout_chars": 946,
+    "stdout_lines": 32,
+    "cost_usd": 0.0268,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "What is the full path of the match?",
+        "expected": "/usr/local/bin/starship",
+        "answers": [
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship",
+          "/usr/local/bin/starship"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was this answered by the Everything index or by a directory walk? Answer index or walk.",
+        "expected": "walk",
+        "answers": [
+          "walk",
+          "walk",
+          "walk",
+          "walk",
+          "walk"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many matches were found?",
+        "expected": 0,
+        "answers": [
+          "The output reports `total: 0` and `matches: []`.\n\n0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Could more matches exist than the ones listed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Yes",
+          "yes",
+          "Yes",
+          "yes",
+          "Yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is 'biggest' one of the allowed presets? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "one": {
+        "argv": [
+          "find",
+          "starship"
+        ],
+        "exit": 0,
+        "stdout": "query: starship\nengine: walk\nsearched: 1030 dirs under 3 roots in 0.05s\ncomplete: true\ntotal: 1\nmatches[1]{path,exact}:\n  /usr/local/bin/starship,true\n"
+      },
+      "none": {
+        "argv": [
+          "find",
+          "zz_no_such_file_qq"
+        ],
+        "exit": 0,
+        "stdout": "query: zz_no_such_file_qq\nengine: walk\nsearched: 1030 dirs under 3 roots in 0.06s\ncomplete: true\ntotal: 0\nmatches: []\nhelp[1]:\n  uv run agent_cli.py find zz_no_such_file_qq --path\n"
+      },
+      "cut": {
+        "argv": [
+          "find",
+          "rocm",
+          "--limit",
+          "3"
+        ],
+        "exit": 0,
+        "stdout": "query: rocm\nengine: walk\nsearched: 54 dirs under 2 roots in 0.0s\ncomplete: false\nnote: \"the search stopped early (--limit or its time budget): more may exist, and a miss is not evidence of absence\"\ntotal: 3\nmatches[3]{path,exact}:\n  /opt/rocm-7.2.4/.info/version-rocm,false\n  /opt/rocm-7.2.4/.info/version-rocm-hip,false\n  /opt/rocm-7.2.4/.info/version-rocm-developer-tools,false\nhelp[1]:\n  uv run agent_cli.py find rocm --limit 12\n"
+      },
+      "preset": {
+        "argv": [
+          "find",
+          "starship",
+          "--preset",
+          "nope"
+        ],
+        "exit": 2,
+        "stdout": "error: unknown preset 'nope'\ncode: USAGE\nallowed[8]: biggest,files,folders,newest,oldest,recent,recently-changed,smallest\nhelp[1]:\n  uv run agent_cli.py find starship --preset recent\n"
+      }
+    }
+  }
+}

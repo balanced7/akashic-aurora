@@ -11124,7 +11124,6 @@ def cmd_find(args):
     from core.tools.everything import (
         PRESETS,
         format_csv,
-        format_hits,
         format_result,
         format_result_json,
         resolve_preset,
@@ -11145,8 +11144,15 @@ def cmd_find(args):
     if preset:
         resolved = resolve_preset(preset)
         if resolved is None:
-            print(f"ERROR: unknown preset {preset!r} -- allowed: {', '.join(sorted(PRESETS))}")
-            return 2
+            from core.axi import out
+
+            return out.fail(
+                f"unknown preset {preset!r}",
+                code="USAGE",
+                hints=[f"{_cli()} find {_quote_arg(query)} --preset recent"],
+                exit_code=out.EXIT_USAGE,
+                details={"allowed": sorted(PRESETS)},
+            )
         preset_kwargs = dict(resolved)
 
     res = search_page(
@@ -11168,18 +11174,91 @@ def cmd_find(args):
         attributes=getattr(args, "attrs", None) or None,
     )
 
-    # THE DEFAULT IS FIELDS. When the result carries structured hits (which the agent door
-    # and --json/--csv request), the human render is the rich table; --bare force-opts into
-    # the plain path list. --json/--csv are the machine forms.
+    # THE DEFAULT IS FIELDS. --json/--csv are the machine forms and --bare the plain path list,
+    # all printed exactly as before; everything else is the AXI view for the current reader.
     if _format == "json":
         print(format_result_json(res))
-    elif _format == "csv":
+        return 0 if res.ok else 1
+    if _format == "csv":
         print(format_csv(res))
-    elif res.hits and not bool(getattr(args, "bare", False)):
-        print(format_hits(res))
-    else:
+        return 0 if res.ok else 1
+    if bool(getattr(args, "bare", False)):
         print(format_result(res))
-    return 0 if res.ok else 1
+        return 0 if res.ok else 1
+    return _emit_find(res, query, _limit)
+
+
+#: How many paths the agent and human views list when no --limit was given; --format json
+#: returns every one.
+_FIND_SHOWN = 50
+
+
+def _emit_find(res, query: str, limit: int) -> int:
+    """`find` for the current reader: which engine answered and whether it looked everywhere it
+    meant to, then the matches with the exact-basename ones marked.
+
+    "Not found" is only as strong as the search behind it, so completeness travels with every
+    answer: an Everything miss is machine-wide, a completed walk is "not under these roots", and
+    a bounded walk is no evidence of absence at all."""
+    from core.axi import out
+    from core.tools.everything import _basename
+
+    cli = _cli()
+    if not res.ok:
+        return out.fail(
+            res.error or "search unavailable",
+            code="SEARCH_UNAVAILABLE",
+            hints=[f"{cli} find {_quote_arg(query)} --timeout 60"],
+            details={"engine": res.engine or None, "fix": "install Everything and its es.exe CLI (voidtools.com)"},
+        )
+    doc: dict = {"query": query, "engine": "Everything index" if res.engine == "everything" else res.engine}
+    if res.engine == "walk":
+        doc["searched"] = f"{res.scanned_dirs} dirs under {len(res.roots)} roots in {res.elapsed_s}s"
+    doc["complete"] = bool(res.exhaustive)
+    if not res.exhaustive:
+        doc["note"] = (
+            "the search stopped early (--limit or its time budget): more may exist, and a miss is not evidence of absence"
+        )
+    doc["total"] = res.count
+    base = _basename(query.strip().lower())
+    by_path = {h.path: h for h in res.hits}
+    rows = []
+    for p in res.paths[: (limit or _FIND_SHOWN)]:
+        row: dict = {"path": p, "exact": _basename(p).lower() == base}
+        h = by_path.get(p)
+        if h is not None:  # Everything's structured hits carry an mtime and a size
+            row["modified"] = (h.date_modified or "")[:19] or None
+            row["size"] = h.size
+        rows.append(row)
+    if len(rows) < res.count:
+        doc["shown"] = len(rows)
+    doc["matches"] = rows
+    hints = []
+    if "shown" in doc:
+        hints.append(f"{cli} find {_quote_arg(query)} --format json")
+    if not res.exhaustive:
+        hints.append(f"{cli} find {_quote_arg(query)} " + (f"--limit {limit * 4}" if limit else "--timeout 60"))
+    if not res.count and res.exhaustive and res.engine == "walk":
+        hints.append(f"{cli} find {_quote_arg(query)} --path")
+    return out.emit(doc, hints=hints, human=_human_find, title=f"find · {query}")
+
+
+def _human_find(console, doc):
+    """Human view of `find`: the count and how complete the search was, then one path per line
+    with exact-basename matches starred."""
+    from core.axi import out
+
+    shown = f"{doc['shown']} of " if "shown" in doc else ""
+    where = f"{doc['engine']}" + (f", {doc['searched']}" if doc.get("searched") else "")
+    colour = "green" if doc["complete"] else "yellow"
+    console.print(f"[bold]{shown}{doc['total']}[/] match{'es' if doc['total'] != 1 else ''} "
+                  f"[dim]({out._esc(where)})[/] [{colour}]{'complete' if doc['complete'] else 'BOUNDED'}[/]")  # fmt: skip
+    if doc.get("note"):
+        console.print(f"[yellow]{out._esc(doc['note'])}[/]")
+    for r in doc["matches"]:
+        mark = "[yellow]★[/]" if r["exact"] else " "
+        extra = f"  [dim]{out._esc(str(r['modified']))}  {r['size']}[/]" if r.get("modified") else ""
+        console.print(f"{mark} {out._esc(r['path'])}{extra}")
 
 
 def cmd_manual(args):

@@ -91,27 +91,41 @@ def test_csv_parses_to_structured_hits(monkeypatch):
 # --------------------------------------------------------------------------- rich render
 
 
-def test_format_hits_marks_the_exact_basename_match():
-    """_rank_exact_first already KNOWS which line is the answer; the render must show it
-    so a reader's eye lands on the target instead of the first decoy."""
+def _find_view(monkeypatch, capsys, mode: str) -> str:
+    """What `find` prints for these two Everything hits, for an agent or for a person (the rich
+    render lives in agent_cli's _emit_find since the AXI conversion retired format_hits)."""
+    import agent_cli
+
+    monkeypatch.setenv("AURORA_OUTPUT", mode)
+    monkeypatch.setenv("NO_COLOR", "1")
     hits = [
         ev.Hit(path="C:\\x\\target.exe", name="target.exe", date_modified="2026-09-25 14:11:00", size=1024),
         ev.Hit(path="C:\\x\\target2.exe", name="target2.exe", date_modified="2026-09-24 09:02:00", size=2048),
     ]
-    out = ev.format_hits(ev.SearchResult(query="target.exe", hits=hits, ok=True, engine="everything"))
-    first_line = out.splitlines()[1] if len(out.splitlines()) > 1 else ""
-    assert "★" in first_line or "->" in first_line or "\u2192" in first_line, (
-        f"the exact-basename hit was not marked: {first_line!r}"
-    )
+    res = ev.SearchResult(query="target.exe", paths=[h.path for h in hits], hits=hits, ok=True, engine="everything")
+    agent_cli._emit_find(res, "target.exe", 0)
+    return capsys.readouterr().out
 
 
-def test_format_hits_includes_size_and_mtime_columns():
+def test_the_render_marks_the_exact_basename_match(monkeypatch, capsys):
+    """_rank_exact_first already KNOWS which line is the answer; the render must show it
+    so a reader's eye lands on the target instead of the first decoy."""
+    human = [ln for ln in _find_view(monkeypatch, capsys, "human").splitlines() if "\\x\\" in ln]
+    assert len(human) == 2, f"one line per hit: {human!r}"
+    assert "★" in human[0], f"the exact-basename hit was not marked: {human!r}"
+    assert "★" not in human[1], f"only the exact match is marked: {human!r}"
+    agent = _find_view(monkeypatch, capsys, "agent")
+    assert 'target.exe",true' in agent, f"agent view lacks the exact field:\n{agent}"
+    assert 'target2.exe",false' in agent, f"agent view marks a decoy exact:\n{agent}"
+
+
+def test_the_render_includes_size_and_mtime_columns(monkeypatch, capsys):
     """The actionability column is mtime (and size): the render must show them, not a
     bare path list."""
-    hits = [ev.Hit(path="C:\\x\\target.exe", name="target.exe", date_modified="2026-09-25 14:11:00", size=1024)]
-    out = ev.format_hits(ev.SearchResult(query="target.exe", hits=hits, ok=True, engine="everything"))
-    assert "2026-09-25" in out, "mtime column missing from the rich render"
-    assert "1024" in out, "size column missing from the rich render"
+    for mode in ("human", "agent"):
+        out = _find_view(monkeypatch, capsys, mode)
+        assert "2026-09-25" in out, f"mtime missing from the {mode} view:\n{out}"
+        assert "1024" in out, f"size missing from the {mode} view:\n{out}"
 
 
 # --------------------------------------------------------------------------- fields-not-prose

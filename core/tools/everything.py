@@ -831,37 +831,6 @@ def format_result(res: SearchResult) -> str:
     return header + "\n" + "\n".join(res.paths)
 
 
-def format_hits(res: SearchResult) -> str:
-    """Human-readable render of the STRUCTURED (full-capability) result -- the rich table.
-
-    One aligned line per Hit: a rank marker, mtime, size, then path, so `find` reads as a
-    sortable inventory where the eye lands on the answer. The rank marker is the piece
-    _rank_exact_first already computed and used to discard: the exact-basename match gets a
-    ★ so a reader skimming 200 decoys still sees the ONE hit that is actually named what
-    they asked. mtime is the inventory combo's fuel: "when was this file last modified"
-    beside "where is it" -- recency is the tiebreaker that turns "42 paths" into "open this".
-    """
-    if not res.ok:
-        return f"ERROR: {res.error or 'search unavailable'}"
-    if not res.hits:
-        return f"(no matches for {res.query!r} — Everything answered, nothing found)"
-
-    base = _basename(str(res.query or "").strip().lower())
-    rows = []
-    for h in res.hits:
-        is_exact = _basename(h.path).lower() == base
-        mark = "★" if is_exact else " "
-        mtime = h.date_modified or ""
-        size = "" if h.size is None else f"{h.size:>11}"
-        rows.append(f"{mark} {mtime[:19]:<19} {size}  {h.path}")
-
-    header = (
-        f"{len(res.hits)} match(es) for {res.query!r}  [engine: {res.engine}, "
-        f"structured; ★ = exact basename; columns: mtime, size]:"
-    )
-    return header + "\n" + "\n".join(rows)
-
-
 def format_csv(res: SearchResult) -> str:
     """The machine-readable CSV projection of a structured result (es.exe's own format,
     re-serialized so the agent door can hand a caller CSV even when the query ran as json).
