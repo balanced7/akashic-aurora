@@ -12628,6 +12628,12 @@ def build_parser():
     cp.add_argument("--reason", default="", help="accept/reject: why (kept in the scenario's history)")
     cp.add_argument("--by", default="", help="accept/reject: who decided")
     cp.add_argument("--cap-mb", dest="cap_mb", type=int, default=None, help="archive: size cap in MB (default 2048)")
+    cp.add_argument(
+        "--fields",
+        default=None,
+        help="list: extra columns: priority,discrimination,difficulty,tags, or 'all' "
+        "(default: id,status,split,oracle,title)",
+    )
     cp.add_argument("--json", action="store_true")
     cp.set_defaults(fn=cmd_corpus)
 

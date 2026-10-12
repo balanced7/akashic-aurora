@@ -1,98 +1,180 @@
 """CLI handlers for the meta-harness verbs. agent_cli.py registers the parsers (so the door
-checkers see them) and calls straight into these; the logic lives with its package."""
+checkers see them) and calls straight into these; the logic lives with its package.
+
+Every handler prints in one of three ways: `--json` (unchanged, the data function's own
+result), or through core.axi.out -- TOON for an agent, a rich layout for a person -- with the
+next commands to run. The data functions stay pure; only this module prints."""
 
 from __future__ import annotations
 
 import json
 from typing import Any
 
+from core.axi import out
+
 
 def _print(obj: Any, as_json: bool, text: str) -> None:
     print(json.dumps(obj, indent=1, default=str) if as_json else text)
+
+
+def _json(obj: Any) -> None:
+    """The --json output, byte for byte what it always was."""
+    print(json.dumps(obj, indent=1, default=str))
+
+
+def _cli() -> str:
+    """The command prefix for next-step hints (agent_cli._cli, without importing agent_cli)."""
+    from core.paths import cli_command
+
+    return cli_command()
+
+
+def _usage(message: str, *hints: str) -> int:
+    return out.fail(message, code="USAGE", hints=list(hints), exit_code=out.EXIT_USAGE)
+
+
+#: `corpus list` columns: the default agent schema, and every field --fields can add.
+_CORPUS_FIELDS = ("id", "status", "split", "oracle", "title")
+_CORPUS_ALL_FIELDS = ("id", "status", "split", "oracle", "title", "priority", "discrimination", "difficulty", "tags")
 
 
 def corpus_main(args) -> int:
     """`corpus <action>` -- the replayable task corpus (task 03)."""
     from core.metaharness import corpus, transcripts
 
-    a = args.action
+    a, cli = args.action, _cli()
     if a == "archive":
         r = transcripts.archive(cap_mb=args.cap_mb)
-        _print(
-            r,
-            args.json,
-            f"archived {r['archived']}, unchanged {r['unchanged']}, refused {len(r['refused'])}"
-            + (" -- SIZE CAP reached, nothing evicted" if r["capped"] else "")
-            + f" ({r['bytes'] // 1024 // 1024} MB of {r['cap'] // 1024 // 1024} MB)"
-            + "".join(f"\n  refused: {x}" for x in r["refused"]),
-        )
-        return 0
+        if args.json:
+            _json(r)
+            return 0
+        doc: dict[str, Any] = {
+            "archived": r["archived"],
+            "unchanged": r["unchanged"],
+            "refused": len(r["refused"]),
+            "size_mb": r["bytes"] // 1024 // 1024,
+            "cap_mb": r["cap"] // 1024 // 1024,
+            "capped": r["capped"],  # the size cap was reached; nothing is ever evicted
+        }
+        if r["refused"]:
+            doc["refused_sessions"] = r["refused"]
+        return out.emit(doc, hints=[f"{cli} corpus mine"], title="Transcript archive")
     if a == "mine":
         new = corpus.mine(limit=args.limit)
-        lines = [f"mined {len(new)} new candidate(s)"]
-        lines += [
-            f"  {n['id']}: " + (n.get("refused") or f"{n['oracle']} oracle, priority {n['priority']}, {n['split']}")
+        if args.json:
+            _json(new)
+            return 0
+        rows = [
+            {
+                "id": n["id"],
+                "oracle": n.get("oracle"),
+                "priority": n.get("priority"),
+                "split": n.get("split"),
+                "refused": n.get("refused"),
+            }
             for n in new
         ]
-        if new:
-            lines.append("  accept with: corpus accept <id>   (a person curates; the miner only proposes)")
-        _print(new, args.json, "\n".join(lines))
-        return 0
+        if not any(r["refused"] for r in rows):
+            rows = [{k: v for k, v in r.items() if k != "refused"} for r in rows]
+        # A person curates; the miner only proposes -- so the next step is a review.
+        ok = [r["id"] for r in rows if not r.get("refused")]
+        hints = [f"{cli} corpus show {ok[0]}", f"{cli} corpus accept {ok[0]} --reason <why>"] if ok else []
+        return out.emit(
+            {"mined": len(rows), "candidates": rows},
+            hints=hints or [f"{cli} corpus status"],
+            title="Corpus mining",
+        )
     if a == "list":
         rows = [corpus.labels(s) for s in corpus.all_ids()]
         if args.status:
             rows = [r for r in rows if r.get("status") == args.status]
-        _print(
-            rows,
-            args.json,
-            "\n".join(
-                f"  {r['id']:<22} {r.get('status', '?'):<9} {r.get('split', '?'):<7} {r.get('oracle', '?'):<6} "
-                f"p={r.get('priority', 0):<3} d={r.get('discrimination', 0):<5} {str(r.get('title') or '')[:60]}"
-                for r in rows
-            )
-            or "(empty corpus -- run `corpus mine`)",
-        )
-        return 0
+        if args.json:
+            _json(rows)
+            return 0
+        try:
+            fields = out.fields_arg(getattr(args, "fields", None), _CORPUS_FIELDS, _CORPUS_ALL_FIELDS)
+        except ValueError as e:
+            return _usage(str(e), f"{cli} corpus list --fields priority,discrimination")
+        doc = {"status": args.status} if args.status else {}
+        if not rows:  # AXI section 5: the zero is the answer, with how to fill it
+            doc.update(total=0, scenarios=[])
+            hint = f"{cli} corpus list" if args.status else f"{cli} corpus mine"
+            return out.emit(doc, hints=[hint], title="Corpus")
+        table = []
+        for r in rows:
+            full = {
+                "id": r.get("id"),
+                "status": r.get("status"),
+                "split": r.get("split"),
+                "oracle": r.get("oracle"),
+                "title": out.truncate(r.get("title"), 60)[0] or None,
+                "priority": r.get("priority", 0),
+                "discrimination": r.get("discrimination", 0),
+                "difficulty": r.get("difficulty"),
+                "tags": ", ".join(r.get("tags") or []) or None,
+            }
+            table.append({f: full[f] for f in fields})
+        doc.update(total=len(table), scenarios=table)
+        return out.emit(doc, hints=[f"{cli} corpus show <id>"], title="Corpus")
     if a == "status":
         st = corpus.status()
-        _print(
-            st,
-            args.json,
-            f"{st['total']} scenario(s): {st['by_status']}\n"
-            f"accepted {st['accepted']} (holdout {st['holdout']}, validated {st['validated']}), oracles {st['by_oracle']}\n"
-            f"areas: {st['areas']}\ncandidates run: {st['candidates_run'] or 'none yet'}",
-        )
-        return 0
+        if args.json:
+            _json(st)
+            return 0
+        # An empty breakdown prints as a bare "key:" in TOON, which reads as missing data: leave
+        # it out, the zero counts above it already say there is nothing to break down.
+        doc = {k: v for k, v in st.items() if v != {}}
+        doc["candidates_run"] = st["candidates_run"] or "none yet"
+        hint = f"{cli} corpus list --status candidate" if st["total"] else f"{cli} corpus mine"
+        return out.emit(doc, hints=[hint], title="Corpus status")
     if a == "retire":
         gone = corpus.retire_saturated()
-        _print(gone, args.json, f"retired {len(gone)}: {', '.join(gone) or '-'}")
-        return 0
+        if args.json:
+            _json(gone)
+            return 0
+        return out.emit({"retired": len(gone), "ids": gone}, title="Corpus retire")
     if not args.id:
-        print(f"ERROR: `corpus {a}` needs a scenario id")
-        return 2
+        return _usage(f"`corpus {a}` needs a scenario id", f"{cli} corpus {a} <id>", f"{cli} corpus list")
     try:
         if a == "show":
             lab = corpus.labels(args.id)
             if not lab:
                 raise KeyError(args.id)
-            prompt = (corpus.scenario_dir(args.id) / "prompt.md").read_text(encoding="utf-8")
-            _print(lab, args.json, prompt + "\n" + json.dumps(lab, indent=1))
-            return 0
+            path = corpus.scenario_dir(args.id) / "prompt.md"
+            prompt = path.read_text(encoding="utf-8")
+            if args.json:
+                _json(lab)
+                return 0
+            keep = ("id", "title", "status", "split", "oracle", "difficulty", "priority", "discrimination", "tags")
+            doc = {k: lab[k] for k in keep if lab.get(k) not in (None, "", [])}
+            text, cut = out.truncate(prompt, 800)
+            doc["prompt"] = text
+            if cut:
+                doc["prompt_file"] = str(path)
+            # The labels behind this summary (files, outcomes, history) are one flag away.
+            return out.emit(doc, hints=[f"{cli} corpus show {args.id} --json"], title=args.id)
         if a in ("accept", "reject"):
             lab = corpus.set_status(
                 args.id, "accepted" if a == "accept" else "rejected", reason=args.reason, by=args.by
             )
-            _print(lab, args.json, f"[OK] {args.id} -> {lab['status']} ({lab['split']})")
-            return 0
+            if args.json:
+                _json(lab)
+                return 0
+            return out.emit(
+                {"id": args.id, "status": lab["status"], "split": lab["split"]},
+                hints=[f"{cli} corpus list --status candidate"],
+                title="Corpus curation",
+            )
         if a == "validate":
             r = corpus.validate(args.id)
-            _print(r, args.json, json.dumps(r))
+            if args.json:
+                _json(r)
+            else:
+                out.emit(r, title=f"Validate · {args.id}")
             return 0 if r.get("ok") is not False else 1
     except KeyError:
-        print(f"ERROR: no scenario {args.id!r}")
-        return 1
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+        return out.fail(f"no scenario {args.id!r}", code="NOT_FOUND", hints=[f"{cli} corpus list"])
+    return _usage(f"unknown action {a!r}", f"{cli} corpus --help")
 
 
 def replay_main(args) -> int:

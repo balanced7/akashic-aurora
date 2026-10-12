@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 63 converted to agent and human output.
+121 verbs; 64 converted to agent and human output.
 
 ## `alias`
 
@@ -656,7 +656,10 @@ help[1]:
 | | |
 |---|---|
 | Does | meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 26 before, 61 after (+135%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/corpus.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -667,7 +670,20 @@ help[1]:
 | `--reason` |   |   | accept/reject: why (kept in the scenario's history) |
 | `--by` |   |   | accept/reject: who decided |
 | `--cap-mb` |   |   | archive: size cap in MB (default 2048) |
+| `--fields` |   |   | list: extra columns: priority,discrimination,difficulty,tags, or 'all' (default: id,status,split,oracle,title) |
 | `--json` |   |   |   |
+
+Agent output of `aurora corpus status` on the bench data:
+
+```text
+total: 0
+accepted: 0
+holdout: 0
+validated: 0
+candidates_run: none yet
+help[1]:
+  uv run agent_cli.py corpus mine
+```
 
 ## `defer`
 

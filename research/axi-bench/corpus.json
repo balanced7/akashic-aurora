@@ -1,0 +1,240 @@
+{
+  "verb": "corpus",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 26,
+    "stdout_chars": 225,
+    "stdout_lines": 7,
+    "cost_usd": 0.025,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many scenarios does the corpus hold?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command should be run next to put scenarios into the corpus? Give the command only.",
+        "expected": [
+          "corpus mine"
+        ],
+        "answers": [
+          "corpus mine",
+          "corpus mine",
+          "corpus mine",
+          "corpus mine",
+          "corpus mine"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the scenario T999-deadbeef exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many transcripts were archived by this run?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the archive's size cap, in MB?",
+        "expected": 2048,
+        "answers": [
+          "2048",
+          "2048",
+          "2048",
+          "2048",
+          "2048"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "corpus",
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "0 scenario(s): {}\naccepted 0 (holdout 0, validated 0), oracles {}\nareas: {}\ncandidates run: none yet\n"
+      },
+      "list": {
+        "argv": [
+          "corpus",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "(empty corpus -- run `corpus mine`)\n"
+      },
+      "missing": {
+        "argv": [
+          "corpus",
+          "show",
+          "T999-deadbeef"
+        ],
+        "exit": 1,
+        "stdout": "ERROR: no scenario 'T999-deadbeef'\n"
+      },
+      "archive": {
+        "argv": [
+          "corpus",
+          "archive"
+        ],
+        "exit": 0,
+        "stdout": "archived 0, unchanged 0, refused 0 (0 MB of 2048 MB)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 61,
+    "stdout_chars": 390,
+    "stdout_lines": 23,
+    "cost_usd": 0.0237,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many scenarios does the corpus hold?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "total: 0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command should be run next to put scenarios into the corpus? Give the command only.",
+        "expected": [
+          "corpus mine"
+        ],
+        "answers": [
+          "uv run agent_cli.py corpus mine",
+          "uv run agent_cli.py corpus mine",
+          "uv run agent_cli.py corpus mine",
+          "uv run agent_cli.py corpus mine",
+          "uv run agent_cli.py corpus mine"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the scenario T999-deadbeef exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many transcripts were archived by this run?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the archive's size cap, in MB?",
+        "expected": 2048,
+        "answers": [
+          "2048",
+          "cap_mb: 2048 \u2192 **2048**",
+          "2048",
+          "2048",
+          "2048"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "corpus",
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "total: 0\naccepted: 0\nholdout: 0\nvalidated: 0\ncandidates_run: none yet\nhelp[1]:\n  uv run agent_cli.py corpus mine\n"
+      },
+      "list": {
+        "argv": [
+          "corpus",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "total: 0\nscenarios: []\nhelp[1]:\n  uv run agent_cli.py corpus mine\n"
+      },
+      "missing": {
+        "argv": [
+          "corpus",
+          "show",
+          "T999-deadbeef"
+        ],
+        "exit": 1,
+        "stdout": "error: no scenario 'T999-deadbeef'\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py corpus list\n"
+      },
+      "archive": {
+        "argv": [
+          "corpus",
+          "archive"
+        ],
+        "exit": 0,
+        "stdout": "archived: 0\nunchanged: 0\nrefused: 0\nsize_mb: 0\ncap_mb: 2048\ncapped: false\nhelp[1]:\n  uv run agent_cli.py corpus mine\n"
+      }
+    }
+  }
+}
