@@ -1,0 +1,210 @@
+{
+  "verb": "clobber-scan",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.92,
+    "correct": 23,
+    "asked": 25,
+    "output_tokens": 93,
+    "stdout_chars": 229,
+    "stdout_lines": 5,
+    "cost_usd": 0.0205,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many unguarded control-key writes were found?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "On which line numbers are the unguarded writes? List them separated by commas.",
+        "expected": [
+          "5",
+          "14",
+          "15"
+        ],
+        "answers": [
+          "5, 14, 15",
+          "5, 14, 15",
+          "L5, L14, L15",
+          "5, 14, 15",
+          "5, 14, 15"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which control family does the write on line 14 touch?",
+        "expected": "cursor",
+        "answers": [
+          "cursor",
+          "[cursor]",
+          "cursor",
+          "cursor",
+          "cursor"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Is the control.resume() call on line 10 flagged? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many unguarded control-key writes were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ceremony": {
+        "argv": [
+          "clobber-scan",
+          "/tmp/axi-clobber-pu3y618r/ceremony.py"
+        ],
+        "exit": 1,
+        "stdout": "clobber-scan: 3 unguarded control-key write(s)\n  L5 [pause]: c.set(_pause_key(), \"1\")\n  L14 [cursor]: c.delete(_cursor_key(lane))\n  L15 [drain]: c.set(_drain_key(lane), \"1\")\n"
+      },
+      "clean": {
+        "argv": [
+          "clobber-scan",
+          "/tmp/axi-clobber-pu3y618r/clean.py"
+        ],
+        "exit": 0,
+        "stdout": "clobber-scan: clean -- no unguarded control-key writes\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 128,
+    "stdout_chars": 279,
+    "stdout_lines": 7,
+    "cost_usd": 0.0194,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many unguarded control-key writes were found?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "On which line numbers are the unguarded writes? List them separated by commas.",
+        "expected": [
+          "5",
+          "14",
+          "15"
+        ],
+        "answers": [
+          "5, 14, 15",
+          "5, 14, 15",
+          "5,14,15",
+          "5, 14, 15",
+          "5, 14, 15"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which control family does the write on line 14 touch?",
+        "expected": "cursor",
+        "answers": [
+          "cursor",
+          "cursor",
+          "cursor",
+          "cursor",
+          "cursor"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the control.resume() call on line 10 flagged? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many unguarded control-key writes were found?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ceremony": {
+        "argv": [
+          "clobber-scan",
+          "/tmp/axi-clobber-pu3y618r/ceremony.py"
+        ],
+        "exit": 1,
+        "stdout": "findings: 3\nwrites[3]{line,family,snippet}:\n  5,pause,\"c.set(_pause_key(), \\\"1\\\")\"\n  14,cursor,c.delete(_cursor_key(lane))\n  15,drain,\"c.set(_drain_key(lane), \\\"1\\\")\"\nreview: \"no same-family read-guard earlier in the function: add a was_/is_ guard or confirm intent\"\n"
+      },
+      "clean": {
+        "argv": [
+          "clobber-scan",
+          "/tmp/axi-clobber-pu3y618r/clean.py"
+        ],
+        "exit": 0,
+        "stdout": "findings: 0\n"
+      }
+    }
+  }
+}

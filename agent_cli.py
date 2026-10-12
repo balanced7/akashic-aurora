@@ -16189,19 +16189,51 @@ def cmd_clobber_scan(args):
     """clobber-scan <file>: flag unconditional writes to shared control-plane keys (W47,
     kimi's design). A REVIEWER PROMPT for fence passes -- findings are candidates to
     confirm (is this overwrite guarded / intended?), not a pass/fail gate."""
+    from core.axi import out
     from core.toolbelt import clobber_scan
 
     try:
         with open(args.path, encoding="utf-8") as f:
             findings = clobber_scan.scan(f.read())
     except Exception as e:
-        print(f"[clobber-scan] cannot read {args.path}: {type(e).__name__}: {e}")
-        return 2
+        if getattr(args, "json", False):
+            print(f"[clobber-scan] cannot read {args.path}: {type(e).__name__}: {e}")
+            return 2
+        return out.fail(
+            f"cannot read {args.path}: {type(e).__name__}: {e}",
+            code="NOT_FOUND",
+            hints=[f"{_cli()} clobber-scan <path to a .py file>"],
+            exit_code=2,
+        )
     if getattr(args, "json", False):
         print(json.dumps(findings))
         return 0
-    print(clobber_scan.render(findings))
+    doc: dict = {"findings": len(findings)}
+    if findings:
+        doc["writes"] = [{"line": f["line_no"], "family": f["family"], "snippet": f["snippet"]} for f in findings]
+        # The scanner's `why` is one sentence per row with only the family swapped; the action
+        # it asks for is said once instead. No hints: the next step is reading those lines.
+        doc["review"] = "no same-family read-guard earlier in the function: add a was_/is_ guard or confirm intent"
+    out.emit(doc, human=_human_clobber_scan, title=f"Clobber scan · {args.path}")
+    # Findings still exit 1, as before: callers gate on it, even though a finding is a review
+    # prompt rather than a verdict.
     return 1 if findings else 0
+
+
+def _human_clobber_scan(console, doc):
+    """Human view of `clobber-scan`: clean in green, or the count in yellow and one row per
+    unguarded write, then what to do about them."""
+    from core.axi import out
+
+    n = doc["findings"]
+    if not n:
+        console.print("[green]clean[/]: no unguarded control-key writes")
+        return
+    console.print(
+        f"[yellow]{n} unguarded control-key write{'s' if n != 1 else ''}[/] (review candidates, not verdicts)"
+    )
+    console.print(out.table(doc["writes"]))
+    console.print(f"[dim]{out._esc(doc['review'])}[/]")
 
 
 def cmd_reentry(args):

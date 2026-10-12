@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 95 converted to agent and human output.
+121 verbs; 96 converted to agent and human output.
 
 ## `alias`
 
@@ -579,12 +579,26 @@ help[1]:
 | | |
 |---|---|
 | Does | W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 92% before, 100% after |
+| Output tokens | 93 before, 128 after (+38%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/clobber-scan.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<path>` | yes |   | the file to scan (a ceremony/diff under review) |
 | `--json` |   |   |   |
+
+Agent output of `aurora clobber-scan /tmp/axi-clobber-pu3y618r/ceremony.py` on the bench data:
+
+```text
+findings: 3
+writes[3]{line,family,snippet}:
+  5,pause,"c.set(_pause_key(), \"1\")"
+  14,cursor,c.delete(_cursor_key(lane))
+  15,drain,"c.set(_drain_key(lane), \"1\")"
+review: "no same-family read-guard earlier in the function: add a was_/is_ guard or confirm intent"
+```
 
 ## `college`
 
