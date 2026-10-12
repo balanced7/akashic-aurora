@@ -256,63 +256,92 @@ def cmd_recall_curate(args):
     zero-credit ghost counters. Report by default; --apply stamps it."""
     import json as _json
 
+    from core.axi import out
+
+    cli = _cli()
     if getattr(args, "forge_check", None):
         # Forge F1 (design sec.9): adjudicate ONE bounded edit against the lesson's own
         # durable history. Human-gated apply (trust ladder, decision 5) -- the operator
         # sees the verdict before --apply does anything, and apply is reversible.
         exp = args.forge_check
         if not getattr(args, "draft", None):
-            print("ERROR: --forge-check needs --draft FILE (the proposed recommendation text).")
-            print(f"Example: {_cli()} recall-curate --forge-check {exp} --draft new_text.md")
-            return 2
+            return out.fail(
+                "--forge-check needs --draft FILE (the proposed recommendation text)",
+                code="USAGE",
+                hints=[f"{cli} recall-curate --forge-check {exp} --draft new_text.md"],
+                exit_code=out.EXIT_USAGE,
+            )
         try:
             with open(args.draft, encoding="utf-8") as fh:
                 draft = fh.read().strip()
         except Exception as e:
-            print(f"ERROR reading draft file: {type(e).__name__}: {e}")
-            return 2
+            return out.fail(
+                f"cannot read the draft file: {type(e).__name__}: {e}", code="USAGE", exit_code=out.EXIT_USAGE
+            )
         from core.recall.forge import apply_edit, gate_edit
 
         rep = gate_edit(exp, draft)
         if getattr(args, "json", False):
             print(_json.dumps(rep, indent=2, default=str))
         else:
-            print(f"[forge-check] {exp}: {rep['verdict']}")
-            for k, chk in rep.get("checks", {}).items():
-                print(f"  floor {k}: {'ok' if chk.get('ok') else 'FAIL'}  {chk}")
             a1, a2 = rep.get("axis1", {}), rep.get("axis2", {})
-            print(
-                f"  axis1 must-still-match: {a1.get('kept', 0)}/{a1.get('credited_contexts', 0)} kept"
-                + (" (vacuous - never-credited lesson)" if a1.get("vacuous") else "")
-                + (f", LOST {len(a1.get('lost', []))}" if a1.get("lost") else "")
-            )
-            print(
-                f"  axis2 noise hits: incumbent {a2.get('incumbent_hits')} -> variant {a2.get('variant_hits')}"
-                f" over {a2.get('noise_contexts')} context(s)"
-                + (" [improved]" if a2.get("improved") else " [regressed]" if a2.get("regressed") else "")
-            )
-            for r in rep.get("reasons", []):
-                print(f"  - {r}")
+            doc: dict = {"experiment": exp, "verdict": rep["verdict"]}
+            doc["floors"] = [
+                {
+                    "floor": k,
+                    "ok": bool(chk.get("ok")),
+                    "detail": out.truncate(", ".join(f"{dk}={dv}" for dk, dv in chk.items() if dk != "ok"), 200)[0]
+                    or None,
+                }
+                for k, chk in rep.get("checks", {}).items()
+            ]
+            doc["must_still_match"] = {
+                "kept": a1.get("kept", 0),
+                "credited_contexts": a1.get("credited_contexts", 0),
+                "lost": len(a1.get("lost") or []),
+                **({"vacuous": "never-credited lesson"} if a1.get("vacuous") else {}),
+            }
+            doc["noise_hits"] = {
+                "incumbent": a2.get("incumbent_hits"),
+                "variant": a2.get("variant_hits"),
+                "contexts": a2.get("noise_contexts"),
+                "trend": "improved" if a2.get("improved") else "regressed" if a2.get("regressed") else "flat",
+            }
+            if rep.get("reasons"):
+                doc["reasons"] = list(rep["reasons"])
+            hints: list[str] = []
+            if rep["verdict"] == "PASS" and not getattr(args, "apply", False):
+                hints = [f"{cli} recall-curate --forge-check {exp} --draft {args.draft} --apply"]
+            elif rep["verdict"] == "UNMEASURABLE" and getattr(args, "apply", False):
+                # The gate ABSTAINS: it will not apply what it cannot adjudicate. The unaided human
+                # path is an ordinary re-record, which bypasses the Forge and shows in history.
+                doc["apply"] = "refused -- the gate abstains on what it cannot measure"
+                hints = [f"{cli} learn <agent_id> --experiment {exp} --tried ... --recommend ..."]
+            if not (rep["verdict"] == "PASS" and getattr(args, "apply", False)):
+                out.emit(doc, hints=hints, title=f"Forge check · {exp}")
         if rep["verdict"] == "PASS" and getattr(args, "apply", False):
             ok = apply_edit(exp, draft, rep)
-            if ok:
-                print("[forge-apply] APPLIED (provisional -- the curator's Tier-1 watch reads the stamp).")
-                print(
-                    f'  rollback any time: py -c "from core.learning.learning_store import '
-                    f"get_learning_store; print(get_learning_store().rollback_forge_edit('{exp}'))\""
-                )
+            rollback = (
+                f'py -c "from core.learning.learning_store import '
+                f"get_learning_store; print(get_learning_store().rollback_forge_edit('{exp}'))\""
+            )
+            if getattr(args, "json", False):  # the lines --json always printed after the report
+                if ok:
+                    print("[forge-apply] APPLIED (provisional -- the curator's Tier-1 watch reads the stamp).")
+                    print(f"  rollback any time: {rollback}")
+                else:
+                    print("[forge-apply] FAILED -- record not updated (store down or record missing).")
+            elif ok:
+                doc["apply"] = "applied (provisional -- the curator's Tier-1 watch reads the stamp)"
+                doc["rollback"] = rollback
+                out.emit(doc, title=f"Forge check · {exp}")
             else:
-                print("[forge-apply] FAILED -- record not updated (store down or record missing).")
-        elif rep["verdict"] == "PASS":
-            print(
-                f"  (gate PASS -- apply with: {_cli()} recall-curate --forge-check {exp} --draft {args.draft} --apply)"
-            )
-        elif rep["verdict"] == "UNMEASURABLE" and getattr(args, "apply", False):
-            print(
-                "  (the gate ABSTAINS -- it will not apply what it cannot adjudicate. The unaided "
-                f"human path is an ordinary re-record: {_cli()} learn <you> --experiment "
-                f"{exp} ... which bypasses the Forge and is visible in history.)"
-            )
+                # Exit status stays what it always was (0 on a PASS verdict); the error says it all.
+                out.fail(
+                    f"apply failed for {exp}: record not updated (store down or record missing)",
+                    code="APPLY_FAILED",
+                    details={"verdict": rep["verdict"]},
+                )
         return 0 if rep["verdict"] == "PASS" else 1
     if getattr(args, "forge_propose", False):
         # Forge F2: one optimizer pass -- deepseek proposes (blinded payload), the Tier-0
@@ -343,19 +372,29 @@ def cmd_recall_curate(args):
             print(_json.dumps(rows, indent=2, default=str))
             return 0
         if not rows:
-            print("[forge-propose] no eligible targets (rehab class empty, or all provisional/pending)")
-            return 0
-        for r in rows:
-            print(
-                f"[forge-propose] {r['experiment']} (surfaced {r.get('surfaced')}x): "
-                f"{r.get('verdict', '-')} -> {r['outcome']}"
+            return out.emit(
+                {"proposed": 0, "result": "no eligible targets (rehab class empty, or all provisional or pending)"},
+                hints=[f"{cli} recall-curate"],
+                title="Forge propose",
             )
+        props = []
+        for r in rows:
+            p = {
+                "experiment": r["experiment"],
+                "surfaced": r.get("surfaced"),
+                "verdict": r.get("verdict") or None,
+                "outcome": r["outcome"],
+            }
             if r.get("rationale"):
-                print(f"    optimizer rationale: {r['rationale']}")
-            for reason in r.get("reasons", []):
-                print(f"    - {reason}")
-        print(f"  review queue: {_cli()} recall-curate --forge-proposals")
-        return 0
+                p["rationale"] = out.truncate(r["rationale"], 300)[0]
+            if r.get("reasons"):
+                p["reasons"] = list(r["reasons"])
+            props.append(p)
+        return out.emit(
+            {"proposed": len(props), "proposals": props},
+            hints=[f"{cli} recall-curate --forge-proposals"],
+            title="Forge propose",
+        )
     if getattr(args, "forge_proposals", False):
         from core.recall.forge_optimizer import pending_proposals
 
@@ -364,23 +403,29 @@ def cmd_recall_curate(args):
             print(_json.dumps(props, indent=2, default=str))
             return 0
         if not props:
-            print("[forge-proposals] none pending")
-            return 0
+            return out.emit({"pending": 0}, hints=[f"{cli} recall-curate --forge-propose"], title="Forge proposals")
+        rows = []
         for p in props:
-            print(f"[forge-proposals] {p['experiment']}  verdict={p['verdict']}  by={p['by']}  at={p['at']}")
+            row = {
+                "experiment": p["experiment"],
+                "verdict": p["verdict"],
+                "by": p["by"],
+                "at": p["at"],
+                "draft": out.truncate(p["draft"], 220)[0],
+            }
             if p["verdict"] == "UNMEASURABLE":
-                print(
-                    "    !! gate ABSTAINED (no current-regime evidence) -- applying is pure human "
-                    "judgment and does NOT count toward trust-ladder alignment"
-                )
+                # Applying an abstained proposal is pure human judgment and does NOT count toward
+                # trust-ladder alignment -- the reader has to see that before applying.
+                row["warning"] = "the gate abstained (no current-regime evidence): applying is pure human judgment"
             if p.get("rationale"):
-                print(f"    rationale: {p['rationale']}")
-            print(f"    draft: {p['draft'][:220]}")
-            print(
-                f"    apply: write draft to a file, then {_cli()} recall-curate "
-                f"--forge-check {p['experiment']} --draft FILE --apply"
-            )
-        return 0
+                row["rationale"] = out.truncate(p["rationale"], 300)[0]
+            rows.append(row)
+        first = rows[0]["experiment"]
+        return out.emit(
+            {"pending": len(rows), "proposals": rows},
+            hints=[f"{cli} recall-curate --forge-check {first} --draft <file holding the draft> --apply"],
+            title="Forge proposals",
+        )
     if getattr(args, "forge_audit", False):
         # Forge F0 (design doc sec.9): data-sufficiency audit vs the PRE-REGISTERED
         # criteria. Read-only -- composes with curation because the curator's economics
@@ -392,23 +437,25 @@ def cmd_recall_curate(args):
             print(_json.dumps(rep, indent=2, default=str))
             return 0
 
-        def _pct(x):
-            return "n/a" if x is None else f"{100.0 * x:.0f}%"
+        def _share(x):
+            return None if x is None else round(float(x), 4)
 
-        print(
-            f"[forge-audit] flips {rep['flips']} | targets replayable "
-            f"{_pct(rep['flip_targets_replayable_share'])} | credited lessons {rep['credited_lessons']} "
-            f"(>=2 ctx: {rep['credited_context_histogram']['>=2']}) | rehab candidates "
-            f"{rep['rehab_candidates']} (coverage {_pct(rep['rehab_coverage_share'])}) | "
-            f"ledger retention {rep['ledger_retention_days'] and round(rep['ledger_retention_days'], 1)}d"
-        )
         f = rep["fidelity"]
-        print(f"  fidelity: {f['agreed']}/{f['checked']} ledgered sources re-surface on replay ({_pct(f['rate'])})")
-        for m in f.get("mismatches", []):
-            print(f"    mismatch: {m['source']}  @  {m['target']}")
-        for k, v in rep["verdicts"].items():
-            print(f"  {k}: {v}")
-        return 0
+        ret = rep["ledger_retention_days"]
+        doc = {
+            "flips": rep["flips"],
+            "flip_targets_replayable": _share(rep["flip_targets_replayable_share"]),
+            "credited_lessons": rep["credited_lessons"],
+            "credited_in_2_plus_contexts": rep["credited_context_histogram"][">=2"],
+            "rehab_candidates": rep["rehab_candidates"],
+            "rehab_coverage": _share(rep["rehab_coverage_share"]),
+            "ledger_retention_days": round(ret, 1) if ret else None,
+            "fidelity": {"agreed": f["agreed"], "checked": f["checked"], "rate": _share(f["rate"])},
+            "verdicts": dict(rep["verdicts"]),
+        }
+        if f.get("mismatches"):
+            doc["mismatches"] = [{"source": m["source"], "target": m["target"]} for m in f["mismatches"]]
+        return out.emit(doc, title="Forge audit")  # a read-only audit answers itself: no hints
     from core.recall.curator import apply_curation, curation_report
 
     rep = curation_report()
@@ -419,42 +466,79 @@ def cmd_recall_curate(args):
             )
         )
         return 0
-    print(
-        f"[recall-curate] corpus {rep['corpus']} | on-surface {rep['surface_active']} | "
-        f"bench-candidates {len(rep['bench'])} | unbench {len(rep['unbench'])} | "
-        f"ghost counters to prune {rep['ghost_prune_count']} "
-        f"(+{len(rep['credited_ghosts'])} credited ghosts kept for adjudication)"
+    doc = {
+        "corpus": rep["corpus"],
+        "on_surface": rep["surface_active"],
+        "to_bench": len(rep["bench"]),
+        "to_unbench": len(rep["unbench"]),
+        "ghosts_to_prune": rep["ghost_prune_count"],
+        "credited_ghosts_kept": len(rep["credited_ghosts"]),  # earned history: a human folds these
+    }
+    if rep["bench"]:
+        doc["bench"] = [
+            {"name": r["name"], "surfaced": r["surfaced"], "credit": 0, "age_days": r["age_days"]}
+            for r in rep["bench"][:20]
+        ]
+        if len(rep["bench"]) > 20:
+            doc["bench_shown"] = 20
+    if rep["unbench"]:
+        doc["unbench"] = [
+            {"name": r["name"], "credit": r.get("credit"), "surfaced": r.get("surfaced")} for r in rep["unbench"]
+        ]
+    if rep.get("forge_rollback"):
+        doc["forge_rollback"] = [{"name": r["name"], "why": r["why"]} for r in rep["forge_rollback"]]
+    if rep.get("forge_confirm"):
+        doc["forge_confirm"] = [
+            {"name": r["name"], "fresh_impressions": r["fresh_impressions"], "age_days": r["age_days"]}
+            for r in rep["forge_confirm"]
+        ]
+    if rep.get("forge_expire"):
+        doc["forge_expire"] = [r["name"] for r in rep["forge_expire"]]
+    pending = bool(
+        rep["bench"]
+        or rep["unbench"]
+        or rep["ghost_prune_count"]
+        or rep.get("forge_rollback")
+        or rep.get("forge_confirm")
+        or rep.get("forge_expire")
     )
-    for row in rep["bench"][:20]:
-        print(f"  bench: {row['name']}  (surfaced {row['surfaced']}x, 0 credit, {row['age_days']}d old)")
-    for row in rep["unbench"]:
-        print(f"  UNBENCH (earned credit): {row['name']}")
-    for row in rep.get("forge_rollback", []):
-        print(f"  FORGE ROLLBACK: {row['name']}  ({row['why']})")
-    for row in rep.get("forge_confirm", []):
-        print(
-            f"  forge confirm: {row['name']}  ({row['fresh_impressions']} fresh impressions, "
-            f"{row['age_days']}d provisional, no regression)"
-        )
-    for row in rep.get("forge_expire", []):
-        print(f"  forge proposal expired unreviewed: {row['name']}")
     if not args.apply:
-        if (
-            rep["bench"]
-            or rep["unbench"]
-            or rep["ghost_prune_count"]
-            or rep.get("forge_rollback")
-            or rep.get("forge_confirm")
-            or rep.get("forge_expire")
-        ):
-            print(f"  (report only -- apply with: {_cli()} recall-curate --apply)")
-        return 0
-    out = apply_curation(rep)
-    print(
-        f"[recall-curate] APPLIED: benched {len(out['benched'])}, unbenched {len(out['unbenched'])}, "
-        f"ghost counters pruned {out['ghosts_pruned']}"
-    )
-    return 0
+        if not pending:
+            doc["result"] = "nothing to curate"
+            return out.emit(doc, hints=[f"{cli} triage"], human=_human_curate, title="Recall curate")
+        doc["mode"] = "report only"
+        return out.emit(doc, hints=[f"{cli} recall-curate --apply"], human=_human_curate, title="Recall curate")
+    done = apply_curation(rep)
+    doc["applied"] = {
+        "benched": len(done["benched"]),
+        "unbenched": len(done["unbenched"]),
+        "ghosts_pruned": done["ghosts_pruned"],
+    }
+    for key in ("forge_rolled_back", "forge_confirmed", "forge_proposals_expired"):
+        if done.get(key):
+            doc["applied"][key] = list(done[key])
+    return out.emit(doc, human=_human_curate, title="Recall curate · applied")  # a confirmation: no hints
+
+
+def _human_curate(console, doc):
+    """Human view of `recall-curate`: the counts, then each list as a table."""
+    from core.axi import out
+
+    scalars = {k: v for k, v in doc.items() if not isinstance(v, (list, dict))}
+    out.render_human(console, scalars)
+    for key, label in (
+        ("bench", "would bench (surfaced, never credited)"),
+        ("unbench", "would unbench (earned credit)"),
+        ("forge_rollback", "forge rollback"),
+        ("forge_confirm", "forge confirm"),
+    ):
+        if doc.get(key):
+            console.print(out.table(doc[key], title=label))
+    if doc.get("forge_expire"):
+        console.print(f"[yellow]forge proposals expired unreviewed:[/] {out._esc(', '.join(doc['forge_expire']))}")
+    if doc.get("applied"):
+        console.print("[bold green]applied[/]")
+        out.render_human(console, doc["applied"], indent=1)
 
 
 # ------------------------------------------------------------------ recall-prevention

@@ -1,0 +1,302 @@
+{
+  "verb": "recall-curate",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.971,
+    "correct": 34,
+    "asked": 35,
+    "output_tokens": 64,
+    "stdout_chars": 869,
+    "stdout_lines": 13,
+    "cost_usd": 0.0291,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the corpus?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons are still competing for recall surface slots?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons would be benched?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many credited ghost counters are kept for a decision?",
+        "expected": 1,
+        "answers": [
+          "The output says \"+1 credited ghosts kept for adjudication,\" so the answer is 1.\n\n1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the verdict for the c5 no-go criterion?",
+        "expected": "clear",
+        "answers": [
+          "clear",
+          "clear",
+          "clear",
+          "clear",
+          "clear"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many optimizer proposals are pending?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "none pending"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What does the command need that was not given? Name the flag.",
+        "expected": [
+          "--draft"
+        ],
+        "answers": [
+          "--draft",
+          "--draft",
+          "--draft",
+          "--draft",
+          "--draft"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "recall-curate"
+        ],
+        "exit": 0,
+        "stdout": "[recall-curate] corpus 3 | on-surface 2 | bench-candidates 0 | unbench 0 | ghost counters to prune 0 (+1 credited ghosts kept for adjudication)\n"
+      },
+      "apply": {
+        "argv": [
+          "recall-curate",
+          "--apply"
+        ],
+        "exit": 0,
+        "stdout": "[recall-curate] corpus 3 | on-surface 2 | bench-candidates 0 | unbench 0 | ghost counters to prune 0 (+1 credited ghosts kept for adjudication)\n[recall-curate] APPLIED: benched 0, unbenched 0, ghost counters pruned 0\n"
+      },
+      "proposals": {
+        "argv": [
+          "recall-curate",
+          "--forge-proposals"
+        ],
+        "exit": 0,
+        "stdout": "[forge-proposals] none pending\n"
+      },
+      "check": {
+        "argv": [
+          "recall-curate",
+          "--forge-check",
+          "keep_one"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: --forge-check needs --draft FILE (the proposed recommendation text).\nExample: uv run agent_cli.py recall-curate --forge-check keep_one --draft new_text.md\n"
+      },
+      "audit": {
+        "argv": [
+          "recall-curate",
+          "--forge-audit"
+        ],
+        "exit": 0,
+        "stdout": "[forge-audit] flips 0 | targets replayable n/a | credited lessons 0 (>=2 ctx: 0) | rehab candidates 0 (coverage n/a) | ledger retention Noned\n  fidelity: 0/0 ledgered sources re-surface on replay (n/a)\n  c1_fidelity: NA\n  c2_rehab_coverage: NA\n  c3_credited_coverage: NA\n  c5_no_go: clear\n  c4_fallback: not needed\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.971,
+    "correct": 34,
+    "asked": 35,
+    "output_tokens": 83,
+    "stdout_chars": 885,
+    "stdout_lines": 43,
+    "cost_usd": 0.0312,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the corpus?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "UNKNOWN",
+          "3",
+          "The output lists \"corpus: 3\", which is the count of items in the corpus. The output doesn't say these are lessons specifically, but the question asks about the corpus count, so the answer is:\n\n3",
+          "3"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many lessons are still competing for recall surface slots?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons would be benched?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many credited ghost counters are kept for a decision?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the verdict for the c5 no-go criterion?",
+        "expected": "clear",
+        "answers": [
+          "clear",
+          "clear",
+          "clear",
+          "clear",
+          "clear"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many optimizer proposals are pending?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What does the command need that was not given? Name the flag.",
+        "expected": [
+          "--draft"
+        ],
+        "answers": [
+          "--draft",
+          "--draft",
+          "--draft",
+          "--draft",
+          "--draft"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "recall-curate"
+        ],
+        "exit": 0,
+        "stdout": "corpus: 3\non_surface: 2\nto_bench: 0\nto_unbench: 0\nghosts_to_prune: 0\ncredited_ghosts_kept: 1\nresult: nothing to curate\nhelp[1]:\n  uv run agent_cli.py triage\n"
+      },
+      "apply": {
+        "argv": [
+          "recall-curate",
+          "--apply"
+        ],
+        "exit": 0,
+        "stdout": "corpus: 3\non_surface: 2\nto_bench: 0\nto_unbench: 0\nghosts_to_prune: 0\ncredited_ghosts_kept: 1\napplied:\n  benched: 0\n  unbenched: 0\n  ghosts_pruned: 0\n"
+      },
+      "proposals": {
+        "argv": [
+          "recall-curate",
+          "--forge-proposals"
+        ],
+        "exit": 0,
+        "stdout": "pending: 0\nhelp[1]:\n  uv run agent_cli.py recall-curate --forge-propose\n"
+      },
+      "check": {
+        "argv": [
+          "recall-curate",
+          "--forge-check",
+          "keep_one"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--forge-check needs --draft FILE (the proposed recommendation text)\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py recall-curate --forge-check keep_one --draft new_text.md\n"
+      },
+      "audit": {
+        "argv": [
+          "recall-curate",
+          "--forge-audit"
+        ],
+        "exit": 0,
+        "stdout": "flips: 0\nflip_targets_replayable: null\ncredited_lessons: 0\ncredited_in_2_plus_contexts: 0\nrehab_candidates: 0\nrehab_coverage: null\nledger_retention_days: null\nfidelity:\n  agreed: 0\n  checked: 0\n  rate: null\nverdicts:\n  c1_fidelity: NA\n  c2_rehab_coverage: NA\n  c3_credited_coverage: NA\n  c5_no_go: clear\n  c4_fallback: not needed\n"
+      }
+    }
+  }
+}
