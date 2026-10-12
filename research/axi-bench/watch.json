@@ -1,0 +1,340 @@
+{
+  "verb": "watch",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 25,
+    "stdout_chars": 755,
+    "stdout_lines": 7,
+    "cost_usd": 0.0239,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Is any run expectation open? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many minutes of silence are allowed before it alarms?",
+        "expected": 10,
+        "answers": [
+          "10",
+          "10",
+          "10",
+          "10",
+          "10"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command tells the watcher the run is still alive? Give the command only.",
+        "expected": [
+          "watch bench --checkpoint"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which run is declared?",
+        "expected": [
+          "nightly reindex"
+        ],
+        "answers": [
+          "nightly reindex",
+          "nightly reindex",
+          "nightly reindex",
+          "nightly reindex",
+          "nightly reindex"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the watcher expecting activity right now? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Would the watcher alarm right now? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "none": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "[watch] no expectation on disk -- the deadman is armed and correctly silent\n"
+      },
+      "declare": {
+        "argv": [
+          "watch",
+          "bench",
+          "--declare",
+          "nightly reindex",
+          "--grace",
+          "600"
+        ],
+        "exit": 0,
+        "stdout": "[watch] expectation OPEN for bench: 'nightly reindex' -- silence past 10 min is now a finding (/tmp/axi-bench-_mr450sm/before/state/expect/run-active.json)\n"
+      },
+      "open": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "[watch] open: 'nightly reindex' by bench -- quiet 0s of 600s grace\n"
+      },
+      "stand_down": {
+        "argv": [
+          "watch",
+          "bench",
+          "--stand-down"
+        ],
+        "exit": 0,
+        "stdout": "[watch] stood down -- silence is correct again\n"
+      },
+      "down": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "[watch] stood down (last: 'nightly reindex') -- silent\n"
+      },
+      "declare_tight": {
+        "argv": [
+          "watch",
+          "bench",
+          "--declare",
+          "schema migration",
+          "--grace",
+          "0"
+        ],
+        "exit": 0,
+        "stdout": "[watch] expectation OPEN for bench: 'schema migration' -- silence past 0 min is now a finding (/tmp/axi-bench-_mr450sm/before/state/expect/run-active.json)\n"
+      },
+      "alarm": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "[watch] WOULD ALARM: FAILSAFE: bench declared a run active (schema migration) and has not checkpointed for 0 min, past its 0 min grace. The seat may be down, 529'd, or stalled -- nothing has moved.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 85,
+    "stdout_chars": 1218,
+    "stdout_lines": 46,
+    "cost_usd": 0.0284,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Is any run expectation open? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many minutes of silence are allowed before it alarms?",
+        "expected": 10,
+        "answers": [
+          "10",
+          "10",
+          "10",
+          "10",
+          "10"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command tells the watcher the run is still alive? Give the command only.",
+        "expected": [
+          "watch bench --checkpoint"
+        ],
+        "answers": [
+          "uv run agent_cli.py watch bench --checkpoint",
+          "uv run agent_cli.py watch bench --checkpoint",
+          "uv run agent_cli.py watch bench --checkpoint",
+          "uv run agent_cli.py watch bench --checkpoint",
+          "Hmm, the output's help section lists `uv run agent_cli.py watch bench --checkpoint` as the command that marks the run alive; `--stand-down` is the other option, which ends the watch rather than keeping it alive.\n\nAnswer: uv run agent_cli.py watch bench --checkpoint"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which run is declared?",
+        "expected": [
+          "nightly reindex"
+        ],
+        "answers": [
+          "nightly reindex",
+          "nightly reindex",
+          "nightly reindex",
+          "nightly reindex",
+          "nightly reindex"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the watcher expecting activity right now? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Would the watcher alarm right now? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "none": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "expectation: none\nrun_declared: no\nalarm: no\nfile: state/expect/run-active.json\nhelp[1]:\n  uv run agent_cli.py watch bench --declare \"<what is running>\"\n"
+      },
+      "declare": {
+        "argv": [
+          "watch",
+          "bench",
+          "--declare",
+          "nightly reindex",
+          "--grace",
+          "600"
+        ],
+        "exit": 0,
+        "stdout": "expectation: open\nrun: nightly reindex\nby: bench\ngrace_s: 600\nfile: state/expect/run-active.json\nhelp[2]:\n  uv run agent_cli.py watch bench --checkpoint\n  uv run agent_cli.py watch bench --stand-down\n"
+      },
+      "open": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "expectation: open\nalarm: no\nrun: nightly reindex\nby: bench\nquiet_s: 0\ngrace_s: 600\nhelp[2]:\n  uv run agent_cli.py watch bench --checkpoint\n  uv run agent_cli.py watch bench --stand-down\n"
+      },
+      "stand_down": {
+        "argv": [
+          "watch",
+          "bench",
+          "--stand-down"
+        ],
+        "exit": 0,
+        "stdout": "expectation: stood down\nrun: nightly reindex\n"
+      },
+      "down": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "expectation: stood down\nalarm: no\nlast_run: nightly reindex\n"
+      },
+      "declare_tight": {
+        "argv": [
+          "watch",
+          "bench",
+          "--declare",
+          "schema migration",
+          "--grace",
+          "0"
+        ],
+        "exit": 0,
+        "stdout": "expectation: open\nrun: schema migration\nby: bench\ngrace_s: 0\nfile: state/expect/run-active.json\nhelp[2]:\n  uv run agent_cli.py watch bench --checkpoint\n  uv run agent_cli.py watch bench --stand-down\n"
+      },
+      "alarm": {
+        "argv": [
+          "watch",
+          "bench",
+          "--status"
+        ],
+        "exit": 0,
+        "stdout": "expectation: alarm\nalarm: yes\nrun: schema migration\nby: bench\nquiet_s: 0\ngrace_s: 0\nfinding: \"FAILSAFE: bench declared a run active (schema migration) and has not checkpointed for 0 min, past its 0 min grace. The seat may be down, 529'd, or stalled -- nothing has moved.\"\nhelp[2]:\n  uv run agent_cli.py watch bench --checkpoint\n  uv run agent_cli.py watch bench --stand-down\n"
+      }
+    }
+  }
+}

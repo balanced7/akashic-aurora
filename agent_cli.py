@@ -16845,41 +16845,97 @@ def cmd_watch(args):
 
     Wired because a watcher nobody can ARM is the built-not-wired pattern with a stopwatch on it --
     check_wiring caught exactly that when this organ landed with no door."""
+    from core.axi import out
     from core.comm import failsafe as _F
 
+    cli, me = _cli(), args.agent_id
     path = _F.default_path()
+    try:  # the file as a person would find it: repo-relative when it lives in the checkout
+        shown = os.path.relpath(path, _repo_root_str()).replace(os.sep, "/")
+        shown = path if shown.startswith("..") else shown
+    except ValueError:
+        shown = path
     if args.declare:
-        doc = _F.declare(path, who=args.agent_id, what=args.declare, grace_s=args.grace)
-        print(
-            f"[watch] expectation OPEN for {args.agent_id}: {args.declare!r} -- silence past "
-            f"{int(args.grace // 60)} min is now a finding ({path})"
+        _F.declare(path, who=me, what=args.declare, grace_s=args.grace)
+        doc = {"expectation": "open", "run": args.declare, "by": me, "grace_s": int(args.grace), "file": shown}
+        # From now until stand-down, silence past the grace is a finding.
+        return out.emit(
+            doc,
+            hints=[f"{cli} watch {me} --checkpoint", f"{cli} watch {me} --stand-down"],
+            human=_human_watch,
+            title="Watch · expectation open",
         )
-        return 0
     if args.checkpoint:
         doc = _F.checkpoint(path)
-        print("[watch] checkpointed" if doc else "[watch] nothing to checkpoint -- no expectation is open")
-        return 0 if doc else 1
+        if not doc:  # exit 1, as before: there was nothing to stamp
+            return out.fail(
+                "nothing to checkpoint: no expectation is open",
+                code="NOTHING_OPEN",
+                hints=[f'{cli} watch {me} --declare "<what is running>"'],
+            )
+        return out.emit({"expectation": "open" if doc.get("active") else "stood down", "checkpointed": doc.get("what")})
     if args.stand_down:
         doc = _F.stand_down(path)
-        print("[watch] stood down -- silence is correct again" if doc else "[watch] nothing open to stand down")
-        return 0 if doc else 1
+        if not doc:
+            return out.fail(
+                "nothing open to stand down",
+                code="NOTHING_OPEN",
+                hints=[f'{cli} watch {me} --declare "<what is running>"'],
+            )
+        # Silence is correct again.
+        return out.emit({"expectation": "stood down", "run": doc.get("what")}, human=_human_watch, title="Watch")
     doc = _F.load(path)
     alarm = _F.verdict(doc)
-    if doc is None:
-        print("[watch] no expectation on disk -- the deadman is armed and correctly silent")
-    elif not doc.get("active"):
-        print(f"[watch] stood down (last: {doc.get('what')!r}) -- silent")
-    elif alarm:
-        print(f"[watch] WOULD ALARM: {alarm}")
-    else:
-        import time as _t
-
-        quiet = int(_t.time() - float(doc.get("checkpoint_at") or 0))
-        print(
-            f"[watch] open: {doc.get('what')!r} by {doc.get('declared_by')} -- quiet {quiet}s "
-            f"of {int(float(doc.get('grace_s') or 0))}s grace"
+    if doc is None:  # AXI section 5: no expectation is an answer, and silence is correct
+        return out.emit(
+            {"expectation": "none", "run_declared": "no", "alarm": "no", "file": shown},
+            hints=[f'{cli} watch {me} --declare "<what is running>"'],
+            human=_human_watch,
+            title="Watch",
         )
-    return 0
+    if not doc.get("active"):
+        return out.emit(
+            {"expectation": "stood down", "alarm": "no", "last_run": doc.get("what")}, human=_human_watch, title="Watch"
+        )
+    import time as _t
+
+    quiet = int(_t.time() - float(doc.get("checkpoint_at") or 0))
+    grace = int(float(doc.get("grace_s") or 0))
+    status = {
+        "expectation": "alarm" if alarm else "open",
+        "alarm": "yes" if alarm else "no",
+        "run": doc.get("what"),
+        "by": doc.get("declared_by"),
+        "quiet_s": quiet,
+        "grace_s": grace,
+    }
+    if alarm:
+        status["finding"] = alarm
+    elif doc.get("last_alarm_at") and quiet > grace:
+        status["note"] = "past its grace, inside the alarm cool-down"
+    hints = [f"{cli} watch {me} --checkpoint", f"{cli} watch {me} --stand-down"]
+    return out.emit(status, hints=hints, human=_human_watch, title="Watch")
+
+
+def _human_watch(console, doc):
+    """Human view of `watch`: the state word first (red alarm, yellow open, green otherwise),
+    then how long it has been quiet against its grace in readable units."""
+    from core.axi import out
+
+    st = str(doc["expectation"])
+    colour = {"alarm": "red", "open": "yellow"}.get(st, "green")
+    if st == "none":
+        console.print("[green]no run declared[/] [dim]-- silence is correct[/]")
+    else:
+        console.print(f"[bold {colour}]{st}[/]  {out._esc(str(doc.get('run') or doc.get('last_run') or ''))}")
+    if "quiet_s" in doc:
+        console.print(f"[dim]quiet {_human_secs(doc['quiet_s'])} of {_human_secs(doc['grace_s'])} grace[/]")
+    elif "grace_s" in doc:
+        console.print(f"[dim]grace {_human_secs(doc['grace_s'])}[/]")
+    if doc.get("finding"):
+        console.print(f"[red]{out._esc(doc['finding'])}[/]")
+    if doc.get("file"):
+        console.print(f"[dim]{out._esc(doc['file'])}[/]")
 
 
 def cmd_defer(args):

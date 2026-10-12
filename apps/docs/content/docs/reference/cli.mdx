@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 100 converted to agent and human output.
+121 verbs; 101 converted to agent and human output.
 
 ## `alias`
 
@@ -3646,7 +3646,10 @@ lane_depths:
 | | |
 |---|---|
 | Does | the out-of-band deadman: declare a run so SILENCE becomes a finding, checkpoint while it lives, stand down when done |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 25 before, 85 after (+240%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/watch.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -3656,6 +3659,17 @@ lane_depths:
 | `--checkpoint` |   |   | say 'still here' |
 | `--stand-down` |   |   | close it; after this, silence is correct again |
 | `--status` |   |   | what the watcher would decide right now |
+
+Agent output of `aurora watch bench --status` on the bench data:
+
+```text
+expectation: none
+run_declared: no
+alarm: no
+file: state/expect/run-active.json
+help[1]:
+  uv run agent_cli.py watch bench --declare "<what is running>"
+```
 
 ## `web`
 
