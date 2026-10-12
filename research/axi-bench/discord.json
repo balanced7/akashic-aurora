@@ -1,0 +1,208 @@
+{
+  "verb": "discord",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 117,
+    "stdout_chars": 421,
+    "stdout_lines": 5,
+    "cost_usd": 0.027,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Is the Discord bridge configured? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the file name the webhook URL should be saved to? Give the file name only, not the path.",
+        "expected": "discord_webhook.url",
+        "answers": [
+          "The output names the file in the path `/tmp/axi-bench-cdf6476n/before/.secrets/discord_webhook.url`, so the file name is:\n\ndiscord_webhook.url",
+          "discord_webhook.url",
+          "discord_webhook.url",
+          "discord_webhook.url",
+          "discord_webhook.url"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command posts a test line once the bridge is set up? Give the command only.",
+        "expected": [
+          "discord test"
+        ],
+        "answers": [
+          "uv run agent_cli.py discord test",
+          "uv run agent_cli.py discord test",
+          "cd /tmp/axi-bench-cdf6476n/reader",
+          "uv run agent_cli.py discord test",
+          "uv run agent_cli.py discord test"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Was the message sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command fail, or succeed? Answer failed or succeeded.",
+        "expected": "failed",
+        "answers": [
+          "failed",
+          "failed",
+          "failed",
+          "failed",
+          "failed"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "discord",
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "# discord bridge: NOT CONFIGURED (this is a state, not a failure)\n#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL\n#   2. save it to /tmp/axi-bench-cdf6476n/before/.secrets/discord_webhook.url\n#   3. uv run agent_cli.py discord test\n"
+      },
+      "send": {
+        "argv": [
+          "discord",
+          "send",
+          "--text",
+          "hello from the bench"
+        ],
+        "exit": 1,
+        "stdout": "[discord] discord is not configured -- no seat lane and no global webhook. Nothing was sent, and this is a configuration state rather than a delivery failure.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 165,
+    "stdout_chars": 625,
+    "stdout_lines": 11,
+    "cost_usd": 0.0235,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Is the Discord bridge configured? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the file name the webhook URL should be saved to? Give the file name only, not the path.",
+        "expected": "discord_webhook.url",
+        "answers": [
+          "secrets/discord_webhook.url",
+          "discord_webhook.url",
+          "secret_webhook",
+          "secrets/discord_webhook.url",
+          "discord_webhook.url"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What exact command posts a test line once the bridge is set up? Give the command only.",
+        "expected": [
+          "discord test"
+        ],
+        "answers": [
+          "uv run agent_cli.py discord test",
+          "uv run agent_cli.py discord test",
+          "uv run agent_cli.py discord test",
+          "uv run agent_cli.py discord test",
+          "uv run agent_cli.py discord test"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command fail, or succeed? Answer failed or succeeded.",
+        "expected": "failed",
+        "answers": [
+          "failed",
+          "failed",
+          "failed",
+          "failed",
+          "failed"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "discord",
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "configured: false\nwebhook_file: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.secrets/discord_webhook.url\nsetup: \"private Discord channel -> Integrations -> Webhooks -> New -> Copy URL; save it to webhook_file, then run the test below\"\ndirection: outbound only (inbound needs the R1-R3 identity gate)\nhelp[1]:\n  uv run agent_cli.py discord test\n"
+      },
+      "send": {
+        "argv": [
+          "discord",
+          "send",
+          "--text",
+          "hello from the bench"
+        ],
+        "exit": 1,
+        "stdout": "error: \"discord is not configured -- no seat lane and no global webhook. Nothing was sent, and this is a configuration state rather than a delivery failure.\"\ncode: NOT_CONFIGURED\nseat: bench\nhelp[1]:\n  uv run agent_cli.py discord status\n"
+      }
+    }
+  }
+}

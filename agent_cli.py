@@ -5173,12 +5173,14 @@ def cmd_discord(args):
     system holding a shell, a repo and a budget, and it does not ship until its identity gate
     is built and pinned (design doc R1-R3).
     """
+    from core.axi import out
     from core.comm import discord_bridge as DB
 
+    cli = _cli()
     url = DB.webhook_url()
     if args.action == "status":
         url_file = DB.url_file()
-        out = {
+        status = {
             "configured": bool(url),
             "source": (
                 "env AKASHIC_DISCORD_WEBHOOK"
@@ -5189,19 +5191,42 @@ def cmd_discord(args):
             "direction": "outbound only (inbound needs the R1-R3 identity gate)",
         }
         if args.json:
-            print(json.dumps(out, indent=2))
+            print(json.dumps(status, indent=2))
             return 0
         if not url:
-            print("# discord bridge: NOT CONFIGURED (this is a state, not a failure)")
-            print("#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL")
-            print(f"#   2. save it to {url_file}")
-            print(f"#   3. {_cli()} discord test")
-            return 0
-        print(f"# discord bridge: CONFIGURED via {out['source']}")
-        print(f"#   forwards: {', '.join(sorted(DB.FORWARD_KINDS))}")
-        print("#   plus ANY message from a human sender; trace is deliberately excluded")
-        print(f"#   direction: {out['direction']}")
-        return 0
+            # Opt-in and unset is a state, not a failure: exit 0, and the setup steps.
+            return out.emit(
+                {
+                    "configured": False,
+                    "webhook_file": str(url_file),
+                    "setup": "private Discord channel -> Integrations -> Webhooks -> New -> Copy URL; "
+                    "save it to webhook_file, then run the test below",
+                    "direction": status["direction"],
+                },
+                hints=[f"{cli} discord test"],
+                title="Discord bridge · not configured",
+            )
+        return out.emit(
+            {
+                "configured": True,
+                "source": status["source"],
+                "forwards_kinds": status["forwards_kinds"],
+                "also_forwards": "any message from a human sender; trace is deliberately excluded",
+                "direction": status["direction"],
+            },
+            hints=[f'{cli} discord send --text "<message>"'],
+            title="Discord bridge · configured",
+        )
+
+    def refused(o, to=None):
+        why = o.why or "not sent"
+        unset = "not configured" in why
+        return out.fail(
+            why,
+            code="NOT_CONFIGURED" if unset else "SEND_FAILED",
+            details={"to": to} if to else None,
+            hints=[f"{cli} discord status"] if unset else [],
+        )
 
     if args.action == "test":
         o = DB.forward(
@@ -5214,8 +5239,9 @@ def cmd_discord(args):
             },
             force=True,
         )
-        print(("[discord] " + (o.why or "posted")) if not o else "[discord] posted")
-        return 0 if o else 1
+        if not o:
+            return refused(o)
+        return out.emit({"sent": True, "to": "the global webhook"}, title="Discord test")
 
     # ROUTE TO HIS LANE WITH THIS SEAT, BY CONSTRUCTION (2026-08-25). This verb used to
     # post to the GLOBAL webhook while per-seat lanes existed and the automatic feed
@@ -5226,23 +5252,28 @@ def cmd_discord(args):
 
     _seat = os.getenv("AKASHIC_AGENT_ID") or "claude"
     _url, _source, _note = _DF.send_target(_seat)
-    if _note:
-        print(f"[discord] {_note}")
     if not _url:
-        return 1
+        return out.fail(
+            _note or "discord is not configured",
+            code="NOT_CONFIGURED",
+            details={"seat": _seat},
+            hints=[f"{cli} discord status"],
+        )
     o = DB.forward({"kind": args.kind, "frm": _seat, "content": args.text}, url=_url, force=True)
     # T181 vocabulary, branched failed -> PARTIALLY -> done in that order. Testing bare
     # truthiness prints "posted" for a HALF-SENT multi-part message, which is the
     # boundary_outcome_ok_includes_partial_double_strike defect -- and the receipt now
     # names the room, because "posted" is not a receipt if it cannot say where.
-    if not o:
-        print("[discord] " + (o.why or "not sent"))
-        return 1
+    if not o.ok:  # a PARTIAL is falsy too, so `not o` would never reach the branch below
+        return refused(o, _source)
     if o.partial:
-        print(f"[discord] PARTIALLY sent to {_source} -- some parts did not land")
-        return 1
-    print(f"[discord] posted to {_source}")
-    return 0
+        return out.fail(
+            f"partially sent to {_source} -- some parts did not land", code="PARTIAL", details={"to": _source}
+        )
+    doc = {"sent": True, "to": _source, "kind": args.kind}
+    if _note:  # the fallback to the global channel, said rather than taken quietly
+        doc["note"] = _note
+    return out.emit(doc, title="Discord send")
 
 
 def cmd_gateway(args):

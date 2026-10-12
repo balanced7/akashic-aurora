@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 604bda15. A bound you discover by collision is not awareness -- this sheet
+> Derived at fc404b79. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -61,7 +61,7 @@ Class: reference
 | `AKASHIC_DISCORD_ROOMS_REGISTRY` | `` | core/comm/discord_rooms.py |
 | `AKASHIC_DISCORD_ROOTS_FILE` | `` | core/comm/discord_inbound.py |
 | `AKASHIC_DISCORD_SEATS_REGISTRY` | `` | core/comm/discord_inbound.py, core/comm/discord_rooms.py |
-| `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
+| `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py, scripts/axi_bench/specs/discord.py |
 | `AKASHIC_DISCORD_WEBHOOKS` | `` | core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
 | `AKASHIC_EMBEDDED_REDIS_DIR` | `` | core/foundation/embedded_redis.py |
@@ -122,7 +122,7 @@ Class: reference
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_HEARTBEAT` | `"1"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_stop.py |
-| `AKASHIC_SECRETS_DIR` | `` | core/comm/secret_intake.py |
+| `AKASHIC_SECRETS_DIR` | `` | core/comm/secret_intake.py, scripts/axi_bench/specs/discord.py |
 | `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
 | `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
 | `AKASHIC_SESSION8` | `` | agent_cli.py |

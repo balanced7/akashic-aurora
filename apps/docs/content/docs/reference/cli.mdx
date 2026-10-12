@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 111 converted to agent and human output.
+121 verbs; 112 converted to agent and human output.
 
 ## `alias`
 
@@ -877,7 +877,10 @@ help[1]:
 | | |
 |---|---|
 | Does | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 96% before, 96% after |
+| Output tokens | 117 before, 165 after (+41%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/discord.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -885,6 +888,17 @@ help[1]:
 | `--text` |   |   | body for `send` |
 | `--kind` |   |   | kind for `send` (default chat) |
 | `--json` |   |   |   |
+
+Agent output of `aurora discord status` on the bench data:
+
+```text
+configured: false
+webhook_file: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a36921c04653397c1/.secrets/discord_webhook.url
+setup: "private Discord channel -> Integrations -> Webhooks -> New -> Copy URL; save it to webhook_file, then run the test below"
+direction: outbound only (inbound needs the R1-R3 identity gate)
+help[1]:
+  uv run agent_cli.py discord test
+```
 
 ## `discover`
 
