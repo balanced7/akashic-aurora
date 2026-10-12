@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 108 converted to agent and human output.
+121 verbs; 109 converted to agent and human output.
 
 ## `alias`
 
@@ -1055,7 +1055,10 @@ help[1]:
 | | |
 |---|---|
 | Does | fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 97% after |
+| Output tokens | 104 before, 133 after (+28%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/fence.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1068,6 +1071,21 @@ help[1]:
 | `--file` |   |   | write: read content from a file |
 | `--by` |   |   | who is acting (agent id -- authorship feeds the independence check) |
 | `--json` |   |   |   |
+
+Agent output of `aurora fence list` on the bench data:
+
+```text
+total: 3
+open: 2
+closed: 1
+fences[3]{id,status,tier,sealed,question}:
+  t054-design,open,full,brief half_a,Should routing move into the bus?
+  t060-lite,open,lite,"-",Is the wake seat per session?
+  t070-closed,closed,full,brief half_a half_b reconciliation,Retire the HMAC bridge?
+help[2]:
+  uv run agent_cli.py fence status <fence_id>
+  uv run agent_cli.py fence open <fence_id> --question "..."
+```
 
 ## `find`
 

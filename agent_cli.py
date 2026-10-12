@@ -8843,84 +8843,182 @@ def cmd_fence(args):
     filename is unrepresentable -- and the method contract's mechanical checks (M1-BRIEF
     sections, M1-CF verdict tags, M1-PV citation verify, seal order, author independence)
     run AT SEAL TIME. Actions: open / write / seal / pv / status / list."""
+    from core.axi import out
     from core.coord import fence_workspace as fw
 
     action = args.action
-
-    def _emit(obj):
-        print(json.dumps(obj, indent=2, default=str) if args.json else obj)
+    cli = _cli()
+    fid = args.fence_id
+    by = f" --by {args.by}" if args.by else ""
 
     if action == "list":
         rows = fw.list_fences()
         if args.json:
             print(json.dumps(rows, indent=2, default=str))
             return 0
-        if not rows:
-            print("# no fences yet (fence open <id> --question ...)")
-            return 0
-        for st in rows:
-            sealed = [s for s, v in st["slots"].items() if v["sealed"]]
-            print(
-                f"  [{'CLOSED' if st['closed'] else 'open'}] {st['id']} ({st['tier']}) "
-                f"-- {st['question'][:60]}  sealed: {','.join(sealed) or '-'}"
+        doc: dict = {
+            "total": len(rows),
+            "open": sum(1 for st in rows if not st["closed"]),
+            "closed": sum(1 for st in rows if st["closed"]),
+            "fences": [
+                {
+                    "id": st["id"],
+                    "status": "closed" if st["closed"] else "open",
+                    "tier": st["tier"],
+                    "sealed": [sl for sl, v in st["slots"].items() if v["sealed"]],
+                    "question": out.truncate(st["question"], 120)[0],
+                }
+                for st in rows
+            ],
+        }
+        # TOON tables hold scalars: the sealed slots ride as one space-joined cell.
+        for f in doc["fences"]:
+            f["sealed"] = " ".join(f["sealed"]) or "-"
+        hints = [f'{cli} fence open <fence_id> --question "..."']
+        if rows:
+            hints.insert(0, f"{cli} fence status <fence_id>")
+        return out.emit(doc, hints=hints, human=_human_fence_list, title="Fences")
+    if not fid:
+        return out.fail(
+            "this action needs a fence id", code="USAGE", hints=[f"{cli} fence list"], exit_code=out.EXIT_USAGE
+        )
+    try:
+        if action == "open":
+            st = fw.open_fence(fid, question=args.question or "", tier=args.tier or "full", by=args.by or "")
+            return out.emit(
+                {"opened": st["id"], "tier": st["tier"], "brief": fw.slot_path(fid, "brief")},
+                hints=[f"{cli} fence write {fid} --slot brief --file <brief.md>{by}"],
+                title="Fence opened",
             )
-        return 0
-    if not args.fence_id:
-        print("ERROR: this action needs a fence id")
-        return 1
-    if action == "open":
-        st = fw.open_fence(args.fence_id, question=args.question or "", tier=args.tier or "full", by=args.by or "")
-        print(f"[OK] fence {st['id']} open ({st['tier']}) at {fw.slot_path(args.fence_id, 'brief')}")
-        return 0
-    if action == "write":
-        if not args.slot:
-            print("ERROR: write needs --slot")
-            return 1
-        text = args.text or ""
-        if args.file:
-            with open(args.file, encoding="utf-8") as f:
-                text = f.read()
-        if not text:
-            print("ERROR: write needs --text or --file")
-            return 1
-        p = fw.write_slot(args.fence_id, args.slot, text, by=args.by or "")
-        print(f"[OK] wrote {args.slot} -> {p}")
-        return 0
-    if action == "seal":
-        if not args.slot:
-            print("ERROR: seal needs --slot")
-            return 1
-        ok, problems = fw.seal(args.fence_id, args.slot, by=args.by or "")
-        if ok:
-            print(f"[OK] sealed {args.fence_id}/{args.slot}")
-            return 0
-        print(f"REFUSED: {args.fence_id}/{args.slot} cannot seal:")
-        for pr in problems:
-            print(f"  - {pr}")
-        return 1
-    if action == "pv":
-        report = fw.run_pv(args.fence_id)
-        print(f"# M1-PV over {args.fence_id}: {len(report['verified'])} verified, {len(report['missing'])} MISSING")
-        for c in report["missing"]:
-            print(f"  MISSING: {c}")
-        return 0 if not report["missing"] else 1
-    if action == "status":
-        st = fw.fence_status(args.fence_id)
-        if args.json:
-            print(json.dumps(st, indent=2, default=str))
-            return 0
-        print(f"# fence {st['id']} ({st['tier']}) -- {st['question']}")
-        for s, v in st["slots"].items():
-            mark = "SEALED" if v["sealed"] else ("written" if v["written"] else "empty")
-            by = f" by {v['author']}" if v["author"] else ""
-            print(f"  {s:16} {mark}{by}")
-        pv = st.get("pv")
-        pv_line = "not run" if not pv else f"{pv['missing_count']} missing @ {pv['ran_at']}"
-        print(f"  pv: {pv_line}")
-        print(f"  closed: {st['closed']}")
-        return 0
-    print(f"ERROR: unknown fence action {action!r}")
-    return 1
+        if action == "write":
+            if not args.slot:
+                return out.fail(
+                    "write needs --slot",
+                    code="USAGE",
+                    hints=[f"{cli} fence write {fid} --slot brief --file <path>{by}"],
+                    exit_code=out.EXIT_USAGE,
+                )
+            text = args.text or ""
+            if args.file:
+                with open(args.file, encoding="utf-8") as f:
+                    text = f.read()
+            if not text:
+                return out.fail(
+                    "write needs --text or --file",
+                    code="USAGE",
+                    hints=[f"{cli} fence write {fid} --slot {args.slot} --file <path>{by}"],
+                    exit_code=out.EXIT_USAGE,
+                )
+            path = fw.write_slot(fid, args.slot, text, by=args.by or "")
+            return out.emit(
+                {"wrote": args.slot, "fence": fid, "path": path},
+                hints=[f"{cli} fence seal {fid} --slot {args.slot}{by}"],
+                title="Slot written",
+            )
+        if action == "seal":
+            if not args.slot:
+                return out.fail(
+                    "seal needs --slot",
+                    code="USAGE",
+                    hints=[f"{cli} fence seal {fid} --slot brief{by}"],
+                    exit_code=out.EXIT_USAGE,
+                )
+            ok, problems = fw.seal(fid, args.slot, by=args.by or "")
+            if ok:
+                return out.emit({"sealed": f"{fid}/{args.slot}"}, hints=[f"{cli} fence status {fid}"], title="Sealed")
+            # The checks refused: each problem is what to fix before sealing again.
+            return out.fail(
+                f"{fid}/{args.slot} cannot seal",
+                code="REFUSED",
+                details={"problems": problems},
+                hints=[f"{cli} fence write {fid} --slot {args.slot} --file <path>{by}"],
+            )
+        if action == "pv":
+            report = fw.run_pv(fid)
+            doc = {"fence": fid, "verified": len(report["verified"]), "missing": len(report["missing"])}
+            if report["missing"]:
+                doc["missing_citations"] = report["missing"]
+            out.emit(
+                doc,
+                hints=[f"{cli} fence status {fid}"],
+                human=_human_fence_pv,
+                title=f"M1-PV · {fid}",
+            )
+            return 0 if not report["missing"] else 1
+        if action == "status":
+            st = fw.fence_status(fid)
+            if args.json:
+                print(json.dumps(st, indent=2, default=str))
+                return 0
+            pv = st.get("pv")
+            slots = [
+                {
+                    "slot": sl,
+                    "state": "sealed" if v["sealed"] else ("written" if v["written"] else "empty"),
+                    "by": v["author"] or None,
+                }
+                for sl, v in st["slots"].items()
+            ]
+            doc = {
+                "fence": st["id"],
+                "tier": st["tier"],
+                "question": st["question"],
+                "closed": st["closed"],
+                "slots": slots,
+                # M1-PV: how many file citations in the halves did not resolve; "not run" until it runs.
+                "pv_missing_citations": pv["missing_count"] if pv else "not run",
+            }
+            # The next step is the first slot not yet sealed: seal it if written, else write it.
+            nxt = next((r for r in slots if r["state"] != "sealed"), None)
+            hints = []
+            if nxt and nxt["state"] == "written":
+                hints.append(f"{cli} fence seal {fid} --slot {nxt['slot']}{by}")
+            elif nxt:
+                hints.append(f"{cli} fence write {fid} --slot {nxt['slot']} --file <path>{by}")
+            if not pv and nxt and nxt["slot"] == "reconciliation":
+                hints.insert(0, f"{cli} fence pv {fid}")
+            return out.emit(doc, hints=hints, human=_human_fence_status, title=f"Fence {fid} ({st['tier']})")
+    except (ValueError, KeyError) as e:  # no such fence, an illegal id, an unknown or sealed slot
+        msg = str(e.args[0]) if e.args else str(e)
+        return out.fail(msg, code="REFUSED", hints=[f"{cli} fence list"])
+    return out.fail(f"unknown fence action {action!r}", code="USAGE", exit_code=out.EXIT_USAGE)
+
+
+def _human_fence_list(console, doc):
+    """Human view of `fence list`: open and closed counts, then one row per fence."""
+    from core.axi import out
+
+    console.print(f"[bold]{doc['total']}[/] fences: [yellow]{doc['open']} open[/], [green]{doc['closed']} closed[/]")
+    if doc["fences"]:
+        rows = [{**f, "status": "done" if f["status"] == "closed" else "open"} for f in doc["fences"]]
+        console.print(out.table(rows, columns=["id", "status", "tier", "sealed", "question"]))
+
+
+def _human_fence_status(console, doc):
+    """Human view of `fence status`: the question, then each slot's state (sealed green,
+    written yellow, empty dim) and the PV result."""
+    from core.axi import out
+
+    console.print(f"[dim]{out._esc(doc['question'])}[/]")
+    colour = {"sealed": "green", "written": "yellow", "empty": "dim"}
+    for r in doc["slots"]:
+        c = colour[r["state"]]
+        who = f" by {out._esc(r['by'])}" if r["by"] else ""
+        console.print(f"  {r['slot']:<16} [{c}]{r['state']}[/]{who}")
+    pv = doc["pv_missing_citations"]
+    pv_text = "[dim]not run[/]" if pv == "not run" else ("[green]0 missing[/]" if pv == 0 else f"[red]{pv} missing[/]")
+    console.print(f"  {'pv':<16} {pv_text}")
+    console.print(f"  {'closed':<16} {'[green]yes[/]' if doc['closed'] else 'no'}")
+
+
+def _human_fence_pv(console, doc):
+    """Human view of `fence pv`: verified and missing counts, then each missing citation."""
+    from core.axi import out
+
+    colour = "red" if doc["missing"] else "green"
+    console.print(f"[green]{doc['verified']} verified[/], [{colour}]{doc['missing']} missing[/]")
+    for c in doc.get("missing_citations") or []:
+        console.print(f"  [red]MISSING[/] {out._esc(c)}")
 
 
 def cmd_flow(args):

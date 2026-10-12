@@ -1,0 +1,258 @@
+{
+  "verb": "fence",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 104,
+    "stdout_chars": 700,
+    "stdout_lines": 14,
+    "cost_usd": 0.0243,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many fences exist?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which fence is closed? Give its id.",
+        "expected": "t070-closed",
+        "answers": [
+          "t070-closed",
+          "t070-closed",
+          "t070-closed",
+          "t070-closed",
+          "t070-closed"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which slots of fence t054-design are sealed? List them separated by commas.",
+        "expected": [
+          "brief",
+          "half_a"
+        ],
+        "answers": [
+          "brief, half_a",
+          "brief, half_a",
+          "brief, half_a",
+          "brief, half_a",
+          "brief, half_a"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who wrote the half_b slot?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many citations did the PV pass find missing?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many M1-BRIEF sections are missing from the brief that could not be sealed?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "fence",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "  [open] t054-design (full) -- Should routing move into the bus?  sealed: brief,half_a\n  [open] t060-lite (lite) -- Is the wake seat per session?  sealed: -\n  [CLOSED] t070-closed (full) -- Retire the HMAC bridge?  sealed: brief,half_a,half_b,reconciliation\n"
+      },
+      "status": {
+        "argv": [
+          "fence",
+          "status",
+          "t054-design"
+        ],
+        "exit": 0,
+        "stdout": "# fence t054-design (full) -- Should routing move into the bus?\n  brief            SEALED by claude\n  half_a           SEALED by kimi\n  half_b           written by deepseek\n  reconciliation   empty\n  pv: 1 missing @ 2026-10-12T15:44:05.453400+00:00\n  closed: False\n"
+      },
+      "refused": {
+        "argv": [
+          "fence",
+          "seal",
+          "t060-lite",
+          "--slot",
+          "brief",
+          "--by",
+          "sol"
+        ],
+        "exit": 1,
+        "stdout": "REFUSED: t060-lite/brief cannot seal:\n  - M1-BRIEF section missing: RULES OF ENGAGEMENT\n  - M1-BRIEF section missing: THE QUESTION\n  - M1-BRIEF section missing: OUTPUT CONTRACT\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 133,
+    "stdout_chars": 984,
+    "stdout_lines": 27,
+    "cost_usd": 0.0297,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many fences exist?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which fence is closed? Give its id.",
+        "expected": "t070-closed",
+        "answers": [
+          "t070-closed",
+          "t070-closed",
+          "t070-closed",
+          "t070-closed",
+          "t070-closed"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which slots of fence t054-design are sealed? List them separated by commas.",
+        "expected": [
+          "brief",
+          "half_a"
+        ],
+        "answers": [
+          "brief, half_a",
+          "brief, half_a",
+          "brief, half_a",
+          "brief, half_a",
+          "brief, half_a"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who wrote the half_b slot?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "The slot `half_b` was written by deepseek.",
+          "deepseek"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many citations did the PV pass find missing?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "pv_missing_citations: 1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many M1-BRIEF sections are missing from the brief that could not be sealed?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "fence",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "total: 3\nopen: 2\nclosed: 1\nfences[3]{id,status,tier,sealed,question}:\n  t054-design,open,full,brief half_a,Should routing move into the bus?\n  t060-lite,open,lite,\"-\",Is the wake seat per session?\n  t070-closed,closed,full,brief half_a half_b reconciliation,Retire the HMAC bridge?\nhelp[2]:\n  uv run agent_cli.py fence status <fence_id>\n  uv run agent_cli.py fence open <fence_id> --question \"...\"\n"
+      },
+      "status": {
+        "argv": [
+          "fence",
+          "status",
+          "t054-design"
+        ],
+        "exit": 0,
+        "stdout": "fence: t054-design\ntier: full\nquestion: Should routing move into the bus?\nclosed: false\nslots[4]{slot,state,by}:\n  brief,sealed,claude\n  half_a,sealed,kimi\n  half_b,written,deepseek\n  reconciliation,empty,null\npv_missing_citations: 1\nhelp[1]:\n  uv run agent_cli.py fence seal t054-design --slot half_b\n"
+      },
+      "refused": {
+        "argv": [
+          "fence",
+          "seal",
+          "t060-lite",
+          "--slot",
+          "brief",
+          "--by",
+          "sol"
+        ],
+        "exit": 1,
+        "stdout": "error: t060-lite/brief cannot seal\ncode: REFUSED\nproblems[3]: \"M1-BRIEF section missing: RULES OF ENGAGEMENT\",\"M1-BRIEF section missing: THE QUESTION\",\"M1-BRIEF section missing: OUTPUT CONTRACT\"\nhelp[1]:\n  uv run agent_cli.py fence write t060-lite --slot brief --file <path> --by sol\n"
+      }
+    }
+  }
+}
