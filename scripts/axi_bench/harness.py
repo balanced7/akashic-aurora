@@ -127,6 +127,15 @@ class Sandbox:
             HOME=str(self.data / "home"),
             USERPROFILE=str(self.data / "home"),
             AI_SETUP=str(self.data),
+            # Recall keeps its lesson cache, injection ledger and outcome logs under the system
+            # temp dir unless told otherwise -- the directory every live hook and every other
+            # bench shares. Pointed here, recall verbs read only what this run seeded.
+            AKASHIC_RECALL_STATE_DIR=str(self.data / "recall_state"),
+            # The task ledger roots itself at the code tree, not AI_SETUP, so without this the
+            # `task` and `focus` seeds would write state/coord/tasks.json in the checkout --
+            # the live ledger when the bench runs from the main one (tests/isolate_canonical.py
+            # redirects the same side channel).
+            AKASHIC_TASKS_PATH=str(self.data / "tasks.json"),
             REDIS_DB=str(self.db),
             AKASHIC_AGENT_ID="bench",
             AURORA_OUTPUT="agent",
