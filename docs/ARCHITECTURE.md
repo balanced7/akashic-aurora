@@ -215,6 +215,15 @@ The project's self-writing story: **Atlas → Track → Chapter → Beat**. `sch
   answered, and an empty bounded walk says so explicitly rather than reading as absence).
 - **Projections (swappable, over the substrate)** — `core/perspectives/` (interpretation lenses over
   the narrative graph — Map × Lens), `core/codex/` (knowledge-compiler / regenerable-projection work).
+- **CLI output (AXI)** — `core/axi/` (the one way every verb prints: `mode.py` picks the reader --
+  `--output agent|human`, `AURORA_OUTPUT`, an agent harness or a pipe means agent, a terminal means
+  human; `toon.py` encodes TOON for agents; `out.py` renders agent output with next-step hints or a
+  coloured human layout, and puts structured errors on stdout for agents; `cli.py` makes every
+  parser fail the AXI way). Measured per verb by `scripts/axi_bench` against the pre-AXI baseline.
+- **Meta-harness** — `core/metaharness/` (the loop that improves the harness itself, behind the
+  corpus, replay, grade, review, loop, memreplay, precompile, modes and compress verbs: a task corpus
+  mined from our own history, isolated replays of a candidate harness, graders and verdicts, a human
+  review queue, and the budgeted proposer loop; `cli.py` dispatches every verb).
 - **Season / game mechanics** — `core/season/` (`scoring.py` = Season 1 round scoring as a PURE
   function over a policy dict, so the rules are executable data rather than a markdown table and a
   rule change is a config diff). Deliberately imports nothing from `core/trust/`: *score is
