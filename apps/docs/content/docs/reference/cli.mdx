@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 73 converted to agent and human output.
+121 verbs; 74 converted to agent and human output.
 
 ## `alias`
 
@@ -440,12 +440,22 @@ help[2]:
 | | |
 |---|---|
 | Does | the smallest verb in the house: zero arguments, always answered |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 75% before, 100% after |
+| Output tokens | 178 before, 9 after (-95%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/boop.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--surface` |   |   | boop with eyes: print the awareness snapshot (sweep) after the boop |
 | `--agent` |   |   | subject for --surface (default: $AKASHIC_AGENT_ID; no identity fallback) |
+
+Agent output of `aurora boop` on the bench data:
+
+```text
+boop: received
+adjudicated: useful
+```
 
 ## `boot`
 

@@ -1,0 +1,178 @@
+{
+  "verb": "boop",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.75,
+    "correct": 15,
+    "asked": 20,
+    "output_tokens": 178,
+    "stdout_chars": 468,
+    "stdout_lines": 7,
+    "cost_usd": 0.0198,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the boop received? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How was the boop adjudicated? Give one word.",
+        "expected": "useful",
+        "answers": [
+          "USEFUL",
+          "USEFUL",
+          "USEFUL",
+          "USEFUL",
+          "USEFUL"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many bus messages are pending for the seat?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to read the pending messages? Give the command only.",
+        "expected": [
+          "bifrost-sync bench"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "boop": {
+        "argv": [
+          "boop"
+        ],
+        "exit": 0,
+        "stdout": "boop. (received, subject-labeled, adjudicated USEFUL -- the smallest door in the house)\n"
+      },
+      "surface": {
+        "argv": [
+          "boop",
+          "--surface"
+        ],
+        "exit": 0,
+        "stdout": "boop. (received, subject-labeled, adjudicated USEFUL -- the smallest door in the house)\n# sweep subject=bench as_of=2026-10-12T15:51:17.810748+00:00 effects=none\n  bus: OK 1 pending; 1 shown; order=oldest; truncated=no; attention_shown=1; unrendered=0\n  bench: OK 0 parked\n  route: UNATTENDED UNATTENDED: no beat, pulse, or worklive\n  moved: UNKNOWN mark absent; movement unknown\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 9,
+    "stdout_chars": 605,
+    "stdout_lines": 19,
+    "cost_usd": 0.0208,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the boop received? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How was the boop adjudicated? Give one word.",
+        "expected": "useful",
+        "answers": [
+          "useful",
+          "useful",
+          "useful",
+          "useful",
+          "useful"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many bus messages are pending for the seat?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the full command to read the pending messages? Give the command only.",
+        "expected": [
+          "bifrost-sync bench"
+        ],
+        "answers": [
+          "bifrost-sync bench --digest",
+          "bifrost-sync bench --digest",
+          "uv run agent_cli.py bifrost-sync bench --digest",
+          "uv run agent_cli.py bifrost-sync bench --digest",
+          "uv run agent_cli.py bifrost-sync bench --digest"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "boop": {
+        "argv": [
+          "boop"
+        ],
+        "exit": 0,
+        "stdout": "boop: received\nadjudicated: useful\n"
+      },
+      "surface": {
+        "argv": [
+          "boop",
+          "--surface"
+        ],
+        "exit": 0,
+        "stdout": "boop: received\nadjudicated: useful\nsweep:\n  subject: bench\n  as_of: \"2026-10-12T15:51:42.839974+00:00\"\n  pending: 1\n  need_attention: 1\n  parked: 0\n  effects: none\n  observations[4]{name,status,summary,drill}:\n    bus,OK,1 pending; 1 shown; 1 need attention; online=none,bifrost-sync bench --digest\n    bench,OK,0 parked,bench bench\n    route,UNATTENDED,\"UNATTENDED: no beat, pulse, or worklive\",roster --agent bench\n    moved,UNKNOWN,mark absent; movement unknown,delta bench\nhelp[2]:\n  uv run agent_cli.py bifrost-sync bench --digest\n  uv run agent_cli.py delta bench\n"
+      }
+    }
+  }
+}

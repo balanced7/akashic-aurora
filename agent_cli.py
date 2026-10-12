@@ -11086,14 +11086,28 @@ def cmd_boop(args):
     verb checker, CLI-only by the same decision that keeps `captions`
     recreational (a boop does not warrant MCP surface area). The subject law
     applies: the boop answers the booper."""
-    print("boop. (received, subject-labeled, adjudicated USEFUL -- the smallest door in the house)")
+    from core.axi import out
+
+    doc: dict[str, Any] = {"boop": "received", "adjudicated": "useful"}
+    hints: list[str] = []
     if getattr(args, "surface", False):
         try:
-            print(build_sweep(_awareness_subject(args)))
+            subject = _awareness_subject(args)
         except ValueError as exc:
-            print(f"ERROR: {exc}")
-            return 2
-    return 0
+            return out.fail(str(exc), code="USAGE", exit_code=2, hints=[f"{_cli()} boop --surface --agent <agent_id>"])
+        from core.comm.awareness import build_snapshot
+
+        doc["sweep"], hints = _sweep_doc(build_snapshot(subject))
+
+    def human(console, d):
+        console.print(
+            "boop. (received, subject-labeled, adjudicated [green]USEFUL[/] -- the smallest door in the house)"
+        )
+        if "sweep" in d:
+            console.print()
+            _human_sweep(console, d["sweep"])
+
+    return out.emit(doc, hints=hints, human=human)
 
 
 def cmd_find(args):
