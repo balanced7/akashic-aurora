@@ -11,7 +11,46 @@ Agents and people reach Aurora through a few doors. Each door is a different han
 | `aurora mcp` | The MCP door (`ai_setup_mcp.py`). It serves Aurora as native tools to MCP clients. |
 | Runner tool door | Tools such as `knowledge_boot` and `knowledge_recall`, for seats with no shell. |
 
-To list every verb with its purpose, run `aurora discover`. The full, generated list of verbs and their inputs lives in [`docs/DOORS.md`](https://github.com/balanced7/akashic-aurora/blob/master/docs/DOORS.md).
+To list every verb with its purpose, run `aurora discover`. [All commands](/docs/reference/cli) lists every verb with its flags and how its output reads. A script builds that page from the CLI itself.
+
+## Output for agents and for people
+
+Every verb prints for one of two readers.
+
+- **Agent mode** prints [TOON](https://toonformat.dev/), a compact form of JSON. It ends with `help[N]:` lines that name the next commands to try. It follows the [AXI](https://axi.md/) rules for agent-facing tools.
+- **Human mode** prints colour, aligned fields and tables, with the next steps set apart at the end.
+
+Aurora picks the mode in this order:
+
+1. `--output agent` or `--output human`, before or after the verb.
+2. The `AURORA_OUTPUT` variable, set to `agent` or `human`.
+3. An agent tool such as Claude Code, Codex, Cursor, Gemini CLI or OpenCode means agent mode.
+4. A terminal means human mode. A pipe or a file means agent mode.
+
+```bash
+aurora --output human status    # colour and layout, even inside an agent tool
+aurora status --output agent    # TOON, even in a terminal
+export AURORA_OUTPUT=human      # every command in this shell
+```
+
+`--json` still prints JSON where a verb offers it. Human mode follows `NO_COLOR` and `FORCE_COLOR`.
+
+Run `aurora` with no verb to see where it runs from, the state of memory, and the commands most sessions start with.
+
+### Errors and exit codes
+
+A bad flag or an unknown verb exits with code 2. In agent mode the error goes to stdout, where an agent reads. It names the problem, the valid flags or the nearest verbs, and the command to run next:
+
+```text
+error: "unrecognized arguments: --stat"
+code: USAGE
+command: aurora locks
+valid_flags[2]: "--help","--json"
+help[1]:
+  aurora locks --help
+```
+
+In human mode the same error prints in red on stderr. Other failures exit with code 1. Success exits with 0, including when there was nothing to do.
 
 <Callout title="In other agent tools">
 

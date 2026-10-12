@@ -1,0 +1,1913 @@
+---
+title: All commands
+description: Every Aurora verb with its flags, generated from the CLI itself, and how each one prints for agents and for people.
+---
+
+This page lists every verb the `aurora` command offers. A script builds it from the CLI's own parser, so it always matches the code. For the verbs you will use most, start with [Commands](/docs/reference/commands).
+
+Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
+
+121 verbs; 0 converted to agent and human output.
+
+## `alias`
+
+| | |
+|---|---|
+| Does | toolbelt authoring: mint/list/retire agent-authored verb compositions (sugar-only; honesty labels; quota) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose toolbelt (the author) |
+| `&lt;action&gt;` | yes | mint,list,retire,history |   |
+| `&lt;name&gt;` |   |   | alias name (mint/retire/history) |
+| `--step` |   |   | one step per flag, shell-style quoted; steps run in order (mint) |
+| `--evidence` |   |   | VERIFIED\|INFER\|GUESS (default GUESS -- untested sugar confesses) |
+| `--tested-against` |   |   | pin id proving this alias (upgrades evidence) |
+| `--why` |   |   | one line: the felt friction this kills |
+| `--family` |   |   | Halo-caste family (SENTINELS guards \| MONITORS watchers \| CONSTRUCTORS authoring \| RETRIEVERS fetchers \| ENGINEERS recovery \| CARTOGRAPHERS mapping \| LIBRARIANS memory \| WAR-GAMES drills) |
+| `--reason` |   |   | retire reason |
+| `--json` |   |   |   |
+
+## `ask`
+
+| | |
+|---|---|
+| Does | ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;text&gt;` | yes |   | the question (or use --prompt-file) |
+| `--prompt-file` |   |   | read the question from PATH |
+| `--system` |   |   | override the helper's system prompt |
+| `--as-resident` |   |   | T261 tier-1: the branch answers AS a ratified resident -- its callsign, receipts and a catch-up pack of its OWN archive lessons ride the system context, and the reply is stamped tier=resident with the designation. NOT --as, which is the SENDER identity: one flag carrying both meanings is the T174 homonym class. A non-resident refuses BEFORE any model call. |
+| `--model` |   |   | override the helper model |
+| `--max-tokens` |   |   | answer ceiling; hitting it returns a marked PARTIAL, never a silent cut |
+| `--fan` |   |   | ask the SAME question N times concurrently: N samples of ONE model on ONE prompt, so agreement is self-consistency and NOT independent verification -- correlated samples fail together. For decorrelated evidence vary the POSITION with --prompts-file. STATELESS only: cannot be combined with --peer, one durable ask to one seat |
+| `--prompts-file` |   |   | T181: run MANY questions at once. JSON array, or prompts separated by a line containing only --- (so a prompt may be multi-line) |
+| `--geometry` |   |   | T281: declare the fan's SHAPE so the route journal can score routes. WHEN TO FAN: wide independent reading -&gt; fan; deep sequential reasoning -&gt; one seat; verification -&gt; diverse lenses; corpus-level claims -&gt; add a backbrief. Shapes: partition (shards over a corpus -- coverage), lens (same pack, different questions), panel (--fan N self-consistency, never verification), adversarial (position + refuters), backbrief (non-author raw-access re-check), wave (repeat until dry), negotiation (shared-artifact construction only). Wrong combinations are refused with the expected shape. |
+| `--preset` |   |   | named answer contract, e.g. 'findings' (FINDINGS/REASONING/CHECK/BLIND). Supplies the contract to every branch AND parses the answers back, so --json returns structured results. Use with --lens/--lens-file. |
+| `--lens` |   |   | one branch per --lens, each with the preset's contract appended. Repeatable. The lens leads, the contract follows. |
+| `--lens-file` |   |   | one lens per line; blanks and # comments skipped, so a lens file can record WHY each lens is there -- the part that rots first. |
+| `--workers` |   |   | fan width (default 6). Merge attention binds before generation does -- a fan wider than its integrator makes debt, not progress |
+| `--peer` |   |   | T196c: ONE durable ask to a SEAT (send+arm+poll on the bus) instead of the stateless helper. The expectation outlives --wait; timeout hands back a --status handle. ONE seat, ONE ask: cannot be combined with --fan/--prompts-file |
+| `--wait` |   |   | interactive patience in seconds for --peer (default 120); the DURABLE expectation keeps redriving after it |
+| `--poll` |   |   | poll interval for --peer (default 2s) |
+| `--bg` |   |   | run this ask in a DETACHED child and return a handle immediately -- the answer waits in a file instead of your context. Fan out without drowning |
+| `--get` |   |   | read a background ask: RUNNING / DONE / FAILED / ORPHANED, each with what to do now. A READ, so it cannot be combined with --bg (which is a spawn) -- passing both is refused rather than silently picking one |
+| `--list` |   |   | recent background asks, newest first |
+| `--bg-child` |   |   | ==SUPPRESS== |
+| `--no-continue` |   |   | do NOT resume a CUT answer. Continuation is ON by default: with no token ceiling, a cut means the model hit its OWN limit, and stitching costs one completion while a re-ask pays for the whole prompt again. Never fires for a STARVED answer -- there is nothing to continue |
+| `--continuations` |   |   | how many continuations --continue may spend (default 2); running out still reports PARTIALLY, never a clean done |
+| `--with` |   |   | inline a repo file into the ask, WITH LINE NUMBERS, so the helper can cite file:line instead of reasoning blind. Repeatable; one shared char budget; truncation and unreadable paths are stated, never silently dropped |
+| `--launch` |   |   | with --peer: if nobody is home, LAUNCH the seat first, wait for it to attend, then ask. The launcher's singleton gate is the only single-flight; an ambiguous peer is never guessed |
+| `--launch-wait` |   |   | how long to wait for a launched seat to attend (default 60); readiness is a liveness probe, never a sleep |
+| `--status` |   |   | T196d: render one durable ask's honest state (seven states incl UNKNOWN) and what to do now. Read-only; always exit 0 |
+| `--as` |   |   | the SENDER seat the ask belongs to (expectations are per-sender; default $AKASHIC_AGENT_ID or claude) |
+| `--json` |   |   |   |
+
+## `audit`
+
+| | |
+|---|---|
+| Does | belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry&lt;-&gt;parser) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--domain` |   |   | comma-separated domain filter (default: all registered) |
+| `--ground` |   |   | which source renders as canonical -- wording only, never the verdict |
+| `--json` |   |   |   |
+
+## `bench`
+
+| | |
+|---|---|
+| Does | S0 triage bench (scry-to-bottom): list/park/unpark stale asks -- bottomed so fresh mail flows, NEVER dropped; sender always notified (RB-29) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose bench |
+| `&lt;action&gt;` |   | list,park,unpark |   |
+| `&lt;ref&gt;` |   |   | park: inbox stream id \| unpark: parked_id |
+| `--reason` |   |   | park: why (rides the receipt + sender note) |
+| `--by` |   |   | who authorizes (defaults to agent_id) |
+
+## `bifrost-ack`
+
+| | |
+|---|---|
+| Does | durably record you HANDLED a salient bus message (P6) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable agent id (the actor) |
+| `&lt;msg_id&gt;` | yes |   | the bus message id (from promoted/bifrost-sync output) |
+| `--note` |   |   | optional one-line what-was-done |
+| `--json` |   |   |   |
+
+## `bifrost-drain`
+
+| | |
+|---|---|
+| Does | request a runner's GRACEFUL exit: finish current message -&gt; release lock -&gt; exit 0 (the TaskStop restart-tax killer) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | you (the requester) |
+| `--to` | yes |   | the runner agent to drain (e.g. deepseek) |
+| `--reason` |   |   | why (rides the runner's exit line) |
+
+## `bifrost-fetch`
+
+| | |
+|---|---|
+| Does | fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--get` |   |   | the blob:&lt;sha&gt; ref from a spill notice |
+| `--out` |   |   | write bytes to this file instead of stdout |
+| `--agent` |   |   | whose streams to scan for a stream-id ref (default $AKASHIC_AGENT_ID; override to resolve a peer's clipped body) |
+
+## `bifrost-nudge`
+
+| | |
+|---|---|
+| Does | targeted fidelity signal to ONE peer (interrupt\|steer\|inform) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable agent id (the sender, e.g. claude) |
+| `&lt;text&gt;` | yes |   | what you need the peer to look at / adopt |
+| `--to` |   |   | the ONE peer to signal (e.g. deepseek) |
+| `--mode` |   |   | interrupt (hard, default) \| steer (soft, fold into current task) \| inform (ambient) |
+| `--json` |   |   |   |
+
+## `bifrost-pause`
+
+| | |
+|---|---|
+| Does | freeze bus auto-responders (human barge-in); --soft to let seats finish first |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--reason` |   |   |   |
+| `--by` |   |   |   |
+| `--ttl` |   |   | self-heal seconds (RB-30) -- ceremony/automation pauses should ALWAYS set this so a mid-ceremony crash can't freeze the fleet |
+| `--soft` |   |   | PAUSE NUDGE: seats FINISH the message in hand, then hold. Default (hard) pause is a mid-turn interrupt and ABANDONS in-flight work; drain is graceful but EXITS the runner. --soft is the third thing: graceful AND resumable without a relaunch |
+| `--json` |   |   |   |
+
+## `bifrost-resume`
+
+| | |
+|---|---|
+| Does | un-freeze bus auto-responders |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+## `bifrost-send`
+
+| | |
+|---|---|
+| Does | send a message to another agent on the bus |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable agent id (the SENDER, e.g. claude) |
+| `&lt;text&gt;` |   |   | the message text (or use --text-file for long/flag-bearing bodies) |
+| `--text-file` |   |   | T083-C3-1: read the message body from PATH instead of argv -- USE THIS when the body contains anything flag-shaped ('--foo') or is long (git commit -F precedent; argv text with flags in prose WILL misparse) |
+| `--to` |   |   | recipient agent id (e.g. deepseek); omit with --broadcast |
+| `--kind` |   |   | chat\|request\|question\|handoff\|... (default chat) |
+| `--broadcast` |   |   | send to ALL agents instead of one --to |
+| `--answers` |   |   | T380/T139: stream id of the message this send ANSWERS -- stamps meta.answers so obligations settle by LINK, not inference, and the Discord reaction ladder can flip the operator's message to the strict checkmark. Daemon runners stamp it automatically; harness seats pass it here. Directed sends only. |
+| `--expect-reply-within` |   |   | RB-29: arm a sender-side reply deadline (clamped &gt;=30s; 3 redrives then a loud expectation_dead; swept at boot/bifrost-sync). DIRECTED asks (request/handoff/question) AUTO-arm a default window if unset; pass 0 to opt out. |
+| `--to-incarnation` |   |   | T073: address ONE session of the target agent (&gt;=8-char session-id prefix) -- that seat wakes even on same-agent mail (the twin channel) |
+| `--json` |   |   |   |
+
+## `bifrost-skip-to-now`
+
+| | |
+|---|---|
+| Does | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose cursors to skip |
+| `--by` | yes |   | who authorizes (rides the audit event) |
+| `--reason` | yes |   | why (refuse-loud without one) |
+| `--json` |   |   |   |
+
+## `bifrost-standby`
+
+| | |
+|---|---|
+| Does | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable agent id (e.g. claude) |
+| `--session` |   |   | session id for the per-session wake seat (default: harness session env) |
+| `--no-listen` |   |   | drain + report only; do not block |
+| `--limit` |   |   |   |
+
+## `bifrost-sync`
+
+| | |
+|---|---|
+| Does | Bifrost pull floor: presence + unread inbox peek |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable agent id (e.g. cursor) |
+| `--limit` |   |   |   |
+| `--consume` |   |   | read inbox and advance cursor (ack) |
+| `--digest` |   |   | cheap one-line-per-unread headlines (no bodies) |
+| `--traces` |   |   | W4: expand folded trace-class telemetry (default collapses it) |
+| `--json` |   |   |   |
+
+## `boop`
+
+| | |
+|---|---|
+| Does | the smallest verb in the house: zero arguments, always answered |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--surface` |   |   | boop with eyes: print the awareness snapshot (sweep) after the boop |
+| `--agent` |   |   | subject for --surface (default: $AKASHIC_AGENT_ID; no identity fallback) |
+
+## `boot`
+
+| | |
+|---|---|
+| Does | print an agent's startup context |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `--task` |   |   |   |
+| `--json` |   |   |   |
+| `--sources-json` |   |   | T081-W6: also write \{'sources':[...]\} (normalized lesson-source pointers) to PATH, so a runner can tag boot-known lessons without regex-parsing the text |
+
+## `captions`
+
+| | |
+|---|---|
+| Does | YouTube captions -&gt; clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;url&gt;` | yes |   | the YouTube watch URL |
+| `--out` |   |   | output dir (default ~/Desktop/captions) |
+| `--langs` |   |   | yt-dlp sub-langs spec (default en.*) |
+| `--keep-vtt` |   |   | keep the raw .vtt beside the .txt |
+| `--punctuate` |   | hybrid,gaps,model,line,none | derived-text pass: hybrid (default -- model boundaries + deterministic capitalization), gaps (VTT timing), model (fullstop raw), line (legacy per-cue), none (raw clean) |
+
+## `capture`
+
+| | |
+|---|---|
+| Does | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;ref&gt;` |   |   | stream id (e.g. 1784600898568-0); omit with --from-agent |
+| `--from-agent` |   |   | newest messages from this sender instead of an id |
+| `--count` |   |   | with --from-agent: how many (default 3) |
+| `--persist` |   |   | write a verbatim capture file (Status header + body) to PATH |
+| `--title` |   |   | capture doc title (with --persist) |
+| `--thread` |   |   | capture the explicit-link closure around a thread/stream id from your subject-bound archive view |
+| `--agent` |   |   | subject for --thread (default $AKASHIC_AGENT_ID; no identity fallback) |
+| `--per-stream` |   |   | --thread archive cap per stream (1..5000; default 1000) |
+| `--as-doc` |   |   | mint the captured thread as a draft conversation atom |
+| `--cite/--cites` |   |   | atom id the captured conversation discusses (repeatable) |
+| `--type` |   |   | atom type with --as-doc (default chronicle) |
+| `--arc` |   |   | atom arc (default subject's claimed task) |
+| `--json` |   |   |   |
+
+## `clobber-scan`
+
+| | |
+|---|---|
+| Does | W47 (kimi's design): flag unconditional writes to shared control keys in a file -- the fence-review reviewer-prompt |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;path&gt;` | yes |   | the file to scan (a ceremony/diff under review) |
+| `--json` |   |   |   |
+
+## `college`
+
+| | |
+|---|---|
+| Does | source packet -&gt; immutable authored lecture -&gt; independent claim audit -&gt; teach-back -&gt; append-only errata (records the chain; does not browse or call a model) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;college_action&gt;` | yes | start,source,lecture,audit,teachback,teach-back,erratum,show,status |   |
+
+## `compare`
+
+| | |
+|---|---|
+| Does | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;a&gt;` |   |   | left domain (see --list) |
+| `&lt;b&gt;` |   |   | right domain |
+| `--list` |   |   | show comparable domains |
+| `--limit` |   |   | rows per side (default 40) |
+| `--json` |   |   |   |
+
+## `compress`
+
+| | |
+|---|---|
+| Does | meta-harness compression (task 11): pieces, usage telemetry, staged search for the pieces that matter |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | pieces,telemetry,run |   |
+| `--candidate` |   |   | telemetry/run: the candidate to read or compress |
+| `--scenario` |   |   | telemetry/run: scenario id (repeatable) |
+| `--root` |   |   | pieces/telemetry: the tree whose pieces to list (default: this repo) |
+| `--max-runs` |   |   | run: the task-run cap (required) |
+| `--trials` |   |   |   |
+| `--json` |   |   |   |
+
+## `console-log`
+
+| | |
+|---|---|
+| Does | durable console events (interjection/bus_control/file_drop) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--limit` |   |   |   |
+| `--since` |   |   | ISO lower time bound |
+| `--until` |   |   | ISO upper time bound |
+| `--json` |   |   |   |
+
+## `corpus`
+
+| | |
+|---|---|
+| Does | meta-harness task corpus (task 03): archive transcripts, mine, curate, validate, status |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | archive,mine,list,show,accept,reject,validate,retire,status |   |
+| `&lt;id&gt;` |   |   | scenario id (show/accept/reject/validate) |
+| `--limit` |   |   | mine: keep only the N most informative candidates |
+| `--status` |   |   | list: only this status (candidate/accepted/rejected/retired) |
+| `--reason` |   |   | accept/reject: why (kept in the scenario's history) |
+| `--by` |   |   | accept/reject: who decided |
+| `--cap-mb` |   |   | archive: size cap in MB (default 2048) |
+| `--json` |   |   |   |
+
+## `defer`
+
+| | |
+|---|---|
+| Does | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | you (the filing or discharging seat) |
+| `&lt;cmd_text&gt;` |   |   | the command to file (quote it; or use --list / --done) |
+| `--needs` |   |   | capability required (exec\|write\|net) |
+| `--why` |   |   | one line: what the discharge unblocks |
+| `--list` |   |   | show pending items |
+| `--done` |   |   | discharge one item |
+| `--receipt` |   |   | REQUIRED with --done: what happened |
+
+## `delta`
+
+| | |
+|---|---|
+| Does | what changed since this agent's last boot (T052 delta door) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `--ack` |   |   | advance the seen mark to current positions after reading |
+
+## `discord`
+
+| | |
+|---|---|
+| Does | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` |   | status,test,send | status = is it configured and what forwards; EXITS 0 EVEN WHEN UNCONFIGURED, because opt-in-and-unset is a state rather than a failure, and it prints the setup steps. test = post a real line so you can confirm it lands. send = forward one message, and an explicit send BYPASSES the kind allowlist (the person typing the command is the selection); only the automatic feed filters. |
+| `--text` |   |   | body for `send` |
+| `--kind` |   |   | kind for `send` (default chat) |
+| `--json` |   |   |   |
+
+## `discover`
+
+| | |
+|---|---|
+| Does | list every verb + its purpose (the self-describing door) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;query&gt;` |   |   | optional substring to filter verbs by name/purpose |
+| `--json` |   |   |   |
+| `--semantic` |   |   | ask at the level of MEANING instead of substring: 'does this system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS over the verb table + module index. Costs one model call (~20s, under a cent). A failed or malformed call renders UNKNOWN, never 'no' -- this verb exists to stop absence being inferred, so it must never infer one |
+
+## `doc`
+
+| | |
+|---|---|
+| Does | seed a new doc with its header contract (library door) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;sub&gt;` |   | new,adopt,arc |   |
+
+## `doctor`
+
+| | |
+|---|---|
+| Does | fleet liveness doctor (L2): progress, not presence |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--agents` |   |   | comma-separated ids (default: discovered) |
+| `--deploy` |   |   | is THIS machine a working deploy? root, dirs, redis, consoles |
+| `--page` |   |   | emit bus notes for page-grade findings (deduped 1/(agent,state)/hour) |
+| `--progress` |   |   | one elapsed/ETA/%% line per busy agent (the poor-man's bars) |
+| `--json` |   |   |   |
+
+## `episode`
+
+| | |
+|---|---|
+| Does | session bookends: current episode, close+draft, accept |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | current,close,accept | what to do |
+| `&lt;chapter_id&gt;` |   |   | (accept) the closed chapter to finalize |
+| `--title` |   |   | (accept) set the title |
+| `--desc` |   |   | (accept) set the description |
+| `--why` |   |   | (accept) set the why/intent |
+| `--accept-title` |   |   | (close, one-shot) finalize immediately with this title |
+| `--accept-desc` |   |   | (close, one-shot) finalize immediately with this description |
+| `--accept-why` |   |   | (close, one-shot) finalize immediately with this why |
+| `--json` |   |   |   |
+
+## `events`
+
+| | |
+|---|---|
+| Does | search / drill / capture the raw event firehose |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--search` |   |   | rank raw events by relevance to QUERY |
+| `--around` |   |   | raw events around a beat id / chapter id / ISO timestamp |
+| `--window` |   |   | window around --around target (e.g. 30m, 2h, 1d; default 30m) |
+| `--get` |   |   | resolve one event:&lt;stream&gt;:&lt;id&gt; pointer |
+| `--capture` |   |   | append a raw event (external runtimes) |
+| `--promote` |   |   | consolidate salient raw events into narrative Beats (rate-limited) |
+| `--threshold` |   |   | promote: min salience 0..5 (default 3) |
+| `--kind` |   |   | filter, or kind to capture (tool_call/command/...) |
+| `--summary` |   |   | capture: the event summary |
+| `--detail-json` |   |   | capture: JSON detail payload |
+| `--refs` |   |   | capture: comma-separated source refs |
+| `--agent` |   |   | filter / capture agent id |
+| `--track` |   |   | filter / capture track |
+| `--since` |   |   | search: ISO lower time bound |
+| `--until` |   |   | search: ISO upper time bound |
+| `--limit` |   |   | max results |
+| `--json` |   |   | JSON output |
+
+## `eye`
+
+| | |
+|---|---|
+| Does | THE EYE: the transcript plane as terrain -- ingest (incremental, coverage-honest), find (phrase, S0; the grammar lands S1), get (address -&gt; verbatim L0) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;eye_cmd&gt;` | yes | ingest,find,get,freq,stats,overview,zoom,trace,standing,look,go,back,since,inherit,route |   |
+
+## `fence`
+
+| | |
+|---|---|
+| Does | fence workspace: slots + seal-time method checks; confabulated filenames unrepresentable (R2) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | open,write,seal,pv,status,list |   |
+| `&lt;fence_id&gt;` |   |   | fence id (e.g. t054-design) |
+| `--question` |   |   | open: the question at stake (M1-BRIEF charter seed) |
+| `--tier` |   | full,lite | open: fence tier (default full) |
+| `--slot` |   | brief,half_a,half_b,reconciliation | write/seal: which slot |
+| `--text` |   |   | write: inline content |
+| `--file` |   |   | write: read content from a file |
+| `--by` |   |   | who is acting (agent id -- authorship feeds the independence check) |
+| `--json` |   |   |   |
+
+## `find`
+
+| | |
+|---|---|
+| Does | find a file BY NAME anywhere on the machine (Search Everything / es.exe) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;query&gt;` | yes |   | Everything search term -- a bare word matches any filename substring, case-insensitive |
+| `--limit` |   |   | max results (default 0 = no cap, return everything) |
+| `--offset` |   |   | skip this many ranked results before returning (paging past --limit) |
+| `--path` |   |   | match against the full path, not just the name |
+| `--no-sort` |   |   | skip name sort (default sorts by name) |
+| `--timeout` |   |   | seconds before giving up on es.exe (default 15) |
+| `--sort` |   |   | sort key: name\|path\|size\|extension\|date-created\|date-modified\|date-accessed\|attributes\|run-count\|date-run (add -descending, e.g. size-descending) |
+| `--columns` |   |   | comma-separated property columns, e.g. 'size,date-modified' (-&gt; es -add-columns) |
+| `--format` |   | ,json,csv | machine output: 'json' fields / 'csv' rows (default: rich table) |
+| `--preset` |   |   | intent goal: recent\|newest\|oldest\|biggest\|smallest\|folders\|files\|recently-changed |
+| `--bare` |   |   | force the bare path list (skip the rich mtime/size/rank table) |
+| `--regex` |   |   | treat the term as a regular expression (-r) |
+| `--case` |   |   | match case (-i; NOTE: es.exe -i means case-SENSITIVE) |
+| `--word` |   |   | match whole words (-w) |
+| `--dirs` |   |   | folders only (/ad) |
+| `--files` |   |   | files only (/a-d) |
+| `--scope` |   |   | restrict the search to this directory (-path &lt;dir&gt;) |
+| `--attrs` |   |   | DIR attribute mask, e.g. R/H/S (-a&lt;mask&gt;) |
+
+## `fleet`
+
+| | |
+|---|---|
+| Does | local-model dispatch: roster (list) + capability select + direct one-shot call |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` |   | list,select,call | list the roster \| select a model for a capability \| call a model once |
+| `--capability` |   |   | capability label to filter/route on (generalist, tool-use, extract, summarize, classify, faithful, ...) |
+| `--status` |   |   | filter by status (active\|tested\|candidate\|gated) |
+| `--probe` |   |   | list: also check live Ollama availability (/api/tags) |
+| `--max-vram` |   |   | select: max GB VRAM |
+| `--min-context` |   |   | select: min context tokens |
+| `--model` |   |   | call: the model tag to invoke |
+| `--prompt` |   |   | call: the prompt text |
+| `--system` |   |   | call: optional system prompt |
+| `--max-tokens` |   |   | call: max output tokens (default 512) |
+| `--temperature` |   |   | call: sampling temperature (default 0.2) |
+| `--json-out` |   |   | call: request JSON-formatted MODEL output (Ollama format=json) |
+| `--json` |   |   | print the CLI result as JSON |
+
+## `flightdeck`
+
+| | |
+|---|---|
+| Does | W25 (deepseek): cockpit one-pager — fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--agent` |   |   | focus one agent (default: fleet-wide) |
+| `--json` |   |   |   |
+
+## `flow`
+
+| | |
+|---|---|
+| Does | OTel-style waterfall of recent message flows across lanes: asks, answers, gaps, duplicate copies exposed (R3) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent&gt;` |   |   | only flows touching this agent |
+| `--window` |   |   | how far back (e.g. 30m, 6h, 1d; default 6h) |
+| `--limit` |   |   | max flows rendered (default 12) |
+| `--json` |   |   |   |
+
+## `focus`
+
+| | |
+|---|---|
+| Does | check in/out: attribute THIS session's tool calls to a task |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` |   |   |   |
+| `--set` |   |   | check in: focus this task |
+| `--clear` |   |   | check out, and report what was attributed |
+| `--dismiss` |   |   | wave off one drift note (two of these and it stops asking by itself) |
+| `--quiet` |   |   | silence drift notes here; keep attributing |
+| `--health` |   |   | is the drift nudge earning its keep? |
+| `--session` |   |   | override the session id (default: this session) |
+| `--json` |   |   |   |
+
+## `followup`
+
+| | |
+|---|---|
+| Does | charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | you (the asker) |
+| `--on` | yes |   | the verdict/report file to question (must exist; append-only) |
+| `--to` | yes |   | the seat responsible for answering |
+| `--ask` | yes |   | the question |
+| `--needs` |   |   | capability the answer needs (W33) |
+| `--json` |   |   |   |
+
+## `forecast`
+
+| | |
+|---|---|
+| Does | T375 engineering forecast registry -- register bets at gates, score at review, render calibration |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | register,score,list |   |
+| `&lt;id_pos&gt;` |   |   | forecast id (for score) |
+| `--id` |   |   | forecast id (for register) |
+| `--task` |   |   | ledger task ref (e.g. T375) |
+| `--by` |   |   | registering/scoring seat |
+| `--statement` |   |   | the expectation, falsifiable |
+| `--metric` |   |   |   |
+| `--target` |   |   |   |
+| `--horizon` |   |   | epoch seconds or +Nd (default +7d -- tight horizons beat quarter-long blind spots) |
+| `--mechanism` |   |   | WHY the expectation should hold |
+| `--dies-when` |   |   | the condition under which this bet is DEAD rather than pending (mandatory -- a bet that cannot die is not a bet) |
+| `--observed` |   |   | score: what actually happened |
+| `--evidence` |   |   | score: outcome artifact -- event:&lt;stream&gt;:&lt;id&gt; or commit:&lt;sha&gt;; the door DERIVES outcome_knowable_ts from it (never claimed) |
+| `--verdict` |   |   | hit\|miss\|partial\|voided\|residual |
+| `--calibration` |   |   | list: render hit rates + overdue |
+
+## `friction`
+
+| | |
+|---|---|
+| Does | collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose asks to report on (the sender seat) |
+| `--window-h` |   |   | terminal-event window in hours (default 168 = 7d) |
+| `--json` |   |   |   |
+
+## `gateway`
+
+| | |
+|---|---|
+| Does | the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` |   | status,restart | status = report the live gateway pid(s); restart = kill + relaunch the gateway detached with stdio -&gt; its log |
+| `--json` |   |   |   |
+
+## `glance`
+
+| | |
+|---|---|
+| Does | T079/T060: bounded read-only WorldSnapshot projections over named authorities |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;glance_projection&gt;` | yes | program |   |
+
+## `grade`
+
+| | |
+|---|---|
+| Does | meta-harness graders (task 05): grade runs, compare candidates, power, calibration |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | run,compare,noise,power,label,agreement |   |
+| `--candidate` |   |   | the candidate being graded (B in a comparison) |
+| `--against` |   |   | compare/noise: the candidate it is compared with (A) |
+| `--scenario` |   |   | scenario id (repeatable) |
+| `--judge` |   |   | also run the model graders (quality, process); costs model calls |
+| `--scenarios-n` |   |   | power: number of scenarios |
+| `--trials` |   |   | power: trials per scenario |
+| `--delta` |   |   | power: the pass-rate change to detect (0.1 = 10 points) |
+| `--criterion` |   |   | label: quality or process |
+| `--person` |   |   | label: the person's call |
+| `--judge-call` |   |   | label: the judge's call on the same item |
+| `--ref` |   |   | label: what was judged (run or pair) |
+| `--json` |   |   |   |
+
+## `graduate`
+
+| | |
+|---|---|
+| Does | retire a lesson from recall surfacing -- automation now enforces its rule |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | who is graduating it (you) |
+| `--experiment` |   |   | the lesson's experiment name |
+| `--enforced-by` |   |   | the automation that enforces it, e.g. "git-guard PreToolUse hook (C0)" |
+| `--undo` |   |   | reverse a graduation (it surfaces again) |
+| `--json` |   |   |   |
+
+## `grant`
+
+| | |
+|---|---|
+| Does | S-3: mint / revoke / list ACL grants (atomic + audited). NOT an auth boundary -- see the module docstring |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--bootstrap` |   |   | t384: stamp the instance marker into the local acl.json (peer-side ceremony BEFORE pulling the split; grants untouched) |
+| `&lt;agent_id&gt;` |   |   | the seat receiving the grant |
+| `--role` |   |   | super_admin\|admin\|member\|restricted\|quarantined |
+| `--by` |   |   | the GRANTER's agent id (must hold admin.grant) |
+| `--reason` |   |   | why -- required; an unexplained grant is the one nobody can safely revoke later |
+| `--hours` |   |   | time box (T151: an observed time box is a deadline) |
+| `--permanent` |   |   | explicitly permanent (10 of the 11 original grants are) |
+| `--caps` |   |   | comma-separated cap override (default: role template) |
+| `--path-scope` |   |   | comma-separated globs (default: role template) |
+| `--request-ref` |   |   | the ask this grant answers |
+| `--revoke` |   |   | remove the grant (the undo path) |
+| `--list` |   |   | show stored grants, expiring first |
+| `--dry-run` |   |   | print the record, write nothing |
+| `--json` |   |   |   |
+
+## `ground`
+
+| | |
+|---|---|
+| Does | typed evidence for verb:&lt;name&gt;, or bounded recovery evidence for seat:&lt;id&gt; --continuity |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;target&gt;` | yes |   | typed target: verb:&lt;name&gt; or seat:&lt;id&gt; |
+| `--agent` |   |   | subject whose effective grant is resolved (default: $AKASHIC_AGENT_ID; no identity fallback) |
+| `--continuity` |   |   | required with seat:&lt;id&gt;; assemble evidence without inferring identity |
+| `--json` |   |   | emit ground.result.v1 JSON |
+
+## `handoff`
+
+| | |
+|---|---|
+| Does | hand work to another agent (writes a briefing its next boot reads) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | who is handing off (you) |
+| `--to` |   |   | target agent who picks the work up |
+| `--task` |   |   | what the target should do |
+| `--note` |   |   | free-form context note for the target |
+| `--blocker` |   |   | blockers to flag, separated by ' \|\| ' |
+| `--list` |   |   | list handoffs addressed to --to (or you) instead of writing |
+| `--json` |   |   | JSON output |
+
+## `harnesses`
+
+| | |
+|---|---|
+| Does | integration-tier matrix: what each harness (claude-code/cursor/bare-cli) actually delivers |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--json` |   |   |   |
+
+## `hooks`
+
+| | |
+|---|---|
+| Does | register / remove / switch off-on / inspect the harness hooks (user or project scope) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | status,install,uninstall,enable,disable,enroll,unenroll |   |
+| `--harness` |   | claude,codex,cursor | default: claude |
+| `--scope` |   | user,project | default: user (every project) |
+| `--project` |   |   | project dir for --scope project and enroll (default: cwd) |
+| `--everywhere` |   |   | enroll/unenroll: every directory, not one project |
+| `--shared` |   |   | claude + project: write the committed settings.json, not settings.local.json |
+| `--dry-run` |   |   | show what would change; write nothing |
+| `--all` |   |   | status: also list config files with no Aurora hooks |
+| `--json` |   |   |   |
+
+## `injections`
+
+| | |
+|---|---|
+| Does | the injection ledger: what recall pushed into contexts + cost |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--hours` |   |   | window (default 24) |
+| `--json` |   |   |   |
+
+## `kata`
+
+| | |
+|---|---|
+| Does | grammar-prove a toolbelt alias against the door itself; GREEN levels GUESS/INFER up to VERIFIED (kimi's B4: 'the tool that tells you when your tools are real') |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose toolbelt |
+| `&lt;name&gt;` | yes |   | the alias to kata |
+
+## `kit`
+
+| | |
+|---|---|
+| Does | install a kit bundle on a seat's belt (T099 KIT tier); first resident: recovery-kit (the wake-loop/stall floor) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | the installing seat |
+| `&lt;kit_name&gt;` |   |   | which kit (default recovery-kit) |
+| `--show` |   |   | print the kit JSON without installing |
+| `--json` |   |   |   |
+
+## `knowledge-map`
+
+| | |
+|---|---|
+| Does | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;query&gt;` | yes |   | the topic to walk, plain words |
+| `--per-layer` |   |   | max nodes per layer (default 6) |
+| `--json` |   |   |   |
+
+## `learn`
+
+| | |
+|---|---|
+| Does | record a lesson |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `--experiment` |   |   |   |
+| `--repeat-of` |   |   | record that this EXISTING lesson was violated again -- evidence ABOUT a lesson, not a new one. Use --tried for what happened. The count is a FLOOR (only what someone noticed), never a rate. |
+| `--recall-outcome` |   |   | with --repeat-of: what recall did at that moment (fired / floor_silent / excluded_silent:antirepeat / excluded_silent:self_echo). FIRED means a reading failure; SUPPRESSED means a targeting failure -- opposite fixes. |
+| `--tried` |   |   |   |
+| `--result` |   |   |   |
+| `--expected` |   |   |   |
+| `--recommend` |   |   |   |
+| `--category` |   |   |   |
+| `--success` |   |   |   |
+| `--confidence` |   |   |   |
+| `--json` |   |   |   |
+| `--anti-pattern` |   |   | name a reusable known-bad this lesson documents (recall's dissent-finder warns on it) |
+| `--root-cause` |   |   | WHY it failed, not what happened -- read by the dedup dimensions, infer_domain and the anti-pattern slug drafter (which PREFERS it) |
+| `--files-affected` |   |   | comma/space-separated paths this lesson is about -- base_score tier 0.7 matches a task's paths against them |
+| `--scope` |   |   | where the lesson APPLIES (task 02): universal, harness:&lt;name&gt;, model:&lt;family\|id&gt;, effort:&lt;level&gt;, os:&lt;name&gt;, tool:&lt;name&gt;@&lt;ver&gt;; several allowed. Default: this session's harness and model family (narrow; evidence widens it -- see `scope`) |
+
+## `link`
+
+| | |
+|---|---|
+| Does | fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | init,whoami,renew,cert,certify,create,list,status,invite,join,accept,decline,verify,remove-member,remove-device,add-device,rotate-key,revoke-invite,set-role,leave,handoff,takeover,serve,mailbox,sync,peer,inbox,show,promote,blob,send,export,import,policy,rebuild,import-legacy,relay-config | what to do; `aurora link status` shows every link |
+| `&lt;args&gt;` | yes |   | the action's operands: a link, a member, a record, a code or a file |
+| `--label` |   |   | init/create/join: our fleet's name as members see it |
+| `--role` |   |   | invite: owner &gt; admin &gt; writer &gt; reader &gt; mailbox (default writer) |
+| `--ttl` |   |   | invite: lifetime like 30m, 24h or 7d (default 24h) |
+| `--multi` |   |   | invite: reusable until it expires |
+| `--approval` |   |   | invite: the join waits for `aurora link accept` |
+| `--out` |   |   | invite/join/export/cert/blob: write a file |
+| `--to` |   |   | promote: the local seat (default: the seat it was addressed to) |
+| `--by` |   |   | promote: who decided (default person:&lt;os user&gt;) |
+| `--yes` |   |   | promote: skip the terminal confirm |
+| `--again` |   |   | promote: resend an already promoted record |
+| `--mark` |   |   | verify: record that the safety number was compared |
+| `--kind` |   |   | send: the message kind (default chat) |
+| `--link` |   |   | send: which link, when the fleet shares several with us |
+| `--kinds` |   |   | create: comma-separated kinds the link carries |
+| `--retention-days` |   |   | create: drop bodies after N days (default 90) |
+| `--limit` |   |   | inbox: how many records |
+| `--phrase-stdin` |   |   | init/renew/takeover: read the recovery phrase from stdin |
+| `--passphrase-env` |   |   | init/renew/takeover: env var holding the root's passphrase |
+| `--after` |   |   | takeover: continue after this ACL seq (default: this device's last held entry, nothing it holds is dropped; required while halted below it: the halt's seq - 1 drops both branches and every replica takes it, the last held entry keeps this branch and the other side stays halted) |
+| `--no-xwing` |   |   | init: no post-quantum X-Wing key on this device |
+| `--addr` |   |   | peer: a direct ip:port hint (repeatable) |
+| `--relay-url` |   |   | serve/peer: a relay URL (a self-hosted iroh-relay) |
+| `--no-relay` |   |   | serve: direct addresses only |
+| `--no-n0` |   |   | serve: no n0 DNS address publishing or lookup |
+| `--no-mdns` |   |   | serve: no LAN discovery |
+| `--bind` |   |   | serve: local UDP ip:port |
+| `--trace-rpc` |   |   | serve: log every RPC line |
+| `--relay-only` |   |   | serve: no direct IP paths; everything via a relay |
+| `--once` |   |   | serve: one pump pass, then stop |
+| `--dry-run` |   |   | import-legacy: show what would be imported |
+| `--json` |   |   |   |
+
+## `list`
+
+| | |
+|---|---|
+| Does | list ALL lessons in memory |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--json` |   |   |   |
+
+## `lock`
+
+| | |
+|---|---|
+| Does | claim an advisory path-lock (C2) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `&lt;path&gt;` | yes |   |   |
+| `--ttl` |   |   |   |
+| `--json` |   |   |   |
+
+## `locks`
+
+| | |
+|---|---|
+| Does | show who holds which advisory path-locks |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` |   |   |   |
+| `--json` |   |   |   |
+
+## `log`
+
+| | |
+|---|---|
+| Does | record an arbitrary narrative Beat |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;kind&gt;` |   |   | beat kind (session/note/commit/learning/...) |
+| `--summary` |   |   | summary of what happened |
+| `--source` |   |   | source identifier (who:action) |
+| `--category` |   |   | route hint category |
+| `--task` |   |   | route hint task |
+| `--json` |   |   | JSON output |
+
+## `lookback`
+
+| | |
+|---|---|
+| Does | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;question&gt;` | yes |   | the why/what question, plain words |
+| `--per-layer` |   |   | hits per corpus layer (default 3) |
+| `--layers` |   |   | narrow: docs,research,notes,promoted,chapters,git |
+| `--json` |   |   |   |
+
+## `loop`
+
+| | |
+|---|---|
+| Does | meta-harness proposer loop (task 07): archive, lineage, status, run within a daily budget |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | run,status,archive,lineage |   |
+| `--candidate` |   |   | run: the parent to improve (default baseline); lineage: the candidate |
+| `--iterations` |   |   |   |
+| `--proposals` |   |   | proposals per iteration (scaled by proposer accuracy) |
+| `--trials` |   |   |   |
+| `--mode` |   | structural,prose |   |
+| `--daily-usd` |   |   | run: the day's spend cap (required) |
+| `--proposer-model` |   |   | run: the proposer's model (default claude-opus-5-5) |
+| `--json` |   |   |   |
+
+## `mailbox`
+
+| | |
+|---|---|
+| Does | T095 M0 shadow mailbox: per-message state for an agent (observation only) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose mailbox to inspect |
+| `--explain` |   |   | evidence chain for one message (sha prefix or stream id) |
+| `--rebuild` |   |   | drop + rebuild the index from the log (determinism receipt) |
+| `--retire-ghosts` |   |   | declare `decline` on old unadjudicated mail from senders with no live seat (report only; add --apply to write). The operator is never a ghost. |
+| `--apply` |   |   | with --retire-ghosts: actually write the declarations |
+| `--min-age-h` |   |   | with --retire-ghosts: how old mail must be to be sweepable (default 24) |
+| `--limit-scan` |   |   | with --retire-ghosts: max entries to examine (default 5000, the index cap) |
+| `--min-evidence` |   | unhandled,consumed,replied,acked | show only entries at or below this evidence tier |
+| `--open` |   |   | M1: say SEEN once and print the FULL BODY. Appends one idempotent seen receipt per (message, incarnation); advances NO cursor. Seen never means consumed, handled, agreed, or settled. |
+| `--state` |   |   | M1: everything about one message in ONE hop -- body, who has opened it, the declared intent, and read_but_undeclared |
+| `--intent` |   |   | M1: declare what you will DO about this message (needs --as) |
+| `--as` |   | act,decline,defer,delegate | the declaration: act \| decline \| delegate \| defer |
+| `--to` |   |   | required with --as delegate: an unrouted delegation is a drop |
+| `--note` |   |   | optional free-text reason |
+| `--backfill` |   |   | M1: recover bodies for entries indexed before body storage, WITHOUT dropping the index (unlike --rebuild). Unrecoverable entries keep their state and stay honestly marked. |
+| `--incarnation` |   |   | your session suffix. Defaults to $AKASHIC_SESSION8 or 'unknown'. It is load-bearing: seen receipts are keyed per incarnation so a FRESH seat can tell that a PRIOR one read this and declared nothing. |
+| `--json` |   |   |   |
+
+## `manual`
+
+| | |
+|---|---|
+| Does | the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as labelled passages; ingest a folder; list what is shelved |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;manual_cmd&gt;` | yes | search,ingest,list | search &lt;question&gt; \| ingest SHELF PATH \| list |
+| `&lt;words&gt;` | yes |   | search: the question; ingest: SHELF PATH |
+| `--shelf` |   |   | search only this shelf (e.g. apple-hig, one-ui) |
+| `--limit` |   |   | passages to return (default 8) |
+| `--max-chars` |   |   | cap on the total passage text returned (default 6000) |
+| `--selector` |   |   | ingest: CSS selector of the HTML content container |
+| `--mode` |   | bm25,hybrid | search: hybrid (default: keywords + meaning via the cached MiniLM; right page in the top 5 for 39/40 blind questions) or bm25 (keywords only, no model load) |
+| `--json` |   |   |   |
+
+## `memreplay`
+
+| | |
+|---|---|
+| Does | meta-harness memory replay (task 08): does a lesson change outcomes? snapshot, queue, run, drain |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | snapshot,queue,run,drain |   |
+| `--lesson` |   |   | run: the lesson to measure |
+| `--base` |   |   | run/drain: the candidate harness every arm shares |
+| `--scenario` |   |   | run: scenario id (repeatable; default: the most related) |
+| `--trials` |   |   |   |
+| `--daily-usd` |   |   | spend cap (required for drain) |
+| `--label` |   |   | snapshot: a label for the file name |
+| `--exclude` |   |   | snapshot: a lesson to leave out (repeatable) |
+| `--json` |   |   |   |
+
+## `modes`
+
+| | |
+|---|---|
+| Does | meta-harness memory modes (task 10): show, compare the four arms, per-lesson placement, stale compiled lessons |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | show,compare,placement,stale |   |
+| `--base` |   |   | compare: the candidate carrying harness and model |
+| `--compiled` |   |   | compare: a precompiled candidate (precompile build) |
+| `--scenario` |   |   | compare: scenario id (repeatable) |
+| `--trials` |   |   |   |
+| `--daily-usd` |   |   | compare: spend cap |
+| `--json` |   |   |   |
+
+## `note`
+
+| | |
+|---|---|
+| Does | record a durable project note (write-once; re-note same title to update) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `--title` |   |   | short stable title (re-noting it supersedes the prior; required for writes -- --get/--retire stand alone) |
+| `--note` |   |   | the note / decision body |
+| `--context` |   |   | optional supporting context |
+| `--category` |   |   | route-hint category |
+| `--supersedes` |   |   | explicit prior note id to retire |
+| `--retire` |   |   | tombstone a one-shot note (no successor); reversible in the store |
+| `--get` |   |   | W01: print ONE full note body (title resolves the active head; an explicit id reads superseded history, labeled) |
+| `--session` |   |   | session id |
+| `--json` |   |   |   |
+
+## `notes`
+
+| | |
+|---|---|
+| Does | list active project notes (--project regenerates chronicles/memory.md) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--limit` |   |   |   |
+| `--days` |   |   |   |
+| `--project` |   |   | regenerate the chronicles/memory.md digest |
+| `--all` |   |   | archaeology: include superseded/retired notes (tagged) |
+| `--json` |   |   |   |
+
+## `orient`
+
+| | |
+|---|---|
+| Does | VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;target&gt;` |   |   | typed destination: verb:&lt;name&gt;, seat:&lt;your-id&gt;, or thread:&lt;ref&gt; |
+| `--agent` |   |   | bound subject (default: $AKASHIC_AGENT_ID; no identity fallback) |
+| `--density` |   | compact,standard,wide | how many landmarks stay nearby; the rest remain contoured |
+| `--depth` |   | surface,evidence | surface leaves a drillable contour; evidence expands the focus |
+| `--per-stream` |   |   | thread-focus archive cap per stream (1..5000; default 1000) |
+| `--json` |   |   | emit orient.scene.v1 JSON |
+
+## `packet-stats`
+
+| | |
+|---|---|
+| Does | N0 bounded shadow route/mirror counters |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--json` |   |   |   |
+
+## `packet-trace`
+
+| | |
+|---|---|
+| Does | N0 dry-run: explain the static route for one packet kind (no send) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;kind&gt;` | yes |   | wire kind, e.g. handoff, reply, narration |
+| `--json` |   |   |   |
+
+## `precompile`
+
+| | |
+|---|---|
+| Does | meta-harness precompiler (task 09): lessons into skills, subagents, guards, instruction lines |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | plan,build,check |   |
+| `--lesson` |   |   | limit to these lessons (repeatable) |
+| `--base` |   |   | build: the candidate to compile on top of |
+| `--harness` |   | claude-code,codex-cli,cursor,runner | build: targets (default all) |
+| `--force` |   |   | build: compile lessons that do not pass the gates too (for a dry run) |
+| `--root` |   |   | check: the tree to check (default: this repo) |
+| `--json` |   |   |   |
+
+## `promoted`
+
+| | |
+|---|---|
+| Does | query durable salient Bifrost msgs (kind=bifrost_msg / B2) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--limit` |   |   |   |
+| `--since` |   |   | ISO lower time bound |
+| `--until` |   |   | ISO upper time bound |
+| `--json` |   |   |   |
+
+## `provenance`
+
+| | |
+|---|---|
+| Does | show this session's harness, model, effort and environment record (task 01) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--session` |   |   | a session id (default: this process's harness session) |
+| `--agent` |   |   | agent id to record if the session has none yet |
+| `--json` |   |   |   |
+
+## `pulse`
+
+| | |
+|---|---|
+| Does | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent&gt;` |   |   | optional: single agent to read (default: fleet) |
+| `--json` |   |   |   |
+
+## `recall`
+
+| | |
+|---|---|
+| Does | search past lessons (no query = list all) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;query&gt;` |   |   |   |
+| `--tree` |   |   | group every lesson by scope level (task 02) |
+| `--json` |   |   |   |
+| `--full` |   |   | pull the FULL record for one lesson's source pointer (e.g. learn:experiment:NAME) -- the one-hop escape from a capped recall-at surface |
+| `--agent` |   |   | T260: scope to ONE author's archive -- 'what has Navi learned about X'. The weak-match confession respects the scope (a degraded answer stays a subset of the normal one) |
+
+## `recall-at`
+
+| | |
+|---|---|
+| Does | recall-at-action: relevant lessons/locks for a path or command |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--path` |   |   | the file path about to be acted on |
+| `--command` |   |   | the shell command about to run |
+| `--gesture` |   |   | the composition gesture about to happen, e.g. 'add tanh-tonemap after superlinear-highlight' |
+| `--subject` |   |   | what the bench is currently showing |
+| `--domain` |   |   | scope to one domain (system\|vfx); omit to let the trigger decide |
+| `--agent-id` |   |   | who is asking (defaults to $AKASHIC_AGENT_ID) |
+| `--limit` |   |   | max items to surface (default 3) |
+| `--hint-style` |   | cli,tool | escape-hint vocabulary: cli verbs (default) or tool-loop tool names (T048) |
+| `--json` |   |   |   |
+
+## `recall-counters`
+
+| | |
+|---|---|
+| Does | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--fold` |   |   | apply the fix (merge bare slugs, prune zero-credit ghosts) |
+| `--agent-id` |   |   | who ran it (defaults to $AKASHIC_AGENT_ID) |
+
+## `recall-curate`
+
+| | |
+|---|---|
+| Does | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--apply` |   |   | apply the report (default: report only) |
+| `--forge-audit` |   |   | Forge F0 data-sufficiency audit vs the pre-registered criteria (read-only) |
+| `--forge-check` |   |   | Forge F1: gate a proposed edit to EXPERIMENT's recommendation (needs --draft) |
+| `--draft` |   |   | file holding the proposed recommendation text |
+| `--forge-propose` |   |   | Forge F2: optimizer pass (deepseek proposes, gate adjudicates, human applies) |
+| `--forge-proposals` |   |   | list pending optimizer proposals |
+| `--limit` |   |   | max targets for --forge-propose (default 2) |
+| `--json` |   |   |   |
+
+## `recall-feedback`
+
+| | |
+|---|---|
+| Does | mark a recalled lesson useful/noise (teaches recall what helps) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--source` | yes |   | the lesson's source pointer, e.g. learn:experiment:NAME |
+| `--useful` |   |   | it changed what you did (default) |
+| `--noise` |   |   | it was off-target |
+| `--domain` |   |   | which domain it was useful IN (system\|vfx) -- credit in 2+ domains promotes the lesson to domain-general |
+
+## `recall-prevention`
+
+| | |
+|---|---|
+| Does | S2: what recall PREVENTED (stage-log contrastive record) -- observation only, never a grade |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--json` |   |   |   |
+
+## `reentry`
+
+| | |
+|---|---|
+| Does | T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--show-open-loops` |   |   | surface open loops (never on the default render) |
+| `--since` |   |   | override the diff point (ISO); default = his last recorded word |
+| `--stale-ok` |   |   | skip the incremental eye ingest before rendering |
+
+## `repeat`
+
+| | |
+|---|---|
+| Does | record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;source&gt;` |   |   | the violated lesson: a bare experiment name or learn:experiment:NAME |
+| `--what` |   |   | what actually happened -- the repeat is only useful if it is specific |
+| `--recall-outcome` |   |   | what recall did at the moment: fired (a READING failure) vs suppressed/silent (a TARGETING failure) vs gate_caught. This field is what turns a tally into a diagnosis |
+| `--agent` |   |   | who repeated it (defaults to AKASHIC_AGENT_ID) |
+| `--report` |   |   | the multifaceted record: counts, ranking, and elapsed-since-learned. Never a rate -- it counts only what someone noticed |
+| `--json` |   |   |   |
+
+## `replay`
+
+| | |
+|---|---|
+| Does | meta-harness replay (task 04): run a scenario against a candidate harness, isolated |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | run,candidates,new |   |
+| `--candidate` |   |   | candidate name (`baseline` = the repo's own config) |
+| `--scenario` |   |   | corpus scenario id (run) |
+| `--trials` |   |   |   |
+| `--parallel` |   |   | trials at once |
+| `--budget-usd` |   |   | stop scheduling at this batch spend |
+| `--redis-db` |   |   | the sandbox's Redis logical db (never 0) |
+| `--keep-sandbox` |   |   | keep the sandbox clone for inspection |
+| `--harness` |   |   | new: claude-code or codex-cli |
+| `--model` |   |   |   |
+| `--effort` |   |   |   |
+| `--parent` |   |   |   |
+| `--hypothesis` |   |   |   |
+| `--overlay` |   |   | new: a folder of config files to lay over the sandbox |
+| `--json` |   |   |   |
+
+## `reply`
+
+| | |
+|---|---|
+| Does | answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;text&gt;` | yes |   | the reply body -- the only argument |
+| `--text-file` |   |   | read the body from PATH (long or flag-bearing prose) |
+| `--to` |   |   | override the recipient (default: the operator) |
+| `--as` |   |   | override the sender (default: this seat's id -- never a positional) |
+| `--model` |   |   | stamp the model answering (alias like 'sonnet' or a full id) to the self-report `!model` reads -- best-effort, never blocks the reply |
+| `--json` |   |   |   |
+
+## `report`
+
+| | |
+|---|---|
+| Does | scaffold a visual report with the design kit inlined (T275) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--title` |   |   | the &lt;title&gt;: names the browser tab and the gallery card |
+| `--eyebrow` |   |   | small mono line above the headline |
+| `--out` |   |   | write the scaffold here (default: stdout) |
+| `--crib` |   |   | print the primitive reference and exit |
+
+## `resident`
+
+| | |
+|---|---|
+| Does | callsign ceremony: nominate / ratify / show a resident's designation |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;sub&gt;` |   | nominate,ratify,show,assign,place,roster,roles,verdict-file,adjudicate,calibration |   |
+
+## `review`
+
+| | |
+|---|---|
+| Does | meta-harness review queue (task 06): the human final check-off, apply, rollback, watch |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | list,add,show,decide,apply,rollback,watch,disagreements |   |
+| `&lt;id&gt;` |   |   | review item id |
+| `--candidate` |   |   | add: the candidate to queue |
+| `--against` |   |   | add: the live harness candidate it is compared with |
+| `--scenario` |   |   | add: scenario id (repeatable) |
+| `--predicted` |   |   | add: the proposer's predicted effect |
+| `--reviewer` |   |   | decide: who you are |
+| `--decision` |   |   | decide: accept, reject or more_runs |
+| `--calls` |   |   | decide: "functional=better correctness=same ..." |
+| `--reason` |   |   | decide/rollback: why |
+| `--json` |   |   |   |
+
+## `roster`
+
+| | |
+|---|---|
+| Does | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--json` |   |   |   |
+| `--reap` |   |   | S4: explicitly re-home provably-dead seats' stranded mail now |
+| `--by-agent` |   |   | T183: one line per LOGICAL agent, stating churn (deaths in the last hour) instead of leaving it to be inferred from N last-beat ages. Compresses the render, never the record -- raw rows are the default |
+
+## `run`
+
+| | |
+|---|---|
+| Does | execute a toolbelt alias: run &lt;agent&gt; &lt;name&gt; (explicit door -- a real verb can never be shadowed) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | whose toolbelt |
+| `&lt;name&gt;` | yes |   | the alias to run |
+| `&lt;args&gt;` |   |   | macro args ($1 $2 ... substitution) |
+| `--dry` |   |   | print the resolved steps, execute nothing |
+
+## `scope`
+
+| | |
+|---|---|
+| Does | lesson applicability (task 02): show, set, widen by evidence, list proposals, tree |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;action&gt;` | yes | show,set,widen,proposals,tree |   |
+| `--experiment` |   |   | the lesson (show/set/widen) |
+| `--scope` |   |   | the new scope (set) |
+| `--kinds` |   |   | widen: which kinds to drop, e.g. 'harness model' (default: the proposal's) |
+| `--force` |   |   | widen even when a premise anchor is MISSING |
+| `--json` |   |   |   |
+
+## `scout`
+
+| | |
+|---|---|
+| Does | read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;text&gt;` | yes |   | the pre-flight question |
+| `--wearer` |   |   | which RESIDENT wears the role for this ask (default deepseek, the workhorse). The role's memory is shared across wearers. |
+| `--by` |   |   | who is invoking (the assigner of record) |
+| `--blind` |   |   | tier-0: no identity, no archive -- the uncorrelated control arm |
+| `--shape` |   |   | question shape for the verdict (descriptive\|normative\|generative\|coverage; scout questions are usually descriptive or coverage) |
+| `--json` |   |   |   |
+
+## `season-score`
+
+| | |
+|---|---|
+| Does | T165: score a Season 1 round, or --compare the two rule sets over the same claims |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--round-file` |   |   | JSON: \{claims, verifications, uptime, fixed_keys\} |
+| `--policy` |   |   | v1_doc (committed table) \| v2_aixcc (W2 proposal) |
+| `--compare` |   |   | score BOTH policies and show the delta |
+| `--policies` |   |   | print each policy and its rationale |
+| `--json` |   |   |   |
+
+## `seat-identity`
+
+| | |
+|---|---|
+| Does | declare/show THIS session's seat id (binding beats the shared env) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` |   |   | the seat id to bind; omit to just show the current resolution |
+| `--session` |   |   | session id (default: this process's) |
+| `--clear` |   |   | drop this session's binding |
+
+## `secret`
+
+| | |
+|---|---|
+| Does | the vault door: capture a credential via a popup window -- paste lands in .secrets/&lt;target&gt;, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;target&gt;` |   |   | allowlisted name (see bare `secret` for the list) |
+| `--stdin` |   |   | headless path: read the value from stdin instead of a window (pipe it: Get-Clipboard \| uv run agent_cli.py secret X --stdin) |
+
+## `setup`
+
+| | |
+|---|---|
+| Does | onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--yes` |   |   | non-interactive: take every default (or the flags below) |
+| `--harness` |   | claude,codex,cursor | repeatable |
+| `--scope` |   | user,project,skip |   |
+| `--project` |   |   |   |
+| `--agent-id` |   |   |   |
+| `--operator` |   |   | "Name &lt;email&gt;" whose name goes on agent commits (default: your git user) |
+| `--dry-run` |   |   |   |
+
+## `sha`
+
+| | |
+|---|---|
+| Does | resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;sha&gt;` | yes |   | one or more commit SHAs, 7-40 hex characters |
+| `--maps` |   |   | list the rewrite maps this checkout carries, and flag any that live only in .git (where the next rewrite overwrites them) |
+| `--verbose` |   |   | show each hop of the chase |
+| `--no-remote` |   |   | skip the clone-visibility check (offline; every answer becomes a statement about THIS checkout only) |
+
+## `shadow`
+
+| | |
+|---|---|
+| Does | zero-effect intent shadow: preview one typed ToolBox action before reality changes |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;target&gt;` | yes |   | typed action, e.g. toolbox:bifrost_nudge |
+| `--agent` |   |   | bound subject (default: $AKASHIC_AGENT_ID; no identity fallback) |
+| `--args-json` |   |   | proposed arguments as one JSON object |
+| `--json` |   |   | emit intent.shadow.v1 JSON |
+
+## `shell-home`
+
+| | |
+|---|---|
+| Does | where the shell is now + where fresh harness shells land (cwd-guard's other half) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--set` |   |   | teleport target for fresh HARNESS shells (writes ~/.claude/shell-home + installs the ~/.bashrc hook; operator terminals unaffected) |
+| `--clear` |   |   | remove the mapping |
+
+## `sift`
+
+| | |
+|---|---|
+| Does | the NESTED ask (T217): evidence -&gt; hat fan -&gt; curator pairs -&gt; DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;terms&gt;` | yes |   | the word(s) to examine, one dossier each |
+| `--hats` |   |   | comma-separated subset of the hats. Default is all of them, because a shared blind spot shows up as AGREEMENT and diverse hats are the only defence against it |
+| `--planes` |   |   | comma-separated: source\|test\|doc. Default source, because two meanings in the MECHANISM is a defect while two in prose is often just English |
+| `--junction` |   |   | use JUNCTION evidence instead of breadth: pairs of sites where the term is WRITTEN with sites where it is READ. Ask for this when the question is 'do the senses MEET' -- a breadth sample can enumerate senses but structurally cannot show a producer and its consumer in one frame, which is what made the junction hat vote NO_FORK on a term whose fork cost six turns |
+| `--dry-run` |   |   | build and show the evidence packs, spend NOTHING. Run this first: a fan answers faithfully about whatever you hand it, so verifying the evidence is the step that decides whether any finding is real |
+| `--workers` |   |   | fan concurrency (default 20); branches are HTTP requests, not seats |
+| `--max-occurrences` |   |   | cap per pack. The cap SAMPLES ROUND-ROBIN ACROSS FILES -- every file contributes its first occurrence before any file contributes a second -- so a term in 163 files still reaches the helper as 163 files, not as the first few alphabetically. (It is also always reported in the pack's blind list; a rate over a cap is not a rate over the corpus.) |
+| `--out` |   |   | write the full JSON record here (the dossiers are the durable artifact; the console render is a summary and clips) |
+| `--json` |   |   |   |
+
+## `stand-down`
+
+| | |
+|---|---|
+| Does | yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent&gt;` | yes |   | the agent id whose seat this session is holding |
+
+## `stats`
+
+| | |
+|---|---|
+| Does | recall-value funnel: surfaced -&gt; helped -&gt; flips -&gt; captured |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--hours` |   |   | window for flips/lessons-recorded (default 24) |
+| `--days` |   |   | ALSO print a per-day trend over N days (durable records) + the 30d pace |
+| `--silence` |   |   | R2 denominator: fired/silent/by_reason over --hours + replay pointer |
+| `--json` |   |   |   |
+
+## `status`
+
+| | |
+|---|---|
+| Does | honest system status |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--json` |   |   |   |
+
+## `story`
+
+| | |
+|---|---|
+| Does | print narrative story views |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--chronicle` |   |   | run chronicle_all first |
+| `--mark` |   |   | declare an explicit chapter boundary titled TITLE, then chronicle |
+| `--session-end` |   |   | close the session then chronicle |
+| `--track` |   |   | filter to a named track |
+| `--theme` |   |   | filter chapters by theme |
+| `--themes` |   |   | list all themes with beat counts |
+| `--at` |   |   | find chapter containing this ISO timestamp |
+| `--chapter` |   |   | show full chapter detail by ID |
+| `--beat` |   |   | show full beat detail by ID |
+| `--raw` |   |   | with --beat: also show the raw events around it (auto-logger drill-down) |
+| `--json` |   |   | JSON output |
+
+## `suite-baseline`
+
+| | |
+|---|---|
+| Does | the test-suite receipt (W34): record a pytest run's failures + lanes; the next seat diffs (new/fixed/inherited) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | the recording seat |
+| `--from-file` |   |   | pytest terminal output to ingest |
+| `--sha` |   |   | commit sha (default: git rev-parse HEAD) |
+| `--check` |   |   | diff --from-file against the baseline instead of recording |
+| `--show` |   |   | print the baseline boot line |
+| `--whose` |   |   | run the tests and ATTRIBUTE every failure: YOURS / UNKNOWN / LIKELY_INHERITED / INHERITED, each with what to do. Replaces the manual git-stash bisect. Says UNKNOWN rather than guessing when the baseline is stale -- and UNKNOWN never exits nonzero, because 'I cannot tell' must not become an accusation. e.g. --whose "tests/ -k ask" |
+
+## `sweep`
+
+| | |
+|---|---|
+| Does | the awareness snapshot: bus, bench, health, moved -- one bounded read-only block |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` |   |   | seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback) |
+| `--json` |   |   | emit observation.snapshot.v1 JSON |
+
+## `tag-anti-pattern`
+
+| | |
+|---|---|
+| Does | tag an EXISTING lesson as a reusable known-bad |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `--experiment` | yes |   |   |
+| `--name` | yes |   | the anti-pattern name/slug |
+| `--reason` |   |   |   |
+| `--json` |   |   |   |
+
+## `tally`
+
+| | |
+|---|---|
+| Does | W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;opening&gt;` | yes |   | the opening file (repo-relative or absolute) |
+| `--research-dir` |   |   | directory scanned for counters (default: research) |
+| `--json` |   |   | emit the matrix as JSON |
+
+## `task`
+
+| | |
+|---|---|
+| Does | task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;rest&gt;` | yes |   | conductor subcommand + args, e.g. task list / task propose "title" / task done T001 --commit abc123 --verified-by pytest |
+
+## `timeline`
+
+| | |
+|---|---|
+| Does | one chronological view across domains (events + git + task transitions) -- line the domains up by time and the cause becomes visible |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--hours` |   |   | window in hours (default 6); 0 for everything |
+| `--limit` |   |   | show the last N rows (default 60); 0 for all |
+| `--json` |   |   |   |
+
+## `toast`
+
+| | |
+|---|---|
+| Does | gratitude-with-receipt (T099 BETA-2): toast a peer whose lesson saved you hops; receipt verifies against the learning store or the send REFUSES |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | you (the toaster) |
+| `&lt;to&gt;` | yes |   | the peer being toasted |
+| `&lt;receipt&gt;` | yes |   | their experiment name (the receipt) |
+| `--credit` |   |   | what did their lesson save you? (required, short) |
+| `--force` |   |   | send an unverified receipt honestly labeled GUESS |
+| `--json` |   |   |   |
+
+## `tool`
+
+| | |
+|---|---|
+| Does | play-tier sandbox: list/run draft tools (data/play/&lt;agent&gt;/) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;tool_cmd&gt;` |   | list,run |   |
+
+## `triage`
+
+| | |
+|---|---|
+| Does | sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--min-surfaced` |   |   | impressions before zero-credit counts as cost (default 5) |
+| `--json` |   |   |   |
+
+## `unlock`
+
+| | |
+|---|---|
+| Does | release your advisory path-lock |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   |   |
+| `&lt;path&gt;` | yes |   |   |
+
+## `unwedge`
+
+| | |
+|---|---|
+| Does | W31 (deepseek): one-verb wedge diagnosis -- why is this agent stuck? READ-only v1 (recommends, never acts) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent&gt;` | yes |   | the agent to diagnose |
+| `--json` |   |   |   |
+
+## `watch`
+
+| | |
+|---|---|
+| Does | the out-of-band deadman: declare a run so SILENCE becomes a finding, checkpoint while it lives, stand down when done |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | you (the seat declaring or closing the expectation) |
+| `--declare` |   |   | open an expectation: from now until --stand-down, going quiet alarms |
+| `--grace` |   |   | seconds of silence allowed before it is wrong (default 1800) |
+| `--checkpoint` |   |   | say 'still here' |
+| `--stand-down` |   |   | close it; after this, silence is correct again |
+| `--status` |   |   | what the watcher would decide right now |
+
+## `web`
+
+| | |
+|---|---|
+| Does | the house web door: fetch a URL (cleaned+raw, etag-cached, receipted, fenced UNTRUSTED) or search |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;web_cmd&gt;` | yes | fetch,search |   |
+
+## `wish`
+
+| | |
+|---|---|
+| Does | file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable seat id (wishes are attributed) |
+| `&lt;text&gt;` | yes |   | the wish (or use --text-file for flag-bearing prose) |
+| `--text-file` |   |   | read the wish body from PATH |
+| `--trigger` |   |   | what hurt (one clause) |
+| `--land` |   |   | suggested landing arc/slice |
+
+## `wish-curate`
+
+| | |
+|---|---|
+| Does | the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id) |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `&lt;agent_id&gt;` | yes |   | your stable seat id (dispositions are attributed) |
+| `--id` |   |   | the wish to dispose of, e.g. W159 |
+| `--as` |   | fold,keep,decline | fold (needs --task) \| keep (needs --reason) \| decline (needs --reason) |
+| `--reason` |   |   | why -- required for keep and decline |
+| `--task` |   |   | the T-number that absorbed it -- required for fold |
+| `--count` |   |   | how many oldest-open to list when no --id is given (default 3) |
+
+## `wrap`
+
+| | |
+|---|---|
+| Does | distill this session (commits+lessons+notes) into a DRAFT where-we-are note |
+| Output | One format for every reader. Not converted to agent and human modes yet. |
+
+| Flag | Required | Values | What it does |
+|---|---|---|---|
+| `--hours` |   |   | look-back window for commits (default 12) |
+| `--grounding` |   |   | W37: set the GROUND-FIRST pointer (the voice doc the next seat reads before anything else); 'none' declares absence explicitly |
+| `--commit` |   |   | record the draft as a note (default: just preview) |
+| `--title` |   |   | note title (default: where-we-are &lt;date&gt;) |
+| `--force` |   |   | T074 W8: supersede even a CURATED head (the guard refuses by default) |
+| `--focus` |   |   | set the CURRENT DIRECTIVE (next-focus note) at decision time -- what the next session does FIRST / must NOT do yet; boot renders it above the NEXT list |
+| `--route` |   |   | T268: route TARGETS for the next window (comma-separated ledger ids). --focus records intent; this records WHICH ITEMS, which is what an overnight pre-chew actually consumes. Each target gets a resident SUGGESTION drawn from that resident's own archive -- a suggestion, never an assignment: routing is the human's act |

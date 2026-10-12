@@ -247,11 +247,13 @@ def _agent_cli_verbs() -> set:
     global _VERB_CACHE
     if _VERB_CACHE:
         return _VERB_CACHE
+    import argparse
+
     import agent_cli
 
     p = agent_cli.build_parser()
-    for a in p._actions:  # the subparsers action holds choices
-        if hasattr(a, "choices") and a.choices:
+    for a in p._actions:  # the subparsers action holds the verbs; --output also has choices
+        if isinstance(a, argparse._SubParsersAction):
             _VERB_CACHE = set(a.choices)  # a dict: iterating yields its keys
             return _VERB_CACHE
     return set()

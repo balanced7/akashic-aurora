@@ -9257,6 +9257,77 @@ def _durable_backend_name(store) -> str:
     return f"UNKNOWN:{type(durable).__name__}"
 
 
+def _status_info() -> dict:
+    """What `status` reports: backend, lesson and memory counts, narrative health. Never raises."""
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    client = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=2)
+    learn = mem = total = None
+    if client is not None:
+        learn, mem, total = len(client.keys("learn:*")), len(client.keys("mem:*")), len(client.keys("*"))
+    health = {}
+    durable_backend = "UNKNOWN"
+    try:
+        from core.foundation.store import create_store
+        from core.narrative.health import snapshot
+
+        store = create_store()
+        durable_backend = _durable_backend_name(store)
+        health = snapshot(store)
+    except Exception:
+        health = {}
+    if client is not None:
+        backend = f"Redis {DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} (+ {durable_backend} mirror)"
+    else:
+        backend = f"{durable_backend} (Redis down -> fallback active)"
+    return {
+        "backend": backend,
+        "learnings": learn,
+        "agent_memory": mem,
+        "total_keys": total,
+        "narrative_health": health,
+    }
+
+
+def cmd_home(args=None):
+    """`aurora` with no verb: who this is, live memory state, and where to go next (AXI section 8:
+    content first, not a usage manual)."""
+    import os as _os
+
+    from core.axi import out
+
+    try:
+        info = _status_info()
+    except Exception:
+        info = {"backend": "unknown"}
+    try:  # the store's own count: `learn:*` keys include indexes, not just lessons
+        from core.learning.learning_store import get_learning_store
+
+        lessons = get_learning_store().get_learning_store_stats().get("total_experiments")
+    except Exception:
+        lessons = None
+    exe = _os.path.abspath(sys.argv[0]) if sys.argv and sys.argv[0] else "agent_cli.py"
+    home = _os.path.expanduser("~")
+    agent = (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or None
+    cli = _cli()
+    doc = {
+        "bin": ("~" + exe[len(home) :]) if exe.startswith(home) else exe,
+        "description": "Aurora: shared memory for AI agents -- boot loads past lessons, learn records "
+        "new ones, recall searches them",
+        "agent_id": agent,
+        "backend": info.get("backend"),
+        "lessons": lessons,
+    }
+    who = agent or "<agent_id>"
+    hints = [
+        f'{cli} boot {who} --task "<task>"',
+        f'{cli} recall "<query>"',
+        f'{cli} learn {who} --experiment <name> --tried "..." --result "..."',
+        f"{cli} discover",
+    ]
+    return out.emit(doc, hints=hints, title="Aurora")
+
+
 def cmd_status(args):
     from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
@@ -9304,7 +9375,16 @@ def cmd_status(args):
 
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="agent_cli.py", description="Agent door to the AI-Setup system.")
+    from core.axi.cli import AxiArgumentParser
+
+    p = AxiArgumentParser(
+        prog="agent_cli.py",
+        description="Agent door to the AI-Setup system.",
+        epilog="Output: --output agent prints TOON with next-step hints; --output human prints colour, "
+        "tables and layout. The flag works before or after the verb. Without it, AURORA_OUTPUT=agent|human "
+        "decides, then an agent harness or a pipe means agent and a terminal means human.",
+    )
+    p.add_argument("--output", choices=("agent", "human"), help="who reads the output: agent (TOON) or human (colour)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     b = sub.add_parser("boot", help="print an agent's startup context")
@@ -12304,12 +12384,14 @@ def _kata_check(steps):
     for argv in steps:
         err = io.StringIO()
         try:
-            with contextlib.redirect_stderr(err):
+            # Usage errors print on stdout in agent mode (core/axi/cli.py), stderr in human mode.
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(err):
                 p.parse_args([str(a) for a in argv])
             results.append((True, argv, ""))
         except SystemExit:
-            tail = [ln for ln in err.getvalue().strip().splitlines() if ln][-1:] or ["parse error"]
-            results.append((False, argv, tail[0]))
+            lines = [ln for ln in err.getvalue().strip().splitlines() if ln]
+            said = [ln for ln in lines if ln.startswith(("error:", "agent_cli.py: error:"))] or lines[-1:]
+            results.append((False, argv, (said or ["parse error"])[0]))
         except Exception as e:  # a parser action that raises on parse
             results.append((False, argv, f"{type(e).__name__}: {e}"))
     return all(r[0] for r in results), results
@@ -12870,9 +12952,39 @@ def cmd_kit(args, *, belt=None):
     return 0 if rep.get("ok") else 1
 
 
-def main():
+def main(argv=None):
+    """Parse and dispatch. `--output agent|human` may sit anywhere before a bare `--`; it sets
+    AURORA_OUTPUT so the verb and anything it spawns print for the same audience. No verb at all
+    shows the home view."""
+    import os as _os
+
+    from core.axi import mode as axi_mode
+
+    try:
+        argv, forced = axi_mode.take_flags(sys.argv[1:] if argv is None else list(argv))
+    except ValueError as bad:
+        from core.axi import out
+
+        sys.exit(
+            out.fail(
+                f"--output takes agent or human, not {str(bad) or 'nothing'!r}",
+                code="USAGE",
+                hints=[f"{_cli()} --output agent <verb> ...", f"{_cli()} --output human <verb> ..."],
+                exit_code=out.EXIT_USAGE,
+            )
+        )
+    if forced:
+        _os.environ[axi_mode.ENV] = forced
+    if not argv:
+        sys.exit(cmd_home())
+    from core.axi.cli import parse
+
     p = build_parser()
-    args = p.parse_args()
+    if all(a.startswith("-") for a in argv) and not {"-h", "--help"} & set(argv):
+        # Flags and no verb: argparse would complain about the missing verb and never name the
+        # flag it does not know. Name it.
+        p.error(f"unrecognized arguments: {' '.join(argv)}")
+    args = parse(p, argv)
     sys.exit(args.fn(args))
 
 

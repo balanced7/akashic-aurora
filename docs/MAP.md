@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 202 modules lack both pin and paper by name)
+## GAP queue (46 of 204 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -202,7 +202,7 @@ Class: reference
 | `world_fidelity.py` | world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered. | tests/test_w163_world_fidelity.py | GAP |  |
 | `world_savepoint.py` | world_savepoint -- a world's two planes under one name, or neither. | tests/test_w160_world_savepoint.py | GAP |  |
 
-## core/learning/  (5 modules)
+## core/learning/  (6 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -210,6 +210,7 @@ Class: reference
 | `consolidation.py` | Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle. | tests/test_consolidation.py | docs/library/design/20260709_s2-the-consolidation-pass-that-sharpens_68d42c.md |  |
 | `domains.py` | Recall domains — the boundary line, and why it is not a tag. | GAP | GAP |  |
 | `learning_store.py` | Learning Store: Persists and retrieves experiment outcomes via the Store. | GAP | docs/library/design/20260709_agent-memory-analysis-of-learning-store_5ec82f.md |  |
+| `scope.py` | Lesson scope -- WHERE a lesson applies, as opposed to what it is about. | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AKASHIC_SCOPE_FILTER` |
 | `vfx_chunk_lessons.py` | Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration. | GAP | GAP |  |
 
 ## core/recall/  (18 modules)
@@ -286,13 +287,14 @@ Class: reference
 | `private_plane.py` | The private-plane leak guard: ingress, at the one place everything must pass. | tests/test_private_plane_guard.py | GAP |  |
 | `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AKASHIC_ACL_PATH`, `AURORA_LAUNCHER` |
 
-## core/fleet/  (8 modules)
+## core/fleet/  (9 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `app_package.py` | app_package -- the rung the ladder did not have on 2026-08-24. | tests/test_app_package_rung.py | GAP | `AKASHIC_APP_PACKAGE` |
 | `caller.py` | The direct caller -- one-shot invocation of a local model for a BOUNDED subtask. | tests/test_recall_error_is_not_silence.py | GAP |  |
 | `model_roster.py` | The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a | GAP | GAP |  |
+| `provenance.py` | Session provenance -- which harness, model, effort and environment a session ran in. | tests/test_provenance.py | GAP |  |
 | `residents.py` | The resident registry -- who a seat IS, and the receipts that earned the name. | GAP | docs/library/design/20260809_residents-and-callsigns-design_b6c98c.md | `AURORA_LAUNCHER` |
 | `scout.py` | The scout -- the first calibrated role: read-only pre-flight, worn not owned. | tests/test_t292_scout_role.py | GAP |  |
 | `seat_launchers.py` | seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it. | tests/test_seat_launcher_sunshine_red.py | GAP | `DSH_HOME` |
@@ -334,7 +336,7 @@ Class: reference
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
 | `install.py` | Hook installer: register Aurora's harness hooks at USER or PROJECT scope, and turn them off/on. | tests/test_hooks_installer.py | docs/library/contract/20260901_installer-manifest-v0_a9dbfe.md |  |
 | `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |
-| `onboard.py` | `agent_cli.py setup` -- the onboarding sequence, and a mini-tutorial of the CLI it drives. | tests/test_onboarding_v2.py | docs/ONBOARDING-BRIDGE.md | `AURORA_CLI_VERSION` |
+| `onboard.py` | `agent_cli.py setup` -- the onboarding sequence, and a mini-tutorial of the CLI it drives. | tests/test_harness_onboard.py | docs/ONBOARDING-BRIDGE.md | `AURORA_CLI_VERSION` |
 | `registry.py` | Harness registry (Integration Tiers H2): which runtimes plug into the stack, and what | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AURORA_LAUNCHER` |
 | `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_codex_scope_gate.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AI_SETUP` |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | tests/test_w162_seat_seen_family.py | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |

@@ -27,24 +27,24 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
-- `core/foundation` -- DRIFT (8->11), reviewed 2026-07-26
-- `core/comm` -- DRIFT (36->72), reviewed 2026-07-26
+- `core/foundation` -- DRIFT (8->12), reviewed 2026-07-26
+- `core/comm` -- DRIFT (36->69), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->31), reviewed 2026-07-26
-- `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
+- `core/learning` -- DRIFT (3->6), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->18), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->5), reviewed 2026-07-26
-- `core/fleet` -- DRIFT (2->8), reviewed 2026-07-26
-- `agent/harness` -- DRIFT (9->13), reviewed 2026-07-26
+- `core/fleet` -- DRIFT (2->9), reviewed 2026-07-26
+- `agent/harness` -- DRIFT (9->15), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->22), reviewed 2026-07-26
-- `scripts/generators` -- DRIFT (6->12), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->14), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->8), reviewed 2026-07-26
-- `tests` -- DRIFT (331->773), reviewed 2026-07-26
+- `tests` -- DRIFT (331->789), reviewed 2026-07-26
 
 ---
 
-## `core/foundation` -- 11 modules  ·  DRIFT (8->11)
+## `core/foundation` -- 12 modules  ·  DRIFT (8->12)
 
 **What it does.** The Store: a Redis-command-shaped key/value substrate emulating five structures (kv, hash, list, set, zset) over three backends -- RedisStore (pass-through), FileStore (JSON whole-file, superseded), SqliteStore (WAL, landed 2026-07-26), and HybridStore (dual-write, Redis-preferred reads).
 
@@ -111,7 +111,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/comm` -- 72 modules  ·  DRIFT (36->72)
+## `core/comm` -- 69 modules  ·  DRIFT (36->69)
 
 **What it does.** The Bifrost bus and everything around it -- purpose-keyed lanes (work / trace / sig), per-agent consume cursors, packet envelopes with integrity and fragmentation, expectations and redrives, the wake listener, the launcher, and the fidelity ladder (inform / steer / interrupt / halt). By far our largest subsystem.
 
@@ -157,7 +157,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/learning` -- 5 modules  ·  DRIFT (3->5)
+## `core/learning` -- 6 modules  ·  DRIFT (3->6)
 
 **What it does.** The lesson corpus: learning_store (455 lessons as learn:experiment:* hashes), agent_memory, consolidation. Each lesson carries tried/result/recommend, an agent_id, a success verdict and a confidence field.
 
@@ -292,7 +292,7 @@ _Reviewed 2026-07-26 by claude (docstring sweep) + deepseek (partial, p4)._
 
 _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
-## `core/fleet` -- 8 modules  ·  DRIFT (2->8)
+## `core/fleet` -- 9 modules  ·  DRIFT (2->9)
 
 **What it does.** Presence autopilot supervising the fleet: crash backoff, circuit breaker, presence held across Redis outages, and a refusal to steal a running session's seat.
 
@@ -380,7 +380,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `agent/harness` -- 13 modules  ·  DRIFT (9->13)
+## `agent/harness` -- 15 modules  ·  DRIFT (9->15)
 
 **What it does.** The seat side of the fleet: how an agent session is launched, kept alive, woken from idle, and stood down. Includes the wake listener, seat lifecycle and the runner glue that turns a bus message into a live turn.
 
@@ -471,7 +471,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 12 modules  ·  DRIFT (6->12)
+## `scripts/generators` -- 14 modules  ·  DRIFT (6->14)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 
@@ -517,7 +517,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 773 modules  ·  DRIFT (331->773)
+## `tests` -- 789 modules  ·  DRIFT (331->789)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

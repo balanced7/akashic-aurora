@@ -3,6 +3,7 @@
   "pages": [
     "glossary",
     "commands",
+    "cli",
     "memory-settings",
     "decisions"
   ]

@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0da7306a. A bound you discover by collision is not awareness -- this sheet
+> Derived at 50c2ee6f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (276 names)
+## Configuration flags (283 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -86,6 +86,7 @@ Class: reference
 | `AKASHIC_LOOKBACK_NO_COUNT` | `` | core/recall/lookback.py |
 | `AKASHIC_MAILBOX` | `"1"` | core/comm/mailbox.py |
 | `AKASHIC_MCP_DIAG` | `` | ai_setup_mcp.py |
+| `AKASHIC_MEMREPLAY_TRIGGERS` | `"1"` | core/metaharness/memreplay.py |
 | `AKASHIC_OPERATOR_ID` | `` | core/comm/operator_reply.py |
 | `AKASHIC_OPERATOR_IDS` | `OPERATOR_IDS_DEFAULT` | core/comm/conductor_gate.py, scripts/bifrost_wake.py |
 | `AKASHIC_PAYLOAD_CAPTURE` | `"1"` | agent/harness/capture.py |
@@ -117,6 +118,7 @@ Class: reference
 | `AKASHIC_ROUND_DIR` | `os.path.join(os.path.expanduser("~"` | scripts/round_archive.py |
 | `AKASHIC_ROUTE_JOURNAL` | `""` | core/comm/ask.py |
 | `AKASHIC_RUN_EXPECTATION` | `` | core/comm/failsafe.py |
+| `AKASHIC_SCOPE_FILTER` | `"1"` | core/learning/scope.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_DOOR_DETAIL` | `""` | agent_cli.py |
 | `AKASHIC_SEAT_HEARTBEAT` | `"1"` | agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_stop.py |
@@ -138,13 +140,14 @@ Class: reference
 | `AKASHIC_STOP_PROMISE` | `"1"` | agent/harness/hooks/claude_stop.py |
 | `AKASHIC_STOP_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py |
 | `AKASHIC_STORE_BACKEND` | `""` | core/foundation/store.py, scripts/checkers/check_dual_authority.py |
-| `AKASHIC_TASKS_PATH` | `` | core/coord/task_ledger.py |
+| `AKASHIC_TASKS_PATH` | `` | core/coord/task_ledger.py, core/metaharness/corpus.py |
 | `AKASHIC_TEST_SHOW_CONSOLES` | `` | core/__init__.py, scripts/quiet/sitecustomize.py |
 | `AKASHIC_TIMELINE_FILE_LIMIT` | `"4000"` | core/coord/timeline.py |
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py |
 | `AKASHIC_TRACE` | `"1"` | agent/harness/hooks/claude_trace.py, agent/harness/trace.py |
+| `AKASHIC_TRANSCRIPT_CAP_MB` | `DEFAULT_CAP_MB` | core/metaharness/transcripts.py |
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py |
 | `AKASHIC_UI_URL` | `"http://localhost:8787"` | scripts/ui_shot.py |
 | `AKASHIC_UNATTENDED_S` | `"300"` | core/comm/bus.py, core/comm/liveness.py |
@@ -163,7 +166,7 @@ Class: reference
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
 | `AKASHIC_WORLD` | `` | aurora-cli/src/aurora_cli/bundle.py |
 | `AURORA_CLI_VERSION` | `''` | agent/harness/onboard.py |
-| `AURORA_HOME` | `` | aurora-cli/src/aurora_cli/bundle.py |
+| `AURORA_HOME` | `` | aurora-cli/src/aurora_cli/bundle.py, core/paths.py |
 | `AURORA_LATEST` | `` | aurora-cli/src/aurora_cli/bundle.py |
 | `AURORA_LAUNCHER` | `` | agent/bifrost_pull.py, agent/harness/context.py, agent/harness/delta.py +35 |
 | `AURORA_LINKD` | `` | core/link/client.py |
@@ -212,6 +215,7 @@ Class: reference
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
 | `ENABLE_X` | `` | scripts/checkers/check_wiring.py |
 | `ES_EXE` | `` | core/tools/everything.py |
+| `FORCE_COLOR` | `` | core/axi/out.py |
 | `FRAG_REASSEMBLY_TTL` | `DEFAULT_FRAG_REASSEMBLY_TTL` | core/comm/packet_spec.py |
 | `GEMINI_API_KEY` | `""` | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py |
 | `GEMINI_BUDGET_USD` | `"105.0"` | scripts/gemini_chat.py |
@@ -234,6 +238,7 @@ Class: reference
 | `GEMINI_WEB_TIMEOUT_MS` | `"120000"` | scripts/gemini_web.py |
 | `GEMINI_WEB_TZ` | `"America/New_York"` | scripts/gemini_web.py |
 | `GEMMA_URL` | `"http://localhost:5000"` | research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py |
+| `GITHUB_ACTIONS` | `` | scripts/rust_gate.py |
 | `GIT_AUTHOR_NAME` | `` | scripts/mirror.py |
 | `KIMI_API_KEY` | `` | scripts/kimi_chat.py |
 | `KIMI_BASE_URL` | `"https://api.moonshot.ai/v1"` | core/comm/ask.py |
@@ -257,6 +262,7 @@ Class: reference
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `""` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
 | `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py |
+| `NO_COLOR` | `` | core/axi/out.py |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
@@ -264,6 +270,7 @@ Class: reference
 | `OPENCODE_API_KEY` | `""` | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py |
 | `OPENCODE_SESSION` | `f"session_{time.strftime('%Y%m%d_%H%M%S'` | research/in-flight/t342/dead-modules/screenshot_logger.py |
 | `OPENCODE_SESSION_ID` | `f"session_{datetime.now(` | research/in-flight/t342/dead-modules/agent_coordinator.py |
+| `ORACLE_WHEELS` | `` | tooling-upgrade/oracle.py |
 | `PACKET_INTEGRITY_ENABLED` | `True` | core/comm/packet_spec.py |
 | `PACKET_INTEGRITY_TRACE` | `False` | core/comm/packet_spec.py |
 | `PACKET_TRACE_SPOT_INTERVAL` | `DEFAULT_TRACE_SPOT_INTERVAL` | core/comm/packet_spec.py |
@@ -272,7 +279,7 @@ Class: reference
 | `REDIS_DB` | `` | core/foundation/redis_connection.py |
 | `REDIS_HOST` | `"localhost"` | core/foundation/redis_connection.py, research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, scripts/ops/archive_ephemeral.py |
 | `REDIS_PASSWORD` | `""` | research/in-flight/t342/dead-modules/deployment_framework.py |
-| `REDIS_PORT` | `"6379"` | core/foundation/redis_connection.py, research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, scripts/ops/archive_ephemeral.py |
+| `REDIS_PORT` | `"6379"` | core/foundation/redis_connection.py, research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, scripts/axi_bench/harness.py +1 |
 | `ROCM_PATH` | `` | research/in-flight/t342/dead-modules/test_torch.py |
 | `SESSION_EVENTS_STREAM_FROM` | `"$"` | research/in-flight/t342/dead-modules/_archive__legacy__session_compressor.py |
 | `SESSION_STREAM_BLOCK_MS` | `"4000"` | research/in-flight/t342/dead-modules/_archive__legacy__session_compressor.py |
@@ -290,7 +297,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 
-## Mechanical bounds (324 numeric constants)
+## Mechanical bounds (331 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -330,6 +337,7 @@ Class: reference
 | `CACHE_TTL` | 60 | research/in-flight/t342/dead-modules/error_documentation.py | seconds |
 | `CADENCE_ARRIVAL_MS` | 800 | arsenal/practice.py | a cadence's arrival chord lasts at least this long |
 | `CADENCE_GAP_MS` | 1,500 | arsenal/practice.py | chords this close count as consecutive for cadences and resolutions |
+| `CALIBRATION_MIN` | 10 | core/metaharness/graders.py |  |
 | `CANONICAL_MAXLEN` | 100,000 | core/events/event_log.py | the firehose: deep but bounded |
 | `CANONICAL_MAXLEN` | 100,000 | core/signals/agent_signal_ledger.py | signals retained on the canonical stream |
 | `CAP` | 50 | core/comm/pager.py |  |
@@ -349,6 +357,7 @@ Class: reference
 | `CRUSH_MS` | 80 | arsenal/practice.py | a note struck this soon before a louder neighbour a half or whole step away... |
 | `DEFAULT_BUDGET` | 2,000 | core/comm/mailbox.py |  |
 | `DEFAULT_CAP` | 5,000 | core/comm/mailbox.py |  |
+| `DEFAULT_CAP_MB` | 2,048 | core/metaharness/transcripts.py |  |
 | `DEFAULT_FRAG_REASSEMBLY_TTL` | 300 | core/comm/packet_spec.py |  |
 | `DEFAULT_LIMIT` | 8,000 | core/web/door.py |  |
 | `DEFAULT_LIMIT` | 40 | scripts/corpus_digests.py |  |
@@ -444,6 +453,7 @@ Class: reference
 | `MAX_CHECKS` | 8 | arsenal/jam/schemas.py |  |
 | `MAX_CLIPS` | 500 | arsenal/serve.py |  |
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
+| `MAX_EDITS` | 3 | core/metaharness/proposer.py |  |
 | `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
 | `MAX_HOPS` | 12 | core/git/rewrite_map.py | three rewrites so far; a cap that can never loop forever |
@@ -478,10 +488,13 @@ Class: reference
 | `MESSAGE_TTL_DAYS` | 7 | research/in-flight/t342/dead-modules/multi_agent.py |  |
 | `MINOR_FLOOR` | 25 | core/coord/world_diff.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
+| `MIN_EVENTS` | 5 | core/metaharness/review.py |  |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |
+| `MIN_SCENARIOS` | 2 | core/metaharness/graders.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |
+| `MIN_USEFUL` | 3 | core/metaharness/precompile.py |  |
 | `MIN_VERIFIED` | 5 | core/coord/lens_ledger.py |  |
 | `MIN_WINDOW_MS` | 400 | arsenal/practice.py | shorter windows are transients |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
@@ -575,6 +588,7 @@ Class: reference
 | `TOUCH_MIN_MS` | 10,000 | arsenal/practice.py | a session shorter than this has no notes-a-minute rate |
 | `TRY_CONCEPT_MIN` | 2 | arsenal/practice_riff.py |  |
 | `TRY_EARLY_MIN_PHRASES` | 3 | arsenal/practice_riff.py | try rule 4 ("start one phrase a beat early") needs a few phrases to speak of |
+| `TTL_DAYS` | 7 | core/metaharness/review.py |  |
 | `UV_MIN_MINOR` | 12 | tooling-upgrade/certify.py |  |
 | `VARIANT_LABEL_MAX` | 60 | arsenal/jam/schemas.py |  |
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |

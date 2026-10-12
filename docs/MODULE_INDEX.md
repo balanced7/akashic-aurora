@@ -131,11 +131,12 @@
 - `world_fidelity.py` — world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered.
 - `world_savepoint.py` — world_savepoint -- a world's two planes under one name, or neither.
 
-## core/learning/  (5 modules)
+## core/learning/  (6 modules)
 - `agent_memory.py` — Agent Memory: a multi-type memory for agents (decisions, experiences, reflections, approaches)
 - `consolidation.py` — Consolidation: distill raw episodic memory + experiment lessons into a curated chronicle.
 - `domains.py` — Recall domains — the boundary line, and why it is not a tag.
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
+- `scope.py` — Lesson scope -- WHERE a lesson applies, as opposed to what it is about.
 - `vfx_chunk_lessons.py` — Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration.
 
 ## core/recall/  (18 modules)
@@ -197,10 +198,11 @@
 - `private_plane.py` — The private-plane leak guard: ingress, at the one place everything must pass.
 - `registry.py` — Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r
 
-## core/fleet/  (8 modules)
+## core/fleet/  (9 modules)
 - `app_package.py` — app_package -- the rung the ladder did not have on 2026-08-24.
 - `caller.py` — The direct caller -- one-shot invocation of a local model for a BOUNDED subtask.
 - `model_roster.py` — The fleet roster -- the single source of truth for local models (docs/library/design/20260709_fleet-dispatch-a
+- `provenance.py` — Session provenance -- which harness, model, effort and environment a session ran in.
 - `residents.py` — The resident registry -- who a seat IS, and the receipts that earned the name.
 - `scout.py` — The scout -- the first calibrated role: read-only pre-flight, worn not owned.
 - `seat_launchers.py` — seat_launchers -- `!spawn <name>` launches THAT seat, instead of a claude session about it.
@@ -218,6 +220,12 @@
 ## core/perspectives/  (2 modules)
 - `reinforce.py` — ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use
 - `schema.py` — Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior.
+
+## core/axi/  (4 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `cli.py` — argparse that fails the AXI way: on stdout, structured, with the fix in the same answer.
+- `mode.py` — Which audience the CLI is printing for: an agent (TOON) or a human (colour and layout).
+- `out.py` — One way for every CLI verb to print: TOON for agents, colour and layout for humans.
+- `toon.py` — TOON encoder -- Token-Oriented Object Notation, the agent-mode output format.
 
 ## core/context/  (11 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `aggregator.py` — Aggregator: assemble the agent's starting context within a token budget.
@@ -271,6 +279,24 @@
 - `chunk.py` — chunk -- Sections become bounded Chunks, each labelled with where it came from.
 - `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
 - `shelf.py` — shelf -- labelled chunks in SQLite with an FTS5 index; incremental ingest; honest search.
+
+## core/metaharness/  (16 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `archive.py` — The candidate archive (meta-harness task 07, step 1): every candidate, never only the winner.
+- `cli.py` — CLI handlers for the meta-harness verbs. agent_cli.py registers the parsers (so the door
+- `compress.py` — Harness compression: shrink a working harness to the pieces that move results (task 11).
+- `corpus.py` — A replayable task corpus mined from our own history (meta-harness task 03).
+- `flags.py` — Bayesian optimisation over harness flags (meta-harness task 07, step 6; HARBOR-style).
+- `graders.py` — Graders and the better-or-worse verdict (meta-harness task 05).
+- `loop.py` — The meta-harness loop: propose, run, grade, select, queue for review (task 07, steps 7-9).
+- `memreplay.py` — Replay the memory system itself, before and after a lesson changes (meta-harness task 08).
+- `modes.py` — Two execution modes for memory: interpretive and precompiled (meta-harness task 10).
+- `precompile.py` — Precompiler: proven, stable lessons into the native building blocks of each harness (task 09).
+- `proposer.py` — The proposer: a coding agent reads the archive and writes the next candidate (task 07, steps 2-5).
+- `redact.py` — Redaction for anything the meta-harness keeps: archived transcripts, scenario prompts, fixtures.
+- `replay.py` — Sandboxed replay runner: one scenario against one candidate harness (meta-harness task 04).
+- `review.py` — Human review queue: the final check-off on any harness change (meta-harness task 06).
+- `stats.py` — Paired statistics for agent evals (meta-harness task 05). Pure functions, no I/O.
+- `transcripts.py` — Keep raw harness transcripts before they rotate away (meta-harness task 03, step 1).
 
 ## core/screenspace/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `canary.py` — Screenspace UIA availability — POSITIVE CANARY READ, not a context inference.

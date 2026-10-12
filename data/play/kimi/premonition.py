@@ -19,6 +19,7 @@ PLAY laws: read-only against the repo; writes ONLY a run receipt to data/play/ki
 Evidence: GUESS by construction -- a dry-run confesses it never touched the real door.
 """
 
+import argparse
 import json
 import os
 import sys
@@ -112,9 +113,9 @@ def _known_verbs():
         import agent_cli
 
         p = agent_cli.build_parser()
-        for a in p._actions:
-            if hasattr(a, "choices") and a.choices:
-                return set(cast("dict[str, object]", a.choices).keys())  # the subparsers action: a dict
+        for a in p._actions:  # the subparsers action holds the verbs; --output also has choices
+            if isinstance(a, argparse._SubParsersAction):
+                return set(cast("dict[str, object]", a.choices).keys())
         return None
     except Exception:
         return None

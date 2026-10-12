@@ -1,0 +1,148 @@
+{
+  "verb": "home",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 3,
+  "before": {
+    "accuracy": 0.0,
+    "correct": 0,
+    "asked": 12,
+    "output_tokens": 0,
+    "stdout_chars": 0,
+    "stdout_lines": 0,
+    "cost_usd": 0.0038,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many lessons are stored in memory?",
+        "expected": 3,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which agent id is this session using?",
+        "expected": "bench",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What is the full command to load an agent's startup context? Give the command only.",
+        "expected": [
+          "boot",
+          "--task"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What is the full command to search past lessons? Give the command only.",
+        "expected": [
+          "recall"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "home": {
+        "argv": [],
+        "exit": 2,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 12,
+    "asked": 12,
+    "output_tokens": 224,
+    "stdout_chars": 501,
+    "stdout_lines": 10,
+    "cost_usd": 0.0251,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many lessons are stored in memory?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which agent id is this session using?",
+        "expected": "bench",
+        "answers": [
+          "bench",
+          "bench",
+          "bench"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What is the full command to load an agent's startup context? Give the command only.",
+        "expected": [
+          "boot",
+          "--task"
+        ],
+        "answers": [
+          "uv run agent_cli.py boot bench --task \"<task>\"",
+          "uv run agent_cli.py boot bench --task \"<task>\"",
+          "uv run agent_cli.py boot bench --task \"<task>\""
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What is the full command to search past lessons? Give the command only.",
+        "expected": [
+          "recall"
+        ],
+        "answers": [
+          "uv run agent_cli.py recall \"<query>\"",
+          "uv run agent_cli.py recall \"<query>\"",
+          "uv run agent_cli.py recall \"<query>\""
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "home": {
+        "argv": [],
+        "exit": 0,
+        "stdout": "bin: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/axi-cli/agent_cli.py\ndescription: \"Aurora: shared memory for AI agents -- boot loads past lessons, learn records new ones, recall searches them\"\nagent_id: bench\nbackend: \"Redis localhost:16379 (+ File mirror)\"\nlessons: 3\nhelp[4]:\n  uv run agent_cli.py boot bench --task \"<task>\"\n  uv run agent_cli.py recall \"<query>\"\n  uv run agent_cli.py learn bench --experiment <name> --tried \"...\" --result \"...\"\n  uv run agent_cli.py discover\n"
+      }
+    }
+  }
+}

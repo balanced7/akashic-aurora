@@ -1,0 +1,164 @@
+{
+  "verb": "usage-errors",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 3,
+  "before": {
+    "accuracy": 0.167,
+    "correct": 2,
+    "asked": 12,
+    "output_tokens": 0,
+    "stdout_chars": 0,
+    "stdout_lines": 0,
+    "cost_usd": 0.0086,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "no",
+          "no"
+        ],
+        "correct": 2
+      },
+      {
+        "q": "Which flags does the locks command accept? List them separated by commas.",
+        "expected": [
+          "--json",
+          "--help"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which argument was not recognized?",
+        "expected": "--stat",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which existing command did the user most likely mean? Give the command name only.",
+        "expected": "locks",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "bad_flag": {
+        "argv": [
+          "locks",
+          "--stat"
+        ],
+        "exit": 2,
+        "stdout": ""
+      },
+      "bad_verb": {
+        "argv": [
+          "lokcs"
+        ],
+        "exit": 2,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 12,
+    "asked": 12,
+    "output_tokens": 73,
+    "stdout_chars": 349,
+    "stdout_lines": 13,
+    "cost_usd": 0.0219,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which flags does the locks command accept? List them separated by commas.",
+        "expected": [
+          "--json",
+          "--help"
+        ],
+        "answers": [
+          "--help, --json",
+          "--help, --json",
+          "--help, --json"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which argument was not recognized?",
+        "expected": "--stat",
+        "answers": [
+          "--stat",
+          "--stat",
+          "--stat"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which existing command did the user most likely mean? Give the command name only.",
+        "expected": "locks",
+        "answers": [
+          "locks",
+          "locks",
+          "locks"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "bad_flag": {
+        "argv": [
+          "locks",
+          "--stat"
+        ],
+        "exit": 2,
+        "stdout": "error: \"unrecognized arguments: --stat\"\ncode: USAGE\ncommand: uv run agent_cli.py locks\nvalid_flags[2]: \"--help\",\"--json\"\nhelp[1]:\n  uv run agent_cli.py locks --help\n"
+      },
+      "bad_verb": {
+        "argv": [
+          "lokcs"
+        ],
+        "exit": 2,
+        "stdout": "error: unknown command 'lokcs'\ncode: USAGE\ncommand: uv run agent_cli.py\ndid_you_mean[3]: locks,lock,lookback\nhelp[2]:\n  uv run agent_cli.py locks --help\n  uv run agent_cli.py discover\n"
+      }
+    }
+  }
+}
