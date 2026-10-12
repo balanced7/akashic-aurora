@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ed5e0b92. A bound you discover by collision is not awareness -- this sheet
+> Derived at 614c85fe. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -297,7 +297,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 
-## Mechanical bounds (331 numeric constants)
+## Mechanical bounds (332 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -631,4 +631,5 @@ Class: reference
 | `_TEXT_PREVIEW_CHARS` | 240 | core/coord/intent_shadow.py |  |
 | `_THEMES_MAX_DAYS` | 30 | agent/harness/context.py | R2: themes older than this stay off the whisper |
 | `_VISIT_BUDGET` | 4,096 | core/git/rewrite_map.py | DFS node visits; a pathological map graph must not hang a verb |
+| `_WEB_LIMIT` | 8,000 | agent_cli.py |  |
 | `_WINDOWS_BASE` | 47,100 | core/comm/control_channel.py |  |
