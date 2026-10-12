@@ -828,31 +828,63 @@ def cmd_sha(args):
 
     Exit 1 when any SHA could not be followed, so a checker can use it as a gate.
     """
+    from core.axi import out
     from core.git.rewrite_map import Resolver
 
+    cli = _cli()
     r = Resolver()
     if getattr(args, "maps", False):
         if not r.maps:
-            print(
-                "no rewrite maps found under state/rewrites/ -- if a rewrite has run, its "
-                f"map is unarchived:\n  {_pyl()} scripts/rewrite_recover.py capture --label <slug>"
+            return out.fail(
+                "no rewrite maps found under state/rewrites/ -- if a rewrite has run, its map is unarchived",
+                code="NOT_FOUND",
+                hints=[f"{_pyl()} scripts/rewrite_recover.py capture --label <slug>"],
             )
-            return 1
-        for m in r.maps:
-            flag = "" if m.durable else "   VOLATILE: .git only, the next rewrite overwrites it"
-            print(f"  {m.label:<34} {len(m.rows):5,} remaps  {len(m.dropped)} dropped  [{m.method}]{flag}")
-        return 0
+        rows = [
+            {
+                "label": m.label,
+                "remaps": len(m.rows),
+                "dropped": len(m.dropped),
+                "method": m.method,
+                # A map that lives only in .git is overwritten by the next rewrite.
+                "durable": "yes" if m.durable else "no (.git only)",
+            }
+            for m in r.maps
+        ]
+        return out.emit(
+            {"total": len(rows), "maps": rows},
+            hints=[f"{cli} sha <commit-sha>"],
+            title=f"Rewrite maps · {len(rows)}",
+        )
     if not args.sha:
-        print(f"usage: {_cli()} sha <commit-sha> [...]   |   --maps to list the maps")
-        return 2
-    bad = 0
+        return out.fail(
+            "sha needs one or more commit SHAs",
+            code="USAGE",
+            exit_code=2,
+            hints=[f"{cli} sha <commit-sha> [...]", f"{cli} sha --maps"],
+        )
+    rows, hops, bad = [], [], 0
     for one in args.sha:
         res = r.resolve(one, check_remote=not getattr(args, "no_remote", False))
-        print("  " + res.line())
-        if getattr(args, "verbose", False):
-            for old, new, label in res.hops:
-                print(f"      {old[:12]} -> {new[:12]}   via {label}")
+        rows.append(
+            {
+                "cited": res.cited,
+                "status": res.status,
+                "now": res.sha[:12] if res.sha else None,
+                # The maps it moved through, in order; --verbose gives each hop's SHAs.
+                "maps": " -> ".join(label for _, _, label in res.hops) or None,
+                "note": res.note or None,
+            }
+        )
         bad += 0 if res.ok else 1
+        if getattr(args, "verbose", False):
+            hops.extend({"cited": res.cited, "from": o[:12], "to": n[:12], "map": lbl} for o, n, lbl in res.hops)
+    doc: dict[str, Any] = {"total": len(rows), "resolved": len(rows) - bad, "unresolved": bad, "shas": rows}
+    if hops:
+        doc["hops"] = hops
+    hints = [f"{cli} sha --maps"] if bad else []
+    out.emit(doc, hints=hints, title=f"{len(rows) - bad} of {len(rows)} resolved")
+    # Exit 1 when any SHA could not be followed, so a checker can use this verb as a gate.
     return 1 if bad else 0
 
 

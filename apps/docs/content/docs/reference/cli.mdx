@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 80 converted to agent and human output.
+121 verbs; 81 converted to agent and human output.
 
 ## `alias`
 
@@ -2760,7 +2760,10 @@ resolved_from: binding
 | | |
 |---|---|
 | Does | resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 93% before, 97% after |
+| Output tokens | 120 before, 152 after (+27%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/sha.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2768,6 +2771,20 @@ resolved_from: binding
 | `--maps` |   |   | list the rewrite maps this checkout carries, and flag any that live only in .git (where the next rewrite overwrites them) |
 | `--verbose` |   |   | show each hop of the chase |
 | `--no-remote` |   |   | skip the clone-visibility check (offline; every answer becomes a statement about THIS checkout only) |
+
+Agent output of `aurora sha --maps` on the bench data:
+
+```text
+total: 5
+maps[5]{label,remaps,dropped,method,durable}:
+  2026-07-23,1125,1,recorded,yes
+  2026-08-12,1979,0,recorded,yes
+  2026-09-26-authorship,4748,0,recorded,yes
+  2026-09-26-cited-gap,1,0,reconstructed,yes
+  2026-09-26-unmapped-residue,116,0,reconstructed,yes
+help[1]:
+  uv run agent_cli.py sha <commit-sha>
+```
 
 ## `shadow`
 
