@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 68 converted to agent and human output.
+121 verbs; 69 converted to agent and human output.
 
 ## `alias`
 
@@ -1407,13 +1407,35 @@ help[1]:
 | | |
 |---|---|
 | Does | WALK the lesson/note/doc neighborhood of a topic: surface + edge-walked neighborhood + archive (R8) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 445 before, 443 after (-0%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/knowledge-map.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<query>` | yes |   | the topic to walk, plain words |
 | `--per-layer` |   |   | max nodes per layer (default 6) |
 | `--json` |   |   |   |
+
+Agent output of `aurora knowledge-map quokkadb` on the bench data:
+
+```text
+topic: quokkadb
+counts:
+  surface: 3
+  neighborhood: 0
+  archive: 1
+surface[3]{kind,status,title,score,excerpt,drill}:
+  lesson,current,quokka_backup,1,"quokka_backup Use the quokkadb online backup command, never a file copy corrupt backup copied the quokkadb file while open data","recall --full learn:experiment:quokka_backup"
+  lesson,current,quokka_wal_mode,1,"quokka_wal_mode Use when quokkadb locks under load: enable WAL mode writers blocked readers ran quokkadb without WAL performance","recall --full learn:experiment:quokka_wal_mode"
+  note,current,Chose quokkadb for the embedded store,1,Chose quokkadb for the embedded store We picked quokkadb over leveldb because it ships with python and survives crashes,notes --all (id ADR_1012174758_9c0830d8)
+neighborhood: []
+archive[1]{kind,status,title,score,excerpt,drill}:
+  note,retired,Old cache design,1,...ld cache design The quokkadb cache layer was dropped in favour of redis,notes --all (id ADR_1012174758_271c6678)
+help[1]:
+  uv run agent_cli.py recall --full learn:experiment:quokka_backup
+```
 
 ## `learn`
 

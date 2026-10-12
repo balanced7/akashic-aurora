@@ -8338,6 +8338,7 @@ def cmd_knowledge_map(args):
     one-hop neighborhood reached by WALKING the related_to edges the system already grows
     (L2, both directions), and the on-topic archive of retired/superseded records (L3).
     Each node carries a drill pointer; neighborhood nodes name the edge that reached them."""
+    from core.axi import out
     from core.recall.knowledge_map import knowledge_map
 
     topic = " ".join(args.query or []) if isinstance(args.query, list) else (args.query or "")
@@ -8346,43 +8347,71 @@ def cmd_knowledge_map(args):
     if args.json:
         print(json.dumps(m, indent=2, default=str))
         return 0
+    cli = _cli()
     if not topic:
-        print("# knowledge-map: give a topic to walk (e.g. 'lanes', 'wedge', 'supersession')")
-        return 0
+        return out.fail(
+            "knowledge-map needs a topic to walk",
+            code="USAGE",
+            hints=[f"{cli} knowledge-map lanes", f"{cli} knowledge-map supersession"],
+            exit_code=out.EXIT_USAGE,
+        )
     c = m["counts"]
-    print(
-        f"# KNOWLEDGE MAP: {topic}   "
-        f"({c['surface']} surface | {c['neighborhood']} neighborhood | {c['archive']} archive)"
-    )
+    doc: dict = {"topic": topic, "counts": {k: c[k] for k in ("surface", "neighborhood", "archive")}}
     if not (m["surface"] or m["neighborhood"] or m["archive"]):
-        print("  (nothing above the relevance floor -- try different terms)")
-        return 0
+        doc["note"] = "nothing above the relevance floor"
+        return out.emit(
+            doc, hints=[f'{cli} lookback "{topic}"', f"{cli} knowledge-map <other words>"], title="Knowledge map"
+        )
+    # Three layers, one row shape each: the walk's edge (via) only exists in the neighborhood,
+    # and an edge count only where some node has edges.
+    for layer in ("surface", "neighborhood", "archive"):
+        nodes = m[layer]
+        with_edges = any(n.get("edge_count") for n in nodes)
+        rows = []
+        for n in nodes:
+            row = {"kind": n["kind"], "status": n["status"], "title": n["title"], "score": n.get("score")}
+            if layer == "neighborhood":
+                v = n.get("via") or {}
+                arrow = "<--" if v.get("direction") == "in" else "-->"
+                matched = f" [{','.join(v['matched'])}]" if v.get("matched") else ""
+                row["via"] = f"{v.get('from', '?')} {arrow}{matched}" if v else None
+            if with_edges:
+                row["edges"] = n.get("edge_count") or 0
+            row["excerpt"] = out.truncate(n["excerpt"], 200)[0]
+            row["drill"] = n["drill"]
+            rows.append(row)
+        doc[layer] = rows
+    # The top surface node's drill is a CLI command for lessons (recall --full ...).
+    first = next((n for layer in ("surface", "neighborhood", "archive") for n in m[layer]), None)
+    top = str(first["drill"]) if first else ""
+    hints = [f"{cli} {top}"] if top.split(" ", 1)[0] in ("recall", "story", "events") else []
+    return out.emit(doc, hints=hints, human=_human_knowledge_map, title=f"Knowledge map · {topic}")
 
-    def _row(n, indent="  "):
-        edge = f" +{n['edge_count']} edges" if n.get("edge_count") else ""
-        rel = f" (rel {n['score']})" if n.get("score") is not None else ""
-        print(f"{indent}[{n['kind']}:{n['status']}] {n['title']}{rel}{edge}")
-        if n.get("via"):
-            v = n["via"]
-            arrow = "<--" if v["direction"] == "in" else "-->"
-            matched = f" [{','.join(v['matched'])}]" if v.get("matched") else ""
-            print(f"{indent}    via {v['from']} {arrow}{matched}")
-        print(f"{indent}    {n['excerpt']}")
-        print(f"{indent}    drill: {n['drill']}")
 
-    if m["surface"]:
-        print("\n## L1 surface -- direct topic hits")
-        for n in m["surface"]:
-            _row(n)
-    if m["neighborhood"]:
-        print("\n## L2 neighborhood -- one hop along the edges (relevance alone can't reach these)")
-        for n in m["neighborhood"]:
-            _row(n)
-    if m["archive"]:
-        print("\n## L3 archive -- on topic but retired/superseded (reachable, not live)")
-        for n in m["archive"]:
-            _row(n)
-    return 0
+def _human_knowledge_map(console, doc):
+    """Human view of `knowledge-map`: the three layer counts, then each layer's nodes."""
+    from core.axi import out
+
+    c = doc["counts"]
+    console.print(f"[bold]{c['surface']}[/] surface · [bold]{c['neighborhood']}[/] neighborhood · "
+                  f"[bold]{c['archive']}[/] archive")  # fmt: skip
+    labels = {
+        "surface": "L1 surface: direct topic hits",
+        "neighborhood": "L2 neighborhood: one hop along the edges",
+        "archive": "L3 archive: on topic but retired or superseded",
+    }
+    for layer, label in labels.items():
+        if not doc.get(layer):
+            continue
+        console.print()
+        console.print(f"[bold cyan]{label}[/]")
+        for n in doc[layer]:
+            rel = f"  [dim]rel {n['score']}[/]" if n.get("score") is not None else ""
+            console.print(f"  [bold]{out._esc(str(n['title']))}[/]  {n['kind']} {out.styled(n['status'])}{rel}")
+            if n.get("via"):
+                console.print(f"    [dim]via {out._esc(n['via'])}[/]")
+            console.print(f"    {out._esc(n['excerpt'])}")
+            console.print(f"    [dim]{out._esc(str(n['drill']))}[/]")
 
 
 def cmd_fence(args):

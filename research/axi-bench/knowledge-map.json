@@ -1,0 +1,210 @@
+{
+  "verb": "knowledge-map",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 445,
+    "stdout_chars": 1210,
+    "stdout_lines": 19,
+    "cost_usd": 0.0276,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many nodes are in the surface layer?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many nodes are in the archive layer?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which archived record is on this topic? Give its title only.",
+        "expected": "Old cache design",
+        "answers": [
+          "Old cache design",
+          "Old cache design",
+          "Old cache design",
+          "Old cache design",
+          "Old cache design"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command shows the full record of the quokka_backup lesson? Give the command only.",
+        "expected": [
+          "recall",
+          "--full",
+          "learn:experiment:quokka_backup"
+        ],
+        "answers": [
+          "recall --full learn:experiment:quokka_backup",
+          "recall --full learn:experiment:quokka_backup",
+          "recall --full learn:experiment:quokka_backup",
+          "recall --full learn:experiment:quokka_backup",
+          "recall --full learn:experiment:quokka_backup"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many nodes did the walk find in total?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "topic": {
+        "argv": [
+          "knowledge-map",
+          "quokkadb"
+        ],
+        "exit": 0,
+        "stdout": "# KNOWLEDGE MAP: quokkadb   (3 surface | 0 neighborhood | 1 archive)\n\n## L1 surface -- direct topic hits\n  [lesson:current] quokka_backup (rel 1.0)\n      quokka_backup Use the quokkadb online backup command, never a file copy corrupt backup copied the quokkadb file while open data\n      drill: recall --full learn:experiment:quokka_backup\n  [lesson:current] quokka_wal_mode (rel 1.0)\n      quokka_wal_mode Use when quokkadb locks under load: enable WAL mode writers blocked readers ran quokkadb without WAL performance\n      drill: recall --full learn:experiment:quokka_wal_mode\n  [note:current] Chose quokkadb for the embedded store (rel 1.0)\n      Chose quokkadb for the embedded store We picked quokkadb over leveldb because it ships with python and survives crashes\n      drill: notes --all (id ADR_1012174720_1fcb9958)\n\n## L3 archive -- on topic but retired/superseded (reachable, not live)\n  [note:retired] Old cache design (rel 1.0)\n      ...ld cache design The quokkadb cache layer was dropped in favour of redis\n      drill: notes --all (id ADR_1012174721_2b17ee4e)\n"
+      },
+      "none": {
+        "argv": [
+          "knowledge-map",
+          "zebraunicorn"
+        ],
+        "exit": 0,
+        "stdout": "# KNOWLEDGE MAP: zebraunicorn   (0 surface | 0 neighborhood | 0 archive)\n  (nothing above the relevance floor -- try different terms)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 443,
+    "stdout_chars": 1271,
+    "stdout_lines": 23,
+    "cost_usd": 0.021,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many nodes are in the surface layer?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many nodes are in the archive layer?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which archived record is on this topic? Give its title only.",
+        "expected": "Old cache design",
+        "answers": [
+          "Old cache design",
+          "Old cache design",
+          "Old cache design",
+          "Old cache design",
+          "Old cache design"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command shows the full record of the quokka_backup lesson? Give the command only.",
+        "expected": [
+          "recall",
+          "--full",
+          "learn:experiment:quokka_backup"
+        ],
+        "answers": [
+          "uv run agent_cli.py recall --full learn:experiment:quokka_backup",
+          "recall --full learn:experiment:quokka_backup",
+          "uv run agent_cli.py recall --full learn:experiment:quokka_backup",
+          "uv run agent_cli.py recall --full learn:experiment:quokka_backup",
+          "uv run agent_cli.py recall --full learn:experiment:quokka_backup"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many nodes did the walk find in total?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "The output contains no walk node count. It shows only per-category counts (surface 0, neighborhood 0, archive 0) and a note that nothing was above the relevance floor.\n\nUNKNOWN",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "topic": {
+        "argv": [
+          "knowledge-map",
+          "quokkadb"
+        ],
+        "exit": 0,
+        "stdout": "topic: quokkadb\ncounts:\n  surface: 3\n  neighborhood: 0\n  archive: 1\nsurface[3]{kind,status,title,score,excerpt,drill}:\n  lesson,current,quokka_backup,1,\"quokka_backup Use the quokkadb online backup command, never a file copy corrupt backup copied the quokkadb file while open data\",\"recall --full learn:experiment:quokka_backup\"\n  lesson,current,quokka_wal_mode,1,\"quokka_wal_mode Use when quokkadb locks under load: enable WAL mode writers blocked readers ran quokkadb without WAL performance\",\"recall --full learn:experiment:quokka_wal_mode\"\n  note,current,Chose quokkadb for the embedded store,1,Chose quokkadb for the embedded store We picked quokkadb over leveldb because it ships with python and survives crashes,notes --all (id ADR_1012174758_9c0830d8)\nneighborhood: []\narchive[1]{kind,status,title,score,excerpt,drill}:\n  note,retired,Old cache design,1,...ld cache design The quokkadb cache layer was dropped in favour of redis,notes --all (id ADR_1012174758_271c6678)\nhelp[1]:\n  uv run agent_cli.py recall --full learn:experiment:quokka_backup\n"
+      },
+      "none": {
+        "argv": [
+          "knowledge-map",
+          "zebraunicorn"
+        ],
+        "exit": 0,
+        "stdout": "topic: zebraunicorn\ncounts:\n  surface: 0\n  neighborhood: 0\n  archive: 0\nnote: nothing above the relevance floor\nhelp[2]:\n  uv run agent_cli.py lookback \"zebraunicorn\"\n  uv run agent_cli.py knowledge-map <other words>\n"
+      }
+    }
+  }
+}
