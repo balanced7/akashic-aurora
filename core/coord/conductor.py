@@ -25,7 +25,6 @@ CLI:
 
 from __future__ import annotations
 
-import argparse
 import contextlib
 import sys
 import time
@@ -224,7 +223,11 @@ def _csv(s):
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Conductor for the governed task ledger.")
+    from core.axi.cli import AxiArgumentParser
+
+    # The AXI parser: a usage error is reported on stdout with this subcommand's flags, which is
+    # where an agent reads. `agent_cli.py task` names it as the door agents call it by.
+    ap = AxiArgumentParser(prog="agent_cli.py task", description="Conductor for the governed task ledger.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("propose")
@@ -299,51 +302,162 @@ def main(argv=None) -> int:
         dest="operator_ruling",
         help="the operator's recorded word -- the cap never refuses him",
     )
-    sub.add_parser("list")
+    q = sub.add_parser("list")
+    q.add_argument("--limit", type=int, default=10, help="how many of the most recent DONE tasks to list (default 10)")
     sub.add_parser("next")
-    a = ap.parse_args(argv)
+    from core.axi import out
+    from core.axi.cli import cli_name, parse
 
+    a = parse(
+        ap, sys.argv[1:] if argv is None else list(argv)
+    )  # an unknown flag is reported by the subcommand it was given to
+    task = f"{cli_name()} task"
+    # The read side honours the same isolation door the writes do (T352). TaskLedger resolves
+    # AKASHIC_TASKS_PATH, but state_view and next_task default to LEDGER_PATH, so with the Redis
+    # mirror empty an isolated `list` read the checkout's ledger file while its writes went to
+    # the sandbox. Unset, this is LEDGER_PATH exactly as before.
+    import os
+
+    read_path = os.environ.get("AKASHIC_TASKS_PATH") or TL.LEDGER_PATH
     try:
+        if a.cmd == "list":
+            return _emit_list(task, limit=a.limit, path=read_path)
+        if a.cmd == "next":
+            n = next_task(path=read_path)
+            if not n:
+                return out.emit(
+                    {"next": "none", "why": "a task is already active, or no approved task has its deps done"},
+                    hints=[f"{task} list"],
+                    title="Next task",
+                )
+            return out.emit(
+                {"next": n["id"], "title": n["title"]},
+                hints=[f"{task} claim {n['id']} --by <agent_id>"],
+                title="Next task",
+            )
+        # One row per mutation: the task, the status it moved to, and what the move recorded.
+        # The next-step hint is the lifecycle's next verb on the same task.
         if a.cmd == "propose":
             t = propose(a.title, owner=a.owner, deps=_csv(a.deps), files=_csv(a.files), acceptance=a.acc, by=a.by)
-            print(f"proposed {t['id']}: {t['title']}")
+            extra, nxt = {}, f"{task} approve {t['id']}"
         elif a.cmd == "approve":
-            print(f"approved {approve(a.tid, by=a.by or 'user')['id']}")
+            t = approve(a.tid, by=a.by or "user")
+            extra, nxt = {}, f"{task} claim {t['id']} --by <agent_id>"
         elif a.cmd == "claim":
-            print(f"claimed {claim(a.tid, a.by)['id']} by {a.by}")
+            t = claim(a.tid, a.by)
+            extra, nxt = {"owner": a.by}, f"{task} start {t['id']} --by {a.by}"
         elif a.cmd == "start":
             t = start(a.tid, by=a.by, pauses=a.pauses, operator_ruling=a.operator_ruling)
-            tail = f" -- pauses {a.pauses}" if a.pauses else ""
-            print(f"started {t['id']} (now IN_PROGRESS){tail}")
+            extra, nxt = ({"pauses": a.pauses} if a.pauses else {}), f"{task} verify {t['id']}"
         elif a.cmd == "verify":
-            print(f"verifying {verify(a.tid, by=a.by)['id']}")
+            t = verify(a.tid, by=a.by)
+            extra, nxt = {}, f'{task} done {t["id"]} --commit <sha> --verified-by "<evidence>"'
         elif a.cmd == "done":
             t = done(a.tid, a.commit, a.verified_by, by=a.by, reviewed_by=a.reviewed_by, self_verified=a.self_verified)
-            print(f"DONE {t['id']} @ {a.commit} -- RESOLVED marker emitted")
+            extra, nxt = {"commit": a.commit, "resolved_marker": "emitted"}, f"{task} next"
         elif a.cmd == "block":
-            print(f"blocked {block(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
+            t = block(a.tid, a.reason, by=a.by)
+            extra, nxt = {"reason": a.reason}, f"{task} list"
         elif a.cmd == "abandon":
-            print(f"ABANDONED {abandon(a.tid, a.reason, by=a.by, operator_ruling=a.operator_ruling)['id']}: {a.reason}")
+            t = abandon(a.tid, a.reason, by=a.by, operator_ruling=a.operator_ruling)
+            extra, nxt = {"reason": a.reason}, f"{task} list"
         elif a.cmd == "park":
-            print(f"PARKED {park(a.tid, a.reason, by=a.by)['id']} (slot freed; unpark to resume): {a.reason}")
-        elif a.cmd == "unpark":
+            t = park(a.tid, a.reason, by=a.by)
+            extra, nxt = {"reason": a.reason, "slot": "freed"}, f"{task} unpark {t['id']}"
+        else:  # unpark
             t = unpark(a.tid, by=a.by, pauses=a.pauses, operator_ruling=a.operator_ruling)
-            print(f"UNPARKED {t['id']} (now IN_PROGRESS)")
-        elif a.cmd == "list":
-            import time
-
-            print(TL.format_state(now=time.time()))
-        elif a.cmd == "next":
-            n = next_task()
-            print(
-                f"NEXT: {n['id']} - {n['title']}"
-                if n
-                else "NEXT: none (a task is already in progress, or nothing is claimable)"
-            )
+            extra, nxt = {}, f"{task} verify {t['id']}"
+        doc = {"task": t["id"], "status": t.get("status"), "title": out.truncate(t.get("title"), 200)[0], **extra}
+        return out.emit(doc, hints=[nxt], title=f"Task {t['id']} · {t.get('status')}")
     except TL.LedgerError as e:
-        print(f"BLOCKED: {e}", file=sys.stderr)
-        return 1
-    return 0
+        # The ledger's refusal is the answer (a gate said no); exit 1 as before. Agent mode puts
+        # it on stdout, where an agent reads; a person still gets it on stderr.
+        return out.fail(str(e), code="REFUSED", hints=[f"{task} list"])
+
+
+def _emit_list(task: str, *, limit: int = 10, path: str = TL.LEDGER_PATH) -> int:
+    """`task list` as data: counts first, then the rows an agent acts on (active, next, parked,
+    stale proposals) and the most recent DONE rows -- the full DONE history is hundreds of rows
+    nobody acts on, so it is cut to `limit` with the total said. The text block boot prints
+    (task_ledger.format_state) is untouched; this is the door's own rendering of the same view."""
+    import os
+
+    from core.axi import out
+
+    stale_days = TL.STALE_PROPOSED_DAYS
+    with contextlib.suppress(ValueError, TypeError):
+        stale_days = int(os.environ.get("AKASHIC_PROPOSED_STALE_DAYS", stale_days))
+    v = TL.state_view(path, now=time.time(), stale_days=stale_days)
+    c = v["counts"]
+    total = sum(c.values())
+    if not total:
+        return out.emit(
+            {"total": 0, "tasks": "no governed tasks yet; nothing to redo or claim"},
+            hints=[f'{task} propose "<title>" --by <agent_id>'],
+            title="Task ledger",
+        )
+    stale = [t for t in v["proposed"] if t.get("stale")]
+    doc: dict = {
+        "total": total,
+        "done": c[TL.DONE],
+        "active": len(v["in_progress"]),
+        "next": len(v["next"]),
+        "proposed": c[TL.PROPOSED],
+        "blocked": c[TL.BLOCKED],
+    }
+    if c.get(TL.PARKED):
+        doc["parked"] = c[TL.PARKED]
+    if stale:
+        doc["stale_proposed"] = len(stale)
+    if v.get("self_verified"):
+        doc["self_verified"] = v["self_verified"]  # T248: absent at zero, like the old bar
+
+    def row(t, *keys):
+        return {"id": t["id"], "title": out.truncate(t["title"], 90)[0], **{k: t.get(k) or None for k in keys}}
+
+    if v["in_progress"]:
+        doc["active_tasks"] = [row(t, "status", "owner") for t in v["in_progress"]]
+    if v["next"]:
+        # W15: while any task is active the slot is occupied and `task next` says none; the rows
+        # say so too instead of reading as claimable now.
+        doc["next_claimable"] = "when the active task closes or parks" if v["in_progress"] else "now"
+        doc["next_tasks"] = [row(t, "owner") for t in v["next"]]
+    if v.get("parked"):
+        doc["parked_tasks"] = [{**row(t), "reason": out.truncate(t.get("reason"), 80)[0] or None} for t in v["parked"]]
+    if stale:
+        doc["stale_proposals"] = [
+            {**row(t), "age_days": round(t.get("age_days") or 0)} for t in stale
+        ]  # re-approve or abandon: parked intent, not live
+    if v["done"]:
+        recent = v["done"][-max(0, limit) :] if limit else []
+        doc["done_recent"] = [{**row(t), "commit": (t.get("commit") or "")[:8] or None} for t in reversed(recent)]
+    doc["rule"] = "DONE is closed: never redo it; work only your assigned or NEXT task"
+    hints = []
+    if v["next"] and not v["in_progress"]:
+        hints.append(f"{task} claim {v['next'][0]['id']} --by <agent_id>")
+    if c[TL.DONE] > limit:
+        hints.append(f"{task} list --limit {c[TL.DONE]}")
+    return out.emit(doc, hints=hints, human=_human_list, title="Task ledger")
+
+
+def _human_list(console, doc) -> None:
+    """Human view of `task list`: the counts on one line, then one table per bucket an agent or
+    person acts on, the DONE rule last."""
+    from core.axi import out
+
+    counts = ("done", "active", "next", "proposed", "blocked", "parked", "stale_proposed", "self_verified")
+    bar = " · ".join(f"[bold]{doc[k]}[/] {k.replace('_', ' ')}" for k in counts if k in doc)
+    console.print(f"{doc['total']} task{'s' if doc['total'] != 1 else ''} · {bar}")
+    for key, label in (
+        ("active_tasks", "Active"),
+        ("next_tasks", f"Next (claimable {doc.get('next_claimable', 'now')})"),
+        ("parked_tasks", "Parked"),
+        ("stale_proposals", "Stale proposals (re-approve or abandon)"),
+        ("done_recent", "Recently done"),
+    ):
+        if doc.get(key):
+            console.print(out.table(doc[key], title=label))
+    console.print(f"[dim]{out._esc(doc['rule'])}[/]")
 
 
 if __name__ == "__main__":

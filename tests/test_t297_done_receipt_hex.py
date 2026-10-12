@@ -35,7 +35,7 @@ def run(*args, timeout=120):
 def _drill_task():
     rc, out, err = run("task", "propose", "t297 drill: a closable slice")
     assert rc == 0, err or out
-    m = re.search(r"proposed (T\d+)", out)
+    m = re.search(r"(?:proposed|task:) (T\d+)", out)  # AXI agent shape: "task: T###"
     assert m is not None, out
     tid = m.group(1)
     for step in (("approve", tid), ("claim", tid, "--by", "drill"), ("verify", tid)):

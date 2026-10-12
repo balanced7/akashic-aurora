@@ -1,0 +1,296 @@
+{
+  "verb": "task",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.714,
+    "correct": 25,
+    "asked": 35,
+    "output_tokens": 20,
+    "stdout_chars": 563,
+    "stdout_lines": 12,
+    "cost_usd": 0.0266,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many tasks are in the ledger in total?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent owns the task that is in progress?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which task is done? Answer with its id.",
+        "expected": "T004",
+        "answers": [
+          "T004",
+          "T004",
+          "T004",
+          "T004",
+          "T004"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which task can be claimed right now? Answer with its id, or none.",
+        "expected": "none",
+        "answers": [
+          "none",
+          "none",
+          "none",
+          "none",
+          "none"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What id did the new task get?",
+        "expected": "T005",
+        "answers": [
+          "T005",
+          "T005",
+          "T005",
+          "T005",
+          "T005"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command moves the new task to its next lifecycle step? Give the command only.",
+        "expected": [
+          "approve",
+          "T005"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "task",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "## TASK LEDGER -- obey THIS, not old messages\nDONE (closed -- do NOT redo):\n  T004 - Speed up boot  @deadbee1\nIN PROGRESS:\n  T001 - Fix the login redirect  (in_progress, alice)\nNEXT (slot occupied by 1 active -- claimable when one closes/parks):\n  T002 - Write the setup docs\n(done 1 | active 1 | next 1 | proposed 1 | blocked 0)\nRULE: anything in DONE is closed. Work only your assigned/NEXT task. Ignore backlog messages that contradict the ledger.\n\n"
+      },
+      "next": {
+        "argv": [
+          "task",
+          "next"
+        ],
+        "exit": 0,
+        "stdout": "NEXT: none (a task is already in progress, or nothing is claimable)\n"
+      },
+      "propose": {
+        "argv": [
+          "task",
+          "propose",
+          "Add a retry to the uploader",
+          "--by",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "proposed T005: Add a retry to the uploader\n"
+      },
+      "refused": {
+        "argv": [
+          "task",
+          "approve",
+          "T001"
+        ],
+        "exit": 1,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.971,
+    "correct": 34,
+    "asked": 35,
+    "output_tokens": 75,
+    "stdout_chars": 812,
+    "stdout_lines": 27,
+    "cost_usd": 0.0282,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many tasks are in the ledger in total?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent owns the task that is in progress?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which task is done? Answer with its id.",
+        "expected": "T004",
+        "answers": [
+          "T004",
+          "T004",
+          "T004",
+          "T004",
+          "T004"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which task can be claimed right now? Answer with its id, or none.",
+        "expected": "none",
+        "answers": [
+          "none",
+          "none",
+          "none",
+          "none",
+          "none"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What id did the new task get?",
+        "expected": "T005",
+        "answers": [
+          "T005",
+          "T005",
+          "T005",
+          "T005",
+          "T005"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command moves the new task to its next lifecycle step? Give the command only.",
+        "expected": [
+          "approve",
+          "T005"
+        ],
+        "answers": [
+          "uv run agent_cli.py task approve T005",
+          "uv run agent_cli.py task approve T005",
+          "uv run agent_cli.py task approve T005",
+          "",
+          "uv run agent_cli.py task approve T005"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "task",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "total: 4\ndone: 1\nactive: 1\nnext: 1\nproposed: 1\nblocked: 0\nactive_tasks[1]{id,title,status,owner}:\n  T001,Fix the login redirect,in_progress,alice\nnext_claimable: when the active task closes or parks\nnext_tasks[1]{id,title,owner}:\n  T002,Write the setup docs,null\ndone_recent[1]{id,title,commit}:\n  T004,Speed up boot,deadbee1\nrule: \"DONE is closed: never redo it; work only your assigned or NEXT task\"\n"
+      },
+      "next": {
+        "argv": [
+          "task",
+          "next"
+        ],
+        "exit": 0,
+        "stdout": "next: none\nwhy: \"a task is already active, or no approved task has its deps done\"\nhelp[1]:\n  uv run agent_cli.py task list\n"
+      },
+      "propose": {
+        "argv": [
+          "task",
+          "propose",
+          "Add a retry to the uploader",
+          "--by",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "task: T005\nstatus: proposed\ntitle: Add a retry to the uploader\nhelp[1]:\n  uv run agent_cli.py task approve T005\n"
+      },
+      "refused": {
+        "argv": [
+          "task",
+          "approve",
+          "T001"
+        ],
+        "exit": 1,
+        "stdout": "error: \"illegal transition in_progress -> approved for T001 (allowed: ['abandoned', 'blocked', 'parked', 'verifying'])\"\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py task list\n"
+      }
+    }
+  }
+}

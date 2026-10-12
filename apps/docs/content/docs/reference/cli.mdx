@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 20 converted to agent and human output.
+121 verbs; 21 converted to agent and human output.
 
 ## `alias`
 
@@ -2103,11 +2103,33 @@ noise_votes: 0
 | | |
 |---|---|
 | Does | task lifecycle over the governed ledger: propose/approve/claim/start/verify/done/block/list/next (the coordination door) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 71% before, 97% after |
+| Output tokens | 20 before, 75 after (+275%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/task.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<rest>` | yes |   | conductor subcommand + args, e.g. task list / task propose "title" / task done T001 --commit abc123 --verified-by pytest |
+
+Agent output of `aurora task list` on the bench data:
+
+```text
+total: 4
+done: 1
+active: 1
+next: 1
+proposed: 1
+blocked: 0
+active_tasks[1]{id,title,status,owner}:
+  T001,Fix the login redirect,in_progress,alice
+next_claimable: when the active task closes or parks
+next_tasks[1]{id,title,owner}:
+  T002,Write the setup docs,null
+done_recent[1]{id,title,commit}:
+  T004,Speed up boot,deadbee1
+rule: "DONE is closed: never redo it; work only your assigned or NEXT task"
+```
 
 ## `timeline`
 

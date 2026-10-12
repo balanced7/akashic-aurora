@@ -89,7 +89,7 @@ class _Scripted:
 def _propose(title):
     rc, out, err = run("task", "propose", title)
     assert rc == 0, f"drill propose failed: {err or out}"
-    m = re.search(r"proposed (T\d+)", out)
+    m = re.search(r"(?:proposed|task:) (T\d+)", out)  # AXI agent shape: "task: T###"
     assert m, f"no task id in: {out}"
     return m.group(1)
 

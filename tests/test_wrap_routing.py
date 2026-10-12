@@ -52,7 +52,7 @@ def a_real_task():
     assert rc == 0, out
     import re
 
-    m = re.search(r"proposed (T\d+)", out)
+    m = re.search(r"(?:proposed|task:) (T\d+)", out)  # AXI agent shape: "task: T###"
     assert m, f"could not read the minted id: {out[:200]}"
     return m.group(1)
 
