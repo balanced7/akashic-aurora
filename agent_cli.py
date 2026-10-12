@@ -7276,12 +7276,14 @@ def cmd_promoted(args):
     renders an UNHANDLED flag -- promoted-and-forgotten was the disease."""
     import time as _time
 
-    from agent.bifrost_pull import format_promoted_events
+    from agent.bifrost_pull import _content_str
+    from core.axi import out
     from core.comm.promoter import promoted_page, unhandled_threshold_hours
 
     hours = unhandled_threshold_hours()  # RB-5: the ONE seam; boot reads the same one
+    limit = args.limit or 20
     evs, more = promoted_page(
-        limit=args.limit or 20,
+        limit=limit,
         since=args.since,
         until=args.until,
         with_acks=True,
@@ -7291,26 +7293,96 @@ def cmd_promoted(args):
     if args.json:
         print(json.dumps(evs, indent=2, default=str))
         return 0
-    print(format_promoted_events(evs, json_out=False))
-    if more:  # RB-5: a full page confesses the window instead of under-reporting
-        print("  (+ older salient records beyond this page -- raise --limit)")
+    cli = _cli()
+    try:
+        fields = out.fields_arg(getattr(args, "fields", None), _PROMOTED_FIELDS, _PROMOTED_ALL_FIELDS)
+    except ValueError as e:
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} promoted --fields at"], exit_code=out.EXIT_USAGE)
     flagged = [e for e in evs if e.get("unhandled")]
-    acked = [e for e in evs if e.get("acks")]
-    for e in acked:
-        ref = str(e.get("refs", [""])[0])
-        who = ", ".join(f"{a['by']} @ {render_iso(a['at'], tz='local')}" for a in e["acks"])
-        print(f"  [acked] {ref}: {who}")
+    rows = []
+    for e in evs:
+        d = e.get("detail") or {}
+        row = {
+            "ref": e.get("_ref") or e.get("id") or "",
+            "kind": d.get("kind", "?"),
+            "from": d.get("frm", "?"),
+            "to": d.get("to", "?"),
+        }
+        # P6: who handled it, as a status word -- acked by someone, UNHANDLED past the threshold,
+        # handled through a closed ledger task, or simply open. A column only when some message
+        # says more than "open".
+        if e.get("acks"):
+            row["status"] = "acked by " + ", ".join(str(a.get("by")) for a in e["acks"])
+        elif e.get("unhandled"):
+            row["status"] = f"unhandled {e.get('age_hours', 0):.0f}h"
+        elif e.get("handled_via"):
+            row["status"] = f"handled via {e['handled_via']}"
+        else:
+            row["status"] = "open"
+        row["text"] = out.truncate(_content_str(d.get("content")), 300)[0]
+        row["at"] = str(e.get("at") or d.get("ts") or "")[:16].replace("T", " ")
+        row["msg_id"] = str(e.get("refs", [""])[0])
+        rows.append(row)
+    show = [f for f in fields if f != "status" or any(r["status"] != "open" for r in rows)]
+    rows = [{f: r[f] for f in show} for r in rows]
+    doc: dict = {"count": len(rows)}
+    if more:  # RB-5: a full page confesses the window instead of under-reporting
+        doc["more"] = True
+    doc["unhandled"] = len(flagged)
+    doc["unhandled_after_h"] = hours
+    doc["messages"] = rows
+    hints = []
     if flagged:
-        print(
-            f"\n  !! {len(flagged)} UNHANDLED salient message(s) older than {hours}h "
-            f"(no msg_ack -- handle it, then: {_cli()} bifrost-ack <msg_id>):"
-        )
-        for e in flagged:
-            print(
-                f"     {e.get('refs', [''])[0]!s}  ({e.get('age_hours', 0):.0f}h)  "
-                f"{_clip(str(e.get('summary', '')), 90)}"
-            )
-    return 0
+        hints.append(f"{cli} bifrost-ack <agent_id> {flagged[0].get('refs', [''])[0]!s}")
+    if rows:
+        hints.append(f"{cli} events --get {rows[0]['ref'] if len(rows) == 1 else '<ref>'}")
+    else:
+        hints.append(f"{cli} bifrost-sync <agent_id>")
+    if more:
+        hints.append(f"{cli} promoted --limit {limit * 2}")
+    return out.emit(doc, hints=hints, human=_human_promoted, title=f"Promoted · {len(rows)} durable messages")
+
+
+#: `promoted` columns: the default agent schema (status appears only when some message says more
+#: than "open"), and every field --fields can add.
+_PROMOTED_FIELDS = ("ref", "kind", "from", "to", "status", "text")
+_PROMOTED_ALL_FIELDS = ("ref", "at", "kind", "from", "to", "status", "text", "msg_id")
+
+
+def _human_promoted(console, doc):
+    """Human view of `promoted`: the unhandled count first in red, then one table, newest first."""
+    from rich import box
+    from rich.table import Table
+
+    from core.axi import out
+
+    if doc["unhandled"]:
+        console.print(f"[bold red]{doc['unhandled']} unhandled[/] [dim](no ack after {doc['unhandled_after_h']}h)[/]")
+    if not doc["messages"]:
+        console.print("[dim]0 durable Bifrost messages[/]")
+        return
+    t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+    first = doc["messages"][0]
+    cols = [
+        *(["when"] if "at" in first else []),
+        "kind",
+        "route",
+        *(["status"] if "status" in first else []),
+        "message",
+    ]
+    for c in cols:
+        t.add_column(c, overflow="fold")
+    for r in doc["messages"]:
+        st = r.get("status", "")
+        colour = "red" if st.startswith("unhandled") else ("green" if st.startswith(("acked", "handled")) else "dim")
+        cells = [*([out._esc(r["at"])] if "at" in r else []), out._esc(str(r["kind"]))]
+        cells.append(out._esc(f"{r['from']} → {r['to']}"))
+        if "status" in r:
+            cells.append(f"[{colour}]{out._esc(st)}[/]")
+        t.add_row(*cells, out._esc(r["text"]))
+    console.print(t)
+    if doc.get("more"):
+        console.print("[yellow]older messages beyond this page[/]")
 
 
 def cmd_doctor_deploy() -> int:
@@ -12057,6 +12129,11 @@ def build_parser():
     pr.add_argument("--limit", type=int, default=None)
     pr.add_argument("--since", default=None, help="ISO lower time bound")
     pr.add_argument("--until", default=None, help="ISO upper time bound")
+    pr.add_argument(
+        "--fields",
+        default=None,
+        help="extra columns: at,msg_id, or 'all' (default: ref,kind,from,to,text, plus status when any is not open)",
+    )
     pr.add_argument("--json", action="store_true")
     pr.set_defaults(fn=cmd_promoted)
 

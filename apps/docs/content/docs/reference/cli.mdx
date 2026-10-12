@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 18 converted to agent and human output.
+121 verbs; 19 converted to agent and human output.
 
 ## `alias`
 
@@ -1470,14 +1470,32 @@ help[2]:
 | | |
 |---|---|
 | Does | query durable salient Bifrost msgs (kind=bifrost_msg / B2) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 70% before, 100% after |
+| Output tokens | 1,904 before, 1,880 after (-1%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/promoted.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--limit` |   |   |   |
 | `--since` |   |   | ISO lower time bound |
 | `--until` |   |   | ISO upper time bound |
+| `--fields` |   |   | extra columns: at,msg_id, or 'all' (default: ref,kind,from,to,text, plus status when any is not open) |
 | `--json` |   |   |   |
+
+Agent output of `aurora promoted` on the bench data:
+
+```text
+count: 3
+unhandled: 0
+unhandled_after_h: 6
+messages[3]{ref,kind,from,to,text}:
+  "event:events:raw:1791815267325-0",blocker,dave,alice,blocked on the staging database credentials
+  "event:events:raw:1791815266254-0",decision,carol,bob,"decision: we ship the v2 parser on Friday"
+  "event:events:raw:1791815265737-0",handoff,alice,bob,handing off the cache refactor; tests in tests/test_cache.py are green
+help[1]:
+  uv run agent_cli.py events --get <ref>
+```
 
 ## `provenance`
 

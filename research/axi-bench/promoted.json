@@ -1,0 +1,238 @@
+{
+  "verb": "promoted",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.7,
+    "correct": 21,
+    "asked": 30,
+    "output_tokens": 1904,
+    "stdout_chars": 973,
+    "stdout_lines": 22,
+    "cost_usd": 0.0271,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many durable messages are listed?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who sent the handoff, and to whom? Answer as sender,recipient.",
+        "expected": [
+          "alice",
+          "bob"
+        ],
+        "answers": [
+          "alice,bob",
+          "alice,bob",
+          "alice,bob",
+          "alice,bob",
+          "alice,bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "On which day will the v2 parser ship?",
+        "expected": "friday",
+        "answers": [
+          "Friday",
+          "Friday",
+          "Friday",
+          "Friday",
+          "Friday"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of these messages are unhandled? Answer with a number.",
+        "expected": 0,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Does this output show every durable message? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show more of the durable messages? Give the command only.",
+        "expected": [
+          "promoted",
+          "--limit"
+        ],
+        "answers": [
+          "aurora promoted --limit <N>, with N greater than 2",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "promoted"
+        ],
+        "exit": 0,
+        "stdout": "# 3 durable Bifrost message(s) (salient bus -> Ledger)\n  [blocker] dave -> alice  2026-10-12T14:26:57\n    blocked on the staging database credentials\n    ref: event:events:raw:1791815217278-0\n  [decision] carol -> bob  2026-10-12T14:26:56\n    decision: we ship the v2 parser on Friday\n    ref: event:events:raw:1791815216364-0\n  [handoff] alice -> bob  2026-10-12T14:26:55\n    handing off the cache refactor; tests in tests/test_cache.py are green\n    ref: event:events:raw:1791815215866-0\n\nDrill: uv run agent_cli.py events --get <ref>\n"
+      },
+      "page": {
+        "argv": [
+          "promoted",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "# 2 durable Bifrost message(s) (salient bus -> Ledger)\n  [blocker] dave -> alice  2026-10-12T14:26:57\n    blocked on the staging database credentials\n    ref: event:events:raw:1791815217278-0\n  [decision] carol -> bob  2026-10-12T14:26:56\n    decision: we ship the v2 parser on Friday\n    ref: event:events:raw:1791815216364-0\n\nDrill: uv run agent_cli.py events --get <ref>\n  (+ older salient records beyond this page -- raise --limit)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 1880,
+    "stdout_chars": 836,
+    "stdout_lines": 19,
+    "cost_usd": 0.0333,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many durable messages are listed?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who sent the handoff, and to whom? Answer as sender,recipient.",
+        "expected": [
+          "alice",
+          "bob"
+        ],
+        "answers": [
+          "alice,bob",
+          "alice,bob",
+          "alice,bob",
+          "alice,bob",
+          "alice,bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "On which day will the v2 parser ship?",
+        "expected": "friday",
+        "answers": [
+          "Friday",
+          "Friday",
+          "Friday",
+          "Friday",
+          "Friday"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of these messages are unhandled? Answer with a number.",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output show every durable message? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show more of the durable messages? Give the command only.",
+        "expected": [
+          "promoted",
+          "--limit"
+        ],
+        "answers": [
+          "uv run agent_cli.py promoted --limit 4",
+          "uv run agent_cli.py promoted --limit 4",
+          "uv run agent_cli.py promoted --limit 4",
+          "uv run agent_cli.py promoted --limit 4",
+          "uv run agent_cli.py promoted --limit 4"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "all": {
+        "argv": [
+          "promoted"
+        ],
+        "exit": 0,
+        "stdout": "count: 3\nunhandled: 0\nunhandled_after_h: 6\nmessages[3]{ref,kind,from,to,text}:\n  \"event:events:raw:1791815267325-0\",blocker,dave,alice,blocked on the staging database credentials\n  \"event:events:raw:1791815266254-0\",decision,carol,bob,\"decision: we ship the v2 parser on Friday\"\n  \"event:events:raw:1791815265737-0\",handoff,alice,bob,handing off the cache refactor; tests in tests/test_cache.py are green\nhelp[1]:\n  uv run agent_cli.py events --get <ref>\n"
+      },
+      "page": {
+        "argv": [
+          "promoted",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "count: 2\nmore: true\nunhandled: 0\nunhandled_after_h: 6\nmessages[2]{ref,kind,from,to,text}:\n  \"event:events:raw:1791815267325-0\",blocker,dave,alice,blocked on the staging database credentials\n  \"event:events:raw:1791815266254-0\",decision,carol,bob,\"decision: we ship the v2 parser on Friday\"\nhelp[2]:\n  uv run agent_cli.py events --get <ref>\n  uv run agent_cli.py promoted --limit 4\n"
+      }
+    }
+  }
+}
