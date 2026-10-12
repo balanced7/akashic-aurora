@@ -7,6 +7,8 @@ later (`-> later:`), so a first run teaches the doors you will use to change you
 Plain input() on purpose (same style as peer_connect.py): it works in git-bash, PowerShell and
 harness shells with no TTY tricks. `--yes` answers every question with its default (or the
 flag given), so agents and CI can run it non-interactively; `--dry-run` changes nothing.
+In agent output mode the CLI refuses to ask (it requires --yes) and calls collect(), which runs
+the same steps and returns them as data instead of narrating them.
 """
 
 from __future__ import annotations
@@ -29,12 +31,60 @@ _DEFAULT_SCOPE = {"claude": "user", "codex": "project", "cursor": "project"}
 _BINARIES = {"claude": ("claude",), "codex": ("codex",), "cursor": ("cursor", "cursor-agent")}
 
 
+#: While collect() runs (agent mode), the steps land here instead of on stdout, so the whole run
+#: prints once as data at the end. A person running setup sees each step as it happens.
+_report: dict | None = None
+
+
 def say(step: str, msg: str) -> None:
+    if _report is not None:
+        _report["steps"].append({"step": step, "did": msg})
+        return
     print(f"[{step}] {msg}")
 
 
 def later(cmd: str) -> None:
+    if _report is not None:
+        if cmd not in _report["later"]:
+            _report["later"].append(cmd)
+        return
     print(f"        -> later: {cmd}")
+
+
+def _out(text: str) -> None:
+    """Narration for a person (the banner, the echoed defaults); silent while collecting."""
+    if _report is None:
+        print(text)
+
+
+def _quiet() -> dict:
+    """subprocess.run kwargs: while collecting, a child's own output would break the one
+    document on stdout, so it is captured instead."""
+    return {"capture_output": True, "text": True} if _report is not None else {}
+
+
+def collect(args) -> dict:
+    """Run setup non-interactively and return what it did as data: the steps, the commands that
+    change each choice later, and the hook files in play. The caller requires --yes, so nothing
+    here reads stdin."""
+    global _report
+    _report = {"steps": [], "later": [], "hooks": []}
+    try:
+        run(args)
+        rep = _report
+    finally:
+        _report = None
+    doc: dict = {}
+    if getattr(args, "dry_run", False):
+        doc["dry_run"] = True
+    doc["steps"] = rep["steps"]
+    # One row per command, its trailing "# what it does" comment split off into its own column.
+    doc["later"] = [
+        {"command": cmd.strip(), "does": note.strip() or None}
+        for cmd, _, note in (line.partition("   # ") for line in rep["later"])
+    ]
+    doc["hooks"] = rep["hooks"] or "none registered"
+    return doc
 
 
 def _launcher() -> str:
@@ -53,7 +103,7 @@ class Asker:
     def ask(self, question: str, default: str, choices: tuple[str, ...] = ()) -> str:
         hint = f" [{'/'.join(choices)}]" if choices else ""
         if self.assume_yes:
-            print(f"        {question}{hint} -> {default}")
+            _out(f"        {question}{hint} -> {default}")
             return default
         while True:
             raw = input(f"        {question}{hint} (default: {default}) > ").strip()
@@ -185,9 +235,9 @@ def run(args) -> int:
     installed = launcher() is not None
     here = Path.cwd().resolve() if installed else repo
 
-    print("Akashic Aurora setup. Each step shows the command that does the same thing later.")
+    _out("Akashic Aurora setup. Each step shows the command that does the same thing later.")
     if dry:
-        print("DRY RUN: nothing will be written.")
+        _out("DRY RUN: nothing will be written.")
 
     # 1. where are we --------------------------------------------------------------------
     found = detect_harnesses()
@@ -269,8 +319,10 @@ def run(args) -> int:
             if dry:
                 say("4/5", f"would run: {mcp}")
             else:
-                r = subprocess.run(mcp, shell=True, check=False)
+                r = subprocess.run(mcp, shell=True, check=False, **_quiet())
                 say("4/5", "registered" if r.returncode == 0 else f"`claude mcp add` exited {r.returncode}")
+        else:
+            say("4/5", "not registered user-wide")
         later(mcp if installed else f"{pyl} scripts/mcp_register.py   # prints: {mcp}")
 
     # 5. git hooks -------------------------------------------------------------------------
@@ -280,11 +332,23 @@ def run(args) -> int:
         if dry:
             say("5/5", "would run scripts/githooks/install_git_hooks.py")
         else:
-            subprocess.run([sys.executable, str(repo / "scripts" / "githooks" / "install_git_hooks.py")], check=False)
+            r = subprocess.run(
+                [sys.executable, str(repo / "scripts" / "githooks" / "install_git_hooks.py")], check=False, **_quiet()
+            )
+            say("5/5", "git hooks installed" if r.returncode == 0 else f"git hook installer exited {r.returncode}")
+    else:
+        say("5/5", "git hooks: not installed")
     if not installed:
         later(f"{pyl} scripts/githooks/install_git_hooks.py")
 
     # summary ------------------------------------------------------------------------------
+    if _report is not None:  # agent mode: the hook files in play, as rows
+        _report["hooks"] = [
+            {"harness": r["harness"], "scope": r["scope"], "installed": len(r["installed"]), "path": r["path"]}
+            for r in inst.status(here)
+            if r["exists"] and (r["installed"] or r["stale"] or r["disabled"])
+        ]
+        return 0
     print("\nDone. Where things stand:")
     for line in inst.status_lines(here):
         print("  " + line)

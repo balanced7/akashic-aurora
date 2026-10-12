@@ -2032,13 +2032,41 @@ def _human_hooks(console, doc):
 def cmd_setup(args):
     """Interactive onboarding: pick hook scope per harness, agent id, MCP and git hooks. Every
     step prints the CLI command that changes it later. --yes takes the defaults (or flags)."""
-    from agent.harness.onboard import run
+    import shlex
 
-    try:
-        return run(args)
-    except (KeyboardInterrupt, EOFError):
-        print("\nsetup interrupted; nothing after the last printed step was changed.")
-        return 130
+    from agent.harness import onboard
+    from core.axi import out
+
+    cli = _cli()
+    if not out.is_agent():
+        # A person: the guided, question-by-question tutorial, narrated as it goes.
+        try:
+            return onboard.run(args)
+        except (KeyboardInterrupt, EOFError):
+            print("\nsetup interrupted; nothing after the last printed step was changed.")
+            return 130
+    # An agent cannot answer input() (AXI: no interactive prompts), so it must say --yes rather
+    # than hang on a question or die on a closed stdin.
+    flags = "".join(f" --harness {h}" for h in (args.harness or []))
+    for flag, value in (("--scope", args.scope), ("--project", args.project), ("--agent-id", args.agent_id)):
+        if value:
+            flags += f" {flag} {shlex.quote(value)}"
+    if args.operator:
+        flags += f" --operator {shlex.quote(args.operator)}"
+    if not args.yes:
+        return out.fail(
+            "setup asks questions; in agent mode pass --yes to take the defaults (or the flags given)",
+            code="INTERACTIVE",
+            hints=[f"{cli} setup --yes --dry-run{flags}", f"{cli} setup --yes{flags}"],
+            exit_code=out.EXIT_USAGE,
+        )
+    doc = onboard.collect(args)
+    agent = args.agent_id or "<agent_id>"
+    if args.dry_run:
+        hints = [f"{cli} setup --yes{flags}"]  # the same run, for real
+    else:
+        hints = [f"{cli} hooks status", f'{cli} boot {agent} --task "<task>"']
+    return out.emit(doc, hints=hints, title="Setup" + (" · dry run" if args.dry_run else ""))
 
 
 # --------------------------------------------------------------------- harnesses

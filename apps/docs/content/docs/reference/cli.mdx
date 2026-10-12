@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 96 converted to agent and human output.
+121 verbs; 97 converted to agent and human output.
 
 ## `alias`
 
@@ -2994,7 +2994,10 @@ resolved_from: binding
 | | |
 |---|---|
 | Does | onboarding: hooks, agent id, MCP and git hooks, teaching the CLI as it goes |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 1,714 before, 1,460 after (-15%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/setup.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -3005,6 +3008,36 @@ resolved_from: binding
 | `--agent-id` |   |   |   |
 | `--operator` |   |   | "Name &lt;email&gt;" whose name goes on agent commits (default: your git user) |
 | `--dry-run` |   |   |   |
+
+Agent output of `aurora setup --yes --dry-run --harness claude --harness codex --scope project --project /tmp/axi-setup-2ms43dl8 --agent-id benchseat --operator Bench Person <bench@example.com>` on the bench data:
+
+```text
+dry_run: true
+steps[11]{step,did}:
+  1/5,"OS: linux; repo: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a5e72da4a0e872492"
+  1/5,"harnesses found: claude, cursor"
+  2/5,"claude hooks: project"
+  hooks,10 hook(s) registered in /tmp/axi-setup-2ms43dl8/.claude/settings.local.json
+  2/5,"codex hooks: project"
+  hooks,5 hook(s) registered in /tmp/axi-setup-2ms43dl8/.codex/hooks.json
+  3/5,AKASHIC_AGENT_ID=benchseat would be set in /tmp/axi-setup-2ms43dl8/.claude/settings.local.json
+  3/5,operator would be Bench Person <bench@example.com> in /tmp/axi-bench-tlj2g_wj/data/state/identity/operator.json
+  4/5,this repo's .mcp.json already gives Claude Code the akashic-aurora tools when launched here.
+  4/5,not registered user-wide
+  5/5,would run scripts/githooks/install_git_hooks.py
+later[8]{command,does}:
+  "uv run agent_cli.py hooks install --harness claude --scope project --project \"/tmp/axi-setup-2ms43dl8\"",null
+  "uv run agent_cli.py hooks disable --harness claude --scope project --project \"/tmp/axi-setup-2ms43dl8\"","off, remembered; `hooks enable --harness claude --scope project --project \"/tmp/axi-setup-2ms43dl8\"` brings them back"
+  "uv run agent_cli.py hooks install --harness codex --scope project --project \"/tmp/axi-setup-2ms43dl8\"",null
+  "uv run agent_cli.py hooks disable --harness codex --scope project --project \"/tmp/axi-setup-2ms43dl8\"","off, remembered; `hooks enable --harness codex --scope project --project \"/tmp/axi-setup-2ms43dl8\"` brings them back"
+  "edit \"env\": {\"AKASHIC_AGENT_ID\": \"...\"} in /tmp/axi-setup-2ms43dl8/.claude/settings.local.json",null
+  "uv run agent_cli.py setup --operator \"Name <email>\"",change whose name goes on agent commits
+  uv run scripts/mcp_register.py,"prints: claude mcp add --scope user akashic-aurora -- /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a5e72da4a0e872492/.venv/bin/uv run --project /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a5e72da4a0e872492 \"/mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a5e72da4a0e872492/ai_setup_mcp.py\""
+  uv run scripts/githooks/install_git_hooks.py,null
+hooks[4]{harness,scope,installed,path}:
+  claude,project (shared),3,/mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a5e72da4a0e872492/.claude/settings.json
+... (5 more lines)
+```
 
 ## `sha`
 
