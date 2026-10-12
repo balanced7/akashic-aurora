@@ -10,7 +10,7 @@ change) and the working tree:
                fixed questions whose answers are known because the bench seeded the data. Graded
                mechanically against those answers (exact, number, contains, set), never by a
                model, so a judge cannot be the thing that improved. Each question runs --repeats
-               times per side.
+               times per side (default 5).
   tokens       What the output costs the reader, from the reader's own usage report: total input
                tokens of each call (the prompt template is identical on both sides, so the
                difference is the output itself), plus characters and lines of stdout.
@@ -111,11 +111,21 @@ class Sandbox:
     def reset(self) -> None:
         shutil.rmtree(self.data, ignore_errors=True)
         self.data.mkdir(parents=True)
+        (self.data / "home").mkdir()
         flush_db(self.db)
 
     def env(self) -> dict:
-        env = {k: v for k, v in os.environ.items() if not k.startswith(("CLAUDE", "CODEX_", "CURSOR_"))}
+        # A throwaway HOME as well as a throwaway store: verbs such as hooks and setup write
+        # harness settings under the home directory, and none of that may reach the real one.
+        # XDG_* would point tools back at the real home, so they go too.
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if not k.startswith(("CLAUDE", "CODEX_", "CURSOR_", "XDG_", "AURORA_HOME"))
+        }
         env.update(
+            HOME=str(self.data / "home"),
+            USERPROFILE=str(self.data / "home"),
             AI_SETUP=str(self.data),
             REDIS_DB=str(self.db),
             AKASHIC_AGENT_ID="bench",
@@ -350,7 +360,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="AXI before/after bench for one CLI verb")
     ap.add_argument("verb")
     ap.add_argument("--before", default=BASELINE, help="git ref of the code before the change")
-    ap.add_argument("--repeats", type=int, default=3)
+    ap.add_argument(
+        "--repeats", type=int, default=5, help="runs per question per side (one answer either way is noise)"
+    )
     ap.add_argument("--model", default="claude-haiku-5-5")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument(
