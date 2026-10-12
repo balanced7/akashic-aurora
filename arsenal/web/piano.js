@@ -2686,19 +2686,23 @@ function glowLevel(st, t) {
   return lightLevel(st.vel / 127, st.held, sustain ? 1 : 0, t - st.t0);
 }
 
-function noteOn(m, vel) {
-  if (vel <= 0) { noteOff(m); return; }
+function noteOn(m, vel, recvLagMs) {
+  if (vel <= 0) { noteOff(m, recvLagMs); return; }
   midiHint?.noteOn(m);  // the Rescan hint's easter eggs listen while it does (piano/midi-hint.js)
   const t = clock();
+  // tLog is when the key was STRUCK, for the practice log; t is now, for the visuals. A real MIDI message
+  // (onMidiMessage) passes recvLagMs = how long this handler ran behind the message's arrival, so a stalled
+  // main thread no longer backdates the note times it logs. Absent (computer keys, Demo, replay) -> tLog = t.
+  const tLog = recvLagMs > 0 ? t - recvLagMs / 1000 : t;
   spectacle?.noteOn(m, vel, t);
   beforeChange(t);
   const prev = sounding.get(m);
   if (prev) {
     trails.end(prev.trail, t);  // a repeated note closes its previous trail
     lookNoteEnd(m, t);          // and the scheme's previous sound
-    logged((log) => log.soundEnd(m, "repeat", pageSec(t)));
+    logged((log) => log.soundEnd(m, "repeat", pageSec(tLog)));
   }
-  logged((log) => log.noteOn(m, vel, pageSec(t)));
+  logged((log) => log.noteOn(m, vel, pageSec(tLog)));
   const inRange = m >= KEY.first && m <= KEY.last;
   sounding.set(m, { held: true, vel, t0: t, tRelease: 0, strike: ++strikeCount[m], trail: inRange ? trails.start(m, vel, t) : null });
   if (theoryUi.boundary === "pedal" && sustain) boundaryGate.attack(t, hasRinging(m));
@@ -2722,10 +2726,11 @@ function noteOn(m, vel) {
   hideIdleHint();
   if (!demo.running) jamHeard(m, vel);  // Claude's band hears him: his rest (8.9), the duck, the owner lease, the floor pool
 }
-function noteOff(m) {
+function noteOff(m, recvLagMs) {
   const st = sounding.get(m);
   if (!st || !st.held) return;
   const t = clock();
+  const tLog = recvLagMs > 0 ? t - recvLagMs / 1000 : t;  // the key's release time for the log (see noteOn); visuals keep t
   spectacle?.noteOff(m, t, sustain);
   beforeChange(t);
   st.held = false;
@@ -2736,21 +2741,22 @@ function noteOff(m) {
   const k = keys.get(m);
   // Daniel's fields only: a key Claude still holds stays down and moonlit (cueTarget, cueGlowTarget: Claude's hand)
   if (k) { k.target = 0; k.glowTarget = sustain ? glowLevel(st, t) : 0; }
-  logged((log) => { log.noteOff(m, pageSec(t)); if (!sustain) log.soundEnd(m, "release", pageSec(t)); });
+  logged((log) => { log.noteOff(m, pageSec(tLog)); if (!sustain) log.soundEnd(m, "release", pageSec(tLog)); });
   if (!sustain) { trails.end(st.trail, t); sounding.delete(m); }
   detectDirty = true;
   afterChange(t);
 }
 // value: the raw CC64 value, for the log (a half-pedalling controller sends many; only the crossing is logged)
-function setSustain(on, value = on ? 127 : 0) {
+function setSustain(on, value = on ? 127 : 0, recvLagMs) {
   if (sustain === on) return;
   const t = clock();
+  const tLog = recvLagMs > 0 ? t - recvLagMs / 1000 : t;  // the pedal crossing's receipt time for the log (see noteOn)
   spectacle?.pedal(on, t);
   beforeChange(t);
   sustain = on;
   lookEvent("pedal", on, value, t);
   if (!demo.running) jamRest.sustain(on);
-  logged((log) => log.pedal(on, value, pageSec(t)));
+  logged((log) => log.pedal(on, value, pageSec(tLog)));
   if (!on) {
     boundaryGate.lift();  // the chord boundary: the next read sees the new chord alone
     // The pedal is Daniel's: cue notes ignore it, and this loop touches only his notes and his glow fields.
@@ -2758,7 +2764,7 @@ function setSustain(on, value = on ? 127 : 0) {
       if (st.held) continue;
       trails.end(st.trail, t);
       lookNoteEnd(m, t);
-      logged((log) => log.soundEnd(m, "pedal", pageSec(t)));
+      logged((log) => log.soundEnd(m, "pedal", pageSec(tLog)));
       sounding.delete(m);
       const k = keys.get(m);
       if (k) k.glowTarget = 0;
@@ -3554,18 +3560,29 @@ function bindMidi(choice, remember) {
 }
 function setMidiStatus(text) { midi.status = text; }
 let midiHint = null;  // the Rescan hint (piano/midi-hint.js), created in boot()
+// A Web MIDI message carries ev.timeStamp: when it ARRIVED, a DOMHighResTimeStamp on performance.now()'s own
+// timeline. This returns how far behind that arrival this handler is now (ms) -- the gap a heavy frame can
+// stretch to 100 ms or more, which is what drifts the practice log (noteOn stamps with clock(), i.e. now, not
+// arrival). Returns 0 when the stamp is absent or not on this timeline, so stamping falls back to now: a
+// synthetic event (see __piano.midiMessage) stamps with performance.now() and reads ~0, and a foreign epoch
+// reads negative or huge. Capped at 1 s, beyond which it is not a believable main-thread stall.
+function eventLagMs(timeStamp) {
+  const lag = performance.now() - timeStamp;
+  return lag > 0 && lag < 1000 ? lag : 0;
+}
 function onMidiMessage(ev) {
   const d = ev.data;
   if (!d || d.length < 2) return;
   const port = ev.currentTarget || ev.target;
   if (port && cueMidiOutName && port.name === cueMidiOutName) { midi.echoes++; return; }  // Claude's own notes, back
+  const lag = eventLagMs(ev.timeStamp);  // ms this handler ran behind the key being struck; backdates the log, not the visuals
   const type = d[0] & 0xf0;
   if (type === 0x90 && d.length >= 3) {
-    if (d[2] > 0) noteOn(d[1], d[2]); else noteOff(d[1]);
+    if (d[2] > 0) noteOn(d[1], d[2], lag); else noteOff(d[1], lag);
   } else if (type === 0x80 && d.length >= 3) {
-    noteOff(d[1]);
+    noteOff(d[1], lag);
   } else if (type === 0xb0 && d.length >= 3) {
-    if (d[1] === 64) setSustain(d[2] >= 64, d[2]);
+    if (d[1] === 64) setSustain(d[2] >= 64, d[2], lag);
     else if (d[1] === 120 || d[1] === 123) { allNotesOff(); hushClaude(); }  // a panic silences both hands
   } else {
     return;  // clock, aftertouch, pitch bend: not drawn
