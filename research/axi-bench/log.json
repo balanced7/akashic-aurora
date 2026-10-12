@@ -1,0 +1,188 @@
+{
+  "verb": "log",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 12,
+    "stdout_chars": 80,
+    "stdout_lines": 2,
+    "cost_usd": 0.0238,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the beat recorded? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What kind of beat was recorded? Give the kind only.",
+        "expected": "decision",
+        "answers": [
+          "decision",
+          "decision",
+          "decision",
+          "decision",
+          "decision"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which database was picked for the ledger, according to the beat?",
+        "expected": [
+          "postgres"
+        ],
+        "answers": [
+          "Postgres",
+          "Postgres",
+          "Postgres",
+          "Postgres",
+          "Postgres"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the caller give this beat a real summary? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ok": {
+        "argv": [
+          "log",
+          "decision",
+          "--summary",
+          "picked Postgres over SQLite for the ledger",
+          "--source",
+          "bench:design"
+        ],
+        "exit": 0,
+        "stdout": "[OK] decision: picked Postgres over SQLite for the ledger\n"
+      },
+      "bare": {
+        "argv": [
+          "log",
+          "note"
+        ],
+        "exit": 0,
+        "stdout": "[OK] note: no summary\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 43,
+    "stdout_chars": 253,
+    "stdout_lines": 9,
+    "cost_usd": 0.0174,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the beat recorded? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What kind of beat was recorded? Give the kind only.",
+        "expected": "decision",
+        "answers": [
+          "decision",
+          "decision",
+          "decision",
+          "decision",
+          "decision"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which database was picked for the ledger, according to the beat?",
+        "expected": [
+          "postgres"
+        ],
+        "answers": [
+          "Postgres",
+          "Postgres",
+          "Postgres",
+          "Postgres",
+          "Postgres"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the caller give this beat a real summary? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ok": {
+        "argv": [
+          "log",
+          "decision",
+          "--summary",
+          "picked Postgres over SQLite for the ledger",
+          "--source",
+          "bench:design"
+        ],
+        "exit": 0,
+        "stdout": "recorded: true\nkind: decision\nbeat_id: beat_1791820663_2772\nsummary: picked Postgres over SQLite for the ledger\n"
+      },
+      "bare": {
+        "argv": [
+          "log",
+          "note"
+        ],
+        "exit": 0,
+        "stdout": "recorded: true\nkind: note\nbeat_id: beat_1791820664_1667\nsummary: no summary\nwarning: no --summary given; the beat was stored as 'no summary'\n"
+      }
+    }
+  }
+}

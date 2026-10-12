@@ -6908,6 +6908,7 @@ def cmd_log(args):
       py agent_cli.py log <kind> --summary "what happened" --source "who:action"
                              [--category C] [--task T] [--json]
     """
+    from core.axi import out
     from core.narrative.beat_log import get_beat_log
     from core.narrative.track_router import RouteHint
 
@@ -6920,8 +6921,7 @@ def cmd_log(args):
         )
         ok = beat is not None
     except Exception as e:
-        print(f"ERROR: {type(e).__name__}: {e}")
-        return 1
+        return out.fail(f"recording the beat failed: {type(e).__name__}: {e}", code="WRITE_FAILED")
     # Auto-logger (Slice 2): a logged action is also a RAW event. We stamp the Beat's id
     # into refs so Slice 5 promotion won't create a redundant Beat for it. Best-effort.
     try:
@@ -6935,9 +6935,13 @@ def cmd_log(args):
         pass
     if args.json:
         print(json.dumps({"recorded": ok, "kind": kind, "beat_id": beat.id if beat else None}))
-    else:
-        print(f"[{'OK' if ok else 'FAIL'}] {kind}: {summary[:80]}")
-    return 0 if ok else 1
+        return 0 if ok else 1
+    if not ok:
+        return out.fail(f"the beat log did not record the {kind} beat", code="WRITE_FAILED")
+    doc = {"recorded": True, "kind": kind, "beat_id": beat.id, "summary": out.truncate(summary, 300)[0]}
+    if not args.summary:  # a beat with no summary is findable by nothing; say so instead of storing silently
+        doc["warning"] = "no --summary given; the beat was stored as 'no summary'"
+    return out.emit(doc, title="Beat recorded")
 
 
 # ------------------------------------------------------------------------ episode (session bookends)

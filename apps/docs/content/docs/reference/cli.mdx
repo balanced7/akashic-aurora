@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 44 converted to agent and human output.
+121 verbs; 45 converted to agent and human output.
 
 ## `alias`
 
@@ -1441,7 +1441,10 @@ help[2]:
 | | |
 |---|---|
 | Does | record an arbitrary narrative Beat |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 12 before, 43 after (+258%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/log.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1451,6 +1454,15 @@ help[2]:
 | `--category` |   |   | route hint category |
 | `--task` |   |   | route hint task |
 | `--json` |   |   | JSON output |
+
+Agent output of `aurora log decision --summary picked Postgres over SQLite for the ledger --source bench:design` on the bench data:
+
+```text
+recorded: true
+kind: decision
+beat_id: beat_1791820663_2772
+summary: picked Postgres over SQLite for the ledger
+```
 
 ## `lookback`
 

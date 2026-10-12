@@ -108,6 +108,7 @@ def test_fresh_stdio_mcp_log_returns_without_second_frame(tmp_path):
                 timeout=5.0,
             )
             text = "".join(getattr(item, "text", "") for item in out.content)
-            assert "[OK] note: single-frame transport pin" in text
+            assert "kind: note" in text
+            assert "summary: single-frame transport pin" in text
 
     asyncio.run(flow())
