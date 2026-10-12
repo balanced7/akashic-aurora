@@ -11825,18 +11825,115 @@ def cmd_college(args):
             "reason": args.reason,
             "source_ids": args.source_ids,
         }
-    try:
-        from core.library.college import render_college, run_college
+    from core.axi import out
 
-        result = run_college(action, str(args.course), data, actor=actor)
+    course = str(args.course)
+    try:
+        from core.library.college import run_college
+
+        result = run_college(action, course, data, actor=actor)
     except (ValueError, OSError, RuntimeError) as exc:
-        print(f"ERROR: {exc}")
-        return 2
+        if getattr(args, "json", False):
+            print(f"ERROR: {exc}")
+            return 2
+        return out.fail(str(exc), code="REFUSED", hints=[f"{_cli()} college show {course}"], exit_code=2)
     if getattr(args, "json", False):
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        return 0
+    c = result.get("course") or {}
+    stages = result.get("stages") or {}
+    integrity = result.get("integrity") or {}
+    lecture_ok = integrity.get("lecture")
+    doc: dict = {
+        "course": c.get("id"),
+        "title": c.get("title") or None,
+        "lecturer": c.get("lecturer") or None,
+        "auditor": c.get("auditor") or None,
+        "sources": stages.get("sources", {}).get("records", 0),
+        "verified_primary": stages.get("sources", {}).get("verified_primary", 0),
+        "lecture": "sealed" if stages.get("lecture", {}).get("sealed") else "unsealed",
+        "audit_claims": stages.get("audit", {}).get("records", 0),
+        "teachbacks": stages.get("teachback", {}).get("records", 0),
+        "errata": stages.get("errata", {}).get("records", 0),
+        # One word when the hash chain and the sealed lecture both check out; what broke otherwise.
+        "integrity": "ok"
+        if integrity.get("event_chain") and lecture_ok is not False
+        else ", ".join(
+            w
+            for w, bad in (
+                ("event chain broken", not integrity.get("event_chain")),
+                ("lecture hash mismatch", lecture_ok is False),
+            )
+            if bad
+        ),
+        # The gaps are what stands between this record and a complete course; none is the answer.
+        "gaps": list(result.get("gaps") or []),
+    }
+    effects = list(result.get("effects") or [])
+    if effects:
+        doc["effects"] = [f"{e.get('kind')} {e.get('path')}" for e in effects]
+    return out.emit(
+        doc,
+        hints=_college_next(course, doc),
+        human=_human_college,
+        title=f"College · {course}",
+    )
+
+
+def _college_next(course: str, doc: dict) -> list[str]:
+    """The command that closes the first gap, with the seat the record says must act."""
+    cli = _cli()
+    gaps = " ".join(doc["gaps"])
+    if "no verified primary source" in gaps:
+        return [
+            (
+                f"{cli} college source {course} --id <id> --title <title> --locator <locator> --kind primary "
+                f"--status verified --receipt <r> --retrieved-at <iso-time> --actor {doc['auditor']}"
+            )
+        ]
+    if "lecture is not sealed" in gaps:
+        return [f"{cli} college lecture {course} --from <lecture.md> --actor {doc['lecturer']}"]
+    if "audit" in gaps:
+        # No audit yet, or one whose coverage the auditor has not closed: the closing row says so.
+        close = " --coverage-complete --coverage-receipt <r>" if "coverage" in gaps else ""
+        return [
+            (
+                f"{cli} college audit {course} --claim-id <id> --claim <claim> --anchor <excerpt> --species <s> "
+                f"--verdict <v> --receipt <r> --source <source-id>{close} --actor {doc['auditor']}"
+            )
+        ]
+    if "teach-back" in gaps:
+        return [f'{cli} college teachback {course} --question "..." --answer "..."']
+    return []
+
+
+def _human_college(console, doc):
+    """Human view of `college`: who teaches and who audits, the five stages in order with
+    their counts, integrity, then each gap in yellow (or 'complete' in green)."""
+    from core.axi import out
+
+    console.print(f"[bold]{out._esc(str(doc['title'] or doc['course']))}[/]")
+    console.print(f"[dim]lecturer {out._esc(str(doc['lecturer']))} · auditor {out._esc(str(doc['auditor']))}[/]")
+    sealed = doc["lecture"] == "sealed"
+    rows = [
+        {"stage": "sources", "state": f"{doc['sources']} ({doc['verified_primary']} verified primary)"},
+        {"stage": "lecture", "state": doc["lecture"]},
+        {"stage": "audit", "state": f"{doc['audit_claims']} claims"},
+        {"stage": "teach-back", "state": str(doc["teachbacks"])},
+        {"stage": "errata", "state": str(doc["errata"])},
+    ]
+    for r in rows:
+        mark = "[green]✓[/]" if (r["stage"] != "lecture" or sealed) and not r["state"].startswith("0") else "[dim]·[/]"
+        console.print(f"  {mark} {r['stage']:<11} {out._esc(r['state'])}")
+    ig = doc["integrity"]
+    console.print(f"  [{'dim' if ig == 'ok' else 'red'}]integrity: {out._esc(ig)}[/]")
+    if doc["gaps"]:
+        for g in doc["gaps"]:
+            console.print(f"  [yellow]gap:[/] {out._esc(g)}")
     else:
-        print(render_college(result))
-    return 0
+        console.print("  [green]complete: no gaps[/]")
+    for e in doc.get("effects") or []:
+        console.print(f"  [dim]wrote {out._esc(e)}[/]")
 
 
 def cmd_ground(args):

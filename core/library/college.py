@@ -733,31 +733,3 @@ def run_college(
             effects=effects,
             subject=who,
         )
-
-
-def render_college(record: Mapping[str, Any]) -> str:
-    """Compact human rendering; structured callers should consume the record directly."""
-    course = record.get("course") or {}
-    integrity = record.get("integrity") or {}
-    stages = record.get("stages") or {}
-    lines = [
-        f"# college {course.get('id', '?')} -- {course.get('title') or '(untitled)'}",
-        f"roles lecturer={course.get('lecturer') or '?'}  auditor={course.get('auditor') or '?'}",
-        "stages "
-        + "  ".join(
-            f"{name}={row.get('records', 'sealed' if row.get('sealed') else 0)}" for name, row in stages.items()
-        ),
-        (
-            f"integrity events={'OK' if integrity.get('event_chain') else 'FAIL'}  "
-            f"lecture={('OK' if integrity.get('lecture') else 'FAIL') if integrity.get('lecture') is not None else 'UNSEALED'}"
-        ),
-    ]
-    gaps = list(record.get("gaps") or [])
-    lines.append("gaps none" if not gaps else "gaps " + " | ".join(gaps))
-    effects = list(record.get("effects") or [])
-    lines.append(
-        "effects none"
-        if not effects
-        else "effects " + ", ".join(f"{row.get('kind')}:{row.get('path')}" for row in effects)
-    )
-    return "\n".join(lines)

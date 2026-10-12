@@ -1,0 +1,266 @@
+{
+  "verb": "college",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.933,
+    "correct": 28,
+    "asked": 30,
+    "output_tokens": 115,
+    "stdout_chars": 640,
+    "stdout_lines": 13,
+    "cost_usd": 0.0298,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Who is the designated auditor of the course?",
+        "expected": "kimi",
+        "answers": [
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many source records does the course have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the lecture sealed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many gaps does the course still have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the lecture of this course sealed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "yes",
+          "No"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Why was the start refused?",
+        "expected": "already exists",
+        "answers": [
+          "The college course bus-ordering already exists",
+          "The college course bus-ordering already existed",
+          "ERROR: college course 'bus-ordering' already exists",
+          "Because the college course bus-ordering already exists",
+          "The course 'bus-ordering' already exists"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "college",
+          "show",
+          "bus-ordering"
+        ],
+        "exit": 0,
+        "stdout": "# college bus-ordering -- How the bus orders messages\nroles lecturer=claude  auditor=kimi\nstages sources=2  lecture=sealed  audit=1  teachback=0  errata=0\nintegrity events=OK  lecture=OK\ngaps audit coverage is not explicitly closed by the designated auditor | no teach-back recorded\neffects none\n"
+      },
+      "fresh": {
+        "argv": [
+          "college",
+          "show",
+          "fresh-course"
+        ],
+        "exit": 0,
+        "stdout": "# college fresh-course -- Wake seats\nroles lecturer=sol  auditor=deepseek\nstages sources=0  lecture=0  audit=0  teachback=0  errata=0\nintegrity events=OK  lecture=UNSEALED\ngaps no verified primary source | lecture is not sealed | no claim audit recorded | no teach-back recorded\neffects none\n"
+      },
+      "dup": {
+        "argv": [
+          "college",
+          "start",
+          "bus-ordering",
+          "--title",
+          "x",
+          "--topic",
+          "y",
+          "--lecturer",
+          "a",
+          "--auditor",
+          "b",
+          "--actor",
+          "a"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: college course 'bus-ordering' already exists\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.933,
+    "correct": 28,
+    "asked": 30,
+    "output_tokens": 224,
+    "stdout_chars": 1111,
+    "stdout_lines": 32,
+    "cost_usd": 0.0284,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Who is the designated auditor of the course?",
+        "expected": "kimi",
+        "answers": [
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many source records does the course have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the lecture sealed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many gaps does the course still have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the lecture of this course sealed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "lecture: unsealed\n\nNo",
+          "Output shows `lecture: unsealed` and `gaps[4]: ... lecture is not sealed`.\n\nNo",
+          "no",
+          "no"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Why was the start refused?",
+        "expected": "already exists",
+        "answers": [
+          "The course `bus-ordering` already exists.",
+          "REFUSED: the college course 'bus-ordering' already exists.",
+          "REFUSED \u2014 the course 'bus-ordering' already exists.",
+          "College course 'bus-ordering' already exists",
+          "REFUSED: the course 'bus-ordering' already exists."
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "college",
+          "show",
+          "bus-ordering"
+        ],
+        "exit": 0,
+        "stdout": "course: bus-ordering\ntitle: How the bus orders messages\nlecturer: claude\nauditor: kimi\nsources: 2\nverified_primary: 1\nlecture: sealed\naudit_claims: 1\nteachbacks: 0\nerrata: 0\nintegrity: ok\ngaps[2]: audit coverage is not explicitly closed by the designated auditor,no teach-back recorded\nhelp[1]:\n  uv run agent_cli.py college audit bus-ordering --claim-id <id> --claim <claim> --anchor <excerpt> --species <s> --verdict <v> --receipt <r> --source <source-id> --coverage-complete --coverage-receipt <r> --actor kimi\n"
+      },
+      "fresh": {
+        "argv": [
+          "college",
+          "show",
+          "fresh-course"
+        ],
+        "exit": 0,
+        "stdout": "course: fresh-course\ntitle: Wake seats\nlecturer: sol\nauditor: deepseek\nsources: 0\nverified_primary: 0\nlecture: unsealed\naudit_claims: 0\nteachbacks: 0\nerrata: 0\nintegrity: ok\ngaps[4]: no verified primary source,lecture is not sealed,no claim audit recorded,no teach-back recorded\nhelp[1]:\n  uv run agent_cli.py college source fresh-course --id <id> --title <title> --locator <locator> --kind primary --status verified --receipt <r> --retrieved-at <iso-time> --actor deepseek\n"
+      },
+      "dup": {
+        "argv": [
+          "college",
+          "start",
+          "bus-ordering",
+          "--title",
+          "x",
+          "--topic",
+          "y",
+          "--lecturer",
+          "a",
+          "--auditor",
+          "b",
+          "--actor",
+          "a"
+        ],
+        "exit": 2,
+        "stdout": "error: college course 'bus-ordering' already exists\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py college show bus-ordering\n"
+      }
+    }
+  }
+}
