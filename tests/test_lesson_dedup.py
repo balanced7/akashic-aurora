@@ -79,6 +79,7 @@ def test_cmd_learn_prints_near_duplicate_advisory(monkeypatch):
     twin = _sig(experiment_name="existing_twin")
     ls.record_learning({**twin, "expected_outcome": twin["expected_outcome"]})
     monkeypatch.setattr(lsmod, "get_learning_store", lambda *a, **k: ls)
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     s = _sig()
     args = types.SimpleNamespace(
         agent_id="claude",
@@ -97,8 +98,9 @@ def test_cmd_learn_prints_near_duplicate_advisory(monkeypatch):
     with redirect_stdout(buf):
         assert agent_cli.cmd_learn(args) == 0
     out = buf.getvalue()
-    assert "[OK] recorded lesson 'new_one'" in out, "the write always lands (advisory never blocks)"
-    assert "near-duplicate: overlaps 'existing_twin'" in out
+    assert "lesson: new_one" in out, "the write always lands (advisory never blocks)"
+    assert "near_duplicate:" in out
+    assert "lesson: existing_twin" in out
     assert "--experiment existing_twin" in out, "teaches the update-instead path"
 
 
@@ -110,6 +112,7 @@ def test_cmd_learn_no_advisory_when_updating_same_name(monkeypatch):
     s = _sig()
     ls.record_learning(s)
     monkeypatch.setattr(lsmod, "get_learning_store", lambda *a, **k: ls)
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
     args = types.SimpleNamespace(
         agent_id="claude",
         experiment=s["experiment_name"],
@@ -126,4 +129,4 @@ def test_cmd_learn_no_advisory_when_updating_same_name(monkeypatch):
     buf = io.StringIO()
     with redirect_stdout(buf):
         assert agent_cli.cmd_learn(args) == 0
-    assert "near-duplicate" not in buf.getvalue(), "a re-record IS the update path -- no nag"
+    assert "near_duplicate" not in buf.getvalue(), "a re-record IS the update path -- no nag"

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 21 converted to agent and human output.
+121 verbs; 22 converted to agent and human output.
 
 ## `alias`
 
@@ -1090,7 +1090,10 @@ help[1]:
 | | |
 |---|---|
 | Does | record a lesson |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 155 before, 186 after (+20%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/learn.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1110,6 +1113,24 @@ help[1]:
 | `--root-cause` |   |   | WHY it failed, not what happened -- read by the dedup dimensions, infer_domain and the anti-pattern slug drafter (which PREFERS it) |
 | `--files-affected` |   |   | comma/space-separated paths this lesson is about -- base_score tier 0.7 matches a task's paths against them |
 | `--scope` |   |   | where the lesson APPLIES (task 02): universal, harness:&lt;name&gt;, model:&lt;family\|id&gt;, effort:&lt;level&gt;, os:&lt;name&gt;, tool:&lt;name&gt;@&lt;ver&gt;; several allowed. Default: this session's harness and model family (narrow; evidence widens it -- see `scope`) |
+
+Agent output of `aurora learn alice --experiment port_clash_again --tried ran the suite --result hung at start --recommend Use when tests hang at start: check port 16379 is free. --category performance --success no` on the bench data:
+
+```text
+recorded: true
+lesson: port_clash_again
+category: performance
+success: no
+related:
+  lesson: port_clash
+  dims: 3/5
+  advice: consolidation-pass candidate
+  edge: stamped (related_to)
+anti_pattern_hint: "tag it if this failure names a reusable known-bad, so recall warns others (edit the drafted name)"
+help[2]:
+  uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite
+  uv run agent_cli.py recall --full learn:experiment:port_clash
+```
 
 ## `link`
 

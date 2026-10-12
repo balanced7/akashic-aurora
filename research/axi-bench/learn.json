@@ -1,0 +1,262 @@
+{
+  "verb": "learn",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 155,
+    "stdout_chars": 588,
+    "stdout_lines": 6,
+    "cost_usd": 0.0294,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the lesson recorded? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which existing lesson does the new lesson overlap with? Give its name only.",
+        "expected": "port_clash",
+        "answers": [
+          "port_clash",
+          "port_clash",
+          "port_clash",
+          "port_clash",
+          "port_clash"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "On how many of the 5 dimensions does it overlap that lesson?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would tag this failure as a known anti-pattern? Give the command only.",
+        "expected": [
+          "tag-anti-pattern alice",
+          "--experiment port_clash_again"
+        ],
+        "answers": [
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a lesson recorded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag must be added for the command to work? Give the flag only.",
+        "expected": [
+          "--experiment"
+        ],
+        "answers": [
+          "--experiment",
+          "--experiment",
+          "--experiment",
+          "--experiment",
+          "--experiment"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "related": {
+        "argv": [
+          "learn",
+          "alice",
+          "--experiment",
+          "port_clash_again",
+          "--tried",
+          "ran the suite",
+          "--result",
+          "hung at start",
+          "--recommend",
+          "Use when tests hang at start: check port 16379 is free.",
+          "--category",
+          "performance",
+          "--success",
+          "no"
+        ],
+        "exit": 0,
+        "stdout": "[OK] recorded lesson 'port_clash_again' (category: performance, success: no)\n[hint] if this failure names a reusable known-bad, tag it so recall can warn others:\n       uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite   (edit the name if a better fits)\n[i] related lesson: 'port_clash' (3/5 dims) -- consolidation-pass candidate. Edge stamped on this record (related_to).\n"
+      },
+      "missing": {
+        "argv": [
+          "learn",
+          "alice",
+          "--tried",
+          "something"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: need --experiment and at least one of --tried/--result.\nExample: uv run agent_cli.py learn me --experiment cache_fix --tried \"memoize\" --result \"+50%\" --recommend \"use it\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 186,
+    "stdout_chars": 684,
+    "stdout_lines": 17,
+    "cost_usd": 0.0266,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the lesson recorded? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which existing lesson does the new lesson overlap with? Give its name only.",
+        "expected": "port_clash",
+        "answers": [
+          "port_clash",
+          "port_clash",
+          "port_clash",
+          "port_clash",
+          "port_clash"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "On how many of the 5 dimensions does it overlap that lesson?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would tag this failure as a known anti-pattern? Give the command only.",
+        "expected": [
+          "tag-anti-pattern alice",
+          "--experiment port_clash_again"
+        ],
+        "answers": [
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite",
+          "uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a lesson recorded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag must be added for the command to work? Give the flag only.",
+        "expected": [
+          "--experiment"
+        ],
+        "answers": [
+          "--experiment",
+          "--experiment",
+          "--experiment",
+          "--experiment",
+          "--experiment"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "related": {
+        "argv": [
+          "learn",
+          "alice",
+          "--experiment",
+          "port_clash_again",
+          "--tried",
+          "ran the suite",
+          "--result",
+          "hung at start",
+          "--recommend",
+          "Use when tests hang at start: check port 16379 is free.",
+          "--category",
+          "performance",
+          "--success",
+          "no"
+        ],
+        "exit": 0,
+        "stdout": "recorded: true\nlesson: port_clash_again\ncategory: performance\nsuccess: no\nrelated:\n  lesson: port_clash\n  dims: 3/5\n  advice: consolidation-pass candidate\n  edge: stamped (related_to)\nanti_pattern_hint: \"tag it if this failure names a reusable known-bad, so recall warns others (edit the drafted name)\"\nhelp[2]:\n  uv run agent_cli.py tag-anti-pattern alice --experiment port_clash_again --name suite\n  uv run agent_cli.py recall --full learn:experiment:port_clash\n"
+      },
+      "missing": {
+        "argv": [
+          "learn",
+          "alice",
+          "--tried",
+          "something"
+        ],
+        "exit": 2,
+        "stdout": "error: \"no lesson was written: need --experiment and at least one of --tried/--result\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py learn alice --experiment cache_fix --tried \"memoize\" --result \"+50%\" --recommend \"use it\"\n"
+      }
+    }
+  }
+}

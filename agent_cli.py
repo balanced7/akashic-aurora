@@ -863,9 +863,11 @@ def cmd_learn(args):
     # "I just learned something" -- and the moment you notice a repeat is exactly that moment.
     # A write door must OFFER a field or it stays empty: the anti-pattern surface sat at zero
     # for months because no flag exposed it, not because nobody had one to record.
+    from core.axi import out
     from core.fleet import provenance
     from core.learning.learning_store import get_learning_store
 
+    cli = _cli()
     # Task 01: stamp the session's harness/model/effort record before writing, so the lesson
     # (and its event) can point at it. Fail-soft and empty when no harness names a session.
     # A known harness with no session variable (some Codex builds) still gets a record: a
@@ -882,22 +884,22 @@ def cmd_learn(args):
                 session_id=session_id,
             )
         except ValueError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            return 2
-        hrs = rec["elapsed_s"] / 3600.0
-        print(
-            f"[repeat] '{rec['of']}' violated again after {hrs:.1f}h"
-            + (f" (recall: {rec['recall_outcome']})" if rec["recall_outcome"] else "")
-        )
-        print(f"  a FLOOR, not a rate -- this counts only what someone noticed. See `{_cli()} stats`.")
-        return 0
+            return out.fail(str(e), code="USAGE", hints=[f'{cli} recall "<lesson name>"'], exit_code=out.EXIT_USAGE)
+        doc = {"repeat_of": rec["of"], "hours_since_last": round(rec["elapsed_s"] / 3600.0, 1)}
+        if rec["recall_outcome"]:
+            doc["recall_outcome"] = rec["recall_outcome"]
+        doc["count_is"] = "a FLOOR, not a rate -- it counts only what someone noticed"
+        return out.emit(doc, hints=[f"{cli} stats"], title="Repeat recorded")
 
     if not args.experiment or not (args.tried or args.result):
-        print("ERROR: need --experiment and at least one of --tried/--result.")
-        print(
-            f'Example: {_cli()} learn me --experiment cache_fix --tried "memoize" --result "+50%" --recommend "use it"'
+        return out.fail(
+            "no lesson was written: need --experiment and at least one of --tried/--result",
+            code="USAGE",
+            hints=[
+                f'{cli} learn {args.agent_id} --experiment cache_fix --tried "memoize" --result "+50%" --recommend "use it"'
+            ],
+            exit_code=out.EXIT_USAGE,
         )
-        return 2
     raw_fields = {
         "what_tried": args.tried,
         "actual_outcome": args.result,
@@ -906,9 +908,12 @@ def cmd_learn(args):
     }
     collapsed = _collapsed_learn_fields(raw_fields)
     if collapsed:
-        print(f"ERROR: learn refused collapsed tool-protocol fields in {', '.join(collapsed)}; no lesson was written.")
-        print("Re-send tried, result, expected, and recommend as separate arguments.")
-        return 2
+        return out.fail(
+            f"learn refused collapsed tool-protocol fields in {', '.join(collapsed)}; no lesson was written",
+            code="COLLAPSED_FIELDS",
+            details={"fix": "re-send tried, result, expected and recommend as separate arguments"},
+            exit_code=out.EXIT_USAGE,
+        )
     clipped = []
     signal: dict[str, Any] = {
         "experiment_name": _clip(args.experiment, 200),
@@ -935,8 +940,7 @@ def cmd_learn(args):
     try:
         declared = _scope.parse(getattr(args, "scope", None)) if getattr(args, "scope", None) else []
     except ValueError as e:
-        print(f"ERROR: {e}")
-        return 2
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} learn --help"], exit_code=out.EXIT_USAGE)
     lesson_scope = declared or _scope.propose(prov)
     signal["scope"] = _scope.render(lesson_scope)
     related = []
@@ -958,8 +962,7 @@ def cmd_learn(args):
     try:
         ok = get_learning_store().record_learning(signal)
     except Exception as e:
-        print(f"ERROR recording lesson: {type(e).__name__}: {e}")
-        return 1
+        return out.fail(f"recording the lesson failed: {type(e).__name__}: {e}", code="WRITE_FAILED")
     if ok:
         # narrative spine (Slice 1): a recorded lesson is also a Beat, pointing back
         # to the learning. Best-effort -- a narrative hiccup must not fail `learn`.
@@ -1006,28 +1009,56 @@ def cmd_learn(args):
             edge_stamped = False
     if args.json:
         print(json.dumps({"recorded": bool(ok), "experiment": signal["experiment_name"], "clipped": clipped or None}))
-    else:
-        print(
-            f"[{'OK' if ok else 'FAIL'}] recorded lesson '{signal['experiment_name']}' "
-            f"(category: {signal['category']}, success: {signal['success']})"
+        return 0 if ok else 1
+    if not ok:
+        return out.fail(
+            f"the store did not record lesson {signal['experiment_name']!r}",
+            code="WRITE_FAILED",
+            details={"clipped": clipped} if clipped else None,
         )
-        for c in clipped:  # RB-5: the door's RESULT carries the clip, never silent
-            print(c)
-        if ok and not declared and not _scope.is_universal(lesson_scope):
-            print(
-                f"[scope] {signal['scope']} (proposed from this session). If it holds for every agent, "
-                f"re-record with --scope universal; credit under other harnesses or models widens it."
-            )
+    # The confirmation, then every warning as a field of its own: an agent acts on a named field,
+    # a person sees each one coloured. Nothing the text door used to say is dropped.
+    doc: dict = {
+        "recorded": True,
+        "lesson": signal["experiment_name"],
+        "category": signal["category"],
+        "success": signal["success"],
+    }
+    if clipped:  # RB-5: the door's RESULT carries the clip, never silent
+        doc["clipped"] = [{"notice": c} for c in clipped]
+    if not declared and not _scope.is_universal(lesson_scope):
+        doc["scope_proposed"] = (
+            f"{signal['scope']} (from this session; if it holds for every agent, re-record with "
+            f"--scope universal -- credit under other harnesses or models widens it)"
+        )
+    hints = []
+    # Near-duplicate advisory (ce-compound's overlap rule, field-survey C5): 4-5 dims -> this is
+    # probably the SAME lesson, update that one next time (same --experiment name = update);
+    # 2-3 dims -> related, worth merging in a consolidation pass. Never blocks (append-only).
+    if related:
+        top = related[0]
+        near = top["dims"] >= 4
+        doc["near_duplicate" if near else "related"] = {
+            "lesson": top["experiment_name"],
+            "dims": f"{top['dims']}/5",
+            **({"matched": ", ".join(top["matched"])} if near else {}),
+            "advice": (
+                f"update it next time: re-record with --experiment {top['experiment_name']} (same name = update)"
+                if near
+                else "consolidation-pass candidate"
+            ),
+            # honest: only claim the stamp when mark_related actually returned True (DeepSeek
+            # review finding 3 -- a silent store failure must not present as success)
+            "edge": "stamped (related_to)"
+            if edge_stamped
+            else "NOT stamped -- store write failed; this output is the only record",
+        }
+        hints.append(f"{cli} recall --full learn:experiment:{top['experiment_name']}")
     # Slice 2 capture nudge: a failure with no anti_pattern is where a reusable known-bad hides, and
     # this instant (just recorded, context fresh) is the moment to name it. Auto-draft a candidate NAME
     # (removing the naming cost) and hand back the exact one-line tag command. Silent for successes or
     # when an anti_pattern was already given -- high-signal, no nag.
-    if (
-        ok
-        and not args.json
-        and str(signal["success"]).lower() in ("no", "false", "partial")
-        and not signal.get("anti_pattern")
-    ):
+    if str(signal["success"]).lower() in ("no", "false", "partial") and not signal.get("anti_pattern"):
         from core.learning.learning_store import draft_anti_pattern_slug
 
         # root_cause was a hardcoded "" here until 2026-08-25, so this helper had run on its
@@ -1038,38 +1069,36 @@ def cmd_learn(args):
             signal.get("what_tried", ""), signal.get("root_cause", ""), signal.get("recommendation", "")
         )
         if slug:
-            print("[hint] if this failure names a reusable known-bad, tag it so recall can warn others:")
-            print(
-                f"       {_cli()} tag-anti-pattern {args.agent_id} "
-                f"--experiment {signal['experiment_name']} --name {slug}   (edit the name if a better fits)"
+            doc["anti_pattern_hint"] = (
+                "tag it if this failure names a reusable known-bad, so recall warns others (edit the drafted name)"
             )
-    # Near-duplicate advisory (ce-compound's overlap rule, field-survey C5): 4-5 dims -> this is
-    # probably the SAME lesson, update that one next time (same --experiment name = update);
-    # 2-3 dims -> related, worth merging in a consolidation pass. Never blocks (append-only).
-    if ok and not args.json and related:
-        top = related[0]
-        # honest suffix: only claim the stamp when mark_related actually returned True
-        # (DeepSeek review finding 3 -- a silent store failure must not present as success)
-        edge_note = (
-            " Edge stamped on this record (related_to)."
-            if edge_stamped
-            else " (edge NOT stamped -- store write failed; the console line is the only record)."
-        )
-        if top["dims"] >= 4:
-            print(
-                f"[i] near-duplicate: overlaps '{top['experiment_name']}' on {top['dims']}/5 dimensions"
-                f" ({', '.join(top['matched'])})."
+            hints.insert(
+                0, f"{cli} tag-anti-pattern {args.agent_id} --experiment {signal['experiment_name']} --name {slug}"
             )
-            print(
-                f"    Next time update it instead: re-record with --experiment {top['experiment_name']}"
-                f" (same name = update, no dupes).{edge_note}"
-            )
-        else:
-            print(
-                f"[i] related lesson: '{top['experiment_name']}' ({top['dims']}/5 dims)"
-                f" -- consolidation-pass candidate.{edge_note}"
-            )
-    return 0 if ok else 1
+    return out.emit(doc, hints=hints, human=_human_learn, title="Lesson recorded")
+
+
+def _human_learn(console, doc):
+    """Human view of `learn`: the lesson recorded in green, then each warning in yellow."""
+    from core.axi import out
+
+    console.print(
+        f"[green]✓ recorded[/] [bold]{out._esc(doc['lesson'])}[/]  [cyan]{out._esc(str(doc['category']))}[/]  "
+        f"success: {out.styled(doc['success'])}"
+    )
+    for row in doc.get("clipped", []):
+        console.print(f"[yellow]! {out._esc(row['notice'])}[/]")
+    if doc.get("scope_proposed"):
+        console.print(f"[dim]scope:[/] {out._esc(doc['scope_proposed'])}")
+    for key, label in (("near_duplicate", "near-duplicate of"), ("related", "related to")):
+        if doc.get(key):
+            r = doc[key]
+            console.print(f"[yellow]! {label} {out._esc(r['lesson'])} ({r['dims']} dimensions)[/]")
+            if r.get("matched"):
+                console.print(f"  [dim]matched:[/] {out._esc(r['matched'])}")
+            console.print(f"  {out._esc(r['advice'])}; edge {out._esc(r['edge'])}")
+    if doc.get("anti_pattern_hint"):
+        console.print(f"[yellow]! {out._esc(doc['anti_pattern_hint'])}[/]")
 
 
 def cmd_tag_anti_pattern(args):

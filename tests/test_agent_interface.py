@@ -96,8 +96,8 @@ def test_full_loop_agent_a_to_b():
 def test_learn_validation():
     rc, out, _ = run("learn", "agent_x", "--experiment", "no_body")  # no --tried/--result
     assert rc == 2, "must reject + show usage"
-    assert "ERROR" in out, "must reject + show usage"
-    assert "Example" in out, "must reject + show usage"
+    assert "code: USAGE" in out, "must reject + show usage"
+    assert "learn agent_x --experiment" in out, "must reject + show a worked example"
     ok("learn rejects empty body with a helpful error + exit 2")
 
 

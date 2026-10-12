@@ -205,7 +205,7 @@ def test_learn_proposes_a_scope_and_set_and_show_round_trip():
     name = f"scope_cli_{uuid.uuid4().hex[:6]}"
     r = _cli("learn", "scopetest", "--experiment", name, "--tried", "t", "--result", "r", env=env)
     assert r.returncode == 0, r.stderr[-400:]
-    assert "[scope] harness:codex-cli model:gpt" in r.stdout
+    assert 'scope_proposed: "harness:codex-cli model:gpt' in r.stdout
     shown = json.loads(_cli("scope", "show", "--experiment", name, "--json", env=env).stdout)
     assert shown["scope"] == "harness:codex-cli model:gpt"
     assert _cli("scope", "set", "--experiment", name, "--scope", "universal", env=env).returncode == 0

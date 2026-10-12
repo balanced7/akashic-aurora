@@ -188,7 +188,7 @@ def test_a_runner_tool_lesson_records_the_runner_and_its_model():
     try:
         tb._kb_write_ok = lambda: None  # ty: ignore[invalid-assignment]  # instance monkeypatch: the capability gate is not what this pins
         out = tb.knowledge_learn(name, "t", "r", "use when x")
-        assert "[OK]" in out, out
+        assert "recorded: true" in out, out
         rec = _record(name, dict(os.environ))
     finally:
         os.environ.update(stripped)
