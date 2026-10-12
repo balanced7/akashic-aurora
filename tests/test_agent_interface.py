@@ -172,8 +172,12 @@ def test_redis_down_file_fallback():
 
 
 def test_bad_invocation():
-    rc, _, _err = run()  # no subcommand
-    assert rc != 0, "no-subcommand must exit nonzero"
+    # No subcommand is not a bad invocation any more: since the AXI conversion it shows the home
+    # view (live state and next commands, AXI section 8) and succeeds. The real mistakes below
+    # must still fail loudly.
+    rc, out, _err = run()
+    assert rc == 0, "no subcommand shows the home view"
+    assert "help[" in out
     rc, _, _err = run("learn", "agent_x")  # missing required --experiment
     assert rc != 0, "missing --experiment must exit nonzero"
     rc, _, _err = run("nonsense")  # unknown subcommand
