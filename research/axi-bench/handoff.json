@@ -1,0 +1,266 @@
+{
+  "verb": "handoff",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 83,
+    "stdout_chars": 397,
+    "stdout_lines": 7,
+    "cost_usd": 0.0267,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which agent will receive this handoff?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many blockers were flagged with the handoff?",
+        "expected": 2,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "When will the receiving agent see this briefing? Answer in a few words.",
+        "expected": [
+          "boot"
+        ],
+        "answers": [
+          "At the target's next boot",
+          "At alice's next boot",
+          "At the target's next boot",
+          "At the target's next boot",
+          "At the target's next boot"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many handoffs are addressed to alice?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who asked alice to rotate the staging keys?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many handoffs are addressed to dave?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "write": {
+        "argv": [
+          "handoff",
+          "bench",
+          "--to",
+          "alice",
+          "--task",
+          "finish the ledger migration",
+          "--note",
+          "schema done, data copy pending",
+          "--blocker",
+          "staging DB is read-only || waiting on DBA"
+        ],
+        "exit": 0,
+        "stdout": "[OK] handoff bench -> alice: finish the ledger migration\n  (the target's next `boot` will surface this as its briefing)\n"
+      },
+      "list": {
+        "argv": [
+          "handoff",
+          "alice",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "# 3 handoff(s) addressed to 'alice' (newest last)\n  - from bob: review the ledger migration PR  | CI is green\n  - from carol: rotate the staging keys\n  - from bench: finish the ledger migration  | schema done, data copy pending\n"
+      },
+      "none": {
+        "argv": [
+          "handoff",
+          "dave",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "# 0 handoff(s) addressed to 'dave' (newest last)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 108,
+    "stdout_chars": 506,
+    "stdout_lines": 20,
+    "cost_usd": 0.0246,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which agent will receive this handoff?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many blockers were flagged with the handoff?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "When will the receiving agent see this briefing? Answer in a few words.",
+        "expected": [
+          "boot"
+        ],
+        "answers": [
+          "At alice's next boot",
+          "At alice's next boot",
+          "At alice's next boot",
+          "At alice's next boot",
+          "At alice's next boot"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many handoffs are addressed to alice?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who asked alice to rotate the staging keys?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many handoffs are addressed to dave?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "write": {
+        "argv": [
+          "handoff",
+          "bench",
+          "--to",
+          "alice",
+          "--task",
+          "finish the ledger migration",
+          "--note",
+          "schema done, data copy pending",
+          "--blocker",
+          "staging DB is read-only || waiting on DBA"
+        ],
+        "exit": 0,
+        "stdout": "recorded: true\nfrom: bench\nto: alice\ntask: finish the ledger migration\nblockers: 2\ndelivery: alice's next boot surfaces this as its briefing\n"
+      },
+      "list": {
+        "argv": [
+          "handoff",
+          "alice",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "to: alice\ntotal: 3\norder: newest last\nhandoffs[3]{from,task,note}:\n  bob,review the ledger migration PR,CI is green\n  carol,rotate the staging keys,null\n  bench,finish the ledger migration,\"schema done, data copy pending\"\nhelp[1]:\n  uv run agent_cli.py boot alice\n"
+      },
+      "none": {
+        "argv": [
+          "handoff",
+          "dave",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "to: dave\ntotal: 0\nhandoffs: []\nhelp[1]:\n  uv run agent_cli.py handoff <agent> --to dave --task \"...\"\n"
+      }
+    }
+  }
+}

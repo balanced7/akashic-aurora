@@ -7055,31 +7055,42 @@ def cmd_handoff(args):
                               [--blocker "a || b"] [--json]
       py agent_cli.py handoff <from_agent> --list [--to <agent>] [--json]
     """
+    from core.axi import out
+
+    cli = _cli()
     # --list: read mode -- show handoffs addressed to (--to OR this agent).
     if args.list:
         who = (args.to or args.agent_id or "").strip()
         items = _incoming_handoffs(who)
-        if args.json:
+        if getattr(args, "json", False):
             print(json.dumps(items, indent=2, default=str))
             return 0
-        print(f"# {len(items)} handoff(s) addressed to '{who}' (newest last)")
-        for s in items[-25:]:
-            note = (s.get("context") or {}).get("note", "")
-            print(
-                f"  - from {s.get('agent_id', '?')}: {_clip(s.get('task', ''), 120)}"
-                + (f"  | {_clip(note, 80)}" if note else "")
-            )
-        return 0
+        doc: dict = {"to": who, "total": len(items)}
+        if not items:  # AXI section 5: the zero is the answer
+            doc["handoffs"] = []
+            return out.emit(doc, hints=[f'{cli} handoff <agent> --to {who} --task "..."'], title="Handoffs")
+        if len(items) > 25:
+            doc["shown"] = 25
+        doc["order"] = "newest last"
+        doc["handoffs"] = [
+            {
+                "from": s.get("agent_id", "?"),
+                "task": out.truncate(s.get("task", ""), 120)[0],
+                "note": out.truncate((s.get("context") or {}).get("note", ""), 160)[0] or None,
+            }
+            for s in items[-25:]
+        ]
+        return out.emit(doc, hints=[f"{cli} boot {who}"], title="Handoffs")
 
     to_agent = (args.to or "").strip()
     task = (args.task or "").strip()
     if not to_agent or not task:
-        print('ERROR: need --to <agent> and --task "..." (or --list to read).')
-        print(
-            f"Example: {_cli()} handoff cursor --to claude "
-            '--task "finish C3 threshold tuning" --note "see docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md"'
+        return out.fail(
+            'no handoff was written: need --to <agent> and --task "..." (or --list to read)',
+            code="USAGE",
+            hints=[f'{cli} handoff {args.agent_id} --to claude --task "finish C3 threshold tuning" --note "..."'],
+            exit_code=out.EXIT_USAGE,
         )
-        return 2
 
     from core.signals.coordinator_api import SignalEmitter
 
@@ -7095,8 +7106,7 @@ def cmd_handoff(args):
         em.emit_handoff_to_target_agent(to_agent, _intake(task, 500, "task", clipped), context=ctx, blockers=blockers)
         ok = True
     except Exception as e:
-        print(f"ERROR recording handoff: {type(e).__name__}: {e}")
-        return 1
+        return out.fail(f"recording the handoff failed: {type(e).__name__}: {e}", code="WRITE_FAILED")
 
     # Narrative spine + raw firehose visibility (best-effort): a handoff is a salient
     # Beat AND a raw event, so it shows up in `story` and the cross-agent `events`.
@@ -7130,13 +7140,38 @@ def cmd_handoff(args):
                 {"recorded": ok, "from": args.agent_id, "to": to_agent, "task": task, "clipped": clipped or None}
             )
         )
-    else:
-        print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
-        print("  (the target's next `boot` will surface this as its briefing)")
-        for c in clipped:  # RB-5: the door's RESULT carries the clip, never silent
-            print(c)
-        _warn_unmirrored()  # session-end: don't hand off on top of unmirrored work
-    return 0 if ok else 1
+        return 0
+    doc = {
+        "recorded": True,
+        "from": args.agent_id,
+        "to": to_agent,
+        "task": out.truncate(task, 300)[0],
+        "blockers": len(blockers),
+        "delivery": f"{to_agent}'s next boot surfaces this as its briefing",
+    }
+    if clipped:  # RB-5: the door's RESULT carries the clip, never silent
+        doc["clipped"] = [{"notice": c} for c in clipped]
+    # Session-end: don't hand off on top of unmirrored work. The warning's render is shared with
+    # other doors, so its text is carried here as rows.
+    unmirrored = _boot_lines(_printed(_warn_unmirrored))
+    if unmirrored:
+        doc["unmirrored"] = unmirrored
+    return out.emit(doc, human=_human_handoff, title="Handoff recorded")
+
+
+def _human_handoff(console, doc):
+    from core.axi import out
+
+    console.print(
+        f"[green]✓ handoff[/] {out._esc(doc['from'])} -> [bold]{out._esc(doc['to'])}[/]: {out._esc(doc['task'])}"
+    )
+    if doc["blockers"]:
+        console.print(f"  [yellow]{doc['blockers']} blocker(s) flagged[/]")
+    console.print(f"  [dim]{out._esc(doc['delivery'])}[/]")
+    for row in doc.get("clipped", []):
+        console.print(f"[yellow]! {out._esc(row['notice'])}[/]")
+    for row in doc.get("unmirrored", []):
+        console.print(f"[yellow]{out._esc(row['line'])}[/]")
 
 
 # ------------------------------------------------------------------------- events

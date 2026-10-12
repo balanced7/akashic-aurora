@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 33 converted to agent and human output.
+121 verbs; 34 converted to agent and human output.
 
 ## `alias`
 
@@ -1034,7 +1034,10 @@ help[1]:
 | | |
 |---|---|
 | Does | hand work to another agent (writes a briefing its next boot reads) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 83 before, 108 after (+30%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/handoff.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1045,6 +1048,17 @@ help[1]:
 | `--blocker` |   |   | blockers to flag, separated by ' \|\| ' |
 | `--list` |   |   | list handoffs addressed to --to (or you) instead of writing |
 | `--json` |   |   | JSON output |
+
+Agent output of `aurora handoff bench --to alice --task finish the ledger migration --note schema done, data copy pending --blocker staging DB is read-only || waiting on DBA` on the bench data:
+
+```text
+recorded: true
+from: bench
+to: alice
+task: finish the ledger migration
+blockers: 2
+delivery: alice's next boot surfaces this as its briefing
+```
 
 ## `harnesses`
 
