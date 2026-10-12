@@ -1,0 +1,268 @@
+{
+  "verb": "bifrost-nudge",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.68,
+    "correct": 17,
+    "asked": 25,
+    "output_tokens": 28,
+    "stdout_chars": 265,
+    "stdout_lines": 4,
+    "cost_usd": 0.0229,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Which agent was nudged?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "[bifrost-nudge:interrupt] -> deepseek (id 1791814892156-0)",
+          "deepseek",
+          "deepseek",
+          "[bifrost-nudge:interrupt] -> deepseek (id 1791814892156-0)"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which nudge mode was used?",
+        "expected": "interrupt",
+        "answers": [
+          "interrupt",
+          "interrupt",
+          "interrupt",
+          "[bifrost-nudge:interrupt]",
+          "interrupt"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Will the nudged agent drop the task it is working on? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which modes are valid? List them separated by commas.",
+        "expected": [
+          "interrupt",
+          "steer",
+          "inform"
+        ],
+        "answers": [
+          "interrupt, steer, inform",
+          "interrupt, steer, inform",
+          "interrupt, steer, inform",
+          "interrupt, steer, inform",
+          "interrupt, steer, inform"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the nudge sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "interrupt": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "look at the failing test",
+          "--to",
+          "deepseek"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost-nudge:interrupt] -> deepseek (id 1791814892156-0)\n"
+      },
+      "steer": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "prefer the small fix",
+          "--to",
+          "deepseek",
+          "--mode",
+          "steer"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost-nudge:steer] -> deepseek (id 1791814892615-0)\n"
+      },
+      "bad_mode": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "x",
+          "--to",
+          "deepseek",
+          "--mode",
+          "yell"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: --mode must be interrupt|steer|inform (got 'yell')\n"
+      },
+      "no_to": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: bifrost-nudge needs --to <agent>. e.g. bifrost-nudge claude --to deepseek \"look at X\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.92,
+    "correct": 23,
+    "asked": 25,
+    "output_tokens": 47,
+    "stdout_chars": 542,
+    "stdout_lines": 19,
+    "cost_usd": 0.0227,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Which agent was nudged?",
+        "expected": "deepseek",
+        "answers": [
+          "sent to deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which nudge mode was used?",
+        "expected": "interrupt",
+        "answers": [
+          "interrupt",
+          "interrupt",
+          "interrupt",
+          "mode: interrupt",
+          "interrupt"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Will the nudged agent drop the task it is working on? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which modes are valid? List them separated by commas.",
+        "expected": [
+          "interrupt",
+          "steer",
+          "inform"
+        ],
+        "answers": [
+          "interrupt, steer, inform",
+          "interrupt,steer,inform",
+          "interrupt,steer,inform",
+          "interrupt,steer,inform",
+          "interrupt,steer,inform"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the nudge sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "interrupt": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "look at the failing test",
+          "--to",
+          "deepseek"
+        ],
+        "exit": 0,
+        "stdout": "status: sent\nto: deepseek\nmode: interrupt\nid: 1791814923899-0\neffect: drops its current work at the next round boundary and switches to this\n"
+      },
+      "steer": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "prefer the small fix",
+          "--to",
+          "deepseek",
+          "--mode",
+          "steer"
+        ],
+        "exit": 0,
+        "stdout": "status: sent\nto: deepseek\nmode: steer\nid: 1791814924473-0\neffect: folds this into its current task between rounds and keeps going\n"
+      },
+      "bad_mode": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "x",
+          "--to",
+          "deepseek",
+          "--mode",
+          "yell"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--mode must be interrupt|steer|inform (got 'yell')\"\ncode: USAGE\nsent: false\nvalid_modes[3]: interrupt,steer,inform\n"
+      },
+      "no_to": {
+        "argv": [
+          "bifrost-nudge",
+          "claude",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "error: bifrost-nudge needs --to <agent>\ncode: USAGE\nsent: false\nhelp[1]:\n  uv run agent_cli.py bifrost-nudge claude --to <peer> \"<what to look at>\"\n"
+      }
+    }
+  }
+}

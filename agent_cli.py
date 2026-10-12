@@ -9384,20 +9384,30 @@ def cmd_bifrost_nudge(args):
     --mode steer:               SOFT -- queue a fact (kind=steer) its runner folds into its CURRENT
                                  task between rounds; it keeps going, adjusted.
     --mode inform:              AMBIENT -- kind=inform; the peer adopts it at its next turn, no disruption."""
+    from core.axi import out
     from core.comm import nudge
     from core.comm.bus import Bus
 
+    cli = _cli()
     if not args.to:
-        print('ERROR: bifrost-nudge needs --to <agent>. e.g. bifrost-nudge claude --to deepseek "look at X"')
-        return 2
+        return out.fail(
+            "bifrost-nudge needs --to <agent>",
+            code="USAGE",
+            details={"sent": False},
+            hints=[f'{cli} bifrost-nudge {args.agent_id} --to <peer> "<what to look at>"'],
+            exit_code=out.EXIT_USAGE,
+        )
     mode = (getattr(args, "mode", None) or "interrupt").lower()
-    if mode not in ("interrupt", "steer", "inform"):
-        print(f"ERROR: --mode must be interrupt|steer|inform (got {mode!r})")
-        return 2
+    if mode not in _NUDGE_EFFECT:
+        return out.fail(
+            f"--mode must be interrupt|steer|inform (got {mode!r})",
+            code="USAGE",
+            details={"sent": False, "valid_modes": list(_NUDGE_EFFECT)},
+            exit_code=out.EXIT_USAGE,
+        )
     bus = Bus(args.agent_id)
     if not bus.online:
-        print("[bifrost-nudge] bus OFFLINE (Redis down) -- not sent.")
-        return 1
+        return out.fail("bus OFFLINE (Redis down) -- not sent", code="BUS_OFFLINE", details={"sent": False})
     bus.register()
     text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
     meta = {"via": f"{args.agent_id}-cli", "hops": 0}
@@ -9412,8 +9422,29 @@ def cmd_bifrost_nudge(args):
     if args.json:
         print(json.dumps({"sent": bool(mid), "id": mid, "to": args.to, "mode": mode}, default=str))
         return 0 if mid else 1
-    print(f"[bifrost-nudge:{mode}] -> {args.to} (id {mid})" if mid else f"[bifrost-nudge:{mode}] send failed")
-    return 0 if mid else 1
+    if not mid:
+        return out.fail(
+            f"{mode} nudge not sent -- the bus accepted nothing", code="SEND_FAILED", details={"sent": False}
+        )
+    doc = {"status": "sent", "to": args.to, "mode": mode, "id": mid, "effect": _NUDGE_EFFECT[mode]}
+    return out.emit(doc, human=_human_nudge)  # a confirmation that says what happens next: no hints
+
+
+#: What each nudge mode makes the peer do, said once for the agent output and the human view.
+_NUDGE_EFFECT = {
+    "interrupt": "drops its current work at the next round boundary and switches to this",
+    "steer": "folds this into its current task between rounds and keeps going",
+    "inform": "adopts this at its next turn; nothing is interrupted",
+}
+
+
+def _human_nudge(console, doc):
+    from core.axi import out
+
+    console.print(
+        f"[green]{out._esc(doc['mode'])} sent[/] to [bold]{out._esc(str(doc['to']))}[/]  [dim]{out._esc(str(doc['id']))}[/]"
+    )
+    console.print(f"  {out._esc(str(doc['to']))} {out._esc(doc['effect'])}")
 
 
 # -------------------------------------------------------------------------- locks

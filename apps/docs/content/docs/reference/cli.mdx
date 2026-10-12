@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 23 converted to agent and human output.
+121 verbs; 24 converted to agent and human output.
 
 ## `alias`
 
@@ -187,7 +187,10 @@ help[1]:
 | | |
 |---|---|
 | Does | targeted fidelity signal to ONE peer (interrupt\|steer\|inform) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 68% before, 92% after |
+| Output tokens | 28 before, 47 after (+68%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/bifrost-nudge.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -196,6 +199,16 @@ help[1]:
 | `--to` |   |   | the ONE peer to signal (e.g. deepseek) |
 | `--mode` |   |   | interrupt (hard, default) \| steer (soft, fold into current task) \| inform (ambient) |
 | `--json` |   |   |   |
+
+Agent output of `aurora bifrost-nudge claude look at the failing test --to deepseek` on the bench data:
+
+```text
+status: sent
+to: deepseek
+mode: interrupt
+id: 1791814923899-0
+effect: drops its current work at the next round boundary and switches to this
+```
 
 ## `bifrost-pause`
 
