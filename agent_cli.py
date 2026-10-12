@@ -2377,6 +2377,7 @@ def cmd_timeline(args):
     """
     import time as _t
 
+    from core.axi import out
     from core.coord import timeline as tl
 
     since = _t.time() - float(args.hours) * 3600.0 if args.hours else None
@@ -2386,27 +2387,60 @@ def cmd_timeline(args):
         return 0
 
     cov = r["coverage"]
-    print(f"# timeline -- {cov['n']} row(s)" + (f" over the last {args.hours}h" if args.hours else " (all)"))
-    print(
-        f"  read: {', '.join(f'{k}={v}' for k, v in sorted(cov['counts'].items())) or 'none'}"
-        + (f" | undated {cov['undated']}" if cov["undated"] else "")
-    )
-    for name, why in (cov["failed"] or {}).items():
-        print(
-            f"  NOT READ: {name} ({why}) -- contributed zero rows, which is NOT the same as having none",
-            file=sys.stderr,
-        )
+    all_rows = r["rows"]
+    rows = all_rows[-int(args.limit) :] if args.limit else all_rows
+    doc: dict = {
+        "window": f"last {args.hours:g}h" if args.hours else "all",
+        "total": cov["n"],
+    }
+    if len(rows) < len(all_rows):  # the newest rows are kept; say how many of the total
+        doc["shown"] = len(rows)
+    # Rows per domain read, on one line: "events=3 files=0 git=0 tasks=0".
+    doc["read"] = " ".join(f"{k}={v}" for k, v in sorted(cov["counts"].items())) or "none"
+    if cov["failed"]:
+        # Coverage on stdout, beside the rows: a domain that could not be read contributed
+        # zero rows, and that must not pass for a domain where nothing happened.
+        doc["not_read"] = dict(cov["failed"])
+    if cov["undated"]:
+        doc["undated"] = cov["undated"]
+    doc["rows"] = [
+        {
+            "at": _t.strftime("%m-%d %H:%M:%S", _t.localtime(row["ts"])) if row["ts"] else None,
+            "domain": row["domain"],
+            "actor": row["actor"] or None,
+            "kind": row["kind"],
+            "summary": out.truncate(row["summary"], 120)[0],
+        }
+        for row in rows
+    ]
+    cli = _cli()
+    hints = []
+    if "shown" in doc:
+        hints.append(f"{cli} timeline --hours {args.hours:g} --limit 0")
+    elif not rows and args.hours:
+        hints.append(f"{cli} timeline --hours {float(args.hours) * 4:g}")
+    ev_ref = next((row["ref"] for row in reversed(rows) if row["domain"] == "events" and row["ref"]), None)
+    if ev_ref:  # the newest event row: its full record is one drill away
+        hints.append(f"{cli} events --get {ev_ref}")
+    return out.emit(doc, hints=hints, human=_human_timeline, title="Timeline")
 
-    rows = r["rows"][-int(args.limit) :] if args.limit else r["rows"]
-    for row in rows:
-        stamp = _t.strftime("%m-%d %H:%M:%S", _t.localtime(row["ts"])) if row["ts"] else "  ??  ??:??:??"
-        print(
-            f"  {stamp}  {row['domain']:<7} {str(row['actor'])[:12]:<12} "
-            f"{str(row['kind'])[:18]:<18} {row['summary'][:60]}"
-        )
-    for b in r["blind"]:
-        print(f"  - {b}", file=sys.stderr)
-    return 0
+
+def _human_timeline(console, doc):
+    """Human view of `timeline`: the window and coverage first, unread domains in red, then one
+    table of rows in time order."""
+    from core.axi import out
+
+    shown = f"{doc['shown']} of " if "shown" in doc else ""
+    console.print(f"[bold]{shown}{doc['total']}[/] rows [dim]· {out._esc(doc['window'])}[/]")
+    console.print(
+        f"[dim]read:[/] {out._esc(doc['read'])}" + (f"  [dim]undated {doc['undated']}[/]" if "undated" in doc else "")
+    )
+    for name, why in (doc.get("not_read") or {}).items():
+        console.print(f"[red]not read: {out._esc(name)}[/] [dim]({out._esc(why)}) -- zero rows here is not 'none'[/]")
+    if doc["rows"]:
+        console.print(out.table(doc["rows"]))
+    else:
+        console.print("[yellow]no rows in this window[/]")
 
 
 def cmd_discover(args):

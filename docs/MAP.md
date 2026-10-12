@@ -197,7 +197,7 @@ Class: reference
 | `task_costs.py` | Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed. | GAP | GAP | `BIFROST_NAMESPACE` |
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `AKASHIC_TASKS_PATH`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
 | `terms.py` | terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214). | tests/test_t214_terms_domain.py | GAP |  |
-| `timeline.py` | timeline -- one chronological SET across domains (T211). | tests/test_t211_timeline.py | GAP | `AKASHIC_TIMELINE_FILE_LIMIT` |
+| `timeline.py` | timeline -- one chronological SET across domains (T211). | tests/test_axi_timeline.py | GAP | `AKASHIC_TIMELINE_FILE_LIMIT` |
 | `world_diff.py` | world_diff -- what differs between two worlds, MINUS what should differ. | tests/test_w159_world_diff.py | GAP |  |
 | `world_fidelity.py` | world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered. | tests/test_w163_world_fidelity.py | GAP |  |
 | `world_savepoint.py` | world_savepoint -- a world's two planes under one name, or neither. | tests/test_w160_world_savepoint.py | GAP |  |

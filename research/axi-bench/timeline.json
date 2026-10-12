@@ -1,0 +1,210 @@
+{
+  "verb": "timeline",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 179,
+    "stdout_chars": 639,
+    "stdout_lines": 10,
+    "cost_usd": 0.0224,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "Which actor recorded the test_run row?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many rows came from the events domain?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Of the rows from the events domain, what is the kind of the most recent one?",
+        "expected": "rollback",
+        "answers": [
+          "rollback",
+          "rollback",
+          "rollback",
+          "rollback",
+          "rollback"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output list every row in the time window? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many rows from the events domain fall in the time window?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "window": {
+        "argv": [
+          "timeline",
+          "--hours",
+          "0.005"
+        ],
+        "exit": 0,
+        "stdout": "# timeline -- 5 row(s) over the last 0.005h\n  read: events=3, files=2, tasks=0\n  10-12 16:29:18  files                file:modified      .aurora-world\n  10-12 16:29:26  events  alice        deploy             deployed api v2 to staging\n  10-12 16:29:27  events  bob          test_run           ran suite: 3 failures in auth\n  10-12 16:29:27  events  alice        rollback           rolled api back to v1\n  10-12 16:29:28  files                file:modified      state/redis-backend\n"
+      },
+      "cut": {
+        "argv": [
+          "timeline",
+          "--hours",
+          "0.005",
+          "--limit",
+          "1"
+        ],
+        "exit": 0,
+        "stdout": "# timeline -- 5 row(s) over the last 0.005h\n  read: events=3, files=2, tasks=0\n  10-12 16:29:28  files                file:modified      state/redis-backend\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 185,
+    "stdout_chars": 691,
+    "stdout_lines": 18,
+    "cost_usd": 0.0219,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which actor recorded the test_run row?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many rows came from the events domain?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Of the rows from the events domain, what is the kind of the most recent one?",
+        "expected": "rollback",
+        "answers": [
+          "rollback",
+          "rollback",
+          "rollback",
+          "rollback",
+          "rollback"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this output list every row in the time window? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many rows from the events domain fall in the time window?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "window": {
+        "argv": [
+          "timeline",
+          "--hours",
+          "0.005"
+        ],
+        "exit": 0,
+        "stdout": "window: last 0.005h\ntotal: 3\nread: events=3 files=0 git=0 tasks=0\nrows[3]{at,domain,actor,kind,summary}:\n  \"10-12 16:30:09\",events,alice,deploy,deployed api v2 to staging\n  \"10-12 16:30:09\",events,bob,test_run,\"ran suite: 3 failures in auth\"\n  \"10-12 16:30:10\",events,alice,rollback,rolled api back to v1\nhelp[1]:\n  uv run agent_cli.py events --get event:events:raw:1791815410282-0\n"
+      },
+      "cut": {
+        "argv": [
+          "timeline",
+          "--hours",
+          "0.005",
+          "--limit",
+          "1"
+        ],
+        "exit": 0,
+        "stdout": "window: last 0.005h\ntotal: 3\nshown: 1\nread: events=3 files=0 git=0 tasks=0\nrows[1]{at,domain,actor,kind,summary}:\n  \"10-12 16:30:10\",events,alice,rollback,rolled api back to v1\nhelp[2]:\n  uv run agent_cli.py timeline --hours 0.005 --limit 0\n  uv run agent_cli.py events --get event:events:raw:1791815410282-0\n"
+      }
+    }
+  }
+}
