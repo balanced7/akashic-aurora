@@ -15976,19 +15976,84 @@ def cmd_tally(args):
     (W48, kimi's design + pins; claude build+wire). Finds counter files that NAME the
     opening, aligns their q-ids, prints agree/conflict/partial per row. READ-ONLY; a
     reviewer aid, not a gate -- ONE VOICE never reads as consensus."""
+    from core.axi import out
     from core.toolbelt import tally as tl
 
+    opening = str(getattr(args, "opening", "") or "")
+    research_dir = str(getattr(args, "research_dir", "") or "research")
+    cli = _cli()
+    if getattr(args, "json", False):
+        try:
+            print(tl.run(opening, research_dir=research_dir, as_json=True))
+        except Exception as e:
+            print(f"[tally] {type(e).__name__}: {e}")
+            return 2
+        return 0
     try:
-        out = tl.run(
-            str(getattr(args, "opening", "") or ""),
-            research_dir=str(getattr(args, "research_dir", "") or "research"),
-            as_json=bool(getattr(args, "json", False)),
-        )
+        if not opening.strip():
+            raise ValueError("tally needs the opening file to reconcile counters against")
+        m = tl.matrix(opening, tl.find_counters(opening, research_dir))
     except Exception as e:
-        print(f"[tally] {type(e).__name__}: {e}")
-        return 2
-    print(out)
-    return 0
+        return out.fail(
+            f"{type(e).__name__}: {e}",
+            code="USAGE",
+            hints=[f"{cli} tally <opening.md> --research-dir research"],
+            exit_code=out.EXIT_USAGE,
+        )
+    authors = m["authors"]
+    status = m["status"]
+    doc: dict = {"opening": m["opening"], "counters": len(authors)}
+    for word in ("AGREE", "CONFLICT", "partial", "open"):
+        doc[word.lower()] = sum(1 for s in status.values() if s == word)
+    # ONE-VOICE-NEVER-AGREE, said where the counts are: one counter cannot carry a consensus.
+    if 0 < len(authors) < 2:
+        doc["consensus"] = "none claimed, one voice (2-of-3 needs at least 2 counters)"
+    # One row per question, one column per counter's author ("-" where that author is silent);
+    # the column headers name the authors, so no separate author list.
+    doc["questions"] = [
+        {"q": q, **{a: m["cells"][q].get(a, "-") for a in authors}, "status": status[q]} for q in m["rows"]
+    ]
+    if m["mentions"]:
+        doc["mentions"] = [os.path.basename(x) for x in m["mentions"]]
+    # The matrix answers itself; only an empty one needs a next step -- the counters live
+    # elsewhere, or do not name this opening's file.
+    hints = [] if authors else [f"{cli} tally {_quote_arg(opening)} --research-dir <dir>"]
+    return out.emit(doc, hints=hints, human=_human_tally(authors), title=f"Tally · {m['opening']}")
+
+
+def _human_tally(authors):
+    """Human view of `tally`: the agree/conflict counts first, then the matrix with one column
+    per counter and the status coloured (AGREE green, CONFLICT red, partial/open yellow)."""
+
+    def render(console, doc):
+        from rich import box
+        from rich.table import Table
+
+        from core.axi import out
+
+        n = doc["counters"]
+        who = f": {', '.join(authors)}" if authors else ""
+        console.print(
+            f"[bold]{n}[/] counter{'s' if n != 1 else ''}{out._esc(who)}   "
+            f"[green]{doc['agree']} agree[/]  [red]{doc['conflict']} conflict[/]  "
+            f"[yellow]{doc['partial']} partial[/]  [dim]{doc['open']} open[/]"
+        )
+        if doc.get("consensus"):
+            console.print(f"[yellow]! {out._esc(doc['consensus'])}[/]")
+        if doc["questions"]:
+            colour = {"AGREE": "green", "CONFLICT": "red", "partial": "yellow", "open": "dim"}
+            t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+            for c in doc["questions"][0]:
+                t.add_column(c)
+            for r in doc["questions"]:
+                st = r["status"]
+                cells = [out._esc(str(v)) for k, v in r.items() if k != "status"]
+                t.add_row(*cells, f"[{colour.get(st, 'white')}]{st}[/]")
+            console.print(t)
+        if doc.get("mentions"):
+            console.print(f"[dim]mentions, not counters: {out._esc(', '.join(doc['mentions']))}[/]")
+
+    return render
 
 
 def cmd_clobber_scan(args):

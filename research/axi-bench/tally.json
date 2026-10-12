@@ -1,0 +1,238 @@
+{
+  "verb": "tally",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.933,
+    "correct": 28,
+    "asked": 30,
+    "output_tokens": 975,
+    "stdout_chars": 545,
+    "stdout_lines": 12,
+    "cost_usd": 0.03,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many questions do all counters agree on?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2 agree",
+          "2 agree",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which question ids are in conflict? List them separated by commas.",
+        "expected": [
+          "Q2"
+        ],
+        "answers": [
+          "Q2",
+          "Q2",
+          "Q2",
+          "Q2, Q3? No \u2014 Q2 is the only row marked CONFLICT.\n\nQ2",
+          ""
+        ],
+        "correct": 3
+      },
+      {
+        "q": "What verdict did deepseek give on Q2?",
+        "expected": "KILL",
+        "answers": [
+          "KILL",
+          "KILL",
+          "KILL",
+          "KILL",
+          "KILL"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many counters were found?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which file names the opening but is not a counter? Give the file name only.",
+        "expected": "sol-brief.md",
+        "answers": [
+          "sol-brief.md",
+          "sol-brief.md",
+          "sol-brief.md",
+          "sol-brief.md",
+          "sol-brief.md"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many counters were found for this opening?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "matrix": {
+        "argv": [
+          "tally",
+          "/tmp/axi-tally-zn_ese07/research/seat-routing-opening-2026-10.md",
+          "--research-dir",
+          "/tmp/axi-tally-zn_ese07/research"
+        ],
+        "exit": 0,
+        "stdout": "# tally: seat-routing-opening-2026-10.md  (3 counter(s): claude, deepseek, kimi)\n  q     claude    deepseek  kimi      = status\n  Q1    KEEP      KEEP      KEEP      = AGREE\n  Q2    AMEND     KILL      AMEND     = CONFLICT\n  Q3    KILL      KILL      KILL      = AGREE\n  Q4    YES       -         YES       = partial\n  -- 2 agree / 1 conflict / 1 partial / 0 open\n  (mentions, not counters: sol-brief.md)\n"
+      },
+      "none": {
+        "argv": [
+          "tally",
+          "/tmp/axi-tally-zn_ese07/empty/lonely-opening-2026-10.md",
+          "--research-dir",
+          "/tmp/axi-tally-zn_ese07/empty"
+        ],
+        "exit": 0,
+        "stdout": "# tally: lonely-opening-2026-10.md  (0 counter(s): none)\n  q       = status\n  Q1      = open\n  -- 0 agree / 0 conflict / 0 partial / 1 open\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 173,
+    "stdout_chars": 507,
+    "stdout_lines": 22,
+    "cost_usd": 0.0286,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many questions do all counters agree on?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which question ids are in conflict? List them separated by commas.",
+        "expected": [
+          "Q2"
+        ],
+        "answers": [
+          "Q2, Q4",
+          "Q2",
+          "Q2",
+          "Q2",
+          "Q2"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What verdict did deepseek give on Q2?",
+        "expected": "KILL",
+        "answers": [
+          "KILL",
+          "KILL",
+          "KILL",
+          "KILL",
+          "KILL"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many counters were found?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "Counters found: 3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which file names the opening but is not a counter? Give the file name only.",
+        "expected": "sol-brief.md",
+        "answers": [
+          "sol-brief.md",
+          "sol-brief.md",
+          "sol-brief.md",
+          "sol-brief.md",
+          "sol-brief.md"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many counters were found for this opening?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "matrix": {
+        "argv": [
+          "tally",
+          "/tmp/axi-tally-zn_ese07/research/seat-routing-opening-2026-10.md",
+          "--research-dir",
+          "/tmp/axi-tally-zn_ese07/research"
+        ],
+        "exit": 0,
+        "stdout": "opening: seat-routing-opening-2026-10.md\ncounters: 3\nagree: 2\nconflict: 1\npartial: 1\nopen: 0\nquestions[4]{q,claude,deepseek,kimi,status}:\n  Q1,KEEP,KEEP,KEEP,AGREE\n  Q2,AMEND,KILL,AMEND,CONFLICT\n  Q3,KILL,KILL,KILL,AGREE\n  Q4,YES,\"-\",YES,partial\nmentions[1]: sol-brief.md\n"
+      },
+      "none": {
+        "argv": [
+          "tally",
+          "/tmp/axi-tally-zn_ese07/empty/lonely-opening-2026-10.md",
+          "--research-dir",
+          "/tmp/axi-tally-zn_ese07/empty"
+        ],
+        "exit": 0,
+        "stdout": "opening: lonely-opening-2026-10.md\ncounters: 0\nagree: 0\nconflict: 0\npartial: 0\nopen: 1\nquestions[1]{q,status}:\n  Q1,open\nhelp[1]:\n  uv run agent_cli.py tally /tmp/axi-tally-zn_ese07/empty/lonely-opening-2026-10.md --research-dir <dir>\n"
+      }
+    }
+  }
+}

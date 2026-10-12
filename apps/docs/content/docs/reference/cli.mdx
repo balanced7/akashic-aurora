@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 87 converted to agent and human output.
+121 verbs; 88 converted to agent and human output.
 
 ## `alias`
 
@@ -3165,13 +3165,33 @@ recall: warns on it now
 | | |
 |---|---|
 | Does | W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 93% before, 97% after |
+| Output tokens | 975 before, 173 after (-82%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/tally.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<opening>` | yes |   | the opening file (repo-relative or absolute) |
 | `--research-dir` |   |   | directory scanned for counters (default: research) |
 | `--json` |   |   | emit the matrix as JSON |
+
+Agent output of `aurora tally /tmp/axi-tally-zn_ese07/research/seat-routing-opening-2026-10.md --research-dir /tmp/axi-tally-zn_ese07/research` on the bench data:
+
+```text
+opening: seat-routing-opening-2026-10.md
+counters: 3
+agree: 2
+conflict: 1
+partial: 1
+open: 0
+questions[4]{q,claude,deepseek,kimi,status}:
+  Q1,KEEP,KEEP,KEEP,AGREE
+  Q2,AMEND,KILL,AMEND,CONFLICT
+  Q3,KILL,KILL,KILL,AGREE
+  Q4,YES,"-",YES,partial
+mentions[1]: sol-brief.md
+```
 
 ## `task`
 
