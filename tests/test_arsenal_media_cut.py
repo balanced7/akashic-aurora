@@ -262,7 +262,8 @@ def test_default_out_goes_under_the_state_folder(clips):
 @pytest.mark.parametrize("mode", ["smart", "copy", "exact"])
 def test_a_container_that_starts_at_1_4_s_cuts_the_right_frames_and_audio(ts_clip, mode):
     """Checked against a decode with no seek: before the fix every mode started 2.000 s late, the audio was 1.4 s
-    off, and verify (which sought the same way) said ok."""
+    off, and verify (which sought the same way) said ok. 2.5 and 5.0 are file times (seconds from the file's start);
+    the container's own clock starts 1.4 s earlier, which tests/test_arsenal_media_house_clock.py pins."""
     f = cut.facts(ts_clip)
     assert f["format_start"] == pytest.approx(1.4, abs=0.01)
     out = ts_clip.parent / f"ts_{mode}.mp4"
@@ -274,8 +275,8 @@ def test_a_container_that_starts_at_1_4_s_cuts_the_right_frames_and_audio(ts_cli
     for i in (0, len(got) - 1):
         mse = [((got[i] - s) ** 2).mean() for s in src]
         assert int(np.argmin(mse)) == k + i, (mode, i, int(np.argmin(mse)), k + i)
-    ref = _pcm(ts_clip, 0, dur=8.0)                      # sample 0 sits at the format start: no -ss involved
-    off = int(round((res["start_real"] - f["format_start"]) * 48000))
+    ref = _pcm(ts_clip, 0, dur=8.0)                      # sample 0 sits at the track's first file time: no -ss
+    off = int(round((res["start_real"] - f["audio"][0]["start"]) * 48000))
     lag = _lag_ms(_pcm(out, 0), ref[off:off + 72000])
     assert abs(lag) < 2.0, (mode, lag)                   # measured -0.7 ms (mp4); 1400.7 ms before the fix
 

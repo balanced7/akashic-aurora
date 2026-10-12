@@ -58,20 +58,31 @@ def _indexed(info: dict) -> bool:
 _kf_cache: dict = {}
 
 
-def _keyframe_at_or_before(path, info: dict, t: float) -> float:
-    """The last keyframe at or before file time t (file clock: container pts minus the format start)."""
+def _keyframe_at_or_before(path, t: float) -> float:
+    """The last keyframe at or before file time t (probe.keyframes speaks the file clock)."""
     from . import probe
     st = os.stat(path)
     key = (str(Path(path).resolve()), st.st_size, st.st_mtime_ns)
     if key not in _kf_cache:
         _kf_cache.clear()
-        _kf_cache[key] = [k - info["format_start"] for k in probe.keyframes(path)]
+        _kf_cache[key] = probe.keyframes(path)
     before = [k for k in _kf_cache[key] if k <= t + 1e-6]
     return before[-1] if before else 0.0
 
 
+def _origin(info: dict, point: float) -> float:
+    """The file time of ffmpeg's output t=0 when it reads v:0 alone, input-seeked to `point` (0: no seek).
+
+    -ss counts from the format start_time, and so does the output clock, until the streams ffmpeg reads all start
+    later than the seek point: then it corrects the output clock to the first of them ("Correcting start time"). A
+    picture muxed after its sound therefore comes out with its first frame at t=0 (measured 2026-10-12, ffmpeg
+    N-124319, on MPEG-TS: a first frame 0.021 s into the file with the sound muxed ahead, 0.521 s with the picture
+    delayed 0.5 s, both labelled 0.000 before this correction)."""
+    return max(point, info["start"] - info["format_start"])
+
+
 def _seek(path, info: dict, start: float) -> Tuple[List[str], float, float]:
-    """Input-seek args, the seek point the output clock counts from, and the first time to keep.
+    """Input-seek args, the seek point (output t=0 is _origin(info, point)), and the first time to keep.
 
     Indexed containers: an accurate -ss (ffmpeg decodes from the keyframe and discards up to start). Others: seek to
     just before the keyframe at or before start with -noaccurate_seek, so the landing is that keyframe, and drop the
@@ -80,7 +91,7 @@ def _seek(path, info: dict, start: float) -> Tuple[List[str], float, float]:
         return [], 0.0, 0.0
     if _indexed(info):
         return ["-ss", f"{start:.6f}"], start, start
-    point = max(0.0, _keyframe_at_or_before(path, info, start) - 0.0005)
+    point = max(0.0, _keyframe_at_or_before(path, start) - 0.0005)
     return (["-noaccurate_seek", "-ss", f"{point:.6f}"] if point > 0 else []), point, start
 
 
@@ -201,7 +212,7 @@ def frames(path, start: float = 0.0, dur: Optional[float] = None, fps: Optional[
     args += ["-map", "0:v:0", "-fps_mode", "passthrough", "-vf", _vf(c, (w, h) if size else None, fps),
              "-pix_fmt", pix_fmt, "-f", "rawvideo", "-"]
     end = start + dur if dur else None
-    for t, img in _stream(args, w, h, _CHANNELS[pix_fmt], point):
+    for t, img in _stream(args, w, h, _CHANNELS[pix_fmt], _origin(info, point)):
         if t < keep_from - 1e-3:
             continue
         if end is not None and t >= end - 1e-6:
@@ -218,7 +229,7 @@ def keyframes(path, crop=None, size=None, pix_fmt: str = "rgb24",
     args = ["-nostats", "-loglevel", "info", "-skip_frame", "nokey", *_hw(hw), "-i", str(path), "-map", "0:v:0",
             "-fps_mode", "passthrough", "-vf", _vf(c, (w, h) if size else None, None), "-pix_fmt", pix_fmt,
             "-f", "rawvideo", "-"]
-    yield from _stream(args, w, h, _CHANNELS[pix_fmt], 0.0)
+    yield from _stream(args, w, h, _CHANNELS[pix_fmt], _origin(info, 0.0))
 
 
 def at_times(path, times: Sequence[float], crop=None, size=None, pix_fmt: str = "rgb24", hw: Optional[str] = None,

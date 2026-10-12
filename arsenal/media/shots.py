@@ -64,8 +64,9 @@ BLIND = [
     "dissolves: the spike rule and ContentDetector each find about 2 of 7 (TransNetV2 is v1)",
     "cut times come from the 30 fps proxy: within one proxy frame (33 ms) of the source's cut frame",
     "a one-frame flash (an ability, a muzzle flash) can read as a cut under the spike rule",
-    "times count from the file's first frame (0), the clock ffmpeg's -ss uses; a container whose own clock starts "
-    "later (MPEG-TS: video_start_s > 0) has its keyframe index in the sidecar on that clock, t + video_start_s",
+    "times are file times (seconds from the file's start, what ffmpeg's -ss means, the sidecar's keyframe clock); "
+    "the scan itself counts from the first frame, which sits video_start_s into the file (0.021 s on an MPEG-TS "
+    "whose sound is muxed ahead of the picture), and every pixel cut is moved by that much",
 ]
 
 
@@ -271,10 +272,11 @@ def _detector(detector: str) -> Tuple[str, Optional[str]]:
 def shots(src, *, detector: str = "auto", threshold: Optional[float] = None, min_shot_s: float = 0.25,
           use_proxy: bool = True, clockmap=None) -> dict:
     """The cuts and shots of a video: {"cuts": [{t, score, source}], "shots": [[t0, t1], ...], "detector_ran", ...}
-    plus the house result keys. Times are seconds from the file's first frame, the clock ffmpeg's -ss uses;
-    start_s and video_start_s say where that sits on the container's own clock (0 on OBS mp4). A clock-map pass
-    that starts outside the file makes no cut: it is listed in clock_cuts_dropped. When the file is in the catalog
-    its shots are stored as "shot" spans (a re-run replaces them)."""
+    plus the house result keys. Times are file times (README, "The house clock"): seconds from the file's start,
+    what ffmpeg's -ss means. start_s is where file time 0 sits on the container's own clock (1.4 s on an MPEG-TS, 0
+    on OBS mp4) and video_start_s where the first frame sits in the file. A clock-map pass that starts outside the
+    file makes no cut: it is listed in clock_cuts_dropped. When the file is in the catalog its shots are stored as
+    "shot" spans (a re-run replaces them)."""
     from . import catalog, receipt
     src = Path(src).resolve()
     sc = probe_mod.probe(src)
@@ -295,6 +297,11 @@ def shots(src, *, detector: str = "auto", threshold: Optional[float] = None, min
         n_frames = len(times)
         cuts = [dict(c, source="spike") for c in spike_cuts(times, scores, threshold=thr, min_shot_s=min_shot_s)]
     detect_s = time.perf_counter() - t1
+    # Both scans count from the first frame: ffmpeg, reading v:0 alone, starts its output clock there when the
+    # picture starts after the file does (the proxy is encoded that way too), and a scene list counts frames.
+    origin = float((sc.get("video") or {}).get("start_s") or 0.0)
+    if origin:
+        cuts = [dict(c, t=round(c["t"] + origin, 6)) for c in cuts]
     duration = float(sc.get("duration_s") or 0.0)
     dropped: List[dict] = []
     if clockmap is not None:

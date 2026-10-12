@@ -244,11 +244,13 @@ def _ffprobe_facts(path: Path) -> dict:
     streams = j.get("streams") or []
     vs = next((s for s in streams if s.get("codec_type") == "video"
                and not (s.get("disposition") or {}).get("attached_pic")), None)
+    f0 = float(fmt.get("start_time") or 0.0)
     video = None
     if vs:
         video = {"codec": vs.get("codec_name"), "w": vs.get("width"), "h": vs.get("height"),
                  "fps": _fps(vs.get("avg_frame_rate")) or _fps(vs.get("r_frame_rate")),
-                 "has_b_frames": vs.get("has_b_frames"), "pix_fmt": vs.get("pix_fmt")}
+                 "has_b_frames": vs.get("has_b_frames"), "pix_fmt": vs.get("pix_fmt"),
+                 "start_s": round(float(vs.get("start_time") or f0) - f0, 6)}
     audio = []
     for s in (s for s in streams if s.get("codec_type") == "audio"):
         tags = s.get("tags") or {}
@@ -258,7 +260,7 @@ def _ffprobe_facts(path: Path) -> dict:
     tags = fmt.get("tags") or {}
     return {"duration_s": float(fmt.get("duration") or 0.0), "container": fmt.get("format_name"),
             "encoder": tags.get("encoder"), "recorded_at": None, "video": video, "audio": audio,
-            "chapters": [], "kind": "unknown", "links": {}}
+            "chapters": [], "kind": "unknown", "links": {}, "clock": "file", "start_s": f0}
 
 
 #: Keys of a sidecar the editor does not carry in its media record (the house result keys, the full keyframe list).
@@ -419,13 +421,14 @@ def _apply_track_starts(rec: dict) -> None:
 
 
 def track_starts(rec: dict) -> List[float]:
-    """Where each audio track starts on the source clock: the demux rows' start_s (already on rec["audio"]), else
-    ffprobe's stream start_time, the same number audio.tracks reports."""
+    """Where each audio track starts in the source file (a file time): the demux rows' start_s (already on
+    rec["audio"]), else ffprobe's stream start_time minus the format start_time, as audio.tracks reports it."""
     have = [t.get("start_s") for t in rec.get("audio") or []]
     if all(_num(v) for v in have):
         return [float(v) for v in have]
-    j = ff.probe_json(rec["path"], entries=("-show_streams",), extra=("-select_streams", "a"))
-    probed = [float(s.get("start_time") or 0.0) if s.get("start_time") not in (None, "N/A") else 0.0
+    j = ff.probe_json(rec["path"], entries=("-show_streams", "-show_format"), extra=("-select_streams", "a"))
+    f0 = float((j.get("format") or {}).get("start_time") or 0.0)
+    probed = [round(float(s["start_time"]) - f0, 6) if s.get("start_time") not in (None, "N/A") else 0.0
               for s in j.get("streams") or []]
     return [float(v) if _num(v) else (probed[n] if n < len(probed) else 0.0) for n, v in enumerate(have)]
 
@@ -534,15 +537,17 @@ def build_shots(mid: str, progress: Optional[Callable[[float], None]] = None) ->
 
 
 def keyframes(mid: str) -> List[float]:
-    """Keyframe times of the media (probe.keyframes, a packet-flag scan: 0.8 s on 33 minutes), cached beside it."""
+    """Keyframe file times of the media (probe.keyframes, a packet-flag scan: 0.8 s on 33 minutes), cached beside
+    it. A cache without "clock": "file" was written on the container clock and is read again."""
     from . import probe
     rec = get_media(mid)
     cache = media_dir(mid) / "keyframes.json"
     got = read_json(cache)
-    if got and got.get("size") == rec.get("size") and got.get("mtime_ns") == rec.get("mtime_ns"):
+    if got and got.get("size") == rec.get("size") and got.get("mtime_ns") == rec.get("mtime_ns") \
+            and got.get("clock") == "file":
         return got["keyframes"]
     kfs = probe.keyframes(rec["path"])
-    write_json(cache, {"size": rec.get("size"), "mtime_ns": rec.get("mtime_ns"), "keyframes": kfs})
+    write_json(cache, {"size": rec.get("size"), "mtime_ns": rec.get("mtime_ns"), "clock": "file", "keyframes": kfs})
 
     def change(cur: dict) -> None:          # the inspector's keyframe interval, when the probe did not give one
         cur.setdefault("derived", {})["keyframes"] = str(cache)

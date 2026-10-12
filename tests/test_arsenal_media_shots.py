@@ -162,9 +162,10 @@ def test_a_state_folder_with_an_apostrophe_still_scans(montage, tmp_path, monkey
     assert len(res["cuts"]) == len(montage[1]) and Path(res["proxy"]).is_relative_to(odd)
 
 
-def test_times_count_from_the_first_frame_and_say_where_the_container_clock_starts(tmp_path, state):
-    """MPEG-TS starts its own clock late (1.4 s here): shots count from the first frame (ffmpeg's -ss clock), and
-    video_start_s maps them onto the container clock that the sidecar's keyframe index uses."""
+def test_times_are_file_times_and_say_where_the_container_clock_starts(tmp_path, state):
+    """MPEG-TS starts its own clock late (1.4 s here): shots, like the sidecar's keyframe index, speak file times
+    (seconds from the file's start, ffmpeg's -ss clock); start_s says where that clock's 0 sits on the container's.
+    Until the house clock ruling the keyframe index was on the container clock and a cut needed + video_start_s."""
     ts = tmp_path / "two shots.ts"
     ff.run(["-f", "lavfi", "-i", "testsrc2=s=320x180:r=30:d=3", "-f", "lavfi", "-i", "smptehdbars=s=320x180:r=30:d=3",
             "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]", "-map", "[v]", "-c:v", "libx264",
@@ -172,11 +173,11 @@ def test_times_count_from_the_first_frame_and_say_where_the_container_clock_star
     res = shots.shots(ts, detector="spike")
     (cut,) = res["cuts"]
     assert cut["t"] == pytest.approx(3.0, abs=1 / 30 + 1e-3) and res["shots"][0][0] == 0.0
-    start = res["video_start_s"]
-    assert start and start > 0 and res["start_s"] == pytest.approx(start, abs=0.05)
+    assert res["start_s"] == pytest.approx(1.4, abs=0.05)                 # the container clock starts late ...
+    assert res["video_start_s"] == pytest.approx(0.0, abs=1e-3)           # ... and the picture with the file
     kf = probe.probe(ts, keyframes=True)["keyframes"]
-    assert kf[0] == pytest.approx(start, abs=1e-3)
-    assert min(abs(k - (cut["t"] + start)) for k in kf) < 1 / 30 + 1e-3     # the cut, on the container clock
+    assert kf[0] == pytest.approx(0.0, abs=1e-3)
+    assert min(abs(k - cut["t"]) for k in kf) < 1 / 30 + 1e-3              # x264's keyframe at the cut, same clock
     assert any("video_start_s" in b for b in res["blind"])
 
 

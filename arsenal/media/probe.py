@@ -8,6 +8,12 @@ the truth the media catalog (catalog.py) indexes; the catalog can be rebuilt fro
 keyframes() is the packet-flag scan: it reads the container index, decodes nothing, and takes 0.8 s on a 33-minute
 recording (the `-skip_frame nokey` decode path took 11.8 s and is not used).
 
+Every time in a sidecar is a file time (README, "The house clock"): seconds from the file's start, container pts
+minus the format start_time. The one exception is the top-level start_s, which IS that format start_time: where file
+time 0 sits on the container's own clock (1.4 s on an MPEG-TS, 0 on OBS MP4). video.start_s is where the first frame
+sits in the file (0.021 s on an MPEG-TS whose sound is muxed ahead of the picture). A sidecar written before the
+ruling (no "clock" key) kept container pts; read_sidecar() moves it onto the file clock and probe() rewrites it.
+
 Measured 2026-10-12 on `2026-10-11 17-51-11.mp4` (33 min, 2.4 GB, HEVC 1080p60, OBS 32.2.2): ffprobe 47-58 ms,
 quick_id 1-2 ms warm, the keyframe interval from the first 20 s of packets 55 ms, the full keyframe index 1.0 s
 (487 keyframes, 4.17 s apart). A cold probe took 0.69 s, 0.42 s of it the League kind check (3 keyframes through the
@@ -64,16 +70,21 @@ BLIND = [
 
 
 def keyframes(path, *, stream: int = 0) -> List[float]:
-    """Presentation times (s, source clock) of every keyframe of video stream `stream`, ascending."""
-    res = ff.run(["-v", "error", "-select_streams", f"v:{stream}", "-show_entries", "packet=pts_time,flags",
-                  "-of", "csv=p=0", str(path)], tool="ffprobe")
-    out = []
+    """File times (s from the file's start: container pts minus the format start_time) of every keyframe of video
+    stream `stream`, ascending. One ffprobe pass reads the packet flags and the format start together."""
+    res = ff.run(["-v", "error", "-select_streams", f"v:{stream}", "-show_entries",
+                  "packet=pts_time,flags:format=start_time", "-of", "csv", str(path)], tool="ffprobe")
+    pts: List[float] = []
+    f0 = 0.0
     for line in res.stdout.splitlines():
-        pts, _, flags = line.partition(",")
-        if "K" in flags and pts not in ("", "N/A"):
-            out.append(float(pts))
-    out.sort()
-    return out
+        section, _, rest = line.partition(",")
+        if section == "packet":
+            t, _, flags = rest.partition(",")
+            if "K" in flags and t not in ("", "N/A"):
+                pts.append(float(t))
+        elif section == "format" and rest.strip(",") not in ("", "N/A"):
+            f0 = float(rest.strip(","))
+    return sorted(round(t - f0, 6) for t in pts)
 
 
 _scan_keyframes = keyframes        # probe()'s `keyframes` flag shadows the function name inside probe()
@@ -107,8 +118,32 @@ def retry_shared(fn, *, wait_s: Optional[float] = None):
 
 
 def read_sidecar(media_id: str) -> Optional[dict]:
-    """The sidecar, or None when there is none (or it is not JSON: probe() then reads the file again). One held
-    open by another process for longer than SHARE_RETRY_S refuses, never reads as missing."""
+    """The sidecar on the file clock, or None when there is none (or it is not JSON: probe() then reads the file
+    again). One held open by another process for longer than SHARE_RETRY_S refuses, never reads as missing."""
+    raw = _read_raw(media_id)
+    return None if raw is None else on_file_clock(raw)
+
+
+def on_file_clock(sc: dict) -> dict:
+    """A sidecar with every time on the file clock. One written before the house clock ruling (no "clock" key) kept
+    container pts in keyframes, chapters and video.start_s: each is moved by the format start it recorded (start_s)."""
+    if sc.get("clock") == "file":
+        return sc
+    sc = dict(sc)
+    f0 = float(sc.get("start_s") or 0.0)
+    if f0:
+        if sc.get("keyframes") is not None:
+            sc["keyframes"] = [round(k - f0, 6) for k in sc["keyframes"]]
+        if isinstance(sc.get("video"), dict) and sc["video"].get("start_s") is not None:
+            sc["video"] = dict(sc["video"], start_s=round(sc["video"]["start_s"] - f0, 6))
+        sc["chapters"] = [dict(c, **{k: round(c[k] - f0, 6) for k in ("t0", "t1") if c.get(k) is not None})
+                          for c in sc.get("chapters") or []]
+    sc["clock"] = "file"
+    return sc
+
+
+def _read_raw(media_id: str) -> Optional[dict]:
+    """The sidecar file exactly as written."""
     path = sidecar_path(media_id)
     try:
         text = retry_shared(lambda: path.read_text(encoding="utf-8"))
@@ -216,7 +251,13 @@ def track_name(audio_index: int, tags: Optional[dict]) -> Tuple[Optional[str], s
     return title, house
 
 
-def _video(s: dict) -> dict:
+def _minus(value, f0: float) -> Optional[float]:
+    """A container time as a file time."""
+    v = _num(value)
+    return None if v is None else round(v - f0, 6)
+
+
+def _video(s: dict, f0: float) -> dict:
     tags = s.get("tags") or {}
     avg, base = _ratio(s.get("avg_frame_rate")), _ratio(s.get("r_frame_rate"))
     fps = avg or base
@@ -227,7 +268,7 @@ def _video(s: dict) -> dict:
             "has_b_frames": _num(s.get("has_b_frames"), int), "pix_fmt": s.get("pix_fmt"),
             "color": {"range": s.get("color_range"), "space": s.get("color_space"),
                       "transfer": s.get("color_transfer"), "primaries": s.get("color_primaries")},
-            "time_base": s.get("time_base"), "start_s": _num(s.get("start_time")),
+            "time_base": s.get("time_base"), "start_s": _minus(s.get("start_time"), f0),
             "duration_s": _num(s.get("duration")), "frames": _num(s.get("nb_frames"), int),
             "encoder": tags.get("encoder"), "title": tags.get("title"),
             "keyint_s": None, "keyint_frames": None, "keyint_from": None, "keyframes_n": None}
@@ -252,8 +293,8 @@ def _subtitles(streams: List[dict]) -> List[dict]:
             for n, s in enumerate(x for x in streams if x.get("codec_type") == "subtitle")]
 
 
-def _chapters(raw: List[dict]) -> List[dict]:
-    return [{"t0": _num(c.get("start_time")), "t1": _num(c.get("end_time")),
+def _chapters(raw: List[dict], f0: float) -> List[dict]:
+    return [{"t0": _minus(c.get("start_time"), f0), "t1": _minus(c.get("end_time"), f0),
              "title": (c.get("tags") or {}).get("title")} for c in raw or []]
 
 
@@ -330,7 +371,8 @@ def _facts(path: Path, st: os.stat_result, media_id: str, mediainfo: bool) -> di
     vstreams = [s for s in streams if s.get("codec_type") == "video"
                 and not (s.get("disposition") or {}).get("attached_pic")]
     duration = _num(fmt.get("duration"))
-    video = _video(vstreams[0]) if vstreams else None
+    f0 = _num(fmt.get("start_time")) or 0.0
+    video = _video(vstreams[0], f0) if vstreams else None
     mi = _mediainfo(path) if mediainfo else None
     if video is not None:
         _set_keyint(video, _keyint_head(path), f"head:{KEYINT_HEAD_S:g}s")
@@ -341,10 +383,10 @@ def _facts(path: Path, st: os.stat_result, media_id: str, mediainfo: bool) -> di
     encoder = tags.get("encoder") or (mi or {}).get("writing_application")
     return {"schema": SIDECAR_SCHEMA, "id": media_id, "path": str(path), "name": path.name, "size": st.st_size,
             "mtime_ns": st.st_mtime_ns, "container": fmt.get("format_name"), "duration_s": duration,
-            "start_s": _num(fmt.get("start_time")), "bit_rate": _num(fmt.get("bit_rate"), int),
+            "clock": "file", "start_s": _num(fmt.get("start_time")), "bit_rate": _num(fmt.get("bit_rate"), int),
             "recorded_at": recorded_at, "recorded_epoch": recorded_epoch, "recorded_from": recorded_from,
             "encoder": encoder, "format_tags": tags, "video": video, "audio": _audio(streams),
-            "subtitles": _subtitles(streams), "chapters": _chapters(j.get("chapters")), "mediainfo": mi,
+            "subtitles": _subtitles(streams), "chapters": _chapters(j.get("chapters"), f0), "mediainfo": mi,
             "kind": _cheap_kind(video, encoder), "kind_from": "rules", "links": {}, "spans": [], "artifacts": [],
             "tags": [], "probed_at": datetime.now().isoformat(timespec="seconds"),
             "probed_with": {"ffprobe": ff.version_short(), "pymediainfo": mi is not None}}
@@ -430,7 +472,8 @@ def probe(path, *, keyframes: bool = False, mediainfo: bool = True, refresh: boo
         raise ff.MediaError(f"no such file: {p}")
     st = p.stat()
     media_id = quick_id(p)
-    old = read_sidecar(media_id)
+    raw = _read_raw(media_id)
+    old = None if raw is None else on_file_clock(raw)
     current = old is not None and old.get("size") == st.st_size and old.get("mtime_ns") == st.st_mtime_ns
     computed = refresh or not current
     if computed:
@@ -449,6 +492,8 @@ def probe(path, *, keyframes: bool = False, mediainfo: bool = True, refresh: boo
         sc = dict(old)
         if sc.get("path") != str(p):                # the same bytes, seen at a new path (moved or copied)
             sc["path"], sc["name"], computed = str(p), p.name, True
+        if raw.get("clock") != "file":              # written on the container clock: rewritten on the file clock
+            computed = True
     if keyframes and sc.get("video") and sc.get("keyframes") is None:
         kf = _scan_keyframes(p)
         sc["keyframes"] = kf

@@ -131,9 +131,11 @@ def _stream_tags(j: dict, s: dict) -> dict:
 
 
 def tracks(src) -> List[dict]:
-    """Every audio track of src, in a:N order. A cheap fact lookup (one ffprobe call), not a receipt."""
+    """Every audio track of src, in a:N order. A cheap fact lookup (one ffprobe call), not a receipt. start_s is
+    where the track starts in the file (README, "The house clock": its start_time minus the format start_time)."""
     j = ff.probe_json(src, entries=("-show_streams", "-show_format"), extra=("-select_streams", "a"))
     fmt_dur = float((j.get("format") or {}).get("duration") or 0.0)
+    f0 = float((j.get("format") or {}).get("start_time") or 0.0)
     out = []
     for n, s in enumerate(j.get("streams") or []):
         tags = _stream_tags(j, s)
@@ -143,7 +145,8 @@ def tracks(src) -> List[dict]:
         out.append({"index": n, "stream_index": int(s["index"]), "codec": s.get("codec_name"),
                     "channels": int(s.get("channels") or 0), "layout": s.get("channel_layout"),
                     "sample_rate": int(s.get("sample_rate") or 0), "title": title, "house_name": house,
-                    "name_source": source, "start_s": float(s.get("start_time") or 0.0), "duration_s": dur,
+                    "name_source": source, "start_s": round(float(s.get("start_time") or f0) - f0, 6),
+                    "duration_s": dur,
                     "language": tags.get("language"), "file_duration_s": fmt_dur})
     return out
 
@@ -471,8 +474,8 @@ def demux(src, out_dir=None, *, tracks: TrackSpec = "all", codec: str = "copy") 
     return receipt.result("demux", src, params,
                           {"files": [r["path"] for r in rows], "tracks": rows,
                            "seconds": round(time.perf_counter() - t0, 3), "argv": res.args},
-                          blind=["start_s is the track's start on the source clock: a track that starts late in the "
-                                 "source plays from 0 in its own file, so the editor offsets it by start_s",
+                          blind=["start_s is the track's start in the source file (a file time): a track that starts "
+                                 "late in the source plays from 0 in its own file, so the editor offsets it by start_s",
                                  "a copy keeps the source's packets: an Ogg/WebM file has no video to sync against"])
 
 

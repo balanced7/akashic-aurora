@@ -7,7 +7,9 @@ live:
 - after the server refused a save, Render refuses too (one PUT, no render job) instead of rendering the stale file;
 - the Export panel says "QC clean" only when QC ran and found nothing;
 - playback crosses a cut where the previous clip's computed end overshoots the next clip's rounded `at` (the
-  integrator's 2026-10-12 browser proof stalled there).
+  integrator's 2026-10-12 browser proof stalled there);
+- a source whose container clock starts at 1.4 s (an MPEG-TS remuxed to MKV) shows, at a timeline time, the frame
+  of that file time: Chrome's currentTime counts on the container's clock, the document on the file's.
 
 Fixture: a 4 s synthetic clip (testsrc2 + two titled sine tracks, as MKV and as an MP4 Chrome plays) in a temporary
 library root; ARSENAL_MEDIA_STATE points at a temporary folder, so nothing touches the house state or Daniel's
@@ -35,6 +37,7 @@ sync_api = pytest.importorskip("playwright.sync_api")
 
 CLIP = "ui smoke.mkv"
 PLAY_CLIP = "ui smoke play.mp4"     # H.264 + AAC in MP4: what Chrome plays without asking
+TS_CLIP = "ui smoke ts clock.mkv"  # an MPEG-TS remuxed with -copyts: its container clock starts at 1.4 s
 
 # A drop from Explorer: the page sends name + size and the server finds the file in its library root.
 DROP_JS = """async ([sel, files]) => {
@@ -65,6 +68,16 @@ def make_clip(path: Path, seconds: float = 4.0) -> Path:
     return path
 
 
+def make_ts_clock_clip(path: Path, scratch: Path) -> Path:
+    """H.264 + AAC through MPEG-TS (its muxer starts the container clock at 1.4 s), remuxed to MKV keeping that clock."""
+    ts = scratch / "ts clock.ts"
+    ff.run(["-f", "lavfi", "-i", "testsrc2=s=320x240:r=30:d=4", "-f", "lavfi", "-i", "sine=f=440:sample_rate=48000:d=4",
+            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "ultrafast", "-g", "30", "-bf", "0",
+            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-f", "mpegts", "-y", str(ts)])
+    ff.run(["-copyts", "-i", str(ts), "-map", "0", "-c", "copy", "-y", str(path)])
+    return path
+
+
 @pytest.fixture(scope="module")
 def srv(tmp_path_factory):
     try:
@@ -76,6 +89,7 @@ def srv(tmp_path_factory):
     library.mkdir()
     clip = make_clip(library / CLIP)
     make_clip(library / PLAY_CLIP)
+    make_ts_clock_clip(library / TS_CLIP, tmp)
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv("ARSENAL_MEDIA_STATE", str(tmp / "state"))
         app = App([str(library)], takes_root=tmp / "takes", performance_root=tmp / "perf")
@@ -284,5 +298,33 @@ def test_playback_crosses_a_cut_where_the_previous_clip_ends_a_nanosecond_late(b
     wait(page, "window.arsenalEdit.playback.time > 1.4", 6, "playback past the cut at 1.067 s")
     page.keyboard.press(" ")
     assert page.evaluate("window.arsenalEdit.stats().playback.boundaries") <= 2, "the cut was crossed again and again"
+    assert not errors
+    page.context.close()
+
+
+def test_a_source_whose_container_clock_starts_late_shows_the_frame_of_its_file_time(browser, srv):
+    """Every src time in the document is a file time (seconds from the file's start, where edit.render's -ss cuts);
+    Chrome's currentTime counts on the container's clock, which starts at 1.4 s here. The playhead at 2.0 s must put
+    the element at 3.4 s; before the house clock fix the page set 2.0 and showed the frame at file time 0.6."""
+    page, pid, errors = fresh_page(browser, srv, 1, TS_CLIP)
+    if not page.evaluate("document.createElement('video').canPlayType('video/x-matroska; codecs=\"avc1.42E01E\"')"
+                         " || document.createElement('video').canPlayType('video/mp4; codecs=\"avc1.42E01E\"')"):
+        pytest.skip("this browser plays no H.264")
+    mid = page.evaluate("window.arsenalEdit.doc.clips[0].media_id")
+    wait(page, f"(window.arsenalEdit.media({json.dumps(mid)}) || {{}}).media", what="the media record")
+    assert page.evaluate(f"window.arsenalEdit.media({json.dumps(mid)}).media.container_start_s") == \
+        pytest.approx(1.4, abs=0.01)
+    page.evaluate("window.arsenalEdit.seek(2.0)")
+    shown = """(() => { const v = document.querySelector('.ed-video.active');
+        return v && v.readyState >= 2 && !v.seeking ? v.currentTime : null; })()"""
+    wait(page, f"{shown} !== null", what="the monitor to settle")
+    assert page.evaluate(shown) == pytest.approx(3.4, abs=0.5 / 30)
+    assert page.evaluate("window.arsenalEdit.playback.time") == pytest.approx(2.0, abs=1e-6)
+    page.locator(".ed-scroll").focus()
+    page.keyboard.press(" ")                                 # playing reads the element back through the same edge
+    wait(page, "window.arsenalEdit.playback.time > 2.2", 6, "playback to move")
+    page.keyboard.press(" ")
+    t, ct = page.evaluate("[window.arsenalEdit.playback.time, document.querySelector('.ed-video.active').currentTime]")
+    assert t < 3.5 and ct - t == pytest.approx(1.4, abs=0.1), (t, ct)
     assert not errors
     page.context.close()

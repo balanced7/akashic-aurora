@@ -25,13 +25,27 @@ the machine and remembers it.
 ## The house clock (Vandor's ruling, 2026-10-12)
 
 **A file time is seconds from the file's start.** That is the time a player shows, and the time ffmpeg's `-ss` means.
-Container timestamps (ffprobe `pts_time`) are converted at the edges by subtracting the format `start_time`. League game
-times are named `game_t`, file times `file_t`.
+Container timestamps (ffprobe `pts_time` and stream `start_time`) are converted at the edges by subtracting the format
+`start_time`. League game times are named `game_t`, file times `file_t`.
 
-OBS MP4 starts at 0, so both readings agree on every recording we have. They differ on MPEG-TS-style files (container
-start 1.4 s). `frames` follows the ruling. `probe.keyframes`, `cut` and `sheet` still speak container pts; aligning
-them, with an MPEG-TS test suite, is the next slice. Until it lands, do not mix their times with `frames`' on a file
-whose start_time is not 0.
+OBS MP4 starts every stream at 0, so both readings agree on every recording we have. They differ on MPEG-TS-style
+files: the container clock starts at 1.4 s, and with the sound muxed ahead of the picture the first frame sits 0.021 s
+into the file, not at 0. Every primitive speaks file times: `probe.keyframes` and the sidecar, `frames`, `cut`,
+`sheet`, `shots`, `audio.tracks` (`start_s`), and the editor's media record, keyframes, peaks and render. The sidecar
+keeps one container time on purpose, its top-level `start_s`: where file time 0 sits on the container's clock. A
+sidecar written before the ruling (no `"clock": "file"`) is moved onto the file clock when it is read.
+`tests/test_arsenal_media_house_clock.py` pins all of it on two MPEG-TS fixtures and an MKV remux of one.
+
+Two tools count on their own clock, so their edges convert (measured 2026-10-12):
+
+- ffmpeg, reading only some of a file's streams, starts its output clock at the first of them when they all start
+  after the seek point ("Correcting start time"): a decode of `v:0` alone puts a first frame that sits 0.021 s into
+  the file at t=0. `frames` adds that back (`_origin`), and `shots` adds the first frame's file time to the times its
+  scan counts. `-copyts -start_at_zero` has the same blind spot (it subtracted 1.421 s, not 1.4), so `cut.verify`'s
+  `-copyts` decode adds the format start back to its trim bounds instead.
+- Chrome's `<video>.currentTime` counts on the container's clock: a source whose clock starts at 1.4 s opens at
+  1.4, and told 2.0 shows file time 0.6. The editor page converts every read and seek with the media's
+  `container_start_s` (`timeline.js` `elementTime` / `sourceTime`).
 
 ## Decisions and their reasons
 

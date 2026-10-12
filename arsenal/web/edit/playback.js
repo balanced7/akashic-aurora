@@ -9,6 +9,9 @@
 // Graph per lane: <audio> (one per lane x source track, so a cut between sources never waits for a src swap)
 //   -> MediaElementSource -> entry gain (the clip's own gain/mute) -> lane gain (lane gain, mute, solo)
 //   -> AnalyserNode (the mixer's meter) -> destination.
+// Source times are file times (seconds from the file's start, as edit.render cuts them); a <video> element counts on
+// the container's own clock, so every read and seek of one goes through T.sourceTime / T.elementTime (1.4 s apart on
+// an MPEG-TS remux, 0 on the OBS recordings).
 // The video is the clock. Every animation frame each playing <audio> is compared with the video's source time and
 // re-seeked when it drifts more than 40 ms; across a clip boundary the next source (pre-seeked a second ahead on a
 // second <video> of the same file when the cut jumps inside it) takes over. A gap on V1 (the CLI can leave one) plays
@@ -114,6 +117,20 @@ export function createPlayback({ monitor, getDoc, getMedia, onTime = () => {}, o
 
   // -------------------------------------------------------------- clock ---
 
+  function mediaOf(mid) {
+    const e = getMedia(mid);
+    return e ? e.media : null;
+  }
+
+  /** The source file time a player shows (its element counts on the container's clock). */
+  function srcTime(p) {
+    return T.sourceTime(mediaOf(p.mid), p.el.currentTime);
+  }
+
+  function seekSrc(p, srcT) {
+    p.el.currentTime = T.elementTime(mediaOf(p.mid), srcT);
+  }
+
   function hit(doc, at) {
     return T.clipAtTime(doc, Math.min(at, Math.max(0, T.totalDuration(doc) - 1e-6)));
   }
@@ -133,7 +150,7 @@ export function createPlayback({ monitor, getDoc, getMedia, onTime = () => {}, o
       p = prepared && prepared.clipId === h.clip.id ? prepared.player : player(h.clip.media_id, active && active.player);
       prepared = null;
     }
-    if (seekVideo && Math.abs(p.el.currentTime - h.srcT) > 0.5 / T.docFps(doc)) p.el.currentTime = h.srcT;
+    if (seekVideo && Math.abs(srcTime(p) - h.srcT) > 0.5 / T.docFps(doc)) seekSrc(p, h.srcT);
     active = { player: p, clipId: h.clip.id };
     show(p);
     return h;
@@ -181,7 +198,7 @@ export function createPlayback({ monitor, getDoc, getMedia, onTime = () => {}, o
     const contiguous = next.media_id === h.clip.media_id && Math.abs(next.src_in - h.clip.src_out) < 1e-6;
     if (contiguous) return; // the playing element simply carries on
     const p = player(next.media_id, active.player);
-    p.el.currentTime = next.src_in;
+    seekSrc(p, next.src_in);
     prepared = { player: p, clipId: next.id };
   }
 
@@ -213,7 +230,7 @@ export function createPlayback({ monitor, getDoc, getMedia, onTime = () => {}, o
     }
     const c = order[idx];
     const el = active.player.el;
-    const src = el.currentTime;
+    const src = srcTime(active.player);
     t = c.at + (src - c.src_in);
     if (src >= c.src_out - 0.5 / T.docFps(doc) || el.ended) {
       const next = order[idx + 1];
@@ -298,7 +315,7 @@ export function createPlayback({ monitor, getDoc, getMedia, onTime = () => {}, o
       return;
     }
     const c = active && doc.clips.find((x) => x.id === active.clipId);
-    const src = active ? active.player.el.currentTime : NaN;
+    const src = active ? srcTime(active.player) : NaN;
     if (c && c.media_id === active.player.mid && src >= c.src_in - 1e-3 && src < c.src_out) {
       // the edit left this clip playing where it is (a fader, a mute, a trim elsewhere): never seek the picture,
       // which would stall it; only the timeline time and the mix follow
@@ -320,7 +337,7 @@ export function createPlayback({ monitor, getDoc, getMedia, onTime = () => {}, o
     if (playing || !Number.isFinite(srcT)) return;
     const own = active && active.player.mid === mid ? active.player : null;
     const p = own || player(mid, null);
-    if (Math.abs(p.el.currentTime - srcT) > 1e-3) p.el.currentTime = srcT;
+    if (Math.abs(srcTime(p) - srcT) > 1e-3) seekSrc(p, srcT);
     show(p);
   }
 

@@ -11,18 +11,18 @@ it is never downscaled into unreadable labels on its way into a model.
 
 Every cell is labelled with where it came from (file time; game time too when a clockmap is given), and the index
 (<out>.json) says how to get it back: a video cell is decoded by ffmpeg straight to its final size and pasted
-unmodified, so frames.at_times(src, [pts], crop=crop, size=size) returns the cell's exact pixels (md5 in the index;
-on a container whose format start_time is not 0, such as an MPEG-TS, at_times counts from the container start and
-is not a faithful re-grab: see the lane report).
+unmodified, so frames.at_times(src, [pts], crop=crop, size=size) returns the cell's exact pixels (md5 in the index),
+MPEG-TS included: the cells of sheet() and filmstrip() ARE frames.at_times grabs.
 
 The tested ffmpeg recipe (`fps=1/T,...,tile=6x5` with drawtext `%{pts}`) labels tile k with k*T but shows the frame
 from k*T + T/2 - 1 frame (the fps filter keeps the last frame of each slot): its labels were up to 5 s early on a
 5-minute sheet. Here every label is the shown frame's own pts.
 
-Times are pts, as ffprobe and the keyframe list report them. ffmpeg's `-ss` counts from the container's start
-instead, so every seek here subtracts the format start_time (1.4 s on an MPEG-TS; 0 on the OBS MP4/MKV files). A
-cell's frame is picked by its pts from the packet list, decoded from the keyframe before it (see _grab), never by
-counting frames from wherever a seek happened to land.
+Times are file times (README, "The house clock"): seconds from the file's start, what ffmpeg's `-ss` means and what
+probe.keyframes reports. A container whose own clock starts later (MPEG-TS: 1.4 s) changes nothing here; the one
+container time read directly, an audio track's start_time, has the format start subtracted. A cell's frame is the
+one frames.at_times shows, decoded from the keyframe before it and picked by its own time, never by counting frames
+from wherever a seek happened to land.
 
 Measured 2026-10-12 on "2026-10-11 17-51-11.mp4" (33 min, 1080p60 HEVC), software decode, four runs on a machine
 other builders were loading:
@@ -31,6 +31,9 @@ other builders were loading:
   video_sheet with exact times (keyframes_only=False), 30 cells: 9.6 s (each decodes from its keyframe; 9.1-12.4 s
     through frames.at_times before _grab replaced it); 12 cells inside 4.4 s: 0.7 s (one decode)
   filmstrip of 10 s with the waveform: 1.5-2.1 s; sampled cells re-grabbed by frames.at_times are bit-identical (9/9)
+Re-measured the same evening once _grab became frames.at_times again (house clock slice), quiet machine, two runs:
+  video_sheet with exact times, 30 cells: 9.05-9.23 s; filmstrip of 720-730 s: 1.46-1.49 s, 8/8 cells re-grabbed
+  bit-identical
 """
 from __future__ import annotations
 
@@ -79,25 +82,25 @@ def _open_image(path: str):
         raise ff.MediaError(f"cannot read the image {path}: {exc}") from None
 
 
-def _container_clock(src) -> Tuple[float, float]:
-    """(format start_time, end) in pts seconds: where the container's clock starts and where the file ends."""
+def _file_clock(src) -> Tuple[float, float]:
+    """(format start_time, end): where the container's own clock starts (file time 0 on it), and the file time the
+    file ends at."""
     p = Path(src)
     st = p.stat()
     key = (str(p.resolve()), st.st_size, st.st_mtime_ns)
     if key not in _CLOCKS:
         fmt = ff.probe_json(p, entries=("-show_entries", "format=start_time,duration")).get("format") or {}
-        start = float(fmt.get("start_time") or 0.0)
-        _CLOCKS[key] = (start, start + float(fmt.get("duration") or 0.0))
+        _CLOCKS[key] = (float(fmt.get("start_time") or 0.0), float(fmt.get("duration") or 0.0))
     return _CLOCKS[key]
 
 
 def _check_span(src, t0: float, t1: float, fps: float, what: str) -> None:
     """Fail closed on a span the video does not cover (one frame of slack at the end)."""
-    start, end = _container_clock(src)
+    end = _file_clock(src)[1]
     frame = 1.0 / fps if fps else 1.0 / 30
     if t0 >= end or t1 > end + frame:
         raise ff.MediaError(f"bad span: {what} {t0:.3f}-{t1:.3f} s is not inside {Path(src).name} "
-                            f"({start:.3f}-{end:.3f} s)")
+                            f"(0.000-{end:.3f} s)")
 
 
 # =================================================================================================
@@ -350,96 +353,23 @@ def _load_still(d: dict, crop) -> "Image":
     return pil.crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3])) if crop else pil
 
 
-#: Times within this span of a cluster's first share one decode from one keyframe (frames.at_times' window size).
-CLUSTER_S = 8.0
-
-
-_PACKETS: Dict[tuple, List[float]] = {}
-
-
-def _all_packet_pts(src) -> List[float]:
-    """Sorted pts of every video packet (one per frame), read once per (path, size, mtime). ffprobe reads packet
-    headers and decodes nothing: about a second for a 33-minute recording.
-
-    Not -read_intervals: an open-ended interval read near the end of a file is NONDETERMINISTIC (measured 2026-10-12
-    on a 3 s 1/60-timebase clip: of 30 reads from the last keyframe, 1 came back empty and 1 stopped after 2 packets),
-    which made test_a_one_tick_per_frame_timebase_grabs_every_cell fail about 1 run in 6. The full scan was 30/30."""
-    st = os.stat(src)
-    key = (str(Path(src).resolve()), st.st_size, st.st_mtime_ns)
-    if key not in _PACKETS:
-        res = ff.run(["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0",
-                      str(src)], tool="ffprobe")
-        if len(_PACKETS) >= 8:
-            _PACKETS.clear()
-        _PACKETS[key] = sorted({float(x.strip(",")) for x in res.stdout.split() if x.strip(",") not in ("", "N/A")})
-    return _PACKETS[key]
-
-
-def _packet_pts(src, t_from: float, t_to: Optional[float]) -> List[float]:
-    """Sorted pts of the video packets from t_from to t_to (open: to the end), sliced from the full list."""
-    import bisect
-    pts = _all_packet_pts(src)
-    lo = bisect.bisect_left(pts, t_from)
-    hi = len(pts) if t_to is None else bisect.bisect_right(pts, t_to)
-    return pts[lo:hi]
-
-
 def _grab(src, times: Sequence[float], crop, size) -> List[Tuple[float, "np.ndarray"]]:
-    """(pts, image) of the frame shown at each time, in the order given: the first frame whose pts >= t - 1 ms
-    (frames.at_times' rule; a grab there gives the same pixels), or past the last frame that frame with its own pts.
+    """(time, image) of the frame shown at each time, in the order given: frames.at_times(past_end="last"), so a cell
+    IS the grab its index tells you to repeat, bit for bit (the first frame whose time >= t - 1 ms; past the last
+    frame, that frame with its own time). Times within at_times' max_gap share one software decode from the keyframe
+    before them, MPEG-TS included.
 
-    The pts come from the packet list, not from where a seek lands. Each cluster of times is one software decode
-    from the keyframe at or before its first frame (-noaccurate_seek onto a known keyframe lands exactly, MPEG-TS
-    included), with -copyts so `select` picks frames by those pts and -fps_mode passthrough so nothing is duplicated.
-    frames.at_times is not used here: its accurate seek lands mid-GOP on an MPEG-TS, and the rawvideo output then
-    repeats the first decoded frame dozens of times, which deadlocked its stderr reader (measured 2026-10-12)."""
-    import numpy as np
-    from .cut import facts            # keyframes and the format start, cached per (path, size, mtime)
-    f = facts(src)
-    kfs, f0 = f["keyframes"], f.get("format_start", 0.0)
-    num, _, den = str(f["video"]["fps"]).partition("/")
-    fps = (float(num) / float(den or 1)) if float(den or 1) and float(num) else 30.0
-    q, eps = 0.25 / fps, min(0.25 / fps, 5e-4)
+    This replaced a second copy of the same job (2026-10-12): a decode that picked frames by packet pts with -copyts,
+    written while at_times still came back empty on MPEG-TS. It labelled cells in container pts, 1.4 s off the file
+    clock on a TS."""
     order = sorted(range(len(times)), key=lambda i: times[i])
-    clusters: List[List[int]] = []
-    for i in order:
-        if clusters and times[i] - times[clusters[-1][0]] <= CLUSTER_S:
-            clusters[-1].append(i)
-        else:
-            clusters.append([i])
+    got = list(frames.at_times(src, [times[i] for i in order], crop=crop, size=size, pix_fmt="rgb24", hw=None,
+                               past_end="last"))
+    if len(got) != len(times):
+        raise ff.MediaError(f"decoded {len(got)} of the {len(times)} frames wanted from {Path(src).name}")
     out: List[Optional[Tuple[float, "np.ndarray"]]] = [None] * len(times)
-    n_bytes = size[0] * size[1] * 3
-    for cl in clusters:
-        a, b = times[cl[0]] - 1e-3, times[cl[-1]]
-        pts = [p for p in _packet_pts(src, a - 0.002, b + 1.0) if p >= a]
-        want = {}
-        for i in cl:
-            nxt = next((p for p in pts if p >= times[i] - 1e-3), None)
-            if nxt is None:                   # a stall of over a second (variable frame rate), or past the end
-                nxt = next((p for p in _packet_pts(src, times[i] - 0.002, None) if p >= times[i] - 1e-3), None)
-            if nxt is None:                   # past the last frame: the final frame, labelled with its own pts
-                tail = _packet_pts(src, kfs[-1] - 0.002, None)
-                if not tail:
-                    raise ff.MediaError(f"no frames at or after {kfs[-1]:.3f} s in {Path(src).name}")
-                nxt = tail[-1]
-            want[i] = nxt
-        picks = sorted(set(want.values()))
-        kf = max([k for k in kfs if k <= picks[0] + 1e-6] or [kfs[0]])
-        seek = ["-noaccurate_seek", "-ss", _ss(kf + q, f0)] if kf > kfs[0] + 1e-6 else []
-        sel = "+".join(f"lt(abs(t-{p:.6f})\\,{eps:.6f})" for p in picks)
-        # trim only ends the decode; it rounds to the stream's ticks, so on a 1/60 timebase (the OBS recordings) a
-        # quarter frame past the last pick rounds back onto it and drops it: three quarters cannot
-        vf = f"trim=end={picks[-1] + 3 * q:.6f},select={sel}," + _filter_chain(crop, size)
-        res = ff.run(["-v", "error", "-copyts", *seek, "-i", str(src), "-map", "0:v:0", "-vf", vf,
-                      "-fps_mode", "passthrough", "-frames:v", str(len(picks)), "-pix_fmt", "rgb24",
-                      "-f", "rawvideo", "pipe:1"], binary=True)
-        if len(res.stdout) < n_bytes * len(picks):
-            raise ff.MediaError(f"decoded {len(res.stdout) // n_bytes} of the {len(picks)} frames wanted from "
-                                f"{Path(src).name} near {picks[0]:.3f} s")
-        imgs = {p: np.frombuffer(res.stdout[k * n_bytes:(k + 1) * n_bytes], np.uint8).reshape(size[1], size[0], 3)
-                for k, p in enumerate(picks)}
-        for i, p in want.items():
-            out[i] = (round(p, 6), imgs[p])
+    for i, (_t_req, t_pts, img) in zip(order, got):
+        out[i] = (round(t_pts, 6), img)
     return out                                # type: ignore[return-value]
 
 
@@ -551,9 +481,9 @@ def _keyframe_times(src) -> List[float]:
     return list(facts(src)["keyframes"])
 
 
-def _ss(t: float, f0: float) -> str:
-    """A pts as ffmpeg's input -ss reads it: counted from the container's start (f0 = format start_time)."""
-    return f"{max(0.0, t - f0):.6f}"
+def _ss(t: float) -> str:
+    """A file time as ffmpeg's input -ss takes it: the same number (-ss counts from the format start_time)."""
+    return f"{max(0.0, t):.6f}"
 
 
 def _pick_keyframes(kfs: Sequence[float], targets: Sequence[float]) -> List[float]:
@@ -579,19 +509,18 @@ def _filter_chain(crop, size) -> str:
                     + [f"scale={size[0]}:{size[1]}:flags=area"])
 
 
-def _decode_keyframes(src, want: Sequence[float], kfs: Sequence[float], crop, size, fps: float, f0: float = 0.0
+def _decode_keyframes(src, want: Sequence[float], kfs: Sequence[float], crop, size, fps: float
                       ) -> Iterator[Tuple[float, "np.ndarray"]]:
     """The frame at each wanted keyframe time, decoding nothing but keyframes: one short process per keyframe, or
-    one `-skip_frame nokey` pass when the span is dense with wanted keyframes (SCAN_MAX_RATIO). f0 is the format
-    start_time that ffmpeg's -ss counts from."""
+    one `-skip_frame nokey` pass when the span is dense with wanted keyframes (SCAN_MAX_RATIO)."""
     span = [k for k in kfs if want[0] - 1e-6 <= k <= want[-1] + 1e-6]
     if len(span) <= SCAN_MAX_RATIO * len(want):
-        yield from _scan_keyframes(src, want, kfs, span, crop, size, fps, f0)
+        yield from _scan_keyframes(src, want, kfs, span, crop, size, fps)
         return
     import numpy as np
     n = size[0] * size[1] * 3
     for k in want:
-        seek = ["-noaccurate_seek", "-ss", _ss(k + 0.25 / fps, f0)] if k > kfs[0] + 1e-6 else []
+        seek = ["-noaccurate_seek", "-ss", _ss(k + 0.25 / fps)] if k > kfs[0] + 1e-6 else []
         res = ff.run(["-v", "error", *seek, "-i", str(src), "-map", "0:v:0", "-frames:v", "1",
                       "-fps_mode", "passthrough", "-vf", _filter_chain(crop, size), "-pix_fmt", "rgb24",
                       "-f", "rawvideo", "pipe:1"], binary=True)
@@ -601,16 +530,16 @@ def _decode_keyframes(src, want: Sequence[float], kfs: Sequence[float], crop, si
 
 
 def _scan_keyframes(src, want: Sequence[float], kfs: Sequence[float], span: Sequence[float], crop, size,
-                    fps: float, f0: float = 0.0) -> Iterator[Tuple[float, "np.ndarray"]]:
+                    fps: float) -> Iterator[Tuple[float, "np.ndarray"]]:
     """One `-skip_frame nokey` pass from the first wanted keyframe to the last: the i-th decoded frame is the i-th
     keyframe of the span (the packet-flag list)."""
     import numpy as np
     first, last = want[0], want[-1]
     seeking = first > kfs[0] + 1e-6
     seek = first - 0.5 / fps          # half a frame early: the keyframe before is decoded, then dropped by -ss
-    t_from = seek if seeking else f0
+    t_from = seek if seeking else 0.0
     args = ["-nostats", "-v", "error", "-skip_frame", "nokey"]
-    args += (["-ss", _ss(seek, f0)] if seeking else [])
+    args += (["-ss", _ss(seek)] if seeking else [])
     args += ["-t", f"{last - t_from + 1.0 / fps:.6f}", "-i", str(src), "-map", "0:v:0",
              "-fps_mode", "passthrough", "-vf", _filter_chain(crop, size), "-pix_fmt", "rgb24", "-f", "rawvideo",
              "pipe:1"]
@@ -644,7 +573,7 @@ def video_sheet(src, *, n: int = 30, cols: Optional[int] = 6, start: float = 0.0
     started = time.perf_counter()
     _require()
     info = frames.video_info(src)
-    f0, file_end = _container_clock(src)
+    file_end = _file_clock(src)[1]
     end = float(file_end if end is None else end)
     start = float(start)
     if not (end > start) or n < 1:
@@ -668,7 +597,7 @@ def video_sheet(src, *, n: int = 30, cols: Optional[int] = 6, start: float = 0.0
     size = _fit(w0, h0, g["cell_w"], g["cell_h"])
     game = clock_fn(clock)
     cells = []
-    for i, (t, img) in enumerate(_decode_keyframes(src, picks, kfs, c, size, info["fps"] or 30.0, f0)):
+    for i, (t, img) in enumerate(_decode_keyframes(src, picks, kfs, c, size, info["fps"] or 30.0)):
         cells.append({"i": i, "item": i, "src": str(src), "t": t, "pts": t, "kind": "video",
                       "crop": list(c) if c else None, "zoom_of": None, "size": list(size), "upscale": 1,
                       "img": img, "md5": _md5(img), "label": _time_label(t, game)})
@@ -704,22 +633,22 @@ def _audio_track(src, track: int) -> Optional[dict]:
             "channels": s.get("channels"), "start": float(s.get("start_time") or 0.0)}
 
 
-def _envelope(src, t0: float, t1: float, track: int, columns: int, sr: int, *, f0: float = 0.0,
-              a_start: float = 0.0):
-    """Per-column peak and RMS (linear, 0..1) of one audio track over [t0, t1) (pts), mixed to mono and streamed from
-    ffmpeg in 1 MiB chunks: memory stays flat however long the span is. f0 is the format start_time that -ss counts
-    from; a span that begins before the track's first sample (a_start) leaves its first columns empty. Returns
-    (peak, rms, samples decoded)."""
+def _envelope(src, t0: float, t1: float, track: int, columns: int, sr: int, *, a_start: float = 0.0):
+    """Per-column peak and RMS (linear, 0..1) of one audio track over [t0, t1) (file times), mixed to mono and
+    streamed from ffmpeg in 1 MiB chunks: memory stays flat however long the span is. A span that begins before the
+    track's first sample (a_start, a file time) leaves its first columns empty: reading this one track, ffmpeg starts
+    its output at that sample when it is later than the seek point. Returns (peak, rms, samples decoded)."""
     import numpy as np
     total = max(1, int(round((t1 - t0) * sr)))
     peak = np.zeros(columns)
     sq = np.zeros(columns)
     cnt = np.zeros(columns)
-    if t0 - f0 > 0:
-        seek, lead, dur = ["-ss", _ss(t0, f0)], 0, t1 - t0
-    else:
-        # no -ss at the container start: an explicit `-ss 0` turns AAC priming into ~10 ms of leading zeros
-        seek, lead, dur = [], max(0, int(round((a_start - t0) * sr))), t1 - f0
+    first = max(t0, a_start)                  # the file time of the first sample ffmpeg hands over
+    lead, dur = max(0, int(round((first - t0) * sr))), t1 - first
+    if dur <= 0:                              # the track starts after the span ends
+        return peak, sq, 0
+    # no -ss at the file's start: an explicit `-ss 0` turns AAC priming into ~10 ms of leading zeros
+    seek = ["-ss", _ss(t0)] if t0 > 0 else []
     proc = ff.popen(["-v", "error", *seek, "-t", f"{dur:.6f}", "-i", str(src),
                      "-map", f"0:a:{track}", "-ac", "1", "-ar", str(sr), "-f", "f32le", "pipe:1"])
     pos = lead
@@ -777,8 +706,8 @@ def _draw_wave(draw, src, t0: float, t1: float, track: int, meta: Optional[dict]
         draw.text((8, y0 + 8), "no audio in this file", font=fnt, fill=INK)
         return None
     mid, half = y0 + (wh - 17) // 2, (wh - 19) // 2
-    peak, rms, n_samples = _envelope(src, t0, t1, track, x_w, meta["sample_rate"], f0=_container_clock(src)[0],
-                                     a_start=meta["start"])
+    peak, rms, n_samples = _envelope(src, t0, t1, track, x_w, meta["sample_rate"],
+                                     a_start=meta["start"] - _file_clock(src)[0])
     hp, hr = _db_height(peak, half), _db_height(rms, half)
     for x in range(x_w):
         if hp[x] >= 0.5:

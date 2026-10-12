@@ -13,8 +13,10 @@
 //    closes gaps, and only when asked.
 //  - A clip's audio entries are linked to it: they share src_in, src_out and at by construction, so they move and
 //    trim with the picture. src_track n is the n-th audio stream (ffmpeg a:n); its lane is A(n+1).
-//  - Times are float seconds: src_* on the source's clock, at and every view time on the timeline's clock.
-//  - Trims and splits land on the source's frame grid, start_s + k / fps (start_s: the video stream's first pts),
+//  - Times are float seconds: src_* are file times (seconds from the source file's start, what edit.render's -ss
+//    means: arsenal/media/README.md, "The house clock"), at and every view time on the timeline's clock. A <video>
+//    element counts on the container's own clock instead; elementTime/sourceTime convert at that edge.
+//  - Trims and splits land on the source's frame grid, start_s + k / fps (start_s: the first frame's file time),
 //    which is where cut.plan and edit.render cut; cutCost uses cut.plan's own rule (first frame >= start - 1 ms).
 //  - Every edit returns a new document (the input is never mutated) and returns the input itself when nothing
 //    changed, so the undo stack can skip no-ops by identity.
@@ -94,8 +96,8 @@ export function quantize(t, fps, start = 0) {
 }
 
 /**
- * The frame grid of a media's video: {fps, start_s}. start_s is the stream's first pts when the server reported it,
- * else the first keyframe (a stream's first frame is a keyframe), else 0. fps falls back to fallbackFps.
+ * The frame grid of a media's video: {fps, start_s}. start_s is the first frame's file time when the server reported
+ * it, else the first keyframe (a stream's first frame is a keyframe), else 0. fps falls back to fallbackFps.
  */
 export function frameGrid(media, keyframes = [], fallbackFps = DEFAULT_FPS) {
   const v = media && media.video;
@@ -105,6 +107,25 @@ export function frameGrid(media, keyframes = [], fallbackFps = DEFAULT_FPS) {
     for (const k of keyframes) if (Number.isFinite(k) && (start_s === null || k < start_s)) start_s = k;
   }
   return { fps, start_s: start_s === null ? 0 : start_s };
+}
+
+/**
+ * A source file time as its <video> element's currentTime, and back. Every src_* time in the document is a file time;
+ * Chrome's currentTime counts on the container's own clock (measured, Chrome 154: a source whose container clock
+ * starts at 1.4 s opens at currentTime 1.4, and told 2.0 shows the frame at file time 0.6). media.container_start_s,
+ * where file time 0 sits on that clock, is the difference: 0 on the OBS recordings, 1.4 s on an MPEG-TS remux.
+ */
+export function elementTime(media, srcT) {
+  return srcT + containerStart(media);
+}
+
+export function sourceTime(media, elT) {
+  return elT - containerStart(media);
+}
+
+function containerStart(media) {
+  const v = media ? num(media.container_start_s) : NaN;
+  return Number.isFinite(v) ? v : 0;
 }
 
 let idCounter = 0;
@@ -157,6 +178,8 @@ export function normalizeMedia(m) {
     size: finite(m.size, null),
     duration: finite(m.duration_s, finite(m.duration, finite(fmt.duration, NaN))),
     container: m.container || fmt.format_name || null,
+    // where file time 0 sits on the container's own clock, the clock a <video> element's currentTime counts on
+    container_start_s: finite(m.container_start_s, 0),
     kind: m.kind || "unknown",
     recorded_at: m.recorded_at || null,
     encoder: m.encoder || null,
@@ -171,7 +194,7 @@ export function normalizeMedia(m) {
       pix_fmt: v.pix_fmt || null,
       keyint_s: finite(v.keyint_s, null),
       keyframes_n: finite(v.keyframes_n, null),
-      // the stream's first pts: frame k sits at start_s + k / fps on the source clock (null when not reported)
+      // the first frame's file time: frame k sits at start_s + k / fps in the file (null when not reported)
       start_s: finite(v.start_s, finite(v.start_time, null)),
     } : null,
     audio: audioIn.map((a, i) => ({
@@ -183,7 +206,7 @@ export function normalizeMedia(m) {
       title: cleanTitle(a.title),
       house_name: a.house_name || null,
       label: trackLabel(a, i),
-      // where the demuxed file's t = 0 sits on the source clock (a track that starts late plays from 0 in its file)
+      // where the demuxed file's t = 0 sits in the source file (a track that starts late plays from 0 in its file)
       start_s: finite(a.start_s, 0),
     })),
   };

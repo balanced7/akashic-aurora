@@ -11,11 +11,13 @@ not every player honours). Three modes:
          variable frame rate or a codec without a smart path.
   exact  re-encode the whole range (same codec, CQP 18; holds the house GPU lock when estimated over 30 s).
 
-The first frame is the one frames.at_times(start) shows (the first whose pts >= start - 1 ms), counted from the
-video's own start_time. Every time here is a pts as ffprobe and probe.keyframes report it; ffmpeg's `-ss` counts
-from the container's start instead, so every seek subtracts the format start_time (1.4 s on an MPEG-TS; 0 on the
-OBS MP4/MKV files). `-seek_timestamp 1` is not the fix: on the house build it moves the demuxer seek but the
-accurate-seek trim still adds the format start (measured 2026-10-12: `-ss 2.5` on a TS gave the frame at 3.905 s).
+The first frame is the one frames.at_times(start) shows (the first whose time >= start - 1 ms). Every time here is a
+file time (README, "The house clock"): seconds from the file's start, what ffmpeg's `-ss` means and what
+probe.keyframes reports; facts() converts ffprobe's container times at the edge by subtracting the format start_time
+(1.4 s on an MPEG-TS; 0 on the OBS MP4/MKV files), and frame k of the source sits at the video's first file time +
+k / fps. The one place a container time comes back is verify's -copyts decode, whose trim bounds add the format start
+back. `-seek_timestamp 1` is not a shortcut: on the house build it moves the demuxer seek but the accurate-seek trim
+still adds the format start (measured 2026-10-12: `-ss 2.5` on a TS gave the frame at 3.905 s).
 Every audio track is kept with its title written explicitly (`-metadata:s:a:N title=`: a
 copy-remux into MP4 drops track names otherwise); audio packets keep their source timing, so only a partial first
 packet (up to 20 ms Opus, 21 ms AAC) is left out. Only the video travels as raw Annex-B, pumped through pipes into
@@ -70,7 +72,7 @@ SAMPLE = 300                    # frames per sample when the output is longer th
 GPU_LOCK_AFTER_S = 30.0         # an encode estimated longer than this holds the house GPU lock
 PSNR_FLOOR_DB = 30.0            # a re-encoded frame below this is not the frame it replaces (CQP 18 measures 48-52)
 _CHUNK = 1 << 20
-_FACTS_VERSION = 2              # 2: format_start
+_FACTS_VERSION = 3              # 2: format_start; 3: every time on the file clock
 
 #: The wall-time model behind est_s, fitted 2026-10-12 on the 33-min 1080p60 HEVC OBS recording (per-frame terms
 #: scale with pixels relative to 1080p): copy 120 s = 0.43 s; smart 10.5 s (160-frame head) = 1.07 s, smart 119 s =
@@ -128,7 +130,8 @@ def _read_facts(path: Path) -> dict:
     vfr = bool(rfps and avg and abs(float(rfps) - float(avg)) > 0.01 * float(rfps))
     fps = avg if (vfr or not rfps) else rfps
     fmt = j.get("format") or {}
-    v_start = float(v.get("start_time") or 0.0)
+    f0 = float(fmt.get("start_time") or 0.0)           # the container's own start: file time 0
+    v_start = float(v.get("start_time") or f0) - f0
     v_dur = _duration(v) or float(fmt.get("duration") or 0.0)
     audio = []
     for s in streams:
@@ -137,7 +140,7 @@ def _read_facts(path: Path) -> dict:
         audio.append({"a_index": len(audio), "index": s["index"], "codec": s.get("codec_name"),
                       "channels": s.get("channels"), "sample_rate": int(s.get("sample_rate") or 0),
                       "title": _tag(s.get("tags"), "title", "name"),
-                      "start": float(s.get("start_time") or 0.0), "duration": _duration(s)})
+                      "start": float(s.get("start_time") or f0) - f0, "duration": _duration(s)})
     video = {"index": v["index"], "codec": v.get("codec_name"), "w": int(v.get("width") or 0),
              "h": int(v.get("height") or 0), "fps": f"{fps.numerator}/{fps.denominator}",
              "vfr": vfr,
@@ -146,7 +149,7 @@ def _read_facts(path: Path) -> dict:
              "color": {k: v.get(k) for k in ("color_range", "color_space", "color_transfer", "color_primaries")},
              "bit_rate": int(v.get("bit_rate") or fmt.get("bit_rate") or 0)}
     return {"video": video, "audio": audio, "container": fmt.get("format_name"),
-            "format_start": float(fmt.get("start_time") or 0.0), "duration": float(fmt.get("duration") or v_dur)}
+            "format_start": f0, "duration": float(fmt.get("duration") or v_dur)}
 
 
 def _facts_file(key: tuple) -> Path:
@@ -156,7 +159,8 @@ def _facts_file(key: tuple) -> Path:
 
 def facts(src, *, refresh: bool = False, cache: bool = True) -> dict:
     """{source, video, audio, keyframes, ...} of one file: one ffprobe + the packet-flag keyframe scan, remembered in
-    memory and on disk per (path, size, mtime) so the editor's trim handles never wait on a 2.4 GB file twice.
+    memory and on disk per (path, size, mtime) so the editor's trim handles never wait on a 2.4 GB file twice. Every
+    time is a file time; format_start says where file time 0 sits on the container's clock.
     cache=False reads fresh and remembers nothing (verify and concat use it for the outputs they check)."""
     p = Path(src).resolve()
     try:
@@ -199,7 +203,7 @@ def facts(src, *, refresh: bool = False, cache: bool = True) -> dict:
 
 
 # =================================================================================================
-# frame arithmetic: frame k of the source sits at start_time + k / fps
+# frame arithmetic: frame k of the source sits at the video's first file time + k / fps
 # =================================================================================================
 
 def _fps(f: dict) -> Fraction:
@@ -238,8 +242,8 @@ def _keyframe_after(f: dict, t: float) -> Optional[float]:
 
 
 def _ss(f: dict, t: float) -> str:
-    """A pts as ffmpeg's input `-ss` reads it: counted from the container's start."""
-    return f"{max(0.0, t - f.get('format_start', 0.0)):.6f}"
+    """A file time as ffmpeg's input `-ss` takes it: the same number (-ss counts from the format start_time)."""
+    return f"{max(0.0, t):.6f}"
 
 
 def _seek(f: dict, keyframe: float) -> List[str]:
@@ -401,7 +405,7 @@ _PLAN_BLIND = ["est_s (the cut) and verify_est_s (verify=True adds it) are a mod
 
 
 def plan(src, start: float, end: float) -> dict:
-    """What a trim of [start, end) (source seconds) will cost, without cutting: the suggested mode, the keyframe at or
+    """What a trim of [start, end) (file seconds) will cost, without cutting: the suggested mode, the keyframe at or
     before start, how much head is re-encoded, an estimated wall time for the cut and for its verify, and the
     reasons. Fast on a cached file."""
     f = facts(src)
@@ -587,7 +591,7 @@ _CUT_BLIND = [
 
 def cut(src, start: float, end: float, out=None, *, mode: str = "smart", tracks: Union[str, Sequence[int]] = "all",
         verify: bool = True, preset: Optional[str] = None) -> dict:
-    """Trim [start, end) (source seconds) into out (.mp4, .mkv or .mov). Returns the house result: the mode that ran,
+    """Trim [start, end) (file seconds) into out (.mp4, .mkv or .mov). Returns the house result: the mode that ran,
     the real start, frame counts, the audio tracks kept, the argv of every process and, with verify=True, verify()."""
     if mode not in MODES:
         raise ff.MediaError(f"unknown mode {mode!r}: {', '.join(MODES)}")
@@ -667,15 +671,18 @@ _PSNR_LINE = re.compile(r"n:(\d+).*?mse_avg:([0-9.]+|inf).*?psnr_avg:([0-9.]+|in
 def _window(f: dict, k_first: int, count: int) -> tuple:
     """(seek args, trim filter) that decode frames [k_first, k_first + count) of a file. The frames are picked by
     their own pts (the command runs with -copyts), never by counting from where the seek landed: a cut that started
-    on the wrong frame is then compared against the right one, not against the same wrong one."""
+    on the wrong frame is then compared against the right one, not against the same wrong one. -copyts hands the
+    filters container pts, so the file times get the format start added back (-start_at_zero is no substitute: it
+    subtracts the start of the streams read, measured 1.421 s against the format's 1.4 on an MPEG-TS)."""
     kf = _keyframe_at_or_before(f, _time(k_first, f))
     fps = _fps(f)
+    f0 = f.get("format_start", 0.0)
     # a quarter frame early: trim rounds its bounds to the stream's ticks, and on a 1/fps timebase a half-frame
     # margin is a rounding tie (1234.558333 s * 60 = 74073.49998 kept the frame before; measured on the recording)
     q = 0.25 / float(fps)
     # pts = frame index on a 1/fps timebase: ms-rounded (MKV) and exact (MP4) timestamps then pair frame for frame
     return (["-noaccurate_seek", *_seek(f, kf)],
-            f"trim=start={_time(k_first, f) - q:.6f}:end={_time(k_first + count, f) - q:.6f},"
+            f"trim=start={_time(k_first, f) - q + f0:.6f}:end={_time(k_first + count, f) - q + f0:.6f},"
             f"settb={fps.denominator}/{fps.numerator},setpts=N")
 
 
@@ -905,8 +912,8 @@ def cli(verb: str, argv: List[str]) -> int:
                                              "smart (re-encode only the head, copy the rest) or exact; keeps every "
                                              "audio track and its name; --plan shows the cost without cutting")
     ap.add_argument("src", nargs="?")
-    ap.add_argument("start", nargs="?", help="seconds or m:ss(.fff), source clock")
-    ap.add_argument("end", nargs="?", help="seconds or m:ss(.fff), source clock")
+    ap.add_argument("start", nargs="?", help="seconds or m:ss(.fff) from the file's start")
+    ap.add_argument("end", nargs="?", help="seconds or m:ss(.fff) from the file's start")
     ap.add_argument("out", nargs="?", help=".mp4/.mkv/.mov (default <state>/cut/...)")
     ap.add_argument("--mode", default="smart", choices=MODES)
     ap.add_argument("--plan", action="store_true", help="show the cost and the suggested mode, cut nothing")

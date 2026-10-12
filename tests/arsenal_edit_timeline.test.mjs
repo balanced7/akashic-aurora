@@ -415,6 +415,29 @@ test('frame grid: a stream that starts at 0.025 s puts trims and splits on its o
   assert.deepEqual(T.frameGrid(null, [], 30), { fps: 30, start_s: 0 });
 });
 
+// An MPEG-TS remuxed to MKV keeps its container clock: file time 0 sits at 1.4 s on it and the first frame 0.021 s into
+// the file (arsenal/media/README.md, "The house clock"; tests/test_arsenal_media_house_clock.py pins the server's half,
+// tests/test_arsenal_edit_ui_smoke.py the browser's).
+const TS_REMUX = T.normalizeMedia({ id: '1111111111111111', name: 'clock 1.4.mkv', duration_s: 8.02, container_start_s: 1.4,
+  video: { codec: 'h264', w: 320, h: 180, fps: 30, start_s: 0.021333 }, audio: [{ title: null, start_s: 0 }] });
+
+test('a source whose container clock starts at 1.4 s: the document speaks file times, its <video> element its own clock', () => {
+  assert.equal(TS_REMUX.container_start_s, 1.4);
+  assert.ok(close(T.elementTime(TS_REMUX, 2.0), 3.4, 1e-12), 'file time 2.0 is currentTime 3.4');
+  assert.ok(close(T.sourceTime(TS_REMUX, 3.4), 2.0, 1e-12));
+  for (const t of [0, 0.021333, 2.5, 7.9]) assert.ok(close(T.sourceTime(TS_REMUX, T.elementTime(TS_REMUX, t)), t, 1e-12));
+  // the OBS recordings start at 0, and a server from before the ruling sends no container_start_s: nothing moves
+  assert.equal(T.elementTime(MEDIA, 601.5), 601.5);
+  assert.equal(T.sourceTime(T.normalizeMedia({ id: 'x', video: { fps: 60 }, audio: [] }), 3), 3);
+  assert.equal(T.elementTime(null, 3), 3);
+  // the frame grid is on the file clock: frame 90 sits at 3.021333 s, where cut.plan and edit.render put it
+  const grid = T.frameGrid(TS_REMUX, [0.021333, 2.021333]);
+  assert.deepEqual(grid, { fps: 30, start_s: 0.021333 });
+  assert.ok(close(T.quantize(3.01, 30, grid.start_s), 0.021333 + 90 / 30, 1e-9));
+  assert.equal(TS_REMUX.audio[0].start_s, 0, 'the sound starts with the file');
+  assert.deepEqual(T.normalizeMedia(TS_REMUX), TS_REMUX);
+});
+
 test('a raw server media record goes straight onto the timeline (normalizeMedia is idempotent)', () => {
   const raw = { id: 'ffffffffffffffff', duration_s: 10, video: { fps: '60/1', start_s: 0 }, audio: [{ index: 1 }, { index: 2, title: 'Mic' }] };
   const r = T.appendClip(T.emptyProject(), raw, { id: 'a' });

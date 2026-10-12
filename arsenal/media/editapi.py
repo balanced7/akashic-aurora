@@ -208,6 +208,9 @@ def media_view(rec: dict) -> dict:
     keys = ("id", "name", "path", "size", "mtime_ns", "duration_s", "container", "kind", "recorded_at", "encoder",
             "video", "audio", "n_audio", "chapters", "links", "tags", "facts_from", "facts_notes", "imported_at")
     out = {k: rec.get(k) for k in keys}
+    # every time above is a file time; Chrome's <video>.currentTime counts on the container's own clock (measured,
+    # Chrome 154: a source whose container clock starts at 1.4 s opens at currentTime 1.4), so the page converts by it
+    out["container_start_s"] = float(rec.get("start_s") or 0.0)
     n = len(rec.get("audio") or [])
     base = f"{PREFIX}media/{mid}"
     out["tracks"] = n

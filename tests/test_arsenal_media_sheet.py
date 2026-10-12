@@ -262,7 +262,9 @@ def test_a_container_that_starts_at_1_4_s_gets_the_right_frames(media, monkeypat
     for ratio in (0.0, 100.0):
         monkeypatch.setattr(sheet, "SCAN_MAX_RATIO", ratio)
         vs = sheet.video_sheet(ts, n=4, cols=4, start=3.0, end=7.0, cell_w=160, out=media["dir"] / f"ts_kf{ratio}.png")
-        assert [c["pts"] for c in vs["cells"]] == pytest.approx([v0 + k for k in (2, 3, 4, 5)], abs=1e-5)
+        # 3.0-7.0 are file times: the keyframes inside are 3, 4, 5 and 6 s after the first frame (until the house
+        # clock ruling the span was read on the container's clock, 1.4 s earlier, and these were 2, 3, 4 and 5)
+        assert [c["pts"] for c in vs["cells"]] == pytest.approx([v0 + k for k in (3, 4, 5, 6)], abs=1e-5)
         _shows_its_label(vs, ts)
     strip = sheet.filmstrip(ts, 2.0, 6.0, n=4, width=640, out=media["dir"] / "ts_strip.png")
     assert [c["pts"] for c in strip["cells"]] == pytest.approx([2.5, 3.5, 4.5, 5.5], abs=1 / 60)
