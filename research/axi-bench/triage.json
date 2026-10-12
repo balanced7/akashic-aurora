@@ -1,0 +1,208 @@
+{
+  "verb": "triage",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 412,
+    "stdout_chars": 871,
+    "stdout_lines": 17,
+    "cost_usd": 0.0328,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the corpus?",
+        "expected": 3,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which lesson is in the protected core?",
+        "expected": "learn:experiment:proven_core",
+        "answers": [
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many useful votes does proven_core have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson was voted noise? Give its name.",
+        "expected": "off_target",
+        "answers": [
+          "learn:experiment:off_target",
+          "learn:experiment:off_target",
+          "learn:experiment:off_target",
+          "learn:experiment:off_target",
+          "learn:experiment:off_target"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many ghost counters are there?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this report prune anything by itself? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "triage"
+        ],
+        "exit": 0,
+        "stdout": "# TRIAGE (S1)  corpus=3 tracked=3 (lessons=2, ghosts=1) dormant=1 | window push cost ~0 tokens\n\n## PROTECT (1) -- earned credit; the proven core\n  helped=0 useful=2 surfaced=0    learn:experiment:proven_core\n\n## COST WITHOUT RETURN (0) -- surfaced >= 5, zero credit; adjudicate: merge / graduate / retire / sharpen trigger\n\n## NOISE-VOTED (1)\n  noise=1 surfaced=0    learn:experiment:off_target\n\n## WATCH: 0 lesson(s) surfaced but too early to judge (< 5 impressions)\n\n## GHOSTS (1) -- counters naming NO live lesson (retired/renamed); bookkeeping debt, not knowledge\n  surfaced=0    u=1 h=0 n=0  learn:experiment:renamed_away  <-- has credit: adjudicate (fold into successor)\n  -> 0 zero-credit (safe auto-fold), 1 credited (needs a decision). Apply: uv run agent_cli.py recall-counters --fold\n\n(adjudication is human/frontier judgment -- this report never auto-prunes)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 270,
+    "stdout_chars": 549,
+    "stdout_lines": 21,
+    "cost_usd": 0.033,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the corpus?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson is in the protected core?",
+        "expected": "learn:experiment:proven_core",
+        "answers": [
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core",
+          "learn:experiment:proven_core"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many useful votes does proven_core have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which lesson was voted noise? Give its name.",
+        "expected": "off_target",
+        "answers": [
+          "learn:experiment:off_target",
+          "learn:experiment:off_target",
+          "learn:experiment:off_target",
+          "learn:experiment:off_target",
+          "learn:experiment:off_target"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many ghost counters are there?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this report prune anything by itself? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "report": {
+        "argv": [
+          "triage"
+        ],
+        "exit": 0,
+        "stdout": "authority: review only -- adjudication is human judgment; this report never prunes\ncorpus: 3\ntracked_lessons: 2\ndormant: 1\nwindow_push_tokens: 0\nmin_surfaced: 5\ncounts:\n  protect: 1\n  cost_no_return: 0\n  noise_voted: 1\n  watch: 0\n  ghosts: 1\n  credited_ghosts: 1\nprotect[1]{source,helped,useful,surfaced}:\n  \"learn:experiment:proven_core\",0,2,0\nnoise_voted[1]{source,noise,surfaced}:\n  \"learn:experiment:off_target\",1,0\nghosts[1]{source,surfaced,credit}:\n  \"learn:experiment:renamed_away\",0,yes\nhelp[1]:\n  uv run agent_cli.py recall-counters --fold\n"
+      }
+    }
+  }
+}

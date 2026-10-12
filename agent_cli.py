@@ -1500,47 +1500,82 @@ def cmd_triage(args):
     if args.json:
         print(json.dumps(t, indent=1))
         return 0
+    from core.axi import out
+
+    cli = _cli()
     ghosts = t.get("ghosts", [])
-    print(
-        f"# TRIAGE (S1)  corpus={t['corpus_lessons']} tracked={t['tracked']} "
-        f"(lessons={t.get('tracked_lessons', t['tracked'])}, ghosts={len(ghosts)}) "
-        f"dormant={t['dormant_count']} | window push cost ~{t['window_injected_tokens_approx']} tokens"
-    )
-    print(f"\n## PROTECT ({len(t['protect'])}) -- earned credit; the proven core")
-    for r in t["protect"][:15]:
-        print(f"  helped={r['helped']} useful={r['useful']} surfaced={r['surfaced']:<4} {r['source']}")
-    print(
-        f"\n## COST WITHOUT RETURN ({len(t['cost_no_return'])}) -- surfaced >= {t['min_surfaced']}, "
-        f"zero credit; adjudicate: merge / graduate / retire / sharpen trigger"
-    )
-    for r in t["cost_no_return"][:20]:
-        print(f"  surfaced={r['surfaced']:<4} ~{r['window_tokens_approx']:<5} win-tok  {r['source']}")
-    print(f"\n## NOISE-VOTED ({len(t['noise_voted'])})")
-    for r in t["noise_voted"][:10]:
-        print(f"  noise={r['noise']} surfaced={r['surfaced']:<4} {r['source']}")
-    print(
-        f"\n## WATCH: {t['watch_count']} lesson(s) surfaced but too early to judge (< {t['min_surfaced']} impressions)"
-    )
+    credited = [g for g in ghosts if g["useful"] or g["helped"] or g["noise"]]
+    doc: dict = {
+        "authority": "review only -- adjudication is human judgment; this report never prunes",
+        "corpus": t["corpus_lessons"],
+        "tracked_lessons": t.get("tracked_lessons", t["tracked"]),
+        "dormant": t["dormant_count"],
+        "window_push_tokens": t["window_injected_tokens_approx"],
+        "min_surfaced": t["min_surfaced"],
+        # One count per bucket, whole; the tables below are cut at the old caps (15/20/10/10).
+        "counts": {
+            "protect": len(t["protect"]),
+            "cost_no_return": len(t["cost_no_return"]),
+            "noise_voted": len(t["noise_voted"]),
+            "watch": t["watch_count"],
+            "ghosts": len(ghosts),
+            "credited_ghosts": len(credited),
+        },
+    }
+    # protect = earned credit, the proven core; cost_no_return = surfaced >= min_surfaced with zero
+    # credit (adjudicate: merge / graduate / retire / sharpen trigger); watch = too early to judge.
+    if t["protect"]:
+        doc["protect"] = [
+            {"source": r["source"], "helped": r["helped"], "useful": r["useful"], "surfaced": r["surfaced"]}
+            for r in t["protect"][:15]
+        ]
+    if t["cost_no_return"]:
+        doc["cost_no_return"] = [
+            {"source": r["source"], "surfaced": r["surfaced"], "window_tokens": r["window_tokens_approx"]}
+            for r in t["cost_no_return"][:20]
+        ]
+    if t["noise_voted"]:
+        doc["noise_voted"] = [
+            {"source": r["source"], "noise": r["noise"], "surfaced": r["surfaced"]} for r in t["noise_voted"][:10]
+        ]
+    if ghosts:  # counters naming no live lesson (retired or renamed): bookkeeping debt, not knowledge
+        doc["ghosts"] = [
+            {
+                "source": g["source"],
+                "surfaced": g["surfaced"],
+                "credit": "yes" if (g["useful"] or g["helped"] or g["noise"]) else "no",
+            }
+            for g in ghosts[:10]
+        ]
+    if not (t["protect"] or t["cost_no_return"] or t["noise_voted"] or t["watch_count"] or ghosts):
+        doc["result"] = "nothing tracked yet -- no lesson has been surfaced or voted on"
+        return out.emit(doc, hints=[f"{cli} injections"], human=_human_triage, title="Triage")
+    hints = []
+    if t["cost_no_return"]:
+        name = t["cost_no_return"][0]["source"].replace("learn:experiment:", "")
+        hints.append(f'{cli} graduate <agent_id> --experiment {name} --enforced-by "<automation>"')
     if ghosts:
-        credited = [g for g in ghosts if g["useful"] or g["helped"] or g["noise"]]
-        print(
-            f"\n## GHOSTS ({len(ghosts)}) -- counters naming NO live lesson (retired/renamed); "
-            f"bookkeeping debt, not knowledge"
-        )
-        for g in ghosts[:10]:
-            tag = (
-                "  <-- has credit: adjudicate (fold into successor)"
-                if (g["useful"] or g["helped"] or g["noise"])
-                else ""
-            )
-            print(f"  surfaced={g['surfaced']:<4} u={g['useful']} h={g['helped']} n={g['noise']}  {g['source']}{tag}")
-        zero = len(ghosts) - len(credited)
-        print(
-            f"  -> {zero} zero-credit (safe auto-fold), {len(credited)} credited (needs a decision). "
-            f"Apply: {_cli()} recall-counters --fold"
-        )
-    print("\n(adjudication is human/frontier judgment -- this report never auto-prunes)")
-    return 0
+        hints.append(f"{cli} recall-counters --fold")
+    if not hints:
+        hints.append(f"{cli} recall-feedback --source <source> --noise")
+    return out.emit(doc, hints=hints, human=_human_triage, title="Triage")
+
+
+def _human_triage(console, doc):
+    """Human view of `triage`: the review-only warning, the counts, then one table per bucket."""
+    from core.axi import out
+
+    console.print(f"[yellow]{out._esc(doc['authority'])}[/]")
+    out.render_human(console, {k: v for k, v in doc.items() if not isinstance(v, (list, dict)) and k != "authority"})
+    out.render_human(console, {"counts": doc["counts"]})
+    for key, label in (
+        ("protect", "protect -- earned credit, the proven core"),
+        ("cost_no_return", f"cost without return -- surfaced {doc['min_surfaced']}+ times, never credited"),
+        ("noise_voted", "noise-voted"),
+        ("ghosts", "ghosts -- counters naming no live lesson"),
+    ):
+        if doc.get(key):
+            console.print(out.table(doc[key], title=label))
 
 
 # --------------------------------------------------------------------- recall-counters

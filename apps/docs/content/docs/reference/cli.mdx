@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 34 converted to agent and human output.
+121 verbs; 35 converted to agent and human output.
 
 ## `alias`
 
@@ -2393,12 +2393,41 @@ rule: "DONE is closed: never redo it; work only your assigned or NEXT task"
 | | |
 |---|---|
 | Does | sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 412 before, 270 after (-34%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/triage.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--min-surfaced` |   |   | impressions before zero-credit counts as cost (default 5) |
 | `--json` |   |   |   |
+
+Agent output of `aurora triage` on the bench data:
+
+```text
+authority: review only -- adjudication is human judgment; this report never prunes
+corpus: 3
+tracked_lessons: 2
+dormant: 1
+window_push_tokens: 0
+min_surfaced: 5
+counts:
+  protect: 1
+  cost_no_return: 0
+  noise_voted: 1
+  watch: 0
+  ghosts: 1
+  credited_ghosts: 1
+protect[1]{source,helped,useful,surfaced}:
+  "learn:experiment:proven_core",0,2,0
+noise_voted[1]{source,noise,surfaced}:
+  "learn:experiment:off_target",1,0
+ghosts[1]{source,surfaced,credit}:
+  "learn:experiment:renamed_away",0,yes
+help[1]:
+  uv run agent_cli.py recall-counters --fold
+```
 
 ## `unlock`
 
