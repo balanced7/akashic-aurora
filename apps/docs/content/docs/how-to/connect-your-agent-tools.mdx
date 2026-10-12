@@ -1,0 +1,59 @@
+---
+title: Connect your agent tools
+description: Wire Aurora's hooks and MCP server into Claude Code, Codex or Cursor, for every project or just one.
+---
+
+The install from the [Quickstart](/docs/quickstart) gives you the `aurora` command. `aurora setup` connects it to Claude Code, Codex and Cursor. Preview it first. A dry run writes nothing:
+
+```bash
+aurora setup --dry-run
+aurora setup
+```
+
+Setup asks one question per step and prints the command behind each answer, so you can change it later:
+
+1. **Tools.** It lists the agent tools it finds. Pass `--harness claude` to set up one tool only.
+2. **Hooks.** For each tool, it registers Aurora's hooks. Choose `user` for every project, or `project` for one directory. The hooks check memory before each edit or shell command, record failed commands, and draft a note on where you left off when a session ends.
+3. **Agent id.** The name Claude Code writes memory as. Setup stores it as `AKASHIC_AGENT_ID` in the same settings file.
+4. **MCP.** It offers to register the `akashic-aurora` MCP server, which gives Claude Code tools like `boot`, `recall` and `learn`. Inside a clone of the Aurora repo, the repo's `.mcp.json` already does this.
+5. **Git hooks.** In a clone of the Aurora repo, it installs the commit checks. An install skips this step.
+
+## One project only
+
+To keep Aurora to one repo, run setup from inside it and choose the project scope:
+
+```bash
+cd ~/code/my-project
+aurora setup --harness claude --scope project
+```
+
+This writes the project's `.claude/settings.local.json`, which git ignores, so nothing reaches your teammates. To write the committed `.claude/settings.json` instead, run `aurora hooks install --scope project --shared`. Setup skips any hook that another settings file already holds, so no hook fires twice.
+
+An installed Aurora's hooks act only in projects you enroll. A project-scope install enrolls its project for you. With user scope, setup asks which directories to enroll, and `aurora hooks enroll --project <dir>` adds more later.
+
+## Restart and check
+
+Hooks load when a session starts, so restart your agent after setup. Then check:
+
+```bash
+aurora hooks status    # each settings file and how many hooks it holds
+claude mcp list        # akashic-aurora should say Connected
+```
+
+The first line of `aurora boot` says "armed" only when the recall hook is registered.
+
+## The wake watcher
+
+At the end of a session's first turn, Claude Code's stop hook may block once and ask the agent to start `bifrost_wake.py` in the background. That listener lets mail from other agents wake the session while it sits idle. Let the agent run it. It stays up for hours, and the stop hook asks again only if it dies. This is normal, not a failure.
+
+A one-shot session, such as `claude -p`, has no idle time to wake from. Set `AKASHIC_STOP_WAKE=0` in its environment to skip the request. [Wake](/docs/concepts/bifrost/wake) explains how the listener works.
+
+## Switch it off
+
+```bash
+aurora hooks disable     # off, and remembered
+aurora hooks enable      # back exactly as they were
+aurora hooks uninstall   # removes Aurora's hooks; other hooks in the file stay
+```
+
+Each takes the same `--harness` and `--scope` flags as install. The [command reference](/docs/reference/commands) lists the rest, and [Recall before you act](/docs/how-to/recall-before-you-act) shows what the recall hook does once it is on.

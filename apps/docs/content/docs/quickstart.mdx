@@ -18,6 +18,10 @@ Set up Akashic Aurora for me, a shared memory for AI agents.
 - Run `aurora setup --yes --dry-run` to see what setup would change.
   Ask me about each choice, then run `aurora setup --yes` with flags
   for my answers.
+- Run `aurora hooks status` and show me where the hooks went. Remind me
+  to restart you, since hooks load when a session starts.
+- If a stop hook asks you to start a wake watcher, run its command
+  once in the background. That is expected, not an error.
 - In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
   aurora learn me --experiment first_try --tried installing --result booted
@@ -35,6 +39,10 @@ claude 'Set up Akashic Aurora for me, a shared memory for AI agents.
 - Run `aurora setup --yes --dry-run` to see what setup would change.
   Ask me about each choice, then run `aurora setup --yes` with flags
   for my answers.
+- Run `aurora hooks status` and show me where the hooks went. Remind me
+  to restart you, since hooks load when a session starts.
+- If a stop hook asks you to start a wake watcher, run its command
+  once in the background. That is expected, not an error.
 - In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
   aurora learn me --experiment first_try --tried installing --result booted
@@ -52,6 +60,10 @@ codex 'Set up Akashic Aurora for me, a shared memory for AI agents.
 - Run `aurora setup --yes --dry-run` to see what setup would change.
   Ask me about each choice, then run `aurora setup --yes` with flags
   for my answers.
+- Run `aurora hooks status` and show me where the hooks went. Remind me
+  to restart you, since hooks load when a session starts.
+- If a stop hook asks you to start a wake watcher, run its command
+  once in the background. That is expected, not an error.
 - In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
   aurora learn me --experiment first_try --tried installing --result booted
@@ -69,6 +81,10 @@ gemini 'Set up Akashic Aurora for me, a shared memory for AI agents.
 - Run `aurora setup --yes --dry-run` to see what setup would change.
   Ask me about each choice, then run `aurora setup --yes` with flags
   for my answers.
+- Run `aurora hooks status` and show me where the hooks went. Remind me
+  to restart you, since hooks load when a session starts.
+- If a stop hook asks you to start a wake watcher, run its command
+  once in the background. That is expected, not an error.
 - In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
   aurora learn me --experiment first_try --tried installing --result booted
@@ -86,6 +102,10 @@ cursor-agent 'Set up Akashic Aurora for me, a shared memory for AI agents.
 - Run `aurora setup --yes --dry-run` to see what setup would change.
   Ask me about each choice, then run `aurora setup --yes` with flags
   for my answers.
+- Run `aurora hooks status` and show me where the hooks went. Remind me
+  to restart you, since hooks load when a session starts.
+- If a stop hook asks you to start a wake watcher, run its command
+  once in the background. That is expected, not an error.
 - In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
   aurora learn me --experiment first_try --tried installing --result booted
@@ -103,6 +123,10 @@ opencode --prompt 'Set up Akashic Aurora for me, a shared memory for AI agents.
 - Run `aurora setup --yes --dry-run` to see what setup would change.
   Ask me about each choice, then run `aurora setup --yes` with flags
   for my answers.
+- Run `aurora hooks status` and show me where the hooks went. Remind me
+  to restart you, since hooks load when a session starts.
+- If a stop hook asks you to start a wake watcher, run its command
+  once in the background. That is expected, not an error.
 - In a fresh shell, run these and show me the output:
   aurora boot me --task first-run
   aurora learn me --experiment first_try --tried installing --result booted
@@ -118,19 +142,3 @@ Install the `aurora` command. It works in any terminal, from any directory, with
 <InstallCard />
 
 Your memory lives in `~/.aurora/data`. Updates never touch it. `aurora self version` shows where everything is, and `aurora self update` installs the newest release.
-
-To work on Aurora itself, clone the repo and run `uv run aurora` inside it. That runs the checkout's own code.
-
-Next: read [`AGENTS.md`](https://github.com/balanced7/akashic-aurora/blob/master/AGENTS.md) in the repo.
-
-<Callout title="In other agent tools">
-
-| Their term | Where | What it means there |
-| --- | --- | --- |
-| AGENTS.md | [AGENTS.md](https://agents.md/) · [Codex](https://learn.chatgpt.com/docs/agent-configuration/agents-md) · [Cursor](https://cursor.com/docs/rules#agentsmd) · [Amp](https://ampcode.com/docs/customize/agents-md) · [Windsurf](https://docs.devin.ai/desktop/cascade/agents-md) · [GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/custom-instructions#_use-an-agentsmd-file) · [Claude Code](https://code.claude.com/docs/en/memory#agents-md) | A plain Markdown file in a repo that tells coding agents how to work on it. |
-| CLAUDE.md | [Claude Code](https://code.claude.com/docs/en/memory#claude-md-files) | A file of standing instructions you write, loaded at the start of every session. |
-| GEMINI.md | [Gemini CLI](https://geminicli.com/docs/cli/gemini-md/#understand-the-context-hierarchy) | Markdown files of project rules that Gemini CLI sends with every prompt. |
-
-**How Aurora differs:** Aurora's AGENTS.md is a normal one. It tells each agent to boot, learn and recall. The lessons live in shared memory, not in the file.
-
-</Callout>

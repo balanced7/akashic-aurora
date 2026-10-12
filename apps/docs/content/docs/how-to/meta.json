@@ -1,6 +1,7 @@
 {
   "title": "How-to guides",
   "pages": [
+    "connect-your-agent-tools",
     "try-it-in-a-sandbox",
     "record-a-lesson",
     "recall-before-you-act",
@@ -9,6 +10,7 @@
     "share-a-file-safely",
     "search-transcripts",
     "fan-out-a-question",
-    "link-two-fleets"
+    "link-two-fleets",
+    "work-on-aurora"
   ]
 }
