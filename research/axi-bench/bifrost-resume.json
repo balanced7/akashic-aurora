@@ -1,0 +1,174 @@
+{
+  "verb": "bifrost-resume",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.45,
+    "correct": 9,
+    "asked": 20,
+    "output_tokens": 7,
+    "stdout_chars": 36,
+    "stdout_lines": 2,
+    "cost_usd": 0.0183,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": false,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/6",
+    "questions": [
+      {
+        "q": "Did the resume succeed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the bus paused before this command ran? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "UNKNOWN",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Was the bus paused before this command ran? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "Output shows only \"[bifrost] RESUMED\". It does not say whether the bus was paused before the command ran.\n\nUNKNOWN",
+          "yes"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Can the auto-responders take new work now? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "resume": {
+        "argv": [
+          "bifrost-resume"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost] RESUMED\n"
+      },
+      "again": {
+        "argv": [
+          "bifrost-resume"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost] RESUMED\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 48,
+    "stdout_chars": 245,
+    "stdout_lines": 9,
+    "cost_usd": 0.0195,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Did the resume succeed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the bus paused before this command ran? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the bus paused before this command ran? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Can the auto-responders take new work now? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "resume": {
+        "argv": [
+          "bifrost-resume"
+        ],
+        "exit": 0,
+        "stdout": "status: resumed\nwas_paused: true\npause_was: hard\npaused_by: user\npause_reason: operator barge-in\nauto_responders: free to take new work\n"
+      },
+      "again": {
+        "argv": [
+          "bifrost-resume"
+        ],
+        "exit": 0,
+        "stdout": "status: \"nothing to resume: the bus was not paused\"\nwas_paused: false\nauto_responders: free to take new work\n"
+      }
+    }
+  }
+}

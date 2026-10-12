@@ -9807,11 +9807,26 @@ def _human_pause(console, doc):
 
 def cmd_bifrost_resume(args):
     """Un-freeze the bus auto-responders."""
+    from core.axi import out
     from core.comm import control
 
+    # Read the pause before clearing it, so the output can say what this resume undid -- or
+    # that there was nothing to undo, instead of the same "RESUMED" either way.
+    before = control.pause_status()
     ok = control.resume()
-    print("[bifrost] RESUMED" if ok else "[bifrost] resume failed (bus offline)")
-    return 0 if ok else 1
+    if not ok:
+        return out.fail("resume failed (bus offline)", code="BUS_OFFLINE", details={"resumed": False})
+    doc: dict = {
+        "status": "resumed" if before.get("paused") else "nothing to resume: the bus was not paused",
+        "was_paused": bool(before.get("paused")),
+    }
+    if before.get("paused"):
+        doc["pause_was"] = "soft" if before.get("soft") else "hard"
+        doc["paused_by"] = before.get("by") or "?"
+        if before.get("reason"):
+            doc["pause_reason"] = before["reason"]
+    doc["auto_responders"] = "free to take new work"
+    return out.emit(doc, title="Resume")  # a confirmation answers itself: no hints
 
 
 def cmd_bifrost_skip_to_now(args):
