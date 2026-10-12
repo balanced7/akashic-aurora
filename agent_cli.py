@@ -15366,11 +15366,57 @@ def cmd_reentry(args):
         from core.eye import index as _EYE
 
         _EYE.ingest()  # a render diffed against a stale corpus lies about "since"
+    from core.axi import out
     from core.reentry import build_reentry, render_reentry
 
     built = build_reentry(show_open_loops=args.show_open_loops, since=args.since)
-    print(render_reentry(built))
-    return 0
+    hints = [] if args.show_open_loops else [f"{_cli()} reentry --show-open-loops"]
+    # A person gets the render as it was written for him, its order and wording untouched (the
+    # T341 laws live in that text). An agent gets the same sections as data, in the same order.
+    return out.emit(
+        _reentry_doc(built),
+        hints=hints,
+        human=lambda console, _doc: console.print(out._esc(render_reentry(built))),
+    )
+
+
+def _reentry_doc(built: dict) -> dict:
+    """The re-entry render's sections as data, in its order law: evidence, then the open door,
+    then the operator's move. Evidence gets totals (the commit list shows 12, the total is the
+    truth); the operator's move gets none, by the no-guilt law the render was built under. The
+    legend and the caveat travel with it, because the render declares its own bounds."""
+    from core.axi import out
+
+    ev = built.get("evidence") or {}
+    moves = ev.get("ledger_moves") or []
+    commits = ev.get("commits") or []
+    last = (built.get("since") or {}).get("last_word")
+    door = built.get("open_door")
+    doc: dict[str, Any] = {
+        "since": (built.get("since") or {}).get("iso"),
+        "last_word": {"text": out.truncate(last["text"], 420)[0], "addr": last["addr"]} if last else None,
+        "moved_total": len(moves),
+        "moved": [
+            {"id": m.get("id"), "status": m.get("status"), "commit": m.get("commit"), "title": m.get("title")}
+            for m in moves
+        ],
+        "commits_total": len(commits),
+    }
+    if commits:
+        doc["commits"] = commits[:12]
+        if len(commits) > 12:
+            doc["commits_shown"] = 12
+    doc["open_door"] = (
+        {"text": out.truncate(door["text"], 420)[0], "addr": door["addr"], "selected_by": door["selected_by"]}
+        if door
+        else None
+    )
+    doc["your_move"] = [{"door": i.get("label"), "action": i.get("action")} for i in built.get("your_move") or []]
+    if built.get("open_loops") is not None:
+        doc["open_loops"] = [i.get("label") for i in built["open_loops"]]
+    doc["legend"] = dict(built.get("legend") or {})
+    doc["caveat"] = built.get("caveat")
+    return doc
 
 
 def cmd_glance(args):

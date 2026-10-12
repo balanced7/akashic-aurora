@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 69 converted to agent and human output.
+121 verbs; 70 converted to agent and human output.
 
 ## `alias`
 
@@ -2283,13 +2283,46 @@ help[1]:
 | | |
 |---|---|
 | Does | T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 988 before, 1,257 after (+27%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/reentry.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--show-open-loops` |   |   | surface open loops (never on the default render) |
 | `--since` |   |   | override the diff point (ISO); default = his last recorded word |
 | `--stale-ok` |   |   | skip the incremental eye ingest before rendering |
+
+Agent output of `aurora reentry --stale-ok --since 2026-09-23T12:00:00+00:00` on the bench data:
+
+```text
+since: "2026-09-23T12:00:00+00:00"
+last_word: null
+moved_total: 7
+moved[7]{id,status,commit,title}:
+  T402,proposed,null,PreCompact should block ONCE and make the seat write its own judgment handoff. THE SIGNAL …
+  T403,proposed,null,"Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process plugin ti …"
+  T404,abandoned,null,wake-enumerator-expected-up-roster
+  T405,proposed,null,"Wake enumerator: out-of-band expected-up roster that mints rearm triggers for the daemon"
+  T406,done,afe326ad,"Eye corpus: index the DSH plane so Rill's sessions are history too"
+  T407,done,43b52aa7,"Eye capture door: seat provenance at ingest, so Navi is history too (the 2026-08-19 pin)"
+  T408,done,4a1887fd,"Durability sweep: one checker for what the house believes is landed and is not"
+commits_total: 501
+commits[12]: 8d6af2dc wip orient,ceb1d4a6 wip sweep,81b9ed0a wip discover,004c8344 wip episode,"53736d61 chore(bench): run each verb in a throwaway home, five times per question","7d0351bf feat(cli): recall and list print for agents and for people","0a8c8e31 feat(cli): locks prints for agents and for people","f4dd1e7b chore(bench): let AXI benches run side by side, and keep flag names readable in the reference","ed3b31fe feat(cli): agent and human output modes, AXI usage errors, and a before/after bench","50c2ee6f test(authorship): pin the ledger in trees without the per-world home or provenance","7595a078 feat(authorship): keep the commit ledger local, with the session that made each commit","9dd0446e fix(identity): let each machine name the operator on agent commits"
+commits_shown: 12
+open_door: null
+your_move[5]{door,action}:
+  "T405 — Wake enumerator: out-of-band expected-up roster that mints rearm triggers for th …","one word opens this: approve T405"
+  "T403 — Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process …","one word opens this: approve T403"
+  T402 — PreCompact should block ONCE and make the seat write its own judgment handoff. T …,"one word opens this: approve T402"
+  "T401 — check_liveness_predicate_claims: a manifest gate for predicates whose NAME asser …","one word opens this: approve T401"
+  "T400 — Blob store split per worktree: spilled bus messages dangle between the prod work …","one word opens this: approve T400"
+legend:
+  shown: "ledger rows whose updated-stamp moved since your last recorded word; commits landed since then; one verbatim utterance of yours selected by disclosed phrase match; newest proposed rows and QUESTIONS.md doors, titles only"
+  excluded: open loops and unanswered threads (off by default — ask for them); counts and ages of anything that is yours to move; every form of paraphrase; agent chatter
+... (4 more lines)
+```
 
 ## `repeat`
 

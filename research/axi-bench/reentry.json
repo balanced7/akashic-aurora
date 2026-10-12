@@ -1,0 +1,238 @@
+{
+  "verb": "reentry",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 988,
+    "stdout_chars": 4559,
+    "stdout_lines": 58,
+    "cost_usd": 0.0298,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many task-ledger rows moved since the diff point?",
+        "expected": 7,
+        "answers": [
+          "7",
+          "7",
+          "7",
+          "7",
+          "7"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which status did task T404 move to?",
+        "expected": "abandoned",
+        "answers": [
+          "abandoned",
+          "abandoned",
+          "abandoned",
+          "abandoned",
+          "abandoned"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which commit is task T406 tied to?",
+        "expected": "afe326ad",
+        "answers": [
+          "afe326ad",
+          "afe326ad",
+          "afe326ad",
+          "afe326ad",
+          "afe326ad"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an open door (a verbatim utterance of the operator) found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What does the operator type to open task T405? Give the words only.",
+        "expected": [
+          "approve T405"
+        ],
+        "answers": [
+          "approve T405",
+          "approve T405",
+          "approve T405",
+          "approve T405",
+          "approve T405"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did any task-ledger rows move? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "moved": {
+        "argv": [
+          "reentry",
+          "--stale-ok",
+          "--since",
+          "2026-09-23T12:00:00+00:00"
+        ],
+        "exit": 0,
+        "stdout": "# re-entry \u2014 assembled for Daniil\n  (since your last word, 2026-09-23T12:00:00+00:00)\n\n## 1 \u00b7 WHAT MOVED (measured, from outside yourself)\n  T402 -> proposed  PreCompact should block ONCE and make the seat write its own judgment handoff. THE SIGNAL \u2026\n  T403 -> proposed  Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process plugin ti \u2026\n  T404 -> abandoned  wake-enumerator-expected-up-roster\n  T405 -> proposed  Wake enumerator: out-of-band expected-up roster that mints rearm triggers for the daemon\n  T406 -> done @afe326ad  Eye corpus: index the DSH plane so Rill's sessions are history too\n  T407 -> done @43b52aa7  Eye capture door: seat provenance at ingest, so Navi is history too (the 2026-08-19 pin)\n  T408 -> done @4a1887fd  Durability sweep: one checker for what the house believes is landed and is not\n\n## 2 \u00b7 OPEN DOOR (your own reaching, verbatim \u2014 one, never a stack)\n  none matched the phrase list since your last word \u2014 an honest absence, not an empty you\n\n## 3 \u00b7 YOUR MOVE (each closable in a word; none carries a clock)\n  \u00b7 T405 \u2014 Wake enumerator: out-of-band expected-up roster that mints rearm triggers for th \u2026\n      one word opens this: approve T405\n  \u00b7 T403 \u2014 Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process \u2026\n      one word opens this: approve T403\n  \u00b7 T402 \u2014 PreCompact should block ONCE and make the seat write its own judgment handoff. T \u2026\n      one word opens this: approve T402\n  \u00b7 T401 \u2014 check_liveness_predicate_claims: a manifest gate for predicates whose NAME asser \u2026\n      one word opens this: approve T401\n  \u00b7 T400 \u2014 Blob store split per worktree: spilled bus messages dangle between the prod work \u2026\n      one word opens this: approve T400\n\n  legend \u2014 shown: ledger rows whose updated-stamp moved since your last recorded word; commits landed since then; one verbatim utterance of yours selected by disclosed phrase match; newest proposed rows and QUESTIONS.md doors, titles only\n  legend \u2014 excluded: open loops and unanswered threads (off by default \u2014 ask for them); counts and ages of anything that is yours to move; every form of paraphrase; agent chatter\n  legend \u2014 why: order law: evidence -> open door -> your move \u2014 measured outcomes first because that is what you ask for at every return (eye_freq, 8/8 sessions). Voice labels are conservative: a pasted dispatch brief can wear operator voice (known class). corpus time-fog: 0.0.\n\n  this render buys the assembly, not the charge \u2014 whether the spark returns is yours to report, and only you can (kimi's caveat, standing on the row)\n"
+      },
+      "quiet": {
+        "argv": [
+          "reentry",
+          "--stale-ok",
+          "--since",
+          "2099-01-01T00:00:00+00:00"
+        ],
+        "exit": 0,
+        "stdout": "# re-entry \u2014 assembled for Daniil\n  (since your last word, 2099-01-01T00:00:00+00:00)\n\n## 1 \u00b7 WHAT MOVED (measured, from outside yourself)\n  no ledger rows moved \u2014 and this line would say so if none had, so it means exactly that\n\n## 2 \u00b7 OPEN DOOR (your own reaching, verbatim \u2014 one, never a stack)\n  none matched the phrase list since your last word \u2014 an honest absence, not an empty you\n\n## 3 \u00b7 YOUR MOVE (each closable in a word; none carries a clock)\n  \u00b7 T405 \u2014 Wake enumerator: out-of-band expected-up roster that mints rearm triggers for th \u2026\n      one word opens this: approve T405\n  \u00b7 T403 \u2014 Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process \u2026\n      one word opens this: approve T403\n  \u00b7 T402 \u2014 PreCompact should block ONCE and make the seat write its own judgment handoff. T \u2026\n      one word opens this: approve T402\n  \u00b7 T401 \u2014 check_liveness_predicate_claims: a manifest gate for predicates whose NAME asser \u2026\n      one word opens this: approve T401\n  \u00b7 T400 \u2014 Blob store split per worktree: spilled bus messages dangle between the prod work \u2026\n      one word opens this: approve T400\n\n  legend \u2014 shown: ledger rows whose updated-stamp moved since your last recorded word; commits landed since then; one verbatim utterance of yours selected by disclosed phrase match; newest proposed rows and QUESTIONS.md doors, titles only\n  legend \u2014 excluded: open loops and unanswered threads (off by default \u2014 ask for them); counts and ages of anything that is yours to move; every form of paraphrase; agent chatter\n  legend \u2014 why: order law: evidence -> open door -> your move \u2014 measured outcomes first because that is what you ask for at every return (eye_freq, 8/8 sessions). Voice labels are conservative: a pasted dispatch brief can wear operator voice (known class). corpus time-fog: 0.0.\n\n  this render buys the assembly, not the charge \u2014 whether the spark returns is yours to report, and only you can (kimi's caveat, standing on the row)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 1257,
+    "stdout_chars": 4888,
+    "stdout_lines": 47,
+    "cost_usd": 0.0298,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many task-ledger rows moved since the diff point?",
+        "expected": 7,
+        "answers": [
+          "7",
+          "7",
+          "7",
+          "7",
+          "7"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which status did task T404 move to?",
+        "expected": "abandoned",
+        "answers": [
+          "abandoned",
+          "abandoned",
+          "abandoned",
+          "abandoned",
+          "abandoned"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which commit is task T406 tied to?",
+        "expected": "afe326ad",
+        "answers": [
+          "afe326ad",
+          "afe326ad",
+          "afe326ad",
+          "afe326ad",
+          "afe326ad"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an open door (a verbatim utterance of the operator) found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What does the operator type to open task T405? Give the words only.",
+        "expected": [
+          "approve T405"
+        ],
+        "answers": [
+          "approve T405",
+          "approve T405",
+          "approve T405",
+          "approve T405",
+          "approve T405"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did any task-ledger rows move? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "moved": {
+        "argv": [
+          "reentry",
+          "--stale-ok",
+          "--since",
+          "2026-09-23T12:00:00+00:00"
+        ],
+        "exit": 0,
+        "stdout": "since: \"2026-09-23T12:00:00+00:00\"\nlast_word: null\nmoved_total: 7\nmoved[7]{id,status,commit,title}:\n  T402,proposed,null,PreCompact should block ONCE and make the seat write its own judgment handoff. THE SIGNAL \u2026\n  T403,proposed,null,\"Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process plugin ti \u2026\"\n  T404,abandoned,null,wake-enumerator-expected-up-roster\n  T405,proposed,null,\"Wake enumerator: out-of-band expected-up roster that mints rearm triggers for the daemon\"\n  T406,done,afe326ad,\"Eye corpus: index the DSH plane so Rill's sessions are history too\"\n  T407,done,43b52aa7,\"Eye capture door: seat provenance at ingest, so Navi is history too (the 2026-08-19 pin)\"\n  T408,done,4a1887fd,\"Durability sweep: one checker for what the house believes is landed and is not\"\ncommits_total: 501\ncommits[12]: 8d6af2dc wip orient,ceb1d4a6 wip sweep,81b9ed0a wip discover,004c8344 wip episode,\"53736d61 chore(bench): run each verb in a throwaway home, five times per question\",\"7d0351bf feat(cli): recall and list print for agents and for people\",\"0a8c8e31 feat(cli): locks prints for agents and for people\",\"f4dd1e7b chore(bench): let AXI benches run side by side, and keep flag names readable in the reference\",\"ed3b31fe feat(cli): agent and human output modes, AXI usage errors, and a before/after bench\",\"50c2ee6f test(authorship): pin the ledger in trees without the per-world home or provenance\",\"7595a078 feat(authorship): keep the commit ledger local, with the session that made each commit\",\"9dd0446e fix(identity): let each machine name the operator on agent commits\"\ncommits_shown: 12\nopen_door: null\nyour_move[5]{door,action}:\n  \"T405 \u2014 Wake enumerator: out-of-band expected-up roster that mints rearm triggers for th \u2026\",\"one word opens this: approve T405\"\n  \"T403 \u2014 Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process \u2026\",\"one word opens this: approve T403\"\n  T402 \u2014 PreCompact should block ONCE and make the seat write its own judgment handoff. T \u2026,\"one word opens this: approve T402\"\n  \"T401 \u2014 check_liveness_predicate_claims: a manifest gate for predicates whose NAME asser \u2026\",\"one word opens this: approve T401\"\n  \"T400 \u2014 Blob store split per worktree: spilled bus messages dangle between the prod work \u2026\",\"one word opens this: approve T400\"\nlegend:\n  shown: \"ledger rows whose updated-stamp moved since your last recorded word; commits landed since then; one verbatim utterance of yours selected by disclosed phrase match; newest proposed rows and QUESTIONS.md doors, titles only\"\n  excluded: open loops and unanswered threads (off by default \u2014 ask for them); counts and ages of anything that is yours to move; every form of paraphrase; agent chatter\n  why: \"order law: evidence -> open door -> your move \u2014 measured outcomes first because that is what you ask for at every return (eye_freq, 8/8 sessions). Voice labels are conservative: a pasted dispatch brief can wear operator voice (known class). corpus time-fog: 0.0.\"\ncaveat: \"this render buys the assembly, not the charge \u2014 whether the spark returns is yours to report, and only you can (kimi's caveat, standing on the row)\"\nhelp[1]:\n  uv run agent_cli.py reentry --show-open-loops\n"
+      },
+      "quiet": {
+        "argv": [
+          "reentry",
+          "--stale-ok",
+          "--since",
+          "2099-01-01T00:00:00+00:00"
+        ],
+        "exit": 0,
+        "stdout": "since: \"2099-01-01T00:00:00+00:00\"\nlast_word: null\nmoved_total: 0\nmoved: []\ncommits_total: 0\nopen_door: null\nyour_move[5]{door,action}:\n  \"T405 \u2014 Wake enumerator: out-of-band expected-up roster that mints rearm triggers for th \u2026\",\"one word opens this: approve T405\"\n  \"T403 \u2014 Build Rill (dsh_agent) DSH wake organ per reconciled fence rill-wake: in-process \u2026\",\"one word opens this: approve T403\"\n  T402 \u2014 PreCompact should block ONCE and make the seat write its own judgment handoff. T \u2026,\"one word opens this: approve T402\"\n  \"T401 \u2014 check_liveness_predicate_claims: a manifest gate for predicates whose NAME asser \u2026\",\"one word opens this: approve T401\"\n  \"T400 \u2014 Blob store split per worktree: spilled bus messages dangle between the prod work \u2026\",\"one word opens this: approve T400\"\nlegend:\n  shown: \"ledger rows whose updated-stamp moved since your last recorded word; commits landed since then; one verbatim utterance of yours selected by disclosed phrase match; newest proposed rows and QUESTIONS.md doors, titles only\"\n  excluded: open loops and unanswered threads (off by default \u2014 ask for them); counts and ages of anything that is yours to move; every form of paraphrase; agent chatter\n  why: \"order law: evidence -> open door -> your move \u2014 measured outcomes first because that is what you ask for at every return (eye_freq, 8/8 sessions). Voice labels are conservative: a pasted dispatch brief can wear operator voice (known class). corpus time-fog: 0.0.\"\ncaveat: \"this render buys the assembly, not the charge \u2014 whether the spark returns is yours to report, and only you can (kimi's caveat, standing on the row)\"\nhelp[1]:\n  uv run agent_cli.py reentry --show-open-loops\n"
+      }
+    }
+  }
+}
