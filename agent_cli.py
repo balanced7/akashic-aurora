@@ -10028,16 +10028,26 @@ def cmd_forecast(args):
     score them at review against outcome artifacts, render calibration."""
     import time
 
-    from core.coord.forecast_registry import ForecastRegistry, RegistryRefusal
+    from core.axi import out
+    from core.coord.forecast_registry import VERDICTS, ForecastRegistry, RegistryRefusal
 
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state", "coord", "forecasts.jsonl")
     reg = ForecastRegistry(path=path)
+    cli = _cli()
+
+    def _day(ts):
+        return time.strftime("%Y-%m-%d", time.localtime(float(ts or 0)))
+
     try:
         if args.action == "register":
             fid = args.id or args.id_pos
             if not fid:
-                print("ERROR: forecast register needs --id")
-                return 2
+                return out.fail(
+                    "forecast register needs --id",
+                    code="USAGE",
+                    hints=[f'{cli} forecast register --id <id> --statement "..." --horizon +7d --dies-when "..."'],
+                    exit_code=out.EXIT_USAGE,
+                )
             horizon = str(args.horizon or "+7d")
             if horizon.startswith("+") and horizon.endswith("d"):
                 horizon_ts = time.time() + float(horizon[1:-1]) * 86400
@@ -10057,52 +10067,142 @@ def cmd_forecast(args):
                 mechanism=args.mechanism,
                 dies_when=args.dies_when,
             )
-            print(
-                f"[forecast] registered {row['id']} by {row['registered_by']} "
-                f"(horizon {time.strftime('%Y-%m-%d', time.localtime(row['horizon_ts']))}, "
-                f"dies_when: {row['dies_when']})"
+            return out.emit(
+                {
+                    "registered": row["id"],
+                    "by": row["registered_by"],
+                    "horizon": _day(row["horizon_ts"]),
+                    "dies_when": row["dies_when"],
+                },
+                hints=[f"{cli} forecast list"],
+                title="Forecast registered",
             )
-            return 0
         if args.action == "score":
             fid = args.id_pos or args.id
             if not (fid and args.verdict):
-                print("ERROR: forecast score <id> --verdict ... needed")
-                return 2
+                return out.fail(
+                    "forecast score needs the forecast id and --verdict",
+                    code="USAGE",
+                    hints=[f'{cli} forecast score <id> --verdict {"|".join(VERDICTS)} --observed "..."'],
+                    exit_code=out.EXIT_USAGE,
+                )
             row = reg.score(
                 fid, scored_by=args.by, observed=args.observed, evidence_ref=args.evidence, verdict=args.verdict
             )
-            print(f"[forecast] scored {fid}: {row['verdict']} (knowable_ts {row['outcome_knowable_ts']})")
-            return 0
+            return out.emit(
+                {"scored": fid, "verdict": row["verdict"], "knowable_ts": row["outcome_knowable_ts"]},
+                hints=[f"{cli} forecast list --calibration"],
+                title="Forecast scored",
+            )
         # list
         state = reg.state()
-        if not state:
-            print("(no forecasts registered)")
-            return 0
+        cal = reg.calibration()
+        doc: dict = {"total": len(state), "open": sum(1 for r in state.values() if not r.get("verdict"))}
+        scored: dict[str, int] = {}
+        for r in state.values():
+            if r.get("verdict"):
+                scored[r["verdict"]] = scored.get(r["verdict"], 0) + 1
+        if scored:
+            doc["scored"] = {v: scored[v] for v in VERDICTS if v in scored}
+        doc["overdue"] = len(cal["overdue"])
+        if not state:  # AXI section 5: an empty registry is an answer
+            doc["forecasts"] = []
+            return out.emit(
+                doc,
+                hints=[f'{cli} forecast register --id <id> --statement "..." --horizon +7d --dies-when "..."'],
+                human=_human_forecasts({}),
+                title="Forecasts",
+            )
+        try:
+            fields = out.fields_arg(getattr(args, "fields", None), _FORECAST_FIELDS, _FORECAST_ALL_FIELDS)
+        except ValueError as e:
+            return out.fail(
+                str(e), code="USAGE", hints=[f"{cli} forecast list --fields statement"], exit_code=out.EXIT_USAGE
+            )
+        rows = []
         for fid in sorted(state):
             r = state[fid]
-            v = r.get("verdict") or "OPEN"
-            print(
-                f"  {fid} [{v:>7}] {r.get('registered_by', '?')}: "
-                f"{(r.get('expectation') or {}).get('statement', '')[:90]}"
-            )
+            full_row = {
+                "id": fid,
+                "verdict": r.get("verdict") or "open",
+                "by": r.get("registered_by", "?"),
+                "horizon": _day(r.get("horizon_ts")),
+                # Cut, with its size; the whole bet is in the registry file.
+                "statement": out.truncate((r.get("expectation") or {}).get("statement", ""), 300)[0],
+                "task": r.get("task_ref") or None,
+                "dies_when": out.truncate(r.get("dies_when"), 300)[0] or None,
+            }
+            rows.append({f: full_row[f] for f in fields})
+        doc["forecasts"] = rows
         if args.calibration:
-            cal = reg.calibration()
-            print("# calibration (rate = hits / scored non-void; partial counts against)")
-            for who, a in sorted(cal["by_author"].items()):
-                rate = "n/a" if a["rate"] is None else f"{a['rate']:.0%}"
-                print(
-                    f"  {who}: {rate}  (hit {a['hit']} / miss {a['miss']} / "
-                    f"partial {a['partial']} / voided {a['voided']} / residual {a['residual']})"
-                )
-            for r in cal["overdue"]:
-                print(
-                    f"  OVERDUE: {r['id']} ({r.get('registered_by', '?')}) -- past "
-                    f"{time.strftime('%Y-%m-%d', time.localtime(r.get('horizon_ts', 0)))}, unscored"
-                )
-        return 0
+            # rate = hits / scored non-void; partial and residual count against.
+            doc["calibration"] = [
+                {"author": who, "rate": None if a["rate"] is None else round(a["rate"], 3)}
+                | {v: a[v] for v in VERDICTS}
+                for who, a in sorted(cal["by_author"].items())
+            ]
+            doc["overdue_forecasts"] = [
+                {"id": r["id"], "by": r.get("registered_by", "?"), "horizon": _day(r.get("horizon_ts"))}
+                for r in cal["overdue"]
+            ]
+        hints = []
+        if cal["overdue"]:  # the nag: an overdue bet is one nobody came back to score
+            first = cal["overdue"][0]["id"]
+            hints.append(
+                f'{cli} forecast score {first} --verdict <{"|".join(VERDICTS)}> --observed "..." --evidence <ref>'
+            )
+        if not args.calibration:
+            hints.append(f"{cli} forecast list --calibration")
+        if "statement" not in fields:
+            hints.append(f"{cli} forecast list --fields statement")
+        full = {fid: (r.get("expectation") or {}).get("statement", "") for fid, r in state.items()}
+        return out.emit(doc, hints=hints, human=_human_forecasts(full), title="Forecasts")
     except RegistryRefusal as e:
-        print(f"[forecast] REFUSED: {e}")
-        return 1
+        return out.fail(str(e), code="REFUSED", hints=[f"{cli} forecast list"])
+
+
+#: `forecast list` columns: the default agent schema, and every field --fields can add.
+_FORECAST_FIELDS = ("id", "verdict", "by", "horizon")
+_FORECAST_ALL_FIELDS = ("id", "verdict", "by", "horizon", "statement", "task", "dies_when")
+
+
+def _human_forecasts(statements):
+    """Human view of `forecast list`: the counts, one table of forecasts with verdicts
+    coloured and each statement on one line cut to the terminal's width, then calibration per
+    author and the overdue bets when asked for."""
+
+    def render(console, doc):
+        from rich import box
+        from rich.table import Table
+
+        from core.axi import out
+
+        parts = [f"[bold]{doc['total']}[/] forecasts", f"[yellow]{doc['open']} open[/]"]
+        parts += [f"{n} {v}" for v, n in (doc.get("scored") or {}).items()]
+        if doc.get("overdue"):
+            parts.append(f"[red]{doc['overdue']} overdue[/]")
+        console.print(" · ".join(parts))
+        colour = {"hit": "green", "miss": "red", "partial": "yellow", "open": "cyan"}
+        if doc["forecasts"]:
+            t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+            t.add_column("id", no_wrap=True, max_width=20, overflow="ellipsis")
+            t.add_column("verdict", no_wrap=True, min_width=7)
+            t.add_column("by", no_wrap=True, min_width=6)
+            t.add_column("statement", no_wrap=True)
+            room = max(20, console.width - 50)  # one line per forecast, whatever the width
+            for r in doc["forecasts"]:
+                v = r["verdict"]
+                text = " ".join(str(statements.get(r["id"]) or r.get("statement", "")).split())
+                text = text if len(text) <= room else text[: room - 1].rstrip() + "…"
+                t.add_row(out._esc(r["id"]), f"[{colour.get(v, 'dim')}]{v}[/]", out._esc(r["by"]), out._esc(text))
+            console.print(t)
+        if doc.get("calibration"):
+            rows = [{**r, "rate": "n/a" if r["rate"] is None else f"{r['rate']:.0%}"} for r in doc["calibration"]]
+            console.print(out.table(rows, title="calibration (hits / scored non-void)"))
+        if doc.get("overdue_forecasts"):
+            console.print(out.table(doc["overdue_forecasts"], title="overdue, unscored"))
+
+    return render
 
 
 def cmd_reply(args):
@@ -14366,6 +14466,11 @@ def build_parser():
     )
     fc.add_argument("--verdict", default=None, help="hit|miss|partial|voided|residual")
     fc.add_argument("--calibration", action="store_true", help="list: render hit rates + overdue")
+    fc.add_argument(
+        "--fields",
+        default=None,
+        help="list: extra columns: statement,task,dies_when, or 'all' (default: id,verdict,by,horizon)",
+    )
     fc.set_defaults(fn=cmd_forecast)
 
     snd = sub.add_parser("bifrost-send", help="send a message to another agent on the bus")

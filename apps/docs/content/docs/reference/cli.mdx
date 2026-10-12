@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 101 converted to agent and human output.
+121 verbs; 102 converted to agent and human output.
 
 ## `alias`
 
@@ -1267,7 +1267,10 @@ help[1]:
 | | |
 |---|---|
 | Does | T375 engineering forecast registry -- register bets at gates, score at review, render calibration |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 709 before, 439 after (-38%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/forecast.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1286,6 +1289,37 @@ help[1]:
 | `--evidence` |   |   | score: outcome artifact -- event:&lt;stream&gt;:&lt;id&gt; or commit:&lt;sha&gt;; the door DERIVES outcome_knowable_ts from it (never claimed) |
 | `--verdict` |   |   | hit\|miss\|partial\|voided\|residual |
 | `--calibration` |   |   | list: render hit rates + overdue |
+| `--fields` |   |   | list: extra columns: statement,task,dies_when, or 'all' (default: id,verdict,by,horizon) |
+
+Agent output of `aurora forecast list` on the bench data:
+
+```text
+total: 15
+open: 5
+scored:
+  hit: 5
+  miss: 3
+  partial: 2
+overdue: 4
+forecasts[15]{id,verdict,by,horizon}:
+  F001,hit,claude,2026-08-29
+  F002,miss,claude,2026-08-30
+  F003,miss,claude,2026-09-06
+  F004,open,deepseek,2026-08-30
+  F005,open,claude,2026-08-30
+  F006,miss,claude,2026-08-30
+  F007,hit,claude,2026-08-25
+  F008,partial,claude,2026-09-07
+  F009,hit,claude,2026-08-31
+  F010,partial,claude,2026-08-31
+  F011,hit,claude,2026-09-20
+  F012,open,claude,2026-09-20
+  F013,open,claude,2026-09-15
+  fc-highstakes-marriage-20260905,hit,claude,2026-09-07
+  involuntary-retrieval-ships-2027h1,open,claude,2027-02-27
+help[3]:
+... (3 more lines)
+```
 
 ## `friction`
 

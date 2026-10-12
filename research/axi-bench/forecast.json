@@ -1,0 +1,322 @@
+{
+  "verb": "forecast",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 40,
+    "asked": 40,
+    "output_tokens": 709,
+    "stdout_chars": 4040,
+    "stdout_lines": 38,
+    "cost_usd": 0.0411,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many forecasts are registered in total?",
+        "expected": 15,
+        "answers": [
+          "15",
+          "15",
+          "15",
+          "15",
+          "15"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict does forecast F008 have?",
+        "expected": "partial",
+        "answers": [
+          "partial",
+          "partial",
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many forecasts are still open (not yet scored)?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which seat registered forecast F004?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is claude's hit rate, as a percentage?",
+        "expected": 50,
+        "answers": [
+          "50%",
+          "50%",
+          "50%",
+          "50%",
+          "50%"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which forecasts are overdue? List their ids separated by commas.",
+        "expected": [
+          "F004",
+          "F005",
+          "F012",
+          "F013"
+        ],
+        "answers": [
+          "F004, F005, F013, F012",
+          "F004, F005, F013, F012",
+          "F004, F005, F013, F012",
+          "F004, F005, F013, F012",
+          "F004, F005, F013, F012"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag does `forecast register` need that was not given? Give the flag only.",
+        "expected": "--id",
+        "answers": [
+          "--id",
+          "--id",
+          "--id",
+          "--id",
+          "--id"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the score recorded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "forecast",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "  F001 [    hit] claude: by 2026-08-29 the registry holds at least 5 forecasts from at least 2 different seats, wit\n  F002 [   miss] claude: after T376 ships, a trivial commit to main rotates the discord gateway, bifrost daemon, an\n  F003 [   miss] claude: within 14 days the census enumerates every fact class living in 2+ stores with a declared \n  F004 [   OPEN] deepseek: the wedged-vs-thinking discriminator spec (half_a section 2) classifies the rolling-refres\n  F005 [   OPEN] claude: the map's first render ships today with its stamp block, and within 7 days Daniil opens th\n  F006 [   miss] claude: drill D1 passes within 7 days: with daemon and runners deliberately killed, phone-only rec\n  F007 [    hit] claude: drill D4 passes today: a deliberately broken seat-lane webhook produces a doctor page or d\n  F008 [partial] claude: The two-harness integration race (Claude Code vs Serge's DSH) produces at least one ADOPTE\n  F009 [    hit] claude: The t384 reconciliation UNTRACKS security/acl.json (instance-local grants, policy staying \n  F010 [partial] claude: The t385 blind fence across two harnesses produces at least one design finding that NEITHE\n  F011 [    hit] claude: The media-arsenal-contract reconciliation adopts at least one design element that appears \n  F012 [   OPEN] claude: First Light runs end to end on Daniel's machine within 7 days: a library clip plays throug\n  F013 [   OPEN] claude: Piano v2 lands: a swapped-in /piano records at an average of at least 58 fps (checked with\n  fc-highstakes-marriage-20260905 [    hit] claude: The four-arm research round will NOT find a novel technique we lack. It will find that our\n  involuntary-retrieval-ships-2027h1 [   OPEN] claude: By 2027-02-26, at least one widely-used agent framework (LangGraph, CrewAI, Claude Agent S\n"
+      },
+      "calibration": {
+        "argv": [
+          "forecast",
+          "list",
+          "--calibration"
+        ],
+        "exit": 0,
+        "stdout": "  F001 [    hit] claude: by 2026-08-29 the registry holds at least 5 forecasts from at least 2 different seats, wit\n  F002 [   miss] claude: after T376 ships, a trivial commit to main rotates the discord gateway, bifrost daemon, an\n  F003 [   miss] claude: within 14 days the census enumerates every fact class living in 2+ stores with a declared \n  F004 [   OPEN] deepseek: the wedged-vs-thinking discriminator spec (half_a section 2) classifies the rolling-refres\n  F005 [   OPEN] claude: the map's first render ships today with its stamp block, and within 7 days Daniil opens th\n  F006 [   miss] claude: drill D1 passes within 7 days: with daemon and runners deliberately killed, phone-only rec\n  F007 [    hit] claude: drill D4 passes today: a deliberately broken seat-lane webhook produces a doctor page or d\n  F008 [partial] claude: The two-harness integration race (Claude Code vs Serge's DSH) produces at least one ADOPTE\n  F009 [    hit] claude: The t384 reconciliation UNTRACKS security/acl.json (instance-local grants, policy staying \n  F010 [partial] claude: The t385 blind fence across two harnesses produces at least one design finding that NEITHE\n  F011 [    hit] claude: The media-arsenal-contract reconciliation adopts at least one design element that appears \n  F012 [   OPEN] claude: First Light runs end to end on Daniel's machine within 7 days: a library clip plays throug\n  F013 [   OPEN] claude: Piano v2 lands: a swapped-in /piano records at an average of at least 58 fps (checked with\n  fc-highstakes-marriage-20260905 [    hit] claude: The four-arm research round will NOT find a novel technique we lack. It will find that our\n  involuntary-retrieval-ships-2027h1 [   OPEN] claude: By 2027-02-26, at least one widely-used agent framework (LangGraph, CrewAI, Claude Agent S\n# calibration (rate = hits / scored non-void; partial counts against)\n  claude: 50%  (hit 5 / miss 3 / partial 2 / voided 0 / residual 0)\n  OVERDUE: F004 (deepseek) -- past 2026-08-30, unscored\n  OVERDUE: F005 (claude) -- past 2026-08-30, unscored\n  OVERDUE: F013 (claude) -- past 2026-09-15, unscored\n  OVERDUE: F012 (claude) -- past 2026-09-20, unscored\n"
+      },
+      "no_id": {
+        "argv": [
+          "forecast",
+          "register"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: forecast register needs --id\n"
+      },
+      "refused": {
+        "argv": [
+          "forecast",
+          "score",
+          "F999",
+          "--verdict",
+          "hit"
+        ],
+        "exit": 1,
+        "stdout": "[forecast] REFUSED: no forecast 'F999' registered\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 40,
+    "asked": 40,
+    "output_tokens": 439,
+    "stdout_chars": 2131,
+    "stdout_lines": 68,
+    "cost_usd": 0.0354,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many forecasts are registered in total?",
+        "expected": 15,
+        "answers": [
+          "15",
+          "15",
+          "15",
+          "15",
+          "15"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict does forecast F008 have?",
+        "expected": "partial",
+        "answers": [
+          "partial",
+          "partial",
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many forecasts are still open (not yet scored)?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which seat registered forecast F004?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is claude's hit rate, as a percentage?",
+        "expected": 50,
+        "answers": [
+          "50%",
+          "50%",
+          "50%",
+          "50%",
+          "50%"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which forecasts are overdue? List their ids separated by commas.",
+        "expected": [
+          "F004",
+          "F005",
+          "F012",
+          "F013"
+        ],
+        "answers": [
+          "F004, F005, F013, F012",
+          "F004,F005,F013,F012",
+          "F004, F005, F013, F012",
+          "F004,F005,F013,F012",
+          "F004, F005, F013, F012"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag does `forecast register` need that was not given? Give the flag only.",
+        "expected": "--id",
+        "answers": [
+          "--id",
+          "--id",
+          "--id",
+          "--id",
+          "--id"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the score recorded? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "forecast",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "total: 15\nopen: 5\nscored:\n  hit: 5\n  miss: 3\n  partial: 2\noverdue: 4\nforecasts[15]{id,verdict,by,horizon}:\n  F001,hit,claude,2026-08-29\n  F002,miss,claude,2026-08-30\n  F003,miss,claude,2026-09-06\n  F004,open,deepseek,2026-08-30\n  F005,open,claude,2026-08-30\n  F006,miss,claude,2026-08-30\n  F007,hit,claude,2026-08-25\n  F008,partial,claude,2026-09-07\n  F009,hit,claude,2026-08-31\n  F010,partial,claude,2026-08-31\n  F011,hit,claude,2026-09-20\n  F012,open,claude,2026-09-20\n  F013,open,claude,2026-09-15\n  fc-highstakes-marriage-20260905,hit,claude,2026-09-07\n  involuntary-retrieval-ships-2027h1,open,claude,2027-02-27\nhelp[3]:\n  uv run agent_cli.py forecast score F004 --verdict <hit|miss|partial|voided|residual> --observed \"...\" --evidence <ref>\n  uv run agent_cli.py forecast list --calibration\n  uv run agent_cli.py forecast list --fields statement\n"
+      },
+      "calibration": {
+        "argv": [
+          "forecast",
+          "list",
+          "--calibration"
+        ],
+        "exit": 0,
+        "stdout": "total: 15\nopen: 5\nscored:\n  hit: 5\n  miss: 3\n  partial: 2\noverdue: 4\nforecasts[15]{id,verdict,by,horizon}:\n  F001,hit,claude,2026-08-29\n  F002,miss,claude,2026-08-30\n  F003,miss,claude,2026-09-06\n  F004,open,deepseek,2026-08-30\n  F005,open,claude,2026-08-30\n  F006,miss,claude,2026-08-30\n  F007,hit,claude,2026-08-25\n  F008,partial,claude,2026-09-07\n  F009,hit,claude,2026-08-31\n  F010,partial,claude,2026-08-31\n  F011,hit,claude,2026-09-20\n  F012,open,claude,2026-09-20\n  F013,open,claude,2026-09-15\n  fc-highstakes-marriage-20260905,hit,claude,2026-09-07\n  involuntary-retrieval-ships-2027h1,open,claude,2027-02-27\ncalibration[1]{author,rate,hit,miss,partial,voided,residual}:\n  claude,0.5,5,3,2,0,0\noverdue_forecasts[4]{id,by,horizon}:\n  F004,deepseek,2026-08-30\n  F005,claude,2026-08-30\n  F013,claude,2026-09-15\n  F012,claude,2026-09-20\nhelp[2]:\n  uv run agent_cli.py forecast score F004 --verdict <hit|miss|partial|voided|residual> --observed \"...\" --evidence <ref>\n  uv run agent_cli.py forecast list --fields statement\n"
+      },
+      "no_id": {
+        "argv": [
+          "forecast",
+          "register"
+        ],
+        "exit": 2,
+        "stdout": "error: forecast register needs --id\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py forecast register --id <id> --statement \"...\" --horizon +7d --dies-when \"...\"\n"
+      },
+      "refused": {
+        "argv": [
+          "forecast",
+          "score",
+          "F999",
+          "--verdict",
+          "hit"
+        ],
+        "exit": 1,
+        "stdout": "error: no forecast 'F999' registered\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py forecast list\n"
+      }
+    }
+  }
+}
