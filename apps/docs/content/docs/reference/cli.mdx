@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 97 converted to agent and human output.
+121 verbs; 98 converted to agent and human output.
 
 ## `alias`
 
@@ -1236,7 +1236,10 @@ help[1]:
 | | |
 |---|---|
 | Does | charter question-back (W46): append a q-id'd question to a verdict's Open Questions block + defer it to the responsible seat |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 93% after |
+| Output tokens | 89 before, 71 after (-20%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/followup.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1246,6 +1249,18 @@ help[1]:
 | `--ask` | yes |   | the question |
 | `--needs` |   |   | capability the answer needs (W33) |
 | `--json` |   |   |   |
+
+Agent output of `aurora followup bench --on docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md --to kimi --ask does the charter still need a quorum?` on the bench data:
+
+```text
+question: Q1
+file: docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md
+to: kimi
+defer_id: 461f8435e9
+status: filed
+help[1]:
+  uv run agent_cli.py defer kimi --list
+```
 
 ## `forecast`
 

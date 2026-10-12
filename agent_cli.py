@@ -16733,18 +16733,35 @@ def cmd_followup(args):
             needs=str(getattr(args, "needs", "write") or "write"),
         )
     except (ValueError, FileNotFoundError) as e:
-        print(f"[followup] {e}")
-        return 2
+        if getattr(args, "json", False):  # --json callers keep the line they had
+            print(f"[followup] {e}")
+            return 2
+        from core.axi import out
+
+        code = "NOT_FOUND" if isinstance(e, FileNotFoundError) else "REFUSED"
+        return out.fail(
+            str(e),
+            code=code,
+            hints=[f'{_cli()} followup {args.agent_id} --on <verdict-file> --to <seat> --ask "..."'],
+            exit_code=2,
+        )
     if getattr(args, "json", False):
         print(json.dumps(res))
         return 0
-    tag = " (reused)" if res.get("reused_line") or res.get("reused_defer") else ""
-    print(
-        f"[followup] {res['qid']} filed in {res['path']} + deferred to {args.to} "
-        f"(defer {res['defer_id']}){tag} -- their next boot surfaces it; the discharge "
-        f"receipt points at the answered block"
-    )
-    return 0
+    from core.axi import out
+
+    # Both halves are named: the question in the file, and the defer item the seat's next boot
+    # surfaces (its discharge receipt points at the answered block). A replay reuses both.
+    doc = {
+        "question": res["qid"],
+        "file": res["path"],
+        "to": args.to,
+        "defer_id": res["defer_id"],
+        "status": "already open" if res.get("reused_line") or res.get("reused_defer") else "filed",
+    }
+    if res.get("created_block"):
+        doc["block"] = "Open Questions created"
+    return out.emit(doc, hints=[f"{_cli()} defer {args.to} --list"], title=f"Followup · {res['qid']}")
 
 
 def cmd_watch(args):

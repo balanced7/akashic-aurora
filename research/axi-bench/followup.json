@@ -1,0 +1,308 @@
+{
+  "verb": "followup",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 24,
+    "asked": 30,
+    "output_tokens": 89,
+    "stdout_chars": 649,
+    "stdout_lines": 4,
+    "cost_usd": 0.0255,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "What question id was assigned?",
+        "expected": "Q1",
+        "answers": [
+          "Q1",
+          "Q1",
+          "Q1",
+          "Q1",
+          "Q1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which seat is responsible for answering?",
+        "expected": "kimi",
+        "answers": [
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the item deferred to that seat? Give the command only.",
+        "expected": [
+          "defer kimi --list"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Was a new question added to the file this time? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "yes",
+          "No"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Does the verdict file exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the question filed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ask": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md",
+          "--to",
+          "kimi",
+          "--ask",
+          "does the charter still need a quorum?"
+        ],
+        "exit": 0,
+        "stdout": "[followup] Q1 filed in docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md + deferred to kimi (defer 7745dfcfb6) -- their next boot surfaces it; the discharge receipt points at the answered block\n"
+      },
+      "again": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md",
+          "--to",
+          "kimi",
+          "--ask",
+          "does the charter still need a quorum?"
+        ],
+        "exit": 0,
+        "stdout": "[followup] Q1 filed in docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md + deferred to kimi (defer 7745dfcfb6) (reused) -- their next boot surfaces it; the discharge receipt points at the answered block\n"
+      },
+      "missing": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "docs/no-such-verdict.md",
+          "--to",
+          "kimi",
+          "--ask",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "[followup] no verdict file at 'docs/no-such-verdict.md' -- followup appends to an EXISTING verdict; it never mints one\n"
+      },
+      "outside": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "/etc/hosts",
+          "--to",
+          "kimi",
+          "--ask",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "[followup] verdict file must live inside the repo root -- got /etc/hosts\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.933,
+    "correct": 28,
+    "asked": 30,
+    "output_tokens": 71,
+    "stdout_chars": 785,
+    "stdout_lines": 22,
+    "cost_usd": 0.0269,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "What question id was assigned?",
+        "expected": "Q1",
+        "answers": [
+          "Q1",
+          "The output lists `defer_id: 461f8435e9` and `question: Q1`. The question id assigned is:\n\nQ1",
+          "Q1",
+          "Q1",
+          "Q1"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which seat is responsible for answering?",
+        "expected": "kimi",
+        "answers": [
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the item deferred to that seat? Give the command only.",
+        "expected": [
+          "defer kimi --list"
+        ],
+        "answers": [
+          "uv run agent_cli.py defer kimi --list",
+          "uv run agent_cli.py defer kimi --list",
+          "uv run agent_cli.py defer kimi --list",
+          "uv run agent_cli.py defer kimi --list",
+          "uv run agent_cli.py defer kimi --list"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a new question added to the file this time? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the verdict file exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the question filed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "yes"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "ask": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md",
+          "--to",
+          "kimi",
+          "--ask",
+          "does the charter still need a quorum?"
+        ],
+        "exit": 0,
+        "stdout": "question: Q1\nfile: docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md\nto: kimi\ndefer_id: 461f8435e9\nstatus: filed\nhelp[1]:\n  uv run agent_cli.py defer kimi --list\n"
+      },
+      "again": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md",
+          "--to",
+          "kimi",
+          "--ask",
+          "does the charter still need a quorum?"
+        ],
+        "exit": 0,
+        "stdout": "question: Q1\nfile: docs/library/report/20260718_charter-framework-draft-deepseek-2026-07_7c6022.md\nto: kimi\ndefer_id: 461f8435e9\nstatus: already open\nhelp[1]:\n  uv run agent_cli.py defer kimi --list\n"
+      },
+      "missing": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "docs/no-such-verdict.md",
+          "--to",
+          "kimi",
+          "--ask",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "error: no verdict file at 'docs/no-such-verdict.md' -- followup appends to an EXISTING verdict; it never mints one\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py followup bench --on <verdict-file> --to <seat> --ask \"...\"\n"
+      },
+      "outside": {
+        "argv": [
+          "followup",
+          "bench",
+          "--on",
+          "/etc/hosts",
+          "--to",
+          "kimi",
+          "--ask",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "error: verdict file must live inside the repo root -- got /etc/hosts\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py followup bench --on <verdict-file> --to <seat> --ask \"...\"\n"
+      }
+    }
+  }
+}
