@@ -1,0 +1,282 @@
+{
+  "verb": "bifrost-sync",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.829,
+    "correct": 29,
+    "asked": 35,
+    "output_tokens": 807,
+    "stdout_chars": 4908,
+    "stdout_lines": 18,
+    "cost_usd": 0.0358,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many unread messages does bench have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent sent the request message?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of the unread messages are asks that need a reply (requests or questions)?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command marks bench's unread messages as read (acknowledges them)? Give the command only.",
+        "expected": [
+          "bifrost-sync",
+          "bench",
+          "--consume"
+        ],
+        "answers": [
+          "uv run agent_cli.py bifrost-sync --consume",
+          "uv run agent_cli.py bifrost-sync --consume",
+          "uv run agent_cli.py bifrost-sync --consume",
+          "uv run agent_cli.py bifrost-sync --consume",
+          "uv run agent_cli.py bifrost-sync --consume"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What exact command shows the full body of dave's message? Give the command only.",
+        "expected": [
+          "bifrost-fetch",
+          "--get"
+        ],
+        "answers": [
+          "bifrost-fetch --get 1791814916975-0",
+          "bifrost-fetch --get 1791814916975-0",
+          "bifrost-fetch --get 1791814916975-0",
+          "bifrost-fetch --get 1791814916975-0",
+          "bifrost-fetch --get 1791814916975-0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages were consumed?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many unread messages does nobody have?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "The output says \"(no new messages -- peek only; cursor unchanged)\" under UNREAD BIFROST, so the count is zero.\n\n0",
+          "UNKNOWN",
+          "0",
+          "0"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "peek": {
+        "argv": [
+          "bifrost-sync",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "# bifrost-sync for bench\n\n## UNREAD BIFROST (live bus)\n  4 unread (work-lane, peek -- use bifrost_inbox or `uv run agent_cli.py bifrost-sync --consume` to ack): [2 asks / 2 fyi]\n  [request] from alice: please review core/a.py before merge\n  [chat] from bob: FYI the build is green\n  [question] from carol: what port does redis use?\n  [chat] from dave: Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path ...[truncated]  [full body: bifrost-fetch --get 1791814916975-0]\n"
+      },
+      "consume": {
+        "argv": [
+          "bifrost-sync",
+          "bench",
+          "--consume"
+        ],
+        "exit": 0,
+        "stdout": "# consumed 4 message(s) for bench\n  [request] from alice: please review core/a.py before merge\n  [chat] from bob: FYI the build is green\n  [question] from carol: what port does redis use?\n  [chat] from dave: Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path ...[truncated]  [full body: bifrost-fetch --get 1791814916973-0]\n  (4 seen receipt(s) recorded -- declare intent with `mailbox bench --intent <sha> --as act|decline|defer|delegate`)\n"
+      },
+      "none": {
+        "argv": [
+          "bifrost-sync",
+          "nobody"
+        ],
+        "exit": 0,
+        "stdout": "# bifrost-sync for nobody\n\n## UNREAD BIFROST (live bus)\n  (no new messages -- peek only; cursor unchanged)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 305,
+    "stdout_chars": 1639,
+    "stdout_lines": 33,
+    "cost_usd": 0.0309,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many unread messages does bench have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent sent the request message?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many of the unread messages are asks that need a reply (requests or questions)?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command marks bench's unread messages as read (acknowledges them)? Give the command only.",
+        "expected": [
+          "bifrost-sync",
+          "bench",
+          "--consume"
+        ],
+        "answers": [
+          "uv run agent_cli.py bifrost-sync bench --consume",
+          "uv run agent_cli.py bifrost-sync bench --consume",
+          "uv run agent_cli.py bifrost-sync bench --consume",
+          "uv run agent_cli.py bifrost-sync bench --consume",
+          "uv run agent_cli.py bifrost-sync bench --consume"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command shows the full body of dave's message? Give the command only.",
+        "expected": [
+          "bifrost-fetch",
+          "--get"
+        ],
+        "answers": [
+          "uv run agent_cli.py bifrost-fetch --get 1791814963559-0",
+          "uv run agent_cli.py bifrost-fetch --get 1791814963559-0",
+          "uv run agent_cli.py bifrost-fetch --get 1791814963559-0",
+          "uv run agent_cli.py bifrost-fetch --get 1791814963559-0",
+          "uv run agent_cli.py bifrost-fetch --get 1791814963559-0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages were consumed?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many unread messages does nobody have?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "unread: 0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "peek": {
+        "argv": [
+          "bifrost-sync",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "agent: bench\nbus: online\nunread: 4\nscope: work lane\nasks: 2\nfyi: 2\nmessages[4]{id,kind,from,text}:\n  1791814962028-0,request,alice,please review core/a.py before merge\n  1791814962571-0,chat,bob,FYI the build is green\n  1791814963070-0,question,carol,what port does redis use?\n  1791814963559-0,chat,dave,\"Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer... (truncated, 2679 chars total)\"\nhelp[2]:\n  uv run agent_cli.py bifrost-sync bench --consume\n  uv run agent_cli.py bifrost-fetch --get 1791814963559-0\n"
+      },
+      "consume": {
+        "argv": [
+          "bifrost-sync",
+          "bench",
+          "--consume"
+        ],
+        "exit": 0,
+        "stdout": "agent: bench\nconsumed: 4\nasks: 2\nfyi: 2\nmessages[4]{id,kind,from,text}:\n  1791814962025-0,request,alice,please review core/a.py before merge\n  1791814962567-0,chat,bob,FYI the build is green\n  1791814963069-0,question,carol,what port does redis use?\n  1791814963558-0,chat,dave,\"Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer... (truncated, 2679 chars total)\"\nseen_receipts: 4\nhelp[2]:\n  uv run agent_cli.py bifrost-fetch --get 1791814963558-0\n  uv run agent_cli.py mailbox bench --intent <sha> --as act|decline|defer|delegate\n"
+      },
+      "none": {
+        "argv": [
+          "bifrost-sync",
+          "nobody"
+        ],
+        "exit": 0,
+        "stdout": "agent: nobody\nbus: online\nunread: 0\nmessages: []\nhelp[1]:\n  uv run agent_cli.py promoted --limit 5\n"
+      }
+    }
+  }
+}

@@ -7872,16 +7872,8 @@ def cmd_roster(args):
 
 def cmd_bifrost_sync(args):
     """Presence heartbeat + unread inbox peek (pull floor). --consume advances the cursor."""
-    from agent.bifrost_pull import (
-        collect_boot_bifrost,
-        consume_inbox,
-        format_digest_line,
-        print_boot_bifrost_section,
-        print_boot_locks_section,
-        render_collapsed,
-        stale_notice_lines,
-        steer_facts_lines,
-    )
+    from agent.bifrost_pull import collect_boot_bifrost, consume_inbox, stale_notice_lines, steer_facts_lines
+    from core.axi import out
 
     show_traces = bool(getattr(args, "traces", False))  # W4: --traces expands folded telemetry
     # T133: READ THE LANE THE RUNNERS READ. The runners self-default onto `work`; this door did not,
@@ -7890,33 +7882,37 @@ def cmd_bifrost_sync(args):
     # source instead of re-discovering it with a cursor-vs-tail query every few days.
     # Per-process and still overridable: set BIFROST_CONSUME_LANE explicitly to pin either side.
     os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
+    cli, me = _cli(), args.agent_id
     if args.consume:
-        res = consume_inbox(args.agent_id, limit=args.limit or 20)
+        res = consume_inbox(me, limit=args.limit or 20)
         if args.json:
             print(json.dumps(res, indent=2, default=str))
             return 1 if res.get("seat_held") else 0
         if res.get("seat_held"):
-            # RB-21: another live session/runner owns the cursor -- taught, not silent.
-            print(f"ERROR: {res.get('teach') or 'consumer seat held -- read degraded to peek.'}")
-            for ln in render_collapsed(res.get("peeked") or [], show_traces=show_traces):
-                print(f"  (peek) {ln}")
-            return 1
+            # RB-21: another live session/runner owns the cursor -- taught, not silent. What the
+            # seat could still see rides the error as a peek.
+            peeked = _sync_rows(res.get("peeked") or [], show_traces)
+            _sync_body_hints(peeked, me)  # drops the internal address field; the hint is moot here
+            return out.fail(
+                str(res.get("teach") or "consumer seat held -- read degraded to peek."),
+                code="SEAT_HELD",
+                hints=[f"{cli} bifrost-sync {me}", f"{cli} doctor"],
+                details={"holder": res.get("holder"), **({"peeked": peeked["messages"]} if peeked["messages"] else {})},
+            )
         msgs = res.get("consumed") or []
+        doc: dict = {"agent": me, "consumed": len(msgs)}
         # W65: consume_inbox already RETURNS an honest stale_notice (what it parked to the
-        # bench / skipped while the cursor advanced) -- the renderer discarded it and printed
+        # bench / skipped while the cursor advanced) -- the renderer once discarded it and printed
         # "(no messages consumed)". On 2026-07-25 five real messages went to the bench under
-        # that line, and it cost a live seat a wrong root-cause diagnosis. Silence is only
-        # honest when nothing moved.
-        notice_lines = stale_notice_lines(res, args.agent_id)
-        for _nl in notice_lines:
-            print(_nl)
-        if not msgs:
-            if not notice_lines:
-                print("(no messages consumed)")
-            return 0
-        print(f"# consumed {len(msgs)} message(s) for {args.agent_id}")
-        for ln in render_collapsed(msgs, show_traces=show_traces):
-            print(f"  {ln}")  # W4: trace-class telemetry folded (--traces to expand)
+        # that line, and it cost a live seat a wrong root-cause diagnosis. Zero is only
+        # the whole answer when nothing moved.
+        notices = [ln.strip() for nl in stale_notice_lines(res, me) for ln in nl.splitlines() if ln.strip()]
+        if notices:
+            doc["notices"] = notices
+        hints = []
+        if msgs:
+            doc.update(_sync_rows(msgs, show_traces))
+            hints += _sync_body_hints(doc, me)
         # T133/M6: THE HARNESS SEAT SAYS SEEN TOO. The runners record because their _process_one
         # was wired; a harness seat has no such loop, so on 2026-08-03 claude showed 2 seen receipts
         # against 1536 entries that had in fact been read. THIS is that seat's read point -- the
@@ -7932,49 +7928,199 @@ def cmd_bifrost_sync(args):
                 or _sid8_of(os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
                 or "harness"
             )
-            _n = sum(1 for _m in msgs if _mbx.open_for_message(args.agent_id, _m, incarnation=_inc).get("ok"))
+            _n = sum(1 for _m in msgs if _mbx.open_for_message(me, _m, incarnation=_inc).get("ok"))
             if _n:
-                print(
-                    f"  ({_n} seen receipt(s) recorded -- declare intent with "
-                    f"`mailbox {args.agent_id} --intent <sha> --as act|decline|defer|delegate`)"
-                )
+                doc["seen_receipts"] = _n
+                hints.append(f"{cli} mailbox {me} --intent <sha> --as act|decline|defer|delegate")
         except Exception:
             pass  # a bookkeeping failure must never break the read that already succeeded
         # The steer queue has no cursor and no round loop on this seat, so THIS is where a
         # steering fact reaches the agent -- rendering it IS the delivery, which is why it drains
         # here rather than accumulating for a loop that will never come.
-        for _sl in steer_facts_lines(args.agent_id):
-            print(_sl)
-        return 0
-    block = collect_boot_bifrost(args.agent_id, limit=args.limit or 10)
+        steer = _steer_facts(steer_facts_lines(me))
+        if steer:
+            doc["steer"] = steer
+        if not msgs and not notices:
+            hints.append(f"{cli} promoted --limit 5")
+        return out.emit(doc, hints=hints[:3], human=_human_sync, title=f"Bifrost · consumed for {me}")
+    block = collect_boot_bifrost(me, limit=args.limit or 10)
     if args.json:
         print(json.dumps(block, indent=2, default=str))
         return 0
-    if getattr(args, "digest", False):
-        # cheap scan: only-new headlines (cursor-based, no body) -- read the bus without
-        # paying to reread the conversation. Drill a headline with `bifrost-sync` (full) or --json.
-        msgs = block.get("messages") or []
-        real = [m for m in msgs if not m.get("gap")]
-        pending = max((int(m.get("pending_at_least", 0) or 0) for m in msgs), default=len(real))
-        capped = any(bool(m.get("pending_capped")) for m in msgs)
-        prefix = ">=" if capped else ""
-        window = f"; {len(real)} shown; truncated=yes" if capped or pending > len(real) else ""
-        print(
-            f"# bifrost digest for {args.agent_id}: {prefix}{pending} unread{window}"
-            + (" (bus OFFLINE)" if not block.get("bus_online") else "")
+    # --digest: cheap scan, only-new headlines -- read the bus without paying to reread the
+    # conversation. Same shape as the full peek, the text cut to a 64-character teaser.
+    digest = bool(getattr(args, "digest", False))
+    doc = {"agent": me, "bus": "online" if block.get("bus_online") else "offline"}
+    # RB-30 pause, S3 resume marker, RB-29 redrives and dead expectations: the loud facts first.
+    notices = [block.get("pause_line"), block.get("resume_line"), *(block.get("expect_lines") or [])]
+    if not digest and any(notices):
+        doc["notices"] = [str(n).strip() for n in notices if n]
+    if not block.get("bus_online"):
+        doc["note"] = "Redis unreachable; durable mail is still in promoted and events"
+        return out.emit(
+            doc,
+            hints=[f"{cli} promoted", f"{cli} events --kind bifrost_msg"],
+            human=_human_sync,
+            title=f"Bifrost · {me}",
         )
-        for m in msgs:
-            print(format_digest_line(m))
-        for _sl in steer_facts_lines(args.agent_id, drain=False):
-            print(_sl)
-        print_boot_locks_section(block, args.agent_id)
-        return 0
-    print(f"# bifrost-sync for {args.agent_id}")
-    print_boot_bifrost_section(block, show_traces=show_traces)
-    for _sl in steer_facts_lines(args.agent_id):
-        print(_sl)
-    print_boot_locks_section(block, args.agent_id)
-    return 0
+    if not digest:
+        if block.get("agents_online"):
+            doc["online"] = list(block["agents_online"])
+        # T155: registered, but no beat, pulse, or worklive -- mail addressed here QUEUES and
+        # nothing reads it. Named rather than omitted: the silent version cost a directed brief.
+        if block.get("agents_registered_unattended"):
+            doc["unattended"] = list(block["agents_registered_unattended"])
+    msgs = block.get("messages") or []
+    real = [m for m in msgs if not m.get("gap")]
+    pending = int(block.get("pending") or 0)
+    # kimi fence-lite finding 2: when the over-read hit its cap, `pending` is a FLOOR -- name it
+    # as one so a capped window can never read as the whole depth.
+    if any(m.get("pending_capped") for m in msgs if isinstance(m, dict)):
+        doc["unread_at_least"] = pending
+    else:
+        doc["unread"] = pending
+    hints = []
+    if pending:
+        # W8 (T081): name the denominator -- the peek reads one lane or all of them.
+        try:
+            from core.comm.bifrost_api import BifrostAPI
+
+            doc["scope"] = "work lane" if BifrostAPI.consume_lane_enabled() else "all lanes"
+        except Exception:
+            doc["scope"] = "legacy peek"
+        if len(real) < pending:  # the peek is a window: a few oldest, the newest, a gap between
+            doc["shown"] = len(real)
+        doc.update(_sync_rows(real, show_traces, limit=64 if digest else 300))
+        hints.append(f"{cli} bifrost-sync {me} --consume")
+        hints += _sync_body_hints(doc, me)
+        if doc.get("traces") and not show_traces:
+            hints.append(f"{cli} bifrost-sync {me} --traces")
+    else:
+        doc["messages"] = []
+        hints.append(f"{cli} promoted --limit 5")  # nothing live: the durable record is next
+    # A digest only peeks the steer queue; the full sync is the turn boundary that drains it.
+    steer = _steer_facts(steer_facts_lines(me, drain=not digest))
+    if steer:
+        doc["steer"] = steer
+    if block.get("locks"):
+        doc["locks"] = [{"path": lk.get("path"), "agent": lk.get("agent")} for lk in block["locks"]]
+    return out.emit(doc, hints=hints[:3], human=_human_sync, title=f"Bifrost · {me}")
+
+
+def _sync_rows(msgs, show_traces: bool, limit: int = 300) -> dict:
+    """Bus messages as rows for `bifrost-sync`: {asks, fyi, traces?, messages, folded?}.
+
+    The same collapse rules as render_collapsed (W4, W84), as data: work mail one row each in
+    order, dual-write twins counted on one row, and trace-class telemetry folded into one count
+    per sender and kind unless --traces asks for every row. A body longer than `limit` is cut
+    with its full size; _sync_body_hints names the command that reads the rest."""
+    from agent.bifrost_pull import _content_str, _is_trace_class, _mget, kind_summary
+    from core.axi import out
+
+    def row(m):
+        text, cut = out.truncate(_content_str(_mget(m, "content")), limit)
+        r = {"id": str(_mget(m, "id", "") or ""), "kind": str(_mget(m, "kind", "?")), "from": str(_mget(m, "frm", "?"))}
+        r["text"] = text
+        if cut:
+            r["_sha"] = str(_mget(m, "sha", "") or "")
+        return r
+
+    summary = kind_summary(msgs)
+    doc: dict = {"asks": summary["asks"], "fyi": summary["fyi"]}
+    if summary["traces"]:
+        doc["traces"] = summary["traces"]
+    rows, twins, folded = [], {}, {}
+    for m in msgs:
+        if not show_traces and _is_trace_class(m):
+            key = (str(_mget(m, "frm", "?")), str(_mget(m, "kind", "?")))
+            folded[key] = folded.get(key, 0) + 1
+            continue
+        key = (str(_mget(m, "frm", "?")), str(_mget(m, "kind", "?")), _content_str(_mget(m, "content"))[:200])
+        if not show_traces and key in twins:
+            twins[key]["copies"] = twins[key].get("copies", 1) + 1
+            continue
+        twins[key] = r = row(m)
+        rows.append(r)
+    if any("copies" in r for r in rows):  # a column only when some message arrived twice
+        for r in rows:
+            r.setdefault("copies", 1)
+    doc["messages"] = rows
+    if folded:
+        doc["folded"] = [{"from": f, "kind": k, "count": n} for (f, k), n in folded.items()]
+    return doc
+
+
+def _sync_body_hints(doc: dict, me: str) -> list[str]:
+    """The command that reads a cut body in full: the message's real address when one was cut,
+    a placeholder when several were (W137: the render owes the reader the address it holds)."""
+    cli = _cli()
+    cut = [(r.pop("_sha"), r["id"]) for r in doc.get("messages", []) if "_sha" in r]
+    if len(cut) == 1:
+        sha, mid = cut[0]
+        return [f"{cli} mailbox {me} --open {sha[:10]}" if sha else f"{cli} bifrost-fetch --get {mid}"]
+    return [f"{cli} bifrost-fetch --get <id>"] if cut else []
+
+
+def _steer_facts(lines: list) -> list[str]:
+    """The facts inside steer_facts_lines' rendered block, without its header and footer."""
+    return [str(ln).strip() for ln in lines[1:-1]] if len(lines) > 2 else []
+
+
+def _human_sync(console, doc):
+    """Human view of `bifrost-sync`: the count and what needs a reply first, loud notices in
+    yellow, then one table of messages (asks in bold) and anything folded or locked."""
+    from core.axi import out
+
+    for n in doc.get("notices") or []:
+        console.print(f"[yellow]! {out._esc(n)}[/]")
+    if doc.get("bus") == "offline":
+        console.print(f"[red]bus offline[/] [dim]{out._esc(doc.get('note', ''))}[/]")
+        return
+    if doc.get("online"):
+        console.print(f"[dim]online:[/] [green]{out._esc(', '.join(doc['online']))}[/]")
+    if doc.get("unattended"):
+        console.print(f"[yellow]registered but unattended:[/] {out._esc(', '.join(doc['unattended']))}")
+    if "consumed" in doc:
+        n = doc["consumed"]
+        head = f"[bold]{n}[/] message{'s' if n != 1 else ''} consumed"
+    else:
+        n = doc.get("unread", doc.get("unread_at_least", 0))
+        plus = "+" if "unread_at_least" in doc else ""
+        head = f"[bold]{n}{plus}[/] unread" + (f" [dim]({out._esc(doc['scope'])})[/]" if doc.get("scope") else "")
+        if doc.get("shown"):
+            head += f" [dim]· {doc['shown']} shown[/]"
+    if n:
+        asks = doc.get("asks", 0)
+        head += f" · [{'bold yellow' if asks else 'dim'}]{asks} need a reply[/]"
+    console.print(head if n else f"[green]{head}[/]")
+    rows = []
+    for r in doc.get("messages") or []:
+        ask = r["kind"] in ("request", "question", "handoff", "blocker")
+        rows.append(
+            {
+                "kind": f"[bold yellow]{out._esc(r['kind'])}[/]" if ask else out._esc(r["kind"]),
+                "from": out._esc(r["from"]),
+                "message": out._esc(r["text"]) + (f" [dim](×{r['copies']})[/]" if r.get("copies", 1) > 1 else ""),
+            }
+        )
+    if rows:
+        from rich import box
+        from rich.table import Table
+
+        t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+        for c in ("kind", "from", "message"):
+            t.add_column(c, overflow="fold")
+        for r in rows:
+            t.add_row(r["kind"], r["from"], r["message"])
+        console.print(t)
+    for f in doc.get("folded") or []:
+        console.print(f"[dim]  {f['count']} {out._esc(f['kind'])} from {out._esc(f['from'])} folded[/]")
+    for s in doc.get("steer") or []:
+        console.print(f"[magenta]steer:[/] {out._esc(s)}")
+    if doc.get("seen_receipts"):
+        console.print(f"[dim]{doc['seen_receipts']} seen receipts recorded[/]")
+    if doc.get("locks"):
+        console.print(out.table(doc["locks"], title="locks"))
 
 
 def cmd_bifrost_standby(args):

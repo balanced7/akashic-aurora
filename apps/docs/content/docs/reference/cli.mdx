@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 8 converted to agent and human output.
+121 verbs; 9 converted to agent and human output.
 
 ## `alias`
 
@@ -225,7 +225,10 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | | |
 |---|---|
 | Does | Bifrost pull floor: presence + unread inbox peek |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 807 before, 305 after (-62%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/bifrost-sync.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -235,6 +238,25 @@ Each verb prints for an agent or for a person. [Commands](/docs/reference/comman
 | `--digest` |   |   | cheap one-line-per-unread headlines (no bodies) |
 | `--traces` |   |   | W4: expand folded trace-class telemetry (default collapses it) |
 | `--json` |   |   |   |
+
+Agent output of `aurora bifrost-sync bench` on the bench data:
+
+```text
+agent: bench
+bus: online
+unread: 4
+scope: work lane
+asks: 2
+fyi: 2
+messages[4]{id,kind,from,text}:
+  1791814962028-0,request,alice,please review core/a.py before merge
+  1791814962571-0,chat,bob,FYI the build is green
+  1791814963070-0,question,carol,what port does redis use?
+  1791814963559-0,chat,dave,"Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer: keep the write path synchronous. Design notes for the cache layer... (truncated, 2679 chars total)"
+help[2]:
+  uv run agent_cli.py bifrost-sync bench --consume
+  uv run agent_cli.py bifrost-fetch --get 1791814963559-0
+```
 
 ## `boop`
 

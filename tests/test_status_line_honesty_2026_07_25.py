@@ -13,7 +13,7 @@ else. Each pin below is the render, not the mechanism -- the mechanisms were all
        simply not in this repo, and prints a `git log A..B` remedy that fatals.
 
   P1  consumed=[] + stale_notice  -> the notice renders; NOT the bare "(no messages...)"
-  P2  consumed=[] + no notice     -> "(no messages consumed)" is still correct
+  P2  consumed=[] + no notice     -> "consumed: 0" with no notices is still correct
   P3  consumed=[N] + stale_notice -> both render (notice never swallowed by the happy path)
   P4  grounding pointer that does not resolve -> MOVED marker, not a clean fresh line
   P5  grounding pointer that resolves         -> unchanged (no regression on W37 P2)
@@ -48,6 +48,7 @@ def _sync_args(**kw):
 def _stub_consume(monkeypatch, payload):
     import agent.bifrost_pull as bp
 
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")  # pins read the agent (TOON) rendering
     monkeypatch.setattr(bp, "consume_inbox", lambda *a, **k: payload)
 
 
@@ -68,7 +69,7 @@ def test_p1_parked_stale_is_not_silence(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "parked 2 stale ask(s)" in out, "the notice the door already returns must render"
-    assert out.strip() != "(no messages consumed)", "silence is a lie when the cursor moved"
+    assert "notices" in out, "a bare zero is a lie when the cursor moved"
 
 
 def test_p2_true_silence_stays_silent(monkeypatch, capsys):
@@ -76,7 +77,9 @@ def test_p2_true_silence_stays_silent(monkeypatch, capsys):
     _stub_consume(monkeypatch, {"seat_held": False, "consumed": [], "stale_notice": None})
     rc = agent_cli.cmd_bifrost_sync(_sync_args())
     assert rc == 0
-    assert "(no messages consumed)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "consumed: 0" in out
+    assert "notices" not in out
 
 
 def test_p3_notice_survives_the_happy_path(monkeypatch, capsys):
@@ -93,7 +96,7 @@ def test_p3_notice_survives_the_happy_path(monkeypatch, capsys):
     rc = agent_cli.cmd_bifrost_sync(_sync_args())
     out = capsys.readouterr().out
     assert rc == 0
-    assert "consumed 1 message" in out
+    assert "consumed: 1" in out
     assert "parked 1 stale ask(s)" in out
 
 
