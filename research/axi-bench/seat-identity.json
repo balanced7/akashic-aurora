@@ -1,0 +1,272 @@
+{
+  "verb": "seat-identity",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.633,
+    "correct": 19,
+    "asked": 30,
+    "output_tokens": 17,
+    "stdout_chars": 406,
+    "stdout_lines": 5,
+    "cost_usd": 0.0261,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": false,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/6",
+    "questions": [
+      {
+        "q": "Which seat id does this session resolve to?",
+        "expected": "alice",
+        "answers": [
+          "alice#bench-se",
+          "alice#bench-se",
+          "alice#bench-se",
+          "alice#bench-se",
+          "alice#bench-se"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Where did the identity come from? Answer binding, env or unknown.",
+        "expected": "binding",
+        "answers": [
+          "binding",
+          "binding",
+          "binding",
+          "binding",
+          "binding"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is this identity bound to this session specifically? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "yes",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What exact command binds this session to its seat id? Give the command only.",
+        "expected": [
+          "seat-identity",
+          "bench",
+          "--session bench-sess-0002"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a binding removed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "seat-identity",
+          "--session",
+          "bench-sess-0001"
+        ],
+        "exit": 0,
+        "stdout": "  seat: alice#bench-se   (resolved from: binding)\n"
+      },
+      "env": {
+        "argv": [
+          "seat-identity",
+          "--session",
+          "bench-sess-0002"
+        ],
+        "exit": 0,
+        "stdout": "  seat: bench#bench-se   (resolved from: env)\n  NOTE: from the shared process env, not a per-session binding. If another seat runs in this process profile it resolves identically. Declare to make it yours.\n"
+      },
+      "nosession": {
+        "argv": [
+          "seat-identity"
+        ],
+        "exit": 1,
+        "stdout": "[seat-identity] no session id -- pass --session <uuid> (CLAUDE_CODE_SESSION_ID is unset in this process)\n"
+      },
+      "clear": {
+        "argv": [
+          "seat-identity",
+          "--session",
+          "bench-sess-0001",
+          "--clear"
+        ],
+        "exit": 0,
+        "stdout": "[seat-identity] binding cleared for bench-se\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 17,
+    "stdout_chars": 563,
+    "stdout_lines": 16,
+    "cost_usd": 0.035,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "Which seat id does this session resolve to?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Where did the identity come from? Answer binding, env or unknown.",
+        "expected": "binding",
+        "answers": [
+          "binding",
+          "binding",
+          "binding",
+          "binding",
+          "binding"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is this identity bound to this session specifically? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command binds this session to its seat id? Give the command only.",
+        "expected": [
+          "seat-identity",
+          "bench",
+          "--session bench-sess-0002"
+        ],
+        "answers": [
+          "uv run agent_cli.py seat-identity bench --session bench-sess-0002",
+          "uv run agent_cli.py seat-identity bench --session bench-sess-0002",
+          "uv run agent_cli.py seat-identity bench --session bench-sess-0002",
+          "uv run agent_cli.py seat-identity bench --session bench-sess-0002",
+          "uv run agent_cli.py seat-identity bench --session bench-sess-0002"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a binding removed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "seat-identity",
+          "--session",
+          "bench-sess-0001"
+        ],
+        "exit": 0,
+        "stdout": "seat: alice\nsession: bench-se\nresolved_from: binding\n"
+      },
+      "env": {
+        "argv": [
+          "seat-identity",
+          "--session",
+          "bench-sess-0002"
+        ],
+        "exit": 0,
+        "stdout": "seat: bench\nsession: bench-se\nresolved_from: env\nbinding: none\nnote: \"not bound to this session: read from the shared process env, where another seat in this process profile resolves the same; the help command binds it to this session\"\nhelp[1]:\n  uv run agent_cli.py seat-identity bench --session bench-sess-0002\n"
+      },
+      "nosession": {
+        "argv": [
+          "seat-identity"
+        ],
+        "exit": 1,
+        "stdout": "error: \"no session id: CLAUDE_CODE_SESSION_ID is unset in this process\"\ncode: NO_SESSION\nhelp[1]:\n  uv run agent_cli.py seat-identity <agent_id> --session <uuid>\n"
+      },
+      "clear": {
+        "argv": [
+          "seat-identity",
+          "--session",
+          "bench-sess-0001",
+          "--clear"
+        ],
+        "exit": 0,
+        "stdout": "binding: cleared\nsession: bench-se\n"
+      }
+    }
+  }
+}

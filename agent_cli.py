@@ -10444,45 +10444,56 @@ def cmd_seat_identity(args) -> int:
     a running session cannot mutate its own process env. So a seat could not name itself, and
     every hook silently called it "claude" -- the conductor. This binds it per session instead.
     """
+    from core.axi import out
     from core.comm import seat_identity as si
 
+    cli = _cli()
     sid = (
         args.session or os.environ.get("CLAUDE_CODE_SESSION_ID") or os.environ.get("BIFROST_INCARNATION") or ""
     ).strip()
     if not sid:
-        print(
-            "[seat-identity] no session id -- pass --session <uuid> (CLAUDE_CODE_SESSION_ID is unset in this process)"
-        )
-        return 1
+        return out.fail(
+            "no session id: CLAUDE_CODE_SESSION_ID is unset in this process",
+            code="NO_SESSION",
+            hints=[f"{cli} seat-identity {args.agent_id or '<agent_id>'} --session <uuid>"],
+        )  # exit 1, as before
+    # Hints repeat --session only when it was given; otherwise the env resolves the same session.
+    sess = f" --session {args.session}" if args.session else ""
     if args.clear:
-        print(
-            f"[seat-identity] binding cleared for {_sid8_of(sid)}"
-            if si.clear(sid)
-            else f"[seat-identity] no binding to clear for {_sid8_of(sid)}"
+        return out.emit(
+            {"binding": "cleared" if si.clear(sid) else "none (nothing to clear)", "session": _sid8_of(sid)},
+            title="Seat identity",
         )
-        return 0
+    doc: dict = {}
     if args.agent_id:
         if not si.valid(args.agent_id):
-            print(f"[seat-identity] REFUSED: {args.agent_id!r} is not a valid seat id")
-            return 1
+            return out.fail(
+                f"{args.agent_id!r} is not a valid seat id",
+                code="INVALID_ID",
+                hints=[f"{cli} seat-identity <agent_id>{sess}"],
+                details={"valid": "letters, digits and . _ # - (up to 64), starting with a letter or digit"},
+            )
         if not si.declare(args.agent_id, sid):
-            print("[seat-identity] REFUSED: could not write the binding")
-            return 1
-        print(f"[seat-identity] {_sid8_of(sid)} is now {args.agent_id}")
+            return out.fail("could not write the binding", code="WRITE_FAILED")
+        doc["declared"] = args.agent_id
     got, src = si.resolve(sid), si.resolved_from(sid)
-    print(f"  seat: {got}#{_sid8_of(sid)}   (resolved from: {src})")
+    doc.update(seat=got, session=_sid8_of(sid), resolved_from=src)
+    hints = []
     if src == "unknown":
-        print(
-            "  NOTE: unresolved. Hook-authored records will read unknown-"
-            + _sid8_of(sid)
-            + " rather than borrowing a peer's name -- honest, but not yours until declared."
+        doc["binding"] = "none"
+        doc["note"] = (
+            f"unresolved: hook-authored records read {got} rather than borrowing a peer's name; "
+            "the help command binds a seat id to this session"
         )
+        hints.append(f"{cli} seat-identity <agent_id>{sess}")
     elif src == "env":
-        print(
-            "  NOTE: from the shared process env, not a per-session binding. If another seat "
-            "runs in this process profile it resolves identically. Declare to make it yours."
+        doc["binding"] = "none"
+        doc["note"] = (
+            "not bound to this session: read from the shared process env, where another seat in "
+            "this process profile resolves the same; the help command binds it to this session"
         )
-    return 0
+        hints.append(f"{cli} seat-identity {got}{sess}")
+    return out.emit(doc, hints=hints, title="Seat identity")
 
 
 def cmd_lock(args):

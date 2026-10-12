@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 64 converted to agent and human output.
+121 verbs; 65 converted to agent and human output.
 
 ## `alias`
 
@@ -2453,13 +2453,24 @@ help[2]:
 | | |
 |---|---|
 | Does | declare/show THIS session's seat id (binding beats the shared env) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 63% before, 100% after |
+| Output tokens | 17 before, 17 after (+0%) |
+| AXI checks | 3/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/seat-identity.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` |   |   | the seat id to bind; omit to just show the current resolution |
 | `--session` |   |   | session id (default: this process's) |
 | `--clear` |   |   | drop this session's binding |
+
+Agent output of `aurora seat-identity --session bench-sess-0001` on the bench data:
+
+```text
+seat: alice
+session: bench-se
+resolved_from: binding
+```
 
 ## `secret`
 
