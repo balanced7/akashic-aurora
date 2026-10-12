@@ -7885,6 +7885,7 @@ def cmd_bifrost_ack(args):
     messages are all refused at promoter.ack_verdict, the single rule guarding every caller
     (the old guard here scanned a 200-message page under try/except and could be
     volume-defeated)."""
+    from core.axi import out
     from core.comm.promoter import ack, ack_verdict, resolve_ack_ref
 
     # T063 COMPLETE: the door accepts EVERY id form its sibling verbs print -- the raw
@@ -7901,14 +7902,28 @@ def cmd_bifrost_ack(args):
         # ref RESOLVED but the verdict refuses, the refusal is a CONTENT/permission verdict
         # and blaming the id form would launder it into the very misleading-error class this
         # door exists to kill.
-        print(f"ERROR: ack refused -- {why}{_ack_refusal_hint(raw, resolution_failed)}")
-        return 1
+        # The id is already in the reason; the hint only where a better id would help.
+        id_trouble = resolution_failed or "promoted record" in str(why)
+        return out.fail(
+            f"ack refused -- {why}{_ack_refusal_hint(raw, resolution_failed)}",
+            code="REFUSED",
+            details={"acked": False},
+            hints=[f"{_cli()} promoted --limit 10"] if id_trouble else [],
+        )
     ok = ack(args.agent_id, mid, note=args.note or "")
     if args.json:
         print(json.dumps({"acked": ok, "msg_id": mid, "by": args.agent_id}))
         return 0 if ok else 1
-    print(f"[OK] {args.agent_id} acked bifrost:{mid}" if ok else "ERROR recording ack (event log unavailable?)")
-    return 0 if ok else 1
+    if not ok:
+        return out.fail(
+            "the ack was allowed but not recorded (event log unavailable?)",
+            code="NOT_RECORDED",
+            details={"acked": False, "msg_id": f"bifrost:{mid}", "by": args.agent_id},
+        )
+    doc = {"acked": True, "msg_id": f"bifrost:{mid}", "by": args.agent_id}
+    if args.note:
+        doc["note"] = args.note
+    return out.emit(doc, title="Acked")  # a confirmation answers itself: no hints
 
 
 def cmd_console_log(args):
