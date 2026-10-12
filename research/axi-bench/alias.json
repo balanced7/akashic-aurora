@@ -1,0 +1,404 @@
+{
+  "verb": "alias",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 46,
+    "stdout_chars": 795,
+    "stdout_lines": 12,
+    "cost_usd": 0.0247,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "What version number did the alias get?",
+        "expected": 1,
+        "answers": [
+          "v1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command runs the alias that was just minted? Give the command only.",
+        "expected": [
+          "run bench land"
+        ],
+        "answers": [
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many active aliases does bench have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What evidence level does the scan alias have?",
+        "expected": "VERIFIED",
+        "answers": [
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which version of the land alias is active?",
+        "expected": 2,
+        "answers": [
+          "v2",
+          "v2",
+          "v2",
+          "v2",
+          "v2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did retiring ghost succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "NO",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "mint": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "land",
+          "--step",
+          "status",
+          "--step",
+          "locks",
+          "--family",
+          "RHYTHM",
+          "--why",
+          "close the day"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted land v1 [GUESS] (RHYTHM) (2 step(s)) -- run: uv run agent_cli.py run bench land\n"
+      },
+      "mint_scan": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "scan",
+          "--step",
+          "locks",
+          "--evidence",
+          "VERIFIED",
+          "--tested-against",
+          "pin-42",
+          "--family",
+          "SENTINELS"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted scan v1 [VERIFIED] (SENTINELS) (1 step(s)) -- run: uv run agent_cli.py run bench scan\n"
+      },
+      "mint_peek": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "peek",
+          "--step",
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted peek v1 [GUESS] (UNSORTED) (1 step(s)) -- run: uv run agent_cli.py run bench peek\n"
+      },
+      "remint": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "land",
+          "--step",
+          "status",
+          "--family",
+          "RHYTHM"
+        ],
+        "exit": 0,
+        "stdout": "[alias] minted land v2 [GUESS] (RHYTHM) (1 step(s)) -- run: uv run agent_cli.py run bench land\n"
+      },
+      "retire": {
+        "argv": [
+          "alias",
+          "bench",
+          "retire",
+          "peek",
+          "--reason",
+          "unused"
+        ],
+        "exit": 0,
+        "stdout": "[alias] retired peek (unused)\n"
+      },
+      "list": {
+        "argv": [
+          "alias",
+          "bench",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "# toolbelt: bench -- 2 active (quota 20; evidence confesses: GUESS = never pinned)\n  [RHYTHM]\n    land                 v2  [GUESS]  1 step(s): status\n  [SENTINELS]\n    scan                 v1  [VERIFIED :pin-42]  1 step(s): locks\n"
+      },
+      "history": {
+        "argv": [
+          "alias",
+          "bench",
+          "history",
+          "land"
+        ],
+        "exit": 0,
+        "stdout": "  v1 superseded 2026-10-12T14:13:28.505029+00:00: status -> locks\n"
+      },
+      "missing": {
+        "argv": [
+          "alias",
+          "bench",
+          "retire",
+          "ghost"
+        ],
+        "exit": 1,
+        "stdout": "[alias] REFUSED: \"no active toolbelt entry 'ghost' for bench (have: land, scan)\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 73,
+    "stdout_chars": 1233,
+    "stdout_lines": 58,
+    "cost_usd": 0.0271,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "What version number did the alias get?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command runs the alias that was just minted? Give the command only.",
+        "expected": [
+          "run bench land"
+        ],
+        "answers": [
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land",
+          "uv run agent_cli.py run bench land",
+          "bench land"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many active aliases does bench have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What evidence level does the scan alias have?",
+        "expected": "VERIFIED",
+        "answers": [
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED",
+          "VERIFIED"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which version of the land alias is active?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did retiring ghost succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "mint": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "land",
+          "--step",
+          "status",
+          "--step",
+          "locks",
+          "--family",
+          "RHYTHM",
+          "--why",
+          "close the day"
+        ],
+        "exit": 0,
+        "stdout": "alias: land\nresult: minted\nversion: 1\nevidence: GUESS\nfamily: RHYTHM\nsteps: 2\nhelp[2]:\n  uv run agent_cli.py run bench land\n  uv run agent_cli.py kata bench land\n"
+      },
+      "mint_scan": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "scan",
+          "--step",
+          "locks",
+          "--evidence",
+          "VERIFIED",
+          "--tested-against",
+          "pin-42",
+          "--family",
+          "SENTINELS"
+        ],
+        "exit": 0,
+        "stdout": "alias: scan\nresult: minted\nversion: 1\nevidence: VERIFIED\nfamily: SENTINELS\nsteps: 1\nhelp[1]:\n  uv run agent_cli.py run bench scan\n"
+      },
+      "mint_peek": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "peek",
+          "--step",
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "alias: peek\nresult: minted\nversion: 1\nevidence: GUESS\nfamily: UNSORTED\nsteps: 1\nhelp[2]:\n  uv run agent_cli.py run bench peek\n  uv run agent_cli.py kata bench peek\n"
+      },
+      "remint": {
+        "argv": [
+          "alias",
+          "bench",
+          "mint",
+          "land",
+          "--step",
+          "status",
+          "--family",
+          "RHYTHM"
+        ],
+        "exit": 0,
+        "stdout": "alias: land\nresult: superseded\nversion: 2\nevidence: GUESS\nfamily: RHYTHM\nsteps: 1\nhelp[2]:\n  uv run agent_cli.py run bench land\n  uv run agent_cli.py kata bench land\n"
+      },
+      "retire": {
+        "argv": [
+          "alias",
+          "bench",
+          "retire",
+          "peek",
+          "--reason",
+          "unused"
+        ],
+        "exit": 0,
+        "stdout": "retired: peek\nreason: unused\nactive: 2\nhelp[1]:\n  uv run agent_cli.py alias bench list\n"
+      },
+      "list": {
+        "argv": [
+          "alias",
+          "bench",
+          "list"
+        ],
+        "exit": 0,
+        "stdout": "agent: bench\nactive: 2\nquota: 20\naliases[2]{name,family,version,evidence,steps}:\n  land,RHYTHM,2,GUESS,status\n  scan,SENTINELS,1,VERIFIED,locks\nhelp[2]:\n  uv run agent_cli.py run bench <name>\n  uv run agent_cli.py kata bench <name>\n"
+      },
+      "history": {
+        "argv": [
+          "alias",
+          "bench",
+          "history",
+          "land"
+        ],
+        "exit": 0,
+        "stdout": "alias: land\ncurrent_version: 2\nsuperseded: 1\nversions[1]{version,superseded_at,evidence,steps}:\n  1,\"2026-10-12T14:14:06.511081+00:00\",GUESS,status -> locks\n"
+      },
+      "missing": {
+        "argv": [
+          "alias",
+          "bench",
+          "retire",
+          "ghost"
+        ],
+        "exit": 1,
+        "stdout": "error: \"no active toolbelt entry 'ghost' for bench (have: land, scan)\"\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py alias bench list\n"
+      }
+    }
+  }
+}

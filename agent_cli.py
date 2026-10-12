@@ -14744,6 +14744,12 @@ def build_parser():
         "mapping | LIBRARIANS memory | WAR-GAMES drills)",
     )
     al.add_argument("--reason", default="", help="retire reason")
+    al.add_argument(
+        "--fields",
+        default=None,
+        help=f"list: extra columns: {','.join(_ALIAS_ALL_FIELDS[len(_ALIAS_FIELDS) :])}, or 'all' "
+        f"(default: {','.join(_ALIAS_FIELDS)})",
+    )
     al.add_argument("--json", action="store_true")
     al.set_defaults(fn=cmd_alias)
 
@@ -15190,15 +15196,27 @@ def _human_capture(console, doc):
 def cmd_alias(args):
     import shlex
 
+    from core.axi import out
     from core.toolbelt.registry import Toolbelt
 
-    tb = Toolbelt(args.agent_id)
+    cli, me = _cli(), args.agent_id
+    tb = Toolbelt(me)
+    try:
+        fields = out.fields_arg(getattr(args, "fields", None), _ALIAS_FIELDS, _ALIAS_ALL_FIELDS)
+    except ValueError as e:
+        return out.fail(str(e), code="USAGE", hints=[f"{cli} alias {me} list --fields why"], exit_code=out.EXIT_USAGE)
     try:
         if args.action == "mint":
             if not args.name or not args.step:
-                print("[alias] mint needs a name + at least one --step")
-                return 2
+                return out.fail(
+                    "mint needs a name and at least one --step",
+                    code="USAGE",
+                    hints=[f"{cli} alias {me} mint <name> --step '<verb> <args>'"],
+                    exit_code=out.EXIT_USAGE,
+                )
             steps = [shlex.split(s) for s in args.step]
+            prior = tb._doc["entries"].get(args.name)  # to tell minted, superseded and unchanged apart
+            prior_version = prior["version"] if prior and prior.get("status", "active") == "active" else None
             e = tb.mint(
                 args.name,
                 steps,
@@ -15207,26 +15225,112 @@ def cmd_alias(args):
                 why=args.why,
                 family=args.family,
             )
-            print(
-                f"[alias] minted {e['name']} v{e['version']} [{e['evidence']}] "
-                f"({e.get('family', 'UNSORTED')}) ({len(e['steps'])} step(s)) -- "
-                f"run: {_cli()} run {args.agent_id} {e['name']}"
-            )
-        elif args.action == "list":
-            print(tb.render_list())
-        elif args.action == "retire":
+            if prior_version is None:
+                result = "minted" if e["version"] == 1 else "re-minted"
+            else:
+                result = "unchanged" if e["version"] == prior_version else "superseded"
+            # The steps are what the caller just typed: count them, do not echo them back.
+            doc = {"alias": e["name"], "result": result, **_alias_row(e, ("version", "evidence", "family"))}
+            doc["steps"] = len(e["steps"])
+            if e.get("params"):  # a macro: say how many arguments run will want
+                doc["args"] = e["params"]
+            if args.json:
+                print(json.dumps(e, indent=2, default=str))
+                return 0
+            hints = [f"{cli} run {me} {e['name']}" + "".join(f" <arg{i}>" for i in range(1, e.get("params", 0) + 1))]
+            if e["evidence"] != "VERIFIED":  # the way out of GUESS: prove the grammar
+                hints.append(f"{cli} kata {me} {e['name']}")
+            return out.emit(doc, hints=hints, title=f"Alias · {e['name']}")
+        if args.action == "list":
+            entries = [tb._doc["entries"][n] for n in sorted(tb.active())]
+            if args.json:
+                print(json.dumps(entries, indent=2, default=str))
+                return 0
+            rows = [_alias_row(e, fields) for e in entries]
+            doc = {"agent": me, "active": len(rows), "quota": tb.quota, "aliases": rows}
+            if not rows:  # AXI section 5: the zero is the answer
+                hints = [f"{cli} alias {me} mint <name> --step '<verb> <args>'", f"{cli} kit {me}"]
+            else:
+                hints = [f"{cli} run {me} <name>", f"{cli} kata {me} <name>"]
+            return out.emit(doc, hints=hints, human=_human_alias_list, title=f"Toolbelt · {me}")
+        if args.action == "retire":
             tb.retire(args.name, args.reason)
-            print(f"[alias] retired {args.name} ({args.reason or 'no reason given'})")
-        elif args.action == "history":
-            for h in tb.history(args.name):
-                print(
-                    f"  v{h['version']} superseded {h.get('superseded_at', '?')}: "
-                    + " -> ".join(s[0] for s in h["steps"])
-                )
-    except (ValueError, KeyError) as e:
-        print(f"[alias] REFUSED: {e}")
-        return 1
+            doc = {"retired": args.name, "reason": args.reason or None, "active": len(tb.active())}
+            if args.json:
+                print(json.dumps(doc))
+                return 0
+            return out.emit(doc, hints=[f"{cli} alias {me} list"], title="Alias retired")
+        if args.action == "history":
+            past = tb.history(args.name)
+            if args.json:
+                print(json.dumps(past, indent=2, default=str))
+                return 0
+            rows = [
+                {
+                    "version": h["version"],
+                    "superseded_at": h.get("superseded_at"),
+                    "evidence": h.get("evidence"),
+                    "steps": " -> ".join(s[0] for s in h["steps"]),
+                }
+                for h in past
+            ]
+            try:
+                current = tb.get(args.name)["version"]
+            except KeyError:
+                current = None  # retired or never minted: the history is all there is
+            doc = {"alias": args.name, "current_version": current, "superseded": len(rows), "versions": rows}
+            return out.emit(doc, title=f"Alias history · {args.name}")
+    except KeyError as e:
+        return out.fail(str(e).strip("\"'"), code="NOT_FOUND", hints=[f"{cli} alias {me} list"])
+    except ValueError as e:
+        return out.fail(str(e), code="REFUSED", hints=[f"{cli} alias {me} list"])
     return 0
+
+
+#: `alias list` columns: the default agent schema, and every field --fields can add.
+_ALIAS_FIELDS = ("name", "family", "version", "evidence", "steps")
+_ALIAS_ALL_FIELDS = ("name", "family", "version", "evidence", "steps", "kind", "tested_against", "why", "updated_at")
+
+
+def _alias_row(e: dict, fields) -> dict:
+    """One toolbelt entry as a flat row: steps shown as the verbs they call, in order."""
+    full = {
+        "name": e.get("name"),
+        "family": e.get("family", "UNSORTED"),
+        "version": e.get("version"),
+        "evidence": e.get("evidence"),
+        "steps": " -> ".join(str(s[0]) for s in e.get("steps", [])),
+        "kind": e.get("kind", "alias"),
+        "tested_against": e.get("tested_against") or None,
+        "why": e.get("why") or None,
+        "updated_at": e.get("updated_at"),
+    }
+    return {f: full[f] for f in fields}
+
+
+def _human_alias_list(console, doc):
+    """Human view of `alias list`: the count against the quota, then one table grouped by family,
+    evidence coloured (VERIFIED green, INFER yellow, GUESS red: untested sugar says so)."""
+    from core.axi import out
+
+    if not doc["active"]:
+        console.print(f"[yellow]0 aliases on {out._esc(doc['agent'])}'s toolbelt[/]")
+        return
+    console.print(f"[dim]{doc['active']} active of a quota of {doc['quota']}[/]")
+    colour = {"VERIFIED": "green", "INFER": "yellow", "GUESS": "red"}
+    rows = sorted(doc["aliases"], key=lambda r: (str(r.get("family", "")), str(r.get("name", ""))))
+    t = out.table([], columns=list(rows[0].keys()))
+    for r in rows:
+        cells = []
+        for k, v in r.items():
+            if k == "evidence":
+                cells.append(f"[{colour.get(str(v), 'white')}]{out._esc(str(v))}[/]")
+            elif k == "version":
+                cells.append(f"v{v}")
+            else:
+                cells.append(out.styled(v))
+        t.add_row(*cells)
+    console.print(t)
 
 
 def cmd_run(args):
