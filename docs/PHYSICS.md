@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 4466c029. A bound you discover by collision is not awareness -- this sheet
+> Derived at e906b452. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (334 numeric constants)
+## Mechanical bounds (337 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -343,6 +343,7 @@ Class: reference
 | `CHORD_STRIKE_MS` | 150 | arsenal/practice.py | notes struck within this long of each other are struck together |
 | `CLARIFY_MAX_PER_TASK` | 3 | core/comm/toolbox.py |  |
 | `CLARIFY_TIMEOUT_S` | 300 | core/comm/toolbox.py |  |
+| `COMPARE_MAX` | 1,800 | arsenal/media/cut.py | verify compares every frame up to this many, then head + tail samples |
 | `COMPLEXITY_CODE_LINES_THRESHOLD` | 50 | research/in-flight/t342/dead-modules/master.py | If proposal has > 50 lines of code, mark as complex |
 | `COMPLEXITY_STEPS_THRESHOLD` | 5 | research/in-flight/t342/dead-modules/master.py | If > 5 steps, mark as complex |
 | `COMP_TOP_MAX` | 64 | arsenal/jam/schemas.py | E4: only the defining altered colour reaches it |
@@ -450,6 +451,7 @@ Class: reference
 | `MAX_HOPS` | 12 | core/git/rewrite_map.py | three rewrites so far; a cap that can never loop forever |
 | `MAX_ITEMS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
+| `MAX_LONG_EDGE` | 1,600 | arsenal/media/sheet.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
 | `MAX_MODEL_LEN` | 32,768 | research/in-flight/t342/dead-modules/deploy_vllm.py | 32k context |
 | `MAX_MOMENTS` | 12 | arsenal/jam/schemas.py |  |
@@ -482,6 +484,7 @@ Class: reference
 | `MESSAGE_TTL_DAYS` | 7 | research/in-flight/t342/dead-modules/multi_agent.py |  |
 | `MINOR_FLOOR` | 25 | core/coord/world_diff.py |  |
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
+| `MIN_CELL_H` | 8 | arsenal/media/sheet.py | px: a shorter cell shows nothing a reader can use, so the layout refuses instead |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |

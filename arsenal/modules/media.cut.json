@@ -1,0 +1,74 @@
+{
+  "id": "media.cut",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "clip",
+      "type": "asset.reference"
+    },
+    {
+      "port": "plan",
+      "type": "analysis.features"
+    }
+  ],
+  "params": [
+    {
+      "name": "start",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "end",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "head_qp",
+      "unit": "qp",
+      "range": [
+        0,
+        51
+      ]
+    },
+    {
+      "name": "verify",
+      "unit": "bool",
+      "range": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "psnr_floor_db",
+      "unit": "dB",
+      "range": [
+        0,
+        100
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 1100
+  },
+  "degradation": {
+    "on_failure": "stall"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/cut.py: trim to the exact frame. copy (snap to the keyframe at or before start, lossless), smart (re-encode only the head up to the next keyframe with hevc_amf/h264_amf at CQP 18, copy the rest bit for bit, one Annex-B stream piped into the muxer, no intermediate files), exact (re-encode the range; GPU lock when estimated over 30 s). Every audio track is kept with an explicit title. plan() is the trim handles' cost preview: median 0.5 ms on a cached keyframe list, 0.9-1.4 s the first time a file is seen. Measured on the 33-min 1080p60 OBS recording: 601.5-612.0 s smart = 630 frames, 0 decode errors, head PSNR 50.8 dB, 470/470 copied frames bit-identical, 1.07-1.23 s; copy 0.10-0.12 s; audio within 1 ms of the source, an MPEG-TS with a 1.4 s format start included (every -ss subtracts the format start_time). verify() picks frames by their own pts, so it cannot share a seek error with the cut; outputs over 1800 frames are decoded and compared on head and tail samples (a 120 s copy verifies in 2.9 s); plan() reports verify_est_s next to est_s. concat() joins parts with the concat demuxer and refuses mismatched codec parameters. py -m arsenal.media cut <src> <start> <end> [out] [--mode smart] [--plan]."
+}

@@ -1,0 +1,86 @@
+{
+  "id": "media.filmstrip",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {
+      "port": "media",
+      "type": "asset.reference"
+    },
+    {
+      "port": "words",
+      "type": "media.subtitle_cue"
+    }
+  ],
+  "outputs": [
+    {
+      "port": "strip",
+      "type": "asset.reference"
+    },
+    {
+      "port": "index",
+      "type": "analysis.features"
+    }
+  ],
+  "params": [
+    {
+      "name": "t0",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "t1",
+      "unit": "s",
+      "range": [
+        0,
+        86400
+      ]
+    },
+    {
+      "name": "n",
+      "unit": "frames",
+      "range": [
+        1,
+        32
+      ]
+    },
+    {
+      "name": "width",
+      "unit": "px",
+      "range": [
+        64,
+        3840
+      ]
+    },
+    {
+      "name": "track",
+      "unit": "index",
+      "range": [
+        0,
+        15
+      ]
+    },
+    {
+      "name": "wave_h",
+      "unit": "px",
+      "range": [
+        0,
+        400
+      ]
+    }
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0 AND LicenseRef-house-FFmpeg-build-unverified",
+  "latency_ms": {
+    "base": 1600
+  },
+  "degradation": {
+    "on_failure": "hold"
+  },
+  "receipts": [],
+  "notes": "arsenal/media/sheet.py filmstrip(): n frames of [t0, t1) in one row (frame i = the middle of its slot) over the waveform of the same seconds (one audio track mixed to mono, dB scale, peak over RMS, streamed in 1 MiB chunks), with file-time ticks (and game time from a clockmap) and arsenal.stt words. Default geometry is the tested recipe: 8 tiles of 240x136 over 1920x120 = 1920x256. 10 s of the 33-min 1080p60 recording: 1.5-2.1 s. A span outside the file or an audio track the file does not have fails closed; a file with no audio gets the strip without a waveform. py -m arsenal.media filmstrip <v> 12:00 12:10."
+}
