@@ -112,6 +112,8 @@ class Sandbox:
         shutil.rmtree(self.data, ignore_errors=True)
         self.data.mkdir(parents=True)
         (self.data / "home").mkdir()
+        for world in ("prod", "beta", "alpha"):
+            (self.data / "aurora-home" / world).mkdir(parents=True)
         flush_db(self.db)
 
     def env(self) -> dict:
@@ -136,6 +138,11 @@ class Sandbox:
             # the live ledger when the bench runs from the main one (tests/isolate_canonical.py
             # redirects the same side channel).
             AKASHIC_TASKS_PATH=str(self.data / "tasks.json"),
+            # One-per-world state (ask journals, web cache, transcript index) lives in the world's
+            # home, else beside the code -- and a worktree links state/asks and friends to the
+            # live checkout's. A sandbox home per world keeps `ask --list` and the like on this
+            # run's own files.
+            AURORA_HOME=str(self.data / "aurora-home"),
             REDIS_DB=str(self.db),
             AKASHIC_AGENT_ID="bench",
             AURORA_OUTPUT="agent",

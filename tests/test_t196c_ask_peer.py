@@ -212,6 +212,7 @@ def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
     import core.comm.ask as ask_mod
 
     monkeypatch.setattr(ask_mod, "ask_peer", lambda *a, **k: fake)
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")  # the AXI shape: state and next step on stdout
 
     args = types.SimpleNamespace(
         text=["anyone", "home?"],
@@ -230,10 +231,11 @@ def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
         poll=0.25,
     )
     rc = agent_cli.cmd_ask(args)
-    err = capsys.readouterr().err
+    err = capsys.readouterr().out
     assert rc == 0, "an OPEN handle is a normal outcome: exit 0"
-    assert "OPEN.DISPATCHED" in err
-    assert "--status" in err
+    assert "state: OPEN.DISPATCHED" in err
+    assert "status: partial" in err
+    assert "ask --status 123-0" in err
     assert "ECHO" not in err, "a PARTIALLY must never render as CLOSED.ECHO -- partial checks BEFORE ok"
 
 

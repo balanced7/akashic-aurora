@@ -181,10 +181,18 @@ def test_a_clean_run_carries_no_warnings(capsys, wire):
     assert not d.get("warnings")
 
 
-def test_the_human_path_still_prints_to_stderr(capsys, wire):
-    """REGRESSION. The machine channel is ADDITIVE -- T218's stderr notice is what a person
-    reads, and gaining a field must not cost the line."""
-    rc, out, err = _run_cli(capsys, "--with", BUS, "reply with just: OK")
+def test_the_text_paths_still_carry_the_notice(capsys, wire, monkeypatch):
+    """REGRESSION. The machine channel is ADDITIVE -- T218's notice is what a person
+    reads, and gaining a field must not cost the line. Since the AXI conversion the notice
+    is a `warnings` field in agent mode and a line after the answer in human mode."""
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")
+    rc, out, _ = _run_cli(capsys, "--with", BUS, "reply with just: OK")
     assert rc == 0, "precondition: the fake wire answered through the real door"
     assert "ANSWER" in out, "precondition: the fake wire answered through the real door"
-    assert "CLIPPED" in (err or ""), "the human notice regressed"
+    assert "warnings[1]:" in out, "the agent notice regressed"
+    assert "CLIPPED" in out, "the agent notice regressed"
+    monkeypatch.setenv("AURORA_OUTPUT", "human")
+    monkeypatch.setenv("NO_COLOR", "1")
+    rc, out, _ = _run_cli(capsys, "--with", BUS, "reply with just: OK")
+    assert rc == 0
+    assert "CLIPPED" in out.split("ANSWER", 1)[1], "the human notice regressed: it belongs after the answer"

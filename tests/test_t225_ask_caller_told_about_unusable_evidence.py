@@ -163,7 +163,9 @@ def test_both_cli_doors_render_the_widened_notice():
       T242      -- the boundary MINTS it, and this file never recomputes it
     """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
-    assert len(re.findall(r'for _clip in \(?d\.get\("warnings"\) or \[\]\)?:', src)) == 2, (
+    # Since the AXI conversion each door carries the boundary's warnings as a field of its
+    # output document rather than printing them line by line; the count is of that.
+    assert len(re.findall(r'doc\["warnings"\] = list\(d\["warnings"\]\)', src)) == 2, (
         "both the fan render and the single-ask render must emit the boundary's warnings"
     )
     assert "clipped_evidence_notice" not in src, "no CLI door should still reach for the retired CLIP-only name"

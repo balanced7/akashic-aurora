@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 103 converted to agent and human output.
+121 verbs; 104 converted to agent and human output.
 
 ## `alias`
 
@@ -52,7 +52,10 @@ help[2]:
 | | |
 |---|---|
 | Does | ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 33% before, 100% after |
+| Output tokens | 4 before, 67 after (+1575%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/ask.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -84,6 +87,15 @@ help[2]:
 | `--status` |   |   | T196d: render one durable ask's honest state (seven states incl UNKNOWN) and what to do now. Read-only; always exit 0 |
 | `--as` |   |   | the SENDER seat the ask belongs to (expectations are per-sender; default $AKASHIC_AGENT_ID or claude) |
 | `--json` |   |   |   |
+
+Agent output of `aurora ask --list` on the bench data:
+
+```text
+total: 0
+asks: no background asks recorded
+help[1]:
+  uv run agent_cli.py ask --bg "<question>"
+```
 
 ## `audit`
 

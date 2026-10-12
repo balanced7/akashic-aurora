@@ -1,0 +1,290 @@
+{
+  "verb": "ask",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.333,
+    "correct": 10,
+    "asked": 30,
+    "output_tokens": 4,
+    "stdout_chars": 224,
+    "stdout_lines": 4,
+    "cost_usd": 0.0259,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many background asks are recorded?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does an ask with handle deadbeef exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What exact command lists the recent background asks? Give the command only.",
+        "expected": [
+          "ask --list"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Is ask 42 in a terminal state? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "Yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag should be run first, --bg or --get? Answer with the flag only.",
+        "expected": "--bg",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Did the ask succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "ask",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "# no background asks recorded\n"
+      },
+      "get": {
+        "argv": [
+          "ask",
+          "--get",
+          "deadbeef"
+        ],
+        "exit": 0,
+        "stdout": "# ask deadbeef -- UNKNOWN\n"
+      },
+      "status": {
+        "argv": [
+          "ask",
+          "--status",
+          "42"
+        ],
+        "exit": 0,
+        "stdout": "# ask 42 -- UNKNOWN (terminal)\n  caller should: re-ask -- treat the old transaction as unresolvable (evidence lost or trimmed: RB-30 flush, or maxlen outlived the ask)\n"
+      },
+      "conflict": {
+        "argv": [
+          "ask",
+          "--bg",
+          "--get",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": ""
+      },
+      "resident": {
+        "argv": [
+          "ask",
+          "--as-resident",
+          "nobody",
+          "what is two plus two"
+        ],
+        "exit": 1,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 67,
+    "stdout_chars": 867,
+    "stdout_lines": 19,
+    "cost_usd": 0.0363,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many background asks are recorded?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does an ask with handle deadbeef exist? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command lists the recent background asks? Give the command only.",
+        "expected": [
+          "ask --list"
+        ],
+        "answers": [
+          "uv run agent_cli.py ask --list",
+          "uv run agent_cli.py ask --list",
+          "uv run agent_cli.py ask --list",
+          "uv run agent_cli.py ask --list",
+          "uv run agent_cli.py ask --list"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is ask 42 in a terminal state? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag should be run first, --bg or --get? Answer with the flag only.",
+        "expected": "--bg",
+        "answers": [
+          "--bg",
+          "--bg",
+          "--bg",
+          "--bg",
+          "--bg"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the ask succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "ask",
+          "--list"
+        ],
+        "exit": 0,
+        "stdout": "total: 0\nasks: no background asks recorded\nhelp[1]:\n  uv run agent_cli.py ask --bg \"<question>\"\n"
+      },
+      "get": {
+        "argv": [
+          "ask",
+          "--get",
+          "deadbeef"
+        ],
+        "exit": 0,
+        "stdout": "handle: deadbeef\nstate: UNKNOWN\nnext: \"no ask by that handle -- check the id, or `ask --list` to see recent ones\"\nhelp[1]:\n  uv run agent_cli.py ask --list\n"
+      },
+      "status": {
+        "argv": [
+          "ask",
+          "--status",
+          "42"
+        ],
+        "exit": 0,
+        "stdout": "ask_id: \"42\"\nstate: UNKNOWN\nterminal: true\ncaller_should: \"re-ask -- treat the old transaction as unresolvable (evidence lost or trimmed: RB-30 flush, or maxlen outlived the ask)\"\n"
+      },
+      "conflict": {
+        "argv": [
+          "ask",
+          "--bg",
+          "--get",
+          "x"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--bg SPAWNS a new ask; --get/--list READ existing ones. Pick one: run --bg first, then --get the handle it prints.\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py ask --bg \"<question>\"\n"
+      },
+      "resident": {
+        "argv": [
+          "ask",
+          "--as-resident",
+          "nobody",
+          "what is two plus two"
+        ],
+        "exit": 1,
+        "stdout": "error: \"'nobody' is not a resident (no ratified designation), so it cannot answer at the resident tier. Run the ceremony first: uv run agent_cli.py resident nominate nobody --callsign <name> --receipt <their lesson> --by <peer>\"\ncode: ASK_FAILED\n"
+      }
+    }
+  }
+}

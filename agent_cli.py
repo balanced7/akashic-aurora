@@ -4536,9 +4536,16 @@ def cmd_ask(args):
     call. Everything a seat carries exists so a peer can be addressed ASYNCHRONOUSLY and survive
     without the caller -- an answer needs none of it.
     """
+    from core.axi import out
     from core.comm import ask as ask_mod
     from core.comm.ask import ask as ask_helper
     from core.comm.ask import ask_many
+
+    cli = _cli()
+
+    def usage(msg, hint=""):
+        """A refusal before any model call: AXI usage error, exit 2 as it always was."""
+        return out.fail(msg, code="USAGE", hints=[hint] if hint else [], exit_code=out.EXIT_USAGE)
 
     # T196d: `ask --status <id>` -- the transaction readout. A state is a successful
     # READ whatever it says: even UNKNOWN is an answer (the spec's forgotten state),
@@ -4551,37 +4558,28 @@ def cmd_ask(args):
         if args.json:
             print(json.dumps(st, ensure_ascii=False, default=str))
             return 0
-        print(f"# ask {st['ask_id']} -- {st['state']}" + (" (terminal)" if st["terminal"] else ""))
+        doc: dict = {"ask_id": st["ask_id"], "state": st["state"], "terminal": bool(st["terminal"])}
         if st["resolved_id"] != st["ask_id"]:
-            print(f"  resolves to {st['resolved_id']} (alias chain)")
-        bits = []
-        if st.get("peer"):
-            bits.append(f"peer {st['peer']}")
-        if st.get("redrives") is not None:
-            bits.append(f"redrives {st['redrives']}")
-        for label, key in (("age", "age_s"), ("took", "duration_s"), ("deadline in", "deadline_in_s")):
+            doc["resolves_to"] = st["resolved_id"]  # an alias chain
+        for key in ("peer", "redrives", "age_s", "duration_s", "deadline_in_s", "answer_id"):
             v = st.get(key)
             if v is not None:
-                bits.append(f"{label} {round(float(v), 1)}s")
-        if bits:
-            print("  " + " | ".join(bits))
-        if st.get("answer_id"):
-            print(f"  answer: {st['answer_id']}")
+                doc[key] = round(float(v), 1) if key.endswith("_s") else v
         # T197: was anyone home? Rendered at BOTH ends when known, because one end alone
         # cannot tell 'died mid-flight' from 'home and ignored me'.
         if st.get("peer_at_ask"):
-            line = f"  peer at ask: {st['peer_at_ask']}"
+            doc["peer_at_ask"] = st["peer_at_ask"]
             if st.get("peer_at_ask_why"):
-                line += f" ({st['peer_at_ask_why']})"
+                doc["peer_at_ask_why"] = st["peer_at_ask_why"]
             if st.get("peer_at_death"):
                 from core.comm.friction import dead_verdict
 
-                line += f" | at death: {st['peer_at_death']} -> {dead_verdict(st['peer_at_ask'], st['peer_at_death'])}"
-            print(line)
+                doc["peer_at_death"] = st["peer_at_death"]
+                doc["death_verdict"] = dead_verdict(st["peer_at_ask"], st["peer_at_death"])
         if (st.get("evidence") or {}).get("answer_visible_unswept"):
-            print("  an ANSWER is visible but unswept -- a sync/boot sweep will settle it")
-        print(f"  caller should: {st['caller_should']}")
-        return 0
+            doc["answer_visible_unswept"] = "an answer is visible but unswept -- a sync/boot sweep will settle it"
+        doc["caller_should"] = st["caller_should"]
+        return out.emit(doc, title=f"Ask {st['ask_id']}")  # the state and what to do: no hints
 
     # T209, found by a COLD-ENCOUNTER test rather than by review: 0 of 3 fresh readers
     # given only --help predicted what --bg with --get does, and TWO guessed the
@@ -4590,12 +4588,11 @@ def cmd_ask(args):
     # Silently picking a winner IS the defect; refusing makes the impossible state
     # unrepresentable instead of surprising.
     if getattr(args, "bg", False) and (getattr(args, "get", None) or getattr(args, "list", False)):
-        print(
+        return usage(
             "--bg SPAWNS a new ask; --get/--list READ existing ones. Pick one: run "
             "--bg first, then --get the handle it prints.",
-            file=sys.stderr,
+            f'{cli} ask --bg "<question>"',
         )
-        return 2
 
     # T205: --get / --list read the background register. Reads first, so a typo in a
     # handle never accidentally spends a model call.
@@ -4606,13 +4603,13 @@ def cmd_ask(args):
         if args.json:
             print(json.dumps(s, ensure_ascii=False, default=str))
             return 0
-        print(f"# ask {args.get} -- {s['state']}")
-        if s.get("answer"):
-            print(s["answer"])
-        if s.get("why"):
-            print(f"  why: {s['why']}", file=sys.stderr)
-        print(f"  {s['next']}", file=sys.stderr)
-        return 0
+        # `next` is the summary's own next step, in words; an unknown handle also gets the
+        # command that lists the real ones.
+        doc = {"handle": args.get, **{k: v for k, v in s.items() if k != "handle" and v is not None}}
+        hints = [f"{cli} ask --list"] if s["state"] == "UNKNOWN" else []
+        if s["state"] == "RUNNING":
+            hints = [f"{cli} ask --get {args.get}"]
+        return out.emit(doc, hints=hints, human=_human_ask_answer, title=f"Ask {args.get} · {s['state']}")
     if getattr(args, "list", False):
         from core.comm import ask_bg
 
@@ -4621,31 +4618,41 @@ def cmd_ask(args):
             print(json.dumps([ask_bg.summarize(r) for r in rows], ensure_ascii=False, default=str))
             return 0
         if not rows:
-            print("# no background asks recorded")
-            return 0
-        print(f"# background asks ({len(rows)}, newest first)")
+            return out.emit(
+                {"total": 0, "asks": "no background asks recorded"},
+                hints=[f'{cli} ask --bg "<question>"'],
+                title="Background asks",
+            )
+        table = []
         for r in rows:
             s = ask_bg.summarize(r)
-            print(f"  {s.get('handle', '?'):<10} {s['state']:<9} {str(r.get('prompt') or '')[:58]}")
-        return 0
+            table.append(
+                {
+                    "handle": s.get("handle") or r.get("handle"),
+                    "state": s["state"],
+                    "prompt": out.truncate(r.get("prompt"), 80)[0],
+                }
+            )
+        return out.emit(
+            {"total": len(table), "asks": table},  # newest first
+            hints=[f"{cli} ask --get {table[0]['handle']}"],
+            title=f"Background asks · {len(table)}, newest first",
+        )
 
     prompt = " ".join(args.text).strip() if args.text else ""
     if not prompt and args.prompt_file:
         try:
             prompt = Path(args.prompt_file).read_text(encoding="utf-8").strip()
         except OSError as e:
-            print(f"cannot read --prompt-file: {e}", file=sys.stderr)
-            return 2
+            return usage(f"cannot read --prompt-file: {e}")
 
     # T196c: `ask --peer <seat>` -- the durable route on the SAME verb. One command;
     # send + arm + poll underneath; the expectation outlives the interactive wait.
     if getattr(args, "peer", None):
         if getattr(args, "fan", 0) or getattr(args, "prompts_file", None):
-            print(
-                "--peer is ONE durable ask to ONE seat; --fan/--prompts-file are the stateless fan. Pick a transport.",
-                file=sys.stderr,
+            return usage(
+                "--peer is ONE durable ask to ONE seat; --fan/--prompts-file are the stateless fan. Pick a transport."
             )
-            return 2
         from core.comm.ask import ask_peer
 
         sender = args.as_agent or os.environ.get("AKASHIC_AGENT_ID") or "claude"
@@ -4663,63 +4670,60 @@ def cmd_ask(args):
             return 0 if (o.ok or o.partial) else 1
         d = o.detail or {}
         # T197: the verdict the caller used to pay 30 minutes and a forensic dig to
-        # learn. Printed FIRST, before any outcome branch, because when nobody was home
-        # it is the explanation for whatever follows -- and printed for every state,
-        # since "the peer was live and still said nothing" is the more alarming reading.
+        # learn. Carried for every state, before the outcome fields, because when nobody
+        # was home it is the explanation for whatever follows -- and "the peer was live and
+        # still said nothing" is the more alarming reading.
+        doc = {"peer": args.peer}
+        notes = []
         lz = d.get("launched") or {}
         if lz.get("action") == "launched":
-            print(f"-- LAUNCHED {lz.get('tag')} (pid {lz.get('pid')}) -- {lz.get('why')}", file=sys.stderr)
+            notes.append(f"launched {lz.get('tag')} (pid {lz.get('pid')}) -- {lz.get('why')}")
         elif lz.get("action") == "ambiguous":
-            print(
-                f"-- WHICH ONE? {lz.get('why')}\n   Re-run with the tag: "
-                f"--peer {(lz.get('candidates') or ['<tag>'])[0]}",
-                file=sys.stderr,
+            notes.append(
+                f"which one? {lz.get('why')} Re-run with the tag: --peer {(lz.get('candidates') or ['<tag>'])[0]}"
             )
         elif lz.get("action") in ("never_attended", "launch_refused", "no_tag"):
-            print(f"-- LAUNCH {str(lz.get('action')).upper()}: {lz.get('why')}", file=sys.stderr)
+            notes.append(f"launch {lz.get('action')}: {lz.get('why')}")
+        if d.get("peer_at_ask"):
+            doc["peer_at_ask"] = d["peer_at_ask"]
         if d.get("peer_at_ask") == "UNATTENDED":
-            print(
-                f"-- NOBODY HOME: '{args.peer}' has no attending seat "
-                f"({d.get('peer_at_ask_why')}). The ask is armed and durable, and "
-                f"redrives keep firing in case it comes up -- but nothing is reading "
-                f"it yet. Launch the seat, or use the stateless `ask` instead.",
-                file=sys.stderr,
+            notes.append(
+                f"nobody home: '{args.peer}' has no attending seat ({d.get('peer_at_ask_why')}). The ask is "
+                "armed and durable and redrives keep firing, but nothing is reading it yet. Launch the seat, "
+                "or use the stateless `ask` instead."
             )
         elif d.get("peer_at_ask") == "UNKNOWN":
-            print(
-                f"-- peer liveness UNREADABLE ({d.get('peer_at_ask_why')}) -- sending "
-                f"blind, which is the right call: a door that refuses to send because "
-                f"it cannot check is worse than one that sends.",
-                file=sys.stderr,
+            notes.append(
+                f"peer liveness unreadable ({d.get('peer_at_ask_why')}) -- sent blind, which is the right "
+                "call: a door that refuses to send because it cannot check is worse than one that sends."
             )
+        if notes:
+            doc["notes"] = notes
         # ORDER IS LOAD-BEARING (post-incident pin): ok means NOT-FAILED, so a
         # PARTIALLY has ok=True -- branch failed, then partial, and only then the
         # two clean-done states. The first cut tested `o.ok` for ECHO and rendered
         # a timeout as CLOSED.ECHO on the verb's first live use.
         if not o.ok:
-            print(f"ASK FAILED: {o.why}", file=sys.stderr)
+            details = dict(doc)
             if d.get("how_to_check"):
-                print(f"-- evidence: {d.get('how_to_check')}", file=sys.stderr)
-            return 1
+                details["evidence"] = d["how_to_check"]
+            return out.fail(str(o.why), code="ASK_FAILED", details=details)
+        doc.update(ask_id=d.get("ask_id"), state=d.get("state"))
         if o.partial:  # OPEN.* or UNKNOWN: a handle, not an error
-            print(f"-- {d.get('state')}: {o.why}", file=sys.stderr)
-            print(f"-- check: {d.get('how_to_check')}", file=sys.stderr)
-            return 0
+            doc.update(status="partial", why=o.why, how_to_check=d.get("how_to_check"))
+            hints = [f"{cli} ask --status {d.get('ask_id')}"] if d.get("ask_id") is not None else []
+            return out.emit(doc, hints=hints, human=_human_ask_answer, title=f"Ask {args.peer} · {d.get('state')}")
         if d.get("state") == "CLOSED.ANSWERED":
-            print(d.get("answer", ""))
-            print(
-                f"\n-- CLOSED.ANSWERED | {d.get('elapsed_s')}s | redrives {d.get('redrives')} | ask {d.get('ask_id')}",
-                file=sys.stderr,
-            )
-            return 0
+            doc.update(status="complete", elapsed_s=d.get("elapsed_s"), redrives=d.get("redrives"))
+            doc["answer"] = d.get("answer", "")
+            return out.emit(doc, human=_human_ask_answer, title=f"Ask {args.peer} · CLOSED.ANSWERED")
         # the only remaining clean done: CLOSED.ECHO
-        print(
-            f"-- CLOSED.ECHO: the referenced work is already done "
-            f"({d.get('settle')}) -- read the ledger, not the mailbox; "
-            f"ask {d.get('ask_id')}",
-            file=sys.stderr,
+        doc.update(
+            status="complete",
+            settle=d.get("settle"),
+            note="the referenced work is already done -- read the ledger, not the mailbox",
         )
-        return 0
+        return out.emit(doc, human=_human_ask_answer, title=f"Ask {args.peer} · CLOSED.ECHO")
 
     # T205: --bg -- spawn a DETACHED child running this same ask and hand back a handle.
     # The child is the same CLI with --json, so the background and foreground paths cannot
@@ -4746,8 +4750,7 @@ def cmd_ask(args):
                 pf.write_text(prompt, encoding="utf-8")
                 child += ["--prompt-file", str(pf)]
             except OSError as e:
-                print(f"could not stage the background prompt: {e}", file=sys.stderr)
-                return 1
+                return out.fail(f"could not stage the background prompt: {e}", code="BG_SPAWN_FAILED")
         try:
             fh = open(out_path, "w", encoding="utf-8")  # noqa: SIM115  # handle outlives this block: inherited by the Popen child, parent copy closed on GC
             flags = 0
@@ -4767,8 +4770,7 @@ def cmd_ask(args):
                 close_fds=True,
             )
         except Exception as e:
-            print(f"could not spawn background ask: {type(e).__name__}: {e}", file=sys.stderr)
-            return 1
+            return out.fail(f"could not spawn background ask: {type(e).__name__}: {e}", code="BG_SPAWN_FAILED")
         _bg.write_record(
             handle,
             {
@@ -4779,9 +4781,11 @@ def cmd_ask(args):
                 "with": list(getattr(args, "with_files", None) or []),
             },
         )
-        print(handle)
-        print(f"-- running in background (pid {proc.pid}) -- `{_cli()} ask --get {handle}`", file=sys.stderr)
-        return 0
+        return out.emit(
+            {"handle": handle, "state": "RUNNING", "pid": proc.pid},
+            hints=[f"{cli} ask --get {handle}"],
+            title="Ask running in the background",
+        )
 
     # The child half of --bg: run normally, then file the structured result under the
     # handle so `--get` finds it. Kept here (not a separate verb) so there is exactly one
@@ -4805,20 +4809,17 @@ def cmd_ask(args):
                 _lenses += _P.read_lens_file(args.lens_file)
             prompts = _P.build_prompts(_preset, _lenses)
         except (KeyError, ValueError, OSError) as e:
-            print(f"--preset: {e}", file=sys.stderr)
-            return 2
+            return usage(f"--preset: {e}")
 
     if prompts is None and getattr(args, "prompts_file", None):
         try:
             raw = Path(args.prompts_file).read_text(encoding="utf-8")
         except OSError as e:
-            print(f"cannot read --prompts-file: {e}", file=sys.stderr)
-            return 2
+            return usage(f"cannot read --prompts-file: {e}")
         try:
             prompts = load_fan_prompts(raw)
         except ValueError as e:
-            print(f"--prompts-file: {e}", file=sys.stderr)
-            return 2
+            return usage(f"--prompts-file: {e}")
     elif prompts is None and getattr(args, "fan", 0) and args.fan > 1:
         # `prompts is None` guard added with T256: without it, --preset built the branches and
         # then --fan silently replaced them with N copies of one prompt. An elif chain whose
@@ -4840,8 +4841,7 @@ def cmd_ask(args):
             has_evidence=bool(getattr(args, "with_files", None)),
         )
         if _gerr:
-            print(f"--geometry: {_gerr}", file=sys.stderr)
-            return 2
+            return usage(f"--geometry: {_gerr}")
 
     if prompts is not None:
         o = ask_many(
@@ -4889,24 +4889,27 @@ def cmd_ask(args):
         if args.json:
             print(json.dumps(_ask_payload(o), ensure_ascii=False, default=str))
             return 0 if o.ok else 1
-        for b in o.detail.get("branches", []):
-            mark = "ok" if b["ok"] and not b["partial"] else ("PARTIAL" if b["partial"] else "FAIL")
-            print(f"\n--- branch {b['i']} [{mark}] " + "-" * 46)
-            print(b["answer"] if b["answer"] else f"({b['why']})")
-        d = o.detail
-        spend = f"${d['usd']:.6f}" if d.get("usd") is not None else "unpriced"
-        print(
-            f"\n== fan: {d['n_ok']}/{d['n']} landed | {spend} | {d['elapsed_s']}s wall "
-            f"| {d['workers']} workers | {d.get('model')}",
-            file=sys.stderr,
-        )
+        d = o.detail or {}
+        rows = []
+        for b in d.get("branches", []):
+            status = "ok" if b["ok"] and not b["partial"] else ("partial" if b["partial"] else "failed")
+            rows.append({"i": b["i"], "status": status, "answer": b["answer"] or f"({b['why']})"})
+        doc = {
+            "status": "complete" if o.ok and not o.partial else ("partial" if o.ok else "failed"),
+            "n": d.get("n", len(rows)),
+            "landed": d.get("n_ok"),
+            "model": d.get("model"),
+            "usd": d.get("usd"),  # None: unpriced
+            "elapsed_s": d.get("elapsed_s"),
+            "workers": d.get("workers"),
+        }
         if o.why:
-            print(f"== {o.why}", file=sys.stderr)
+            doc["why"] = o.why
         # T218, fan path: one shared context feeds every branch, so a clip here silently
         # shapes N answers at once rather than one.
         # T242: minted at the boundary now, so this renders rather than recomputes.
-        for _clip in d.get("warnings") or []:
-            print(f"!! {_clip}", file=sys.stderr)
+        if d.get("warnings"):
+            doc["warnings"] = list(d["warnings"])
         # T182: "3/3 landed" alone lets one answer read as three findings. Say the agreement --
         # in three states, because a lexical metric genuinely cannot resolve paraphrase.
         # T237: the SCORE is mode-blind and stays exactly as calibrated; the NEXT MOVE is not.
@@ -4917,13 +4920,14 @@ def cmd_ask(args):
         # this file for them, and it cannot tell a live prescription from a comment about one.
         div, score = d.get("diversity"), d.get("lexical_agreement")
         if div:
-            shape = "same prompt" if d.get("homogeneous") else "different prompts"
-            print(
-                f"== diversity {div} (lexical {score:.2f} across {d['n_compared']} branches, "
-                f"{shape}; bands {ask_mod.DISTINCT_AT:.2f}..{ask_mod.COLLAPSE_AT:.2f})",
-                file=sys.stderr,
-            )
-            print(f"== {d.get('diversity_next') or ''}", file=sys.stderr)
+            doc["diversity"] = div
+            doc["lexical_agreement"] = round(float(score), 2) if score is not None else None
+            doc["compared"] = d.get("n_compared")
+            doc["prompts"] = "same" if d.get("homogeneous") else "different"
+            doc["bands"] = f"{ask_mod.DISTINCT_AT:.2f}..{ask_mod.COLLAPSE_AT:.2f}"
+            doc["next"] = d.get("diversity_next") or ""
+        doc["branches"] = rows
+        out.emit(doc, human=_human_ask_fan, title=f"Fan · {d.get('n_ok')}/{doc['n']} landed")
         return 0 if o.ok else 1
 
     o = ask_helper(
@@ -4947,38 +4951,74 @@ def cmd_ask(args):
         return 0 if bool(o) else 1
 
     if not o.ok:  # a real failure always says why -- the type guarantees it
-        print(f"ASK FAILED: {o.why}", file=sys.stderr)
-        return 1
+        return out.fail(str(o.why), code="ASK_FAILED", hints=_ask_fail_hints(o.why, cli))
 
-    print(o.detail.get("answer", ""))  # a PARTIAL still prints what it got (the T169 lesson)
     d = o.detail
+    # The answer is model text and is never cut: it is what the call paid for. Everything
+    # else is the metadata a caller weighs it by -- complete or partial, model, tokens, spend.
+    doc = {
+        "status": "partial" if o.partial else "complete",  # a PARTIAL still carries what it got (T169)
+        "model": d.get("model"),
+        "prompt_tokens": d.get("prompt_tokens", 0),
+        "completion_tokens": d.get("completion_tokens", 0),
+        "usd": d.get("usd"),  # None: unpriced
+        "elapsed_s": d.get("elapsed_s"),
+    }
+    if o.partial:
+        doc["why"] = o.line()
     # T261: the tier is part of the finding, rendered where the reader forms conclusions.
-    # Only the resident tier prints a line -- blind is the default and silence IS its label
-    # on the human surface (the JSON envelope stamps both).
+    # Only the resident tier is named -- blind is the default and silence IS its label on
+    # this surface (the JSON envelope stamps both).
     if d.get("tier") == "resident":
         pack = d.get("catchup") or []
-        print(
-            f"== tier: resident -- {d.get('designation')} | catch-up: "
-            + (", ".join(pack) if pack else "none relevant")
-            + (" [PACK READ FAILED -- answered on identity only]" if d.get("catchup_error") else ""),
-            file=sys.stderr,
-        )
+        doc["tier"] = "resident"
+        doc["designation"] = d.get("designation")
+        doc["catchup"] = list(pack) if pack else "none relevant"
+        if d.get("catchup_error"):
+            doc["catchup_error"] = "pack read failed -- answered on identity only"
     # T218: the helper was told in-band that its file was clipped; the caller was not, so an
-    # abstention about the WINDOW read as an abstention about the CODE. Printed AFTER the
+    # abstention about the WINDOW read as an abstention about the CODE. Carried beside the
     # answer, where the reader is when they form that conclusion.
     # T242: minted at the boundary now, so this renders rather than recomputes.
-    for _clip in d.get("warnings") or []:
-        print(f"\n!! {_clip}", file=sys.stderr)
-    usd = d.get("usd")
-    spend = f"${usd:.6f}" if usd is not None else "unpriced"
-    print(
-        f"-- {d.get('prompt_tokens', 0)}+{d.get('completion_tokens', 0)} tok | {spend}"
-        f" | {d.get('elapsed_s')}s | {d.get('model')}",
-        file=sys.stderr,
-    )
-    if o.partial:
-        print(f"-- {o.line()}", file=sys.stderr)
-    return 0
+    if d.get("warnings"):
+        doc["warnings"] = list(d["warnings"])
+    doc["answer"] = d.get("answer", "")
+    return out.emit(doc, human=_human_ask_answer, title="Answer")
+
+
+def _ask_fail_hints(why, cli: str) -> list[str]:
+    """The one failure whose fix is a command: an empty prompt. Every other `why` already says
+    what to do (a missing key names the file, a refused resident names the ceremony)."""
+    return [f'{cli} ask "<question>"'] if "empty prompt" in str(why or "") else []
+
+
+def _human_ask_answer(console, doc):
+    """Human view of one ask's answer (single, --peer, --get): any notice first, then the answer
+    as plain text, then what it cost and how it ended, warnings last where the reader is."""
+    from core.axi import out
+
+    for note in doc.get("notes") or []:
+        console.print(f"[yellow]! {out._esc(str(note))}[/]")
+    if doc.get("answer"):
+        console.print(str(doc["answer"]), markup=False, highlight=False)
+        console.print()
+    out.render_human(console, {k: v for k, v in doc.items() if k not in ("answer", "notes", "warnings")})
+    for w in doc.get("warnings") or []:
+        console.print(f"[yellow]!! {out._esc(str(w))}[/]")
+
+
+def _human_ask_fan(console, doc):
+    """Human view of a fan: each branch under its own rule, then the tally and the verdict."""
+    from core.axi import out
+
+    colour = {"ok": "green", "partial": "yellow", "failed": "red"}
+    for b in doc["branches"]:
+        console.rule(f"branch {b['i']} [{colour.get(b['status'], 'white')}]{b['status']}[/]", align="left")
+        console.print(str(b["answer"]), markup=False, highlight=False)
+    console.print()
+    out.render_human(console, {k: v for k, v in doc.items() if k not in ("branches", "warnings")})
+    for w in doc.get("warnings") or []:
+        console.print(f"[yellow]!! {out._esc(str(w))}[/]")
 
 
 def cmd_web(args):

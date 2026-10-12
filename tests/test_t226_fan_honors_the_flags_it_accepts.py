@@ -302,4 +302,4 @@ def test_the_flags_are_not_silently_swallowed_by_the_parser():
         timeout=120,
     )
     assert r.returncode == 2
-    assert "cannot read --prompts-file" in r.stderr
+    assert "cannot read --prompts-file" in r.stdout + r.stderr  # agent mode: on stdout, AXI usage error

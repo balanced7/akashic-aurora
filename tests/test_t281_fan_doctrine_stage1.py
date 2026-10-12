@@ -167,8 +167,9 @@ def test_p4b_cli_refuses_before_any_model_call(tmp_path):
         timeout=120,
     )
     assert r.returncode == 2, f"expected pre-call refusal, got rc={r.returncode}"
-    assert "--fan" in (r.stderr or ""), "the refusal must teach the missing flag"
-    assert "auth" not in (r.stderr or "").lower(), "refusal must precede any model call"
+    said = (r.stdout or "") + (r.stderr or "")  # agent mode puts the AXI usage error on stdout
+    assert "--fan" in said, "the refusal must teach the missing flag"
+    assert "auth" not in said.lower(), "refusal must precede any model call"
 
     r2 = subprocess.run(
         [sys.executable, str(ROOT / "agent_cli.py"), "ask", "--geometry", "backbrief", "smoke"],
@@ -178,7 +179,7 @@ def test_p4b_cli_refuses_before_any_model_call(tmp_path):
         timeout=120,
     )
     assert r2.returncode == 2, "backbrief without a pack refuses and names --with"
-    assert "--with" in (r2.stderr or ""), "backbrief without a pack refuses and names --with"
+    assert "--with" in (r2.stdout or "") + (r2.stderr or ""), "backbrief without a pack refuses and names --with"
 
 
 # ---------------------------------------------------------------- P5: the rubric at the door
