@@ -1,0 +1,322 @@
+{
+  "verb": "resident",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.686,
+    "correct": 24,
+    "asked": 35,
+    "output_tokens": 47,
+    "stdout_chars": 673,
+    "stdout_lines": 11,
+    "cost_usd": 0.0297,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "What is alice's callsign?",
+        "expected": "Lantern",
+        "answers": [
+          "Lantern",
+          "Jester",
+          "Jester",
+          "Jester",
+          "Jester"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Which role is alice operating as right now?",
+        "expected": "Jester",
+        "answers": [
+          "Jester",
+          "Jester",
+          "Jester (Red / ex7)",
+          "Jester",
+          "Jester (Red / ex7)"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Who ratified alice's callsign?",
+        "expected": "operator",
+        "answers": [
+          "operator",
+          "operator",
+          "operator",
+          "Operator",
+          "operator"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is carol's callsign ratified yet? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command would ratify carol's callsign? Give the command only.",
+        "expected": [
+          "resident ratify carol",
+          "--callsign ember"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many residents are on the roster?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the nomination succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "resident",
+          "show",
+          "alice"
+        ],
+        "exit": 0,
+        "stdout": "# scouts | blue | 7 - Lantern\n  earned by: alice_port_fix\n  ratified by operator\n  operating as: Jester (Red / ex7) [assigned] by bob\n"
+      },
+      "pending": {
+        "argv": [
+          "resident",
+          "show",
+          "carol"
+        ],
+        "exit": 0,
+        "stdout": "# carol has 1 nomination(s) on record but NONE ratified yet.\n  [nominated] 'Ember' by bob -- receipts: carol_note\n"
+      },
+      "roster": {
+        "argv": [
+          "resident",
+          "roster"
+        ],
+        "exit": 0,
+        "stdout": "# all residents: 2\n  scouts | blue | 7 - Lantern\n  carol\n"
+      },
+      "roles": {
+        "argv": [
+          "resident",
+          "roles"
+        ],
+        "exit": 0,
+        "stdout": "  alice 'Lantern' -- Jester (Red / ex7) [assigned] by bob\n"
+      },
+      "refused": {
+        "argv": [
+          "resident",
+          "nominate",
+          "dave",
+          "--callsign",
+          "Moss",
+          "--receipt",
+          "alice_port_fix",
+          "--by",
+          "bob"
+        ],
+        "exit": 1,
+        "stdout": "[resident] refused: receipt 'alice_port_fix' was authored by 'alice', not by the nominee 'dave'. Ceremony rule 2 -- the receipt must come from the RECIPIENT's archive. A receipt someone else wrote is a recollection about them, which is the [M]-tag error: it must mean 'I have the receipt', never 'I remember'.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 97,
+    "stdout_chars": 1145,
+    "stdout_lines": 33,
+    "cost_usd": 0.0348,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "What is alice's callsign?",
+        "expected": "Lantern",
+        "answers": [
+          "Lantern",
+          "Lantern",
+          "Lantern",
+          "Lantern",
+          "Lantern"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which role is alice operating as right now?",
+        "expected": "Jester",
+        "answers": [
+          "Jester",
+          "Jester",
+          "Jester",
+          "Jester",
+          "Jester"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who ratified alice's callsign?",
+        "expected": "operator",
+        "answers": [
+          "operator",
+          "operator",
+          "operator",
+          "operator",
+          "operator"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is carol's callsign ratified yet? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command would ratify carol's callsign? Give the command only.",
+        "expected": [
+          "resident ratify carol",
+          "--callsign ember"
+        ],
+        "answers": [
+          "uv run agent_cli.py resident ratify carol --callsign Ember --by <you>",
+          "uv run agent_cli.py resident ratify carol --callsign Ember --by <you>",
+          "uv run agent_cli.py resident ratify carol --callsign Ember --by <you>",
+          "uv run agent_cli.py resident ratify carol --callsign Ember --by <you>",
+          "uv run agent_cli.py resident ratify carol --callsign Ember --by <you>"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many residents are on the roster?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the nomination succeed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "show": {
+        "argv": [
+          "resident",
+          "show",
+          "alice"
+        ],
+        "exit": 0,
+        "stdout": "agent: alice\ncallsign: Lantern\ndesignation: scouts | blue | 7 - Lantern\nearned_by[1]: alice_port_fix\nratified_by: operator\noperating_as:\n  role: Jester\n  side: Red\n  exercise: ex7\n  provenance: assigned\n  by: bob\n"
+      },
+      "pending": {
+        "argv": [
+          "resident",
+          "show",
+          "carol"
+        ],
+        "exit": 0,
+        "stdout": "agent: carol\nratified: false\nnominations[1]{state,callsign,by,receipts}:\n  nominated,Ember,bob,carol_note\nhelp[1]:\n  uv run agent_cli.py resident ratify carol --callsign Ember --by <you>\n"
+      },
+      "roster": {
+        "argv": [
+          "resident",
+          "roster"
+        ],
+        "exit": 0,
+        "stdout": "total: 2\nresidents[2]{agent,callsign,designation,ratified}:\n  alice,Lantern,scouts | blue | 7 - Lantern,true\n  carol,Ember,null,false\nhelp[2]:\n  uv run agent_cli.py resident show <agent>\n  uv run agent_cli.py resident roles\n"
+      },
+      "roles": {
+        "argv": [
+          "resident",
+          "roles"
+        ],
+        "exit": 0,
+        "stdout": "total: 1\nassignments[1]{agent,role,side,exercise,provenance,by}:\n  alice,Jester,Red,ex7,assigned,bob\nhelp[1]:\n  uv run agent_cli.py resident show alice\n"
+      },
+      "refused": {
+        "argv": [
+          "resident",
+          "nominate",
+          "dave",
+          "--callsign",
+          "Moss",
+          "--receipt",
+          "alice_port_fix",
+          "--by",
+          "bob"
+        ],
+        "exit": 1,
+        "stdout": "error: \"refused: receipt 'alice_port_fix' was authored by 'alice', not by the nominee 'dave'. Ceremony rule 2 -- the receipt must come from the RECIPIENT's archive. A receipt someone else wrote is a recollection about them, which is the [M]-tag error: it must mean 'I have the receipt', never 'I remember'.\"\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py resident roster\n"
+      }
+    }
+  }
+}

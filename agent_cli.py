@@ -9622,9 +9622,20 @@ def cmd_resident(args):
     nonzero and print WHY, because a refusal that does not say why trains the reader to route
     around it.
     """
+    from core.axi import out
     from core.fleet import residents as R
 
-    sub = getattr(args, "sub", "") or "show"
+    cli = _cli()
+    # Bare `resident` used to crash (no subcommand, no handler); the roster is its content.
+    sub = getattr(args, "sub", "") or "roster"
+
+    def refused(e):  # the registry's WHY, verbatim; exit 1 as it always was
+        return out.fail(str(e), code="REFUSED", hints=[f"{cli} resident roster"])
+
+    def _role(job):
+        if not job:
+            return None
+        return {k: job.get(k) or None for k in ("role", "side", "exercise", "provenance", "by")}
 
     if sub == "nominate":
         try:
@@ -9640,30 +9651,33 @@ def cmd_resident(args):
                 note=args.note,
             )
         except ValueError as e:
-            print(f"[resident] {e}")
-            return 1
-        print(f"[resident] nominated {rec['agent_id']} as '{rec['callsign']}' by {rec['by']}")
-        print(f"           receipts: {', '.join(rec['receipts'])}")
-        print(
-            f"           NOT yet active -- rule 3, a human ratifies: "
-            f"{_cli()} resident ratify {rec['agent_id']} --callsign {rec['callsign']} --by <you>"
-        )
-        return 0
+            return refused(e)
+        doc = {
+            "nominated": rec["agent_id"],
+            "callsign": rec["callsign"],
+            "by": rec["by"],
+            "receipts": list(rec["receipts"]),
+            "state": "nominated: not active until a human ratifies (rule 3)",
+        }
+        hint = f"{cli} resident ratify {rec['agent_id']} --callsign {rec['callsign']} --by <you>"
+        return out.emit(doc, hints=[hint], title="Resident · nominated")
 
     if sub == "ratify":
         try:
             rec = R.ratify(nominee=args.nominee, callsign=args.callsign, by=args.by)
         except ValueError as e:
-            print(f"[resident] {e}")
-            return 1
-        print(f"[resident] RATIFIED: {R.designation(rec['agent_id'])}")
+            return refused(e)
         # The ratifier must SEE what they signed -- with two drafts on one callsign, the
         # receipts are the only thing that distinguishes them (T258 review, point 4).
-        print(f"           receipts confirmed: {', '.join(rec.get('receipts') or [])}")
+        doc = {
+            "ratified": rec["agent_id"],
+            "designation": R.designation(rec["agent_id"]),
+            "receipts": list(rec.get("receipts") or []),
+        }
         prior = (R.get(rec["agent_id"]) or {}).get("formerly") or []
         if prior:
-            print(f"           formerly: {', '.join(prior)}  (superseded, never deleted)")
-        return 0
+            doc["formerly"] = f"{', '.join(prior)} (superseded, never deleted)"
+        return out.emit(doc, title="Resident · ratified")
 
     if sub == "place":
         try:
@@ -9676,50 +9690,57 @@ def cmd_resident(args):
                 by=args.by,
             )
         except ValueError as e:
-            print(f"[resident] {e}")
-            return 1
-        print(f"[resident] POSTED: {R.designation(rec['agent_id'])}")
+            return refused(e)
+        doc = {"posted": rec["agent_id"], "designation": R.designation(rec["agent_id"])}
         prior = R.placement_history(rec["agent_id"])[:-1]
         if prior:
             p = prior[-1]
-            print(
-                f"           previously: {p.get('family') or '-'} / {p.get('team') or '-'}"
-                f" / {p.get('number')}  (kept -- postings append, never overwrite)"
+            doc["previously"] = (
+                f"{p.get('family') or '-'} / {p.get('team') or '-'} / {p.get('number')}"
+                " (kept: postings append, never overwrite)"
             )
-        return 0
+        return out.emit(doc, title="Resident · posted")
 
     if sub == "roster":
         fam = getattr(args, "family", "") or ""
         team = getattr(args, "team", "") or ""
+        doc: dict = {}
         if fam:
             members = R.family_members(fam)
-            print(f"# family {fam}: {len(members)} member(s)")
+            doc["family"] = fam
         elif team:
             members = R.family_members("") or R.team_members(team)
-            print(f"# team {team}: {len(members)} member(s)")
+            doc["team"] = team
         else:
             members = list(R._store().lrange("residents:all", 0, -1) or [])
-            print(f"# all residents: {len(members)}")
-        if not members:
-            print("  (none -- an empty family is empty, never everyone)")
+        rows = []
         for a in members:
-            d = R.designation(a)
-            print(f"  {d or a}")
-        return 0
+            rec = R.get(a) or {}
+            # Not ratified yet: the callsign it was nominated for, so the row says what waits.
+            proposed = rec or (R.history(a) or [{}])[-1]
+            rows.append(
+                {
+                    "agent": a,
+                    "callsign": proposed.get("callsign") or None,
+                    "designation": R.designation(a) or None,
+                    "ratified": bool(rec),
+                }
+            )
+        doc["total"] = len(rows)
+        doc["residents"] = rows
+        if not rows:  # an empty family is empty, never everyone
+            hint = f"{cli} resident nominate <agent> --callsign <name> --receipt <their lesson> --by <you>"
+            return out.emit(doc, hints=[hint], title="Residents")
+        return out.emit(
+            doc, hints=[f"{cli} resident show <agent>", f"{cli} resident roles"], title=f"Residents · {len(rows)}"
+        )
 
     if sub == "assign":
         try:
             rec = R.assign(agent=args.nominee, role=args.role, side=args.side, exercise=args.exercise, by=args.by)
         except ValueError as e:
-            print(f"[resident] {e}")
-            return 1
-        where = " / ".join(p for p in (rec.get("side"), rec.get("exercise")) if p)
-        print(
-            f"[resident] {rec['agent_id']} now operating as {rec['role']}"
-            + (f" ({where})" if where else "")
-            + f" -- {rec['provenance']} by {rec['by']}"
-        )
-        return 0
+            return refused(e)
+        return out.emit({"agent": rec["agent_id"], **_role(rec)}, title="Resident · assigned")
 
     if sub == "roles":
         hits = R.roles(
@@ -9729,20 +9750,18 @@ def cmd_resident(args):
             exercise=(args.exercise or None),
             provenance=(args.provenance or None),
         )
-        if not hits:
-            print("# no assignments match")
-            return 0
-        for h in hits:
-            where = " / ".join(p for p in (h.get("side"), h.get("exercise")) if p)
-            cs = (R.get(h["agent_id"]) or {}).get("callsign") or ""
-            print(
-                f"  {h['agent_id']}"
-                + (f" '{cs}'" if cs else "")
-                + f" -- {h['role']}"
-                + (f" ({where})" if where else "")
-                + f" [{h.get('provenance')}] by {h.get('by')}"
+        rows = [{"agent": h["agent_id"], **_role(h)} for h in hits]
+        if not rows:
+            return out.emit(
+                {"total": 0, "assignments": []},
+                hints=[f"{cli} resident assign <agent> --role <role> --by <you>"],
+                title="Resident roles",
             )
-        return 0
+        return out.emit(
+            {"total": len(rows), "assignments": rows},
+            hints=[f"{cli} resident show {rows[0]['agent'] if len(rows) == 1 else '<agent>'}"],
+            title=f"Resident roles · {len(rows)}",
+        )
 
     # T290: the verdict planes' door. Filing is mostly programmatic (RC3 wires the ask door);
     # adjudication is the OPERATOR's verb; calibration renders honest counts and nothing else.
@@ -9760,15 +9779,13 @@ def cmd_resident(args):
                 cold_twin_of=args.cold_twin_of,
             )
         except ValueError as e:
-            print(f"[resident] {e}")
-            return 1
-        twin = f" (cold twin of {rec['cold_twin_of']})" if rec.get("cold_twin_of") else ""
-        print(
-            f"[resident] verdict filed: {rec['agent_id']} on ask {rec['ask_id']} "
-            f"[{rec['question_shape']}]{twin} -- unadjudicated until an operator rules: "
-            f"{_cli()} resident adjudicate {rec['ask_id']} --outcome ... --by <operator>"
-        )
-        return 0
+            return refused(e)
+        doc = {"filed": rec["agent_id"], "ask_id": rec["ask_id"], "shape": rec["question_shape"]}
+        if rec.get("cold_twin_of"):
+            doc["cold_twin_of"] = rec["cold_twin_of"]
+        doc["state"] = "unadjudicated until an operator rules"
+        hint = f"{cli} resident adjudicate {rec['ask_id']} --outcome confirmed|refuted --by <operator>"
+        return out.emit(doc, hints=[hint], title="Resident · verdict filed")
 
     if sub == "adjudicate":
         from core.fleet import verdicts as VD
@@ -9776,14 +9793,11 @@ def cmd_resident(args):
         try:
             rec = VD.adjudicate(ask_id=args.ask_id, outcome=args.outcome, by=args.by, receipt=args.receipt)
         except ValueError as e:
-            print(f"[resident] {e}")
-            return 1
-        print(
-            f"[resident] ADJUDICATED: ask {rec['ask_id']} -> {rec['outcome']} by {rec['by']}"
-            + (f" ({rec['receipt']})" if rec.get("receipt") else "")
-        )
-        print(f"           calibration moved: {_cli()} resident calibration")
-        return 0
+            return refused(e)
+        doc = {"adjudicated": rec["ask_id"], "outcome": rec["outcome"], "by": rec["by"]}
+        if rec.get("receipt"):
+            doc["receipt"] = rec["receipt"]
+        return out.emit(doc, hints=[f"{cli} resident calibration"], title="Resident · adjudicated")
 
     if sub == "calibration":
         from core.fleet import verdicts as VD
@@ -9792,72 +9806,79 @@ def cmd_resident(args):
             shape=(getattr(args, "shape", "") or None), resident=(getattr(args, "resident", "") or None)
         )
         if getattr(args, "json", False):
-            out = {
+            payload = {
                 "shapes": cal["shapes"],
                 "cells": [{"shape": k[0], "agent": k[1], **v} for k, v in cal["cells"].items()],
             }
-            print(json.dumps(out, ensure_ascii=False))
+            print(json.dumps(payload, ensure_ascii=False))
             return 0
+        counts = ("filed", "adjudicated", "confirmed", "refuted")
         if not cal["cells"]:
-            print(
-                "# no verdicts filed yet -- calibration has no data. Counts appear as "
-                "resident-tier asks file verdicts (T290); rates wait for RC2's n-floors."
-            )
-            return 0
-        print(
-            "# calibration -- COUNTS ONLY (rates land with RC2's n-floors; an "
-            "unadjudicated verdict is visibly unadjudicated, never a success)"
-        )
-        for shp, pool in sorted(cal["shapes"].items()):
-            print(
-                f"  {shp}: filed {pool['filed']} | adjudicated {pool['adjudicated']} "
-                f"| confirmed {pool['confirmed']} | refuted {pool['refuted']}"
-            )
-            for (s, agent), cell in sorted(cal["cells"].items()):
-                if s != shp:
-                    continue
-                print(
-                    f"    {agent}: filed {cell['filed']} | adjudicated "
-                    f"{cell['adjudicated']} | confirmed {cell['confirmed']} | "
-                    f"refuted {cell['refuted']}"
-                )
-        return 0
+            doc = {
+                "filed": 0,
+                "note": "no verdicts filed yet: counts appear as resident-tier asks file verdicts (T290); "
+                "rates wait for RC2's n-floors",
+            }
+            return out.emit(doc, title="Calibration")
+        doc = {
+            "note": "counts only: rates land with RC2's n-floors; an unadjudicated verdict is never a success",
+            "shapes": [{"shape": s, **{c: p[c] for c in counts}} for s, p in sorted(cal["shapes"].items())],
+            "by_agent": [
+                {"shape": s, "agent": a, **{c: cell[c] for c in counts}}
+                for (s, a), cell in sorted(cal["cells"].items())
+            ],
+        }
+        return out.emit(doc, title="Calibration")
 
     # show
     who = getattr(args, "nominee", "") or ""
     if not who:
-        print(f"usage: {_cli()} resident show <agent>")
-        return 2
+        return out.fail(
+            "show needs an agent",
+            code="USAGE",
+            hints=[f"{cli} resident show <agent>", f"{cli} resident roster"],
+            exit_code=out.EXIT_USAGE,
+        )
     rec = R.get(who)
     if not rec:
         hist = R.history(who)
         if hist:
-            print(f"# {who} has {len(hist)} nomination(s) on record but NONE ratified yet.")
-            for h in hist:
-                print(
-                    f"  [{h.get('state')}] '{h.get('callsign')}' by {h.get('by')} "
-                    f"-- receipts: {', '.join(h.get('receipts') or [])}"
-                )
-        else:
-            print(
-                f"# {who} is not a resident (no designation). That is the ordinary state for most seats, not an error."
-            )
-        return 0
-    print(f"# {R.designation(who)}")
-    print(f"  earned by: {', '.join(rec.get('receipts') or [])}")
+            doc = {
+                "agent": who,
+                "ratified": False,
+                "nominations": [
+                    {
+                        "state": h.get("state"),
+                        "callsign": h.get("callsign"),
+                        "by": h.get("by"),
+                        "receipts": ", ".join(h.get("receipts") or []),
+                    }
+                    for h in hist
+                ],
+            }
+            last = hist[-1]
+            hint = f"{cli} resident ratify {who} --callsign {last.get('callsign')} --by <you>"
+            return out.emit(doc, hints=[hint], title=f"Resident · {who}")
+        doc = {
+            "agent": who,
+            "resident": False,
+            "note": "no designation: the ordinary state for most seats, not an error",
+        }
+        return out.emit(doc, title=f"Resident · {who}")
+    doc = {
+        "agent": who,
+        "callsign": rec.get("callsign"),
+        "designation": R.designation(who),
+        "earned_by": list(rec.get("receipts") or []),
+    }
     if rec.get("formerly"):
-        print(f"  formerly:  {', '.join(rec['formerly'])}")
-    print(f"  ratified by {rec.get('ratified_by') or '?'}")
+        doc["formerly"] = list(rec["formerly"])
+    doc["ratified_by"] = rec.get("ratified_by") or None
     # T259: the situational plane, rendered beside the permanent one -- never merged into it.
     job = R.current_role(who)
     if job:
-        where = " / ".join(p for p in (job.get("side"), job.get("exercise")) if p)
-        print(
-            f"  operating as: {job['role']}"
-            + (f" ({where})" if where else "")
-            + f" [{job.get('provenance')}] by {job.get('by')}"
-        )
-    return 0
+        doc["operating_as"] = _role(job)
+    return out.emit(doc, title=f"Resident · {R.designation(who)}")  # a detail view answers itself
 
 
 def cmd_scout(args):
@@ -13864,6 +13885,7 @@ def build_parser():
 
     rsp = sub.add_parser("resident", help="callsign ceremony: nominate / ratify / show a resident's designation")
     rsps = rsp.add_subparsers(dest="sub")
+    rsp.set_defaults(fn=cmd_resident)  # bare `resident`: the roster, not a traceback
     rnom = rsps.add_parser("nominate", help="propose a callsign for a PEER (never yourself)")
     rnom.add_argument("nominee", help="the agent being named (may not be you)")
     rnom.add_argument("--callsign", required=True, help="the proposed callsign")
