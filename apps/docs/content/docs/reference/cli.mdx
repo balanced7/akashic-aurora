@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 74 converted to agent and human output.
+121 verbs; 75 converted to agent and human output.
 
 ## `alias`
 
@@ -1214,7 +1214,10 @@ help[1]:
 | | |
 |---|---|
 | Does | meta-harness graders (task 05): grade runs, compare candidates, power, calibration |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 72% before, 100% after |
+| Output tokens | 64 before, 101 after (+58%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/grade.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1231,6 +1234,17 @@ help[1]:
 | `--judge-call` |   |   | label: the judge's call on the same item |
 | `--ref` |   |   | label: what was judged (run or pair) |
 | `--json` |   |   |   |
+
+Agent output of `aurora grade power --scenarios-n 40 --trials 3 --delta 0.15` on the bench data:
+
+```text
+scenarios: 40
+trials: 3
+target_power: 0.8
+min_detectable_change_points: 17.5
+change_points: 15
+power_for_change: 0.66
+```
 
 ## `graduate`
 

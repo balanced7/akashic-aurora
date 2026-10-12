@@ -1,0 +1,266 @@
+{
+  "verb": "grade",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.72,
+    "correct": 18,
+    "asked": 25,
+    "output_tokens": 64,
+    "stdout_chars": 328,
+    "stdout_lines": 5,
+    "cost_usd": 0.0206,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "What is the smallest pass-rate change, in percentage points, that this design detects at 80% power? Give the number only.",
+        "expected": 17.5,
+        "answers": [
+          "17.5",
+          "17.5",
+          "17.5",
+          "17.5",
+          "17.5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many person labels exist for the quality grader?",
+        "expected": 2,
+        "answers": [
+          "UNKNOWN",
+          "2",
+          "UNKNOWN",
+          "2",
+          "2"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Is the quality grader calibrated, so its verdicts count? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many runs were graded?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the overall (Pareto) verdict of opus-high against baseline?",
+        "expected": "no difference shown",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "power": {
+        "argv": [
+          "grade",
+          "power",
+          "--scenarios-n",
+          "40",
+          "--trials",
+          "3",
+          "--delta",
+          "0.15"
+        ],
+        "exit": 0,
+        "stdout": "40 scenarios x 3 trials: detects a pass-rate change of 17.5 points at 80% power; power for 15 points: 0.66\n"
+      },
+      "agreement": {
+        "argv": [
+          "grade",
+          "agreement"
+        ],
+        "exit": 0,
+        "stdout": "{\"criterion\": \"quality\", \"n\": 2, \"agreement\": 0.5, \"calibrated\": false}\n{\"criterion\": \"process\", \"n\": 1, \"agreement\": 1.0, \"calibrated\": false}\n"
+      },
+      "run_none": {
+        "argv": [
+          "grade",
+          "run",
+          "--candidate",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 0,
+        "stdout": "no runs to grade\n"
+      },
+      "compare": {
+        "argv": [
+          "grade",
+          "compare",
+          "--candidate",
+          "opus-high",
+          "--against",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 0,
+        "stdout": "opus-high vs baseline on 0 scenario(s): no difference shown\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 101,
+    "stdout_chars": 691,
+    "stdout_lines": 27,
+    "cost_usd": 0.0236,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "What is the smallest pass-rate change, in percentage points, that this design detects at 80% power? Give the number only.",
+        "expected": 17.5,
+        "answers": [
+          "17.5",
+          "17.5",
+          "17.5",
+          "17.5",
+          "17.5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many person labels exist for the quality grader?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the quality grader calibrated, so its verdicts count? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many runs were graded?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "The output says `graded: 0` and `runs: []`, so no runs were graded.\n\n0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the overall (Pareto) verdict of opus-high against baseline?",
+        "expected": "no difference shown",
+        "answers": [
+          "no difference shown",
+          "no difference shown",
+          "no difference shown",
+          "no difference shown",
+          "no difference shown"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "power": {
+        "argv": [
+          "grade",
+          "power",
+          "--scenarios-n",
+          "40",
+          "--trials",
+          "3",
+          "--delta",
+          "0.15"
+        ],
+        "exit": 0,
+        "stdout": "scenarios: 40\ntrials: 3\ntarget_power: 0.8\nmin_detectable_change_points: 17.5\nchange_points: 15\npower_for_change: 0.66\n"
+      },
+      "agreement": {
+        "argv": [
+          "grade",
+          "agreement"
+        ],
+        "exit": 0,
+        "stdout": "graders[2]{criterion,n,agreement,calibrated}:\n  quality,2,0.5,false\n  process,1,1,false\nneeds: 10+ labels at 80%+ agreement with a person\nhelp[1]:\n  uv run agent_cli.py grade label --criterion quality --person <call> --judge-call <call>\n"
+      },
+      "run_none": {
+        "argv": [
+          "grade",
+          "run",
+          "--candidate",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 0,
+        "stdout": "candidate: baseline\nscenarios[1]: T1-abc\ngraded: 0\nruns: []\nhelp[1]:\n  uv run agent_cli.py replay run --candidate baseline --scenario T1-abc --budget-usd 2\n"
+      },
+      "compare": {
+        "argv": [
+          "grade",
+          "compare",
+          "--candidate",
+          "opus-high",
+          "--against",
+          "baseline",
+          "--scenario",
+          "T1-abc"
+        ],
+        "exit": 0,
+        "stdout": "b: opus-high\na: baseline\nscenarios: 0\npareto: no difference shown\nwins: []\nlosses: []\ncriteria: []\nhelp[1]:\n  uv run agent_cli.py grade run --candidate opus-high --scenario T1-abc\n"
+      }
+    }
+  }
+}

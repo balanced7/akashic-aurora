@@ -284,44 +284,79 @@ def replay_main(args) -> int:
     return _usage(f"unknown action {a!r}", f"{cli} replay --help")
 
 
+def _verdict_rows(v: dict[str, Any]) -> list[dict[str, Any]]:
+    """One row per criterion of a graders.compare() verdict: A, B, effect and its interval."""
+    return [
+        {
+            "criterion": k,
+            "a": r["a"],
+            "b": r["b"],
+            "effect": r["effect"],
+            "ci": f"{r['ci'][0]}..{r['ci'][1]}",
+            "verdict": r["verdict"],
+        }
+        for k, r in v["criteria"].items()
+    ]
+
+
 def grade_main(args) -> int:
     """`grade <action>` -- graders and verdicts (task 05)."""
     from core.metaharness import graders, replay, stats
 
-    a = args.action
+    a, cli = args.action, _cli()
     judge = graders.default_judge if args.judge else None
     if a == "power":
         mde = stats.min_detectable(args.scenarios_n, args.trials)
         pw = stats.power(args.scenarios_n, args.trials, args.delta) if args.delta else None
-        _print(
-            {"min_detectable": mde, "power": pw},
-            args.json,
-            f"{args.scenarios_n} scenarios x {args.trials} trials: detects a pass-rate change of "
-            f"{mde * 100:.1f} points at 80% power"
-            + (f"; power for {args.delta * 100:.0f} points: {pw:.2f}" if pw is not None else ""),
-        )
-        return 0
+        if args.json:
+            _json({"min_detectable": mde, "power": pw})
+            return 0
+        doc: dict[str, Any] = {
+            "scenarios": args.scenarios_n,
+            "trials": args.trials,
+            # The smallest pass-rate change, in points, this design detects at the target power.
+            "target_power": 0.8,
+            "min_detectable_change_points": round(mde * 100, 1),
+        }
+        if pw is not None:
+            doc.update(change_points=round(args.delta * 100), power_for_change=round(pw, 2))
+        return out.emit(doc, title="Grading power")  # a calculation answers itself
     if a == "label":
         if not (args.criterion and args.person and args.judge_call):
-            print("ERROR: `grade label` needs --criterion, --person and --judge-call")
-            return 2
+            return _usage(
+                "`grade label` needs --criterion, --person and --judge-call",
+                f"{cli} grade label --criterion quality --person <call> --judge-call <call> --ref <run>",
+            )
         graders.add_label(args.criterion, args.person, args.judge_call, ref=args.ref)
-        _print(graders.agreement(args.criterion), args.json, json.dumps(graders.agreement(args.criterion)))
-        return 0
+        ag = graders.agreement(args.criterion)
+        if args.json:
+            _json(ag)
+            return 0
+        return out.emit(
+            {**ag, "needs": _calibration_bar(graders)}, hints=[f"{cli} grade agreement"], title="Grader label"
+        )
     if a == "agreement":
         rows = [graders.agreement(c) for c in ("quality", "process")]
-        _print(rows, args.json, "\n".join(json.dumps(r) for r in rows))
-        return 0
+        if args.json:
+            _json(rows)
+            return 0
+        return out.emit(
+            {"graders": rows, "needs": _calibration_bar(graders)},
+            hints=[f"{cli} grade label --criterion quality --person <call> --judge-call <call>"],
+            title="Model grader calibration",
+        )
     scenarios = args.scenario or []
     if a == "run":
         if not (args.candidate and scenarios):
-            print("ERROR: `grade run` needs --candidate and --scenario")
-            return 2
-        out = []
+            return _usage(
+                "`grade run` needs --candidate and --scenario",
+                f"{cli} grade run --candidate {args.candidate or '<name>'} --scenario <id>",
+            )
+        graded = []
         for s in scenarios:
             for rd in replay.runs_for(args.candidate, s):
                 g = graders.grade_run(rd, s, judge=judge)
-                out.append(
+                graded.append(
                     {
                         "run": str(rd),
                         **{
@@ -331,26 +366,62 @@ def grade_main(args) -> int:
                         },
                     }
                 )
-        _print(out, args.json, "\n".join(json.dumps(r) for r in out) or "no runs to grade")
-        return 0
+        if args.json:
+            _json(graded)
+            return 0
+        doc = {"candidate": args.candidate, "scenarios": scenarios, "graded": len(graded), "runs": graded}
+        if not graded:  # AXI section 5: nothing to grade is said outright, with how to make runs
+            return out.emit(
+                doc,
+                hints=[f"{cli} replay run --candidate {args.candidate} --scenario {scenarios[0]} --budget-usd 2"],
+                title="Grade",
+            )
+        hint = f"{cli} grade compare --candidate {args.candidate} --against baseline" + "".join(
+            f" --scenario {s}" for s in scenarios
+        )
+        return out.emit(doc, hints=[hint], title="Grade")
     if a in ("compare", "noise"):
         if not (args.candidate and args.against and scenarios):
-            print(f"ERROR: `grade {a}` needs --candidate B --against A and --scenario ...")
-            return 2
+            return _usage(
+                f"`grade {a}` needs --candidate B --against A and --scenario ...",
+                f"{cli} grade {a} --candidate <B> --against <A> --scenario <id>",
+            )
         if a == "noise":
             r = graders.noise_check(args.against, args.candidate, scenarios)
-            _print(r, args.json, ("OK: no criterion beats its own rerun" if r["ok"] else f"NOISY: {r['spurious']}"))
+            if args.json:
+                _json(r)
+            else:
+                # ok: no criterion beats its own rerun; otherwise the criteria that did, spuriously.
+                out.emit({"ok": r["ok"], "spurious": r["spurious"]}, title="Noise check")
             return 0 if r["ok"] else 1
         v = graders.compare(args.against, args.candidate, scenarios)
-        lines = [f"{v['b']} vs {v['a']} on {len(v['scenarios'])} scenario(s): {v['pareto']}"]
-        lines += [
-            f"  {k:<14} {r['a']:>10} -> {r['b']:<10} effect {r['effect']:+.4f} CI {r['ci']}  {r['verdict']}"
-            for k, r in v["criteria"].items()
-        ]
-        _print(v, args.json, "\n".join(lines))
-        return 0
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+        if args.json:
+            _json(v)
+            return 0
+        doc = {
+            "b": v["b"],
+            "a": v["a"],
+            "scenarios": len(v["scenarios"]),
+            "pareto": v["pareto"],
+            "wins": v["wins"],
+            "losses": v["losses"],
+            "criteria": _verdict_rows(v),
+        }
+        scen = "".join(f" --scenario {s}" for s in scenarios)
+        # A verdict over graded runs goes to a person next; with no graded runs there is nothing
+        # to review yet, so the next step is grading.
+        nxt = (
+            f"{cli} review add --candidate {args.candidate} --against {args.against}{scen}"
+            if v["scenarios"]
+            else f"{cli} grade run --candidate {args.candidate}{scen}"
+        )
+        return out.emit(doc, hints=[nxt], title=f"Verdict · {v['b']} vs {v['a']}")
+    return _usage(f"unknown action {a!r}", f"{cli} grade --help")
+
+
+def _calibration_bar(graders) -> str:
+    """When a model grader's verdicts count (graders.agreement's `calibrated`)."""
+    return f"{graders.CALIBRATION_MIN}+ labels at {graders.CALIBRATION_BAR:.0%}+ agreement with a person"
 
 
 def review_main(args) -> int:
