@@ -1,0 +1,296 @@
+{
+  "verb": "shadow",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.833,
+    "correct": 25,
+    "asked": 30,
+    "output_tokens": 317,
+    "stdout_chars": 1999,
+    "stdout_lines": 25,
+    "cost_usd": 0.0289,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Is the subject allowed to perform this action? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which capability is missing?",
+        "expected": [
+          "bus.send"
+        ],
+        "answers": [
+          "execution token enforcement",
+          "execution token enforcement",
+          "execution token enforcement",
+          "an enforced execution token",
+          "execution token enforcement"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What risk level does the preview assign?",
+        "expected": "elevated",
+        "answers": [
+          "elevated",
+          "elevated",
+          "elevated",
+          "elevated",
+          "elevated"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many proposed effects are listed?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was anything actually sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which actions are supported? List them separated by commas.",
+        "expected": [
+          "toolbox:bifrost_send",
+          "toolbox:bifrost_nudge",
+          "toolbox:bifrost_steer"
+        ],
+        "answers": [
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "send": {
+        "argv": [
+          "shadow",
+          "toolbox:bifrost_send",
+          "--agent",
+          "bench",
+          "--args-json",
+          "{\"to\": \"kimi\", \"kind\": \"request\", \"text\": \"please rerun the suite\"}"
+        ],
+        "exit": 0,
+        "stdout": "# shadow subject=bench action=toolbox:bifrost_send fingerprint=14410f354563\n  target seat:kimi (addressed as 'kimi')\n  fidelity message:request | authority=refused allowed=False\n  risk elevated | commit=required_unenforced\n  cost chars=22 rough_tokens=6 recipient_turns=[0, 1]\n  -> [expected] bifrost.message.enqueue: lane/legacy delivery is appended\n  -> [expected] wake.bell.publish: the recipient doorbell is rung\n  -> [expected] sender.presence.refresh: sender presence is refreshed\n  -> [conditional] recipient.turn.wake: an armed watcher may spend a recipient model turn\n  preview effects=none\n  blind: preview does not prove bus availability, recipient attendance, or eventual adoption; commit is disclosed but no execution token is enforced yet; token estimate covers message content only, not prompt or tool overhead\n"
+      },
+      "nudge": {
+        "argv": [
+          "shadow",
+          "toolbox:bifrost_nudge",
+          "--agent",
+          "bench",
+          "--args-json",
+          "{\"to\": \"kimi\", \"text\": \"wake\"}"
+        ],
+        "exit": 0,
+        "stdout": "# shadow subject=bench action=toolbox:bifrost_nudge fingerprint=a853aa659221\n  target seat:kimi (addressed as 'kimi')\n  fidelity interrupt | authority=refused allowed=False\n  risk high | commit=required_unenforced\n  cost chars=4 rough_tokens=1 recipient_turns=[0, 1]\n  -> [expected] peer.control.interrupt_flag: a TTL-bounded barge-in flag is set\n  -> [expected] bifrost.message.enqueue: lane/legacy delivery is appended\n  -> [expected] wake.bell.publish: the recipient doorbell is rung\n  -> [expected] sender.presence.refresh: sender presence is refreshed\n  -> [conditional] recipient.turn.interrupt: a cooperating runner stops at its next round boundary\n  preview effects=none\n  blind: preview does not prove bus availability, recipient attendance, or eventual adoption; commit is disclosed but no execution token is enforced yet; token estimate covers message content only, not prompt or tool overhead\n"
+      },
+      "unsupported": {
+        "argv": [
+          "shadow",
+          "toolbox:delete_everything",
+          "--agent",
+          "bench"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: unsupported intent-shadow action 'toolbox:delete_everything'; supported: toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer\n"
+      },
+      "bad_json": {
+        "argv": [
+          "shadow",
+          "toolbox:bifrost_send",
+          "--agent",
+          "bench",
+          "--args-json",
+          "{bad"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: --args-json must be one JSON object (Expecting property name enclosed in double quotes: line 1 column 2 (char 1))\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 359,
+    "stdout_chars": 2427,
+    "stdout_lines": 51,
+    "cost_usd": 0.0296,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Is the subject allowed to perform this action? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which capability is missing?",
+        "expected": [
+          "bus.send"
+        ],
+        "answers": [
+          "bus.send",
+          "bus.send",
+          "bus.send",
+          "bus.send",
+          "bus.send"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What risk level does the preview assign?",
+        "expected": "elevated",
+        "answers": [
+          "elevated",
+          "elevated",
+          "elevated",
+          "elevated",
+          "elevated"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many proposed effects are listed?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was anything actually sent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which actions are supported? List them separated by commas.",
+        "expected": [
+          "toolbox:bifrost_send",
+          "toolbox:bifrost_nudge",
+          "toolbox:bifrost_steer"
+        ],
+        "answers": [
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer",
+          "toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "send": {
+        "argv": [
+          "shadow",
+          "toolbox:bifrost_send",
+          "--agent",
+          "bench",
+          "--args-json",
+          "{\"to\": \"kimi\", \"kind\": \"request\", \"text\": \"please rerun the suite\"}"
+        ],
+        "exit": 0,
+        "stdout": "subject: bench\naction: \"toolbox:bifrost_send\"\ntarget: \"seat:kimi\"\nfidelity: \"message:request\"\nallowed: no\nauthority: refused\nmissing_caps[1]: bus.send\nrisk: elevated\ncommit: required_unenforced\nreversibility: irreversible_after_observation\ncontent_chars: 22\nrough_tokens: 6\nrecipient_turns: 0-1\neffects[4]{certainty,effect,claim}:\n  expected,bifrost.message.enqueue,lane/legacy delivery is appended\n  expected,wake.bell.publish,the recipient doorbell is rung\n  expected,sender.presence.refresh,sender presence is refreshed\n  conditional,recipient.turn.wake,an armed watcher may spend a recipient model turn\nexecuted: nothing (a preview has no effects)\nblind[3]: \"preview does not prove bus availability, recipient attendance, or eventual adoption\",commit is disclosed but no execution token is enforced yet,\"token estimate covers message content only, not prompt or tool overhead\"\nfingerprint: 14410f354563\n"
+      },
+      "nudge": {
+        "argv": [
+          "shadow",
+          "toolbox:bifrost_nudge",
+          "--agent",
+          "bench",
+          "--args-json",
+          "{\"to\": \"kimi\", \"text\": \"wake\"}"
+        ],
+        "exit": 0,
+        "stdout": "subject: bench\naction: \"toolbox:bifrost_nudge\"\ntarget: \"seat:kimi\"\nfidelity: interrupt\nallowed: no\nauthority: refused\nmissing_caps[2]: bus.nudge,bus.send\nrisk: high\ncommit: required_unenforced\nreversibility: irreversible_after_observation\ncontent_chars: 4\nrough_tokens: 1\nrecipient_turns: 0-1\neffects[5]{certainty,effect,claim}:\n  expected,peer.control.interrupt_flag,a TTL-bounded barge-in flag is set\n  expected,bifrost.message.enqueue,lane/legacy delivery is appended\n  expected,wake.bell.publish,the recipient doorbell is rung\n  expected,sender.presence.refresh,sender presence is refreshed\n  conditional,recipient.turn.interrupt,a cooperating runner stops at its next round boundary\nexecuted: nothing (a preview has no effects)\nblind[3]: \"preview does not prove bus availability, recipient attendance, or eventual adoption\",commit is disclosed but no execution token is enforced yet,\"token estimate covers message content only, not prompt or tool overhead\"\nfingerprint: a853aa659221\n"
+      },
+      "unsupported": {
+        "argv": [
+          "shadow",
+          "toolbox:delete_everything",
+          "--agent",
+          "bench"
+        ],
+        "exit": 2,
+        "stdout": "error: \"unsupported intent-shadow action 'toolbox:delete_everything'; supported: toolbox:bifrost_send, toolbox:bifrost_nudge, toolbox:bifrost_steer\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py shadow toolbox:bifrost_send --agent <id> --args-json '{\"to\": \"<seat>\", \"text\": \"...\"}'\n"
+      },
+      "bad_json": {
+        "argv": [
+          "shadow",
+          "toolbox:bifrost_send",
+          "--agent",
+          "bench",
+          "--args-json",
+          "{bad"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--args-json must be one JSON object (Expecting property name enclosed in double quotes: line 1 column 2 (char 1))\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py shadow toolbox:bifrost_send --agent <id> --args-json '{\"to\": \"<seat>\", \"text\": \"...\"}'\n"
+      }
+    }
+  }
+}

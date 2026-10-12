@@ -11383,30 +11383,65 @@ def _human_orient(console, doc):
 
 def cmd_shadow(args):
     """Render one deterministic proposed-action ghost without executing it."""
+    from core.axi import out
+
+    cli = _cli()
+    usage = [f'{cli} shadow toolbox:bifrost_send --agent <id> --args-json \'{{"to": "<seat>", "text": "..."}}\'']
     subject = str(getattr(args, "agent", "") or os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
     if not subject:
-        print("ERROR: intent shadow subject is required: pass --agent <id> or set AKASHIC_AGENT_ID")
-        return 2
+        return out.fail(
+            "intent shadow subject is required: pass --agent <id> or set AKASHIC_AGENT_ID",
+            code="USAGE",
+            hints=usage,
+            exit_code=2,
+        )
     try:
         arguments = json.loads(str(getattr(args, "args_json", "{}") or "{}"))
     except json.JSONDecodeError as exc:
-        print(f"ERROR: --args-json must be one JSON object ({exc})")
-        return 2
+        return out.fail(f"--args-json must be one JSON object ({exc})", code="USAGE", hints=usage, exit_code=2)
     if not isinstance(arguments, dict):
-        print("ERROR: --args-json must decode to one JSON object")
-        return 2
+        return out.fail("--args-json must decode to one JSON object", code="USAGE", hints=usage, exit_code=2)
     try:
-        from core.coord.intent_shadow import build_intent_shadow, render_intent_shadow
+        from core.coord.intent_shadow import build_intent_shadow
 
         shadow = build_intent_shadow(subject, str(args.target), arguments)
     except (ValueError, RuntimeError) as exc:
-        print(f"ERROR: {exc}")
-        return 2
+        return out.fail(str(exc), code="USAGE", hints=usage, exit_code=2)
     if getattr(args, "json", False):
         print(json.dumps(shadow, ensure_ascii=False, indent=2, default=str))
-    else:
-        print(render_intent_shadow(shadow))
-    return 0
+        return 0
+    # The ghost, flattened: what would happen, whether this subject may do it, and what it costs.
+    # Nothing ran; intent.shadow.v1 (--json) stays the full record.
+    target = shadow.get("target") or {}
+    auth = shadow.get("authority") or {}
+    cost = shadow.get("cost") or {}
+    turns = (cost.get("recipient_model_turns") or {}).get("range") or []
+    doc: dict = {
+        "subject": shadow.get("subject"),
+        "action": (shadow.get("action") or {}).get("address"),
+        "target": f"{target.get('kind')}:{target.get('resolved')}",
+        "fidelity": shadow.get("fidelity"),
+        "allowed": "yes" if auth.get("allowed") else "no",
+        "authority": auth.get("state"),
+    }
+    if auth.get("missing_caps"):
+        doc["missing_caps"] = list(auth["missing_caps"])
+    doc.update(
+        risk=(shadow.get("risk") or {}).get("level"),
+        commit=(shadow.get("commit") or {}).get("state"),
+        reversibility=(shadow.get("reversibility") or {}).get("state"),
+        content_chars=cost.get("content_chars"),
+        rough_tokens=cost.get("rough_content_tokens"),
+        recipient_turns="-".join(str(t) for t in turns) if turns else None,
+        effects=[
+            {"certainty": e.get("certainty"), "effect": e.get("id"), "claim": e.get("claim")}
+            for e in shadow.get("proposed_effects") or []
+        ],
+        executed="nothing (a preview has no effects)",
+        blind=list(shadow.get("blind") or []),
+        fingerprint=str(shadow.get("fingerprint") or "")[:12],
+    )
+    return out.emit(doc, title=f"Shadow · {doc['action']} -> {target.get('resolved')}")  # a detail view
 
 
 def cmd_college(args):

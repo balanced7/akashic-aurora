@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 104 converted to agent and human output.
+121 verbs; 105 converted to agent and human output.
 
 ## `alias`
 
@@ -3193,7 +3193,10 @@ help[1]:
 | | |
 |---|---|
 | Does | zero-effect intent shadow: preview one typed ToolBox action before reality changes |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 83% before, 100% after |
+| Output tokens | 317 before, 359 after (+13%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/shadow.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -3201,6 +3204,32 @@ help[1]:
 | `--agent` |   |   | bound subject (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--args-json` |   |   | proposed arguments as one JSON object |
 | `--json` |   |   | emit intent.shadow.v1 JSON |
+
+Agent output of `aurora shadow toolbox:bifrost_send --agent bench --args-json {"to": "kimi", "kind": "request", "text": "please rerun the suite"}` on the bench data:
+
+```text
+subject: bench
+action: "toolbox:bifrost_send"
+target: "seat:kimi"
+fidelity: "message:request"
+allowed: no
+authority: refused
+missing_caps[1]: bus.send
+risk: elevated
+commit: required_unenforced
+reversibility: irreversible_after_observation
+content_chars: 22
+rough_tokens: 6
+recipient_turns: 0-1
+effects[4]{certainty,effect,claim}:
+  expected,bifrost.message.enqueue,lane/legacy delivery is appended
+  expected,wake.bell.publish,the recipient doorbell is rung
+  expected,sender.presence.refresh,sender presence is refreshed
+  conditional,recipient.turn.wake,an armed watcher may spend a recipient model turn
+executed: nothing (a preview has no effects)
+blind[3]: "preview does not prove bus availability, recipient attendance, or eventual adoption",commit is disclosed but no execution token is enforced yet,"token estimate covers message content only, not prompt or tool overhead"
+fingerprint: 14410f354563
+```
 
 ## `shell-home`
 

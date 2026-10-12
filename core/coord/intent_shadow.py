@@ -317,33 +317,3 @@ def build_intent_shadow(
         ).encode("utf-8", "replace")
     ).hexdigest()
     return out
-
-
-def render_intent_shadow(shadow: Mapping[str, Any]) -> str:
-    """Compact human projection; structured JSON remains the renderer contract."""
-    action = shadow.get("action") or {}
-    target = shadow.get("target") or {}
-    auth = shadow.get("authority") or {}
-    commit = shadow.get("commit") or {}
-    cost = shadow.get("cost") or {}
-    lines = [
-        (
-            f"# shadow subject={shadow.get('subject')} action={action.get('address')} "
-            f"fingerprint={str(shadow.get('fingerprint') or '')[:12]}"
-        ),
-        f"  target {target.get('kind')}:{target.get('resolved')} (addressed as {target.get('addressed_as')!r})",
-        f"  fidelity {shadow.get('fidelity')} | authority={auth.get('state')} allowed={auth.get('allowed')}",
-        f"  risk {(shadow.get('risk') or {}).get('level')} | commit={commit.get('state')}",
-        (
-            f"  cost chars={cost.get('content_chars')} rough_tokens={cost.get('rough_content_tokens')} "
-            f"recipient_turns={cost.get('recipient_model_turns', {}).get('range')}"
-        ),
-    ]
-    lines.extend(
-        f"  -> [{effect.get('certainty')}] {effect.get('id')}: {effect.get('claim')}"
-        for effect in shadow.get("proposed_effects") or []
-    )
-    lines.append("  preview effects=none")
-    if shadow.get("blind"):
-        lines.append("  blind: " + "; ".join(str(item) for item in shadow["blind"]))
-    return "\n".join(lines)
