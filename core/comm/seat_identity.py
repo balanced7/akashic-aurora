@@ -277,9 +277,10 @@ def git_identity_env(agent_id) -> dict:
     counts. One field carried two jobs, so attribution won and the operator's name lost: 598
     commits, 388 of them in his biggest month, showing an address that resolves to no account.
 
-    Attribution is not lost, it is relocated -- entirely onto an internal plane,
-    state/authorship/seats.jsonl, keyed so it survives a rewrite (scripts/authorship_ledger.py).
-    Richer than a git field could be, queryable, and scrapeable by anyone who wants it.
+    Attribution is not lost, it is relocated -- entirely onto an internal plane, the local
+    authorship ledger (scripts/authorship_ledger.py), keyed so it survives a rewrite. Richer than
+    a git field could be: since 2026-10-12 it also records the session, harness, model and effort,
+    and it stays on the machine instead of being published with the repository.
 
     WHY STAMP AT ALL, WHEN BOTH VALUES ARE THE HUMAN'S OWN. Because his git config is not a
     guarantee: it is one `git config` away from drift, and absent in a fresh clone or a container.

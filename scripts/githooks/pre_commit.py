@@ -161,7 +161,7 @@ def check_author_matches_seat(agent, author_ident):
     measured at b66e6f67 -- a seat's work recorded against the machine owner -- and put the fix in
     the field GitHub renders and counts, so 598 commits ended up displaying an address belonging
     to no account. Attribution now lives on an internal plane
-    (state/authorship/seats.jsonl, scripts/authorship_ledger.py) and the git identity fields name
+    (the local ledger of scripts/authorship_ledger.py) and the git identity fields name
     the person whose project it is.
 
     THE GUARD'S JOB IS UNCHANGED: make the launcher stamp's ABSENCE loud. Without it the stamp
@@ -198,7 +198,7 @@ def check_author_matches_seat(agent, author_ident):
         f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} \\\n"
         f"  GIT_COMMITTER_NAME={want['GIT_COMMITTER_NAME']} "
         f"GIT_COMMITTER_EMAIL={want['GIT_COMMITTER_EMAIL']} git commit ...\n"
-        f"(Which seat did the work is recorded in state/authorship/seats.jsonl -- "
+        f"(Which seat, session and model did the work is recorded in the local authorship ledger -- "
         f"`{_pyl()} scripts/authorship_ledger.py who <sha>`.)"
     )
     if not str(author_ident).startswith(expected):

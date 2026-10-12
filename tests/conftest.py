@@ -188,3 +188,14 @@ def _isolate_operator_identity(tmp_path_factory, monkeypatch):
     monkeypatch.setenv(OPERATOR_FILE_ENV, str(d / "operator.json"))
     monkeypatch.delenv(OPERATOR_NAME_ENV, raising=False)
     monkeypatch.delenv(OPERATOR_EMAIL_ENV, raising=False)
+
+
+# 2026-10-12: the authorship ledger moved out of the repo into the world's local state, which
+# every checkout shares. A test that makes a real commit runs the post-commit hook, and without
+# this it would append test rows to the operator's real ledger.
+
+
+@pytest.fixture(autouse=True)
+def _isolate_authorship_ledger(tmp_path_factory, monkeypatch):
+    d = tmp_path_factory.mktemp("authorship_ledger")
+    monkeypatch.setenv("AKASHIC_AUTHORSHIP_LEDGER", str(d / "seats.jsonl"))
