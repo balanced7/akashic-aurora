@@ -1,0 +1,164 @@
+{
+  "verb": "gateway",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.75,
+    "correct": 15,
+    "asked": 20,
+    "output_tokens": 35,
+    "stdout_chars": 100,
+    "stdout_lines": 1,
+    "cost_usd": 0.0179,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Is the Discord gateway running? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many gateway processes are live?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would start the gateway? Give the command only.",
+        "expected": [
+          "gateway restart"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Was the gateway state measured from the process table, or is it unknown? Answer measured or unknown.",
+        "expected": "measured",
+        "answers": [
+          "measured",
+          "measured",
+          "measured",
+          "measured",
+          "measured"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "gateway",
+          "status"
+        ],
+        "exit": 1,
+        "stdout": "# gateway: NOT RUNNING (measured: no python process has bifrost_runner_discord.py as an argv token)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 53,
+    "stdout_chars": 150,
+    "stdout_lines": 5,
+    "cost_usd": 0.0181,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Is the Discord gateway running? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many gateway processes are live?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would start the gateway? Give the command only.",
+        "expected": [
+          "gateway restart"
+        ],
+        "answers": [
+          "uv run agent_cli.py gateway restart",
+          "uv run agent_cli.py gateway restart",
+          "uv run agent_cli.py gateway restart",
+          "uv run agent_cli.py gateway restart",
+          "uv run agent_cli.py gateway restart"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the gateway state measured from the process table, or is it unknown? Answer measured or unknown.",
+        "expected": "measured",
+        "answers": [
+          "measured",
+          "measured",
+          "measured",
+          "measured",
+          "measured"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "gateway",
+          "status"
+        ],
+        "exit": 1,
+        "stdout": "state: not running\ncount: 0\nmeasured: no python process has bifrost_runner_discord.py as an argv token\nhelp[1]:\n  uv run agent_cli.py gateway restart\n"
+      }
+    }
+  }
+}

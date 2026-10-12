@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 113 converted to agent and human output.
+121 verbs; 114 converted to agent and human output.
 
 ## `alias`
 
@@ -1458,12 +1458,25 @@ help[1]:
 | | |
 |---|---|
 | Does | the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 75% before, 100% after |
+| Output tokens | 35 before, 53 after (+51%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/gateway.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<action>` |   | status,restart | status = report the live gateway pid(s); restart = kill + relaunch the gateway detached with stdio -&gt; its log |
 | `--json` |   |   |   |
+
+Agent output of `aurora gateway status` on the bench data:
+
+```text
+state: not running
+count: 0
+measured: no python process has bifrost_runner_discord.py as an argv token
+help[1]:
+  uv run agent_cli.py gateway restart
+```
 
 ## `glance`
 

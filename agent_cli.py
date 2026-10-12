@@ -5292,8 +5292,10 @@ def cmd_gateway(args):
     import time as _t
     from pathlib import Path
 
+    from core.axi import out
     from core.comm import wake_seat as _WS
 
+    cli = _cli()
     _ROOT = Path(__file__).resolve().parent
     runner = _ROOT / "scripts" / "bifrost_runner_discord.py"
     SCRIPT = "bifrost_runner_discord.py"
@@ -5322,8 +5324,8 @@ def cmd_gateway(args):
             # caller can tell "none" from "could not look".
             if args.json:
                 print(json.dumps({"error": "census_unavailable", "detail": str(e)}))
-            else:
-                print(f"# gateway: UNKNOWN -- {e}")
+                return 3
+            out.fail(f"gateway state unknown: the process census is unavailable ({e})", code="CENSUS_UNAVAILABLE")
             return 3
         if args.json:
             print(
@@ -5336,25 +5338,39 @@ def cmd_gateway(args):
                 )
             )
             return 0
+        # Not running is a measured state, said as data; the exit code stays 1 so a script
+        # that asks "is it up?" keeps its answer.
         if not live:
-            print(f"# gateway: NOT RUNNING (measured: no python process has {SCRIPT} as an argv token)")
+            out.emit(
+                {
+                    "state": "not running",
+                    "count": 0,
+                    "measured": f"no python process has {SCRIPT} as an argv token",
+                },
+                hints=[f"{cli} gateway restart"],
+                title="Discord gateway",
+            )
             return 1
+        rows = []
         for pid in live:
             root = _runner_root(snap, pid)
-            here = "" if root == _ROOT else f"  [FOREIGN ROOT {root}]"
-            print(f"# gateway: LIVE pid {pid}{here}")
-        return 0
+            rows.append({"pid": pid, "root": "this repo" if root == _ROOT else f"FOREIGN {root}"})
+        return out.emit({"state": "live", "count": len(rows), "gateways": rows}, title="Discord gateway")
 
     if args.action != "restart":
         # unknown action is a refusal, never a silent do-nothing
-        print(f"gateway: unknown action {args.action!r} (status|restart)")
-        return 2
+        return out.fail(
+            f"unknown action {args.action!r} (status|restart)",
+            code="USAGE",
+            hints=[f"{cli} gateway status"],
+            exit_code=out.EXIT_USAGE,
+        )
 
     # ---------------------------------------------------------------- restart
     try:
         snap, live = _census()
     except _WS.CensusUnavailable as e:
-        print(f"[gateway] REFUSING restart -- {e}")
+        out.fail(f"refusing restart: the process census is unavailable ({e})", code="CENSUS_UNAVAILABLE")
         return 3
 
     # (a) Do we even own this gateway? Production is scheduler-owned out of a separate
@@ -5366,14 +5382,12 @@ def cmd_gateway(args):
     # control the operator appeared to hold and did not -- prod-reconcile DP3, deleted.
     foreign = [(p, _runner_root(snap, p)) for p in live if _runner_root(snap, p) not in (None, _ROOT)]
     if foreign:
-        print("[gateway] REFUSING restart: the live gateway is not ours to relaunch.")
-        for pid, root in foreign:
-            print(f"    pid {pid} runs from {root}")
-        print(f"    this repo would relaunch {runner}")
-        print(
-            "    A restart from here would start a different-world gateway from a "
-            "different branch, or be refused by the singleton guard. Restart it "
-            "through its own scheduler, or re-point the scheduled task."
+        out.fail(
+            "refusing restart: the live gateway is not ours to relaunch. A restart from here would "
+            "start a different-world gateway from a different branch, or be refused by the singleton "
+            "guard. Restart it through its own scheduler, or re-point the scheduled task.",
+            code="FOREIGN_GATEWAY",
+            details={"live": [{"pid": pid, "root": str(root)} for pid, root in foreign], "would_relaunch": str(runner)},
         )
         return 4
 
@@ -5382,11 +5396,12 @@ def cmd_gateway(args):
         if _WS.taskkill(pid):
             killed.append(pid)
         else:
-            print(
-                f"[gateway] could not kill pid {pid} -- aborting restart rather than "
-                f"double-spawning (a half-restart strands the operator)"
+            return out.fail(
+                f"could not kill pid {pid} -- aborting restart rather than double-spawning "
+                "(a half-restart strands the operator)",
+                code="KILL_FAILED",
+                details={"killed": killed},
             )
-            return 1
 
     # (b) Wait for the DAEMON LEASE, not for a socket. DaemonLock has a 120s TTL and is
     # released only on a CLEAN exit -- taskkill is not one, so the corpse holds its lease
@@ -5406,17 +5421,20 @@ def cmd_gateway(args):
             except Exception:
                 break  # cannot read the lease: fall through rather than hang
             if not waited:
-                print(
+                print(  # progress, not the result: stderr
                     "[gateway] waiting for the killed gateway's daemon lease to "
-                    "expire (DaemonLock TTL 120s; taskkill is not a clean release)..."
+                    "expire (DaemonLock TTL 120s; taskkill is not a clean release)...",
+                    file=sys.stderr,
                 )
                 waited = True
             _t.sleep(3.0)
         else:
-            print(
-                "[gateway] the daemon lease never cleared within 135s -- NOT "
-                "relaunching, because the singleton guard would refuse the child and "
-                "you would be left with no gateway and a success message."
+            out.fail(
+                "the daemon lease never cleared within 135s -- NOT relaunching, because the "
+                "singleton guard would refuse the child and you would be left with no gateway "
+                "and a success message",
+                code="LEASE_HELD",
+                details={"killed": killed},
             )
             return 5
 
@@ -5440,11 +5458,12 @@ def cmd_gateway(args):
         _t.sleep(2.0)
         rc = child.poll()
         if rc is not None:
-            print(
-                f"[gateway] RELAUNCH FAILED: the child exited {rc} after "
-                f"{int(_t.time() - (confirm_deadline - 30.0))}s. Killed "
-                f"{', '.join(map(str, killed)) or 'none'} and nothing replaced them. "
-                f"Read {log} for its refusal line."
+            out.fail(
+                f"relaunch failed: the child exited {rc} after "
+                f"{int(_t.time() - (confirm_deadline - 30.0))}s and nothing replaced the killed gateway",
+                code="RELAUNCH_FAILED",
+                details={"killed": killed, "log": str(log)},
+                hints=[f"tail -n 40 {log}"],
             )
             return 6
         try:
@@ -5452,17 +5471,17 @@ def cmd_gateway(args):
         except _WS.CensusUnavailable:
             continue
         if now_live:
-            print(
-                f"[gateway] restarted and CONFIRMED live: pid(s) "
-                f"{', '.join(map(str, now_live))} (killed "
-                f"{', '.join(map(str, killed)) or 'none'}) -> {log}"
+            return out.emit(
+                {"state": "restarted", "confirmed": True, "live": list(now_live), "killed": killed, "log": str(log)},
+                title="Discord gateway restarted",
             )
-            return 0
 
-    print(
-        f"[gateway] relaunched but NOT CONFIRMED within 30s -- the child is still "
-        f"running (pid {child.pid}) but no gateway is visible in the process table. "
-        f"Check {log} before assuming Discord is back."
+    out.fail(
+        f"relaunched but NOT CONFIRMED within 30s -- the child is still running (pid {child.pid}) "
+        "but no gateway is visible in the process table",
+        code="NOT_CONFIRMED",
+        details={"child_pid": child.pid, "killed": killed, "log": str(log)},
+        hints=[f"tail -n 40 {log}", f"{cli} gateway status"],
     )
     return 7
 
