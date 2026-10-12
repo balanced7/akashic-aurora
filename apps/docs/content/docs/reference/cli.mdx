@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 47 converted to agent and human output.
+121 verbs; 48 converted to agent and human output.
 
 ## `alias`
 
@@ -326,7 +326,10 @@ help[1]:
 | | |
 |---|---|
 | Does | T076a: advance an agent's consume cursors to stream tails (audited echo-mountain escape; requires pause + --reason) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 90 before, 143 after (+59%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/bifrost-skip-to-now.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -334,6 +337,24 @@ help[1]:
 | `--by` | yes |   | who authorizes (rides the audit event) |
 | `--reason` | yes |   | why (refuse-loud without one) |
 | `--json` |   |   |   |
+
+Agent output of `aurora bifrost-skip-to-now deepseek --by claude --reason echo storm` on the bench data:
+
+```text
+agent: deepseek
+status: skipped to now
+shared: OK
+lane: OK
+audited: true
+by: claude
+reason: echo storm
+moved[3]{cursor,from,to}:
+  shared.inbox,"0",1791819502147-0
+  lane.inbox,"0",1791819502145-0
+  lane.shadow_inbox,"0",1791819502147-0
+help[1]:
+  uv run agent_cli.py bifrost-resume
+```
 
 ## `bifrost-standby`
 

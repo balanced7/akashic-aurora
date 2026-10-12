@@ -9849,20 +9849,53 @@ def cmd_bifrost_skip_to_now(args):
     if args.json:
         print(json.dumps(res, default=str))
         return 0 if res.get("ok") else 2
+    from core.axi import out
+
+    cli = _cli()
     if res.get("refused"):
-        print(f"[skip-to-now] REFUSED: {res['refused']}")
-        return 2
+        return out.fail(
+            f"skip refused: {res['refused']}",
+            code="REFUSED",
+            details={"skipped": False, "agent": args.agent_id},
+            hints=[f'{cli} bifrost-pause --reason "<why>" --ttl 600 --by {args.by}'],
+            exit_code=2,  # unchanged: a refusal has always exited 2
+        )
     adv = (res.get("after") or {}).get("advance") or {}
-    print(
-        f"[skip-to-now] {args.agent_id}: shared={adv.get('shared')} lane={adv.get('lane')} "
-        f"(audited event recorded; by {args.by}: {args.reason})"
-    )
+    moved = []  # one row per cursor that changed, so the audit reads without diffing two dicts
     for side in ("shared", "lane"):
         b, a = (res.get("before") or {}).get(side) or {}, (res.get("after") or {}).get(side) or {}
-        moved = {f: f"{b.get(f)}->{a.get(f)}" for f in a if a.get(f) != b.get(f) and f != "advance"}
-        if moved:
-            print(f"  {side}: " + ", ".join(f"{k} {v}" for k, v in sorted(moved.items())))
+        moved.extend(
+            {"cursor": f"{side}.{f}", "from": b.get(f), "to": a.get(f)}
+            for f in sorted(a)
+            if f != "advance" and a.get(f) != b.get(f)
+        )
+    doc = {
+        "agent": args.agent_id,
+        "status": "skipped to now" if res.get("ok") else "incomplete",
+        "shared": adv.get("shared"),
+        "lane": adv.get("lane"),
+        "audited": True,
+        "by": args.by,
+        "reason": args.reason,
+        "moved": moved,
+    }
+    out.emit(doc, hints=[f"{cli} bifrost-resume"], human=_human_skip)  # the fleet is still paused
     return 0 if res.get("ok") else 2
+
+
+def _human_skip(console, doc):
+    from core.axi import out
+
+    colour = "green" if doc["status"] == "skipped to now" else "red"
+    console.print(
+        f"[{colour}]{out._esc(doc['agent'])}: {doc['status']}[/]  shared {out.styled(doc['shared'])}, "
+        f"lane {out.styled(doc['lane'])}"
+    )
+    console.print(f"  audited; by {out._esc(str(doc['by']))}: {out._esc(str(doc['reason']))}")
+    if doc["moved"]:
+        console.print(out.table(doc["moved"]))
+    else:
+        console.print("  [dim]no cursor moved: already at the tails[/]")
 
 
 def cmd_bifrost_nudge(args):

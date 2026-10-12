@@ -1,0 +1,234 @@
+{
+  "verb": "bifrost-skip-to-now",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 90,
+    "stdout_chars": 322,
+    "stdout_lines": 5,
+    "cost_usd": 0.0229,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Whose cursors were advanced?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who authorized the skip?",
+        "expected": "claude",
+        "answers": [
+          "claude",
+          "claude",
+          "claude",
+          "claude",
+          "claude"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an audit record written? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the skip happen? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command must be run before the skip can succeed? Give the command only.",
+        "expected": [
+          "bifrost-pause"
+        ],
+        "answers": [
+          "bifrost-pause",
+          "bifrost-pause",
+          "bifrost-pause",
+          "bifrost-pause",
+          "bifrost-pause"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "skip": {
+        "argv": [
+          "bifrost-skip-to-now",
+          "deepseek",
+          "--by",
+          "claude",
+          "--reason",
+          "echo storm"
+        ],
+        "exit": 0,
+        "stdout": "[skip-to-now] deepseek: shared=OK lane=OK (audited event recorded; by claude: echo storm)\n  shared: inbox 0->1791819467334-0\n  lane: inbox 0->1791819467332-0, shadow_inbox 0->1791819467334-0\n"
+      },
+      "resume": {
+        "argv": [
+          "bifrost-resume"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost] RESUMED\n"
+      },
+      "refused": {
+        "argv": [
+          "bifrost-skip-to-now",
+          "deepseek",
+          "--by",
+          "claude",
+          "--reason",
+          "echo storm"
+        ],
+        "exit": 2,
+        "stdout": "[skip-to-now] REFUSED: fleet not paused -- a skip under a live consumer races its drain; run bifrost-pause first\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 143,
+    "stdout_chars": 657,
+    "stdout_lines": 25,
+    "cost_usd": 0.0266,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Whose cursors were advanced?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who authorized the skip?",
+        "expected": "claude",
+        "answers": [
+          "claude",
+          "claude",
+          "claude",
+          "claude",
+          "claude"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an audit record written? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "Yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the skip happen? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command must be run before the skip can succeed? Give the command only.",
+        "expected": [
+          "bifrost-pause"
+        ],
+        "answers": [
+          "bifrost-pause --reason \"<why>\" --ttl 600 --by claude",
+          "bifrost-pause --reason \"<why>\" --ttl 600 --by claude",
+          "bifrost-pause --reason \"<why>\" --ttl 600 --by claude",
+          "bifrost-pause --reason \"<why>\" --ttl 600 --by claude",
+          "bifrost-pause --reason \"<why>\" --ttl 600 --by claude"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "skip": {
+        "argv": [
+          "bifrost-skip-to-now",
+          "deepseek",
+          "--by",
+          "claude",
+          "--reason",
+          "echo storm"
+        ],
+        "exit": 0,
+        "stdout": "agent: deepseek\nstatus: skipped to now\nshared: OK\nlane: OK\naudited: true\nby: claude\nreason: echo storm\nmoved[3]{cursor,from,to}:\n  shared.inbox,\"0\",1791819502147-0\n  lane.inbox,\"0\",1791819502145-0\n  lane.shadow_inbox,\"0\",1791819502147-0\nhelp[1]:\n  uv run agent_cli.py bifrost-resume\n"
+      },
+      "resume": {
+        "argv": [
+          "bifrost-resume"
+        ],
+        "exit": 0,
+        "stdout": "status: resumed\nwas_paused: true\npause_was: hard\npaused_by: user\npause_reason: skip ceremony\nauto_responders: free to take new work\n"
+      },
+      "refused": {
+        "argv": [
+          "bifrost-skip-to-now",
+          "deepseek",
+          "--by",
+          "claude",
+          "--reason",
+          "echo storm"
+        ],
+        "exit": 2,
+        "stdout": "error: \"skip refused: fleet not paused -- a skip under a live consumer races its drain; run bifrost-pause first\"\ncode: REFUSED\nskipped: false\nagent: deepseek\nhelp[1]:\n  uv run agent_cli.py bifrost-pause --reason \"<why>\" --ttl 600 --by claude\n"
+      }
+    }
+  }
+}
