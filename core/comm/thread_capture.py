@@ -452,32 +452,10 @@ def attach_thread_atom(
     return result
 
 
-def render_capture(snapshot: Mapping[str, Any]) -> str:
-    bounds = snapshot.get("bounds") or {}
-    lines = [
-        f"# capture thread {snapshot.get('thread_ref')} for {snapshot.get('subject')}",
-        (
-            f"  {bounds.get('messages_matched')} message(s), {bounds.get('copies_matched')} copy/copies, "
-            f"{bounds.get('duplicates_collapsed')} duplicate(s) collapsed | "
-            f"streams {bounds.get('streams_read')}/{bounds.get('streams_total')} | "
-            f"truncated={'yes' if bounds.get('truncated') else 'no'}"
-        ),
-    ]
-    lines.extend(
-        f"  {row.get('ts') or '?'}  {row.get('frm') or '?'} -> "
-        f"{row.get('to') or '?'} [{row.get('kind') or '?'}] "
-        f"{str(row.get('content') or '')[:120]}"
-        for row in snapshot.get("messages") or []
-    )
-    lines.extend(f"  BLIND: {blind}" for blind in snapshot.get("blind") or [])
-    return "\n".join(lines)
-
-
 __all__ = [
     "atom_payload",
     "attach_thread_atom",
     "collect_thread",
     "mint_thread_atom",
-    "render_capture",
     "render_transcript",
 ]

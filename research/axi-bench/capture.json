@@ -1,0 +1,272 @@
+{
+  "verb": "capture",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 81,
+    "stdout_chars": 465,
+    "stdout_lines": 13,
+    "cost_usd": 0.0244,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many messages from alice were captured?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is step 3 of the migration plan?",
+        "expected": [
+          "flip",
+          "reader"
+        ],
+        "answers": [
+          "flip the reader to the new store",
+          "flip the reader to the new store",
+          "flip the reader to the new store",
+          "flip the reader to the new store",
+          "flip the reader to the new store"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How long does the copy step take, in minutes?",
+        "expected": 40,
+        "answers": [
+          "40",
+          "40",
+          "40",
+          "40",
+          "40"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many characters were persisted?",
+        "expected": 17,
+        "answers": [
+          "17",
+          "17",
+          "17",
+          "17",
+          "17"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the requested message found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What flag reads the newest messages from one sender instead of a stream id? Give the flag only.",
+        "expected": "--from-agent",
+        "answers": [
+          "--from-agent",
+          "--from-agent",
+          "--from-agent",
+          "--from-agent",
+          "--from-agent"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "alice": {
+        "argv": [
+          "capture",
+          "--from-agent",
+          "alice",
+          "--count",
+          "5"
+        ],
+        "exit": 0,
+        "stdout": "===== 1791820112765-0 | alice [chat] | 49 chars =====\nsecond note: the copy step takes about 40 minutes\n===== 1791820112285-0 | alice [handoff] | 108 chars =====\nMigration plan:\n1. freeze writes\n2. copy the tables\n3. flip the reader to the new store\nRollback: flip back.\n"
+      },
+      "persist": {
+        "argv": [
+          "capture",
+          "--from-agent",
+          "bob",
+          "--persist",
+          "/dev/null"
+        ],
+        "exit": 0,
+        "stdout": "===== 1791820113228-0 | bob [chat] | 17 chars =====\nunrelated chatter\n[capture] persisted 17 chars -> /dev/null\n"
+      },
+      "miss": {
+        "argv": [
+          "capture",
+          "9999999999999-0"
+        ],
+        "exit": 1,
+        "stdout": "[capture] no match for 9999999999999-0\n"
+      },
+      "usage": {
+        "argv": [
+          "capture"
+        ],
+        "exit": 2,
+        "stdout": "[capture] give a stream id or --from-agent\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 90,
+    "stdout_chars": 863,
+    "stdout_lines": 21,
+    "cost_usd": 0.0251,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many messages from alice were captured?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is step 3 of the migration plan?",
+        "expected": [
+          "flip",
+          "reader"
+        ],
+        "answers": [
+          "flip the reader to the new store",
+          "flip the reader to the new store",
+          "flip the reader to the new store",
+          "flip the reader to the new store",
+          "flip the reader to the new store"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How long does the copy step take, in minutes?",
+        "expected": 40,
+        "answers": [
+          "40",
+          "About 40",
+          "40",
+          "40",
+          "40"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many characters were persisted?",
+        "expected": 17,
+        "answers": [
+          "17",
+          "17",
+          "17",
+          "17",
+          "17"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the requested message found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What flag reads the newest messages from one sender instead of a stream id? Give the flag only.",
+        "expected": "--from-agent",
+        "answers": [
+          "--from-agent",
+          "--from-agent",
+          "--from-agent",
+          "--from-agent",
+          "--from-agent"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "alice": {
+        "argv": [
+          "capture",
+          "--from-agent",
+          "alice",
+          "--count",
+          "5"
+        ],
+        "exit": 0,
+        "stdout": "count: 2\nmessages[2]{id,from,kind,chars,body}:\n  1791820156377-0,alice,chat,49,\"second note: the copy step takes about 40 minutes\"\n  1791820155881-0,alice,handoff,108,\"Migration plan:\\n1. freeze writes\\n2. copy the tables\\n3. flip the reader to the new store\\nRollback: flip back.\"\nhelp[1]:\n  uv run agent_cli.py capture --from-agent alice --count 5 --persist <path>\n"
+      },
+      "persist": {
+        "argv": [
+          "capture",
+          "--from-agent",
+          "bob",
+          "--persist",
+          "/dev/null"
+        ],
+        "exit": 0,
+        "stdout": "count: 1\nmessages[1]{id,from,kind,chars,body}:\n  1791820156827-0,bob,chat,17,unrelated chatter\npersisted: /dev/null\npersisted_chars: 17\n"
+      },
+      "miss": {
+        "argv": [
+          "capture",
+          "9999999999999-0"
+        ],
+        "exit": 1,
+        "stdout": "error: no message 9999999999999-0 in bench's inbox streams\ncode: NOT_FOUND\nhelp[2]:\n  uv run agent_cli.py mailbox bench\n  uv run agent_cli.py bifrost-fetch --get <stream-id> --agent <agent_id>\n"
+      },
+      "usage": {
+        "argv": [
+          "capture"
+        ],
+        "exit": 2,
+        "stdout": "error: give a stream id or --from-agent\ncode: USAGE\nhelp[2]:\n  uv run agent_cli.py capture <stream-id>\n  uv run agent_cli.py capture --from-agent <agent_id> --count 3\n"
+      }
+    }
+  }
+}

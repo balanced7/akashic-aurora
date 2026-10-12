@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 39 converted to agent and human output.
+121 verbs; 40 converted to agent and human output.
 
 ## `alias`
 
@@ -466,7 +466,10 @@ orientation[28]{line}:
 | | |
 |---|---|
 | Does | full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 81 before, 90 after (+11%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/capture.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -483,6 +486,17 @@ orientation[28]{line}:
 | `--type` |   |   | atom type with --as-doc (default chronicle) |
 | `--arc` |   |   | atom arc (default subject's claimed task) |
 | `--json` |   |   |   |
+
+Agent output of `aurora capture --from-agent alice --count 5` on the bench data:
+
+```text
+count: 2
+messages[2]{id,from,kind,chars,body}:
+  1791820156377-0,alice,chat,49,"second note: the copy step takes about 40 minutes"
+  1791820155881-0,alice,handoff,108,"Migration plan:\n1. freeze writes\n2. copy the tables\n3. flip the reader to the new store\nRollback: flip back."
+help[1]:
+  uv run agent_cli.py capture --from-agent alice --count 5 --persist <path>
+```
 
 ## `clobber-scan`
 

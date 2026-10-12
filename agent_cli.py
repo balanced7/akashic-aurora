@@ -13924,27 +13924,39 @@ def cmd_capture(args):
     the whole message; this verb reads them directly (T099; born of 5 hand-written extractors)."""
     import json as _json
 
+    from core.axi import out
+
+    cli = _cli()
     thread_ref = str(getattr(args, "thread", "") or "").strip()
     if thread_ref:
         if getattr(args, "ref", "") or getattr(args, "from_agent", ""):
-            print("[capture] REFUSED: --thread cannot be combined with a stream ref or --from-agent")
-            return 2
+            return out.fail(
+                "--thread cannot be combined with a stream ref or --from-agent",
+                code="USAGE",
+                hints=[f"{cli} capture --thread {thread_ref} --agent <agent_id>"],
+                exit_code=out.EXIT_USAGE,
+            )
         subject = str(getattr(args, "agent", "") or os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
         if not subject:
-            print("[capture] REFUSED: subject is required for --thread; pass --agent <id> or set AKASHIC_AGENT_ID")
-            return 2
+            return out.fail(
+                "subject is required for --thread; pass --agent <id> or set AKASHIC_AGENT_ID",
+                code="USAGE",
+                hints=[f"{cli} capture --thread {thread_ref} --agent <agent_id>"],
+                exit_code=out.EXIT_USAGE,
+            )
         from core.comm import thread_capture as _tc
 
         try:
             result = _tc.collect_thread(subject, thread_ref, per_stream=int(getattr(args, "per_stream", 1000) or 1000))
         except ValueError as exc:
-            print(f"[capture] REFUSED: {exc}")
-            return 2
+            return out.fail(str(exc), code="USAGE", exit_code=out.EXIT_USAGE)
         if getattr(args, "as_doc", False):
             if not result.get("found"):
-                print(_tc.render_capture(result))
-                print("[capture] REFUSED: an absent or truncated-away thread cannot be minted")
-                return 1
+                return out.fail(
+                    f"thread {thread_ref} not found for {subject}: an absent or truncated-away thread cannot be minted",
+                    code="NOT_FOUND",
+                    hints=[f"{cli} capture --thread {thread_ref} --agent {subject} --per-stream 5000"],
+                )
             try:
                 receipt = _tc.mint_thread_atom(
                     result,
@@ -13954,32 +13966,63 @@ def cmd_capture(args):
                     arc=(str(getattr(args, "arc", "") or "").strip() or _ledger_claim_arc(subject)),
                 )
             except Exception as exc:
-                print(
-                    f"[capture] MINT/PROJECTION INCOMPLETE: {type(exc).__name__}: {exc}. "
-                    "Inspect the atom store before retrying; the append may have landed."
+                return out.fail(
+                    f"mint/projection incomplete: {type(exc).__name__}: {exc}",
+                    code="MINT_INCOMPLETE",
+                    details={"note": "inspect the atom store before retrying; the append may have landed"},
+                    exit_code=2,
                 )
-                return 2
             result = dict(result)
             result["artifact"] = receipt
             result["effects"] = [f"minted {receipt['atom_id']}"]
         if getattr(args, "json", False):
             print(_json.dumps(result, ensure_ascii=False, indent=2, default=str))
-        else:
-            print(_tc.render_capture(result))
-            if result.get("artifact"):
-                artifact = result["artifact"]
-                print(
-                    f"[capture] atom {artifact['atom_id']} minted from thread {thread_ref} -> {artifact['projection']}"
-                )
+            return 0 if result.get("found") else 1
+        b = result.get("bounds") or {}
+        doc: dict = {"thread": thread_ref, "subject": subject, "found": bool(result.get("found"))}
+        doc.update(
+            messages_matched=b.get("messages_matched"),
+            copies=b.get("copies_matched"),
+            duplicates_collapsed=b.get("duplicates_collapsed"),
+            streams_read=f"{b.get('streams_read')}/{b.get('streams_total')}",
+            truncated=bool(b.get("truncated")),
+        )
+        doc["messages"] = [
+            {
+                "at": str(r.get("ts") or "")[:16].replace("T", " ") or None,
+                "from": r.get("frm") or None,
+                "to": r.get("to") or None,
+                "kind": r.get("kind") or None,
+                "text": out.truncate(str(r.get("content") or ""), 300)[0],
+            }
+            for r in result.get("messages") or []
+        ]
+        if result.get("blind"):
+            doc["blind"] = list(result["blind"])
+        if result.get("artifact"):
+            doc["atom"] = result["artifact"]["atom_id"]
+            doc["projection"] = result["artifact"]["projection"]
+        hints = []
+        if doc["found"] and not doc.get("atom"):
+            hints.append(f"{cli} capture --thread {thread_ref} --agent {subject} --as-doc --title <title>")
+        if doc["truncated"]:
+            hints.append(f"{cli} capture --thread {thread_ref} --agent {subject} --per-stream 5000")
+        out.emit(doc, hints=hints, title=f"Capture · thread {thread_ref}")
         return 0 if result.get("found") else 1
 
     from core.comm.bus import Bus
 
     me = os.environ.get("AKASHIC_AGENT_ID", "claude")  # whose inbox streams to read
+    if not args.ref and not args.from_agent:
+        return out.fail(
+            "give a stream id or --from-agent",
+            code="USAGE",
+            hints=[f"{cli} capture <stream-id>", f"{cli} capture --from-agent <agent_id> --count 3"],
+            exit_code=out.EXIT_USAGE,
+        )
     c = Bus(me)._client
     if c is None:
-        print("[capture] bus offline")
-        return 2
+        return out.fail("bus offline", code="BUS_OFFLINE", hints=[f"{cli} promoted"], exit_code=2)
     keys = [f"bifrost:work:inbox:{me}", f"bifrost:inbox:{me}"]
     hits = []
     if args.ref:
@@ -13996,7 +14039,7 @@ def cmd_capture(args):
                     )
                 )
                 break
-    elif args.from_agent:
+    else:
         seen = set()
         for k in keys:
             for sid, f in c.xrevrange(k, count=120):
@@ -14012,22 +14055,21 @@ def cmd_capture(args):
                     break
             if len(hits) >= max(1, args.count):
                 break
-    else:
-        print("[capture] give a stream id or --from-agent")
-        return 2
     if not hits:
-        print(f"[capture] no match for {args.ref or args.from_agent}")
-        return 1
+        return out.fail(
+            f"no message {args.ref or 'from ' + args.from_agent} in {me}'s inbox streams",
+            code="NOT_FOUND",
+            hints=[f"{cli} mailbox {me}", f"{cli} bifrost-fetch --get <stream-id> --agent <agent_id>"],
+        )
     if args.json:
         print(
             _json.dumps(
                 [{"sid": s, "frm": fr, "kind": kd, "content": b} for s, fr, kd, b in hits], ensure_ascii=False, indent=1
             )
         )
-    else:
-        for s, fr, kd, b in hits:
-            print(f"===== {s} | {fr} [{kd}] | {len(b)} chars =====")
-            print(b)
+    doc = {"count": len(hits)}
+    # Full fidelity is this verb's whole job: bodies are never cut, and each says its size.
+    doc["messages"] = [{"id": s, "from": fr, "kind": kd, "chars": len(b), "body": b} for s, fr, kd, b in hits]
     if args.persist:
         import time as _t
 
@@ -14040,8 +14082,26 @@ def cmd_capture(args):
             )
             for _s, _fr, _kd, b in hits:
                 f.write(b + "\n")
-        print(f"[capture] persisted {sum(len(b) for *_x, b in hits)} chars -> {args.persist}")
-    return 0
+        doc["persisted"] = args.persist
+        doc["persisted_chars"] = sum(len(b) for *_x, b in hits)
+    if args.json:
+        if args.persist:
+            print(f"[capture] persisted {doc['persisted_chars']} chars -> {args.persist}")
+        return 0
+    what = args.ref or f"--from-agent {args.from_agent} --count {args.count}"  # the same read, kept
+    hints = [] if args.persist else [f"{cli} capture {what} --persist <path>"]
+    return out.emit(doc, hints=hints, human=_human_capture, title=f"Capture · {len(hits)} message(s)")
+
+
+def _human_capture(console, doc):
+    """Human view of `capture`: a rule naming each message, then its body exactly as written."""
+    from core.axi import out
+
+    for m in doc["messages"]:
+        console.rule(out._esc(f"{m['id']} · {m['from']} [{m['kind']}] · {m['chars']} chars"))
+        console.print(out._esc(m["body"]))
+    if doc.get("persisted"):
+        console.print(f"[green]persisted {doc['persisted_chars']} chars → {out._esc(doc['persisted'])}[/]")
 
 
 def cmd_alias(args):
