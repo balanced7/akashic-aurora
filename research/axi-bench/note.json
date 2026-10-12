@@ -1,0 +1,248 @@
+{
+  "verb": "note",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 48,
+    "stdout_chars": 315,
+    "stdout_lines": 6,
+    "cost_usd": 0.0241,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Did this note replace an earlier note with the same title? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "Yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "According to the note, what comes next? Answer in a few words.",
+        "expected": [
+          "ledger table"
+        ],
+        "answers": [
+          "Migrate the ledger table",
+          "Migrate the ledger table",
+          "Wave 3 done; next: migrate the ledger table",
+          "Wave 3 done; next: migrate the ledger table",
+          "Migrate the ledger table"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Where was this decided, according to the note's context?",
+        "expected": [
+          "monday"
+        ],
+        "answers": [
+          "the Monday sync",
+          "the Monday sync",
+          "the Monday sync",
+          "the Monday sync",
+          "the Monday sync"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a note found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command lists the notes that do exist? Give the command only.",
+        "expected": [
+          "notes"
+        ],
+        "answers": [
+          "notes",
+          "notes",
+          "notes",
+          "notes",
+          "notes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "write": {
+        "argv": [
+          "note",
+          "alice",
+          "--title",
+          "where-we-are",
+          "--note",
+          "Wave 3 done; next: migrate the ledger table.",
+          "--context",
+          "decided at the Monday sync"
+        ],
+        "exit": 0,
+        "stdout": "[OK] noted 'where-we-are' (id ADR_1012173922_70356d52) - superseded prior ADR_1012173921_6b9f61e6\n"
+      },
+      "get": {
+        "argv": [
+          "note",
+          "alice",
+          "--get",
+          "where-we-are"
+        ],
+        "exit": 0,
+        "stdout": "# where-we-are  (id ADR_1012173922_70356d52, 2026-10-12T17:39:22.498692)\nWave 3 done; next: migrate the ledger table.\n\n[context] decided at the Monday sync\n"
+      },
+      "missing": {
+        "argv": [
+          "note",
+          "alice",
+          "--get",
+          "never-existed"
+        ],
+        "exit": 1,
+        "stdout": "ERROR: no note with id or title 'never-existed' (see: notes)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 42,
+    "stdout_chars": 370,
+    "stdout_lines": 13,
+    "cost_usd": 0.0284,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Did this note replace an earlier note with the same title? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "UNKNOWN",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "According to the note, what comes next? Answer in a few words.",
+        "expected": [
+          "ledger table"
+        ],
+        "answers": [
+          "Migrate the ledger table",
+          "Migrate the ledger table",
+          "Migrate the ledger table",
+          "Migrate the ledger table",
+          "migrate the ledger table"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Where was this decided, according to the note's context?",
+        "expected": [
+          "monday"
+        ],
+        "answers": [
+          "the Monday sync",
+          "At the Monday sync",
+          "the Monday sync",
+          "the Monday sync",
+          "the Monday sync"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a note found? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command lists the notes that do exist? Give the command only.",
+        "expected": [
+          "notes"
+        ],
+        "answers": [
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes",
+          "uv run agent_cli.py notes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "write": {
+        "argv": [
+          "note",
+          "alice",
+          "--title",
+          "where-we-are",
+          "--note",
+          "Wave 3 done; next: migrate the ledger table.",
+          "--context",
+          "decided at the Monday sync"
+        ],
+        "exit": 0,
+        "stdout": "noted: where-we-are\nid: ADR_1012173954_e4223797\nsuperseded: ADR_1012173953_ad043cbf\n"
+      },
+      "get": {
+        "argv": [
+          "note",
+          "alice",
+          "--get",
+          "where-we-are"
+        ],
+        "exit": 0,
+        "stdout": "title: where-we-are\nid: ADR_1012173954_e4223797\nat: \"2026-10-12T17:39:54.419834\"\nstatus: active\nnote: \"Wave 3 done; next: migrate the ledger table.\"\ncontext: decided at the Monday sync\n"
+      },
+      "missing": {
+        "argv": [
+          "note",
+          "alice",
+          "--get",
+          "never-existed"
+        ],
+        "exit": 1,
+        "stdout": "error: no note with id or title 'never-existed'\ncode: NOT_FOUND\nhelp[1]:\n  uv run agent_cli.py notes\n"
+      }
+    }
+  }
+}

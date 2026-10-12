@@ -25,6 +25,7 @@ import tempfile
 from contextlib import redirect_stdout
 from types import SimpleNamespace
 from typing import Any
+from unittest import mock
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -87,7 +88,7 @@ def _note_args(**kw):
 
 def _run_note(args):
     out = io.StringIO()
-    with redirect_stdout(out):
+    with redirect_stdout(out), mock.patch.dict(os.environ, {"AURORA_OUTPUT": "agent"}):
         rc = agent_cli.cmd_note(args)
     return rc, out.getvalue()
 
@@ -107,7 +108,7 @@ def test_5k_note_arg_stores_whole():
         rc, out = _run_note(_note_args(title="clip-probe-5k", note=body))
         stored = _stored(f.mem, "clip-probe-5k")
     assert rc == 0
-    assert "[OK] noted" in out
+    assert "noted: " in out
     assert stored == body, f"stored {len(stored)}/{len(body)} chars -- the door clipped"
     assert " ...[truncated]" not in stored, "legacy silent-clip marker resurfaced"
     assert "[CLIPPED]" not in out, "door confessed a clip it did not make"
@@ -126,7 +127,7 @@ def test_over_cap_note_confesses_in_result_and_in_band(monkeypatch, tmp_path):
         rc, out = _run_note(_note_args(title="clip-probe-overcap", note=body))
         stored = _stored(f.mem, "clip-probe-overcap")
     assert rc == 0
-    assert "[OK] noted" in out
+    assert "noted: " in out
     assert "[CLIPPED]" in out, f"over-cap store did not confess in the result: {out!r}"
     assert "note body" in out, f"over-cap store did not confess in the result: {out!r}"
     assert "spilled to" in out or "resend" in out.lower(), f"over-cap store did not confess in the result: {out!r}"

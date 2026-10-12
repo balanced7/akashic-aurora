@@ -27,7 +27,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _cli(*args):
-    env = dict(os.environ)
+    env = {**os.environ, "AURORA_OUTPUT": "agent"}  # the agent shape is what these pins read
     return subprocess.run(
         [sys.executable, "agent_cli.py", *args],
         cwd=REPO,
@@ -59,7 +59,7 @@ def test_done_arc_never_governs():
         "--note",
         f"GOVERNING ARC DOC: docs/{slug}-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.",
     )
-    if "[OK] noted" not in (r.stdout or ""):
+    if "noted: " not in (r.stdout or ""):
         pytest.skip("redis not available")
     head = _boot_head(f"drill-{uuid.uuid4().hex[:8]}")
     # the governing-arc line must never cite the done arc as authoritative; a weak
@@ -81,7 +81,7 @@ def test_current_directive_renders_first_class():
         "--note",
         f"{marker}: do RB-23 then Wave 3 before ANY UI. UI is paused.",
     )
-    if "[OK] noted" not in (r.stdout or ""):
+    if "noted: " not in (r.stdout or ""):
         pytest.skip("redis not available")
     head = _boot_head(f"drill-{uuid.uuid4().hex[:8]}")
     assert marker in head, "the current directive must be in the cold-start head"

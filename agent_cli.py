@@ -5517,8 +5517,10 @@ def cmd_note(args, *, mem=None):
     not by hand-editing files. Re-noting the same --title (or --supersedes ID) RETIRES the prior note
     (correct by superseding, never edit). Surfaces at `boot` + `notes`; reprojects chronicles/memory.md.
     --get <id-or-title> reads ONE full body (W01: kills the notes --json pipe dance)."""
+    from core.axi import out
     from core.learning.agent_memory import get_agent_memory, normalize_title
 
+    cli = _cli()
     if mem is None:
         mem = get_agent_memory()
     if getattr(args, "get", None):
@@ -5533,24 +5535,28 @@ def cmd_note(args, *, mem=None):
         if dec is None:
             ghosts = [d for d in pool if normalize_title(d.title) == normalize_title(target)]
             if ghosts:
-                print(
-                    f"ERROR: '{target}' matches only superseded note(s) -- newest is id "
-                    f"{ghosts[0].id}; drill that id explicitly, or browse notes --all"
+                return out.fail(
+                    f"{target!r} matches only superseded note(s); the newest is id {ghosts[0].id}",
+                    code="SUPERSEDED_ONLY",
+                    hints=[f"{cli} note {args.agent_id} --get {ghosts[0].id}", f"{cli} notes --all"],
                 )
-            else:
-                print(f"ERROR: no note with id or title '{target}' (see: notes)")
-            return 1
+            return out.fail(f"no note with id or title {target!r}", code="NOT_FOUND", hints=[f"{cli} notes"])
         if getattr(args, "json", False):
             import dataclasses
 
             print(json.dumps(dataclasses.asdict(dec), default=str))
             return 0
-        tag = "  [SUPERSEDED -- a newer note holds this title]" if dec.superseded else ""
-        print(f"# {dec.title}{tag}  (id {dec.id}, {dec.created_at})")
-        print(dec.decision)
+        # A detail view: the whole body, never cut (this is the escape hatch other views point at).
+        doc = {
+            "title": dec.title,
+            "id": dec.id,
+            "at": dec.created_at,
+            "status": "SUPERSEDED -- a newer note holds this title" if dec.superseded else "active",
+            "note": dec.decision,
+        }
         if dec.context:
-            print(f"\n[context] {dec.context}")
-        return 0
+            doc["context"] = dec.context
+        return out.emit(doc, human=_human_note_get, title=f"Note · {dec.title}")
     if args.retire:
         # Retire mode (P1/T021): tombstone a one-shot note WITHOUT a successor -- consumed
         # handoffs, placeholders, done-arc status notes. Accepts an id or a title.
@@ -5564,11 +5570,11 @@ def cmd_note(args, *, mem=None):
             None,
         )
         if dec is None:
-            print(f"ERROR: no active note with id or title '{target}' (see: notes --all)")
-            return 1
+            return out.fail(
+                f"no active note with id or title {target!r}", code="NOT_FOUND", hints=[f"{cli} notes --all"]
+            )
         if not mem.retire_decision(dec.id):
-            print(f"ERROR retiring {dec.id} (store unavailable?)")
-            return 1
+            return out.fail(f"retiring {dec.id} failed (store unavailable?)", code="WRITE_FAILED")
         try:
             from core.events.event_log import capture_event
 
@@ -5586,12 +5592,21 @@ def cmd_note(args, *, mem=None):
         if args.json:
             print(json.dumps({"retired": True, "id": dec.id, "title": dec.title}))
             return 0
-        print(f"[OK] retired '{dec.title}' (id {dec.id}) -- recoverable via the store; gone from boot/notes defaults")
-        return 0
+        return out.emit(
+            {
+                "retired": dec.title,
+                "id": dec.id,
+                "effect": "gone from boot and notes defaults; recoverable via the store",
+            },
+            title="Note retired",
+        )
     if not args.title or not args.note:
-        print("ERROR: need --title and --note (or --retire <id|title>).")
-        print(f'Example: {_cli()} note me --title "checkpoint: recall done" --note "next: write-once"')
-        return 2
+        return out.fail(
+            "no note was written: need --title and --note (or --retire <id|title>)",
+            code="USAGE",
+            hints=[f'{cli} note {args.agent_id} --title "checkpoint: recall done" --note "next: write-once"'],
+            exit_code=out.EXIT_USAGE,
+        )
     clipped = []
     title = _clip(args.title, 200)
     if len(str(args.title or "")) > 200:
@@ -5612,15 +5627,15 @@ def cmd_note(args, *, mem=None):
             # and retrying would supersede the wrong record.
             head = mem.store.get(HEAD_KEY_PREFIX + normalize_title(title))
             if head and head != supersedes and mem._is_active(head):
-                print(
-                    f"ERROR: explicit target '{supersedes}' is not the current head "
-                    f"(head is '{head}'). Drop --supersedes to auto-resolve, "
-                    f"or use --supersedes {head}."
+                return out.fail(
+                    f"explicit target {supersedes!r} is not the current head (head is {head!r}); "
+                    f"drop --supersedes to auto-resolve, or use --supersedes {head}",
+                    code="NOT_HEAD",
                 )
-                return 1
             if not head:
-                print("ERROR: no existing note for this title; drop --supersedes for a fresh first note.")
-                return 1
+                return out.fail(
+                    "no existing note for this title; drop --supersedes for a fresh first note", code="NOT_FOUND"
+                )
             # Explicit target (migration verbs): single attempt; a lost race is a
             # teaching error, not a retry -- the caller named a specific prior.
             dec_id = mem.decide(
@@ -5644,11 +5659,9 @@ def cmd_note(args, *, mem=None):
     except SupersedeRaceError as e:
         # SupersedeTargetError is-a SupersedeRaceError (pre-write refusal of the same
         # race), so this one clause catches both teaching errors.
-        print(f"ERROR: {e}")
-        return 1
+        return out.fail(str(e), code="SUPERSEDE_RACE")
     if not dec_id:
-        print("ERROR recording note (store unavailable?)")
-        return 1
+        return out.fail("recording the note failed (store unavailable?)", code="WRITE_FAILED")
     try:  # narrative + firehose fanout (best-effort), mirroring cmd_learn
         from core.narrative.beat_log import get_beat_log
         from core.narrative.track_router import RouteHint
@@ -5688,10 +5701,33 @@ def cmd_note(args, *, mem=None):
             )
         )
         return 0
-    print(f"[OK] noted '{title}' (id {dec_id})" + (f" - superseded prior {supersedes}" if supersedes else ""))
-    for c in clipped:  # RB-5: the door's RESULT carries the clip, never silent
-        print(c)
-    return 0
+    doc: dict = {"noted": title, "id": dec_id, "superseded": supersedes or "none (first note with this title)"}
+    if clipped:  # RB-5: the door's RESULT carries the clip, never silent
+        doc["clipped"] = [{"notice": c} for c in clipped]
+    return out.emit(doc, human=_human_note_written, title="Note recorded")
+
+
+def _human_note_written(console, doc):
+    from core.axi import out
+
+    console.print(f"[green]✓ noted[/] [bold]{out._esc(doc['noted'])}[/]  [dim]id {out._esc(doc['id'])}[/]")
+    if not str(doc["superseded"]).startswith("none"):
+        console.print(f"  [dim]superseded prior {out._esc(str(doc['superseded']))}[/]")
+    for row in doc.get("clipped", []):
+        console.print(f"[yellow]! {out._esc(row['notice'])}[/]")
+
+
+def _human_note_get(console, doc):
+    """Human view of `note --get`: the title line, then the body exactly as written."""
+    from core.axi import out
+
+    status = "" if doc["status"] == "active" else f"  [yellow]{out._esc(doc['status'])}[/]"
+    console.print(f"[dim]id {out._esc(doc['id'])}, {out._esc(str(doc['at']))}[/]{status}")
+    console.print()
+    console.print(out._esc(doc["note"]))
+    if doc.get("context"):
+        console.print()
+        console.print(f"[dim]context:[/] {out._esc(doc['context'])}")
 
 
 def cmd_notes(args):

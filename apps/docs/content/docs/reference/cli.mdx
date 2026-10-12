@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 25 converted to agent and human output.
+121 verbs; 26 converted to agent and human output.
 
 ## `alias`
 
@@ -1426,7 +1426,10 @@ help[2]:
 | | |
 |---|---|
 | Does | record a durable project note (write-once; re-note same title to update) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 96% after |
+| Output tokens | 48 before, 42 after (-12%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/note.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1440,6 +1443,14 @@ help[2]:
 | `--get` |   |   | W01: print ONE full note body (title resolves the active head; an explicit id reads superseded history, labeled) |
 | `--session` |   |   | session id |
 | `--json` |   |   |   |
+
+Agent output of `aurora note alice --title where-we-are --note Wave 3 done; next: migrate the ledger table. --context decided at the Monday sync` on the bench data:
+
+```text
+noted: where-we-are
+id: ADR_1012173954_e4223797
+superseded: ADR_1012173953_ad043cbf
+```
 
 ## `notes`
 

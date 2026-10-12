@@ -151,9 +151,9 @@ def test_cold_start_drill_answers_the_four_questions(tmp_path):
 
     seeded_arc = f"docs/drill-arc-{uuid.uuid4().hex[:6]}.md"
     r1 = cli("note", "seeder", "--title", "drill-arc-status", "--note", f"governing: {seeded_arc} -- the seeded arc")
-    assert "[OK] noted" in (r1.stdout or ""), (r1.stdout or "") + (r1.stderr or "")
+    assert "noted: " in (r1.stdout or ""), (r1.stdout or "") + (r1.stderr or "")
     r2 = cli("note", "seeder", "--title", "where-we-are", "--note", "drill state: seeded corpus, next P3")
-    assert "[OK] noted" in (r2.stdout or "")
+    assert "noted: " in (r2.stdout or "")
 
     p = cli("boot", f"drill-{uuid.uuid4().hex[:8]}", "--task", "cold start")
     head = "\n".join((p.stdout or "").splitlines()[:16])
