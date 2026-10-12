@@ -8288,21 +8288,32 @@ def cmd_reply(args):
 
 def _read_send_text(args):
     """bifrost-send's body: --text-file, else argv, else piped stdin. Returns (text, None) or
-    (None, exit code) after printing why nothing was sent."""
+    (None, exit code) after reporting why nothing was sent."""
+    from core.axi import out
+
     # T083-C3-1: --text-file beats argv text. Flag-shaped prose ('--foo' in a sentence) is hostile
     # input to argparse, and shell quoting multiplies the risk (live receipt 2026-07-16: a message
     # BODY containing '--sources-json' aborted the send). git commit -F precedent: long or
     # flag-bearing bodies ride a file, never argv.
+    usage = [f"{_cli()} bifrost-send {args.agent_id or '<agent_id>'} --to <peer> --text-file <path>"]
     if getattr(args, "text_file", None):
         try:
             with open(args.text_file, encoding="utf-8") as _tf:
                 text = _tf.read().strip()
         except Exception as e:
-            print(f"[bifrost-send] --text-file unreadable ({type(e).__name__}: {e}) -- not sent.")
-            return None, 2
+            return None, out.fail(
+                f"--text-file unreadable ({type(e).__name__}: {e}) -- not sent",
+                code="USAGE",
+                details={"sent": False, "path": args.text_file},
+                exit_code=out.EXIT_USAGE,
+            )
         if not text:
-            print("[bifrost-send] --text-file is empty -- not sent.")
-            return None, 2
+            return None, out.fail(
+                "--text-file is empty -- not sent",
+                code="USAGE",
+                details={"sent": False, "path": args.text_file},
+                exit_code=out.EXIT_USAGE,
+            )
     else:
         text = " ".join(args.text) if isinstance(args.text, list) else str(args.text)
         if not text.strip():
@@ -8315,16 +8326,27 @@ def _read_send_text(args):
             if piped:
                 text = sys.stdin.read().strip()
                 if text:
-                    print(f"[bifrost-send] body from stdin ({len(text)} chars) -- the W06 path")
+                    # A note, not the result: stdout carries only the verdict. Under --json it
+                    # stays where it always printed, so that output does not change.
+                    print(
+                        f"[bifrost-send] body from stdin ({len(text)} chars) -- the W06 path",
+                        file=sys.stdout if getattr(args, "json", False) else sys.stderr,
+                    )
             if not text.strip():
-                print("[bifrost-send] no message text (positional, --text-file, or piped stdin) -- not sent.")
-                return None, 2
+                return None, out.fail(
+                    "no message text (positional, --text-file, or piped stdin) -- not sent",
+                    code="USAGE",
+                    details={"sent": False},
+                    hints=usage,
+                    exit_code=out.EXIT_USAGE,
+                )
     return text, None
 
 
 def _bifrost_send_remote(args):
     """--to @fleet/seat: write to a fleet link instead of the bus (RFC #70 §7.7). The record lands in
     our feed and syncs whenever a path to that fleet opens; the bus is not needed for it."""
+    from core.axi import out
     from core.link.client import LinkdMissing, LinkRpcError
     from core.link.export import ExportRefused, send_remote
 
@@ -8335,20 +8357,36 @@ def _bifrost_send_remote(args):
     try:
         rid = send_remote(args.agent_id, args.to, args.kind, text, meta=meta)
     except (ExportRefused, LinkdMissing, LinkRpcError) as e:
-        print(f"[bifrost-send] not sent to {args.to}: {e}")
-        return 1
+        return out.fail(
+            f"not sent to {args.to}: {e}",
+            code="LINK_REFUSED",
+            details={"sent": False},
+            hints=[f"{_cli()} link status"],
+        )
     if args.json:
         print(json.dumps({"sent": True, "id": rid, "to": args.to, "kind": args.kind, "via": "link"}))
-    else:
-        print(f"[bifrost-send] -> {args.to} [{args.kind}] via fleet link (record {rid[:12]}; syncs when a path opens)")
-    return 0
+        return 0
+    return out.emit(
+        {
+            "status": "sent",
+            "to": args.to,
+            "kind": args.kind,
+            "via": "fleet link",
+            "record": rid[:12],
+            "delivers": "when a path to that fleet opens",
+        },
+        human=_human_send,
+    )
 
 
 def cmd_bifrost_send(args):
     """Send a message to another agent on the Bifrost bus (or --broadcast to all). The sender is
     args.agent_id; the recipient is --to. Rings the doorbell so a runner/waiter wakes."""
+    from core.axi import out
     from core.comm.bus import Bus
 
+    cli = _cli()
+    me = getattr(args, "agent_id", None) or "<agent_id>"
     # THE SENDER-SHAPE GATE (2026-09-04). Before anything else: is the first positional a
     # seat id, or is it the operator's answer wearing the sender slot? Three replies to him
     # died HTTP 400 as thousand-character webhook usernames because argv ordering put the
@@ -8358,16 +8396,22 @@ def cmd_bifrost_send(args):
 
     _refusal = check_sender(getattr(args, "agent_id", None))
     if _refusal:
-        print(f"[bifrost-send] {_refusal}")
-        return 2
+        return out.fail(
+            _refusal,
+            code="USAGE",
+            details={"sent": False},
+            hints=[f"{cli} bifrost-send <your_seat_id> --to <peer> --text-file <path>"],
+            exit_code=out.EXIT_USAGE,
+        )
     from core.link.export import is_remote_address
 
     if not args.broadcast and is_remote_address(args.to):
         return _bifrost_send_remote(args)
     bus = Bus(args.agent_id)
     if not bus.online:
-        print("[bifrost-send] bus OFFLINE (Redis down) -- not sent.")
-        return 1
+        return out.fail(
+            "bus OFFLINE (Redis down) -- not sent", code="BUS_OFFLINE", details={"sent": False}, hints=[f"{cli} status"]
+        )
     bus.register()
     text, _rc = _read_send_text(args)
     if text is None:
@@ -8404,21 +8448,26 @@ def cmd_bifrost_send(args):
     AUTO_REDRIVE_KINDS = {"request", "handoff", "question"}
     ASK_EXPECT_DEFAULT_S = int(os.getenv("AKASHIC_ASK_EXPECT_S", "1800"))
     expect = 0
+    armed_s, auto = 0, False
     if args.broadcast:
         if expect_arg > 0:
-            print(
-                "ERROR: --expect-reply-within needs a DIRECTED send (--to); a broadcast "
-                "has no single answerer to redrive."
+            return out.fail(
+                "--expect-reply-within needs a DIRECTED send (--to); a broadcast has no single answerer to redrive",
+                code="USAGE",
+                details={"sent": False},
+                exit_code=out.EXIT_USAGE,
             )
-            return 2
         mid = bus.broadcast(args.kind, text)
         dest = "*"
     else:
         if not args.to:
-            print(
-                'ERROR: bifrost-send needs --to <agent> (or --broadcast). e.g. bifrost-send claude --to deepseek "hi"'
+            return out.fail(
+                "bifrost-send needs --to <agent> (or --broadcast)",
+                code="USAGE",
+                details={"sent": False},
+                hints=[f'{cli} bifrost-send {me} --to <peer> "<message>"'],
+                exit_code=out.EXIT_USAGE,
             )
-            return 2
         # T073 Phase 1: explicit incarnation addressing -- names ONE session of the
         # target agent (>=8-char session-id prefix); that seat wakes even on same-agent
         # mail (the twin channel), and no other incarnation does.
@@ -8438,16 +8487,19 @@ def cmd_bifrost_send(args):
             from core.comm.expectations import MIN_WITHIN_S, arm
 
             if arm(args.agent_id, mid, args.to, args.kind, text, expect):
-                tag = " [auto: directed ask -- add --expect-reply-within 0 to opt out]" if auto else ""
-                print(
-                    f"[bifrost-send] expecting a reply within {max(MIN_WITHIN_S, expect)}s{tag} "
-                    f"(3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)"
-                )
+                armed_s = max(MIN_WITHIN_S, expect)
+                if args.json:  # --json printed this line ahead of its document; it still does
+                    tag = " [auto: directed ask -- add --expect-reply-within 0 to opt out]" if auto else ""
+                    print(
+                        f"[bifrost-send] expecting a reply within {armed_s}s{tag} "
+                        f"(3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)"
+                    )
     # T149: STDOUT MUST NOT CLAIM A SEND THAT DID NOT HAPPEN. When the re-ask window collapses a
     # duplicate, the bus says so on STDERR and sets last_reask -- but stdout used to print the
     # ordinary arrow line, carrying the ORIGINAL's id, which is indistinguishable from success on
     # the one channel scripts, pipes and logs keep. Three briefs were lost to that in one night.
-    # The collapse itself is correct and untouched; only the rendering was dishonest.
+    # The collapse itself is correct and untouched; only the rendering was dishonest. Since the
+    # AXI conversion the verdict is a field, `status`, that a script reads without parsing prose.
     collapsed = getattr(bus, "last_reask", None)
     if args.json:
         print(
@@ -8464,14 +8516,53 @@ def cmd_bifrost_send(args):
             )
         )
         return 0 if mid else 1
-    if mid and collapsed:
-        print(
-            f"[bifrost-send] COLLAPSED onto {collapsed} -- NOT re-sent (identical "
-            f"{args.kind} to {dest} is still pending). Nudge it, or change the ask."
+    if not mid:
+        return out.fail(
+            "send failed -- the bus accepted nothing", code="SEND_FAILED", details={"sent": False, "to": dest}
+        )
+    doc: dict = {"status": "collapsed" if collapsed else "sent", "to": dest, "kind": args.kind}
+    if args.broadcast:
+        doc["broadcast"] = True
+    if _spill.get("spilled"):
+        doc["body_ref"] = _spill["spill_ref"]
+    if collapsed:
+        doc["collapsed_onto"] = collapsed
+        doc["why"] = f"an identical {args.kind} to {dest} is still pending"
+        return out.emit(doc, hints=[f'{cli} bifrost-nudge {me} --to {args.to} "<what changed>"'], human=_human_send)
+    doc["id"] = mid
+    if not armed_s:
+        return out.emit(doc, human=_human_send)  # a plain send is a confirmation: no hints
+    doc["reply_due_s"] = armed_s
+    if auto:  # the window was not asked for, so say where it came from and how to drop it
+        doc["reply_due_set_by"] = "default (--expect-reply-within 0 opts out)"
+    return out.emit(doc, hints=[f"{cli} bifrost-standby {me}"], human=_human_send)
+
+
+def _human_send(console, doc):
+    """Human view of `bifrost-send`: the verdict first, in colour, then what to expect."""
+    from core.axi import out
+
+    to = "every agent" if doc.get("broadcast") else str(doc.get("to"))
+    kind = out._esc(str(doc.get("kind")))
+    if doc.get("status") == "collapsed":
+        console.print(
+            f"[yellow]not re-sent[/] -- an identical {kind} to {out._esc(to)} is still pending as "
+            f"{out._esc(str(doc['collapsed_onto']))}"
         )
     else:
-        print(f"[bifrost-send] -> {dest} [{args.kind}] (id {mid})" if mid else "[bifrost-send] send failed")
-    return 0 if mid else 1
+        via = f" via {doc['via']}" if doc.get("via") else ""
+        ref = doc.get("id") or doc.get("record")
+        console.print(f"[green]sent[/] {kind} to [bold]{out._esc(to)}[/]{out._esc(via)}  [dim]{out._esc(str(ref))}[/]")
+    if doc.get("delivers"):
+        console.print(f"  delivers {out._esc(doc['delivers'])}")
+    if doc.get("body_ref"):
+        console.print(f"  long body stored as {out._esc(doc['body_ref'])}; the recipient fetches it")
+    if doc.get("reply_due_s"):
+        why = " (the default for a directed ask)" if doc.get("reply_due_set_by") else ""
+        console.print(
+            f"  expects a reply within {_human_secs(doc['reply_due_s'])}{why}; "
+            "if none comes: 3 redrives, then a loud expectation_dead"
+        )
 
 
 def cmd_suite_baseline(args):

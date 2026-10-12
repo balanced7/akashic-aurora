@@ -1,0 +1,286 @@
+{
+  "verb": "bifrost-send",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.9,
+    "correct": 27,
+    "asked": 30,
+    "output_tokens": 133,
+    "stdout_chars": 701,
+    "stdout_lines": 6,
+    "cost_usd": 0.0241,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "What kind was the message sent as?",
+        "expected": "request",
+        "answers": [
+          "request",
+          "request",
+          "request",
+          "request",
+          "request"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Within how many seconds is a reply expected? Answer 0 if no reply deadline was set.",
+        "expected": 1800,
+        "answers": [
+          "1800",
+          "1800",
+          "1800",
+          "1800",
+          "1800"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message actually sent this time? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command does the output suggest using instead of sending again? Give the command name only.",
+        "expected": [
+          "nudge"
+        ],
+        "answers": [
+          "nudge",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "nudge"
+        ],
+        "correct": 2
+      },
+      {
+        "q": "Was this message sent to one agent or to every agent? Answer one or every.",
+        "expected": "every",
+        "answers": [
+          "every",
+          "every",
+          "every",
+          "every",
+          "every"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing? Give the flag only.",
+        "expected": "--to",
+        "answers": [
+          "--to",
+          "--to",
+          "--to",
+          "--to",
+          "--to"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ask": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "please review core/a.py",
+          "--to",
+          "claude",
+          "--kind",
+          "request"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost-send] expecting a reply within 1800s [auto: directed ask -- add --expect-reply-within 0 to opt out] (3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)\n[bifrost-send] -> claude [request] (id 1791814489825-0)\n"
+      },
+      "again": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "please review core/a.py",
+          "--to",
+          "claude",
+          "--kind",
+          "request"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost-send] expecting a reply within 1800s [auto: directed ask -- add --expect-reply-within 0 to opt out] (3 redrives then a loud expectation_dead; swept at boot/bifrost-sync)\n[bifrost-send] COLLAPSED onto 1791814489825-0 -- NOT re-sent (identical request to claude is still pending). Nudge it, or change the ask.\n"
+      },
+      "broadcast": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "standup in five minutes",
+          "--broadcast"
+        ],
+        "exit": 0,
+        "stdout": "[bifrost-send] -> * [chat] (id 1791814490664-0)\n"
+      },
+      "no_to": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "hello"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: bifrost-send needs --to <agent> (or --broadcast). e.g. bifrost-send claude --to deepseek \"hi\"\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 86,
+    "stdout_chars": 627,
+    "stdout_lines": 25,
+    "cost_usd": 0.0267,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "What kind was the message sent as?",
+        "expected": "request",
+        "answers": [
+          "request",
+          "request",
+          "request",
+          "request",
+          "request"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Within how many seconds is a reply expected? Answer 0 if no reply deadline was set.",
+        "expected": 1800,
+        "answers": [
+          "1800",
+          "1800",
+          "1800",
+          "1800",
+          "1800"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the message actually sent this time? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which command does the output suggest using instead of sending again? Give the command name only.",
+        "expected": [
+          "nudge"
+        ],
+        "answers": [
+          "bifrost-nudge",
+          "bifrost-nudge",
+          "bifrost-nudge",
+          "bifrost-nudge",
+          "bifrost-nudge"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was this message sent to one agent or to every agent? Answer one or every.",
+        "expected": "every",
+        "answers": [
+          "every",
+          "every",
+          "every",
+          "every",
+          "every"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is missing? Give the flag only.",
+        "expected": "--to",
+        "answers": [
+          "--to",
+          "--to",
+          "--to",
+          "--to",
+          "--to"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ask": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "please review core/a.py",
+          "--to",
+          "claude",
+          "--kind",
+          "request"
+        ],
+        "exit": 0,
+        "stdout": "status: sent\nto: claude\nkind: request\nid: 1791814530445-0\nreply_due_s: 1800\nreply_due_set_by: default (--expect-reply-within 0 opts out)\nhelp[1]:\n  uv run agent_cli.py bifrost-standby deepseek\n"
+      },
+      "again": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "please review core/a.py",
+          "--to",
+          "claude",
+          "--kind",
+          "request"
+        ],
+        "exit": 0,
+        "stdout": "status: collapsed\nto: claude\nkind: request\ncollapsed_onto: 1791814530445-0\nwhy: an identical request to claude is still pending\nhelp[1]:\n  uv run agent_cli.py bifrost-nudge deepseek --to claude \"<what changed>\"\n"
+      },
+      "broadcast": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "standup in five minutes",
+          "--broadcast"
+        ],
+        "exit": 0,
+        "stdout": "status: sent\nto: *\nkind: chat\nbroadcast: true\nid: 1791814531349-0\n"
+      },
+      "no_to": {
+        "argv": [
+          "bifrost-send",
+          "deepseek",
+          "hello"
+        ],
+        "exit": 2,
+        "stdout": "error: bifrost-send needs --to <agent> (or --broadcast)\ncode: USAGE\nsent: false\nhelp[1]:\n  uv run agent_cli.py bifrost-send deepseek --to <peer> \"<message>\"\n"
+      }
+    }
+  }
+}

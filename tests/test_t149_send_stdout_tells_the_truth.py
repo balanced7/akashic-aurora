@@ -26,10 +26,13 @@ stderr. W127 is that correction. The lesson it lands on is
 `a_warning_needs_a_channel_the_reader_actually_has`, in its nastiest form: the warning HAD a
 channel, and a louder line on a better channel said the opposite.
 
-  C1  a first send prints the normal arrow line
-  C2  an identical second send prints COLLAPSED on STDOUT, not the arrow line
-  C3  the collapsed line names the id it collapsed onto  (so the operator can nudge it)
-  C4  stderr keeps its existing notice                    (no signal is removed, only added)
+  C1  a first send says `status: sent`
+  C2  an identical second send says `status: collapsed` on STDOUT, never `sent`
+  C3  the collapsed verdict names the id it collapsed onto  (so the operator can nudge it)
+  C4  stderr keeps its existing notice                      (no signal is removed, only added)
+
+Since the AXI conversion the verdict is the `status` field of the agent output, not an arrow
+line; the pins read that field (the subprocess runs with AURORA_OUTPUT=agent).
 
 Run: py -m pytest tests/test_t149_send_stdout_tells_the_truth.py -q
 """
@@ -63,6 +66,7 @@ def _send(body_path):
             str(body_path),
         ],
         cwd=ROOT,
+        env={**os.environ, "AURORA_OUTPUT": "agent"},
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -87,25 +91,27 @@ def sends(tmp_path_factory):
 
 def test_c1_a_first_send_prints_the_arrow_line(sends):
     (out1, _e1), _second = sends
-    assert "[bifrost-send] ->" in out1, f"a genuine send stopped announcing itself:\n{out1}"
+    assert "status: sent" in out1, f"a genuine send stopped announcing itself:\n{out1}"
 
 
 def test_c2_an_identical_resend_says_collapsed_on_stdout(sends):
     _first, (out2, _e2) = sends
-    assert "COLLAPSED" in out2.upper(), (
+    assert "status: collapsed" in out2, (
         "stdout still renders a collapsed re-ask as a successful send -- an orchestration loop "
         f"reading stdout believes the brief landed:\n{out2}"
     )
-    assert "[bifrost-send] ->" not in out2, f"the arrow line must not appear when nothing was sent:\n{out2}"
+    assert "status: sent" not in out2, f"a sent verdict must not appear when nothing was sent:\n{out2}"
 
 
 def test_c3_the_collapsed_line_names_the_id_it_collapsed_onto(sends):
     (out1, _e1), (out2, _e2) = sends
     import re
 
-    m = re.search(r"\(id (\S+?)\)", out1)
+    m = re.search(r"^id: (\S+)$", out1, re.M)
     assert m, f"could not read the original id from the first send:\n{out1}"
-    assert m.group(1) in out2, f"the collapsed line must name {m.group(1)} so the operator can nudge it:\n{out2}"
+    assert f"collapsed_onto: {m.group(1)}" in out2, (
+        f"the collapsed verdict must name {m.group(1)} so the operator can nudge it:\n{out2}"
+    )
 
 
 def test_c4_stderr_keeps_its_existing_notice(sends):
