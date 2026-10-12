@@ -24,19 +24,22 @@ formality permanently.
 So: the seat is recorded HERE, at the moment of the commit, from the environment that made it.
 That is the only place the fact still exists.
 
+LOCAL SINCE 2026-10-12. The row goes to the world's local ledger (authorship_ledger.ledger_path()),
+never into the repository, and it also records the session, harness, model and effort that made
+the commit. That is our working record; a public commit carries only the operator.
+
 FAIL-OPEN, ALWAYS. A commit that has already happened must never be undone by its own
 bookkeeping, and a missing row is recoverable (the sha and its subject are in git forever)
 while a refused commit loses work. Every failure path exits 0 in silence.
 """
 
-import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-LEDGER = ROOT / "state" / "authorship" / "seats.jsonl"
+sys.path.insert(0, str(ROOT))
 
 
 def _git(*args):
@@ -76,12 +79,31 @@ def main() -> int:
             # reconstructed guess. cmd_build's rows carry seat_email; these cannot.
             "seat_source": "env-at-commit",
         }
-        LEDGER.parent.mkdir(parents=True, exist_ok=True)
-        with LEDGER.open("a", encoding="utf-8", newline="\n") as fh:
-            fh.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+        row.update(made_by())
+        from scripts.authorship_ledger import append
+
+        append(row)
     except Exception:
         return 0  # bookkeeping never costs a commit
     return 0
+
+
+def made_by() -> dict:
+    """The session, harness, model and effort that made this commit, as known right now.
+
+    This is why the ledger is local: the commit shows only the operator, and this row is where
+    the rest of the story lives, joined to the session's full record by `provenance`. Fields a
+    harness does not expose stay out of the row rather than reading as a guess. Never raises.
+    """
+    try:
+        from core.fleet import provenance
+        from scripts.authorship_ledger import PROVENANCE_FIELDS
+
+        rec = provenance.detect(env=os.environ)
+        rec["provenance"] = provenance.pointer(rec.get("session_id", ""))
+        return {k: rec[k] for k in PROVENANCE_FIELDS if rec.get(k) and rec[k] != provenance.UNKNOWN}
+    except Exception:
+        return {}
 
 
 if __name__ == "__main__":

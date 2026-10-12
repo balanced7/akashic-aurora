@@ -253,18 +253,12 @@ charters/daniel/*
 # ignored path is invisible to every clone, so no clone can resolve any citation.
 !state/rewrites/
 
-# EXCEPTION (2026-09-26): the authorship ledger. Daniel's ruling -- the commits must display
-# HIS name on GitHub, and which seat built what moves to its own plane. For 537 of the 598
-# seat-authored commits the committer was already him, so the git AUTHOR field was the only
-# record of the seat; the rewrite that puts his name on them overwrites exactly that field.
-# This ledger is therefore the prerequisite for the rewrite, not its follow-up, and a ledger
-# on an ignored path is invisible to every clone -- the same argument as state/drills and
-# state/rewrites above, for the third time tonight.
-!state/authorship/
-# The blanket `*.jsonl` on line 60 is a FILE-level match, so re-including the directory
-# above is not enough -- the ledger needs its own negation or it stays invisible. This
-# is the third distinct way tonight that a durable record nearly ended up untracked.
-!state/authorship/*.jsonl
+# NOT AN EXCEPTION ANY MORE (2026-10-12): the authorship ledger. From 2026-09-26 it was
+# tracked so every clone could see which seat built what. That also published, on every push,
+# which agent seat made each commit -- and the ledger now records the session, harness, model
+# and effort too, which is our working record and not public repository data. It lives in the
+# world's local instance state (scripts/authorship_ledger.py ledger_path()), seeded once from
+# the copy that was tracked, and state/* keeps any copy here out of git.
 
 # Turborepo local cache and logs (turbo.json); also kept out of turbo's own input hashes
 .turbo/

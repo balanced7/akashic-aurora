@@ -32,7 +32,10 @@ refuses when they disagree.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
+import stat
 import subprocess
 import sys
 from collections import Counter
@@ -41,8 +44,99 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-LEDGER = ROOT / "state" / "authorship" / "seats.jsonl"
+#: Where the ledger lived while it was tracked in git. Read once to seed the local ledger.
+LEGACY = ROOT / "state" / "authorship" / "seats.jsonl"
+#: Points the ledger somewhere else (tests, a relocated home).
+LEDGER_ENV = "AKASHIC_AUTHORSHIP_LEDGER"
+#: What a commit-time row copies from the session's provenance record (core/fleet/provenance.py).
+#: A snapshot, because effort and config can change inside one session; `provenance` points at
+#: the full session record.
+PROVENANCE_FIELDS = (
+    "session_id",
+    "provenance",
+    "harness",
+    "harness_version",
+    "model",
+    "effort",
+    "project_fingerprint",
+    "user_fingerprint",
+    "branch",
+)
 SEP = "\x1f"
+
+
+def ledger_path() -> Path:
+    """The local ledger: <shared state root>/state/authorship/seats.jsonl.
+
+    LOCAL, NOT TRACKED (2026-10-12). The ledger used to be committed, so every push published
+    which agent seat made which commit. Which session, harness, model and effort produced a
+    commit is our working record, not public repository data, so it now lives in the world's
+    instance state, the same place as the transcript index and the embedded Redis files. Every
+    checkout and worktree of a world writes to the one file. Without an Aurora home it falls back
+    to the old path, which git now ignores.
+    """
+    override = (os.getenv(LEDGER_ENV) or "").strip()
+    if override:
+        return Path(override)
+    try:
+        from core.paths import shared_state_root
+
+        return shared_state_root() / "state" / "authorship" / "seats.jsonl"
+    except Exception:
+        return LEGACY
+
+
+def _seed(path: Path) -> None:
+    """First use of a local ledger: copy the rows the tracked ledger held, so nothing is lost
+    when a checkout drops the tracked file."""
+    if path.exists() or path.resolve() == LEGACY.resolve() or not LEGACY.is_file():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(LEGACY.read_bytes())
+    _seal(path)
+
+
+def _seal(path: Path) -> None:
+    """Make the file read-only between appends, so an editor or a stray write cannot change a
+    recorded row. Only append() and the explicit rewrite verbs (build, rekey) unseal it."""
+    with contextlib.suppress(OSError):
+        path.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+
+
+def _unseal(path: Path) -> None:
+    with contextlib.suppress(OSError):
+        path.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+
+def append(row: dict) -> Path:
+    """Add one row at the end. Rows are written once and never edited here; a correction is a
+    new row. Returns the ledger path."""
+    path = ledger_path()
+    _seed(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n"
+    _unseal(path)
+    try:
+        with path.open("a", encoding="utf-8", newline="\n") as fh:
+            fh.write(line)
+    finally:
+        _seal(path)
+    return path
+
+
+def _rewrite(rows) -> Path:
+    """The one place a whole ledger is replaced: `build` and `rekey --write`, run on purpose."""
+    path = ledger_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _unseal(path)
+    try:
+        with path.open("w", encoding="utf-8", newline="\n") as fh:
+            for r in rows:
+                fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
+    finally:
+        _seal(path)
+    return path
+
 
 # The operator's GitHub-linked address, and the placeholder an unconfigured git left behind.
 OPERATOR = "61030820+balanced7@users.noreply.github.com"
@@ -88,14 +182,11 @@ def cmd_build(args):
     if not rows:
         raise SystemExit("no non-operator-authored commits found -- nothing to record")
 
-    LEDGER.parent.mkdir(parents=True, exist_ok=True)
     # Sorted by author date so the file reads as a history and diffs stay local.
     rows.sort(key=lambda r: (int(r["at"]), r["sha"]))
-    with LEDGER.open("w", encoding="utf-8", newline="\n") as fh:
-        for r in rows:
-            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
+    path = _rewrite(rows)
 
-    print(f"wrote {len(rows):,} rows -> {LEDGER.relative_to(ROOT)}")
+    print(f"wrote {len(rows):,} rows -> {path}")
     for seat, n in seats.most_common():
         print(f"  {seat:<28} {n:,}")
     dup = _ambiguous_keys(rows)
@@ -110,10 +201,14 @@ def _ambiguous_keys(rows):
 
 
 def load():
-    if not LEDGER.is_file():
+    """Every row: the local ledger, or the tracked one when no local ledger exists yet."""
+    path = ledger_path()
+    if not path.is_file():
+        path = LEGACY
+    if not path.is_file():
         return []
     out = []
-    for line in LEDGER.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line:
             out.append(json.loads(line))
@@ -126,7 +221,7 @@ def cmd_rekey(args):
 
     rows = load()
     if not rows:
-        raise SystemExit(f"{LEDGER} is empty -- run `build` before the rewrite, not after")
+        raise SystemExit(f"{ledger_path()} is empty -- run `build` before the rewrite, not after")
     r = Resolver(repo=ROOT)
     live = {}
     for sha, _an, _ae, at, subj, _ce in history():
@@ -198,10 +293,7 @@ def cmd_rekey(args):
     if not args.write:
         print("\n(dry run -- pass --write to update the ledger)")
         return 1 if refused else 0
-    with LEDGER.open("w", encoding="utf-8", newline="\n") as fh:
-        for row in rows:
-            fh.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-    print(f"\nupdated {LEDGER.relative_to(ROOT)}")
+    print(f"\nupdated {_rewrite(rows)}")
     return 1 if refused else 0
 
 
@@ -218,7 +310,7 @@ def seat_for(sha, rows=None):
 def cmd_who(args):
     rows = load()
     if not rows:
-        raise SystemExit(f"no ledger at {LEDGER.relative_to(ROOT)} -- run `build`")
+        raise SystemExit(f"no ledger at {ledger_path()} -- run `build`")
     for sha in args.sha:
         hit = seat_for(sha, rows)
         if not hit:
@@ -227,6 +319,9 @@ def cmd_who(args):
         was = f"  (was {hit['was_sha'][:12]})" if hit.get("was_sha") else ""
         print(f"  {sha}  {hit['seat']}{was}")
         print(f"      {hit['subject'][:88]}")
+        made = [f"{k}={hit[k]}" for k in PROVENANCE_FIELDS if hit.get(k) and hit[k] != "unknown"]
+        if made:
+            print(f"      {' '.join(made)}")
     return 0
 
 
@@ -234,7 +329,7 @@ def cmd_verify(args):
     """Every row must name a commit that exists, and its stable key must still match."""
     rows = load()
     if not rows:
-        raise SystemExit(f"no ledger at {LEDGER.relative_to(ROOT)}")
+        raise SystemExit(f"no ledger at {ledger_path()}")
     byhash = {sha: (at, subj) for sha, _n, _e, at, subj, _c in history()}
     missing = [r for r in rows if r["sha"] not in byhash]
     drifted = [r for r in rows if r["sha"] in byhash and byhash[r["sha"]] != (r["at"], r["subject"])]
