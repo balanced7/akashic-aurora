@@ -13,7 +13,8 @@ preserves and what it drops per atom kind before it runs.
 Precedents this extends (a fourth use, not a fourth idiom):
   * core/coord/orient.py:6-7 -- "a single scene model that CLI, MCP, ToolBox, Discord, or a
     future visual world can render without deriving a second version of state";
-    SCHEMA = "orient.scene.v1" (:24), render_orientation() is its CLI projection (:328).
+    SCHEMA = "orient.scene.v1" (:24), its CLI projection is agent_cli.py's
+    _orient_doc/_human_orient (one scene, an agent and a human view).
   * arsenal/__init__.py:9-10 -- arsenal.graph/v0 and arsenal.module/v0; typed ports in
     arsenal/mediatypes.py PORT_TYPES; manifests validated by arsenal/registry.py:21; the
     contract fences/media-arsenal-contract/reconciliation.md sections 4.2-4.6 ("a mismatch

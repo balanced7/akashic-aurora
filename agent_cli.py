@@ -10741,12 +10741,19 @@ def _human_sweep(console, doc):
 
 def cmd_orient(args):
     """Compose awareness and typed focus into one renderer-neutral scene."""
+    from core.axi import out
+
     subject = str(getattr(args, "agent", "") or os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
     if not subject:
-        print("ERROR: orient subject is required: pass --agent <id> or set AKASHIC_AGENT_ID")
-        return 2
+        return out.fail(
+            "orient subject is required: pass --agent <id> or set AKASHIC_AGENT_ID",
+            code="USAGE",
+            exit_code=2,
+            hints=[f"{_cli()} orient --agent <agent_id>"],
+        )
+    stdout = sys.stdout
     try:
-        from core.coord.orient import build_orientation, render_orientation
+        from core.coord.orient import build_orientation
 
         scene = build_orientation(
             subject,
@@ -10755,14 +10762,96 @@ def cmd_orient(args):
             depth=str(getattr(args, "depth", "surface") or "surface"),
             per_stream=int(getattr(args, "per_stream", 1000) or 1000),
         )
-    except (ValueError, RuntimeError) as exc:
-        print(f"ERROR: {exc}")
-        return 2
+    except ValueError as exc:
+        return out.fail(str(exc), code="USAGE", exit_code=2, hints=[f"{_cli()} orient verb:<name> --agent {subject}"])
+    except RuntimeError as exc:
+        return out.fail(str(exc), code="REFUSED", exit_code=2)
+    finally:
+        # A verb: focus runs the door-parity census, which imports the MCP server, and that
+        # import routes every later print in this process to stderr (its stdout belongs to
+        # the JSON-RPC transport). The scene is this verb's answer, so it goes back on stdout.
+        sys.stdout = stdout
     if getattr(args, "json", False):
         print(json.dumps(scene, ensure_ascii=False, indent=2, default=str))
+        return 0
+    doc, hints = _orient_doc(scene)
+    return out.emit(doc, hints=hints, human=_human_orient, title=f"Orient · {subject}")
+
+
+def _orient_doc(scene) -> tuple[dict, list[str]]:
+    """The scene as data: the focus with its truth values, every landmark as one row marked
+    nearby or contoured (a contour keeps its status and summary; only its detail folds), and
+    the blind spots spelled out rather than counted, and the return step as a command. The
+    hint is the focus drill, or how to pick a focus when there is none."""
+    from core.axi import out
+
+    cli = _cli()
+    subject = scene.get("subject")
+    target = (scene.get("target") or {}).get("address") or "ambient"
+    aperture = scene.get("aperture") or {}
+    doc: dict[str, Any] = {
+        "subject": subject,
+        "target": target,
+        "density": aperture.get("density"),
+        "depth": aperture.get("depth"),
+        "effects": ",".join(scene.get("effects") or []) or "none",
+    }
+    focus = scene.get("focus")
+    hints = []
+    if focus:
+        epi = focus.get("epistemic") or {}
+        doc["focus"] = {
+            "summary": focus.get("summary"),
+            **{
+                axis: (epi.get(axis) or {}).get("value", "unknown")
+                for axis in ("authority", "claim_kind", "currency", "identity_state", "risk")
+            },
+            "folded_fields": (focus.get("folded") or {}).get("fields", 0),
+        }
+        if focus.get("drill"):
+            hints.append(str(focus["drill"]))
     else:
-        print(render_orientation(scene))
-    return 0
+        doc["focus"] = "ambient awareness (no destination supplied)"
+        hints.append(f"{cli} orient verb:<name> --agent {subject}")
+    rows = [
+        {"name": r.get("name"), "place": place, "status": r.get("status"), "summary": r.get("summary")}
+        for place, key in (("nearby", "nearby"), ("contoured", "periphery"))
+        for r in scene.get(key) or []
+    ]
+    doc["landmarks_total"] = len(rows)
+    doc["landmarks"] = rows
+    blind = [out.truncate(b, 300)[0] for b in scene.get("blind") or []]
+    doc["blind_total"] = len(blind)
+    if blind:
+        doc["blind"] = blind
+    ret = next((r for r in scene.get("routes") or [] if r.get("name") == "return"), None)
+    step = ((ret or {}).get("steps") or [{}])[0]
+    if step.get("verb"):
+        agent = (step.get("args") or {}).get("agent")
+        # A field, not a hint: as one more command in the help list, readers could not tell
+        # which of the commands was the way back.
+        doc["return"] = f"{cli} {step['verb']}" + (f" {agent}" if agent else "")
+    return doc, hints
+
+
+def _human_orient(console, doc):
+    from core.axi import out
+
+    focus = doc["focus"]
+    console.print(f"[bold]focus[/] {out._esc(doc['target'])}")
+    if isinstance(focus, dict):
+        console.print(f"  {out._esc(str(focus.get('summary') or ''))}")
+        truth = "  ".join(
+            f"[dim]{k}[/] {out.styled(focus[k])}" for k in ("authority", "claim_kind", "currency", "risk")
+        )
+        console.print(f"  {truth}")
+    else:
+        console.print(f"  [dim]{out._esc(focus)}[/]")
+    console.print(out.table(doc["landmarks"]))
+    for b in doc.get("blind") or []:
+        console.print(f"[yellow]blind:[/] {out._esc(b)}")
+    if doc.get("return"):
+        console.print(f"[dim]return:[/] {out._esc(doc['return'])}")
 
 
 def cmd_shadow(args):

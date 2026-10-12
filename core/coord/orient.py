@@ -329,42 +329,4 @@ def build_orientation(
     }
 
 
-def render_orientation(scene: Mapping[str, Any]) -> str:
-    """Compact CLI projection of the renderer-neutral scene."""
-    subject = scene.get("subject")
-    target = (scene.get("target") or {}).get("address") or "ambient"
-    aperture = scene.get("aperture") or {}
-    effects = list(scene.get("effects") or [])
-    lines = [
-        (
-            f"# orient subject={subject} target={target} density={aperture.get('density')} "
-            f"depth={aperture.get('depth')} effects={effects if effects else 'none'}"
-        )
-    ]
-    focus = scene.get("focus")
-    if focus:
-        lines.append(f"  focus {target} | {focus.get('summary')}")
-        epi = focus.get("epistemic") or {}
-        vals = " ".join(
-            f"{axis}={(epi.get(axis) or {}).get('value', 'unknown')}"
-            for axis in ("authority", "claim_kind", "currency", "identity_state", "risk")
-        )
-        lines.append(f"  truth {vals}")
-        folded = focus.get("folded") or {}
-        if folded.get("present"):
-            lines.append(f"  folded {folded.get('fields', 0)} field(s) | drill: {folded.get('drill')}")
-    else:
-        lines.append("  focus ambient awareness (no destination supplied)")
-    nearby = list(scene.get("nearby") or [])
-    lines.append("  nearby " + (", ".join(str(row.get("name")) for row in nearby) or "none"))
-    periphery = list(scene.get("periphery") or [])
-    lines.append(
-        f"  periphery {len(periphery)} contour(s): " + (", ".join(str(row.get("name")) for row in periphery) or "none")
-    )
-    return_step = next((r for r in scene.get("routes") or [] if r.get("name") == "return"), None)
-    lines.append(f"  return {((return_step or {}).get('steps') or [{}])[0]}")
-    lines.append(f"  blind={len(scene.get('blind') or [])} | truth floor={aperture.get('truth_floor')}")
-    return "\n".join(lines)
-
-
-__all__ = ["SCHEMA", "build_orientation", "render_orientation"]
+__all__ = ["SCHEMA", "build_orientation"]

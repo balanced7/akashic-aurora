@@ -1,0 +1,246 @@
+{
+  "verb": "orient",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.167,
+    "correct": 5,
+    "asked": 30,
+    "output_tokens": 28,
+    "stdout_chars": 356,
+    "stdout_lines": 7,
+    "cost_usd": 0.0217,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many landmarks does the scene contain in total?",
+        "expected": 4,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which landmark is shown nearby, in focus?",
+        "expected": "bus",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What is the authority of the focus claim? Give the value only.",
+        "expected": "mechanical_source",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many blind spots does the scene report?",
+        "expected": 2,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What is the full command to return to ambient awareness? Give the command only.",
+        "expected": [
+          "sweep",
+          "bench"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Did the command produce a scene? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ambient": {
+        "argv": [
+          "orient"
+        ],
+        "exit": 0,
+        "stdout": "# orient subject=bench target=ambient density=compact depth=surface effects=none\n  focus ambient awareness (no destination supplied)\n  nearby bus\n  periphery 3 contour(s): bench, route, moved\n  return {'verb': 'sweep', 'args': {'agent': 'bench'}}\n  blind=0 | truth floor=always\n"
+      },
+      "verb": {
+        "argv": [
+          "orient",
+          "verb:recall"
+        ],
+        "exit": 0,
+        "stdout": ""
+      },
+      "bad": {
+        "argv": [
+          "orient",
+          "bogus:x"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: unsupported orient destination kind 'bogus'; use verb, seat, or thread\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.967,
+    "correct": 29,
+    "asked": 30,
+    "output_tokens": 241,
+    "stdout_chars": 1505,
+    "stdout_lines": 44,
+    "cost_usd": 0.0248,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many landmarks does the scene contain in total?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which landmark is shown nearby, in focus?",
+        "expected": "bus",
+        "answers": [
+          "bus",
+          "bus",
+          "bus",
+          "bus",
+          "bus"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the authority of the focus claim? Give the value only.",
+        "expected": "mechanical_source",
+        "answers": [
+          "mechanical_source",
+          "mechanical_source",
+          "mechanical_source",
+          "mechanical_source",
+          "mechanical_source"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many blind spots does the scene report?",
+        "expected": 2,
+        "answers": [
+          "Two",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What is the full command to return to ambient awareness? Give the command only.",
+        "expected": [
+          "sweep",
+          "bench"
+        ],
+        "answers": [
+          "uv run agent_cli.py sweep bench",
+          "uv run agent_cli.py sweep bench",
+          "uv run agent_cli.py sweep bench",
+          "uv run agent_cli.py sweep bench",
+          "uv run agent_cli.py sweep bench"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did the command produce a scene? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "ambient": {
+        "argv": [
+          "orient"
+        ],
+        "exit": 0,
+        "stdout": "subject: bench\ntarget: ambient\ndensity: compact\ndepth: surface\neffects: none\nfocus: ambient awareness (no destination supplied)\nlandmarks_total: 4\nlandmarks[4]{name,place,status,summary}:\n  bus,nearby,OK,1 pending; 1 shown; 1 need attention; online=none\n  bench,contoured,OK,0 parked\n  route,contoured,UNATTENDED,\"UNATTENDED: no beat, pulse, or worklive\"\n  moved,contoured,UNKNOWN,mark absent; movement unknown\nblind_total: 0\nreturn: uv run agent_cli.py sweep bench\nhelp[1]:\n  uv run agent_cli.py orient verb:<name> --agent bench\n"
+      },
+      "verb": {
+        "argv": [
+          "orient",
+          "verb:recall"
+        ],
+        "exit": 0,
+        "stdout": "subject: bench\ntarget: \"verb:recall\"\ndensity: compact\ndepth: surface\neffects: none\nfocus:\n  summary: declared=observed; reachable=observed; authorized=unknown; wired=observed\n  authority: mechanical_source\n  claim_kind: observed\n  currency: unknown\n  identity_state: unknown\n  risk: ordinary\n  folded_fields: 8\nlandmarks_total: 4\nlandmarks[4]{name,place,status,summary}:\n  bus,nearby,OK,1 pending; 1 shown; 1 need attention; online=none\n  bench,contoured,OK,0 parked\n  route,contoured,UNATTENDED,\"UNATTENDED: no beat, pulse, or worklive\"\n  moved,contoured,UNKNOWN,mark absent; movement unknown\nblind_total: 2\nblind[2]: \"fresh runtime proof: no canonical verb-to-receipt resolver\",test reference scan was truncated\nreturn: uv run agent_cli.py sweep bench\nhelp[1]:\n  uv run scripts/checkers/check_door_parity.py --report\n"
+      },
+      "bad": {
+        "argv": [
+          "orient",
+          "bogus:x"
+        ],
+        "exit": 2,
+        "stdout": "error: \"unsupported orient destination kind 'bogus'; use verb, seat, or thread\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py orient verb:<name> --agent bench\n"
+      }
+    }
+  }
+}

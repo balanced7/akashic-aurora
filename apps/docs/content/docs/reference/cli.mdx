@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 66 converted to agent and human output.
+121 verbs; 67 converted to agent and human output.
 
 ## `alias`
 
@@ -1853,7 +1853,10 @@ help[1]:
 | | |
 |---|---|
 | Does | VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 17% before, 97% after |
+| Output tokens | 28 before, 241 after (+761%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/orient.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1863,6 +1866,27 @@ help[1]:
 | `--depth` |   | surface,evidence | surface leaves a drillable contour; evidence expands the focus |
 | `--per-stream` |   |   | thread-focus archive cap per stream (1..5000; default 1000) |
 | `--json` |   |   | emit orient.scene.v1 JSON |
+
+Agent output of `aurora orient` on the bench data:
+
+```text
+subject: bench
+target: ambient
+density: compact
+depth: surface
+effects: none
+focus: ambient awareness (no destination supplied)
+landmarks_total: 4
+landmarks[4]{name,place,status,summary}:
+  bus,nearby,OK,1 pending; 1 shown; 1 need attention; online=none
+  bench,contoured,OK,0 parked
+  route,contoured,UNATTENDED,"UNATTENDED: no beat, pulse, or worklive"
+  moved,contoured,UNKNOWN,mark absent; movement unknown
+blind_total: 0
+return: uv run agent_cli.py sweep bench
+help[1]:
+  uv run agent_cli.py orient verb:<name> --agent bench
+```
 
 ## `packet-stats`
 
