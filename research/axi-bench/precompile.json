@@ -1,0 +1,200 @@
+{
+  "verb": "precompile",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.65,
+    "correct": 13,
+    "asked": 20,
+    "output_tokens": 85,
+    "stdout_chars": 390,
+    "stdout_lines": 7,
+    "cost_usd": 0.0173,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the precompile plan?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons pass every compile gate?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "UNKNOWN",
+          "0",
+          "UNKNOWN"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which gates is short_titles still failing? List the gate names separated by commas.",
+        "expected": [
+          "proven",
+          "stable"
+        ],
+        "answers": [
+          "claude-code,codex-cli,cursor,runner",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "claude-code,codex-cli,cursor,runner"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Was a precompiled candidate built? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "plan": {
+        "argv": [
+          "precompile",
+          "plan"
+        ],
+        "exit": 0,
+        "stdout": "  no_force_push                            guard        hold proven=none stable=False premise=True -> claude-code,codex-cli,cursor,runner\n  short_titles                             instruction  hold proven=none stable=False premise=True -> claude-code,codex-cli,cursor,runner\n"
+      },
+      "build": {
+        "argv": [
+          "precompile",
+          "build"
+        ],
+        "exit": 1,
+        "stdout": "{\n \"built\": false,\n \"why\": \"no lesson passed the gates\"\n}\n"
+      },
+      "check": {
+        "argv": [
+          "precompile",
+          "check"
+        ],
+        "exit": 0,
+        "stdout": "no drift: every generated piece matches its source hash\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 135,
+    "stdout_chars": 574,
+    "stdout_lines": 15,
+    "cost_usd": 0.0218,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are in the precompile plan?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons pass every compile gate?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which gates is short_titles still failing? List the gate names separated by commas.",
+        "expected": [
+          "proven",
+          "stable"
+        ],
+        "answers": [
+          "proven, stable",
+          "proven, stable",
+          "proven, stable",
+          "proven, stable",
+          "proven, stable"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a precompiled candidate built? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "plan": {
+        "argv": [
+          "precompile",
+          "plan"
+        ],
+        "exit": 0,
+        "stdout": "total: 2\npassing: 0\nlessons[2]{lesson,kind,status,failing_gates,harnesses}:\n  no_force_push,guard,held,\"proven, stable\",\"claude-code, codex-cli, cursor, runner\"\n  short_titles,instruction,held,\"proven, stable\",\"claude-code, codex-cli, cursor, runner\"\nhelp[1]:\n  uv run agent_cli.py precompile build --force\n"
+      },
+      "build": {
+        "argv": [
+          "precompile",
+          "build"
+        ],
+        "exit": 1,
+        "stdout": "error: no lesson passed the gates\ncode: NOTHING_TO_BUILD\nhelp[2]:\n  uv run agent_cli.py precompile plan\n  uv run agent_cli.py precompile build --force\n"
+      },
+      "check": {
+        "argv": [
+          "precompile",
+          "check"
+        ],
+        "exit": 0,
+        "stdout": "root: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-a7f65ec701d4c3c3d\ndrift: 0\nproblems: []\n"
+      }
+    }
+  }
+}

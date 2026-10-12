@@ -728,11 +728,16 @@ def precompile_main(args) -> int:
     from core.learning.learning_store import get_learning_store_instance
     from core.metaharness import precompile
 
-    a = args.action
+    a, cli = args.action, _cli()
     if a == "check":
         root = Path(args.root) if args.root else precompile.ROOT
         drift = precompile.check_drift(root)
-        _print(drift, args.json, "\n".join(drift) or "no drift: every generated piece matches its source hash")
+        if args.json:
+            _json(drift)
+            return 1 if drift else 0
+        # Drift is a finding, not a failure of the command: the problems are the output, and
+        # the exit code (1) is what a hook or CI step reads.
+        out.emit({"root": str(root), "drift": len(drift), "problems": drift}, title="Precompiled drift")
         return 1 if drift else 0
     ls = get_learning_store_instance()
     lessons = ls.load_all_learnings_from_store()
@@ -740,17 +745,30 @@ def precompile_main(args) -> int:
         lessons = [x for x in lessons if x.get("experiment_name") in set(args.lesson)]
     if a == "plan":
         rows = precompile.plan(lessons, store=ls.store)
-        _print(
-            rows,
-            args.json,
-            "\n".join(
-                f"  {r['lesson']:<40} {r['kind']:<12} {'PASS' if r['gates']['pass'] else 'hold'} "
-                f"proven={r['gates']['proven_by']} stable={r['gates']['stable']} premise={r['gates']['premise']} -> {','.join(r['harnesses'])}"
-                for r in rows
+        if args.json:
+            _json(rows)
+            return 0
+        table = []
+        for r in rows:
+            g = r["gates"]
+            # The gates a lesson still fails, by name: what has to change before it compiles.
+            held = [k for k in ("proven", "stable", "premise") if not g[k]]
+            table.append(
+                {
+                    "lesson": r["lesson"],
+                    "kind": r["kind"],
+                    "status": "pass" if g["pass"] else "held",
+                    "failing_gates": ", ".join(held) or None,
+                    "harnesses": ", ".join(r["harnesses"]),
+                }
             )
-            or "no lessons",
+        passing = sum(1 for r in rows if r["gates"]["pass"])
+        if not table:  # AXI section 5: no lessons is said outright
+            return out.emit({"total": 0, "passing": 0, "lessons": []}, title="Precompile plan")
+        hint = f"{cli} precompile build" if passing else f"{cli} precompile build --force"
+        return out.emit(
+            {"total": len(table), "passing": passing, "lessons": table}, hints=[hint], title="Precompile plan"
         )
-        return 0
     if a == "build":
         res = precompile.build(
             lessons,
@@ -759,15 +777,28 @@ def precompile_main(args) -> int:
             store=ls.store,
             force=args.force,
         )
-        _print(
-            res,
-            args.json,
-            json.dumps({k: v for k, v in res.items() if k != "plan"}, indent=1)
-            + ("\n(review it: `review add --candidate ...`)" if res.get("built") else ""),
+        if args.json:
+            _json(res)
+            return 0 if res.get("built") else 1
+        if not res.get("built"):
+            return out.fail(
+                str(res.get("why") or "nothing was built"),
+                code="NOTHING_TO_BUILD",
+                hints=[f"{cli} precompile plan", f"{cli} precompile build --force"],
+            )
+        doc = {
+            "candidate": res["candidate"],
+            "lessons": res["lessons"],
+            "kinds": res["kinds"],
+            "files": len(res["files"]),
+            "harnesses": res["harnesses"],
+        }
+        return out.emit(
+            doc,
+            hints=[f"{cli} review add --candidate {res['candidate']} --against {args.base} --scenario <id>"],
+            title="Precompiled candidate",
         )
-        return 0 if res.get("built") else 1
-    print(f"ERROR: unknown action {a!r}")
-    return 2
+    return _usage(f"unknown action {a!r}", f"{cli} precompile --help")
 
 
 def modes_main(args) -> int:

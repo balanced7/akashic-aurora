@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 89 converted to agent and human output.
+121 verbs; 90 converted to agent and human output.
 
 ## `alias`
 
@@ -2167,7 +2167,10 @@ policy: "kind-lane:8b1a0308b554"
 | | |
 |---|---|
 | Does | meta-harness precompiler (task 09): lessons into skills, subagents, guards, instruction lines |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 65% before, 100% after |
+| Output tokens | 85 before, 135 after (+59%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/precompile.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2178,6 +2181,18 @@ policy: "kind-lane:8b1a0308b554"
 | `--force` |   |   | build: compile lessons that do not pass the gates too (for a dry run) |
 | `--root` |   |   | check: the tree to check (default: this repo) |
 | `--json` |   |   |   |
+
+Agent output of `aurora precompile plan` on the bench data:
+
+```text
+total: 2
+passing: 0
+lessons[2]{lesson,kind,status,failing_gates,harnesses}:
+  no_force_push,guard,held,"proven, stable","claude-code, codex-cli, cursor, runner"
+  short_titles,instruction,held,"proven, stable","claude-code, codex-cli, cursor, runner"
+help[1]:
+  uv run agent_cli.py precompile build --force
+```
 
 ## `promoted`
 
