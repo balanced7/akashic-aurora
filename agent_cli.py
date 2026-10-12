@@ -1782,8 +1782,10 @@ def cmd_fleet(args):
       select -- pick the best model for a capability + constraints (what to RUN right now)
       call   -- run a bounded subtask on one model and print its output (also the manual smoke test)
     Reads are fail-soft; a failed call surfaces the error, never a silent empty string."""
+    from core.axi import out
     from core.fleet import model_roster
 
+    cli = _cli()
     action = args.action or "list"
     if action == "list":
         rows = model_roster.models(status=args.status, capability=args.capability)
@@ -1795,28 +1797,40 @@ def cmd_fleet(args):
                 listing["availability"] = probe
             print(json.dumps(listing, indent=1))
             return 0
-        hdr = f"# FLEET ROSTER  ({len(rows)} model(s)"
-        hdr += f", status={args.status}" if args.status else ""
-        hdr += f", capability={args.capability}" if args.capability else ""
-        print(hdr + ")")
+        try:
+            fields = out.fields_arg(getattr(args, "fields", None), _FLEET_FIELDS, _FLEET_ALL_FIELDS)
+        except ValueError as e:
+            return out.fail(str(e), code="USAGE", hints=[f"{cli} fleet --fields tps,notes"], exit_code=out.EXIT_USAGE)
+        doc: dict = {}
+        for k in ("status", "capability"):
+            if getattr(args, k):
+                doc[k] = getattr(args, k)
+        doc["total"] = len(rows)
         if args.probe:
-            live = "ollama up" if (probe and probe.get("ok")) else "ollama unreachable"
-            print(
-                f"  live: {live}" + (f" -- present: {probe['declared_present']}" if probe and probe.get("ok") else "")
-            )
+            doc["ollama"] = "up" if present is not None else "unreachable"
+        table = []
         for m in rows:
-            up = ""
+            full = {
+                "tag": m["tag"],
+                "status": m["status"],
+                "vram_gb": m.get("vram_gb"),
+                "context": m.get("context"),
+                "capabilities": " ".join(m.get("capabilities") or []),
+                "tps": m.get("throughput_toks"),
+                "notes": out.truncate(m.get("notes"), 200)[0] or None,
+            }
+            row = {f: full[f] for f in fields}
             if present is not None:
-                up = " [up]" if (m["tag"] in present or m["tag"].split(":")[0] in present) else " [--]"
-            vram = f"{m['vram_gb']}GB" if m.get("vram_gb") is not None else "?GB"
-            tps = f"{m['throughput_toks']}tps" if m.get("throughput_toks") is not None else "?tps"
-            print(
-                f"  {m['status']:<9} {m['tag']:<20}{up} {vram:<6} {tps:<7} ctx={m.get('context')}  "
-                f"[{', '.join(m.get('capabilities') or [])}]"
-            )
-            if m.get("disqualifier"):
-                print(f"            GATED: {m['disqualifier']}")
-        return 0
+                row["up"] = m["tag"] in present or m["tag"].split(":")[0] in present
+            if any(x.get("disqualifier") for x in rows):  # why a model is gated: a column only then
+                row["why_gated"] = m.get("disqualifier") or None
+            table.append(row)
+        doc["models"] = table
+        if not rows:  # AXI section 5: a filter that matches nothing says so, and how to widen it
+            return out.emit(doc, hints=[f"{cli} fleet"], title="Fleet roster")
+        cap = args.capability or "<capability>"
+        hints = [f"{cli} fleet select --capability {cap}", f'{cli} fleet call --model <tag> --prompt "<text>"']
+        return out.emit(doc, hints=hints, human=_human_fleet, title=f"Fleet roster · {len(rows)} models")
     if action == "select":
         pick = model_roster.select(
             args.capability, status=(args.status or "active"), max_vram=args.max_vram, min_context=args.min_context
@@ -1824,24 +1838,42 @@ def cmd_fleet(args):
         if args.json:
             print(json.dumps(pick, indent=1) if pick else "null")
             return 0 if pick else 1
+        asked = {
+            "capability": args.capability,
+            "status": args.status or "active",
+            "max_vram": args.max_vram,
+            "min_context": args.min_context,
+        }
+        asked = {k: v for k, v in asked.items() if v is not None}
         if not pick:
-            print(
-                f"# FLEET SELECT -- nothing fits (capability={args.capability}, "
-                f"max_vram={args.max_vram}, min_context={args.min_context}, status={args.status or 'active'})"
+            cap = f" --capability {args.capability}" if args.capability else ""
+            return out.fail(
+                "nothing fits: no model matches the capability and constraints",
+                code="NO_FIT",
+                details={"asked": ", ".join(f"{k}={v}" for k, v in asked.items())},
+                hints=[f"{cli} fleet{cap}", f"{cli} fleet select{cap} --status candidate"],
             )
-            return 1
-        vram = f"{pick['vram_gb']}GB" if pick.get("vram_gb") is not None else "?GB"
-        print(f"# FLEET SELECT -> {pick['tag']}  ({pick['status']}, {vram}, ctx={pick.get('context')})")
-        print(f"  why: capability={args.capability or 'any'} + constraints; {pick.get('notes', '')}")
-        return 0
+        doc = {
+            "selected": pick["tag"],
+            "status": pick["status"],
+            "vram_gb": pick.get("vram_gb"),
+            "context": pick.get("context"),
+            "asked": asked,
+            "why": out.truncate(pick.get("notes"), 300)[0] or None,
+        }
+        return out.emit(doc, hints=[f'{cli} fleet call --model {pick["tag"]} --prompt "<text>"'], title="Fleet select")
     if action == "call":
         if not args.model or not args.prompt:
-            print("ERROR: fleet call needs --model TAG and --prompt TEXT")
-            return 2
+            return out.fail(
+                "fleet call needs --model TAG and --prompt TEXT",
+                code="USAGE",
+                hints=[f'{cli} fleet call --model <tag> --prompt "<text>"', f"{cli} fleet"],
+                exit_code=out.EXIT_USAGE,
+            )
         from core.fleet.caller import FleetCallError, call
 
         try:
-            out = call(
+            text = call(
                 args.model,
                 args.prompt,
                 system=args.system,
@@ -1850,12 +1882,51 @@ def cmd_fleet(args):
                 fmt=("json" if args.json_out else None),
             )
         except FleetCallError as e:
-            print(f"[FAIL] {e}")
-            return 1
-        print(out)
+            return out.fail(str(e), code="CALL_FAILED", hints=[f"{cli} fleet --probe"])
+        print(text)  # the model's answer is the content: printed as it came, in either mode
         return 0
-    print(f"ERROR: unknown fleet action '{action}' (list | select | call)")
-    return 2
+    return out.fail(f"unknown fleet action {action!r} (list | select | call)", code="USAGE", exit_code=out.EXIT_USAGE)
+
+
+def _human_fleet(console, doc):
+    """Human view of the roster: one table, status coloured by meaning (gated in red), sizes in
+    readable units, and each gated model's reason under the table instead of in a narrow column."""
+    from rich import box
+    from rich.table import Table
+
+    from core.axi import out
+
+    colour = {"active": "green", "candidate": "yellow", "tested": "cyan", "gated": "red"}
+    cols = [c for c in doc["models"][0] if c != "why_gated"]
+    t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+    for c in cols:
+        t.add_column(c.replace("_", " ").replace("vram gb", "vram"), overflow="fold")
+    for r in doc["models"]:
+        cells = []
+        for c in cols:
+            v = r[c]
+            if c == "status":
+                cells.append(f"[{colour.get(v, 'white')}]{out._esc(v)}[/]")
+            elif c == "vram_gb":
+                cells.append("?" if v is None else f"{v} GB")
+            elif c == "context":
+                cells.append("?" if v is None else f"{v // 1000}k")
+            elif c == "capabilities":
+                cells.append(out._esc(", ".join(str(v).split())))
+            else:
+                cells.append(out.styled(v))
+        t.add_row(*cells)
+    if doc.get("ollama"):
+        console.print(f"[dim]ollama:[/] {out.styled(doc['ollama'])}")
+    console.print(t)
+    for r in doc["models"]:
+        if r.get("why_gated"):
+            console.print(f"[red]gated[/] {out._esc(r['tag'])}: {out._esc(r['why_gated'])}")
+
+
+#: `fleet` roster columns: the default agent schema, and every field --fields can add.
+_FLEET_FIELDS = ("tag", "status", "vram_gb", "context", "capabilities")
+_FLEET_ALL_FIELDS = ("tag", "status", "vram_gb", "context", "capabilities", "tps", "notes")
 
 
 # --------------------------------------------------------------------- hooks / setup
@@ -13910,6 +13981,12 @@ def build_parser():
     )
     fl.add_argument("--status", default=None, help="filter by status (active|tested|candidate|gated)")
     fl.add_argument("--probe", action="store_true", help="list: also check live Ollama availability (/api/tags)")
+    fl.add_argument(
+        "--fields",
+        default=None,
+        help=f"list: extra columns: {','.join(_FLEET_ALL_FIELDS[len(_FLEET_FIELDS) :])}, or 'all' "
+        f"(default: {','.join(_FLEET_FIELDS)})",
+    )
     fl.add_argument("--max-vram", dest="max_vram", type=float, default=None, help="select: max GB VRAM")
     fl.add_argument("--min-context", dest="min_context", type=int, default=None, help="select: min context tokens")
     fl.add_argument("--model", default=None, help="call: the model tag to invoke")

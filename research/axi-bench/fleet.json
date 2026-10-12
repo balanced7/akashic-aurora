@@ -1,0 +1,300 @@
+{
+  "verb": "fleet",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.914,
+    "correct": 32,
+    "asked": 35,
+    "output_tokens": 428,
+    "stdout_chars": 1304,
+    "stdout_lines": 15,
+    "cost_usd": 0.031,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many models are in the roster?",
+        "expected": 8,
+        "answers": [
+          "8",
+          "8",
+          "8",
+          "8",
+          "8"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which models have the status gated? Give the model names, separated by commas.",
+        "expected": [
+          "gpt-oss:20b",
+          "qwen3-coder:30b"
+        ],
+        "answers": [
+          "Two models in the roster are marked gated: gpt-oss:20b and qwen3-coder:30b.",
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What is the context window, in tokens, of glm-4.7-flash?",
+        "expected": 64000,
+        "answers": [
+          "64000",
+          "64000",
+          "64000",
+          "64000",
+          "64000"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many GB of VRAM does qwen3.5:4b need?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4GB",
+          "4GB",
+          "4GB",
+          "4GB"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which model tag was selected?",
+        "expected": "glm-4.7-flash",
+        "answers": [
+          "glm-4.7-flash",
+          "glm-4.7-flash",
+          "glm-4.7-flash",
+          "glm-4.7-flash",
+          "glm-4.7-flash"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did any model fit the request? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "yes",
+          "No"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which two flags does `fleet call` need? List them separated by commas.",
+        "expected": [
+          "--model",
+          "--prompt"
+        ],
+        "answers": [
+          "--model, --prompt",
+          "--model TAG, --prompt TEXT",
+          "--model, --prompt",
+          "--model, --prompt",
+          "--model, --prompt"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "fleet"
+        ],
+        "exit": 0,
+        "stdout": "# FLEET ROSTER  (8 model(s))\n  active    glm-4.7-flash        14GB   25tps   ctx=64000  [generalist, research, tool-use, long-context]\n  candidate qwen3.5:9b           7GB    ?tps    ctx=32000  [generalist, tool-use, instruction-following, research]\n  candidate qwen3.5:4b           4GB    ?tps    ctx=32000  [classify, extract, summarize, instruction-following]\n  candidate granite-4.0-h-small  ?GB    ?tps    ctx=32000  [extract, faithful, summarize]\n  candidate gemma-3-12b-it       ?GB    ?tps    ctx=32000  [summarize, faithful]\n  candidate qwen3-8b             ?GB    ?tps    ctx=32000  [generalist, classify, extract]\n  gated     gpt-oss:20b          14GB   9tps    ctx=64000  [reasoning]\n            GATED: fluent fabrication citing an unreadable PDF + loop collapse (bakeoff 2026-07)\n  gated     qwen3-coder:30b      19GB   ?tps    ctx=64000  [code, generalist, tool-use]\n            GATED: citation laundering (bakeoff 2026-07)\n"
+      },
+      "select": {
+        "argv": [
+          "fleet",
+          "select",
+          "--capability",
+          "generalist"
+        ],
+        "exit": 0,
+        "stdout": "# FLEET SELECT -> glm-4.7-flash  (active, 14GB, ctx=64000)\n  why: capability=generalist + constraints; Won bakeoff round 1 on citation honesty; the fleet default generalist. Spills past 16GB only above ~32K ctx.\n"
+      },
+      "nofit": {
+        "argv": [
+          "fleet",
+          "select",
+          "--capability",
+          "extract"
+        ],
+        "exit": 1,
+        "stdout": "# FLEET SELECT -- nothing fits (capability=extract, max_vram=None, min_context=None, status=active)\n"
+      },
+      "callerr": {
+        "argv": [
+          "fleet",
+          "call"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: fleet call needs --model TAG and --prompt TEXT\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.914,
+    "correct": 32,
+    "asked": 35,
+    "output_tokens": 394,
+    "stdout_chars": 1619,
+    "stdout_lines": 34,
+    "cost_usd": 0.0293,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many models are in the roster?",
+        "expected": 8,
+        "answers": [
+          "8",
+          "8",
+          "8",
+          "8",
+          "8"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which models have the status gated? Give the model names, separated by commas.",
+        "expected": [
+          "gpt-oss:20b",
+          "qwen3-coder:30b"
+        ],
+        "answers": [
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b",
+          "gpt-oss:20b, qwen3-coder:30b"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the context window, in tokens, of glm-4.7-flash?",
+        "expected": 64000,
+        "answers": [
+          "64000",
+          "64000",
+          "64000",
+          "64000",
+          "64000"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many GB of VRAM does qwen3.5:4b need?",
+        "expected": 4,
+        "answers": [
+          "qwen3.5:4b needs 4 GB of VRAM.",
+          "14",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 3
+      },
+      {
+        "q": "Which model tag was selected?",
+        "expected": "glm-4.7-flash",
+        "answers": [
+          "glm-4.7-flash",
+          "glm-4.7-flash",
+          "glm-4.7-flash",
+          "glm-4.7-flash",
+          "glm-4.7-flash"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Did any model fit the request? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "yes",
+          "No",
+          "No"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which two flags does `fleet call` need? List them separated by commas.",
+        "expected": [
+          "--model",
+          "--prompt"
+        ],
+        "answers": [
+          "--model, --prompt",
+          "--model, --prompt",
+          "--model, --prompt",
+          "--model, --prompt",
+          "--model, --prompt"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "fleet"
+        ],
+        "exit": 0,
+        "stdout": "total: 8\nmodels[8]{tag,status,vram_gb,context,capabilities,why_gated}:\n  glm-4.7-flash,active,14,64000,generalist research tool-use long-context,null\n  \"qwen3.5:9b\",candidate,7,32000,generalist tool-use instruction-following research,null\n  \"qwen3.5:4b\",candidate,4,32000,classify extract summarize instruction-following,null\n  granite-4.0-h-small,candidate,null,32000,extract faithful summarize,null\n  gemma-3-12b-it,candidate,null,32000,summarize faithful,null\n  qwen3-8b,candidate,null,32000,generalist classify extract,null\n  \"gpt-oss:20b\",gated,14,64000,reasoning,fluent fabrication citing an unreadable PDF + loop collapse (bakeoff 2026-07)\n  \"qwen3-coder:30b\",gated,19,64000,code generalist tool-use,citation laundering (bakeoff 2026-07)\nhelp[2]:\n  uv run agent_cli.py fleet select --capability <capability>\n  uv run agent_cli.py fleet call --model <tag> --prompt \"<text>\"\n"
+      },
+      "select": {
+        "argv": [
+          "fleet",
+          "select",
+          "--capability",
+          "generalist"
+        ],
+        "exit": 0,
+        "stdout": "selected: glm-4.7-flash\nstatus: active\nvram_gb: 14\ncontext: 64000\nasked:\n  capability: generalist\n  status: active\nwhy: Won bakeoff round 1 on citation honesty; the fleet default generalist. Spills past 16GB only above ~32K ctx.\nhelp[1]:\n  uv run agent_cli.py fleet call --model glm-4.7-flash --prompt \"<text>\"\n"
+      },
+      "nofit": {
+        "argv": [
+          "fleet",
+          "select",
+          "--capability",
+          "extract"
+        ],
+        "exit": 1,
+        "stdout": "error: \"nothing fits: no model matches the capability and constraints\"\ncode: NO_FIT\nasked: \"capability=extract, status=active\"\nhelp[2]:\n  uv run agent_cli.py fleet --capability extract\n  uv run agent_cli.py fleet select --capability extract --status candidate\n"
+      },
+      "callerr": {
+        "argv": [
+          "fleet",
+          "call"
+        ],
+        "exit": 2,
+        "stdout": "error: fleet call needs --model TAG and --prompt TEXT\ncode: USAGE\nhelp[2]:\n  uv run agent_cli.py fleet call --model <tag> --prompt \"<text>\"\n  uv run agent_cli.py fleet\n"
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 102 converted to agent and human output.
+121 verbs; 103 converted to agent and human output.
 
 ## `alias`
 
@@ -1105,7 +1105,10 @@ matches[1]{path,exact}:
 | | |
 |---|---|
 | Does | local-model dispatch: roster (list) + capability select + direct one-shot call |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 91% before, 91% after |
+| Output tokens | 428 before, 394 after (-8%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/fleet.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1113,6 +1116,7 @@ matches[1]{path,exact}:
 | `--capability` |   |   | capability label to filter/route on (generalist, tool-use, extract, summarize, classify, faithful, ...) |
 | `--status` |   |   | filter by status (active\|tested\|candidate\|gated) |
 | `--probe` |   |   | list: also check live Ollama availability (/api/tags) |
+| `--fields` |   |   | list: extra columns: tps,notes, or 'all' (default: tag,status,vram_gb,context,capabilities) |
 | `--max-vram` |   |   | select: max GB VRAM |
 | `--min-context` |   |   | select: min context tokens |
 | `--model` |   |   | call: the model tag to invoke |
@@ -1122,6 +1126,24 @@ matches[1]{path,exact}:
 | `--temperature` |   |   | call: sampling temperature (default 0.2) |
 | `--json-out` |   |   | call: request JSON-formatted MODEL output (Ollama format=json) |
 | `--json` |   |   | print the CLI result as JSON |
+
+Agent output of `aurora fleet` on the bench data:
+
+```text
+total: 8
+models[8]{tag,status,vram_gb,context,capabilities,why_gated}:
+  glm-4.7-flash,active,14,64000,generalist research tool-use long-context,null
+  "qwen3.5:9b",candidate,7,32000,generalist tool-use instruction-following research,null
+  "qwen3.5:4b",candidate,4,32000,classify extract summarize instruction-following,null
+  granite-4.0-h-small,candidate,null,32000,extract faithful summarize,null
+  gemma-3-12b-it,candidate,null,32000,summarize faithful,null
+  qwen3-8b,candidate,null,32000,generalist classify extract,null
+  "gpt-oss:20b",gated,14,64000,reasoning,fluent fabrication citing an unreadable PDF + loop collapse (bakeoff 2026-07)
+  "qwen3-coder:30b",gated,19,64000,code generalist tool-use,citation laundering (bakeoff 2026-07)
+help[2]:
+  uv run agent_cli.py fleet select --capability <capability>
+  uv run agent_cli.py fleet call --model <tag> --prompt "<text>"
+```
 
 ## `flightdeck`
 
