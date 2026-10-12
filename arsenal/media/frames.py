@@ -15,6 +15,7 @@ software (hw=None) because d3d11va differs by up to 7 luma levels (ff.KNOWN_BAD)
 """
 from __future__ import annotations
 
+import os
 import re
 import threading
 import queue
@@ -27,17 +28,60 @@ _CHANNELS = {"bgr24": 3, "rgb24": 3, "gray": 1}
 _PTS = re.compile(rb"pts_time:\s*([-0-9.]+)")
 
 
+#: Containers whose index makes an accurate input seek land exactly (measured bit-identical on OBS MP4). Anything
+#: else (MPEG-TS, program streams, raw elementary streams) seeks to the first keyframe AT OR AFTER the target:
+#: measured 2026-10-12 on a TS with keyframes every 2 s, -ss 3.0 landed at 4.0 and -ss 1.9 at 2.0.
+_INDEXED = ("mov", "mp4", "m4a", "3gp", "3g2", "mj2", "matroska", "webm", "avi")
+
+
 def video_info(path) -> dict:
-    """{w, h, fps, start, duration} of the first video stream (one ffprobe call)."""
+    """{w, h, fps, start, duration, format, format_start} of the first video stream (one ffprobe call). `start` is
+    the stream's start_time; `format_start` the container's, which the file clock counts from."""
     j = ff.probe_json(path, entries=("-select_streams", "v:0", "-show_entries",
-                                     "stream=width,height,avg_frame_rate,start_time:format=duration"))
+                                     "stream=width,height,avg_frame_rate,start_time"
+                                     ":format=duration,start_time,format_name"))
     if not j.get("streams"):
         raise ff.MediaError(f"no video stream in {path}")
     s = j["streams"][0]
+    fmt = j.get("format") or {}
     num, _, den = str(s.get("avg_frame_rate") or "0/1").partition("/")
     fps = float(num) / float(den or 1) if float(den or 1) else 0.0
     return {"w": int(s["width"]), "h": int(s["height"]), "fps": fps, "start": float(s.get("start_time") or 0.0),
-            "duration": float((j.get("format") or {}).get("duration") or 0.0)}
+            "duration": float(fmt.get("duration") or 0.0), "format": str(fmt.get("format_name") or ""),
+            "format_start": float(fmt.get("start_time") or 0.0)}
+
+
+def _indexed(info: dict) -> bool:
+    return any(name in _INDEXED for name in info["format"].split(","))
+
+
+_kf_cache: dict = {}
+
+
+def _keyframe_at_or_before(path, info: dict, t: float) -> float:
+    """The last keyframe at or before file time t (file clock: container pts minus the format start)."""
+    from . import probe
+    st = os.stat(path)
+    key = (str(Path(path).resolve()), st.st_size, st.st_mtime_ns)
+    if key not in _kf_cache:
+        _kf_cache.clear()
+        _kf_cache[key] = [k - info["format_start"] for k in probe.keyframes(path)]
+    before = [k for k in _kf_cache[key] if k <= t + 1e-6]
+    return before[-1] if before else 0.0
+
+
+def _seek(path, info: dict, start: float) -> Tuple[List[str], float, float]:
+    """Input-seek args, the seek point the output clock counts from, and the first time to keep.
+
+    Indexed containers: an accurate -ss (ffmpeg decodes from the keyframe and discards up to start). Others: seek to
+    just before the keyframe at or before start with -noaccurate_seek, so the landing is that keyframe, and drop the
+    frames before start by their pts here."""
+    if not start:
+        return [], 0.0, 0.0
+    if _indexed(info):
+        return ["-ss", f"{start:.6f}"], start, start
+    point = max(0.0, _keyframe_at_or_before(path, info, start) - 0.0005)
+    return (["-noaccurate_seek", "-ss", f"{point:.6f}"] if point > 0 else []), point, start
 
 
 def resolve_crop(crop, w: int, h: int) -> Optional[Tuple[int, int, int, int]]:
@@ -79,6 +123,11 @@ def _vf(crop, size, fps) -> str:
     return ",".join(chain)
 
 
+#: Longest wait for a frame's showinfo line once its pixels have arrived. Generous: a line is normally microseconds
+#: behind its frame; a missing one means the pixel and timestamp streams disagree, which must fail, never hang.
+_PTS_WAIT_S = 60.0
+
+
 def _stream(args: List[str], w: int, h: int, ch: int, t_offset: float) -> Iterator[Tuple[float, "np.ndarray"]]:
     import subprocess
     import numpy as np
@@ -107,7 +156,11 @@ def _stream(args: List[str], w: int, h: int, ch: int, t_offset: float) -> Iterat
             buf = proc.stdout.read(n)
             if len(buf) < n:
                 break
-            t = times.get()
+            try:
+                t = times.get(timeout=_PTS_WAIT_S)
+            except queue.Empty:
+                raise ff.MediaError(f"frame {got} arrived with no timestamp after {_PTS_WAIT_S:.0f} s: ffmpeg wrote "
+                                    f"more frames than its filter saw (duplicated output frames)", argv=argv)
             got += 1
             if t is None:              # showinfo printed no pts for it: a decoder hiccup, never a frame with t=None
                 continue
@@ -132,16 +185,28 @@ def _hw(hw: Optional[str]) -> List[str]:
 
 def frames(path, start: float = 0.0, dur: Optional[float] = None, fps: Optional[float] = None, crop=None,
            size=None, pix_fmt: str = "rgb24", hw: Optional[str] = "d3d11va") -> Iterator[Tuple[float, "np.ndarray"]]:
-    """Every frame of [start, start+dur) (or resampled to fps), as (pts seconds on the source clock, array)."""
+    """Every frame of [start, start+dur) (or resampled to fps), as (seconds on the file clock, array).
+
+    The file clock counts from the file's start (what a player shows, what ffmpeg's -ss means); on a container whose
+    start_time is not 0 (MPEG-TS) that is the container pts minus the format start."""
     info = video_info(path)
     c = resolve_crop(crop, info["w"], info["h"])
     w, h = _out_size(info, c, size)
-    args = ["-nostats", "-loglevel", "info", *_hw(hw)]
-    args += (["-ss", f"{start:.6f}"] if start else []) + ["-i", str(path)]
-    args += (["-t", f"{dur:.6f}"] if dur else [])
-    args += ["-map", "0:v:0", "-vf", _vf(c, (w, h) if size else None, fps), "-pix_fmt", pix_fmt,
-             "-f", "rawvideo", "-"]
-    yield from _stream(args, w, h, _CHANNELS[pix_fmt], start)
+    seek, point, keep_from = _seek(path, info, start)
+    args = ["-nostats", "-loglevel", "info", *_hw(hw), *seek, "-i", str(path)]
+    if dur:
+        args += ["-t", f"{(start - point) + dur:.6f}"]
+    # passthrough: one output frame per filtered frame, so every frame has exactly one showinfo line (a duplicating
+    # output once paired frames with the wrong timestamps, and could stall the reader)
+    args += ["-map", "0:v:0", "-fps_mode", "passthrough", "-vf", _vf(c, (w, h) if size else None, fps),
+             "-pix_fmt", pix_fmt, "-f", "rawvideo", "-"]
+    end = start + dur if dur else None
+    for t, img in _stream(args, w, h, _CHANNELS[pix_fmt], point):
+        if t < keep_from - 1e-3:
+            continue
+        if end is not None and t >= end - 1e-6:
+            break
+        yield t, img
 
 
 def keyframes(path, crop=None, size=None, pix_fmt: str = "rgb24",
@@ -165,7 +230,8 @@ def at_times(path, times: Sequence[float], crop=None, size=None, pix_fmt: str = 
     to the single-frame grabs every earlier script made (measured). Software decode by default: these are the frames
     people compare pixel by pixel.
 
-    A time after the last frame's display interval has no frame. past_end decides: "error" (default) refuses with
+    A time after the last frame's display interval (1/average-fps long: exact for the house's CFR OBS recordings, an
+    approximation on a variable-frame-rate file) has no frame. past_end decides: "error" (default) refuses with
     the file's end time, "skip" leaves it out, "last" yields the final frame with its OWN pts, so t_pts < t_req
     shows it was not decoded at t_req (an invented frame must never look like a decoded one)."""
     if past_end not in ("error", "skip", "last"):

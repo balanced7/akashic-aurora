@@ -106,6 +106,47 @@ def test_save_writes_a_manifest(clip, tmp_path, monkeypatch):
     assert Path(res["receipt"]).exists()
 
 
+@pytest.fixture(scope="module")
+def ts_clip(tmp_path_factory):
+    """MPEG-TS: container start 1.4 s, keyframes every 2 s. Its seeks land on the first keyframe AT OR AFTER the target,
+    which once made frames(start=3.0, dur=1.0) return nothing, silently."""
+    try:
+        ff.locate(refresh=True)
+    except ff.MediaError:
+        pytest.skip("no ffmpeg on this machine")
+    out = tmp_path_factory.mktemp("frames_ts") / "clip.ts"
+    ff.run(["-f", "lavfi", "-i", "testsrc2=s=160x120:r=30:d=8", "-c:v", "libx264", "-g", "60", "-keyint_min", "60",
+            "-sc_threshold", "0", "-bf", "0", "-f", "mpegts", "-y", str(out)])
+    return out
+
+
+def _full_decode(path):
+    return list(frames.frames(path, hw=None))
+
+
+def test_ts_file_clock_counts_from_the_file_start(ts_clip):
+    info = frames.video_info(ts_clip)
+    assert info["format_start"] == pytest.approx(1.4, abs=0.01) and "mpegts" in info["format"]
+    assert _full_decode(ts_clip)[0][0] == pytest.approx(0.0, abs=1e-3)
+
+
+def test_ts_span_mid_file_is_whole_and_bit_identical(ts_clip):
+    full = {round(t, 3): img for t, img in _full_decode(ts_clip)}
+    got = list(frames.frames(ts_clip, start=3.0, dur=1.0, hw=None))
+    assert len(got) == 30
+    assert got[0][0] == pytest.approx(3.0, abs=1e-3) and got[-1][0] == pytest.approx(3.967, abs=1e-3)
+    for t, img in got:
+        assert img.tobytes() == full[round(t, 3)].tobytes(), t
+
+
+def test_ts_at_times_between_keyframes(ts_clip):
+    full = _full_decode(ts_clip)
+    for t_req, t_pts, img in frames.at_times(ts_clip, [3.0, 5.55, 1.9]):
+        want_t, want_img = next((t, im) for t, im in full if t + 1e-3 >= t_req)
+        assert t_pts == pytest.approx(want_t, abs=1e-3), t_req
+        assert img.tobytes() == want_img.tobytes(), t_req
+
+
 @pytest.mark.skipif(not RECORDING.exists(), reason="Daniel's recording is not on this machine")
 def test_recording_keyframes_every_250_frames():
     got = [t for t, _ in frames.keyframes(RECORDING, crop=(0.45, 0.0, 0.1, 0.05), size=(64, None))]
