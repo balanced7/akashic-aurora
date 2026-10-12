@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/web/first-light.css" />
+<link rel="stylesheet" href="/web/edit/edit.css" />
 </head>
 <body>
 <div class="app">
@@ -19,6 +20,10 @@
       <span class="brand-sub">arsenal &middot; T399 &middot; Lane A</span>
     </div>
     <div class="topbar-actions">
+      <div class="mode-switch" role="group" aria-label="Mode">
+        <button type="button" class="btn" id="btn-mode-perform" aria-pressed="true">Perform</button>
+        <button type="button" class="btn" id="btn-mode-edit" aria-pressed="false">Edit</button>
+      </div>
       <span class="midi-status" id="midi-status">MIDI: not connected</span>
       <button type="button" class="btn" id="btn-midi">Connect MIDI</button>
       <button type="button" class="btn" id="btn-rack" aria-pressed="true" aria-controls="rack">Rack</button>
@@ -47,9 +52,33 @@
         <span class="time" id="time"><span id="time-cur">0:00</span><span class="time-sep">/</span><span id="time-dur">0:00</span></span>
         <button type="button" class="btn btn-icon" id="btn-fullscreen">Fullscreen</button>
       </div>
+
+      <!-- Edit mode: the program monitor (arsenal/web/edit/playback.js fills it) -->
+      <div class="edit-monitor" id="edit-monitor" data-edit-only="" hidden="hidden"></div>
     </section>
 
+    <!-- Edit mode: the timeline dock under the stage (arsenal/web/edit/timeline-view.js) -->
+    <section class="edit-dock" id="edit-dock" aria-label="Timeline" data-edit-only="" hidden="hidden"></section>
+
     <aside class="rack" id="rack">
+
+      <!-- Edit mode panels (arsenal/web/edit/*.js); Perform mode never shows them -->
+      <section class="panel edit-panel" data-panel="media" aria-label="Media" data-edit-only="" hidden="hidden">
+        <h2 class="panel-title">Media</h2>
+        <div id="edit-bin"></div>
+      </section>
+      <section class="panel edit-panel" data-panel="inspector" aria-label="Inspector" data-edit-only="" hidden="hidden">
+        <h2 class="panel-title">Inspector</h2>
+        <div id="edit-inspector"></div>
+      </section>
+      <section class="panel edit-panel" data-panel="mixer" aria-label="Mixer" data-edit-only="" hidden="hidden">
+        <h2 class="panel-title">Mixer</h2>
+        <div id="edit-mixer"></div>
+      </section>
+      <section class="panel edit-panel" data-panel="export" aria-label="Export" data-edit-only="" hidden="hidden">
+        <h2 class="panel-title">Export</h2>
+        <div id="edit-export"></div>
+      </section>
 
       <section class="panel" data-panel="library" aria-label="Library">
         <h2 class="panel-title">Library</h2>
@@ -142,5 +171,6 @@
   </div>
 </div>
 <script src="/web/first-light.js" defer></script>
+<script type="module" src="/web/edit/editor.js"></script>
 </body>
 </html>

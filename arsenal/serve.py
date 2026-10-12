@@ -205,6 +205,8 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         if "/api/media/" in self.path or "/api/analysis/" in self.path:
             return  # seeks and polls are chatty
+        if self.path.startswith("/api/edit/") and len(args) == 3 and str(args[1])[:1] in ("2", "3"):
+            return  # the editor's polls and seeks; its 4xx/5xx answers still reach the console
         if self.path.startswith("/api/performance/") and self.path.endswith("/events") and args[1:2] == ("200",):
             return  # the practice log flushes every second while Daniel plays
         sys.stderr.write(f"[arsenal] {fmt % args}\n")
@@ -278,6 +280,9 @@ class Handler(BaseHTTPRequestHandler):
         url = urlsplit(self.path)
         path, query = url.path, parse_qs(url.query)
         try:
+            if path.startswith("/api/edit/"):  # the editor's routes: arsenal/media/editapi.py
+                from .media import editapi
+                return editapi.handle(self, method, path, query, self._read_json)
             if method == "GET":
                 if path == "/":
                     self.send_response(302)
@@ -389,6 +394,10 @@ class Handler(BaseHTTPRequestHandler):
         if not clip:
             return self._json(404, {"error": "no such clip in the library roots"})
         path = Path(clip["path"])
+        return self._send_file(path, MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream"))
+
+    def _send_file(self, path: Path, content_type: str) -> None:
+        """A file's bytes with HTTP Range, so the browser can seek (the library's media and the editor's tracks)."""
         size = path.stat().st_size
         start, end, status = 0, size - 1, 200
         header = self.headers.get("Range")
@@ -407,7 +416,7 @@ class Handler(BaseHTTPRequestHandler):
             status = 206
         length = end - start + 1
         self.send_response(status)
-        self.send_header("Content-Type", MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream"))
+        self.send_header("Content-Type", content_type)
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(length))
         self.send_header("Cache-Control", "no-store")
@@ -755,6 +764,13 @@ class Server(ThreadingHTTPServer):
     def __init__(self, port: int, app: App):
         super().__init__((HOST, port), Handler)
         self.app = app
+
+    def handle_error(self, request, client_address):
+        # a browser dropping a keep-alive or a media Range connection between requests: the editor's monitor and
+        # lanes open several, and each printed a traceback (6 in one 30 s editor session, 2026-10-12)
+        if isinstance(sys.exc_info()[1], (ConnectionAbortedError, ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
 
 
 def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, performance_root=None,

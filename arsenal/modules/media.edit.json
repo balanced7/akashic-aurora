@@ -1,0 +1,27 @@
+{
+  "id": "media.edit",
+  "version": "0.1.0",
+  "protocol": "arsenal.module/v0",
+  "engine": "ffmpeg",
+  "inputs": [
+    {"port": "media", "type": "asset.reference"}
+  ],
+  "outputs": [
+    {"port": "timeline", "type": "timeline.sequence"},
+    {"port": "render", "type": "asset.reference"}
+  ],
+  "params": [
+    {"name": "fps", "unit": "frames/s", "range": [1, 240]},
+    {"name": "width", "unit": "px", "range": [16, 8192]},
+    {"name": "height", "unit": "px", "range": [16, 8192]},
+    {"name": "lane_gain_db", "unit": "dB", "range": [-60, 12]},
+    {"name": "clip_track_gain_db", "unit": "dB", "range": [-60, 12]},
+    {"name": "crop_x", "unit": "fraction", "range": [0, 1]}
+  ],
+  "isolation": "subprocess",
+  "licence": "Apache-2.0",
+  "latency_ms": {"base": 0},
+  "degradation": {"on_failure": "hold"},
+  "receipts": [],
+  "notes": "arsenal/media/edit.py + editapi.py: the editor's timeline document (arsenal.media.timeline/v0, one JSON file per project under <state>/edits/, one writer at a time by revision: a stale PUT gets 409 with the current document), pure clip operations (add, move, trim, split, remove, lane and per-track gain/mute/solo) that refuse overlaps on V1 and ranges past the media's end, and render(): one ffmpeg filter_complex over the clips (input-side seek, every stream anchored on src_in so late-starting tracks keep sync, timeline boundaries rounded to frames once, exact frame and sample counts per clip, per-track volume, amix, concat) encoded with an export preset, then audio.qc against the timeline's duration and the loudness target. Originals are never touched; renders land in a NEW folder <library root>/aurora-edits/<project>/ and never overwrite a file (the .part is claimed with O_EXCL, so two renders at once never share a name). HTTP: /api/edit/* inside py -m arsenal serve (import a dropped file by name+size, Range-served video and demuxed tracks, peaks, shots, keyframes, cutplan, projects, render jobs on one worker thread). CLI: py -m arsenal.media edit new|list|show|add|trim|split|move|rm|gain|render|lossless."
+}

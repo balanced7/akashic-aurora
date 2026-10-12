@@ -13,6 +13,7 @@
   var EVENT_TIMEBASE_DEN = 90000; // take-event t.ticks timebase
   var ANALYSIS_TIMEBASE_DEN = 48000; // audio_features sampling timebase
   var MIDI_MAP_KEY = "arsenal.firstlight.midiMap";
+  var MODE_KEY = "arsenal.firstlight.mode"; // "perform" | "edit" (the editor lives in /web/edit/)
   var FLUSH_INTERVAL_MS = 500;
   var HUD_INTERVAL_MS = 100;
   var LIGHT_INTERVAL_MS = 60;
@@ -1266,6 +1267,33 @@
     });
   }
 
+  // -------------------------------------------------------------- mode ---
+
+  // Perform | Edit. Edit mode belongs to arsenal/web/edit/editor.js: this page only flips the attribute its CSS
+  // keys on, shows the [data-edit-only] containers, pauses the Perform clip and announces the switch.
+  function isEditMode() {
+    return document.documentElement.getAttribute("data-mode") === "edit";
+  }
+
+  function applyMode(mode) {
+    mode = mode === "edit" ? "edit" : "perform";
+    document.documentElement.setAttribute("data-mode", mode);
+    document.getElementById("btn-mode-perform").setAttribute("aria-pressed", String(mode === "perform"));
+    document.getElementById("btn-mode-edit").setAttribute("aria-pressed", String(mode === "edit"));
+    var editOnly = document.querySelectorAll("[data-edit-only]");
+    for (var i = 0; i < editOnly.length; i++) editOnly[i].hidden = mode !== "edit";
+    if (mode === "edit" && !video.paused) video.pause();
+    safeLocalStorageSet(MODE_KEY, mode);
+    resizeCanvasIfNeeded();
+    window.dispatchEvent(new CustomEvent("arsenal:mode", { detail: { mode: mode } }));
+  }
+
+  function wireMode() {
+    document.getElementById("btn-mode-perform").addEventListener("click", function () { applyMode("perform"); });
+    document.getElementById("btn-mode-edit").addEventListener("click", function () { applyMode("edit"); });
+    applyMode(safeLocalStorageGet(MODE_KEY));
+  }
+
   // ------------------------------------------------------------ keyboard --
 
   function isTypingTarget(el) {
@@ -1281,6 +1309,7 @@
 
   function wireKeyboard() {
     window.addEventListener("keydown", function (e) {
+      if (isEditMode()) return; // the editor has its own keys (edit/editor.js)
       if (isTypingTarget(document.activeElement)) return;
       if (e.key === " " || e.code === "Space") {
         e.preventDefault();
@@ -1354,6 +1383,7 @@
     stageEl.addEventListener("drop", function (e) {
       e.preventDefault();
       stageEl.classList.remove("drag-over");
+      if (isEditMode()) return; // in Edit mode a drop imports into the editor (edit/editor.js listens too)
       var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) resolveDroppedFile(file);
     });
@@ -1374,6 +1404,7 @@
     loadMappings();
     renderMapPanel();
     wireEvents();
+    wireMode();
 
     initGL().then(function () {
       resizeCanvasIfNeeded();
