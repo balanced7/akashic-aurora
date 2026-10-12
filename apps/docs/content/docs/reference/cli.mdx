@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 98 converted to agent and human output.
+121 verbs; 99 converted to agent and human output.
 
 ## `alias`
 
@@ -2958,7 +2958,10 @@ help[2]:
 | | |
 |---|---|
 | Does | T165: score a Season 1 round, or --compare the two rule sets over the same claims |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 97% before, 100% after |
+| Output tokens | 165 before, 189 after (+15%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/season-score.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2967,6 +2970,23 @@ help[2]:
 | `--compare` |   |   | score BOTH policies and show the delta |
 | `--policies` |   |   | print each policy and its rationale |
 | `--json` |   |   |   |
+
+Agent output of `aurora season-score --round-file /tmp/axi-season-5d6_o_tl/round.json` on the bench data:
+
+```text
+policy: v1_doc
+claims: 6
+unscored: 1
+totals[3]{player,points}:
+  alice,4
+  bob,3
+  carol,-1
+unscored_claims[1]{player,dedupe_key,reason}:
+  carol,k4,"unscored: no resolvable evidence lines"
+help[2]:
+  uv run agent_cli.py season-score --round-file /tmp/axi-season-5d6_o_tl/round.json --compare
+  uv run agent_cli.py season-score --round-file /tmp/axi-season-5d6_o_tl/round.json --json
+```
 
 ## `seat-identity`
 

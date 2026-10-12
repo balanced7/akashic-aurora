@@ -8992,13 +8992,25 @@ def cmd_season_score(args):
     artifact the operator actually rules on: identical claims, both policies, the delta and the
     rank change. A decision needs a diff on real data, not two paragraphs that both sound fine.
     """
+    from core.axi import out
     from core.season import scoring
 
+    cli = _cli()
     if args.policies:
-        for name, p in scoring.POLICIES.items():
-            default = "  [DEFAULT]" if name == scoring.DEFAULT_POLICY else "  [PROPOSED]"
-            print(f"\n## {name}{default}\n{p['notes']}")
-        return 0
+        rows = [
+            {
+                "policy": name,
+                "status": "default" if name == scoring.DEFAULT_POLICY else "proposed",
+                "notes": out.truncate(p["notes"], 400)[0],
+            }
+            for name, p in scoring.POLICIES.items()
+        ]
+        return out.emit(
+            {"policies": rows},
+            hints=[f"{cli} season-score --round-file <round.json> --compare"],
+            human=_human_season_policies,
+            title="Season scoring policies",
+        )
 
     claims, verifications, uptime, fixed = [], [], {}, set()
     if args.round_file:
@@ -9008,37 +9020,100 @@ def cmd_season_score(args):
         uptime = doc.get("uptime", {}) or {}
         fixed = set(doc.get("fixed_keys", []) or [])
     if not claims:
-        print("season-score: no claims (pass --round-file <json> or --policies)")
-        return 2
+        return out.fail(
+            "no claims to score" + (f" in {args.round_file}" if args.round_file else ""),
+            code="USAGE",
+            hints=[f"{cli} season-score --round-file <round.json>", f"{cli} season-score --policies"],
+            exit_code=out.EXIT_USAGE,
+        )
+    rf = _quote_arg(args.round_file)
 
     if args.compare:
-        out = scoring.compare(claims, verifications, uptime=uptime, fixed_keys=fixed)
+        res = scoring.compare(claims, verifications, uptime=uptime, fixed_keys=fixed)
         if args.json:
-            print(json.dumps(out, indent=2))
+            print(json.dumps(res, indent=2))
             return 0
-        print("## SCORING POLICY DIFF -- same claims, both rule sets")
-        for p in sorted(set(out["v1_doc"]) | set(out["v2_aixcc"])):
-            print(
-                f"  {p:<16} v1={out['v1_doc'].get(p, 0):>5}  v2={out['v2_aixcc'].get(p, 0):>5}  "
-                f"delta={out['delta'].get(p, 0):>+5}"
-            )
-        print(f"\n  rank v1_doc  : {' > '.join(out['rank_v1'])}")
-        print(f"  rank v2_aixcc: {' > '.join(out['rank_v2'])}")
-        if out["rank_v1"] != out["rank_v2"]:
-            print("  ^ the proposals CHANGE THE ORDER -- this is the decision, not a tuning knob")
-        return 0
+        players = sorted(set(res["v1_doc"]) | set(res["v2_aixcc"]))
+        doc = {
+            "players": [
+                {
+                    "player": p,
+                    "v1_doc": res["v1_doc"].get(p, 0),
+                    "v2_aixcc": res["v2_aixcc"].get(p, 0),
+                    "delta": res["delta"].get(p, 0),
+                }
+                for p in players
+            ],
+            "rank_v1_doc": res["rank_v1"],
+            "rank_v2_aixcc": res["rank_v2"],
+            # The point of --compare: a changed order is the decision, not a tuning knob.
+            "order_changed": res["rank_v1"] != res["rank_v2"],
+        }
+        return out.emit(
+            doc,
+            hints=[f"{cli} season-score --policies", f"{cli} season-score --round-file {rf} --policy v2_aixcc"],
+            human=_human_season_compare,
+            title="Scoring policy diff · same claims, both rule sets",
+        )
 
     res = scoring.score_round(claims, verifications, policy=args.policy, uptime=uptime, fixed_keys=fixed)
     if args.json:
         print(json.dumps(res, indent=2))
         return 0
-    print(f"## ROUND SCORE (policy {res['policy']}, {res['unscored']} unscored)")
-    for p, pts in sorted(res["totals"].items(), key=lambda kv: -kv[1]):
-        print(f"  {p:<16} {pts:>5}")
-    for c in res["claims"]:
-        if not c["scored"]:
-            print(f"  [unscored] {c['player']} {c['dedupe_key']}: {c['reason']}")
-    return 0
+    doc = {
+        "policy": res["policy"],
+        "claims": len(res["claims"]),
+        "unscored": res["unscored"],
+        "totals": [{"player": p, "points": pts} for p, pts in sorted(res["totals"].items(), key=lambda kv: -kv[1])],
+    }
+    # Unscored is a third state, not zero: each one says why it was never evidence.
+    if res["unscored"]:
+        doc["unscored_claims"] = [
+            {"player": c["player"], "dedupe_key": c["dedupe_key"], "reason": c["reason"]}
+            for c in res["claims"]
+            if not c["scored"]
+        ]
+    return out.emit(
+        doc,
+        hints=[f"{cli} season-score --round-file {rf} --compare", f"{cli} season-score --round-file {rf} --json"],
+        human=_human_season_score,
+        title=f"Round score · policy {res['policy']}",
+    )
+
+
+def _human_season_score(console, doc):
+    """Human view of `season-score`: the standings table, then any unscored claims and why."""
+    from core.axi import out
+
+    console.print(f"[dim]{doc['claims']} claims, {doc['unscored']} unscored[/]")
+    console.print(out.table(doc["totals"]))
+    if doc.get("unscored_claims"):
+        console.print(out.table(doc["unscored_claims"], title="unscored (never evidence, not zero)"))
+
+
+def _human_season_compare(console, doc):
+    """Human view of `season-score --compare`: both totals and the delta per player, then the
+    two rankings, with a changed order called out."""
+    from core.axi import out
+
+    rows = [{**r, "delta": f"{r['delta']:+d}"} for r in doc["players"]]
+    console.print(out.table(rows))
+    console.print(f"rank v1_doc   : {out._esc(' > '.join(doc['rank_v1_doc']))}")
+    console.print(f"rank v2_aixcc : {out._esc(' > '.join(doc['rank_v2_aixcc']))}")
+    if doc["order_changed"]:
+        console.print("[yellow bold]the policies change the order: this is the decision, not a tuning knob[/]")
+    else:
+        console.print("[green]same order under both policies[/]")
+
+
+def _human_season_policies(console, doc):
+    """Human view of `season-score --policies`: each policy, its status, and its rationale."""
+    from core.axi import out
+
+    for r in doc["policies"]:
+        colour = "green" if r["status"] == "default" else "yellow"
+        console.print(f"[bold]{out._esc(r['policy'])}[/]  [{colour}]{r['status']}[/]")
+        console.print(f"  {out._esc(r['notes'])}")
 
 
 def cmd_grant(args):

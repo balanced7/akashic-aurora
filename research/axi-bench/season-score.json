@@ -1,0 +1,270 @@
+{
+  "verb": "season-score",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.971,
+    "correct": 34,
+    "asked": 35,
+    "output_tokens": 165,
+    "stdout_chars": 3164,
+    "stdout_lines": 22,
+    "cost_usd": 0.0321,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many points does alice have in total?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "alice: 4",
+          "4",
+          "4",
+          "alice's total is 4."
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many claims were left unscored?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which player's claim was unscored?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol k4"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which player ranks first under v2_aixcc?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Do the two policies rank the players in a different order? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "Yes",
+          "Yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is bob's delta between the two policies?",
+        "expected": 4,
+        "answers": [
+          "+4",
+          "+4",
+          "+4",
+          "+4",
+          "+4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which scoring policy is the default?",
+        "expected": "v1_doc",
+        "answers": [
+          "v1_doc",
+          "v1_doc",
+          "v1_doc",
+          "v1_doc",
+          "v1_doc"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "score": {
+        "argv": [
+          "season-score",
+          "--round-file",
+          "/tmp/axi-season-5d6_o_tl/round.json"
+        ],
+        "exit": 0,
+        "stdout": "## ROUND SCORE (policy v1_doc, 1 unscored)\n  alice                4\n  bob                  3\n  carol               -1\n  [unscored] carol k4: unscored: no resolvable evidence lines\n"
+      },
+      "compare": {
+        "argv": [
+          "season-score",
+          "--round-file",
+          "/tmp/axi-season-5d6_o_tl/round.json",
+          "--compare"
+        ],
+        "exit": 0,
+        "stdout": "## SCORING POLICY DIFF -- same claims, both rule sets\n  alice            v1=    4  v2=    4  delta=   +0\n  bob              v1=    3  v2=    7  delta=   +4\n  carol            v1=   -1  v2=   -1  delta=   +0\n\n  rank v1_doc  : alice > bob > carol\n  rank v2_aixcc: bob > alice > carol\n  ^ the proposals CHANGE THE ORDER -- this is the decision, not a tuning knob\n"
+      },
+      "policies": {
+        "argv": [
+          "season-score",
+          "--policies"
+        ],
+        "exit": 0,
+        "stdout": "\n## v1_doc  [DEFAULT]\nExactly the committed table, section 1.6. Pinned so the design doc stays executable.\n\n## v2_aixcc  [PROPOSED]\nPROPOSED (W2), not the default. Four changes, each with a reason: (1) UPTIME AS A SCORED AXIS -- AIxCC scores availability because a competitor that is down contributes nothing; here a wedged seat currently scores the same as a live player who found nothing, which is the exact ambiguity T155 was filed about. (2) GRADUATED ACCURACY PENALTY replacing the flat -2 -- a flat penalty is regressive: it is trivial for a high-volume player and severe for a careful one, so it taxes care rather than inaccuracy. Scale by the player's own refuted RATE. (3) DUPLICATE DECAY rather than a hard zero -- a hard zero makes independent near-simultaneous discovery worthless, which suppresses exactly the corroboration that makes a finding trustworthy. (4) VALUE WEIGHTING -- a confirmed finding that is later FIXED is worth more than one that sits on the board.\n\n## v3_confidence_priced  [PROPOSED]\nPROPOSED 2026-08-07, NOT the default -- same standing as v2_aixcc, and it carries v2's four changes plus one more. Closes the HEDGE EXPLOIT (T221), found by attacking this scorer before the season ran: a player with 3 real finds and THIRTY wrong claims, every one marked low-confidence, outscored a player with the same 3 finds and one wrong high-confidence claim -- 6 to 4 under v1_doc, 6 to 5 under v2_aixcc, and unbounded in both (300 wrong claims cost exactly what 30 do, which is nothing). CAUSE: refuted_low_confidence=0 gives an honestly-flagged wrong claim downside protection, which is right; but a CONFIRMED low-confidence claim still earns FULL points, so the protection is free. In competition terms that is a free option, and a free option is always exercised -- the dominant strategy becomes hedge everything, spray, keep the hits. TWO KNOBS, and they must move together. (1) low_confidence_credit prices the option: a hedged claim that lands earns less than one its author stood behind, so confidence becomes a real trade rather than a free put. (2) low_confidence_free_misses bounds the volume: the first few honest misses stay free -- that is the whole point of the floor and it must survive -- but the exemption stops being infinite. WHY BOTH: pricing alone still lets a hedger spray at zero downside, and bounding alone makes honest uncertainty expensive without making confidence worth anything. The failure mode to avoid is over-correcting into punishing flagged doubt, which buys FALSE CONFIDENCE -- strictly worse than noise, because noise is filterable and false confidence is not.\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 189,
+    "stdout_chars": 1852,
+    "stdout_lines": 28,
+    "cost_usd": 0.0313,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many points does alice have in total?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many claims were left unscored?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which player's claim was unscored?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which player ranks first under v2_aixcc?",
+        "expected": "bob",
+        "answers": [
+          "bob",
+          "bob",
+          "bob",
+          "bob",
+          "bob"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Do the two policies rank the players in a different order? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "Yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is bob's delta between the two policies?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which scoring policy is the default?",
+        "expected": "v1_doc",
+        "answers": [
+          "v1_doc",
+          "v1_doc",
+          "v1_doc",
+          "v1_doc",
+          "v1_doc"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "score": {
+        "argv": [
+          "season-score",
+          "--round-file",
+          "/tmp/axi-season-5d6_o_tl/round.json"
+        ],
+        "exit": 0,
+        "stdout": "policy: v1_doc\nclaims: 6\nunscored: 1\ntotals[3]{player,points}:\n  alice,4\n  bob,3\n  carol,-1\nunscored_claims[1]{player,dedupe_key,reason}:\n  carol,k4,\"unscored: no resolvable evidence lines\"\nhelp[2]:\n  uv run agent_cli.py season-score --round-file /tmp/axi-season-5d6_o_tl/round.json --compare\n  uv run agent_cli.py season-score --round-file /tmp/axi-season-5d6_o_tl/round.json --json\n"
+      },
+      "compare": {
+        "argv": [
+          "season-score",
+          "--round-file",
+          "/tmp/axi-season-5d6_o_tl/round.json",
+          "--compare"
+        ],
+        "exit": 0,
+        "stdout": "players[3]{player,v1_doc,v2_aixcc,delta}:\n  alice,4,4,0\n  bob,3,7,4\n  carol,-1,-1,0\nrank_v1_doc[3]: alice,bob,carol\nrank_v2_aixcc[3]: bob,alice,carol\norder_changed: true\nhelp[2]:\n  uv run agent_cli.py season-score --policies\n  uv run agent_cli.py season-score --round-file /tmp/axi-season-5d6_o_tl/round.json --policy v2_aixcc\n"
+      },
+      "policies": {
+        "argv": [
+          "season-score",
+          "--policies"
+        ],
+        "exit": 0,
+        "stdout": "policies[3]{policy,status,notes}:\n  v1_doc,default,\"Exactly the committed table, section 1.6. Pinned so the design doc stays executable.\"\n  v2_aixcc,proposed,\"PROPOSED (W2), not the default. Four changes, each with a reason: (1) UPTIME AS A SCORED AXIS -- AIxCC scores availability because a competitor that is down contributes nothing; here a wedged seat currently scores the same as a live player who found nothing, which is the exact ambiguity T155 was filed about. (2) GRADUATED ACCURACY PENALTY replacing the flat -2 -- a flat penalty is regressive: it i... (truncated, 848 chars total)\"\n  v3_confidence_priced,proposed,\"PROPOSED 2026-08-07, NOT the default -- same standing as v2_aixcc, and it carries v2's four changes plus one more. Closes the HEDGE EXPLOIT (T221), found by attacking this scorer before the season ran: a player with 3 real finds and THIRTY wrong claims, every one marked low-confidence, outscored a player with the same 3 finds and one wrong high-confidence claim -- 6 to 4 under v1_doc, 6 to 5 under... (truncated, 1605 chars total)\"\nhelp[1]:\n  uv run agent_cli.py season-score --round-file <round.json> --compare\n"
+      }
+    }
+  }
+}
