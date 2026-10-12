@@ -1,0 +1,248 @@
+{
+  "verb": "ground",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.667,
+    "correct": 20,
+    "asked": 30,
+    "output_tokens": 0,
+    "stdout_chars": 2677,
+    "stdout_lines": 40,
+    "cost_usd": 0.0232,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "What is the state of the EXERCISED rung? Give one word.",
+        "expected": "partial",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many blind spots does the result report?",
+        "expected": 2,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many lessons by this seat were observed?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an identity verdict computed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who handed work to this seat?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What must be added to the command for seat grounding to run? Give the flag only.",
+        "expected": [
+          "--continuity"
+        ],
+        "answers": [
+          "--continuity",
+          "--continuity",
+          "--continuity",
+          "--continuity",
+          "--continuity"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "verb": {
+        "argv": [
+          "ground",
+          "verb:recall"
+        ],
+        "exit": 0,
+        "stdout": ""
+      },
+      "seat": {
+        "argv": [
+          "ground",
+          "seat:bench",
+          "--continuity"
+        ],
+        "exit": 0,
+        "stdout": "# ground seat:bench --continuity\n  observed 2026-10-12T16:14:20.111905Z | effects: none\n  IDENTITY VERDICT: NOT COMPUTED -- continuity evidence is not an identity verdict; only the ratified resident registry may supply a designation, and no region can nominate or ratify one\n\n## DESIGNATION  ABSENT [ratified_resident_registry]  shown 0/0\n  no ratified resident designation observed in the authoritative read; this does not claim that the seat or its history does not exist\n  source: core/fleet/residents.py:get + history (exact seat key)\n  drill: uv run agent_cli.py resident show bench\n\n## LESSONS  OBSERVED [exact_lesson_authorship]  shown 2/2\n  exact subject-authored lessons; these are self-receipts, not a designation\n  source: LearningStore learn:agent:bench exact index\n  - cache_fix: a  [learn:experiment:cache_fix]\n  - port_clash: check port 16379  [learn:experiment:port_clash]\n  drill: uv run agent_cli.py recall --full learn:experiment:cache_fix --json\n\n## NOTES  ABSENT [subject_scoped_not_author_verified]  shown 0/0\n  no matching notes observed within this source and its stated bounds; absence is not nonexistence\n  source: AgentMemory active decision heads, 3650-day read window\n  BLIND: scratch title prefix scopes a note but the record has no author field\n  drill: use the bound ToolBox memory_recall door for bench\n\n## HANDOFFS  OBSERVED [directional_attribution]  shown 1/1\n  exact inbound/outbound handoffs; direction is preserved and inbound prose is not self-authorship\n  source: AgentSignalLedger canonical replay (cap 10000)\n  - inbound alice -> bench: finish the AXI batch  [agent-signal:1791821658505-0]\n  drill: inbound: uv run agent_cli.py handoff bench --list --to bench --json; outbound has no dedicated CLI reader, so use this grounded region\n\n## ARTIFACTS  ABSENT [header_attribution_not_authorship]  shown 0/0\n  no matching artifacts observed within this source and its stated bounds; absence is not nonexistence\n  source: AtomFamily.find full current corpus; exact header.seats membership\n  drill: no dedicated exact atom read door; use the atom:<id> source shown by this region\n\n## MOVEMENT  OBSERVED [telemetry_attribution_not_identity]  shown 2/2\n  exact agent telemetry attribution; activity is not identity authority\n  source: EventLog per-agent stream events:bench:raw\n  - 2026-10-12T16:14:18.107538+00:00 learning: lesson: cache_fix  [event:events:bench:raw:1791821658110-0]\n  - 2026-10-12T16:14:17.685822+00:00 learning: lesson: port_clash  [event:events:bench:raw:1791821657688-0]\n  drill: uv run agent_cli.py events --get event:events:bench:raw:1791821658110-0 --json\n"
+      },
+      "bad": {
+        "argv": [
+          "ground",
+          "seat:bench"
+        ],
+        "exit": 2,
+        "stdout": "ERROR: seat grounding requires the explicit --continuity mode\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 461,
+    "stdout_chars": 2749,
+    "stdout_lines": 41,
+    "cost_usd": 0.0261,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "What is the state of the EXERCISED rung? Give one word.",
+        "expected": "partial",
+        "answers": [
+          "partial",
+          "partial",
+          "partial",
+          "partial",
+          "partial"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many blind spots does the result report?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many lessons by this seat were observed?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an identity verdict computed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who handed work to this seat?",
+        "expected": "alice",
+        "answers": [
+          "alice",
+          "alice",
+          "alice",
+          "alice",
+          "alice"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What must be added to the command for seat grounding to run? Give the flag only.",
+        "expected": [
+          "--continuity"
+        ],
+        "answers": [
+          "--continuity",
+          "--continuity",
+          "--continuity",
+          "--continuity",
+          "--continuity"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "verb": {
+        "argv": [
+          "ground",
+          "verb:recall"
+        ],
+        "exit": 0,
+        "stdout": "target: \"verb:recall\"\nsubject: bench\nobserved_at: \"2026-10-12T16:14:56.832271Z\"\neffects: none\nrungs[6]{rung,state,claim,source}:\n  declared,observed,door-parity manifest classifies recall as shared,scripts/checkers/check_door_parity.py (live manifest and AST census)\n  reachable,observed,all 3 declared door addresses are present,scripts/checkers/check_door_parity.py (live manifest and AST census)\n  authorized,unknown,effective grant was compared only where a subject gate is mechanically known,security/acl.json via core.trust.registry.resolve + door implementations\n  wired,observed,\"every declared endpoint resolves to a callable, advertised handler\",live parser defaults + MCP callables + ToolBox method/schema\n  exercised,partial,102 test file(s) reference the verb; this scan does not establish that they ran or passed,tests/test_*.py bounded lexical reference scan (not execution)\n  proven,unknown,no canonical fresh runtime receipt resolver currently maps this verb to a successful execution,\"canonical runtime receipt resolver: unavailable\"\nblind_total: 2\nblind[2]: \"fresh runtime proof: no canonical verb-to-receipt resolver\",test reference scan was truncated\nhelp[1]:\n  uv run scripts/checkers/check_door_parity.py --report\n"
+      },
+      "seat": {
+        "argv": [
+          "ground",
+          "seat:bench",
+          "--continuity"
+        ],
+        "exit": 0,
+        "stdout": "target: \"seat:bench\"\nobserved_at: \"2026-10-12T16:14:57.755691Z\"\neffects: none\nidentity_verdict: not computed\nidentity_claim: \"continuity evidence is not an identity verdict; only the ratified resident registry may supply a designation, and no region can nominate or ratify one\"\nregions[6]{region,state,authority,shown,matched}:\n  designation,absent,ratified_resident_registry,0,0\n  lessons,observed,exact_lesson_authorship,2,2\n  notes,absent,subject_scoped_not_author_verified,0,0\n  handoffs,observed,directional_attribution,1,1\n  artifacts,absent,header_attribution_not_authorship,0,0\n  movement,observed,telemetry_attribution_not_identity,2,2\nitems[5]{region,item}:\n  lessons,\"cache_fix: a [learn:experiment:cache_fix]\"\n  lessons,\"port_clash: check port 16379 [learn:experiment:port_clash]\"\n  handoffs,\"inbound alice -> bench: finish the AXI batch [agent-signal:1791821696397-0]\"\n  movement,\"2026-10-12T16:14:56.054675+00:00 learning: lesson: cache_fix [event:events:bench:raw:1791821696057-0]\"\n  movement,\"2026-10-12T16:14:55.650814+00:00 learning: lesson: port_clash [event:events:bench:raw:1791821695654-0]\"\nblind[1]: \"notes: scratch title prefix scopes a note but the record has no author field\"\nhelp[2]:\n  uv run agent_cli.py recall --full learn:experiment:cache_fix --json\n  uv run agent_cli.py events --get event:events:bench:raw:1791821696057-0 --json\n"
+      },
+      "bad": {
+        "argv": [
+          "ground",
+          "seat:bench"
+        ],
+        "exit": 2,
+        "stdout": "error: seat grounding requires the explicit --continuity mode\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py ground seat:bench --continuity --agent bench\n"
+      }
+    }
+  }
+}

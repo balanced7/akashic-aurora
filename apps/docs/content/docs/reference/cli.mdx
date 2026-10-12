@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 88 converted to agent and human output.
+121 verbs; 89 converted to agent and human output.
 
 ## `alias`
 
@@ -1351,7 +1351,10 @@ recall_slots: no (history kept)
 | | |
 |---|---|
 | Does | typed evidence for verb:&lt;name&gt;, or bounded recovery evidence for seat:&lt;id&gt; --continuity |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 67% before, 100% after |
+| Output tokens | 0 before, 461 after (n/a) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/ground.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1359,6 +1362,26 @@ recall_slots: no (history kept)
 | `--agent` |   |   | subject whose effective grant is resolved (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--continuity` |   |   | required with seat:&lt;id&gt;; assemble evidence without inferring identity |
 | `--json` |   |   | emit ground.result.v1 JSON |
+
+Agent output of `aurora ground verb:recall` on the bench data:
+
+```text
+target: "verb:recall"
+subject: bench
+observed_at: "2026-10-12T16:14:56.832271Z"
+effects: none
+rungs[6]{rung,state,claim,source}:
+  declared,observed,door-parity manifest classifies recall as shared,scripts/checkers/check_door_parity.py (live manifest and AST census)
+  reachable,observed,all 3 declared door addresses are present,scripts/checkers/check_door_parity.py (live manifest and AST census)
+  authorized,unknown,effective grant was compared only where a subject gate is mechanically known,security/acl.json via core.trust.registry.resolve + door implementations
+  wired,observed,"every declared endpoint resolves to a callable, advertised handler",live parser defaults + MCP callables + ToolBox method/schema
+  exercised,partial,102 test file(s) reference the verb; this scan does not establish that they ran or passed,tests/test_*.py bounded lexical reference scan (not execution)
+  proven,unknown,no canonical fresh runtime receipt resolver currently maps this verb to a successful execution,"canonical runtime receipt resolver: unavailable"
+blind_total: 2
+blind[2]: "fresh runtime proof: no canonical verb-to-receipt resolver",test reference scan was truncated
+help[1]:
+  uv run scripts/checkers/check_door_parity.py --report
+```
 
 ## `handoff`
 

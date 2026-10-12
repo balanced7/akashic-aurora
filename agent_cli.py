@@ -11156,23 +11156,125 @@ def cmd_college(args):
 
 def cmd_ground(args):
     """Build typed verb evidence or a non-authoritative seat continuity profile."""
+    from core.axi import out
+
+    cli = _cli()
     subject = str(getattr(args, "agent", "") or os.environ.get("AKASHIC_AGENT_ID", "") or "").strip()
     if not subject:
-        print("ERROR: ground subject is required: pass --agent <id> or set AKASHIC_AGENT_ID")
-        return 2
+        return out.fail(
+            "ground subject is required: pass --agent <id> or set AKASHIC_AGENT_ID",
+            code="USAGE",
+            exit_code=2,
+            hints=[f"{cli} ground {args.target} --agent <agent_id>"],
+        )
+    stdout = sys.stdout
     try:
         from core.coord.ground import ground as _ground
-        from core.coord.ground import render as _render_ground
 
         result = _ground(str(args.target), subject=subject, continuity=bool(getattr(args, "continuity", False)))
     except ValueError as exc:
-        print(f"ERROR: {exc}")
-        return 2
+        hint = (
+            f"{cli} ground seat:{subject} --continuity --agent {subject}"
+            if "continuity" in str(exc)
+            else f"{cli} ground verb:<name> --agent {subject}"
+        )
+        return out.fail(str(exc), code="USAGE", exit_code=2, hints=[hint])
+    finally:
+        # The verb rungs run the door-parity census, which imports the MCP server, and that
+        # import routes every later print in this process to stderr. The evidence is this
+        # verb's answer, so stdout is put back before it is printed.
+        sys.stdout = stdout
     if getattr(args, "json", False):
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
-    else:
-        print(_render_ground(result))
-    return 0
+        return 0
+    if result.get("mode") == "continuity":
+        doc, hints = _ground_continuity_doc(result)
+        return out.emit(doc, hints=hints, human=_human_ground, title=f"Ground · {doc['target']} --continuity")
+    doc, hints = _ground_verb_doc(result)
+    return out.emit(doc, hints=hints, human=_human_ground, title=f"Ground · {doc['target']}")
+
+
+def _ground_verb_doc(result) -> tuple[dict, list[str]]:
+    """Verb evidence as one row per rung, in rung order, with the blind spots spelled out. JSON
+    keeps each rung's details; the drill named by the first rung that has one is the hint."""
+    from core.axi import out
+
+    target = result.get("target") or {}
+    rungs = list(result.get("rungs") or [])
+    blind = [out.truncate(b, 300)[0] for b in result.get("blind") or []]
+    doc: dict[str, Any] = {
+        "target": f"{target.get('kind')}:{target.get('name')}",
+        "subject": result.get("subject"),
+        "observed_at": result.get("observed_at"),
+        "effects": "none",
+        "rungs": [
+            {
+                "rung": r.get("name"),
+                "state": r.get("state"),
+                "claim": out.truncate(r.get("claim"), 300)[0],
+                "source": r.get("source"),
+            }
+            for r in rungs
+        ],
+        "blind_total": len(blind),
+    }
+    if blind:
+        doc["blind"] = blind
+    drill = next((str(r.get("drill")) for r in rungs if r.get("drill")), "")
+    return doc, [drill] if drill else []
+
+
+def _ground_continuity_doc(result) -> tuple[dict, list[str]]:
+    """A seat's continuity profile: the identity verdict stated as not computed first, then one
+    row per region with its bounds (shown of matched), then the items each region showed. The
+    hints are the drills of the regions that found something."""
+    from core.axi import out
+    from core.coord.continuity import _item_line
+
+    target = result.get("target") or {}
+    regions = list(result.get("regions") or [])
+    doc: dict[str, Any] = {
+        "target": f"seat:{target.get('name')}",
+        "observed_at": result.get("observed_at"),
+        "effects": "none",
+        "identity_verdict": "not computed",
+        "identity_claim": out.truncate((result.get("identity_verdict") or {}).get("claim"), 300)[0],
+        "regions": [
+            {
+                "region": r.get("name"),
+                "state": r.get("state"),
+                "authority": r.get("authority"),
+                "shown": (r.get("bounds") or {}).get("shown"),
+                "matched": (r.get("bounds") or {}).get("matched"),
+            }
+            for r in regions
+        ],
+        "items": [
+            {"region": r.get("name"), "item": out.truncate(_item_line(str(r.get("name")), it), 300)[0]}
+            for r in regions
+            for it in r.get("items") or []
+        ],
+    }
+    blind = [f"{r.get('name')}: {b}" for r in regions for b in r.get("blind") or []]
+    if blind:
+        doc["blind"] = blind
+    # Only drills that are commands: some regions describe a route in prose instead.
+    cli = _cli()
+    hints = [str(r["drill"]) for r in regions if r.get("items") and str(r.get("drill") or "").startswith(cli)]
+    return doc, hints[:3]
+
+
+def _human_ground(console, doc):
+    from core.axi import out
+
+    rows = doc.get("rungs") or doc.get("regions") or []
+    if "identity_verdict" in doc:
+        console.print(f"[yellow]identity verdict: not computed[/] [dim]{out._esc(doc['identity_claim'])}[/]")
+    console.print(out.table(rows))
+    for it in doc.get("items") or []:
+        console.print(f"  [dim]{out._esc(str(it['region']))}[/]  {out._esc(str(it['item']))}")
+    for b in doc.get("blind") or []:
+        console.print(f"[yellow]blind:[/] {out._esc(b)}")
 
 
 _SHELL_HOME_MARK = "# >>> akashic shell-home"

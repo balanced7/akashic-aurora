@@ -104,6 +104,7 @@ def test_cli_refuses_to_borrow_a_foreign_subject(monkeypatch, capsys):
     import agent_cli
 
     monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)
+    monkeypatch.setenv("AURORA_OUTPUT", "agent")  # the refusal is a structured error on stdout
     rc = agent_cli.cmd_ground(SimpleNamespace(target="verb:sweep", agent="", json=True, continuity=False))
     assert rc == 2
     assert "subject is required" in capsys.readouterr().out
