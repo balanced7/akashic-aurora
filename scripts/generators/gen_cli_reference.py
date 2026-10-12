@@ -98,7 +98,8 @@ def render(verbs: dict) -> str:
         if info["args"]:
             lines += ["| Flag | Required | Values | What it does |", "|---|---|---|---|"]
             for flag, required, choices, text in info["args"]:
-                lines.append(f"| `{_cell(flag)}` | {'yes' if required else ' '} | {_cell(choices)} | {_cell(text)} |")
+                code = _cell(f"`{flag}`")  # inside the backticks, so `<agent_id>` is not escaped
+                lines.append(f"| {code} | {'yes' if required else ' '} | {_cell(choices)} | {_cell(text)} |")
             lines.append("")
         if rep:
             run = next(iter(rep["after"]["runs"].values()))

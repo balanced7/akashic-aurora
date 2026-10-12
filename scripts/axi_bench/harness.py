@@ -18,10 +18,11 @@ change) and the working tree:
                flags on stdout; --help exits 0; an empty store gets an explicit zero instead of
                silence; agent-mode stdout carries no ANSI colour.
 
-THE SANDBOX. Every run gets a fresh AI_SETUP directory and Redis logical db 15 (flushed), the
-same isolation the test suite uses (tests/isolate_canonical.py), so the bench never reads or
-writes the live store. The spec's SEED commands run with the working tree's CLI, so both sides
-read identical data.
+THE SANDBOX. Every run gets a fresh AI_SETUP directory and a flushed Redis logical db (15 by
+default, the same isolation the test suite uses, tests/isolate_canonical.py), so the bench never
+reads or writes the live store. Benches that run at the same time need different dbs: --db
+takes 1-12 (13 belongs to the link end-to-end tests, 0 is the live store and is refused). The
+spec's SEED commands run with the working tree's CLI, so both sides read identical data.
 
 THE READER. `claude -p` with a small model (default claude-haiku-5-5), run from an empty
 directory with AKASHIC_STOP_WAKE=0 so no project instructions or hooks reach it.
@@ -92,28 +93,31 @@ def export_tree(ref: str, dest: Path) -> Path:
     return dest
 
 
-def flush_db15() -> None:
+def flush_db(db: int) -> None:
     import redis
 
+    if db == 0:
+        raise SystemExit("refusing to flush Redis db 0: it holds the live store")
     port = int(os.getenv("REDIS_PORT") or 16379)
-    redis.Redis(port=port, db=15).flushdb()
+    redis.Redis(port=port, db=db).flushdb()
 
 
 class Sandbox:
-    def __init__(self, base: Path):
+    def __init__(self, base: Path, db: int = 15):
         self.base = base
         self.data = base / "data"
+        self.db = db
 
     def reset(self) -> None:
         shutil.rmtree(self.data, ignore_errors=True)
         self.data.mkdir(parents=True)
-        flush_db15()
+        flush_db(self.db)
 
     def env(self) -> dict:
         env = {k: v for k, v in os.environ.items() if not k.startswith(("CLAUDE", "CODEX_", "CURSOR_"))}
         env.update(
             AI_SETUP=str(self.data),
-            REDIS_DB="15",
+            REDIS_DB=str(self.db),
             AKASHIC_AGENT_ID="bench",
             AURORA_OUTPUT="agent",
             AKASHIC_STOP_WAKE="0",
@@ -349,13 +353,20 @@ def main(argv=None) -> int:
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--model", default="claude-haiku-5-5")
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument(
+        "--db",
+        type=int,
+        default=15,
+        choices=[*range(1, 13), 15],
+        help="Redis logical db for the sandbox (flushed); give parallel benches different ones",
+    )
     ap.add_argument("--no-write", action="store_true", help="print the report, write nothing")
     a = ap.parse_args(argv)
     spec = load_spec(a.verb)
     with tempfile.TemporaryDirectory(prefix="axi-bench-") as tmp:
         base = Path(tmp)
         before_tree = export_tree(a.before, base / "before")
-        sandbox = Sandbox(base)
+        sandbox = Sandbox(base, a.db)
         reader_dir = base / "reader"
         reader_dir.mkdir()
         base = calibrate(spec, a.model, reader_dir, a.workers)
