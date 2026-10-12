@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 55 converted to agent and human output.
+121 verbs; 56 converted to agent and human output.
 
 ## `alias`
 
@@ -2542,7 +2542,10 @@ spine_counters:
 | | |
 |---|---|
 | Does | print narrative story views |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 171 before, 90 after (-47%) |
+| AXI checks | 3/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/story.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2557,6 +2560,18 @@ spine_counters:
 | `--beat` |   |   | show full beat detail by ID |
 | `--raw` |   |   | with --beat: also show the raw events around it (auto-logger drill-down) |
 | `--json` |   |   | JSON output |
+
+Agent output of `aurora story` on the bench data:
+
+```text
+generated: "2026-10-12T16:19:02 CEST"
+chapters: 2
+tracks[1]{track,chapters}:
+  ai-setup,2
+help[2]:
+  uv run agent_cli.py story --track ai-setup
+  uv run agent_cli.py story --themes
+```
 
 ## `suite-baseline`
 

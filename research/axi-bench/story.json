@@ -1,0 +1,268 @@
+{
+  "verb": "story",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 24,
+    "asked": 30,
+    "output_tokens": 171,
+    "stdout_chars": 501,
+    "stdout_lines": 13,
+    "cost_usd": 0.0252,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": false,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/6",
+    "questions": [
+      {
+        "q": "How many chapters does the ai-setup track have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the title of the chapter that has exactly one beat?",
+        "expected": "Storage sprint",
+        "answers": [
+          "chapter_7493fb83f1f6",
+          "Storage sprint",
+          "Storage sprint",
+          "Storage sprint",
+          "Storage sprint"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many beats does the chapter titled 'check port' have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many beats carry the memory theme?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "memory: 2 beat(s) \u2014 the answer is 2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many chapters contain the theme 'nope'?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the full detail of the chapter titled 'Storage sprint'? Give the command only.",
+        "expected": [
+          "story",
+          "--chapter",
+          "chapter_"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "atlas": {
+        "argv": [
+          "story"
+        ],
+        "exit": 0,
+        "stdout": "# Story Atlas\nGenerated: 2026-10-12T14:18:20.289297+00:00\nTracks: ai-setup\n  ai-setup: 2 chapter(s)\n\nai-setup: 2 chapter(s)\n"
+      },
+      "track": {
+        "argv": [
+          "story",
+          "--track",
+          "ai-setup"
+        ],
+        "exit": 0,
+        "stdout": "# Track: ai-setup (2 chapters)\n  [ai-setup] chapter_3a7e1c698a2c: \"check port\" (4 beats, 2026-10-12T14:18:18.343396+00:00 -> 2026-10-12T14:18:19.768833+00:00)\n  [ai-setup] chapter_7493fb83f1f6: \"Storage sprint\" (1 beats, 2026-10-12T14:18:20.265269+00:00 -> 2026-10-12T14:18:20.265269+00:00)\n"
+      },
+      "themes": {
+        "argv": [
+          "story",
+          "--themes"
+        ],
+        "exit": 0,
+        "stdout": "# Themes\n  memory: 2 beat(s)\n  evaluation: 1 beat(s)\n"
+      },
+      "none": {
+        "argv": [
+          "story",
+          "--theme",
+          "nope"
+        ],
+        "exit": 1,
+        "stdout": "No chapters contain theme 'nope'\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 90,
+    "stdout_chars": 672,
+    "stdout_lines": 25,
+    "cost_usd": 0.0248,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many chapters does the ai-setup track have?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the title of the chapter that has exactly one beat?",
+        "expected": "Storage sprint",
+        "answers": [
+          "Storage sprint",
+          "Storage sprint",
+          "Storage sprint",
+          "Storage sprint",
+          "Storage sprint"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many beats does the chapter titled 'check port' have?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many beats carry the memory theme?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many chapters contain the theme 'nope'?",
+        "expected": 0,
+        "answers": [
+          "The output shows `total: 0` and `chapters: []` for theme 'nope'.\n\n0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would show the full detail of the chapter titled 'Storage sprint'? Give the command only.",
+        "expected": [
+          "story",
+          "--chapter",
+          "chapter_"
+        ],
+        "answers": [
+          "uv run agent_cli.py story --chapter chapter_16055ed858df",
+          "uv run agent_cli.py story --chapter chapter_16055ed858df",
+          "uv run agent_cli.py story --chapter chapter_16055ed858df",
+          "uv run agent_cli.py story --chapter chapter_16055ed858df",
+          "uv run agent_cli.py story --chapter chapter_16055ed858df"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "atlas": {
+        "argv": [
+          "story"
+        ],
+        "exit": 0,
+        "stdout": "generated: \"2026-10-12T16:19:02 CEST\"\nchapters: 2\ntracks[1]{track,chapters}:\n  ai-setup,2\nhelp[2]:\n  uv run agent_cli.py story --track ai-setup\n  uv run agent_cli.py story --themes\n"
+      },
+      "track": {
+        "argv": [
+          "story",
+          "--track",
+          "ai-setup"
+        ],
+        "exit": 0,
+        "stdout": "track: ai-setup\ntotal: 2\nchapters[2]{id,title,beats,start,end}:\n  chapter_cd63e6227b84,check port,4,\"2026-10-12T16:19:00 CEST\",\"2026-10-12T16:19:01 CEST\"\n  chapter_16055ed858df,Storage sprint,1,\"2026-10-12T16:19:02 CEST\",\"2026-10-12T16:19:02 CEST\"\nhelp[1]:\n  uv run agent_cli.py story --chapter <id>\n"
+      },
+      "themes": {
+        "argv": [
+          "story",
+          "--themes"
+        ],
+        "exit": 0,
+        "stdout": "total: 2\nthemes[2]{theme,beats}:\n  memory,2\n  evaluation,1\nhelp[1]:\n  uv run agent_cli.py story --theme memory\n"
+      },
+      "none": {
+        "argv": [
+          "story",
+          "--theme",
+          "nope"
+        ],
+        "exit": 0,
+        "stdout": "theme: nope\ntotal: 0\nchapters: []\nhelp[1]:\n  uv run agent_cli.py story --themes\n"
+      }
+    }
+  }
+}

@@ -113,10 +113,10 @@ def test_story_atlas_shape():
     s, _cdir = _setup_story()
     out, rc = _run_cli([], store=s)
     assert rc == 0, f"non-zero exit: {rc}"
-    assert "Story Atlas" in out
+    assert "tracks[2]{track,chapters}:" in out
     assert "ai-setup" in out
     assert "research" in out
-    assert "chapter(s)" in out
+    assert "chapters: " in out
     print("  atlas: atlas printed with tracks OK")
 
 
@@ -137,9 +137,8 @@ def test_story_track():
     s, _cdir = _setup_story()
     out, rc = _run_cli(["--track=ai-setup"], store=s)
     assert rc == 0
-    assert "Track: ai-setup" in out
-    assert "chapter" in out
-    assert "beats" in out
+    assert "track: ai-setup" in out
+    assert "{id,title,beats,start,end}" in out
     print("  track: per-track chapter listing OK")
 
 
@@ -169,9 +168,8 @@ def test_story_chapter():
     cid = tr.chapters[0]
     out, rc = _run_cli([f"--chapter={cid}"], store=s)
     assert rc == 0
-    assert "Chapter:" in out
-    assert cid in out
-    assert "Critic" in out
+    assert f"id: {cid}" in out
+    assert "critic_ok:" in out
     print("  chapter: full chapter detail OK")
 
 
@@ -209,9 +207,8 @@ def test_story_beat():
     bid = ch.beats[0]
     out, rc = _run_cli([f"--beat={bid}"], store=s)
     assert rc == 0
-    assert "Beat:" in out
-    assert bid in out
-    assert "Kind:" in out
+    assert f"id: {bid}" in out
+    assert "kind: " in out
     print("  beat: full beat detail OK")
 
 
@@ -242,30 +239,34 @@ def test_story_at_timestamp():
     s, _cdir = _setup_story()
     out, rc = _run_cli(["--at=2026-06-27T10:15:00"], store=s)
     assert rc == 0
-    assert "Chapters containing" in out
+    assert "at: " in out
+    assert "total: 1" in out
     assert "2026-06-27" in out
     print("  at-timestamp: chapter found by time OK")
 
 
 def test_story_at_no_match():
-    """`story --at` with a time before any beats returns 1."""
+    """`story --at` with a time before any beats says so: an explicit zero, exit 0 (AXI)."""
     s, _cdir = _setup_story()
-    _out, rc = _run_cli(["--at=2025-01-01T00:00:00"], store=s)
-    assert rc == 1
-    print("  at-no-match: returns exit code 1 OK")
+    out, rc = _run_cli(["--at=2025-01-01T00:00:00"], store=s)
+    assert rc == 0
+    assert "total: 0" in out
+    print("  at-no-match: explicit zero OK")
 
 
 # =========================== Robustness ===========================
 
 
 def test_story_empty_store():
-    """No story exists -> error message + exit code 2."""
+    """No story exists -> an explicit zero and the command that makes one, exit 0."""
     _s, _cdir = _setup_story()
     # Use a different store with no story data
     empty = FileStore(os.path.join(tempfile.mkdtemp(), "empty.json"))
     out, rc = _run_cli([], store=empty)
-    assert rc == 2 or "ERROR" in out, f"expected error, got rc={rc} out={out[:100]}"
-    print("  empty-store: error on empty store OK")
+    assert rc == 0, f"rc={rc} out={out[:100]}"
+    assert "chapters: 0" in out
+    assert "story --chronicle" in out
+    print("  empty-store: explicit zero on empty store OK")
 
 
 def test_story_bad_chapter():

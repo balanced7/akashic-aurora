@@ -318,7 +318,8 @@ def test_cli_theme_no_match():
     """story --theme=UNKNOWN returns error code."""
     s = _setup_cli_with_themes()
     out, rc = _run_cli(["--theme=no_such_theme"], store=s)
-    assert rc == 1 or "No chapters" in out
+    assert rc == 0
+    assert "total: 0" in out
 
 
 def test_cli_theme_cross_track():

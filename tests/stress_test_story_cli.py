@@ -129,7 +129,7 @@ def stress_large_beat_count():
     # Atlas view
     out, rc = _run_cli([], store=s)
     assert rc == 0
-    assert "Story Atlas" in out
+    assert "tracks[" in out
     assert "research" in out or "ai-setup" in out
     print(f"  atlas output: {len(out)} bytes")
 
@@ -335,7 +335,8 @@ def stress_at_partial_match():
     assert rc == 0
     # At a time exactly between the two chapters
     out2, rc2 = _run_cli(["--at=2026-06-27T15:00:00"], store=s)
-    assert rc2 == 1 or "No chapter" in out2
+    assert rc2 == 0
+    assert "total: 0" in out2
     print("  stress-partial-match: boundary edge cases OK")
 
 

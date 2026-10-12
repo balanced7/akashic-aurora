@@ -6671,18 +6671,26 @@ def cmd_story(args, store=None):
             hint=RouteHint(category="meta", task="mark_chapter"),
         )
 
+    from core.axi import out
+
+    cli = _cli()
+
     # --session-end: close the session (emits session-end beat) then chronicle.
     if getattr(args, "session_end", False):
         from core.narrative.session import end_session
 
         end_session(store, now=args.at if args.at else None)
-        if not args.json:
-            print("  (session closed)")
         atlas_raw = store.get("narr:atlas:current")
+        if args.json:
+            # --json --session-end has always printed the text atlas (there is no JSON shape for
+            # it); kept byte-identical rather than invented here.
+            if atlas_raw and not args.chronicle:
+                _print_atlas(Atlas.from_dict(_json.loads(atlas_raw)), store)
+            return 0
+        doc: dict = {"session": "closed"}
         if atlas_raw and not args.chronicle:
-            atlas = Atlas.from_dict(_json.loads(atlas_raw))
-            _print_atlas(atlas, store)
-        return 0
+            doc.update(_atlas_doc(Atlas.from_dict(_json.loads(atlas_raw)), store))
+        return out.emit(doc, hints=_atlas_hints(doc), human=_human_story_atlas, title="Story")
 
     # --chronicle flag (also triggered by --mark): run chronicle_all first
     if args.chronicle or mark_title:
@@ -6692,11 +6700,15 @@ def cmd_story(args, store=None):
         if args.json:
             print(_json.dumps(report, indent=2, default=str))
             return 0
+        doc = {"chronicled": {k: report[k] for k in ("chapters", "tracks", "total_beats")}}
+        if mark_title:
+            doc["marked"] = mark_title
         if atlas_raw:
-            atlas = Atlas.from_dict(_json.loads(atlas_raw))
-            _print_atlas(atlas, store)
-        print(f"  (chronicled {report['chapters']} chapters, {report['tracks']} tracks, {report['total_beats']} beats)")
-        return 0
+            doc.update(_atlas_doc(Atlas.from_dict(_json.loads(atlas_raw)), store))
+        return out.emit(doc, hints=_atlas_hints(doc), human=_human_story_atlas, title="Story")
+
+    def _corrupt(what):
+        return out.fail(f"corrupt data for {what}", code="CORRUPT", hints=[f"{cli} story --chronicle"], exit_code=2)
 
     # --beat ID: full beat detail
     if args.beat:
@@ -6704,37 +6716,55 @@ def cmd_story(args, store=None):
         if not raw:
             raw = store.get(f"narr:beat:{args.beat}")
         if not raw:
-            print(f"ERROR: beat '{args.beat}' not found.")
-            return 2
+            return out.fail(
+                f"beat {args.beat!r} not found",
+                code="NOT_FOUND",
+                hints=[f"{cli} story --chapter <chapter_id>", f"{cli} story"],
+                exit_code=2,
+            )
         try:
             beat = Beat.from_dict(_json.loads(raw))
         except _json.JSONDecodeError:
-            print(f"ERROR: corrupt data for beat '{args.beat}'.")
-            return 2
+            return _corrupt(f"beat {args.beat!r}")
         if args.json:
             print(_json.dumps(beat.to_dict(), indent=2, default=str))
             return 0
-        _print_beat(beat)
+        fields = {
+            "id": beat.id,
+            "kind": beat.kind,
+            "track": beat.track,
+            "weight": beat.weight,
+            "at": render_iso(beat.at, tz="local"),
+            "source": beat.source,
+            "summary": beat.summary,
+            "chapter": beat.chapter,
+            "themes": beat.themes or None,
+            "relates": [f"({e.type}) {e.target}" for e in beat.relates] or None,
+        }
+        doc: dict = {k: v for k, v in fields.items() if v is not None}
         # --raw: drill from this Beat into the un-distilled record beneath it (Slice 4)
         if getattr(args, "raw", False):
             from core.narrative.event_bridge import raw_for_beat
 
             res = raw_for_beat(args.beat, store=store)
             if res.get("atom"):
-                print(
-                    f"\nRaw atom (this beat's source):\n  [{res['atom'].get('kind')}] "
-                    f"{_clip(res['atom'].get('summary', ''), 90)}"
-                )
+                doc["raw_atom"] = {
+                    "kind": res["atom"].get("kind"),
+                    "summary": out.truncate(res["atom"].get("summary", ""), 200)[0],
+                }
             evs = res.get("events", [])
-            print(f"\n## RAW EVENTS around this beat ({len(evs)})")
-            for e in evs[:20]:
-                print(
-                    f"  [{e.get('kind', '?')}] {render_iso(e.get('at', ''), tz='local')}  "
-                    f"{_clip(e.get('summary', ''), 80)}"
-                )
-            if not evs:
-                print("  (none captured in this window)")
-        return 0
+            doc["raw_events_total"] = len(evs)
+            doc["raw_events"] = [
+                {
+                    "kind": e.get("kind", "?"),
+                    "at": render_iso(e.get("at", ""), tz="local"),
+                    "summary": out.truncate(e.get("summary", ""), 120)[0],
+                }
+                for e in evs[:20]
+            ]
+        # A beat is a detail view; the one way on is up to its chapter.
+        hints = [f"{cli} story --chapter {beat.chapter}"] if beat.chapter else []
+        return out.emit(doc, hints=hints, title=f"Beat · {beat.id}")
 
     # --chapter ID: full chapter detail
     if args.chapter:
@@ -6742,29 +6772,35 @@ def cmd_story(args, store=None):
         if not raw:
             raw = store.get(f"narr:chapter:{args.chapter}")
         if not raw:
-            print(f"ERROR: chapter '{args.chapter}' not found.")
-            return 2
+            return out.fail(
+                f"chapter {args.chapter!r} not found",
+                code="NOT_FOUND",
+                hints=[f"{cli} story --track <track>", f"{cli} story"],
+                exit_code=2,
+            )
         try:
             ch = Chapter.from_dict(_json.loads(raw))
         except _json.JSONDecodeError:
-            print(f"ERROR: corrupt data for chapter '{args.chapter}'.")
-            return 2
+            return _corrupt(f"chapter {args.chapter!r}")
         if args.json:
             print(_json.dumps(ch.to_dict(), indent=2, default=str))
             return 0
-        _print_chapter(ch, store)
-        return 0
+        return _emit_chapter(ch)
 
-    # No atlas -> no story yet
+    # No atlas -> no story yet. Not a failure: nothing has been chronicled, and the zero says so
+    # (AXI section 5) with the one command that makes a story.
     if not atlas_raw:
-        print(f"ERROR: no story found. Run `{_cli()} story --chronicle` first.")
-        return 2
+        return out.emit(
+            {"chapters": 0, "tracks": [], "note": "no story chronicled yet"},
+            hints=[f"{cli} story --chronicle"],
+            human=_human_story_atlas,
+            title="Story",
+        )
 
     try:
         atlas = Atlas.from_dict(_json.loads(atlas_raw))
     except _json.JSONDecodeError:
-        print("ERROR: corrupt atlas data.")
-        return 2
+        return _corrupt("the atlas")
 
     # --at ISO: find which chapter contains this time
     if args.at and not args.chronicle:
@@ -6774,8 +6810,12 @@ def cmd_story(args, store=None):
             target = _dt.fromisoformat(args.at)
             target_ts = target.timestamp()
         except (ValueError, TypeError):
-            print(f"ERROR: invalid timestamp '{args.at}'. Use ISO format like 2026-06-27T10:00:00.")
-            return 2
+            return out.fail(
+                f"invalid timestamp {args.at!r}",
+                code="USAGE",
+                hints=[f"{cli} story --at 2026-06-27T10:00:00"],
+                exit_code=2,
+            )
 
         found = []
         for t in atlas.tracks:
@@ -6796,13 +6836,8 @@ def cmd_story(args, store=None):
         if args.json:
             print(_json.dumps([ch.to_dict() for ch in found], indent=2, default=str))
             return 0
-        if not found:
-            print(f"No chapter contains {args.at}")
-            return 1
-        print(f"# Chapters containing {args.at}")
-        for ch in found:
-            _print_chapter(ch, store)
-        return 0
+        # AXI section 5: a time outside every chapter is an answer (none), not a failure.
+        return _emit_chapters({"at": args.at}, found, title="Chapters at a time")
 
     # --themes: list all themes with beat counts
     if args.themes:
@@ -6826,13 +6861,9 @@ def cmd_story(args, store=None):
         if args.json:
             print(_json.dumps(theme_counts, indent=2))
             return 0
-        print("# Themes")
-        if not theme_counts:
-            print("  (no themes found)")
-            return 0
-        for th, count in sorted(theme_counts.items(), key=lambda x: -x[1]):
-            print(f"  {th}: {count} beat(s)")
-        return 0
+        rows = [{"theme": th, "beats": n} for th, n in sorted(theme_counts.items(), key=lambda x: -x[1])]
+        hints = [f"{cli} story --theme {rows[0]['theme']}"] if rows else [f"{cli} story --chronicle"]
+        return out.emit({"total": len(rows), "themes": rows}, hints=hints, title="Story themes")
 
     # --theme NAME: cross-track chapters containing beats with this theme
     if args.theme:
@@ -6855,13 +6886,8 @@ def cmd_story(args, store=None):
         if args.json:
             print(_json.dumps([ch.to_dict() for ch in found], indent=2, default=str))
             return 0
-        if not found:
-            print(f"No chapters contain theme '{args.theme}'")
-            return 1
-        print(f"# Theme: {args.theme} ({len(found)} chapters)")
-        for ch in found:
-            _print_chapter_summary(ch)
-        return 0
+        # AXI section 5: a theme no chapter carries is an answer (none), not a failure.
+        return _emit_chapters({"theme": args.theme}, found, title=f"Theme · {args.theme}")
 
     # --track NAME: chapters in that track
     if args.track:
@@ -6871,8 +6897,7 @@ def cmd_story(args, store=None):
             try:
                 tr = Track.from_dict(_json.loads(raw_t))
             except _json.JSONDecodeError:
-                print(f"ERROR: corrupt data for track '{args.track}'.")
-                return 2
+                return _corrupt(f"track {args.track!r}")
             ch_ids = tr.chapters
         else:
             ch_ids = []
@@ -6884,13 +6909,20 @@ def cmd_story(args, store=None):
             except Exception:
                 nbeats = 0
             if nbeats:
-                print(
-                    f"Track '{args.track}' has {nbeats} beat(s) but no chapters yet -- "
-                    f"run `{_cli()} story --chronicle` first, then retry."
+                return out.fail(
+                    f"track {args.track!r} has {nbeats} beat(s) but no chapters yet",
+                    code="NOT_CHRONICLED",
+                    hints=[f"{cli} story --chronicle", f"{cli} story --track {args.track}"],
+                    exit_code=2,
+                    details={"beats": nbeats},
                 )
-            else:
-                print(f"ERROR: track '{args.track}' not found. Available: {', '.join(atlas.tracks) or '(none yet)'}")
-            return 2
+            return out.fail(
+                f"track {args.track!r} not found",
+                code="NOT_FOUND",
+                hints=[f"{cli} story --track {atlas.tracks[0]}" if atlas.tracks else f"{cli} story --chronicle"],
+                exit_code=2,
+                details={"available": atlas.tracks},
+            )
         chapters = []
         for cid in ch_ids:
             raw_ch = store.get(chapter_key(cid))
@@ -6900,22 +6932,18 @@ def cmd_story(args, store=None):
         if args.json:
             print(_json.dumps([ch.to_dict() for ch in chapters], indent=2, default=str))
             return 0
-        print(f"# Track: {args.track} ({len(chapters)} chapters)")
-        for ch in chapters:
-            _print_chapter_summary(ch)
-        return 0
+        return _emit_chapters({"track": args.track}, chapters, title=f"Track · {args.track}")
 
     # Default: Atlas overview
     if args.json:
         print(_json.dumps(atlas.to_dict(), indent=2, default=str))
         return 0
-
-    _print_atlas(atlas, store)
-    return 0
+    doc = _atlas_doc(atlas, store)
+    return out.emit(doc, hints=_atlas_hints(doc), human=_human_story_atlas, title="Story")
 
 
 def _print_atlas(atlas, store) -> None:
-    """Print atlas overview to stdout."""
+    """The text atlas `story --json --session-end` has always printed (see cmd_story)."""
     import json
 
     from core.narrative.schema import Track, track_key
@@ -6933,51 +6961,122 @@ def _print_atlas(atlas, store) -> None:
     print(f"\n{atlas.summary}")
 
 
-def _print_chapter_summary(ch) -> None:
-    """Short summary line for a chapter."""
-    print(
-        f'  [{ch.track}] {ch.id}: "{ch.title}" ({len(ch.beats)} beats, {ch.span_start} -> {ch.span_end or "present"})'
-    )
+def _atlas_doc(atlas, store) -> dict:
+    """The atlas as data: when it was built, the chapter total, and chapters per track. (The
+    atlas's own summary line is the same per-track counts in prose, so it is left out.)"""
+    import json
+
+    from core.narrative.schema import Track, track_key
+
+    rows = []
+    for t in atlas.tracks:
+        raw = store.get(track_key(t))
+        rows.append({"track": t, "chapters": len(Track.from_dict(json.loads(raw)).chapters) if raw else 0})
+    return {
+        "generated": render_iso(atlas.generated_at, tz="local"),
+        "chapters": sum(r["chapters"] for r in rows),
+        "tracks": rows,
+    }
 
 
-def _print_chapter(ch, store) -> None:
-    """Full chapter detail."""
-
-    print(f"# Chapter: {ch.id}")
-    print(f"Track: {ch.track}")
-    print(f"Title: {ch.title}")
-    print(f"Span: {ch.span_start} -> {ch.span_end or 'present'}")
-    print(f"Beats: {len(ch.beats)}  |  Critic-ok: {ch.critic_ok}")
-    print(f"Recorded: {ch.recorded_at}")
-    print(f"\n{ch.summary}\n")
-    if ch.commits:
-        print("Commits:")
-        for s in ch.commits[:5]:
-            print(f"  {s}")
-    if ch.beats:
-        print("\nDrill into a beat:")
-        print(f"  {_cli()} story --beat {ch.beats[0]}")
-    if ch.id:
-        print("\nRaw JSON:")
-        print(f"  {_cli()} story --chapter {ch.id} --json")
+def _atlas_hints(doc) -> list[str]:
+    cli = _cli()
+    tracks = doc.get("tracks") or []
+    if not tracks:
+        return [f"{cli} story --chronicle"]
+    return [f"{cli} story --track {tracks[0]['track']}", f"{cli} story --themes"]
 
 
-def _print_beat(beat) -> None:
-    """Full beat detail."""
+def _human_story_atlas(console, doc):
+    """Human view of the atlas: what was just done, the chapter total, one line per track."""
+    from core.axi import out
 
-    print(f"# Beat: {beat.id}")
-    print(f"Kind: {beat.kind}  |  Track: {beat.track}  |  Weight: {beat.weight}")
-    print(f"At: {beat.at}")
-    print(f"Source: {beat.source}")
-    print(f"Summary: {beat.summary}")
-    if beat.chapter:
-        print(f"Chapter: {beat.chapter}")
-        print(f"  {_cli()} story --chapter {beat.chapter}")
-    if beat.relates:
-        for e in beat.relates:
-            print(f"  relates: ({e.type}) {e.target}")
-    if beat.themes:
-        print(f"Themes: {', '.join(beat.themes)}")
+    if doc.get("session"):
+        console.print("[green]session closed[/]")
+    if doc.get("chronicled"):
+        c = doc["chronicled"]
+        marked = f' (marked "{out._esc(doc["marked"])}")' if doc.get("marked") else ""
+        console.print(
+            f"[green]chronicled[/] {c['chapters']} chapters, {c['tracks']} tracks, {c['total_beats']} beats{marked}"
+        )
+    if "chapters" not in doc:
+        return
+    if not doc["chapters"] and not doc.get("tracks"):
+        console.print(f"[yellow]0 chapters[/] [dim]-- {out._esc(doc.get('note', 'nothing chronicled'))}[/]")
+        return
+    console.print(f"[bold]{doc['chapters']}[/] chapters [dim]· built {out._esc(str(doc.get('generated', '')))}[/]")
+    for r in doc["tracks"]:
+        console.print(f"  [cyan]{out._esc(r['track'])}[/]  {r['chapters']}")
+
+
+def _emit_chapters(doc, chapters, *, title):
+    """A list of chapters: the total, one row each, and the drill hint for the first."""
+    from core.axi import out
+
+    rows = [
+        {
+            "id": ch.id,
+            "track": ch.track,
+            "title": out.truncate(ch.title, 120)[0],
+            "beats": len(ch.beats),
+            "start": render_iso(ch.span_start, tz="local"),
+            "end": render_iso(ch.span_end, tz="local") if ch.span_end else "present",
+        }
+        for ch in chapters
+    ]
+    if len({r["track"] for r in rows}) <= 1:  # one track: the column would repeat itself
+        for r in rows:
+            r.pop("track")
+    doc = {**doc, "total": len(rows), "chapters": rows}
+    if len(rows) == 1:  # one chapter: the id is known, no guessing
+        hints = [f"{_cli()} story --chapter {rows[0]['id']}"]
+    elif rows:
+        hints = [f"{_cli()} story --chapter <id>"]
+    else:
+        hints = [f"{_cli()} story --themes" if "theme" in doc else f"{_cli()} story"]
+    return out.emit(doc, hints=hints, human=_human_story_chapters, title=title)
+
+
+def _human_story_chapters(console, doc):
+    """Human view of a chapter list: the count, then each chapter's title, size and span, with
+    its id dimmed underneath for the drill."""
+    from core.axi import out
+
+    if not doc["total"]:
+        what = next((f"{k} {doc[k]}" for k in ("theme", "at", "track") if k in doc), "")
+        console.print(f"[yellow]0 chapters[/] [dim]{out._esc(what)}[/]")
+        return
+    console.print(f"[dim]{doc['total']} chapter{'s' if doc['total'] != 1 else ''}[/]")
+    for r in doc["chapters"]:
+        track = f"  [cyan]{out._esc(r['track'])}[/]" if r.get("track") else ""
+        console.print()
+        console.print(f"[bold]{out._esc(r['title'])}[/]{track}  {r['beats']} beats")
+        console.print(f"  {out._esc(r['start'])} -> {out._esc(r['end'])}  [dim]{out._esc(r['id'])}[/]")
+
+
+def _emit_chapter(ch):
+    """One chapter in full: span, counts, summary, its first commits and beats."""
+    from core.axi import out
+
+    doc = {
+        "id": ch.id,
+        "track": ch.track,
+        "title": ch.title,
+        "start": render_iso(ch.span_start, tz="local"),
+        "end": render_iso(ch.span_end, tz="local") if ch.span_end else "present",
+        "beats": len(ch.beats),
+        "critic_ok": ch.critic_ok,
+        "recorded": render_iso(ch.recorded_at, tz="local") if ch.recorded_at else None,
+        "why": ch.why or None,
+        # Kept as written (it is often a bullet list) unless it is long enough to need cutting.
+        "summary": (ch.summary if len(ch.summary or "") <= 800 else out.truncate(ch.summary, 800)[0]) or None,
+        "commits": ch.commits[:5] or None,
+        "beat_ids": ch.beats[:10] or None,
+    }
+    doc = {k: v for k, v in doc.items() if v is not None}
+    # A chapter is a detail view; the one way on is down into a beat.
+    hints = [f"{_cli()} story --beat {ch.beats[0]}"] if ch.beats else []
+    return out.emit(doc, hints=hints, title=f"Chapter · {ch.id}")
 
 
 # --------------------------------------------------------------------------- log
