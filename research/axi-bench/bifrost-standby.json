@@ -1,0 +1,212 @@
+{
+  "verb": "bifrost-standby",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.52,
+    "correct": 13,
+    "asked": 25,
+    "output_tokens": 57,
+    "stdout_chars": 239,
+    "stdout_lines": 6,
+    "cost_usd": 0.0235,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many messages were drained?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which agent sent the request message?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is a wake listener now waiting for new mail for this agent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "yes",
+          "No",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many messages did this run drain?",
+        "expected": 0,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What exact command would drain the inbox and then wait for new mail? Give the command only.",
+        "expected": [
+          "bifrost-standby",
+          "claude"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "drain": {
+        "argv": [
+          "bifrost-standby",
+          "claude",
+          "--no-listen"
+        ],
+        "exit": 0,
+        "stdout": "drained: 2 message(s)\n  [request] from deepseek: please review core/a.py\n  [chat] from deepseek: fyi the build is green\nstandby: report-only (no listener requested)\n"
+      },
+      "clean": {
+        "argv": [
+          "bifrost-standby",
+          "claude",
+          "--no-listen"
+        ],
+        "exit": 0,
+        "stdout": "drained: inbox already clean\nstandby: report-only (no listener requested)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 91,
+    "stdout_chars": 338,
+    "stdout_lines": 12,
+    "cost_usd": 0.024,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many messages were drained?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent sent the request message?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is a wake listener now waiting for new mail for this agent? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many messages did this run drain?",
+        "expected": 0,
+        "answers": [
+          "drained: 0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command would drain the inbox and then wait for new mail? Give the command only.",
+        "expected": [
+          "bifrost-standby",
+          "claude"
+        ],
+        "answers": [
+          "uv run agent_cli.py bifrost-standby claude",
+          "uv run agent_cli.py bifrost-standby claude",
+          "uv run agent_cli.py bifrost-standby claude",
+          "uv run agent_cli.py bifrost-standby claude",
+          "UNKNOWN"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "drain": {
+        "argv": [
+          "bifrost-standby",
+          "claude",
+          "--no-listen"
+        ],
+        "exit": 0,
+        "stdout": "seat: yours\ndrained: 2\nmail[2]: \"[request] from deepseek: please review core/a.py\",\"[chat] from deepseek: fyi the build is green\"\nlistener: not armed (--no-listen)\nhelp[1]:\n  uv run agent_cli.py bifrost-standby claude\n"
+      },
+      "clean": {
+        "argv": [
+          "bifrost-standby",
+          "claude",
+          "--no-listen"
+        ],
+        "exit": 0,
+        "stdout": "seat: yours\ndrained: 0\nmail: []\nlistener: not armed (--no-listen)\nhelp[1]:\n  uv run agent_cli.py bifrost-standby claude\n"
+      }
+    }
+  }
+}

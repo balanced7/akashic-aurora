@@ -814,7 +814,10 @@ def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20
       - a seat held by a LIVE twin means the TWIN is the wakeable seat-holder -- listening here
         would be a redundant watcher burning cycles (the plan-wall law): report, do NOT listen.
 
-    Returns {"drained": int, "listened": bool, "decision": str, "report": [lines]}. The CLI verb
+    Returns {"drained": int, "listened": bool, "decision": str, "report": [lines]}, plus the same
+    facts as data for a structured render: "mail" (the collapsed lines, at most 12),
+    "mail_lines" (how many collapsed lines there were), "expect_lines", and, when a twin holds
+    the seat, "holder", "teach" and "peeked". The CLI verb
     wraps this and, when the decision is 'listen', BLOCKS as the wake listener's parent -- so one
     harness-tracked `bifrost-standby` background task = drain + report + armed seat, and the
     listener's exit re-invokes the harness. Never spawns detached (the T073 untracked-process
@@ -824,6 +827,7 @@ def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20
     res = consume_inbox(agent_id, limit=limit)
     if res.get("seat_held"):
         teach = str(res.get("teach") or "consumer seat held")
+        out.update(holder=res.get("holder"), teach=teach, peeked=len(res.get("peeked") or []))
         rep.append(f"seat: HELD by {res.get('holder')} -- {teach}")
         rep.append(
             f"standby: NOT listening (live twin is the wakeable seat-holder; "
@@ -834,11 +838,15 @@ def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20
     msgs = res.get("consumed") or []
     out["drained"] = len(msgs)
     rep.append(f"drained: {len(msgs)} message(s)" if msgs else "drained: inbox already clean")
-    for ln in render_collapsed(msgs)[:12]:
+    collapsed = render_collapsed(msgs)
+    out["mail"], out["mail_lines"] = collapsed[:12], len(collapsed)
+    for ln in out["mail"]:
         rep.append(f"  {ln}")
+    out["expect_lines"] = []
     try:  # expectations sweep state rides the report (RB-29 visibility)
         blk = collect_boot_bifrost(agent_id, limit=1)
-        for ln in blk.get("expect_lines") or []:
+        out["expect_lines"] = list(blk.get("expect_lines") or [])
+        for ln in out["expect_lines"]:
             rep.append(f"  {ln}")
     except Exception:
         pass

@@ -8899,15 +8899,59 @@ def cmd_bifrost_standby(args):
     except Exception:
         pass
     res = standby(args.agent_id, session, listen=None if args.no_listen else _listen, limit=args.limit or 20)
-    for ln in res["report"]:
-        print(ln)
+    from core.axi import out
+
+    cli, me = _cli(), args.agent_id
+    if res["decision"] == "twin-holds-seat":
+        # Not an error -- the twin is the wakeable seat-holder -- but still exit 1, as before,
+        # so a harness loop does not re-arm a watcher the twin already is.
+        out.emit(
+            {
+                "seat": f"held by {res.get('holder')}",
+                "why": res.get("teach"),
+                "peeked": res.get("peeked", 0),
+                "listener": "not armed: the live twin holding the seat is the one that wakes",
+            },
+            hints=[f"{cli} bifrost-sync {me}"],
+            human=_human_standby,
+        )
+        return 1
+    doc: dict = {"seat": "yours", "drained": res["drained"], "mail": res.get("mail", [])}
+    if res.get("mail_lines", 0) > len(doc["mail"]):
+        doc["mail_shown"] = len(doc["mail"])
+    if res.get("expect_lines"):
+        doc["expectations"] = res["expect_lines"]
     if res["decision"] == "listen":
         rc = res.get("listen_rc")
-        how = (
-            "wake-worthy mail or deadline" if rc == 0 else f"killed or crashed (rc={rc}) -- NOT a wake"
-        )  # C1-6: never report a signal death as mail
-        print(f"[standby] listener exited rc={rc} -- {how}; re-run bifrost-standby after handling")
-    return 0 if res["decision"] != "twin-holds-seat" else 1
+        doc["listener"] = "exited"
+        doc["listener_rc"] = rc
+        # C1-6: never report a signal death as mail
+        doc["woke_for"] = "wake-worthy mail or deadline" if rc == 0 else "nothing: killed or crashed, NOT a wake"
+        hints = [f"{cli} bifrost-sync {me}", f"{cli} bifrost-standby {me}"]  # handle it, then re-arm
+    else:
+        doc["listener"] = "not armed (--no-listen)"
+        hints = [f"{cli} bifrost-standby {me}"]
+    return out.emit(doc, hints=hints, human=_human_standby)
+
+
+def _human_standby(console, doc):
+    """Human view of `bifrost-standby`: what was drained, then the listener's state."""
+    from core.axi import out
+
+    if "drained" not in doc:
+        console.print(f"[yellow]seat {out._esc(doc['seat'])}[/] -- {out._esc(str(doc['why']))}")
+        console.print(f"  {doc['peeked']} message(s) visible as peek; {out._esc(doc['listener'])}")
+        return
+    n = doc["drained"]
+    console.print(f"drained {n} message{'' if n == 1 else 's'}" if n else "inbox already clean")
+    for ln in doc["mail"]:
+        console.print(f"  {out._esc(ln)}")
+    for ln in doc.get("expectations", []):
+        console.print(f"  [yellow]{out._esc(ln)}[/]")
+    rc = doc.get("listener_rc")
+    colour = "green" if rc in (None, 0) else "red"
+    tail = f" (rc {rc}): woke for {doc['woke_for']}" if "listener_rc" in doc else ""
+    console.print(f"listener [{colour}]{out._esc(doc['listener'])}[/]{out._esc(tail)}")
 
 
 def cmd_forecast(args):

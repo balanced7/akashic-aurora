@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 28 converted to agent and human output.
+121 verbs; 29 converted to agent and human output.
 
 ## `alias`
 
@@ -287,7 +287,10 @@ help[1]:
 | | |
 |---|---|
 | Does | T084-CL-2: turn-end ritual in ONE verb -- drain, seat report, then BLOCK as the wake listener's parent (run as a background task) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 52% before, 96% after |
+| Output tokens | 57 before, 91 after (+60%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/bifrost-standby.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -295,6 +298,17 @@ help[1]:
 | `--session` |   |   | session id for the per-session wake seat (default: harness session env) |
 | `--no-listen` |   |   | drain + report only; do not block |
 | `--limit` |   |   |   |
+
+Agent output of `aurora bifrost-standby claude --no-listen` on the bench data:
+
+```text
+seat: yours
+drained: 2
+mail[2]: "[request] from deepseek: please review core/a.py","[chat] from deepseek: fyi the build is green"
+listener: not armed (--no-listen)
+help[1]:
+  uv run agent_cli.py bifrost-standby claude
+```
 
 ## `bifrost-sync`
 
