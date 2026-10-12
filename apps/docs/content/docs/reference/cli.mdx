@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 54 converted to agent and human output.
+121 verbs; 55 converted to agent and human output.
 
 ## `alias`
 
@@ -736,7 +736,10 @@ help[1]:
 | | |
 |---|---|
 | Does | fleet liveness doctor (L2): progress, not presence |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 882 before, 885 after (+0%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/doctor.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -745,6 +748,29 @@ help[1]:
 | `--page` |   |   | emit bus notes for page-grade findings (deduped 1/(agent,state)/hour) |
 | `--progress` |   |   | one elapsed/ETA/%% line per busy agent (the poor-man's bars) |
 | `--json` |   |   |   |
+
+Agent output of `aurora doctor` on the bench data:
+
+```text
+summary: "doctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2"
+findings[1]{grade,agent,line,drill}:
+  dashboard,carol,"carol: OFFLINE — 1 unread but the agent is GONE (no worklive, no runner, no wake seat). The backlog is ghost mail from a retired seat — retire the inbox or ignore.","uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'  | or ignore: the mail TTLs with the stream"
+services[3]{service,state,detail,start}:
+  redis,live,bus backend,null
+  "ui:8787",down,bifrost console,uv run scripts/bifrost_ui.py  (Bash run_in_background)
+  daemon,down,no live daemon -- seats self-manage wake/consume; the discord outbound pump (daemon-hosted) has NO host,"uv run scripts/bifrost_daemon.py --agent <a> --spawn-runner --runner-consume-lane work [--runner-script bifrost_runner_<a>.py]  (runner seats)  |  uv run scripts/bifrost_daemon.py --agent claude --manage-listener  (wake listeners; revive DAEMON_MODE) -- the flag IS the brain: flagless = alpha, REFUSES under a bare runner"
+activation_24h: conductor 0/1 · preregistered 1/1
+taxonomy[1]{finding,drill}:
+  "2 kind(s) live on >1 plane: decision, note","py -c \"from core.comm.kinds import plane_collisions; print(plane_collisions())\""
+acl:
+  grade: page
+  state: ACL MISSING -- BOOTSTRAP FLOOR IN FORCE
+  path: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-af448b9fb785157e3/security/acl.json
+  floor: "claude=super_admin deepseek=admin, every other id QUARANTINED"
+  drill: "restore your LAST acl.json per security/ACL-MOVED-READ-ME.md -- git show <last-commit>:security/acl.json > security/acl.json; on a fresh instance copy security/acl.example.json AND add your own root/super_admin record by hand (an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included -- narrower than this floor); then uv run agent_cli.py grant --bootstrap"
+help[1]:
+  uv run agent_cli.py unwedge carol
+```
 
 ## `episode`
 

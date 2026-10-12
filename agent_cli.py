@@ -7676,14 +7676,16 @@ def cmd_doctor_deploy() -> int:
     scatter of unrelated tracebacks rather than one legible answer. A fresh machine should be
     able to ASK what is wrong instead of discovering it one failure at a time.
     """
+    from core.axi import out
     from core.paths import env_override_is_wrong, repo_root
 
     root = repo_root()
     bad = []
     env_set = bool((os.getenv("AI_SETUP") or "").strip())
-    print("# DEPLOY CHECK")
-    print(f"  repo root      : {root}")
-    print("  derived from   : %s" % ("AI_SETUP env" if env_set else "this file (nothing to configure)"))
+    checks: dict = {
+        "repo_root": str(root),
+        "derived_from": "AI_SETUP env" if env_set else "this file (nothing to configure)",
+    }
 
     warn = env_override_is_wrong()
     if warn:
@@ -7695,7 +7697,7 @@ def cmd_doctor_deploy() -> int:
 
     for name in ("agent_cli.py", "core", "scripts", "tests", "AGENTS.md"):
         ok = (root / name).exists()
-        print(f"  {name:<14} : {'ok' if ok else 'MISSING'}")
+        checks[name] = "ok" if ok else "missing"
         if not ok and name != "AGENTS.md":
             bad.append(f"{name} missing from the repo root -- this is not a complete checkout")
 
@@ -7703,9 +7705,9 @@ def cmd_doctor_deploy() -> int:
         from core.comm.bus import get_bus
 
         get_bus("control")._client.ping()  # Redis down: _client is None -> AttributeError -> UNREACHABLE below
-        print("  redis          : reachable")
+        checks["redis"] = "ok"
     except Exception as e:
-        print(f"  redis          : UNREACHABLE ({type(e).__name__})")
+        checks["redis"] = f"unreachable ({type(e).__name__})"
         bad.append(
             "Redis unreachable -- bus, roster, mailbox and locks are all dead without "
             "it. Start it before judging anything else on this list."
@@ -7728,7 +7730,7 @@ def cmd_doctor_deploy() -> int:
     except Exception:
         _cfg = ""
     _hooked = _cfg.replace(chr(92), "/").endswith("scripts/githooks")
-    print("  git hooks      : %s" % ("installed" if _hooked else "NOT INSTALLED"))
+    checks["git_hooks"] = "installed" if _hooked else "missing"
     if not _hooked:
         bad.append(
             "core.hooksPath is not set, so the pre-commit gates never run -- violations "
@@ -7744,7 +7746,7 @@ def cmd_doctor_deploy() -> int:
         _claude = [r for r in _hook_status() if r["harness"] == "claude" and (r["installed"] or r["stale"])]
     except Exception:
         _claude = []
-    print("  claude hooks   : %s" % (", ".join(r["scope"] for r in _claude) or "NOT INSTALLED"))
+    checks["claude_hooks"] = ", ".join(r["scope"] for r in _claude) or "missing"
     if not _claude:
         bad.append(
             "no Claude Code hooks are registered, so recall-at-action, the session-start boot and "
@@ -7754,7 +7756,7 @@ def cmd_doctor_deploy() -> int:
     quiet = root / "scripts" / "quiet"
     pp = [x for x in (os.getenv("PYTHONPATH") or "").split(os.pathsep) if x.strip()]
     on_path = any(os.path.normcase(os.path.normpath(x)) == os.path.normcase(str(quiet)) for x in pp)
-    print("  no-console fix : %s" % ("active" if on_path else "NOT on PYTHONPATH"))
+    checks["no_console_fix"] = "ok" if on_path else "missing"
     if (quiet / "sitecustomize.py").exists() and not on_path:
         bad.append(
             "scripts/quiet is not on PYTHONPATH, so child processes pop console windows "
@@ -7762,14 +7764,17 @@ def cmd_doctor_deploy() -> int:
             ".claude/settings.json files (repo AND user-level)."
         )
 
-    print("")
-    if not bad:
-        print("DEPLOY OK -- nothing blocking.")
-        return 0
-    print(f"{len(bad)} PROBLEM(S):")
-    for b in bad:
-        print(f"  - {b}")
-    return 1
+    # The verdict first, then the checks; each problem carries its own fix, so no hints.
+    doc = {"deploy": "ok" if not bad else "problems", "problems": len(bad), **checks}
+    if bad:
+        doc["fix"] = bad
+    out.emit(doc, title="Deploy check")
+    return 1 if bad else 0
+
+
+#: How a doctor finding's grade reads in the human view (page = wake someone, banner = say it
+#: loudly, dashboard = for the record).
+_GRADE_COLOUR = {"page": "red", "banner": "yellow", "dashboard": "dim"}
 
 
 def cmd_doctor(args):
@@ -7778,6 +7783,7 @@ def cmd_doctor(args):
     """L2 (T030): the fleet doctor -- reads worklive + the progress pulse + backlogs and
     grades findings per the reconciled paging table (page: hard_wedge, aged stall;
     banner: frozen; dashboard: the rest). Healthy fleet = one line."""
+    from core.axi import out
     from core.comm.doctor import examine_fleet, examine_services, known_agents
 
     agents = [a.strip() for a in (args.agents or "").split(",") if a.strip()] or None
@@ -7786,13 +7792,16 @@ def cmd_doctor(args):
         rep["services"] = examine_services()
     except Exception:
         rep["services"] = []
+    progress = None
     if getattr(args, "progress", False):
         from core.comm.turn_metrics import progress_view
 
+        progress, progress_lines = [], []
         for a in agents or rep["agents"] or known_agents():
             v = progress_view(a)
             if not v:
-                print(f"{a}: idle")
+                progress.append({"agent": a, "turn": "idle"})
+                progress_lines.append(f"{a}: idle")
                 continue
             eta = v.get("eta") or {}
             eta_txt = f"{v['elapsed_s']}s/{eta['median_s']}s" if eta else f"{v['elapsed_s']}s/..."
@@ -7802,7 +7811,21 @@ def cmd_doctor(args):
                 if eta
                 else f" ({v['ask_kind']}, n<3: elapsed only)"
             )
-            print(f"{a}: {eta_txt}  {str(pct) + '%' if pct is not None else '--%'}  pts={v['points_seen']}{conf}")
+            progress_lines.append(
+                f"{a}: {eta_txt}  {str(pct) + '%' if pct is not None else '--%'}  pts={v['points_seen']}{conf}"
+            )
+            progress.append(
+                {
+                    "agent": a,
+                    "turn": v["ask_kind"],
+                    "elapsed_s": v["elapsed_s"],
+                    # n<3: no history to estimate from, so elapsed only
+                    "eta_median_s": eta.get("median_s") if eta else None,
+                    "pct": v.get("pct_estimate"),
+                    "points": v["points_seen"],
+                    "confidence": eta.get("confidence", "no history") if eta else "n<3",
+                }
+            )
     try:  # cf6fe59a4d: is security/acl.json in force, or is the bootstrap floor answering for it?
         from core.trust.registry import acl_status  # read-only, never raises; rendered below + in --json
 
@@ -7816,31 +7839,49 @@ def cmd_doctor(args):
     except Exception as _e:
         rep["links"] = {"error": f"link health unavailable: {type(_e).__name__}"}
     if args.json:
+        for line in progress_lines if progress is not None else []:
+            print(line)  # --json keeps its old bytes: the --progress lines came first
         print(json.dumps(rep, indent=2, default=str))
         return 0
-    print(rep["summary"])
+    doc: dict = {}
+    summary = str(rep.get("summary") or "")
+    if "\n" in summary:  # RB-30: a frozen fleet outranks health counts -- the pause line leads
+        doc["paused"], summary = summary.split("\n", 1)
+    doc["summary"] = summary
+    findings = rep.get("findings") or []
+    doc["findings"] = [
+        {
+            "grade": f.get("grade"),
+            "agent": f.get("agent"),
+            "line": out.truncate(f.get("line"), 300)[0],
+            "drill": f.get("drill") or None,
+        }
+        for f in findings
+    ] or "0 findings"
+    if rep["services"]:
+        doc["services"] = [
+            {
+                "service": s.get("agent"),
+                "state": "live" if str(s.get("state", "")).endswith("_live") else "down",
+                "detail": str(s.get("line", "")).split(" -- ", 1)[1] if " -- " in str(s.get("line", "")) else None,
+                "start": s.get("drill") or None,
+            }
+            for s in rep["services"]
+        ]
+    if progress is not None:
+        doc["progress"] = progress
     try:
         from core.link.health import render as _link_render
 
-        for _line in _link_render(rep.get("links") or {}):
-            print(_line)
+        _ll = [ln.strip() for ln in _link_render(rep.get("links") or {})[1:]]
+        if _ll:
+            doc["links"] = _ll
     except Exception:
         pass
-    for f in rep["findings"]:
-        print(f"  [{f['grade']:^9}] {f['line']}")
-        print(f"              drill: {f['drill']}")
-    svcs = rep.get("services") or []
-    if svcs:
-        print("## SERVICES (fleet infrastructure -- what's running)")
-        for f in svcs:
-            print(f"  [{f['grade']:^9}] {f['line']}")
-            if f.get("drill"):
-                print(f"              start: {f['drill']}")
     try:  # W54 (kimi F3): the activation gauge -- organ claims read the instrument, not anecdotes
         from core.recall.at_action import injections_by_family
 
-        print("## ACTIVATION (recall injections by lesson family, 24h)")
-        print(f"  {_family_gauge_render(injections_by_family(24.0))}")
+        doc["activation_24h"] = _family_gauge_render(injections_by_family(24.0))
     except Exception:
         pass
     try:  # T176 s1: the taxonomy's own coverage. A kind outside every policy's universe is
@@ -7848,20 +7889,22 @@ def cmd_doctor(args):
 
         _kc = _kind_coverage()  # rejected, just never asked
         _forks, _colls = _kc["forks"], _kc["plane_collisions"]
-        if _forks or _colls:
-            print("## TAXONOMY (T176 -- a miss must not read as a decision)")
-            for _c, _f in _forks.items():
-                print(
-                    f"  [dashboard] concept {_c!r} is FORKED across "
-                    f"{len(_f['variants'])} sets, differing on {_f['differs_on']}"
-                )
-                print(f"              drill: py -c \"from core.comm.kinds import forks; print(forks()['{_c}'])\"")
-            if _colls:
-                print(f"  [dashboard] {len(_colls)} kind(s) live on >1 plane: {', '.join(sorted(_colls)[:6])}")
-                print(
-                    '              drill: py -c "from core.comm.kinds import '
-                    'plane_collisions; print(plane_collisions())"'
-                )
+        tax = [
+            {
+                "finding": f"concept {_c!r} is FORKED across {len(_f['variants'])} sets, differing on {_f['differs_on']}",
+                "drill": f"py -c \"from core.comm.kinds import forks; print(forks()['{_c}'])\"",
+            }
+            for _c, _f in _forks.items()
+        ]
+        if _colls:
+            tax.append(
+                {
+                    "finding": f"{len(_colls)} kind(s) live on >1 plane: {', '.join(sorted(_colls)[:6])}",
+                    "drill": 'py -c "from core.comm.kinds import plane_collisions; print(plane_collisions())"',
+                }
+            )
+        if tax:  # a miss must not read as a decision
+            doc["taxonomy"] = tax
     except Exception:
         pass
     try:  # cf6fe59a4d: security/acl.json MISSING/CORRUPT -> resolve() answers from BOOTSTRAP_ROLES
@@ -7869,20 +7912,20 @@ def cmd_doctor(args):
         if _acl.get("floor_in_force"):  # else quarantined) -- a permissive fallback nobody
             _kind = str(_acl.get("fault_kind") or "unreadable").upper()  # can see IS a permissive default
             _roles = " ".join(f"{a}={r}" for a, r in (_acl.get("floor_roles") or {}).items())
-            print(f"## ACL {_kind} -- BOOTSTRAP FLOOR IN FORCE (security/acl.json unreadable at {_acl.get('path')})")
-            print(
-                f"  [  page   ] {_roles}, every other id QUARANTINED"
-                + (f" -- {_acl['detail']}" if _acl.get("detail") else "")
-            )
-            print(
-                "              drill: restore your LAST acl.json per security/ACL-MOVED-READ-ME.md -- "
+            doc["acl"] = {
+                "grade": "page",
+                "state": f"ACL {_kind} -- BOOTSTRAP FLOOR IN FORCE",
+                "path": _acl.get("path"),
+                "floor": f"{_roles}, every other id QUARANTINED",
+                **({"detail": _acl["detail"]} if _acl.get("detail") else {}),
+                "drill": "restore your LAST acl.json per security/ACL-MOVED-READ-ME.md -- "
                 "git show <last-commit>:security/acl.json > security/acl.json; on a fresh "
                 "instance copy security/acl.example.json AND add your own root/super_admin "
                 "record by hand (an EMPTY valid acl.json quarantines EVERY seat, claude and "
-                f"deepseek included -- narrower than this floor); then {_cli()} grant --bootstrap"
-            )
+                f"deepseek included -- narrower than this floor); then {_cli()} grant --bootstrap",
+            }
         elif _acl.get("floor_in_force") is None and _acl.get("error"):
-            print(f"## ACL STATUS UNKNOWN ({_acl['error']})")
+            doc["acl"] = f"status unknown ({_acl['error']})"
     except Exception:
         pass
     try:  # T151: a time-box must be a DEADLINE, not a trapdoor. resolve() drops an expired grant
@@ -7890,20 +7933,81 @@ def cmd_doctor(args):
 
         _exp = expiring_grants(within_h=72.0)
         if _exp:
-            print("## GRANTS LAPSING (security/acl.json -- an expired grant silently quarantines)")
-            for _g in _exp:
-                _state = "EXPIRED -- now quarantined" if _g["expired"] else f"{_g['hours_left']}h left"
-                print(
-                    f"  [{'  page   ' if _g['expired'] else 'dashboard'}] {_g['agent_id']}: "
-                    f"{_state} (expires {_g['expires_at']})"
-                )
-            print(
-                "              drill: edit the record in security/acl.json -- renew by editing, "
-                "never by letting it lapse"
-            )
+            doc["grants_lapsing"] = [
+                {
+                    "agent": _g["agent_id"],
+                    "grade": "page" if _g["expired"] else "dashboard",
+                    "state": "expired, now quarantined" if _g["expired"] else f"{_g['hours_left']}h left",
+                    "expires": _g["expires_at"],
+                }
+                for _g in _exp
+            ]
+            doc["grants_drill"] = "edit the record in security/acl.json -- renew by editing, never by letting it lapse"
     except Exception:
         pass
-    return 0
+    # The drill-down for the worst finding names its agent; a healthy fleet answers itself.
+    hints = []
+    rank = {"page": 0, "banner": 1, "dashboard": 2}
+    worst = sorted(
+        (f for f in findings if f.get("agent") in (rep.get("agents") or [])),
+        key=lambda f: rank.get(str(f.get("grade")), 3),
+    )
+    if worst:
+        hints.append(f"{_cli()} unwedge {worst[0]['agent']}")
+    return out.emit(doc, hints=hints, human=_human_doctor, title="Doctor")
+
+
+def _human_doctor(console, doc):
+    """Human view of `doctor`: the verdict line coloured by the worst grade, then findings and
+    services as tables, then the extra sections only when they have something to say."""
+    from core.axi import out
+
+    if doc.get("paused"):
+        console.print(f"[bold red]{out._esc(doc['paused'])}[/]")
+    findings = doc["findings"] if isinstance(doc["findings"], list) else []
+    grades = {f["grade"] for f in findings}
+    colour = "red" if "page" in grades else ("yellow" if "banner" in grades else "green")
+    console.print(f"[{colour}]{out._esc(doc['summary'])}[/]")
+    for f in findings:  # one block per finding: the lines and drills are too long for a table
+        c = _GRADE_COLOUR.get(f["grade"], "white")
+        console.print(f"  [{c}]{f['grade']:<9}[/] {out._esc(f['line'])}")
+        if f.get("drill"):
+            console.print(f"            [dim]drill:[/] {out._esc(f['drill'])}")
+    if doc.get("services"):
+        console.print(
+            out.table(
+                [
+                    {
+                        "service": s["service"],
+                        "state": s["state"] if s["state"] == "live" else "down",
+                        "detail": s["detail"],
+                        "start": s["start"],
+                    }
+                    for s in doc["services"]
+                ],
+                title="Services",
+            )
+        )
+    if doc.get("progress"):
+        console.print(out.table(doc["progress"], title="Turns in progress"))
+    if doc.get("links"):
+        console.print("[bold]Links[/]")
+        for ln in doc["links"]:
+            console.print(f"  {out._esc(ln)}")
+    if doc.get("taxonomy"):
+        console.print(out.table(doc["taxonomy"], title="Taxonomy (a miss must not read as a decision)"))
+    acl = doc.get("acl")
+    if isinstance(acl, dict):
+        console.print(f"[bold red]{out._esc(acl['state'])}[/] [dim]({out._esc(str(acl['path']))})[/]")
+        console.print(f"  {out._esc(acl['floor'])}" + (f" -- {out._esc(acl['detail'])}" if acl.get("detail") else ""))
+        console.print(f"  [dim]drill:[/] {out._esc(acl['drill'])}")
+    elif acl:
+        console.print(f"[yellow]ACL {out._esc(acl)}[/]")
+    if doc.get("grants_lapsing"):
+        console.print(out.table(doc["grants_lapsing"], title="Grants lapsing"))
+        console.print(f"  [dim]drill:[/] {out._esc(doc['grants_drill'])}")
+    if doc.get("activation_24h"):
+        console.print(f"[dim]activation (recall injections by family, 24h): {out._esc(doc['activation_24h'])}[/]")
 
 
 def cmd_lookback(args):

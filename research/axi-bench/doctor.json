@@ -1,0 +1,220 @@
+{
+  "verb": "doctor",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 882,
+    "stdout_chars": 2044,
+    "stdout_lines": 17,
+    "cost_usd": 0.0292,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many findings did the doctor report about agents?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent has a finding?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the redis service running? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "Yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which services are down? List their names separated by commas.",
+        "expected": [
+          "ui:8787",
+          "daemon"
+        ],
+        "answers": [
+          "ui:8787, daemon",
+          "ui:8787, daemon",
+          "ui:8787, daemon",
+          "ui:8787, daemon",
+          "ui:8787, daemon"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command does the doctor suggest for carol's unread mail? Give the command only.",
+        "expected": [
+          "bifrost-skip-to-now",
+          "carol"
+        ],
+        "answers": [
+          "`uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'`",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many agents did the doctor examine?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "fleet": {
+        "argv": [
+          "doctor"
+        ],
+        "exit": 0,
+        "stdout": "doctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2\n  [dashboard] carol: OFFLINE \u2014 1 unread but the agent is GONE (no worklive, no runner, no wake seat). The backlog is ghost mail from a retired seat \u2014 retire the inbox or ignore.\n              drill: uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'  | or ignore: the mail TTLs with the stream\n## SERVICES (fleet infrastructure -- what's running)\n  [dashboard] service redis: LIVE -- bus backend\n  [ banner  ] service ui:8787: DOWN -- bifrost console\n              start: uv run scripts/bifrost_ui.py  (Bash run_in_background)\n  [ banner  ] service daemon: DOWN -- no live daemon -- seats self-manage wake/consume; the discord outbound pump (daemon-hosted) has NO host\n              start: uv run scripts/bifrost_daemon.py --agent <a> --spawn-runner --runner-consume-lane work [--runner-script bifrost_runner_<a>.py]  (runner seats)  |  uv run scripts/bifrost_daemon.py --agent claude --manage-listener  (wake listeners; revive DAEMON_MODE) -- the flag IS the brain: flagless = alpha, REFUSES under a bare runner\n## ACTIVATION (recall injections by lesson family, 24h)\n  conductor 0/1 \u00b7 preregistered 1/1\n## TAXONOMY (T176 -- a miss must not read as a decision)\n  [dashboard] 2 kind(s) live on >1 plane: decision, note\n              drill: py -c \"from core.comm.kinds import plane_collisions; print(plane_collisions())\"\n## ACL MISSING -- BOOTSTRAP FLOOR IN FORCE (security/acl.json unreadable at /tmp/axi-bench-r8_loktj/before/security/acl.json)\n  [  page   ] claude=super_admin deepseek=admin, every other id QUARANTINED\n              drill: restore your LAST acl.json per security/ACL-MOVED-READ-ME.md -- git show <last-commit>:security/acl.json > security/acl.json; on a fresh instance copy security/acl.example.json AND add your own root/super_admin record by hand (an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included -- narrower than this floor); then uv run agent_cli.py grant --bootstrap\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 885,
+    "stdout_chars": 1952,
+    "stdout_lines": 18,
+    "cost_usd": 0.0311,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many findings did the doctor report about agents?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent has a finding?",
+        "expected": "carol",
+        "answers": [
+          "carol",
+          "carol",
+          "carol",
+          "carol",
+          "carol"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the redis service running? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which services are down? List their names separated by commas.",
+        "expected": [
+          "ui:8787",
+          "daemon"
+        ],
+        "answers": [
+          "ui:8787, daemon",
+          "ui:8787, daemon",
+          "ui:8787, daemon",
+          "ui:8787, daemon",
+          "ui:8787, daemon"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command does the doctor suggest for carol's unread mail? Give the command only.",
+        "expected": [
+          "bifrost-skip-to-now",
+          "carol"
+        ],
+        "answers": [
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'",
+          "uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many agents did the doctor examine?",
+        "expected": 6,
+        "answers": [
+          "6",
+          "6",
+          "6",
+          "6",
+          "6"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "fleet": {
+        "argv": [
+          "doctor"
+        ],
+        "exit": 0,
+        "stdout": "summary: \"doctor: 0 page-grade, 0 banner, 1 dashboard across 6 agent(s) | watches 0/2\"\nfindings[1]{grade,agent,line,drill}:\n  dashboard,carol,\"carol: OFFLINE \u2014 1 unread but the agent is GONE (no worklive, no runner, no wake seat). The backlog is ghost mail from a retired seat \u2014 retire the inbox or ignore.\",\"uv run agent_cli.py bifrost-skip-to-now carol --by <you> --reason 'ghost mail from a retired seat'  | or ignore: the mail TTLs with the stream\"\nservices[3]{service,state,detail,start}:\n  redis,live,bus backend,null\n  \"ui:8787\",down,bifrost console,uv run scripts/bifrost_ui.py  (Bash run_in_background)\n  daemon,down,no live daemon -- seats self-manage wake/consume; the discord outbound pump (daemon-hosted) has NO host,\"uv run scripts/bifrost_daemon.py --agent <a> --spawn-runner --runner-consume-lane work [--runner-script bifrost_runner_<a>.py]  (runner seats)  |  uv run scripts/bifrost_daemon.py --agent claude --manage-listener  (wake listeners; revive DAEMON_MODE) -- the flag IS the brain: flagless = alpha, REFUSES under a bare runner\"\nactivation_24h: conductor 0/1 \u00b7 preregistered 1/1\ntaxonomy[1]{finding,drill}:\n  \"2 kind(s) live on >1 plane: decision, note\",\"py -c \\\"from core.comm.kinds import plane_collisions; print(plane_collisions())\\\"\"\nacl:\n  grade: page\n  state: ACL MISSING -- BOOTSTRAP FLOOR IN FORCE\n  path: /mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/agent-af448b9fb785157e3/security/acl.json\n  floor: \"claude=super_admin deepseek=admin, every other id QUARANTINED\"\n  drill: \"restore your LAST acl.json per security/ACL-MOVED-READ-ME.md -- git show <last-commit>:security/acl.json > security/acl.json; on a fresh instance copy security/acl.example.json AND add your own root/super_admin record by hand (an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included -- narrower than this floor); then uv run agent_cli.py grant --bootstrap\"\nhelp[1]:\n  uv run agent_cli.py unwedge carol\n"
+      }
+    }
+  }
+}
