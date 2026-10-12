@@ -11212,6 +11212,7 @@ def _human_mailbox_open(console, doc):
 
 def cmd_packet_stats(args):
     """T060 N0: read the bounded logical-route and physical-mirror counters."""
+    from core.axi import out as axi
     from core.comm.bus import Bus
     from core.comm.router import route_stats
 
@@ -11220,19 +11221,62 @@ def cmd_packet_stats(args):
     if args.json:
         print(json.dumps(out, sort_keys=True))
         return 0 if out["online"] else 1
-    state = "online" if out["online"] else "OFFLINE (counters unavailable)"
-    print(f"# PACKET ROUTE STATS -- {out['mode']} / {state}")
-    print(f"  policy: {out['policy_version']}")
+    if not out["online"]:
+        return axi.fail(
+            "bus offline: route counters unavailable",
+            code="BUS_OFFLINE",
+            details={"mode": out["mode"], "policy": out["policy_version"]},
+        )
+    doc: dict = {"mode": out["mode"], "policy": out["policy_version"]}
     if out["stored_policy_version"]:
-        match = "match" if out["policy_matches"] else "MISMATCH -- do not use for cutover"
-        print(f"  stored policy: {out['stored_policy_version']} ({match})")
-    print(f"  started: {out['started_at'] or '(no observations yet)'}")
-    print(f"  bounded fields: {len(out['counts'])}/{out['counter_field_limit']}")
-    if not out["counts"]:
-        print("  (no observations)")
+        # A mismatch means the counters were gathered under another policy: not cutover evidence.
+        doc["policy_matches"] = bool(out["policy_matches"])
+        if not out["policy_matches"]:
+            doc["stored_policy"] = out["stored_policy_version"]
+    doc["started"] = out["started_at"] or None
+    doc["fields_used"] = len(out["counts"])
+    doc["field_limit"] = out["counter_field_limit"]
+    # The counters pivoted to one row per kind: `decision:<kind>` and `<family>:<kind>:<outcome>`
+    # become decisions plus one column per outcome, with the totals precomputed.
+    by_kind: dict = {}
+    outcomes: list = []
     for field, count in sorted(out["counts"].items()):
-        print(f"  {field:42} {count}")
-    return 0 if out["online"] else 1
+        parts = field.split(":")
+        row = by_kind.setdefault(parts[1] if len(parts) > 1 else field, {"decisions": 0})
+        if parts[0] == "decision":
+            row["decisions"] += int(count)
+        else:
+            key = parts[-1]
+            row[key] = row.get(key, 0) + int(count)
+            if key not in outcomes:
+                outcomes.append(key)
+    order = [o for o in ("success", "fallback", "failure", "unmapped", "disabled") if o in outcomes]
+    order += [o for o in outcomes if o not in order]
+    doc["decisions"] = sum(r["decisions"] for r in by_kind.values())
+    doc["failures"] = sum(r.get("failure", 0) for r in by_kind.values())
+    doc["kinds"] = [
+        {"kind": k, "decisions": r["decisions"], **{o: r.get(o, 0) for o in order}} for k, r in by_kind.items()
+    ]
+    hints = [] if by_kind else [f"{_cli()} packet-trace <kind>"]
+    return axi.emit(doc, hints=hints, human=_human_packet_stats, title=f"Packet route stats · {out['mode']}")
+
+
+def _human_packet_stats(console, doc):
+    """Human view of `packet-stats`: policy and totals first (a mismatch or a failure in red),
+    then one row per kind."""
+    from core.axi import out
+
+    match = doc.get("policy_matches")
+    tag = "" if match is None else (" [green](stored matches)[/]" if match else " [red](stored MISMATCH)[/]")
+    console.print(f"[dim]policy[/] {out._esc(doc['policy'])}{tag}")
+    fails = f"[red]{doc['failures']} failures[/]" if doc["failures"] else "[green]0 failures[/]"
+    console.print(
+        f"[bold]{doc['decisions']}[/] decisions · {fails} · {doc['fields_used']}/{doc['field_limit']} counters used"
+    )
+    if doc["kinds"]:
+        console.print(out.table(doc["kinds"]))
+    else:
+        console.print("[dim]no observations yet[/]")
 
 
 # ------------------------------------------------------------------------- status

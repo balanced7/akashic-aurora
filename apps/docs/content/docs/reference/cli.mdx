@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 50 converted to agent and human output.
+121 verbs; 51 converted to agent and human output.
 
 ## `alias`
 
@@ -1720,11 +1720,31 @@ help[1]:
 | | |
 |---|---|
 | Does | N0 bounded shadow route/mirror counters |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 92% after |
+| Output tokens | 165 before, 125 after (-24%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/packet-stats.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--json` |   |   |   |
+
+Agent output of `aurora packet-stats` on the bench data:
+
+```text
+mode: shadow
+policy: "kind-lane:8b1a0308b554"
+policy_matches: true
+started: "2026-10-12T15:59:47.979732+00:00"
+fields_used: 6
+field_limit: 148
+decisions: 5
+failures: 0
+kinds[3]{kind,decisions,success}:
+  chat,3,3
+  handoff,1,1
+  request,1,1
+```
 
 ## `packet-trace`
 

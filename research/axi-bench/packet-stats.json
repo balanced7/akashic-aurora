@@ -1,0 +1,184 @@
+{
+  "verb": "packet-stats",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 165,
+    "stdout_chars": 471,
+    "stdout_lines": 11,
+    "cost_usd": 0.0228,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many routing decisions were recorded for chat packets?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many routing decisions were recorded in total, across all kinds?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many handoff packets were mirrored successfully?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many mirror failures were recorded? Answer with a number.",
+        "expected": 0,
+        "answers": [
+          "0",
+          "UNKNOWN",
+          "0",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 2
+      },
+      {
+        "q": "Does the stored policy match the current policy? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Stored policy `kind-lane:8b1a0308b554 (match)` equals the policy `kind-lane:8b1a0308b554`.\n\nyes",
+          "yes",
+          "yes",
+          "Output says \"stored policy: kind-lane:8b1a0308b554 (match)\" and policy is kind-lane:8b1a0308b554.\n\nyes",
+          "yes"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "stats": {
+        "argv": [
+          "packet-stats"
+        ],
+        "exit": 0,
+        "stdout": "# PACKET ROUTE STATS -- shadow / online\n  policy: kind-lane:8b1a0308b554\n  stored policy: kind-lane:8b1a0308b554 (match)\n  started: 2026-10-12T15:59:14.700956+00:00\n  bounded fields: 6/148\n  decision:chat                              3\n  decision:handoff                           1\n  decision:request                           1\n  mirror:chat:success                        3\n  mirror:handoff:success                     1\n  mirror:request:success                     1\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.92,
+    "correct": 23,
+    "asked": 25,
+    "output_tokens": 125,
+    "stdout_chars": 241,
+    "stdout_lines": 12,
+    "cost_usd": 0.0254,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many routing decisions were recorded for chat packets?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many routing decisions were recorded in total, across all kinds?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many handoff packets were mirrored successfully?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "The output lists `kinds[3]{kind,decisions,success}` with the row `handoff,1,1`, meaning one handoff decision and one success.\n\n1"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many mirror failures were recorded? Answer with a number.",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "UNKNOWN",
+          "0"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Does the stored policy match the current policy? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "stats": {
+        "argv": [
+          "packet-stats"
+        ],
+        "exit": 0,
+        "stdout": "mode: shadow\npolicy: \"kind-lane:8b1a0308b554\"\npolicy_matches: true\nstarted: \"2026-10-12T15:59:47.979732+00:00\"\nfields_used: 6\nfield_limit: 148\ndecisions: 5\nfailures: 0\nkinds[3]{kind,decisions,success}:\n  chat,3,3\n  handoff,1,1\n  request,1,1\n"
+      }
+    }
+  }
+}
