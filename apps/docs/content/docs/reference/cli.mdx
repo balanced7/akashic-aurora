@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 62 converted to agent and human output.
+121 verbs; 63 converted to agent and human output.
 
 ## `alias`
 
@@ -2690,12 +2690,34 @@ help[2]:
 | | |
 |---|---|
 | Does | the awareness snapshot: bus, bench, health, moved -- one bounded read-only block |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 143 before, 244 after (+71%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/sweep.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<agent_id>` |   |   | seat being observed (default: $AKASHIC_AGENT_ID; no identity fallback) |
 | `--json` |   |   | emit observation.snapshot.v1 JSON |
+
+Agent output of `aurora sweep bench` on the bench data:
+
+```text
+subject: bench
+as_of: "2026-10-12T14:18:10.119673+00:00"
+pending: 3
+need_attention: 1
+parked: 0
+effects: none
+observations[4]{name,status,summary,drill}:
+  bus,OK,3 pending; 3 shown; 1 need attention; online=none,bifrost-sync bench --digest
+  bench,OK,0 parked,bench bench
+  route,UNATTENDED,"UNATTENDED: no beat, pulse, or worklive",roster --agent bench
+  moved,UNKNOWN,mark absent; movement unknown,delta bench
+help[2]:
+  uv run agent_cli.py bifrost-sync bench --digest
+  uv run agent_cli.py delta bench
+```
 
 ## `tag-anti-pattern`
 

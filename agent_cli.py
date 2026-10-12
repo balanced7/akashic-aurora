@@ -10634,21 +10634,67 @@ def _awareness_subject(args) -> str:
 def cmd_sweep(args):
     """`sweep`: the awareness snapshot -- bus, bench, health, moved in one bounded block.
     Read-only, fail-open, deterministic, and explicit about the observed subject."""
+    from core.axi import out
+
     try:
         subject = _awareness_subject(args)
     except ValueError as exc:
-        print(f"ERROR: {exc}")
-        return 2
+        return out.fail(str(exc), code="USAGE", exit_code=2, hints=[f"{_cli()} sweep <agent_id>"])
     from core.comm.awareness import build_snapshot
 
     snapshot = build_snapshot(subject)
     if getattr(args, "json", False):
         print(json.dumps(snapshot.as_dict(), indent=2, default=str))
-    else:
-        from core.comm.awareness import render_snapshot
+        return 0
+    doc, hints = _sweep_doc(snapshot)
+    return out.emit(doc, hints=hints, human=_human_sweep, title=f"Sweep · {subject}")
 
-        print(render_snapshot(snapshot))
-    return 0
+
+def _sweep_doc(snapshot) -> tuple[dict, list[str]]:
+    """The awareness snapshot as data: the counts a seat acts on up front (pending mail, how
+    much of it needs attention, parked work), then one row per observation. The hints are
+    the drill commands of the observations that have something to look at, so the next call
+    is named rather than guessed."""
+    obs = {o.name: o for o in snapshot.observations}
+    doc: dict[str, Any] = {"subject": snapshot.subject, "as_of": snapshot.observed_at}
+    bus, bench = obs.get("bus"), obs.get("bench")
+    if bus is not None and bus.total is not None:
+        doc["pending"] = bus.total
+        if bus.total_relation == "at_least":
+            doc["pending_is"] = "at least"  # the read was capped: a floor, never a total
+        doc["need_attention"] = int(bus.details.get("attention_shown", 0) or 0)
+    if bench is not None and bench.total is not None:
+        doc["parked"] = bench.total
+    doc["effects"] = ",".join(snapshot.effects) or "none"
+    # `drill` names the verb that shows each observation in full: next to its row, a reader
+    # can tell which command reads the mail and which one the movement.
+    doc["observations"] = [
+        {"name": o.name, "status": o.status, "summary": o.summary, "drill": o.drill or None}
+        for o in snapshot.observations
+    ]
+    cli = _cli()
+    hints = [
+        f"{cli} {o.drill}"
+        for o in snapshot.observations
+        if o.drill and (o.total or o.status.upper() in ("UNKNOWN", "UNAVAILABLE"))
+    ]
+    return doc, hints[:3]
+
+
+def _human_sweep(console, doc):
+    from core.axi import out
+
+    bits = []
+    if "pending" in doc:
+        floor = "≥" if doc.get("pending_is") else ""
+        bits.append(f"[bold]{floor}{doc['pending']}[/] pending")
+        colour = "yellow" if doc["need_attention"] else "dim"
+        bits.append(f"[{colour}]{doc['need_attention']} need attention[/]")
+    if "parked" in doc:
+        bits.append(f"{doc['parked']} parked")
+    if bits:
+        console.print("  ".join(bits))
+    console.print(out.table(doc["observations"]))
 
 
 def cmd_orient(args):
