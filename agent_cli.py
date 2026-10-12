@@ -5732,16 +5732,17 @@ def _human_note_get(console, doc):
 
 def cmd_notes(args):
     """List active (non-superseded) project notes, newest first. The write-once read side."""
+    from core.axi import out
     from core.learning.agent_memory import get_agent_memory
 
-    if args.project:
+    cli = _cli()
+    if getattr(args, "project", False):
         try:
-            print(f"[OK] regenerated {project_notes()}")
-            return 0
+            return out.emit({"regenerated": str(project_notes())}, title="Notes digest")
         except Exception as e:
-            print(f"ERROR projecting notes: {type(e).__name__}: {e}")
-            return 1
-    decs = get_agent_memory().get_decisions(days=args.days or 3650, include_superseded=bool(args.all))
+            return out.fail(f"projecting notes failed: {type(e).__name__}: {e}", code="PROJECT_FAILED")
+    show_all = bool(getattr(args, "all", False))
+    decs = get_agent_memory().get_decisions(days=args.days or 3650, include_superseded=show_all)
     if args.json:
         print(
             json.dumps(
@@ -5760,40 +5761,80 @@ def cmd_notes(args):
             )
         )
         return 0
-    label = "note(s) incl. superseded" if args.all else "active note(s)"
-    print(f"# {len(decs)} {label}")
-    for d in decs[: (args.limit or 25)]:
-        tag = " [superseded]" if d.superseded else ""
-        print(f"  [{d.created_at[:10]}]{tag} {d.title}: {_clip(d.decision, 140)}   (id {d.id})")
+    me = os.getenv("AKASHIC_AGENT_ID") or "<you>"
+    limit = max(1, int(getattr(args, "limit", None) or 25))
+    doc: dict = {"scope": "active and superseded" if show_all else "active", "total": len(decs)}
+    if len(decs) > limit:
+        doc["shown"] = limit
+    rows, cut = [], []
+    for d in decs[:limit]:
+        text, was_cut = out.truncate(d.decision, 140)
+        if was_cut:
+            cut.append(d.title)
+        row = {"date": d.created_at[:10], "title": d.title, "note": text, "id": d.id}
+        if show_all:
+            row["status"] = "superseded" if d.superseded else "active"
+        rows.append(row)
+    doc["notes"] = rows
     # RB-10: vanished title groups (all records retired)
-    try:
-        mem = get_agent_memory()
-        gone = mem.get_retired_titles()
+    with contextlib.suppress(Exception):
+        gone = get_agent_memory().get_retired_titles()
         if gone:
-            print(f"\n# {len(gone)} retired title group(s) -- every record for these titles is retired:")
-            for g in gone[:10]:
-                print(
-                    f"  [{g['last_retired_at'][:10]}] {g['title']} "
-                    f"({g['retired_count']} record(s), last id {g['last_active_id']})"
-                )
-    except Exception:
-        pass
+            doc["retired_titles"] = [
+                {
+                    "date": g["last_retired_at"][:10],
+                    "title": g["title"],
+                    "records": g["retired_count"],
+                    "last_id": g["last_active_id"],
+                }
+                for g in gone[:10]
+            ]
     # RB-11: chain-length warning
-    try:
+    with contextlib.suppress(Exception):
         from core.learning.agent_memory import CHAIN_WARN_THRESHOLD
 
-        mem = get_agent_memory()
-        long = mem.get_long_chains()
+        long = get_agent_memory().get_long_chains()
         if long:
-            print(f"\n# {len(long)} title(s) with long superseded chains (> {CHAIN_WARN_THRESHOLD} records):")
-            for c in long[:5]:
-                print(f"  {c['title']}: {c['count']} records (oldest {c['oldest_id']}, newest {c['newest_id']})")
-    except Exception:
-        pass
-    return 0
+            doc["long_chains"] = [
+                {"title": c["title"], "records": c["count"], "oldest": c["oldest_id"], "newest": c["newest_id"]}
+                for c in long[:5]
+            ]
+            doc["long_chain_threshold"] = CHAIN_WARN_THRESHOLD
+    if not decs:  # AXI section 5: the zero is the answer
+        hints = [f'{cli} note {me} --title "<title>" --note "<body>"']
+    else:
+        # The full-body hint names a real title when one was cut, else a placeholder.
+        hints = [f"{cli} note {me} --get {_quote_arg(cut[0]) if cut else '<title>'}"]
+        if len(decs) > limit:
+            hints.append(f"{cli} notes{' --all' if show_all else ''} --limit {len(decs)}")
+    return out.emit(doc, hints=hints, human=_human_notes, title="Notes")
 
 
-# ----------------------------------------------------------------------------- wrap
+def _human_notes(console, doc):
+    """Human view of `notes`: the count, one block per note (date, title, the opening of the body),
+    then the retired groups and long chains in yellow."""
+    from core.axi import out
+
+    if not doc["total"]:
+        console.print(f"[yellow]0 {doc['scope']} notes[/]")
+        return
+    shown = f"{doc['shown']} of " if doc.get("shown") else ""
+    console.print(f"[dim]{shown}{doc['total']} {doc['scope']} note(s), newest first[/]")
+    for r in doc["notes"]:
+        tag = "  [yellow]superseded[/]" if r.get("status") == "superseded" else ""
+        console.print(f"\n[dim]{r['date']}[/]  [bold]{out._esc(r['title'])}[/]{tag}  [dim]{out._esc(r['id'])}[/]")
+        console.print(f"  {out._esc(r['note'])}")
+    if doc.get("retired_titles"):
+        console.print(f"\n[yellow]{len(doc['retired_titles'])} title group(s) with every record retired[/]")
+        console.print(out.table(doc["retired_titles"]))
+    if doc.get("long_chains"):
+        console.print(
+            f"\n[yellow]{len(doc['long_chains'])} title(s) with superseded chains over "
+            f"{doc['long_chain_threshold']} records[/]"
+        )
+        console.print(out.table(doc["long_chains"]))
+
+
 def _human_flip_target(target):
     """normalize_target keys (p:<abs path> / c:<command>) are JOIN keys, not prose -- the draft
     renders what a human recognizes: a repo-relative path or the command line itself."""

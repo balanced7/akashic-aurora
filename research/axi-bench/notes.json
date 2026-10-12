@@ -1,0 +1,206 @@
+{
+  "verb": "notes",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 200,
+    "stdout_chars": 986,
+    "stdout_lines": 9,
+    "cost_usd": 0.0252,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many active notes are there?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the open-docket note shown in full here? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command prints the full open-docket note? Give the command only.",
+        "expected": [
+          "--get",
+          "open-docket"
+        ],
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many notes are listed, superseded ones included?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which note title has an older, superseded version? Give the title only.",
+        "expected": "where-we-are",
+        "answers": [
+          "where-we-are",
+          "where-we-are",
+          "where-we-are",
+          "where-we-are",
+          "where-we-are"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "notes"
+        ],
+        "exit": 0,
+        "stdout": "# 3 active note(s)\n  [2026-10-12] release-plan: Ship 2.0 on Friday after the soak.   (id ADR_1012174221_a89e68f5)\n  [2026-10-12] open-docket: Open docket: (1) migrate the ledger table to the new schema, (2) retire the legacy bus lane once the dual-write window closes, (3) re-run ...[truncated]   (id ADR_1012174220_c3068867)\n  [2026-10-12] where-we-are: Wave 3 done; next: migrate the ledger table.   (id ADR_1012174220_e0db6b03)\n"
+      },
+      "all": {
+        "argv": [
+          "notes",
+          "--all"
+        ],
+        "exit": 0,
+        "stdout": "# 4 note(s) incl. superseded\n  [2026-10-12] release-plan: Ship 2.0 on Friday after the soak.   (id ADR_1012174221_a89e68f5)\n  [2026-10-12] open-docket: Open docket: (1) migrate the ledger table to the new schema, (2) retire the legacy bus lane once the dual-write window closes, (3) re-run ...[truncated]   (id ADR_1012174220_c3068867)\n  [2026-10-12] where-we-are: Wave 3 done; next: migrate the ledger table.   (id ADR_1012174220_e0db6b03)\n  [2026-10-12] [superseded] where-we-are: Wave 2 done; next: the payment refactor.   (id ADR_1012174219_b4f2b3c2)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 240,
+    "stdout_chars": 1185,
+    "stdout_lines": 17,
+    "cost_usd": 0.0212,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many active notes are there?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the open-docket note shown in full here? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What exact command prints the full open-docket note? Give the command only.",
+        "expected": [
+          "--get",
+          "open-docket"
+        ],
+        "answers": [
+          "uv run agent_cli.py note bench --get open-docket",
+          "uv run agent_cli.py note bench --get open-docket",
+          "uv run agent_cli.py note bench --get open-docket",
+          "uv run agent_cli.py note bench --get open-docket",
+          "bench note --get open-docket"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many notes are listed, superseded ones included?",
+        "expected": 4,
+        "answers": [
+          "4",
+          "4",
+          "4",
+          "4",
+          "4"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which note title has an older, superseded version? Give the title only.",
+        "expected": "where-we-are",
+        "answers": [
+          "where-we-are",
+          "where-we-are",
+          "where-we-are",
+          "where-we-are",
+          "where-we-are"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "notes"
+        ],
+        "exit": 0,
+        "stdout": "scope: active\ntotal: 3\nnotes[3]{date,title,note,id}:\n  2026-10-12,release-plan,Ship 2.0 on Friday after the soak.,ADR_1012174256_8445c3ea\n  2026-10-12,open-docket,\"Open docket: (1) migrate the ledger table to the new schema, (2) retire the legacy bus lane once the dual-write window closes, (3) re-run th... (truncated, 194 chars total)\",ADR_1012174256_4b515520\n  2026-10-12,where-we-are,\"Wave 3 done; next: migrate the ledger table.\",ADR_1012174255_9b2675a7\nhelp[1]:\n  uv run agent_cli.py note bench --get open-docket\n"
+      },
+      "all": {
+        "argv": [
+          "notes",
+          "--all"
+        ],
+        "exit": 0,
+        "stdout": "scope: active and superseded\ntotal: 4\nnotes[4]{date,title,note,id,status}:\n  2026-10-12,release-plan,Ship 2.0 on Friday after the soak.,ADR_1012174256_8445c3ea,active\n  2026-10-12,open-docket,\"Open docket: (1) migrate the ledger table to the new schema, (2) retire the legacy bus lane once the dual-write window closes, (3) re-run th... (truncated, 194 chars total)\",ADR_1012174256_4b515520,active\n  2026-10-12,where-we-are,\"Wave 3 done; next: migrate the ledger table.\",ADR_1012174255_9b2675a7,active\n  2026-10-12,where-we-are,\"Wave 2 done; next: the payment refactor.\",ADR_1012174255_2e85c1af,superseded\nhelp[1]:\n  uv run agent_cli.py note bench --get open-docket\n"
+      }
+    }
+  }
+}

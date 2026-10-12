@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 29 converted to agent and human output.
+121 verbs; 30 converted to agent and human output.
 
 ## `alias`
 
@@ -1493,7 +1493,10 @@ superseded: ADR_1012173953_ad043cbf
 | | |
 |---|---|
 | Does | list active project notes (--project regenerates chronicles/memory.md) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 200 before, 240 after (+20%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/notes.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1502,6 +1505,19 @@ superseded: ADR_1012173953_ad043cbf
 | `--project` |   |   | regenerate the chronicles/memory.md digest |
 | `--all` |   |   | archaeology: include superseded/retired notes (tagged) |
 | `--json` |   |   |   |
+
+Agent output of `aurora notes` on the bench data:
+
+```text
+scope: active
+total: 3
+notes[3]{date,title,note,id}:
+  2026-10-12,release-plan,Ship 2.0 on Friday after the soak.,ADR_1012174256_8445c3ea
+  2026-10-12,open-docket,"Open docket: (1) migrate the ledger table to the new schema, (2) retire the legacy bus lane once the dual-write window closes, (3) re-run th... (truncated, 194 chars total)",ADR_1012174256_4b515520
+  2026-10-12,where-we-are,"Wave 3 done; next: migrate the ledger table.",ADR_1012174255_9b2675a7
+help[1]:
+  uv run agent_cli.py note bench --get open-docket
+```
 
 ## `orient`
 
