@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import time
+import warnings
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -21,13 +22,18 @@ _CHUNK = 1 << 20
 
 
 def quick_id(path) -> str:
-    """sha256(size || first 1 MiB || last 1 MiB)[:16]: a content id that costs ~5 ms on a 2.4 GB file and survives a
-    rename or a move between drives."""
+    """sha256(size || first 1 MiB || middle 1 MiB || last 1 MiB)[:16]: a content id that costs a few ms on a 2.4 GB
+    file and survives a rename or a move between drives. The middle read is there because two recordings can share a
+    container header and a trailing run (Heimdall's fence, 2026-10-12); the id is the catalog's join key, so a
+    collision would be a wrong join, not a cosmetic clash."""
     p = Path(path)
     size = p.stat().st_size
     h = hashlib.sha256(str(size).encode("ascii") + b"|")
     with open(p, "rb") as fh:
         h.update(fh.read(_CHUNK))
+        if size > 3 * _CHUNK:
+            fh.seek(size // 2 - _CHUNK // 2)
+            h.update(fh.read(_CHUNK))
         if size > _CHUNK:
             fh.seek(max(size - _CHUNK, _CHUNK))
             h.update(fh.read(_CHUNK))
@@ -65,8 +71,10 @@ def result(verb: str, src, params: dict, payload: dict, blind: Iterable[str] = (
     if write_receipt:
         try:
             res["receipt"] = write(verb, res)
-        except OSError:
+        except OSError as exc:              # the primitive's answer stands; the missing receipt is said out loud
             res["receipt"] = None
+            res["blind"].append(f"receipt not written: {exc}")
+            warnings.warn(f"arsenal.media {verb}: receipt not written ({exc})", stacklevel=2)
     return res
 
 

@@ -71,6 +71,23 @@ def test_house_caps_report_what_the_primitives_need():
     assert "d3d11va" in c["hwaccels"]
 
 
+def test_has_filter_answers_for_any_name_the_build_has():
+    _house_ffmpeg()
+    assert ff.has_filter("scdet") and ff.has_filter("movie")      # movie is not watched, but the build has it
+    assert not ff.has_filter("no_such_filter_anywhere")
+    assert ff.has_encoder("aac") and not ff.has_encoder("no_such_encoder")
+
+
+def test_quick_id_sees_the_middle_of_a_file(tmp_path):
+    from arsenal.media.receipt import quick_id
+    mib = 1 << 20
+    a, b = tmp_path / "a.bin", tmp_path / "b.bin"
+    a.write_bytes(b"H" * mib + b"x" * (3 * mib) + b"T" * mib)
+    b.write_bytes(b"H" * mib + b"y" * (3 * mib) + b"T" * mib)   # same size, head and tail; different middle
+    assert quick_id(a) != quick_id(b)
+    assert quick_id(a) == quick_id(a)
+
+
 def _burn(tmp_path, sub_arg):
     out = tmp_path / "burn.png"
     return ff.run(["-f", "lavfi", "-i", "color=c=black:s=320x240:d=1", "-vf", sub_arg, "-frames:v", "1", "-y",

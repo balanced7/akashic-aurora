@@ -201,13 +201,19 @@ def ffprobe() -> str:
 # run
 # =================================================================================================
 
+_gpu_lock_warned = False
+
+
 def _gpu_wrap(argv: List[str], label: str) -> List[str]:
     """Run argv under the house GPU lock (arsenal/GPU-LOCK.md: one locking story for every lane)."""
+    global _gpu_lock_warned
     node = shutil.which("node")
     helper = _REPO_ROOT / "arsenal" / "lanes" / "gpu_lock.mjs"
     if not node or not helper.is_file():
-        warnings.warn(f"GPU lock unavailable (node={bool(node)}, helper={helper.is_file()}); running {label!r} "
-                      f"without it", stacklevel=3)
+        if not _gpu_lock_warned:           # once per process: a stream of spawns must not bury real warnings
+            _gpu_lock_warned = True
+            warnings.warn(f"GPU lock unavailable (node={bool(node)}, helper={helper.is_file()}); running GPU "
+                          f"work such as {label!r} without it", stacklevel=3)
         return argv
     return [node, str(helper), "run", "--label", f"arsenal.media {label}", "--"] + argv
 
@@ -353,9 +359,9 @@ def _caps_view(binary: str, raw: dict) -> dict:
             "known_bad": dict(KNOWN_BAD)}
 
 
-def caps(refresh: bool = False, *, binary: Optional[str] = None) -> dict:
-    """What the ffmpeg build can do, cached on disk per (path, size, mtime)."""
-    binary = binary or ffmpeg()
+def _caps_entry(binary: str, refresh: bool = False) -> dict:
+    """The cached raw probe of one binary, refreshed when its (path, size, mtime) stamp changes. The first call on a
+    cold cache costs three ffmpeg runs (-encoders, -filters, -hwaccels): about a second, not a hot path."""
     st = os.stat(binary)
     stamp = {"path": binary, "size": st.st_size, "mtime_ns": st.st_mtime_ns}
     cache_file = state_dir() / "caps.json"
@@ -368,21 +374,24 @@ def caps(refresh: bool = False, *, binary: Optional[str] = None) -> dict:
             _write_json(cache_file, cache)
         except OSError:
             pass
-    return _caps_view(binary, entry["raw"])
+    return entry
+
+
+def caps(refresh: bool = False, *, binary: Optional[str] = None) -> dict:
+    """What the ffmpeg build can do, cached on disk per (path, size, mtime). `encoders`/`filters` report the
+    WATCH_* names the primitives care about; has_encoder()/has_filter() answer for any name."""
+    binary = binary or ffmpeg()
+    return _caps_view(binary, _caps_entry(binary, refresh)["raw"])
 
 
 def has_encoder(name: str) -> bool:
-    binary = ffmpeg()
-    caps(binary=binary)
-    entry = (_read_json(state_dir() / "caps.json") or {}).get(binary) or {}
-    return name in set((entry.get("raw") or {}).get("encoders_all", []))
+    """True when the chosen build has this encoder (any name, not only the watched ones: the build is the truth)."""
+    return name in set(_caps_entry(ffmpeg())["raw"].get("encoders_all", []))
 
 
 def has_filter(name: str) -> bool:
-    binary = ffmpeg()
-    caps(binary=binary)
-    entry = (_read_json(state_dir() / "caps.json") or {}).get(binary) or {}
-    return name in set((entry.get("raw") or {}).get("filters_all", []))
+    """True when the chosen build has this filter (any name, not only the watched ones: the build is the truth)."""
+    return name in set(_caps_entry(ffmpeg())["raw"].get("filters_all", []))
 
 
 def version_short() -> str:
@@ -438,6 +447,9 @@ def _candidates() -> List[str]:
 
 
 def _score(view: dict, has_probe: bool) -> int:
+    """doctor --save keeps the HIGHEST score, not the last build it saw: each AMF encoder 4 (GPU encode is the
+    budget path), libass 3 and an ffprobe beside it 3 (captions and probing are daily needs), whisper, scdet,
+    ebur128 and libx264 2 each. A stronger build found later replaces the saved one on the next --save."""
     enc, fil = view["encoders"], view["filters"]
     return (4 * sum(enc.get(e, False) for e in ("h264_amf", "hevc_amf", "av1_amf"))
             + 3 * bool(fil.get("ass")) + 2 * bool(fil.get("whisper")) + 2 * bool(fil.get("scdet"))

@@ -108,9 +108,11 @@ def _stream(args: List[str], w: int, h: int, ch: int, t_offset: float) -> Iterat
             if len(buf) < n:
                 break
             t = times.get()
-            img = np.frombuffer(buf, np.uint8).reshape((h, w, ch) if ch > 1 else (h, w))
             got += 1
-            yield (round(t + t_offset, 6) if t is not None else None), img
+            if t is None:              # showinfo printed no pts for it: a decoder hiccup, never a frame with t=None
+                continue
+            img = np.frombuffer(buf, np.uint8).reshape((h, w, ch) if ch > 1 else (h, w))
+            yield round(t + t_offset, 6), img
     finally:
         proc.stdout.close()
         if proc.poll() is None:
@@ -155,13 +157,19 @@ def keyframes(path, crop=None, size=None, pix_fmt: str = "rgb24",
 
 
 def at_times(path, times: Sequence[float], crop=None, size=None, pix_fmt: str = "rgb24", hw: Optional[str] = None,
-             max_gap: float = 8.0) -> Iterator[Tuple[float, float, "np.ndarray"]]:
+             max_gap: float = 8.0, past_end: str = "error") -> Iterator[Tuple[float, float, "np.ndarray"]]:
     """The frame showing each requested time, as (t_requested, t_pts, array), in time order.
 
     Times closer than max_gap share one decode window (one process, input-seek to the window start). The frame for t
     is the first whose pts >= t - 1 ms: ffmpeg's own `-ss t -frames:v 1` convention, so a grab here is bit-identical
     to the single-frame grabs every earlier script made (measured). Software decode by default: these are the frames
-    people compare pixel by pixel."""
+    people compare pixel by pixel.
+
+    A time after the last frame's display interval has no frame. past_end decides: "error" (default) refuses with
+    the file's end time, "skip" leaves it out, "last" yields the final frame with its OWN pts, so t_pts < t_req
+    shows it was not decoded at t_req (an invented frame must never look like a decoded one)."""
+    if past_end not in ("error", "skip", "last"):
+        raise ff.MediaError(f"past_end={past_end!r}: error, skip or last")
     ts = sorted(float(t) for t in times)
     if not ts:
         return
@@ -191,15 +199,20 @@ def at_times(path, times: Sequence[float], crop=None, size=None, pix_fmt: str = 
         if want and last is None:              # the whole window lies past the end: read the file's final frames
             for t, img in frames(path, start=max(0.0, info["duration"] - 4 * frame_s), crop=crop, size=size,
                                  pix_fmt=pix_fmt, hw=hw):
-                if t is not None:
-                    last = (t, img)
-        for t_req in want:                     # past the end of the file: the last decoded frame
-            if last is not None:
+                last = (t, img)
+        for t_req in want:
+            if last is not None and t_req <= last[0] + frame_s + 1e-3:
+                yield t_req, last[0], last[1]  # inside the last frame's display interval: it IS the frame shown
+            elif past_end == "error":
+                end = f"{last[0] + frame_s:.3f} s" if last is not None else "its start"
+                raise ff.MediaError(f"t={t_req:.3f} s is past the end of {Path(path).name} (frames end at {end}); "
+                                    f"pass past_end='last' or 'skip' to accept that")
+            elif past_end == "last" and last is not None:
                 yield t_req, last[0], last[1]
 
 
 def save(path, times: Sequence[float], out_dir, *, fmt: str = "png", crop=None, size=None,
-         hw: Optional[str] = None) -> dict:
+         hw: Optional[str] = None, past_end: str = "error") -> dict:
     """Write the frame at each time to out_dir; returns the house result with a manifest
     [{t_requested, t_pts, crop, file}]."""
     from PIL import Image
@@ -208,13 +221,13 @@ def save(path, times: Sequence[float], out_dir, *, fmt: str = "png", crop=None, 
     out.mkdir(parents=True, exist_ok=True)
     rows = []
     stem = Path(path).stem
-    for t_req, t_pts, img in at_times(path, times, crop=crop, size=size, pix_fmt="rgb24", hw=hw):
+    for t_req, t_pts, img in at_times(path, times, crop=crop, size=size, pix_fmt="rgb24", hw=hw, past_end=past_end):
         name = out / f"{stem}_{t_req:010.3f}.{fmt}"
         Image.fromarray(img).save(name)
         rows.append({"t_requested": t_req, "t_pts": t_pts, "crop": list(crop) if crop else None, "file": str(name)})
-    params = {"times": list(times), "fmt": fmt, "crop": crop, "size": size, "hw": hw}
+    params = {"times": list(times), "fmt": fmt, "crop": crop, "size": size, "hw": hw, "past_end": past_end}
     return receipt.result("grab", path, params, {"frames": rows, "out_dir": str(out)},
-                          blind=["times past the end of the file return the last frame"])
+                          blind=["with past_end='last', a time past the end gets the final frame; its t_pts says so"])
 
 
 # =================================================================================================

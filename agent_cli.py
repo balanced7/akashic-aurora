@@ -5402,6 +5402,17 @@ def cmd_task(args):
     return conductor.main(list(args.rest or []))
 
 
+def cmd_media(args):
+    """The video toolbox through the ONE door: `media <verb> ...` is `py -m arsenal.media <verb> ...`, verbatim.
+
+    Why it is here and not only in arsenal: mining five days of runs (2026-10-12) found agents hand-built a
+    contact-sheet grid 333 times, typed the ffmpeg path 203 times and rewrote the League clock reader 15 times,
+    while the house versions sat unused -- agents use what is in reach. Recall-at-action's verb channel reads this
+    parser's help, so an agent about to type `ffmpeg -ss ... -frames:v 1` is shown this verb instead."""
+    from arsenal.media.__main__ import main as media_main
+    return media_main(list(args.rest or []))
+
+
 # ------------------------------------------------------------------------ handoff
 def _incoming_handoffs(target_agent, scan=10000):
     """Every handoff signal addressed to `target_agent`, oldest-first."""
@@ -9345,6 +9356,16 @@ def build_parser():
                     help='conductor subcommand + args, e.g.  task list  /  task propose "title"  /  '
                          'task done T001 --commit abc123 --verified-by pytest')
     tk.set_defaults(fn=cmd_task)
+
+    md = sub.add_parser("media", help="video toolbox (arsenal.media) instead of hand-rolled ffmpeg/ffprobe: probe "
+                                      "streams and audio track names, grab frames, contact sheet, filmstrip, trim/cut "
+                                      "to the exact frame, scene detection (scdet), loudness LUFS (ebur128, loudnorm), "
+                                      "silencedetect, waveform peaks, demux and mix audio tracks, transcribe, League "
+                                      "clock OCR, Riot timeline, export presets")
+    md.add_argument("rest", nargs=argparse.REMAINDER,
+                    help="a media verb + args, e.g.  media doctor  /  media grab v.mp4 --at 12.5 --sheet  /  "
+                         "media cut v.mp4 10:00 10:20 out.mkv  /  media shots v.mp4  (bare `media` lists verbs)")
+    md.set_defaults(fn=cmd_media)
 
     st = sub.add_parser("story", help="print narrative story views")
     st.add_argument("--chronicle", action="store_true", help="run chronicle_all first")

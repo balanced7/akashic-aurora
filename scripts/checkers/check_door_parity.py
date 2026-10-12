@@ -409,6 +409,8 @@ MANIFEST = {
     "bifrost_skip_to_now": "cli_only", "bifrost_standby": "cli_only",
     "list": "cli_only",   # CLI alias for `recall ""`; MCP's recall(query="") already lists all
     "fleet": "cli_only",  # local-model dispatch/roster — operator-oriented, not an agent verb
+    "media": "cli_only",  # the arsenal.media video toolbox passthrough (2026-10-12); its MCP tools live on
+                          # their own door (py -m arsenal.media.door), not grafted onto the knowledge door
     "doctor": "cli_only",  # L2 fleet-liveness doctor (T030): operator diagnostic; agents get its
                            # one-liner in every boot; an MCP twin lands with a real MCP-agent need
     "episode": "cli_only",  # session bookends: consumed by the Bifrost UI via CLI --json (S1). An MCP

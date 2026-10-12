@@ -76,9 +76,21 @@ def test_at_times_matches_single_frame_grabs_bit_for_bit(clip):
         assert img.tobytes() == _single_grab(clip, t_req), t_req
 
 
-def test_at_times_past_the_end_returns_the_last_frame(clip):
-    (t_req, t_pts, _), = list(frames.at_times(clip, [9.0]))
-    assert t_req == 9.0 and t_pts == pytest.approx(2.9, abs=1e-3)
+def test_at_times_past_the_end_refuses_by_default(clip):
+    with pytest.raises(ff.MediaError, match="past the end"):
+        list(frames.at_times(clip, [9.0]))
+
+
+def test_at_times_past_the_end_on_request_says_what_it_did(clip):
+    (t_req, t_pts, _), = list(frames.at_times(clip, [9.0], past_end="last"))
+    assert t_req == 9.0 and t_pts == pytest.approx(2.9, abs=1e-3)      # its own pts: visibly not decoded at 9.0
+    assert list(frames.at_times(clip, [1.0, 9.0], past_end="skip"))[0][0] == 1.0
+    assert len(list(frames.at_times(clip, [1.0, 9.0], past_end="skip"))) == 1
+
+
+def test_a_time_inside_the_last_frames_interval_is_a_real_frame(clip):
+    (t_req, t_pts, _), = list(frames.at_times(clip, [2.95]))
+    assert t_pts == pytest.approx(2.9, abs=1e-3)
 
 
 def test_vulkan_decode_is_refused_by_name(clip):
