@@ -1,0 +1,178 @@
+{
+  "verb": "injections",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.95,
+    "correct": 19,
+    "asked": 20,
+    "output_tokens": 79,
+    "stdout_chars": 359,
+    "stdout_lines": 6,
+    "cost_usd": 0.0204,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many injections were there in the window?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "About how many tokens did recall push?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many hours does the window cover?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many injections carried a lesson of the conductor family?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "UNKNOWN",
+          "0"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "day": {
+        "argv": [
+          "injections"
+        ],
+        "exit": 0,
+        "stdout": "# INJECTION LEDGER  (last 24h: 0 injection(s), ~0 tokens pushed)\n  by family (W54 activation gauge): conductor 0/0\n  (none -- either quiet, or nothing cleared the relevance floor)\n"
+      },
+      "two_hours": {
+        "argv": [
+          "injections",
+          "--hours",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "# INJECTION LEDGER  (last 2h: 0 injection(s), ~0 tokens pushed)\n  by family (W54 activation gauge): conductor 0/0\n  (none -- either quiet, or nothing cleared the relevance floor)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 83,
+    "stdout_chars": 386,
+    "stdout_lines": 16,
+    "cost_usd": 0.0156,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many injections were there in the window?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "About how many tokens did recall push?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many hours does the window cover?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many injections carried a lesson of the conductor family?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "day": {
+        "argv": [
+          "injections"
+        ],
+        "exit": 0,
+        "stdout": "window_hours: 24\ntotal: 0\ntokens_pushed: 0\nby_family:\n  conductor: 0\nresult: \"none -- either quiet, or nothing cleared the relevance floor\"\nhelp[1]:\n  uv run agent_cli.py injections --hours 168\n"
+      },
+      "two_hours": {
+        "argv": [
+          "injections",
+          "--hours",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "window_hours: 2\ntotal: 0\ntokens_pushed: 0\nby_family:\n  conductor: 0\nresult: \"none -- either quiet, or nothing cleared the relevance floor\"\nhelp[1]:\n  uv run agent_cli.py injections --hours 14\n"
+      }
+    }
+  }
+}

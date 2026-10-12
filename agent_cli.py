@@ -2106,24 +2106,48 @@ def cmd_injections(args):
             )
         )
         return 0
-    print(
-        f"# INJECTION LEDGER  (last {hours:g}h: {len(inj)} injection(s), "
-        f"~{sum(int(i.get('chars', 0)) for i in inj) // 4} tokens pushed)"
-    )
-    print(f"  by family (W54 activation gauge): {_family_gauge_render(fam)}")
+    from core.axi import out
+
+    cli = _cli()
+    doc: dict = {
+        "window_hours": hours,
+        "total": len(inj),
+        "tokens_pushed": sum(int(i.get("chars", 0)) for i in inj) // 4,
+        # W54 activation gauge: injections carrying each lesson family, out of `total`. conductor
+        # always shows (the stance family is why the gauge exists), then the five busiest.
+        "by_family": _family_gauge(fam),
+    }
     if not inj:
-        print("  (none -- either quiet, or nothing cleared the relevance floor)")
-        return 0
+        doc["result"] = "none -- either quiet, or nothing cleared the relevance floor"
+        return out.emit(doc, hints=[f"{cli} injections --hours {int(hours * 7)}"], title="Injections")
+    if len(inj) > 25:
+        doc["shown"] = 25
+    rows = []
     for i in inj[-25:]:
-        when = render_iso(float(i.get("at", 0)), tz="local")  # T119: labeled, no bare local clock
-        tgt = _human_flip_target(i.get("t", "")) if i.get("t") else "(prompt)"
-        print(
-            f"  [{when}] {i.get('alt', 'action'):<6} {_clip(tgt, 60)}  "
-            f"{len(i.get('s', []))} lesson(s), {i.get('chars', 0)} chars"
+        srcs = [str(s).replace("learn:experiment:", "") for s in i.get("s", [])]
+        rows.append(
+            {
+                "at": render_iso(float(i.get("at", 0)), tz="local"),  # T119: labeled, no bare local clock
+                "altitude": i.get("alt", "action"),
+                "target": _clip(_human_flip_target(i.get("t", "")), 60) if i.get("t") else "(prompt)",
+                "chars": int(i.get("chars", 0) or 0),
+                "lessons": " ".join(srcs[:3]) + (f" +{len(srcs) - 3}" if len(srcs) > 3 else ""),
+            }
         )
-        for s in i.get("s", [])[:3]:
-            print(f"           - {s}")
-    return 0
+    doc["injections"] = rows
+    latest = next((s for i in reversed(inj) for s in i.get("s", []) if s), "<source>")
+    hints = [f"{cli} triage", f"{cli} recall-feedback --source {latest} --noise"]
+    if len(inj) > 25:
+        hints.append(f"{cli} injections --hours {hours:g} --json")
+    return out.emit(doc, hints=hints, title="Injections")
+
+
+def _family_gauge(g) -> dict:
+    """W54 gauge as data: conductor first, then the five busiest families, each a count of
+    injections that carried one of its lessons (the window's total is the denominator)."""
+    fams = dict(g.get("families") or {})
+    rest = sorted(((f, n) for f, n in fams.items() if f != "conductor"), key=lambda kv: (-kv[1], kv[0]))[:5]
+    return {"conductor": int(fams.get("conductor", 0)), **{f: int(n) for f, n in rest}}
 
 
 # ----------------------------------------------------------------------- graduate
