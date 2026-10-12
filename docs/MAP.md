@@ -227,7 +227,7 @@ Class: reference
 | `funnel.py` | Recall-value funnel (leapfrog T3): is surfaced knowledge actually HELPING, and are | GAP | GAP |  |
 | `gate_rules.py` | gate_rules (R2 slice 1a) -- three principles about an action's relationship to | tests/test_r2_s1_gate_rules.py | GAP |  |
 | `knowledge_map.py` | knowledge_map (R8 / T059) -- WALK the knowledge, don't query it blind. | tests/test_knowledge_map.py | docs/library/report/20260714_claude-t059-review-r8-knowledge-map-2026_43eade.md | `AKASHIC_KMAP_NO_COUNT` |
-| `lookback.py` | Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable. | tests/test_charters_in_lookback_corpus.py | docs/library/report/20260710_p7-lookback-corpus-inventory-deepseek-ve_f5fc91.md | `AKASHIC_LOOKBACK_NO_COUNT` |
+| `lookback.py` | Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable. | tests/test_axi_lookback.py | docs/library/report/20260710_p7-lookback-corpus-inventory-deepseek-ve_f5fc91.md | `AKASHIC_LOOKBACK_NO_COUNT` |
 | `pack_replay.py` | pack_replay (R2) -- replay the frozen census pack through TODAY's recall pipeline. | GAP | GAP |  |
 | `precision_audit.py` | precision_audit -- the missing instrument: is recall ACCURATE? | tests/test_precision_audit.py | research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md | `AKASHIC_RECALL_STATE_DIR` |
 | `prevention.py` | prevention -- the missing consumer of the outcome stage log (S2, recall's AAR). | tests/test_axi_recall_prevention.py | docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md |  |

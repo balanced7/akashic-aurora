@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 65 converted to agent and human output.
+121 verbs; 66 converted to agent and human output.
 
 ## `alias`
 
@@ -1641,7 +1641,10 @@ summary: picked Postgres over SQLite for the ledger
 | | |
 |---|---|
 | Does | one question over the rationale corpus: the strategic WHY, layered + drillable (P7) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 96% after |
+| Output tokens | 208 before, 171 after (-18%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/lookback.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -1649,6 +1652,17 @@ summary: picked Postgres over SQLite for the ledger
 | `--per-layer` |   |   | hits per corpus layer (default 3) |
 | `--layers` |   |   | narrow: docs,research,notes,promoted,chapters,git |
 | `--json` |   |   |   |
+
+Agent output of `aurora lookback why quokkadb --layers notes` on the bench data:
+
+```text
+question: why quokkadb
+layers[1]: notes
+total: 2
+hits[2]{layer,status,score,excerpt,drill}:
+  notes,current,1,Chose quokkadb for the embedded store We picked quokkadb over leveldb because it ships with python and survives crashes,notes --all (id ADR_1012174433_93f0d0ed)
+  notes,retired,1,...ld cache design The quokkadb cache layer was dropped in favour of redis,notes --all (id ADR_1012174434_c12944ea)
+```
 
 ## `loop`
 

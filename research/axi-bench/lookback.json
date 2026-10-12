@@ -1,0 +1,214 @@
+{
+  "verb": "lookback",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 208,
+    "stdout_chars": 612,
+    "stdout_lines": 11,
+    "cost_usd": 0.0228,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many hits did the lookback return?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the hit about the old cache design current or retired? Answer current or retired.",
+        "expected": "retired",
+        "answers": [
+          "retired",
+          "retired",
+          "retired",
+          "retired",
+          "retired"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "According to the top hit, what was quokkadb picked over?",
+        "expected": "leveldb",
+        "answers": [
+          "leveldb",
+          "leveldb",
+          "leveldb",
+          "leveldb",
+          "leveldb"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which corpus layer did the hits come from?",
+        "expected": "notes",
+        "answers": [
+          "notes",
+          "notes",
+          "notes",
+          "notes",
+          "notes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many hits did the lookback return?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "why": {
+        "argv": [
+          "lookback",
+          "why",
+          "quokkadb",
+          "--layers",
+          "notes"
+        ],
+        "exit": 0,
+        "stdout": "# lookback: why quokkadb\n\n## notes\n  [current] mem:decision:ADR_1012174359_1ea2d00f  (rel 1.0)\n      Chose quokkadb for the embedded store We picked quokkadb over leveldb because it ships with python and survives crashes\n      drill: notes --all (id ADR_1012174359_1ea2d00f)\n  [retired] mem:decision:ADR_1012174400_f3acb51f  (rel 1.0)\n      ...ld cache design The quokkadb cache layer was dropped in favour of redis\n      drill: notes --all (id ADR_1012174400_f3acb51f)\n"
+      },
+      "none": {
+        "argv": [
+          "lookback",
+          "zebra",
+          "unicorn",
+          "--layers",
+          "notes"
+        ],
+        "exit": 0,
+        "stdout": "# lookback: nothing above the relevance floor for: 'zebra unicorn'\n  (try different terms; layers: docs,research,notes,promoted,chapters,git)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.96,
+    "correct": 24,
+    "asked": 25,
+    "output_tokens": 171,
+    "stdout_chars": 663,
+    "stdout_lines": 14,
+    "cost_usd": 0.0191,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many hits did the lookback return?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is the hit about the old cache design current or retired? Answer current or retired.",
+        "expected": "retired",
+        "answers": [
+          "retired",
+          "retired",
+          "retired",
+          "retired",
+          "retired"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "According to the top hit, what was quokkadb picked over?",
+        "expected": "leveldb",
+        "answers": [
+          "leveldb",
+          "leveldb",
+          "The top hit says quokkadb was picked over leveldb.",
+          "leveldb",
+          "leveldb"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Which corpus layer did the hits come from?",
+        "expected": "notes",
+        "answers": [
+          "notes",
+          "notes",
+          "notes",
+          "notes",
+          "notes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many hits did the lookback return?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "why": {
+        "argv": [
+          "lookback",
+          "why",
+          "quokkadb",
+          "--layers",
+          "notes"
+        ],
+        "exit": 0,
+        "stdout": "question: why quokkadb\nlayers[1]: notes\ntotal: 2\nhits[2]{layer,status,score,excerpt,drill}:\n  notes,current,1,Chose quokkadb for the embedded store We picked quokkadb over leveldb because it ships with python and survives crashes,notes --all (id ADR_1012174433_93f0d0ed)\n  notes,retired,1,...ld cache design The quokkadb cache layer was dropped in favour of redis,notes --all (id ADR_1012174434_c12944ea)\n"
+      },
+      "none": {
+        "argv": [
+          "lookback",
+          "zebra",
+          "unicorn",
+          "--layers",
+          "notes"
+        ],
+        "exit": 0,
+        "stdout": "question: zebra unicorn\nlayers[1]: notes\ntotal: 0\nnote: nothing above the relevance floor\nhits: []\nhelp[2]:\n  uv run agent_cli.py lookback <other words>\n  uv run agent_cli.py lookback zebra unicorn --layers docs,charters,research,notes,promoted,chapters,git\n"
+      }
+    }
+  }
+}

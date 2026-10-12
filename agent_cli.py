@@ -8275,7 +8275,8 @@ def cmd_lookback(args):
     drillable. Temporal drill (story/events) answers what happened; this answers why it is
     the way it is: docs (currency-labeled) -> research/reviewed -> notes (incl. retired) ->
     promoted bus -> chapters -> git bodies, each hit with its drill pointer."""
-    from core.recall.lookback import lookback
+    from core.axi import out
+    from core.recall.lookback import LAYERS, lookback
 
     question = " ".join(args.question or [])
     layers = [s.strip() for s in (args.layers or "").split(",") if s.strip()] or None
@@ -8283,22 +8284,52 @@ def cmd_lookback(args):
     if args.json:
         print(json.dumps(hits, indent=2, default=str))
         return 0
-    if not hits:
-        print(
-            f"# lookback: nothing above the relevance floor for: {question!r}\n"
-            "  (try different terms; layers: docs,research,notes,promoted,chapters,git)"
-        )
-        return 0
-    print(f"# lookback: {question}")
-    current_layer = None
-    for h in hits:
-        if h["layer"] != current_layer:
-            current_layer = h["layer"]
-            print(f"\n## {current_layer}")
-        print(f"  [{h['status']}] {h['source']}  (rel {h['score']})")
-        print(f"      {h['excerpt']}")
-        print(f"      drill: {h['drill']}")
-    return 0
+    cli = _cli()
+    doc: dict = {"question": question}
+    if layers:
+        doc["layers"] = layers
+    doc["total"] = len(hits)
+    if not hits:  # AXI section 5: the zero is the answer, with what to try next
+        doc["note"] = "nothing above the relevance floor"
+        doc["hits"] = []
+        all_layers = ",".join(name for name, _ in LAYERS)
+        hints = [f"{cli} lookback <other words>"]
+        if layers:
+            hints.append(f"{cli} lookback {question} --layers {all_layers}")
+        return out.emit(doc, hints=hints, human=_human_lookback, title="Lookback")
+    doc["hits"] = [
+        {
+            "layer": h["layer"],
+            "status": h["status"],
+            "score": h["score"],
+            "excerpt": out.truncate(h["excerpt"], 240)[0],
+            "drill": h["drill"],
+        }
+        for h in hits
+    ]
+    # The top hit's drill is a CLI command for some layers (story, events, recall) and a path or
+    # a git command for others; only a CLI command is offered as the next step.
+    top = str(hits[0]["drill"])
+    hints = [f"{cli} {top}"] if top.split(" ", 1)[0] in ("story", "events", "recall") else []
+    return out.emit(doc, hints=hints, human=_human_lookback, title="Lookback")
+
+
+def _human_lookback(console, doc):
+    """Human view of `lookback`: the hit count, then hits grouped under their layer."""
+    from core.axi import out
+
+    if not doc["total"]:
+        console.print(f"[yellow]0 hits[/] [dim]for {out._esc(doc['question'])!r} -- {doc['note']}[/]")
+        return
+    console.print(f"[dim]{doc['total']} hit{'s' if doc['total'] != 1 else ''} for[/] {out._esc(doc['question'])}")
+    layer = None
+    for h in doc["hits"]:
+        if h["layer"] != layer:
+            layer = h["layer"]
+            console.print()
+            console.print(f"[bold cyan]{out._esc(layer)}[/]")
+        console.print(f"  {out.styled(h['status'])}  [dim]rel {h['score']}[/]  {out._esc(h['excerpt'])}")
+        console.print(f"    [dim]{out._esc(str(h['drill']))}[/]")
 
 
 def cmd_knowledge_map(args):
