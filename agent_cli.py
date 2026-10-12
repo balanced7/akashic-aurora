@@ -11135,17 +11135,31 @@ def cmd_status(args):
     if args.json:
         print(json.dumps(info, default=str))
         return 0
-    print("# system status")
-    print(f"  backend     : {backend}")
-    print(f"  learnings   : {learn if learn is not None else 'n/a (see session_logs/)'}")
-    print(f"  agent memory: {mem if mem is not None else 'n/a'}")
+    from core.axi import out
+
+    # The lesson count is the store's own (as `aurora` with no verb reports it): `learn:*` keys
+    # include the store's indexes, so three lessons used to read as "learnings: 7". The raw key
+    # counts stay, labelled as keys.
+    try:
+        from core.learning.learning_store import get_learning_store
+
+        lessons = get_learning_store().get_learning_store_stats().get("total_experiments")
+    except Exception:
+        lessons = None
+    errors = {k: v for k, v in health.items() if k.endswith(":error")}
+    doc: dict = {
+        "backend": backend,
+        "redis": "up" if client is not None else "down",
+        "lessons": lessons,
+        "keys": {"learn": learn, "agent_memory": mem, "total": total} if client is not None else None,
+        "spine_health": ("errors" if errors else "ok") if health else "no counters yet",
+    }
     if health:
-        errors = {k: v for k, v in health.items() if k.endswith(":error")}
-        flag = "  [!] errors present" if errors else ""
-        print(f"  spine health: {health}{flag}")
-    else:
-        print("  spine health: (no counters yet)")
-    return 0
+        doc["spine_counters"] = dict(health)
+    hints = []
+    if client is None or errors:  # AXI section 9: only when something needs looking at
+        hints.append(f"{_cli()} doctor")
+    return out.emit(doc, hints=hints, title="Status")
 
 
 def build_parser():

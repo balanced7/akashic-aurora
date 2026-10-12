@@ -1,0 +1,160 @@
+{
+  "verb": "status",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.5,
+    "correct": 10,
+    "asked": 20,
+    "output_tokens": 68,
+    "stdout_chars": 163,
+    "stdout_lines": 5,
+    "cost_usd": 0.0181,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many lessons are stored in memory?",
+        "expected": 3,
+        "answers": [
+          "7",
+          "7",
+          "7",
+          "7",
+          "7"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Is Redis reachable? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "yes",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 1
+      },
+      {
+        "q": "Does the narrative spine report any errors? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "Yes",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "How many agent memory keys are there?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "# system status\n  backend     : Redis localhost:16379 (+ File mirror)\n  learnings   : 7\n  agent memory: 0\n  spine health: {'route:unknown': 1, 'route:persist': 2}\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 20,
+    "asked": 20,
+    "output_tokens": 94,
+    "stdout_chars": 192,
+    "stdout_lines": 11,
+    "cost_usd": 0.0177,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many lessons are stored in memory?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Is Redis reachable? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does the narrative spine report any errors? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many agent memory keys are there?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "status": {
+        "argv": [
+          "status"
+        ],
+        "exit": 0,
+        "stdout": "backend: \"Redis localhost:16379 (+ File mirror)\"\nredis: up\nlessons: 3\nkeys:\n  learn: 7\n  agent_memory: 0\n  total: 24\nspine_health: ok\nspine_counters:\n  \"route:unknown\": 1\n  \"route:persist\": 2\n"
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 37 converted to agent and human output.
+121 verbs; 38 converted to agent and human output.
 
 ## `alias`
 
@@ -2257,11 +2257,30 @@ help[1]:
 | | |
 |---|---|
 | Does | honest system status |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 50% before, 100% after |
+| Output tokens | 68 before, 94 after (+38%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/status.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `--json` |   |   |   |
+
+Agent output of `aurora status` on the bench data:
+
+```text
+backend: "Redis localhost:16379 (+ File mirror)"
+redis: up
+lessons: 3
+keys:
+  learn: 7
+  agent_memory: 0
+  total: 24
+spine_health: ok
+spine_counters:
+  "route:unknown": 1
+  "route:persist": 2
+```
 
 ## `story`
 
