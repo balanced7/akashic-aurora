@@ -1,0 +1,304 @@
+{
+  "verb": "glance",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.971,
+    "correct": 34,
+    "asked": 35,
+    "output_tokens": 4954,
+    "stdout_chars": 36281,
+    "stdout_lines": 1283,
+    "cost_usd": 0.0404,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many tasks need attention?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which task is blocked? Give its id only.",
+        "expected": "T902",
+        "answers": [
+          "T902",
+          "T902",
+          "T902",
+          "T902",
+          "T902"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who owns task T901? Give the owner only.",
+        "expected": "kimi",
+        "answers": [
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many tasks does the ledger hold in total, including any not listed?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Can this projection check whether a seat is actually running (runtime attention)? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this brief carry any authority over identity? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Could the task ledger be read? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "No",
+          "yes",
+          "No"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "snapshot": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/tasks.json"
+        ],
+        "exit": 0,
+        "stdout": "{\n  \"schema_version\": \"world-snapshot/v1\",\n  \"projection_version\": \"subject-attention/v1\",\n  \"snapshot_id\": \"ws_fcc48716dc4342dd4163e81b\",\n  \"subject\": \"akashic-aurora-program\",\n  \"generated_at\": \"2026-10-13T00:24:42.556911Z\",\n  \"sources\": [\n    {\n      \"name\": \"task-ledger-git\",\n      \"plane\": \"durable-ledger\",\n      \"authority\": \"governed_source\",\n      \"revision\": \"sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n      \"checked_at\": \"2026-10-13T00:24:42.556911Z\",\n      \"drill\": \"/tmp/axi-bench-glance/tasks.json\"\n    }\n  ],\n  \"capabilities\": {\n    \"arc_membership\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"arcs:A1,A10,A11,A12,A13,A14,A15,A2,A3,A4,A5,A6,A7,A8,A9\",\n        \"source:data/arcs-register/register.json@sha256:84ce5e544c9bc44e054506f5c62b8dd36e1132180212973689db3ec5f55d041e\"\n      ]\n    },\n    \"artifact_authority\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the atom/projection authority adapter is not in slice one\"\n    },\n    \"deduplication\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"logical message identity is not yet authoritative\"\n    },\n    \"git_changes\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Git change adapter is not in slice one\"\n    },\n    \"lineage\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"complete original-to-redrive lineage is not yet authoritative\"\n    },\n    \"mail_state\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Bifrost plane adapter is not in slice one\"\n    },\n    \"operator_queue\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"A15-operator-contract\",\n      \"reason\": \"operator ownership and queue semantics are not yet settled substrate\"\n    },\n    \"runtime_attention\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"ledger workflow state does not prove a seat is live, aware, or acting\"\n    },\n    \"settlement\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"settlement cannot be inferred where outcome pointers are absent\"\n    },\n    \"subject_attention\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"policy:task-status-attention/v1\",\n        \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\"\n      ]\n    },\n    \"task_state\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\"\n      ]\n    },\n    \"test_receipts\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the verification receipt adapter is not in slice one\"\n    }\n  },\n  \"summary\": {\n    \"operator_sentence\": \"akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 5 shown; 9 capabilities uncheckable.\",\n    \"changed\": [],\n    \"needs_attention\": [\n      \"task:T902\"\n    ],\n    \"unknowns\": [\n      \"artifact_authority\",\n      \"deduplication\",\n      \"git_changes\",\n      \"lineage\",\n      \"mail_state\",\n      \"operator_queue\",\n      \"runtime_attention\",\n      \"settlement\",\n      \"test_receipts\"\n    ]\n  },\n  \"bounds\": {\n    \"item_limit\": 64,\n    \"total_items\": 5,\n    \"returned_items\": 5,\n    \"truncated\": false\n  },\n  \"items\": [\n    {\n      \"object_ref\": \"task:T902\",\n      \"organ\": \"ledger\",\n      \"attention\": \"ATTENTION\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T902\",\n        \"title\": \"Retire the old bridge\",\n        \"title_full_chars\": 21,\n        \"title_truncated\": false,\n        \"status\": \"blocked\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"claude\",\n        \"deps\": [\n          \"T901\"\n        ],\n        \"deps_total\": 1,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.556911Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"blocked\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status=blocked\",\n              \"status\": \"recorded\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T901\",\n      \"organ\": \"ledger\",\n      \"attention\": \"ACTING\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T901\",\n        \"title\": \"Fence the migration path\",\n        \"title_full_chars\": 24,\n        \"title_truncated\": false,\n        \"status\": \"in_progress\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"kimi\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [\n          \"core/a.py\"\n        ],\n        \"files_total\": 1,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"A3\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.556911Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T905\",\n      \"organ\": \"ledger\",\n      \"attention\": \"WAITING\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T905\",\n        \"title\": \"Approve the new seat\",\n        \"title_full_chars\": 20,\n        \"title_truncated\": false,\n        \"status\": \"approved\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"claude\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.556911Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T903\",\n      \"organ\": \"ledger\",\n      \"attention\": \"QUIET\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T903\",\n        \"title\": \"Write the release notes\",\n        \"title_full_chars\": 23,\n        \"title_truncated\": false,\n        \"status\": \"proposed\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.556911Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T904\",\n      \"organ\": \"ledger\",\n      \"attention\": \"QUIET\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T904\",\n        \"title\": \"Measure the recall latency\",\n        \"title_full_chars\": 26,\n        \"title_truncated\": false,\n        \"status\": \"done\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"deepseek\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": \"abc1234\",\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.556911Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    }\n  ],\n  \"projection_id\": \"gp_43a27f5b3f778767fad9209d\",\n  \"render_id\": \"wr_ae5cb6d618929b03a0768112\"\n}\n"
+      },
+      "cut": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/tasks.json",
+          "--max-items",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "{\n  \"schema_version\": \"world-snapshot/v1\",\n  \"projection_version\": \"subject-attention/v1\",\n  \"snapshot_id\": \"ws_fcc48716dc4342dd4163e81b\",\n  \"subject\": \"akashic-aurora-program\",\n  \"generated_at\": \"2026-10-13T00:24:42.874277Z\",\n  \"sources\": [\n    {\n      \"name\": \"task-ledger-git\",\n      \"plane\": \"durable-ledger\",\n      \"authority\": \"governed_source\",\n      \"revision\": \"sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n      \"checked_at\": \"2026-10-13T00:24:42.874277Z\",\n      \"drill\": \"/tmp/axi-bench-glance/tasks.json\"\n    }\n  ],\n  \"capabilities\": {\n    \"arc_membership\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"arcs:A1,A10,A11,A12,A13,A14,A15,A2,A3,A4,A5,A6,A7,A8,A9\",\n        \"source:data/arcs-register/register.json@sha256:84ce5e544c9bc44e054506f5c62b8dd36e1132180212973689db3ec5f55d041e\"\n      ]\n    },\n    \"artifact_authority\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the atom/projection authority adapter is not in slice one\"\n    },\n    \"deduplication\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"logical message identity is not yet authoritative\"\n    },\n    \"git_changes\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Git change adapter is not in slice one\"\n    },\n    \"lineage\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"complete original-to-redrive lineage is not yet authoritative\"\n    },\n    \"mail_state\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Bifrost plane adapter is not in slice one\"\n    },\n    \"operator_queue\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"A15-operator-contract\",\n      \"reason\": \"operator ownership and queue semantics are not yet settled substrate\"\n    },\n    \"runtime_attention\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"ledger workflow state does not prove a seat is live, aware, or acting\"\n    },\n    \"settlement\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"settlement cannot be inferred where outcome pointers are absent\"\n    },\n    \"subject_attention\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"policy:task-status-attention/v1\",\n        \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\"\n      ]\n    },\n    \"task_state\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\"\n      ]\n    },\n    \"test_receipts\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the verification receipt adapter is not in slice one\"\n    }\n  },\n  \"summary\": {\n    \"operator_sentence\": \"akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 2 shown; 9 capabilities uncheckable.\",\n    \"changed\": [],\n    \"needs_attention\": [\n      \"task:T902\"\n    ],\n    \"unknowns\": [\n      \"artifact_authority\",\n      \"deduplication\",\n      \"git_changes\",\n      \"lineage\",\n      \"mail_state\",\n      \"operator_queue\",\n      \"runtime_attention\",\n      \"settlement\",\n      \"test_receipts\"\n    ]\n  },\n  \"bounds\": {\n    \"item_limit\": 2,\n    \"total_items\": 5,\n    \"returned_items\": 2,\n    \"truncated\": true\n  },\n  \"items\": [\n    {\n      \"object_ref\": \"task:T902\",\n      \"organ\": \"ledger\",\n      \"attention\": \"ATTENTION\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T902\",\n        \"title\": \"Retire the old bridge\",\n        \"title_full_chars\": 21,\n        \"title_truncated\": false,\n        \"status\": \"blocked\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"claude\",\n        \"deps\": [\n          \"T901\"\n        ],\n        \"deps_total\": 1,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.874277Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"blocked\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status=blocked\",\n              \"status\": \"recorded\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T901\",\n      \"organ\": \"ledger\",\n      \"attention\": \"ACTING\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T901\",\n        \"title\": \"Fence the migration path\",\n        \"title_full_chars\": 24,\n        \"title_truncated\": false,\n        \"status\": \"in_progress\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"kimi\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [\n          \"core/a.py\"\n        ],\n        \"files_total\": 1,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"A3\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:42.874277Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    }\n  ],\n  \"projection_id\": \"gp_43a27f5b3f778767fad9209d\",\n  \"render_id\": \"wr_587e24be7998624b9898f9e6\"\n}\n"
+      },
+      "brief": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/tasks.json",
+          "--brief"
+        ],
+        "exit": 0,
+        "stdout": "{\n  \"schema_version\": \"operational-brief/v1\",\n  \"purpose\": \"operational_orientation\",\n  \"identity_authority\": \"none\",\n  \"snapshot_id\": \"ws_fcc48716dc4342dd4163e81b\",\n  \"projection_id\": \"gp_43a27f5b3f778767fad9209d\",\n  \"source_render_id\": \"wr_ae5cb6d618929b03a0768112\",\n  \"subject\": \"akashic-aurora-program\",\n  \"source_refs\": [\n    \"task-ledger-git\"\n  ],\n  \"sources\": [\n    {\n      \"name\": \"task-ledger-git\",\n      \"plane\": \"durable-ledger\",\n      \"authority\": \"governed_source\",\n      \"revision\": \"sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n      \"checked_at\": \"2026-10-13T00:24:43.207948Z\",\n      \"drill\": \"/tmp/axi-bench-glance/tasks.json\"\n    }\n  ],\n  \"summary\": {\n    \"operator_sentence\": \"akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 5 shown; 9 capabilities uncheckable.\",\n    \"changed\": [],\n    \"needs_attention\": [\n      \"task:T902\"\n    ],\n    \"unknowns\": [\n      \"artifact_authority\",\n      \"deduplication\",\n      \"git_changes\",\n      \"lineage\",\n      \"mail_state\",\n      \"operator_queue\",\n      \"runtime_attention\",\n      \"settlement\",\n      \"test_receipts\"\n    ]\n  },\n  \"capabilities\": {\n    \"arc_membership\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"arcs:A1,A10,A11,A12,A13,A14,A15,A2,A3,A4,A5,A6,A7,A8,A9\",\n        \"source:data/arcs-register/register.json@sha256:84ce5e544c9bc44e054506f5c62b8dd36e1132180212973689db3ec5f55d041e\"\n      ]\n    },\n    \"artifact_authority\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the atom/projection authority adapter is not in slice one\"\n    },\n    \"deduplication\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"logical message identity is not yet authoritative\"\n    },\n    \"git_changes\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Git change adapter is not in slice one\"\n    },\n    \"lineage\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"complete original-to-redrive lineage is not yet authoritative\"\n    },\n    \"mail_state\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Bifrost plane adapter is not in slice one\"\n    },\n    \"operator_queue\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"A15-operator-contract\",\n      \"reason\": \"operator ownership and queue semantics are not yet settled substrate\"\n    },\n    \"runtime_attention\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"ledger workflow state does not prove a seat is live, aware, or acting\"\n    },\n    \"settlement\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"settlement cannot be inferred where outcome pointers are absent\"\n    },\n    \"subject_attention\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"policy:task-status-attention/v1\",\n        \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\"\n      ]\n    },\n    \"task_state\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\"\n      ]\n    },\n    \"test_receipts\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the verification receipt adapter is not in slice one\"\n    }\n  },\n  \"bounds\": {\n    \"item_limit\": 8,\n    \"available_items\": 5,\n    \"returned_items\": 5,\n    \"truncated\": false,\n    \"source_snapshot_total\": 5\n  },\n  \"focus\": [\n    {\n      \"object_ref\": \"task:T902\",\n      \"organ\": \"ledger\",\n      \"attention\": \"ATTENTION\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T902\",\n        \"title\": \"Retire the old bridge\",\n        \"title_full_chars\": 21,\n        \"title_truncated\": false,\n        \"status\": \"blocked\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"claude\",\n        \"deps\": [\n          \"T901\"\n        ],\n        \"deps_total\": 1,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:43.207948Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"blocked\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status=blocked\",\n              \"status\": \"recorded\"\n            }\n          ]\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T901\",\n      \"organ\": \"ledger\",\n      \"attention\": \"ACTING\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T901\",\n        \"title\": \"Fence the migration path\",\n        \"title_full_chars\": 24,\n        \"title_truncated\": false,\n        \"status\": \"in_progress\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"kimi\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [\n          \"core/a.py\"\n        ],\n        \"files_total\": 1,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"A3\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:43.207948Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T905\",\n      \"organ\": \"ledger\",\n      \"attention\": \"WAITING\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T905\",\n        \"title\": \"Approve the new seat\",\n        \"title_full_chars\": 20,\n        \"title_truncated\": false,\n        \"status\": \"approved\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"claude\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:43.207948Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T903\",\n      \"organ\": \"ledger\",\n      \"attention\": \"QUIET\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T903\",\n        \"title\": \"Write the release notes\",\n        \"title_full_chars\": 23,\n        \"title_truncated\": false,\n        \"status\": \"proposed\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": null,\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:43.207948Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    },\n    {\n      \"object_ref\": \"task:T904\",\n      \"organ\": \"ledger\",\n      \"attention\": \"QUIET\",\n      \"source_refs\": [\n        \"task-ledger-git\"\n      ],\n      \"data\": {\n        \"id\": \"T904\",\n        \"title\": \"Measure the recall latency\",\n        \"title_full_chars\": 26,\n        \"title_truncated\": false,\n        \"status\": \"done\",\n        \"status_valid\": true,\n        \"attention_basis\": \"policy:task-status-attention/v1\",\n        \"owner\": \"deepseek\",\n        \"deps\": [],\n        \"deps_total\": 0,\n        \"deps_truncated\": false,\n        \"files\": [],\n        \"files_total\": 0,\n        \"files_truncated\": false,\n        \"commit\": \"abc1234\",\n        \"arc\": \"UNCLASSIFIED\"\n      },\n      \"epistemic_view\": {\n        \"authority\": {\n          \"value\": \"governed_source\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"claim_kind\": {\n          \"value\": \"inferred\",\n          \"basis\": [\n            {\n              \"ref\": \"field:task.status\",\n              \"status\": \"recorded\"\n            },\n            {\n              \"ref\": \"policy:task-status-attention/v1\",\n              \"status\": \"recorded\"\n            }\n          ]\n        },\n        \"currency\": {\n          \"value\": \"current\",\n          \"basis\": [\n            {\n              \"ref\": \"source:task-ledger-git@sha256:4036818cd507bde6312721aab27c0d54af796fec7e784e46913617311bf43137\",\n              \"status\": \"recorded\"\n            }\n          ],\n          \"checked_at\": \"2026-10-13T00:24:43.207948Z\"\n        },\n        \"identity_state\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        },\n        \"risk\": {\n          \"value\": \"unknown\",\n          \"basis\": []\n        }\n      }\n    }\n  ],\n  \"brief_id\": \"ob_b3b9049501b0b5d424b843b3\"\n}\n"
+      },
+      "missing": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/nope.json"
+        ],
+        "exit": 0,
+        "stdout": "{\n  \"schema_version\": \"world-snapshot/v1\",\n  \"projection_version\": \"subject-attention/v1\",\n  \"snapshot_id\": \"ws_5e7ca921bfe37d6634730222\",\n  \"subject\": \"akashic-aurora-program\",\n  \"generated_at\": \"2026-10-13T00:24:43.529226Z\",\n  \"sources\": [],\n  \"capabilities\": {\n    \"arc_membership\": {\n      \"state\": \"SUPPORTED\",\n      \"basis\": [\n        \"arcs:A1,A10,A11,A12,A13,A14,A15,A2,A3,A4,A5,A6,A7,A8,A9\",\n        \"source:data/arcs-register/register.json@sha256:84ce5e544c9bc44e054506f5c62b8dd36e1132180212973689db3ec5f55d041e\"\n      ]\n    },\n    \"artifact_authority\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the atom/projection authority adapter is not in slice one\"\n    },\n    \"deduplication\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"logical message identity is not yet authoritative\"\n    },\n    \"git_changes\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Git change adapter is not in slice one\"\n    },\n    \"lineage\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"complete original-to-redrive lineage is not yet authoritative\"\n    },\n    \"mail_state\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the Bifrost plane adapter is not in slice one\"\n    },\n    \"operator_queue\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"A15-operator-contract\",\n      \"reason\": \"operator ownership and queue semantics are not yet settled substrate\"\n    },\n    \"runtime_attention\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"ledger workflow state does not prove a seat is live, aware, or acting\"\n    },\n    \"settlement\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"T116\",\n      \"reason\": \"settlement cannot be inferred where outcome pointers are absent\"\n    },\n    \"subject_attention\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"task_state\",\n      \"reason\": \"attention requires readable task state\"\n    },\n    \"task_state\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"task-ledger-git\",\n      \"reason\": \"FileNotFoundError: [Errno 2] No such file or directory: '/tmp/axi-bench-glance/nope.json'\"\n    },\n    \"test_receipts\": {\n      \"state\": \"UNCHECKABLE\",\n      \"blocked_by\": \"adapter-not-wired\",\n      \"reason\": \"the verification receipt adapter is not in slice one\"\n    }\n  },\n  \"summary\": {\n    \"operator_sentence\": \"akashic-aurora-program ledger projection: 0 need attention, 0 acting, 0 waiting, 0 quiet; 0 total, 0 shown; 11 capabilities uncheckable.\",\n    \"changed\": [],\n    \"needs_attention\": [],\n    \"unknowns\": [\n      \"artifact_authority\",\n      \"deduplication\",\n      \"git_changes\",\n      \"lineage\",\n      \"mail_state\",\n      \"operator_queue\",\n      \"runtime_attention\",\n      \"settlement\",\n      \"subject_attention\",\n      \"task_state\",\n      \"test_receipts\"\n    ]\n  },\n  \"bounds\": {\n    \"item_limit\": 64,\n    \"total_items\": 0,\n    \"returned_items\": 0,\n    \"truncated\": false\n  },\n  \"items\": [],\n  \"projection_id\": \"gp_03dcb5f75f82d0ef8687245c\",\n  \"render_id\": \"wr_8dbfc19981464cf6fac55cfa\"\n}\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 35,
+    "asked": 35,
+    "output_tokens": 408,
+    "stdout_chars": 3122,
+    "stdout_lines": 59,
+    "cost_usd": 0.0359,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many tasks need attention?",
+        "expected": 1,
+        "answers": [
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which task is blocked? Give its id only.",
+        "expected": "T902",
+        "answers": [
+          "T902",
+          "T902",
+          "T902",
+          "T902",
+          "T902"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who owns task T901? Give the owner only.",
+        "expected": "kimi",
+        "answers": [
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi",
+          "kimi"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many tasks does the ledger hold in total, including any not listed?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Can this projection check whether a seat is actually running (runtime attention)? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "No",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Does this brief carry any authority over identity? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Could the task ledger be read? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "snapshot": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/tasks.json"
+        ],
+        "exit": 0,
+        "stdout": "projection: snapshot\nsubject: akashic-aurora-program\nledger: read\nsummary: \"akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 5 shown; 9 capabilities uncheckable.\"\ntotal: 5\nneeds_attention[1]: T902\ntasks[5]{id,attention,status,owner,arc,title}:\n  T902,ATTENTION,blocked,claude,UNCLASSIFIED,Retire the old bridge\n  T901,ACTING,in_progress,kimi,A3,Fence the migration path\n  T905,WAITING,approved,claude,UNCLASSIFIED,Approve the new seat\n  T903,QUIET,proposed,null,UNCLASSIFIED,Write the release notes\n  T904,QUIET,done,deepseek,UNCLASSIFIED,Measure the recall latency\ncheckable[3]: arc_membership,subject_attention,task_state\nuncheckable[9]: artifact_authority,deduplication,git_changes,lineage,mail_state,operator_queue,runtime_attention,settlement,test_receipts\nhelp[1]:\n  uv run agent_cli.py glance program --json\n"
+      },
+      "cut": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/tasks.json",
+          "--max-items",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "projection: snapshot\nsubject: akashic-aurora-program\nledger: read\nsummary: \"akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 2 shown; 9 capabilities uncheckable.\"\ntotal: 5\nshown: 2\nneeds_attention[1]: T902\ntasks[2]{id,attention,status,owner,arc,title}:\n  T902,ATTENTION,blocked,claude,UNCLASSIFIED,Retire the old bridge\n  T901,ACTING,in_progress,kimi,A3,Fence the migration path\ncheckable[3]: arc_membership,subject_attention,task_state\nuncheckable[9]: artifact_authority,deduplication,git_changes,lineage,mail_state,operator_queue,runtime_attention,settlement,test_receipts\nhelp[2]:\n  uv run agent_cli.py glance program --json\n  uv run agent_cli.py glance program --max-items 5\n"
+      },
+      "brief": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/tasks.json",
+          "--brief"
+        ],
+        "exit": 0,
+        "stdout": "projection: brief\nsubject: akashic-aurora-program\nidentity_authority: none\nledger: read\nsummary: \"akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 5 shown; 9 capabilities uncheckable.\"\ntotal: 5\nneeds_attention[1]: T902\ntasks[5]{id,attention,status,owner,arc,title}:\n  T902,ATTENTION,blocked,claude,UNCLASSIFIED,Retire the old bridge\n  T901,ACTING,in_progress,kimi,A3,Fence the migration path\n  T905,WAITING,approved,claude,UNCLASSIFIED,Approve the new seat\n  T903,QUIET,proposed,null,UNCLASSIFIED,Write the release notes\n  T904,QUIET,done,deepseek,UNCLASSIFIED,Measure the recall latency\ncheckable[3]: arc_membership,subject_attention,task_state\nuncheckable[9]: artifact_authority,deduplication,git_changes,lineage,mail_state,operator_queue,runtime_attention,settlement,test_receipts\nhelp[1]:\n  uv run agent_cli.py glance program --brief --json\n"
+      },
+      "missing": {
+        "argv": [
+          "glance",
+          "program",
+          "--ledger-path",
+          "/tmp/axi-bench-glance/nope.json"
+        ],
+        "exit": 0,
+        "stdout": "projection: snapshot\nsubject: akashic-aurora-program\nledger: \"UNREADABLE: FileNotFoundError: [Errno 2] No such file or directory: '/tmp/axi-bench-glance/nope.json'\"\nsummary: \"akashic-aurora-program ledger projection: 0 need attention, 0 acting, 0 waiting, 0 quiet; 0 total, 0 shown; 11 capabilities uncheckable.\"\ntotal: 0\nneeds_attention: none\ntasks: \"none: the ledger was not read\"\ncheckable[1]: arc_membership\nuncheckable[11]: artifact_authority,deduplication,git_changes,lineage,mail_state,operator_queue,runtime_attention,settlement,subject_attention,task_state,test_receipts\nhelp[1]:\n  uv run agent_cli.py glance program --json\n"
+      }
+    }
+  }
+}

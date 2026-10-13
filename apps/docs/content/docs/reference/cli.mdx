@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 120 converted to agent and human output.
+121 verbs; 121 converted to agent and human output.
 
 ## `alias`
 
@@ -1526,11 +1526,35 @@ help[1]:
 | | |
 |---|---|
 | Does | T079/T060: bounded read-only WorldSnapshot projections over named authorities |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 97% before, 100% after |
+| Output tokens | 4,954 before, 408 after (-92%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/glance.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<glance_projection>` | yes | program |   |
+
+Agent output of `aurora glance program --ledger-path /tmp/axi-bench-glance/tasks.json` on the bench data:
+
+```text
+projection: snapshot
+subject: akashic-aurora-program
+ledger: read
+summary: "akashic-aurora-program ledger projection: 1 need attention, 1 acting, 1 waiting, 2 quiet; 5 total, 5 shown; 9 capabilities uncheckable."
+total: 5
+needs_attention[1]: T902
+tasks[5]{id,attention,status,owner,arc,title}:
+  T902,ATTENTION,blocked,claude,UNCLASSIFIED,Retire the old bridge
+  T901,ACTING,in_progress,kimi,A3,Fence the migration path
+  T905,WAITING,approved,claude,UNCLASSIFIED,Approve the new seat
+  T903,QUIET,proposed,null,UNCLASSIFIED,Write the release notes
+  T904,QUIET,done,deepseek,UNCLASSIFIED,Measure the recall latency
+checkable[3]: arc_membership,subject_attention,task_state
+uncheckable[9]: artifact_authority,deduplication,git_changes,lineage,mail_state,operator_queue,runtime_attention,settlement,test_receipts
+help[1]:
+  uv run agent_cli.py glance program --json
+```
 
 ## `grade`
 

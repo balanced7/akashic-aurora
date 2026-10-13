@@ -16353,7 +16353,10 @@ def build_parser():
         "--max-items", type=int, default=64, help="maximum task rows in the snapshot (default: 64)"
     )
     gla_program.add_argument("--brief", action="store_true", help="emit the compact operational-orientation packet")
-    gla_program.add_argument("--compact", action="store_true", help="emit compact JSON instead of indented JSON")
+    gla_program.add_argument(
+        "--compact", action="store_true", help="emit the JSON compact (implies --json, as it always has)"
+    )
+    gla_program.add_argument("--json", action="store_true", help="emit the versioned snapshot (or brief) as JSON")
     gla_program.add_argument("--ledger-path", default=None, help=argparse.SUPPRESS)
     gla_program.set_defaults(fn=cmd_glance)
 
@@ -17496,7 +17499,13 @@ def cmd_glance(args):
     Slice one exposes only the program projection. Adding an arbitrary subject
     label before a subject-specific reader exists would make scope look wider
     than the evidence, so future projections extend the parser deliberately.
+
+    --json (or --compact, which always meant compact JSON) prints the versioned snapshot or
+    brief exactly as before; that is the contract the MCP and ToolBox twins carry. Otherwise the
+    projection prints for the current reader: the attention counts, the tasks, and which organs
+    this slice cannot check, by name. The evidence trail per item stays in the JSON.
     """
+    from core.axi import out
     from core.context.world_snapshot import (
         build_program_world_snapshot,
         project_operational_brief,
@@ -17504,23 +17513,111 @@ def cmd_glance(args):
 
     projection = str(getattr(args, "glance_projection", "") or "program")
     if projection != "program":
-        print(f"[glance] unsupported projection: {projection}", file=sys.stderr)
-        return 2
+        return out.fail(
+            f"unsupported projection: {projection}",
+            code="USAGE",
+            hints=[f"{_cli()} glance program"],
+            exit_code=out.EXIT_USAGE,
+            details={"projections": ["program"]},
+        )
     snapshot = build_program_world_snapshot(
         ledger_path=getattr(args, "ledger_path", None),
         max_items=getattr(args, "max_items", 64),
     )
-    payload = project_operational_brief(snapshot) if bool(getattr(args, "brief", False)) else snapshot
+    brief = bool(getattr(args, "brief", False))
+    payload = project_operational_brief(snapshot) if brief else snapshot
     compact = bool(getattr(args, "compact", False))
-    print(
-        json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=None if compact else 2,
-            separators=(",", ":") if compact else None,
+    if getattr(args, "json", False) or compact:
+        print(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                indent=None if compact else 2,
+                separators=(",", ":") if compact else None,
+            )
         )
+        return 0
+    return _emit_glance(payload, brief, int(getattr(args, "max_items", 64)))
+
+
+def _emit_glance(payload: dict, brief: bool, max_items: int) -> int:
+    """`glance program` for the current reader. The operator sentence already states the counts
+    over the whole ledger; the rows are the bounded slice, so total and shown travel with them,
+    and an unreadable ledger says why instead of reading as an empty one."""
+    from core.axi import out
+
+    cli = _cli()
+    caps = payload.get("capabilities") or {}
+    summary = payload.get("summary") or {}
+    bounds = payload.get("bounds") or {}
+    rows = payload.get("focus") if brief else payload.get("items")
+    task_state = caps.get("task_state") or {}
+    doc: dict[str, Any] = {"projection": "brief" if brief else "snapshot", "subject": payload.get("subject")}
+    if brief:
+        # The brief orients work; it may not answer who a seat is. Said in the output, not only
+        # in the schema, because a reader resuming from it is exactly who might assume otherwise.
+        doc["identity_authority"] = payload.get("identity_authority")
+    doc["ledger"] = (
+        "read" if task_state.get("state") == "SUPPORTED" else f"UNREADABLE: {task_state.get('reason') or 'unknown'}"
     )
-    return 0
+    doc["summary"] = summary.get("operator_sentence")
+    total = bounds.get("source_snapshot_total") if brief else bounds.get("total_items")
+    doc["total"] = total if total is not None else len(rows or [])
+    if len(rows or []) < doc["total"]:
+        doc["shown"] = len(rows or [])
+    doc["needs_attention"] = [str(r).removeprefix("task:") for r in summary.get("needs_attention") or []] or "none"
+    table = []
+    for item in rows or []:
+        d = item.get("data") or {}
+        table.append(
+            {
+                "id": d.get("id"),
+                "attention": item.get("attention"),
+                "status": d.get("status"),
+                "owner": d.get("owner") or None,
+                "arc": d.get("arc"),
+                "title": out.truncate(d.get("title"), 80)[0],
+            }
+        )
+    doc["tasks"] = table or ("no task in the ledger" if doc["ledger"] == "read" else "none: the ledger was not read")
+    doc["checkable"] = sorted(k for k, v in caps.items() if (v or {}).get("state") == "SUPPORTED")
+    doc["uncheckable"] = sorted(k for k, v in caps.items() if (v or {}).get("state") != "SUPPORTED")
+    hints = [f"{cli} glance program{' --brief' if brief else ''} --json"]
+    if "shown" in doc:
+        hints.append(f"{cli} glance program{' --brief' if brief else ''} --max-items {doc['total']}")
+    return out.emit(doc, hints=hints, human=_human_glance, title=f"Glance · {doc['subject']} · {doc['projection']}")
+
+
+def _human_glance(console, doc):
+    """Human view of `glance program`: the operator sentence, the task table coloured by
+    attention, then what this slice can and cannot check."""
+    from core.axi import out
+
+    if doc["ledger"] != "read":
+        console.print(f"[red]{out._esc(doc['ledger'])}[/]")
+    if doc.get("summary"):
+        console.print(out._esc(doc["summary"]))
+    if doc.get("identity_authority"):
+        console.print(f"[dim]identity authority: {out._esc(str(doc['identity_authority']))}[/]")
+    if isinstance(doc["tasks"], str):
+        console.print(f"[dim]{out._esc(doc['tasks'])}[/]")
+    else:
+        colour = {"ATTENTION": "red", "ACTING": "green", "WAITING": "yellow", "QUIET": "dim"}
+        from rich import box
+        from rich.table import Table
+
+        t = Table(box=box.SIMPLE_HEAD, header_style="bold cyan")
+        for c in ("id", "attention", "status", "owner", "arc", "title"):
+            t.add_column(c, overflow="fold")
+        for r in doc["tasks"]:
+            a = str(r["attention"])
+            t.add_row(out._esc(str(r["id"])), f"[{colour.get(a, 'white')}]{out._esc(a)}[/]", out._esc(str(r["status"])),
+                      out._esc(str(r["owner"] or "—")), out._esc(str(r["arc"])), out._esc(str(r["title"])))  # fmt: skip
+        console.print(t)
+        if "shown" in doc:
+            console.print(f"[yellow]{doc['shown']} of {doc['total']} shown[/]")
+    console.print(f"[green]checkable:[/] {out._esc(', '.join(doc['checkable']) or 'none')}")
+    console.print(f"[dim]uncheckable: {out._esc(', '.join(doc['uncheckable']) or 'none')}[/]")
 
 
 def cmd_secret(args):

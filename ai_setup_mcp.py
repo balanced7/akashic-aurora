@@ -632,6 +632,9 @@ async def glance(projection: str = "program", max_items: int = 64, brief: bool =
         max_items=max(0, int(max_items)),
         brief=bool(brief),
         compact=bool(compact),
+        # The MCP twin's contract is the versioned JSON (tests/test_world_snapshot_surfaces.py),
+        # whatever the CLI prints for a reader by default.
+        json=True,
         ledger_path=None,
     )
 
