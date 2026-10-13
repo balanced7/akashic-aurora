@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 63ac4e51. A bound you discover by collision is not awareness -- this sheet
+> Derived at ca6b330f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (351 numeric constants)
+## Mechanical bounds (352 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -454,6 +454,7 @@ Class: reference
 | `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
 | `MAX_FPS` | 120 | arsenal/shaders/render.py |  |
+| `MAX_HEADER_DEPTH` | 32 | arsenal/shaders/modules.py | brackets and braces outside strings; a real header nests four deep |
 | `MAX_HOPS` | 12 | core/git/rewrite_map.py | three rewrites so far; a cap that can never loop forever |
 | `MAX_ITEMS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
