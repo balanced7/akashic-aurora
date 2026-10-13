@@ -1,0 +1,218 @@
+{
+  "verb": "wish",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 96,
+    "stdout_chars": 295,
+    "stdout_lines": 3,
+    "cost_usd": 0.0228,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Was the wish filed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent is the new wish attributed to?",
+        "expected": "bench",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "Which wish id appears more than once in the ledger? Give the id only.",
+        "expected": "W02",
+        "answers": [
+          "W02",
+          "W02",
+          "W02",
+          "W02",
+          "W02"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a wish filed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "No",
+          "No",
+          "no",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What does the command need that was missing? Answer in a few words.",
+        "expected": [
+          "text"
+        ],
+        "answers": [
+          "Wish text (or --text-file)",
+          "Wish text (or --text-file)",
+          "Wish text (pass text or --text-file)",
+          "Wish text (or --text-file)",
+          "Wish text (or --text-file)"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "file": {
+        "argv": [
+          "wish",
+          "bench",
+          "Make",
+          "the",
+          "status",
+          "verb",
+          "faster",
+          "--trigger",
+          "status took 9s"
+        ],
+        "exit": 0,
+        "stdout": "[wish] WARNING: this ledger's id space has COLLIDED -- W02 each appear more than once, so citing them is ambiguous. Filing anyway; re-number at the next curation.\n[wish] filed W04 (bench) -> WISHLIST.md -- cite W04 at the next gate curation\n"
+      },
+      "empty": {
+        "argv": [
+          "wish",
+          "bench"
+        ],
+        "exit": 2,
+        "stdout": "[wish] REFUSED: empty wish (pass text or --text-file)\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 66,
+    "stdout_chars": 430,
+    "stdout_lines": 11,
+    "cost_usd": 0.0232,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Was the wish filed? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "Yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which agent is the new wish attributed to?",
+        "expected": "bench",
+        "answers": [
+          "bench",
+          "bench",
+          "bench",
+          "bench",
+          "bench"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which wish id appears more than once in the ledger? Give the id only.",
+        "expected": "W02",
+        "answers": [
+          "W02",
+          "W02",
+          "W02",
+          "W02",
+          "W02"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was a wish filed? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What does the command need that was missing? Answer in a few words.",
+        "expected": [
+          "text"
+        ],
+        "answers": [
+          "The wish text or --text-file",
+          "wish text or --text-file",
+          "the wish text or --text-file",
+          "The wish text or --text-file",
+          "Wish text or --text-file"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "file": {
+        "argv": [
+          "wish",
+          "bench",
+          "Make",
+          "the",
+          "status",
+          "verb",
+          "faster",
+          "--trigger",
+          "status took 9s"
+        ],
+        "exit": 0,
+        "stdout": "filed: W05\nby: bench\nledger: WISHLIST.md\nwarning: \"the ledger's id space has COLLIDED: W02 each appear more than once, so citing them is ambiguous; re-number at the next curation\"\ncite: cite W05 at the next gate curation\nhelp[1]:\n  uv run agent_cli.py wish-curate bench\n"
+      },
+      "empty": {
+        "argv": [
+          "wish",
+          "bench"
+        ],
+        "exit": 2,
+        "stdout": "error: \"empty wish: pass the wish text or --text-file\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py wish bench \"<what would have helped>\" --trigger \"<what hurt>\"\n"
+      }
+    }
+  }
+}

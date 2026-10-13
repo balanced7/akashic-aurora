@@ -3891,18 +3891,29 @@ def cmd_wish(args):
     import re as _re
     from datetime import datetime as _dt
 
+    from core.axi import out
+
+    cli = _cli()
     path = Path(os.getenv("AKASHIC_WISHLIST_FILE", str(Path(__file__).resolve().parent / "docs" / "WISHLIST.md")))
     if not path.exists():
-        print(f"[wish] REFUSED: {path} missing -- the ledger is git-tracked; restore it first")
-        return 2
+        return out.fail(
+            f"{path} missing: the ledger is git-tracked; restore it first",
+            code="NOT_FOUND",
+            hints=[] if os.getenv("AKASHIC_WISHLIST_FILE") else ["git checkout -- docs/WISHLIST.md"],
+            exit_code=out.EXIT_USAGE,
+        )
     body = ""
     if getattr(args, "text_file", None):
         body = Path(args.text_file).read_text(encoding="utf-8").strip()
     elif args.text:
         body = " ".join(args.text).strip()
     if not body:
-        print("[wish] REFUSED: empty wish (pass text or --text-file)")
-        return 2
+        return out.fail(
+            "empty wish: pass the wish text or --text-file",
+            code="USAGE",
+            hints=[f'{cli} wish {args.agent_id} "<what would have helped>" --trigger "<what hurt>"'],
+            exit_code=out.EXIT_USAGE,
+        )
     text = path.read_text(encoding="utf-8")
     nums = [int(m) for m in _re.findall(r"- \[[ x~]\] W(\d+)", text)]
     # The id space can COLLIDE and nothing used to notice. max+1 never collides against a correct
@@ -3912,17 +3923,9 @@ def cmd_wish(args):
     # Daniil's no-ceremony capture door ("append the moment friction is felt") and a capture
     # mechanism that refuses is worse than one with an ambiguous id.
     _dupes = sorted({x for x in nums if nums.count(x) > 1})
-    if _dupes:
-        print(
-            "[wish] WARNING: this ledger's id space has COLLIDED -- "
-            + ", ".join(f"W{d:02d}" for d in _dupes)
-            + " each appear more than once, so citing them is ambiguous. Filing anyway; "
-            "re-number at the next curation."
-        )
     n = (max(nums) if nums else 0) + 1
     if n in nums:  # unreachable via max+1; a guard against a future refactor reintroducing reuse
-        print(f"[wish] REFUSED: computed W{n:02d} but it already exists -- allocator is unsafe")
-        return 2
+        return out.fail(f"computed W{n:02d} but it already exists: the allocator is unsafe", code="REFUSED")
     block = f"- [ ] W{n:02d} ({_dt.now().strftime('%m-%d')}, {args.agent_id}) — {body.rstrip('.')}."
     if (args.trigger or "").strip():
         block += f" Trigger: {args.trigger.strip().rstrip('.')}."
@@ -3930,11 +3933,22 @@ def cmd_wish(args):
         block += f" Land: {args.land.strip().rstrip('.')}."
     marker = "\n## Folded"
     if marker not in text:
-        print("[wish] REFUSED: WISHLIST.md structure drifted ('## Folded' anchor missing) -- file by hand")
-        return 2
+        return out.fail(
+            "WISHLIST.md structure drifted ('## Folded' anchor missing): file by hand",
+            code="REFUSED",
+            exit_code=out.EXIT_USAGE,
+        )
     text = text.replace(marker, f"{block}\n{marker}", 1)
     path.write_text(text, encoding="utf-8")
-    print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
+    doc: dict = {"filed": f"W{n:02d}", "by": args.agent_id, "ledger": path.name}
+    if _dupes:
+        # Filed anyway: a capture door that refuses is worse than one with an ambiguous id.
+        doc["warning"] = (
+            "the ledger's id space has COLLIDED: "
+            + ", ".join(f"W{d:02d}" for d in _dupes)
+            + " each appear more than once, so citing them is ambiguous; re-number at the next curation"
+        )
+    doc["cite"] = f"cite W{n:02d} at the next gate curation"
     with contextlib.suppress(Exception):
         from core.events.event_log import capture_event  # noqa: PLC0415, RUF100  # lazy: as every agent_cli verb
 
@@ -3944,7 +3958,7 @@ def cmd_wish(args):
             agent_id=args.agent_id,
             detail={"wish": f"W{n:02d}", "body": body[:500]},
         )
-    return 0
+    return out.emit(doc, hints=[f"{cli} wish-curate {args.agent_id}"], title="Wish · filed")
 
 
 #: T226 -- what `--bg` hands to its detached child, and what it deliberately does not.

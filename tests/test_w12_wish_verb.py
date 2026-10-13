@@ -24,7 +24,8 @@ SEED = """# WISHLIST — test double
 
 
 def _run(tmp, *argv):
-    env = {**os.environ, "AKASHIC_WISHLIST_FILE": str(tmp)}
+    # AURORA_OUTPUT=agent: since the AXI conversion the receipt is TOON ("filed: W08").
+    env = {**os.environ, "AKASHIC_WISHLIST_FILE": str(tmp), "AURORA_OUTPUT": "agent"}
     return subprocess.run(
         [sys.executable, CLI, "wish", *argv], capture_output=True, text=True, timeout=30, env=env, cwd=REPO
     )
@@ -35,7 +36,7 @@ def test_wish_appends_numbered_attributed(tmp_path):
     f.write_text(SEED, encoding="utf-8")
     r = _run(f, "pin-seat", "a", "brand", "new", "wish", "--trigger", "it hurt", "--land", "T000")
     assert r.returncode == 0, r.stderr[:300]
-    assert "filed W08" in r.stdout, f"expected next number 8 (max was 7): {r.stdout}"
+    assert "filed: W08" in r.stdout, f"expected next number 8 (max was 7): {r.stdout}"
     text = f.read_text(encoding="utf-8")
     assert "- [ ] W08" in text
     assert "(07-" in text
@@ -52,7 +53,7 @@ def test_wish_numbering_increments_across_calls(tmp_path):
     f.write_text(SEED, encoding="utf-8")
     _run(f, "s1", "first")
     r2 = _run(f, "s2", "second")
-    assert "filed W09" in r2.stdout, f"second wish must be W09: {r2.stdout}"
+    assert "filed: W09" in r2.stdout, f"second wish must be W09: {r2.stdout}"
 
 
 def test_wish_refuses_empty_and_missing(tmp_path):
@@ -69,7 +70,7 @@ def test_wish_text_file_path(tmp_path):
     body.write_text("a wish with --flag-shaped prose (parens, colons: yes)", encoding="utf-8")
     r = _run(f, "seat", "--text-file", str(body))
     assert r.returncode == 0
-    assert "filed W08" in r.stdout
+    assert "filed: W08" in r.stdout
     assert "--flag-shaped prose" in f.read_text(encoding="utf-8")
 
 
@@ -117,6 +118,6 @@ def test_wish_never_reuses_an_existing_id(tmp_path):
     before = set(re.findall(r"- \[[ x~]\] W(\d+)", p.read_text(encoding="utf-8")))
     r = _run(p, "claude", "another wish")
     assert r.returncode == 0, r.stdout + r.stderr
-    m = re.search(r"filed W(\d+)", r.stdout or "")
+    m = re.search(r"filed: W(\d+)", r.stdout or "")
     assert m, "no filed-id echoed: " + (r.stdout or "")
     assert m.group(1) not in before, f"allocated W{m.group(1)} which already existed"
