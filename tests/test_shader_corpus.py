@@ -167,3 +167,40 @@ def test_arsenal_main_routes_the_shader_verb(tmp_path, corpus, capsys):
     from arsenal.__main__ import main as arsenal_main
     assert arsenal_main(["shader", "missing", "--json"]) == 0
     assert json.loads(capsys.readouterr().out) == {"ids": {}, "media": []}
+
+
+# ---------- the morning's one human step: the media snippet ----------
+
+def _with_inputs(sid, inputs):
+    passes = [{"name": "Image", "type": "image", "code": "void mainImage(out vec4 o,in vec2 u){}", "outputs": [],
+               "inputs": inputs}]
+    return _shader(sid, passes=passes)
+
+
+def test_media_to_fetch_expands_cubemaps_and_skips_placeholders_and_what_we_hold(tmp_path, corpus):
+    tex = "/media/a/" + "ab" * 32 + ".png"
+    cube = "/media/a/" + "cd" * 32 + ".jpg"
+    held = "/media/a/" + "ef" * 32 + ".png"
+    inputs = [{"channel": 0, "type": "texture", "filepath": tex, "sampler": {}},
+              {"channel": 1, "type": "cubemap", "filepath": cube, "sampler": {}},
+              {"channel": 2, "type": "texture", "filepath": "/media/previz/buffer00.png", "sampler": {}},
+              {"channel": 3, "type": "texture", "filepath": held, "sampler": {}}]
+    C.ingest_bundle(_bundle(tmp_path, shaders=[_with_inputs("Mmmmm1", inputs)],
+                            media={held: base64.b64encode(b"x").decode()}))
+    stem = cube.rsplit(".", 1)[0]
+    assert C.media_to_fetch() == sorted([tex, cube] + [f"{stem}_{k}.jpg" for k in range(1, 6)])
+
+
+def test_harvest_js_media_prints_one_paste_that_fetches_and_saves_one_bundle(tmp_path, corpus, capsys):
+    tex = "/media/a/" + "12" * 32 + ".png"
+    C.ingest_bundle(_bundle(tmp_path, shaders=[_with_inputs("Nnnnn2", [{"channel": 0, "type": "texture",
+                                                                         "filepath": tex, "sampler": {}}])]))
+    assert cli.main(["harvest-js", "--media"]) == 0
+    out = capsys.readouterr().out
+    assert "window.__st" in out and json.dumps([tex]) in out
+    assert "__st.download(" in out and cli.MEDIA_BUNDLE in out and "py -m arsenal shader ingest" in out
+
+
+def test_harvest_js_media_says_so_when_nothing_is_missing(corpus, capsys):
+    assert cli.main(["harvest-js", "--media"]) == 0
+    assert "already holds every medium" in capsys.readouterr().err
