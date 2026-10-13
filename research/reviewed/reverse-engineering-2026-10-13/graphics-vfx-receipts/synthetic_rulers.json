@@ -1,0 +1,276 @@
+{
+ "B_hald_capture_error_vs_truth": {
+  "level 4 (16^3 = 4096 colours, 64x64 image)": {
+   "mean_abs_code": 0.477,
+   "p99_code": 4.0,
+   "max_code": 5.0
+  },
+  "level 6 (36^3 = 46656 colours, 216x216 image)": {
+   "mean_abs_code": 0.186,
+   "p99_code": 2.0,
+   "max_code": 3.0
+  },
+  "level 8 (64^3 = 262144 colours, 512x512 image)": {
+   "mean_abs_code": 0.037,
+   "p99_code": 1.0,
+   "max_code": 1.0
+  }
+ },
+ "B_when_a_LUT_cannot_capture_it": {
+  "pure grade": {
+   "position_test_max_code_diff(centre vs corner)": 0.0,
+   "neighbour_test_max_code_diff(1px vs 4px cells)": 0.0
+  },
+  "grade + vignette": {
+   "position_test_max_code_diff(centre vs corner)": 85.00000000000001,
+   "neighbour_test_max_code_diff(1px vs 4px cells)": 39.0
+  },
+  "grade + 1 px blur": {
+   "position_test_max_code_diff(centre vs corner)": 77.0,
+   "neighbour_test_max_code_diff(1px vs 4px cells)": 101.00000000000001
+  }
+ },
+ "C_bloom_ruler": {
+  "truth": {
+   "threshold": 1.0,
+   "chain_sigmas_px": [
+    1.5,
+    3.0,
+    6.0,
+    12.0,
+    24.0,
+    48.0
+   ],
+   "strength": 0.04
+  },
+  "core_codes": [
+   203.0,
+   255.0,
+   255.0,
+   255.0,
+   255.0
+  ],
+  "halo_energy_r6_60": {
+   "screenshot (8-bit, decoded)": {
+    "0.6": -0.0,
+    "1.5": -0.0,
+    "4.0": 0.00346,
+    "16.0": 0.02725,
+    "64.0": 0.1323
+   },
+   "float render target (pre-clamp)": {
+    "0.6": 0.0,
+    "1.5": 0.00111,
+    "4.0": 0.00664,
+    "16.0": 0.03322,
+    "64.0": 0.13933
+   }
+  },
+  "threshold_fit": {
+   "from screenshot, sources 4..64 (the tempting fit)": 2.832,
+   "from float target, sources 1.5..64": 0.992
+  },
+  "tail_ratio_r10_over_r50": {
+   "mip-chain bloom, display-linear": [
+    6,
+    13,
+    2.17
+   ],
+   "same bloom, raw 8-bit codes (the trap)": [
+    8,
+    20,
+    2.5
+   ],
+   "single Gaussian reference": [
+    9,
+    14,
+    1.56
+   ]
+  }
+ },
+ "D_particle_count_true_vs_counted": {
+  "25": {
+   "connected_components": 23,
+   "local_maxima": 26
+  },
+  "100": {
+   "connected_components": 84,
+   "local_maxima": 99
+  },
+  "400": {
+   "connected_components": 306,
+   "local_maxima": 478
+  }
+ },
+ "D_hit_stop": {
+  "lossless, no grain": {
+   "frames_with_zero_mean_diff": [
+    30,
+    31,
+    32,
+    33
+   ],
+   "mean_diff_codes_frozen_30_33": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "mean_diff_codes_median_elsewhere": 2.67,
+   "pct_pixels_changed_gt8_frozen_30_33": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pct_pixels_changed_gt8_median_elsewhere": 6.45
+  },
+  "animated grain + jpeg q50": {
+   "frames_with_zero_mean_diff": [],
+   "mean_diff_codes_frozen_30_33": [
+    2.04,
+    2.01,
+    2.06,
+    2.11
+   ],
+   "mean_diff_codes_median_elsewhere": 4.78,
+   "pct_pixels_changed_gt8_frozen_30_33": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "pct_pixels_changed_gt8_median_elsewhere": 6.52
+  }
+ },
+ "D_screen_shake": {
+  "true_offsets_px(frames 34-43)": [
+   [
+    -4.0,
+    2.0
+   ],
+   [
+    2.8,
+    1.4
+   ],
+   [
+    -1.96,
+    -0.98
+   ],
+   [
+    1.37,
+    0.69
+   ],
+   [
+    -0.96,
+    0.48
+   ],
+   [
+    0.67,
+    -0.34
+   ],
+   [
+    -0.47,
+    0.24
+   ],
+   [
+    0.33,
+    0.16
+   ],
+   [
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0
+   ]
+  ],
+  "phase_correlation_raw_frames": [
+   [
+    2.95,
+    0.41
+   ],
+   [
+    4.33,
+    1.02
+   ],
+   [
+    -10.23,
+    22.35
+   ],
+   [
+    -51.75,
+    -35.36
+   ],
+   [
+    -35.67,
+    49.82
+   ],
+   [
+    19.22,
+    22.06
+   ],
+   [
+    17.25,
+    22.15
+   ],
+   [
+    53.93,
+    37.1
+   ],
+   [
+    54.87,
+    38.14
+   ],
+   [
+    -10.41,
+    21.46
+   ]
+  ],
+  "rms_error_raw_px": 43.97,
+  "phase_correlation_after_removing_particles": [
+   [
+    -4.01,
+    1.95
+   ],
+   [
+    2.87,
+    1.34
+   ],
+   [
+    -1.95,
+    -0.98
+   ],
+   [
+    1.29,
+    0.66
+   ],
+   [
+    -0.9,
+    0.41
+   ],
+   [
+    0.76,
+    -0.29
+   ],
+   [
+    -0.42,
+    0.19
+   ],
+   [
+    0.3,
+    0.08
+   ],
+   [
+    0.06,
+    -0.09
+   ],
+   [
+    0.06,
+    -0.11
+   ]
+  ],
+  "rms_error_cleaned_px": 0.09
+ }
+}

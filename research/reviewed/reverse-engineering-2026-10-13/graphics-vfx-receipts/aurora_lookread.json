@@ -1,0 +1,133 @@
+{
+ "parity_t0": {
+  "mean_abs_code": 0.0,
+  "p99_code": 0.0,
+  "max_code": 1.0
+ },
+ "parity_t2": {
+  "mean_abs_code": 0.0,
+  "p99_code": 0.0,
+  "max_code": 1.0
+ },
+ "palette_oklab_k5": [
+  {
+   "share": 0.313,
+   "hex": "#150a1d",
+   "L": 0.174
+  },
+  {
+   "share": 0.274,
+   "hex": "#310e14",
+   "L": 0.227
+  },
+  {
+   "share": 0.204,
+   "hex": "#1d7409",
+   "L": 0.489
+  },
+  {
+   "share": 0.153,
+   "hex": "#24470e",
+   "L": 0.359
+  },
+  {
+   "share": 0.056,
+   "hex": "#26a307",
+   "L": 0.625
+  }
+ ],
+ "green_R_over_G": {
+  "n_pixels": 251,
+  "median": 0.2238,
+  "source_constant": 0.222
+ },
+ "scale_height_fit": {
+  "118-158 km | none (codes treated as linear)": {
+   "median_scale_height_km": 131.3,
+   "columns": 326
+  },
+  "118-158 km | sRGB curve": {
+   "median_scale_height_km": 60.6,
+   "columns": 326
+  },
+  "118-158 km | magnitude gamma 2.2 (the true display transform)": {
+   "median_scale_height_km": 59.7,
+   "columns": 326
+  },
+  "128-160 km | none (codes treated as linear)": {
+   "median_scale_height_km": 126.5,
+   "columns": 326
+  },
+  "128-160 km | sRGB curve": {
+   "median_scale_height_km": 59.3,
+   "columns": 326
+  },
+  "128-160 km | magnitude gamma 2.2 (the true display transform)": {
+   "median_scale_height_km": 57.5,
+   "columns": 326
+  },
+  "source_value_km": 55.0
+ },
+ "hem_from_pixels": {
+  "half_max_offset_km_from_source_profile": 2.76,
+  "rms_error_km": 1.71,
+  "km_per_pixel_row": 0.963,
+  "corr_with_true_hem": 0.991
+ },
+ "motion_two_frames_2s_apart": {
+  "truth": {
+   "coarse_px_per_s": 5.705,
+   "fine_px_per_s": -4.645
+  },
+  "lowpass_shift_px": 15,
+  "lowpass_px_per_s": 7.5,
+  "highpass_shift_px": -9,
+  "highpass_px_per_s": -4.5,
+  "highpass_top3_(shift,score)": [
+   [
+    -9,
+    0.488
+   ],
+   [
+    -8,
+    0.466
+   ],
+   [
+    -10,
+    0.432
+   ]
+  ]
+ },
+ "motion_dense_twin_study": {
+  "truth": {
+   "coarse_px_per_s": 5.705,
+   "fine_px_per_s": -4.645
+  },
+  "ruler_check_coarse_layer_alone_px_per_s": {
+   "0.25": 6.0,
+   "1.0": 5.88
+  },
+  "readings_px_per_s": {
+   "dt=0.033s": {
+    "fine (residual under 2 px)": -3.75,
+    "coarse band 4-20 px": 0.0,
+    "coarse band 8-40 px": 0.0
+   },
+   "dt=0.250s": {
+    "fine (residual under 2 px)": -3.5,
+    "coarse band 4-20 px": 0.0,
+    "coarse band 8-40 px": 2.0
+   },
+   "dt=0.500s": {
+    "fine (residual under 2 px)": -3.25,
+    "coarse band 4-20 px": 0.0,
+    "coarse band 8-40 px": 3.0
+   },
+   "dt=1.000s": {
+    "fine (residual under 2 px)": -4.25,
+    "coarse band 4-20 px": 3.88,
+    "coarse band 8-40 px": 4.88
+   }
+  }
+ }
+}
