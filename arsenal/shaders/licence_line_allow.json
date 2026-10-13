@@ -1,0 +1,18 @@
+{
+  "api": "arsenal.licence-line-allow/v1",
+  "why": "Textbook idioms that a corpus shader and a house file may both spell token for token because both learned them from the same public source, not from each other. Each entry names that public source, the reason it is common tongue, and the date it was declared. A hit covered here is still measured and reported by `py -m arsenal shader licence-line`, as exempt, never hidden. Keep this list short: an entry is a claim a reviewer must be able to check. Entry shape: {\"text\": one line of at most 40 tokens, \"reason\": ..., \"source\": ..., \"date\": \"YYYY-MM-DD\"}; the loader refuses anything longer, so one entry can never exempt a whole shader.",
+  "entries": [
+    {
+      "text": "fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);",
+      "reason": "the classic sine-fract hash (12.9898, 78.233, 43758.5453) over the pixel coordinate, the screen-space dither every shader tutorial teaches. Exempt only where the shared 12-token run is this expression and nothing else (judge's ruling d, 2026-10-13); found as exactly that in scripts/aurora-shader.js and the shader-craft cookbook.",
+      "source": "The Book of Shaders, chapter 10 'Random' (Patricio Gonzalez Vivo and Jen Lowe), https://thebookofshaders.com/10/, which teaches the same expression over st.xy with 43758.5453123",
+      "date": "2026-10-13"
+    },
+    {
+      "text": "x = x * x * (3.0 - 2.0 * x);",
+      "reason": "the cubic Hermite 3x^2 - 2x^3 that smoothstep returns, as an assignment: the S-curve every shading text calls smoothstep. Found as the colour twin's display S-curve (arsenal/shaders/twins/colour.py), shared with 1 corpus shader only because of the variable name.",
+      "source": "Khronos OpenGL 4 Reference Pages, smoothstep (https://registry.khronos.org/OpenGL-Refpages/gl4/html/smoothstep.xhtml), whose definition returns this polynomial",
+      "date": "2026-10-13"
+    }
+  ]
+}

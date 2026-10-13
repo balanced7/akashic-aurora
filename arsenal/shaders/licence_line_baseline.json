@@ -1,0 +1,2201 @@
+{
+ "api": "arsenal.licence-line-baseline/v1",
+ "why": "Breaches of the licence line that already sat in files tracked at commit 9d6f29ff when the guard was built (2026-10-13): one entry per (file, corpus id) with its breach count and token total, each no larger than what the file held at that commit (verified every run with read-only git). They are measured and printed every run with the verdict 'baseline', never 'pass'. A breach not declared here fails the test, an entry whose count or tokens grow fails it, a hit in a file changed since 9d6f29ff that is not part of a copy the file held then fails it, and a file new since 9d6f29ff is never declared here. When the measurement itself improves, an entry is re-measured at 9d6f29ff, never from the work tree (2026-10-13: the third reading measured longer runs in four archive files, where a false block comment had split whole copies into fragments). Triage of each entry is Daniel's; lower or drop an entry when its debt is paid. The private triage table is state/arsenal/shaders/licence-line-triage.md.",
+ "commit": "9d6f29ff",
+ "entries": [
+  {
+   "file": "arsenal/nashville.py",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/pianocue_voicing.mjs",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/first-light.js",
+   "corpus": "MdGfzh",
+   "breaches": 2,
+   "tokens": 30,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/first-light.js",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/first-light.js",
+   "corpus": "ffG3Rc",
+   "breaches": 2,
+   "tokens": 263,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano-gyre.js",
+   "corpus": "4dS3Wd",
+   "breaches": 1,
+   "tokens": 41,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano-gyre.js",
+   "corpus": "4sGSDw",
+   "breaches": 1,
+   "tokens": 56,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano-next.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano.js",
+   "corpus": "Msl3Rr",
+   "breaches": 2,
+   "tokens": 40,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano.js",
+   "corpus": "Xds3zN",
+   "breaches": 1,
+   "tokens": 27,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/chordread.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/gyre-flight-motion.mjs",
+   "corpus": "lsKfWd",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/gyre-flight-motion.mjs",
+   "corpus": "wXdfzj",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/harmony-renderer.js",
+   "corpus": "4dSBDt",
+   "breaches": 2,
+   "tokens": 24,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/harmony-renderer.js",
+   "corpus": "fsXXzX",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/harmony-renderer.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/glass-piano.js",
+   "corpus": "MddGzf",
+   "breaches": 1,
+   "tokens": 36,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/glass-piano.js",
+   "corpus": "ttcSD8",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/keylab88mk3.js",
+   "corpus": "lsKfWd",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-kimi-aurora.js",
+   "corpus": "XdlGzH",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-abyssal.js",
+   "corpus": "4dS3Wd",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-abyssal.js",
+   "corpus": "ld3Gz2",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-abyssal.js",
+   "corpus": "lsKGDW",
+   "breaches": 1,
+   "tokens": 19,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-ornithopter.js",
+   "corpus": "7dGfWW",
+   "breaches": 1,
+   "tokens": 25,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-ornithopter.js",
+   "corpus": "XdlSDs",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-ornithopter.js",
+   "corpus": "XtS3DD",
+   "breaches": 1,
+   "tokens": 31,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-ornithopter.js",
+   "corpus": "fsXXzX",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/light-vandor-ornithopter.js",
+   "corpus": "ld3Gz2",
+   "breaches": 1,
+   "tokens": 17,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/instruments/upright.js",
+   "corpus": "4tByz3",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel",
+   "note": "re-declared 2026-10-13 after the loop-header ruling exempted part of it"
+  },
+  {
+   "file": "arsenal/web/piano/moonwater.js",
+   "corpus": "4djSRW",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/moonwater.js",
+   "corpus": "4sS3zG",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel",
+   "note": "re-declared 2026-10-13 after the loop-header ruling exempted part of it"
+  },
+  {
+   "file": "arsenal/web/piano/moonwater.js",
+   "corpus": "Md3yRB",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/moonwater.js",
+   "corpus": "XlcSDr",
+   "breaches": 1,
+   "tokens": 22,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/moonwater.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 41,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/nashville.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/schemes/harmonic-wave.js",
+   "corpus": "MlscWX",
+   "breaches": 1,
+   "tokens": 19,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/schemes/neon-trails.js",
+   "corpus": "Xds3zN",
+   "breaches": 1,
+   "tokens": 27,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/schemes/synth-vandor.js",
+   "corpus": "3l23Rh",
+   "breaches": 2,
+   "tokens": 24,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/schemes/synth-vandor.js",
+   "corpus": "Ms3XWN",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/schemes/synth-vandor.js",
+   "corpus": "WsSBzh",
+   "breaches": 2,
+   "tokens": 52,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/score/layout.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/score/musicxml.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle-voicing.js",
+   "corpus": "DtjSWh",
+   "breaches": 1,
+   "tokens": 26,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle-voicing.js",
+   "corpus": "Xds3zN",
+   "breaches": 1,
+   "tokens": 25,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle-worlds.js",
+   "corpus": "4dSBDt",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle-worlds.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 72,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle.js",
+   "corpus": "3tBGRm",
+   "breaches": 3,
+   "tokens": 40,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle.js",
+   "corpus": "4djSRW",
+   "breaches": 1,
+   "tokens": 36,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle.js",
+   "corpus": "Dsf3WH",
+   "breaches": 2,
+   "tokens": 26,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle.js",
+   "corpus": "MtcGDH",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spectacle.js",
+   "corpus": "WtSBzh",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/spell.js",
+   "corpus": "wsByWV",
+   "breaches": 2,
+   "tokens": 26,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/piano/wind-flow.mjs",
+   "corpus": "WsSBzh",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/play.js",
+   "corpus": "4djSRW",
+   "breaches": 1,
+   "tokens": 52,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/play.js",
+   "corpus": "4sfGWX",
+   "breaches": 2,
+   "tokens": 25,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/play.js",
+   "corpus": "MdGfzh",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/play.js",
+   "corpus": "Wt33Wf",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/play.js",
+   "corpus": "ffG3Rc",
+   "breaches": 2,
+   "tokens": 263,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/aurora-ribbons.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/aurora-ribbons.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 251,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "4s3SRN",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "4tl3RM",
+   "breaches": 1,
+   "tokens": 30,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "MdX3Rr",
+   "breaches": 1,
+   "tokens": 30,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "MdlXRS",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "Xt3SR4",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/chromatic-bloom.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 251,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/feedback-tunnel.frag",
+   "corpus": "MdlXRS",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/feedback-tunnel.frag",
+   "corpus": "XlfBR7",
+   "breaches": 1,
+   "tokens": 39,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/feedback-tunnel.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/feedback-tunnel.frag",
+   "corpus": "Xt3SR4",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/feedback-tunnel.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 251,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/first-light.frag",
+   "corpus": "MdlXRS",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/first-light.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/first-light.frag",
+   "corpus": "Xt3SR4",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/first-light.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 251,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/glitch-blocks.frag",
+   "corpus": "4djSRW",
+   "breaches": 1,
+   "tokens": 56,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/glitch-blocks.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/glitch-blocks.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/glitch-blocks.frag",
+   "corpus": "lsdGzN",
+   "breaches": 1,
+   "tokens": 221,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/halftone-pop.frag",
+   "corpus": "3sXyRN",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/halftone-pop.frag",
+   "corpus": "4tByz3",
+   "breaches": 1,
+   "tokens": 34,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/halftone-pop.frag",
+   "corpus": "WlVyRV",
+   "breaches": 1,
+   "tokens": 104,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/halftone-pop.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/halftone-pop.frag",
+   "corpus": "ttcSD8",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/mirror-hue.frag",
+   "corpus": "4dlGDN",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/mirror-hue.frag",
+   "corpus": "XdlGzH",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/mirror-hue.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/mirror-hue.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/mirror-hue.frag",
+   "corpus": "lsdGzN",
+   "breaches": 1,
+   "tokens": 221,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/scope-bars.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/scope-bars.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/presets/scope-bars.frag",
+   "corpus": "lsdGzN",
+   "breaches": 1,
+   "tokens": 221,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/shaders/first-light.frag",
+   "corpus": "MdGfzh",
+   "breaches": 2,
+   "tokens": 30,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/shaders/first-light.frag",
+   "corpus": "Xt3SR4",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "arsenal/web/shaders/first-light.frag",
+   "corpus": "ffG3Rc",
+   "breaches": 2,
+   "tokens": 263,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "data/corpus-digests/digests.jsonl",
+   "corpus": "tdG3Rd",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/channel-rotate.glsl",
+   "corpus": "XfXGz4",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/desaturate-unsensed.glsl",
+   "corpus": "WtfGDX",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/filmic-curve.glsl",
+   "corpus": "MdBGzG",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/hash31.glsl",
+   "corpus": "Xt3SR4",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/kaleido.glsl",
+   "corpus": "4ldGz4",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/kaleido.glsl",
+   "corpus": "lscBW4",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/orbit-swarm.glsl",
+   "corpus": "4ts3z2",
+   "breaches": 1,
+   "tokens": 24,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/rot2.glsl",
+   "corpus": "MlscWX",
+   "breaches": 1,
+   "tokens": 39,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/segment-distance.glsl",
+   "corpus": "MddGzf",
+   "breaches": 1,
+   "tokens": 36,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/superquadric-slices.glsl",
+   "corpus": "MtXczn",
+   "breaches": 1,
+   "tokens": 19,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/swirl.glsl",
+   "corpus": "3l23Rh",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/swirl.glsl",
+   "corpus": "XsVcDy",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/thumb-reference.glsl",
+   "corpus": "XsBfRW",
+   "breaches": 1,
+   "tokens": 24,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/torus-ring.glsl",
+   "corpus": "4dl3zn",
+   "breaches": 1,
+   "tokens": 21,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-chunks/value-noise-3d.glsl",
+   "corpus": "4sfGzS",
+   "breaches": 1,
+   "tokens": 34,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/aurora-bus.frag",
+   "corpus": "MsjfRG",
+   "breaches": 16,
+   "tokens": 444,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/aurora-bus.frag",
+   "corpus": "ldlSzX",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/aurora-bus.frag",
+   "corpus": "lscBW4",
+   "breaches": 1,
+   "tokens": 24,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/aurora-bus.frag",
+   "corpus": "tsKXR3",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/aurora-bus.frag",
+   "corpus": "ttScDc",
+   "breaches": 1,
+   "tokens": 45,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/daniil-curtains.frag",
+   "corpus": "MsjfRG",
+   "breaches": 1,
+   "tokens": 1163,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/daniil-snowfield.frag",
+   "corpus": "4s23zz",
+   "breaches": 2,
+   "tokens": 54,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/daniil-snowfield.frag",
+   "corpus": "4sfGzS",
+   "breaches": 3,
+   "tokens": 40,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/daniil-snowfield.frag",
+   "corpus": "ttScDc",
+   "breaches": 7,
+   "tokens": 1798,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-helix.frag",
+   "corpus": "4sjSW1",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-helix.frag",
+   "corpus": "DtXfDr",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-helix.frag",
+   "corpus": "Wt3XRX",
+   "breaches": 2,
+   "tokens": 45,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-helix.frag",
+   "corpus": "Xs33Df",
+   "breaches": 1,
+   "tokens": 19,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-helix.frag",
+   "corpus": "lscBW4",
+   "breaches": 1,
+   "tokens": 17,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-palindrome.frag",
+   "corpus": "MdBGzG",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-palindrome.frag",
+   "corpus": "XfyXRV",
+   "breaches": 1,
+   "tokens": 59,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-palindrome.frag",
+   "corpus": "lscBW4",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-palindrome.frag",
+   "corpus": "wlSGWy",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-rotate.frag",
+   "corpus": "43jXWt",
+   "breaches": 1,
+   "tokens": 50,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-rotate.frag",
+   "corpus": "MddGzf",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-rotate.frag",
+   "corpus": "NlsXDH",
+   "breaches": 1,
+   "tokens": 46,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-rotate.frag",
+   "corpus": "cljGR3",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-rotate.frag",
+   "corpus": "lscBW4",
+   "breaches": 2,
+   "tokens": 33,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/dna-rotate.frag",
+   "corpus": "tdjfDR",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "3sySRK",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "4dSBDt",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "4t2SWW",
+   "breaches": 1,
+   "tokens": 38,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "DtjSWh",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "MdXSWn",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "WdB3Dw",
+   "breaches": 1,
+   "tokens": 38,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "XtGGRt",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "fsXXzX",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "llK3Dy",
+   "breaches": 1,
+   "tokens": 21,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fat-edges.frag",
+   "corpus": "llVXRd",
+   "breaches": 8,
+   "tokens": 299,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "7tjSDh",
+   "breaches": 1,
+   "tokens": 20,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "DtXfDr",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "DtdSz7",
+   "breaches": 1,
+   "tokens": 22,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "Md23DV",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "XsfGWN",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "ldSSzV",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibcore.frag",
+   "corpus": "lsKfWd",
+   "breaches": 1,
+   "tokens": 20,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibshell.frag",
+   "corpus": "7tjSDh",
+   "breaches": 1,
+   "tokens": 20,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibshell.frag",
+   "corpus": "DtdSz7",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibshell.frag",
+   "corpus": "Md23DV",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibshell.frag",
+   "corpus": "XsfGWN",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/fibshell.frag",
+   "corpus": "ldSSzV",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/geodesic-ident-edges.frag",
+   "corpus": "llVXRd",
+   "breaches": 2,
+   "tokens": 3681,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/geodesic-neon-blue.frag",
+   "corpus": "llVXRd",
+   "breaches": 2,
+   "tokens": 3681,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/geodesic-neon-full.frag",
+   "corpus": "llVXRd",
+   "breaches": 3,
+   "tokens": 3663,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/geodesic-original.frag",
+   "corpus": "llVXRd",
+   "breaches": 1,
+   "tokens": 3721,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/hal-superquadric.frag",
+   "corpus": "MtXczn",
+   "breaches": 3,
+   "tokens": 278,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "3tXXRn",
+   "breaches": 2,
+   "tokens": 28,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "4dSBDt",
+   "breaches": 1,
+   "tokens": 17,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "Md23DV",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "MlscWX",
+   "breaches": 1,
+   "tokens": 60,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "MtXczn",
+   "breaches": 1,
+   "tokens": 238,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "WdyGzy",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "XlcSDr",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/orrery.frag",
+   "corpus": "ldSSzV",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-axis-fail.frag",
+   "corpus": "fstyD4",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-axis-fail.frag",
+   "corpus": "lsKfWd",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-axis-fail.frag",
+   "corpus": "tdjfDR",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-axis.frag",
+   "corpus": "fstyD4",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-axis.frag",
+   "corpus": "lsKfWd",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-axis.frag",
+   "corpus": "tdjfDR",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-guillotine.frag",
+   "corpus": "43jXWt",
+   "breaches": 1,
+   "tokens": 97,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-guillotine.frag",
+   "corpus": "MddGzf",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-guillotine.frag",
+   "corpus": "XlsGRs",
+   "breaches": 1,
+   "tokens": 17,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-guillotine.frag",
+   "corpus": "lfscD7",
+   "breaches": 1,
+   "tokens": 19,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-guillotine.frag",
+   "corpus": "tdjfDR",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "43jXWt",
+   "breaches": 1,
+   "tokens": 87,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "MddGzf",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "WsSBzh",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "XlsGRs",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "cljGR3",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "lscBW4",
+   "breaches": 2,
+   "tokens": 34,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "tdjfDR",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/palindrome-story.frag",
+   "corpus": "wXdfzj",
+   "breaches": 1,
+   "tokens": 22,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/ringpulse.frag",
+   "corpus": "4tjGRh",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "design/vfx-sketches/ringpulse.frag",
+   "corpus": "wtVyWK",
+   "breaches": 1,
+   "tokens": 55,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "docs/library/design/20260709_aurora-glass-build-plan-claude-track_57688b.md",
+   "corpus": "tdG3Rd",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "docs/library/design/20260709_aurora-glass-supporting-art-references-c_f8309c.md",
+   "corpus": "tdG3Rd",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "docs/library/design/20260709_aurora-glass-synthesis-plan-claude-deeps_af1a8f.md",
+   "corpus": "tdG3Rd",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "docs/library/design/20260709_aurora-glass-ui-build-plan-deepseek-s-sl_a04753.md",
+   "corpus": "4dSBDt",
+   "breaches": 1,
+   "tokens": 71,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "docs/library/design/20260709_aurora-glass-ui-build-plan-deepseek-s-sl_a04753.md",
+   "corpus": "XlB3zV",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/adaptive-resolution-aa.patch",
+   "corpus": "dtVSzw",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/design-theory-rarity-lab/rarity.mjs",
+   "corpus": "WsSBzh",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/design-theory-rarity-lab/theory.mjs",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/fx_module.js",
+   "corpus": "4dS3Wd",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/fx_module.js",
+   "corpus": "4tXSzM",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/fx_module.js",
+   "corpus": "lsKGDW",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/piano-lab-vfx.v1.js",
+   "corpus": "4dS3Wd",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/piano-lab-vfx.v1.js",
+   "corpus": "4tXSzM",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/piano-lab-vfx.v1.js",
+   "corpus": "Msl3Rr",
+   "breaches": 2,
+   "tokens": 40,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/piano-lab-vfx.v1.js",
+   "corpus": "Xds3zN",
+   "breaches": 1,
+   "tokens": 27,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/piano-lab-vfx.v1.js",
+   "corpus": "lsKGDW",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/in-flight/piano-spectacle-2026-09-13/prototype-vfx/piano-lab-vfx.v1.js",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "43jXWt",
+   "breaches": 2,
+   "tokens": 1040,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "7cjGRR",
+   "breaches": 2,
+   "tokens": 1538,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "DtXfDr",
+   "breaches": 2,
+   "tokens": 398,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "MsjfRG",
+   "breaches": 2,
+   "tokens": 2428,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "MtXczn",
+   "breaches": 2,
+   "tokens": 4492,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "Mts3zM",
+   "breaches": 2,
+   "tokens": 1400,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "WlVyRV",
+   "breaches": 4,
+   "tokens": 5864,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "XfXGz4",
+   "breaches": 2,
+   "tokens": 908,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "cs2GWD",
+   "breaches": 2,
+   "tokens": 9360,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "lfscD7",
+   "breaches": 2,
+   "tokens": 530,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "llVXRd",
+   "breaches": 6,
+   "tokens": 22326,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "ltdcW7",
+   "breaches": 2,
+   "tokens": 2186,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "tdG3Rd",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "tsScDG",
+   "breaches": 2,
+   "tokens": 6302,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/origin-prelog-2026-04-11/operator-spine-2026-04-11_2026-08-16.md",
+   "corpus": "ttScDc",
+   "breaches": 2,
+   "tokens": 5710,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/success-sweep-raw-2026-08-10/candidates.jsonl",
+   "corpus": "XfXGz4",
+   "breaches": 1,
+   "tokens": 454,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/success-sweep-raw-2026-08-10/candidates.jsonl",
+   "corpus": "ttScDc",
+   "breaches": 1,
+   "tokens": 488,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/success-sweep-raw-2026-08-10/omitted_shard1.md",
+   "corpus": "DtXfDr",
+   "breaches": 1,
+   "tokens": 199,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/success-sweep-raw-2026-08-10/omitted_shard1.md",
+   "corpus": "XfXGz4",
+   "breaches": 1,
+   "tokens": 454,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "research/reviewed/success-sweep-raw-2026-08-10/omitted_shard2.md",
+   "corpus": "ttScDc",
+   "breaches": 1,
+   "tokens": 488,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/activity-line.js",
+   "corpus": "DtXfDr",
+   "breaches": 4,
+   "tokens": 83,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "3sySRK",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "4dSBDt",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "4t2SWW",
+   "breaches": 1,
+   "tokens": 38,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "DtjSWh",
+   "breaches": 2,
+   "tokens": 38,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "MdX3Rr",
+   "breaches": 1,
+   "tokens": 29,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "MdXSWn",
+   "breaches": 1,
+   "tokens": 16,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "MlscWX",
+   "breaches": 1,
+   "tokens": 42,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "WdB3Dw",
+   "breaches": 1,
+   "tokens": 38,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "XcXXzS",
+   "breaches": 1,
+   "tokens": 29,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "Xt3SR4",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "XtGGRt",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "fsXXzX",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "llK3Dy",
+   "breaches": 1,
+   "tokens": 21,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/agent-avatar.js",
+   "corpus": "llVXRd",
+   "breaches": 8,
+   "tokens": 299,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "4dfGzs",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "4ttSWf",
+   "breaches": 1,
+   "tokens": 92,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "7dyyRy",
+   "breaches": 1,
+   "tokens": 94,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "DtjSWh",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "MddGzf",
+   "breaches": 1,
+   "tokens": 36,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "WtfGDX",
+   "breaches": 1,
+   "tokens": 23,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "XlB3zV",
+   "breaches": 1,
+   "tokens": 18,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/aurora-shader.js",
+   "corpus": "ltccRl",
+   "breaches": 1,
+   "tokens": 25,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/bench-aurora.html",
+   "corpus": "4dSBDt",
+   "breaches": 1,
+   "tokens": 71,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/bench-aurora.html",
+   "corpus": "fstyD4",
+   "breaches": 1,
+   "tokens": 21,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/bench-aurora.html",
+   "corpus": "ldSSzV",
+   "breaches": 1,
+   "tokens": 31,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/bench-aurora.html",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 93,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/piano_card_art.py",
+   "corpus": "fsXXzX",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/piano_card_art.py",
+   "corpus": "ttcSD8",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/vfx.html",
+   "corpus": "XfXGz4",
+   "breaches": 1,
+   "tokens": 13,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "scripts/vfx.html",
+   "corpus": "ldfSW2",
+   "breaches": 2,
+   "tokens": 24,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "store/docs/design.jsonl",
+   "corpus": "4dSBDt",
+   "breaches": 2,
+   "tokens": 142,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "store/docs/design.jsonl",
+   "corpus": "MdGfzh",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "store/docs/design.jsonl",
+   "corpus": "tdG3Rd",
+   "breaches": 3,
+   "tokens": 42,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/nashville_js.test.mjs",
+   "corpus": "lsKfWd",
+   "breaches": 2,
+   "tokens": 30,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel",
+   "note": "re-declared 2026-10-13 after the loop-header ruling exempted part of it"
+  },
+  {
+   "file": "tests/piano_light_vandor.test.mjs",
+   "corpus": "XllGW4",
+   "breaches": 1,
+   "tokens": 27,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/piano_light_vandor.test.mjs",
+   "corpus": "mtScRc",
+   "breaches": 1,
+   "tokens": 32,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/piano_light_vandor.test.mjs",
+   "corpus": "wXdfzj",
+   "breaches": 1,
+   "tokens": 31,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/piano_spell.test.mjs",
+   "corpus": "wsByWV",
+   "breaches": 1,
+   "tokens": 14,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/score_layout.test.mjs",
+   "corpus": "XllGW4",
+   "breaches": 1,
+   "tokens": 12,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/test_arsenal_pins_playnight_heimdall.py",
+   "corpus": "mtyGWy",
+   "breaches": 1,
+   "tokens": 15,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/test_arsenal_presets.py",
+   "corpus": "ltdcW7",
+   "breaches": 1,
+   "tokens": 20,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  },
+  {
+   "file": "tests/test_vfx_ingest.py",
+   "corpus": "Dsf3WH",
+   "breaches": 1,
+   "tokens": 47,
+   "date": "2026-10-13",
+   "reason": "pre-existing at 9d6f29ff; triage pending Daniel"
+  }
+ ],
+ "pruned": [
+  {
+   "date": "2026-10-13",
+   "count": 104,
+   "why": "cleared by the judge's loop-header ruling: these entries declared only a bare loop header, which is now exempt (measured and reported, reason 'loop header')"
+  }
+ ]
+}

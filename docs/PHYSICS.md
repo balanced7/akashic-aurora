@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ef5c2a3d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 8c4ebe10. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,12 +292,13 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (353 numeric constants)
+## Mechanical bounds (354 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
 | `ACTIVITY_TTL` | 25 | core/comm/control.py |  |
 | `AGENT_TTL_SECONDS` | 300 | research/in-flight/t342/dead-modules/multi_agent.py |  |
+| `ALLOW_MAX_TOKENS` | 40 | arsenal/shaders/licence_line.py |  |
 | `AREA_ALONE_MS` | 5,000 | arsenal/performance.py | key before it); a part with less playing than AREA_ALONE_MS always joins |
 | `AREA_CONTEXT_MS` | 10,000 | arsenal/performance.py | the sounding time in the 10 s around it (arsenal/practice.py's key path steps the same way |
 | `AREA_FRAME_MS` | 1,000 | arsenal/performance.py | key areas (each part of a session numbered in its own key): one step a second, scoring |
