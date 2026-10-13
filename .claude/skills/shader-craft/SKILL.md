@@ -1,6 +1,6 @@
 ---
 name: shader-craft
-description: Use when cockpit motion is wrong — avatar frozen, console slow, fps drops, black canvas, banding, crawling grain, shredded rows — or when editing the light bed (scripts/aurora-shader.js), the agent avatar (scripts/agent-avatar.js), the activity line, a design/vfx-sketches/*.frag sketch, or the VFX bench. Use when asked for glow, fog, swarms, particles, trails, "shock factor", or a more alive background. Use BEFORE accepting outside shader code (Shadertoy, a skills pack) and before calling a shader change done.
+description: Use when cockpit motion is wrong — avatar frozen, console slow, fps drops, black canvas, banding, crawling grain, shredded rows — or when editing the light bed (scripts/aurora-shader.js), the agent avatar (scripts/agent-avatar.js), the activity line, a design/vfx-sketches/*.frag sketch, or the VFX bench. Use when asked for glow, fog, swarms, particles, trails, "shock factor", or a more alive background. Use BEFORE accepting outside shader code (Shadertoy, a skills pack) and before calling a shader change done. Use when asked how a shader or a look was made, or to dissect, reverse engineer or rebuild one.
 ---
 
 # Shader craft
@@ -21,6 +21,7 @@ from code and numbers. The ceiling is taste, and taste is Daniel's gate at miles
 | "streaks" / "rows shredded" in a tiling | A derivative was taken of a cell id. A tiling's edges are antialiased from a continuous coordinate; a marched silhouette by cone tracking. | Floor 6 · cookbook "Derivatives" |
 | "same picture twice, for a diff" | A feedback effect (motion blur) is not a function of time: clear the history, settle a fixed number of frames, then capture. `--t` alone is not a still. | Floor 8 · cookbook "Still" |
 | "here's a Shadertoy I like" | Ingest it through the bench, which says what it changed and what will not work. Techniques transfer; code, copy, brand and assets do not. License gate before public use. | Loop 1 · cookbook "Outside" |
+| "how was this shader made?" / "take it apart" | Route the artifact first, then `py -m arsenal shader explain <id>`: every claim labelled observed, measured, inferred or unknown, with its evidence and boundary. | Dissecting · `references/dissecting-shaders.md` |
 
 ## Where the craft lives (the comments ARE the spec — read them before touching anything)
 - `scripts/aurora-shader.js` — the light bed: a ray-marched participating medium, three swarms
@@ -141,6 +142,29 @@ from code and numbers. The ceiling is taste, and taste is Daniel's gate at miles
 6. Land per `verified-done`. File `learn` for every defect class you meet; a new class is a
    lesson AND a line in this file. Wishes go to `docs/WISHLIST.md` the moment friction is felt.
 
+## Dissecting a shader (reverse engineering)
+Taking a shader apart is reverse engineering: the house method (scope, legal map, host safety) is
+`.claude/skills/reverse-engineering/SKILL.md`, and this is its shader specialisation. The full
+routing table and the rules are in `references/dissecting-shaders.md`.
+1. **Route first.** Name the artifact, then pick the tool: single-pass → render jump; buffer
+   feedback → walk from a reset, never jump; sound pass → compile only; cubemap pass → judge it
+   through the Image; texture inputs → check the stand-ins before judging; audio-reactive → feed an
+   audio texture or you are judging silence; house module → its card; group → its group sheet;
+   three.js house surface → the open tab or the GPU lane; a video or screenshot of a look →
+   `arsenal.media` filmstrip, then boost and floors first.
+2. **One ledger per shader:** `py -m arsenal shader explain <id>` (`arsenal/shaders/explain.py`)
+   prints a summary first and writes a private finding ledger: every claim labelled
+   observed-in-code, observed-in-render, measured, inferred or unknown, with an evidence id (pass
+   sha8 and line range, receipt sha8, study heading) and its search boundary. Unchanged inputs
+   return the cached ledger; never repeat an identical analysis.
+3. **Say how you know.** A detector that found nothing is "not detected by dissect v1", never
+   "absent". A name is a lead; inputs are read from the shader's own configuration. Our study notes
+   are inferred. A render drawn with a stand-in or fed silence is not quite the shader.
+4. **SwiftShader timing never stands for GPU timing.** It ranks shaders on the CPU; a GPU number is
+   Daniel's call.
+5. **Rebuild in two columns:** what we observed in the original's renders, and our own design
+   choices. Techniques transfer; code, assets and the distinctive look do not (licence line).
+
 ## Red-flag phrases (each one means STOP)
 - "Looks right" (compile it, render it, read the number) · "Should be 60fps" (no fps you did not see)
 - "Just a little grain" (it crawls) · "One more raymarcher won't hurt" (MAX_LIVE; the TDR)
@@ -160,3 +184,5 @@ exactly what `learn` is for everything else.
 Reference: `references/house-glsl-cookbook.md` — part A for the operator (cost, palette, the
 bench, a true still, outside shaders), part B for the author (the patterns, quoted from our own
 code with their source lines, so the pin can say when the code has moved on and the page has not).
+`references/dissecting-shaders.md` — reverse engineering a shader: the routing table, the finding
+ledger, the observation/inference/unknown rule, the timing rule and the rebuild rule.

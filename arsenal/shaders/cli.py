@@ -206,7 +206,8 @@ def build_parser() -> argparse.ArgumentParser:
 def _load_extensions() -> None:
     """Modules that add verbs call cli.VERBS[name] = register(sub). Missing modules are simply absent verbs."""
     import importlib
-    for mod in ("modules", "dissect", "census", "render", "lab", "school", "licence_line", "atlas", "shelf", "cards"):
+    for mod in ("modules", "dissect", "census", "render", "lab", "school", "licence_line", "atlas", "shelf", "cards",
+                "explain"):
         try:
             importlib.import_module(f"arsenal.shaders.{mod}")
         except ModuleNotFoundError as exc:

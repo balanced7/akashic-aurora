@@ -6,8 +6,9 @@ Before the house can write a primitive library from what it loves, it has to kno
 and reading 335 shaders by eye does not scale. So this file turns code into evidence: a raymarch loop is not "a
 function called march", it is a loop whose body calls a distance function and advances t by what it returned; an fbm is
 a loop accumulating noise with a frequency multiply and an amplitude decay, and its octaves, lacunarity and gain are read
-off the literals. Every detector matches the SHAPE of the math (names only ever add confidence), and every tag carries
-the line that earned it, so a reader can open the file and check -- census.py (the corpus-wide tables) depends on it.
+off the literals. Every detector prefers the SHAPE of the math; a name alone can still earn a weak tag (0.5-0.65, see
+below), which explain.py reports as inferred and never counts as a detection. Every tag carries the line that earned
+it, so a reader can open the file and check -- census.py (the corpus-wide tables) depends on it.
 
 HOW. arsenal/shaders/glsl.py reads each pass (Common prepended, as the compiler does) into functions, loops with literal
 bounds, a call graph and a reachability walk. Detectors run over the LIVE functions only -- a technique in dead code is
