@@ -1,0 +1,170 @@
+<!doctype html>
+<!--
+  The shader harness's stand-in page (arsenal/shaders/render.py, headless.mjs). It honours render.html's contract on the
+  smallest possible scale, so the driver, the lock, the SwiftShader assertion and the receipts can be proved end to end
+  without the runtime: one WebGL2 program (a fullscreen triangle from gl_VertexID that shades one antialiased, turning
+  triangle), one frame per requested t, and window.__render set exactly as render.html sets it.
+
+  It is for the headless driver; do not open in a browser. Before it compiles or draws anything it judges the WebGL2
+  renderer string by the house rule (SwiftShader, and no hardware named; the twin of judge_renderer in render.py and
+  judgeRenderer in headless.mjs, with the same pattern), and refuses otherwise: an ordinary browser on this host would
+  meet its AMD GPU, which has a display-driver crash history.
+
+    _harness_probe.html?t=0,1.5,4&w=480&h=270&src=/corpus/<id>/shader.json
+      &fail=1     compile a deliberately broken fragment shader (the driver must report the compile log, not hang)
+      &hang=1     never set __render.done (the driver's own deadline and its Chrome restart must take over)
+      &busy=ms    block the page's main thread for ms first (the driver's DevTools calls go unanswered meanwhile)
+      &budget=ms  the page watchdog (default 20000): done with an error, never a hang
+
+  Our own code; nothing here comes from the corpus or from shadertoy.com.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shader harness probe</title>
+<style>
+  html, body { margin: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<script>
+"use strict";
+(function () {
+  const q = new URLSearchParams(location.search);
+  const W = Math.max(1, Math.min(4096, parseInt(q.get("w") || "480", 10)));
+  const H = Math.max(1, Math.min(4096, parseInt(q.get("h") || "270", 10)));
+  const TIMES = (q.get("t") || "0").split(",").map(Number).filter((x) => Number.isFinite(x) && x >= 0);
+  const BUDGET_MS = Math.max(1000, parseInt(q.get("budget") || "20000", 10));
+  const result = { done: false, ok: false, refused: false, renderer: null, compile: null, frames: [], substituted: [],
+                   unsupported: [], errors: [], probe: { page: "_harness_probe", w: W, h: H, source: null } };
+
+  // The house rule, character for character the pattern of render.py's HARDWARE_HINT and headless.mjs's (a test holds
+  // the three equal): a renderer string names SwiftShader and no hardware, or this page draws nothing.
+  const HARDWARE_HINT = /\b(amd|radeon|ati|nvidia|geforce|quadro|rtx|intel|iris|uhd graphics|adreno|mali|apple m\d|direct3d\d*|d3d\d+)\b/i;
+  const judgeRenderer = (renderer) => {
+    if (typeof renderer !== "string" || !renderer.trim()) {
+      return { ok: false, reason: "no renderer string (no WebGL2 context, or WEBGL_debug_renderer_info is unavailable)" };
+    }
+    if (!/swiftshader/i.test(renderer)) return { ok: false, reason: `the renderer is not SwiftShader: ${renderer}` };
+    const hw = HARDWARE_HINT.exec(renderer);
+    if (hw) return { ok: false, reason: `the renderer names hardware (${hw[0]}): ${renderer}` };
+    return { ok: true, reason: null };
+  };
+  window.__render = result;
+  if (q.get("hang") === "1") return;  // the driver's deadline must handle a page that never answers
+  const busy = Math.min(600000, parseInt(q.get("busy") || "0", 10) || 0);
+  if (busy > 0) { const until = Date.now() + busy; while (Date.now() < until) { /* a wedged main thread */ } }
+
+  const finish = (ok) => { if (!result.done) { result.ok = ok; result.done = true; } };
+  setTimeout(() => { if (!result.done) { result.errors.push(`watchdog: not done after ${BUDGET_MS} ms`); finish(false); } }, BUDGET_MS);
+
+  // Kept as arrays and joined, so "#version 300 es" is the very first line of each source with nothing before it.
+  const VERT = [
+    "#version 300 es",
+    "precision highp float;",
+    "// A fullscreen triangle from gl_VertexID: no buffers, no attributes.",
+    "void main() {",
+    "  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));",
+    "  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);",
+    "}",
+  ].join("\n");
+  const FRAG = [
+    "#version 300 es",
+    "precision highp float;",
+    "uniform vec2 u_res;",
+    "uniform float u_time;",
+    "out vec4 outColor;",
+    "// Signed area of (a, b, p): positive when p lies left of the edge a->b.",
+    "float edgeFn(vec2 a, vec2 b, vec2 p) { return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); }",
+    "void main() {",
+    "  vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;",
+    "  float ang = u_time * 0.5;",
+    "  vec2 p = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * uv;",
+    "  vec2 A = vec2(0.0, 0.42), B = vec2(-0.38, -0.24), C = vec2(0.38, -0.24);  // counter-clockwise",
+    "  float e = min(min(edgeFn(A, B, p), edgeFn(B, C, p)), edgeFn(C, A, p));",
+    "  float aa = max(fwidth(e), 1e-5);",
+    "  float cover = smoothstep(-aa, aa, e);",
+    "  vec3 bg = mix(vec3(0.02, 0.03, 0.06), vec3(0.06, 0.04, 0.10), gl_FragCoord.y / u_res.y);",
+    "  vec3 tint = 0.55 + 0.45 * cos(6.2831853 * (vec3(0.0, 0.33, 0.67) + u_time * 0.1));",
+    "  outColor = vec4(mix(bg, tint, cover), 1.0);",
+    "}",
+  ].join("\n");
+  const BROKEN = FRAG.replace("float aa = max(fwidth(e), 1e-5);", "vec3 aa = 1.0;  // deliberate: a float into a vec3");
+
+  try {
+    const canvas = document.getElementById("gl");
+    canvas.width = W; canvas.height = H;
+    canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    const gl = canvas.getContext("webgl2", { antialias: false, preserveDrawingBuffer: true, premultipliedAlpha: false });
+    if (!gl) { result.errors.push("no WebGL2 context"); finish(false); return; }
+    const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+    result.renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    // The gate, before any compile or draw: a CPU rasteriser or nothing.
+    const verdict = judgeRenderer(result.renderer);
+    if (!verdict.ok) {
+      result.refused = true;
+      result.errors.push(`refused: ${verdict.reason}. This page renders on SwiftShader only (GPU safety: this host has `
+        + "a display-driver crash history); it is for the headless driver (arsenal/shaders/headless.mjs).");
+      finish(false);
+      return;
+    }
+
+    const compile = (type, src) => {
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      return { sh, ok: !!gl.getShaderParameter(sh, gl.COMPILE_STATUS), log: gl.getShaderInfoLog(sh) || "" };
+    };
+    const vs = compile(gl.VERTEX_SHADER, VERT);
+    const fs = compile(gl.FRAGMENT_SHADER, q.get("fail") === "1" ? BROKEN : FRAG);
+    let linked = false, linkLog = "";
+    const prog = gl.createProgram();
+    if (vs.ok && fs.ok) {
+      gl.attachShader(prog, vs.sh); gl.attachShader(prog, fs.sh); gl.linkProgram(prog);
+      linked = !!gl.getProgramParameter(prog, gl.LINK_STATUS);
+      linkLog = gl.getProgramInfoLog(prog) || "";
+    }
+    const log = [vs.log, fs.log, linkLog].filter(Boolean).join("\n");
+    // The probe has no header in front of its source, so its mapped log is its log.
+    result.compile = { ok: linked, passes: [{ name: "Image", ok: linked, log, mappedLog: log }], warnings: [] };
+    if (!linked) { result.errors.push("compile failed: " + log.split("\n")[0]); finish(false); return; }
+
+    const uRes = gl.getUniformLocation(prog, "u_res"), uTime = gl.getUniformLocation(prog, "u_time");
+    const vao = gl.createVertexArray();
+    gl.viewport(0, 0, W, H);
+    gl.useProgram(prog);
+    gl.bindVertexArray(vao);
+    for (const t of TIMES) {
+      const t0 = performance.now();
+      gl.uniform2f(uRes, W, H);
+      gl.uniform1f(uTime, t);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.finish();
+      const png = canvas.toDataURL("image/png");
+      result.frames.push({ t, png, ms: Math.round((performance.now() - t0) * 10) / 10 });
+    }
+    const err = gl.getError();
+    if (err !== gl.NO_ERROR) result.errors.push("gl error 0x" + err.toString(16));
+
+    // The src route is part of what the probe proves: the page can fetch the shader the server serves it.
+    const src = q.get("src");
+    if (!src) { finish(result.errors.length === 0); return; }
+    fetch(src).then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))).then((shader) => {
+      const passes = (shader.renderpass || []).map((p) => `${p.name || "?"}:${p.type || "?"}`);
+      result.probe.source = { ok: true, name: (shader.info || {}).name || null, passes };
+      finish(result.errors.length === 0);
+    }, (e) => {
+      result.probe.source = { ok: false, error: String(e && e.message || e) };
+      result.errors.push("src: " + result.probe.source.error);
+      finish(false);
+    });
+  } catch (e) {
+    result.errors.push("exception: " + String(e && e.stack || e));
+    finish(false);
+  }
+})();
+</script>
+</body>
+</html>

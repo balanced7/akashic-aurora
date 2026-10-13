@@ -1,0 +1,143 @@
+# shaderlab: the house runtime for the Shadertoy interface
+
+`toy-runtime.js` runs a shader saved in the corpus (`state/arsenal/shaders/corpus/shaders/<id>/shader.json`) the
+way it was written to run: Common prepended, the buffers in float ping-pong targets in the order the shader saved
+them, Cube A, then Image, with the uniforms and channel inputs that interface defines. `render.html` + `render.js` turn it into deterministic PNG
+stills for the headless driver (`py -m arsenal shader render`), on SwiftShader only.
+
+The interface (uniform names, pass types, output ids, sampler words) is public. The code here is ours: nothing is
+copied from shadertoy.com's site JavaScript or from any corpus shader, and the tests use synthetic shaders.
+
+## Rules this directory keeps
+
+- **CPU only.** `render.html` reads the renderer string before compiling and refuses to draw unless it names
+  SwiftShader and no hardware (`judgeRenderer`, the same rule and `HARDWARE_HINT` as the headless driver; the node
+  tests hold the two equal). This host has an AMD display-driver crash history. Do not open these pages in an ordinary browser
+  or in the Claude Browser pane; go through the headless driver, which holds the GPU lock (`arsenal/GPU-LOCK.md`).
+- **Raw WebGL2.** `#version 300 es` on line 1, `precision highp`, a fullscreen triangle from `gl_VertexID`. No
+  three.js, no CDN, no build step.
+- **No pretending.** Missing media become deterministic procedural stand-ins, and `stats().substituted` lists each
+  one. Things that cannot run are listed in `stats().unsupported`.
+
+## The runtime API (`toy-runtime.js`, an ES module)
+
+```js
+import { createToy } from './toy-runtime.js';
+const toy = createToy(canvas, shaderJson, {
+  mediaUrl: (src) => url | null,   // src is the saved site path, e.g. /media/a/<sha>.png; null = stand-in
+  audio: { fft, wave } | null,     // the starting audio texture (see setAudio)
+  pixelRatio: 1,                   // resize(w, h) sizes the canvas to w*pixelRatio x h*pixelRatio
+  cubeSize: 1024,                  // Cube A face size (Shadertoy's; lower it for speed only if the shader allows)
+  hwPerformance: 1,                // the HW_PERFORMANCE define
+  fps: 60,                         // advance()'s default step rate
+  dateBase: null,                  // [y, m0, d, s]: iDate = base + iTime (reproducible clocks); null = the real clock
+  bufferFormat: null,              // 'RGBA16F' to force one; default the best renderable
+  mediaTimeoutMs: 15000,
+  parity: true,                    // the GPU-parity shims (below); false compiles every pass exactly as written
+});
+await toy.ready;                   // media loaded or substituted (toy.load() returns the same promise)
+const c = toy.compile();           // {ok, drawable, passes: [{name, type, key, ok, log, mappedLog, firstError, lines, parity}], warnings}
+toy.render({ time, frame, timeDelta, frameRate, mouse, date });   // one frame; omitted fields continue
+toy.advance(toTime, { fps, maxFrames, mouse });   // fixed-dt frames up to toTime -> {frames, frame, time, reached, behind}
+toy.history;                       // true when a frame reads an earlier frame (a feedback buffer or Cube A)
+toy.jump(toTime, { fps, mouse });  // history-free shaders only: draw just the frame advance() would end on
+toy.reset();                       // clear buffers, Cube A, keyboard, mouse and clock (frame 0, no history)
+toy.setAudio({ fft, wave });       // fft 0..1, wave -1..1; 512 values each (other lengths are resampled)
+toy.setKeyboard(keyCode, down);
+toy.resize(w, h);                  // buffers keep their pixels where old and new sizes overlap (Shadertoy's resize)
+toy.stats();                       // {frame, time, passes, order, reads, substituted, unsupported, bufferFormat, ...}
+toy.info();                        // renderer, vendor, caps, buffer format
+toy.destroy();
+```
+
+- `compile().ok` is every pass compiled; `drawable` is every drawn pass compiled (a broken Sound pass does not stop
+  the picture). Compiling is all or nothing: the new programs replace the old ones only when every drawn pass
+  linked, so a frame never mixes a new pass with an old one. `mappedLog` rewrites `ERROR: 0:<n>:` to
+  `ERROR: <pass name>:<line>:`, or `Common:<line>:` when the error is in Common, so the line number is one a reader can
+  open in the pass's own `.glsl` file.
+- **The mouse.** `mouse` is a state, `{x, y, clickX, clickY, down, clicked}`, or a ready iMouse vec4.
+  `mouseUniform(state)` builds the vec4 Shadertoy's page builds: xy the pointer, z = +clickX while the button is held
+  and -|clickX| after release, w = +clickY on the one frame of the click and -|clickY| on every other frame, and all
+  zeros before any click. A click lasts one frame: the next frame continues with `mouseAfterFrame` (w negated);
+  `advance` gives the click to its first frame only, and `jump` to frame 0 only (it stands for the walk's last frame).
+- **iFrameRate** is the walk's nominal fps for `advance` and `jump` (the shorter last step to an off-grid t keeps its
+  own iTimeDelta but not a doubled rate); a bare `render` without `frameRate` reports 1 / timeDelta.
+- **A feedback shader's still is not a function of t.** `advance(t)` from a `reset()` steps frame n at time n/fps,
+  then one last frame exactly at t. The same t always gives the same frames. Continuing from an on-grid t equals a
+  fresh run; `render.js` resets before a t that follows an off-grid one.
+- **Audio.** `setAudio` feeds every music, musicstream and mic input: the 512x2 R8 texture, row 0 the spectrum
+  (byte = fft x 255), row 1 the waveform (byte = (wave x 0.5 + 0.5) x 255, so silence is 128). To match an
+  AnalyserNode with fftSize 2048, pass its first 512 bins as 0..1. This is how the piano will drive audio-reactive
+  shaders. Without audio the texture is silence, listed in `substituted`.
+- **Keyboard.** 256x3 R8: row 0 keys down, row 1 keys pressed this frame (cleared after each frame), row 2 toggles.
+- **History-free stills.** `toy.history` is false when no pass reads a buffer holding the previous frame
+  (`needsHistory()`). Then every frame is a function of its uniforms alone, and `jump(t)` draws only the walk's last
+  frame (same iFrame, iTime, iTimeDelta; `jumpStep()` is tested equal to `advanceSchedule()`'s last entry). `render.js`
+  jumps for such shaders, so a slow raymarcher's t=4 costs one frame, not 241.
+- **60 fps by default.** `DEFAULT_FPS` (the runtime) and `render.html`'s `fps` both default to 60, Shadertoy's
+  rate. A still's iFrame, and a walk's iTimeDelta, are what the shader saw on Shadertoy only at that rate: a shader
+  that counts iFrame (a glitch cadence, a particle index) or integrates iTimeDelta shows a different picture at 30.
+- **GPU-parity shims.** SwiftShader answers a few built-ins differently from the GPUs the corpus was written on, and
+  the header routes those calls to replacements that give the GPU answer (`PARITY_SHIMS`, measured with synthetic
+  probes on this host, 2026-10-13):
+  - `tanh(x)` returns NaN (black) once |x| passes about 88; GPUs return +-1. The shim clamps x to +-15 first.
+  - `min(a, b)` / `max(a, b)` returned NaN when `b` was NaN; GPUs return the operand that is not NaN. Raymarchers
+    rely on it: an SDF term that is 0/0 on a ray's first step vanishes inside `min()` on a GPU. One corpus tunnel drew
+    solid black without this shim. The probe saw one operand order, and SPIR-V leaves a NaN operand undefined, so the
+    shim tests both operands (`mix(mix(min(a, b), a, isnan(b)), b, isnan(a))`) and works whichever one the built-in
+    keeps; the node tests evaluate it under both rules.
+  The shims are user functions, so a shader that uses `min`/`max`/`tanh` in a const initializer does not compile with
+  them. `compile()` then retries per pass at the next level (`PARITY_LEVELS`: full, tanh-only, minmax-only, none),
+  reports the level as `passes[].parity`, and warns. In the 335-shader corpus, 8 passes in 4 shaders compile at
+  tanh-only (counted before minmax-only existed).
+
+## Semantics, briefly
+
+| thing | what the runtime does |
+|---|---|
+| pass order | The buffers in the order the shader saved them (not by letter: a save listing A, D, B, C runs D before B), then Cube A, then Image (`EXEC_GROUP`), as Shadertoy's client walks its pass list. A read of an earlier pass sees this frame; of itself or a later pass, the previous frame. `passOrder()` labels every read. |
+| buffer targets | RGBA32F with `EXT_color_buffer_float` + `OES_texture_float_linear`, else RGBA16F, else RGBA8 (warned). Sized to the canvas, cleared to 0. A resize copies each half texel for texel over the overlap (the rest 0) and restarts the ping-pong on half 0, Shadertoy's quirk included. Cube A uses RGBA16F when it renders (memory). |
+| Cube A | `mainCubemap(out vec4, in vec2 fragCoord, in vec3 rayOri, in vec3 rayDir)` per face; rayDir from the GL cube-map selection table inverted (`CUBE_FACES`), rayOri = 0. |
+| Sound | compiles (`mainSound(int, float)` or `mainSound(float)`) against the sound uniform set (no iResolution, iTime, iTimeDelta, iFrameRate, iFrame, iMouse: a sound pass may declare its own); never played (listed in `unsupported`). |
+| texture | sampler objects carry filter (nearest, linear, mipmap) and wrap (clamp, repeat, mirror); vflip flips the upload; srgb uploads as SRGB8_ALPHA8. |
+| cubemap | six faces `<name>.<ext>`, `<name>_1..5.<ext>` in GL order +X, -X, +Y, -Y, +Z, -Z; with vflip each face uploads flipped and `_2`/`_3` trade places (+Y gets `_3`), as Shadertoy uploads it (`cubemapUploadOrder`). |
+| volume | `.bin`: 20-byte little-endian header (signature, width, height, depth, channels, layout, format 0 = u8 / 10 = f32), then texels. One texture per file, always with its mip chain (warned if the format cannot have one). |
+| two inputs on a channel | the last one saved: the header's sampler type, the binding and iChannelTime all use it (`channelInput`). |
+| video, webcam | procedural stand-in, listed. |
+| missing media | a seeded stand-in with mipmaps, in the style the file's kind usually has (`standinStyle`): a `.png` is per-texel RGBA noise whose channels pair as G(x, y) = R(x-37, y-17), the layout noise lookups rely on; a `.jpg` (a photograph or material) is a smooth, tiling, photo-like field (`proceduralPhoto`); a cubemap is a soft sky-and-ground environment (`proceduralEnvironment`, 128^2 faces); a volume is noise (32^3). 2D stand-ins are 256^2 except the four files `KNOWN_MEDIA` pins by how the corpus addresses them (a 1024^2 and two 64^2 noises, one smooth PNG). Each is listed in `substituted` with its `style`. |
+| uniforms | iResolution, iTime, iTimeDelta, iFrameRate, iFrame, iChannelTime[4], iChannelResolution[4], iMouse, iDate, iSampleRate (44100), iChannel0..3 as sampler2D / samplerCube / sampler3D. |
+| iChannelTime | per channel (`channelTimes`): iTime on a music, musicstream or video channel (its media playing from the start), 0 on every other channel, as Shadertoy gives 0 to buffers, textures, the keyboard, the webcam, a live mic and empty channels. |
+
+## Pure helpers (no WebGL; tested in node)
+
+`buildHeader`, `buildFooter`, `assembleSource`, `sanitizeGlsl`, `mapErrorLog`, `parseErrorLog`, `locateLine`,
+`passOrder`, `passKey`, `inputKind`, `bufferKeyForInput`, `samplerFor`, `samplerTypeFor`, `channelInput`,
+`channelTimes`, `parseVolumeBin`, `keyboardTextureLayout`, `createKeyboardState`, `packAudioTexture`,
+`cubemapFacePaths`, `cubemapUploadOrder`, `cubeFaceBasis`, `advanceSchedule`, `jumpStep`, `needsHistory`,
+`onFrameGrid`, `dateUniform`, `mouseUniform`, `mouseAfterFrame`, `bufferFormatCandidates`, `chooseBufferFormat`,
+`proceduralTexture`, `proceduralPhoto`, `proceduralEnvironment`, `proceduralVolume`, `standinStyle`, `standinSize`,
+`standinPixels`, `normalizeShader`, `shaderFromGlsl`, `judgeRenderer`, `rendererInfo`; the tables `EXEC_GROUP`,
+`PARITY_SHIMS`, `PARITY_LEVELS`, `KNOWN_MEDIA`, `HARDWARE_HINT`.
+
+Where Shadertoy's behaviour is not in its public documentation (pass order, resize, iMouse signs, iChannelTime, the
+flipped-cubemap faces), it was read from Shadertoy's client code (`effect.js`, `piLibs.js` and the page script,
+2026-10-13, in public mirrors of the site's scripts) and written here from that description; no site code is copied.
+
+Tests: `node tests/shaderlab_runtime.test.mjs`. The GL path is tested against a recording fake WebGL2 context that
+enforces the rules a real one would refuse a draw for (feedback loops, sampler units, uniforms set on the bound
+program, `#version` on line 1). Pixels themselves are proved only by the headless SwiftShader harness.
+
+## render.html
+
+```
+render.html?src=<shader.json or .frag url>&t=0,1.5,4&w=480&h=270&fps=60&media=<prefix for /media/a/ files>
+            [&fps=N (60)] [&budget=ms (120000)] [&cube=N (1024)] [&hw=0|1] [&parity=0|1 (1)]
+```
+
+Sets `window.__render = {done, ok, renderer, compile, frames: [{t, png, ms, frames, frame, reset, jumped}], warmMs,
+history, substituted, unsupported, errors, stage, params, stats}`. `warmMs` is one more frame drawn after the stills
+are saved and timed to completion (a 1x1 readPixels): SwiftShader compiles a program at its first draw, so a still's
+`ms` overstates the per-frame cost, and `warmMs` is the number to compare across shaders. `parity=0` (the harness's
+`--no-parity`) compiles without the shims, to see SwiftShader's own answers. A watchdog ends the page with an error when the budget is spent, and
+the frame walk yields every 50 ms so it can fire. `media` defaults to `/corpus/media/` when the page is served from
+`/lab/` by `py -m arsenal shader serve`. The iDate of every still is 2026-01-01 12:00 plus iTime.

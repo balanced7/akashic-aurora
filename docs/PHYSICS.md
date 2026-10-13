@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 00dbf6b7. A bound you discover by collision is not awareness -- this sheet
+> Derived at 63ac4e51. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (344 numeric constants)
+## Mechanical bounds (351 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -327,6 +327,7 @@ Class: reference
 | `BUDGET_DEFAULT` | 1,200 | agent/harness/delta.py |  |
 | `BUILD_MAX_MS` | 4,000 | arsenal/practice.py | a window this short whose notes all ring on under one pedal into the next, which only adds |
 | `BULLET_MIN` | 6 | scripts/checkers/check_bus_atom_pointers.py | or this many list items |
+| `BURST_CAP_S` | 150 | arsenal/shaders/render.py |  |
 | `CACHE_TTL` | 3,600 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine.py | 1 hour |
 | `CACHE_TTL` | 3,600 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine_comfy.py |  |
 | `CACHE_TTL` | 300 | research/in-flight/t342/dead-modules/core__foundation__fast_cache.py | 5 minutes default |
@@ -339,6 +340,7 @@ Class: reference
 | `CAP` | 90,000 | research/reviewed/success-sweep-raw-2026-08-10/extract_daniil_success_talk.py |  |
 | `CATEGORY_CAP_PER_ATOM` | 3 | core/library/taxonomy.py |  |
 | `CHAIN_WARN_THRESHOLD` | 50 | core/learning/agent_memory.py |  |
+| `CHECK_TIMEOUT_S` | 30 | arsenal/shaders/render.py |  |
 | `CHORD_SOUND_MS` | 250 | arsenal/practice.py | a pitch class is in a window's chord only if it really sounds there (key or pedal, not the |
 | `CHORD_STRIKE_MS` | 150 | arsenal/practice.py | notes struck within this long of each other are struck together |
 | `CLARIFY_MAX_PER_TASK` | 3 | core/comm/toolbox.py |  |
@@ -385,6 +387,7 @@ Class: reference
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py |  |
 | `EVIDENCE_MS` | 30,000 | arsenal/practice.py | a key change's evidence compares the notes heard this long on either side of it |
 | `FIGURE_STAGE_MS` | 1,500 | arsenal/practice.py | ...unless it lasted this long with its chord's notes struck again inside it: a figure |
+| `FILMSTRIP_TIMEOUT_S` | 150 | arsenal/shaders/render.py |  |
 | `FLOOR` | 4,900 | scripts/check_fresh_clone.py |  |
 | `FLOOR_CHARS` | 15 | scripts/bifrost_runner_deepseek.py |  |
 | `FORGE_WATCH_MIN_IMPRESSIONS` | 8 | core/recall/curator.py | ...or this many fresh impressions, whichever first |
@@ -450,6 +453,7 @@ Class: reference
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
 | `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
+| `MAX_FPS` | 120 | arsenal/shaders/render.py |  |
 | `MAX_HOPS` | 12 | core/git/rewrite_map.py | three rewrites so far; a cap that can never loop forever |
 | `MAX_ITEMS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
@@ -473,6 +477,7 @@ Class: reference
 | `MAX_ROWS` | 12 | core/coord/scene.py |  |
 | `MAX_SEQ_JUMP` | 10,000 | core/comm/bridge_seal.py | a further jump is refused, never materialised |
 | `MAX_SETTINGS` | 64 | arsenal/pianolooks.py |  |
+| `MAX_SIDE` | 2,048 | arsenal/shaders/render.py |  |
 | `MAX_STARTUP_WAIT` | 120 | research/in-flight/t342/dead-modules/deployment_framework.py |  |
 | `MAX_STEPS` | 4,000 | arsenal/pianocue.py |  |
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
@@ -481,6 +486,7 @@ Class: reference
 | `MAX_TARGETS` | 32 | core/events/touch.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TEXT` | 500 | arsenal/pianocue.py |  |
+| `MAX_TIMES` | 64 | arsenal/shaders/render.py |  |
 | `MAX_VARIANTS` | 6 | arsenal/jam/schemas.py |  |
 | `MAX_WINDOW_MS` | 90,000 | arsenal/practice.py | the segmenter looks back this far |
 | `MESSAGE_TTL` | 3,600 | research/in-flight/t342/dead-modules/fast_agent_comm.py | 1 hour |
@@ -534,6 +540,7 @@ Class: reference
 | `REHAB_MIN_CONTEXTS` | 8 | core/recall/replay.py | criterion 2: surfaced contexts per rehab candidate... |
 | `REHAB_MIN_SURFACED` | 10 | core/recall/forge_optimizer.py | rehab class definition (mirrors the audit / curator) |
 | `REHOME_CLAIM_TTL_S` | 30 | core/comm/reaper.py |  |
+| `RENDER_TIMEOUT_S` | 120 | arsenal/shaders/render.py | one job's deadline in the driver; the page's own watchdog fires 5 s before it |
 | `RENDER_TTL_S` | 30 | agent/harness/delta.py | X1: turn_metrics EST_CACHE_TTL pattern |
 | `REPLAY_MAX_SECONDS` | 600 | arsenal/jam/schemas.py |  |
 | `REPLAY_MAX_SPEED` | 4 | arsenal/jam/schemas.py |  |

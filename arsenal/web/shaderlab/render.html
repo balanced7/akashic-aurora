@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  The shader still-maker (arsenal/web/shaderlab/render.js on toy-runtime.js). The headless driver
+  (arsenal/shaders/headless.mjs, through `py -m arsenal shader render`) loads it in Chrome forced onto SwiftShader:
+
+    render.html?src=/corpus/<id>/shader.json&t=0,1.5,4&w=480&h=270&fps=60&media=/corpus/media/
+      &fps=N       the walk's fixed step and the stills' iFrame numbering (default 60, Shadertoy's rate)
+      &budget=ms   the page watchdog (default 120000)
+      &cube=N      Cube A face size (default 1024)
+      &hw=0|1      HW_PERFORMANCE (default 1)
+      &parity=0|1  the GPU-parity shims of toy-runtime.js (default 1)
+
+  and reads window.__render when .done. The page refuses to draw unless the renderer names SwiftShader and no
+  hardware (GPU safety, the headless driver's own rule): do not open it in an ordinary browser expecting pictures.
+
+  The inline script below exists for one failure: if render.js cannot load or parse, nothing else would ever set
+  __render.done, so it marks the page done with that error.
+
+  Our own code; nothing here comes from the corpus or from shadertoy.com.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shaderlab render</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; background: #000; color: #b8c2d6; }
+  body { font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  canvas { display: block; }
+  #status { margin: 0; padding: 8px 12px; white-space: pre-wrap; }
+</style>
+<script>
+  "use strict";
+  // Boot guard: render.js takes over __render and moves .stage off "boot" as its first act.
+  window.__render = { done: false, ok: false, stage: "boot", renderer: null, compile: null, frames: [],
+                      substituted: [], unsupported: [], errors: [] };
+  window.addEventListener("error", function (e) {
+    var R = window.__render;
+    if (R && !R.done && R.stage === "boot") {
+      R.errors.push("boot: " + (e.message || ("could not load " + ((e.target && e.target.src) || "a script"))));
+      R.done = true;
+    }
+  }, true);
+  setTimeout(function () {
+    var R = window.__render;
+    if (R && !R.done && R.stage === "boot") { R.errors.push("boot: render.js never started"); R.done = true; }
+  }, 15000);
+</script>
+</head>
+<body>
+<pre id="status">loading</pre>
+<script type="module" src="render.js"></script>
+</body>
+</html>
