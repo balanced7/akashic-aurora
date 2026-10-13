@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 9ffae4e7. A bound you discover by collision is not awareness -- this sheet
+> Derived at 7942319e. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (362 numeric constants)
+## Mechanical bounds (363 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -475,6 +475,7 @@ Class: reference
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
 | `MAX_PINNED` | 24 | arsenal/present/scene.py |  |
 | `MAX_POST_CHARS` | 1,900 | core/comm/discord_guest_reply.py |  |
+| `MAX_PREFIX` | 4,096 | arsenal/re/triage.py | bytes read before any detector runs; configurable per-call |
 | `MAX_PRESETS` | 100 | arsenal/pianolooks.py |  |
 | `MAX_REFLECTIONS` | 50 | core/learning/agent_memory.py | keep only the newest N reflections in the index |
 | `MAX_REFS` | 2 | scripts/season_llm_player.py |  |
