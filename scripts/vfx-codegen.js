@@ -5,10 +5,16 @@
 // (thumbShaderFor). Each read the chunk library its own way, pasted its own copy of the uniform list, and put the
 // helpers in order by their `order` number alone. This file is the same three writers standing on
 // arsenal/web/glsl/modlib.js, the composer every other surface uses (the shader lab and the CLI today; First Light and
-// the piano next): the chunks are parsed by the one parser, the helpers are put in order by the one resolver (a helper
-// can no longer be emitted before a helper it calls, whatever its `order` says), and the uniform list is written once.
-// In hardware terms: three hand-wired boards replaced by one bus, with the old boards left in the rack and a scope
-// clipped across both outputs.
+// the piano next): the chunks are parsed by the one parser, the helpers are put in order by the one resolver, and the
+// uniform list is written once. In hardware terms: three hand-wired boards replaced by one bus, with the old boards
+// left in the rack and a scope clipped across both outputs.
+//
+// THE HELPER ORDER IS THE LEGACY ORDER, BY LINT. The legacy writers sort helpers by `order || 50` (0 reads as 50) and
+// break ties by file name, and never move a helper for a call; the resolver reads 0 as 0, breaks ties by name and puts
+// a callee first. Rather than declare that as a second difference, `py -m arsenal shader lib lint` refuses a bench
+// helper on which the two would disagree: order 0, two helpers of one order whose names and file names sort apart (one
+// name a prefix of the other), and a helper that calls or needs a chunk the legacy writer emits later or never. For
+// chunks that pass, both orders are the same list, so the legacy bytes stay the default.
 //
 // ZERO PIXEL CHANGE, PROVED AS ZERO BYTE CHANGE. tests/vfx_codegen_parity.test.mjs runs the page's own legacy writers
 // (lifted out of vfx.html at test time) beside these, over every chunk, group, saved chain and saved graph and a few
@@ -20,9 +26,13 @@
 // arc-vfx-bench.md section 6). The Graph card's "use as mask" button wires a mask's float output into a blend's colB
 // port, and the legacy writer then read that mask's COLOUR (`vec3 colB = <mask>_col;`), which a mask never writes: the
 // rule "a mask can never enter a colour socket" was broken in the generated code. Here a wire from a mask's `m` feeds
-// the receiving block's `m` (`float m = <mask>_m;`) and colB stays unwired (`vec3(0.)`). Pixels do not move with the
-// shipped chunks (colB was already black, and no shipped blend reads m yet; mix-blend still mixes at 0.5), but the blend
-// can now see its mask. graph(G, {maskFix: false}) writes the legacy text, which is what the page compares against.
+// the receiving block's `m` (`float m = <mask>_m;`) and colB stays unwired (`vec3(0.)`). And every block that has a
+// colB, a graph block whose chunk takes colB or a blend tile, declares `m` beside it: the wired mask's, or MASK_DEFAULT
+// (0.5, the even mix mix-blend uses today). So a blend that reads m compiles in a tile and in a graph with no mask wired
+// (the S5 review found the planned "mix-blend reads m" would fail there), and keeps its 0.5 mix while unwired. Pixels
+// do not move with the shipped chunks (colB was already black, and no shipped blend reads m yet), but the blend can now
+// see its mask. graph(G, {maskFix: false}) and thumb(c, {maskFix: false}) write the legacy text, which is what the page
+// compares against. A chunk never declares m itself (the writer does; the parity test refuses a chunk that would).
 //
 // THE SNIPPET ABI (architecture draft section 3.4). A chunk body is a block of statements that reads and writes
 // `vec2 uv`, `vec3 col`, `float alpha`, `vec3 colB` and `float m`, and nothing else crosses blocks. The Graph writer
@@ -37,6 +47,7 @@
 //   gen.chain('plasma-field', ['tanh-tonemap'])            // the Compose card: GLSL text, or null without a source
 //   gen.graph(G)                                           // the Graph card: {src} or {err}
 //   gen.thumb(chunk, {ref, refB})                          // a palette tile, the hover preview, a CLI thumb
+//   (graph and thumb take {maskFix: false} for the legacy-equivalent text the page holds to the legacy bytes)
 //
 // Licence: Apache-2.0, house code written for this repository. It carries no outside shader code: the GLSL it writes is
 // the bench's own scaffolding (the same lines its legacy writers emit) around chunk bodies read at run time.
@@ -58,6 +69,9 @@ const CLEAR = '  vec3 col=vec3(0.); float alpha=0.;';
 const FADE = '  float k = 0.5 - 0.5*cos(u_time * 3.14159265);\n';
 export const THUMB_REF = 'thumb-reference';   // the calibration ramp every tile is drawn against
 export const THUMB_REF_B = 'sphere-glass';    // the second input of a blend tile
+// What a block with a colB reads as m when no mask is wired: the even mix mix-blend uses today, so a blend switched to
+// reading m moves no pixel until a mask is wired into it.
+export const MASK_DEFAULT = '0.5';
 
 const indent = (body) => body.split('\n').map((l) => '    ' + l).join('\n');
 const portsOf = (m, side) => {
@@ -94,7 +108,8 @@ export function createBenchCodegen(modlib, chunks, { strict = false } = {}) {
   };
 
   // Every helper, as the legacy writers include them (cheap, and it removes a whole class of "forgot a dependency"
-  // failures), in the resolver's order: what a helper calls comes first, then the header's `order`, then the name.
+  // failures), in the resolver's order: what a helper calls comes first, then the header's `order`, then the name. For
+  // chunks the bench lint passes this is exactly the legacy order (see the header).
   const helperOrder = lib.resolve([...lib.modules.values()].filter((m) => m.kind === 'helper').map((m) => m.name))
     .filter((name) => lib.modules.get(name).composable);
   const helpers = helperOrder.map((name) => lib.modules.get(name).body).join('\n');
@@ -141,7 +156,8 @@ export function createBenchCodegen(modlib, chunks, { strict = false } = {}) {
       if (!c) return;
       const ins = portsOf(c, 'in'), outs = portsOf(c, 'out');
       const eCol = into(id, 'col'), eB = into(id, 'colB'), eUV = into(id, 'uv');
-      // The declared fix: a wire from a mask's m output feeds this block's m, never its colour.
+      // The declared fix: a wire from a mask's m output feeds this block's m, never its colour; with no mask wired, a
+      // block that takes colB still declares m (MASK_DEFAULT), so a blend that reads m always compiles.
       const maskIn = maskFix && ins.colB && eB && eB.fromPort === 'm';
       body.push('  // ---- ' + c.name + ' (' + id + ') ----');
       body.push('  vec3 ' + id + '_col = vec3(0.); float ' + id + '_alpha = 0.; float ' + id + '_m = 0.;');
@@ -152,6 +168,7 @@ export function createBenchCodegen(modlib, chunks, { strict = false } = {}) {
       body.push('    float alpha = ' + (eCol ? eCol.from + '_alpha' : '0.') + ';');
       if (ins.colB) body.push('    vec3 colB = ' + (eB && !maskIn ? eB.from + '_col' : 'vec3(0.)') + ';');
       if (maskIn) body.push('    float m = ' + eB.from + '_m;');
+      else if (maskFix && ins.colB) body.push('    float m = ' + MASK_DEFAULT + ';');
       else if (outs.m) body.push('    float m = 0.;');
       body.push(indent(c.body));
       body.push('    ' + id + '_col = col; ' + id + '_alpha = alpha; ' + id + '_uv = uv;');
@@ -167,7 +184,8 @@ export function createBenchCodegen(modlib, chunks, { strict = false } = {}) {
   }
 
   // A tile: the chunk doing its job against the calibration ramp, as a before/after (see vfx.html's THUMBNAILS notes).
-  function thumb(chunk, { ref = THUMB_REF, refB = THUMB_REF_B } = {}) {
+  // maskFix (the declared difference) gives a blend tile's block its default m; false writes the legacy text.
+  function thumb(chunk, { ref = THUMB_REF, refB = THUMB_REF_B, maskFix = true } = {}) {
     const c = need(chunk && chunk.name, 'chunk');
     let body;
     if (c.kind === 'source') {
@@ -185,7 +203,8 @@ export function createBenchCodegen(modlib, chunks, { strict = false } = {}) {
         '  vec3 _b=vec3(0.), _raw=vec3(0.);\n' +
         '  { vec3 col=vec3(0.); float alpha=0.;\n' + need(refB, 'second reference').body + '\n    _b=col; }\n' +
         '  { vec3 col=vec3(0.); float alpha=0.;\n' + need(ref, 'reference').body + '\n    _raw=col; }\n' +
-        '  { vec3 col=_raw; vec3 colB=_b; float alpha=1.;\n' + c.body + '\n    _b=col; }\n' +
+        '  { vec3 col=_raw; vec3 colB=_b; float alpha=1.;' + (maskFix ? ' float m=' + MASK_DEFAULT + ';' : '') + '\n' +
+        c.body + '\n    _b=col; }\n' +
         '  col = mix(_raw, _b, k); alpha = 1.0;';
     } else {
       // A modifier (or anything else): run the ramp, keep it, run the effect on a copy, cross-fade between them.

@@ -773,11 +773,12 @@ async function saveGroup(){
 // other surface does: one parser, one dependency resolver, one uniform list.
 //
 // Every build goes through a gen* dispatcher, and the dispatcher runs BOTH writers. The legacy text
-// is the oracle; the composer's text ships only when it is byte-identical to it (the Graph card's
-// one declared difference, the mask-port fix, is compared with the fix switched off). A build that
-// differs ships the legacy text and says so in red on the status line, with both texts in the
-// console. Identical text compiles to identical pixels, so "zero pixel change" is checked on every
-// build, not once in a test (tests/vfx_codegen_parity.test.mjs is the once).
+// is the oracle; the composer's text ships only when it is byte-identical to it (the one declared
+// difference, the mask-port fix with its default m in the Graph card and in blend tiles, is
+// compared with the fix switched off). A build that differs ships the legacy text and says so in
+// red on the status line, with both texts in the console; the next build that matches clears it.
+// Identical text compiles to identical pixels, so "zero pixel change" is checked on every build,
+// not once in a test (tests/vfx_codegen_parity.test.mjs is the once).
 //
 // The composer comes from /vfx-codegen.js and /glsl/modlib.js. bifrost_ui.py (DeepSeek's file)
 // serves neither yet, so at :8787 the import fails, the page stays on legacy and says why; the route
@@ -826,6 +827,7 @@ function codegenGen(){
 }
 // twin(g) is the composer's legacy-equivalent text, held to the legacy bytes; ship(g), when given,
 // is what goes to the GPU instead (the same text plus a declared fix). Anything wrong: legacy ships.
+// The red line reports one build: the next build that matches clears it back to the modlib line.
 function codegenPick(what, old, twin, ship){
   if(CODEGEN.mode !== 'modlib') return old;
   try{
@@ -836,7 +838,9 @@ function codegenPick(what, old, twin, ship){
       codegenFallback(what, 'the shared composer wrote different GLSL (both texts are in the console)');
       return old;
     }
-    return ship ? ship(g) : neu;
+    var out = ship ? ship(g) : neu;
+    if(el('codegenline').className !== 'note') setCodegen(CODEGEN.mode, CODEGEN.why);
+    return out;
   }catch(e){
     codegenFallback(what, 'the shared composer failed: ' + String((e && e.message) || e).slice(0, 120));
     return old;
@@ -854,7 +858,9 @@ function genGraphGLSL(){
 }
 function genThumbGLSL(c){
   var old = thumbShaderFor(c);
-  return codegenPick('thumb', old, function(g){ return g.thumb(c, {ref:THUMB_REF, refB:THUMB_REF_B}); });
+  return codegenPick('thumb', old,
+    function(g){ return g.thumb(c, {ref:THUMB_REF, refB:THUMB_REF_B, maskFix:false}); },   // must equal the legacy bytes
+    function(g){ return g.thumb(c, {ref:THUMB_REF, refB:THUMB_REF_B}); });                 // ships: plus a blend's default m
 }
 
 // The generator. Helpers are hoisted and DEDUPLICATED by name -- two chunks both needing h31 must

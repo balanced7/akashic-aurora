@@ -974,13 +974,68 @@ _UNIFORM_RE = re.compile(r"^[ \t]*uniform\s+\w+\s+([A-Za-z_]\w*)", re.M)
 
 
 def lint(m: Module, library_module: bool = True, library: Optional[Library] = None) -> List[str]:
-    """The shader-craft floors a text-only seat can check (skill floors 1 and 6). Legacy bench chunks are exempt:
-    they are fragments of the bench's own template and read its uniforms by design.
+    """The shader-craft floors a text-only seat can check (skill floors 1 and 6). Legacy bench chunks are exempt from
+    those: they are fragments of the bench's own template and read its uniforms by design.
 
     Unresolved calls are checked against `library` when the module is in it (a call is fine if some module provides
-    it or a hook in the module's reach declares it), and against the module alone otherwise."""
+    it or a hook in the module's reach declares it), and against the module alone otherwise.
+
+    A bench HELPER chunk (library_module False) is held to the bench's helper order instead (S5 review, 2026-10-13).
+    The bench ships the shared composer's GLSL only when it is byte-identical to its legacy writer's, and the two order
+    helpers by different rules: legacy sorts by `order || 50` (0 reads as 50), breaks a tie by FILE name and never
+    moves a helper for a call; the resolver reads 0 as 0, breaks a tie by name and puts a callee first. Any chunk on
+    which they disagree would quietly pin the bench to legacy, so lint refuses it: order 0, two helpers of one order in
+    one folder whose names and file names sort apart (one name a prefix of the other), and a helper that calls, uses or
+    needs a chunk of its folder that the legacy writer emits after it, or never (it emits helpers only). A chunk that
+    passes is in the same place in both orders."""
     if not library_module:
-        return []
+        if m.kind != "helper":
+            return []          # only helpers are ordered: a snippet's order is read by neither writer
+        bench = []
+        order = m.header.get("order")
+        if order == 0 and not isinstance(order, bool):
+            bench.append(f"{m.name}: a bench helper at order 0; the bench's legacy writer reads it as 50 (order || 50) "
+                         "and the shared composer as 0, so they would emit the helpers in different orders and the "
+                         "bench would fall back to legacy (give it 1 or more)")
+        if library is None or library.modules.get(m.name) is not m:
+            return bench
+        here = Path(m.path).parent
+        mine = Path(m.path).name
+
+        def legacy_key(b: Module):
+            return (b.header.get("order") or DEFAULT_ORDER, Path(b.path).name)
+
+        for name in sorted(library.modules):
+            b = library.modules[name]
+            if b is m or b.kind != "helper" or Path(b.path).parent != here or b.order != m.order or m.order == 0:
+                continue
+            theirs = Path(b.path).name
+            if (theirs < mine) != (b.name < m.name) and b.name < m.name:   # said once, on the one named second
+                bench.append(f"{m.name}: shares order {m.order:g} with {b.name}, and their file names sort the other way "
+                             f"from their names (file {mine} before {theirs}, name {b.name} before {m.name}, as when "
+                             "one name is a prefix of the other): the bench's legacy writer breaks the tie by file "
+                             "name and the shared composer by name, so they would differ (rename one, or give them "
+                             "different orders)")
+        try:
+            deps = library.deps(m.name)
+        except ModuleError:
+            deps = []          # a missing need is named by the resolver, below
+        for d in deps:
+            b = library.modules[d]
+            if Path(b.path).parent != here:
+                continue
+            what = ", ".join([f"calls {c}()" for c in m.calls if library.providers.get(c) == d] +
+                             [f"uses {u}" for u in m.uses if library.data.get(u) == d]) or f"needs {d}"
+            if b.kind != "helper":
+                bench.append(f"{m.name}: {what} from {d} ({Path(b.path).name}), a '{b.kind}' chunk; the bench's legacy "
+                             "writer emits helper chunks only, so the shared composer would add it and the two would "
+                             "differ (make it a helper)")
+            elif legacy_key(b) > legacy_key(m):
+                bench.append(f"{m.name}: {what} from {d} ({Path(b.path).name}), which the bench's legacy writer emits "
+                             f"after it (order {legacy_key(b)[0]:g} against {legacy_key(m)[0]:g}); GLSL needs it "
+                             f"declared first and the shared composer would move it, so the two would differ (give "
+                             f"{m.name} a higher order than {d})")
+        return bench
     problems = []
     h, code = m.header, strip_comments(m.body)
     if not (h.get("license") or h.get("licence")):

@@ -20,7 +20,8 @@ shared composer turns on. In hardware terms: the new board is already in the rac
 What changes for Daniel once mounted: **no pixel changes.** The bench checks every build against the legacy writer,
 byte for byte, and ships the legacy text whenever they differ (`tests/vfx_codegen_parity.test.mjs` proves it over every
 chunk, group, saved chain, saved graph and 600 graphs built by the page's own editing code). The one declared difference,
-the Graph card's mask-port fix, is also pixel-identical with the shipped chunks; it is described in the header of
+the mask-port fix (a mask wire feeds a blend's `m`, and every block with a colB declares a default `m` in the Graph
+card and in blend tiles), is also pixel-identical with the shipped chunks; it is described in the header of
 `scripts/vfx-codegen.js`.
 
 ## The change (two pieces)
@@ -42,7 +43,8 @@ def _glsl_route(path):
     Read-only (GET only, nothing here writes). Same refusals as arsenal/shaders/serve.py safe_file: the rest is
     percent-decoded once; any empty, "." or ".." segment, a backslash, a colon (a Windows drive or stream) or a NUL is
     refused; the resolved path (links followed) must still lie inside the folder; only .js, .json and .glsl are served
-    (modlib.js, index.json, the modules), so a README or a stray file is a 404, not a download."""
+    (modlib.js, index.json, the modules), so a README or a stray file is a 404, not a download. A link that resolves
+    onto another drive is a 404 too: os.path.commonpath raises ValueError for paths on two drives."""
     from urllib.parse import unquote
     if not path.startswith("/glsl/"):
         return None
@@ -56,7 +58,11 @@ def _glsl_route(path):
         return None
     base = os.path.realpath(GLSL_ROOT)
     full = os.path.realpath(os.path.join(base, *rel.split("/")))
-    if os.path.commonpath([base, full]) != base or not os.path.isfile(full):
+    try:
+        inside = os.path.commonpath([base, full]) == base
+    except ValueError:           # the two paths are on different drives: outside, by definition
+        return None
+    if not inside or not os.path.isfile(full):
         return None
     return os.path.relpath(full, REPO).replace(os.sep, "/"), mime
 ```
@@ -108,6 +114,14 @@ def test_refuses_traversal_odd_paths_and_unlisted_types():
               "/glsl//modlib.js", "/glsl/./modlib.js", "/glsl/a\\b.js", "/glsl/C:modlib.js",
               "/glsl/modlib.js%00", "/glsl/README.md", "/glsl/no-such-module.glsl", "/lib/modlib.js"]:
         assert B._glsl_route(p) is None, p
+
+
+def test_a_link_onto_another_drive_is_a_404_not_a_500(monkeypatch):
+    # os.path.commonpath raises ValueError for two drives (a junction inside the folder pointing at D:\, say)
+    def two_drives(paths):
+        raise ValueError("Paths don't have the same drive")
+    monkeypatch.setattr(os.path, "commonpath", two_drives)
+    assert B._glsl_route("/glsl/modlib.js") is None
 
 
 def test_the_codegen_module_exists_where_the_route_points():
