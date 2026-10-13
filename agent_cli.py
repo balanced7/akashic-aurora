@@ -10009,30 +10009,41 @@ def cmd_report(args):
     subprocess bought nothing: this is a Python module in this repo, so calling it is simpler,
     faster, testable in-process, and has no stdout-inheritance semantics to get wrong.
     """
+
+    from core.axi import out
+
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "generators"))
     import gen_report_scaffold as _gen
 
+    cli = _cli()
     if getattr(args, "crib", False):
-        print("report-kit primitives:\n")
-        print(_gen.crib_text())
-        return 0
+        rows = [{"primitive": cls, "use": why} for cls, why in _gen.CRIB]
+        return out.emit({"total": len(rows), "primitives": rows}, title="Report-kit primitives")
     if not (args.title or "").strip():
-        print(
-            "[report] --title is required -- it names the browser tab AND the gallery card, "
-            "so an untitled scaffold publishes as an unnamed card.",
-            file=sys.stderr,
+        return out.fail(
+            "--title is required -- it names the browser tab AND the gallery card, so an untitled "
+            "scaffold publishes as an unnamed card",
+            code="USAGE",
+            hints=[f'{cli} report --title "<title>" --out <path>.html'],
+            exit_code=out.EXIT_USAGE,
         )
-        return 2
     html = _gen.render(args.title, args.eyebrow)
     if not args.out:
-        print(html)
+        print(html)  # the scaffold itself is the output, for a redirect: never wrapped
         return 0
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or ".", exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as fh:
         fh.write(html)
-    print(f"[report] wrote {args.out} ({len(html)} chars, kit inlined)")
-    print("         compose it against the crib, then publish with the Artifact tool.")
-    return 0
+    return out.emit(
+        {
+            "wrote": args.out,
+            "chars": len(html),
+            "kit": "inlined",
+            "next": "compose it against the crib, then publish with the Artifact tool",
+        },
+        hints=[f"{cli} report --crib"],
+        title="Report scaffold",
+    )
 
 
 def cmd_roster(args):

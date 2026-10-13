@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 117 converted to agent and human output.
+121 verbs; 118 converted to agent and human output.
 
 ## `alias`
 
@@ -2957,7 +2957,10 @@ why: "on the bus, nothing has confessed a failure -- which is not the same fact 
 | | |
 |---|---|
 | Does | scaffold a visual report with the design kit inlined (T275) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 80% before, 100% after |
+| Output tokens | 61 before, 84 after (+38%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/report.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -2965,6 +2968,17 @@ why: "on the bus, nothing has confessed a failure -- which is not the same fact 
 | `--eyebrow` |   |   | small mono line above the headline |
 | `--out` |   |   | write the scaffold here (default: stdout) |
 | `--crib` |   |   | print the primitive reference and exit |
+
+Agent output of `aurora report --title Q3 retro --out /tmp/axi-bench-report-i486mwbd/retro.html` on the bench data:
+
+```text
+wrote: /tmp/axi-bench-report-i486mwbd/retro.html
+chars: 13384
+kit: inlined
+next: "compose it against the crib, then publish with the Artifact tool"
+help[1]:
+  uv run agent_cli.py report --crib
+```
 
 ## `resident`
 

@@ -1,0 +1,220 @@
+{
+  "verb": "report",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.8,
+    "correct": 20,
+    "asked": 25,
+    "output_tokens": 61,
+    "stdout_chars": 1639,
+    "stdout_lines": 26,
+    "cost_usd": 0.0188,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "Which file path did the command write to? Give the path only.",
+        "expected": "/tmp/axi-bench-report-i486mwbd/retro.html",
+        "answers": [
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many characters did the command write to the file?",
+        "expected": 13384,
+        "answers": [
+          "13384",
+          "13384",
+          "13384",
+          "13384",
+          "13384"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many report-kit primitives are listed?",
+        "expected": 11,
+        "answers": [
+          "11",
+          "11",
+          "11",
+          "11",
+          "11"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which primitive should be used for 3-6 headline numbers? Give the primitive exactly as listed.",
+        "expected": ".tiles > .tile > .v + .k",
+        "answers": [
+          ".tiles > .tile > .v + .k",
+          ".tiles > .tile > .v + .k",
+          ".tiles > .tile > .v + .k",
+          ".tiles > .tile > .v + .k",
+          "`.tiles > .tile > .v + .k`"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is required but missing? Give the flag only.",
+        "expected": "--title",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      }
+    ],
+    "runs": {
+      "write": {
+        "argv": [
+          "report",
+          "--title",
+          "Q3 retro",
+          "--out",
+          "/tmp/axi-bench-report-i486mwbd/retro.html"
+        ],
+        "exit": 0,
+        "stdout": "[report] wrote /tmp/axi-bench-report-i486mwbd/retro.html (13384 chars, kit inlined)\n         compose it against the crib, then publish with the Artifact tool.\n"
+      },
+      "crib": {
+        "argv": [
+          "report",
+          "--crib"
+        ],
+        "exit": 0,
+        "stdout": "report-kit primitives:\n\n  header / .eyebrow / h1 / .standfirst\n      Opening. The standfirst is a serif thesis sentence, not a summary.\n  hr.rule\n      Section break carrying the project's own colours. Use 2-4 times, never between every section.\n  .tiles > .tile > .v + .k\n      3-6 headline NUMBERS. Never prose. Digits are tabular by default.\n  .card[.go|.hold|.stop] > .head + .paths > .path > .plabel[.a|.b] + .ptext, then .rec\n      A DECISION WITH REAL COSTS ON BOTH SIDES. .plabel.a names the path you lean toward, .plabel.b the one you do not; .rec carries the recommendation. If one path is obviously wrong it is rhetoric wearing a choice's clothes -- use .rows instead.\n  .timeline > .tl > .when + .what\n      ONLY when order carries information the reader needs. Not decoration for a list.\n  .versus > .side  (+ .synth)\n      A GENUINE DISAGREEMENT, both sides stated fairly. NOT a pro/con list. Pair with .synth when a reconciliation exists.\n  blockquote > mark + .who\n      Someone's words verbatim. mark highlights the phrase that actually matters.\n  .rows > .row > .rt + .rd\n      A flat list where each item has a label and a consequence.\n  .scroll > table  (td.n, .v.ok/.no/.cl/.mo)\n      Comparison. Wide content scrolls ITSELF so the page never scrolls sideways.\n  --go / --hold / --stop\n      SEMANTIC colour: cheap / needs judgement / costs either way. Never decoration.\n  --aurora\n      The accent. Structure and emphasis only -- it must never carry status.\n"
+      },
+      "notitle": {
+        "argv": [
+          "report"
+        ],
+        "exit": 2,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 25,
+    "asked": 25,
+    "output_tokens": 84,
+    "stdout_chars": 1860,
+    "stdout_lines": 23,
+    "cost_usd": 0.026,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "Which file path did the command write to? Give the path only.",
+        "expected": "/tmp/axi-bench-report-i486mwbd/retro.html",
+        "answers": [
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html",
+          "/tmp/axi-bench-report-i486mwbd/retro.html"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many characters did the command write to the file?",
+        "expected": 13384,
+        "answers": [
+          "13384",
+          "13384",
+          "13384",
+          "13384",
+          "13384"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many report-kit primitives are listed?",
+        "expected": 11,
+        "answers": [
+          "11",
+          "11",
+          "11",
+          "11",
+          "11"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which primitive should be used for 3-6 headline numbers? Give the primitive exactly as listed.",
+        "expected": ".tiles > .tile > .v + .k",
+        "answers": [
+          ".tiles > .tile > .v + .k",
+          ".tiles > .tile > .v + .k",
+          ".tiles > .tile > .v + .k",
+          ".tiles > .tile > .v + .k",
+          "`.tiles > .tile > .v + .k`"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which flag is required but missing? Give the flag only.",
+        "expected": "--title",
+        "answers": [
+          "--title",
+          "--title",
+          "--title",
+          "--title",
+          "--title"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "write": {
+        "argv": [
+          "report",
+          "--title",
+          "Q3 retro",
+          "--out",
+          "/tmp/axi-bench-report-i486mwbd/retro.html"
+        ],
+        "exit": 0,
+        "stdout": "wrote: /tmp/axi-bench-report-i486mwbd/retro.html\nchars: 13384\nkit: inlined\nnext: \"compose it against the crib, then publish with the Artifact tool\"\nhelp[1]:\n  uv run agent_cli.py report --crib\n"
+      },
+      "crib": {
+        "argv": [
+          "report",
+          "--crib"
+        ],
+        "exit": 0,
+        "stdout": "total: 11\nprimitives[11]{primitive,use}:\n  header / .eyebrow / h1 / .standfirst,\"Opening. The standfirst is a serif thesis sentence, not a summary.\"\n  hr.rule,\"Section break carrying the project's own colours. Use 2-4 times, never between every section.\"\n  .tiles > .tile > .v + .k,3-6 headline NUMBERS. Never prose. Digits are tabular by default.\n  \".card[.go|.hold|.stop] > .head + .paths > .path > .plabel[.a|.b] + .ptext, then .rec\",\"A DECISION WITH REAL COSTS ON BOTH SIDES. .plabel.a names the path you lean toward, .plabel.b the one you do not; .rec carries the recommendation. If one path is obviously wrong it is rhetoric wearing a choice's clothes -- use .rows instead.\"\n  .timeline > .tl > .when + .what,ONLY when order carries information the reader needs. Not decoration for a list.\n  .versus > .side  (+ .synth),\"A GENUINE DISAGREEMENT, both sides stated fairly. NOT a pro/con list. Pair with .synth when a reconciliation exists.\"\n  blockquote > mark + .who,Someone's words verbatim. mark highlights the phrase that actually matters.\n  .rows > .row > .rt + .rd,A flat list where each item has a label and a consequence.\n  \".scroll > table  (td.n, .v.ok/.no/.cl/.mo)\",Comparison. Wide content scrolls ITSELF so the page never scrolls sideways.\n  \"--go / --hold / --stop\",\"SEMANTIC colour: cheap / needs judgement / costs either way. Never decoration.\"\n  \"--aurora\",The accent. Structure and emphasis only -- it must never carry status.\n"
+      },
+      "notitle": {
+        "argv": [
+          "report"
+        ],
+        "exit": 2,
+        "stdout": "error: \"--title is required -- it names the browser tab AND the gallery card, so an untitled scaffold publishes as an unnamed card\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py report --title \"<title>\" --out <path>.html\n"
+      }
+    }
+  }
+}
