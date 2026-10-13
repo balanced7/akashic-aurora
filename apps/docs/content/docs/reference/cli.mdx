@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 119 converted to agent and human output.
+121 verbs; 120 converted to agent and human output.
 
 ## `alias`
 
@@ -1105,11 +1105,29 @@ help[1]:
 | | |
 |---|---|
 | Does | THE EYE: the transcript plane as terrain -- ingest (incremental, coverage-honest), find (phrase, S0; the grammar lands S1), get (address -&gt; verbatim L0) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 91% before, 94% after |
+| Output tokens | 150 before, 153 after (+2%) |
+| AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/eye.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
 | `<eye_cmd>` | yes | ingest,find,get,freq,stats,overview,zoom,trace,standing,look,go,back,since,inherit,route |   |
+
+Agent output of `aurora eye find sword` on the bench data:
+
+```text
+total: 5
+tokens: 58
+hits[5]{event_id,voice,type,snippet}:
+  "session_alpha:1",operator,user,I want the fixture payrolls sword to be sharper every week
+  "session_alpha:2",agent,assistant,Understood - sharpening the fixture sword now.
+  "session_beta:1",operator,user,"beta session opening: the fixture sword idea again, third time"
+  "session_gamma:1",operator,user,"gamma opening: sharpen the gamma sword"
+  "session_beta:2",agent,assistant,Beta acknowledges the fixture sword.
+help[1]:
+  uv run agent_cli.py eye get session_alpha:1
+```
 
 ## `fence`
 

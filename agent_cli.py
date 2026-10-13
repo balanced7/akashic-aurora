@@ -4175,12 +4175,25 @@ def _route_tally(tally) -> str:
 
 def cmd_eye(args):
     """THE EYE's door (T278). S0: ingest / find / get. The grammar's facets land S1 on
-    these same subcommands -- one door, growing verbs, never a second surface."""
+    these same subcommands -- one door, growing verbs, never a second surface.
+
+    Every subcommand keeps its --json bytes; everything else prints for the current reader
+    (TOON for an agent, a rich view for a person). A refusal the old door wrote to stderr as
+    `[eye] 422: ...` is now a structured error on stdout in agent mode, with the same exit code:
+    an agent that cannot see stderr used to read an empty answer as "nothing there"."""
     import json as _json
 
+    from core.axi import out
     from core.eye import index as _EYE
 
-    if args.eye_cmd == "ingest":
+    cli = _cli()
+    cmd = args.eye_cmd
+
+    def refused(e, code="EYE_REFUSED", hints=()):
+        """The eye's 422: a malformed or unresolvable request, exit 2 as it always was."""
+        return out.fail(str(e), code=code, hints=list(hints), exit_code=out.EXIT_USAGE)
+
+    if cmd == "ingest":
         rep = _EYE.ingest()
         # The connectome rides ingest (0.7s on the full corpus): an edge table stale
         # against fresh events would answer `trace` with yesterday's ancestry and no way
@@ -4196,34 +4209,36 @@ def cmd_eye(args):
         if args.json:
             print(_json.dumps(rep, indent=1))
             return 0
-        print(
-            f"[eye] {rep['files_indexed']}/{rep['files_seen']} files | "
-            f"{rep['events_total']:,} events ({rep['events_new']:,} new"
-            + (f", {rep['events_backfilled']:,} backfilled" if rep.get("events_backfilled") else "")
-            + ") | "
-            f"unparsed {rep['lines_unparsed']}"
-        )
+        rc = 0 if rep["manifest_complete"] else 1
         _bk = rep["edges"]["by_kind"]
-        print(
-            f"[eye] connectome: {rep['edges']['edges_total']:,} edges "
-            f"({_bk.get('follows', 0):,} recorded, "
-            f"{_bk.get('same_utterance', 0):,} derived, "
-            f"{_bk.get('adjacent', 0):,} inferred)"
-        )
         _cov = rep["corpus"]
-        print(
-            "[eye] corpus: "
-            + " · ".join(f"{r['label']} {r['files']}" for r in _cov["roots"])
-            + f" = {_cov['total']} file(s)"
-            + f"  ({_cov['operator_bearing']} operator-bearing, "
-            f"{_cov['subagent_transcripts']} subagent)"
-        )
+        doc: dict[str, Any] = {
+            "complete": bool(rep["manifest_complete"]),
+            "files_indexed": rep["files_indexed"],
+            "files_seen": rep["files_seen"],
+            "events_total": rep["events_total"],
+            "events_new": rep["events_new"],
+        }
+        if rep.get("events_backfilled"):
+            doc["events_backfilled"] = rep["events_backfilled"]
+        doc["lines_unparsed"] = rep["lines_unparsed"]
+        doc["edges"] = {
+            "total": rep["edges"]["edges_total"],
+            "recorded": _bk.get("follows", 0),
+            "derived": _bk.get("same_utterance", 0),
+            "inferred": _bk.get("adjacent", 0),
+        }
+        doc["corpus_files"] = _cov["total"]
+        doc["operator_bearing"] = _cov["operator_bearing"]
+        doc["subagent"] = _cov["subagent_transcripts"]
+        doc["roots"] = [{"root": r["label"], "files": r["files"]} for r in _cov["roots"]]
         if not rep["manifest_complete"]:
-            print("[eye] COVERAGE GAP -- the index may NOT be read as whole:")
-            for f in rep["files_failed"]:
-                print(f"    {f['path']}: {f['why']}")
-        return 0 if rep["manifest_complete"] else 1
-    if args.eye_cmd == "find":
+            # The coverage gap is the finding: the index may NOT be read as whole.
+            doc["failed"] = [{"path": f["path"], "why": f["why"]} for f in rep["files_failed"]]
+        out.emit(doc, hints=[f"{cli} eye stats", f'{cli} eye find "<phrase>"'], human=_human_eye_ingest,
+                 title="The eye · ingest")  # fmt: skip
+        return rc
+    if cmd == "find":
         try:
             env = _EYE.find(
                 q=args.query or None,
@@ -4234,305 +4249,215 @@ def cmd_eye(args):
                 limit=args.limit,
             )
         except ValueError as e:
-            print(f"[eye] 422: {e}", file=sys.stderr)
-            return 2
+            return refused(e, "BAD_SELECTOR", [f"{cli} eye find --help"])
         if args.json:
             print(_json.dumps(env, indent=1))
             return 0
-        for h in env["results"]:
-            print(f"  {h['event_id']}  [{h['voice']}/{h['type']}]  {h['snippet']}")
-        tail = f"[eye] {len(env['results'])}/{env['total']} hit(s), ~{env['tokens_returned']} tok"
-        if env["as_of"]:
-            tail += f", as_of {env['as_of'][:10]}"
-        if env["degraded"]:
-            tail += f"  DEGRADED: {env['degraded_reason']}"
-        print(tail + f" -- drill: {_cli()} eye get <event_id>")
-        return 0
-    if args.eye_cmd == "freq":
+        return _emit_eye_find(args, env, cli)
+    if cmd == "freq":
         r = _EYE.freq(args.patterns)
         if args.json:
             print(_json.dumps(r, indent=1))
             return 0
         import datetime as _dt
 
-        span = ""
-        if r["first_ts"] and r["last_ts"]:
-            f = _dt.datetime.fromtimestamp(r["first_ts"]).strftime("%Y-%m-%d")
-            last_day = _dt.datetime.fromtimestamp(r["last_ts"]).strftime("%Y-%m-%d")
-            span = f"  span {f} -> {last_day}"
-        print(f"[eye freq] {' | '.join(args.patterns)!r}")
-        print(
-            f"  VERDICT: {r['verdict'].upper()}  -- {r['operator_events']} operator "
-            f"event(s) across {r['sessions']} session(s); "
-            f"{r['events_total']} total (by voice: {r['by_voice']}){span}"
-        )
-        for s in r["per_session"]:
-            if s["events"]:
-                print(
-                    f"    {s['session']}: {s['operator_events']} op / {s['events']} total"
-                    f"  refs: {', '.join(s['refs'][:3])}"
-                )
-        return 0
-    if args.eye_cmd == "zoom":
+        def day(ts):
+            return _dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d") if ts else None
+
+        doc = {
+            "verdict": r["verdict"],
+            "operator_events": r["operator_events"],
+            "sessions": r["sessions"],
+            "events_total": r["events_total"],
+            "by_voice": dict(r["by_voice"]) or "no event matches",
+            "first": day(r["first_ts"]),
+            "last": day(r["last_ts"]),
+        }
+        rows = [
+            {"session": s["session"], "operator": s["operator_events"], "events": s["events"],
+             "refs": " ".join(s["refs"][:3])}
+            for s in r["per_session"]
+            if s["events"]
+        ]  # fmt: skip
+        doc["per_session"] = rows or "no session mentions it"
+        hints = [f"{cli} eye get {rows[0]['refs'].split()[0]}"] if rows else [f"{cli} eye stats"]
+        return out.emit(doc, hints=hints, title=f"The eye · freq · {r['verdict'].upper()}")
+    if cmd == "zoom":
         from core.eye import pyramid as _PYR
 
+        built = None
         if args.rebuild or not _PYR.nodes():
-            rep = _PYR.build()
-            print(
-                f"[eye] pyramid built: {rep['l1_nodes']} exchanges, "
-                f"{rep['l2_nodes']} digests across {rep['sessions']} sessions"
-            )
+            built = _PYR.build()
+            if args.json:  # --json keeps its old bytes: the build line, then the JSON
+                print(
+                    f"[eye] pyramid built: {built['l1_nodes']} exchanges, "
+                    f"{built['l2_nodes']} digests across {built['sessions']} sessions"
+                )
         try:
             z = _PYR.zoom(args.addr)
         except ValueError as e:
-            print(f"[eye] 422: {e}", file=sys.stderr)
-            return 2
+            return refused(e, "NOT_FOUND", [f"{cli} eye overview"])
         if args.json:
             print(_json.dumps(z, indent=1))
             return 0
-        stale = "  [STALE -- rebuild to clear the fog]" if z["is_stale"] else ""
-        print(f"# {z['node_id']}  ({z['level']}, ~{z['tokens']} tok){stale}")
-        print(z["text"])
+        doc = {"node": z["node_id"], "level": z["level"], "tokens": z["tokens"], "stale": bool(z["is_stale"])}
+        if built is not None:
+            doc["pyramid_built"] = {"exchanges": built["l1_nodes"], "digests": built["l2_nodes"],
+                                    "sessions": built["sessions"]}  # fmt: skip
+        doc["text"] = out.truncate(z["text"], 800)[0]
         if z["children"]:
-            print(f"  children: {', '.join(z['children'][:6])}" + (" …" if len(z["children"]) > 6 else ""))
+            doc["children_total"] = len(z["children"])
+            doc["children"] = z["children"][:6]
         if z["level"] == "L1":
-            print(f"  refs: {', '.join(z['refs'][:6])}")
-        return 0
-    if args.eye_cmd in ("look", "go", "back", "since", "inherit"):
+            doc["refs"] = z["refs"][:6]
+        hints = []
+        if z["children"]:
+            hints.append(f"{cli} eye zoom {z['children'][0]}")
+        if z["level"] == "L1" and z["refs"]:
+            hints.append(f"{cli} eye get {z['refs'][0]}")
+        if z["is_stale"]:
+            hints.append(f"{cli} eye zoom {args.addr} --rebuild")
+        return out.emit(doc, hints=hints, title=f"The eye · {z['node_id']}")
+    if cmd in ("look", "go", "back", "since", "inherit"):
         from core.eye import position as _POS
 
         seat = args.seat or _POS.whoami(args.agent or "claude")
         try:
-            if args.eye_cmd == "go":
+            if cmd == "go":
                 p = _POS.go(seat, args.addr)
-                print(f"[eye] {seat} -> {p['addr']}" + (f"  (trail {len(p['trail'])} deep)" if p["trail"] else ""))
-                return 0
-            if args.eye_cmd == "back":
+                if args.json:  # go/back/inherit never had a JSON form; --json keeps the old line
+                    print(f"[eye] {seat} -> {p['addr']}" + (f"  (trail {len(p['trail'])} deep)" if p["trail"] else ""))
+                    return 0
+                return out.emit({"seat": seat, "at": p["addr"], "trail_depth": len(p["trail"])},
+                                hints=[f"{cli} eye look"], title="The eye · moved")  # fmt: skip
+            if cmd == "back":
                 p = _POS.back(seat)
-                print(
-                    f"[eye] {seat} -> {p['addr']}" + ("  (already at the trail origin)" if p["at_trail_origin"] else "")
-                )
-                return 0
-            if args.eye_cmd == "inherit":
+                if args.json:
+                    print(
+                        f"[eye] {seat} -> {p['addr']}"
+                        + ("  (already at the trail origin)" if p["at_trail_origin"] else "")
+                    )
+                    return 0
+                return out.emit({"seat": seat, "at": p["addr"], "at_trail_origin": bool(p["at_trail_origin"])},
+                                hints=[f"{cli} eye look"], title="The eye · back")  # fmt: skip
+            if cmd == "inherit":
                 p = _POS.inherit(seat, args.from_seat)
-                print(f"[eye] {seat} inherited {p['addr']} from {args.from_seat}")
-                return 0
-            if args.eye_cmd == "since":
+                if args.json:
+                    print(f"[eye] {seat} inherited {p['addr']} from {args.from_seat}")
+                    return 0
+                return out.emit({"seat": seat, "at": p["addr"], "inherited_from": args.from_seat},
+                                hints=[f"{cli} eye look"], title="The eye · inherited")  # fmt: skip
+            if cmd == "since":
                 d = _POS.since(seat)
                 if args.json:
                     print(_json.dumps(d, indent=1))
                     return 0
-                print(
-                    f"[eye since] at {d['addr']} -- {d['events_added']:,} event(s) "
-                    f"newly knowable across {d['sessions_touched']} session(s) "
-                    f"({d['operator_events']} operator), {d['edges_formed']:,} edge(s) formed"
-                )
+                doc = {
+                    "seat": seat,
+                    "at": d["addr"],
+                    "events_added": d["events_added"],
+                    "sessions_touched": d["sessions_touched"],
+                    "operator_events": d["operator_events"],
+                    "edges_formed": d["edges_formed"],
+                }
                 if d["degraded"]:
-                    print(f"  [FOG] {d['degraded_reason']}")
-                return 0
+                    doc["fog"] = d["degraded_reason"]
+                return out.emit(doc, title="The eye · since you were here")
             v = _POS.look(seat)
         except ValueError as e:
-            print(f"[eye] 422: {e}", file=sys.stderr)
-            return 2
+            return refused(e, "NO_POSITION" if "no position" in str(e) else "EYE_REFUSED",
+                           [f"{cli} eye go <session:line>", f'{cli} eye find "<phrase>"'])  # fmt: skip
         if args.json:
             print(_json.dumps(v, indent=1))
             return 0
-        n = v["node"]
-        stale = v["heat"]["staleness_s"]
-        print(f"# YOU ARE AT {v['addr']}  [{n['voice']}/{n['type']}]  ~{v['tokens']} tok")
-        if v["inherited_from"]:
-            print(f"  (standpoint inherited from {v['inherited_from']})")
-        print(f"  {n['text'][:400]}")
-        print(
-            f"  heat: staleness {stale / 3600:.1f}h | "
-            f"{v['heat']['session_events_after']} event(s) later in this session | "
-            f"credit UNKNOWN (this plane has no funnel)"
-            if stale is not None
-            else "  heat: staleness UNKNOWN (no timestamp)"
-        )
-        if len(v["same_utterance"]) > 1:
-            print(f"  one utterance, {len(v['same_utterance'])} record(s)")
-        for nb in v["neighbors"]:
-            print(f"    - [{nb['evidence']}/{nb['edge_kind']}] {nb['voice']}: {nb['snippet'][:88]}")
-        print(f"  exits: {len(v['exits'])}  (drill: {_cli()} eye trace {v['addr']})")
-        return 0
-    if args.eye_cmd == "standing":
+        return _emit_eye_look(v, cli)
+    if cmd == "standing":
         from core.eye import directives as _DIR
 
         rep = _DIR.unheeded(limit=args.limit)
         if args.json:
             print(_json.dumps(rep, indent=1))
             return 0
+        doc = {"examined": rep["checked"], "unheeded": len(rep["items"])}
+        if rep["withheld"]:
+            doc["withheld_by_cap"] = rep["withheld"]
         if rep["clear"]:
-            print(
-                f"[eye standing] nothing unheeded -- {rep['checked']} recurring "
-                f"directive(s) examined, all cited by some durable plane"
-            )
-            return 0
-        print(
-            f"[eye standing] {len(rep['items'])} recurring directive(s) that NO durable "
-            f"plane cites  ({rep['checked']} examined"
-            + (f", {rep['withheld']} withheld by the cap" if rep["withheld"] else "")
-            + ")"
-        )
-        for i in rep["items"]:
-            print(f"  [{i['shape']}] said in {i['sessions']} session(s), {i['utterances']} utterance(s)")
-            print(f'      "{i["phrase"]}"')
-            print(f"      check it: {_cli()} eye get {i['refs'][0]}")
-        print(
-            "  (this instrument PROPOSES -- it files nothing. Known false-positive "
-            "class: agent-authored briefs pasted into a fresh seat read as operator "
-            "speech.)"
-        )
-        return 0
-    if args.eye_cmd == "trace":
+            doc["directives"] = "none: every recurring directive examined is cited by some durable plane"
+            return out.emit(doc, title="The eye · standing directives")
+        doc["directives"] = [
+            {"shape": i["shape"], "sessions": i["sessions"], "utterances": i["utterances"],
+             "phrase": out.truncate(i["phrase"], 300)[0], "ref": i["refs"][0]}
+            for i in rep["items"]
+        ]  # fmt: skip
+        doc["note"] = "proposals only; false positives: agent briefs pasted into a fresh seat read as operator speech"
+        hints = [f"{cli} eye get {rep['items'][0]['refs'][0]}"]
+        if rep["withheld"]:
+            hints.append(f"{cli} eye standing --limit {args.limit + rep['withheld']}")
+        return out.emit(doc, hints=hints, human=_human_eye_standing, title="The eye · standing directives")
+    if cmd == "trace":
         from core.eye import connectome as _CONN
 
         if not _CONN.edges():
-            print(
-                f"[eye] the connectome is empty -- run `{_cli()} eye ingest` first (it builds the edges)",
-                file=sys.stderr,
-            )
-            return 2
+            return refused("the connectome is empty: eye ingest builds the edges", "NO_EDGES", [f"{cli} eye ingest"])
         try:
             t = _CONN.trace(args.event_id, depth=args.depth, formed_via=args.formed_via or None)
         except ValueError as e:
-            print(f"[eye] 422: {e}", file=sys.stderr)
-            return 2
+            return refused(e, "NOT_FOUND", [f'{cli} eye find "<phrase>"'])
         if args.json:
             print(_json.dumps(t, indent=1))
             return 0
-        n = t["node"]
-        print(f"# {n['event_id']}  ({n['voice']}, {n['type']})")
-        print(f"  {n['text'][:200]}")
-        if len(t["same_utterance"]) > 1:
-            print(f"  one utterance, {len(t['same_utterance'])} record(s): {', '.join(t['same_utterance'])}")
-        if t["bridged_via"]:
-            print(f"  reached the chain through its twin at {t['bridged_via']}")
-
-        def _render(rows, label):
-            if not rows:
-                print(f"  {label}: (none)")
-                return
-            print(f"  {label}:")
-            for r in rows:
-                gap = f", {r['hops'] - 1} silent record(s) between" if (r.get("hops") or 1) > 1 else ""
-                print(f"    [{r['evidence']}/{r['edge_kind']}{gap}] {r['voice'] or '?'}: {(r['snippet'] or '')[:90]}")
-
-        _render(t["upstream"], "UPSTREAM (where this came from)")
-        _render(t["downstream"], "DOWNSTREAM (what followed)")
-        if t["degraded"]:
-            print(f"  [FOG] {t['degraded_reason']}")
-        return 0
-    if args.eye_cmd == "stats":
+        return _emit_eye_trace(t, cli)
+    if cmd == "stats":
         s = _EYE.stats()
         if args.json:
             print(_json.dumps(s, indent=1))
             return 0
-        print(
-            f"[eye stats] {s['events_total']:,} events | {s['sessions']} sessions | "
-            f"time-fog {s['time_fog']:.1%} ({s['ts_missing']} timeless)"
-        )
-        print(f"  by voice: {s['by_voice']}")
-        print(f"  by kind:  {s['by_kind']}")
-        return 0
-    if args.eye_cmd == "overview":
+        doc = {
+            "events_total": s["events_total"],
+            "sessions": s["sessions"],
+            "time_fog": f"{s['time_fog']:.1%}",
+            "timeless": s["ts_missing"],
+            "by_voice": dict(s["by_voice"]) or "none",
+            "by_kind": dict(s["by_kind"]) or "none",
+        }
+        hints = [f"{cli} eye ingest"] if not s["events_total"] else []
+        return out.emit(doc, hints=hints, title="The eye · stats")
+    if cmd == "overview":
         o = _EYE.overview()
         if args.json:
             print(_json.dumps(o, indent=1))
             return 0
         import datetime as _dt
 
+        rows = []
         for srow in o["sessions"]:
             span = "timeless"
             if srow["first_ts"]:
-                f = _dt.datetime.fromtimestamp(srow["first_ts"]).strftime("%m-%d")
-                last_day = _dt.datetime.fromtimestamp(srow["last_ts"]).strftime("%m-%d")
-                span = f"{f}->{last_day}"
-            print(f"  {srow['session'][:24]:<24} {srow['events']:>6} ev ({srow['operator_events']} op)  {span}")
-        print(f"[eye overview] {len(o['sessions'])} sessions")
-        return 0
-    if args.eye_cmd == "route":
-        from core.eye import routes as _RT
-
-        if args.route_action == "ls":
-            rows = _RT.list_routes()
-            if args.json:
-                print(_json.dumps(rows, indent=1))
-                return 0
-            if not rows:
-                print("[eye route] no strings tied yet -- `eye route save NAME --steps-file F` ties the first one")
-                return 0
-            for r in rows:
-                # T335 s2, clause 7: this is the surface a seat reads BEFORE choosing a
-                # route, so a bare walked=N is the ambiguous number at the exact moment
-                # someone decides whether the string is worth walking.
-                try:
-                    tally = _route_tally(_RT.walks(r["route_id"]))
-                except Exception:
-                    tally = "UNKNOWN (tally unavailable)"
-                print(
-                    f"  {r['name']:<32} [{r['status']}] steps={r['steps']} "
-                    f"walked={r['walk_count']} ({tally})  by {r['by']}  "
-                    f"{r['route_id']}"
-                )
-            return 0
-        if args.route_action == "save":
-            if not args.name or not args.steps_file:
-                print("[eye route] save needs NAME and --steps-file (a JSON array of steps)", file=sys.stderr)
-                return 2
-            with open(args.steps_file, encoding="utf-8") as f:
-                steps = _json.loads(f.read())
-            rid = _RT.save(args.name, steps, by=args.by)
-            print(
-                f"[eye route] tied: {args.name!r} = {rid} ({len(steps)} step(s)) -- "
-                f"walk it: {_cli()} eye route walk {args.name!r}"
-            )
-            return 0
-        if args.route_action == "walk":
-            if not args.name:
-                print("[eye route] walk needs NAME (see: eye route ls)", file=sys.stderr)
-                return 2
-            w = _RT.walk(args.name, resolve=args.resolve, drill=args.drill, by=args.by)
-            if args.json:
-                print(_json.dumps(w, indent=1))
-                return 0
-            # T335 s2, clause 7: the total never travels alone. `this:` is the walk that just
-            # ran; `history:` is every walk before it, with UNKNOWN kept as its own bucket
-            # rather than folded into `listed` -- backfilling a depth nobody recorded would be
-            # the guess s1 refused to make at the read side, committed at the render side.
-            print(f"# route {w['name']}  [{w['status']}]  walk #{w['walk_count']}  {w['route_id']}")
-            print(
-                f"  this walk: {w['depth']}  "
-                f"({w['legs_drilled']}/{w['legs_shown']} legs drilled)   "
-                f"history: {_route_tally(w['tally'])}"
-            )
-            for s in w["steps"]:
-                res = f"  <{s['resolution']}>" if "resolution" in s else ""
-                dead = f"  IS-NOT: {', '.join(s['is_not'])}" if s["is_not"] else ""
-                print(f"  {s['id']:>3} [{s['type']:<19}] {s['target']:<44}{res}")
-                if s["note"]:
-                    print(f"      {s['note']}{dead}")
-                elif dead:
-                    print(f"      {dead.strip()}")
-            print(f"  (drill any leg: {_cli()} eye get <target>)")
-            return 0
-        return 2
-    if args.eye_cmd == "get":
+                f = _dt.datetime.fromtimestamp(srow["first_ts"]).strftime("%Y-%m-%d")
+                last_day = _dt.datetime.fromtimestamp(srow["last_ts"]).strftime("%Y-%m-%d")
+                span = f if f == last_day else f"{f}..{last_day}"
+            rows.append({"session": srow["session"], "events": srow["events"],
+                         "operator": srow["operator_events"], "span": span})  # fmt: skip
+        doc = {"total": len(rows), "sessions": rows or "no session indexed"}
+        hints = [f"{cli} eye zoom {rows[0]['session']}"] if rows else [f"{cli} eye ingest"]
+        return out.emit(doc, hints=hints, title="The eye · overview")
+    if cmd == "route":
+        return _eye_route(args, cli)
+    if cmd == "get":
         try:
             ev = _EYE.get_event(args.event_id)
         except ValueError as e:
             # T361: ambiguity is a REFUSAL with candidates, never "no event" -- an
             # unresolvable address must not render as an absence claim about the record.
-            print(f"[eye] 422: {e}", file=sys.stderr)
-            return 2
+            return refused(e, "AMBIGUOUS", [f'{cli} eye find "<phrase>"'])
         if ev is None:
-            print(
-                f"[eye] no event at {args.event_id!r} -- the address is session:line "
-                "(full id or a unique sid8 prefix; get one from eye find)",
-                file=sys.stderr,
+            return out.fail(
+                f"no event at {args.event_id!r}: the address is session:line (full id or a unique sid8 prefix)",
+                code="NOT_FOUND",
+                hints=[f'{cli} eye find "<phrase>"'],
+                exit_code=out.EXIT_USAGE,
+                details={"found": False},
             )
-            return 2
         # A citation resolves to an UTTERANCE, not to a row. The harness records one
         # operator turn several times over, so an address is one witness among several
         # -- naming its siblings is what lets a citation be checked rather than trusted
@@ -4543,12 +4468,304 @@ def cmd_eye(args):
         if args.json:
             print(_json.dumps(ev, indent=1))
             return 0
-        print(f"# {ev['event_id']}  [{ev['voice']}/{ev['type']}]  session={ev['session']} line={ev['line']}")
-        print(ev["text"])
-        if len(ev["same_utterance"]) > 1:
-            others = [e for e in ev["same_utterance"] if e != ev["event_id"]]
-            print(f"\n[eye] the same utterance is also recorded at: {', '.join(others)}")
-        return 0
+        # The verbatim record is what this door is for, so the cut is generous; --json is whole.
+        text, cut = out.truncate(ev["text"], 4000)
+        doc = {"event": ev["event_id"], "voice": ev["voice"], "type": ev["type"], "session": ev["session"],
+               "line": ev["line"]}  # fmt: skip
+        others = [e for e in ev["same_utterance"] if e != ev["event_id"]]
+        if others:
+            doc["same_utterance_also_at"] = others
+        doc["text"] = text
+        hints = [f"{cli} eye get {args.event_id} --json"] if cut else []
+        return out.emit(doc, hints=hints, human=_human_eye_get, title=f"The eye · {ev['event_id']}")
+    return 2
+
+
+def _emit_eye_find(args, env: dict, cli: str) -> int:
+    """`eye find` for the current reader: the hit count against the total (a --limit cut says
+    so), the facets that narrowed it, then one row per hit with the address to drill."""
+    from core.axi import out
+
+    hits = env["results"]
+    doc: dict[str, Any] = {}
+    facets = {k: v for k, v in (("who", args.who), ("kind", args.kind), ("session", args.session),
+                                ("as_of", env["as_of"])) if v}  # fmt: skip
+    if facets:
+        doc["facets"] = facets
+    doc["total"] = env["total"]
+    if len(hits) < env["total"]:
+        doc["shown"] = len(hits)
+    doc["tokens"] = env["tokens_returned"]
+    if env["degraded"]:
+        doc["degraded"] = env["degraded_reason"]
+    doc["hits"] = [
+        {
+            "event_id": h["event_id"],
+            "voice": h["voice"],
+            "type": h["type"],
+            "snippet": out.truncate(h["snippet"], 200)[0],
+        }
+        for h in hits
+    ] or "no event matches"
+    q = _quote_arg(args.query)
+    hints = []
+    if hits:
+        hints.append(f"{cli} eye get {hits[0]['event_id']}")
+    if "shown" in doc:
+        hints.append(f"{cli} eye find {q} --limit {env['total']}".replace("  ", " "))
+    if not hits:
+        hints.append(f"{cli} eye stats")
+    return out.emit(doc, hints=hints, human=_human_eye_find, title="The eye · find")
+
+
+def _human_eye_find(console, doc):
+    """Human view of `eye find`: the count first, then one line per hit -- address, voice in
+    colour, the snippet."""
+    from core.axi import out
+
+    shown = f"{doc['shown']} of " if "shown" in doc else ""
+    console.print(f"[bold]{shown}{doc['total']}[/] hit{'s' if doc['total'] != 1 else ''} "
+                  f"[dim](~{doc['tokens']} tok)[/]")  # fmt: skip
+    if doc.get("degraded"):
+        console.print(f"[yellow]degraded: {out._esc(str(doc['degraded']))}[/]")
+    if isinstance(doc["hits"], str):
+        console.print(f"[dim]{out._esc(doc['hits'])}[/]")
+        return
+    for h in doc["hits"]:
+        console.print(f"  [cyan]{out._esc(h['event_id'])}[/]  {_eye_voice(h['voice'])}/{out._esc(h['type'])}  "
+                      f"{out._esc(h['snippet'])}")  # fmt: skip
+
+
+def _eye_voice(voice) -> str:
+    """A voice in the colour a reader scans for: the operator's words stand out."""
+    from core.axi import out
+
+    colour = {"operator": "bold green", "agent": "cyan", "system": "dim"}.get(str(voice), "white")
+    return f"[{colour}]{out._esc(str(voice or '?'))}[/]"
+
+
+def _human_eye_ingest(console, doc):
+    """Human view of `eye ingest`: coverage first (green whole, red gap), then what it found."""
+    from core.axi import out
+
+    colour = "green" if doc["complete"] else "red"
+    word = "complete" if doc["complete"] else "COVERAGE GAP -- the index may NOT be read as whole"
+    console.print(f"[{colour}]{word}[/]: {doc['files_indexed']}/{doc['files_seen']} files, "
+                  f"[bold]{doc['events_total']:,}[/] events ({doc['events_new']:,} new), "
+                  f"{doc['lines_unparsed']} unparsed")  # fmt: skip
+    e = doc["edges"]
+    console.print(f"connectome: [bold]{e['total']:,}[/] edges ({e['recorded']:,} recorded, "
+                  f"{e['derived']:,} derived, {e['inferred']:,} inferred)")  # fmt: skip
+    roots = " · ".join(f"{out._esc(r['root'])} {r['files']}" for r in doc["roots"])
+    console.print(f"corpus: {roots} = {doc['corpus_files']} file(s) "
+                  f"[dim]({doc['operator_bearing']} operator-bearing, {doc['subagent']} subagent)[/]")  # fmt: skip
+    for f in doc.get("failed") or []:
+        console.print(f"  [red]✗[/] {out._esc(f['path'])}: {out._esc(f['why'])}")
+
+
+def _emit_eye_look(v: dict, cli: str) -> int:
+    """`eye look`: where the seat stands, how warm it is, and the neighbours one step away."""
+    from core.axi import out
+
+    n = v["node"]
+    stale = v["heat"]["staleness_s"]
+    doc: dict[str, Any] = {"seat": v["seat"], "at": v["addr"], "voice": n["voice"], "type": n["type"],
+                           "tokens": v["tokens"]}  # fmt: skip
+    if v["inherited_from"]:
+        doc["inherited_from"] = v["inherited_from"]
+    doc["text"] = out.truncate(n["text"], 400)[0]
+    doc["staleness_h"] = round(stale / 3600, 1) if stale is not None else "UNKNOWN (no timestamp)"
+    doc["later_in_session"] = v["heat"]["session_events_after"]
+    doc["credit"] = "UNKNOWN (this plane has no funnel)"
+    if len(v["same_utterance"]) > 1:
+        doc["same_utterance_records"] = len(v["same_utterance"])
+    doc["neighbors"] = [
+        {"event_id": nb["event_id"], "evidence": nb["evidence"], "edge": nb["edge_kind"], "voice": nb["voice"],
+         "snippet": (nb["snippet"] or "")[:88]}
+        for nb in v["neighbors"]
+    ] or "none"  # fmt: skip
+    doc["exits"] = len(v["exits"])
+    hints = [f"{cli} eye trace {v['addr']}"]
+    if v["neighbors"]:
+        hints.append(f"{cli} eye go {v['neighbors'][0]['event_id']}")
+    return out.emit(doc, hints=hints, title=f"The eye · you are at {v['addr']}")
+
+
+def _emit_eye_trace(t: dict, cli: str) -> int:
+    """`eye trace`: the node, then where it came from and what followed, every edge saying how
+    it is known; a walk that crossed an inferred edge carries its fog."""
+    from core.axi import out
+
+    n = t["node"]
+
+    def rows(side):
+        # The silent-records gap is a column only on a side that has one: an all-zero column
+        # is tokens spent saying nothing.
+        gaps = any((r.get("hops") or 1) > 1 for r in side)
+        table = []
+        for r in side:
+            row = {"event_id": r["event_id"], "evidence": r["evidence"], "edge": r["edge_kind"]}
+            if gaps:
+                row["silent_between"] = max(0, (r.get("hops") or 1) - 1)
+            row["voice"] = r["voice"] or "?"
+            row["snippet"] = (r["snippet"] or "")[:90]
+            table.append(row)
+        return table or "none"
+
+    doc: dict[str, Any] = {"node": n["event_id"], "voice": n["voice"], "type": n["type"],
+                           "text": out.truncate(n["text"], 200)[0]}  # fmt: skip
+    if len(t["same_utterance"]) > 1:
+        doc["same_utterance"] = t["same_utterance"]  # one utterance, recorded this many times
+    if t["bridged_via"]:
+        doc["bridged_via"] = t["bridged_via"]
+    doc["upstream"] = rows(t["upstream"])
+    doc["downstream"] = rows(t["downstream"])
+    if t["degraded"]:
+        doc["fog"] = t["degraded_reason"]
+    first = (t["upstream"] or t["downstream"] or [None])[0]
+    hints = [f"{cli} eye get {first['event_id']}"] if first else []
+    return out.emit(doc, hints=hints, human=_human_eye_trace, title=f"The eye · trace {n['event_id']}")
+
+
+def _human_eye_trace(console, doc):
+    """Human view of `eye trace`: the node, then UPSTREAM and DOWNSTREAM as indented lines with
+    inferred edges in yellow, and the fog last."""
+    from core.axi import out
+
+    console.print(f"[bold]{out._esc(doc['node'])}[/]  {_eye_voice(doc['voice'])}/{out._esc(doc['type'])}")
+    console.print(f"  {out._esc(doc['text'])}")
+    if doc.get("same_utterance"):
+        console.print(f"  [dim]one utterance, {len(doc['same_utterance'])} records: "
+                      f"{out._esc(', '.join(doc['same_utterance']))}[/]")  # fmt: skip
+    if doc.get("bridged_via"):
+        console.print(f"  [dim]reached the chain through its twin at {out._esc(doc['bridged_via'])}[/]")
+    for label, key in (("UPSTREAM (where this came from)", "upstream"), ("DOWNSTREAM (what followed)", "downstream")):
+        side = doc[key]
+        if isinstance(side, str):
+            console.print(f"[bold]{label}[/]: [dim]none[/]")
+            continue
+        console.print(f"[bold]{label}[/]")
+        for r in side:
+            colour = "yellow" if r["evidence"] == "inferred" else "green"
+            gap = f", {r['silent_between']} silent between" if r.get("silent_between") else ""
+            console.print(f"  [{colour}]{out._esc(r['evidence'])}/{out._esc(r['edge'])}{gap}[/] "
+                          f"[cyan]{out._esc(r['event_id'])}[/] {_eye_voice(r['voice'])}: {out._esc(r['snippet'])}")  # fmt: skip
+    if doc.get("fog"):
+        console.print(f"[yellow]fog: {out._esc(doc['fog'])}[/]")
+
+
+def _human_eye_standing(console, doc):
+    """Human view of `eye standing`: how many recurring directives nothing cites, then each
+    phrase in quotes with the address to check it."""
+    from core.axi import out
+
+    console.print(f"[yellow]{doc['unheeded']} recurring directive(s)[/] that no durable plane cites "
+                  f"[dim]({doc['examined']} examined)[/]")  # fmt: skip
+    for d in doc["directives"]:
+        console.print(f"  [bold]{out._esc(d['shape'])}[/] said in {d['sessions']} session(s), "
+                      f"{d['utterances']} utterance(s)")  # fmt: skip
+        console.print(f'      "{out._esc(d["phrase"])}"  [dim]{out._esc(d["ref"])}[/]')
+    console.print(f"[dim]{out._esc(doc['note'])}[/]")
+
+
+def _human_eye_get(console, doc):
+    """Human view of `eye get`: the address and voice, the verbatim text, then its twins."""
+    from core.axi import out
+
+    console.print(f"[bold]{out._esc(doc['event'])}[/]  {_eye_voice(doc['voice'])}/{out._esc(doc['type'])}  "
+                  f"[dim]session={out._esc(str(doc['session']))} line={doc['line']}[/]")  # fmt: skip
+    console.print(out._esc(doc["text"]))
+    if doc.get("same_utterance_also_at"):
+        console.print(f"[dim]the same utterance is also recorded at: "
+                      f"{out._esc(', '.join(doc['same_utterance_also_at']))}[/]")  # fmt: skip
+
+
+def _eye_route(args, cli: str) -> int:
+    """`eye route ls | save | walk`: the register of tied strings, tying one, walking one."""
+    import json as _json
+
+    from core.axi import out
+    from core.eye import routes as _RT
+
+    if args.route_action == "ls":
+        rows = _RT.list_routes()
+        if args.json:
+            print(_json.dumps(rows, indent=1))
+            return 0
+        table = []
+        for r in rows:
+            # T335 s2, clause 7: this is the surface a seat reads BEFORE choosing a
+            # route, so a bare walked=N is the ambiguous number at the exact moment
+            # someone decides whether the string is worth walking.
+            try:
+                tally = _route_tally(_RT.walks(r["route_id"]))
+            except Exception:
+                tally = "UNKNOWN (tally unavailable)"
+            table.append({"name": r["name"], "status": r["status"], "steps": r["steps"], "walked": r["walk_count"],
+                          "history": tally, "by": r["by"], "route_id": r["route_id"]})  # fmt: skip
+        if not table:
+            return out.emit({"total": 0, "routes": "no strings tied yet"},
+                            hints=[f"{cli} eye route save <name> --steps-file <steps.json>"],
+                            title="The eye · routes")  # fmt: skip
+        return out.emit({"total": len(table), "routes": table},
+                        hints=[f"{cli} eye route walk {_quote_arg(table[0]['name'])}"],
+                        title="The eye · routes")  # fmt: skip
+    if args.route_action == "save":
+        if not args.name or not args.steps_file:
+            return out.fail(
+                "save needs NAME and --steps-file (a JSON array of steps)",
+                code="USAGE",
+                hints=[f"{cli} eye route save <name> --steps-file <steps.json>"],
+                exit_code=out.EXIT_USAGE,
+            )
+        with open(args.steps_file, encoding="utf-8") as f:
+            steps = _json.loads(f.read())
+        try:
+            rid = _RT.save(args.name, steps, by=args.by)
+        except ValueError as e:
+            return out.fail(str(e), code="USAGE", hints=[f"{cli} eye route --help"], exit_code=out.EXIT_USAGE)
+        walk = f"{cli} eye route walk {_quote_arg(args.name)}"
+        if args.json:  # save never had a JSON form; --json keeps the old line
+            print(f"[eye route] tied: {args.name!r} = {rid} ({len(steps)} step(s)) -- walk it: {walk}")
+            return 0
+        return out.emit({"tied": args.name, "route_id": rid, "steps": len(steps)}, hints=[walk],
+                        title="The eye · route tied")  # fmt: skip
+    if args.route_action == "walk":
+        if not args.name:
+            return out.fail("walk needs NAME", code="USAGE", hints=[f"{cli} eye route ls"], exit_code=out.EXIT_USAGE)
+        try:
+            w = _RT.walk(args.name, resolve=args.resolve, drill=args.drill, by=args.by)
+        except KeyError as e:
+            return out.fail(str(e).strip("'\""), code="NOT_FOUND", hints=[f"{cli} eye route ls"],
+                            exit_code=out.EXIT_USAGE)  # fmt: skip
+        if args.json:
+            print(_json.dumps(w, indent=1))
+            return 0
+        # T335 s2, clause 7: the total never travels alone. `this_walk` is the walk that just
+        # ran; `history` is every walk before it, with UNKNOWN kept as its own bucket rather
+        # than folded into `listed` -- backfilling a depth nobody recorded would be the guess
+        # s1 refused to make at the read side, committed at the render side.
+        doc: dict[str, Any] = {
+            "route": w["name"],
+            "status": w["status"],
+            "walk": w["walk_count"],
+            "route_id": w["route_id"],
+            "this_walk": w["depth"],
+            "legs_drilled": w["legs_drilled"],
+            "legs_shown": w["legs_shown"],
+            "history": _route_tally(w["tally"]),
+        }
+        steps = []
+        for s in w["steps"]:
+            row = {"id": s["id"], "type": s["type"], "target": s["target"]}
+            if "resolution" in s:
+                row["resolution"] = s["resolution"]
+            row["note"] = s["note"] or ""
+            row["is_not"] = ", ".join(s["is_not"]) if s["is_not"] else ""
+            steps.append(row)
+        doc["steps"] = steps or "none"
+        hints = [f"{cli} eye get {w['steps'][0]['target']}"] if w["steps"] else []
+        return out.emit(doc, hints=hints, title=f"The eye · route {w['name']}")
     return 2
 
 

@@ -1,0 +1,344 @@
+{
+  "verb": "eye",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 0.914,
+    "correct": 32,
+    "asked": 35,
+    "output_tokens": 150,
+    "stdout_chars": 2394,
+    "stdout_lines": 33,
+    "cost_usd": 0.0346,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "4/6",
+    "questions": [
+      {
+        "q": "How many events match the phrase in total?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Are all of the matching events listed in this output? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many indexed events are in the operator voice?",
+        "expected": 23,
+        "answers": [
+          "23",
+          "23",
+          "4+",
+          "23",
+          "23"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "What verdict did the frequency check reach? Give the verdict only.",
+        "expected": "standing-directive",
+        "answers": [
+          "STANDING-DIRECTIVE",
+          "STANDING-DIRECTIVE",
+          "STANDING-DIRECTIVE",
+          "STANDING-DIRECTIVE",
+          "STANDING-DIRECTIVE"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records make up the same utterance as the traced event?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which recurring directive does no durable plane cite? Quote the phrase.",
+        "expected": "always fence the migration path before shipping it",
+        "answers": [
+          "always fence the migration path before shipping it",
+          "always fence the migration path before shipping it",
+          "always fence the migration path before shipping it",
+          "always fence the migration path before shipping it",
+          "always fence the migration path before shipping it"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was an event found at the address? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "UNKNOWN",
+          "no",
+          "UNKNOWN",
+          "no"
+        ],
+        "correct": 3
+      }
+    ],
+    "runs": {
+      "find": {
+        "argv": [
+          "eye",
+          "find",
+          "sword"
+        ],
+        "exit": 0,
+        "stdout": "  session_alpha:1  [operator/user]  I want the fixture payrolls sword to be sharper every week\n  session_alpha:2  [agent/assistant]  Understood - sharpening the fixture sword now.\n  session_beta:1  [operator/user]  beta session opening: the fixture sword idea again, third time\n  session_gamma:1  [operator/user]  gamma opening: sharpen the gamma sword\n  session_beta:2  [agent/assistant]  Beta acknowledges the fixture sword.\n[eye] 5/5 hit(s), ~58 tok -- drill: uv run agent_cli.py eye get <event_id>\n"
+      },
+      "find_cut": {
+        "argv": [
+          "eye",
+          "find",
+          "sword",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "  session_alpha:1  [operator/user]  I want the fixture payrolls sword to be sharper every week\n  session_alpha:2  [agent/assistant]  Understood - sharpening the fixture sword now.\n[eye] 2/5 hit(s), ~25 tok -- drill: uv run agent_cli.py eye get <event_id>\n"
+      },
+      "stats": {
+        "argv": [
+          "eye",
+          "stats"
+        ],
+        "exit": 0,
+        "stdout": "[eye stats] 40 events | 8 sessions | time-fog 0.0% (0 timeless)\n  by voice: {'agent': 13, 'operator': 23, 'system': 4}\n  by kind:  {'assistant': 13, 'queue-operation': 9, 'system': 1, 'user': 17}\n"
+      },
+      "freq": {
+        "argv": [
+          "eye",
+          "freq",
+          "sword"
+        ],
+        "exit": 0,
+        "stdout": "[eye freq] 'sword'\n  VERDICT: STANDING-DIRECTIVE  -- 3 operator event(s) across 3 session(s); 5 total (by voice: {'operator': 3, 'agent': 2})  span 2026-08-01 -> 2026-08-02\n    session_alpha: 1 op / 2 total  refs: session_alpha:1, session_alpha:2\n    session_beta: 1 op / 2 total  refs: session_beta:1, session_beta:2\n    session_gamma: 1 op / 1 total  refs: session_gamma:1\n"
+      },
+      "trace": {
+        "argv": [
+          "eye",
+          "trace",
+          "session_gamma:5"
+        ],
+        "exit": 0,
+        "stdout": "# session_gamma:5  (operator, user)\n  gamma queued directive with a twin\n  one utterance, 3 record(s): session_gamma:3, session_gamma:4, session_gamma:5\n  UPSTREAM (where this came from):\n    [recorded/follows] agent: gamma reply one - sharpening\n    [recorded/follows] operator: gamma opening: sharpen the gamma sword\n  DOWNSTREAM (what followed):\n    [recorded/follows] agent: gamma reply two - directive taken\n    [inferred/adjacent] operator: recurring cross session directive about mechanics\n    [recorded/follows] agent: gamma reply three - continuing\n  [FOG] 1 inferred edge(s) crossed (adjacency, not a recorded link) -- this ancestry is a positional guess\n"
+      },
+      "standing": {
+        "argv": [
+          "eye",
+          "standing"
+        ],
+        "exit": 0,
+        "stdout": "[eye standing] 1 recurring directive(s) that NO durable plane cites  (1 examined)\n  [strong] said in 2 session(s), 2 utterance(s)\n      \"always fence the migration path before shipping it\"\n      check it: uv run agent_cli.py eye get session_watch_a:1\n  (this instrument PROPOSES -- it files nothing. Known false-positive class: agent-authored briefs pasted into a fresh seat read as operator speech.)\n"
+      },
+      "get_missing": {
+        "argv": [
+          "eye",
+          "get",
+          "nope:1"
+        ],
+        "exit": 2,
+        "stdout": ""
+      }
+    }
+  },
+  "after": {
+    "accuracy": 0.943,
+    "correct": 33,
+    "asked": 35,
+    "output_tokens": 153,
+    "stdout_chars": 2775,
+    "stdout_lines": 74,
+    "cost_usd": 0.0391,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "empty_state_explicit": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "6/6",
+    "questions": [
+      {
+        "q": "How many events match the phrase in total?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Are all of the matching events listed in this output? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "No",
+          "no",
+          "No",
+          "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many indexed events are in the operator voice?",
+        "expected": 23,
+        "answers": [
+          "23",
+          "23",
+          "23",
+          "23",
+          "23"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What verdict did the frequency check reach? Give the verdict only.",
+        "expected": "standing-directive",
+        "answers": [
+          "standing-directive",
+          "standing-directive",
+          "standing-directive",
+          "standing-directive",
+          "standing-directive"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records make up the same utterance as the traced event?",
+        "expected": 3,
+        "answers": [
+          "3",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which recurring directive does no durable plane cite? Quote the phrase.",
+        "expected": "always fence the migration path before shipping it",
+        "answers": [
+          "always fence the migration path before shipping it",
+          "UNKNOWN",
+          "always fence the migration path before shipping it",
+          "always fence the migration path before shipping it",
+          "always fence the migration path before shipping it"
+        ],
+        "correct": 4
+      },
+      {
+        "q": "Was an event found at the address? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "yes... no, the output says the address was not found, so the answer is no.\n\nWait, I need to correct myself. The reply must contain only the answer, with no explanation. The correct answer is:\n\nno",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 4
+      }
+    ],
+    "runs": {
+      "find": {
+        "argv": [
+          "eye",
+          "find",
+          "sword"
+        ],
+        "exit": 0,
+        "stdout": "total: 5\ntokens: 58\nhits[5]{event_id,voice,type,snippet}:\n  \"session_alpha:1\",operator,user,I want the fixture payrolls sword to be sharper every week\n  \"session_alpha:2\",agent,assistant,Understood - sharpening the fixture sword now.\n  \"session_beta:1\",operator,user,\"beta session opening: the fixture sword idea again, third time\"\n  \"session_gamma:1\",operator,user,\"gamma opening: sharpen the gamma sword\"\n  \"session_beta:2\",agent,assistant,Beta acknowledges the fixture sword.\nhelp[1]:\n  uv run agent_cli.py eye get session_alpha:1\n"
+      },
+      "find_cut": {
+        "argv": [
+          "eye",
+          "find",
+          "sword",
+          "--limit",
+          "2"
+        ],
+        "exit": 0,
+        "stdout": "total: 5\nshown: 2\ntokens: 25\nhits[2]{event_id,voice,type,snippet}:\n  \"session_alpha:1\",operator,user,I want the fixture payrolls sword to be sharper every week\n  \"session_alpha:2\",agent,assistant,Understood - sharpening the fixture sword now.\nhelp[2]:\n  uv run agent_cli.py eye get session_alpha:1\n  uv run agent_cli.py eye find sword --limit 5\n"
+      },
+      "stats": {
+        "argv": [
+          "eye",
+          "stats"
+        ],
+        "exit": 0,
+        "stdout": "events_total: 40\nsessions: 8\ntime_fog: 0.0%\ntimeless: 0\nby_voice:\n  agent: 13\n  operator: 23\n  system: 4\nby_kind:\n  assistant: 13\n  \"queue-operation\": 9\n  system: 1\n  user: 17\n"
+      },
+      "freq": {
+        "argv": [
+          "eye",
+          "freq",
+          "sword"
+        ],
+        "exit": 0,
+        "stdout": "verdict: standing-directive\noperator_events: 3\nsessions: 3\nevents_total: 5\nby_voice:\n  operator: 3\n  agent: 2\nfirst: 2026-08-01\nlast: 2026-08-02\nper_session[3]{session,operator,events,refs}:\n  session_alpha,1,2,\"session_alpha:1 session_alpha:2\"\n  session_beta,1,2,\"session_beta:1 session_beta:2\"\n  session_gamma,1,1,\"session_gamma:1\"\nhelp[1]:\n  uv run agent_cli.py eye get session_alpha:1\n"
+      },
+      "trace": {
+        "argv": [
+          "eye",
+          "trace",
+          "session_gamma:5"
+        ],
+        "exit": 0,
+        "stdout": "node: \"session_gamma:5\"\nvoice: operator\ntype: user\ntext: gamma queued directive with a twin\nsame_utterance[3]: \"session_gamma:3\",\"session_gamma:4\",\"session_gamma:5\"\nupstream[2]{event_id,evidence,edge,voice,snippet}:\n  \"session_gamma:2\",recorded,follows,agent,gamma reply one - sharpening\n  \"session_gamma:1\",recorded,follows,operator,\"gamma opening: sharpen the gamma sword\"\ndownstream[3]{event_id,evidence,edge,voice,snippet}:\n  \"session_gamma:6\",recorded,follows,agent,gamma reply two - directive taken\n  \"session_gamma:7\",inferred,adjacent,operator,recurring cross session directive about mechanics\n  \"session_gamma:9\",recorded,follows,agent,gamma reply three - continuing\nfog: \"1 inferred edge(s) crossed (adjacency, not a recorded link) -- this ancestry is a positional guess\"\nhelp[1]:\n  uv run agent_cli.py eye get session_gamma:2\n"
+      },
+      "standing": {
+        "argv": [
+          "eye",
+          "standing"
+        ],
+        "exit": 0,
+        "stdout": "examined: 1\nunheeded: 1\ndirectives[1]{shape,sessions,utterances,phrase,ref}:\n  strong,2,2,always fence the migration path before shipping it,\"session_watch_a:1\"\nnote: \"proposals only; false positives: agent briefs pasted into a fresh seat read as operator speech\"\nhelp[1]:\n  uv run agent_cli.py eye get session_watch_a:1\n"
+      },
+      "get_missing": {
+        "argv": [
+          "eye",
+          "get",
+          "nope:1"
+        ],
+        "exit": 2,
+        "stdout": "error: \"no event at 'nope:1': the address is session:line (full id or a unique sid8 prefix)\"\ncode: NOT_FOUND\nfound: false\nhelp[1]:\n  uv run agent_cli.py eye find \"<phrase>\"\n"
+      }
+    }
+  }
+}
