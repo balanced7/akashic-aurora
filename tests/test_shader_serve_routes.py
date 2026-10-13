@@ -34,10 +34,17 @@ SECRET = "TOPSECRET-not-for-the-shelf"
 PNG = b"\x89PNG\r\n\x1a\n" + b"shelf-route-probe"
 
 
-def _shader(sid):
+PLAIN_CODE = "void mainImage(out vec4 o, in vec2 u) { o = vec4(0.5); }"
+# A pass long enough to be recognised by its text: abcDE2's (study only), so a copy of it staged under another id is
+# still that shader. Synthetic, written for this test.
+STUDY_CODE = ("// route probe: a study-only pass, recognised by its text (written for this test)\n"
+              "// marker: study-only-route-probe-7d1c\n"
+              "void mainImage(out vec4 o, in vec2 u) { o = vec4(0.25); }\n")
+
+
+def _shader(sid, code=PLAIN_CODE):
     return {"ver": "0.1", "info": {"id": sid, "name": "Route probe", "username": "someone", "tags": []},
-            "renderpass": [{"name": "Image", "type": "image", "inputs": [], "outputs": [],
-                            "code": "void mainImage(out vec4 o, in vec2 u) { o = vec4(0.5); }"}]}
+            "renderpass": [{"name": "Image", "type": "image", "inputs": [], "outputs": [], "code": code}]}
 
 
 def _serve(tmp_path: Path):
@@ -52,14 +59,25 @@ def _serve(tmp_path: Path):
     lib_dir.mkdir()
     (lib_dir / "modlib.js").write_text("// house library route probe\n", encoding="utf-8")
     corpus = tmp_path / "corpus"
-    C.save_shader(_shader("abcDE1"), corpus)
+    # abcDE2, abcDE4 and abcDE5 are study only (by the Shelf, the atlas's loved list, and a group's list only): on disk,
+    # never served
+    for sid in ("abcDE1", "abcDE2", "abcDE4", "abcDE5"):
+        C.save_shader(_shader(sid, STUDY_CODE if sid == "abcDE2" else PLAIN_CODE), corpus)
     jobs = tmp_path / "jobs"
     jobs.mkdir()
+    # What `render` stages for a loose .json path (render.stage_job): our own shader, and three copies of study-only ones
+    for name, shader in (("local-own-0123456789.json", _shader("local")),
+                         ("local-copy-0123456789.json", _shader("abcDE2", STUDY_CODE)),
+                         ("local-renamed-0123456789.json", _shader("local", STUDY_CODE.replace("\n", "\r\n"))),
+                         ("local-group-0123456789.json", {"Shader": _shader("ABCDE5")})):
+        (jobs / name).write_text(json.dumps(shader), encoding="utf-8")
 
     atlas = tmp_path / "atlas.json"
     atlas.write_text(json.dumps({"api": "arsenal.shader-atlas/v1", "note": "atlas route probe",
                                  "loved": [{"id": "abcDE1", "short": "One", "study_only": False},
-                                           {"id": "abcDE4", "short": "Ruled", "study_only": True}]}),
+                                           {"id": "abcDE4", "short": "Ruled", "study_only": True},
+                                           {"id": "abcDE5", "short": "Grouped", "study_only": False}],
+                                 "groups": [{"name": "probe-group", "exemplars": ["abcDE5"], "study_only": ["abcDE5"]}]}),
                      encoding="utf-8")
     shelf = tmp_path / "state" / "shelf"
     shelf.mkdir(parents=True)
@@ -69,7 +87,7 @@ def _serve(tmp_path: Path):
                                       encoding="utf-8")
     (shelf / "other.json").write_text("{}", encoding="utf-8")
     renders = tmp_path / "state" / "renders"
-    for sid in ("abcDE1", "abcDE2", "abcDE4", "local-probe"):
+    for sid in ("abcDE1", "abcDE2", "abcDE4", "abcDE5", "local-probe"):
         (renders / sid / "filmstrip").mkdir(parents=True)
         (renders / sid / "t1.00.png").write_bytes(PNG + sid.encode())
         (renders / sid / "filmstrip.png").write_bytes(PNG + b"sheet")
@@ -200,11 +218,63 @@ def test_head_answers_without_a_body(lab):
     "/renders/abcDE2/filmstrip.png",
     "/renders/abcDE4/t1.00.png",            # study only by the atlas's ruling, Shelf or no Shelf
     "/renders/abcde2/t1.00.png",            # Windows folds case; the refusal must too
+    "/renders/abcDE5/t1.00.png",            # study only by a group's list alone (the client reads it too)
 ])
 def test_a_study_only_shaders_pictures_are_never_served(lab, path):
     status, _, body = _get(lab, path)
     assert status == 403, (path, status)
     assert PNG not in body
+
+
+# A study-only shader is not run either: the Workbench's Stage fetches /corpus/<id>/shader.json to run a loved shader
+# live, so a stale page (or a hand-typed URL) must meet the same refusal the pictures do, whatever sits on disk.
+@pytest.mark.parametrize("path", [
+    "/corpus/abcDE2/shader.json",           # study only by the Shelf's index
+    "/corpus/abcDE4/shader.json",           # study only by the atlas's ruling
+    "/corpus/ABCDE2/shader.json",           # Windows folds case; the refusal must too
+    "/corpus/abcde4/shader.json",
+    "/corpus/abcDE2%2Fshader.json",         # an encoded slash decodes to the same path
+    "/corpus/abcDE5/shader.json",           # study only by a group's list alone
+])
+def test_a_study_only_shaders_source_is_never_served(lab, path):
+    assert (Path(lab.roots["corpus"]) / "shaders" / "abcDE2" / "shader.json").is_file()
+    status, _, body = _get(lab, path)
+    assert status == 403, (path, status)
+    assert b"Route probe" not in body
+
+
+def test_the_server_reads_every_source_the_client_reads():
+    """The client's isStudyOnly (shelf.js) ORs the Shelf's index, the atlas's loved rows and every group's study_only
+    list; the server's set must hold the same ids, case-folded, or a page could run what the server would refuse."""
+    atlas = {"loved": [{"id": "aaaaa1", "study_only": True}, {"id": "aaaaa2", "study_only": False}],
+             "groups": [{"name": "g", "study_only": ["BBBBB1", 7, None]}, {"name": "h", "study_only": None}, "junk"]}
+    shelf = {"shaders": [{"id": "ccccc1", "study_only": True}, {"id": "ccccc2", "studyOnly": True}]}
+    assert S.study_only_from(shelf, atlas) == frozenset({"aaaaa1", "bbbbb1", "ccccc1", "ccccc2"})
+    assert S.study_only_from(None, None) == frozenset()
+
+
+def test_other_corpus_shaders_are_still_served(lab):
+    status, headers, body = _get(lab, "/corpus/abcDE1/shader.json")
+    assert status == 200 and b"Route probe" in body
+    assert headers["Content-Type"] == "application/json"
+
+
+# The second door: `render` stages a loose .json path under /jobs/, so a copy of a study-only shader would be run from
+# there. The job is refused when its id is study only, or when one of its passes is a study-only shader's text (line
+# endings and trailing blanks aside), whatever it is called.
+@pytest.mark.parametrize("name", ["local-copy-0123456789.json", "local-renamed-0123456789.json",
+                                  "local-group-0123456789.json"])
+def test_a_staged_job_holding_a_study_only_shader_is_refused(lab, name):
+    assert (Path(lab.roots["jobs"]) / name).is_file()
+    status, _, body = _get(lab, f"/jobs/{name}")
+    assert status == 403, (name, status, body[:200])
+    assert b"study-only-route-probe" not in body and b"Route probe" not in body
+
+
+def test_our_own_staged_job_is_still_served(lab):
+    status, headers, body = _get(lab, "/jobs/local-own-0123456789.json")
+    assert status == 200 and b"Route probe" in body
+    assert headers["Content-Type"] == "application/json"
 
 
 @pytest.mark.parametrize("path", [
@@ -279,14 +349,18 @@ def test_no_shelf_index_is_a_404_not_a_crash(fresh_lab):
     assert _get(fresh_lab, "/renders/abcDE1/t1.00.png")[0] == 200     # the atlas still names what is study only
     assert _get(fresh_lab, "/renders/abcDE4/t1.00.png")[0] == 403
     assert _get(fresh_lab, "/renders/abcDE2/t1.00.png")[0] == 200     # the cache follows the index off the disk
+    assert _get(fresh_lab, "/corpus/abcDE4/shader.json")[0] == 403    # the source follows the same list
+    assert _get(fresh_lab, "/corpus/abcDE2/shader.json")[0] == 200
 
 
 def test_a_newly_built_shelf_takes_effect_without_a_restart(fresh_lab):
     index = Path(fresh_lab.roots["shelf"]) / "index.json"
     assert _get(fresh_lab, "/renders/abcDE1/t1.00.png")[0] == 200
+    assert _get(fresh_lab, "/corpus/abcDE1/shader.json")[0] == 200
     index.write_text(json.dumps({"api": "arsenal.shader-shelf/v1", "shaders": [{"id": "abcDE1", "study_only": True}]}),
                      encoding="utf-8")
     assert _get(fresh_lab, "/renders/abcDE1/t1.00.png")[0] == 403
+    assert _get(fresh_lab, "/corpus/abcDE1/shader.json")[0] == 403
 
 
 def test_a_symlink_out_of_a_new_root_is_refused(fresh_lab, tmp_path):

@@ -19,6 +19,60 @@ copied from shadertoy.com's site JavaScript or from any corpus shader, and the t
 - **No pretending.** Missing media become deterministic procedural stand-ins, and `stats().substituted` lists each
   one. Things that cannot run are listed in `stats().unsupported`.
 
+## The Shader Lab page (`/lab/`) and the live switch
+
+`py -m arsenal shader serve` serves the lab at http://127.0.0.1:8797/lab/ (`index.html` + `lab.js`, which mount the
+Workbench in `arsenal/web/lib/workbench/`).
+
+### Live runs: off until a deliberate local setting
+
+**Live runs are off until their safety review clears.** The lab opens view only, and stays that way unless one switch
+is set by hand, in that browser, on purpose. Turning it on is Daniel's call once the review clears.
+
+| | what the page does |
+|---|---|
+| off (the default) | The Stage shows the subject's SwiftShader still and, for a loved shader, plays its filmstrip on a click (the contact sheet stepped frame by frame: an image, no GPU work). It says "Live runs are off until their safety review clears". There is no Run button, no scale menu, no Stop and no Take. No code path loads the runtime, makes a canvas or asks for a WebGL context. |
+| on | "Run live on this GPU" appears on the Stage, behind the guards below. |
+
+The switch is on only when **both** hold:
+
+1. the address asks for it: `/lab/?live=1`, and
+2. this browser holds the key: `localStorage['arsenal.shaderlab.live'] === 'on'`.
+
+To turn it on, open http://127.0.0.1:8797/lab/, run this in that tab's browser console, then open
+http://127.0.0.1:8797/lab/?live=1:
+
+```js
+localStorage.setItem('arsenal.shaderlab.live', 'on')
+```
+
+A link alone cannot turn it on, and a key left behind does nothing on a plain `/lab/`. The key belongs to one origin and
+one browser profile, so another port, another browser or a private window starts off. A storage that cannot be read
+(blocked site data) counts as off. To turn it off again, open `/lab/` without `?live=1`, or remove the key:
+
+```js
+localStorage.removeItem('arsenal.shaderlab.live')
+```
+
+How it is kept (`stage.js`, pinned in `tests/workbench_lab.test.mjs`): `liveSwitch()` reads the address and the key
+once, when the Stage mounts. Two places could start the live path: `build()`, the only place that makes a canvas and
+asks the runtime for a toy (its WebGL context), and `loadLive()`, the only place that loads the runtime. Both begin
+with `mustBeLive()`, which throws while the switch is off. Every way in (Run, Run again, a scale change, a knob
+change, a size change) returns before reaching them. The tests call every Stage method and fire every event with the
+switch off, and count runtime loads, canvases, `getContext` calls and animation frames: all must be 0. They also read
+`stage.js` and require one canvas, one `createToy` and one runtime load, each behind the check.
+
+With the switch on, the Stage keeps the guards described at the top of `stage.js`. It names the cost class before the
+click and starts C3 and C4 at half scale at most. It runs a 64 x 36 pre-flight before any full-size frame and locks
+the size it measured. A larger scale is a ladder of one step at a time, each step capped at 150 ms. The house watchdog
+holds the last frame (one frame over 500 ms, 2.5 s of slow frames, or 45 slow frames in a row). After any hold, Run
+again measures first and draws below the frames that held. A refusal lasts for the page.
+
+The screenshot driver (`arsenal/shaders/lab_shot.mjs`) shoots its view-only views with the switch off. Its receipt
+requires no Run button, no canvas and no WebGL context on each of them. Only its `run` view turns the switch on, and
+only inside its own private headless Chrome. That Chrome is forced onto SwiftShader, and the renderer is checked
+before the page loads. The run view never touches this machine's GPU.
+
 ## The runtime API (`toy-runtime.js`, an ES module)
 
 ```js

@@ -24,8 +24,11 @@ The Shelf's routes are shaped like a datasheet drawer: one fixed file (/atlas.js
 named files in one folder (/renders/<id>/<file>.png, /cards/<name>/<file>.png), each name checked against a pattern
 before it touches the disk. Pictures only where pictures are meant: a receipt or a filmstrip's frame folder is not
 served. A STUDY-ONLY shader (its own header withholds permission, or the atlas rules it so) is shown by its study note
-and never by its pictures: /renders/ refuses its id with a 403 whatever sits on disk, reading the Shelf's index and the
-atlas's `loved` list at request time (either is enough; the atlas alone holds when no Shelf has been built).
+and never by its pictures, and never run: /renders/ and /corpus/<id>/shader.json (the source the Workbench's Stage runs)
+refuse its id with a 403 whatever sits on disk, reading at request time the same sources the Workbench reads: the
+Shelf's index, the atlas's `loved` list and every atlas group's `study_only` list (any one is enough; the atlas alone
+holds when no Shelf has been built). /jobs/ is the second door, since `render` stages a loose .json there: a job whose
+id is study only, or one of whose passes is a study-only corpus shader's pass by its text, is refused the same way.
 
 LOOPBACK ONLY IS A RULE, NOT A DEFAULT. The corpus is other people's work, mostly CC BY-NC-SA; serving it beyond this
 machine would be redistributing it. So there is no host option at all: the bind address is the constant 127.0.0.1, and a
@@ -251,13 +254,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self._file(target) if target else self._not_found()
             m = re.fullmatch(r"/corpus/([^/]+)/shader\.json", path)
             if m:
-                target = safe_file(roots["corpus"] / "shaders", f"{m.group(1)}/shader.json") \
-                    if SHADER_ID.fullmatch(m.group(1)) else None
+                sid = m.group(1)
+                if not SHADER_ID.fullmatch(sid):
+                    return self._not_found()
+                if sid.lower() in self.server.study_only_ids():
+                    # the Workbench's Stage runs a loved shader from this route; a study-only one is never run
+                    return self._json(403, {"error": f"{sid} is study only: it is shown by its study note "
+                                                     f"(/study/{sid}.md), never run and never pictured"})
+                target = safe_file(roots["corpus"] / "shaders", f"{sid}/shader.json")
                 return self._file(target) if target else self._not_found()
             if path.startswith("/jobs/"):
                 name = path[len("/jobs/"):]
                 target = safe_file(roots["jobs"], name) if JOB_NAME.fullmatch(name) else None
-                return self._file(target) if target else self._not_found()
+                if not target:
+                    return self._not_found()
+                held = self.server.job_holds_study_only(target)
+                if held:
+                    # the second door: `render` stages a loose .json here, and a copy of a study-only shader is that
+                    # shader whatever its file is called
+                    return self._json(403, {"error": f"this job holds {held}, which is study only: it is shown by its "
+                                                     "study note, never run and never pictured"})
+                return self._file(target)
             if path == "/atlas.json":
                 atlas = Path(roots["atlas"])
                 target = safe_file(atlas.parent, atlas.name)
@@ -297,25 +314,58 @@ ROUTES = ["/health", "/lab/<file>", "/lib/<file>", "/glsl/<file>", "/corpus/<id>
           "/cards/<name>/<file>.png", "/webl/<file>"]
 
 
-def _json_or_none(path: Path) -> Optional[dict]:
+def _json_any(path: Path):
+    """A JSON file's value, or None when it cannot be read or parsed."""
     try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        return json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+def _json_or_none(path: Path) -> Optional[dict]:
+    data = _json_any(path)
     return data if isinstance(data, dict) else None
 
 
 def study_only_from(shelf_index: Optional[dict], atlas: Optional[dict]) -> frozenset:
-    """Lower-cased ids whose pictures are never served: study only in the Shelf's index or in the atlas's loved list.
+    """Lower-cased ids that are never pictured, run or served: study only in the Shelf's index (either spelling), in the
+    atlas's loved list, or in any atlas group's study_only list. These are the sources the Workbench's isStudyOnly
+    (arsenal/web/lib/workbench/shelf.js) ORs, so the server refuses at least what a page would; a true in any one wins.
     Lower case because Windows folds case in paths, so /renders/abcde2/ would reach abcDE2's folder."""
     ids = set()
     for row in (shelf_index or {}).get("shaders") or []:
-        if isinstance(row, dict) and row.get("study_only") and isinstance(row.get("id"), str):
+        if isinstance(row, dict) and (row.get("study_only") or row.get("studyOnly")) and isinstance(row.get("id"), str):
             ids.add(row["id"].lower())
     for row in (atlas or {}).get("loved") or []:
         if isinstance(row, dict) and row.get("study_only") and isinstance(row.get("id"), str):
             ids.add(row["id"].lower())
+    for group in (atlas or {}).get("groups") or []:
+        listed = group.get("study_only") if isinstance(group, dict) else None
+        if isinstance(listed, list):
+            ids.update(x.lower() for x in listed if isinstance(x, str))
     return frozenset(ids)
+
+
+# A pass shorter than this is not used to recognise a shader by its text: a one-line stub is common to many shaders.
+PASS_KEY_MIN = 64
+
+
+def pass_key(code) -> Optional[str]:
+    """A pass's text as compared between a staged job and the corpus: line endings unified and trailing blanks dropped,
+    so a copy saved by another editor is still the same pass; None for a pass too short to tell shaders apart."""
+    if not isinstance(code, str):
+        return None
+    text = "\n".join(line.rstrip() for line in code.replace("\r\n", "\n").replace("\r", "\n").split("\n")).strip()
+    return text if len(text) >= PASS_KEY_MIN else None
+
+
+def shader_of(data) -> Optional[dict]:
+    """The shader in a job file: as saved, or as Shadertoy's API wraps it ({"Shader": {...}}, or a list of one)."""
+    if isinstance(data, list) and len(data) == 1:
+        data = data[0]
+    if isinstance(data, dict) and isinstance(data.get("Shader"), dict):
+        data = data["Shader"]
+    return data if isinstance(data, dict) else None
 
 
 class ShaderServer(ThreadingHTTPServer):
@@ -340,6 +390,7 @@ class ShaderServer(ThreadingHTTPServer):
                       "cards": Path(cards), "webl": Path(webl)}
         self.verbose = verbose
         self._study_only_cache: Tuple[tuple, frozenset] = ((), frozenset())
+        self._study_passes_cache: Tuple[tuple, Dict[str, str]] = ((), {})
         self._study_only_lock = threading.Lock()
 
     def study_only_ids(self) -> frozenset:
@@ -357,6 +408,60 @@ class ShaderServer(ThreadingHTTPServer):
             if self._study_only_cache[0] != stamp:
                 self._study_only_cache = (stamp, study_only_from(_json_or_none(sources[0]), _json_or_none(sources[1])))
             return self._study_only_cache[1]
+
+    def study_only_passes(self) -> Dict[str, str]:
+        """{pass_key: id} for every pass of every study-only shader saved in the corpus, re-read when the study-only set
+        or one of those files changes. A corpus folder is found whatever its case (the set is lower-cased)."""
+        ids = self.study_only_ids()
+        shaders = Path(self.roots["corpus"]) / "shaders"
+        files = []
+        if ids:
+            try:
+                names = sorted(p.name for p in shaders.iterdir() if p.is_dir())
+            except OSError:
+                names = []
+            for name in names:
+                if name.lower() in ids:
+                    f = shaders / name / "shader.json"
+                    try:
+                        st = f.stat()
+                    except OSError:
+                        continue
+                    files.append((name, f, st.st_mtime_ns, st.st_size))
+        stamp = (ids, tuple((n, m, s) for n, _, m, s in files))
+        with self._study_only_lock:
+            if self._study_passes_cache[0] == stamp:
+                return self._study_passes_cache[1]
+        keys: Dict[str, str] = {}
+        for name, f, _, _ in files:
+            shader = shader_of(_json_any(f))
+            for p in (shader or {}).get("renderpass") or []:
+                key = pass_key(p.get("code")) if isinstance(p, dict) else None
+                if key:
+                    keys.setdefault(key, name)
+        with self._study_only_lock:
+            self._study_passes_cache = (stamp, keys)
+        return keys
+
+    def job_holds_study_only(self, path: Path) -> Optional[str]:
+        """The study-only shader a staged job holds, or None: its info.id is study only (case-folded), or one of its
+        passes is a study-only corpus shader's pass, by text. A job that is not a readable shader holds none."""
+        ids = self.study_only_ids()
+        if not ids:
+            return None
+        shader = shader_of(_json_any(path))
+        if shader is None:
+            return None
+        info = shader.get("info") if isinstance(shader.get("info"), dict) else {}
+        sid = info.get("id")
+        if isinstance(sid, str) and sid.lower() in ids:
+            return sid
+        passes = self.study_only_passes()
+        for p in shader.get("renderpass") or []:
+            key = pass_key(p.get("code")) if isinstance(p, dict) else None
+            if key and key in passes:
+                return passes[key]
+        return None
 
     @property
     def base_url(self) -> str:

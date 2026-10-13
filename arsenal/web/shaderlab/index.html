@@ -1,0 +1,81 @@
+<!doctype html>
+<!--
+  The Shader Lab: the first home of the unified Workbench (build-spec-reconciled.md ruling 4).
+
+  LIBRARY | STAGE | INSPECTOR over a STRIP, plus a SHELF tab: the house module library as a tree (planned and built),
+  one stage, the datasheet and receipt of whatever is selected, and Daniel's 42 loved shaders as pre-rendered cards.
+  The panels live in arsenal/web/lib/workbench/ (served at /webl/workbench/) so other pages can mount them later.
+
+  Served by `py -m arsenal shader serve` at http://127.0.0.1:8797/lab/ (loopback only, read-only).
+
+  VIEW ONLY UNTIL A DELIBERATE LOCAL SETTING. Live runs are off until their safety review clears. Opened as it is, this
+  page is view only: every picture is a PNG rendered earlier on SwiftShader (the CPU) under the house GPU lock, the
+  Stage plays a loved shader's filmstrip (an image stepped frame by frame, no GPU work), and there is no Run button. No
+  canvas, no WebGL context and no runtime import happen on any path. The one switch that turns live runs on is ?live=1
+  in the address AND localStorage 'arsenal.shaderlab.live' = 'on' in this browser (README.md says how and why); both,
+  set by hand, or it stays off.
+
+  WITH THE SWITCH ON (ruling 5). This page still renders nothing live when it opens. Running a shader on this
+  machine's GPU is an explicit click on the Stage's "Run live on this GPU" button, which names the cost class first
+  and starts heavy (C3, C4) subjects at half scale at most. Before any full-size frame, 64 x 36 pre-flight frames
+  are timed (frame 0, the one the run starts on,
+  and frame 1): over 200 ms it is refused, otherwise the start scale keeps the predicted frame near 30 ms. That size
+  is locked: when the window, the browser zoom or the display (its pixel ratio) changes the Stage's size, or the scale
+  changes, drawing stops and the pre-flight runs again at the new size before the next frame. A larger scale is one
+  step at a time, predicted from the slowest recent frame and refused past 150 ms. The house watchdog holds the last
+  frame on slow frames (2.5 s of them, 45 in a row, or one over 500 ms; after any hold, Run again measures first and
+  goes below the frames that held, and at the smallest scale nothing more runs for that subject on this page), and a
+  hidden tab or the Shelf tab stops the run until Run is pressed again. Until that first click, no canvas exists and
+  the runtime is not loaded.
+
+  The inline script below exists for one failure: if the Workbench modules cannot be fetched (the /webl/ route is not
+  served yet), the page says so in words instead of staying blank.
+
+  Apache-2.0, written for the house (Vandor, 2026-10-13). No framework, no CDN, no build step.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Shader Lab</title>
+<link rel="stylesheet" href="/webl/workbench/workbench.css">
+<style>
+  /* Enough to read the boot message if the stylesheet route is missing too. */
+  html, body { margin: 0; background: #08090d; color: #eef0f7; }
+  body { font: 13px/1.4 -apple-system, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  .lab-boot { max-width: 64ch; margin: 15vh auto 0; padding: 24px; }
+  .lab-boot h1 { font-size: 25px; margin: 0 0 8px; color: #f0a56c; letter-spacing: -0.02em; }
+  .lab-boot p { color: #9297ab; margin: 0 0 8px; }
+  .lab-boot code { font-family: "Cascadia Code", Consolas, monospace; color: #eef0f7; }
+</style>
+<script>
+  "use strict";
+  // Boot state for whoever checks on the page (a headless screenshot waits for ready or error; nothing else reads it).
+  window.__lab = { ready: false, error: null, stage: "boot" };
+  window.__labBootFail = function (why) {
+    var R = window.__lab;
+    if (R.ready || R.error) return;
+    R.error = String(why);
+    R.stage = "failed";
+    var root = document.getElementById("lab");
+    if (!root) return;
+    var box = document.createElement("div");
+    box.className = "lab-boot";
+    var h = document.createElement("h1"); h.textContent = "Shader Lab";
+    var p1 = document.createElement("p"); p1.textContent = "The Workbench did not load: " + R.error;
+    var p2 = document.createElement("p");
+    p2.textContent = "Its panels are served from /webl/workbench/ by py -m arsenal shader serve. Nothing has run on this GPU.";
+    box.appendChild(h); box.appendChild(p1); box.appendChild(p2);
+    root.replaceChildren(box);
+  };
+  setTimeout(function () { if (window.__lab.stage === "boot") window.__labBootFail("lab.js never started (15 s)"); }, 15000);
+</script>
+</head>
+<body>
+<main id="lab" class="wb-root">
+  <div class="lab-boot"><h1>Shader Lab</h1><p>Loading the Workbench. Nothing runs on this GPU while it loads.</p></div>
+</main>
+<script type="module" src="lab.js" onerror="window.__labBootFail('lab.js could not be fetched')"></script>
+</body>
+</html>
