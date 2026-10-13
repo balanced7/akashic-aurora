@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a05c19da. A bound you discover by collision is not awareness -- this sheet
+> Derived at 89f1152b. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (278 names)
+## Configuration flags (279 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -45,6 +45,7 @@ Class: reference
 | `AKASHIC_CB_MAX` | `"3"` | scripts/bifrost_daemon.py |
 | `AKASHIC_CB_WINDOW_S` | `"300"` | scripts/bifrost_daemon.py |
 | `AKASHIC_CHAPTERS_FILE` | `` | scripts/corpus_digests.py |
+| `AKASHIC_CLAIM_TTL_S` | `"180"` | core/comm/seat_identity.py |
 | `AKASHIC_CLAUDE_CREDENTIALS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py |
 | `AKASHIC_CODEX_BINARY` | `` | agent/harness/codex_app_server.py |
@@ -176,7 +177,7 @@ Class: reference
 | `BIFROST_LANES_DUAL_WRITE` | `True` | core/comm/packet_spec.py |
 | `BIFROST_MAX_HOPS` | `"6"` | core/comm/control.py |
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py, scripts/bifrost_runner_deepseek.py |
-| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +36 |
+| `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +37 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
 | `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
 | `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |
@@ -292,7 +293,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (363 numeric constants)
+## Mechanical bounds (364 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -528,6 +529,7 @@ Class: reference
 | `PASSING_MAX_BEATS` | 1 | arsenal/practice_riff.py | a passing rub is shorter than this... |
 | `PASSING_MAX_MS` | 400 | arsenal/practice.py | a chromatic passing note is held (key down) at most this long, struck alone... |
 | `PASSING_STEP_MS` | 600 | arsenal/practice.py | ...and stepped into and out of, one way, by notes at most this far apart in time |
+| `PASS_KEY_MIN` | 64 | arsenal/shaders/serve.py |  |
 | `PEDAL_POINT_HARMONY_MS` | 1,000 | arsenal/practice.py | ...and each held at least this long over the bass |
 | `PEDAL_POINT_MAX_PCS` | 6 | arsenal/practice.py | different harmonies of at most this many pitch classes (a pedal wash holds every note), |
 | `PEDAL_POINT_MIN_MS` | 4,000 | arsenal/practice.py | a pedal point lasts at least this long... |

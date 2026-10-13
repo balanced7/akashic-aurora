@@ -1,0 +1,11 @@
+//! {"card": "drill-nan", "uses": [], "t": [0], "size": [64, 36],
+//!  "note": "DETECTOR DRILL: the left half is NaN (a quiet NaN by its bit pattern) in green, so the NaN probe must
+//!  count exactly 32 x 36 magenta pixels. A probe that counts fewer is a probe that cannot be trusted."}
+// Apache-2.0, Akashic Aurora. A test fixture, never a real card.
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 drillRgb = vec3(pixel.x / iResolution.x, 0.3, 0.6);
+    if (pixel.x < 0.5 * iResolution.x) {
+        drillRgb.g = intBitsToFloat(0x7fc00000 + int(iTime));   // 0x7fc00000 is a quiet NaN; iTime stops it folding
+    }
+    color = vec4(drillRgb, 1.0);
+}

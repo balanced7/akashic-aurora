@@ -43,7 +43,33 @@ P0_GROUPS = {"finish", "aurora", "neon-line", "studio-object", "glow-xray", "hex
 RANK = {"P0": 0, "P1": 1, "P2": 2}
 
 # After the judge's rulings on the S0 review: six struct parts added (ruling a), three parts promoted to P0 (ruling b).
-COUNTS_AFTER_RULINGS = {"parts": 572, "by_status": {"P0": 190, "P1": 265, "P2": 117}}
+# After the batch-A review (defect 3): three P0 parts for the six helpers the library built and the draft never planned.
+# After the batch-B review (the judge's ruling c): six P0 recipe parts, one per group recipe module.
+COUNTS_AFTER_RULINGS = {"parts": 581, "by_status": {"P0": 199, "P1": 265, "P2": 117}}
+
+# Signatures the build settled where the draft wrote '...' or a parameter short, or that the build corrected (batch-A
+# review, defect 3; batch-B review, defect 3 and the judge's ruling c): each is a ruling, so the atlas reads as the
+# library is built.
+BUILT_SIGNATURES = {
+    "displayOut": "vec3 displayOut(vec3 sceneLin, vec2 pixel, vec2 res, float ev, int curve,",
+    "audByteToDb": "float audByteToDb(float v)",
+    "audByteToAmp": "float audByteToAmp(float v)",
+    "fbmGrad3": "float fbmGrad3(vec3 p, int octaves, float lacunarity, float gain, uint seed)",
+    "cellU2": "uvec2 cellU2(vec2 p)",
+    "domRepeatLimited": "vec3 domRepeatLimited(inout vec3 p, vec3 period, vec3 idMin, vec3 idMax)",
+    "camOrbit": "vec3 camOrbit(vec2 mouse01, float autoYaw, float radius, vec3 target)",
+    "camOrthoRay": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, inout vec3 ro)",
+    "rmRelaxed": "vec4 rmRelaxed(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, float omega, int maxSteps)",
+    "rmBacktrack": "vec4 rmBacktrack(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, int maxSteps, int bisectSteps)",
+}
+# The group recipe modules (the judge's ruling c on the batch-B review): the atlas plans every function each provides.
+RECIPE_MODULES = {"groups/aurora-band.glsl": "aurora", "groups/aurora-sheets.glsl": "aurora",
+                  "groups/glow-xray.glsl": "glow-xray", "groups/hex-neon.glsl": "hex-neon",
+                  "groups/neon-line.glsl": "neon-line", "groups/studio-object.glsl": "studio-object"}
+# Helpers the library exposes by name that the draft never planned, and the module each one is built in.
+BUILT_HELPERS = {"oklchMaxChroma": "colour/oklab.glsl", "oklchCusp": "colour/oklab.glsl",
+                 "palPitchPiano": "colour/palette.glsl", "palPitchLumaMean": "colour/palette.glsl",
+                 "noiseGradRamp2": "noise/gradient.glsl", "noiseGradRamp3": "noise/gradient.glsl"}
 
 
 @pytest.fixture(scope="module")
@@ -340,6 +366,8 @@ def test_the_rulings_are_recorded_with_their_reasons(data):
     kinds = Counter(r["kind"] for r in rulings)
     assert kinds["promote"] == 3 and kinds["plan-struct"] == 5 and kinds["split-struct"] == 1
     assert kinds["rename"] == 1 and kinds["ledger-owner"] == 1
+    assert kinds["built-signature"] == len(BUILT_SIGNATURES) and kinds["plan-built"] == 3
+    assert kinds["plan-recipe"] == len(RECIPE_MODULES)
     referenced = {x for p in data["parts"] for x in p.get("rulings", [])} | \
                  {x for m in data["manifest"] for x in m.get("rulings", [])} | \
                  {p["ruling"] for p in data["parts"] if "ruling" in p}
@@ -542,6 +570,156 @@ def test_built_state_compares_the_plan_with_the_library(tmp_path, data, A):
     assert state[other["id"]] == "planned"
 
 
+# ---------- the atlas follows the built library (batch-A review, defect 3) ----------
+# WHY: the collision ledger and anything generated from the atlas read the atlas, not the library. When the library
+# exposes a name the atlas does not plan, or takes parameters the atlas does not show, the two disagree silently: a
+# later module could claim the name, and code generated from the atlas would call a function that does not exist.
+
+# `in`, `const` and precision change nothing a caller does; `out` and `inout` do (batch-B review, defect 3: camOrthoRay's
+# `out vec3 ro` became `inout`, so a caller following the atlas would pass ro uninitialised), so they stay in the type.
+_QUALIFIERS = frozenset("in const highp mediump lowp".split())
+_DECL = re.compile(r"([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*\(([^()]*)\)")
+
+
+def _param_types(params: str) -> list:
+    """['vec3', 'inout float'] for 'in vec3 p, inout float k'; ['...'] for a signature the draft left short."""
+    out = []
+    for p in ([] if params.strip() in ("", "void") else params.split(",")):
+        words = [w for w in p.split() if w not in _QUALIFIERS]
+        if not words or words[0] == "...":
+            out.append("...")
+            continue
+        direction = words.pop(0) + " " if words[0] in ("out", "inout") and len(words) > 1 else ""
+        out.append(direction + re.sub(r"\[.*$", "", words[0]))
+    return out
+
+
+def _built_definitions(lib) -> dict:
+    """Function name -> [(return type, parameter types)] for every definition in a library module."""
+    from arsenal.shaders import modules as M
+    root = M.LIBRARY_DIR.resolve()
+    out: dict = {}
+    for m in lib.modules.values():
+        if root not in Path(m.path).resolve().parents:
+            continue
+        for d in M.DEFINITION_RE.finditer(M.strip_comments(m.body)):
+            out.setdefault(d.group(2), []).append((d.group(1), _param_types(d.group(3))))
+    return out
+
+
+@pytest.fixture(scope="module")
+def library():
+    from arsenal.shaders import modules as M
+    return M.load_library()
+
+
+def test_every_name_the_built_library_provides_is_planned(data, A, library):
+    have = A.library_providers(library)
+    if not have:
+        pytest.skip("arsenal/web/glsl/ holds no library module yet")
+    assert sorted(set(have) - planned(data)) == []
+
+
+def test_every_built_function_has_the_signature_the_atlas_shows(data, library):
+    built = _built_definitions(library)
+    if not built:
+        pytest.skip("arsenal/web/glsl/ holds no library module yet")
+    wrong, checked = [], 0
+    for p in data["parts"]:
+        for fn in p["functions"]:
+            shown = [(ret, _param_types(params)) for ret, name, params in _DECL.findall(p["signature"]) if name == fn]
+            if fn not in built or not shown:
+                continue
+            checked += 1
+            if not any(s in built[fn] for s in shown):
+                wrong.append((p["id"], fn, shown, built[fn]))
+    assert checked >= 100, checked          # the batch-A library alone has well over a hundred
+    assert wrong == []
+
+
+def test_signatures_the_build_settled_are_rulings_that_keep_the_draft_text(data):
+    own = owners(data)
+    rulings = {r["id"]: r for r in data["rulings"]}
+    for fn, spelled in BUILT_SIGNATURES.items():
+        p = own[fn]
+        assert spelled in p["signature"], (fn, p["signature"])
+        assert "(...)" not in p["signature"] and ", ...)" not in p["signature"], p["signature"]
+        rid = f"built-sig-{fn}"
+        assert rid in p["rulings"], (fn, p.get("rulings"))
+        r = rulings[rid]
+        assert r["kind"] == "built-signature" and r["names"] == [fn] and r["part"] == p["id"]
+        assert r["reason"] and r["source"] and r["to"] in p["signature"] and r["from"] in p["signature_draft"]
+        assert r["from"] not in p["signature"]
+
+
+def test_helpers_the_draft_never_planned_are_parts_at_their_modules_status(data, library):
+    from arsenal.shaders import modules as M
+    own = owners(data)
+    rulings = {r["id"]: r for r in data["rulings"]}
+    by_file = {f["file"]: f for f in data["manifest"]}
+    cats = {c["id"]: c for c in data["categories"]}
+    for fn, module in BUILT_HELPERS.items():
+        p = own[fn]
+        assert (p["module"], p["kind"], p["form"]) == (module, "function", "ruling"), (fn, p)
+        assert module in cats[p["category"]]["modules"] and p["contract"] and p["signature"]
+        r = rulings[p["ruling"]]
+        assert r["kind"] == "plan-built" and fn in r["names"] and r["part"] == p["id"] and r["reason"] and r["source"]
+        assert r["status"] == p["status"] and r["module"] == module
+        path = M.LIBRARY_DIR / module
+        if path.exists():       # at the status of its module: the header's own word
+            header = M.parse_module(path.read_text(encoding="utf-8"), str(path)).header
+            assert p["status"] == header["status"], (fn, p["status"], header["status"])
+        if p["status"] == "P0":
+            assert fn in by_file[module]["functions"] and p["ruling"] in by_file[module]["rulings"]
+    # one part per module, the pair in it
+    parts = {own[fn]["id"] for fn in BUILT_HELPERS}
+    assert len(parts) == 3
+    assert own["palPitchPiano"]["types"] == ["PitchPalette"]     # its struct is planned no later (the closure holds)
+
+
+def _definitions_text(m) -> list:
+    """'ret name(param, param)' for every function a module defines, in file order, whitespace normalised."""
+    from arsenal.shaders import modules as M
+    out = []
+    for d in M.DEFINITION_RE.finditer(M.strip_comments(m.body)):
+        params = ", ".join(" ".join(p.split()) for p in d.group(3).split(",")) if d.group(3).strip() else ""
+        out.append(f"{d.group(1)} {d.group(2)}({params})")
+    return out
+
+
+def test_every_recipe_module_is_planned_function_for_function_with_its_built_signatures(data, library):
+    # The judge's ruling (c) on the batch-B review: a group recipe exposes its entry and its own steps by name
+    # (hexNeonCell, studioObjectRig, neonProfile, ...), the draft plans none of them, and a name nobody plans is a name
+    # a later module can claim. So each recipe module is one P0 part: every function it provides, in the module
+    # header's own category, at the module's status, its signature the built one, recorded by a plan-recipe ruling.
+    from arsenal.shaders import modules as M
+    root = M.LIBRARY_DIR.resolve()
+    by_path = {Path(m.path).resolve().relative_to(root).as_posix(): m for m in library.modules.values()
+               if root in Path(m.path).resolve().parents}
+    built_recipes = {f for f, m in by_path.items() if m.kind == "recipe" and f.startswith("groups/")}
+    assert built_recipes == set(RECIPE_MODULES), sorted(built_recipes ^ set(RECIPE_MODULES))
+    own = owners(data)
+    rulings = {r["id"]: r for r in data["rulings"]}
+    cats = {c["id"]: c for c in data["categories"]}
+    rows = {f["file"]: f for f in data["manifest"]}
+    for file, group in RECIPE_MODULES.items():
+        m = by_path[file]
+        assert all(fn in own for fn in m.provides), (file, [fn for fn in m.provides if fn not in own])
+        parts = {own[fn]["id"] for fn in m.provides}
+        assert len(parts) == 1, (file, parts)
+        p = own[m.provides[0]]
+        assert set(p["functions"]) == set(m.provides), (file, p["functions"], m.provides)
+        assert (p["module"], p["kind"], p["form"], p["status"]) == (file, "recipe", "ruling", m.header["status"])
+        assert p["category"] == m.header["cat"] and file in cats[p["category"]]["modules"]
+        assert p["signature"].split(" / ") == _definitions_text(m), file          # every built signature, as built
+        r = rulings[p["ruling"]]
+        assert r["kind"] == "plan-recipe" and r["part"] == p["id"] and r["module"] == file and r["group"] == group
+        assert r["names"] == p["functions"] and r["reason"] and r["source"]
+        assert file in groups(data)[group]["modules"]
+        assert rows[file]["kind"] == "recipe" and rows[file]["functions"] == p["functions"]
+        assert p["ruling"] in rows[file]["rulings"]
+
+
 # ---------- queries and the door ----------
 
 def test_queries_filter_by_family_category_and_status(data, A):
@@ -572,7 +750,8 @@ def test_the_atlas_verb_lists_the_p0_rows(capsys):
 def test_the_atlas_verb_summarises_by_family_without_filters(capsys):
     rc, out, _ = run_door(["atlas"], capsys)
     assert rc == 0
-    assert "Foundations" in out and "572 parts" in out and "P0 190" in out
+    assert "Foundations" in out and f"{COUNTS_AFTER_RULINGS['parts']} parts" in out
+    assert f"P0 {COUNTS_AFTER_RULINGS['by_status']['P0']}" in out
 
 
 @pytest.mark.parametrize("argv", [["atlas", "--status", "P3"], ["atlas", "--family", "Z"],
@@ -677,6 +856,30 @@ UNCLOSED = [
 def test_the_converter_refuses_a_draft_whose_p0_set_is_not_closed(tmp_path, draft_text, why, old, new, named):
     # The closure is checked on every build, not only pinned on today's data: a revision that adds a P1 requirement
     # to a P0 group (or makes a ruling stale) stops at the converter until a judge rules.
+    from arsenal.shaders import atlas_build
+    text = draft_text.replace("\r\n", "\n")
+    assert text.count(old) == 1, f"the mutation no longer fits the draft: {old[:60]!r}"
+    bad = tmp_path / "draft.md"
+    bad.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+    with pytest.raises(ValueError, match=named):
+        atlas_build.build(bad)
+
+
+STALE_BUILT = [
+    ("the draft now gives displayOut its res, so the built-signature ruling is stale",
+     "`vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev,", "`vec3 displayOut(vec3 sceneLin, vec2 pixel, vec2 res, float ev,",
+     "displayOut"),
+    ("the draft now plans oklchCusp itself, so the built-helper ruling is stale",   # in a P1 row: no manifest gap
+     "| `vec3 gradeSaturationOklab(vec3 lin, float s)` |",
+     "| `vec3 gradeSaturationOklab(vec3 lin, float s)` / `vec2 oklchCusp(float h)` |", "oklchCusp"),
+]
+
+
+@pytest.mark.parametrize("why, old, new, named", STALE_BUILT, ids=[s[0][:40] for s in STALE_BUILT])
+def test_the_converter_refuses_a_built_library_ruling_the_draft_has_overtaken(tmp_path, draft_text, why, old, new,
+                                                                              named):
+    # A ruling that follows the library must not silently stack on a draft that already says the same thing (or now
+    # plans the name itself, which would plan it twice): the converter names the stale ruling instead.
     from arsenal.shaders import atlas_build
     text = draft_text.replace("\r\n", "\n")
     assert text.count(old) == 1, f"the mutation no longer fits the draft: {old[:60]!r}"

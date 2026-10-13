@@ -1,0 +1,6 @@
+//! {"card": "drill-broken", "uses": [], "t": [0], "size": [64, 36],
+//!  "note": "DETECTOR DRILL: names a variable that does not exist, so the compile check must fail and say which."}
+// Apache-2.0, Akashic Aurora. A test fixture, never a real card.
+void mainImage(out vec4 color, in vec2 pixel) {
+    color = vec4(cardDrillUndeclared, 1.0);
+}

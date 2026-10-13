@@ -33,7 +33,7 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-from typing import Optional
+from typing import Any, Dict, Optional
 
 # A seat id is a short kebab/underscore token. Anything else is refused rather than trusted:
 # an id is used to build Redis keys and file names, so it is an injection surface.
@@ -123,6 +123,85 @@ def declared(session_id: str, binding_dir: Optional[str] = None) -> Optional[str
         return got if valid(got) else None
     except Exception:
         return None
+
+
+def claim_id(agent_id: str, session_id: str, *, ttl_s: Optional[float] = None,
+             client=None, ns: Optional[str] = None) -> Dict[str, Any]:
+    """Register THIS session as the live holder of `agent_id` -- the first-boot claim step.
+
+    T088 part (a), the collision-safety half listed FIRST in the identity directive and left
+    unbuilt: can two new seats spawning with ONE id break coordination? `resolve()` answers
+    WHO a session is; until this function existed, nothing answered WHO ELSE holds that name,
+    so a fresh seat just started beating `worklive` under its name and the rest of the fleet
+    addressed it -- collision was DETECTED after the fact (roster `split_brain`,
+    `STALE_INCARNATION`) but never PREVENTED at claim time.
+
+    THIS IS THE XMPP BIND 2 POSTURE, one notch softer -- the docstring above already cites it.
+    Bind 2 REFUSES to serve a stanza with no explicit sender when several resources share a
+    stream; we do not refuse to run (a hook must never break a session, T029/K8) -- we return
+    a VERDICT the caller may act on, and resolve() keeps the honest `unknown-<sid8>` fallback
+    rather than silently borrowing a peer's name.
+
+    Redis-based, TTL'd like the incarnation cards (core/comm/incarnation.py), and FAIL-OPEN:
+    when the store is unreachable this returns `ok: True, verdict: "unverified"` rather than
+    blocking a seat. Never raises. Pure in the R6 sense -- all inputs arrive as parameters, so
+    a pin can drive it with no bus.
+
+    Verdicts:
+      mine        this session already holds the id -- idempotent re-claim, refresh the TTL
+      taken       a DIFFERENT live session holds the bare id -- the caller should re-name to
+                  `{agent}#{sid8}` (the existing fleet-wide incarnation discriminator)
+      free        nobody holds it -- this session now claims it
+      unverified  the store could not be consulted -- absence of evidence is not evidence of
+                  absence; the caller keeps resolving loudly rather than assuming safety
+    """
+    aid = str(agent_id or "").strip()
+    sid = str(session_id or "").strip()
+    if not aid or not valid(aid):
+        return {"ok": True, "verdict": "unverified", "why": "no valid agent_id to claim",
+                "agent_id": aid, "session_id": sid, "claimed": False}
+    if not sid:
+        # A session id is what makes two seats distinct; without one there is nothing to
+        # register as a holder, and claiming in its absence would mint a shared row.
+        return {"ok": True, "verdict": "unverified", "why": "no session_id to register",
+                "agent_id": aid, "session_id": sid, "claimed": False}
+    try:
+        from core.comm.bus import _connect as _bus_connect
+        cli = client or _bus_connect()
+    except Exception:
+        cli = None
+    if cli is None:
+        return {"ok": True, "verdict": "unverified", "why": "no client reachable",
+                "agent_id": aid, "session_id": sid, "claimed": False}
+    key_ns = str(ns or os.environ.get("BIFROST_NAMESPACE", "bifrost"))
+    key = f"{key_ns}:claim:{aid}"
+    try:
+        holder = cli.get(key)
+        if holder is not None and str(holder) == sid:
+            cli.expire(key, ttl_s if ttl_s is not None else
+                       float(os.environ.get("AKASHIC_CLAIM_TTL_S", "180")) or 180)
+            return {"ok": True, "verdict": "mine", "agent_id": aid, "session_id": sid,
+                    "claimed": True}
+        if holder is not None:
+            # Another live session owns the bare id. Verified-taken, not assumed: the key
+            # exists and names a DIFFERENT session, so the collision is a fact, not a guess.
+            return {"ok": True, "verdict": "taken", "holder": str(holder),
+                    "agent_id": aid, "session_id": sid, "claimed": False}
+        # Free: claim it. SETNX so two seats racing from two processes cannot BOTH read
+        # "free" and both become the holder -- the atomic claim the house already trusts in
+        # bridge_seal (concurrent claims never hand out the same seq).
+        ttl = ttl_s if ttl_s is not None else float(os.environ.get("AKASHIC_CLAIM_TTL_S", "180") or 180)
+        got = cli.set(key, sid, nx=True, ex=ttl)
+        if got:
+            return {"ok": True, "verdict": "free", "agent_id": aid, "session_id": sid,
+                    "claimed": True}
+        # Lost the race: someone else claimed between our read and write. Re-read so the
+        # caller gets the TRUE holder rather than "free" that is no longer true.
+        return {"ok": True, "verdict": "taken", "holder": str(cli.get(key) or ""),
+                "agent_id": aid, "session_id": sid, "claimed": False}
+    except Exception:
+        return {"ok": True, "verdict": "unverified", "why": "claim read/write failed",
+                "agent_id": aid, "session_id": sid, "claimed": False}
 
 
 def resolve(session_id: str, binding_dir: Optional[str] = None,

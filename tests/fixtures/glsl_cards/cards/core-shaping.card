@@ -1,0 +1,54 @@
+//! {"card": "core-shaping", "uses": ["core-shaping"], "t": [0], "size": [320, 180],
+//!  "note": "A curve plot on a unit square with a quarter grid. Gain at k = 0.5 (blue, an inverse S), k = 1 (grey,
+//!  the diagonal) and k = 3 (orange, an S) all cross the exact centre; the impulse at k = 4 (green) touches the top
+//!  line exactly at x = 1/4. A gain curve that misses the centre, or an impulse that pokes through the top, is a
+//!  broken module."}
+// Apache-2.0, Akashic Aurora. EXAMPLE CARD (a test fixture): the curve-plot form, for a module of 1D shaping curves.
+// x runs 0..1 across the square and y runs 0..1 up it.
+
+const int PLOT_CURVES = 4;
+
+// The curves on the plot, by index (GLSL has no function pointers).
+float plotCurve(int which, float x) {
+    if (which == 0) return shpGain(x, 0.5);
+    if (which == 1) return shpGain(x, 1.0);
+    if (which == 2) return shpGain(x, 3.0);
+    return shpImpulse(x, 4.0);
+}
+
+// How much of a line of about one pixel's width covers this point. The vertical miss is divided by the curve's
+// steepness, so a steep stretch of curve stays as thick as a flat one.
+float plotInk(vec2 plotPos, float curveY, float slope, float pxSize) {
+    float miss = abs(plotPos.y - curveY) / sqrt(1.0 + slope * slope);
+    return 1.0 - smoothstep(0.75 * pxSize, 1.75 * pxSize, miss);
+}
+
+// 1 inside [lo, hi] on both axes, else 0.
+float plotBox(vec2 plotPos, float lo, float hi) {
+    return float(all(greaterThanEqual(plotPos, vec2(lo))) && all(lessThanEqual(plotPos, vec2(hi))));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float plotScale = 0.84 * iResolution.y;
+    vec2 plotOrigin = vec2(0.5 * (iResolution.x - plotScale), 0.08 * iResolution.y);
+    vec2 plotPos = (pixel - plotOrigin) / plotScale;
+    float pxSize = 1.0 / plotScale;
+    float inSquare = plotBox(plotPos, 0.0, 1.0);
+
+    vec3 paint = mix(vec3(0.05, 0.06, 0.08), vec3(0.09, 0.1, 0.12), inSquare);
+    vec2 toGrid = abs(fract(plotPos * 4.0 + 0.5) - 0.5) * 0.25;
+    float gridInk = 1.0 - smoothstep(0.0, pxSize, min(toGrid.x, toGrid.y));
+    paint = mix(paint, vec3(0.2, 0.21, 0.25), gridInk * inSquare);
+
+    vec3 curveInk[PLOT_CURVES] = vec3[PLOT_CURVES](vec3(0.35, 0.6, 1.0), vec3(0.6), vec3(1.0, 0.6, 0.2),
+                                                   vec3(0.4, 0.9, 0.45));
+    // ink only over the square, and two pixels past its top and bottom so a curve touching y = 1 stays whole
+    float onPlot = plotBox(vec2(plotPos.x, 0.5 + (plotPos.y - 0.5) / (1.0 + 4.0 * pxSize)), 0.0, 1.0);
+    float halfStep = 0.5 * pxSize;
+    for (int which = 0; which < PLOT_CURVES; ++which) {
+        float curveY = plotCurve(which, plotPos.x);
+        float slope = (plotCurve(which, plotPos.x + halfStep) - plotCurve(which, plotPos.x - halfStep)) / pxSize;
+        paint = mix(paint, curveInk[which], plotInk(plotPos, curveY, slope, pxSize) * onPlot);
+    }
+    color = vec4(paint, 1.0);
+}

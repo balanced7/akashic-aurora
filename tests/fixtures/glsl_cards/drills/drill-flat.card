@@ -1,0 +1,6 @@
+//! {"card": "drill-flat", "uses": [], "t": [0], "size": [64, 36],
+//!  "note": "DETECTOR DRILL: one flat grey, so the flatness check must call it flat."}
+// Apache-2.0, Akashic Aurora. A test fixture, never a real card.
+void mainImage(out vec4 color, in vec2 pixel) {
+    color = vec4(vec3(0.4), 1.0);
+}

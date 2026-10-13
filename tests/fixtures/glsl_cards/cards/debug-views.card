@@ -1,0 +1,30 @@
+//! {"card": "debug-views", "uses": ["debug-views"], "t": [0, 1], "size": [320, 180],
+//!  "note": "Top half: the heat ramp, black at the left to white at the right, with its brightness traced in cyan;
+//!  the trace must only climb. Bottom half: a circle's signed distance through dbgSlice, warm inside and cool outside,
+//!  evenly spaced bands, and one bright ring at the edge. The circle grows between t = 0 and t = 1."}
+// Apache-2.0, Akashic Aurora. EXAMPLE CARD (a test fixture): the ramp and field forms, for a module of debug views.
+// Both halves are computed for every pixel and one is chosen afterwards, so fwidth() inside dbgSlice never runs in
+// a branch that splits a 2x2 pixel quad.
+
+// Rec. 709 relative luminance weights (ITU-R BT.709): how bright each primary looks.
+float rampBrightness(vec3 rampRgb) {
+    return dot(rampRgb, vec3(0.2126, 0.7152, 0.0722));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cardUv = pixel / iResolution.xy;
+
+    // the ramp, and its brightness drawn as a line over it (0 at the middle of the card, 1 at the top)
+    vec3 rampRgb = dbgHeatRamp(cardUv.x);
+    float traceY = 2.0 * cardUv.y - 1.0;
+    float pxSize = 2.0 / iResolution.y;
+    float traceInk = 1.0 - smoothstep(pxSize, 2.0 * pxSize, abs(traceY - rampBrightness(rampRgb)));
+    vec3 upper = mix(rampRgb, vec3(0.0, 0.85, 1.0), traceInk);
+
+    // a circle whose radius moves with time, as a signed distance field
+    vec2 fieldPos = (pixel - vec2(0.5 * iResolution.x, 0.25 * iResolution.y)) / (0.25 * iResolution.y);
+    float radius = 0.5 + 0.15 * sin(0.25 * TAU * iTime);
+    vec3 lower = dbgSlice(length(fieldPos) - radius, 0.25);
+
+    color = vec4(cardUv.y > 0.5 ? upper : lower, 1.0);
+}
