@@ -72,6 +72,22 @@ measured. A larger scale is a ladder of one step at a time, each step capped at 
 holds the last frame (one frame over 500 ms, 2.5 s of slow frames, or 45 slow frames in a row). After any hold, Run
 again measures first and draws below the frames that held. A refusal lasts for the page.
 
+**Still owed before the switch may be turned on** (the third live-path re-review, 2026-10-13; the commit that landed
+this round is `1a413b29`):
+
+- **A hiccup on a frame reading can still flatten the measured growth.** One slow pre-flight frame (a GC pause, the
+  scheduler) makes a steep shader look shallow, so its first live frame can far exceed the prediction. In the
+  reviewer's simulation, 84 of 392 runs drew a live frame over 500 ms, the worst about 85 s. It predates this round and
+  is identical on the older stage; the per-frame-cost hiccup is fixed, this one is not. A fix reads each pre-flight
+  size at least twice and keeps the smaller, or refuses when two readings of one size disagree beyond their error.
+- **Symmetric noise on the per-frame reading biases it low** once the smaller of two is kept (worse than before at
+  about 30% noise, better at 5 to 10%, which is what SwiftShader showed). A median of three, or keeping the smaller
+  only when the two disagree beyond their error, would remove the bias.
+- **Cheap subjects can stay at a lower scale than they could run**, because the start-scale bound removed the larger
+  reading that proved their growth. A usability cost, not a risk.
+- **The 90 x 51 fallback draws frames that cannot change the verdict** for tiny frames already too slow for the
+  smallest scale; a pre-check could refuse without them.
+
 The screenshot driver (`arsenal/shaders/lab_shot.mjs`) shoots its view-only views with the switch off. Its receipt
 requires no Run button, no canvas and no WebGL context on each of them. Only its `run` view turns the switch on, and
 only inside its own private headless Chrome. That Chrome is forced onto SwiftShader, and the renderer is checked
