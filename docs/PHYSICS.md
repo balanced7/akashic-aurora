@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 9296e340. A bound you discover by collision is not awareness -- this sheet
+> Derived at a904e925. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (352 numeric constants)
+## Mechanical bounds (353 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -488,6 +488,7 @@ Class: reference
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TEXT` | 500 | arsenal/pianocue.py |  |
 | `MAX_TIMES` | 64 | arsenal/shaders/render.py |  |
+| `MAX_TOKENS` | 128 | arsenal/params.py |  |
 | `MAX_VARIANTS` | 6 | arsenal/jam/schemas.py |  |
 | `MAX_WINDOW_MS` | 90,000 | arsenal/practice.py | the segmenter looks back this far |
 | `MESSAGE_TTL` | 3,600 | research/in-flight/t342/dead-modules/fast_agent_comm.py | 1 hour |
