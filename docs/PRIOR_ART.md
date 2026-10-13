@@ -37,11 +37,11 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/trust` -- DRIFT (2->5), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->8), reviewed 2026-07-26
 - `agent/harness` -- DRIFT (9->13), reviewed 2026-07-26
-- `scripts/hooks` -- DRIFT (7->12), reviewed 2026-07-26
+- `scripts/hooks` -- DRIFT (7->13), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->24), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->10), reviewed 2026-07-26
-- `tests` -- DRIFT (331->892), reviewed 2026-07-26
+- `tests` -- DRIFT (331->893), reviewed 2026-07-26
 
 ---
 
@@ -427,7 +427,7 @@ _Reviewed 2026-07-26 by claude (partial), deepseek (p3 adjacent)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/hooks` -- 12 modules  ·  DRIFT (7->12)
+## `scripts/hooks` -- 13 modules  ·  DRIFT (7->13)
 
 **What it does.** Seven Claude Code integration hooks: pretooluse (recall injection before every tool call), posttooluse (outcome capture, flip detection, learn nudge), sessionstart (cache warm), sessionend (wrap), userpromptsubmit (plan-time recall), stop (wake enforcement), trace (tool-call to bus).
 
@@ -518,7 +518,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 892 modules  ·  DRIFT (331->892)
+## `tests` -- 893 modules  ·  DRIFT (331->893)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

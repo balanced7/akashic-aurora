@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at f248653a. A bound you discover by collision is not awareness -- this sheet
+> Derived at 72f3d087. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (279 names)
+## Configuration flags (282 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +37 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +38 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -129,6 +129,8 @@ Class: reference
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SHIFT_LOOP` | `"1"` | core/comm/shift_turn.py |
 | `AKASHIC_SHOW_CONSOLES` | `` | core/__init__.py, core/comm/launcher.py, scripts/quiet/sitecustomize.py |
+| `AKASHIC_SNIPPET_AUTOFILE` | `""` | scripts/hooks/snippet_autofile.py |
+| `AKASHIC_SNIPS_ROOT` | `` | scripts/hooks/snippet_autofile.py |
 | `AKASHIC_SPAWN_INSTANT_SECONDS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_SPAWN_PROOF_SECONDS` | `` | scripts/bifrost_runner_discord.py |
 | `AKASHIC_SPAWN_REPORT_DEADLINE` | `` | scripts/bifrost_runner_discord.py |
@@ -290,10 +292,11 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
-| `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
+| `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/hooks/snippet_autofile.py, scripts/ops/archive_transcripts.py |
+| `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (369 numeric constants)
+## Mechanical bounds (373 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -415,8 +418,10 @@ Class: reference
 | `HEARTBEAT_INTERVAL` | 10 | research/in-flight/t342/dead-modules/agent_comm_service.py | seconds - heartbeat frequency |
 | `HEARTBEAT_INTERVAL` | 30 | research/in-flight/t342/dead-modules/multi_agent.py |  |
 | `HIGHLIGHT_SECONDS` | 6 | arsenal/practice_riff.py |  |
+| `HINT_MAX` | 199 | scripts/hooks/snippet_autofile.py | characters: "keep the hint under 200" |
 | `HINT_MAX_PER_AGENT` | 8 | core/comm/context_hints.py | ring buffer cap per receiving agent |
 | `HINT_TTL_SECONDS` | 300 | core/comm/context_hints.py | 5 min soft expiry (stale hints silently dropped by drain) |
+| `HINT_WINDOW` | 600 | scripts/hooks/snippet_autofile.py | seconds: "the last 10 minutes" |
 | `HISTORY_CAP` | 200 | core/comm/turn_metrics.py |  |
 | `IMPLAUSIBLE_MIN_N` | 5 | core/coord/sift.py | below this, a high rate is small-n noise, not an alarm |
 | `INNER_BLOCK_MS` | 120,000 | research/in-flight/t342/dead-modules/scripts__heimdall.py | 2-min inner blocks; loop if a batch is all noise |
@@ -454,6 +459,7 @@ Class: reference
 | `MAX_BEATS` | 64 | arsenal/jam/schemas.py |  |
 | `MAX_BODY` | 240 | core/toolbelt/contest.py | a second voice is shorter than the first; chorus, not solo. |
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
+| `MAX_CHARS` | 300 | scripts/hooks/snippet_autofile.py | likewise |
 | `MAX_CHARS_PER_ENTRY` | 170 | core/narrative/chronicler.py |  |
 | `MAX_CHECKS` | 8 | arsenal/jam/schemas.py |  |
 | `MAX_CHROMA_STEPS` | 24 | arsenal/shaders/twins/colour.py | bisection steps for oklchMaxChroma (the piano's own count) |
@@ -466,6 +472,7 @@ Class: reference
 | `MAX_HEADER_DEPTH` | 32 | arsenal/shaders/modules.py | brackets and braces outside strings; a real header nests four deep |
 | `MAX_HOPS` | 12 | core/git/rewrite_map.py | three rewrites so far; a cap that can never loop forever |
 | `MAX_ITEMS` | 64 | arsenal/jam/schemas.py |  |
+| `MAX_LINES` | 3 | scripts/hooks/snippet_autofile.py | a snippet longer than this is filed |
 | `MAX_LIST` | 400 | core/comm/toolbox.py |  |
 | `MAX_LONG_EDGE` | 1,600 | arsenal/media/sheet.py |  |
 | `MAX_MATCHES` | 120 | core/comm/toolbox.py |  |
