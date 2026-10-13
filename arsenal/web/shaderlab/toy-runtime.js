@@ -441,9 +441,9 @@ export function buildFooter(passType, code = '') {
     return [
       'out vec4 shaderlab_out;',
       'void main() {',
-      '  vec2 shaderlab_st = gl_FragCoord.xy / iResolution.xy * 2.0 - 1.0;',
+      '  vec2 shaderlab_st = (gl_FragCoord.xy / iResolution.xy) * 2.0 - 1.0;',
       '  vec3 shaderlab_dir = normalize(shaderlab_faceCenter + shaderlab_st.x * shaderlab_faceRight + shaderlab_st.y * shaderlab_faceUp);',
-      '  vec4 shaderlab_color = vec4(0.0, 0.0, 0.0, 1.0);',
+      '  vec4 shaderlab_color = vec4(vec3(0.0), 1.0);',
       '  mainCubemap(shaderlab_color, gl_FragCoord.xy, vec3(0.0), shaderlab_dir);',
       '  shaderlab_out = shaderlab_color;',
       '}',
@@ -454,7 +454,7 @@ export function buildFooter(passType, code = '') {
   return [
     'out vec4 shaderlab_out;',
     'void main() {',
-    '  vec4 shaderlab_color = vec4(0.0, 0.0, 0.0, 1.0);',
+    '  vec4 shaderlab_color = vec4(vec3(0.0), 1.0);',
     '  mainImage(shaderlab_color, gl_FragCoord.xy);',
     `  shaderlab_out = ${store};`,
     '}',
@@ -660,11 +660,11 @@ const finiteOr = (v, d) => (Number.isFinite(v) ? v : d);
  */
 export function packAudioTexture(fft, wave, out = new Uint8Array(AUDIO.width * AUDIO.height)) {
   const n = AUDIO.width;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n; i += 1) {
     const v = fft && fft.length ? finiteOr(resampleAt(fft, i, n), 0) : 0;
     out[i] = Math.round(Math.min(1, Math.max(0, v)) * 255);
   }
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < n; i += 1) {
     const v = wave && wave.length ? finiteOr(resampleAt(wave, i, n), 0) : 0;
     out[n + i] = Math.round((Math.min(1, Math.max(-1, v)) * 0.5 + 0.5) * 255);
   }
@@ -809,7 +809,7 @@ export function proceduralTexture(seed, width = STANDIN_SIZE, height = STANDIN_S
   const n = width * height;
   const r = new Uint8Array(n);
   const b = new Uint8Array(n);
-  for (let i = 0; i < n; i++) { r[i] = (rnd() * 256) | 0; b[i] = (rnd() * 256) | 0; }
+  for (let i = 0; i < n; i += 1) { r[i] = (rnd() * 256) | 0; b[i] = (rnd() * 256) | 0; }
   const [ox, oy] = NOISE_CHANNEL_OFFSET;
   const out = new Uint8Array(n * 4);
   for (let y = 0; y < height; y++) {

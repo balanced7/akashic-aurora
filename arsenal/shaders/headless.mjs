@@ -347,7 +347,7 @@ class Browser {
       }
     }
     this.page?.close(); this.cdp?.close();
-    for (let i = 0; i < 10; i++) {  // Chrome's children let go of the profile a moment after the browser exits
+    for (let i = 0; i < 10; i += 1) {  // Chrome's children let go of the profile a moment after the browser exits
       try { rmSync(this.profile, { recursive: true, force: true }); break; } catch { await delay(300); }
     }
     this.proc = null;

@@ -22,7 +22,7 @@ const pass = (name, type, code, inputs = [], outId = null) => ({
   name, type, code, inputs, outputs: outId ? [{ id: outId, channel: 0 }] : [],
 });
 const img = (code, inputs = []) => pass('Image', 'image', code, inputs, ID.image);
-const MAIN = (tag, body = 'o = vec4(u * 0.01, 0.25, 1.0);') => `// PASS ${tag}\nvoid mainImage(out vec4 o, in vec2 u) {\n  ${body}\n}\n`;
+const MAIN = (tag, body = 'o = vec4(u * 0.01, 0.25, 1.0);') => `// PASS ${tag} of this test\nvoid mainImage(out vec4 o, in vec2 u) {\n  ${body}\n}\n`;
 
 // ---------------------------------------------------------------------------------------------------------------
 // FakeGL: records and enforces
@@ -460,7 +460,7 @@ function volumeBin({ sig = 'BIN\0', w = 4, h = 3, d = 2, ch = 1, layout = 0, fmt
   for (let i = 0; i < 4; i++) v.setUint8(i, sig.charCodeAt(i) || 0);
   v.setUint32(4, w, true); v.setUint32(8, h, true); v.setUint32(12, d, true);
   v.setUint8(16, ch); v.setUint8(17, layout); v.setUint16(18, fmt, true);
-  for (let i = 0; i < n; i++) { if (fmt === 10) v.setFloat32(20 + i * 4, fill(i) / 7, true); else v.setUint8(20 + i, fill(i)); }
+  for (let i = 0; i < n; i += 1) { if (fmt === 10) v.setFloat32(20 + i * 4, fill(i) / 7, true); else v.setUint8(20 + i, fill(i)); }
   return ab;
 }
 

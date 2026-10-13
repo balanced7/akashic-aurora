@@ -97,7 +97,7 @@ toy.destroy();
 |---|---|
 | pass order | The buffers in the order the shader saved them (not by letter: a save listing A, D, B, C runs D before B), then Cube A, then Image (`EXEC_GROUP`), as Shadertoy's client walks its pass list. A read of an earlier pass sees this frame; of itself or a later pass, the previous frame. `passOrder()` labels every read. |
 | buffer targets | RGBA32F with `EXT_color_buffer_float` + `OES_texture_float_linear`, else RGBA16F, else RGBA8 (warned). Sized to the canvas, cleared to 0. A resize copies each half texel for texel over the overlap (the rest 0) and restarts the ping-pong on half 0, Shadertoy's quirk included. Cube A uses RGBA16F when it renders (memory). |
-| Cube A | `mainCubemap(out vec4, in vec2 fragCoord, in vec3 rayOri, in vec3 rayDir)` per face; rayDir from the GL cube-map selection table inverted (`CUBE_FACES`), rayOri = 0. |
+| Cube A | `mainCubemap(fragColor, fragCoord, rayOri, rayDir)` per face, with `fragColor` an `out vec4`, `fragCoord` an `in vec2` and the ray origin and direction `in vec3`; rayDir from the GL cube-map selection table inverted (`CUBE_FACES`), rayOri = 0. |
 | Sound | compiles (`mainSound(int, float)` or `mainSound(float)`) against the sound uniform set (no iResolution, iTime, iTimeDelta, iFrameRate, iFrame, iMouse: a sound pass may declare its own); never played (listed in `unsupported`). |
 | texture | sampler objects carry filter (nearest, linear, mipmap) and wrap (clamp, repeat, mirror); vflip flips the upload; srgb uploads as SRGB8_ALPHA8. |
 | cubemap | six faces `<name>.<ext>`, `<name>_1..5.<ext>` in GL order +X, -X, +Y, -Y, +Z, -Z; with vflip each face uploads flipped and `_2`/`_3` trade places (+Y gets `_3`), as Shadertoy uploads it (`cubemapUploadOrder`). |
