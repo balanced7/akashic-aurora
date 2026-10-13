@@ -25,6 +25,7 @@ import { createCueClient, createCuePlayer, createClaudeVoice } from "./piano/cue
 import { createJamApi, createRestDetector, createTransport } from "./piano/transport.js";
 import { createDeck } from "./piano/deck.js";
 import { createGlass } from "./piano/glass.js";
+import { createLean, LEAN_API } from "./piano/lean.js";
 import { createSpectacle } from "./piano/spectacle.js";
 import * as NV from "./piano/nashville.js";
 import { formatNumber } from "./piano/nashville.js";
@@ -2451,6 +2452,8 @@ const theoryUi = {
   boundary: BOUNDARY_MODES.includes(boundaryQuery) ? boundaryQuery
     : BOUNDARY_MODES.includes(safeGet("arsenal.piano.chordBoundary")) ? safeGet("arsenal.piano.chordBoundary") : "notes",
   key: KEY_NAMES.includes(safeGet("arsenal.piano.key")) ? safeGet("arsenal.piano.key") : "auto",
+  // the lean on Daniel's own screen (#lean-glass, never recorded): "on" unless he turned it off (he asked for it on)
+  lean: safeGet("arsenal.piano.lean") === "off" ? "off" : "on",
 };
 const boundaryGate = createBoundaryGate();  // pedal mode: holds the label through a legato pedal change
 const KEY_TICK = 0.1;
@@ -3061,6 +3064,298 @@ function drawGlass() {
   if (!has && !glassBox.had) return;
   jamGlass.draw({ ghosts, claude: glassClaude, chip, alpha: a });
   glassBox.had = has;
+}
+
+// The lean, on Daniel's own screen. His answer to the story layer's one question (docs/library/design, story-layer v1),
+// 2026-10-13: "can you enable the lean visualization thing". piano/lean.js decides by rule, from what sounds, his own chord
+// reading and the key the page shows, whether the key's 7 is leaning home and which voice leans (the highest 7, toward the 1
+// just above it). This paints it, with no words, on #lean-glass, a 2D canvas of its own over the WebGL one: a thin rose
+// thread arching over the keys from the leaning key to home, there while he holds and fading when he moves on; a short,
+// damped bridge when the two keys are pressed together; a soft crystal-blue glow over home when the lean lands there.
+// Nothing marks a lean that went somewhere else. It is never recorded: REC records canvas.captureStream() of the WebGL canvas
+// (startRecording) and snapshot() reads that canvas, and this is another element; a screen capture (OBS) does see it, which
+// is what the Lean menu is for (theoryUi.lean, "Lean (your screen)"). Off: nothing is drawn and the layer is cleared.
+// Positions: each key's rest-pose top face (k.face, as glassKeyTop projects it) through this frame's camera, written into
+// one typed array, so a frame allocates nothing here. A key off screen, behind the camera or hidden by the instrument (its
+// keySpan) draws nothing. Only the box drawn last frame is cleared, and an idle frame does no work at all.
+const leanEl = $("lean-glass");
+const leanCtx = leanEl ? leanEl.getContext("2d") : null;
+const lean = createLean();
+const leanIn = { sounding, rootPc: -1, keyTonic: -1, keyMinor: false, keyConf: 0 };
+const LEAN_LOOK = {
+  rose: "#f3a9c6", core: "#fde4ee", glow: "rgba(243, 169, 198, 0.9)",
+  alpha: 0.9,          // the thread's opacity at full level
+  width: 2.5,          // CSS px, the thread's width at its middle: 1.15x at the leaning key, tapering to 0.85x at home ...
+  widthSmall: 0.6,     // ... down to this share of it where the keys are small on screen (a far camera)
+  coreWidth: 0.8,      // CSS px, the paler filament along its middle
+  blur: 7,             // CSS px of soft glow around it
+  rise: 0.9,           // world units: how high the arch stands over the keys (a white key is 1 wide) ...
+  riseMin: 12,         // ... but never lower than this many CSS px on screen ...
+  riseMax: 64,         // ... nor higher than this ...
+  riseNear: 1.5,       // ... except where the two keys are close on screen: then 1.5x their distance (6 px at least) is
+                       // enough, so a far camera gets a small arch in proportion rather than a tall hairpin
+  bridge: 0.35,        // the touching bridge's height, of the arch's
+  bridgeBright: 0.85,  // and its opacity, of a normal lean's: damped, never brighter (the design record's near-anchor damp:
+                       // an anchor already sounding within 2 semitones counts as rub, not as a stronger lean)
+  landRgb: "140, 203, 243",  // #8ccbf3, crystal blue
+  landMax: 0.85,       // the landing glow's opacity at most: soft, never clipping to white
+  landSize: 1.25,      // its radius, in arch heights (12 CSS px at least) ...
+  landGrow: 0.35,      // ... and how much it opens as it fades ...
+  landLift: 0.55,      // ... its centre this many arch heights over the key (off the bright ivory, into the dark above)
+  steps: 24,           // segments of the thread
+  pad: 20,             // CSS px around what was drawn, cleared next frame (the glow's reach)
+};
+// The anchor on a key's top face, as a share of its length from the back: the middle of a white key's open front, and the
+// front part of a black key, where a finger sits.
+const LEAN_ALONG_WHITE = (KEY.blackL + (KEY.whiteL - KEY.blackL) * 0.5) / KEY.whiteL, LEAN_ALONG_BLACK = 0.72;
+// Except where the pair is one white key and one black key (G to Ab, D to Eb, G# to A ...). On their own anchors the black
+// key's foot sits 2.2 units further back and 0.52 higher, so on screen the two feet stand almost one over the other (under
+// 2 px apart across at the wide view's edge) and no arch fits between them: lifted up the screen the thread hooked past
+// home, lifted off the line between the feet it bowed sideways into a "C" (the visual verifier, 2026-10-13). There both feet
+// stand side by side on the black keys' front line (the spec owner's decision, 2026-10-13): the white key's top at the depth
+// of the black key's front face, and the black key's top at its front edge.
+const LEAN_FRONT_WHITE = KEY.blackL / KEY.whiteL, LEAN_FRONT_BLACK = 1;
+const leanPt = new THREE.Vector3();
+const leanW = new Float64Array(9);      // world anchors: from, to, home (x, y, z)
+const leanXY = new Float64Array(12);    // CSS px: from, to, the arch's middle and its top, home and over home
+const leanRib = new Float64Array((LEAN_LOOK.steps + 1) * 6);  // the thread: centre, left and right edge per step
+const leanBox = { css: 0, cssH: 0, dpr: 1, x0: 0, y0: 0, x1: 0, y1: 0, had: false };  // had: the box holds a drawing
+const leanCounts = { draws: 0, clears: 0, skipped: 0, lastMs: 0, maxMs: 0 };
+// The landing glow, drawn once: a soft crystal-blue disc fading to nothing at its edge.
+const leanSprite = (() => {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d"), grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, `rgba(${LEAN_LOOK.landRgb}, 1)`);
+  grad.addColorStop(0.25, `rgba(${LEAN_LOOK.landRgb}, 0.85)`);
+  grad.addColorStop(0.55, `rgba(${LEAN_LOOK.landRgb}, 0.4)`);
+  grad.addColorStop(0.8, `rgba(${LEAN_LOOK.landRgb}, 0.1)`);
+  grad.addColorStop(1, `rgba(${LEAN_LOOK.landRgb}, 0)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return c;
+})();
+// Feeds the lean every frame, once the reading is known: the sounding map, the root of the reading the page shows (a chord's,
+// else -1) and the key the page shows with its confidence (locked by hand or set by Claude's band: 3).
+let leanInfo = null;
+// A lean that throws turns itself off for this page load (and clears its layer) instead of failing the frame: REC's frame
+// request and the HUD come after it in renderFrame.
+let leanFailed = false;
+function leanFail(e) {
+  if (leanFailed) return;
+  leanFailed = true;
+  console.warn("[piano] the lean turned itself off:", e);
+  try { if (leanCtx && leanBox.css) leanCtx.clearRect(0, 0, leanBox.css, leanBox.cssH); } catch { /* nothing to clear */ }
+  leanBox.had = false;
+}
+function tickLean(dt, t, info) {
+  if (leanFailed) return;
+  try { feedLean(dt, t, info); } catch (e) { leanFail(e); }
+}
+function feedLean(dt, t, info) {
+  if (info !== leanInfo) {
+    leanInfo = info;
+    leanIn.rootPc = info && info.kind === "chord" && info.root ? Theory.pcOf(info.root) : -1;
+  }
+  const key = keyView.key;
+  leanIn.keyTonic = key && Number.isInteger(key.tonic) ? key.tonic : -1;
+  leanIn.keyMinor = !!key && key.mode === "minor";
+  leanIn.keyConf = keyView.locked || keyView.jam ? 3 : keyView.confidence === "sure" ? 2 : keyView.confidence === "fair" ? 1 : 0;
+  lean.update(leanIn, dt, t);
+}
+// A world point into CSS px of the lean box at leanXY[i]; false when it is behind the camera (or, onScreen, off the canvas).
+function leanProject(x, y, z, i, onScreen) {
+  leanPt.set(x, y, z).project(camera);
+  if (!(leanPt.z >= -1 && leanPt.z <= 1)) return false;
+  if (onScreen && (leanPt.x < -1 || leanPt.x > 1 || leanPt.y < -1 || leanPt.y > 1)) return false;
+  const s = leanBox.css / framing.w;
+  leanXY[i] = (leanPt.x + 1) * 0.5 * framing.w * s;
+  leanXY[i + 1] = (1 - leanPt.y) * 0.5 * framing.h * s;
+  return true;
+}
+// A key's anchor: its world point into leanW[w], projected into leanXY[i]. front: the key is one of a white and black pair,
+// so its foot stands on the black keys' front line. False for a key the page does not show.
+function leanKey(m, front, w, i) {
+  const k = keys.get(m);
+  if (!k || !k.pivot.visible) return false;
+  const f = k.face;
+  const along = front ? (k.black ? LEAN_FRONT_BLACK : LEAN_FRONT_WHITE) : k.black ? LEAN_ALONG_BLACK : LEAN_ALONG_WHITE;
+  leanW[w] = (f[0] + f[3]) * 0.5;
+  leanW[w + 1] = f[1];
+  leanW[w + 2] = f[2] + (f[8] - f[2]) * along;
+  return leanProject(leanW[w], leanW[w + 1], leanW[w + 2], i, true);
+}
+// True when m and n are one white key and one black key (false when the page has no such key).
+function leanMixed(m, n) {
+  const a = keys.get(m), b = keys.get(n);
+  return !!a && !!b && a.black !== b.black;
+}
+// The world point leanW[w] projected into leanXY[base], the screen's up over it (a unit vector) into leanXY[i], and the
+// length in CSS px of LEAN_LOOK.rise there (how big the keys are on screen). Straight up the screen, length 0, when it
+// cannot be read (the camera looking straight down, or the point behind it).
+function leanUp(w, base, i) {
+  const L = LEAN_LOOK;
+  if (leanProject(leanW[w], leanW[w + 1], leanW[w + 2], base, false)
+      && leanProject(leanW[w], leanW[w + 1] + L.rise, leanW[w + 2], i, false)) {
+    const dx = leanXY[i] - leanXY[base], dy = leanXY[i + 1] - leanXY[base + 1], len = Math.hypot(dx, dy);
+    if (len > 1e-6) {
+      leanXY[i] = dx / len;
+      leanXY[i + 1] = dy / len;
+      return len;
+    }
+  }
+  leanXY[i] = 0;
+  leanXY[i + 1] = -1;
+  return 0;
+}
+function clearLean() {
+  if (!leanCtx || !leanBox.had) return;
+  leanCtx.clearRect(leanBox.x0, leanBox.y0, leanBox.x1 - leanBox.x0, leanBox.y1 - leanBox.y0);
+  leanBox.had = false;
+  leanCounts.clears++;
+}
+// After the frame is drawn (the camera has moved for this frame).
+function drawLean() {
+  if (!leanCtx || leanFailed) return;
+  try { paintLean(); } catch (e) { leanFail(e); }
+}
+function paintLean() {
+  const f = lean.frame, L = LEAN_LOOK, on = theoryUi.lean === "on" && leanBox.css > 0;
+  const thread = on && f.active && f.fromMidi >= 0;
+  const landing = on && f.land.level > 0.004 && f.land.midi >= 0;
+  if (!thread && !landing) {
+    if (leanBox.had) clearLean(); else leanCounts.skipped++;
+    return;
+  }
+  const t0 = performance.now();
+  clearLean();
+  const c = leanCtx;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const front = thread && leanMixed(f.fromMidi, f.toMidi);
+  if (thread && leanKey(f.fromMidi, front, 0, 0) && leanKey(f.toMidi, front, 3, 2)) {
+    const ax = leanXY[0], ay = leanXY[1], bx = leanXY[2], by = leanXY[3];
+    // the arch's middle, in the world, and the screen's up there
+    leanW[6] = (leanW[0] + leanW[3]) * 0.5; leanW[7] = (leanW[1] + leanW[4]) * 0.5; leanW[8] = (leanW[2] + leanW[5]) * 0.5;
+    const len = leanUp(6, 4, 6), ux = leanXY[6], uy = leanXY[7];
+    // the lift. Two keys of one colour sit side by side on screen: the normal of the line between their feet, on its side
+    // nearest the screen's up (which for them is the screen's up to a few degrees at the far edge of a wide view). A white
+    // and black pair, its feet side by side on the black keys' front line, lifts straight up the screen (the screen's up
+    // there): the black key's foot still stands its 0.52 higher, so the line between the feet slants, and its normal would
+    // tip the arch sideways.
+    const chx = bx - ax, chy = by - ay, chl = Math.hypot(chx, chy);
+    let lx = ux, ly = uy;
+    if (!front && chl > 1e-6) {
+      lx = -chy / chl; ly = chx / chl;
+      const d = lx * ux + ly * uy;
+      if (d < 0 || (d === 0 && ly > 0)) { lx = -lx; ly = -ly; }
+    }
+    // the arch's height: the world rise on screen, at least riseMin (or, for keys close together on screen, riseNear times
+    // their distance), at most riseMax; and the thread thinner where the keys are small
+    const floor = Math.min(L.riseMin, Math.max(6, L.riseNear * chl));
+    let h = Math.min(L.riseMax, Math.max(floor, len));
+    const ws = len >= L.riseMin ? 1 : Math.max(L.widthSmall, len / L.riseMin);
+    if (f.touching) h = Math.max(4, h * L.bridge);
+    // a cubic from key to key whose two inner points stand off both feet along the lift: its top is 3/4 of their height.
+    // For a white and black pair the lower foot's inner point stands off it by the step between the feet as well, so the
+    // two stand level and the top sits between the feet rather than over the higher one (a hook onto it).
+    const k = h / 0.75;
+    let ka = k, kb = k;
+    if (front) {
+      const e = chx * lx + chy * ly;  // how much higher, along the lift, home's foot stands than the leaning key's
+      if (e > 0) ka = k + e; else kb = k - e;
+    }
+    const p1x = ax + lx * ka, p1y = ay + ly * ka, p2x = bx + lx * kb, p2y = by + ly * kb;
+    const n = L.steps;
+    for (let i = 0; i <= n; i++) {
+      const s = i / n, r = 1 - s;
+      const cx = r * r * r * ax + 3 * r * r * s * p1x + 3 * r * s * s * p2x + s * s * s * bx;
+      const cy = r * r * r * ay + 3 * r * r * s * p1y + 3 * r * s * s * p2y + s * s * s * by;
+      let tx = 3 * r * r * (p1x - ax) + 6 * r * s * (p2x - p1x) + 3 * s * s * (bx - p2x);
+      let ty = 3 * r * r * (p1y - ay) + 6 * r * s * (p2y - p1y) + 3 * s * s * (by - p2y);
+      const tl = Math.hypot(tx, ty) || 1;
+      tx /= tl; ty /= tl;
+      const half = 0.5 * L.width * ws * (1.15 - 0.3 * s);  // heavier where it leans from, lighter where it reaches
+      const j = i * 6;
+      leanRib[j] = cx; leanRib[j + 1] = cy;
+      leanRib[j + 2] = cx - ty * half; leanRib[j + 3] = cy + tx * half;
+      leanRib[j + 4] = cx + ty * half; leanRib[j + 5] = cy - tx * half;
+      if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy;
+    }
+    const a = Math.min(1, f.level * L.alpha * (f.touching ? L.bridgeBright : 1));
+    c.beginPath();
+    c.moveTo(leanRib[2], leanRib[3]);
+    for (let i = 1; i <= n; i++) c.lineTo(leanRib[i * 6 + 2], leanRib[i * 6 + 3]);
+    for (let i = n; i >= 0; i--) c.lineTo(leanRib[i * 6 + 4], leanRib[i * 6 + 5]);
+    c.closePath();
+    c.globalAlpha = a;
+    c.fillStyle = L.rose;
+    c.shadowColor = L.glow;
+    c.shadowBlur = L.blur * leanBox.dpr;  // shadows are in device pixels, outside the transform
+    c.fill();
+    c.shadowBlur = 0;
+    c.beginPath();
+    c.moveTo(leanRib[0], leanRib[1]);
+    for (let i = 1; i <= n; i++) c.lineTo(leanRib[i * 6], leanRib[i * 6 + 1]);
+    c.lineWidth = L.coreWidth;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.strokeStyle = L.core;
+    c.globalAlpha = a * 0.75;
+    c.stroke();
+    leanCounts.draws++;
+  }
+  // the glow stands where the thread came down: home's foot in the pair the lean made (home is always just above the
+  // leaning key, lean.js), so after a white and black step it is on the black keys' front line too
+  if (landing && leanKey(f.land.midi, leanMixed(f.land.midi - 1, f.land.midi), 6, 8)) {
+    const len = leanUp(6, 8, 10), ux = leanXY[10], uy = leanXY[11];
+    const h = Math.min(L.riseMax, Math.max(6, len));
+    const gx0 = leanXY[8], gy0 = leanXY[9];
+    const lv = f.land.level, R = Math.max(12, h * L.landSize) * (1 + L.landGrow * (1 - lv));
+    const gx = gx0 + ux * h * L.landLift, gy = gy0 + uy * h * L.landLift;  // over the key, where the thread came down
+    c.globalAlpha = Math.min(L.landMax, lv);
+    c.drawImage(leanSprite, gx - R, gy - R, 2 * R, 2 * R);
+    if (gx - R < x0) x0 = gx - R; if (gx + R > x1) x1 = gx + R; if (gy - R < y0) y0 = gy - R; if (gy + R > y1) y1 = gy + R;
+    leanCounts.draws++;
+  }
+  c.globalAlpha = 1;
+  if (x1 >= x0) {
+    const p = L.pad;
+    leanBox.x0 = Math.max(0, Math.floor(x0 - p)); leanBox.y0 = Math.max(0, Math.floor(y0 - p));
+    leanBox.x1 = Math.min(leanBox.css, Math.ceil(x1 + p)); leanBox.y1 = Math.min(leanBox.cssH, Math.ceil(y1 + p));
+    leanBox.had = leanBox.x1 > leanBox.x0 && leanBox.y1 > leanBox.y0;
+  }
+  const ms = performance.now() - t0;
+  leanCounts.lastMs = ms;
+  if (ms > leanCounts.maxMs) leanCounts.maxMs = ms;
+}
+// The lean layer takes the canvas's exact CSS box (fitCanvas), with the screen's pixel density applied once here: every
+// draw after it is in CSS px. A new size clears the layer.
+function resizeLean(left, top, width, height, dpr) {
+  if (!leanEl || !leanCtx) return;
+  leanEl.style.left = `${left}px`;
+  leanEl.style.top = `${top}px`;
+  leanEl.style.width = `${width}px`;
+  leanEl.style.height = `${height}px`;
+  const w = Math.round(width * dpr), h = Math.round(height * dpr);
+  if (leanEl.width !== w || leanEl.height !== h) { leanEl.width = w; leanEl.height = h; }
+  leanCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  leanCtx.clearRect(0, 0, width, height);
+  leanBox.css = width;
+  leanBox.cssH = height;
+  leanBox.dpr = dpr;
+  leanBox.had = false;
+}
+// The Lean menu: "on" or "off", remembered like the other theory settings. Off clears the layer at once.
+function setLeanMode(mode) {
+  theoryUi.lean = mode === "off" ? "off" : "on";
+  safeSet("arsenal.piano.lean", theoryUi.lean);
+  if (theoryUi.lean === "off" && leanCtx && leanBox.css) {
+    leanCtx.clearRect(0, 0, leanBox.css, leanBox.cssH);
+    leanBox.had = false;
+  }
+  const select = $("lean-select");
+  if (select && select.value !== theoryUi.lean) select.value = theoryUi.lean;
+  return theoryUi.lean;
 }
 
 // Navi's moonlight floor pool (house ideas, 2026-09-14): while Claude's band plays a Loop or a Try on the stage, a soft
@@ -4056,14 +4351,18 @@ function fitCanvas() {
     canvas.style.width = `${cssW}px`;
     canvas.style.height = `${cssH}px`;
     placeSmooth(cssW, cssH);  // the smooth preview takes the same size (and, as the stage centres it, the same place)
-    if (jamGlass) {  // the glass takes the canvas's exact CSS box, at the screen's pixel density
+    if (jamGlass || leanEl) {  // the glass and the lean layer take the canvas's exact CSS box, at the screen's pixel density
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       // sub-pixel placement: offsetLeft/offsetTop are whole pixels, and a centred canvas often sits at x.5
       const cr = canvas.getBoundingClientRect(), stage = $("stage");
-      jamGlass.resize({ left: cr.left - r.left - stage.clientLeft, top: cr.top - r.top - stage.clientTop, width: cssW, height: cssH }, dpr);
-      glassBox.width = cssW;
-      glassBox.height = cssH;
-      glassBox.had = true;  // the next frame draws the glass again (or clears it: a resize to the same size keeps its pixels)
+      const left = cr.left - r.left - stage.clientLeft, top = cr.top - r.top - stage.clientTop;
+      if (jamGlass) {
+        jamGlass.resize({ left, top, width: cssW, height: cssH }, dpr);
+        glassBox.width = cssW;
+        glassBox.height = cssH;
+        glassBox.had = true;  // the next frame draws the glass again (or clears it: a resize to the same size keeps its pixels)
+      }
+      resizeLean(left, top, cssW, cssH, dpr);  // cleared; the next frame draws the lean again where it now falls
     }
   } finally {
     fitting = false;
@@ -4423,6 +4722,12 @@ function wireUi() {
       boundarySelect.blur();
     });
   }
+  // The lean on his own screen (#lean-glass, never recorded): on or off, remembered
+  const leanSelect = $("lean-select");
+  if (leanSelect) {
+    leanSelect.value = theoryUi.lean;
+    leanSelect.addEventListener("change", () => { setLeanMode(leanSelect.value); leanSelect.blur(); });
+  }
   for (const mode of ["major", "minor"]) {
     const group = document.createElement("optgroup");
     group.label = mode;
@@ -4635,6 +4940,7 @@ function renderFrame() {
   tickHoverGate(t);
   tickKey(t);
   const info = currentInfo(t);
+  tickLean(dt, t, info);  // the lean reads what sounds, the reading shown and the key shown (drawn below, after the camera)
   tickCueStage(dt);
   updateKeys(dt, t);
   updatePool(dt, t);
@@ -4701,6 +5007,7 @@ function renderFrame() {
   renderer.autoClear = true;
   drawSmooth();  // the display copy of this frame (fitCanvas decides whether one is needed); never recorded
   drawGlass(t);  // after the camera has moved for this frame; the glass is never recorded
+  drawLean();  // the lean on Daniel's own screen, on its own layer; never recorded either
   if (rec.state === "recording" && rec.videoTrack) {
     rec.frameAcc += dt;
     if (rec.frameAcc >= 1 / 60 - 0.004) {  // at most one frame per render; averages 60 fps at any refresh rate
@@ -4787,6 +5094,20 @@ window.__piano = {
   // each answers false when it keeps the setting as it was (a mode the menu doesn't offer; a framing change while REC runs).
   setColourMode: (mode) => setColourMode(mode),
   setNumbersMode: (mode) => setNumbersMode(mode),
+  // The lean (piano/lean.js) on Daniel's own screen, for receipts: lean is a frozen copy of this frame's reading (read only);
+  // leanStats() what its layer did; setLeanMode("on" | "off") is the Lean menu (stored).
+  get lean() {
+    const f = lean.frame;
+    return Object.freeze({ active: f.active, level: f.level, kind: f.kind, fromMidi: f.fromMidi, toMidi: f.toMidi, touching: f.touching,
+                           land: Object.freeze({ midi: f.land.midi, level: f.land.level, kept: f.land.kept }),
+                           events: Object.freeze({ leaned: f.events.leaned, landed: f.events.landed }) });
+  },
+  leanStats: () => ({ api: LEAN_API, mode: theoryUi.lean, failed: leanFailed, dpr: leanBox.dpr,
+                      css: { width: leanBox.css, height: leanBox.cssH }, backing: leanEl ? { width: leanEl.width, height: leanEl.height } : null,
+                      box: leanBox.had ? { x0: leanBox.x0, y0: leanBox.y0, x1: leanBox.x1, y1: leanBox.y1 } : null, ...leanCounts,
+                      input: { rootPc: leanIn.rootPc, keyTonic: leanIn.keyTonic, keyMinor: leanIn.keyMinor, keyConf: leanIn.keyConf,
+                               sounding: leanIn.sounding.size } }),
+  setLeanMode: (mode) => setLeanMode(mode),
   applyFraming: (id) => (FRAMINGS[id] ? applyFraming(id) : false),
   get studio() { return studio; },  // the Studio drawer (piano/studio/studio.js), once it has mounted
   get scheme() { return looks.scheme.active ? looks.scheme.active.instance : null; },

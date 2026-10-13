@@ -104,6 +104,13 @@
           <span class="field-label sig-video">Key</span>
           <select id="key-select" aria-label="Key the numbers count from"><option value="auto">auto</option></select>
         </label>
+        <label class="field" for="lean-select" title="A thin light from the note that leans to the note it leans toward, while you hold. On your screen only: REC never records it (a screen capture does).">
+          <span class="field-label sig-video">Lean (your screen)</span>
+          <select id="lean-select" aria-label="Lean: a light from the leaning note to home, on your screen only">
+            <option value="on">on</option>
+            <option value="off">off</option>
+          </select>
+        </label>
       </div>
       <div class="group">
         <span class="field-label sig-control">Practice log</span>
@@ -172,6 +179,8 @@
     <!-- The glass: Claude's keys, ghosts and chip while the jam view keeps Claude off the recorded canvas. Never recorded.
          The deck drawer (#deck) and the pill (#jam-pill) are added to the stage by piano/deck.js. -->
     <canvas id="jam-glass" class="jam-glass" aria-hidden="true"></canvas>
+    <!-- The lean (piano/lean.js): a light from the leaning note to home, on Daniel's own screen. Never recorded. -->
+    <canvas id="lean-glass" class="lean-glass" aria-hidden="true"></canvas>
 
     <dl class="hud" id="hud" hidden="hidden">
       <div class="hud-row"><dt>fps</dt><dd id="hud-fps">&mdash;</dd></div>

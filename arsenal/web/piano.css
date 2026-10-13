@@ -327,6 +327,17 @@ select:hover { border-color: var(--ink-3); }
   pointer-events: none;
 }
 
+/* The lean (piano/lean.js, painted by piano.js drawLean): its own 2D layer on the
+   canvas's exact box, above the glass. Not part of the canvas, so REC never
+   records it; pointer events fall through to the canvas (the gallery camera). */
+.lean-glass {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* The smooth preview (piano.js, placeSmooth): a copy of each frame at the canvas's
    shown size, filtered down in steps so a 4K buffer shown small does not alias. It
    is not part of the canvas, so REC never records it. No left/top on purpose:
