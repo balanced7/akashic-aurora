@@ -43,6 +43,8 @@ in the renders folder (the server refuses those pictures as well).
 RENDERS are read, never made, here. A picture is listed only when a receipt written by `py -m arsenal shader render` or
 `filmstrip` names it and the file sits in renders/<id>/. A receipt at a frame rate other than 60 is `stale`; no receipt
 is `not rendered`. Making them is a separate, locked SwiftShader burst: `render <id> --t 1,4` and `filmstrip <id>`.
+Each receipt's `substituted` list (an input the corpus could not supply: a texture drawn by a procedural stand-in, audio
+fed as silence) is kept beside the pictures, so the lab can badge a card whose pictures are not quite the shader.
 
 Apache-2.0, our own code and words. No corpus code passes through this file; the index quotes licence lines and the
 study notes' own headings, nothing else.
@@ -270,14 +272,31 @@ def _local_png(d: Path, named) -> Optional[Path]:
     return None
 
 
+_STAND_IN_FIELDS = ("src", "kind", "reason", "style")
+
+
+def _stand_ins(receipt: Optional[dict]) -> List[dict]:
+    """A receipt's `substituted` list: each input the render could not feed and what drew in its place (a procedural
+    stand-in texture, silent audio). Only the fields a badge needs are kept."""
+    out = []
+    for s in (receipt or {}).get("substituted") or []:
+        if isinstance(s, dict):
+            out.append({k: s[k] for k in _STAND_IN_FIELDS if k in s})
+    return out
+
+
 def render_facts(sid: str, renders_dir: Path, withheld: bool = False) -> dict:
-    """What the receipts in renders/<id>/ say: stills, the filmstrip sheet, the frame rate and a one-word status."""
-    facts = {"status": None, "fps": None, "stills": [], "filmstrip": None, "problems": []}
+    """What the receipts in renders/<id>/ say: stills, the filmstrip sheet, the frame rate, a one-word status, and
+    each receipt's stand-ins (`substituted`: an input the corpus could not supply, drawn by a stand-in), which the lab
+    badges on the card: a picture drawn with stand-ins is not quite the shader as its author shows it."""
+    facts = {"status": None, "fps": None, "stills": [], "filmstrip": None, "problems": [],
+             "substituted": {"stills": [], "filmstrip": []}}
     if withheld:
         facts["status"] = "withheld: study only (no images, whatever is on disk)"
         return facts
     d = Path(renders_dir) / sid
     rec, fil = _read_json(d / "receipt.json"), _read_json(d / "filmstrip.json")
+    facts["substituted"] = {"stills": _stand_ins(rec), "filmstrip": _stand_ins(fil)}
     fps_seen, problems, stills = [], [], []
     if rec:
         fps_seen.append((rec.get("request") or {}).get("fps"))
@@ -395,6 +414,7 @@ def build(corpus: Optional[Path] = None, atlas: Optional[dict] = None, study_dir
         "stale": pick(lambda e: status(e).startswith("stale")),
         "failed": pick(lambda e: status(e) == "failed"),
         "partial": pick(lambda e: status(e).startswith("partial")),
+        "stand_ins": pick(lambda e: any(e["renders"]["substituted"].values())),
         "flat_frames": pick(lambda e: any(s.get("flat") for s in e["renders"]["stills"])),
         "no_atlas_link": pick(lambda e: e["atlas_links"] < 1),
         "no_group": pick(lambda e: not e["groups"]),
@@ -491,6 +511,9 @@ def human_show(e: dict) -> str:
         out.append(f"    t={s['t']:g}  {s['path']}" + ("  (one flat colour)" if s.get("flat") else ""))
     if r["filmstrip"]:
         out.append(f"    filmstrip  {r['filmstrip']['path']}  ({r['filmstrip']['frames']} frames to {r['filmstrip']['to']} s)")
+    for which, subs in (r.get("substituted") or {}).items():
+        for s in subs:
+            out.append(f"    stand-in ({which}): {s.get('kind', '?')} {s.get('src', '?')}: {s.get('reason', '?')}")
     for p in r["problems"]:
         out.append(f"    note: {p}")
     return "\n".join(out)
