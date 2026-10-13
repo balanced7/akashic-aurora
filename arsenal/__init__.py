@@ -8,3 +8,4 @@ __version__ = "0.1.0"
 
 GRAPH_API = "arsenal.graph/v0"
 MODULE_PROTOCOL = "arsenal.module/v0"
+GLSL_MODULE_API = "arsenal.glsl-module/v1"   # the `shader` block of a manifest (arsenal/shaders/modules.py)

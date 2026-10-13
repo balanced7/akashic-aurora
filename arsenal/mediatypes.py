@@ -17,6 +17,11 @@ PORT_TYPES = (
     "timeline.sequence",
     "scene.deck",    # a whole present.scene.v1 document: tokens, order, sections, slides (arsenal/present)
     "scene.slide",   # one slide of a present.scene.v1 deck, carried with the deck's tokens (arsenal/present)
+    # GLSL module ports (arsenal/shaders/modules.py): values that live in a fragment shader, never a payload to copy
+    "vfx.float",
+    "vfx.vec2",
+    "vfx.vec3",
+    "vfx.vec4",
 )
 
 #: Types that carry media payloads: moving these between engines is a copy.
