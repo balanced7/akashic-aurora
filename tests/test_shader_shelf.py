@@ -205,6 +205,58 @@ def test_a_rendered_entry_lists_its_stills_and_filmstrip_with_server_urls(world)
     assert r["filmstrip"]["url"] == "/renders/abcDE1/filmstrip.png" and r["filmstrip"]["fps"] == 60
 
 
+STAND_INS = [{"src": "/media/a/abc123.jpg", "kind": "texture", "reason": "load failed: procedural stand-in",
+              "style": "photo"},
+             {"src": "https://example.org/a-track", "kind": "audio", "reason": "no audio fed: silence"}]
+
+
+def _add_substituted(path: Path, subs) -> None:
+    rec = json.loads(path.read_text(encoding="utf-8"))
+    rec["substituted"] = subs
+    path.write_text(json.dumps(rec), encoding="utf-8")
+
+
+def test_each_receipts_stand_ins_are_kept_so_a_card_can_badge_them(world):
+    """The S6 review: 20 of the 41 rendered Loved shaders were drawn with procedural stand-in textures or silent audio,
+    and the index dropped the receipts' `substituted` lists, so a stand-in render read as the real thing."""
+    d = world["renders"] / "abcDE1"
+    _add_substituted(d / "receipt.json", STAND_INS)
+    _add_substituted(d / "filmstrip.json", STAND_INS[1:])
+    index = _build(world)
+    r = _entry(index, "abcDE1")["renders"]
+    assert r["substituted"] == {"stills": STAND_INS, "filmstrip": STAND_INS[1:]}
+    assert r["status"] == "rendered"                   # the status words are unchanged; the badge reads the list
+    assert index["summary"]["stand_ins"] == ["abcDE1"]
+    assert _entry(index, "abcDE3")["renders"]["substituted"] == {"stills": [], "filmstrip": []}   # none recorded
+
+
+def test_stand_ins_keep_only_the_receipt_fields_a_badge_needs(world):
+    d = world["renders"] / "abcDE1"
+    odd = [{"src": "/media/a/x.png", "kind": "cubemap", "reason": "face 1 load failed: procedural stand-in",
+            "style": "environment", "bytes": 123456, "debug": {"deep": True}}, "not a record", None]
+    _add_substituted(d / "receipt.json", odd)
+    r = _entry(_build(world), "abcDE1")["renders"]
+    assert r["substituted"]["stills"] == [{"src": "/media/a/x.png", "kind": "cubemap",
+                                           "reason": "face 1 load failed: procedural stand-in", "style": "environment"}]
+
+
+def test_a_study_only_entry_carries_no_stand_ins_either(world):
+    _add_substituted(world["renders"] / "abcDE2" / "receipt.json", STAND_INS)
+    e = _entry(_build(world), "abcDE2")
+    assert e["renders"]["substituted"] == {"stills": [], "filmstrip": []}
+    assert ".png" not in json.dumps(e) and ".jpg" not in json.dumps(e)
+
+
+def test_show_names_the_stand_ins(world, monkeypatch, capsys):
+    _add_substituted(world["renders"] / "abcDE1" / "receipt.json", STAND_INS)
+    SH.write(_build(world), world["out"], state_root=world["state"])
+    monkeypatch.setattr(SH, "OUT", world["out"])
+    cli._load_extensions()
+    assert cli.main(["shelf", "show", "abcDE1"]) == 0
+    shown = capsys.readouterr().out
+    assert "stand-in" in shown and "procedural stand-in" in shown and "silence" in shown
+
+
 def test_a_30_fps_render_is_listed_as_stale_not_as_current(world):
     r = _entry(_build(world), "abcDE3")["renders"]
     assert r["status"].startswith("stale") and r["fps"] == 30
