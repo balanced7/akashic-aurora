@@ -14,6 +14,12 @@ every planned P0 function of each file is defined, nothing unplanned is exported
 architecture section 3.2, the constants in the GLSL text equal the twin's, each module has a card that builds against
 the house library, and lint finds nothing.
 
+The last part (slow) closes the loop the other families already close: a probe card renders every core function on
+SwiftShader over a table of inputs, writes each result's float32 (or int32) bits into pixels, and the test reads the
+bits back and holds them to the twin. That is where finiteOr's bit test, imodFloor's negative branch, the shaping
+curves' fixed points and the debug views' NaN detector meet a real compiler, which is allowed to fold isnan away and to
+compute pow and division its own way.
+
 Apache-2.0, Akashic Aurora. Written fresh; no corpus code.
 """
 from __future__ import annotations
@@ -22,6 +28,7 @@ import importlib
 import json
 import math
 import re
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -453,3 +460,348 @@ def test_module_has_a_card_that_builds_against_the_house_library(house, file):
     assert name in card.uses and card.note
     shader = K.build_card(card, library=house)
     assert name in shader["card"]["modules"]
+
+
+# ================================================================================================ GPU parity (slow)
+# The probe card: every case writes four 32-bit result words (a float's bits, or an int's), 16 bits per pixel (red the
+# high byte, green the low), so eight pixels per case and eight cases per row. Inputs travel as uint bit patterns and
+# are reinterpreted on the GPU, so a NaN, an Inf or a -0.0 reaches the function exactly as written, and no literal can
+# round differently in the compiler than in numpy.
+PROBE_COLS = 8                  # cases per row
+PROBE_SLOTS = 8                 # pixels per case: 4 words x 2 halves
+PROBE_SLICE = (-0.252, 0.004, 0.0625, 0.25)     # dbgSlice's d = A + K * y + STEP * column, and its spacing
+PROBE_ZOOM, PROBE_RES = 3.0, (64.0, 36.0)       # uvFootprint of 3 * uvCentered(pixel, PROBE_RES)
+SLICE_CASES, FOOTPRINT_CASES = 16, 8            # rows 0 and 1 are dbgSlice, row 2 uvFootprint (whole quads each)
+WORDS = {"float": 1, "vec2": 2, "vec3": 3, "vec4": 4, "int": 1, "ivec2": 2}
+TRIG_TOL = 5e-4                 # GLSL ES lets sin, cos and acos be approximate (the colour family measured 9e-5)
+POW_TOL = 1e-5                  # pow, exp, exp2, log2 and division: relative, a few float32 ulps
+TIGHT_TOL = 2e-6
+
+
+class B(int):
+    """A float argument given by its exact bit pattern (a signalling NaN, a negative NaN)."""
+
+
+NAN, SNAN, NEG_NAN, INF = B(0x7FC00000), B(0x7F800001), B(0xFFC00000), B(0x7F800000)
+NEG_INF = B(0xFF800000)
+
+
+def _words(kind, value):
+    items = value if isinstance(value, (list, tuple)) else [value]
+    assert len(items) == WORDS[kind], (kind, value)
+    if kind in ("int", "ivec2"):
+        return [int(v) & 0xFFFFFFFF for v in items]
+    return [int(v) if isinstance(v, B) else int(np.array([v], dtype=F32).view(np.uint32)[0]) for v in items]
+
+
+def _decoded(kind, words):
+    """The argument exactly as the GPU sees it: the same bits, as float32 or int32 (a scalar for one word)."""
+    arr = np.array(words, dtype=np.uint32).view(np.int32 if kind in ("int", "ivec2") else F32)
+    return arr[0] if len(arr) == 1 else arr
+
+
+def _probe_groups():
+    """(label, GLSL expression of the args {0}, {1}, ..., arg kinds, result kind, cases, twin, tolerance).
+    Tolerance "bits" means the result's bits must be equal; a number is |gpu - twin| <= tol * max(1, |twin|)."""
+    c, s = twin("core"), twin("shaping")
+    big, ulp_over = 3.4e38, float(np.nextafter(F32(1.0), F32(2.0)))
+    return [
+        ("finiteOr", "finiteOr({0}, {1})", ["vec4", "vec4"], "vec4",
+         [([NAN, INF, NEG_INF, 0.25], [1.0, 2.0, 3.0, 4.0]), ([big, -big, 0.0, -0.0], [1.0, 2.0, 3.0, 4.0]),
+          ([NEG_NAN, 1.0, SNAN, -2.5], [9.0, 8.0, 7.0, 6.0]), ([1e-30, -1e30, 0.5, NAN], [0.0, -0.0, 0.0, 5.0])],
+         c.finiteOr, "bits"),
+        ("imodFloor", "imodFloor({0}, {1})", ["int", "int"], "int",
+         [(-50, 7), (-1, 4), (0, 3), (1, 3), (7, 7), (-7, 7), (-8, 7), (-2 ** 31, 7), (2 ** 31 - 1, 10), (5, 0),
+          (-5, -3), (-13, 5), (13, 5), (-2 ** 31, 1), (-1, 2 ** 31 - 1), (-2 ** 31, 2 ** 31 - 1)],
+         c.imodFloor, "bits"),
+        ("imodFloor ivec2", "imodFloor({0}, {1})", ["ivec2", "ivec2"], "ivec2",
+         [((-3, 4), (4, 3)), ((-1, -5), (4, 4)), ((2 ** 31 - 1, -2 ** 31), (3, 3))], c.imodFloor, "bits"),
+        ("imodFloor ivec2 int", "imodFloor({0}, {1})", ["ivec2", "int"], "ivec2",
+         [((-1, -5), 4), ((9, -9), 4), ((-2 ** 31, 6), 0)], c.imodFloor, "bits"),
+        ("cellIndex", "cellIndex({0})", ["float"], "int",
+         [(-0.5,), (0.5,), (-1.0,), (2.999,), (-1e-7,), (1e6 + 0.5,), (-3.5e6,)], c.cellIndex, "bits"),
+        ("unrollBarrier", "unrollBarrier({0}, {1})", ["int", "int"], "int",
+         [(1, 0), (12, 1), (64, 999999), (12, -3)], c.unrollBarrier, "bits"),
+        ("dot2 vec2", "dot2({0})", ["vec2"], "float", [([3.0, 4.0],), ([-1.5, 0.25],)], c.dot2, TIGHT_TOL),
+        ("dot2 vec3", "dot2({0})", ["vec3"], "float", [([1.0, 2.0, 2.0],), ([-0.5, 3.0, 0.1],)], c.dot2, TIGHT_TOL),
+        ("safeDiv", "safeDiv({0}, {1}, {2})", ["float"] * 3, "float",
+         [(6.0, 3.0, 1e-3), (1.0, 0.0, 1e-3), (1.0, -1e-6, 1e-3), (-2.0, 1e-9, 1e-3), (5.0, -0.0, 0.1)],
+         c.safeDiv, POW_TOL),
+        ("safeNormalize vec2", "safeNormalize({0}, {1})", ["vec2", "vec2"], "vec2",
+         [([3.0, 4.0], [0.0, 1.0]), ([0.0, 0.0], [0.0, 1.0]), ([1e-13, 0.0], [0.0, 1.0]), ([1e-11, 0.0], [0.0, 1.0])],
+         c.safeNormalize, POW_TOL),
+        ("safeNormalize vec3", "safeNormalize({0}, {1})", ["vec3", "vec3"], "vec3",
+         [([0.0, 0.0, 0.0], [0.0, 0.0, 1.0]), ([2.0, 0.0, 0.0], [0.0, 0.0, 1.0]), ([1.0, -2.0, 2.0], [1.0, 0.0, 0.0])],
+         c.safeNormalize, POW_TOL),
+        ("safeSqrt", "safeSqrt({0})", ["float"], "float", [(-1e-7,), (4.0,), (2.0,), (0.0,)], c.safeSqrt, POW_TOL),
+        ("safeAcos", "safeAcos({0})", ["float"], "float", [(ulp_over,), (-ulp_over,), (0.5,), (0.0,)], c.safeAcos,
+         TRIG_TOL),
+        ("safePow", "safePow({0}, {1})", ["float"] * 2, "float", [(2.0, 10.0), (0.0, 0.0), (-2.0, 2.2), (0.5, 3.0)],
+         c.safePow, POW_TOL),
+        ("rotate2", "rotate2({0})", ["float"], "mat2", [(0.3,), (1.7,), (-2.4,), (math.pi / 2,)], c.rotate2, TRIG_TOL),
+        ("clkPhase", "clkPhase({0}, {1})", ["float"] * 2, "float",
+         [(1.25, 2.0), (0.0, 7.0), (99.37, 3.3), (5.5, 0.1)], c.clkPhase, POW_TOL),
+        ("clkKeep", "clkKeep({0}, {1})", ["float"] * 2, "float",
+         [(0.2, 1 / 60), (0.85 ** 60, 1 / 240), (0.3, 0.0), (0.3, -0.1), (0.0, 1 / 60), (-1.0, 1 / 60), (1.0, 5.0)],
+         c.clkKeep, POW_TOL),
+        ("clkAlpha", "clkAlpha({0}, {1})", ["float"] * 2, "float",
+         [(1 / 60, 0.2), (0.0, 0.2), (1 / 60, 0.0), (-1.0, 0.5), (0.5, 0.5)], c.clkAlpha, POW_TOL),
+        ("uvCentered", "uvCentered({0}, {1})", ["vec2", "vec2"], "vec2",
+         [([160.0, 90.0], [320.0, 180.0]), ([160.0, 180.0], [320.0, 180.0]), ([320.0, 90.0], [320.0, 180.0]),
+          ([0.5, 0.5], [64.0, 36.0])], c.uvCentered, TIGHT_TOL),
+        ("uvPixel", "uvPixel({0})", ["vec2"], "float", [([320.0, 180.0],), ([64.0, 36.0],)], c.uvPixel, TIGHT_TOL),
+        ("shpLinstep", "shpLinstep({0}, {1}, {2})", ["float"] * 3, "float",
+         [(0.25, 0.75, 0.25), (0.25, 0.75, 0.75), (0.25, 0.75, 0.5), (0.25, 0.75, -3.0), (0.25, 0.75, 9.0),
+          (0.0, 1.0, 0.3)], s.shpLinstep, TIGHT_TOL),
+        ("shpSmoother", "shpSmoother({0}, {1}, {2})", ["float"] * 3, "float",
+         [(0.25, 0.75, 0.25), (0.25, 0.75, 0.75), (0.25, 0.75, 0.5), (0.25, 0.75, -3.0), (0.25, 0.75, 9.0),
+          (0.0, 1.0, 0.01), (0.0, 1.0, 0.99)], s.shpSmoother, TIGHT_TOL),
+        ("shpImpulse", "shpImpulse({0}, {1})", ["float"] * 2, "float",
+         [(1.0, 1.0), (0.25, 4.0), (1 / 12, 12.0), (0.0, 4.0), (1.0, 4.0), (3.0, 0.5)], s.shpImpulse, POW_TOL),
+        ("shpPulse", "shpPulse({0}, {1}, {2})", ["float"] * 3, "float",
+         [(0.5, 0.5, 0.2), (0.7, 0.5, 0.2), (0.95, 0.5, 0.2), (-3.0, 0.5, 0.2), (0.6, 0.5, 0.2), (0.5, 0.5, 0.0)],
+         s.shpPulse, TIGHT_TOL),
+        ("shpGain", "shpGain({0}, {1})", ["float"] * 2, "float",
+         [(x, k) for k in (0.25, 1.0, 3.0) for x in (0.0, 0.5, 1.0, 0.25, 0.8)], s.shpGain, POW_TOL),
+        ("shpParabola", "shpParabola({0}, {1})", ["float"] * 2, "float",
+         [(x, k) for k in (0.5, 1.0, 2.0) for x in (0.0, 1.0, 0.5)] + [(0.25, 2.0), (-0.5, 2.0), (1.5, 2.0)],
+         s.shpParabola, POW_TOL),
+        ("shpSoftAbs", "shpSoftAbs({0}, {1})", ["float"] * 2, "float",
+         [(0.0, 0.04), (-1.3, 0.04), (1.3, 0.04), (2.0, 0.0)], s.shpSoftAbs, TIGHT_TOL),
+        ("shpTri", "shpTri({0})", ["float"], "float", [(0.0,), (0.5,), (0.25,), (0.75,), (-0.25,), (3.1,)], s.shpTri,
+         TIGHT_TOL),
+        ("shpRemap", "shpRemap({0}, {1}, {2}, {3}, {4})", ["float"] * 5, "float",
+         [(0.2, 0.2, 0.6, 1.0, 3.0), (0.6, 0.2, 0.6, 1.0, 3.0), (1.0, 0.2, 0.6, 1.0, 3.0)], s.shpRemap, POW_TOL),
+        ("shpInvPower", "shpInvPower({0}, {1}, {2})", ["float"] * 3, "float",
+         [(0.3, 0.3, 2.0), (0.6, 0.3, 2.0), (0.3, 0.3, 10.0), (0.6, 0.3, 10.0), (0.0, 0.7, 10.0), (-1.0, 0.7, 10.0),
+          (0.1, 0.7, 10.0)], s.shpInvPower, POW_TOL),
+        ("dbgHeatRamp", "dbgHeatRamp({0})", ["float"], "vec3",
+         [(t,) for t in (0.0, 0.1, 0.25, 0.4, 0.5, 0.8, 1.0, -1.0, 7.0)], c.dbgHeatRamp, TIGHT_TOL),
+        ("dbgHeatCount", "dbgHeatCount({0}, {1})", ["float"] * 2, "vec3",
+         [(10.0, 20.0), (21.0, 20.0), (20.0, 20.0), (0.0, 0.0)], c.dbgHeatCount, TIGHT_TOL),
+        ("dbgRangeScope", "dbgRangeScope({0})", ["vec4"], "vec3",
+         [([0.2, NAN, 0.1, 1.0],), ([0.2, 0.3, NEG_INF, 1.0],), ([0.2, -0.01, 0.1, 1.0],), ([0.2, 0.3, 1.5, 1.0],),
+          ([0.5, 0.5, 0.5, 1.0],), ([NAN, INF, -1.0, 2.0],), ([0.1, 0.2, 0.3, 2.0],), ([INF, 0.0, 0.0, 1.0],),
+          ([SNAN, 0.5, 0.5, 1.0],)], c.dbgRangeScope, TIGHT_TOL),
+        ("dbgNaN", "dbgNaN({0})", ["vec3"], "vec3",
+         [([0.1, 0.2, 0.3],), ([NAN, 0.0, 0.0],), ([0.0, INF, 0.0],), ([0.0, 0.0, NEG_INF],), ([SNAN, 0.0, 0.0],),
+          ([-0.0, big, -big],), ([0.0, NEG_NAN, 1.0],)], c.dbgNaN, "bits"),
+        ("dbgCells", "dbgCells({0}, {1}, {2}, {3})", ["vec2", "vec2", "vec2", "float"], "vec3",
+         [([0.4999, 0.0], [0.0, 0.0], [1.0, 1.0], 0.01), ([0.0, 0.0], [0.0, 0.0], [1.0, 1.0], 0.01),
+          ([0.0, 0.0], [1.0, 0.0], [1.0, 1.0], 0.01), ([-0.3, -0.3], [0.0, 0.0], [1.0, 1.0], 0.01),
+          ([0.3, 0.3], [0.0, 0.0], [1.0, 1.0], 0.01), ([0.1, -0.2], [-3.0, 7.0], [2.0, 1.0], 0.02)],
+         c.dbgCells, TRIG_TOL),
+    ]
+
+
+def _pack(result_kind: str) -> str:
+    return {"float": "uvec4(floatBitsToUint(r), 0u, 0u, 0u)", "vec2": "uvec4(floatBitsToUint(r), 0u, 0u)",
+            "vec3": "uvec4(floatBitsToUint(r), 0u)", "vec4": "floatBitsToUint(r)",
+            "int": "uvec4(uint(r), 0u, 0u, 0u)", "ivec2": "uvec4(uvec2(r), 0u, 0u)",
+            "mat2": "floatBitsToUint(vec4(r[0], r[1]))"}[result_kind]
+
+
+def _load(kind: str, array: str) -> str:
+    n = WORDS[kind]
+    if kind == "int":
+        return f"int({array}[i])"
+    if kind == "ivec2":
+        return f"ivec2(int({array}[2 * i]), int({array}[2 * i + 1]))"
+    lanes = ", ".join(f"{array}[{n} * i + {k}]" for k in range(n))
+    return f"uintBitsToFloat({array}[i])" if n == 1 else f"uintBitsToFloat(uvec{n}({lanes}))"
+
+
+def _probe_card(groups):
+    decls, branches = [], []
+    n = SLICE_CASES + FOOTPRINT_CASES
+    for gi, (label, expr, kinds, result, cases, _twin, _tol) in enumerate(groups):
+        for ai, kind in enumerate(kinds):
+            words = [w for case in cases for w in _words(kind, case[ai])]
+            decls.append(f"const uint PROBE_G{gi}_A{ai}[{len(words)}] = uint[{len(words)}]("
+                         + ", ".join(f"{w}u" for w in words) + ");")
+        local = " ".join(f"{kind} a{ai} = {_load(kind, f'PROBE_G{gi}_A{ai}')};" for ai, kind in enumerate(kinds))
+        call = expr.format(*(f"a{ai}" for ai in range(len(kinds))))
+        branches.append(f"    if (i < {len(cases)}) {{ {local} {result} r = {call}; return {_pack(result)}; }}"
+                        f"  // {label}\n    i -= {len(cases)};")
+        n += len(cases)
+    rows = (n + PROBE_COLS - 1) // PROBE_COLS
+    a, k, step, gap = PROBE_SLICE
+    header = {"card": "core-twin-probe", "uses": sorted(MODULES.values()), "t": [0],
+              "size": [PROBE_COLS * PROBE_SLOTS, rows],
+              "note": "TEST PROBE (tests/test_glsl_twins_core.py): the bits of every case, 16 bits per pixel."}
+    head = f"""
+uvec4 probeCase(int i, vec3 sliced, float footprint) {{
+    if (i < {SLICE_CASES}) {{ return uvec4(floatBitsToUint(sliced), 0u); }}  // dbgSlice (rows 0 and 1)
+    i -= {SLICE_CASES};
+    if (i < {FOOTPRINT_CASES}) {{ return uvec4(floatBitsToUint(footprint), 0u, 0u, 0u); }}  // uvFootprint (row 2)
+    i -= {FOOTPRINT_CASES};
+"""
+    tail = f"""
+    return uvec4(0xDEADBEEFu);   // padding past the last case: never decoded
+}}
+
+void mainImage(out vec4 probeOut, in vec2 probeAt) {{
+    ivec2 cell = ivec2(probeAt);
+    int column = cell.x / {PROBE_SLOTS};
+    int caseIndex = cell.y * {PROBE_COLS} + column;
+    int slot = cell.x - column * {PROBE_SLOTS};
+    // The two views that take screen derivatives run for every pixel, before anything branches, on inputs that are
+    // smooth across each 2 x 2 quad: d is constant across a case's pixels and steps by K from row to row.
+    float sliceD = {a!r} + {k!r} * probeAt.y + {step!r} * float(column);
+    vec3 sliced = dbgSlice(sliceD, {gap!r});
+    float footprint = uvFootprint({PROBE_ZOOM!r} * uvCentered(probeAt, vec2({PROBE_RES[0]!r}, {PROBE_RES[1]!r})));
+    uvec4 bits = probeCase(caseIndex, sliced, footprint);
+    uint word = slot < 2 ? bits.x : (slot < 4 ? bits.y : (slot < 6 ? bits.z : bits.w));
+    uint half16 = (slot - (slot / 2) * 2) == 0 ? (word >> 16u) : (word & 65535u);
+    probeOut = vec4(float(half16 >> 8u) / 255.0, float(half16 & 255u) / 255.0, 0.0, 1.0);
+}}
+"""
+    body = "\n".join(decls) + "\n" + head + "\n".join(branches) + tail
+    text = "//! " + json.dumps(header) + "\n// Apache-2.0, Akashic Aurora. Generated by the test; never tracked.\n" + body
+    return text, n, rows
+
+
+def _decode(png: Path, n: int) -> np.ndarray:
+    """(n, 4) uint32: each case's four result words, read back from the 16-bit halves."""
+    from PIL import Image
+    with Image.open(png) as im:
+        px = np.asarray(im.convert("RGB"), dtype=np.uint32)[::-1]      # PNG row 0 is the top; GL's row 0 the bottom
+    out = np.zeros((n, 4), dtype=np.uint32)
+    for i in range(n):
+        y, x0 = divmod(i, PROBE_COLS)
+        for w in range(4):
+            hi, lo = px[y, x0 * PROBE_SLOTS + 2 * w], px[y, x0 * PROBE_SLOTS + 2 * w + 1]
+            out[i, w] = (((hi[0] << 8) | hi[1]) << 16) | ((lo[0] << 8) | lo[1])
+    return out
+
+
+def _want(result_kind: str, value) -> np.ndarray:
+    """The twin's result as the lanes the probe writes (a mat2 column by column), float32 or int32."""
+    if result_kind == "mat2":
+        m = np.asarray(value, dtype=F32)
+        return np.array([m[0, 0], m[1, 0], m[0, 1], m[1, 1]], dtype=F32)
+    dtype = np.int32 if result_kind in ("int", "ivec2") else F32
+    return np.atleast_1d(np.asarray(value)).astype(dtype).reshape(-1)
+
+
+def _records(groups, words: np.ndarray, rows: int):
+    """One record per case: label, the decoded args, what the GPU wrote, what the twin says, the tolerance."""
+    c = twin("core")
+    a, k, step, gap = (F32(v) for v in PROBE_SLICE)
+    ys, xs = np.mgrid[0:rows, 0:PROBE_COLS * PROBE_SLOTS].astype(F32) + F32(0.5)
+    field = F32(PROBE_ZOOM) * c.uvCentered(np.stack([xs, ys], -1), PROBE_RES)
+    footprint = c.uvFootprint(field)
+    out = []
+    for i in range(SLICE_CASES):
+        row, col = divmod(i, PROBE_COLS)
+        d = F32(F32(a + k * F32(row + 0.5)) + step * F32(col))
+        out.append({"label": "dbgSlice", "args": (d, gap, k), "got": words[i, :3].view(F32),
+                    "want": _want("vec3", c.dbgSlice(d, gap, k)), "tol": 1e-4})
+    for j in range(FOOTPRINT_CASES):
+        row, col = divmod(SLICE_CASES + j, PROBE_COLS)
+        out.append({"label": "uvFootprint", "args": (), "got": words[SLICE_CASES + j, :1].view(F32),
+                    "want": _want("float", footprint[row, col * PROBE_SLOTS]), "tol": TIGHT_TOL})
+    i = SLICE_CASES + FOOTPRINT_CASES
+    for label, _expr, kinds, result, cases, fn, tol in groups:
+        for case in cases:
+            args = tuple(_decoded(kind, _words(kind, v)) for kind, v in zip(kinds, case))
+            with np.errstate(all="ignore"):
+                want = _want(result, fn(*args))
+            got = words[i, :len(want)].view(np.int32 if result in ("int", "ivec2") else F32)
+            out.append({"label": label, "args": args, "got": got, "want": want, "tol": tol})
+            i += 1
+    return out
+
+
+def _agrees(rec) -> bool:
+    got, want = rec["got"], rec["want"]
+    if rec["tol"] == "bits":
+        return np.array_equal(got.view(np.uint32), want.view(np.uint32))
+    g, w = got.astype(np.float64), want.astype(np.float64)
+    return bool(np.all(np.isfinite(g)) and np.all(np.abs(g - w) <= rec["tol"] * np.maximum(1.0, np.abs(w))))
+
+
+@pytest.fixture(scope="module")
+def gpu_core(tmp_path_factory):
+    if shutil.which("node") is None:
+        pytest.skip("node is not on PATH (the headless driver)")
+    groups = _probe_groups()
+    text, n, rows = _probe_card(groups)
+    cards_dir = tmp_path_factory.mktemp("core_probe_cards")
+    (cards_dir / "core-twin-probe.card").write_text(text, encoding="utf-8", newline="\n")
+    out = tmp_path_factory.mktemp("core_probe_out")
+    report = K.render_cards(["core-twin-probe"], cards_dir=cards_dir, out_root=out, allow_tracked=True,
+                            lock_wait_min=5, quiet=True)
+    driver = report["driver"]
+    if driver.get("error") and "lock" in str(driver["error"]).lower():
+        pytest.skip(f"the GPU lock stayed busy: {driver['error']}")
+    assert not driver.get("refused"), driver["refused"]
+    row = report["cards"][0]
+    assert row.get("compile_ok") is True, row
+    receipt = json.loads(Path(row["receipt"]).read_text(encoding="utf-8"))
+    png = Path(receipt["card"]["frames"][0]["png"])
+    return _records(groups, _decode(png, n), rows)
+
+
+def _show(rec) -> str:
+    args = tuple(np.asarray(a).tolist() for a in rec["args"])
+    return f"{rec['label']}{args}: glsl {rec['got'].tolist()} twin {rec['want'].tolist()} (tol {rec['tol']})"
+
+
+@pytest.mark.slow
+def test_core_modules_agree_with_their_twins_on_swiftshader(gpu_core):
+    bad = [_show(r) for r in gpu_core if not _agrees(r)]
+    assert not bad, "\n".join(bad)
+    labels = {r["label"] for r in gpu_core}
+    assert {"finiteOr", "imodFloor", "dbgNaN", "dbgSlice", "uvFootprint", "shpGain", "rotate2"} <= labels
+
+
+def _got(records, label, *args):
+    for r in records:
+        if r["label"] == label and len(r["args"]) == len(args) and all(
+                np.array_equal(np.asarray(x, dtype=F32), np.asarray(y, dtype=F32)) for x, y in zip(r["args"], args)):
+            return r["got"]
+    raise KeyError((label, args))
+
+
+@pytest.mark.slow
+def test_shaping_fixed_points_and_nan_detectors_hold_exactly_on_swiftshader(gpu_core):
+    """The promises a surface leans on, read off the GPU itself: every point the shaping contract calls EXACT is
+    bit-exact on SwiftShader, the NaN detectors see every non-finite pattern (quiet, signalling and negative NaN, both
+    Infs) that a fast-maths compiler could hide from isnan, and the floor modulo is right at the most negative int.
+
+    Measured 2026-10-13, and pinned as measured: pow(0, k) for k < 1 is NOT exactly 0 on SwiftShader, because GLSL ES
+    defines pow as exp2(k log2 x) and SwiftShader's log2(0) is about -127 rather than -Inf. So shpGain(0, 0.25) is
+    1.4e-10 and shpParabola(0, 0.5) is 7.7e-20 (the CPU twin gives 0). The contract says gain "passes through 0" and
+    the parabola "is 0 at 0 and 1", without "exactly", so those ends are held to 1e-9 (a ten-thousandth of a 16-bit
+    code); every end the contract does call exact is held to the bit."""
+    r = gpu_core
+    for k in (0.25, 1.0, 3.0):
+        assert 0.0 <= _got(r, "shpGain", 0.0, k)[0] <= 1e-9                     # pow(0, k): see the docstring
+        assert _got(r, "shpGain", 0.5, k)[0] == 0.5 and _got(r, "shpGain", 1.0, k)[0] == 1.0
+    for k in (0.5, 1.0, 2.0):
+        assert 0.0 <= _got(r, "shpParabola", 0.0, k)[0] <= 1e-9 and 0.0 <= _got(r, "shpParabola", 1.0, k)[0] <= 1e-9
+        assert _got(r, "shpParabola", 0.5, k)[0] == 1.0                         # "exactly 1 at one half"
+    assert _got(r, "shpGain", 0.0, 1.0)[0] == 0.0 and _got(r, "shpParabola", 0.0, 2.0)[0] == 0.0   # k >= 1: exact
+    assert _got(r, "shpPulse", 0.5, 0.5, 0.2)[0] == 1.0                         # 1 at centre
+    assert _got(r, "shpPulse", 0.7, 0.5, 0.2)[0] == 0.0 and _got(r, "shpPulse", -3.0, 0.5, 0.2)[0] == 0.0
+    assert _got(r, "shpSmoother", 0.25, 0.75, 0.25)[0] == 0.0 and _got(r, "shpSmoother", 0.25, 0.75, 0.75)[0] == 1.0
+    assert _got(r, "shpSmoother", 0.25, 0.75, 0.5)[0] == 0.5                    # exactly point-symmetric
+    assert _got(r, "shpTri", 0.0)[0] == 0.0 and _got(r, "shpTri", 0.5)[0] == 1.0
+    for x, k in ((1.0, 1.0), (0.25, 4.0), (1 / 12, 12.0)):
+        assert _got(r, "shpImpulse", x, k)[0] == 1.0                            # "exactly 1 at x = 1/k"
+    assert _got(r, "shpInvPower", 0.0, 0.7, 10.0)[0] == 2.0 ** 64               # held at 2^64, finite
+    assert _got(r, "shpInvPower", 0.3, 0.3, 10.0)[0] == 1.0                     # "exactly 1 at d = r"
+    assert _got(r, "shpRemap", 0.2, 0.2, 0.6, 1.0, 3.0)[0] == 1.0                # a maps to c
+    assert _got(r, "shpRemap", 0.6, 0.2, 0.6, 1.0, 3.0)[0] == 3.0                # b maps to d
+    magenta = np.array([1, 0, 1], dtype=F32)
+    nan_cases = [rec for rec in r if rec["label"] == "dbgNaN"]
+    for rec in nan_cases:
+        broken = not np.all(np.isfinite(rec["args"][0]))
+        assert np.array_equal(rec["got"], magenta) == broken, _show(rec)
+    assert sum(not np.all(np.isfinite(rec["args"][0])) for rec in nan_cases) == 5
+    for rec in (x for x in r if x["label"] == "finiteOr"):
+        v, fb = rec["args"]
+        assert np.array_equal(rec["got"].view(np.uint32), np.where(np.isfinite(v), v, fb).astype(F32).view(np.uint32))
+    assert _got(r, "imodFloor", -2 ** 31, 7)[0] == (-2 ** 31) % 7
+    assert _got(r, "imodFloor", -1, 2 ** 31 - 1)[0] == 2 ** 31 - 2

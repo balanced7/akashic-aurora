@@ -19,6 +19,13 @@ TEST VECTORS. Jarzynski and Olano (JCGT 2020) publish their hashes as code, not 
 vectors pinned here come from the oracle below, an independent integer re-writing of the paper's description; the slow
 parity test then proves the GLSL produces the same bits on a real (software) GPU.
 
+ONE SEED, ONE INDEPENDENT FIELD PER KIND. Value noise, gradient noise and the 3D hash wrappers all draw from pcg3d or
+pcg4d. Until 2026-10-13 they fed the seed (or the cell's z) into the same lane untouched, so they read the SAME dice:
+noiseValue2(p, 0) on the lattice was exactly 2 hash31(cell, 0) - 1, and a value corner's sign was the sign of the
+gradient's y at that corner (correlation -0.80 on the lattice, -0.36 over the plane; batch-A review, defect 1). Now each
+kind XORs its own tag into that lane (further 32-bit words of pi's fraction, after the three the warps use), and the
+pins below measure the independence with the twins and check that no two tags meet on small lanes.
+
 Apache-2.0, Akashic Aurora. Written fresh for the house; no corpus code.
 """
 from __future__ import annotations
@@ -127,6 +134,20 @@ def o_cell(c: float) -> int:
     return math.floor(c) & MASK
 
 
+# Every kind of dice its own lane tag: pi's fraction in 32-bit words, continuing after the warps' three (0x243F6A88,
+# 0x85A308D3, 0x13198A2E). The 2D hash wrappers already hold 0x9E3779B9 as their whole third lane.
+O_TAG_VALUE2 = 0x03707344        # noiseValue2: pcg3d(cell, seed ^ tag)
+O_TAG_VALUE3 = 0xA4093822        # noiseValue3: pcg4d(cell, seed ^ tag)
+O_TAG_GRAD2 = 0x299F31D0         # noiseGrad2:  pcg3d(cell + corner, seed ^ tag)
+O_TAG_GRAD3 = 0x082EFA98         # noiseGrad3:  pcg4d(cell + corner, seed ^ tag)
+O_TAG_HASH3 = 0xEC4E6C89         # hash31 / hash33: pcg3d(cell.x, cell.y, cell.z ^ tag)
+O_LANE_2D = 0x9E3779B9           # hash21 / hash22: pcg3d(cell.x, cell.y, this)
+
+
+def o_hash33(x, y, z):
+    return tuple(o_u01(w) for w in o_pcg3d((o_cell(x), o_cell(y), o_cell(z) ^ O_TAG_HASH3)))
+
+
 def o_fade(t: float) -> float:
     return (10.0 - 15.0 * t + 6.0 * t ** 2) * t ** 3     # Perlin's quintic, expanded
 
@@ -134,9 +155,10 @@ def o_fade(t: float) -> float:
 def o_value2(x, y, seed):
     ix, iy = math.floor(x), math.floor(y)
     fx, fy = x - ix, y - iy
+    lane = (seed & MASK) ^ O_TAG_VALUE2
 
     def corner(dx, dy):
-        return 2.0 * o_u01(o_pcg3d(((ix + dx) & MASK, (iy + dy) & MASK, seed))[0]) - 1.0
+        return 2.0 * o_u01(o_pcg3d(((ix + dx) & MASK, (iy + dy) & MASK, lane))[0]) - 1.0
     u, v = o_fade(fx), o_fade(fy)
     bottom = corner(0, 0) + (corner(1, 0) - corner(0, 0)) * u
     top = corner(0, 1) + (corner(1, 1) - corner(0, 1)) * u
@@ -147,11 +169,12 @@ def o_value3(x, y, z, seed):
     i = [math.floor(c) for c in (x, y, z)]
     f = [c - k for c, k in zip((x, y, z), i)]
     w = [o_fade(t) for t in f]
+    lane = (seed & MASK) ^ O_TAG_VALUE3
     total = 0.0
     for dz in (0, 1):
         for dy in (0, 1):
             for dx in (0, 1):
-                h = o_pcg4d(((i[0] + dx) & MASK, (i[1] + dy) & MASK, (i[2] + dz) & MASK, seed))[0]
+                h = o_pcg4d(((i[0] + dx) & MASK, (i[1] + dy) & MASK, (i[2] + dz) & MASK, lane))[0]
                 weight = ((w[0] if dx else 1 - w[0]) * (w[1] if dy else 1 - w[1]) * (w[2] if dz else 1 - w[2]))
                 total += weight * (2.0 * o_u01(h) - 1.0)
     return total
@@ -163,8 +186,8 @@ O_LONG, O_SHORT = math.cos(math.pi / 8), math.sin(math.pi / 8)
 O_SCALE2, O_SCALE3 = 1.5132, 0.9649
 
 
-def o_grad_ramp2(cx, cy, seed, dx, dy):
-    h = o_pcg3d((cx, cy, seed))[0]
+def o_grad_ramp2(cx, cy, lane, dx, dy):
+    h = o_pcg3d((cx, cy, lane))[0]
     gx, gy = (O_SHORT, O_LONG) if (h >> 29) & 1 else (O_LONG, O_SHORT)
     if (h >> 30) & 1:
         gx = -gx
@@ -176,16 +199,17 @@ def o_grad_ramp2(cx, cy, seed, dx, dy):
 def o_grad2(x, y, seed):
     ix, iy = math.floor(x), math.floor(y)
     fx, fy = x - ix, y - iy
-    r = {(a, b): o_grad_ramp2((ix + a) & MASK, (iy + b) & MASK, seed, fx - a, fy - b) for a in (0, 1) for b in (0, 1)}
+    lane = (seed & MASK) ^ O_TAG_GRAD2
+    r = {(a, b): o_grad_ramp2((ix + a) & MASK, (iy + b) & MASK, lane, fx - a, fy - b) for a in (0, 1) for b in (0, 1)}
     u, v = o_fade(fx), o_fade(fy)
     bottom = r[0, 0] + (r[1, 0] - r[0, 0]) * u
     top = r[0, 1] + (r[1, 1] - r[0, 1]) * u
     return O_SCALE2 * (bottom + (top - bottom) * v)
 
 
-def o_grad_ramp3(c, seed, d):
+def o_grad_ramp3(c, lane, d):
     # Perlin's twelve cube-edge midpoints, (+-1, +-1, 0) and its permutations, picked by the hash modulo 12.
-    k = o_pcg4d((c[0], c[1], c[2], seed))[0] % 12
+    k = o_pcg4d((c[0], c[1], c[2], lane))[0] % 12
     plane, s0, s1 = k >> 2, -1.0 if k & 1 else 1.0, -1.0 if k & 2 else 1.0
     a, b = {0: (d[0], d[1]), 1: (d[0], d[2]), 2: (d[1], d[2])}[plane]
     return s0 * a + s1 * b
@@ -195,11 +219,12 @@ def o_grad3(x, y, z, seed):
     i = [math.floor(c) for c in (x, y, z)]
     f = [c - k for c, k in zip((x, y, z), i)]
     w = [o_fade(t) for t in f]
+    lane = (seed & MASK) ^ O_TAG_GRAD3
     total = 0.0
     for dz in (0, 1):
         for dy in (0, 1):
             for dx in (0, 1):
-                ramp = o_grad_ramp3(((i[0] + dx) & MASK, (i[1] + dy) & MASK, (i[2] + dz) & MASK), seed,
+                ramp = o_grad_ramp3(((i[0] + dx) & MASK, (i[1] + dy) & MASK, (i[2] + dz) & MASK), lane,
                                     (f[0] - dx, f[1] - dy, f[2] - dz))
                 total += ((w[0] if dx else 1 - w[0]) * (w[1] if dy else 1 - w[1]) * (w[2] if dz else 1 - w[2])) * ramp
     return O_SCALE3 * total
@@ -463,6 +488,7 @@ def test_the_float_wrappers_hash_the_cell_into_zero_to_one():
     x, y = 3, -4
     expect = o_u01(o_pcg3d(((x & MASK), (y & MASK), 0x9E3779B9))[0])
     assert H.hash21(np.array([x + 0.5, y + 0.5])) == expect
+    assert tuple(H.hash33(np.array([x + 0.5, y + 0.5, -1.5]))) == o_hash33(x + 0.5, y + 0.5, -1.5)
 
 
 def _spectral_flatness(img):
@@ -514,7 +540,8 @@ def test_value_noise_matches_the_oracle():
 def test_value_noise_equals_its_corner_value_on_the_lattice():
     ks = np.floor(_points(400, 2, -1e4, 1e4))
     seed = 77
-    expect = 2.0 * H.u01(H.pcg3d(np.concatenate([H.cellU2(ks), np.full((len(ks), 1), seed, np.uint32)], 1))[:, 0]) - 1
+    lane = np.full((len(ks), 1), seed ^ O_TAG_VALUE2, np.uint32)        # the seed lane carries value noise's own tag
+    expect = 2.0 * H.u01(H.pcg3d(np.concatenate([H.cellU2(ks), lane], 1))[:, 0]) - 1
     assert np.array_equal(N.noiseValue2(ks, seed), expect)
 
 
@@ -566,6 +593,147 @@ def test_seeds_give_independent_fields():
     for f, p in ((N.noiseValue2, p2), (N.noiseGrad2, p2), (N.noiseValue3, p3), (N.noiseGrad3, p3)):
         a, b = f(p, 0), f(p, 1)
         assert abs(np.corrcoef(a, b)[0, 1]) < 0.05, f.__name__
+
+
+# ------------------------------------------------------------------------------- one seed, one field per kind (tags)
+# Who feeds which lane of which hash, and with what tag. Two users read the same die when their lanes are equal.
+LANE_USERS = {
+    "pcg3d": {"noiseValue2 (seed lane)": O_TAG_VALUE2, "noiseGrad2 (seed lane)": O_TAG_GRAD2,
+              "hash31/hash33 (z lane)": O_TAG_HASH3, "hash21/hash22 (third lane)": O_LANE_2D,
+              "a direct caller of pcg3d": 0},
+    "pcg4d": {"noiseValue3 (seed lane)": O_TAG_VALUE3, "noiseGrad3 (seed lane)": O_TAG_GRAD3,
+              "a direct caller of pcg4d": 0},
+}
+
+# The tags as the GLSL writes them: each must appear, as a uint literal, in the function that feeds it into a lane.
+GLSL_TAGS = [("noise/value.glsl", "noiseValue2", O_TAG_VALUE2), ("noise/value.glsl", "noiseValue3", O_TAG_VALUE3),
+             ("noise/gradient.glsl", "noiseGrad2", O_TAG_GRAD2), ("noise/gradient.glsl", "noiseGrad3", O_TAG_GRAD3),
+             ("hash/pcg.glsl", "hash31", O_TAG_HASH3), ("hash/pcg.glsl", "hash33", O_TAG_HASH3),
+             ("hash/pcg.glsl", "hash21", O_LANE_2D), ("hash/pcg.glsl", "hash22", O_LANE_2D)]
+
+# Reference vectors, from the oracle above (re-pinned 2026-10-13 when the tags went in). The dice as 24-bit integers
+# (the top 24 bits of a hash word, what u01 keeps): hash33 at a cell, and value noise ON the lattice, where it equals its
+# corner's die exactly: (n + 1) * 2^23. Off the lattice, both noises at the same point and seed, in float64.
+PINNED_HASH33 = {
+    (0, 0, 0): (2418250, 4963687, 8121762),
+    (3, -4, 5): (7716335, 5744469, 6031093),
+    (-1, -1, -1): (4124127, 13489288, 2442688),
+    (100000, 7, -250000): (7539036, 3524453, 13085874),
+}
+PINNED_VALUE2 = {
+    (0, (0, 0)): 7894635, (0, (3, -4)): 15838947, (0, (-1, 2)): 12089985, (0, (65536, -65536)): 6436615,
+    (7, (0, 0)): 13018752, (7, (3, -4)): 16134488, (7, (-1, 2)): 4827530, (7, (65536, -65536)): 2285787,
+}
+PINNED_VALUE3 = {
+    (0, (0, 0, 0)): 1158462, (0, (3, -4, 5)): 14070479, (0, (-1, 2, -3)): 8465068,
+    (7, (0, 0, 0)): 6125288, (7, (3, -4, 5)): 4080668, (7, (-1, 2, -3)): 441932,
+}
+PINNED_FIELDS = [   # (point, seed, gradient noise, value noise)
+    ((0.25, 0.75), 0, 0.26286053010240945, 0.4794919829355422),
+    ((-3.6, 12.1), 0, 0.04665905203491453, -0.1887122966906038),
+    ((1000.5, -0.3), 0, 0.08600640172437259, 0.46669585340738284),
+    ((0.25, 0.75), 7, -0.5648244453839477, 0.4889821671918071),
+    ((-3.6, 12.1), 7, -0.49089189051552967, 0.39945552670370776),
+    ((1000.5, -0.3), 7, 0.24863772190840602, -0.18280269659757614),
+    ((0.25, 0.75, 0.5), 0, -0.09830270266532898, -0.02176624289472784),
+    ((-3.6, 12.1, 7.3), 0, 0.548768090634926, 0.15948498456687774),
+    ((0.25, 0.75, 0.5), 7, 0.062063372564315794, 0.46561152491062785),
+    ((-3.6, 12.1, 7.3), 7, -0.3595846657734389, -0.5216116773968396),
+]
+
+
+def test_every_kind_has_its_own_tag_and_no_two_kinds_meet_on_a_small_lane():
+    """Lanes meet when s ^ tagA == t ^ tagB, i.e. s ^ t == tagA ^ tagB. Seeds and cell z vary in their low bits, and a
+    small negative z is all ones above them, so two users' tags must differ in bits 16-31 by a pattern that is neither
+    all zeros nor all ones: then no seed or z of magnitude below 2^16 ever reads another kind's dice."""
+    for fn, users in LANE_USERS.items():
+        names = list(users)
+        for i, a in enumerate(names):
+            for b in names[i + 1:]:
+                high = ((users[a] ^ users[b]) >> 16) & 0xFFFF
+                assert high not in (0, 0xFFFF), f"{fn}: {a} and {b} meet on small lanes (0x{users[a] ^ users[b]:08X})"
+    assert (N.NOISE_TAG_VALUE2, N.NOISE_TAG_VALUE3, N.NOISE_TAG_GRAD2, N.NOISE_TAG_GRAD3) == \
+        (O_TAG_VALUE2, O_TAG_VALUE3, O_TAG_GRAD2, O_TAG_GRAD3)
+    assert (H.TAG_3D, H.TAG_2D) == (O_TAG_HASH3, O_LANE_2D)
+
+
+def _glsl_body(code: str, fn: str) -> str:
+    m = re.search(r"^\w+\s+" + fn + r"\s*\([^)]*\)\s*\{(.*?)^\}", code, re.M | re.S)
+    assert m, f"no definition of {fn}"
+    return m.group(1)
+
+
+@pytest.mark.parametrize("file,fn,tag", GLSL_TAGS)
+def test_the_glsl_feeds_the_twins_tag_into_its_lane(library, file, fn, tag):
+    body = _glsl_body(M.strip_comments(_module(library, file).body), fn)
+    assert re.search(rf"\b0x{tag:08X}u\b", body, re.I), f"{fn} ({file}) does not write its tag 0x{tag:08X}u"
+
+
+def test_the_tag_pins_are_the_oracles_own():
+    assert {c: tuple(int(v * 2 ** 24) for v in o_hash33(*c)) for c in PINNED_HASH33} == PINNED_HASH33
+    assert {k: round((o_value2(*map(float, k[1]), k[0]) + 1) * 2 ** 23) for k in PINNED_VALUE2} == PINNED_VALUE2
+    assert {k: round((o_value3(*map(float, k[1]), k[0]) + 1) * 2 ** 23) for k in PINNED_VALUE3} == PINNED_VALUE3
+    for point, seed, grad, value in PINNED_FIELDS:
+        if len(point) == 2:
+            assert (o_grad2(*point, seed), o_value2(*point, seed)) == (grad, value)
+        else:
+            assert (o_grad3(*point, seed), o_value3(*point, seed)) == (grad, value)
+
+
+def test_the_twins_match_the_tag_pins():
+    cells = np.array(list(PINNED_HASH33), dtype=np.float64) + 0.5
+    dice = H.hash33(cells) * 2 ** 24
+    assert dice.astype(np.int64).tolist() == [list(v) for v in PINNED_HASH33.values()] and np.all(dice % 1 == 0)
+    assert np.array_equal(H.hash31(cells), H.hash33(cells)[:, 0])
+    for (seed, cell), word in PINNED_VALUE2.items():
+        assert (N.noiseValue2(np.array(cell, dtype=np.float64), seed) + 1) * 2 ** 23 == word, (seed, cell)
+    for (seed, cell), word in PINNED_VALUE3.items():
+        assert (N.noiseValue3(np.array(cell, dtype=np.float64), seed) + 1) * 2 ** 23 == word, (seed, cell)
+    for point, seed, grad, value in PINNED_FIELDS:
+        p = np.array(point)
+        g, v = (N.noiseGrad2, N.noiseValue2) if len(point) == 2 else (N.noiseGrad3, N.noiseValue3)
+        assert abs(g(p, seed) - grad) < 1e-12 and abs(v(p, seed) - value) < 1e-12, (point, seed)
+
+
+def _slope(f, p, axis, seed, h=1e-4):
+    step = np.zeros(p.shape[-1])
+    step[axis] = h
+    return (f(p + step, seed) - f(p - step, seed)) / (2 * h)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 7, 12345])
+def test_noise_kinds_and_hash_wrappers_are_uncorrelated_at_the_same_seed(seed):
+    """The batch-A review's measurement, made a pin: at one seed, every pairing of the kinds (value noise, gradient
+    noise and its slopes, the hash wrappers on the cell) correlates by less than 0.05 over 60 000 points. Shared dice
+    showed as r = 1.0 (value noise on the lattice against hash31 of (cell, seed)), -0.80 (a value corner against the y
+    slope of the gradient at the same corner) and -0.36 (the same over the whole plane). Independent fields give
+    |r| of about 1 / sqrt(60 000) = 0.004."""
+    rng = np.random.default_rng(1013 + seed)
+    p2, p3 = rng.uniform(-300, 300, (60000, 2)), rng.uniform(-300, 300, (60000, 3))
+    k2, k3 = np.floor(p2), np.floor(p3)
+    at_seed = np.concatenate([k2, np.full((len(k2), 1), float(seed))], 1)   # hash31's cell (x, y, z = seed)
+    v2, lv2 = N.noiseValue2(p2, seed), N.noiseValue2(k2, seed)
+    v3, lv3 = N.noiseValue3(p3, seed), N.noiseValue3(k3, seed)
+    lgy2 = _slope(N.noiseGrad2, k2, 1, seed)
+    pairs = {
+        "value2 ~ grad2": (v2, N.noiseGrad2(p2, seed)),
+        "value2 ~ d grad2/dx": (v2, _slope(N.noiseGrad2, p2, 0, seed)),
+        "value2 ~ d grad2/dy": (v2, _slope(N.noiseGrad2, p2, 1, seed)),
+        "lattice value2 ~ lattice d grad2/dx": (lv2, _slope(N.noiseGrad2, k2, 0, seed)),
+        "lattice value2 ~ lattice d grad2/dy": (lv2, lgy2),
+        "lattice value2 ~ hash31(cell, seed)": (lv2, H.hash31(at_seed)),
+        "lattice value2 ~ hash33(cell, seed).y": (lv2, H.hash33(at_seed)[:, 1]),
+        "lattice d grad2/dy ~ hash31(cell, seed)": (lgy2, H.hash31(at_seed)),
+        "lattice value2 ~ hash21(cell)": (lv2, H.hash21(k2)),
+        "value3 ~ grad3": (v3, N.noiseGrad3(p3, seed)),
+        "lattice value3 ~ hash31(cell)": (lv3, H.hash31(k3)),
+    }
+    for axis in range(3):
+        pairs[f"value3 ~ d grad3/d{'xyz'[axis]}"] = (v3, _slope(N.noiseGrad3, p3, axis, seed))
+        pairs[f"lattice value3 ~ lattice d grad3/d{'xyz'[axis]}"] = (lv3, _slope(N.noiseGrad3, k3, axis, seed))
+    r = {name: float(np.corrcoef(a, b)[0, 1]) for name, (a, b) in pairs.items()}
+    bad = {name: round(v, 3) for name, v in r.items() if not abs(v) < 0.05}
+    assert not bad, f"seed {seed}: kinds share dice: {bad}"
 
 
 def test_gain_from_hurst():
@@ -666,15 +834,26 @@ def test_triangular_remap_keeps_rank_and_makes_a_triangle():
 
 # ------------------------------------------------------------------------------------------- GPU parity (SwiftShader)
 PARITY_CARD = """//! {"card": "parity-hash-noise", "uses": ["hash-pcg", "noise-value", "noise-gradient", "noise-fbm",
-//!  "noise-warp", "dither-masks"], "t": [0], "size": [256, 64],
-//!  "note": "test fixture: four 64x64 panels of numbers the CPU twin recomputes; not a picture for people"}
+//!  "noise-warp", "dither-masks"], "t": [0], "size": [320, 64],
+//!  "note": "test fixture: five 64x64 panels of numbers the CPU twin recomputes; not a picture for people"}
 // Apache-2.0, Akashic Aurora. A parity fixture: every pixel is a number the numpy twin recomputes.
+float parityByte(float die) {
+    return floor(die * 256.0) / 255.0;          // the top 8 bits of a [0, 1) die, exactly one 8-bit code
+}
+
 void mainImage(out vec4 color, in vec2 pixel) {
     int panel = int(pixel.x) / 64;
     vec2 local = vec2(mod(pixel.x, 64.0), pixel.y);
     uvec2 at = uvec2(local);
     vec3 v;
-    if (panel == 0) {
+    if (panel == 4) {
+        // every tagged kind not drawn above: 3D value noise (red) and the float hash wrappers (green, blue, exact)
+        vec2 p = local / 8.0 - 4.0;
+        vec2 cell = floor(local) - 32.0;
+        float noise = 0.5 + 0.5 * noiseValue3(vec3(p, -0.61), 3u);
+        v = at.y < 32u ? vec3(noise, parityByte(hash31(vec3(cell, 5.0))), parityByte(hash33(vec3(cell, -3.0)).z))
+                       : vec3(noise, parityByte(hash21(cell)), parityByte(hash22(cell + 0.5).y));
+    } else if (panel == 0) {
         uvec3 a = pcg3d(uvec3(at, 0xC0FFEEu));
         uvec4 b = pcg4d(uvec4(at, 7u, 0x5EEDu));
         uint c = hashU1(at.x + 64u * at.y);
@@ -700,7 +879,7 @@ def _twin_parity_image():
     ys, xs = np.mgrid[0:64, 0:64]
     centre = np.stack([xs + 0.5, ys + 0.5], axis=-1)            # gl_FragCoord: pixel centres, y up
     at = np.stack([xs, ys], axis=-1).astype(np.uint32)
-    out = np.zeros((64, 256, 3))
+    out = np.zeros((64, 320, 3))
     a = H.pcg3d(np.concatenate([at, np.full((64, 64, 1), 0xC0FFEE, np.uint32)], -1))
     b = H.pcg4d(np.concatenate([at, np.full((64, 64, 1), 7, np.uint32), np.full((64, 64, 1), 0x5EED, np.uint32)], -1))
     c = H.hashU1((at[..., 0] + 64 * at[..., 1]).astype(np.uint32))
@@ -717,7 +896,18 @@ def _twin_parity_image():
     pix = np.floor(centre)
     r2 = N.dthR2(pix)
     out[:, 192:256] = np.stack([N.dthIgn(pix), r2, 0.5 + 0.5 * N.dthTriFromUniform(r2)], -1)
+    p = centre / 8.0 - 4.0
+    cell = pix - 32.0
+    noise = 0.5 + 0.5 * N.noiseValue3(np.concatenate([p, np.full((64, 64, 1), -0.61)], -1), 3)
+    low = np.stack([noise, _byte(H.hash31(np.concatenate([cell, np.full((64, 64, 1), 5.0)], -1))),
+                    _byte(H.hash33(np.concatenate([cell, np.full((64, 64, 1), -3.0)], -1))[..., 2])], -1)
+    high = np.stack([noise, _byte(H.hash21(cell)), _byte(H.hash22(cell + 0.5)[..., 1])], -1)
+    out[:, 256:320] = np.where((at[..., 1] < 32)[..., None], low, high)
     return np.round(np.clip(out, 0, 1) * 255.0)[::-1]           # PNG rows run top down
+
+
+def _byte(die):
+    return np.floor(die * 256.0) / 255.0
 
 
 @pytest.mark.slow
@@ -743,3 +933,8 @@ def test_the_glsl_matches_its_twin_on_swiftshader(tmp_path):
     masks = np.abs(gpu[:, 192:256] - cpu[:, 192:256])
     masks = np.minimum(masks, 255 - masks)                         # a mask wraps at 1.0: 254/255 vs 0 is a near miss
     assert masks.max() <= 2 and np.mean(masks > 1) < 0.002
+    # the tagged kinds: 3D value noise within the smooth tolerance, the float hash wrappers to the exact code
+    value3 = np.abs(gpu[:, 256:320, 0] - cpu[:, 256:320, 0])
+    assert value3.max() <= 2 and np.mean(value3 > 1) < 0.001, f"noiseValue3 drift: max {value3.max()}"
+    wrappers = gpu[:, 256:320, 1:] - cpu[:, 256:320, 1:]
+    assert np.count_nonzero(wrappers) == 0, "hash31/hash33/hash21/hash22 are not bit-exact on the GPU"
