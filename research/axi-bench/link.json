@@ -4,13 +4,13 @@
   "model": "claude-haiku-5-5",
   "repeats": 5,
   "before": {
-    "accuracy": 0.971,
-    "correct": 34,
-    "asked": 35,
-    "output_tokens": 52,
-    "stdout_chars": 581,
-    "stdout_lines": 12,
-    "cost_usd": 0.0344,
+    "accuracy": 0.867,
+    "correct": 65,
+    "asked": 75,
+    "output_tokens": 58,
+    "stdout_chars": 2033,
+    "stdout_lines": 29,
+    "cost_usd": 0.0828,
     "conformance": {
       "unknown_flag_exit_2": true,
       "unknown_flag_on_stdout": false,
@@ -39,11 +39,11 @@
         "answers": [
           "owner",
           "owner",
-          "opslink \u2014 role owner",
+          "owner",
           "owner",
           "owner"
         ],
-        "correct": 4
+        "correct": 5
       },
       {
         "q": "What is the label of our own fleet in the link teamlink?",
@@ -97,11 +97,107 @@
         "q": "Did the command succeed? Answer yes or no.",
         "expected": "no",
         "answers": [
-          "no",
           "No",
           "no",
           "No",
+          "no",
           "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the exact command to invite someone into the link that was just created?",
+        "expected": "link invite newlink",
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "What role does someone joining with this invite get?",
+        "expected": "reader",
+        "answers": [
+          "reader",
+          "reader",
+          "reader",
+          "reader",
+          "reader"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Must the inviter approve the join after they join? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "Yes",
+          "yes",
+          "yes",
+          "yes",
+          "yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many other fleets' safety numbers are listed?",
+        "expected": 0,
+        "answers": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "correct": 0
+      },
+      {
+        "q": "How many ACL entries went into the bundle?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records did the import refuse?",
+        "expected": 0,
+        "answers": [
+          "The output reports \"0 refused\" for the import.\n\n0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Are these policy files synced to the link's other members? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "No",
+          "no",
+          "No",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the file name the certificate was written to?",
+        "expected": "cert.json",
+        "answers": [
+          "cert.json",
+          "cert.json",
+          "/tmp/axi-link-files-6qoumyi3/cert.json",
+          "cert.json",
+          "cert.json"
         ],
         "correct": 5
       }
@@ -113,7 +209,7 @@
           "list"
         ],
         "exit": 0,
-        "stdout": "teamlink             315b758b746b3066  role owner    members 1  epoch 0\nopslink              6e6cf0380465a480  role owner    members 1  epoch 0\n"
+        "stdout": "opslink              74b119c1ecfa3916  role owner    members 1  epoch 0\nteamlink             c3e0e53d03d939b7  role owner    members 1  epoch 0\n"
       },
       "status": {
         "argv": [
@@ -122,7 +218,7 @@
           "teamlink"
         ],
         "exit": 0,
-        "stdout": "teamlink  315b758b746b3066988c6739f00f05ed2adb0d97ecabba1b4f8a333639331b43\n  epoch 0  our role owner  acl entries 1\n  benchfleet (us): owner\n    benchfleet     26f22ffb5949141d head 0     last contact never\n  quarantine: 0 unpromoted\n"
+        "stdout": "teamlink  c3e0e53d03d939b72b40feca83b1e05fb7ca18e1e095bac855485b99f3853760\n  epoch 0  our role owner  acl entries 1\n  benchfleet (us): owner\n    benchfleet     df2fea5e4fcbb959 head 0     last contact never\n  quarantine: 0 unpromoted\n"
       },
       "whoami": {
         "argv": [
@@ -130,7 +226,7 @@
           "whoami"
         ],
         "exit": 0,
-        "stdout": "device 26f22ffb5949141d  label benchfleet\nfingerprint 15998 20376 66087 14030 92504 96482\ncertificate valid until 2027-01-10 15:24\n"
+        "stdout": "device df2fea5e4fcbb959  label benchfleet\nfingerprint 71549 80971 81591 14856 41537 25697\ncertificate valid until 2027-01-11 01:26\n"
       },
       "inbox": {
         "argv": [
@@ -148,17 +244,97 @@
         ],
         "exit": 2,
         "stdout": "[link] usage: aurora link inbox <link> [--limit 20]\n"
+      },
+      "create": {
+        "argv": [
+          "link",
+          "create",
+          "newlink"
+        ],
+        "exit": 0,
+        "stdout": "link newlink created: 83dd15a42c40042b7c099d0d1d4689401e3ad2d241e15f584611718e62c211ed\nour fingerprint 71549 80971 81591 14856 41537 25697\n"
+      },
+      "invite": {
+        "argv": [
+          "link",
+          "invite",
+          "teamlink",
+          "--role",
+          "reader",
+          "--ttl",
+          "2h",
+          "--approval"
+        ],
+        "exit": 0,
+        "stdout": "invite for reader in teamlink, single-use, expires 2026-10-13 04:26 (needs your approval after they join)\n\naurora-invite1:eyJmaW5nZXJwcmludCI6IjcxNTQ5ODA5NzE4MTU5MTE0ODU2NDE1MzcyNTY5NyIsImxpbmsiOiJjM2UwZTUzZDAzZDkzOWI3MmI0MGZlY2E4M2IxZTA1ZmI3Y2ExOGUxZTA5NWJhYzg1NTQ4NWI5OWYzODUzNzYwIiwibmFtZSI6InRlYW1saW5rIiwibm9kZSI6ImRmMmZlYTVlNGZjYmI5NTljYTY3YTc1M2VkNDdiZjQyMGM4MTg5OGQ3YzE1MGYzY2QxOTE0OTEzMzY3ODBlZWMiLCJzZWNyZXQiOiI3ZGFiMTlmMDQ1MDRkMTcwODk0NGJiOWMzZWY2NGQ5Mzg5OWZhNmM1MGRmOGQ1NWY1ZjQyYzExMDFjYjQyZTM5IiwidiI6MX0\n\nour fingerprint 71549 80971 81591 14856 41537 25697  -- the joiner should see exactly this\n"
+      },
+      "verify": {
+        "argv": [
+          "link",
+          "verify",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "\n\nread it to them over a call or Signal; when both of you see the same, add --mark\n"
+      },
+      "export": {
+        "argv": [
+          "link",
+          "export",
+          "teamlink",
+          "--out",
+          "/tmp/axi-link-files-6qoumyi3/bundle.json"
+        ],
+        "exit": 0,
+        "stdout": "wrote 2 ACL entries and 0 records to /tmp/axi-link-files-6qoumyi3/bundle.json\n"
+      },
+      "import": {
+        "argv": [
+          "link",
+          "import",
+          "/tmp/axi-link-files-6qoumyi3/bundle.json"
+        ],
+        "exit": 0,
+        "stdout": "imported into c3e0e53d03d939b7: 2 ACL entries, 0 new records, 0 refused\n"
+      },
+      "policy": {
+        "argv": [
+          "link",
+          "policy",
+          "opslink"
+        ],
+        "exit": 0,
+        "stdout": "promote policy /tmp/axi-bench-r0phh484/data/state/link/74b119c1ecfa391602b71a93bbd8e2597fbc410319c9536c633027522479c775/promote.toml\nexport policy  /tmp/axi-bench-r0phh484/data/state/link/74b119c1ecfa391602b71a93bbd8e2597fbc410319c9536c633027522479c775/export.toml\nboth are local and never synced\n"
+      },
+      "rebuild": {
+        "argv": [
+          "link",
+          "rebuild",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "rebuilt the quarantine stream from the store: 0 record(s)\n"
+      },
+      "cert": {
+        "argv": [
+          "link",
+          "cert",
+          "--out",
+          "/tmp/axi-link-files-6qoumyi3/cert.json"
+        ],
+        "exit": 0,
+        "stdout": "wrote this device's certificate to /tmp/axi-link-files-6qoumyi3/cert.json: hand it to a device already in the link\n"
       }
     }
   },
   "after": {
     "accuracy": 1.0,
-    "correct": 35,
-    "asked": 35,
-    "output_tokens": 104,
-    "stdout_chars": 921,
-    "stdout_lines": 33,
-    "cost_usd": 0.0253,
+    "correct": 75,
+    "asked": 75,
+    "output_tokens": 117,
+    "stdout_chars": 2987,
+    "stdout_lines": 83,
+    "cost_usd": 0.081,
     "conformance": {
       "unknown_flag_exit_2": true,
       "unknown_flag_on_stdout": true,
@@ -236,7 +412,7 @@
           "0",
           "0",
           "0",
-          "The output shows `quarantined: 0` and `records: []`, so the quarantine holds zero records.\n\n0",
+          "0",
           "0"
         ],
         "correct": 5
@@ -246,10 +422,106 @@
         "expected": "no",
         "answers": [
           "No",
-          "No",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the exact command to invite someone into the link that was just created?",
+        "expected": "link invite newlink",
+        "answers": [
+          "uv run agent_cli.py link invite newlink",
+          "uv run agent_cli.py link invite newlink",
+          "The output's help section lists `uv run agent_cli.py link invite newlink` as the invite command.",
+          "uv run agent_cli.py link invite newlink",
+          "uv run agent_cli.py link invite newlink"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What role does someone joining with this invite get?",
+        "expected": "reader",
+        "answers": [
+          "reader",
+          "reader",
+          "reader",
+          "reader",
+          "reader"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Must the inviter approve the join after they join? Answer yes or no.",
+        "expected": "yes",
+        "answers": [
+          "yes",
+          "yes",
+          "yes",
+          "yes",
+          "Yes"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many other fleets' safety numbers are listed?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many ACL entries went into the bundle?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many records did the import refuse?",
+        "expected": 0,
+        "answers": [
+          "0",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Are these policy files synced to the link's other members? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
           "No",
           "no",
+          "No",
           "No"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What is the file name the certificate was written to?",
+        "expected": "cert.json",
+        "answers": [
+          "/tmp/axi-link-files-6qoumyi3/cert.json",
+          "cert.json",
+          "cert.json",
+          "cert.json",
+          "cert.json"
         ],
         "correct": 5
       }
@@ -261,7 +533,7 @@
           "list"
         ],
         "exit": 0,
-        "stdout": "total: 2\nlinks[2]{name,link,role,members,epoch}:\n  teamlink,313084abfc26282b,owner,1,0\n  opslink,4645d05e062e396e,owner,1,0\nhelp[2]:\n  uv run agent_cli.py link status <name>\n  uv run agent_cli.py link invite <name>\n"
+        "stdout": "total: 2\nlinks[2]{name,link,role,members,epoch}:\n  opslink,88175a57583a8f4b,owner,1,0\n  teamlink,eed5fccc97afa336,owner,1,0\nhelp[2]:\n  uv run agent_cli.py link status <name>\n  uv run agent_cli.py link invite <name>\n"
       },
       "status": {
         "argv": [
@@ -270,7 +542,7 @@
           "teamlink"
         ],
         "exit": 0,
-        "stdout": "name: teamlink\nlink: 313084abfc26282b2b628b41082b149ef11638ff23b508f9dfdacf3e87726aa7\nepoch: 0\nrole: owner\nacl_entries: 1\nquarantine_unpromoted: 0\nmembers[1]{fleet,state,verified}:\n  benchfleet,owner,us\ndevices[1]{fleet,device,id,head,last_contact,state}:\n  benchfleet,benchfleet,26f22ffb5949141d,0,never,ok\nhelp[1]:\n  uv run agent_cli.py link invite teamlink\n"
+        "stdout": "name: teamlink\nlink: eed5fccc97afa3364a03daf5551ebc7214ed3606a80aab271e90a6f900051f59\nepoch: 0\nrole: owner\nacl_entries: 1\nquarantine_unpromoted: 0\nmembers[1]{fleet,state,verified}:\n  benchfleet,owner,us\ndevices[1]{fleet,device,id,head,last_contact,state}:\n  benchfleet,benchfleet,df2fea5e4fcbb959,0,never,ok\nhelp[1]:\n  uv run agent_cli.py link invite teamlink\n"
       },
       "whoami": {
         "argv": [
@@ -278,7 +550,7 @@
           "whoami"
         ],
         "exit": 0,
-        "stdout": "device: 26f22ffb5949141d\nlabel: benchfleet\nfingerprint: 15998 20376 66087 14030 92504 96482\ncert_expires: \"2027-01-10 15:24\"\nrenew_soon: false\n"
+        "stdout": "device: df2fea5e4fcbb959\nlabel: benchfleet\nfingerprint: 71549 80971 81591 14856 41537 25697\ncert_expires: \"2027-01-11 01:26\"\nrenew_soon: false\n"
       },
       "inbox": {
         "argv": [
@@ -296,6 +568,86 @@
         ],
         "exit": 2,
         "stdout": "error: \"usage: aurora link inbox <link> [--limit 20]\"\ncode: USAGE\nhelp[1]:\n  uv run agent_cli.py link --help\n"
+      },
+      "create": {
+        "argv": [
+          "link",
+          "create",
+          "newlink"
+        ],
+        "exit": 0,
+        "stdout": "name: newlink\nlink: 98d68361887f0a8be7c8a420a95adeed6eda526ff054f8b5091855be1f2ff73c\nfingerprint: 71549 80971 81591 14856 41537 25697\nrole: owner\nhelp[2]:\n  uv run agent_cli.py link invite newlink\n  uv run agent_cli.py link status newlink\n"
+      },
+      "invite": {
+        "argv": [
+          "link",
+          "invite",
+          "teamlink",
+          "--role",
+          "reader",
+          "--ttl",
+          "2h",
+          "--approval"
+        ],
+        "exit": 0,
+        "stdout": "link: teamlink\nrole: reader\nuses: one\nexpires: \"2026-10-13 04:27\"\nneeds_approval: true\nfingerprint: 71549 80971 81591 14856 41537 25697\ncode: \"aurora-invite1:eyJmaW5nZXJwcmludCI6IjcxNTQ5ODA5NzE4MTU5MTE0ODU2NDE1MzcyNTY5NyIsImxpbmsiOiJlZWQ1ZmNjYzk3YWZhMzM2NGEwM2RhZjU1NTFlYmM3MjE0ZWQzNjA2YTgwYWFiMjcxZTkwYTZmOTAwMDUxZjU5IiwibmFtZSI6InRlYW1saW5rIiwibm9kZSI6ImRmMmZlYTVlNGZjYmI5NTljYTY3YTc1M2VkNDdiZjQyMGM4MTg5OGQ3YzE1MGYzY2QxOTE0OTEzMzY3ODBlZWMiLCJzZWNyZXQiOiIyYTUzYTJhZDNkYmE5MmYyNWYxNWQ3MjMwYTkxNzZkOTc3ZWY0MzA0Y2ZkMjRmNzJkMTliYTJmNGJkNzkzODQ5IiwidiI6MX0\"\nnote: the joiner should see exactly this fingerprint\nhelp[2]:\n  uv run agent_cli.py link status teamlink\n  uv run agent_cli.py link accept teamlink <join id>\n"
+      },
+      "verify": {
+        "argv": [
+          "link",
+          "verify",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "link: teamlink\ntotal: 0\nmembers: []\nnote: \"no other fleet in this link yet: nothing to compare\"\nhelp[1]:\n  uv run agent_cli.py link invite teamlink\n"
+      },
+      "export": {
+        "argv": [
+          "link",
+          "export",
+          "teamlink",
+          "--out",
+          "/tmp/axi-link-files-6qoumyi3/bundle.json"
+        ],
+        "exit": 0,
+        "stdout": "link: teamlink\nwrote: /tmp/axi-link-files-6qoumyi3/bundle.json\nacl_entries: 2\nrecords: 0\nhelp[1]:\n  uv run agent_cli.py link import /tmp/axi-link-files-6qoumyi3/bundle.json\n"
+      },
+      "import": {
+        "argv": [
+          "link",
+          "import",
+          "/tmp/axi-link-files-6qoumyi3/bundle.json"
+        ],
+        "exit": 0,
+        "stdout": "link: eed5fccc97afa336\nacl_entries: 2\nrecords_stored: 0\nrecords_refused: 0\nhelp[1]:\n  uv run agent_cli.py link status eed5fccc97afa336\n"
+      },
+      "policy": {
+        "argv": [
+          "link",
+          "policy",
+          "opslink"
+        ],
+        "exit": 0,
+        "stdout": "link: opslink\npromote_policy: /tmp/axi-bench-r0phh484/data/state/link/88175a57583a8f4bd36ab37b12dc24df334abc8fc85f28061122808488f27f23/promote.toml\nexport_policy: /tmp/axi-bench-r0phh484/data/state/link/88175a57583a8f4bd36ab37b12dc24df334abc8fc85f28061122808488f27f23/export.toml\nscope: both are local and never synced\n"
+      },
+      "rebuild": {
+        "argv": [
+          "link",
+          "rebuild",
+          "teamlink"
+        ],
+        "exit": 0,
+        "stdout": "link: teamlink\nrecords: 0\n"
+      },
+      "cert": {
+        "argv": [
+          "link",
+          "cert",
+          "--out",
+          "/tmp/axi-link-files-6qoumyi3/cert.json"
+        ],
+        "exit": 0,
+        "stdout": "device: df2fea5e4fcbb959\nlabel: benchfleet\nvalid_until: \"2027-01-11 01:26\"\npost_quantum: true\nwrote: /tmp/axi-link-files-6qoumyi3/cert.json\nnext: hand the file to a device already in the link; it runs add-device with it\nhelp[1]:\n  uv run agent_cli.py link add-device <link> /tmp/axi-link-files-6qoumyi3/cert.json\n"
       }
     }
   }

@@ -1930,8 +1930,8 @@ help[2]:
 |---|---|
 | Does | fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd) |
 | Output | Agent mode (TOON) and human mode (colour). |
-| Reader accuracy | 97% before, 100% after |
-| Output tokens | 52 before, 104 after (+100%) |
+| Reader accuracy | 87% before, 100% after |
+| Output tokens | 58 before, 117 after (+102%) |
 | AXI checks | 4/6 before, 6/6 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/link.md) |
 
 | Flag | Required | Values | What it does |
@@ -1975,8 +1975,8 @@ Agent output of `aurora link list` on the bench data:
 ```text
 total: 2
 links[2]{name,link,role,members,epoch}:
-  teamlink,313084abfc26282b,owner,1,0
-  opslink,4645d05e062e396e,owner,1,0
+  opslink,88175a57583a8f4b,owner,1,0
+  teamlink,eed5fccc97afa336,owner,1,0
 help[2]:
   uv run agent_cli.py link status <name>
   uv run agent_cli.py link invite <name>

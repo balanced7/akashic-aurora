@@ -4,8 +4,9 @@ Each action is one call (or a few) to aurora-linkd. Nothing here decides anythin
 membership or records: the daemon does, and refuses what it must. What stays here is the part
 that touches people and agents: wording, files, the confirm before a promotion.
 
-The read paths (list, status, whoami, inbox) and every error print through core/axi: TOON for an
-agent, a layout for a person. The other actions answer in one line of text in both modes.
+Every action and every error prints through core/axi: TOON for an agent, a layout for a person.
+`--json` prints the daemon's answer as it came. The exceptions are on purpose: a recovery phrase
+is shown once to whoever ran init, and `promote` asks its question on a terminal in plain words.
 
 Promotion is a person's decision by default (ADR 0008, RFC #70 §7.6), so `promote` asks for a
 confirmation on a terminal unless `--yes` is given, and the MCP door has no promote at all.
@@ -19,6 +20,7 @@ import os
 import re
 import sys
 import time
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -105,8 +107,12 @@ def _cli() -> str:
     return cli_command()
 
 
-def _print(args: Any, data: Any, text: str) -> None:
-    print(json.dumps(data, indent=1, default=str) if getattr(args, "json", False) else text)
+def _json(args: Any, data: Any) -> bool:
+    """`--json` prints the daemon's answer as it came, for scripts; True when it did."""
+    if getattr(args, "json", False):
+        print(json.dumps(data, indent=1, default=str))
+        return True
+    return False
 
 
 def _read_phrase(args: Any) -> str | None:
@@ -131,22 +137,42 @@ def do_init(c: Client, args: Any) -> int:
         passphrase=_passphrase(args),
         xwing=not getattr(args, "no_xwing", False),
     )
-    lines = [
-        f"device      {out['device']}",
-        f"fleet root  {out['root']}",
-        f"fingerprint {out['fingerprint']}",
-        f"root kept   {'yes, sealed under your passphrase' if out['root_stored'] else 'no: the phrase re-derives it when needed'}",
-    ]
+    if _json(args, out):
+        return 0
+    doc: dict[str, Any] = {
+        "device": out["device"][:16],
+        "fleet_root": out["root"][:16],
+        "fingerprint": out["fingerprint"],
+        "root_kept": "yes, sealed under your passphrase"
+        if out["root_stored"]
+        else "no: the phrase re-derives it when needed",
+    }
+    # The phrase is printed once, to whoever ran init, on purpose: it is the only copy of the
+    # fleet root that leaves the daemon. It is not repeated anywhere else.
     if out.get("phrase"):
-        lines += [
-            "",
-            "RECOVERY PHRASE -- shown once. Write it down and keep it offline. It is the fleet root:",
-            "",
-            f"    {out['phrase']}",
-            "",
-        ]
-    _print(args, out, "\n".join(lines))
-    return 0
+        doc["recovery_phrase"] = out["phrase"]
+        doc["warning"] = "RECOVERY PHRASE -- shown once. Write it down and keep it offline. It is the fleet root"
+
+    def human(console, d):
+        axi.render_human(console, {k: v for k, v in d.items() if k not in ("recovery_phrase", "warning")})
+        if d.get("recovery_phrase"):
+            from rich.panel import Panel
+
+            console.print()
+            console.print(
+                Panel(
+                    f"[bold]{axi._esc(d['recovery_phrase'])}[/]",
+                    title="[bold red]RECOVERY PHRASE -- shown once[/]",
+                    subtitle="write it down and keep it offline: it is the fleet root",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+            )
+
+    cli = _cli()
+    return axi.emit(
+        doc, hints=[f"{cli} link create <name>", f"{cli} link join <code>"], human=human, title="Fleet identity created"
+    )
 
 
 def do_whoami(c: Client, args: Any) -> int:
@@ -171,20 +197,45 @@ def do_whoami(c: Client, args: Any) -> int:
 
 def do_renew(c: Client, args: Any) -> int:
     out = c.call("identity.renew", phrase=_read_phrase(args), passphrase=_passphrase(args))
-    _print(
-        args, out, f"certificate renewed until {_when(out['cert_expires'])}; announced in {len(out['links'])} link(s)"
-    )
-    return 0
+    if _json(args, out):
+        return 0
+    doc = {"cert_expires": _when(out["cert_expires"]), "announced_in_links": len(out["links"])}
+    return axi.emit(doc, title="Certificate renewed")  # a confirmation answers itself
 
 
 def do_cert(c: Client, args: Any) -> int:
     cert = c.call("identity.status")["cert"]
     text = json.dumps(cert, indent=1)
-    if getattr(args, "out", None):
-        Path(args.out).write_text(text + "\n", encoding="utf-8")
-        print(f"wrote this device's certificate to {args.out}: hand it to a device already in the link")
-    else:
-        print(text)
+    target = getattr(args, "out", None)
+    if target:
+        Path(target).write_text(text + "\n", encoding="utf-8")
+    if getattr(args, "json", False):  # --json has always printed the certificate itself, or the line
+        print(
+            f"wrote this device's certificate to {target}: hand it to a device already in the link" if target else text
+        )
+        return 0
+    doc: dict[str, Any] = {
+        "device": str(cert.get("device", ""))[:16],
+        "label": cert.get("label"),
+        "valid_until": _when(cert.get("not_after")),
+        "post_quantum": bool(cert.get("xwing")),
+    }
+    if target:
+        doc["wrote"] = target
+        doc["next"] = "hand the file to a device already in the link; it runs add-device with it"
+        return axi.emit(doc, hints=[f"{_cli()} link add-device <link> {target}"], title="Device certificate")
+    # Without --out the certificate itself is the output, in either mode: `link cert > cert.json`
+    # must keep writing a valid certificate, and a pipe is agent mode. A person at a terminal also
+    # gets a summary above it.
+    if not axi.is_agent():
+
+        def human(console, d):
+            for k in ("device", "label", "valid_until", "post_quantum"):
+                console.print(f"[dim]{k:<13}[/]{axi._esc(str(d[k]))}")
+            console.print(axi._esc(text), soft_wrap=True)
+
+        return axi.emit(doc, hints=[f"{_cli()} link cert --out cert.json"], human=human, title="Device certificate")
+    print(text)
     return 0
 
 
@@ -192,8 +243,9 @@ def do_certify(c: Client, args: Any) -> int:
     (path,) = _need(args, 1, "certify <cert.json>")[:1]
     cert = json.loads(Path(path).read_text(encoding="utf-8"))
     out = c.call("identity.certify", cert=cert)
-    _print(args, out, f"recorded {out['device'][:16]} as a device of this fleet")
-    return 0
+    if _json(args, out):
+        return 0
+    return axi.emit({"device": out["device"][:16], "recorded": "a device of this fleet"}, title="Device certified")
 
 
 # ------------------------------------------------------------------------------------------ links
@@ -211,8 +263,12 @@ def do_create(c: Client, args: Any) -> int:
     )
     promote.write_default_policy(out["link"])
     export.write_default_policy(out["link"])
-    _print(args, out, f"link {out['name']} created: {out['link']}\nour fingerprint {out['fingerprint']}")
-    return 0
+    if _json(args, out):
+        return 0
+    doc = {"name": out["name"], "link": out["link"], "fingerprint": out["fingerprint"], "role": "owner"}
+    cli = _cli()
+    hints = [f"{cli} link invite {out['name']}", f"{cli} link status {out['name']}"]
+    return axi.emit(doc, hints=hints, title="Link created")
 
 
 def do_list(c: Client, args: Any) -> int:
@@ -420,24 +476,39 @@ def do_invite(c: Client, args: Any) -> int:
         bundle = {"v": 1, "kind": "aurora-link-invite", "code": out["code"], "acl": out["acl"]}
         Path(args.out).write_text(json.dumps(bundle) + "\n", encoding="utf-8")
     out.pop("acl", None)
-    text = [
-        f"invite for {out['role']} in {link}, single-use, expires {_when(out['expires'])}"
-        + (" (needs your approval after they join)" if out["approval"] else ""),
-    ]
+    if _json(args, out):
+        return 0
+    doc: dict[str, Any] = {
+        "link": link,
+        "role": out["role"],
+        "uses": "many, until it expires" if getattr(args, "multi", False) else "one",
+        "expires": _when(out["expires"]),
+        "needs_approval": bool(out["approval"]),
+        "fingerprint": out["fingerprint"],
+        "code": out["code"],
+    }
+    doc["note"] = "the joiner should see exactly this fingerprint"
     if out.get("queued"):
-        text.append(
-            "this device does not sequence the link: the invite is a proposal, and the code works once the sequencer includes it"
+        doc["queued"] = (
+            "this device does not sequence the link: the invite is a proposal, and the code works once the "
+            "sequencer includes it"
         )
-    text += [
-        "",
-        out["code"],
-        "",
-        f"our fingerprint {out['fingerprint']}  -- the joiner should see exactly this",
-    ]
-    if getattr(args, "out", None):
-        text.append(f"offline: the code and our log are in {args.out} (`aurora link join {args.out} --out join.json`)")
-    _print(args, out, "\n".join(text))
-    return 0
+    if getattr(args, "out", None):  # offline: the code and our log travel in a file
+        doc["bundle"] = args.out
+        doc["joiner_runs"] = f"link join {args.out} --out join.json"
+    cli = _cli()
+    # What the inviter does next: watch for the join (and accept it, when it waits for approval).
+    hints = [f"{cli} link status {link}"]
+    if out["approval"]:
+        hints.append(f"{cli} link accept {link} <join id>")
+
+    def human(console, d):
+        axi.render_human(console, {k: v for k, v in d.items() if k != "code"})
+        console.print()
+        console.print("[bold]Invite code[/] [dim](hand it over whole)[/]")
+        console.print(f"[bold green]{axi._esc(d['code'])}[/]", soft_wrap=True)  # never broken across lines
+
+    return axi.emit(doc, hints=hints, human=human, title=f"Invite · {link}")
 
 
 def do_join(c: Client, args: Any) -> int:
@@ -451,30 +522,43 @@ def do_join(c: Client, args: Any) -> int:
     bundle = out.pop("bundle", None)
     if bundle and getattr(args, "out", None):
         Path(args.out).write_text(json.dumps(bundle) + "\n", encoding="utf-8")
-    if out.get("queued"):
-        head = (
-            f"join for {out['name']} ({out['link'][:16]}) handed over; it waits for the link's sequencer: "
-            "run the same join again later"
-        )
-    else:
-        head = f"joined {out['name']} ({out['link'][:16]})" + (
-            " -- waiting for the inviter to accept" if out["pending"] else ""
-        )
-    lines = [
-        head,
-        f"their fingerprint {out['their_fingerprint']}"
-        + ("" if out["fingerprint_matches_code"] else "  MISMATCH: the log's owner is not who the code named"),
-        f"our fingerprint   {out['our_fingerprint']}",
-        f"safety number     {out['safety_number']}",
-        f"compare the safety number with them over a channel you already trust, then: aurora link verify {out['name']} --mark",
-    ]
+    rc = 0 if out["fingerprint_matches_code"] else 3
+    if _json(args, out):
+        return rc
+    name, cli = out["name"], _cli()
+    state = "queued" if out.get("queued") else "pending" if out["pending"] else "joined"
+    doc: dict[str, Any] = {
+        "link": name,
+        "id": out["link"][:16],
+        "state": state,
+        "fingerprint_matches_code": bool(out["fingerprint_matches_code"]),
+        "their_fingerprint": out["their_fingerprint"],
+        "our_fingerprint": out["our_fingerprint"],
+        "safety_number": out["safety_number"],
+    }
+    notes = []
+    if not out["fingerprint_matches_code"]:
+        notes.append("MISMATCH: the log's owner is not who the code named")
+    if state == "queued":
+        notes.append("the join is handed over and waits for the link's sequencer: run the same join again later")
+    elif state == "pending":
+        notes.append("waiting for the inviter to accept")
+    notes.append("compare the safety number with them over a channel you already trust, then mark it verified")
     if bundle:
-        lines.append(
-            f"offline join: hand {getattr(args, 'out', None) or '(pass --out FILE)'} back to the inviter (`aurora link import`), "
-            "then import the bundle it exports (`aurora link export`): the link is ours once its sequencer includes the join"
+        where = getattr(args, "out", None)
+        if where:
+            doc["bundle"] = where
+        notes.append(
+            f"offline join: hand {where or '(pass --out FILE)'} back to the inviter (link import), then import "
+            "the bundle it exports (link export): the link is ours once its sequencer includes the join"
         )
-    _print(args, out, "\n".join(lines))
-    return 0 if out["fingerprint_matches_code"] else 3
+    doc["notes"] = notes
+    hints = [] if rc else [f"{cli} link verify {name} --mark"]
+    if state == "queued":
+        hints.append(f"{cli} link join {arg}")
+    hints.append(f"{cli} link status {name}")
+    axi.emit(doc, hints=hints, title=f"Join · {name}")
+    return rc
 
 
 def _two(args: Any, usage: str) -> tuple[str, str]:
@@ -482,55 +566,92 @@ def _two(args: Any, usage: str) -> tuple[str, str]:
     return rest[0], rest[1]
 
 
-def _done(out: dict[str, Any], what: str) -> str:
-    """How a membership change landed: on the chain, or as a proposal for the sequencer."""
+def _changed(args: Any, out: dict[str, Any], link: str, change: str, effect: str | None = None) -> int:
+    """How a membership change landed, for an agent and a person: applied on the chain (its entry),
+    or a proposal the link's sequencer has yet to include. `--json` prints the daemon's answer."""
+    if _json(args, out):
+        return 0
+    doc: dict[str, Any] = {"link": link, "change": change}
     if out.get("proposal"):
-        return (
-            f"{what} proposed ({out['proposal'][:16]}); the sequencer {str(out.get('sequencer', ''))[:16]} "
-            "includes it when a sync reaches it (`aurora link status` shows it until then)"
-        )
-    return f"{what} ({out['entry'][:16]})"
+        doc["state"] = "proposed"
+        doc["proposal"] = out["proposal"][:16]
+        doc["sequencer"] = str(out.get("sequencer", ""))[:16]
+        doc["note"] = "the sequencer includes it when a sync reaches it; link status shows it until then"
+    else:
+        doc["state"] = "applied"
+        doc["entry"] = out["entry"][:16]
+        if effect:
+            doc["effect"] = effect
+    if "epoch" in out:
+        doc["epoch"] = out["epoch"]
+    if out.get("rotation_due"):
+        doc["rotation_due"] = "the sequencer appends it (after 1 h it takes one from any key holder)"
+    # A proposal or a due rotation is still open: status is where it shows; otherwise it is done.
+    hints = [f"{_cli()} link status {link}"] if doc["state"] == "proposed" or out.get("rotation_due") else []
+    return axi.emit(doc, hints=hints, title=f"{change.capitalize()} · {link}")
 
 
 def do_accept(c: Client, args: Any) -> int:
     link, join = _two(args, "accept <link> <join id>")
     out = c.call("link.accept", link=link, join=join)
-    _print(args, out, _done(out, "accepted; the read key is wrapped to them"))
-    return 0
+    return _changed(args, out, link, "join accepted", "the read key is wrapped to them")
 
 
 def do_decline(c: Client, args: Any) -> int:
     link, join = _two(args, "decline <link> <join id>")
     out = c.call("link.decline", link=link, join=join)
-    _print(args, out, _done(out, "declined"))
-    return 0
+    return _changed(args, out, link, "join declined")
 
 
 def do_verify(c: Client, args: Any) -> int:
     rest = _need(args, 1, "verify <link> [member] [--mark]")
-    rows = c.call(
-        "link.verify", link=rest[0], member=rest[1] if len(rest) > 1 else None, mark=bool(getattr(args, "mark", False))
-    )
-    text = "\n".join(
-        f"{r['label']:<16} {r['safety_number']}  {'verified' if r['verified'] else 'not verified'}" for r in rows
-    )
-    if not getattr(args, "mark", False):
-        text += "\n\nread it to them over a call or Signal; when both of you see the same, add --mark"
-    _print(args, rows, text)
-    return 0
+    link, mark = rest[0], bool(getattr(args, "mark", False))
+    rows = c.call("link.verify", link=link, member=rest[1] if len(rest) > 1 else None, mark=mark)
+    if _json(args, rows):
+        return 0
+    cli = _cli()
+    if not rows:  # AXI section 5: no other fleet means nothing to compare, said as a zero
+        doc = {"link": link, "total": 0, "members": [], "note": "no other fleet in this link yet: nothing to compare"}
+        return axi.emit(doc, hints=[f"{cli} link invite {link}"], title=f"Safety numbers · {link}")
+    members = [
+        {"fleet": r["label"], "safety_number": r["safety_number"], "verified": "yes" if r["verified"] else "no"}
+        for r in rows
+    ]
+    doc: dict[str, Any] = {"link": link, "total": len(rows)}
+    unverified = [m["fleet"] for m in members if m["verified"] == "no"]
+    if unverified:
+        doc["unverified"] = len(unverified)
+    doc["members"] = members
+    hints = []
+    if unverified and not mark:
+        doc["note"] = "read the safety number to them over a call or Signal; when both of you see the same, mark it"
+        hints.append(f"{cli} link verify {link} {unverified[0] if len(unverified) == 1 else '<member>'} --mark")
+    return axi.emit(doc, hints=hints, title=f"Safety numbers · {link}")
+
+
+#: What each membership action did, as its confirmation names it.
+_CHANGES = {
+    "link.remove_member": "member removed",
+    "link.remove_device": "device removed",
+    "link.rotate_key": "key rotated",
+    "link.revoke_invite": "invite revoked",
+    "link.set_role": "role set",
+    "link.leave": "left the link",
+    "link.handoff": "sequencer handed off",
+}
 
 
 def _membership(c: Client, args: Any, method: str, usage: str, names: tuple[str, ...]) -> int:
     rest = _need(args, 1 + len(names), usage)
     params = {"link": rest[0], **{n: rest[i + 1] for i, n in enumerate(names)}}
-    if method == "link.add_device":
-        params["cert"] = json.loads(Path(rest[1]).read_text(encoding="utf-8"))
     out = c.call(method, **params)
-    msg = f"{_done(out, 'done')}; epoch {out['epoch']}"
-    if out.get("rotation_due"):
-        msg += "; a key rotation is due: the sequencer appends it (after 1 h it takes one from any key holder)"
-    _print(args, out, msg)
-    return 0
+    return _changed(args, out, rest[0], _CHANGES[method])
+
+
+def do_add_device(c: Client, args: Any) -> int:
+    link, path = _two(args, "add-device <link> <cert.json>")
+    out = c.call("link.add_device", link=link, cert=json.loads(Path(path).read_text(encoding="utf-8")))
+    return _changed(args, out, link, "device added", "it now holds the read key")
 
 
 def do_takeover(c: Client, args: Any) -> int:
@@ -546,13 +667,17 @@ def do_takeover(c: Client, args: Any) -> int:
     if not phrase and not passphrase:
         raise UsageError("a takeover needs the fleet root: --phrase-stdin, or --passphrase-env VAR for root.json")
     out = c.call("link.takeover", link=link, phrase=phrase, passphrase=passphrase, after=getattr(args, "after", None))
-    _print(
-        args,
-        out,
-        f"this device now sequences {link}: term {out['term']} starts at seq {out['seq']} ({out['entry'][:16]}); "
-        "every replica drops what the old sequencer appended after it",
-    )
-    return 0
+    if _json(args, out):
+        return 0
+    doc = {
+        "link": link,
+        "sequencer": "this device",
+        "term": out["term"],
+        "starts_at_seq": out["seq"],
+        "entry": out["entry"][:16],
+        "note": "every replica drops what the old sequencer appended after it",
+    }
+    return axi.emit(doc, hints=[f"{_cli()} link status {link}"], title=f"Takeover · {link}")
 
 
 # --------------------------------------------------------------------------------------- the mail
@@ -603,15 +728,37 @@ def _full_id(c: Client, link: str, prefix: str) -> str:
 def do_show(c: Client, args: Any) -> int:
     link, rid = _two(args, "show <link> <record>")
     out = c.call("record.get", link=link, record_id=_full_id(c, link, rid))
+    if _json(args, out):
+        return 0
     body = out.get("body") or {}
-    _print(
-        args,
-        out,
-        f"{out['record_id']}\n  from {out.get('fleet')}/{body.get('seat')} (device {out['device'][:16]}, seq {out['seq']})\n"
-        f"  status {out['status']}{'  promoted to ' + out['promoted']['seat'] if out.get('promoted') else ''}\n"
-        f"  {body.get('kind')} -> {body.get('to')}\n\n{body.get('content', '')}",
-    )
-    return 0
+    content = str(body.get("content", ""))
+    shown, cut = axi.truncate(content, 800)
+    doc: dict[str, Any] = {
+        "record": out["record_id"],
+        "from": f"{out.get('fleet')}/{body.get('seat')}",
+        "device": out["device"][:16],
+        "seq": out["seq"],
+        "status": out["status"],
+        "promoted_to": (out.get("promoted") or {}).get("seat"),
+        "kind": body.get("kind"),
+        "to": body.get("to"),
+    }
+    if cut:  # AXI section 3: the size, and where the rest is
+        doc["content_chars"] = len(content)
+    doc["content"] = shown
+    cli, short = _cli(), out["record_id"][:12]
+    hints = []
+    if cut:
+        hints.append(f"{cli} link show {link} {short} --json")
+    if out["status"] == "admitted" and not out.get("promoted"):
+        hints.append(f"{cli} link promote {link} {short}")
+
+    def human(console, d):
+        axi.render_human(console, {k: v for k, v in d.items() if k != "content"})
+        console.print()
+        console.print(axi._esc(d["content"]) or "[dim](no content)[/]")
+
+    return axi.emit(doc, hints=hints, human=human, title=f"Record · {link}")
 
 
 def do_promote(c: Client, args: Any) -> int:
@@ -624,8 +771,15 @@ def do_promote(c: Client, args: Any) -> int:
         if not getattr(args, "yes", False) and not sys.stdin.isatty():
             raise UsageError("promotion puts another fleet's words on our bus: confirm on a terminal, or pass --yes")
         out = legacy.promote_legacy(rid, by=getattr(args, "by", None) or f"person:{getpass.getuser()}", to=args.to)
-        _print(args, out, f"promoted {out['record_id']} -> {out['seat']} (unverified legacy mail, authority none)")
-        return 0
+        if _json(args, out):
+            return 0
+        doc = {
+            "record": out["record_id"],
+            "promoted_to": out["seat"],
+            "source": "unverified legacy mail",
+            "authority": "none",
+        }
+        return axi.emit(doc, title="Promoted")
     rid = _full_id(c, link, rid)
     rec = c.call("record.get", link=link, record_id=rid)
     body = rec.get("body") or {}
@@ -638,11 +792,13 @@ def do_promote(c: Client, args: Any) -> int:
             print("not promoted")
             return 1
     out = promote.promote(c, link, rid, by=by, to=getattr(args, "to", None), again=bool(getattr(args, "again", False)))
-    if not out["promoted"]:
-        _print(args, out, "already promoted; nothing sent (pass --again to resend)")
+    if _json(args, out):
         return 0
-    _print(args, out, f"promoted {rid[:12]} -> {out['seat']} (bus id {out['bus_id']}), authority none")
-    return 0
+    if not out["promoted"]:  # nothing to do is a success, said plainly (AXI section 6)
+        doc = {"record": rid[:12], "promoted": False, "reason": "already promoted; nothing sent"}
+        return axi.emit(doc, hints=[f"{_cli()} link promote {link} {rid[:12]} --yes --again"], title="Promote")
+    doc = {"record": rid[:12], "promoted_to": out["seat"], "bus_id": out["bus_id"], "authority": "none"}
+    return axi.emit(doc, title="Promoted")
 
 
 def do_blob(c: Client, args: Any) -> int:
@@ -650,8 +806,9 @@ def do_blob(c: Client, args: Any) -> int:
     rid = _full_id(c, rest[0], rest[1])
     target = getattr(args, "out", None) or rest[2]
     out = c.call("blob.get", link=rest[0], record_id=rid, blob=rest[2], out=str(Path(target).resolve()))
-    _print(args, out, f"wrote {out['bytes']} bytes to {out['out']}")
-    return 0
+    if _json(args, out):
+        return 0
+    return axi.emit({"wrote": out["out"], "bytes": out["bytes"]}, title="Attachment saved")
 
 
 def do_send(c: Client, args: Any) -> int:
@@ -664,8 +821,16 @@ def do_send(c: Client, args: Any) -> int:
         client=c,
         link=getattr(args, "link", None),
     )
-    _print(args, {"record_id": rid}, f"written to our feed as {rid[:12]}; it syncs as soon as a path is open")
-    return 0
+    if _json(args, {"record_id": rid}):
+        return 0
+    doc = {
+        "record": rid[:12],
+        "from": rest[0],
+        "to": rest[1],
+        "kind": getattr(args, "kind", None) or "chat",
+        "state": "written to our feed; it syncs as soon as a path is open",
+    }
+    return axi.emit(doc, hints=[f"{_cli()} link sync"], title="Sent")
 
 
 def do_export(c: Client, args: Any) -> int:
@@ -674,8 +839,12 @@ def do_export(c: Client, args: Any) -> int:
         raise UsageError("export needs --out FILE")
     bundle = c.call("bundle.export", link=link)
     Path(args.out).write_text(json.dumps(bundle) + "\n", encoding="utf-8")
-    print(f"wrote {len(bundle['acl'])} ACL entries and {len(bundle['records'])} records to {args.out}")
-    return 0
+    if getattr(args, "json", False):  # --json has always printed this line (the bundle is the file)
+        print(f"wrote {len(bundle['acl'])} ACL entries and {len(bundle['records'])} records to {args.out}")
+        return 0
+    doc = {"link": link, "wrote": args.out, "acl_entries": len(bundle["acl"]), "records": len(bundle["records"])}
+    # The bundle travels by hand: the next command is the other device's.
+    return axi.emit(doc, hints=[f"{_cli()} link import {args.out}"], title=f"Bundle exported · {link}")
 
 
 def do_import(c: Client, args: Any) -> int:
@@ -684,73 +853,106 @@ def do_import(c: Client, args: Any) -> int:
     if bundle.get("kind") == "aurora-link-invite":
         raise UsageError("that is an invite: use `aurora link join` on it")
     out = c.call("bundle.import", bundle=bundle)
-    _print(
-        args,
-        out,
-        f"imported into {out['link'][:16]}: {out['acl_entries']} ACL entries, {out['records_stored']} new records, {out['records_refused']} refused",
-    )
-    return 0
+    if _json(args, out):
+        return 0
+    short = out["link"][:16]
+    doc = {
+        "link": short,
+        "acl_entries": out["acl_entries"],
+        "records_stored": out["records_stored"],
+        "records_refused": out["records_refused"],
+    }
+    cli = _cli()
+    hint = f"{cli} link inbox {short}" if out["records_stored"] else f"{cli} link status {short}"
+    return axi.emit(doc, hints=[hint], title="Bundle imported")
 
 
 def do_policy(c: Client, args: Any) -> int:
     (link,) = _need(args, 1, "policy <link>")[:1]
     link_id = c.call("link.status", link=link)["link"]
     paths = {"promote": str(promote.write_default_policy(link_id)), "export": str(export.write_default_policy(link_id))}
-    _print(
-        args,
-        paths,
-        f"promote policy {paths['promote']}\nexport policy  {paths['export']}\nboth are local and never synced",
-    )
-    return 0
+    if _json(args, paths):
+        return 0
+    doc = {"link": link, "promote_policy": paths["promote"], "export_policy": paths["export"]}
+    doc["scope"] = "both are local and never synced"
+    return axi.emit(doc, title=f"Policies · {link}")  # the paths are the answer
 
 
 def do_rebuild(c: Client, args: Any) -> int:
     (link,) = _need(args, 1, "rebuild <link>")[:1]
     n = quarantine.rebuild(c, link)
-    print(f"rebuilt the quarantine stream from the store: {n} record(s)")
-    return 0
+    if getattr(args, "json", False):  # --json has always printed this line
+        print(f"rebuilt the quarantine stream from the store: {n} record(s)")
+        return 0
+    hints = [f"{_cli()} link inbox {link}"] if n else []
+    return axi.emit({"link": link, "records": n}, hints=hints, title="Quarantine stream rebuilt")
 
 
 def do_peer(c: Client, args: Any) -> int:
     (device,) = _need(args, 1, "peer <device> --addr ip:port [--relay URL]")[:1]
-    out = c.call(
-        "peers.add",
-        device=device,
-        addrs=list(getattr(args, "addr", None) or []),
-        relay=getattr(args, "relay_url", None),
-    )
-    _print(args, out, f"remembered dial hints for {device[:16]}")
-    return 0
+    addrs, relay = list(getattr(args, "addr", None) or []), getattr(args, "relay_url", None)
+    out = c.call("peers.add", device=device, addrs=addrs, relay=relay)
+    if _json(args, out):
+        return 0
+    doc = {"device": device[:16], "addrs": addrs, "relay": relay, "remembered": "dial hints for this device"}
+    return axi.emit(doc, hints=[f"{_cli()} link sync"], title="Peer")
 
 
 def do_sync(c: Client, args: Any) -> int:
     rest = list(getattr(args, "args", None) or [])
     out = c.call("sync.now", link=rest[0] if rest else None)
-    _print(args, out, "dialing every member now")
-    return 0
+    if _json(args, out):
+        return 0
+    doc = {"dialing": "every member" + (f" of {rest[0]}" if rest else ""), "started": bool(out.get("dialing", True))}
+    return axi.emit(doc, hints=[f"{_cli()} link status{' ' + rest[0] if rest else ''}"], title="Sync")
 
 
 def do_relay_config(c: Client, args: Any) -> int:
     """An iroh-relay config admitting only our links' devices: a self-hosted, members-only relay."""
     out = c.call("relay.config", http_bind=getattr(args, "bind", None))
-    if getattr(args, "out", None):
-        Path(args.out).write_text(out["toml"], encoding="utf-8")
-        print(f"wrote {args.out}: {out['devices']} device(s) may relay. Run: iroh-relay --config-path {args.out}")
-    else:
+    target = getattr(args, "out", None)
+    if target:
+        Path(target).write_text(out["toml"], encoding="utf-8")
+    if getattr(args, "json", False):  # --json has always printed the TOML itself, or the line
+        if target:
+            print(f"wrote {target}: {out['devices']} device(s) may relay. Run: iroh-relay --config-path {target}")
+        else:
+            print(out["toml"], end="")
+        return 0
+    if target:
+        doc = {"wrote": target, "devices": out["devices"], "run": f"iroh-relay --config-path {target}"}
+        return axi.emit(doc, title="Relay config")
+    # Without --out the file itself is the output: `link relay-config > relay.toml` must keep
+    # writing a valid config, and a pipe is agent mode. A person also gets the device count.
+    if axi.is_agent():
         print(out["toml"], end="")
-    return 0
+        return 0
+    conf = tomllib.loads(out["toml"])
+    allow = (conf.get("access") or {}).get("allowlist") or []
+    doc = {
+        "devices": out["devices"],
+        "http_bind_addr": conf.get("http_bind_addr"),
+        "allowlist": [d[:16] for d in allow],
+    }
+
+    def human(console, _d):
+        console.print(f"[dim]{out['devices']} device(s) may relay[/]")
+        console.print(axi._esc(out["toml"]), end="", soft_wrap=True)
+
+    return axi.emit(doc, hints=[f"{_cli()} link relay-config --out relay.toml"], human=human, title="Relay config")
 
 
 def do_import_legacy(c: Client, args: Any) -> int:
     from core.link import legacy
 
     out = legacy.import_parked(dry=bool(getattr(args, "dry_run", False)))
-    _print(
-        args,
-        out,
-        f"legacy bridge inbox: {out['imported']} imported into the quarantine, {out['skipped']} already there",
-    )
-    return 0
+    if _json(args, out):
+        return 0
+    doc = {"imported": out["imported"], "skipped": out["skipped"]}
+    if "would_import" in out:  # --dry-run: what a real run would bring in
+        doc["would_import"] = out["would_import"]
+    doc["into"] = "the quarantine (skipped: already there)"
+    return axi.emit(doc, title="Legacy bridge inbox")
 
 
 HANDLERS = {
@@ -769,7 +971,7 @@ HANDLERS = {
     "verify": do_verify,
     "remove-member": lambda c, a: _membership(c, a, "link.remove_member", "remove-member <link> <member>", ("member",)),
     "remove-device": lambda c, a: _membership(c, a, "link.remove_device", "remove-device <link> <device>", ("device",)),
-    "add-device": lambda c, a: _membership(c, a, "link.add_device", "add-device <link> <cert.json>", ("cert_file",)),
+    "add-device": do_add_device,
     "rotate-key": lambda c, a: _membership(c, a, "link.rotate_key", "rotate-key <link>", ()),
     "revoke-invite": lambda c, a: _membership(c, a, "link.revoke_invite", "revoke-invite <link> <invite>", ("invite",)),
     "set-role": lambda c, a: _membership(c, a, "link.set_role", "set-role <link> <member> <role>", ("member", "role")),
@@ -811,18 +1013,6 @@ def main(args: Any) -> int:
         return serve.run(flags=flags, mailbox=action == "mailbox", once=bool(getattr(args, "once", False)))
     try:
         with connect(network=action in NETWORKED) as c:
-            if action == "add-device":
-                rest = _need(args, 2, "add-device <link> <cert.json>")
-                out = c.call(
-                    "link.add_device", link=rest[0], cert=json.loads(Path(rest[1]).read_text(encoding="utf-8"))
-                )
-                text = (
-                    f"device added ({out['entry'][:16]}); it now holds the read key"
-                    if out.get("entry")
-                    else _done(out, "device added")
-                )
-                _print(args, out, text)
-                return 0
             return HANDLERS[action](c, args)
     except LinkdMissing:
         return axi.fail(

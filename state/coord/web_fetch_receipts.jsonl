@@ -1,0 +1,2 @@
+{"ts": "2026-10-13T00:10:04Z", "seat": "bench", "url": "file:///mnt/lnx-storage/projects/akashic-labs/aurora/.claude/worktrees/axi-cli/scripts/axi_bench/specs/fixtures/web_page.html", "status": null, "bytes": 7955, "sha": "8800fdd3d408954ede9cf5d81986848a780f3c5ce67001c88b8ae45d7d099c1d", "cache": "miss-filled"}
+{"ts": "2026-10-13T00:10:05Z", "seat": "bench", "url": "not-a-url", "status": "EXC", "bytes": 0, "sha": null, "cache": "error"}
