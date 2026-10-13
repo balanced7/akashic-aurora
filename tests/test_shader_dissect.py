@@ -781,6 +781,67 @@ def test_audio_rows_say_spectrum_or_waveform():
     assert ev["params"]["reads"] == ["spectrum"] and ev["params"]["type"] == "music"
 
 
+# A channel renamed on line 1 and read through the new name on line 3: the #define names the channel, the read is the
+# use. Our own lines, written for this pin.
+RENAMED_CHANNEL = """#define heldTex iChannel1
+void mainImage(out vec4 ink, in vec2 pxc) {
+    float held = texelFetch(heldTex, ivec2(65, 0), 0).x;
+    ink = vec4(held, pxc / iResolution.xy, 1.0);
+}
+"""
+
+
+def _renamed(typ: str) -> dict:
+    return pass_json("aaaaak", [rp("Image", "image", RENAMED_CHANNEL, [{"id": "k", "type": typ, "channel": 1}],
+                                   [{"id": IMG, "channel": 0}])])
+
+
+@pytest.mark.parametrize("typ, tag", [("keyboard", "input.keyboard"), ("music", "audio.input")])
+@pytest.mark.parametrize("raw_first", [True, False])
+def test_a_renamed_channel_is_cited_where_the_new_name_is_used_whatever_order_the_names_come_in(
+        monkeypatch, typ, tag, raw_first):
+    """The names a channel goes by (iChannel1, heldTex) are a set, and the first read was taken name by name, so the
+    line cited hung on the order a set happens to iterate in, which the hash seed picks: MsGSRd's keyboard row cited
+    buffer_a.glsl line 21 (the #define) under 2 of 6 seeds and 22 (the read) under the rest, WdVXWy's 20 or 21 under 3
+    of 6. Both orders are forced here. The #define that only renames the channel is never a read, and is not counted."""
+    real = D._channel_aliases
+
+    def ordered(prog, ch):
+        names = sorted(real(prog, ch), key=lambda n: (not n.startswith("iChannel")) == raw_first)
+        assert len(names) == 2, names
+        return names
+    monkeypatch.setattr(D, "_channel_aliases", ordered)
+    rows = [t for t in D.dissect_view(D.view_from_json(_renamed(typ)))["techniques"] if t["tag"] == tag]
+    assert rows and [(e["file"], e["line"]) for e in rows[0]["evidence"]] == [("image.glsl", 3)], rows
+    if tag == "audio.input":
+        assert "read 1 time(s)" in rows[0]["evidence"][0]["detail"], rows
+
+
+_SEED_PROBE = """
+import json, sys
+from arsenal.shaders import dissect as D
+view = D.view_from_json(json.loads(sys.argv[1]))
+print(json.dumps([[e["line"] for e in t["evidence"]] for t in D.dissect_view(view)["techniques"]
+                  if t["tag"] == "input.keyboard"]))
+"""
+
+
+def test_the_keyboard_line_is_the_same_under_every_hash_seed():
+    """The same pin end to end: a fresh interpreter per PYTHONHASHSEED, the row's line compared across them."""
+    import os
+    import subprocess
+    import sys
+    root = Path(__file__).resolve().parents[1]
+    seen = {}
+    for seed in range(8):
+        env = {**os.environ, "PYTHONHASHSEED": str(seed), "PYTHONPATH": str(root)}
+        out = subprocess.run([sys.executable, "-c", _SEED_PROBE, json.dumps(_renamed("keyboard"))], cwd=root, env=env,
+                             capture_output=True, text=True, timeout=120)
+        assert out.returncode == 0, out.stderr
+        seen[seed] = json.loads(out.stdout)
+    assert set(map(json.dumps, seen.values())) == {json.dumps([[3]])}, seen
+
+
 def test_evidence_points_at_the_line_that_earned_it():
     src = shader(SCENE, SCENE_MAIN)
     ev = evidence(src, "raymarch.sphere_trace")[0]

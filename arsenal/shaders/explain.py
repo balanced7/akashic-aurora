@@ -16,7 +16,8 @@ interprets (a detector recognising a technique, a prediction, our own notes) is 
                          pass and its inputs as declared, a cycle the declared inputs close, a uniform or a declared
                          channel read on the line cited (iTime, iFrame, iMouse, iChannel<n>: the ledger checks that a
                          token of LIVE code on that line holds it, so a comment, an #if branch the preprocessor drops, a
-                         function no entry point reaches and a #define that only renames it are never a read; a macro
+                         function no entry point reaches, a #define that only renames it and a macro's own parameter
+                         named like it (`#define WAVE(t) sin(t)` beside `#define t iTime`) are never a read; a macro
                          or function Common defines is live code of every pass that reaches it, and a #define alias
                          counts in its own pass and, from Common, in every pass; when the dissector's line is not a
                          live read, the first live read is cited instead, and with none a channel's read falls back to
@@ -31,10 +32,11 @@ interprets (a detector recognising a technique, a prediction, our own notes) is 
                          no line of live code holds or that sits in a pass the reader could not follow (its word alone,
                          kind read_unchecked), the dead-function list when the reader could not follow a whole pass (an
                          #if it could not evaluate, code it could not follow, no entry point found), the static cost
-                         estimate, what the media folder predicts a render will draw, and the study note: every heading
-                         and its corroboration section (our earlier reading of the code and of the renders, not
-                         re-checked here)
-    unknown              what no evidence reaches: a pass in which the reader found no entry point (kind no_entry),
+                         estimate of a pass with an entry point, what the media folder predicts a render will draw, and
+                         the study note: every heading and its corroboration section (our earlier reading of the code
+                         and of the renders, not re-checked here)
+    unknown              what no evidence reaches: a pass in which the reader found no entry point (kind no_entry) and
+                         its static cost (kind cost_unknown: no call graph was walked, so none is estimated),
                          inputs drawn by stand-ins, silence fed to an audio input, inputs or passes the runtime could
                          not draw, a Sound pass never run, times never rendered, the detector groups that found nothing
                          ("not detected by dissect v1": a detector's miss is never proof of absence), GPU timing
@@ -49,7 +51,9 @@ exactly.
 THE EVIDENCE IDS. A sha8 is the first 8 hex digits of SHA-256 over the bytes as they sit on disk.
     code     <id>@<sha8 of the pass source>:<pass>:<first line>-<last line>      (from the dissector's evidence rows)
     config   config:<id>@<sha8 of shader.json>:<pass>:pass | iChannel<n>        (the shader's own declaration; also
-                                                                                 cited for a channel no line reads)
+                                                                                 cited for a channel no line reads, and
+                                                                                 alone for a channel row in a pass with
+                                                                                 no entry point)
     render   render:<sha8 of the receipt file>, with the receipt's path in the claim's `paths`
     study    study:<id>@<sha8 of the note>#<section number, else a slug of the heading>   (always labelled inferred)
 
@@ -108,7 +112,8 @@ CODE: Dict[str, Tuple[Path, ...]] = {
 # an observation as it stands: the first live read is cited instead (in the pass files or in Common); with none, a
 # channel tag cites the declaration and says no read was found, and a uniform's row is inferred, the dissector's word
 # alone. When the reader found no entry point in a pass the read could sit in, "no read found" was never searched for:
-# the row is inferred, and says so.
+# the row is inferred, and says so (a channel row whose line sits in that pass cites the declaration alone). A macro's
+# own parameter is never a read, whatever it is named.
 RAW_READS: Dict[str, Optional[Tuple[str, ...]]] = {
     "animation.time": tuple(sorted(D.TIME_UNIFORMS)),
     "animation.frame": ("iFrame",),
@@ -418,8 +423,8 @@ class _Builder:
     def _index_live_code(self) -> None:
         """What the dissector's own reachability walk calls live, per pass, by (file, line): every token in the body of
         a function or macro an entry point reaches (Common's under each pass that prepends it), with the macro's name
-        when the token sits in one; and the head line of each live function. A token in an #if branch the preprocessor
-        dropped never enters a body, so an inactive line holds no live token."""
+        when the token sits in one, except a macro's own parameters; and the head line of each live function. A token
+        in an #if branch the preprocessor dropped never enters a body, so an inactive line holds no live token."""
         self.live: Dict[str, Dict[Tuple[str, int], set]] = {}
         self.live_heads: Dict[str, set] = {}
         self._names_seen: Dict[Tuple[Tuple[str, ...], Optional[str]], set] = {}     # _visible's cache
@@ -435,8 +440,12 @@ class _Builder:
                     if macro is not None and (getattr(fn, "end_line", None) or fn.line) > fn.line:
                         self.spans[(fn.file, fn.line)] = fn.end_line
                     heads.add((fn.file, fn.line, fn.name))
+                    # A macro's own parameter stands for the argument it is called with, so it is never a read of
+                    # anything, even when it is named like a uniform or an alias (`#define WAVE(t) sin(t)`).
+                    params = {pp.name for pp in fn.params} if macro is not None else set()
                     for t in fn.toks[fn.start:fn.end]:
-                        toks.setdefault((fn.file, t.line), set()).add((t.text, macro))
+                        if t.text not in params:
+                            toks.setdefault((fn.file, t.line), set()).add((t.text, macro))
             self.live[pv.file], self.live_heads[pv.file] = toks, heads
         # The passes in which the reader recognised no entry point (_has_entry): none of their code is in the live
         # index, so a read there cannot be checked and their dead-function lists are only a reading.
@@ -567,7 +576,8 @@ class _Builder:
         the dissector reports that no live line holds: its word alone), "shape" (the dissector's reading of the math)
         or "name" (a function name alone). file and line are where the claim points: the row's own, or, when the row's
         line is no read in live code (an unreached function, a dropped #if branch, a renaming #define), the first line
-        of live code that is."""
+        of live code that is. at is "config" when an unchecked channel row cites the declaration alone (its line sits
+        in a pass in which the reader found no entry point)."""
         out = {"row": row, "ids": [self.code(row["file"], row["line"])], "basis": "shape", "note": "",
                "file": row["file"], "line": row["line"]}
         if tag in DECLARED:
@@ -607,10 +617,14 @@ class _Builder:
         blind = sorted(f for f in scope if f in self.no_entry)
         if blind:
             # The reader followed none of these passes' code, so "no read found" would be a negative over a search that
-            # never ran: the dissector's word stands alone (inferred), and the gap is said.
-            out.update(ids=cfg + out["ids"], basis="unchecked",
-                       note=(f"the reader found no entry point in {', '.join(blind)}, so none of its code was followed "
-                             f"as live and whether it reads it there is unknown ({why})"))
+            # never ran: the dissector's word stands alone (inferred), and the gap is said. A channel row whose own line
+            # sits in such a pass points at a line the dissector never read either (with no live token there it falls
+            # back to the pass's line 1): the row cites the configuration that declares the channel, and nothing else.
+            at_config = bool(cfg) and file in self.no_entry
+            gap = (f"the reader found no entry point in {', '.join(blind)}, so none of its code was followed as live "
+                   f"and whether it reads it there is unknown")
+            out.update(ids=cfg if at_config else cfg + out["ids"], basis="unchecked",
+                       at="config" if at_config else None, note=gap if at_config else f"{gap} ({why})")
             return out
         if decl is not None:
             out.update(ids=cfg, basis="declared", note=f"no read found in the live code of {decl['file']} ({why})")
@@ -637,7 +651,7 @@ class _Builder:
 
     def where(self, r: dict) -> str:
         e = r["row"]
-        if r["basis"] == "declared":
+        if r["basis"] == "declared" or r.get("at") == "config":
             ch = (e.get("params") or {}).get("channel")
             return "in the configuration" + (f" (iChannel{ch})" if ch is not None else "")
         return f"at {r['file']}:{r['line']}"
@@ -889,6 +903,17 @@ class _Builder:
         for p in self.rep["passes"]:
             c = p["cost"]
             src = self.inp.by_file.get(p["file"])
+            if p["file"] in self.no_entry:
+                # The estimate walks the call graph from an entry point; with none found nothing was walked, and the
+                # dissector's "heaviest path 1, ~0 calls" is the empty walk, not a cheap pass.
+                self.book.add("unknown",
+                              f"{p['file']}: static cost unknown: the reader found no entry point in this pass, so no "
+                              f"call graph was walked and no per-pixel cost was estimated",
+                              [self.whole(src)] if src is not None else [self.code(p["file"], 1)],
+                              "glsl.py's reader: the static cost walks the call graph down from an entry point (a "
+                              "function it finds by name, or top-level code that calls one); this pass has none it "
+                              "could follow", self.pass_paths([p["file"]]), "high", kind="cost_unknown")
+                continue
             steps = [s for s in c.get("path") or [] if s.get("file") and s.get("line")]
             ev = [self.code(s["file"], s["line"]) for s in steps]
             if not ev and src is not None:
@@ -1160,9 +1185,11 @@ class _Builder:
         else:
             q("motion", "How does it change over time?", "partial",
               "; ".join((["stills only"] if not film else []) + why), frames + time_ids + why_ids)
-        cost = [c["id"] for c in b.claims if c.get("kind") in ("cost", "timing", "gpu")]
+        cost = [c["id"] for c in b.claims if c.get("kind") in ("cost", "cost_unknown", "timing", "gpu")]
+        blind = sum(1 for c in b.claims if c.get("kind") == "cost_unknown")
         q("cost", "What does it cost?", "partial" if cost else "unresolved",
-          "a static estimate and SwiftShader timing; GPU timing is unknown", cost)
+          "a static estimate and SwiftShader timing; GPU timing is unknown"
+          + (f"; no static estimate for {blind} pass(es) with no entry point found" if blind else ""), cost)
         study = [c["id"] for c in b.claims if c.get("kind") == "study"]
         corr = [c["id"] for c in b.claims if c.get("kind") == "corroboration"]
         missing = [c["id"] for c in b.claims if c.get("kind") == "study_missing"]

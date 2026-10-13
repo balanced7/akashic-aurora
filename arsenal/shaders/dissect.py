@@ -1749,15 +1749,20 @@ def _live_tokens(ctx: Ctx) -> Iterator[Tuple[G.Fn, G.Token]]:
 def detect_inputs(ctx: Ctx) -> None:
     pv = ctx.pv
     uses: Dict[str, List[Tuple[G.Fn, int]]] = {}
-    for fn, t in _live_tokens(ctx):
-        if t.kind == G.IDENT:
-            uses.setdefault(t.text, []).append((fn, t.line))
+    idents = [(fn, t) for fn, t in _live_tokens(ctx) if t.kind == G.IDENT]
+    for fn, t in idents:
+        uses.setdefault(t.text, []).append((fn, t.line))
     for inp in pv.inputs:
         ch, typ = inp.get("channel"), inp.get("type")
         if ch is None:
             continue
-        names = _channel_aliases(pv.prog, ch)
-        hits = [h for n in names for h in uses.get(n, [])]
+        names = sorted(_channel_aliases(pv.prog, ch))
+        # The reads in the order the live code is walked (functions by name, tokens in place), never name by name: the
+        # names are a set, and taking them in set order made the line cited hang on the hash seed. The body of the
+        # #define that only renames the channel (`#define keyTex iChannel3`) names it and reads nothing: the read is
+        # where keyTex is used.
+        hits = [(fn, t.line) for fn, t in idents
+                if t.text in names and not (fn.kind == "macro" and fn.name in names)]
         if typ in AUDIO_TYPES:
             reads = set()
             for fn in ctx.fns:

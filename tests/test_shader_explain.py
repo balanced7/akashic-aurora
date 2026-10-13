@@ -12,11 +12,13 @@ repeat with nothing changed returns the earlier answer instead of doing the work
     a technique the dissector recognises by the shape of its math, a function name alone (never counted as a
     technique), the static cost, a prediction from the media folder, the study note and its corroboration section;
   * a read is a token of LIVE code: a line in a function no entry point reaches, in an #if branch the preprocessor
-    drops, or a #define that only renames the channel is never an observed read (the first live read is cited, or the
-    declaration with "no read found"); a macro Common defines is live code of the pass that uses it, an alias counts
-    only where its own pass (or Common) defines it, and a #define continued over several lines is cited whole;
+    drops, a #define that only renames the channel, or a macro's own parameter named like an alias is never an
+    observed read (the first live read is cited, or the declaration with "no read found"); a macro Common defines is
+    live code of the pass that uses it, an alias counts only where its own pass (or Common) defines it, and a #define
+    continued over several lines is cited whole;
   * a pass in which the reader finds no entry point is said as an unknown, and nothing about it is observed: no dead
-    list, and no "no read found" over code the reader never followed;
+    list, no "no read found" over code the reader never followed, no cost estimate (its cost is unknown), and a channel
+    row there cites the configuration, not the dissector's placeholder line;
   * "what is it made of" is answered only by a technique recognised from the shape of the math; reads, declarations
     and function names alone leave it partial;
   * a code evidence id names the shader, the SHA-256 (first 8 hex) of the pass source, the pass and a line range, and the
@@ -254,6 +256,16 @@ COMMON_BUILDS = """float lift(float k) { return k * 0.5 + 0.25; }
 float spare(float k) { return k * 3.0; }
 #define BUFFERA void mainImage(out vec4 c, in vec2 p) { c = 0.9 * texture(iChannel0, p / iResolution.xy); }
 #define IMAGE void mainImage(out vec4 o, in vec2 u) { o = texture(iChannel0, u / iResolution.xy) * lift(sin(iTime)); }
+"""
+# Image renames the clock (`#define t iTime`, line 1) and only calls WAVE with a constant. WAVE's PARAMETER is also
+# called t: inside WAVE, t is whatever the caller passes, never the clock, so no clock is read anywhere. WAVE sits in
+# Common (line 1) or in Image's own file (line 2). The control, WAVE_K, names the alias in its body and does read it.
+WAVE_T = "#define WAVE(t) (0.5 + 0.5 * sin(t))\n"
+WAVE_K = "#define WAVE(k) (0.5 + 0.5 * sin(k * t))\n"
+IMG_RENAMES_T = """#define t iTime
+void mainImage(out vec4 o, in vec2 u) {
+    o = vec4(WAVE(2.0));
+}
 """
 CUBE_SRC = "/media/a/0a1b2c3d4e5f60718293a4b5c6d7e8f9.jpg"
 SKY = """void mainImage(out vec4 c, in vec2 p) {
@@ -583,6 +595,34 @@ def test_a_common_macro_reads_through_the_using_passs_own_alias(world):
     assert code and all(e.endswith(":common:1-1") for e in code), code
 
 
+@pytest.mark.parametrize("where", ["common", "own"])
+@pytest.mark.parametrize("macro, reads", [(WAVE_T, False), (WAVE_K, True)], ids=["param-t", "param-k"])
+def test_a_macro_parameter_named_like_the_alias_is_not_a_read(world, monkeypatch, where, macro, reads):
+    """Image renames the clock (`#define t iTime`) and calls WAVE(2.0). When WAVE's own parameter is called t, the t in
+    its body is the argument, 2.0, never the clock. Before this pin every token in a macro body that matched the using
+    pass's alias counted, the parameter too, and the ledger wrote observed-in-code 'iTime/iDate read 1 time(s) (first at
+    common.glsl:1 ...)' about a shader that reads no clock (latent: no corpus row). The control, a parameter called k
+    beside a t in the body, still reads the clock through Image's alias, and stays observed."""
+    sid = f"xpW{where[0]}{'r' if reads else 'n'}1"
+    passes = [_rp("Image", "image", IMG_RENAMES_T if where == "common" else
+                  IMG_RENAMES_T.replace("#define t iTime\n", "#define t iTime\n" + macro), [],
+                  [{"id": OUT_IMG, "channel": 0}])]
+    if where == "common":
+        passes.insert(0, _rp("Common", "common", macro))
+    C.save_shader(_shader(sid, f"Wave {where} {reads}", passes), world["corpus"])
+    _cite_at(monkeypatch, "animation.time", 1)
+    led = X.explain(sid)
+    clock = _tagged(led, "animation.time")
+    assert clock, "the dissector's row is kept above the floor; the ledger must say what it makes of it"
+    wave = ":common:1-1" if where == "common" else ":image:2-2"
+    if reads:
+        assert clock[0]["kind"] == "read" and clock[0]["label"] == "observed-in-code", clock
+        assert any(e.endswith(wave) for e in clock[0]["evidence"]), clock
+    else:
+        assert all(c["label"] != "observed-in-code" and c["kind"] != "read" for c in clock), clock
+        assert not any(e.endswith(wave) for c in clock for e in c["evidence"]), clock
+
+
 def test_a_read_in_a_continued_define_cites_the_whole_define(world):
     """glsl.py files every token of a #define written over several lines under its first line, so a read on a
     continuation line was cited as `common:1-1`, a line holding only `#define PREV(q) \\` (wsByWV, common.glsl:835,
@@ -638,6 +678,52 @@ def test_a_pass_with_no_entry_point_is_never_observed_dead_or_unread(world):
         assert c["label"] != "observed-in-code" and "no read found" not in c["claim"], c
         assert "entry point" in c["claim"], c
     assert not [c for c in led["claims"] if c["label"] == "observed-in-code" and c.get("kind") in ("read", "dead")]
+
+
+def test_a_pass_with_no_entry_point_gets_no_cost_estimate(world):
+    """The static cost walks the call graph from a pass's entry point. Before this pin a pass in which the reader found
+    none still got inferred (moderate) 'heaviest path 1 = ; ~0 user calls and ~0 tokens executed per pixel', bounded
+    'along the call graph from the entry' (4 corpus claims: fsXXzX's three passes and cdG3Wd's image.glsl). Now its cost
+    is an unknown that says why, and the cost question on the checklist still cites it."""
+    C.save_shader(_shader("xpRRR9", "Built By Macro Too", [
+        _rp("Common", "common", COMMON_BUILDS),
+        _rp("Buffer A", "buffer", "BUFFERA\n", [_inp(0, "buffer", OUT_A)], [{"id": OUT_A, "channel": 0}]),
+        _rp("Image", "image", "IMAGE\n", [_inp(0, "buffer", OUT_A)], [{"id": OUT_IMG, "channel": 0}])]),
+        world["corpus"])
+    led = X.explain("xpRRR9")
+    for f in ("buffer_a.glsl", "image.glsl"):
+        about = [c for c in led["claims"] if c["claim"].startswith(f + ":") and "cost" in c["claim"]]
+        assert about, (f, led["claims"])
+        for c in about:
+            assert c["label"] == "unknown" and "entry point" in c["claim"], c
+            assert "heaviest path" not in c["claim"] and "from the entry" not in c["boundary"], c
+    costs = [c["id"] for c in led["claims"] if "static cost" in c["claim"]]
+    q = next(q for q in led["checklist"] if q["key"] == "cost")
+    assert costs and set(costs) <= set(q["claims"]), (costs, q)
+    # a pass the reader did follow keeps its estimate
+    led = X.explain("xpAAA1")
+    est = [c for c in led["claims"] if c.get("kind") == "cost"]
+    assert est and all(c["label"] == "inferred" and "heaviest path" in c["claim"] for c in est), est
+
+
+def test_a_channel_row_in_a_pass_with_no_entry_point_cites_the_configuration(world):
+    """Image is one macro Common defines, and is wired to an audio input. The dissector followed none of Image's code,
+    so its below-floor audio row points at image.glsl line 1, a placeholder (the line holds `IMAGE`). Before this pin
+    the ledger said the reading sat 'at image.glsl:1' and cited `image:1-1` (cdG3Wd); it said 'in the configuration
+    (iChannel1)' before the no-entry rule. A channel is a fact of the configuration, so that is what the row cites."""
+    C.save_shader(_shader("xpUUU2", "Deaf Macro", [
+        _rp("Common", "common", COMMON_BUILDS),
+        _rp("Image", "image", "IMAGE\n", [_inp(1, "music", "m1", STREAM_SRC)], [{"id": OUT_IMG, "channel": 0}])]),
+        world["corpus"])
+    led = X.explain("xpUUU2")
+    sha = _sha8((world["corpus"] / "shaders" / "xpUUU2" / "shader.json").read_bytes())
+    audio = _tagged(led, "audio.input")
+    assert audio, led["claims"]
+    for c in audio:
+        assert c["label"] != "observed-in-code", c
+        assert c["evidence"] == [f"config:xpUUU2@{sha}:image:iChannel1"], c
+        assert "in the configuration (iChannel1)" in c["claim"] and "image.glsl:1" not in c["claim"], c
+        assert "entry point" in c["claim"], c
 
 
 def test_the_media_folder_prediction_is_its_own_inferred_claim(world):
