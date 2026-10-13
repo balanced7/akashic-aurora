@@ -1,0 +1,59 @@
+//! {"card": "ray-normals", "uses": ["ray-normals", "ray-march", "ray-camera", "sdf-shapes", "sdf-combine", "core-rotate", "debug-views", "colour-transfer"], "t": [0, 2], "size": [480, 270],
+//!  "note": "One marched object (a rounded slab with a ring welded on top and a ball resting in the ring) six ways, read row by row from the top left. TOP: the nrmTetra normal as colour (x red, y green, z blue, each 0.5 + 0.5 n: the flat top green, the faces toward the camera pink and lavender); the nrmCentral normal the same way (the two look the same); the angle between them as heat, 0 to 8 degrees (black on the flat faces, violet to amber on the roundings and the weld, where the two stencils, each a pixel footprint wide, disagree: their second-order error, measured on the twin at a median of 1.7 degrees and at most about 7). BOTTOM: diffuse light from nrmTetra with h from nrmEps, smooth on the curves and crisp on the slab edges; nrmCurvature (1.5 footprints wide) as colour: grey on the flat faces, warm where the surface bulges out (the slab edges, the ball, the ring's outside), cool where it curves in (the ring's hole and the weld at its foot); nrmFacet with 2 steps per unit, the same light in flat facets. Between t = 0 and t = 2 the object turns. A broken module shows different hues in the first two panels, bright heat on the flat faces, speckle, black NaN specks at the creases, or warm curvature in the ring's hole."}
+// Apache-2.0, Akashic Aurora. The test card for ray/normals.glsl, written fresh.
+
+float mapScene(vec3 p) {
+    vec3 turned = p;
+    turned.xz = rotate2(0.3 * iTime) * turned.xz;
+    float block = sdRoundBox(turned - vec3(0.0, -0.2, 0.0), vec3(0.85, 0.28, 0.65), 0.1);
+    float ring = sdTorusY(turned - vec3(0.0, 0.18, 0.0), 0.5, 0.12);
+    float ball = sdSphere(turned - vec3(0.0, 0.5, 0.0), 0.28);
+    return min(opSmin(block, ring, 0.08), ball);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(160.0, 135.0);
+    vec2 cell = floor(pixel / panelSize);
+    vec2 local = pixel - cell * panelSize;
+    int which = int(1.0 - cell.y) * 3 + int(cell.x);
+    float focal = 2.2;
+    float pixelAngle = camPixelAngle(2.0 * atan(1.0 / focal), panelSize.y);
+    vec3 ro = vec3(2.2, 1.9, 2.6);
+    mat3 basis = camLookAt(ro, vec3(0.0), 0.0);
+    vec3 rd = camRay(local, panelSize, basis, focal);
+    vec4 march = rmSphereTrace(ro, rd, vec2(0.0, 12.0), pixelAngle, 1.0, 96);
+    vec3 paint = vec3(0.05, 0.06, 0.09);
+    bool display = false;            // true when paint is already a display colour (the heat ramp)
+    if (march.w > 0.5) {
+        vec3 at = ro + rd * march.x;
+        float h = nrmEps(march.x, pixelAngle, 1.0);
+        vec3 tetra = nrmTetra(at, h);
+        vec3 sunDir = normalize(vec3(0.4, 0.9, 0.5));
+        if (which == 0) {
+            paint = 0.5 + 0.5 * tetra;
+        } else if (which == 1) {
+            paint = 0.5 + 0.5 * nrmCentral(at, h);
+        } else if (which == 2) {
+            float apart = degrees(acos(clamp(dot(tetra, nrmCentral(at, h)), -1.0, 1.0)));
+            paint = dbgHeatRamp(apart / 8.0);
+            display = true;
+        } else if (which == 3) {
+            float lit = max(dot(tetra, sunDir), 0.0);
+            paint = vec3(0.8, 0.75, 0.7) * (0.1 + 0.9 * lit);
+        } else if (which == 4) {
+            float bend = nrmCurvature(at, 1.5 * h);
+            float shade = clamp(bend * 0.15, -1.0, 1.0);
+            paint = shade > 0.0 ? mix(vec3(0.45), vec3(1.0, 0.55, 0.2), shade) : mix(vec3(0.45), vec3(0.2, 0.5, 1.0), -shade);
+        } else {
+            float lit = max(dot(nrmFacet(tetra, 2.0), sunDir), 0.0);
+            paint = vec3(0.8, 0.75, 0.7) * (0.1 + 0.9 * lit);
+        }
+    }
+    if (!display) {
+        vec3 shown = clamp(paint, 0.0, 1.0);
+        paint = srgbEncode(shown);
+    }
+    vec2 toBorder = min(local, panelSize - local);
+    paint *= smoothstep(0.5, 1.5, min(toBorder.x, toBorder.y));
+    color = vec4(paint, 1.0);
+}

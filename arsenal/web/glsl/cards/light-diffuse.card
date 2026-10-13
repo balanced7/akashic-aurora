@@ -1,0 +1,65 @@
+//! {"card": "light-diffuse", "uses": ["light-diffuse", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "TOP: four grey balls, each lit by the same white key from the upper right (the light sits about 60 degrees off the view axis, so the terminator crosses every ball). 1 litLambert: a crisp terminator, the left part pure black. 2 litHalfLambert: no black at all; the far side keeps its shape down to a dim grey and only the far-left edge approaches black. 3 litWrapDiffuse with w = 0.5: the light wraps past the terminator into the dark side, and the brightest point is a little DIMMER than ball 1 (the peak drops to 1 / (1 + w) so the total energy stays Lambert's). 4 litHemisphere: no key at all, a sky-blue top fading to a warm brown underside through an even mid tone at the equator. BOTTOM: the three key responses against the angle between normal and light, 0 to 180 degrees across, 0 to 1 up: Lambert (white) reaches zero exactly at the 90-degree guide; half-Lambert (amber) is 0.25 there and reaches zero only at 180; wrap 0.5 (green) starts at 0.67 and reaches zero at the 120-degree guide, and wrap 1.0 (cyan) starts at 0.5 and reaches zero at 180. A white curve that goes below zero, a wrap curve that starts at 1, or a hemisphere ball darker on top than below is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/diffuse.glsl, written fresh for the house.
+
+const float DIFF_CARD_SPLIT = 100.0;     // the plot fills the bottom 100 px; the balls stand above it
+
+// About one pixel of ink at distance d (in pixels).
+float diffCardInk(float d) {
+    return 1.0 - smoothstep(0.6, 1.6, d);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.035, 0.04, 0.05);
+    vec3 key = normalize(vec3(0.75, 0.45, 0.5));
+
+    if (pixel.y >= DIFF_CARD_SPLIT) {
+        // ---- four orthographic balls, 120 px apart, radius 52 px, normal straight out of the screen at the centre
+        float slot = floor(pixel.x / 120.0);
+        vec2 centre = vec2(60.0 + 120.0 * slot, 185.0);
+        vec2 across = (pixel - centre) / 52.0;
+        float reach = dot(across, across);
+        if (reach < 1.0) {
+            vec3 n = vec3(across, sqrt(1.0 - reach));
+            vec3 albedo = vec3(0.7);
+            vec3 lit;
+            if (slot < 0.5) {
+                lit = albedo * litLambert(n, key);
+            } else if (slot < 1.5) {
+                lit = albedo * litHalfLambert(n, key);
+            } else if (slot < 2.5) {
+                lit = albedo * litWrapDiffuse(n, key, 0.5);
+            } else {
+                lit = albedo * litHemisphere(n, vec3(0.3, 0.5, 0.95), vec3(0.42, 0.26, 0.12));
+            }
+            float rimFade = 1.0 - smoothstep(0.96, 1.0, reach);           // a soft silhouette, no stair steps
+            paint = mix(paint, srgbEncode(lit), rimFade);
+        }
+    } else {
+        // ---- the plot: angle 0..180 degrees across, response 0..1 up, inside a frame 12 px in
+        vec2 box = pixel - vec2(12.0, 10.0);
+        vec2 size = vec2(456.0, 80.0);
+        if (all(greaterThanEqual(box, vec2(0.0))) && all(lessThanEqual(box, size))) {
+            paint = vec3(0.07, 0.075, 0.09);
+            float degPerPx = 180.0 / size.x;
+            float angleDeg = box.x * degPerPx;
+            float guideA = abs(angleDeg - 90.0) / degPerPx;
+            float guideB = abs(angleDeg - 120.0) / degPerPx;
+            paint = mix(paint, vec3(0.25, 0.26, 0.3), diffCardInk(min(guideA, guideB)));
+            paint = mix(paint, vec3(0.2, 0.21, 0.25), diffCardInk(abs(box.y - size.y)));      // the 1.0 line
+            vec3 facingOut = vec3(0.0, 0.0, 1.0);
+            float tilt = radians(angleDeg);
+            vec3 towardLight = vec3(sin(tilt), 0.0, cos(tilt));
+            float lambert = litLambert(facingOut, towardLight);
+            float halfL = litHalfLambert(facingOut, towardLight);
+            float wrapHalf = litWrapDiffuse(facingOut, towardLight, 0.5);
+            float wrapFull = litWrapDiffuse(facingOut, towardLight, 1.0);
+            float curves[4] = float[4](lambert, halfL, wrapHalf, wrapFull);
+            vec3 inks[4] = vec3[4](vec3(0.95), vec3(1.0, 0.65, 0.2), vec3(0.35, 0.9, 0.4), vec3(0.3, 0.85, 1.0));
+            for (int curve = 0; curve < 4; curve++) {
+                paint = mix(paint, inks[curve], diffCardInk(abs(box.y - curves[curve] * size.y)));
+            }
+        }
+    }
+    color = vec4(paint, 1.0);
+}

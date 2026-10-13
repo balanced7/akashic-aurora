@@ -1,0 +1,66 @@
+//! {"card": "draw2-sdf2", "uses": ["draw2-sdf2", "draw2-domain2", "debug-views", "core-const"], "t": [0], "size": [480, 270],
+//!  "note": "Six panels, each a distance field seen through dbgSlice: warm inside, cool outside, a white zero line on the shape's edge and light iso-lines every 0.15 units. Because every shape is an EXACT distance, the iso-lines run evenly spaced in every panel, inside and out, and round off around every outside corner. TOP: a circle (concentric rings); a box (rectangles inside that shrink to a centre line, rounded rectangles outside); a rounded box whose outer edge reaches exactly as far as the plain box's (the amber marks sit on its sides). BOTTOM: a capsule around sd2Segment, its inside coloured red at the start a and blue at the end b by the segment's own parameter; a pointy-top hexagon whose white edge passes through the six amber vertex marks (two of them straight up and down); last, the exactness check: | |gradient of d| - 1 | for the rounded box and the hexagon, black where the distance is exact and lit only along their skeletons (the centre lines and diagonals where two edges are equally near). Iso-lines that bunch or spread, a corner that is sharp outside, marks off the edge, or light anywhere but on a skeleton in the last panel are a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of draw2/sdf2.glsl, written fresh for the house.
+
+const float SDF_CARD_UNIT = 52.0;                 // pixels per unit in every panel
+
+// The distance of panel `panel` at its own centred point p (units).
+float sdfCardField(int panel, vec2 p) {
+    if (panel == 0) return sd2Circle(p, 0.85);
+    if (panel == 1) return sd2Box(p, vec2(1.05, 0.55));
+    if (panel == 2) return sd2RoundBox(p, vec2(1.05, 0.55), 0.35);
+    if (panel == 3) return sd2Segment(p, vec2(-0.9, -0.45), vec2(0.85, 0.5)).x - 0.3;
+    if (panel == 4) return sd2Hexagon(p, 0.75);
+    return min(sd2RoundBox(p - vec2(-0.75, 0.0), vec2(0.6, 0.45), 0.15), sd2Hexagon(p - vec2(0.8, 0.0), 0.62));
+}
+
+// About one pixel of ink at distance dPx (in pixels).
+float sdfCardInk(float dPx) {
+    return 1.0 - smoothstep(0.6, 1.4, dPx);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(160.0, 135.0);
+    int column = int(pixel.x / panelSize.x);
+    int rowFromTop = int((iResolution.y - pixel.y) / panelSize.y);
+    int panel = column + 3 * rowFromTop;
+    vec2 panelOrigin = vec2(float(column) * panelSize.x, iResolution.y - float(rowFromTop + 1) * panelSize.y);
+    vec2 p = (pixel - panelOrigin - 0.5 * panelSize) / SDF_CARD_UNIT;
+    float unitPx = 1.0 / SDF_CARD_UNIT;
+
+    // every pixel computes its field and the slice in the same, uniform flow (dbgSlice reads screen derivatives)
+    float d = sdfCardField(panel, p);
+    vec3 paint = dbgSlice(d, 0.15);
+
+    if (panel == 2) {
+        // the plain box's extent: marks on the rounded box's four sides, where both must reach exactly
+        vec2 marks = abs(p) - vec2(1.05, 0.55);
+        float onSide = min(length(vec2(marks.x, p.y)), length(vec2(p.x, marks.y)));
+        paint = mix(paint, vec3(1.0, 0.7, 0.2), sdfCardInk(abs(onSide - 0.06) / unitPx));
+    } else if (panel == 3) {
+        vec2 seg = sd2Segment(p, vec2(-0.9, -0.45), vec2(0.85, 0.5));
+        vec3 alongTint = mix(vec3(1.0, 0.3, 0.2), vec3(0.25, 0.45, 1.0), seg.y);
+        paint = d < 0.0 ? mix(paint, alongTint, 0.65) : paint;
+    } else if (panel == 4) {
+        // the six vertices of a pointy-top hexagon of inradius 0.75: circumradius 0.75 * 2 / sqrt 3, at 30 + 60 k deg
+        float nearestCorner = 1e9;
+        for (int corner = 0; corner < 6; corner++) {
+            vec2 vertex = domFromPolar(vec2(1.5 / SQRT3, (0.5 + float(corner)) * (PI / 3.0)));
+            nearestCorner = min(nearestCorner, length(p - vertex));
+        }
+        paint = mix(paint, vec3(1.0, 0.7, 0.2), sdfCardInk(abs(nearestCorner - 0.06) / unitPx));
+    } else if (panel == 5) {
+        // exactness: an exact distance climbs at exactly one unit per unit, everywhere off its skeleton
+        float h = 0.25 * unitPx;
+        vec2 slope = vec2(sdfCardField(5, p + vec2(h, 0.0)) - sdfCardField(5, p - vec2(h, 0.0)),
+                          sdfCardField(5, p + vec2(0.0, h)) - sdfCardField(5, p - vec2(0.0, h))) / (2.0 * h);
+        float error = abs(length(slope) - 1.0);
+        paint = dbgHeatRamp(clamp(6.0 * error, 0.0, 1.0));
+        paint = mix(paint, vec3(0.35, 0.6, 1.0), 0.5 * sdfCardInk(abs(d) / unitPx));   // the outlines, for reference
+    }
+    // panel borders
+    vec2 inPanel = pixel - panelOrigin;
+    float border = min(min(inPanel.x, panelSize.x - inPanel.x), min(inPanel.y, panelSize.y - inPanel.y));
+    paint = mix(paint, vec3(0.1, 0.11, 0.14), 1.0 - smoothstep(1.0, 2.0, border));
+    color = vec4(paint, 1.0);
+}

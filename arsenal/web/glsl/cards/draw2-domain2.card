@@ -1,0 +1,56 @@
+//! {"card": "draw2-domain2", "uses": ["draw2-domain2", "draw2-sdf2", "draw2-aa", "debug-views", "colour-palette", "core-const"], "t": [0], "size": [480, 270],
+//!  "note": "LEFT, domRepeat2: a grid of cells in dbgCells colours (local position as red and green, a different tint per cell id, white cell borders), and in every cell the same small letter F drawn about the cell's own centre, all upright and identical: the local frame is centred and the same in every cell. MIDDLE, domKaleido with six sectors, each tinted by the index it returns (six tints going round; a colour ring at radius 0.45 shows the fold inside each sector): two letters drawn once in the folded wedge appear in every sector. The inner one crosses the fold line, so it meets its own mirror image there and reads as a symmetric E-like glyph, joined cleanly with no cut or gap; the outer one stays clear of the folds, so it shows as an F and a mirrored F facing each other across each sector boundary: twelve letters, six mirror pairs. RIGHT, domToPolar: rings every quarter unit of radius and spokes every 30 degrees, the colour wheel following the angle smoothly all the way round, with no seam along the left horizontal (where the angle jumps from pi to -pi) and no black dot at the centre. Red would mark any pixel where domFromPolar(domToPolar(p)) misses p by more than a hundredth of its radius: none (swapped sine and cosine or atan's arguments reversed would paint the panel red; the GPU's own trigonometry is good to about 1e-4 of the radius on SwiftShader)."}
+// Apache-2.0, Akashic Aurora. The test card of draw2/domain2.glsl, written fresh for the house.
+
+const float DOMAIN_CARD_UNIT = 58.0;              // pixels per unit
+
+// A small capital F about the origin (a signed distance): a stem and two arms, so any mirror or turn shows.
+float domainCardLetter(vec2 p) {
+    float stem = sd2Box(p - vec2(-0.08, 0.0), vec2(0.035, 0.16));
+    float top = sd2Box(p - vec2(0.0, 0.125), vec2(0.115, 0.035));
+    float middle = sd2Box(p - vec2(-0.02, 0.0), vec2(0.07, 0.03));
+    return min(stem, min(top, middle));
+}
+
+// A hue for a position h on a wheel (period 1): the house cosine palette, its three channels a third of a turn apart.
+vec3 domainCardHue(float h) {
+    const vec3 thirds = vec3(0.0, -0.3333333, 0.3333333);
+    return palCos(h, vec3(0.5), vec3(0.5), vec3(1.0), thirds);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float px = 1.0 / DOMAIN_CARD_UNIT;
+    int panel = int(pixel.x / 160.0);
+    vec2 p = (pixel - vec2(80.0 + 160.0 * float(panel), 135.0)) / DOMAIN_CARD_UNIT;
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+
+    if (panel == 0) {
+        vec2 period = vec2(0.5, 0.5);
+        vec2 local = p;
+        vec2 cell = domRepeat2(local, period);
+        paint = 0.6 * dbgCells(local, cell, period, px);
+        paint = mix(paint, vec3(1.0), aaFill(domainCardLetter(local), px));
+    } else if (panel == 1) {
+        vec2 folded = p;
+        float sector = domKaleido(folded, 6.0);
+        paint = 0.3 * domainCardHue(sector / 6.0);
+        float onFold = domainCardLetter((folded - vec2(0.7, 0.06)) * 1.5) / 1.5;     // crosses the fold at 0 deg
+        float inWedge = domainCardLetter((folded - vec2(1.2, 0.2)) * 1.3) / 1.3;     // clear of both folds
+        paint = mix(paint, vec3(1.0, 0.95, 0.85), aaFill(min(onFold, inWedge), px));
+        float ring = abs(length(p) - 0.45) - 0.01;
+        paint = mix(paint, domainCardHue(sector / 6.0), aaFill(ring, px));
+    } else {
+        vec2 ra = domToPolar(p);
+        paint = 0.55 * domainCardHue(ra.y / TAU);
+        float ringGap = abs(fract(ra.x / 0.25 + 0.5) - 0.5) * 0.25;
+        float spokeAngle = abs(fract(ra.y / (PI / 6.0) + 0.5) - 0.5) * (PI / 6.0);
+        float spokeGap = ra.x * sin(spokeAngle);                       // distance to the nearest spoke, in units
+        paint = mix(paint, vec3(0.95), aaWire(ringGap, 1.0, px));
+        paint = mix(paint, vec3(0.95), aaWire(spokeGap, 1.0, px) * step(0.25, ra.x));
+        float miss = length(domFromPolar(ra) - p);
+        paint = mix(paint, vec3(1.0, 0.0, 0.0), step(1e-2 * max(length(p), 0.05), miss));
+    }
+    float seam = abs(mod(pixel.x + 1.0, 160.0) - 1.0);
+    paint = mix(paint, vec3(0.12, 0.13, 0.16), 1.0 - smoothstep(1.0, 2.0, seam));
+    color = vec4(paint, 1.0);
+}

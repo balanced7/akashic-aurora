@@ -1,0 +1,28 @@
+//! {"card": "hex-neon", "uses": ["hex-neon", "core-frame", "legacy-tone-superlinear", "display-out"],
+//!  "t": [0, 2, 4], "size": [480, 270],
+//!  "note": "The hex-neon recipe at its defaults (cells 0.28 apart, 1.5 px outlines with a 4.5 px glow, wave 0.6 cells per second from the centre, size swing 0.55, spin 0.35, the Neon palette with a 10 percent coral accent, cells added as light), on black. A honeycomb of pointy-top hexagon outlines, each a crisp even line one and a half pixels wide with a soft glow on both sides, in a cool family from cyan through azure and blue to violet, with roughly one cell in ten coral. The hexagons breathe: bigger ones are brighter and twisted a little (spin coupled to size), smaller ones dimmer and upright-ish, and the sizes are organised in rings of whole cells around the centre of the frame (the wave arrives cell by cell). The three frames (t = 0, 2, 4) show the rings moving outward and each cell twisting as it swells. Glows pass smoothly across cell borders, with no straight cut through any glow. Outlines that thicken or blur, flat-topped hexagons, straight seams through the glow, a smooth circular front cutting through cells, or neighbouring cells sharing one colour along a row are a broken recipe."}
+// Apache-2.0, Akashic Aurora. The test card of groups/hex-neon.glsl, written fresh for the house.
+
+// The recipe's knobs at their header defaults. The Shader Lab's Workbench rewrites these consts with the Inspector's
+// values, so the card follows the knobs live; py -m arsenal shader card renders the defaults.
+const float u_hexNeon_cellSize = 0.28;
+const float u_hexNeon_lineWidth = 1.5;
+const float u_hexNeon_haloPx = 4.5;
+const float u_hexNeon_waveSpeed = 0.6;
+const float u_hexNeon_sizeAmp = 0.55;
+const float u_hexNeon_spin = 0.35;
+const int u_hexNeon_palette = 0;
+const float u_hexNeon_accent = 0.1;
+const int u_hexNeon_combine = 0;
+const int u_hexNeon_view = 0;
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    vec3 light = hexNeon(p, px, iTime, vec2(0.0), u_hexNeon_cellSize, u_hexNeon_lineWidth, u_hexNeon_haloPx,
+                         u_hexNeon_waveSpeed, u_hexNeon_sizeAmp, u_hexNeon_spin, u_hexNeon_palette, u_hexNeon_accent,
+                         u_hexNeon_combine, u_hexNeon_view);
+    // the house finish: superlinear highlight, then the tanh shoulder (display-out's glow-field curve)
+    vec3 shown = displayOut(tmSuperlinear(light, 0.6), pixel, iResolution.xy, 0.0, 0, 1.0, 0.25, 0.0, 256.0);
+    color = vec4(shown, 1.0);
+}

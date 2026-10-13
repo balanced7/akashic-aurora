@@ -1,0 +1,132 @@
+//! {"card": "ray-intersect", "uses": ["ray-intersect", "core-rotate", "colour-transfer"], "t": [0, 2], "size": [480, 270],
+//!  "note": "LEFT (no march anywhere, every surface a closed form): a checkered ground plane (ixPlane), a glass ball on the left whose body darkens with the chord through it (ixSphere's two roots) inside a faint halo shell (ixShell), a cube on the right lit by the face it was entered through (ixBox's entry normal: the top brightest; it turns between t = 0 and t = 2, and at t = 2 its two visible sides are clearly different shades), a pale violet fog layer between heights 1.6 and 1.9 (ixSlabY) that whitens the far sky and the cube's top more than the near ground, and a faint blue tint over every pixel whose ray passes through the scene's bounding box (rmClipToBox: outside it a march would be skipped). TOP RIGHT (ixSphereAlt, kilometres): looking at the horizon from 0.5 km over a planet of radius 6360 km, elevation -3 to +3 degrees bottom to top; the thin white line is elevation 0 and the ground's edge sits about 16 pixels below it (the dip, 0.72 degrees); the sky brightens toward the horizon where its path through a 60 km atmosphere is longest. BOTTOM RIGHT: a ball of radius 0.05 three kilometres away through a long lens; its left half by ixSphere is a clean half disc shaded by its chord, its right half by the textbook b*b - c form is broken: there the two nine-million-sized terms cancel to exactly zero in float32, so every pixel of that half reads as a grazing hit (flat blue). A broken module shows a box lit on the wrong face, a black seam on axis-aligned edges, a horizon on the white line, or a broken left half."}
+// Apache-2.0, Akashic Aurora. The test card for ray/intersect.glsl, written fresh.
+
+const vec3 INTERSECT_BALL = vec3(-0.9, 0.7, 0.2);
+const vec3 INTERSECT_CUBE = vec3(0.9, 0.5, -0.3);
+
+// The left panel: the analytic scene, in linear light.
+vec3 intersectCardScene(vec2 uv) {
+    vec3 ro = vec3(3.2, 1.6, 4.2);
+    vec2 zeroOne = vec2(0.0, 1.0);                      // .xyx is +y
+    vec3 ahead = normalize(vec3(0.0, 0.3, 0.0) - ro);
+    vec3 across = normalize(cross(ahead, zeroOne.xyx));
+    vec3 lift = cross(across, ahead);
+    vec3 rd = normalize(across * uv.x + lift * uv.y + ahead * 1.8);
+    vec3 sunDir = normalize(vec3(0.4, 0.8, 0.3));
+
+    vec3 paint = mix(vec3(0.35, 0.45, 0.6), vec3(0.08, 0.12, 0.25), clamp(rd.y * 2.0, 0.0, 1.0));
+    float best = 1e9;
+
+    float ground = ixPlane(ro, rd, zeroOne.xyx, 0.0);
+    if (ground > 0.0) {
+        vec2 spot = (ro + rd * ground).xz;
+        float checker = mod(floor(spot.x) + floor(spot.y), 2.0);
+        paint = mix(vec3(0.16), vec3(0.42), checker) * exp(-0.05 * ground);
+        best = ground;
+    }
+
+    // the cube: its bounding sphere first, and the box itself only when that bound can still win
+    float cubeBound = ixSphere(ro, rd, INTERSECT_CUBE, 0.87).x;
+    if (cubeBound > 0.0 && !bvCanSkip(cubeBound, best)) {
+        mat2 turn = rotate2(0.45 + 0.35 * iTime);
+        vec3 roLocal = ro - INTERSECT_CUBE;
+        roLocal.xz = turn * roLocal.xz;
+        vec3 rdLocal = rd;
+        rdLocal.xz = turn * rdLocal.xz;
+        vec3 faceLocal;
+        vec2 span = ixBox(roLocal, rdLocal, vec3(0.5), faceLocal);
+        if (span.x > 0.0 && span.x < best) {
+            vec3 face = faceLocal;
+            face.xz = faceLocal.xz * turn;                   // back to the world (the transpose turns the other way)
+            float lit = 0.25 + 0.75 * max(dot(face, sunDir), 0.0);
+            paint = vec3(0.85, 0.55, 0.25) * lit;
+            best = span.x;
+        }
+    }
+
+    vec2 ball = ixSphere(ro, rd, INTERSECT_BALL, 0.7);
+    if (ball.x > 0.0 && ball.x < best) {
+        float chord = ball.y - ball.x;
+        vec3 behind = paint;
+        paint = mix(vec3(0.75, 0.9, 1.0), behind * vec3(0.55, 0.85, 0.8), 0.35) * exp(-0.9 * chord * vec3(0.9, 0.35, 0.3));
+        best = ball.x;
+    }
+
+    vec2 shell = ixShell(ro, rd, INTERSECT_BALL, 0.72, 0.95);
+    if (shell.y > shell.x) {
+        float through = max(min(shell.y, best) - shell.x, 0.0);
+        paint += vec3(0.2, 0.35, 0.5) * through * 0.6;
+    }
+
+    vec2 fog = ixSlabY(ro.y, rd.y, 1.6, 1.9);
+    float fogLength = max(min(fog.y, min(best, 30.0)) - fog.x, 0.0);
+    paint = mix(paint, vec3(0.85, 0.8, 1.0), 1.0 - exp(-0.6 * fogLength));
+
+    vec2 clip = rmClipToBox(ro, rd, vec3(0.0, 0.9, 0.0), vec3(1.8, 1.0, 1.4), vec2(0.0, 100.0));
+    if (clip.x <= clip.y) {
+        paint += vec3(0.0, 0.03, 0.08);
+    }
+    return paint;
+}
+
+// Top right: the horizon from 0.5 km over a planet of radius 6360 km with a 60 km atmosphere.
+vec3 intersectCardPlanet(float elevation, float panelY) {
+    float r0 = 6360.5;
+    float mu = sin(elevation);
+    vec2 ground = ixSphereAlt(r0, mu, 6360.0);
+    vec2 air = ixSphereAlt(r0, mu, 6420.0);
+    vec3 paint;
+    if (ground.x > 0.0) {
+        paint = mix(vec3(0.18, 0.22, 0.12), vec3(0.45, 0.5, 0.6), 1.0 - exp(-ground.x / 60.0));
+    } else {
+        float path = air.y;                                    // the camera is inside the air: the exit is the far root
+        paint = mix(vec3(0.05, 0.12, 0.4), vec3(0.7, 0.8, 0.95), clamp(path / 600.0, 0.0, 1.0));
+    }
+    float onLevel = 1.0 - smoothstep(0.5, 1.2, abs(panelY));    // the elevation-0 line, one pixel
+    return mix(paint, vec3(1.0), onLevel);
+}
+
+// Bottom right: a ball of radius 0.05 at 3000 units; the left half by ixSphere, the right half by the textbook form.
+vec3 intersectCardTiny(vec2 uv) {
+    vec3 ro = vec3(0.0);
+    vec3 centre = vec3(0.0, 0.0, -3000.0);
+    float r = 0.05;
+    vec3 rd = normalize(vec3(uv * 5e-5, -1.0));
+    float chord = -1.0;
+    if (uv.x < 0.0) {
+        vec2 roots = ixSphere(ro, rd, centre, r);
+        chord = roots.x > 0.0 ? roots.y - roots.x : -1.0;
+    } else {
+        vec3 fromCentre = ro - centre;
+        float b = dot(fromCentre, rd);
+        float c = dot(fromCentre, fromCentre) - r * r;
+        float room = b * b - c;
+        chord = room >= 0.0 ? 2.0 * sqrt(room) : -1.0;
+    }
+    vec3 paint = vec3(0.04, 0.05, 0.08);
+    if (chord >= 0.0) {
+        paint = mix(vec3(0.15, 0.3, 0.6), vec3(1.0, 0.9, 0.7), clamp(chord / (2.0 * r), 0.0, 1.0));
+    }
+    float seam = 1.0 - smoothstep(0.004, 0.012, abs(uv.x));
+    return mix(paint, vec3(0.6), 0.5 * seam);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint;
+    if (pixel.x < 320.0) {
+        vec2 uv = (pixel - vec2(160.0, 135.0)) / 135.0;
+        paint = intersectCardScene(uv);
+    } else if (pixel.y >= 135.0) {
+        float panelY = pixel.y - 202.5;
+        float elevation = radians(3.0) * panelY / 67.5;
+        paint = intersectCardPlanet(elevation, panelY);
+    } else {
+        vec2 uv = (pixel - vec2(400.0, 67.5)) / 67.5;
+        paint = intersectCardTiny(uv);
+    }
+    vec2 toEdges = abs(pixel - vec2(320.0, 135.0));
+    float frame = (pixel.x > 320.0 ? min(toEdges.x, toEdges.y) : toEdges.x);
+    paint *= smoothstep(0.5, 1.5, frame);
+    color = vec4(srgbEncode(clamp(paint, 0.0, 1.0)), 1.0);
+}

@@ -1,0 +1,87 @@
+//! {"card": "studio-object", "uses": ["studio-object", "sdf-shapes", "sdf-combine", "sdf-domain3", "display-out"],
+//!  "t": [0, 2, 4], "size": [480, 270],
+//!  "note": "The studio-object recipe at its defaults (lens 3.2, key at 0.85 turns and 48 degrees, soft boxes 0.42 rad, Fresnel floor 0.04, roughness 0.15, shadow 6 degrees, occlusion reach 0.35, floor pool 1.1, floor 0.62 below, bound 0.75, 96 steps), backdrop 0.3, through the finish's PBR Neutral curve, on a near-black wall. The card's own small scene: a glossy near-black soft die (a superquadric of power 4: a cube whose faces bulge gently), one face turned up and to the left toward the key, drifting slowly, with a thin coral ring around it on its own slower tilt, hovering a little above a dark floor. The cube reads as a dark mirror: the face toward the key shows the key soft box as a soft-edged bright window, curved by the bulge of the face (it slides across the face from frame to frame), the fill shows as a fainter cool window on a face on the right, and the faces turned away stay nearly black. The ring is a lit coral with soft highlights. Under the pair, a pool of warm light on the floor with a soft shadow falling back and to the right and a darker contact under the cube; the floor fades into the dark backdrop with no horizon line. Silhouettes are smooth (cone coverage), with no halo of floor colour round them. The three frames (t = 0, 2, 4) show the cube and the ring turning and the reflections sliding across the faces. A black hole where the cube should be, a hard staircase silhouette, a lit floor where the shadow should be, or a line where the floor meets the backdrop is a broken recipe."}
+// Apache-2.0, Akashic Aurora. The test card of groups/studio-object.glsl, written fresh for the house. The scene below
+// is the host's: the card defines mapScene and materialAt, which the recipe declares as hooks.
+
+// The recipe's knobs at their header defaults. The Shader Lab's Workbench rewrites these consts with the Inspector's
+// values, so the card follows the knobs live; py -m arsenal shader card renders the defaults.
+const float u_studioObject_lens = 3.2;
+const float u_studioObject_keyTurn = 0.85;
+const float u_studioObject_keyElevation = 48.0;
+const float u_studioObject_boxSize = 0.42;
+const float u_studioObject_backdrop = 0.3;
+const float u_studioObject_fresnelFloor = 0.04;
+const float u_studioObject_metal = 0.0;
+const float u_studioObject_roughness = 0.15;
+const float u_studioObject_shadowAngle = 6.0;
+const float u_studioObject_aoReach = 0.35;
+const float u_studioObject_poolRadius = 1.1;
+const float u_studioObject_floorDrop = 0.62;
+const float u_studioObject_bound = 0.75;
+const float u_studioObject_steps = 96.0;
+const float u_studioObject_omega = 1.0;
+const int u_studioObject_view = 0;
+
+const vec3 STUDIO_CARD_CORAL = vec3(0.745, 0.168, 0.078);     // #e0724f, the house accent, linear
+const vec3 STUDIO_CARD_GLOSS = vec3(0.012, 0.014, 0.02);      // a glossy near-black
+const vec3 STUDIO_CARD_FLOOR = vec3(0.05, 0.052, 0.058);
+
+// A turn about y by `yaw`, after a tilt about x by `tilt`: an orthonormal basis, its columns the object's axes.
+mat3 studioCardTurn(float yaw, float tilt) {
+    float cy = cos(yaw);
+    float sy = sin(yaw);
+    float cx = cos(tilt);
+    float sx = sin(tilt);
+    mat3 aboutY = mat3(cy, 0.0, -sy, 0.0, 1.0, 0.0, sy, 0.0, cy);
+    mat3 aboutX = mat3(1.0, 0.0, 0.0, 0.0, cx, sx, 0.0, -sx, cx);
+    return aboutY * aboutX;
+}
+
+// A basis whose third axis is `facing`, rolled by `roll` about it: the cube's +z face looks along `facing`.
+mat3 studioCardFacing(vec3 facing, float roll) {
+    vec3 ahead = normalize(facing);
+    vec3 across = normalize(vec3(ahead.z, 0.0, -ahead.x));          // up x ahead: level
+    vec3 rise = cross(ahead, across);
+    float c = cos(roll);
+    float s = sin(roll);
+    return mat3(c * across + s * rise, c * rise - s * across, ahead);
+}
+
+// The cube turns one face toward the half-way direction between the default key and the camera, where that face shows
+// the key soft box as a window, and drifts slowly round it so the window slides across the face and off it.
+float studioCardCube(vec3 p) {
+    vec3 halfway = vec3(-0.245, 0.570, 0.784);
+    vec3 facing = studioCardTurn(0.09 * (iTime - 2.0), 0.0) * halfway;
+    mat3 pose = studioCardFacing(facing, 0.42 + 0.05 * iTime);
+    return sbSuperquadric(domRigid(p, pose, vec3(0.0, 0.02, 0.0)), vec3(0.37), 4.0);   // a soft die (Saturday)
+}
+
+float studioCardRing(vec3 p) {
+    mat3 pose = studioCardTurn(-0.11 * iTime, 0.36);
+    return sdTorusY(domRigid(p, pose, vec3(0.0, 0.02, 0.0)), 0.62, 0.035);
+}
+
+float mapScene(vec3 p) {
+    return opUnion(studioCardCube(p), studioCardRing(p));
+}
+
+vec3 materialAt(vec3 p, vec3 n, float id) {
+    if (id > 0.5) {
+        return STUDIO_CARD_FLOOR;
+    }
+    return studioCardRing(p) < studioCardCube(p) ? STUDIO_CARD_CORAL : STUDIO_CARD_GLOSS;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 eye = vec3(4.6 * sin(0.12), 1.15, 4.6 * cos(0.12));
+    vec3 light = studioObject(eye, vec3(0.0), pixel, iResolution.xy, u_studioObject_lens, u_studioObject_keyTurn,
+                              u_studioObject_keyElevation, u_studioObject_boxSize, u_studioObject_backdrop,
+                              u_studioObject_fresnelFloor, u_studioObject_metal, u_studioObject_roughness,
+                              u_studioObject_shadowAngle, u_studioObject_aoReach, u_studioObject_poolRadius,
+                              u_studioObject_floorDrop, u_studioObject_bound, u_studioObject_steps, u_studioObject_omega,
+                              u_studioObject_view);
+    // the finish's True colour curve (PBR Neutral), the house choice for lit 3D
+    vec3 shown = displayOut(light, pixel, iResolution.xy, 0.0, 3, 1.0, 0.25, 0.0, 256.0);
+    color = vec4(shown, 1.0);
+}

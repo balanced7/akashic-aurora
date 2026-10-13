@@ -1,0 +1,50 @@
+//! {"card": "sdf-shapes", "uses": ["sdf-shapes", "debug-views"], "t": [0, 2], "size": [640, 360],
+//!  "note": "Sixteen distance slices, read row by row from the top left: sphere, box, round box, tilted plane; torus (its two tube sections), capsule, cylinder, cone frustum (wide at the bottom); round cone (big ball left), hexagonal prism (flat top and bottom), octahedron (a diamond), ellipsoid; dodecahedron, truncated icosahedron, superquadric n = 4 (a squircle), triangle (unsigned: no inside). Each slice is the plane z = 0.3 sin(0.8 t) through the shape, warm inside and cool outside, a white zero line, a light iso-line every 0.2 units. The exact shapes (sd, the first eleven) have evenly spaced iso-lines on both sides and outer lines that round off at every corner; the bounds (sb: ellipsoid, the two polyhedra, the superquadric) keep sharper corners and wider gaps outside, which is what 'never more than the true distance' looks like. Magenta marks any pixel where the field changes faster than distance (a measured gradient above 1.05): there is none, on every panel, at t = 0 and t = 2. Between t = 0 and t = 2 the slices change as the plane moves 0.3 units through the shapes (the torus sections shrink, the triangle's zero line disappears). A broken shape shows bunched iso-lines, a zero line in the wrong place, or magenta."}
+// Apache-2.0, Akashic Aurora. The test card for sdf/shapes.glsl, written fresh.
+
+const float SHAPES_SPAN = 2.6;       // world units across a panel's height
+
+// The field of panel `which` (0 to 15, row by row from the top left) at p.
+float shapesCardField(int which, vec3 p) {
+    if (which == 0) { return sdSphere(p, 0.9); }
+    if (which == 1) { return sdBox(p, vec3(1.1, 0.7, 0.5)); }
+    if (which == 2) { return sdRoundBox(p, vec3(1.1, 0.7, 0.5), 0.3); }
+    if (which == 3) { return sdPlane(p, normalize(vec3(0.3, 1.0, 0.0)), 0.2); }
+    if (which == 4) { return sdTorusY(p, 0.8, 0.3); }
+    if (which == 5) { return sdCapsule(p, vec3(-1.0, -0.5, 0.0), vec3(1.0, 0.5, 0.0), 0.35); }
+    if (which == 6) { return sdCylinderY(p, 0.7, 0.8); }
+    if (which == 7) { return sdConeCappedY(p, 0.8, 0.9, 0.3); }
+    if (which == 8) { return sdRoundConeAB(p, vec3(-0.8, -0.3, 0.0), vec3(0.9, 0.4, 0.0), 0.6, 0.25); }
+    if (which == 9) { return sdHexPrismZ(p, 0.8, 0.5); }
+    if (which == 10) { return sdOctahedron(p, 1.1); }
+    if (which == 11) { return sbEllipsoid(p, vec3(1.4, 0.7, 0.5)); }
+    if (which == 12) { return sbPolyhedron(p, 0.85, 2); }
+    if (which == 13) { return sbPolyhedron(p, 0.85, 5); }
+    if (which == 14) { return sbSuperquadric(p, vec3(1.2, 0.8, 0.8), 4.0); }
+    return udTriangle(p, vec3(-1.0, -0.7, 0.1), vec3(1.1, -0.5, -0.1), vec3(-0.2, 0.9, 0.0));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(160.0, 90.0);
+    vec2 cell = floor(pixel / panelSize);
+    int which = int(3.0 - cell.y) * 4 + int(cell.x);
+    vec2 local = pixel - (cell + 0.5) * panelSize;
+    float unitsPerPx = SHAPES_SPAN / panelSize.y;
+    float sliceZ = 0.3 * sin(0.8 * iTime);
+    vec3 p = vec3(local * unitsPerPx, sliceZ);
+    float d = shapesCardField(which, p);
+    vec3 paint = dbgSlice(d, 0.2);
+
+    // how fast the field changes, measured over half a pixel in all three directions: never faster than distance
+    float h = 0.5 * unitsPerPx;
+    vec3 slope = vec3(shapesCardField(which, p + vec3(h, 0.0, 0.0)) - shapesCardField(which, p - vec3(h, 0.0, 0.0)),
+                      shapesCardField(which, p + vec3(0.0, h, 0.0)) - shapesCardField(which, p - vec3(0.0, h, 0.0)),
+                      shapesCardField(which, p + vec3(0.0, 0.0, h)) - shapesCardField(which, p - vec3(0.0, 0.0, h)))
+               / (2.0 * h);
+    float lies = smoothstep(1.03, 1.08, length(slope));
+    paint = mix(paint, vec3(1.0, 0.0, 0.85), 0.8 * lies);
+
+    vec2 toBorder = 0.5 * panelSize - abs(local);
+    paint *= smoothstep(0.5, 1.5, min(toBorder.x, toBorder.y));
+    color = vec4(paint, 1.0);
+}

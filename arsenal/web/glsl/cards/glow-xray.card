@@ -1,0 +1,57 @@
+//! {"card": "glow-xray", "uses": ["glow-xray", "sdf-shapes", "sdf-combine", "sdf-domain3", "display-out"], "t": [0, 2, 4], "size": [480, 270],
+//!  "note": "The glow x-ray at every header default (budget 96, House palette), finished by displayOut (tanh). The
+//!  card defines the hook: a hollow ball (a 0.006-thick shell of radius 0.62) inside three thin rings that turn
+//!  through each other at unrelated rates, two of them blended where they meet, seen by a camera orbiting slowly at
+//!  3.4 units. On black: x-ray glass in periwinkle and violet. The ball is a translucent disc whose rim is brighter
+//!  than its middle (walls seen edge-on gather the most light), the rings show through it, nearer walls lighter
+//!  periwinkle and farther ones deeper violet (hue by depth), and a soft rose-coral wash gathers where the rings
+//!  meet. No banding rings across the ball. Between t = 0, 2 and 4 the rings turn and the camera moves round. A solid
+//!  white blob, concentric rings inside the ball, glow outside the rings' neighbourhood, or three identical frames is
+//!  a broken recipe. View 1 (steps heat) shows the budget spent: hottest along the walls and silhouettes."}
+// Apache-2.0, Akashic Aurora. The test card of groups/glow-xray.glsl, written fresh. The consts below are the header's
+// defaults; the Workbench Stage binds a knob by replacing its const (arsenal/web/lib/workbench/stage.js). The card
+// defines the hook: a small scene of three rings turning at unrelated rates through each other round a hollow core.
+
+const int u_glowXray_budget = 96;
+const float u_glowXray_passthrough = 0.012;
+const float u_glowXray_density = 3.0;
+const float u_glowXray_sparkWidth = 0.015;
+const int u_glowXray_palette = 0;
+const float u_glowXray_hueSpeed = 0.35;
+const float u_glowXray_rim = 0.35;
+const int u_glowXray_view = 0;
+
+float xrayCardTime = 0.0;                                     // set once per pixel, before the march reads the scene
+
+// The rotation by `turn` radians about the unit `axis` (Rodrigues), as a matrix whose columns are the turned axes.
+mat3 xrayCardTurn(vec3 axis, float turn) {
+    float cosT = cos(turn);
+    float sinT = sin(turn);
+    vec3 k = axis * (1.0 - cosT);
+    return mat3(cosT + axis.x * k.x, axis.y * k.x + axis.z * sinT, axis.z * k.x - axis.y * sinT,
+                axis.x * k.y - axis.z * sinT, cosT + axis.y * k.y, axis.z * k.y + axis.x * sinT,
+                axis.x * k.z + axis.y * sinT, axis.y * k.z - axis.x * sinT, cosT + axis.z * k.z);
+}
+
+float mapScene(vec3 p) {
+    float t = xrayCardTime;
+    mat3 a = xrayCardTurn(normalize(vec3(1.0, 0.3, 0.0)), 0.31 * t + 0.4);
+    mat3 b = xrayCardTurn(normalize(vec3(0.2, 0.1, 1.0)), 0.23 * t + 1.9);
+    mat3 c = xrayCardTurn(normalize(vec3(0.7, 1.0, 0.4)), 0.17 * t + 3.1);
+    float ringA = sdTorusY(domRigid(p, a, vec3(0.0)), 1.05, 0.03);
+    float ringB = sdTorusY(domRigid(p, b, vec3(0.0)), 1.05, 0.03);
+    float ringC = sdTorusY(domRigid(p, c, vec3(0.0)), 1.3, 0.035);
+    float core = opOnion(sdSphere(p, 0.62), 0.006);
+    return min(opSmin(ringA, ringB, 0.12), min(ringC, core));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    xrayCardTime = iTime;
+    vec3 ro = vec3(3.4 * sin(0.11 * iTime + 0.5), 1.1, 3.4 * cos(0.11 * iTime + 0.5));
+    mat3 basis = camLookAt(ro, vec3(0.0), 0.0);
+    vec3 scene = glowXray(pixel, iResolution.xy, ro, basis, 2.0, u_glowXray_budget, u_glowXray_passthrough,
+                          u_glowXray_density, u_glowXray_sparkWidth, u_glowXray_palette, u_glowXray_hueSpeed,
+                          u_glowXray_rim, u_glowXray_view);
+    vec3 shown = displayOut(scene, pixel, iResolution.xy, 0.0, 0, 1.0, 0.25, 0.0, 256.0);
+    color = vec4(u_glowXray_view == 0 ? shown : scene, 1.0);
+}

@@ -1,0 +1,55 @@
+//! {"card": "aurora-sheets", "uses": ["aurora-sheets", "display-out", "legacy-tone-superlinear", "hash-pcg"], "t": [0, 2, 4], "size": [480, 270],
+//!  "note": "The aurora sheets at every header default (36 layers, the Physical palette, no fringe, lake 0.55), from an
+//!  eye at the water looking 12 degrees up through a 58-degree lens, finished the house way (tmSuperlinear at 0.85, then
+//!  displayOut). Static stars above the horizon are the card's own. Long arcs of curtain cross the sky one behind
+//!  another: the nearest high in the frame, the farther ones lower, thinner and fainter toward the horizon, where they
+//!  fade into a dark band. Each arc has a crisp lower edge with nothing under it but sky, and rises in a green drape
+//!  striped by vertical ray columns that stand straight up the curtain (converging very slightly toward the zenith),
+//!  fading upward to a dark red crown. Below the horizon a still lake mirrors the sky and the arcs at a little over half
+//!  their brightness. Between t = 0, 2 and 4 the arcs keep their places while their creases churn slowly and the rays
+//!  drift along them. A fog over the whole sky, scattered smudges, streaks running to the horizon, rays fanning out
+//!  from below the horizon, a regular diagonal hatching, speckle toward the horizon, a lake that does not mirror the
+//!  sky, or three identical frames is a broken recipe."}
+// Apache-2.0, Akashic Aurora. The test card of groups/aurora-sheets.glsl, written fresh. The consts below are the
+// header's defaults; the Workbench Stage binds a knob by replacing its const (arsenal/web/lib/workbench/stage.js).
+
+const float u_auroraSheets_intensity = 1.2;
+const float u_auroraSheets_hemHeight = 1.0;
+const float u_auroraSheets_curtainWidth = 0.8;
+const float u_auroraSheets_fold = 0.5;
+const float u_auroraSheets_rays = 0.8;
+const float u_auroraSheets_fringe = 0.0;
+const int u_auroraSheets_palette = 1;
+const float u_auroraSheets_sky = 1.0;
+const float u_auroraSheets_lake = 0.55;
+const int u_auroraSheets_layers = 36;
+const int u_auroraSheets_view = 0;
+
+// The recipe composes parts that call two host hooks it never uses here (ray-march's mapScene, volume-march's
+// densityAt); WebGL refuses a program whose defined functions call undefined ones, so this sky defines both as stubs
+// (the house rule: arsenal/web/glsl/README.md, Hooks).
+float mapScene(vec3 p) { return 1e9; }
+float densityAt(vec3 p) { return 0.0; }
+
+// A few static stars above the horizon, behind the curtains (an optically thin aurora lets them through).
+vec3 sheetsCardStars(vec2 pixel) {
+    vec2 cell = floor(pixel / 3.0);
+    float keep = step(0.993, hash21(cell));
+    vec2 centre = (cell + 0.25 + 0.5 * hash22(cell + 41.0)) * 3.0;
+    float glint = keep * exp(-1.6 * dot(pixel - centre, pixel - centre)) * (0.05 + 0.25 * hash21(cell + 7.0));
+    return glint * vec3(0.55, 0.65, 1.0);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 ro = vec3(0.0);                                 // the eye at the water
+    mat3 basis = camLookAt(ro, vec3(0.0, 0.22, -1.0), 0.0);
+    const float focal = 1.8;
+    vec3 scene = auroraSheets(pixel, iResolution.xy, ro, basis, focal, iTime, u_auroraSheets_intensity,
+                              u_auroraSheets_hemHeight, u_auroraSheets_curtainWidth, u_auroraSheets_fold,
+                              u_auroraSheets_rays, u_auroraSheets_fringe, u_auroraSheets_palette, u_auroraSheets_sky,
+                              u_auroraSheets_lake, u_auroraSheets_layers, u_auroraSheets_view);
+    vec3 rd = camRay(pixel, iResolution.xy, basis, focal);
+    scene += u_auroraSheets_view == 0 && rd.y > 0.0 ? sheetsCardStars(pixel) : vec3(0.0);
+    scene = tmSuperlinear(scene, 0.85);                      // superlinear highlight, then the tanh shoulder
+    color = vec4(displayOut(scene, pixel, iResolution.xy, 0.0, 0, 1.0, 0.25, 0.0, 256.0), 1.0);
+}

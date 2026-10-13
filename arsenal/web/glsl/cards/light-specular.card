@@ -1,0 +1,30 @@
+//! {"card": "light-specular", "uses": ["light-specular", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "Eight dark glossy balls under one white light from the upper left, shininess 8, 32, 128 and 512 from left to right. TOP ROW, normalised litBlinnPhong (times PI, the house's pi-folded lights): as the exponent climbs the highlight shrinks but its core stays a hot white disc with a glowing skirt, because the lobe's total light is constant and only concentrates (its peak climbs from 2 to 65). BOTTOM ROW, the same lobe with its normalisation frozen at the exponent-8 value (plain pow): the highlight shrinks AND dims, down to a small grey speck at 512, which is why unnormalised Blinn-Phong reads as plastic. In both rows the highlight sits up and to the left of each ball's centre, on the half-vector between the light and the eye. A top-row highlight that fades as it shrinks, or a highlight on the dark lower right, is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/specular.glsl, written fresh for the house.
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.03, 0.035, 0.045);
+    vec3 key = normalize(vec3(-0.5, 0.6, 0.62));
+    vec3 eye = vec3(0.0, 0.0, 1.0);
+    vec3 halfway = normalize(key + eye);
+
+    float column = floor(pixel.x / 120.0);
+    bool normalised = pixel.y >= 135.0;
+    vec2 centre = vec2(60.0 + 120.0 * column, normalised ? 202.0 : 68.0);
+    vec2 across = (pixel - centre) / 50.0;
+    float reach = dot(across, across);
+    if (reach < 1.0) {
+        vec3 n = vec3(across, sqrt(1.0 - reach));
+        float shininess = 8.0 * pow(4.0, column);                      // 8, 32, 128, 512
+        float facing = max(dot(n, key), 0.0);
+        float lobe = normalised ? litBlinnPhong(n, halfway, shininess)
+                                : (16.0 / (8.0 * PI)) * pow(max(dot(n, halfway), 0.0), shininess);
+        vec3 light = vec3(1.0);
+        vec3 lit = vec3(0.03, 0.035, 0.05) * facing * light + PI * lobe * facing * light;
+        float rimFade = 1.0 - smoothstep(0.96, 1.0, reach);
+        paint = mix(paint, srgbEncode(tmTanh(lit)), rimFade);
+    }
+    // a hairline between the two rows
+    paint = mix(paint, vec3(0.16, 0.17, 0.2), 1.0 - smoothstep(0.5, 1.5, abs(pixel.y - 135.0)));
+    color = vec4(paint, 1.0);
+}

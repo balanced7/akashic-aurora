@@ -1,0 +1,65 @@
+//! {"card": "volume-march", "uses": ["volume-march"], "t": [0], "size": [480, 270],
+//!  "note": "LEFT: where marchStepPoly puts 16 layers (0 at the bottom, 15 at the top of each column), for power 1.0,
+//!  1.4 and 2.0 from left to right; each layer is a short green line, brightest at the bottom. Power 1 spaces them
+//!  evenly; 1.4 crowds them toward the bottom; 2.0 crowds them hard at the bottom and leaves wide gaps above. All three
+//!  columns start at the same base line and end at the top. RIGHT: a slice through a cloud of soft blobs (the card's own
+//!  densityAt hook) on a dark blue sky, lit by a warm sun from the upper right (arrow), shaded with volLightOneTap
+//!  (probe 0.6 units, floor 0.15). The sides of the blobs facing the sun are bright and warm; the sides away from it,
+//!  and blobs sitting in another blob's shadow, are darker and bluer, but never black: even the deepest shade keeps
+//!  the floor's cool glow. Layers bunched at the top, unequal spacing at power 1, a lit side facing away from the sun,
+//!  or black cores is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of volume/march.glsl, written fresh for the house.
+
+const vec3 MARCH_CARD_TO_SUN = vec3(0.6, 0.8, 0.0);      // a unit vector: up and to the right
+
+// The hook volLightOneTap calls: extinction per unit length, here a few soft blobs in the card's plane (z ignored).
+float densityAt(vec3 p) {
+    vec3 blobs[5] = vec3[5](vec3(0.0, 0.0, 0.42), vec3(0.55, 0.3, 0.3), vec3(-0.6, -0.2, 0.35),
+                            vec3(0.2, -0.55, 0.3), vec3(-0.15, 0.55, 0.25));
+    float crowd = 0.0;
+    for (int blob = 0; blob < 5; ++blob) {
+        vec2 d = (p.xy - blobs[blob].xy) / blobs[blob].z;
+        crowd += exp(-2.0 * dot(d, d));
+    }
+    return 6.0 * crowd;
+}
+
+// About one pixel of ink at distance d (in pixels).
+float marchCardInk(float d) {
+    return 1.0 - smoothstep(0.5, 1.5, d);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.03, 0.035, 0.05);
+    if (pixel.x < 180.0) {
+        int column = int(pixel.x / 60.0);
+        float powers[3] = float[3](1.0, 1.4, 2.0);
+        float power = powers[column];
+        float scale = 240.0 / pow(15.0, power);                    // layer 15 lands 240 px above the base
+        float within = mod(pixel.x, 60.0);
+        for (int layer = 0; layer < 16; ++layer) {
+            float y = marchStepPoly(layer, 15.0, scale, power);
+            float glow = 1.0 - float(layer) / 18.0;
+            paint = mix(paint, vec3(0.25, 1.0, 0.55) * glow,
+                        marchCardInk(abs(pixel.y - y)) * step(10.0, within) * step(within, 50.0));
+        }
+        if (within < 1.0) paint = vec3(0.12);
+    } else {
+        vec2 p = (pixel - vec2(330.0, 135.0)) / 120.0;
+        vec3 at = vec3(p, 0.0);
+        float density = densityAt(at);
+        float lit = volLightOneTap(at, MARCH_CARD_TO_SUN, 0.6, 0.15);
+        vec3 sunCol = vec3(1.0, 0.82, 0.6);
+        vec3 shadeCol = vec3(0.55, 0.65, 0.95);
+        vec3 cloud = mix(shadeCol, sunCol, (lit - 0.15) / 0.85) * lit;   // brightness is the visibility; hue cools in shade
+        float cover = 1.0 - exp(-0.6 * density);
+        paint = pow(mix(vec3(0.01, 0.015, 0.045), cloud, cover), vec3(1.0 / 2.2));   // shown with a display gamma
+        // the sun's direction: an arrow in the top right corner
+        vec2 tail = vec2(420.0, 215.0), head = tail + 35.0 * MARCH_CARD_TO_SUN.xy;
+        vec2 toP = pixel - tail, shaft = head - tail;
+        float along = clamp(dot(toP, shaft) / dot(shaft, shaft), 0.0, 1.0);
+        paint = mix(paint, vec3(1.0, 0.85, 0.3), marchCardInk(length(toP - along * shaft)));
+        paint = mix(paint, vec3(1.0, 0.85, 0.3), 1.0 - smoothstep(3.0, 4.5, length(pixel - head)));
+    }
+    color = vec4(paint, 1.0);
+}

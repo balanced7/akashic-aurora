@@ -1,0 +1,74 @@
+//! {"card": "light-rigs", "uses": ["light-rigs", "light-env", "core-frame", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "Four balls on a dark studio floor, all lit by rigStudio with the neutral studio spelled in light-env's note (rigCardStudio), the studio itself behind them. From the left: CLAY (warm diffuse, roughness 0.67): soft wrapped key light from the upper left, a cool back light on its right edge, a faint rim, a blurred sheen. BLACK GLOSS (albedo 0.015, nearly mirror-smooth): almost black, but it shows a sharp reflection of the key soft box as a bright rounded window with a hot frame at its upper left, the floor pool and the horizon band, and a bright Fresnel rim. GOLD (metal, F0 1.0 / 0.71 / 0.29, roughness 0.2): no diffuse at all, coloured entirely by its reflection: a warm blurred key window, darker gold elsewhere, paling toward the rim. EMISSIVE: glows orange evenly whatever the light (the emission bypasses the rig), with only a faint gloss over it. Under each ball the floor's pool of light darkens into a soft contact shadow, and the floor fades into the horizon band with no edge. A gold ball with a grey diffuse look, a black ball without a crisp window, or an emissive ball with a shaded dark side is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/rigs.glsl, written fresh for the house.
+
+// The neutral product-shot studio the module's note spells out (the twin's studio_default holds the same values).
+StudioParams rigCardStudio() {
+    return StudioParams(normalize(vec3(-0.55, 0.75, 0.4)), vec3(3.6, 3.3, 2.9),
+                        normalize(vec3(0.65, 0.55, -0.55)), vec3(0.55, 0.7, 1.0),
+                        vec2(0.42, 0.28), 0.8,
+                        vec3(0.008, 0.01, 0.016), vec3(0.07, 0.075, 0.09),
+                        vec3(0.32, 0.27, 0.22), 1.0, 1.1, 0.3);
+}
+
+const float RIG_CARD_RADIUS = 0.42;
+
+vec3 rigCardCentre(int k) {
+    return vec3(-1.38 + 0.92 * float(k), RIG_CARD_RADIUS, 0.0);
+}
+
+LitSurface rigCardSurface(int k) {
+    if (k == 0) return LitSurface(vec3(0.55, 0.42, 0.33), vec3(0.04), 0.45, vec3(0.0));
+    if (k == 1) return LitSurface(vec3(0.015), vec3(0.04), 0.004, vec3(0.0));
+    if (k == 2) return LitSurface(vec3(0.0), vec3(1.0, 0.71, 0.29), 0.04, vec3(0.0));
+    return LitSurface(vec3(0.05), vec3(0.04), 0.1, vec3(2.4, 0.9, 0.25));
+}
+
+// Distance along the ray to a ball, or -1 when it misses.
+float rigCardBall(vec3 from, vec3 dir, vec3 centre) {
+    vec3 toCentre = centre - from;
+    float closest = dot(toCentre, dir);
+    float missSq = dot(toCentre, toCentre) - closest * closest;
+    float inside = RIG_CARD_RADIUS * RIG_CARD_RADIUS - missSq;
+    return inside < 0.0 ? -1.0 : closest - sqrt(inside);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    StudioParams studio = rigCardStudio();
+    vec2 uv = uvCentered(pixel, iResolution.xy);                       // core-frame: centred, aspect-true, y up
+    vec3 eye = vec3(0.0, 0.8, 3.7);
+    vec3 ahead = normalize(vec3(0.0, 0.34, 0.0) - eye);
+    vec3 side = normalize(vec3(-ahead.z, 0.0, ahead.x));               // level, to the right of the view
+    vec3 lift = cross(side, ahead);
+    vec3 dir = normalize(ahead * 2.6 + side * uv.x + lift * uv.y);
+
+    vec3 light = litStudioEnv(dir, 0.0, studio);
+    float nearest = 1e9;
+    int which = -1;
+    for (int ball = 0; ball < 4; ball++) {
+        float along = rigCardBall(eye, dir, rigCardCentre(ball));
+        if (along > 0.0 && along < nearest) {
+            nearest = along;
+            which = ball;
+        }
+    }
+    if (which >= 0) {
+        vec3 p = eye + dir * nearest;
+        vec3 n = (p - rigCardCentre(which)) / RIG_CARD_RADIUS;
+        float ao = 0.55 + 0.45 * (0.5 + 0.5 * n.y);               // the floor hides the underside's sky
+        light = rigStudio(rigCardSurface(which), n, -dir, ao, studio);
+    } else if (dir.y < 0.0) {
+        float toFloor = -eye.y / dir.y;
+        vec3 p = eye + dir * toFloor;
+        vec3 floorLight = litFloorPool(p, vec3(0.0), 2.2, studio.floorCol) * 0.6;
+        float unshaded = 1.0;                                          // each ball's closed-form contact darkening
+        for (int ball = 0; ball < 4; ball++) {
+            vec3 toBall = rigCardCentre(ball) - p;
+            float reachSq = dot(toBall, toBall);
+            unshaded *= 1.0 - RIG_CARD_RADIUS * RIG_CARD_RADIUS / reachSq * max(toBall.y, 0.0) * inversesqrt(reachSq);
+        }
+        floorLight *= unshaded * unshaded;
+        light = mix(floorLight, light, smoothstep(3.5, 9.0, toFloor));
+    }
+    color = vec4(srgbEncode(tmPbrNeutral(light)), 1.0);
+}

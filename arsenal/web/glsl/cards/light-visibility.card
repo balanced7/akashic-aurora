@@ -1,0 +1,96 @@
+//! {"card": "light-visibility", "uses": ["light-visibility", "light-diffuse", "core-frame", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "One small scene four times over, the light behind and to the upper left so shadows fall toward the camera and to the right: a warm ball and a blue block standing on a grey floor, and a thin bar floating at about 1.1 units above the floor in front of them. TOP LEFT, the key with visSoftShadow for a light of angular radius 0.02: crisp shadows, the bar's shadow on the floor a thin sharp line. TOP RIGHT, the same with radius 0.2: every shadow edge softens, and the bar's far-flung shadow softens most (penumbrae widen with the distance from the occluder), while the shadows still meet the ball and the block sharply where they touch the floor. BOTTOM LEFT, visAO alone in grey: the open floor and the tops are white, dark creases ring the ball's contact point and the block's foot, and the floor under the ball darkens. BOTTOM RIGHT, the house rig: the key with the soft shadow plus a hemisphere sky fill multiplied by the AO (never the key): grounded objects with a lit, coloured fill in the shadows. A shadow on a sunlit open floor, a hard-edged shadow in the top right, a light ring of AO or an AO that darkens the open floor is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/visibility.glsl, written fresh for the house. The scene below is
+// the host's: the card defines mapScene, which the module declares as a hook.
+
+const vec3 VIS_CARD_BALL = vec3(-0.55, 0.55, 0.05);
+const vec3 VIS_CARD_BLOCK = vec3(0.72, 0.36, -0.15);
+
+float visCardBlock(vec3 p, vec3 halfSize) {
+    vec3 past = abs(p) - halfSize;
+    return length(max(past, 0.0)) + min(max(past.x, max(past.y, past.z)), 0.0);
+}
+
+// A bar 1.7 long along +x, 0.05 thick, floating 1.1 above the floor.
+float visCardBar(vec3 p) {
+    vec3 rel = p - vec3(-0.6, 1.1, 0.75);
+    float share = clamp(rel.x / 1.7, 0.0, 1.0);
+    return distance(rel, vec3(1.7 * share, 0.0, 0.0)) - 0.05;
+}
+
+float mapScene(vec3 p) {
+    float ball = length(p - VIS_CARD_BALL) - 0.55;
+    float block = visCardBlock(p - VIS_CARD_BLOCK, vec3(0.28, 0.36, 0.28));
+    return min(min(ball, block), min(visCardBar(p), p.y));
+}
+
+
+// The gradient of the field by central differences along each axis (six samples).
+vec3 visCardNormal(vec3 p) {
+    const float nudge = 0.0008;
+    vec3 slope;
+    slope.x = mapScene(p + vec3(nudge, 0.0, 0.0)) - mapScene(p - vec3(nudge, 0.0, 0.0));
+    slope.y = mapScene(p + vec3(0.0, nudge, 0.0)) - mapScene(p - vec3(0.0, nudge, 0.0));
+    slope.z = mapScene(p + vec3(0.0, 0.0, nudge)) - mapScene(p - vec3(0.0, 0.0, nudge));
+    return normalize(slope);
+}
+
+// Sphere tracing with a hard ceiling; -1 when the ray leaves the scene.
+float visCardTrace(vec3 from, vec3 dir) {
+    float travelled = 0.0;
+    for (int stride = 0; stride < 110; stride++) {
+        float gap = mapScene(from + dir * travelled);
+        if (gap < 0.0004 * (1.0 + travelled)) return travelled;
+        travelled += gap;
+        if (travelled > 14.0) break;
+    }
+    return -1.0;
+}
+vec3 visCardAlbedo(vec3 p) {
+    float ball = length(p - VIS_CARD_BALL) - 0.55;
+    float block = visCardBlock(p - VIS_CARD_BLOCK, vec3(0.28, 0.36, 0.28));
+    float bar = visCardBar(p);
+    float nearest = min(min(ball, block), bar);
+    if (p.y < nearest) return vec3(0.42, 0.42, 0.4);
+    if (ball <= nearest) return vec3(0.75, 0.42, 0.22);
+    if (block <= nearest) return vec3(0.25, 0.4, 0.7);
+    return vec3(0.7, 0.7, 0.65);
+}
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panel = floor(pixel / vec2(240.0, 135.0));                   // (0,1) top left ... (1,0) bottom right
+    vec2 local = pixel - panel * vec2(240.0, 135.0);
+    vec2 uv = uvCentered(local, vec2(240.0, 135.0));                   // core-frame, per panel
+    vec3 eye = vec3(0.45, 1.55, 2.75);
+    vec3 ahead = normalize(vec3(0.1, 0.38, 0.1) - eye);
+    vec3 side = normalize(vec3(-ahead.z, 0.0, ahead.x));               // level, to the right of the view
+    vec3 lift = cross(side, ahead);
+    vec3 dir = normalize(ahead * 2.1 + side * uv.x + lift * uv.y);
+    vec3 key = normalize(vec3(-0.65, 1.0, -0.45));
+
+    vec3 lit = mix(vec3(0.02, 0.022, 0.03), vec3(0.06, 0.07, 0.09), 0.5 + 0.5 * dir.y);
+    float hit = visCardTrace(eye, dir);
+    if (hit > 0.0) {
+        vec3 p = eye + dir * hit;
+        vec3 n = visCardNormal(p);
+        vec3 albedo = visCardAlbedo(p);
+        vec3 from = p + n * 0.002;
+        float facing = litLambert(n, key);
+        bool sharp = panel.x < 0.5 && panel.y > 0.5;
+        float angle = sharp ? 0.02 : 0.2;
+        float shadow = facing > 0.0 ? visSoftShadow(from, key, vec2(0.01, 8.0), angle, 48) : 0.0;
+        vec3 sunCol = vec3(2.3, 2.1, 1.8);
+        if (panel.y > 0.5) {
+            lit = tmTanh(albedo * (sunCol * facing * shadow + vec3(0.14, 0.16, 0.2)));
+        } else if (panel.x < 0.5) {
+            lit = srgbDecode(vec3(visAO(p, n, 0.5, 0.85)));          // shown as is: white is 1, fully open
+        } else {
+            float open = visAO(p, n, 0.5, 0.85);
+            vec3 fill = litHemisphere(n, vec3(0.32, 0.42, 0.62), vec3(0.18, 0.15, 0.12));
+            lit = tmTanh(albedo * (sunCol * facing * shadow + fill * open));
+        }
+    }
+    vec3 paint = srgbEncode(lit);
+    vec2 seam = min(abs(pixel - vec2(240.0, 135.0)), vec2(1e3));
+    paint = mix(paint, vec3(0.0), 1.0 - smoothstep(0.5, 1.5, min(seam.x, seam.y)));
+    color = vec4(paint, 1.0);
+}

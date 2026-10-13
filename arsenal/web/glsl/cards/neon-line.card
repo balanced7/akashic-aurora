@@ -1,0 +1,75 @@
+//! {"card": "neon-line", "uses": ["neon-line", "core-frame", "colour-transfer", "legacy-tone-superlinear", "display-out"],
+//!  "t": [0, 2, 4], "size": [480, 270],
+//!  "note": "The neon-line recipe at its defaults (1.6 px core, 14 px two-Gaussian halo, core heat 1.6, crossings by max, defocus 0.35), on black. Six strings run across the frame like laser lines pinned just beyond its left and right edges: a family of cool hues from cyan through azure and blue to violet, with one coral string as the accent. Each carries a travelling wave under a window, so the strings fan apart and braid in the middle and converge toward both edges, where they also soften and spread (defocus with depth, the same total light) and dim. Every core is a crisp, even line about one and a half pixels wide whatever its slope, running near white along its brightest stretch while its halo keeps the string's own hue; where strings cross, the crossing is no brighter than one string (max), so nothing blooms to white. The three frames (t = 0, 2, 4) show the waves travelling and the braid re-forming. Cores that thicken or break into dashes, halos that change hue, beads where the sampled segments meet, or white blotches at crossings are a broken recipe."}
+// Apache-2.0, Akashic Aurora. The test card of groups/neon-line.glsl, written fresh for the house.
+
+// The recipe's knobs at their header defaults. The Shader Lab's Workbench rewrites these consts with the Inspector's
+// values, so the card follows the knobs live; py -m arsenal shader card renders the defaults.
+const float u_neonLine_widthPx = 1.6;
+const float u_neonLine_haloPx = 14.0;
+const int u_neonLine_profile = 0;
+const float u_neonLine_coreHeat = 1.6;
+const int u_neonLine_combine = 0;
+const float u_neonLine_defocus = 0.35;
+const int u_neonLine_view = 0;
+
+const int NEON_CARD_STRINGS = 6;
+const int NEON_CARD_SEGMENTS = 72;      // samples along each string's span
+const int NEON_CARD_REACH = 5;          // segments either side of the pixel's own that its halo can still reach
+const float NEON_CARD_SPAN = 2.05;      // the strings are pinned at x = +-2.05, just outside the 16:9 frame
+
+// A cool, analogous family (linear light, brightest channel 1) with one coral accent in the middle of the stack.
+vec3 neonCardTint(int k) {
+    if (k == 0) return vec3(0.02, 0.62, 1.0);        // cyan
+    if (k == 1) return vec3(0.03, 0.36, 1.0);        // azure
+    if (k == 2) return vec3(1.0, 0.24, 0.10);        // coral, the accent
+    if (k == 3) return vec3(0.06, 0.16, 1.0);        // electric blue
+    if (k == 4) return vec3(0.17, 0.09, 1.0);        // indigo
+    return vec3(0.34, 0.08, 1.0);                    // violet
+}
+
+// The string's window: 1 in the middle, falling smoothly to 0 where it is pinned.
+float neonCardWindow(float x) {
+    float u = clamp(x / NEON_CARD_SPAN, -1.0, 1.0);
+    float bell = 1.0 - u * u;
+    return bell * bell;
+}
+
+// String k's height at x and time t: a travelling wave under the window, each string detuned in speed and frequency.
+float neonCardHeight(int k, float x, float t) {
+    float s = float(k) / float(NEON_CARD_STRINGS - 1);
+    float speed = 0.83 + 0.61 * s + 0.07 * sin(2.3 * float(k));
+    float freq = 2.4 + 1.1 * s;
+    float wave = sin(freq * x - speed * t + 2.1 * float(k)) + 0.35 * sin(0.53 * freq * x + 0.71 * speed * t);
+    return 0.4 * neonCardWindow(x) * wave;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    float t = iTime;
+    float stride = 2.0 * NEON_CARD_SPAN / float(NEON_CARD_SEGMENTS);
+    int home = int(floor((p.x + NEON_CARD_SPAN) / stride));
+    vec3 light = vec3(0.0);
+    for (int k = 0; k < NEON_CARD_STRINGS; k++) {
+        vec2 best = vec2(1e9, 0.0);
+        for (int j = -NEON_CARD_REACH; j <= NEON_CARD_REACH; j++) {
+            int seg = home + j;
+            if (seg < 0 || seg >= NEON_CARD_SEGMENTS) continue;
+            float xa = -NEON_CARD_SPAN + stride * float(seg);
+            float xb = xa + stride;
+            vec2 a = vec2(xa, neonCardHeight(k, xa, t));
+            vec2 b = vec2(xb, neonCardHeight(k, xb, t));
+            best = neonPathStep(p, a, b, vec2(xa, xb), best);
+        }
+        float along = best.y;                                   // the x of the nearest point on the string
+        float depth = smoothstep(0.35, 1.75, abs(along));       // deep toward the edges: Discoteq's free depth cue
+        float energy = (k == 2 ? 1.05 : 0.85) * (0.3 + 0.7 * neonCardWindow(along));   // fade, don't cut
+        light = neonLine(light, best.x, px, neonCardTint(k), energy, depth, u_neonLine_widthPx, u_neonLine_haloPx,
+                         u_neonLine_profile, u_neonLine_coreHeat, u_neonLine_combine, u_neonLine_defocus,
+                         u_neonLine_view);
+    }
+    // the house finish: superlinear highlight, then the tanh shoulder (display-out's glow-field curve)
+    vec3 shown = displayOut(tmSuperlinear(light, 0.6), pixel, iResolution.xy, 0.0, 0, 1.0, 0.25, 0.0, 256.0);
+    color = vec4(shown, 1.0);
+}

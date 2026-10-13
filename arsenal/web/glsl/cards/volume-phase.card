@@ -1,0 +1,61 @@
+//! {"card": "volume-phase", "uses": ["volume-phase"], "t": [0], "size": [480, 270],
+//!  "note": "LEFT: a polar plot of the phase functions around a scattering point (the small cross), with the light off
+//!  to the right (the yellow dot): the radius in each direction is the cube root of the phase value over isotropic,
+//!  so isotropic scattering is the grey dashed circle. The white curve (phaseHG with g = 0) lies exactly on that
+//!  circle. g = 0.5 (amber) and g = 0.8 (orange) bulge to the RIGHT, toward the light, the 0.8 lobe longest and its back
+//!  side smallest; g = -0.3 (blue) leans LEFT, away from the light. Every curve is smooth and closed. RIGHT: four views
+//!  of fog with the light straight ahead at each patch's centre, g = -0.3, 0, 0.5 and 0.85 from bottom to top: a dim
+//!  centre with brighter rim, a flat grey, a soft glow, a tight hot halo. A lobe pointing away from the light, a white
+//!  curve off the circle, a dark or magenta pixel at the centre of the top patch, or a top patch no hotter than the
+//!  middle ones is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of volume/phase.glsl, written fresh for the house.
+
+const float PHASE_CARD_UNIT = 32.0;    // the isotropic circle's radius in pixels
+
+// About one pixel of ink at distance d (in pixels).
+float phaseCardInk(float d) {
+    return 1.0 - smoothstep(0.6, 1.6, d);
+}
+
+// The plotted radius (pixels) of a phase function in the direction whose cosine to the light is mu.
+float phaseCardRadius(float mu, float g) {
+    return PHASE_CARD_UNIT * pow(phaseHG(mu, g) / phaseIso(), 1.0 / 3.0);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.04, 0.045, 0.06);
+    if (pixel.x < 270.0) {
+        vec2 centre = vec2(118.0, 135.0);
+        vec2 offset = pixel - centre;
+        float r = length(offset);
+        float mu = r > 0.0 ? offset.x / r : 1.0;                 // the light is along +x
+        paint = mix(paint, vec3(0.13, 0.14, 0.17), phaseCardInk(abs(offset.y)) * step(0.0, offset.x));   // the axis
+        float dash = step(0.5, fract(atan(offset.y, offset.x) * 12.0 / PI));
+        float isoRadius = PHASE_CARD_UNIT * pow(4.0 * PI * phaseIso(), 1.0 / 3.0);   // PHASE_CARD_UNIT when phaseIso is 1/(4 pi)
+        paint = mix(paint, vec3(0.45), dash * phaseCardInk(abs(r - isoRadius)));
+        float gs[4] = float[4](-0.3, 0.5, 0.8, 0.0);
+        vec3 inks[4] = vec3[4](vec3(0.35, 0.6, 1.0), vec3(1.0, 0.75, 0.2), vec3(1.0, 0.4, 0.1), vec3(0.95));
+        float angle = atan(offset.y, offset.x);
+        for (int lobe = 0; lobe < 4; ++lobe) {
+            float radius = phaseCardRadius(mu, gs[lobe]);
+            // the curve's slope against the angle turns the radial miss into a distance across the curve
+            float turn = (phaseCardRadius(cos(angle + 0.01), gs[lobe]) - phaseCardRadius(cos(angle - 0.01), gs[lobe])) / 0.02;
+            float miss = abs(r - radius) / sqrt(1.0 + turn * turn / max(radius * radius, 1.0));
+            paint = mix(paint, inks[lobe], phaseCardInk(miss));
+        }
+        paint = mix(paint, vec3(1.0, 0.9, 0.3), 1.0 - smoothstep(4.0, 5.5, length(pixel - vec2(258.0, 135.0))));
+        float tick = min(abs(offset.x), abs(offset.y));
+        paint = mix(paint, vec3(1.0), phaseCardInk(tick) * step(r, 4.0));
+    } else {
+        // four patches, each looking at the light straight ahead with a 100-degree field of view
+        float patchH = 270.0 / 4.0;
+        int which = int(pixel.y / patchH);
+        float gs[4] = float[4](-0.3, 0.0, 0.5, 0.85);
+        vec2 local = vec2(pixel.x - 375.0, mod(pixel.y, patchH) - 0.5 * patchH) / (0.5 * patchH);
+        vec3 rd = normalize(vec3(local * 1.19, -1.0));
+        float p = phaseHG(dot(rd, vec3(0.0, 0.0, -1.0)), gs[which]) / phaseIso();
+        paint = vec3(0.9, 0.8, 0.65) * (p / (p + 2.0));
+        if (mod(pixel.y, patchH) < 1.0) paint = vec3(0.0);
+    }
+    color = vec4(paint, 1.0);
+}

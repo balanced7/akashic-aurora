@@ -1,0 +1,78 @@
+//! {"card": "draw2-aa", "uses": ["draw2-aa", "draw2-sdf2", "draw2-domain2"], "t": [0], "size": [480, 270],
+//!  "note": "TOP LEFT, a magnifier (each square is one pixel, nine times enlarged): a disc and a hairline a third of a pixel wide. Left of the centre they are drawn with a hard step: the disc's edge is a staircase and the hairline breaks into scattered squares. Right of the centre with aaFill and aaWire: the disc's edge squares take the grey of the fraction they cover, and the hairline is an unbroken, dim one-pixel line. TOP RIGHT: a fan of lines from 3 pixels down to a tenth of a pixel wide. Upper fan (aaWire): every line is continuous; the thin ones only get dimmer. Lower fan, its mirror image drawn with a hard step: the thin lines break into dashes and dots and vanish. BOTTOM LEFT: rings drawn with aaStroke at half-widths from 2 pixels down to 0.05 of a pixel: wide rings solid, thin rings fainter but whole, none broken. BOTTOM RIGHT: a smooth wavy field thresholded: left half with a hard step (stair-stepped contours), right half with aaStep (smooth contours of even softness whether the field is steep or gentle)."}
+// Apache-2.0, Akashic Aurora. The test card of draw2/aa.glsl, written fresh for the house.
+
+const float AA_CARD_UNIT = 60.0;                  // pixels per unit in the three full-resolution panels
+const float AA_CARD_ZOOM = 9.0;                   // screen pixels per magnified pixel
+
+// The smooth field the threshold panel cuts: hills and valleys of varying steepness.
+float aaCardWaves(vec2 p) {
+    return 0.5 + 0.32 * sin(2.6 * p.x + 1.4 * sin(1.7 * p.y)) * cos(1.9 * p.y - 0.4 * p.x);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(240.0, 135.0);
+    int column = int(pixel.x / panelSize.x);
+    int rowFromTop = int((iResolution.y - pixel.y) / panelSize.y);
+    vec2 panelOrigin = vec2(float(column) * panelSize.x, iResolution.y - float(rowFromTop + 1) * panelSize.y);
+    vec2 inPanel = pixel - panelOrigin;
+    vec2 p = (inPanel - 0.5 * panelSize) / AA_CARD_UNIT;
+    float px = 1.0 / AA_CARD_UNIT;
+
+    // the threshold field and its antialiased cut, computed by every pixel before anything branches
+    float waves = aaCardWaves(p);
+    float cut = aaStep(waves, 0.5);
+
+    vec3 paint = vec3(0.03, 0.035, 0.05);
+    if (column == 0 && rowFromTop == 0) {
+        // the magnifier: one evaluation per enlarged pixel, at its centre, in enlarged-pixel units (px = 1)
+        vec2 cell = floor(inPanel / AA_CARD_ZOOM);
+        vec2 at = cell + 0.5;
+        vec2 centre = vec2(13.33, 7.5);
+        float disc = length(at - centre) - 5.4;
+        float line = sd2Segment(at, vec2(0.5, 1.2), vec2(26.0, 13.6)).x;
+        bool hard = at.x < centre.x;
+        float discCover = hard ? step(disc, 0.0) : aaFill(disc, 1.0);
+        float lineCover = hard ? step(line, 0.5 * 0.34) : aaWire(line, 0.34, 1.0);
+        paint = mix(vec3(0.06, 0.07, 0.09), vec3(0.95, 0.85, 0.6), discCover);
+        paint = mix(paint, vec3(0.25, 0.8, 1.0), lineCover);
+        vec2 inCell = inPanel - cell * AA_CARD_ZOOM;
+        float grid = min(inCell.x, inCell.y);
+        paint = mix(paint, vec3(0.0), 0.5 * (1.0 - step(1.0, grid)));        // the pixel grid, one screen pixel
+        paint = mix(paint, vec3(1.0, 0.3, 0.3), 1.0 - step(0.75, abs(inPanel.x - centre.x * AA_CARD_ZOOM)));
+    } else if (column == 1 && rowFromTop == 0) {
+        // the fan: nine lines from 3 px to 0.1 px; upper half aaWire, lower half (mirrored) a hard step
+        vec2 hub = vec2(-1.85, 0.0);
+        float upper = abs(p.y);                                     // the lower fan mirrors the upper one
+        vec2 q = vec2(p.x, upper);
+        float widths[9] = float[9](3.0, 2.0, 1.5, 1.0, 0.7, 0.5, 0.3, 0.2, 0.1);
+        float fanInk = 0.0;
+        for (int spoke = 0; spoke < 9; spoke++) {
+            vec2 tip = hub + domFromPolar(vec2(3.6, 0.08 + 0.105 * float(spoke)));
+            float d = sd2Segment(q, hub, tip).x;
+            float cover = p.y >= 0.0 ? aaWire(d, widths[spoke], px) : step(d, 0.5 * widths[spoke] * px);
+            fanInk = max(fanInk, cover);
+        }
+        paint = mix(paint, vec3(1.0, 0.92, 0.75), fanInk);
+        paint = mix(paint, vec3(0.3, 0.32, 0.38), 1.0 - smoothstep(0.5, 1.0, abs(p.y) / px));
+    } else if (column == 0) {
+        // rings of half-width 2 px down to 0.05 px
+        float r = length(p - vec2(-1.2, 0.0));
+        float ringInk = 0.0;
+        for (int ring = 0; ring < 9; ring++) {
+            float radius = 0.35 + 0.16 * float(ring);
+            float halfWidthPx = 2.0 * pow(0.025, float(ring) / 8.0);   // 2, 1.27, ... 0.05 pixels
+            ringInk += aaStroke(r - radius, halfWidthPx * px, px);
+        }
+        paint = mix(paint, vec3(0.6, 1.0, 0.75), clamp(ringInk, 0.0, 1.0));
+    } else {
+        // the threshold: hard on the left, aaStep on the right
+        float hardCut = step(0.5, waves);
+        float cover = p.x < 0.0 ? hardCut : cut;
+        paint = mix(vec3(0.08, 0.12, 0.3), vec3(1.0, 0.75, 0.35), cover);
+        paint = mix(paint, vec3(1.0, 0.3, 0.3), 1.0 - step(0.75, abs(p.x) / px));
+    }
+    float border = min(min(inPanel.x, panelSize.x - inPanel.x), min(inPanel.y, panelSize.y - inPanel.y));
+    paint = mix(paint, vec3(0.12, 0.13, 0.16), 1.0 - smoothstep(1.0, 2.0, border));
+    color = vec4(paint, 1.0);
+}

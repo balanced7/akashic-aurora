@@ -1,0 +1,67 @@
+//! {"card": "light-fresnel", "uses": ["light-fresnel", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "LEFT, reflectance against the angle from the normal, 0 to 90 degrees across, 0 to 1 up (guides at 0.25, 0.5 and 0.75): water (blue, F0 from litF0FromIor(1.33) = 0.02), glass (white, 1.5: 0.04) and diamond (cyan, 2.42: 0.17) start at their F0 on the left, stay nearly flat to about 60 degrees, then all sweep up to exactly 1 at 90; gold through the vec3 form is three thin lines in red, green and blue starting high and apart (1.0, 0.71, 0.29) and closing to white at 90. RIGHT TOP, three black balls reflecting a bright sky over a dark ground, weighted by Schlick at their F0 (water, glass, diamond from left): each ball's upper half mirrors the sky faintly and its lower half the dark ground, split by a sharp horizon line across the middle; head-on the sky reflection is dim (a few per cent) and it brightens sharply toward the upper edge, most on diamond, whose whole upper half is clearly brighter than water's. RIGHT BOTTOM, litRim at powers 0.2, 1 and 3: power 0.2 is an almost flat glowing disc that only darkens at its very centre, power 1 a soft gradient, power 3 a thin bright edge. A curve that does not reach 1 at 90 degrees, gold curves that cross, or a rim brightest at the centre is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/fresnel.glsl, written fresh for the house.
+
+float fresCardInk(float d) {
+    return 1.0 - smoothstep(0.6, 1.6, d);
+}
+
+// A sky that is bright above the horizon and dark below: something for a mirror to show.
+vec3 fresCardSky(vec3 dir) {
+    float above = smoothstep(-0.05, 0.35, dir.y);
+    return mix(vec3(0.02, 0.018, 0.015), vec3(1.6, 1.9, 2.4), above);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.035, 0.04, 0.05);
+    if (pixel.x < 240.0) {
+        vec2 box = pixel - vec2(14.0, 14.0);
+        vec2 size = vec2(212.0, 242.0);
+        if (all(greaterThanEqual(box, vec2(0.0))) && all(lessThanEqual(box, size))) {
+            paint = vec3(0.07, 0.075, 0.09);
+            float quarters = abs(fract(box.y / size.y * 4.0 + 0.5) - 0.5) * size.y / 4.0;
+            paint = mix(paint, vec3(0.18, 0.19, 0.23), fresCardInk(quarters));
+            float angle = radians(90.0 * box.x / size.x);
+            float c = cos(angle);
+            float ior[3] = float[3](1.33, 1.5, 2.42);
+            vec3 inks[3] = vec3[3](vec3(0.3, 0.55, 1.0), vec3(0.95), vec3(0.3, 0.95, 0.95));
+            for (int medium = 0; medium < 3; medium++) {
+                float f = litFresnelSchlick(c, litF0FromIor(ior[medium]));
+                float next = litFresnelSchlick(cos(angle + radians(90.0 / size.x)), litF0FromIor(ior[medium]));
+                float rise = (next - f) * size.y;          // a steep curve: measure the miss across the line
+                paint = mix(paint, inks[medium], fresCardInk(abs(box.y - f * size.y) / sqrt(1.0 + rise * rise)));
+            }
+            vec3 gold = litFresnelSchlick(vec3(1.0, 0.71, 0.29), c);
+            vec3 goldNext = litFresnelSchlick(vec3(1.0, 0.71, 0.29), cos(angle + radians(90.0 / size.x)));
+            for (int ch = 0; ch < 3; ch++) {
+                vec3 ink = vec3(0.0);
+                ink[ch] = 1.0;
+                float rise = (goldNext[ch] - gold[ch]) * size.y;
+                paint = mix(paint, ink, 0.85 * fresCardInk(1.5 * abs(box.y - gold[ch] * size.y) / sqrt(1.0 + rise * rise)));
+            }
+        }
+    } else {
+        float column = floor((pixel.x - 240.0) / 80.0);
+        bool top = pixel.y >= 135.0;
+        vec2 centre = vec2(280.0 + 80.0 * column, top ? 202.0 : 68.0);
+        vec2 across = (pixel - centre) / 34.0;
+        float reach = dot(across, across);
+        if (reach < 1.0) {
+            vec3 n = vec3(across, sqrt(1.0 - reach));
+            vec3 eye = vec3(0.0, 0.0, 1.0);
+            float NoV = dot(n, eye);
+            vec3 lit;
+            if (top) {
+                float ior = column < 0.5 ? 1.33 : (column < 1.5 ? 1.5 : 2.42);
+                vec3 mirrored = reflect(-eye, n);
+                lit = fresCardSky(mirrored) * litFresnelSchlick(NoV, litF0FromIor(ior));
+                lit = srgbEncode(tmTanh(lit));
+            } else {
+                float power = column < 0.5 ? 0.2 : (column < 1.5 ? 1.0 : 3.0);
+                lit = srgbEncode(vec3(0.95, 0.9, 0.8) * litRim(NoV, power));
+            }
+            paint = mix(paint, lit, 1.0 - smoothstep(0.95, 1.0, reach));
+        }
+    }
+    color = vec4(paint, 1.0);
+}

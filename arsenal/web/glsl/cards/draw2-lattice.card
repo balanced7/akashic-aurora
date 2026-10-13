@@ -1,0 +1,30 @@
+//! {"card": "draw2-lattice", "uses": ["draw2-lattice", "draw2-sdf2", "draw2-aa", "hash-pcg", "debug-views", "core-const"], "t": [0], "size": [480, 270],
+//!  "note": "A honeycomb of regular pointy-top hexagons (a vertex straight up, flat sides left and right), every outline one even pixel and a half wide whatever its direction. LEFT HALF: each cell a different flat colour picked by hashing latHexAxial of its centre (no two neighbours alike, no colour repeating along a row), with faint concentric hexagonal rings from latHexEdge every 0.1 inside each cell, evenly spaced to a dot at the centre. RIGHT HALF: the same lattice coloured by latHexSteps from the cell at the half's centre: rings of whole cells, each ring one step farther and one heat level brighter (dark violet at the centre to white at seven steps), each ring itself a hexagon. Anywhere latHexEdge disagrees with -sd2Hexagon(offset, 0.5) by more than a ten-thousandth would be painted red: there is none. Flat-top or squashed hexagons, chevrons instead of outlines, outlines thicker on some sides, colours repeating in pairs or red patches are a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of draw2/lattice.glsl, written fresh for the house.
+
+const float LATTICE_CARD_CELLS = 7.0;             // hex centres across the card's height
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float unitPx = LATTICE_CARD_CELLS / iResolution.y;          // lattice units per pixel (the domain is unwarped)
+    vec2 p = (pixel - 0.5 * iResolution.xy) * unitPx;
+    vec4 hex = latHex(p);
+    vec2 offset = hex.xy;
+    vec2 axial = latHexAxial(hex.zw);
+    float edge = latHexEdge(offset);
+    vec3 paint;
+    if (pixel.x < 0.5 * iResolution.x) {
+        vec3 dice = hash33(vec3(axial, 17.0));
+        paint = 0.18 + 0.55 * dice;
+        float ringGap = abs(fract(edge / 0.1 + 0.5) - 0.5) * 0.1;
+        paint = mix(paint, paint * 1.6, 0.6 * aaWire(ringGap, 0.8, unitPx));
+    } else {
+        vec2 middle = vec2(0.25 * iResolution.x * unitPx, 0.0);          // the right half's centre
+        float steps = latHexSteps(latHexAxial(latHex(middle).zw), axial);
+        paint = 0.85 * dbgHeatRamp(clamp((steps + 1.0) / 8.0, 0.0, 1.0));
+    }
+    paint = mix(paint, vec3(0.97, 0.98, 1.0), aaWire(edge, 1.5, unitPx));    // the outline, from the border distance
+    float disagree = abs(edge + sd2Hexagon(offset, 0.5));
+    paint = mix(paint, vec3(1.0, 0.0, 0.0), step(1e-4, disagree));
+    paint = mix(paint, vec3(0.05), 1.0 - smoothstep(0.5, 1.5, abs(pixel.x - 0.5 * iResolution.x)));
+    color = vec4(paint, 1.0);
+}

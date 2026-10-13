@@ -1,0 +1,105 @@
+//! {"card": "ray-camera", "uses": ["ray-camera", "ray-intersect", "colour-transfer"], "t": [0, 2], "size": [480, 270],
+//!  "note": "Four cameras. TOP LEFT (camLookAt, camRay, camPixelAngle): a floor of unit grid lines drawn through the pixel footprint, crisp near the camera and fading evenly to grey toward the horizon with no moire, the x axis red, the z axis blue and a green post at the origin; at t = 0 the horizon is level, at t = 2 the camera has rolled 0.25 radians counter-clockwise so the horizon tilts clockwise (down to the right). TOP RIGHT (camOrbit, mouse untouched): the same floor and post from an orbit that turns on its own, a different side at t = 2, seen from a little above. BOTTOM LEFT (camOrthoRay): a 5 x 5 grid of equal balls seen straight along a diagonal with no perspective: the far balls are exactly as big as the near ones. BOTTOM RIGHT (pathLissajous3, camBanked, camBarrel): flying through a tunnel of notched rings that follows a swerving path, the frame banking into the turns (the notches, which all point down in the world, lean off the vertical) and the whole view bulged by barrel glass toward the edges. A broken camera shows moire or a blurred near floor (a wrong pixel angle), a red axis on the wrong side of the post (a mirrored basis), far balls smaller than near ones in the orthographic view, or notches that never lean."}
+// Apache-2.0, Akashic Aurora. The test card for ray/camera.glsl, written fresh.
+
+// The floor (grid lines through the pixel footprint, coloured axes) and a post at the origin, in linear light.
+vec3 cameraCardFloor(vec3 ro, vec3 rd, float pixelAngle) {
+    vec3 paint = mix(vec3(0.3, 0.38, 0.5), vec3(0.06, 0.08, 0.16), clamp(rd.y * 3.0, 0.0, 1.0));
+    vec2 zeroOne = vec2(0.0, 1.0);                      // .xyx is the floor's normal, +y
+    float t = ixPlane(ro, rd, zeroOne.xyx, 0.0);
+    float postT = 1e9;
+    vec2 acrossFloor = rd.xz;
+    float closestAlong = -dot(ro.xz, acrossFloor) / max(dot(acrossFloor, acrossFloor), 1e-9);
+    float postHeight = ro.y + closestAlong * rd.y;
+    if (closestAlong > 0.0 && postHeight > 0.0 && postHeight < 1.5) {
+        float miss = length(ro.xz + closestAlong * acrossFloor);
+        float postInk = 1.0 - smoothstep(0.04, 0.04 + closestAlong * pixelAngle, miss);
+        if (postInk > 0.0) {
+            postT = closestAlong;
+            paint = mix(paint, vec3(0.2, 0.8, 0.3), postInk);
+        }
+    }
+    if (t > 0.0 && t < postT) {
+        vec2 spot = (ro + rd * t).xz;
+        float footprint = t * pixelAngle / max(abs(rd.y), 0.02);       // a pixel's width along the floor
+        vec2 toLine = abs(spot - floor(spot + 0.5));
+        float halfWidth = 0.015;
+        vec2 ink = clamp((halfWidth + 0.5 * footprint - toLine) / footprint, 0.0, 1.0);
+        ink = mix(ink, vec2(2.0 * halfWidth), smoothstep(0.25, 0.9, footprint));   // finer than a pixel: the average
+        float line = max(ink.x, ink.y);
+        vec3 ground = mix(vec3(0.12, 0.12, 0.13), vec3(0.85), line);
+        float xAxis = clamp((halfWidth * 2.0 + 0.5 * footprint - abs(spot.y)) / footprint, 0.0, 1.0);
+        float zAxis = clamp((halfWidth * 2.0 + 0.5 * footprint - abs(spot.x)) / footprint, 0.0, 1.0);
+        ground = mix(ground, vec3(0.95, 0.2, 0.15), xAxis * step(0.0, spot.x));
+        ground = mix(ground, vec3(0.2, 0.35, 1.0), zAxis * step(0.0, spot.y));
+        paint = mix(ground, paint, 1.0 - exp(-0.02 * t));
+    }
+    return paint;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(240.0, 135.0);
+    vec2 cell = floor(pixel / panelSize);
+    vec2 local = pixel - cell * panelSize;                // pixel coordinates inside the panel
+    int which = int(1.0 - cell.y) * 2 + int(cell.x);
+    float focal = 1.8;
+    float pixelAngle = camPixelAngle(2.0 * atan(1.0 / focal), panelSize.y);
+    vec3 pivot = vec3(0.0, 0.5, 0.0);
+    vec3 paint;
+    if (which == 0) {
+        vec3 ro = vec3(4.0, 2.2, 5.0);
+        mat3 basis = camLookAt(ro, pivot, 0.25 * sin(0.8 * iTime));
+        paint = cameraCardFloor(ro, camRay(local, panelSize, basis, focal), pixelAngle);
+    } else if (which == 1) {
+        vec3 ro = camOrbit(vec2(0.0), 0.6 + 0.5 * iTime, 6.0, pivot);
+        mat3 basis = camLookAt(ro, pivot, 0.0);
+        paint = cameraCardFloor(ro, camRay(local, panelSize, basis, focal), pixelAngle);
+    } else if (which == 2) {
+        vec3 eye = vec3(6.0, 5.0, 6.0);
+        mat3 basis = camLookAt(eye, vec3(0.0), 0.0);
+        vec3 ro = eye;
+        vec3 rd = camOrthoRay(uvCentered(local, panelSize), basis, 3.2, ro);
+        paint = vec3(0.07, 0.08, 0.12);
+        float best = 1e9;
+        for (int ball = 0; ball < 25; ball++) {
+            vec3 centre = vec3(float(ball % 5) - 2.0, 0.3, float(ball / 5) - 2.0);
+            vec2 roots = ixSphere(ro, rd, centre, 0.32);
+            if (roots.x > 0.0 && roots.x < best) {
+                best = roots.x;
+                vec3 n = normalize(ro + rd * roots.x - centre);
+                paint = vec3(0.9, 0.7, 0.4) * (0.2 + 0.8 * max(dot(n, normalize(vec3(0.3, 1.0, 0.5))), 0.0));
+            }
+        }
+    } else {
+        vec2 bulged = camBarrel(uvCentered(local, panelSize), 0.12);
+        float flightT = 1.3 + iTime;
+        vec3 amp = vec3(1.0, 0.7, 2.0);
+        vec3 freq = vec3(0.61, 0.47, 0.0);
+        vec3 vel;
+        vec3 acc;
+        vec3 ro = pathLissajous3(flightT, amp, freq, vel, acc);
+        mat3 basis = camBanked(vel, acc, 1.6);
+        vec3 rd = normalize(basis * vec3(bulged, -1.4));
+        paint = vec3(0.02, 0.02, 0.05);
+        for (int ring = 1; ring <= 8; ring++) {
+            float ringZ = (floor(ro.z / 1.5) + float(ring)) * 1.5;
+            float t = ixPlane(ro, rd, vec3(0.0, 0.0, 1.0), -ringZ);
+            if (t > 0.0) {
+                vec3 centreVel;
+                vec3 centreAcc;
+                vec3 centre = pathLissajous3(ringZ / amp.z, amp, freq, centreVel, centreAcc);
+                vec2 offset = (ro + rd * t).xy - centre.xy;
+                float notch = step(0.35, abs(atan(offset.x, -offset.y)));      // a gap where the ring points down
+                float onRing = (1.0 - smoothstep(0.05, 0.05 + t * pixelAngle * 2.0, abs(length(offset) - 1.5))) * notch;
+                vec3 ringColour = 0.5 + 0.4 * cos(6.2831853 * (ringZ * 0.11 + vec3(0.0, 0.33, 0.67)));
+                paint = mix(paint, ringColour * exp(-0.08 * t), onRing);
+                if (onRing > 0.5) {
+                    break;
+                }
+            }
+        }
+    }
+    vec2 toBorder = min(local, panelSize - local);
+    paint *= smoothstep(0.5, 1.5, min(toBorder.x, toBorder.y));
+    color = vec4(srgbEncode(clamp(paint, 0.0, 1.0)), 1.0);
+}

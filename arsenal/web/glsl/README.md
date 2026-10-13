@@ -31,11 +31,27 @@ float sminPoly(float a, float b, float k) { ... }
 | `cost` | the cost class: `O(1)`, `per-octave`, `per-step`, `per-sample`, with the loop counts that set it |
 | `note` | the craft note: when to reach for it and what it looks like when it is wrong |
 | `needs` | optional: modules or functions needed that the code does not call by name (e.g. a shared const) |
-| `params` | recipes only: `[{name, unit, range:[lo,hi], default, uniform}]`; each becomes a UI control on every surface |
+| `params` | recipes only: `[{name, unit, range:[lo,hi], default, uniform}]`; each becomes a UI control on every surface. The uniform is named `u_<recipeCamel>_<param>` (`u_auroraBand_hemHeight`, `u_neonLine_widthPx`), so two recipes on one page never collide |
+| `hooks` | optional: the prototypes of functions the module calls and its host must define (see Hooks below) |
 | `in` / `out` | optional typed ports (`vec3`, `float`, ...) when the module can sit in a bench chain |
 
 Dependencies are read from the code: a module that calls a function another module defines depends on it. You never
 list a dependency twice.
+
+## Hooks
+
+A hook is a function a module calls but does not define, because only the host knows it: the scene a marcher walks
+(`float mapScene(vec3 p)`), the density a volume march reads (`float densityAt(vec3 p)`), a surface's colour
+(`vec3 materialAt(vec3 p, vec3 n, float id)`). The module lists the prototype in its header's `hooks`, and the composer
+writes each prototype once, ahead of the code that calls it.
+
+**A host that composes a module declaring a hook defines that hook, even if it never calls the function that uses it;
+a stub is fine** (`float mapScene(vec3 p) { return 1e9; }`, `float densityAt(vec3 p) { return 0.0; }`). WebGL refuses
+to link a program in which a defined function calls an undefined one, and a module is composed whole: a sky that only
+wants `rmJitterStart` from `ray/march.glsl` still carries `rmSphereTrace`, which calls `mapScene`. A recipe that composes
+such a module repeats the obligation in its own `hooks`, so its host sees it in one place (aurora-sheets lists both
+`mapScene` and `densityAt`, and its card defines the stubs). The composer does not prune unreachable functions: that,
+or splitting the hook-free helpers into their own modules, is a later ruling (Vandor, 2026-10-13).
 
 ## Conventions (so modules compose without surprises)
 

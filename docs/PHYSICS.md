@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0be497f5. A bound you discover by collision is not awareness -- this sheet
+> Derived at 6ea924ba. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -293,7 +293,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (364 numeric constants)
+## Mechanical bounds (369 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -320,6 +320,7 @@ Class: reference
 | `BASS_LINE_MIN_NOTES` | 4 | arsenal/practice.py | a bass moving by step one way through this many notes, window to window, is a bass line |
 | `BASS_MAX_MIDI` | 60 | arsenal/practice.py | a bass sits below middle C: a higher lowest note is a register figure, not a bass |
 | `BENCH_MIN_SURFACED` | 10 | core/recall/curator.py | exposure floor: it had its chances... |
+| `BISECT_CAP` | 16 | arsenal/shaders/twins/ray.py |  |
 | `BODY_CHARS` | 12,000 | core/recall/lookback.py | rationale often sits DEEP: a synthesis doc's convergence and |
 | `BOOT_CAP` | 3 | core/coord/defer_queue.py |  |
 | `BRIDGE_TIMEOUT_S` | 60 | arsenal/jam/resolve.py |  |
@@ -442,6 +443,7 @@ Class: reference
 | `LOOPBACK_MS` | 15 | arsenal/practice_riff.py |  |
 | `LYDIAN_JOIN_MS` | 300 | arsenal/practice.py | back-to-back Lydian 4 windows this close, on one root and bass, are one moment |
 | `MANIFEST_TTL` | 300 | research/in-flight/t342/dead-modules/agent_coordinator_v2.py | 5 minutes - manifest expires if not refreshed |
+| `MARCH_CAP` | 256 | arsenal/shaders/twins/ray.py | every march loop's literal bound in the GLSL |
 | `MARK_TEXT_MAX` | 200 | arsenal/jam/schemas.py |  |
 | `MAX_ALSO_IN` | 6 | arsenal/jam/schemas.py |  |
 | `MAX_BACKOFF` | 30 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |
@@ -489,6 +491,7 @@ Class: reference
 | `MAX_SIDE` | 2,048 | arsenal/shaders/render.py |  |
 | `MAX_STARTUP_WAIT` | 120 | research/in-flight/t342/dead-modules/deployment_framework.py |  |
 | `MAX_STEPS` | 4,000 | arsenal/pianocue.py |  |
+| `MAX_STEPS` | 160 | arsenal/shaders/twins/groups_glow.py |  |
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
 | `MAX_STRING` | 200 | arsenal/pianolooks.py |  |
 | `MAX_TAGS` | 12 | arsenal/jam/schemas.py |  |
@@ -550,6 +553,7 @@ Class: reference
 | `READING_MIN_NOTES` | 3 | arsenal/practice_riff.py |  |
 | `REDIS_CHECK_TIMEOUT` | 30 | research/in-flight/t342/dead-modules/launch.py |  |
 | `REDIS_TIMEOUT` | 5 | config.py |  |
+| `REFINE_CAP` | 8 | arsenal/shaders/twins/ray.py |  |
 | `REHAB_MIN_CONTEXTS` | 8 | core/recall/replay.py | criterion 2: surfaced contexts per rehab candidate... |
 | `REHAB_MIN_SURFACED` | 10 | core/recall/forge_optimizer.py | rehab class definition (mirrors the audit / curator) |
 | `REHOME_CLAIM_TTL_S` | 30 | core/comm/reaper.py |  |
@@ -620,6 +624,7 @@ Class: reference
 | `VARIANT_LABEL_MAX` | 60 | arsenal/jam/schemas.py |  |
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
+| `VIS_MAX_SHADOW_STEPS` | 64 | arsenal/shaders/twins/light.py | visibility.glsl's constant loop ceiling (a literal 64 there) |
 | `WAKE_FLOOR_DEFAULT` | 2 | agent_cli.py |  |
 | `WAKE_NOTE_CAP` | 4 | scripts/bifrost_wake.py | messages named in the note; beyond this the line says "+N more" |
 | `WALK_STEP_MAX_MS` | 1,000 | arsenal/practice.py | ...and back-to-back windows this short, each on a new bass note under the same notes, are |

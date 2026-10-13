@@ -1,0 +1,95 @@
+//! {"card": "light-glow", "uses": ["light-glow", "core-rotate", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "TOP, three neon lines (orange, green, blue) drawn with the house light-line profile glowTwoGauss(24, 1, 3, 0.18) and coloured by glowHotCore, the intensity rising from left to right: on the left each line is dim and fully saturated; toward the right its core whitens while the halo either side keeps the line's own colour (the hottest channel leads and the others climb to meet it). MIDDLE LEFT, falloff against distance 0 to 1 across, 0 to 1.25 up: glowTwoGauss (green) peaks at 1.18 with a narrow core and a low wide shoulder, glowLorentz k = 0.01 (cyan) is a needle at 1 with the longest tail, glowExp k = 8 (amber) a sharp cusp at 1 falling to almost nothing by 0.5, and the 1/d accumulation of glowAccum (white, floor 0.05) flat at 1 up to 0.05 then falling as 1/d. BOTTOM RIGHT, the same tilted ring marched three ways at 40 steps: glowAccum (left, a hot 1/d halo hugging the ring), glowEmitStep with an exponential density (middle, a smooth even halo that would not change with the step count), glowStepCount with k = 2 of the steps spent within 0.25 of the ring (right: the silhouettes and the inner rim glow brightest, where the ray loitered; empty space far from the ring stays black; faint contour bands are the whole-number counts). A neon core that stays coloured at the right, a halo that whitens before its core, curves that cross zero, or a step-count panel bright in empty space is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/glow.glsl, written fresh for the house.
+
+float glowCardInk(float d) {
+    return 1.0 - smoothstep(0.6, 1.6, d);
+}
+
+// A ring of radius 0.62 and tube 0.16, tilted toward the viewer so its hole shows.
+float glowCardRing(vec3 p) {
+    vec3 tilted = vec3(p.x, rotate2(1.0) * p.yz);                    // core-rotate: one radian about x
+    vec2 aroundTube = vec2(length(tilted.xz) - 0.62, tilted.y);
+    return length(aroundTube) - 0.16;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.02, 0.022, 0.03);
+    if (pixel.y >= 150.0) {
+        // ---- neon lines, intensity rising across
+        float intensity = mix(0.15, 4.0, pixel.x / 480.0);
+        vec3 tints[3] = vec3[3](vec3(1.0, 0.35, 0.06), vec3(0.15, 1.0, 0.25), vec3(0.12, 0.3, 1.0));
+        vec3 light = vec3(0.0);
+        for (int strand = 0; strand < 3; strand++) {
+            float baseY = 244.0 - 36.0 * float(strand);
+            float phase = pixel.x * 0.035 + float(strand) * 1.7;
+            float lineY = baseY + 7.0 * sin(phase);
+            float slope = 7.0 * 0.035 * cos(phase);
+            float apart = abs(pixel.y - lineY) / sqrt(1.0 + slope * slope) / 16.0;    // in units of 16 px
+            float profile = glowTwoGauss(apart, vec4(24.0, 1.0, 3.0, 0.18));
+            light += glowHotCore(tints[strand], intensity * profile);
+        }
+        paint = srgbEncode(tmTanh(light));
+    } else if (pixel.x < 240.0) {
+        // ---- falloff plot
+        vec2 box = pixel - vec2(12.0, 10.0);
+        vec2 size = vec2(216.0, 130.0);
+        if (all(greaterThanEqual(box, vec2(0.0))) && all(lessThanEqual(box, size))) {
+            paint = vec3(0.07, 0.075, 0.09);
+            float yScale = size.y / 1.25;
+            paint = mix(paint, vec3(0.2, 0.21, 0.25), glowCardInk(abs(box.y - yScale)));    // the 1.0 line
+            float unitsPerPx = 1.0 / size.x;
+            float d = box.x * unitsPerPx;
+            float curves[4];
+            float nexts[4];
+            for (int side = 0; side < 2; side++) {
+                float at = d + float(side) * unitsPerPx;
+                float two = glowTwoGauss(at, vec4(24.0, 1.0, 3.0, 0.18));
+                float lor = glowLorentz(at, 0.01);
+                float ex = glowExp(at, 8.0);
+                float acc = glowAccum(vec3(0.0), vec3(0.05), at, 0.05).x;
+                if (side == 0) {
+                    curves[0] = two; curves[1] = lor; curves[2] = ex; curves[3] = acc;
+                } else {
+                    nexts[0] = two; nexts[1] = lor; nexts[2] = ex; nexts[3] = acc;
+                }
+            }
+            vec3 inks[4] = vec3[4](vec3(0.4, 0.95, 0.45), vec3(0.3, 0.85, 1.0), vec3(1.0, 0.7, 0.2), vec3(0.95));
+            for (int c = 0; c < 4; c++) {
+                float rise = (nexts[c] - curves[c]) * yScale;
+                paint = mix(paint, inks[c], glowCardInk(abs(box.y - curves[c] * yScale) / sqrt(1.0 + rise * rise)));
+            }
+        }
+    } else {
+        // ---- the ring, marched three ways; each panel 80 x 150
+        float which = floor((pixel.x - 240.0) / 80.0);
+        vec2 local = pixel - vec2(240.0 + 80.0 * which + 40.0, 75.0);
+        vec3 dir = normalize(vec3(local / 62.0, -1.5));
+        vec3 from = vec3(0.0, 0.0, 2.7);
+        vec3 tint = vec3(0.3, 0.6, 1.0);
+        vec3 halo = vec3(0.0);
+        float emitted = 0.0;
+        float travelled = 0.0;
+        float loitered = 0.0;                                         // steps spent within 0.25 of the ring
+        for (int stride = 0; stride < 40; stride++) {
+            float gap = glowCardRing(from + dir * travelled);
+            float advance = max(abs(gap), 0.02);
+            halo = glowAccum(halo, tint * 0.012, abs(gap), 0.01);
+            emitted += glowEmitStep(exp(-10.0 * abs(gap)), advance, 0.9);
+            travelled += advance;
+            loitered += abs(gap) < 0.25 ? 1.0 : 0.0;
+            if (travelled > 5.4) break;
+        }
+        vec3 light;
+        if (which < 0.5) {
+            light = halo;
+        } else if (which < 1.5) {
+            light = tint * emitted;
+        } else {
+            light = tint * 1.4 * glowStepCount(loitered, 40.0, 2.0);
+        }
+        paint = srgbEncode(tmTanh(light));
+        paint = mix(paint, vec3(0.0), glowCardInk(abs(local.x + 40.0) - 0.5));
+    }
+    color = vec4(paint, 1.0);
+}

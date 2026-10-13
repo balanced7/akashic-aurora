@@ -1,0 +1,38 @@
+//! {"card": "noise-triangle", "uses": ["noise-triangle", "core-shaping"], "t": [0, 2], "size": [480, 270],
+//!  "note": "LEFT SQUARE: the use the aurora makes of it: four octaves of noiseTriangle2 lit through a steep transfer (shpInvPower of the field), so its creases glow as thin green-cyan filaments, long and ragged, on a dark ground, with no repeating tile anywhere. Between t = 0 and t = 2 the filaments churn in place (the warp turns) rather than sliding across. RIGHT, TOP: the raw field in grey: mid-grey on average, the creases dark, crinkled like foil. RIGHT, MIDDLE: one octave alone, lit the same way in amber: crisp zig-zag polylines, the bent triangle wave's valleys. RIGHT, BOTTOM: four octaves on a domain stretched five to one across, lit violet-green: hanging vertical rays, the curtain fabric. A broken module shows a visible square or diamond tile, a frozen or sliding picture between the two times, a flat field, or a hard seam."}
+// Apache-2.0, Akashic Aurora. The test card of noise/triangle.glsl, written fresh for the house.
+
+// Filament light from the field: small values (the creases) become bright, shaped by the house inverse power.
+float triangleCardGlow(float field, float radius, float power) {
+    float light = min(shpInvPower(field, radius, power), 60.0);
+    return 1.0 - exp(-0.35 * light);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.015, 0.02, 0.03);
+    const float split = 270.0;                     // the left panel is a 270 x 270 square
+    if (pixel.x < split) {
+        vec2 p = (pixel - vec2(135.0)) / 135.0 * 2.4;
+        float field = noiseTriangle2(p, iTime, 4);
+        paint += vec3(0.25, 1.0, 0.7) * triangleCardGlow(field, 0.16, 2.2);
+    } else {
+        vec2 p = (pixel - vec2(375.0, 135.0)) / 135.0 * 2.4;
+        if (pixel.y >= 180.0) {
+            float field = noiseTriangle2(p, iTime, 4);
+            paint = vec3(field);
+        } else if (pixel.y >= 90.0) {
+            float field = noiseTriangle2(p, iTime, 1);
+            paint += vec3(1.0, 0.68, 0.25) * triangleCardGlow(field, 0.08, 2.5);
+        } else {
+            float field = noiseTriangle2(p * vec2(5.0, 0.5), iTime, 4);
+            float rise = clamp(pixel.y / 90.0, 0.0, 1.0);          // green low, violet high, like the real thing
+            vec3 tint = mix(vec3(0.3, 1.0, 0.55), vec3(0.65, 0.35, 1.0), rise);
+            paint += tint * triangleCardGlow(field, 0.16, 2.2);
+        }
+        // hairline separators between the three bands and against the square
+        float seam = min(abs(pixel.y - 180.0), abs(pixel.y - 90.0));
+        paint = mix(paint, vec3(0.35, 0.37, 0.42), 1.0 - smoothstep(0.5, 1.2, seam));
+    }
+    paint = mix(paint, vec3(0.35, 0.37, 0.42), 1.0 - smoothstep(0.5, 1.2, abs(pixel.x - split)));
+    color = vec4(paint, 1.0);
+}

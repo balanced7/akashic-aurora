@@ -27,10 +27,17 @@ frame's centre, a sky that reshaped in a second, IGN hatching, speckle at the kn
 has a pin below that fails on the recipes as they were (checked against a copy of the old twin) and holds on the fix.
 Recipe uniforms follow Vandor's ruling (b): u_<recipeCamel>_<param>.
 
+THE FRINGE FIX (2026-10-13, the re-review). The fringe knob drew a crisp saturated line along every hem across the
+frame (the outlines again), the sheets' fringe over a far arc's body blew to white, house hot spots passed the white
+ceiling at the card's size, and the band's curtains ended in vertical walls. Each has a pin written first and seen
+failing on the recipes as they were, the white ceiling and the fringe's thin-edge rule on the GPU too (the extremes
+parity card).
+
 Apache-2.0, Akashic Aurora. Written fresh for the house; no corpus code.
 """
 from __future__ import annotations
 
+import functools
 import json
 import math
 import re
@@ -442,17 +449,219 @@ def test_aurora_is_never_silver_and_never_blown_to_white():
     to white. Measured in the finished picture (the cards' superlinear highlight and tanh), over every pixel the curtain
     lights: the physical and chromatic palettes keep their colour (the least saturated two per cent above 0.6, no pixel
     whose weakest channel passes 0.35); the house palette, whose ice cyan is pale by design, keeps the least saturated
-    two per cent above 0.4 and every weakest channel under 0.8."""
+    two per cent above 0.4 and every weakest channel under 0.8. The re-review (same day) found the sheets with the
+    fringe on blowing to (0.96, 0.96, 0.95) where a near arc's fringe crossed a farther arc's body: the sheets carry the
+    fringe in every palette here too."""
     res = np.array([240.0, 135.0])
     cases = [(_band, {}, "physical"), (_band, dict(palette=2), "chromatic"), (_band, dict(fringe=1.0), "physical"),
              (_band, dict(palette=0), "house"), (_band, dict(palette=0, fringe=1.0), "house"),
-             (_sheets, {}, "physical"), (_sheets, dict(palette=2), "chromatic"), (_sheets, dict(palette=0), "house")]
+             (_band, dict(palette=2, fringe=1.0), "chromatic"),
+             (_sheets, {}, "physical"), (_sheets, dict(palette=2), "chromatic"), (_sheets, dict(palette=0), "house"),
+             (_sheets, dict(fringe=1.0), "physical"), (_sheets, dict(palette=0, fringe=1.0), "house"),
+             (_sheets, dict(palette=2, fringe=1.0), "chromatic")]
     for tier, over, kind in cases:
         for clock in (0.0, 4.0):
             rgb = _curtain_colours(tier, res, clock, **over)
             sat, white = np.percentile(_saturation(rgb), 2), rgb.min(-1).max()
             floor, ceiling = (0.4, 0.8) if kind == "house" else (0.6, 0.35)
             assert sat > floor and white < ceiling, (tier.__name__, over, clock, round(sat, 3), round(white, 3))
+
+
+# ---- the re-review of the look fix (2026-10-13): the fringe as an outline, white at the extremes, walls in the band
+CARD_RES = np.array([480.0, 270.0])                       # every aurora card renders at this size
+STAR = 0.3 * np.array([0.55, 0.65, 1.0])                 # the cards' brightest star (bandCardStars, sheetsCardStars)
+WHITE_CEILING = 0.9                                      # the brief: no finished channel trio all above this
+
+
+@functools.lru_cache(maxsize=None)
+def _card_picture(tier, clock, items):
+    """A tier's scene-linear light at the cards' 480 x 270 (rows bottom up), its knobs at the defaults but for
+    `items`. Cached: several pins read the same pictures."""
+    fn = _band if tier == "band" else _sheets
+    lin = fn(_grid(480, 270), CARD_RES, clock, **dict(items))
+    lin.setflags(write=False)
+    return lin
+
+
+def _extreme(tier, palette):
+    """Every light-making knob at its top: intensity 3, the full fringe, rays and folds, and (the band) three
+    curtains, so near curtains' fringes cross far ones' bodies and creases, rays and folds pile up."""
+    over = dict(palette=palette, intensity=3.0, fringe=1.0, rays=1.0, fold=1.0)
+    if tier == "band":
+        over["curtains"] = 3
+    return tuple(sorted(over.items()))
+
+
+def test_aurora_is_never_blown_to_white_at_any_knob_extreme():
+    """Re-review 2026-10-13: at the card's 480 x 270 the house palette's hot spots reached a weakest channel of 0.81 to
+    0.83 at the defaults (past the 0.8 the pin above allows; its 240 x 135 grid missed them), 0.96 at intensity 3
+    with the fringe and three curtains, and the sheets' fringe crossing a far arc's body reached (0.96, 0.96, 0.95).
+    The brief: at every knob extreme, in every palette, no pixel's weakest channel passes 0.9. Measured in the finished
+    picture with the cards' brightest star added on top of every pixel (the worst a card can stack), at the full card
+    size for the extremes and on a 240 x 135 grid for every corner of the hem and width ranges; and at the defaults the
+    house palette keeps its own 0.8 at the full card size."""
+    lib = M.load_library(strict=False)
+    for tier, file in (("band", "groups/aurora-band.glsl"), ("sheets", "groups/aurora-sheets.glsl")):
+        knobs = {p["name"]: p for p in _module(lib, file).header["params"]}
+        fn = _band if tier == "band" else _sheets
+        for palette in (0, 1, 2):
+            items = _extreme(tier, palette)
+            white = _finished(_card_picture(tier, 4.0, items) + STAR).min(-1).max()
+            assert white <= WHITE_CEILING, (tier, palette, "extremes at 480 x 270", round(float(white), 3))
+            for hem in knobs["hemHeight"]["range"]:
+                for width in knobs["curtainWidth"]["range"]:
+                    lin = fn(_grid(240, 135), np.array([240.0, 135.0]), 4.0,
+                             **dict(items, hemHeight=hem, curtainWidth=width))
+                    white = _finished(lin + STAR).min(-1).max()
+                    assert white <= WHITE_CEILING, (tier, palette, hem, width, round(float(white), 3))
+        for clock in (0.0, 4.0):
+            white = _finished(_card_picture(tier, clock, (("palette", 0),))).min(-1).max()
+            assert white < 0.8, (tier, "house palette at the defaults, 480 x 270", clock, round(float(white), 3))
+
+
+def _fringe_mask(rgb, palette):
+    """The pixels of a finished picture whose colour is the fringe's own: OKLab hue within 30 degrees of the fringe
+    tint's, chroma above 0.045 and lightness above 0.18 (the house sky peaks at lightness 0.19 but chroma 0.026, so no
+    sky pixel passes; the bodies' hues sit 60 degrees and more away)."""
+    from arsenal.shaders.twins import colour as C
+    lab = np.asarray(C.oklabFromLinear(C.srgbDecode(np.clip(rgb, 0.0, 1.0))), np.float64)
+    hue = np.degrees(np.arctan2(lab[..., 2], lab[..., 1])) % 360.0
+    off = np.abs((hue - _hue_deg(_aurora().fringeTint(palette)) + 180.0) % 360.0 - 180.0)
+    return (off < 30.0) & (np.hypot(lab[..., 1], lab[..., 2]) > 0.045) & (lab[..., 0] > 0.18)
+
+
+def _pieces(mask):
+    """The mask's connected pieces as (first column, last column); pixels within two of each other join, so a
+    one-pixel break does not split a line in two."""
+    h, w = mask.shape
+    seen = np.zeros_like(mask)
+    out = []
+    for y, x in zip(*np.nonzero(mask)):
+        if seen[y, x]:
+            continue
+        seen[y, x] = True
+        todo, lo, hi = [(y, x)], x, x
+        while todo:
+            cy, cx = todo.pop()
+            lo, hi = min(lo, cx), max(hi, cx)
+            ys, xs = slice(max(cy - 2, 0), min(cy + 3, h)), slice(max(cx - 2, 0), min(cx + 3, w))
+            for ny, nx in zip(*np.nonzero(mask[ys, xs] & ~seen[ys, xs])):
+                seen[ys.start + ny, xs.start + nx] = True
+                todo.append((ys.start + ny, xs.start + nx))
+        out.append((lo, hi))
+    return out
+
+
+def _run_lengths(mask):
+    """For every pixel of the mask, the length of the vertical run it sits in (columns of the array)."""
+    out = np.zeros(mask.shape, dtype=np.int64)
+    padded = np.concatenate([np.zeros((1, mask.shape[1]), np.int8), mask.astype(np.int8),
+                             np.zeros((1, mask.shape[1]), np.int8)], 0)
+    edges = np.diff(padded, axis=0)
+    for x in range(mask.shape[1]):
+        for a, b in zip(np.nonzero(edges[:, x] == 1)[0], np.nonzero(edges[:, x] == -1)[0]):
+            out[a:b, x] = b - a
+    return out
+
+
+def _runs(mask):
+    """How thick the mask is at each of its pixels: the shorter of the vertical and the horizontal run through it, so
+    a thin edge reads thin however it turns (along a hem, or up the side of a fold)."""
+    across = np.minimum(_run_lengths(mask), _run_lengths(mask.T).T)
+    return across[mask]
+
+
+def _check_fringe_is_an_edge(rgb, palette, label, thickness=(2, 3)):
+    """A thin coloured edge, never a full-width line: no piece longer than a third of the frame, and thin (at 95 per
+    cent of its pixels at most thickness[0] pixels across at 480 x 270, nowhere past thickness[1]). Returns its longest
+    piece, in pixels, for the caller's check that it is drawn at all."""
+    width = rgb.shape[1]
+    mask = _fringe_mask(rgb, palette)
+    spans = [hi - lo + 1 for lo, hi in _pieces(mask)] or [0]
+    runs = _runs(mask) if mask.any() else np.zeros(1, np.int64)
+    assert max(spans) <= width / 3.0, f"{label}: a fringe line {max(spans)} px long across {width}: an outline"
+    assert np.percentile(runs, 95) <= thickness[0] and runs.max() <= thickness[1], \
+        f"{label}: the fringe is {np.percentile(runs, 95):.0f} px thick (95th percentile), {runs.max()} at most"
+    return max(spans)
+
+
+def test_aurora_fringe_is_a_thin_coloured_edge_never_a_full_width_line():
+    """Re-review 2026-10-13, MEDIUM-HIGH: with the energetic fringe on, either tier drew a crisp saturated line along
+    every ragged hem across the whole frame, coral in House and magenta in Physical, 3 to 4 px thick at fringe 1: with
+    three curtains, the review's rows of hills with glowing outlines. The old pins only checked that the fringe sits
+    under the body. The lower border of a real display is energetic only in places, under the brightest stretches of
+    the curtain. At the full fringe, in every palette, both tiers, at the card size: the fringe shows as pieces of a
+    thin coloured edge (at most 2 px across, 3 anywhere), none longer than a third of the frame, and a stretch of it at
+    least 4 per cent of the frame long is drawn. With every light-making knob at its top the edge may wrap up the side
+    of a fold seen edge-on: at most 3 px across, 5 anywhere."""
+    for tier in ("band", "sheets"):
+        for palette in (0, 1, 2):
+            longest = 0
+            for clock in (0.0, 4.0):
+                items = (("curtains", 3), ("fringe", 1.0), ("palette", palette)) if tier == "band" else \
+                    (("fringe", 1.0), ("palette", palette))
+                rgb = _finished(_card_picture(tier, clock, items))
+                label = f"{tier}, palette {palette}, t = {clock}"
+                longest = max(longest, _check_fringe_is_an_edge(rgb, palette, label))
+            assert longest >= 0.04 * CARD_RES[0], f"{tier}, palette {palette}: the fringe is not drawn ({longest} px)"
+            rgb = _finished(_card_picture(tier, 4.0, _extreme(tier, palette)))
+            longest = _check_fringe_is_an_edge(rgb, palette, f"{tier}, palette {palette}, every knob at its top",
+                                               thickness=(3, 5))
+            assert longest >= 0.04 * CARD_RES[0], f"{tier}, palette {palette}, every knob at its top: not drawn"
+
+
+def _band_gate_row(clock, curtainWidth, samples=1920):
+    """The band's gap gate as the picture shows it, along one curtain at the card size: light over the light with no
+    fabric and no breathing (view 2), unbent from the glow lift, over the fabric (view 1), read 6 px above the hem
+    line, 4 samples a pixel. One curtain, no rays, no fringe, no sky: what is left is the breathing alone."""
+    a = _aurora()
+    res = CARD_RES
+    x_px = (np.arange(samples) + 0.5) * res[0] / samples
+    x = (2.0 * x_px - res[0]) / res[1]
+    hem = _defaults("groups/aurora-band.glsl")["hemHeight"]
+    y = a.bandHemLine(x, clock, hem, curtainWidth, res[0] / res[1]) + 12.0 / res[1]
+    pixel = np.stack([x_px, (y * res[1] + res[1]) / 2.0], -1)
+    over = dict(curtains=1, rays=0.0, fringe=0.0, sky=0.0, curtainWidth=curtainWidth)
+    lit = _band(pixel, res, clock, **over) @ LUMA
+    bare = _band(pixel, res, clock, view=2, **over) @ LUMA
+    fabric = 4.0 * _band(pixel, res, clock, view=1, **over)[..., 0]
+    gate = (lit / np.maximum(bare, 1e-12)) ** _aurora().GLOW_GAMMA / np.maximum(fabric, 1e-12)
+    return x_px, np.where(bare > 1e-9, gate, np.nan)
+
+
+def _climbs(x, gate):
+    """Every climb of the gate from at most 2 per cent of full to at least half (either way along x): (its length in
+    pixels, where it ends)."""
+    out, last_low, last_high = [], None, None
+    for i in range(gate.size):
+        if gate[i] <= 0.02:
+            if last_high is not None and (last_low is None or last_low < last_high):
+                out.append((x[i] - x[last_high], x[i]))
+            last_low = i
+        elif gate[i] >= 0.5:
+            if last_low is not None and (last_high is None or last_high < last_low):
+                out.append((x[i] - x[last_low], x[i]))
+            last_high = i
+    return out
+
+
+def test_band_curtain_ends_fade_never_walls():
+    """Re-review 2026-10-13, LOW-MEDIUM: the breath gate smoothstep(0.1, 0.75, envBreath) depends on x alone, and at
+    several gap edges it climbed from 2 to 50 per cent of full in 2 to 5 px, so curtains ended in straight vertical
+    walls the full height of the curtain (the near curtain's right end at x = 473 at t = 0); at curtain width 0.3 the
+    band broke into rectangular panels. A curtain's brightness fades out along it: every climb from 2 to 50 per cent
+    of full takes at least 8 px at the card size, at every curtain width (and the gaps are still there to climb out
+    of)."""
+    seen = 0
+    for width in (0.3, 1.0, 3.0):
+        for clock in (0.0, 2.0, 4.0, 37.0, 123.0):
+            x_px, gate = _band_gate_row(clock, width)
+            ok = np.isfinite(gate)
+            assert ok.mean() > 0.9 and np.nanmax(gate) > 0.5, (width, clock, "the curtain is lit along the row")
+            for span, at in _climbs(x_px[ok], gate[ok]):
+                seen += 1
+                assert span >= 8.0, f"width {width}, t = {clock}: a curtain ends in {span:.1f} px at x = {at:.0f}"
+    assert seen >= 10, f"only {seen} curtain ends across fifteen rows: the gaps are gone"
 
 
 def test_band_intensity_scales_the_light_through_the_hue_safe_lift():
@@ -792,6 +1001,48 @@ def _twin_parity_image():
     return np.round(np.tanh(np.clip(out, 0.0, 10.0)) * 255.0)[::-1]       # PNG rows run top down
 
 
+# The aurora tiers with every light-making knob at its top (_extreme), one panel per palette, at the cards' 480 x 270,
+# finished the cards' way without the vignette and the dither (srgbEncode(tanh(tmSuperlinear(c, 0.85)))): the band
+# along the top row, the sheets along the bottom. The GPU's own picture must then hold the white ceiling and the
+# fringe's thin-edge rule, besides matching the twins.
+EXTREMES_CARD = """\
+//! {"card": "parity-aurora-extremes", "uses": ["aurora-band", "aurora-sheets", "legacy-tone-superlinear",
+//!  "display-out"], "t": [0], "size": [1440, 540],
+//!  "note": "Not a house card: the aurora tiers at every light-making knob's top (intensity 3, fringe 1, rays 1,
+//!  folds 1, three curtains), one 480x270 panel per palette, the band above and the sheets below, finished by the
+//!  house tail without the vignette and the dither, compared with the CPU twins and held to the white ceiling and the
+//!  fringe's thin-edge rule."}
+// Apache-2.0, Akashic Aurora. Written fresh for the parity test.
+float densityAt(vec3 p) { return 0.0; }
+float mapScene(vec3 p) { return 1e9; }
+void mainImage(out vec4 color, in vec2 pixel) {
+    int column = int(pixel.x) / 480;
+    int row = int(pixel.y) / 270;
+    vec2 local = pixel - vec2(480.0 * float(column), 270.0 * float(row));
+    vec2 res = vec2(480.0, 270.0);
+    vec3 c;
+    if (row == 1) {
+        c = auroraBand(local, res, 4.0, 3.0, 0.6, 1.0, 1.0, 1.0, 1.0, column, 1.0, 3, 0);
+    } else {
+        vec3 eye = vec3(0.0);
+        c = auroraSheets(local, res, eye, camLookAt(eye, vec3(0.0, 0.22, -1.0), 0.0), 1.8, 4.0, 3.0, 1.0, 0.8, 1.0, 1.0,
+                         1.0, column, 1.0, 0.55, 36, 0);
+    }
+    color = vec4(srgbEncode(tmTanh(tmSuperlinear(max(c, vec3(0.0)), 0.85))), 1.0);
+}
+"""
+
+
+def _twin_extremes_image():
+    """The twin of EXTREMES_CARD as 8-bit codes, PNG rows top down."""
+    out = np.zeros((540, 1440, 3))
+    for palette in (0, 1, 2):
+        cols = slice(480 * palette, 480 * (palette + 1))
+        out[270:, cols] = _finished(_card_picture("band", 4.0, _extreme("band", palette)))
+        out[:270, cols] = _finished(_card_picture("sheets", 4.0, _extreme("sheets", palette)))
+    return np.round(out * 255.0)[::-1]
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH (the headless driver)")
 def test_the_glsl_matches_its_twins_on_swiftshader(tmp_path):
@@ -799,12 +1050,13 @@ def test_the_glsl_matches_its_twins_on_swiftshader(tmp_path):
     cards_dir = tmp_path / "cards"
     cards_dir.mkdir()
     (cards_dir / "parity-groups-g1.card").write_text(PARITY_CARD, encoding="utf-8", newline="\n")
-    report = K.render_cards(["parity-groups-g1"], cards_dir=cards_dir, out_root=tmp_path / "out",
-                            allow_tracked=True, lock_wait_min=5, quiet=True)
+    (cards_dir / "parity-aurora-extremes.card").write_text(EXTREMES_CARD, encoding="utf-8", newline="\n")
+    report = K.render_cards(["parity-groups-g1", "parity-aurora-extremes"], cards_dir=cards_dir,
+                            out_root=tmp_path / "out", allow_tracked=True, lock_wait_min=5, quiet=True)
     if report["driver"].get("error") and "lock" in str(report["driver"]["error"]).lower():
         pytest.skip(f"the GPU lock stayed busy: {report['driver']['error']}")
-    row = report["cards"][0]
-    assert row["compile_ok"] is True and row["nan_pixels"] == 0, row
+    for row in report["cards"]:
+        assert row["compile_ok"] is True and row["nan_pixels"] == 0, row
     png = sorted((tmp_path / "out" / "parity-groups-g1").glob("t0*.png"))[0]
     gpu = np.asarray(Image.open(png).convert("RGB")).astype(np.float64)
     cpu = _twin_parity_image()
@@ -816,3 +1068,24 @@ def test_the_glsl_matches_its_twins_on_swiftshader(tmp_path):
         # (float32 against float64 through a steep transfer) differ by two; a broken wiring differs everywhere
         assert miss.max() <= 2 and np.mean(miss > 1) < 0.005, \
             f"{name}: {np.mean(miss > 1):.4f} of pixels off by more than one code, worst {miss.max()}"
+    # the extremes: the GPU against the twins, then the GPU's own picture against the brief. Measured 2026-10-13: at
+    # most 0.03 per cent of a panel's pixels off by more than one code and 24 pixels (0.02 per cent) by more than two.
+    # With every knob at its top the sheets are sensitive at a few pixels: moving a pixel by a thousandth of itself
+    # changes up to 24 of them by more than two codes in the twin alone (fringe or none), and float32 coordinates are
+    # such a move. So a handful may differ; a broken wiring differs everywhere, and on average
+    png = sorted((tmp_path / "out" / "parity-aurora-extremes").glob("t0*.png"))[0]
+    gpu = np.asarray(Image.open(png).convert("RGB")).astype(np.float64)
+    cpu = _twin_extremes_image()
+    for palette in (0, 1, 2):
+        for tier, rows in (("band", slice(0, 270)), ("sheets", slice(270, 540))):
+            cols = slice(480 * palette, 480 * (palette + 1))
+            miss = np.abs(gpu[rows, cols] - cpu[rows, cols]).max(-1)
+            label = f"{tier}, palette {palette}, every knob at its top, on the GPU"
+            assert np.mean(miss > 2) < 0.0005 and np.mean(miss > 1) < 0.005 and miss.mean() < 0.2, \
+                f"{label}: {np.mean(miss > 2):.5f} of pixels off by more than two codes, {np.mean(miss > 1):.5f} by " \
+                f"more than one, {miss.mean():.3f} on average"
+            g = gpu[rows, cols] / 255.0
+            white = g.min(-1).max()
+            assert white <= WHITE_CEILING, f"{label}: a pixel's weakest channel is {white:.3f}"
+            longest = _check_fringe_is_an_edge(g[::-1], palette, label, thickness=(3, 5))
+            assert longest >= 0.04 * 480, f"{label}: the fringe is not drawn ({longest} px)"

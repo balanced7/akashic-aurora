@@ -2,6 +2,18 @@
   "api": "arsenal.glsl-module/v1",
   "files": [
     {
+      "path": "atmos/aurora.glsl",
+      "sha256": "cfcec090d09f3e0c5875b0813cb8ca374d1991a7f9f8462abe24781dbe169623"
+    },
+    {
+      "path": "atmos/fog.glsl",
+      "sha256": "b4f51c029cda615670faf1028ca57ef551323577861ca6dc9cbb1b8dfe98a34b"
+    },
+    {
+      "path": "atmos/sky.glsl",
+      "sha256": "9a8648e189b6f67a393497d761d585f5a28eff43dbedae31516ceabd4868f099"
+    },
+    {
       "path": "colour/grade.glsl",
       "sha256": "ffc07a483bf845b71d9b91a152d012e7dc8dab0c70a476f5f81bd0dd5ec12444"
     },
@@ -24,6 +36,10 @@
     {
       "path": "composite/blend.glsl",
       "sha256": "b40bf8d8b86d8dd08695c11c7a0a0eb68fcc4ac0fc28d6c177acea2e79e7b9b1"
+    },
+    {
+      "path": "composite/parity.glsl",
+      "sha256": "0742ea1b92265e73346f4dedcd4f8daa617320e90c1fcd84f88753fcbdb85def"
     },
     {
       "path": "core/clock.glsl",
@@ -62,8 +78,52 @@
       "sha256": "2a5aadb4dcba1372131774193db22fda17a96c2719e78122bc3f2708a2191d1d"
     },
     {
+      "path": "draw2/aa.glsl",
+      "sha256": "693c79221244718f6614b57611d76ab68bf296f572fe47db87a73e2da981c6d6"
+    },
+    {
+      "path": "draw2/domain2.glsl",
+      "sha256": "06bdf34b00c976b41c8511287b1a173302ba4e8b9d642c75d78602198cce3d5a"
+    },
+    {
+      "path": "draw2/lattice.glsl",
+      "sha256": "ad0b1d34e6043e8d1640a2382cf9cbeaf7ae47c7f0de238741ce2ce7df8449cf"
+    },
+    {
+      "path": "draw2/pattern.glsl",
+      "sha256": "925d173257c177c3eadc7b706edb5004d55d02983114e4cc25d751aa226c15d5"
+    },
+    {
+      "path": "draw2/sdf2.glsl",
+      "sha256": "7ef93a5f6d6a94af0f679d609e75228eb634497071250209927ba1cde87bd537"
+    },
+    {
+      "path": "groups/aurora-band.glsl",
+      "sha256": "f14e440394bffaf470a058166d099ca3a6e5f8610015e0d9487bc5db2420989e"
+    },
+    {
+      "path": "groups/aurora-sheets.glsl",
+      "sha256": "b56d3fb5d9bae65ab58a612a5c453e8c40c988cb1441424ca5d050acf409a265"
+    },
+    {
+      "path": "groups/glow-xray.glsl",
+      "sha256": "6d407875715f5b024450a965785e24e631bbca443fb2caf65a9e1b2036e89f5d"
+    },
+    {
+      "path": "groups/hex-neon.glsl",
+      "sha256": "2f61c289cdd8cb1c9cb571c0eb49ff23fdac9d8f70ab5b924fb0e0f59ec01914"
+    },
+    {
+      "path": "groups/neon-line.glsl",
+      "sha256": "1864d4fd96ea9f6986176b51a18495c832b543735d0d232080a464514cf76702"
+    },
+    {
+      "path": "groups/studio-object.glsl",
+      "sha256": "5038bedff64fb46f609090df8788cfae3f1cc68a530884b2f25be89769e90b29"
+    },
+    {
       "path": "hash/pcg.glsl",
-      "sha256": "e61f38617b3efda4b01669a05c6ce8127410ff868d9f7754614ec5e961594e44"
+      "sha256": "ecf576a8fd7eb740889f076097097a9c4b829e1d73e0b4330f9a3da56bbe8d19"
     },
     {
       "path": "input/audio.glsl",
@@ -86,6 +146,42 @@
       "sha256": "54f35e031ed4a6b7f3e7e2961a207c54797db0f74c8d7a4fe3a017471bb736ae"
     },
     {
+      "path": "light/diffuse.glsl",
+      "sha256": "65252eb58efc82496ba2f20739a8294c92d780e1e27196d04ee946cbca2a1e99"
+    },
+    {
+      "path": "light/env.glsl",
+      "sha256": "5a11f4082844123f8c0ab4c55a63a23875e6160011085b5e6c4775998b763d05"
+    },
+    {
+      "path": "light/fresnel.glsl",
+      "sha256": "5c41ded1325601e5aad7021e6839c5407530dc3c37716a94231801fbb85ac2a3"
+    },
+    {
+      "path": "light/glass.glsl",
+      "sha256": "ad06bff6c53f023d1b85364db9ecad2e31e9013b9692d890dbfd58a2f2d29b1f"
+    },
+    {
+      "path": "light/glow.glsl",
+      "sha256": "7c49ac415dbf7e75d1b4c324a0e72dd110c321af134498ffcff24bcb6ef0e6a5"
+    },
+    {
+      "path": "light/lights.glsl",
+      "sha256": "67f79fbd07110cbd8ca617deebd9661c320a5b05615f5c70f18a5742be3aef38"
+    },
+    {
+      "path": "light/rigs.glsl",
+      "sha256": "54b8dd339cf9eb22bb15e61b5ba8d7a5c5c39eaa7fb6a5a74bfbbe161ef86554"
+    },
+    {
+      "path": "light/specular.glsl",
+      "sha256": "ee1c58dc601137d3a4be26386a0250e7499c83decf7b75dba56b2b0f4d385fd4"
+    },
+    {
+      "path": "light/visibility.glsl",
+      "sha256": "9e3f960c27d089fd4f771107fcd009e824d4843682409949d61a9a59ae8cdc9d"
+    },
+    {
       "path": "motion/envelope.glsl",
       "sha256": "4467e79526955ff28b34d7d06174dde4530bee4f2db4d3d968d5f52f79e7d349"
     },
@@ -99,11 +195,15 @@
     },
     {
       "path": "noise/gradient.glsl",
-      "sha256": "7d065b8391a254292cbacc48afe5ad32e8743ec3436a47d6b5076878fc4785fc"
+      "sha256": "f6360093b95ccce1d0b0b72ee9225112e421f3b465ae75bc347e7952736ead4e"
+    },
+    {
+      "path": "noise/triangle.glsl",
+      "sha256": "5f8e4040824696c12c451ba5f3aee1fab578dbfb2763735378e39c0480c1b85f"
     },
     {
       "path": "noise/value.glsl",
-      "sha256": "c5dcb2596b1e080f4bea1ca50f7894e63dc2e7b985478d62ea3d7b20218c748f"
+      "sha256": "ce749549a004d626bbece174320d8dc70f641f6e49d896115d7a97158bf9cb4c"
     },
     {
       "path": "noise/warp.glsl",
@@ -122,8 +222,56 @@
       "sha256": "18018ac30cb15bb9afe8bee7fe146dd25036fbb3cee157fc64fe6c62f1d7a61f"
     },
     {
+      "path": "ray/aa3.glsl",
+      "sha256": "c48b773e50bd981519c06d54c1729f9c48be3ccbc54c9cb4380493dff5fbc48a"
+    },
+    {
+      "path": "ray/camera.glsl",
+      "sha256": "a225f96860546130693b44827a626f258eb1e84b85988b188fba563a8ad1f761"
+    },
+    {
+      "path": "ray/intersect.glsl",
+      "sha256": "21f14a80b35854d6b5e2e0a9019ceca0608dbba8118150d5f679a8864f387135"
+    },
+    {
+      "path": "ray/march.glsl",
+      "sha256": "0b24d16bab6f57cf4493d315b039b078ebdaf3d4d5449e5fd02da49e19d58e2a"
+    },
+    {
+      "path": "ray/normals.glsl",
+      "sha256": "8758c45a61ca5fff38c1478e04ed2300c56ff3feab1245a9b1011751441fb331"
+    },
+    {
+      "path": "sdf/combine.glsl",
+      "sha256": "d27bbb1f242d1e26b4b0c67068da390e350cc742555ae454e3e9039f3d6dbf47"
+    },
+    {
+      "path": "sdf/domain3.glsl",
+      "sha256": "027d5b977f1b6dd0991995fa3bee293813319ddebfc5a542539e377a08878db6"
+    },
+    {
+      "path": "sdf/shapes.glsl",
+      "sha256": "c3b92821461054e84f64191ccc0ac4f8412f13e8f805be67984b9789cf1fa0ca"
+    },
+    {
       "path": "sim/feedback.glsl",
       "sha256": "1f1f6f24b06089240be293b9b9f7099f94830a5300b60c1ac74f6cf422299b11"
+    },
+    {
+      "path": "volume/density.glsl",
+      "sha256": "7164ade4d80571cf72b093565d8ef25b34614c69ce011a472b6c5149ac172b28"
+    },
+    {
+      "path": "volume/integrate.glsl",
+      "sha256": "08aeefba9522cfd060c25e846cc057a4e7c35d279fa1fe7d7131ea36a20ed47a"
+    },
+    {
+      "path": "volume/march.glsl",
+      "sha256": "bfeb29107bce61115dd4c36034708b4703b4704a597dc92b084ac7d79e2a4759"
+    },
+    {
+      "path": "volume/phase.glsl",
+      "sha256": "677a59534cf193bbca39feb3dbfcbdd23433a703f1189f7edf20aa871208c27e"
     }
   ]
 }

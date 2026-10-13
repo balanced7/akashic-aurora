@@ -1,7 +1,7 @@
 """py -m arsenal shader atlas -- the primitive atlas as data: what the house library plans, and how much of it is built.
 
     py -m arsenal shader atlas                          # families with their counts, planned against built
-    py -m arsenal shader atlas --status P0              # the parts to build tonight (190 rows after the rulings)
+    py -m arsenal shader atlas --status P0              # the parts to build tonight (199 rows after the rulings)
     py -m arsenal shader atlas --family B [--category B3] [--built] [--json]
     py -m arsenal shader atlas --groups | --ledger | --tags | --rulings
 
@@ -18,7 +18,8 @@ someone keeps by hand.
 
 THE DATA is atlas.json, generated from the draft by atlas_build.py (never edited by hand; a pin fails when they
 disagree). Where it departs from the draft (a renamed function, a part promoted to P0, a struct the draft's signatures
-use but never planned), its `rulings` list says which ruling and why; `--rulings` prints them. A module "is built" when a library module under arsenal/web/glsl/ provides its functions; the bench chunks
+use but never planned, a signature as the library built it, a group recipe's own functions), its `rulings` list says
+which ruling and why; `--rulings` prints them. A module "is built" when a library module under arsenal/web/glsl/ provides its functions; the bench chunks
 in design/vfx-chunks are legacy and never count. A library module whose `cat` is not an atlas category is a problem
 this file names, because a part filed in a bin nobody has is a part nobody can find.
 """

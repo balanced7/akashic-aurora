@@ -1,0 +1,81 @@
+//! {"card": "light-env", "uses": ["light-env", "core-const", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "TOP, the neutral studio spelled in the module's note (envCardStudio) unrolled as a panorama at roughness 0, two stops under so the panels do not clip: azimuth -180 to 180 degrees across, straight down at the bottom edge to straight up at the top. A near-black dome lightens to a grey-blue band at the horizon; below it the floor, a warm dim brown, fills the bottom and meets the band with no visible edge. Two rounded soft boxes hang in the dome (stretched sideways by the panorama, as everything high up is): the warm key, large and bright, left of centre and high, and the cool fill on the far side near azimuth 130. Both panels read near white here even two stops under (their frames are hotter still, but the tone curve's shoulder hides it); the cross-section measures it. BOTTOM LEFT, a cross-section through the key panel, its radiance over its centre radiance (0 to 2 up) along a line through its centre: at roughness 0 (white) a flat top at 1 rising to about 1.8 at the rims with near-vertical edges; at roughness 0.35 (amber) and 0.8 (cyan) the edges spread wider and the rims flatten, and the rims' light is spread back over the panel, so the top rises a little (about 1.1 and 1.3; a fully rough panel sits at 1 + rimBright / 2 = 1.4) and the panel keeps its light over the sphere as it blurs. BOTTOM RIGHT, three chrome balls reflecting the studio (normal exposure) at roughness 0, 0.35 and 0.8: the first shows the key as a crisp window at its upper left with the fill at its upper right, the floor's pool at the bottom and the horizon band as a ring; the others blur the same picture progressively. A visible line where the floor meets the dome, a white curve without raised rims, a rough curve whose top stays at 1 (the rim's light lost, so rough balls come out dimmer) or rises above the sharp curve's rims, a bright speck straight opposite either box, or a blurred box that brightens or dims a ball is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/env.glsl, written fresh for the house.
+
+// The neutral product-shot studio the module's note spells out (the twin's studio_default holds the same values).
+StudioParams envCardStudio() {
+    return StudioParams(normalize(vec3(-0.55, 0.75, 0.4)), vec3(3.6, 3.3, 2.9),
+                        normalize(vec3(0.65, 0.55, -0.55)), vec3(0.55, 0.7, 1.0),
+                        vec2(0.42, 0.28), 0.8,
+                        vec3(0.008, 0.01, 0.016), vec3(0.07, 0.075, 0.09),
+                        vec3(0.32, 0.27, 0.22), 1.0, 1.1, 0.3);
+}
+
+float envCardInk(float d) {
+    return 1.0 - smoothstep(0.6, 1.6, d);
+}
+
+// The direction seen at a panorama position: azimuth across (0 looks along +z), elevation up.
+vec3 envCardDirection(vec2 at01) {
+    float azimuth = (at01.x * 2.0 - 1.0) * PI;
+    float elevation = (at01.y - 0.5) * PI;
+    return vec3(cos(elevation) * sin(azimuth), sin(elevation), cos(elevation) * cos(azimuth));
+}
+
+vec3 envCardShow(vec3 light) {
+    return srgbEncode(tmPbrNeutral(light));
+}
+
+// The key panel's radiance over its centre radiance, offset x radians across it (luminance).
+float envCardKeyProfile(float x, float roughness) {
+    StudioParams keyOnly = envCardStudio();
+    keyOnly.fillCol = vec3(0.0);
+    keyOnly.skyCol = vec3(0.0);
+    keyOnly.horizonCol = vec3(0.0);
+    keyOnly.floorCol = vec3(0.0);
+    vec3 sideways = normalize(vec3(keyOnly.keyDir.z, 0.0, -keyOnly.keyDir.x));     // level, across the panel
+    vec3 d = normalize(keyOnly.keyDir + tan(x) * sideways);
+    return luminance(litStudioEnv(d, roughness, keyOnly)) / luminance(keyOnly.keyCol);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    StudioParams studio = envCardStudio();
+    vec3 paint = vec3(0.03, 0.033, 0.04);
+    if (pixel.y >= 122.0) {
+        vec2 at01 = vec2(pixel.x / 480.0, (pixel.y - 122.0) / 148.0);
+        paint = envCardShow(expose(litStudioEnv(envCardDirection(at01), 0.0, studio), -2.0));
+    } else if (pixel.x < 240.0) {
+        vec2 box = pixel - vec2(10.0, 8.0);
+        vec2 size = vec2(220.0, 106.0);
+        if (all(greaterThanEqual(box, vec2(0.0))) && all(lessThanEqual(box, size))) {
+            paint = vec3(0.07, 0.075, 0.09);
+            float yScale = size.y / 2.0;
+            paint = mix(paint, vec3(0.2, 0.21, 0.25), envCardInk(abs(box.y - yScale)));     // the 1.0 line
+            float radPerPx = 1.6 / size.x;
+            float x = box.x * radPerPx - 0.8;
+            float roughs[3] = float[3](0.0, 0.35, 0.8);
+            vec3 inks[3] = vec3[3](vec3(0.95), vec3(1.0, 0.7, 0.2), vec3(0.3, 0.85, 1.0));
+            for (int blurStep = 0; blurStep < 3; blurStep++) {
+                float here = envCardKeyProfile(x, roughs[blurStep]);
+                float next = envCardKeyProfile(x + radPerPx, roughs[blurStep]);
+                float rise = (next - here) * yScale;
+                paint = mix(paint, inks[blurStep], envCardInk(abs(box.y - here * yScale) / sqrt(1.0 + rise * rise)));
+            }
+        }
+    } else {
+        float column = floor((pixel.x - 240.0) / 80.0);
+        vec2 centre = vec2(280.0 + 80.0 * column, 61.0);
+        vec2 across = (pixel - centre) / 36.0;
+        float reach = dot(across, across);
+        if (reach < 1.0) {
+            vec3 n = vec3(across, sqrt(1.0 - reach));
+            vec3 mirrored = reflect(vec3(0.0, 0.0, -1.0), n);
+            float roughness = column < 0.5 ? 0.0 : (column < 1.5 ? 0.35 : 0.8);
+            vec3 chrome = litStudioEnv(mirrored, roughness, studio);
+            paint = mix(paint, envCardShow(chrome), 1.0 - smoothstep(0.95, 1.0, reach));
+        }
+    }
+    float seam = min(abs(pixel.y - 121.0), pixel.y < 121.0 ? abs(pixel.x - 240.0) : 1e3);
+    paint = mix(paint, vec3(0.0), 1.0 - smoothstep(0.5, 1.5, seam));
+    color = vec4(paint, 1.0);
+}

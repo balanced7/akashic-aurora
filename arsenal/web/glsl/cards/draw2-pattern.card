@@ -1,0 +1,52 @@
+//! {"card": "draw2-pattern", "uses": ["draw2-pattern", "draw2-lattice", "draw2-domain2", "draw2-sdf2", "draw2-aa", "colour-palette"], "t": [0, 1, 2], "size": [480, 270],
+//!  "note": "Ripples sent out from the centre of each half every 2.4 seconds, each cell running the same pulse on its own clock, t - patCellDelay(its centre). LEFT: hexagon cells; RIGHT: square cells. In every cell a filled shape swells and shrinks, and every pixel of one cell is always at the same size: the rings of the wave are made of whole tiles (a mosaic, stair-stepped round the circle), never a smooth circle slicing through a tile. Thin white circles mark where the continuous wave front has reached (where each new pulse starts): the tiles just inside a circle are the ones just starting to swell. Hue follows each cell's delay, so the rings are also rings of colour. At t = 0 a new ripple is just leaving the centre (its circle has no radius yet) and the earlier ones fill the rest; at t = 1 one circle has moved out to 1.2 units with a disc of swelling tiles inside it; at t = 2, 2.4 units. A broken module shows shapes cut in half by a circle, cells pulsing in step regardless of distance, or a frozen picture."}
+// Apache-2.0, Akashic Aurora. The test card of draw2/pattern.glsl, written fresh for the house.
+
+const float PATTERN_CARD_UNIT = 60.0;             // pixels per unit
+const float PATTERN_CARD_PERIOD = 2.4;            // seconds between ripples
+const float PATTERN_CARD_SPEED = 1.2;             // units per second
+
+// The pulse a cell plays on its own clock: swell over the first 0.35 of the period, ease back by 0.8, rest.
+float patternCardPulse(float localTime) {
+    float phase = fract(localTime / PATTERN_CARD_PERIOD);
+    return smoothstep(0.0, 0.35, phase) * (1.0 - smoothstep(0.35, 0.8, phase));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float px = 1.0 / PATTERN_CARD_UNIT;
+    bool hexHalf = pixel.x < 240.0;
+    vec2 p = (pixel - vec2(hexHalf ? 120.0 : 360.0, 135.0)) / PATTERN_CARD_UNIT;
+    vec3 paint = vec3(0.02, 0.025, 0.035);
+    float delay;
+    float shape;
+    float outline;
+    if (hexHalf) {
+        vec4 hex = latHex(p / 0.32);                                  // cells 0.32 units across
+        delay = patCellDelay(hex.zw * 0.32, vec2(0.0), PATTERN_CARD_SPEED);
+        float size = patternCardPulse(iTime - delay);
+        shape = sd2Hexagon(hex.xy * 0.32, 0.01 + 0.14 * size);
+        outline = latHexEdge(hex.xy) * 0.32;
+    } else {
+        vec2 local = p;
+        vec2 cell = domRepeat2(local, vec2(0.3));
+        delay = patCellDelay(cell * 0.3, vec2(0.0), PATTERN_CARD_SPEED);
+        float size = patternCardPulse(iTime - delay);
+        shape = sd2Box(local, vec2(0.01 + 0.13 * size));
+        outline = 0.15 - max(abs(local.x), abs(local.y));
+    }
+    const vec3 wheel = vec3(0.61, 0.83, 0.07);                     // where each channel's cosine starts its turn
+    vec3 hue = palCos(0.2 * delay, vec3(0.55), vec3(0.45), vec3(1.0), wheel);
+    paint = mix(paint, 0.25 * hue, aaWire(outline, 1.0, px));
+    paint = mix(paint, hue, aaFill(shape, px));
+    // the continuous wave fronts: radius = speed * (t - k * period) for the ripples already sent
+    float r = length(p);
+    float sinceLast = mod(iTime, PATTERN_CARD_PERIOD);
+    float nearestFront = 1e9;
+    for (int ripple = 0; ripple < 4; ripple++) {
+        float front = PATTERN_CARD_SPEED * (sinceLast + float(ripple) * PATTERN_CARD_PERIOD);
+        nearestFront = min(nearestFront, abs(r - front));
+    }
+    paint = mix(paint, vec3(1.0), 0.8 * aaWire(nearestFront, 1.2, px));
+    paint = mix(paint, vec3(0.12, 0.13, 0.16), 1.0 - smoothstep(1.0, 2.0, abs(pixel.x - 240.0)));
+    color = vec4(paint, 1.0);
+}

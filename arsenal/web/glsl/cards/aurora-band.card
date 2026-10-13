@@ -1,0 +1,50 @@
+//! {"card": "aurora-band", "uses": ["aurora-band", "display-out", "legacy-tone-superlinear", "hash-pcg", "noise-fbm"], "t": [0, 2, 4], "size": [480, 270],
+//!  "note": "The aurora band at every header default (two curtains, the Physical palette, no fringe), finished the
+//!  house way: tmSuperlinear at 0.85, then displayOut (tanh, vignette 0.25, static 8-bit dither). The card adds its own
+//!  small scene: static stars and a black ridge along the bottom. A near-black blue sky; low in it the nearer curtain,
+//!  its sharp lower edge a little below the middle of the frame, swaying gently and tilting down to the right as the
+//!  curtain recedes (finer, shorter, lower); above and behind it a fainter, finer curtain whose own sharp edge runs
+//!  through the nearer one's drape. Under each edge there is nothing but sky and stars. From each edge green light rises
+//!  in fine vertical filaments and brighter ray columns, brightest just above the edge and fading upward, the tallest
+//!  rays turning dark red at their tops; brightness comes and goes along each curtain, with real gaps that a curtain
+//!  fades into over a stretch of the frame. Between t = 0, 2 and 4 the filaments churn slowly, the rays drift sideways
+//!  and the edges barely move. Glowing outlines with light hanging under the edges (rows of hills), a silver or white
+//!  edge, a curtain ending in a straight vertical wall, a soft bottom with a hard top, a rainbow, a grey wash over the
+//!  sky, flat white cores, or three identical frames is a broken recipe."}
+// Apache-2.0, Akashic Aurora. The test card of groups/aurora-band.glsl, written fresh. The consts below are the
+// header's defaults; the Workbench Stage binds a knob by replacing its const (arsenal/web/lib/workbench/stage.js
+// bindParams).
+
+const float u_auroraBand_intensity = 1.2;
+const float u_auroraBand_hemHeight = 0.6;
+const float u_auroraBand_curtainWidth = 1.0;
+const float u_auroraBand_fold = 0.5;
+const float u_auroraBand_rays = 0.75;
+const float u_auroraBand_fringe = 0.0;
+const int u_auroraBand_palette = 1;
+const float u_auroraBand_sky = 1.0;
+const int u_auroraBand_curtains = 2;
+const int u_auroraBand_view = 0;
+
+// The card's own small scene around the recipe, so the curtain reads as sky: a few static stars behind it (the aurora
+// is optically thin, so they add) and a black ridge low in the frame in front of everything.
+vec3 bandCardStars(vec2 pixel) {
+    vec2 cell = floor(pixel / 3.0);
+    float keep = step(0.993, hash21(cell));
+    vec2 centre = (cell + 0.25 + 0.5 * hash22(cell + 41.0)) * 3.0;
+    float dot2px = dot(pixel - centre, pixel - centre);
+    float glint = keep * exp(-1.6 * dot2px) * (0.05 + 0.25 * hash21(cell + 7.0));
+    return glint * vec3(0.55, 0.65, 1.0);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 scene = auroraBand(pixel, iResolution.xy, iTime, u_auroraBand_intensity, u_auroraBand_hemHeight,
+                            u_auroraBand_curtainWidth, u_auroraBand_fold, u_auroraBand_rays, u_auroraBand_fringe,
+                            u_auroraBand_palette, u_auroraBand_sky, u_auroraBand_curtains, u_auroraBand_view);
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    scene += u_auroraBand_view == 0 ? bandCardStars(pixel) : vec3(0.0);
+    float ridge = -0.8 + 0.07 * fbmGrad2(vec2(0.9 * p.x + 3.0, 0.5), 5, 2.0, 0.5, 29u);
+    scene *= smoothstep(-1.0, 1.0, (p.y - ridge) * 0.5 * iResolution.y);   // one pixel of antialiased edge
+    scene = tmSuperlinear(scene, 0.85);                      // superlinear highlight, then the tanh shoulder
+    color = vec4(displayOut(scene, pixel, iResolution.xy, 0.0, 0, 1.0, 0.25, 0.0, 256.0), 1.0);
+}

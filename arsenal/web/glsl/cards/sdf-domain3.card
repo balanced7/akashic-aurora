@@ -1,0 +1,110 @@
+//! {"card": "sdf-domain3", "uses": ["sdf-domain3", "sdf-shapes", "debug-views", "core-rotate", "core-const"], "t": [0, 2], "size": [640, 360],
+//!  "note": "Twelve distance slices (z = 0), read row by row from the top left. Row 1: a box placed by domRigid (turned and moved, turning further with t); a slanted capsule mirrored across x (a symmetric V); a tall box twisted about y and divided by lipTwist at its own radius (its width swells and narrows with height); a tilted plate inside a cylinder, twisted into a propeller and divided by lipTwist at the farthest the panel reaches from the axis. Row 2: a bar bent into an arc and divided by lipTwist; an infinite grid of spheres (domRepeat, each cell its own tint); the same grid limited to five by three cells (above and below the block the iso-lines wrap it, still evenly spaced); seven petals by polar repetition (each sector its own tint). Row 3: a disc folded across a slanted line (it and its mirror image); a ball folded by the icosahedral group, with bumps at the 5-fold corners and smaller ones at the 3-fold corners (the slice crosses eight, all alike); a grid of spheres seen through a sphere inversion (circles packing smaller toward the centre); and the control, the propeller with no correction at all. Magenta marks any pixel where the field changes faster than distance (a measured gradient above 1.05): none on the corrected warps, a lot on the control (the detector works), and a lot on the inversion away from its circles, as its contract says (an inverted field is an estimate: march it under-relaxed). A broken operator shows a seam or a crack along a cell or sector wall, a mirror image in the wrong place, or magenta on a corrected warp."}
+// Apache-2.0, Akashic Aurora. The test card for sdf/domain3.glsl, written fresh.
+
+const float DOMAIN_SPAN = 2.6;       // world units across a panel's height
+
+// A tint for a cell or sector id, so neighbours differ.
+vec3 domainCardTint(vec3 id) {
+    float wheel = fract(dot(id, vec3(0.7548776662, 0.5698402910, 0.3141592654)));
+    return 0.5 + 0.45 * cos(TAU * (wheel + vec3(0.0, 0.33, 0.67)));
+}
+
+// The field of panel `which` at p; `tint` comes back as a colour to lay inside, or a negative red for none.
+float domainCardField(int which, vec3 p, out vec3 tint) {
+    tint = vec3(-1.0);
+    float twistRate = 1.6;
+    float twistRadius = length(vec2(0.45, 0.45));
+    if (which == 0) {
+        float turn = 0.5 + 0.3 * sin(iTime);
+        mat2 spin = rotate2(turn);
+        vec3 axisX = vec3(spin[0], 0.0);
+        vec3 axisY = vec3(spin[1], 0.0);
+        mat3 placed = mat3(axisX, axisY, cross(axisX, axisY));       // the object's axes in the world
+        return sdBox(domRigid(p, placed, vec3(0.3, 0.1, 0.0)), vec3(0.8, 0.4, 0.4));
+    }
+    if (which == 1) {
+        vec3 q = domMirror(p, vec3(1.0, 0.0, 0.0));
+        return sdCapsule(q, vec3(0.3, -0.6, 0.0), vec3(1.1, 0.5, 0.0), 0.2);
+    }
+    if (which == 2) {
+        float boxField = sdBox(domTwistY(p, twistRate), vec3(0.45, 1.1, 0.45));
+        return boxField / lipTwist(twistRate, twistRadius);
+    }
+    if (which == 3 || which == 11) {
+        // a plate tilted toward x inside a cylinder of radius 0.7, twisted into a propeller; its slant makes its
+        // gradient meet the twist's strongest stretch, and the plate's field reaches the panel's edge, so the
+        // radius lipTwist is given is the farthest the panel reaches from the axis (1.8)
+        vec3 q = domTwistY(p, 1.43);
+        float plate = abs(dot(q, normalize(vec3(0.85, 0.53, 0.0)))) - 0.15;
+        float propeller = max(plate, length(q.xz) - 0.7);
+        return which == 3 ? propeller / lipTwist(1.43, 1.8) : propeller;
+    }
+    if (which == 4) {
+        float bentField = sdBox(domBend(p + vec3(0.0, 0.5, 0.0), 0.6), vec3(1.2, 0.15, 0.3));
+        return bentField / lipTwist(0.6, 2.4);          // 2.4: the farthest the panel reaches from the bend's axis
+    }
+    if (which == 5 || which == 6) {
+        vec3 q = p;
+        vec3 period = vec3(0.7);
+        vec3 cell = which == 5 ? domRepeat(q, period)
+                               : domRepeatLimited(q, period, vec3(-2.0, -1.0, 0.0), vec3(2.0, 1.0, 0.0));
+        tint = domainCardTint(cell);
+        return sdSphere(q, 0.24);
+    }
+    if (which == 7) {
+        vec2 q = p.xy;
+        float sector = domPolar(q, 7.0);
+        tint = domainCardTint(vec3(sector, 1.0, 2.0));
+        return sdCapsule(vec3(q, p.z), vec3(0.36, 0.0, 0.0), vec3(0.98, 0.0, 0.0), 0.13);
+    }
+    if (which == 8) {
+        vec3 q = p;
+        domReflect(q, normalize(vec3(1.0, 1.0, 0.0)), 0.2);
+        return sdSphere(q - vec3(0.7, -0.4, 0.0), 0.35);
+    }
+    if (which == 9) {
+        vec3 q = domFoldIcosa(p);
+        vec3 fiveFold = normalize(vec3(0.0, 1.0, PHI));
+        vec3 threeFold = normalize(vec3(1.0, 0.0, PHI * PHI));
+        float ball = sdSphere(q, 0.72);
+        float bumps = min(sdSphere(q - 0.8 * fiveFold, 0.2), sdSphere(q - 0.76 * threeFold, 0.12));
+        return min(ball, bumps);
+    }
+    // 10: a lattice of small spheres seen through the inversion in the unit sphere
+    float scale = 1.0;
+    vec3 q = domInvert3(p, 1.0, scale);
+    domRepeat(q, vec3(0.6));
+    return sdSphere(q, 0.16) / scale;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(160.0, 120.0);
+    vec2 cell = floor(pixel / panelSize);
+    int which = int(2.0 - cell.y) * 4 + int(cell.x);
+    vec2 local = pixel - (cell + 0.5) * panelSize;
+    float unitsPerPx = DOMAIN_SPAN / panelSize.y;
+    vec3 p = vec3(local * unitsPerPx, 0.0);
+    vec3 tint;
+    float d = domainCardField(which, p, tint);
+    vec3 paint = dbgSlice(d, 0.2);
+    if (tint.x >= 0.0 && d < 0.0) {
+        paint = mix(paint, tint, 0.7);
+    }
+
+    // how fast the field changes, over half a pixel in all three directions: never faster than distance
+    float h = 0.5 * unitsPerPx;
+    vec3 unused;
+    vec3 slope = vec3(domainCardField(which, p + vec3(h, 0.0, 0.0), unused)
+                      - domainCardField(which, p - vec3(h, 0.0, 0.0), unused),
+                      domainCardField(which, p + vec3(0.0, h, 0.0), unused)
+                      - domainCardField(which, p - vec3(0.0, h, 0.0), unused),
+                      domainCardField(which, p + vec3(0.0, 0.0, h), unused)
+                      - domainCardField(which, p - vec3(0.0, 0.0, h), unused)) / (2.0 * h);
+    float lies = smoothstep(1.03, 1.08, length(slope));
+    paint = mix(paint, vec3(1.0, 0.0, 0.85), 0.8 * lies);
+
+    vec2 toBorder = 0.5 * panelSize - abs(local);
+    paint *= smoothstep(0.5, 1.5, min(toBorder.x, toBorder.y));
+    color = vec4(paint, 1.0);
+}

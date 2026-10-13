@@ -16,16 +16,16 @@
  "counts": {
   "families": 13,
   "categories": 81,
-  "parts": 572,
+  "parts": 581,
   "by_status": {
-   "P0": 190,
+   "P0": 199,
    "P1": 265,
    "P2": 117
   },
-  "functions": 730,
+  "functions": 753,
   "groups": 25,
   "collisions": 24,
-  "rulings": 11
+  "rulings": 30
  },
  "rulings": [
   {
@@ -204,6 +204,266 @@
    ],
    "source": "the judge's rulings on the S0 adversarial review, 2026-10-13 (the P0 closure gap), ruling (a)",
    "reason": "envStrikeSag and musLight use LightParams, which the draft plans nowhere; a part cannot be built before the type its signature uses, so LightParams is planned in the module of its first user (I1.05, motion/envelope.glsl) at the earliest status among its users (P1)"
+  },
+  {
+   "id": "built-sig-displayOut",
+   "kind": "built-signature",
+   "names": [
+    "displayOut"
+   ],
+   "part": "H9.01",
+   "from": "vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev,",
+   "to": "vec3 displayOut(vec3 sceneLin, vec2 pixel, vec2 res, float ev,",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds displayOut as 'vec3 displayOut(vec3 sceneLin, vec2 pixel, vec2 res, float ev,': the tail's vignette is aspect-true: it needs the pixel over the canvas size and the canvas aspect, which a pixel coordinate alone cannot give, so the built tail takes the canvas size res right after pixel"
+  },
+  {
+   "id": "built-sig-audByteToDb",
+   "kind": "built-signature",
+   "names": [
+    "audByteToDb"
+   ],
+   "part": "L2.05",
+   "from": "float audByteToDb(...)",
+   "to": "float audByteToDb(float v)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds audByteToDb as 'float audByteToDb(float v)': the draft left the parameters as '...'; the built helper takes one spectrum byte v (0..1) and returns decibels through the analyser's default -100..-30 dB range"
+  },
+  {
+   "id": "built-sig-audByteToAmp",
+   "kind": "built-signature",
+   "names": [
+    "audByteToAmp"
+   ],
+   "part": "L2.05",
+   "from": "float audByteToAmp(...)",
+   "to": "float audByteToAmp(float v)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds audByteToAmp as 'float audByteToAmp(float v)': the draft left the parameters as '...'; the built helper takes one spectrum byte v (0..1) and returns linear amplitude, the form bins must be in before they are summed"
+  },
+  {
+   "id": "built-sig-fbmGrad3",
+   "kind": "built-signature",
+   "names": [
+    "fbmGrad3"
+   ],
+   "part": "B3.02",
+   "from": "float fbmGrad3(vec3 p, ...)",
+   "to": "float fbmGrad3(vec3 p, int octaves, float lacunarity, float gain, uint seed)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds fbmGrad3 as 'float fbmGrad3(vec3 p, int octaves, float lacunarity, float gain, uint seed)': the draft wrote the 3D form's parameters after p as '...' (the 2D form's); the built helper spells them out, so code generated from the atlas can call it"
+  },
+  {
+   "id": "built-sig-cellU2",
+   "kind": "built-signature",
+   "names": [
+    "cellU2"
+   ],
+   "part": "A6.06",
+   "from": "(+cellU2)",
+   "to": "/ uvec2 cellU2(vec2 p)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds cellU2 as '/ uvec2 cellU2(vec2 p)': the draft named the 2D cell hash only as '(+cellU2)' beside cellU3; the built helper is the 2D form of the same floor-to-unsigned key, spelled out so code generated from the atlas can call it"
+  },
+  {
+   "id": "built-sig-domRepeatLimited",
+   "kind": "built-signature",
+   "names": [
+    "domRepeatLimited"
+   ],
+   "part": "D4.04",
+   "from": "/ domRepeatLimited",
+   "to": "/ vec3 domRepeatLimited(inout vec3 p, vec3 period, vec3 idMin, vec3 idMax)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds domRepeatLimited as '/ vec3 domRepeatLimited(inout vec3 p, vec3 period, vec3 idMin, vec3 idMax)': the draft named the limited repetition without its parameters; the built helper takes domRepeat's point and period plus the inclusive cell-id bounds idMin and idMax that the id is clamped to"
+  },
+  {
+   "id": "built-sig-camOrbit",
+   "kind": "built-signature",
+   "names": [
+    "camOrbit"
+   ],
+   "part": "E2.04",
+   "from": "vec3 camOrbit(vec2 mouse01, float t, float radius, vec3 target)",
+   "to": "vec3 camOrbit(vec2 mouse01, float autoYaw, float radius, vec3 target)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds camOrbit as 'vec3 camOrbit(vec2 mouse01, float autoYaw, float radius, vec3 target)': the second parameter is an ANGLE, not a time: the yaw the camera takes while the mouse is untouched (the host turns a clock into it, at whatever speed it likes); the draft's t read as seconds"
+  },
+  {
+   "id": "built-sig-camOrthoRay",
+   "kind": "built-signature",
+   "names": [
+    "camOrthoRay"
+   ],
+   "part": "E2.05",
+   "from": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, out vec3 ro)",
+   "to": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, inout vec3 ro)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds camOrthoRay as 'vec3 camOrthoRay(vec2 p, mat3 basis, float scale, inout vec3 ro)': ro is read as well as written: the caller passes the camera's position in ro and gets this pixel's ray origin back (moved across the image plane), so the parameter is inout; a caller following the draft's `out` would pass ro uninitialised"
+  },
+  {
+   "id": "built-sig-rmRelaxed",
+   "kind": "built-signature",
+   "names": [
+    "rmRelaxed"
+   ],
+   "part": "E3.06",
+   "from": "vec4 rmRelaxed(...)",
+   "to": "vec4 rmRelaxed(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, float omega, int maxSteps)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds rmRelaxed as 'vec4 rmRelaxed(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, float omega, int maxSteps)': the draft left the parameters as '...'; the built over-relaxed march takes exactly rmSphereTrace's parameters (omega clamped to [1, 1.95] instead of [0.1, 1]) and returns the same vec4(t, steps, smallest d / t, hit)"
+  },
+  {
+   "id": "built-sig-rmBacktrack",
+   "kind": "built-signature",
+   "names": [
+    "rmBacktrack"
+   ],
+   "part": "E3.07",
+   "from": "vec4 rmBacktrack(...)",
+   "to": "vec4 rmBacktrack(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, int maxSteps, int bisectSteps)",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "the library builds rmBacktrack as 'vec4 rmBacktrack(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, int maxSteps, int bisectSteps)': the draft left the parameters as '...'; the built march for fields that may overestimate takes the march's parameters without omega (it always steps d) and the bisection's own budget bisectSteps (capped at 16)"
+  },
+  {
+   "id": "built-part-oklchMaxChroma",
+   "kind": "plan-built",
+   "names": [
+    "oklchMaxChroma",
+    "oklchCusp"
+   ],
+   "part": "H2.08",
+   "module": "colour/oklab.glsl",
+   "status": "P0",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "oklchMaxChroma and oklchCusp are built in colour/oklab.glsl and exposed by name, but the draft plans them nowhere; planned here at their module's status (P0) so the atlas owns every name the library provides and nothing else can claim one"
+  },
+  {
+   "id": "built-part-palPitchPiano",
+   "kind": "plan-built",
+   "names": [
+    "palPitchPiano",
+    "palPitchLumaMean"
+   ],
+   "part": "H4.11",
+   "module": "colour/palette.glsl",
+   "status": "P0",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "palPitchPiano and palPitchLumaMean are built in colour/palette.glsl and exposed by name, but the draft plans them nowhere; planned here at their module's status (P0) so the atlas owns every name the library provides and nothing else can claim one"
+  },
+  {
+   "id": "built-part-noiseGradRamp2",
+   "kind": "plan-built",
+   "names": [
+    "noiseGradRamp2",
+    "noiseGradRamp3"
+   ],
+   "part": "B1.11",
+   "module": "noise/gradient.glsl",
+   "status": "P0",
+   "source": "the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built",
+   "reason": "noiseGradRamp2 and noiseGradRamp3 are built in noise/gradient.glsl and exposed by name, but the draft plans them nowhere; planned here at their module's status (P0) so the atlas owns every name the library provides and nothing else can claim one"
+  },
+  {
+   "id": "built-recipe-aurora-band",
+   "kind": "plan-recipe",
+   "names": [
+    "auroraBand"
+   ],
+   "part": "G8.08",
+   "module": "groups/aurora-band.glsl",
+   "group": "aurora",
+   "category": "G8",
+   "category_gains_module": true,
+   "status": "P0",
+   "source": "the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module provides (the group files' function lists) and records the built signatures",
+   "reason": "groups/aurora-band.glsl is the aurora group's recipe and provides auroraBand by name, but the draft plans no recipe's functions; planned here as one P0 part in its header's category (G8), with the signatures as built, so the atlas owns every name the library provides and code generated from the atlas can call them"
+  },
+  {
+   "id": "built-recipe-aurora-sheets",
+   "kind": "plan-recipe",
+   "names": [
+    "auroraSheets"
+   ],
+   "part": "G8.09",
+   "module": "groups/aurora-sheets.glsl",
+   "group": "aurora",
+   "category": "G8",
+   "category_gains_module": true,
+   "status": "P0",
+   "source": "the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module provides (the group files' function lists) and records the built signatures",
+   "reason": "groups/aurora-sheets.glsl is the aurora group's recipe and provides auroraSheets by name, but the draft plans no recipe's functions; planned here as one P0 part in its header's category (G8), with the signatures as built, so the atlas owns every name the library provides and code generated from the atlas can call them"
+  },
+  {
+   "id": "built-recipe-glow-xray",
+   "kind": "plan-recipe",
+   "names": [
+    "glowXray"
+   ],
+   "part": "F9.12",
+   "module": "groups/glow-xray.glsl",
+   "group": "glow-xray",
+   "category": "F9",
+   "category_gains_module": true,
+   "status": "P0",
+   "source": "the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module provides (the group files' function lists) and records the built signatures",
+   "reason": "groups/glow-xray.glsl is the glow-xray group's recipe and provides glowXray by name, but the draft plans no recipe's functions; planned here as one P0 part in its header's category (F9), with the signatures as built, so the atlas owns every name the library provides and code generated from the atlas can call them"
+  },
+  {
+   "id": "built-recipe-hex-neon",
+   "kind": "plan-recipe",
+   "names": [
+    "hexNeonStep",
+    "hexNeonSwell",
+    "hexNeonPose",
+    "hexNeonColour",
+    "hexNeonCell",
+    "hexNeon"
+   ],
+   "part": "C5.07",
+   "module": "groups/hex-neon.glsl",
+   "group": "hex-neon",
+   "category": "C5",
+   "category_gains_module": true,
+   "status": "P0",
+   "source": "the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module provides (the group files' function lists) and records the built signatures",
+   "reason": "groups/hex-neon.glsl is the hex-neon group's recipe and provides hexNeonStep, hexNeonSwell, hexNeonPose, hexNeonColour, hexNeonCell and hexNeon by name, but the draft plans no recipe's functions; planned here as one P0 part in its header's category (C5), with the signatures as built, so the atlas owns every name the library provides and code generated from the atlas can call them"
+  },
+  {
+   "id": "built-recipe-neon-line",
+   "kind": "plan-recipe",
+   "names": [
+    "neonProfile",
+    "neonPathStep",
+    "neonLine"
+   ],
+   "part": "F9.13",
+   "module": "groups/neon-line.glsl",
+   "group": "neon-line",
+   "category": "F9",
+   "category_gains_module": true,
+   "status": "P0",
+   "source": "the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module provides (the group files' function lists) and records the built signatures",
+   "reason": "groups/neon-line.glsl is the neon-line group's recipe and provides neonProfile, neonPathStep and neonLine by name, but the draft plans no recipe's functions; planned here as one P0 part in its header's category (F9), with the signatures as built, so the atlas owns every name the library provides and code generated from the atlas can call them"
+  },
+  {
+   "id": "built-recipe-studio-object",
+   "kind": "plan-recipe",
+   "names": [
+    "studioObjectRig",
+    "studioObjectBare",
+    "studioObjectSurface",
+    "studioObjectFloor",
+    "studioObject"
+   ],
+   "part": "F10.06",
+   "module": "groups/studio-object.glsl",
+   "group": "studio-object",
+   "category": "F10",
+   "category_gains_module": true,
+   "status": "P0",
+   "source": "the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module provides (the group files' function lists) and records the built signatures",
+   "reason": "groups/studio-object.glsl is the studio-object group's recipe and provides studioObjectRig, studioObjectBare, studioObjectSurface, studioObjectFloor and studioObject by name, but the draft plans no recipe's functions; planned here as one P0 part in its header's category (F10), with the signatures as built, so the atlas owns every name the library provides and code generated from the atlas can call them"
   }
  ],
  "families": [
@@ -618,7 +878,8 @@
     "draw2/lattice.glsl"
    ],
    "modules": [
-    "draw2/lattice.glsl"
+    "draw2/lattice.glsl",
+    "groups/hex-neon.glsl"
    ],
    "module": "draw2/lattice.glsl"
   },
@@ -896,7 +1157,9 @@
     "light/glow.glsl"
    ],
    "modules": [
-    "light/glow.glsl"
+    "light/glow.glsl",
+    "groups/glow-xray.glsl",
+    "groups/neon-line.glsl"
    ],
    "module": "light/glow.glsl"
   },
@@ -908,7 +1171,8 @@
     "light/rigs.glsl"
    ],
    "modules": [
-    "light/rigs.glsl"
+    "light/rigs.glsl",
+    "groups/studio-object.glsl"
    ],
    "module": "light/rigs.glsl"
   },
@@ -1019,7 +1283,9 @@
    ],
    "modules": [
     "atmos/aurora.glsl",
-    "colour/tone.glsl"
+    "colour/tone.glsl",
+    "groups/aurora-band.glsl",
+    "groups/aurora-sheets.glsl"
    ],
    "module": "atmos/aurora.glsl"
   },
@@ -2895,7 +3161,7 @@
    "id": "A6.06",
    "category": "A6",
    "family": "A",
-   "signature": "uvec3 cellU3(vec3 p) (+cellU2)",
+   "signature": "uvec3 cellU3(vec3 p) / uvec2 cellU2(vec2 p)",
    "functions": [
     "cellU3",
     "cellU2"
@@ -2918,7 +3184,11 @@
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
    "line": 354,
-   "types": []
+   "types": [],
+   "signature_draft": "uvec3 cellU3(vec3 p) (+cellU2)",
+   "rulings": [
+    "built-sig-cellU2"
+   ]
   },
   {
    "id": "A6.07",
@@ -3835,6 +4105,36 @@
    "types": []
   },
   {
+   "id": "B1.11",
+   "category": "B1",
+   "family": "B",
+   "signature": "float noiseGradRamp2(uvec2 cell, uvec2 corner, uint stream, vec2 inCell) / float noiseGradRamp3(uvec3 cell, uvec3 corner, uint stream, vec3 inCell)",
+   "functions": [
+    "noiseGradRamp2",
+    "noiseGradRamp3"
+   ],
+   "contract": "one lattice corner's ramp: that corner's hashed gradient (eight directions in 2D, twelve edge directions in 3D) dotted with the offset from the corner, zero at the corner itself; noiseGrad2 and noiseGrad3 blend four and eight of them. stream is the seed with gradient noise's own tag already in it (the noise functions apply the tag). Public so a derivative or a tiled variant reuses the exact corner the noise uses",
+   "cost": "C0",
+   "cost_text": "C0 (one hash each)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "function",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "NP 4"
+   ],
+   "sources": [],
+   "module": "noise/gradient.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "types": [],
+   "ruling": "built-part-noiseGradRamp2"
+  },
+  {
    "id": "B2.01",
    "category": "B2",
    "family": "B",
@@ -4098,7 +4398,7 @@
    "id": "B3.02",
    "category": "B3",
    "family": "B",
-   "signature": "float fbmGrad2(vec2 p, int octaves, float lacunarity, float gain, uint seed) / float fbmGrad3(vec3 p, ...)",
+   "signature": "float fbmGrad2(vec2 p, int octaves, float lacunarity, float gain, uint seed) / float fbmGrad3(vec3 p, int octaves, float lacunarity, float gain, uint seed)",
    "functions": [
     "fbmGrad2",
     "fbmGrad3"
@@ -4137,8 +4437,10 @@
     "fbmGrad3": "fbm3"
    },
    "rulings": [
-    "ruling-3-rename"
-   ]
+    "ruling-3-rename",
+    "built-sig-fbmGrad3"
+   ],
+   "signature_draft": "float fbmGrad2(vec2 p, int octaves, float lacunarity, float gain, uint seed) / float fbmGrad3(vec3 p, ...)"
   },
   {
    "id": "B3.03",
@@ -6489,6 +6791,47 @@
    "types": []
   },
   {
+   "id": "C5.07",
+   "category": "C5",
+   "family": "C",
+   "signature": "vec2 hexNeonStep(int k) / float hexNeonSwell(float since, float dice) / vec3 hexNeonPose(vec2 centre, float t, vec2 originLat, float waveSpeed, float sizeAmp, float spin) / vec3 hexNeonColour(vec2 axial, float dice, int palette, float accent) / vec4 hexNeonCell(vec2 offset, vec2 centre, float pxLat, float t, vec2 originLat, float lineWidth, float haloPx, float waveSpeed, float sizeAmp, float spin, int palette, float accent, int combine) / vec3 hexNeon(vec2 p, float px, float t, vec2 origin, float cellSize, float lineWidth, float haloPx, float waveSpeed, float sizeAmp, float spin, int palette, float accent, int combine, int view)",
+   "functions": [
+    "hexNeonStep",
+    "hexNeonSwell",
+    "hexNeonPose",
+    "hexNeonColour",
+    "hexNeonCell",
+    "hexNeon"
+   ],
+   "contract": "neon hexagons on a hex lattice, a wave front arriving cell by cell; the five helpers are its own steps (the neighbour offsets, one cell's swell, pose, colour and glow). hexNeon is the recipe's entry: a host calls it with the recipe's knobs as its last arguments, the Workbench binding each one as a declared param; hexNeonStep, hexNeonSwell, hexNeonPose, hexNeonColour and hexNeonCell are its own steps, public by name. The module header holds the full contract, the knobs and the debug views",
+   "cost": "C1",
+   "cost_text": "C1 (seven cells per pixel)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "recipe",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "craft secret 5",
+    "craft secret 10",
+    "study:wsl3WB 4.3",
+    "study:wsl3WB 4.6",
+    "study:XsBfRW 5.4",
+    "study:lfscD7 5.4",
+    "study:lfscD7 5.5"
+   ],
+   "sources": [],
+   "module": "groups/hex-neon.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "group": "hex-neon",
+   "types": [],
+   "ruling": "built-recipe-hex-neon"
+  },
+  {
    "id": "C6.01",
    "category": "C6",
    "family": "C",
@@ -8193,7 +8536,7 @@
    "id": "D4.04",
    "category": "D4",
    "family": "D",
-   "signature": "vec3 domRepeat(inout vec3 p, vec3 period) / domRepeatLimited",
+   "signature": "vec3 domRepeat(inout vec3 p, vec3 period) / vec3 domRepeatLimited(inout vec3 p, vec3 period, vec3 idMin, vec3 idMax)",
    "functions": [
     "domRepeat",
     "domRepeatLimited"
@@ -8218,7 +8561,11 @@
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
    "line": 665,
-   "types": []
+   "types": [],
+   "signature_draft": "vec3 domRepeat(inout vec3 p, vec3 period) / domRepeatLimited",
+   "rulings": [
+    "built-sig-domRepeatLimited"
+   ]
   },
   {
    "id": "D4.05",
@@ -8957,7 +9304,7 @@
    "id": "E2.04",
    "category": "E2",
    "family": "E",
-   "signature": "vec3 camOrbit(vec2 mouse01, float t, float radius, vec3 target)",
+   "signature": "vec3 camOrbit(vec2 mouse01, float autoYaw, float radius, vec3 target)",
    "functions": [
     "camOrbit"
    ],
@@ -8986,13 +9333,17 @@
    "module": "ray/camera.glsl",
    "module_basis": "heading",
    "line": 717,
-   "types": []
+   "types": [],
+   "signature_draft": "vec3 camOrbit(vec2 mouse01, float t, float radius, vec3 target)",
+   "rulings": [
+    "built-sig-camOrbit"
+   ]
   },
   {
    "id": "E2.05",
    "category": "E2",
    "family": "E",
-   "signature": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, out vec3 ro)",
+   "signature": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, inout vec3 ro)",
    "functions": [
     "camOrthoRay"
    ],
@@ -9016,7 +9367,11 @@
    "module": "ray/camera.glsl",
    "module_basis": "heading",
    "line": 718,
-   "types": []
+   "types": [],
+   "signature_draft": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, out vec3 ro)",
+   "rulings": [
+    "built-sig-camOrthoRay"
+   ]
   },
   {
    "id": "E2.06",
@@ -9363,7 +9718,7 @@
    "id": "E3.06",
    "category": "E3",
    "family": "E",
-   "signature": "vec4 rmRelaxed(...)",
+   "signature": "vec4 rmRelaxed(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, float omega, int maxSteps)",
    "functions": [
     "rmRelaxed"
    ],
@@ -9389,13 +9744,17 @@
    "module": "ray/march.glsl",
    "module_basis": "heading",
    "line": 738,
-   "types": []
+   "types": [],
+   "signature_draft": "vec4 rmRelaxed(...)",
+   "rulings": [
+    "built-sig-rmRelaxed"
+   ]
   },
   {
    "id": "E3.07",
    "category": "E3",
    "family": "E",
-   "signature": "vec4 rmBacktrack(...)",
+   "signature": "vec4 rmBacktrack(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, int maxSteps, int bisectSteps)",
    "functions": [
     "rmBacktrack"
    ],
@@ -9419,7 +9778,11 @@
    "module": "ray/march.glsl",
    "module_basis": "heading",
    "line": 739,
-   "types": []
+   "types": [],
+   "signature_draft": "vec4 rmBacktrack(...)",
+   "rulings": [
+    "built-sig-rmBacktrack"
+   ]
   },
   {
    "id": "E3.08",
@@ -11792,6 +12155,78 @@
    "types": []
   },
   {
+   "id": "F9.12",
+   "category": "F9",
+   "family": "F",
+   "signature": "vec3 glowXray(vec2 pixel, vec2 res, vec3 ro, mat3 basis, float focal, int budget, float passthrough, float density, float sparkWidth, int palette, float hueSpeed, float rim, int view)",
+   "functions": [
+    "glowXray"
+   ],
+   "contract": "a pass-through march over the host's scene that gathers glow instead of stopping: x-ray glass. glowXray is the recipe's entry: a host calls it with the recipe's knobs as its last arguments, the Workbench binding each one as a declared param. The module header holds the full contract, the knobs and the debug views",
+   "cost": "C2",
+   "cost_text": "C2 (a fixed march budget per pixel)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "recipe",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "LM 12.2",
+    "study:WdB3Dw 5.8",
+    "study:WdB3Dw 5.12",
+    "study:MdX3zr 6.1",
+    "craft secret 2"
+   ],
+   "sources": [],
+   "module": "groups/glow-xray.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "group": "glow-xray",
+   "types": [],
+   "ruling": "built-recipe-glow-xray"
+  },
+  {
+   "id": "F9.13",
+   "category": "F9",
+   "family": "F",
+   "signature": "float neonProfile(float dPx, float haloPx, int profile) / vec2 neonPathStep(vec2 p, vec2 a, vec2 b, vec2 s, vec2 best) / vec3 neonLine(vec3 acc, float d, float px, vec3 tint, float energy, float depth, float widthPx, float haloPx, int profile, float coreHeat, int combine, float defocus, int view)",
+   "functions": [
+    "neonProfile",
+    "neonPathStep",
+    "neonLine"
+   ],
+   "contract": "a light line of constant pixel width with a hot core and a coloured halo, accumulated per line; the helpers are its cross-section and one step along a polyline. neonLine is the recipe's entry: a host calls it with the recipe's knobs as its last arguments, the Workbench binding each one as a declared param; neonProfile and neonPathStep are its own steps, public by name. The module header holds the full contract, the knobs and the debug views",
+   "cost": "C1",
+   "cost_text": "C1 (per line drawn)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "recipe",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "craft secret 6",
+    "craft secret 7",
+    "craft secret 21",
+    "study:DtXfDr 4.3",
+    "study:ldSfWV 5.3",
+    "study:MtXczn 5.2",
+    "study:l3cfW4 5.7"
+   ],
+   "sources": [],
+   "module": "groups/neon-line.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "group": "neon-line",
+   "types": [],
+   "ruling": "built-recipe-neon-line"
+  },
+  {
    "id": "F10.01",
    "category": "F10",
    "family": "F",
@@ -11954,6 +12389,48 @@
     "F10.02"
    ],
    "ruling": "a-struct-OutdoorRig"
+  },
+  {
+   "id": "F10.06",
+   "category": "F10",
+   "family": "F",
+   "signature": "StudioParams studioObjectRig(float keyTurn, float keyElevation, float boxSize, float poolRadius, float floorDrop) / StudioParams studioObjectBare(StudioParams sp) / vec3 studioObjectSurface(vec3 p, vec3 n, vec3 toEye, StudioParams sp, float fresnelFloor, float metal, float roughness, float shadow, float ao) / vec3 studioObjectFloor(vec3 pf, vec3 toEye, vec3 target, StudioParams sp, float shadow, float ao) / vec3 studioObject(vec3 ro, vec3 target, vec2 pixel, vec2 res, float lens, float keyTurn, float keyElevation, float boxSize, float backdrop, float fresnelFloor, float metal, float roughness, float shadowAngle, float aoReach, float poolRadius, float floorDrop, float bound, float steps, float omega, int view)",
+   "functions": [
+    "studioObjectRig",
+    "studioObjectBare",
+    "studioObjectSurface",
+    "studioObjectFloor",
+    "studioObject"
+   ],
+   "contract": "a product shot of the host's object in the house studio: soft boxes, a contact shadow, a floor that fades into the backdrop; the helpers are its rig, its surface and its floor. studioObject is the recipe's entry: a host calls it with the recipe's knobs as its last arguments, the Workbench binding each one as a declared param; studioObjectRig, studioObjectBare, studioObjectSurface and studioObjectFloor are its own steps, public by name. The module header holds the full contract, the knobs and the debug views",
+   "cost": "C2",
+   "cost_text": "C2 (a march, a soft shadow and AO per pixel)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "recipe",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "craft secret 1",
+    "craft secret 2",
+    "craft secret 14",
+    "craft secret 23",
+    "study:3XdXRr 5.3",
+    "study:3XdXRr 5.4",
+    "study:XtyXzW 5.12"
+   ],
+   "sources": [],
+   "module": "groups/studio-object.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "group": "studio-object",
+   "types": [
+    "StudioParams"
+   ],
+   "ruling": "built-recipe-studio-object"
   },
   {
    "id": "F11.01",
@@ -13756,6 +14233,76 @@
    "types": []
   },
   {
+   "id": "G8.08",
+   "category": "G8",
+   "family": "G",
+   "signature": "vec3 auroraBand(vec2 pixel, vec2 res, float clock, float intensity, float hemHeight, float curtainWidth, float fold, float rays, float fringe, int palette, float sky, int curtains, int view)",
+   "functions": [
+    "auroraBand"
+   ],
+   "contract": "the aurora group's band tier: folded 2D curtains with rays and a sharp hem, added over the night sky. auroraBand is the recipe's entry: a host calls it with the recipe's knobs as its last arguments, the Workbench binding each one as a declared param. The module header holds the full contract, the knobs and the debug views",
+   "cost": "C1",
+   "cost_text": "C1 (the band tier)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "recipe",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "VA 7.1",
+    "VA 7.2 family A",
+    "VA 7.3",
+    "study:MsjfRG 6.1",
+    "craft secret 3",
+    "craft secret 20"
+   ],
+   "sources": [],
+   "module": "groups/aurora-band.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "group": "aurora",
+   "types": [],
+   "ruling": "built-recipe-aurora-band"
+  },
+  {
+   "id": "G8.09",
+   "category": "G8",
+   "family": "G",
+   "signature": "vec3 auroraSheets(vec2 pixel, vec2 res, vec3 ro, mat3 basis, float focal, float clock, float intensity, float hemHeight, float curtainWidth, float fold, float rays, float fringe, int palette, float sky, float lake, int layers, int view)",
+   "functions": [
+    "auroraSheets"
+   ],
+   "contract": "the aurora group's sheet tier: curtains as layered sheets seen from a camera, over the sky and a lake. auroraSheets is the recipe's entry: a host calls it with the recipe's knobs as its last arguments, the Workbench binding each one as a declared param. The module header holds the full contract, the knobs and the debug views",
+   "cost": "C2",
+   "cost_text": "C2 (the sheet tier)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "recipe",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "VA 7.2 family B",
+    "VA 7.1",
+    "study:ffG3Rc 5.3",
+    "study:ffG3Rc 5.4",
+    "craft secret 12",
+    "craft secret 22"
+   ],
+   "sources": [],
+   "module": "groups/aurora-sheets.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "group": "aurora",
+   "types": [],
+   "ruling": "built-recipe-aurora-sheets"
+  },
+  {
    "id": "G9.01",
    "category": "G9",
    "family": "G",
@@ -14169,6 +14716,36 @@
    "types": []
   },
   {
+   "id": "H2.08",
+   "category": "H2",
+   "family": "H",
+   "signature": "float oklchMaxChroma(float L, float h, float eps) / vec2 oklchCusp(float h)",
+   "functions": [
+    "oklchMaxChroma",
+    "oklchCusp"
+   ],
+   "contract": "the gamut edge of one hue (h in turns): oklchMaxChroma is the largest chroma at lightness L whose colour stays inside sRGB within eps, by bisection (the piano's maxChroma search); oklchCusp is the (L, C) of that hue's most colourful sRGB colour, exact everywhere, the sliver just past pure blue included. oklchClip and palPitchFifths stand on them",
+   "cost": "C1",
+   "cost_text": "C1 (24 bisection steps each)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "function",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "CP 2.3"
+   ],
+   "sources": [],
+   "module": "colour/oklab.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "types": [],
+   "ruling": "built-part-oklchMaxChroma"
+  },
+  {
    "id": "H3.01",
    "category": "H3",
    "family": "H",
@@ -14537,6 +15114,38 @@
     "H4.06"
    ],
    "ruling": "a-struct-PitchPalette"
+  },
+  {
+   "id": "H4.11",
+   "category": "H4",
+   "family": "H",
+   "signature": "PitchPalette palPitchPiano() / float palPitchLumaMean(PitchPalette pp)",
+   "functions": [
+    "palPitchPiano",
+    "palPitchLumaMean"
+   ],
+   "contract": "palPitchPiano is the piano page's pitch-colour knobs as one PitchPalette, so a GLSL surface draws the piano's own twelve colours; palPitchLumaMean is the geometric-mean luminance of the twelve pitch colours before the pull, the level a palette's lumaTarget holds. Twelve palette evaluations: compute it once (the twin, or a one-off pass), never per pixel",
+   "cost": "C1",
+   "cost_text": "palPitchPiano C0; palPitchLumaMean C1 twelve times over (compute once)",
+   "tex": null,
+   "hook": false,
+   "status": "P0",
+   "legacy": false,
+   "kind": "function",
+   "form": "ruling",
+   "exemplars": [],
+   "loved_text": "",
+   "learn": [
+    "arc-piano-core (3)"
+   ],
+   "sources": [],
+   "module": "colour/palette.glsl",
+   "module_basis": "ruling",
+   "line": null,
+   "types": [
+    "PitchPalette"
+   ],
+   "ruling": "built-part-palPitchPiano"
   },
   {
    "id": "H5.01",
@@ -15576,7 +16185,7 @@
    "id": "H9.01",
    "category": "H9",
    "family": "H",
-   "signature": "vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev, int curve, float saturation, float vignette, float sCurve, float ditherLevels)",
+   "signature": "vec3 displayOut(vec3 sceneLin, vec2 pixel, vec2 res, float ev, int curve, float saturation, float vignette, float sCurve, float ditherLevels)",
    "functions": [
     "displayOut"
    ],
@@ -15604,7 +16213,11 @@
    "module": "post/display-out.glsl",
    "module_basis": "manifest",
    "line": 1136,
-   "types": []
+   "types": [],
+   "signature_draft": "vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev, int curve, float saturation, float vignette, float sCurve, float ditherLevels)",
+   "rulings": [
+    "built-sig-displayOut"
+   ]
   },
   {
    "id": "I1.01",
@@ -18252,7 +18865,7 @@
    "id": "L2.05",
    "category": "L2",
    "family": "L",
-   "signature": "float audWave(sampler2D a, float u) / float audByteToDb(...) / float audByteToAmp(...)",
+   "signature": "float audWave(sampler2D a, float u) / float audByteToDb(float v) / float audByteToAmp(float v)",
    "functions": [
     "audWave",
     "audByteToDb",
@@ -18276,7 +18889,12 @@
    "module": "input/audio.glsl",
    "module_basis": "heading",
    "line": 1347,
-   "types": []
+   "types": [],
+   "signature_draft": "float audWave(sampler2D a, float u) / float audByteToDb(...) / float audByteToAmp(...)",
+   "rulings": [
+    "built-sig-audByteToDb",
+    "built-sig-audByteToAmp"
+   ]
   },
   {
    "id": "L2.06",
@@ -20716,7 +21334,12 @@
    "kind": "helper",
    "functions": [
     "noiseGrad2",
-    "noiseGrad3"
+    "noiseGrad3",
+    "noiseGradRamp2",
+    "noiseGradRamp3"
+   ],
+   "rulings": [
+    "built-part-noiseGradRamp2"
    ]
   },
   {
@@ -20778,7 +21401,12 @@
     "hueDelta",
     "inGamut",
     "oklchClip",
-    "hueRotateOklch"
+    "hueRotateOklch",
+    "oklchMaxChroma",
+    "oklchCusp"
+   ],
+   "rulings": [
+    "built-part-oklchMaxChroma"
    ]
   },
   {
@@ -20801,10 +21429,13 @@
     "palOklch",
     "palRamp3",
     "palHeatPowers",
-    "palPitchFifths"
+    "palPitchFifths",
+    "palPitchPiano",
+    "palPitchLumaMean"
    ],
    "rulings": [
-    "a-struct-PitchPalette"
+    "a-struct-PitchPalette",
+    "built-part-palPitchPiano"
    ]
   },
   {
@@ -21259,37 +21890,78 @@
    "batch": "B",
    "file": "groups/aurora-band.glsl",
    "kind": "recipe",
-   "functions": []
+   "functions": [
+    "auroraBand"
+   ],
+   "rulings": [
+    "built-recipe-aurora-band"
+   ]
   },
   {
    "batch": "B",
    "file": "groups/aurora-sheets.glsl",
    "kind": "recipe",
-   "functions": []
+   "functions": [
+    "auroraSheets"
+   ],
+   "rulings": [
+    "built-recipe-aurora-sheets"
+   ]
   },
   {
    "batch": "B",
    "file": "groups/neon-line.glsl",
    "kind": "recipe",
-   "functions": []
+   "functions": [
+    "neonProfile",
+    "neonPathStep",
+    "neonLine"
+   ],
+   "rulings": [
+    "built-recipe-neon-line"
+   ]
   },
   {
    "batch": "B",
    "file": "groups/studio-object.glsl",
    "kind": "recipe",
-   "functions": []
+   "functions": [
+    "studioObjectRig",
+    "studioObjectBare",
+    "studioObjectSurface",
+    "studioObjectFloor",
+    "studioObject"
+   ],
+   "rulings": [
+    "built-recipe-studio-object"
+   ]
   },
   {
    "batch": "B",
    "file": "groups/glow-xray.glsl",
    "kind": "recipe",
-   "functions": []
+   "functions": [
+    "glowXray"
+   ],
+   "rulings": [
+    "built-recipe-glow-xray"
+   ]
   },
   {
    "batch": "B",
    "file": "groups/hex-neon.glsl",
    "kind": "recipe",
-   "functions": []
+   "functions": [
+    "hexNeonStep",
+    "hexNeonSwell",
+    "hexNeonPose",
+    "hexNeonColour",
+    "hexNeonCell",
+    "hexNeon"
+   ],
+   "rulings": [
+    "built-recipe-hex-neon"
+   ]
   }
  ],
  "loved": [

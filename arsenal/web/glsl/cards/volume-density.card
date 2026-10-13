@@ -1,0 +1,58 @@
+//! {"card": "volume-density", "uses": ["volume-density"], "t": [0], "size": [480, 270],
+//!  "note": "TOP: three slices through the same shape, two overlapping discs (a big one of radius 0.55 and a small one
+//!  of radius 0.3, units of the panel's half height), with the surface (signed distance 0) drawn as an amber contour.
+//!  The density shows in teal. Left, softness 0: the shape is filled solid right up to the contour, a hard edge. Middle,
+//!  softness 0.1: a thin soft skin just inside the contour, solid core. Right, softness 0.35: a deep soft skin; the big
+//!  disc only reaches full density in a small core, and the small disc never does. Nothing is ever lit outside the
+//!  contour. BOTTOM: the density along the horizontal line through both centres (the dim guide line in the slices),
+//!  for softness 0 (white), 0.1 (teal) and 0.35 (amber), with guides at 0 and 1: zero outside, straight ramps inward
+//!  whose length is the softness, flat at 1 (the amber curve flat-tops only in the big disc). Density outside the
+//!  contour, a ramp that curves, or a ramp longer than its softness is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of volume/density.glsl, written fresh for the house.
+
+// Two discs: the signed distance to their union (negative inside).
+float densityCardShape(vec2 p) {
+    float big = length(p - vec2(-0.2, 0.0)) - 0.55;
+    float small = length(p - vec2(0.5, 0.05)) - 0.3;
+    return min(big, small);
+}
+
+// About one pixel of ink at distance d (in pixels).
+float densityCardInk(float d) {
+    return 1.0 - smoothstep(0.5, 1.5, d);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float softnessOf[3] = float[3](0.0, 0.1, 0.35);
+    vec3 paint = vec3(0.03, 0.035, 0.05);
+    float lineY = 0.05;                                         // the profile's line, in shape units
+    if (pixel.y >= 110.0) {
+        int panel = int(pixel.x / 160.0);
+        vec2 p = (pixel - vec2(160.0 * float(panel) + 80.0, 190.0)) / 80.0;    // half height 80 px = 1 unit
+        float sdf = densityCardShape(p);
+        float density = densFromSDF(sdf, softnessOf[panel]);
+        paint = mix(paint, vec3(0.2, 0.85, 0.75), density);
+        float px = 1.0 / 80.0;
+        float gradLen = length(vec2(densityCardShape(p + vec2(px, 0.0)) - sdf, densityCardShape(p + vec2(0.0, px)) - sdf)) / px;
+        paint = mix(paint, vec3(1.0, 0.65, 0.15), densityCardInk(abs(sdf) / max(gradLen, 1e-3) * 80.0));
+        paint = mix(paint, vec3(0.45, 0.5, 0.6), 0.5 * densityCardInk(abs(p.y - lineY) * 80.0));
+        if (mod(pixel.x, 160.0) < 1.0 || pixel.y < 111.0) paint = vec3(0.0);
+    } else {
+        // the profile: x as in the slices' own coordinates over the whole width, 0..1 density over 90 px
+        vec2 box = pixel - vec2(0.0, 10.0);
+        float x = (pixel.x - 240.0) / 160.0;                    // shape units, 3 across the card
+        if (box.y >= -2.0 && box.y <= 92.0) {
+            float toY = 90.0;
+            paint = mix(paint, vec3(0.28, 0.3, 0.36), densityCardInk(abs(box.y)) + densityCardInk(abs(box.y - toY)));
+            vec3 inks[3] = vec3[3](vec3(0.95), vec3(0.2, 0.85, 0.75), vec3(1.0, 0.65, 0.15));
+            for (int soft = 0; soft < 3; ++soft) {
+                float d = densFromSDF(densityCardShape(vec2(x, lineY)), softnessOf[soft]);
+                float dNext = densFromSDF(densityCardShape(vec2(x + 1.0 / 160.0, lineY)), softnessOf[soft]);
+                float slope = (dNext - d) * toY;                // pixels up per pixel across
+                float miss = abs(box.y - d * toY) / sqrt(1.0 + slope * slope);
+                paint = mix(paint, inks[soft], densityCardInk(miss));
+            }
+        }
+    }
+    color = vec4(paint, 1.0);
+}

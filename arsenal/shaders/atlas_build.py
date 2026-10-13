@@ -35,6 +35,18 @@ every decision is recorded with its reason in atlas.json's `rulings` list:
     every part a P0 group tier requires is P0; PROMOTIONS names the parts promoted (the judge picked patCellDelay where
     the hex-neon recipe offers two P1 alternatives). The converter then CHECKS the closure and refuses a draft that
     breaks it, so a revision that adds a new P1 requirement to a P0 group stops here until a judge rules.
+  - THE BUILT LIBRARY (the batch-A review's defect 3). Where the build settled what the draft left open, the atlas
+    follows the library: BUILT_SIGNATURES rewrites a signature the draft left short ('...') or that the build had to
+    widen (displayOut takes the canvas size), keeping the draft's words in `signature_draft`; BUILT_HELPERS plans the
+    helpers the library exposes by name that the draft never planned, one part per module at the module's status.
+    The converter still reads only the draft; the pins hold these tables to the library, and a ruling the draft has
+    overtaken is refused as stale.
+  - THE GROUP RECIPES (the judge's ruling c on the batch-B review). BUILT_RECIPES plans every function each group
+    recipe module provides (its entry and any steps it exposes by name), one part per module in the module header's
+    category and at its status, with the signatures as built; that category gains the recipe file among its modules
+    and the recipe's manifest row lists the functions. BUILT_SIGNATURES also records the signatures the batch-B build
+    settled or corrected (rmRelaxed and rmBacktrack spelled out, camOrthoRay's ro now inout, camOrbit's time now an
+    angle, and the two names the draft gave without parameters, cellU2 and domRepeatLimited).
   - Which module FILE a part lives in, when its category heading names several files: section 18's manifest first,
     then MODULE_RULES (by name prefix), then the heading's first file.
   - Family M (compositing) has a table but no category heading; it becomes category M1.
@@ -90,6 +102,179 @@ PROMOTIONS: Dict[str, str] = {
                      "draft left both at P1; one is enough, and the judge chose patCellDelay (Pretty Hip's per-cell "
                      "delay, the quantised mosaic wave front)"),
 }
+
+# ---------- rulings that follow the BUILT library (the batch-A review, 2026-10-13, defect 3) ----------
+# The collision ledger and anything generated from the atlas read the atlas, never the library, so where the build
+# settled what the draft left open, the atlas records it. The converter still reads nothing but the draft: these tables
+# carry what the library says, and tests/test_glsl_atlas.py holds them to the library (signatures, names, statuses).
+BUILT = ("the batch-A review, 2026-10-13, defect 3 (the atlas and the built library disagree); the fix the judge "
+         "ordered: atlas rulings, so the collision ledger and anything generated from the atlas see the library as built")
+
+# Signatures the build settled: function -> (the draft's spelling as the part's signature carries it, RENAMES applied;
+# the built spelling; why). A ruling whose draft spelling is gone is stale and refused (the draft changed: re-rule).
+BUILT_SIGNATURES: Dict[str, Tuple[str, str, str]] = {
+    "displayOut": (
+        "vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev,",
+        "vec3 displayOut(vec3 sceneLin, vec2 pixel, vec2 res, float ev,",
+        "the tail's vignette is aspect-true: it needs the pixel over the canvas size and the canvas aspect, which a "
+        "pixel coordinate alone cannot give, so the built tail takes the canvas size res right after pixel"),
+    "audByteToDb": (
+        "float audByteToDb(...)", "float audByteToDb(float v)",
+        "the draft left the parameters as '...'; the built helper takes one spectrum byte v (0..1) and returns decibels "
+        "through the analyser's default -100..-30 dB range"),
+    "audByteToAmp": (
+        "float audByteToAmp(...)", "float audByteToAmp(float v)",
+        "the draft left the parameters as '...'; the built helper takes one spectrum byte v (0..1) and returns linear "
+        "amplitude, the form bins must be in before they are summed"),
+    "fbmGrad3": (
+        "float fbmGrad3(vec3 p, ...)", "float fbmGrad3(vec3 p, int octaves, float lacunarity, float gain, uint seed)",
+        "the draft wrote the 3D form's parameters after p as '...' (the 2D form's); the built helper spells them out, "
+        "so code generated from the atlas can call it"),
+    # the batch-B review (defect 3) and the judge's ruling (c): every signature the batch-B build settled or corrected
+    "cellU2": (
+        "(+cellU2)", "/ uvec2 cellU2(vec2 p)",
+        "the draft named the 2D cell hash only as '(+cellU2)' beside cellU3; the built helper is the 2D form of the same "
+        "floor-to-unsigned key, spelled out so code generated from the atlas can call it"),
+    "domRepeatLimited": (
+        "/ domRepeatLimited", "/ vec3 domRepeatLimited(inout vec3 p, vec3 period, vec3 idMin, vec3 idMax)",
+        "the draft named the limited repetition without its parameters; the built helper takes domRepeat's point and "
+        "period plus the inclusive cell-id bounds idMin and idMax that the id is clamped to"),
+    "camOrbit": (
+        "vec3 camOrbit(vec2 mouse01, float t, float radius, vec3 target)",
+        "vec3 camOrbit(vec2 mouse01, float autoYaw, float radius, vec3 target)",
+        "the second parameter is an ANGLE, not a time: the yaw the camera takes while the mouse is untouched (the host "
+        "turns a clock into it, at whatever speed it likes); the draft's t read as seconds"),
+    "camOrthoRay": (
+        "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, out vec3 ro)",
+        "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, inout vec3 ro)",
+        "ro is read as well as written: the caller passes the camera's position in ro and gets this pixel's ray origin "
+        "back (moved across the image plane), so the parameter is inout; a caller following the draft's `out` would "
+        "pass ro uninitialised"),
+    "rmRelaxed": (
+        "vec4 rmRelaxed(...)",
+        "vec4 rmRelaxed(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, float omega, int maxSteps)",
+        "the draft left the parameters as '...'; the built over-relaxed march takes exactly rmSphereTrace's parameters "
+        "(omega clamped to [1, 1.95] instead of [0.1, 1]) and returns the same vec4(t, steps, smallest d / t, hit)"),
+    "rmBacktrack": (
+        "vec4 rmBacktrack(...)",
+        "vec4 rmBacktrack(vec3 ro, vec3 rd, vec2 tRange, float pixelAngle, int maxSteps, int bisectSteps)",
+        "the draft left the parameters as '...'; the built march for fields that may overestimate takes the march's "
+        "parameters without omega (it always steps d) and the bisection's own budget bisectSteps (capped at 16)"),
+}
+
+# Helpers the library exposes by name that the draft plans nowhere: the building blocks of a planned part, public so a
+# surface or a later part can reuse them. Each becomes a part in the category of its module, at the status of its
+# module (the module header's own "status"), joining its module's manifest row when that status is P0.
+BUILT_HELPERS: List[dict] = [
+    {"category": "H2", "module": "colour/oklab.glsl", "status": "P0",
+     "functions": ["oklchMaxChroma", "oklchCusp"],
+     "signature": "float oklchMaxChroma(float L, float h, float eps) / vec2 oklchCusp(float h)",
+     "contract": ("the gamut edge of one hue (h in turns): oklchMaxChroma is the largest chroma at lightness L whose "
+                  "colour stays inside sRGB within eps, by bisection (the piano's maxChroma search); oklchCusp is the "
+                  "(L, C) of that hue's most colourful sRGB colour, exact everywhere, the sliver just past pure blue "
+                  "included. oklchClip and palPitchFifths stand on them"),
+     "cost_text": "C1 (24 bisection steps each)", "learn": ["CP 2.3"]},
+    {"category": "H4", "module": "colour/palette.glsl", "status": "P0",
+     "functions": ["palPitchPiano", "palPitchLumaMean"],
+     "signature": "PitchPalette palPitchPiano() / float palPitchLumaMean(PitchPalette pp)",
+     "contract": ("palPitchPiano is the piano page's pitch-colour knobs as one PitchPalette, so a GLSL surface draws "
+                  "the piano's own twelve colours; palPitchLumaMean is the geometric-mean luminance of the twelve "
+                  "pitch colours before the pull, the level a palette's lumaTarget holds. Twelve palette evaluations: "
+                  "compute it once (the twin, or a one-off pass), never per pixel"),
+     "cost_text": "palPitchPiano C0; palPitchLumaMean C1 twelve times over (compute once)",
+     "learn": ["arc-piano-core (3)"]},
+    {"category": "B1", "module": "noise/gradient.glsl", "status": "P0",
+     "functions": ["noiseGradRamp2", "noiseGradRamp3"],
+     "signature": ("float noiseGradRamp2(uvec2 cell, uvec2 corner, uint stream, vec2 inCell) / "
+                   "float noiseGradRamp3(uvec3 cell, uvec3 corner, uint stream, vec3 inCell)"),
+     "contract": ("one lattice corner's ramp: that corner's hashed gradient (eight directions in 2D, twelve edge "
+                  "directions in 3D) dotted with the offset from the corner, zero at the corner itself; noiseGrad2 "
+                  "and noiseGrad3 blend four and eight of them. stream is the seed with gradient noise's own tag "
+                  "already in it (the noise functions apply the tag). Public so a derivative or a tiled variant "
+                  "reuses the exact corner the noise uses"),
+     "cost_text": "C0 (one hash each)", "learn": ["NP 4"]},
+]
+
+# ---------- the group recipe modules (the judge's ruling c on the batch-B review, 2026-10-13) ----------
+# A recipe module wires library parts into a group's look. It exposes its entry (the function a host calls with the
+# recipe's knobs as its last arguments) and, for some recipes, its own steps by name (hexNeonCell, studioObjectRig,
+# neonProfile). The draft plans none of them, so they were names the atlas did not own: a later module could claim one,
+# and nothing generated from the atlas could call one. Each recipe module becomes ONE part, in its header's category and
+# at its status, listing every function the module provides with its signature as built. The pins in
+# tests/test_glsl_atlas.py hold each entry to the module file (names, order, signatures, category, status); a recipe
+# whose names the draft starts to plan itself is refused here as a stale ruling.
+RECIPES = ("the judge's ruling (c) on the batch-B review, 2026-10-13: the atlas lists every function each recipe module "
+           "provides (the group files' function lists) and records the built signatures")
+
+BUILT_RECIPES: List[dict] = [
+    {"module": "groups/aurora-band.glsl", "group": "aurora", "category": "G8", "status": "P0",
+     "functions": ["auroraBand"],
+     "signature": ("vec3 auroraBand(vec2 pixel, vec2 res, float clock, float intensity, float hemHeight, "
+                   "float curtainWidth, float fold, float rays, float fringe, int palette, float sky, int curtains, "
+                   "int view)"),
+     "what": "the aurora group's band tier: folded 2D curtains with rays and a sharp hem, added over the night sky",
+     "cost_text": "C1 (the band tier)",
+     "learn": ["VA 7.1", "VA 7.2 family A", "VA 7.3", "study:MsjfRG 6.1", "craft secret 3", "craft secret 20"]},
+    {"module": "groups/aurora-sheets.glsl", "group": "aurora", "category": "G8", "status": "P0",
+     "functions": ["auroraSheets"],
+     "signature": ("vec3 auroraSheets(vec2 pixel, vec2 res, vec3 ro, mat3 basis, float focal, float clock, "
+                   "float intensity, float hemHeight, float curtainWidth, float fold, float rays, float fringe, "
+                   "int palette, float sky, float lake, int layers, int view)"),
+     "what": "the aurora group's sheet tier: curtains as layered sheets seen from a camera, over the sky and a lake",
+     "cost_text": "C2 (the sheet tier)",
+     "learn": ["VA 7.2 family B", "VA 7.1", "study:ffG3Rc 5.3", "study:ffG3Rc 5.4", "craft secret 12",
+               "craft secret 22"]},
+    {"module": "groups/glow-xray.glsl", "group": "glow-xray", "category": "F9", "status": "P0",
+     "functions": ["glowXray"],
+     "signature": ("vec3 glowXray(vec2 pixel, vec2 res, vec3 ro, mat3 basis, float focal, int budget, "
+                   "float passthrough, float density, float sparkWidth, int palette, float hueSpeed, float rim, "
+                   "int view)"),
+     "what": "a pass-through march over the host's scene that gathers glow instead of stopping: x-ray glass",
+     "cost_text": "C2 (a fixed march budget per pixel)",
+     "learn": ["LM 12.2", "study:WdB3Dw 5.8", "study:WdB3Dw 5.12", "study:MdX3zr 6.1", "craft secret 2"]},
+    {"module": "groups/hex-neon.glsl", "group": "hex-neon", "category": "C5", "status": "P0",
+     "functions": ["hexNeonStep", "hexNeonSwell", "hexNeonPose", "hexNeonColour", "hexNeonCell", "hexNeon"],
+     "signature": ("vec2 hexNeonStep(int k) / float hexNeonSwell(float since, float dice) / "
+                   "vec3 hexNeonPose(vec2 centre, float t, vec2 originLat, float waveSpeed, float sizeAmp, "
+                   "float spin) / vec3 hexNeonColour(vec2 axial, float dice, int palette, float accent) / "
+                   "vec4 hexNeonCell(vec2 offset, vec2 centre, float pxLat, float t, vec2 originLat, float lineWidth, "
+                   "float haloPx, float waveSpeed, float sizeAmp, float spin, int palette, float accent, int combine) / "
+                   "vec3 hexNeon(vec2 p, float px, float t, vec2 origin, float cellSize, float lineWidth, "
+                   "float haloPx, float waveSpeed, float sizeAmp, float spin, int palette, float accent, int combine, "
+                   "int view)"),
+     "what": "neon hexagons on a hex lattice, a wave front arriving cell by cell; the five helpers are its own steps "
+             "(the neighbour offsets, one cell's swell, pose, colour and glow)",
+     "cost_text": "C1 (seven cells per pixel)",
+     "learn": ["craft secret 5", "craft secret 10", "study:wsl3WB 4.3", "study:wsl3WB 4.6", "study:XsBfRW 5.4",
+               "study:lfscD7 5.4", "study:lfscD7 5.5"]},
+    {"module": "groups/neon-line.glsl", "group": "neon-line", "category": "F9", "status": "P0",
+     "functions": ["neonProfile", "neonPathStep", "neonLine"],
+     "signature": ("float neonProfile(float dPx, float haloPx, int profile) / "
+                   "vec2 neonPathStep(vec2 p, vec2 a, vec2 b, vec2 s, vec2 best) / "
+                   "vec3 neonLine(vec3 acc, float d, float px, vec3 tint, float energy, float depth, float widthPx, "
+                   "float haloPx, int profile, float coreHeat, int combine, float defocus, int view)"),
+     "what": "a light line of constant pixel width with a hot core and a coloured halo, accumulated per line; the "
+             "helpers are its cross-section and one step along a polyline",
+     "cost_text": "C1 (per line drawn)",
+     "learn": ["craft secret 6", "craft secret 7", "craft secret 21", "study:DtXfDr 4.3", "study:ldSfWV 5.3",
+               "study:MtXczn 5.2", "study:l3cfW4 5.7"]},
+    {"module": "groups/studio-object.glsl", "group": "studio-object", "category": "F10", "status": "P0",
+     "functions": ["studioObjectRig", "studioObjectBare", "studioObjectSurface", "studioObjectFloor", "studioObject"],
+     "signature": ("StudioParams studioObjectRig(float keyTurn, float keyElevation, float boxSize, float poolRadius, "
+                   "float floorDrop) / StudioParams studioObjectBare(StudioParams sp) / "
+                   "vec3 studioObjectSurface(vec3 p, vec3 n, vec3 toEye, StudioParams sp, float fresnelFloor, "
+                   "float metal, float roughness, float shadow, float ao) / "
+                   "vec3 studioObjectFloor(vec3 pf, vec3 toEye, vec3 target, StudioParams sp, float shadow, float ao) / "
+                   "vec3 studioObject(vec3 ro, vec3 target, vec2 pixel, vec2 res, float lens, float keyTurn, "
+                   "float keyElevation, float boxSize, float backdrop, float fresnelFloor, float metal, float roughness, "
+                   "float shadowAngle, float aoReach, float poolRadius, float floorDrop, float bound, float steps, "
+                   "float omega, int view)"),
+     "what": "a product shot of the host's object in the house studio: soft boxes, a contact shadow, a floor that "
+             "fades into the backdrop; the helpers are its rig, its surface and its floor",
+     "cost_text": "C2 (a march, a soft shadow and AO per pixel)",
+     "learn": ["craft secret 1", "craft secret 2", "craft secret 14", "craft secret 23", "study:3XdXRr 5.3",
+               "study:3XdXRr 5.4", "study:XtyXzW 5.12"]},
+]
 
 # Family M's table sits directly under its family heading.
 SYNTHETIC_CATEGORIES: Dict[str, Tuple[str, str, List[str]]] = {
@@ -992,6 +1177,122 @@ def plan_types(parts: List[dict], categories: List[dict], rulings: List[dict]) -
     return parts
 
 
+def apply_built_signatures(parts: List[dict], rulings: List[dict]) -> None:
+    """BUILT_SIGNATURES: rewrite each signature the build settled, keeping the draft's text in `signature_draft`.
+    Refuses a ruling for a name the draft does not plan, or whose draft spelling is no longer in the signature."""
+    owner = {fn: p for p in parts for fn in p["functions"]}
+    for name, (drafted, built, why) in BUILT_SIGNATURES.items():
+        p = owner.get(name)
+        if p is None:
+            raise ValueError(f"BUILT_SIGNATURES names {name!r}, which the draft does not plan")
+        if p["signature"].count(drafted) != 1:
+            raise ValueError(f"BUILT_SIGNATURES names {name!r}, but {p['id']}'s signature no longer reads "
+                             f"{drafted!r} (the draft changed): the ruling is stale, re-rule it")
+        rid = f"built-sig-{name}"
+        p.setdefault("signature_draft", p["signature"])
+        p["signature"] = p["signature"].replace(drafted, built)
+        p.setdefault("rulings", []).append(rid)
+        rulings.append({"id": rid, "kind": "built-signature", "names": [name], "part": p["id"], "from": drafted,
+                        "to": built, "source": BUILT, "reason": f"the library builds {name} as {built!r}: {why}"})
+
+
+def plan_built_helpers(parts: List[dict], categories: List[dict], rulings: List[dict]) -> None:
+    """BUILT_HELPERS: one part per entry, appended to its category at the status of its module. Refuses an entry whose
+    category does not hold its module, or that names something the draft already plans (a stale ruling)."""
+    cats = {c["id"]: c for c in categories}
+    planned = {fn for p in parts for fn in p["functions"]}
+    for spec in BUILT_HELPERS:
+        fns, cat = list(spec["functions"]), cats.get(spec["category"])
+        if cat is None or spec["module"] not in cat["modules"]:
+            raise ValueError(f"BUILT_HELPERS files {fns} under {spec['category']}, which does not hold "
+                             f"{spec['module']}")
+        if spec["status"] not in RANK:
+            raise ValueError(f"BUILT_HELPERS gives {fns} the status {spec['status']!r}")
+        again = [fn for fn in fns if fn in planned]
+        if again:
+            raise ValueError(f"BUILT_HELPERS names {again}, which the draft now plans itself: the ruling is stale, "
+                             f"drop it")
+        n = sum(1 for p in parts if p["category"] == cat["id"]) + 1
+        rid = f"built-part-{fns[0]}"
+        ticked = " / ".join(f"`{s.strip()}`" for s in spec["signature"].split(" / "))
+        part = {"id": f"{cat['id']}.{n:02d}", "category": cat["id"], "family": cat["family"],
+                "signature": spec["signature"], "functions": fns, "contract": spec["contract"],
+                "cost": cost_of(spec["cost_text"]), "cost_text": spec["cost_text"], "tex": None, "hook": False,
+                "status": spec["status"], "legacy": False, "kind": "function", "form": "ruling", "exemplars": [],
+                "loved_text": "", "learn": list(spec["learn"]), "sources": [], "module": spec["module"],
+                "module_basis": "ruling", "line": None,
+                "types": [t for t in types_in_signature(ticked) if t not in fns], "ruling": rid}
+        at = max(k for k, p in enumerate(parts) if p["category"] == cat["id"]) + 1
+        parts.insert(at, part)
+        planned |= set(fns)
+        rulings.append({"id": rid, "kind": "plan-built", "names": fns, "part": part["id"], "module": spec["module"],
+                        "status": spec["status"], "source": BUILT,
+                        "reason": (f"{_and(fns)} are built in {spec['module']} and exposed by name, but the draft "
+                                   f"plans them nowhere; planned here at their module's status ({spec['status']}) so "
+                                   "the atlas owns every name the library provides and nothing else can claim one")})
+
+
+RECIPE_DECL = re.compile(r"^([A-Za-z_]\w*) ([A-Za-z_]\w*)\(([^()]*)\)$")
+
+
+def plan_built_recipes(parts: List[dict], categories: List[dict], groups: List[dict], rulings: List[dict]) -> None:
+    """BUILT_RECIPES (the judge's ruling c): one part per recipe module, listing every function it provides with its
+    built signature, appended to the module header's category at the module's status. The category gains the recipe
+    file among its modules (a part lives in a module its category holds). Refuses an entry whose group does not land
+    in that file, whose signature names other functions than it lists, or that names something the draft plans."""
+    cats = {c["id"]: c for c in categories}
+    by_group = {g["name"]: g for g in groups}
+    planned = {fn for p in parts for fn in p["functions"]}
+    for spec in BUILT_RECIPES:
+        fns, cat, group = list(spec["functions"]), cats.get(spec["category"]), by_group.get(spec["group"])
+        if cat is None:
+            raise ValueError(f"BUILT_RECIPES files {spec['module']} under {spec['category']}, which is no category")
+        if group is None or spec["module"] not in group["modules"]:
+            raise ValueError(f"BUILT_RECIPES places {spec['module']} in group {spec['group']!r}, whose recipe modules "
+                             f"are {group['modules'] if group else 'unknown'}")
+        if spec["status"] not in RANK or RANK[spec["status"]] < RANK[group["status"]]:
+            raise ValueError(f"BUILT_RECIPES gives {spec['module']} the status {spec['status']!r} (its group is "
+                             f"{group['status']})")
+        decls = [RECIPE_DECL.match(s.strip()) for s in spec["signature"].split(" / ")]
+        if not all(decls) or [d.group(2) for d in decls] != fns:
+            raise ValueError(f"BUILT_RECIPES spells {spec['module']}'s signature for "
+                             f"{[d.group(2) if d else '?' for d in decls]}, but lists {fns}")
+        again = [fn for fn in fns if fn in planned]
+        if again:
+            raise ValueError(f"BUILT_RECIPES names {again}, which the draft now plans itself: the ruling is stale, "
+                             f"drop it")
+        added = spec["module"] not in cat["modules"]
+        if added:
+            cat["modules"].append(spec["module"])
+        n = sum(1 for p in parts if p["category"] == cat["id"]) + 1
+        rid = "built-recipe-" + spec["module"].rsplit("/", 1)[-1][:-len(".glsl")]
+        ticked = " / ".join(f"`{s.strip()}`" for s in spec["signature"].split(" / "))
+        entry, helpers = fns[-1], fns[:-1]
+        contract = (f"{spec['what']}. {entry} is the recipe's entry: a host calls it with the recipe's knobs as its last "
+                    "arguments, the Workbench binding each one as a declared param"
+                    + (f"; {_and(helpers)} {'is its own step' if len(helpers) == 1 else 'are its own steps'}, public "
+                       "by name" if helpers else "")
+                    + ". The module header holds the full contract, the knobs and the debug views")
+        part = {"id": f"{cat['id']}.{n:02d}", "category": cat["id"], "family": cat["family"],
+                "signature": spec["signature"], "functions": fns, "contract": contract,
+                "cost": cost_of(spec["cost_text"]), "cost_text": spec["cost_text"], "tex": None, "hook": False,
+                "status": spec["status"], "legacy": False, "kind": "recipe", "form": "ruling", "exemplars": [],
+                "loved_text": "", "learn": list(spec["learn"]), "sources": [], "module": spec["module"],
+                "module_basis": "ruling", "line": None, "group": spec["group"],
+                "types": [t for t in types_in_signature(ticked) if t not in fns], "ruling": rid}
+        at = max(k for k, p in enumerate(parts) if p["category"] == cat["id"]) + 1
+        parts.insert(at, part)
+        planned |= set(fns)
+        rulings.append({"id": rid, "kind": "plan-recipe", "names": fns, "part": part["id"], "module": spec["module"],
+                        "group": spec["group"], "category": cat["id"], "category_gains_module": added,
+                        "status": spec["status"], "source": RECIPES,
+                        "reason": (f"{spec['module']} is the {spec['group']} group's recipe and provides {_and(fns)} "
+                                   "by name, but the draft plans no recipe's functions; planned here as one "
+                                   f"{spec['status']} part in its header's category ({cat['id']}), with the "
+                                   "signatures as built, so the atlas owns every name the library provides and code "
+                                   "generated from the atlas can call them")})
+
+
 def apply_manifest_rulings(rows: List[dict], parts: List[dict]) -> None:
     """Every P0 name must be in a manifest file. Names the rulings made P0 join the row of their module (a struct first,
     so it is declared before its users); a module the manifest lacks gets a new batch-B row (batch B is 'the six P0
@@ -1087,6 +1388,9 @@ def build(draft: Path = DRAFT) -> dict:
     ]
     apply_promotions(parts, groups, rulings)
     plan_types(parts, categories, rulings)
+    apply_built_signatures(parts, rulings)
+    plan_built_helpers(parts, categories, rulings)
+    plan_built_recipes(parts, categories, groups, rulings)
     check_closure(parts, groups)
     apply_manifest_rulings(manifest_rows, parts)
 

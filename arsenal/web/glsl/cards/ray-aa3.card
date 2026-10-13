@@ -1,0 +1,59 @@
+//! {"card": "ray-aa3", "uses": ["ray-aa3", "ray-march", "colour-transfer"], "t": [0, 2], "size": [480, 270],
+//!  "note": "The edge of a ball seen through enlarged pixels (each 8 x 8 screen pixels), the true silhouette drawn as a thin white arc. LEFT: a marched ball. Top: hit or miss alone, a hard staircase. Bottom: aaConeCoverage from the march's own closest approach: the same edge as a smooth one-pixel ramp with no step where the hits meet the near misses; its half-coverage line runs one enlarged pixel outside the white arc, as the contract says (half a pixel of march epsilon, half a pixel of filter). RIGHT: an analytic ball (no march). Top: the discriminant's sign alone, a staircase. Bottom: aaDiscriminantEdge, a ramp whose half-coverage line sits on the white arc itself. Between t = 0 and t = 2 the edge slides about 0.4 of an enlarged pixel: the bottom panels shade smoothly to follow it while the top panels can only flip whole pixels. A broken module shows steps or a bright or dark ring of pixels along the bottom ramps, a ramp wider than about one enlarged pixel, or NaN magenta."}
+// Apache-2.0, Akashic Aurora. The test card for ray/aa3.glsl, written fresh.
+
+const float AA_CELL = 8.0;          // screen pixels per enlarged pixel
+const float AA_ANGLE = 0.0045;      // radians spanned by one enlarged pixel
+
+float mapScene(vec3 p) {
+    float fromCentre = length(p);
+    return fromCentre - 1.0;            // the unit ball at the origin
+}
+
+// The direction through angular offset `angles` from the view's centre, looking down -z from (0, 0, 4) at a point on
+// the ball's silhouette (angle 0.2527 rad off its centre, toward upper right), drifting a little with time.
+vec3 aaCardRay(vec2 angles) {
+    vec2 rimDir = normalize(vec2(1.0, 0.6));
+    vec2 aim = rimDir * 0.2527 + vec2(0.4 * AA_ANGLE * iTime / 2.0, 0.0);
+    return normalize(vec3(aim + angles, -1.0));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(240.0, 135.0);
+    vec2 cell = floor(pixel / panelSize);
+    vec2 local = pixel - cell * panelSize;
+    bool ramped = cell.y < 0.5;                        // the bottom row antialiases, the top row does not
+    bool analytic = cell.x > 0.5;
+    vec3 ro = vec3(0.0, 0.0, 4.0);
+
+    vec2 coarse = floor(local / AA_CELL);
+    vec2 cellCentre = (coarse + 0.5) * AA_CELL - 0.5 * panelSize;
+    vec3 rd = aaCardRay(cellCentre / AA_CELL * AA_ANGLE);
+    float coverage;
+    if (analytic) {
+        vec3 fromCentre = ro;
+        float along = -dot(fromCentre, rd);
+        vec3 across = fromCentre + rd * along;
+        float disc = 1.0 - dot(across, across);
+        float px = 2.0 * AA_ANGLE * along;            // one enlarged pixel in disc's units (2 r footprint, r = 1)
+        coverage = ramped ? aaDiscriminantEdge(disc, px) : step(0.0, disc);
+    } else {
+        vec4 march = rmSphereTrace(ro, rd, vec2(0.0, 10.0), AA_ANGLE, 1.0, 64);
+        coverage = ramped ? aaConeCoverage(march.z, AA_ANGLE) : march.w;
+    }
+    vec3 paint = mix(vec3(0.03, 0.04, 0.07), vec3(1.0, 0.62, 0.3), coverage);
+
+    // the enlarged pixel grid, faintly, and the true silhouette through this screen pixel's own direction
+    vec2 inCell = mod(local, AA_CELL);
+    float gridInk = 1.0 - smoothstep(0.0, 1.0, min(inCell.x, inCell.y));
+    paint = mix(paint, vec3(0.2, 0.22, 0.28), 0.35 * gridInk);
+    vec3 fine = aaCardRay((local + 0.5 - 0.5 * panelSize) / AA_CELL * AA_ANGLE);
+    float offRim = acos(clamp(dot(fine, -normalize(ro)), -1.0, 1.0)) - asin(0.25);
+    float screenPixelAngle = AA_ANGLE / AA_CELL;
+    paint = mix(paint, vec3(1.0), 1.0 - smoothstep(0.5, 1.2, abs(offRim) / screenPixelAngle));
+
+    paint = srgbEncode(clamp(paint, 0.0, 1.0));
+    vec2 toBorder = min(local, panelSize - local);
+    paint *= smoothstep(0.5, 1.5, min(toBorder.x, toBorder.y));
+    color = vec4(paint, 1.0);
+}

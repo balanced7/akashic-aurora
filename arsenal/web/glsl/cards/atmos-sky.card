@@ -1,0 +1,38 @@
+//! {"card": "atmos-sky", "uses": ["atmos-sky", "core-const"], "t": [0], "size": [480, 270],
+//!  "note": "Two panoramas of the whole sky, azimuth across (the sun's azimuth in the middle, behind you at both
+//!  edges), elevation up from 10 degrees below the horizon (bottom of each panel) to straight overhead (top of each
+//!  panel); the horizon is the faint tick line. TOP PANEL, pre-dawn: the sun 4 degrees below the horizon (its position
+//!  ringed). The top row is the near-black zenith blue all across; a warm rose-orange glow sits on the horizon in the
+//!  middle, widest and climbing highest straight above the sun, narrowing and cooling into a thin grey-blue horizon
+//!  band toward both edges. BOTTOM PANEL, mid-morning: the sun 45 degrees up (ringed). A blue zenith across the top, a
+//!  pale horizon band of the same colour and the same width all round, no warmth anywhere. In both panels everything
+//!  below the horizon repeats the horizon colour of its column, and every column changes smoothly from bottom to top. A
+//!  glow behind you, a warm horizon in the bottom panel, a top row that is not uniform, or a hard step at the horizon
+//!  is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of atmos/sky.glsl, written fresh for the house.
+
+// The direction at azimuth az (0 = the sun's azimuth, along -z) and elevation el, both in radians, y up.
+vec3 skyCardDir(float az, float el) {
+    return vec3(cos(el) * sin(az), sin(el), -cos(el) * cos(az));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    bool dawn = pixel.y >= 135.0;
+    float local = dawn ? pixel.y - 135.0 : pixel.y;                      // 0 to 135 inside a panel
+    float el = radians(-10.0 + local / 135.0 * 100.0);
+    float az = (pixel.x / 480.0 - 0.5) * 2.0 * PI;
+    vec3 rd = skyCardDir(az, el);
+    float sunEl = radians(dawn ? -4.0 : 45.0);
+    vec3 toSun = skyCardDir(0.0, sunEl);
+    vec3 paint = dawn
+        ? skyGradient(rd, toSun, vec3(0.006, 0.01, 0.035), vec3(0.12, 0.15, 0.22), vec3(0.95, 0.42, 0.22))
+        : skyGradient(rd, toSun, vec3(0.08, 0.22, 0.65), vec3(0.62, 0.72, 0.82), vec3(1.0, 0.75, 0.45));
+    // the sun's position, ringed; the horizon, ticked
+    vec2 sunPx = vec2(240.0, (dawn ? 135.0 : 0.0) + (degrees(sunEl) + 10.0) / 100.0 * 135.0);
+    float ring = abs(length(pixel - sunPx) - 6.0);
+    paint = mix(paint, vec3(1.0, 0.95, 0.6), 1.0 - smoothstep(0.5, 1.5, ring));
+    float horizonY = (dawn ? 135.0 : 0.0) + 10.0 / 100.0 * 135.0;
+    paint = mix(paint, vec3(0.5), 0.35 * (1.0 - smoothstep(0.5, 1.5, abs(pixel.y - horizonY))) * step(0.5, fract(pixel.x / 8.0)));
+    if (abs(pixel.y - 135.0) < 0.5) paint = vec3(0.0);
+    color = vec4(paint, 1.0);
+}

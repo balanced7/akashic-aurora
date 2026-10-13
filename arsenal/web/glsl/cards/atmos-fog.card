@@ -1,0 +1,42 @@
+//! {"card": "atmos-fog", "uses": ["atmos-fog"], "t": [0], "size": [480, 270],
+//!  "note": "A checkerboard floor seen from just above it, running away to the horizon at mid height, under a sky that
+//!  is the fog colour (pale grey-blue). Three vertical thirds use thin, medium and thick fog (k = 0.015, 0.06, 0.25 per
+//!  unit, so half the colour is gone by about 46, 12 and 3 units). In every third the near squares (bottom) are crisp
+//!  dark and light and the far squares fade smoothly into the fog colour, meeting the sky at the horizon with no line;
+//!  the thicker the fog, the closer to the eye the squares vanish (the right third keeps only the nearest rows). In the
+//!  thin-fog third a soft neutral band just under the horizon is the far floor's average grey still showing through
+//!  the bluish fog: it blends continuously into the sky, never a step. The
+//!  thin strip along the bottom edge plots the fog's share 1 - e^(-k d) along d for the three k as three ramps rising
+//!  from black toward the fog colour at different rates. A line at the horizon, squares that pop instead of fading, or
+//!  fog that is thinner in the right third is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of atmos/fog.glsl, written fresh for the house.
+
+const vec3 FOG_CARD_COLOUR = vec3(0.55, 0.62, 0.72);
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float kOf[3] = float[3](0.015, 0.06, 0.25);
+    int third = int(pixel.x / 160.0);
+    float k = kOf[third];
+    vec3 paint;
+    if (pixel.y < 14.0) {
+        float d = (mod(pixel.x, 160.0) / 160.0) * 30.0;           // 0 to 30 units along each third
+        paint = fogExp(vec3(0.0), FOG_CARD_COLOUR, d, k);
+    } else {
+        vec2 p = (pixel - vec2(80.0 + 160.0 * float(third), 142.0)) / 128.0;   // the horizon at y = 142
+        vec3 rd = normalize(vec3(p, -1.0));
+        float dist = 1.0 / max(-rd.y, 1e-4);                      // the eye one unit above the floor y = 0
+        vec2 ground = dist * rd.xz;
+        vec2 footprint = fwidth(ground);                          // floor units per pixel (continuous: no cell ids)
+        if (rd.y < -1e-4) {
+            vec2 cell = floor(ground / 0.6);
+            vec3 floorCol = mod(cell.x + cell.y, 2.0) < 0.5 ? vec3(0.12) : vec3(0.95);
+            float resolved = clamp(1.6 - max(footprint.x, footprint.y) / 0.6 * 2.0, 0.0, 1.0);
+            floorCol = mix(vec3(0.535), floorCol, resolved);      // squares smaller than a pixel go to their average
+            paint = fogExp(floorCol, FOG_CARD_COLOUR, dist, k);
+        } else {
+            paint = FOG_CARD_COLOUR;                              // the sky: fog seen through forever
+        }
+    }
+    if (mod(pixel.x, 160.0) < 1.0) paint = vec3(0.0);
+    color = vec4(paint, 1.0);
+}

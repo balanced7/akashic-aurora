@@ -1,0 +1,30 @@
+//! {"card": "composite-parity", "uses": ["composite-parity", "draw2-sdf2", "draw2-aa", "core-frame"], "t": [0], "size": [480, 270],
+//!  "note": "Ink combined by cmpXor, cream ink on a dark navy ground. LEFT HALF: three equal discs overlapping like a Venn diagram (two side by side, one below between them). Each disc alone is cream; where exactly two overlap the ink cancels to navy (three lens shapes); the small curved triangle in the very middle where all three overlap is cream again (odd count). Every edge, including the edges of the cancelled lenses, is one smooth antialiased pixel with no dark seam. RIGHT HALF: two sets of filled concentric rings, centred a little left and a little right of the half's middle (the second spaced 4 percent wider), combined by cmpXor: neither ring set is visible as such; instead a fan of broad moire bands radiates from between the two centres, alternately cream and navy, with a fine checker where the bands cross the middle. A lens that stays cream, a dark one-pixel seam along shared edges, or plain rings without moire is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of composite/parity.glsl, written fresh for the house.
+
+const vec3 PARITY_CARD_GROUND = vec3(0.035, 0.05, 0.11);    // display values
+const vec3 PARITY_CARD_INK = vec3(0.96, 0.91, 0.82);
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 uv = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    float ink;
+    if (pixel.x < 0.5 * iResolution.x) {
+        vec2 p = uv - vec2(-0.89, 0.0);
+        float a = aaFill(sd2Circle(p - vec2(-0.2, 0.17), 0.42), px);
+        float b = aaFill(sd2Circle(p - vec2(0.2, 0.17), 0.42), px);
+        float c = aaFill(sd2Circle(p - vec2(0.0, -0.18), 0.42), px);
+        ink = cmpXor(cmpXor(a, b), c);
+    } else {
+        vec2 p = uv - vec2(0.89, 0.0);
+        // filled rings half a period wide: the signed distance to the band |r - (k + 1/2) s| <= s / 4
+        float spacing = 0.06;
+        float wide = 1.04 * spacing;
+        float ringsA = aaFill(abs(fract(length(p + vec2(0.12, 0.0)) / spacing) - 0.5) * spacing - 0.25 * spacing, px);
+        float ringsB = aaFill(abs(fract(length(p - vec2(0.12, 0.0)) / wide) - 0.5) * wide - 0.25 * wide, px);
+        ink = cmpXor(ringsA, ringsB);
+    }
+    vec3 paint = mix(PARITY_CARD_GROUND, PARITY_CARD_INK, ink);
+    paint = mix(paint, vec3(0.0), 1.0 - smoothstep(0.5, 1.5, abs(pixel.x - 0.5 * iResolution.x)));
+    color = vec4(paint, 1.0);
+}

@@ -1,0 +1,105 @@
+//! {"card": "light-glass", "uses": ["light-glass", "light-fresnel", "colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "LEFT, a ray diagram: glass (index 1.5, tinted blue-grey) below a flat surface, air above. Eight white rays leave one point deep in the glass and meet the surface at growing angles. The steep ones pass into the air as amber rays bent AWAY from the normal (the dotted vertical guides mark each normal); from about 42 degrees on (the critical angle for 1.5) litRefractTIR returns false and the ray comes back down into the glass as a red mirror ray, with no amber ray above it. MIDDLE, a glass ball of index 1.5 tinted teal by Beer-Lambert in front of a fine checkerboard that runs from red at the top to cream at the bottom: through the ball the board shows upside down like a ball lens (cream-tinted cells at the top of the ball, red-tinted ones at its bottom), the cells largest at the centre and crowding toward the rim (spherical aberration; the very edge aliases into fine moire), the teal deepest in the middle where the path through the glass is longest, a bright Fresnel rim of sky at the edge, and no black ring. RIGHT, three Beer-Lambert strips: thickness 0 to 3 units across, each absorbing so that white becomes the swatch above it (teal, amber, rose) after exactly 1 unit, at the white tick. Each strip starts white on the left, matches its swatch at the tick, and grows deeper and more saturated to the right (twice the thickness is the swatch squared). Under each strip a white mark stands at 1 unit. A ray that both refracts and reflects at one point, refraction bending toward the normal, a black edge on the ball, or a strip that does not match its swatch at the tick is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of light/glass.glsl, written fresh for the house.
+
+float glassCardInk(float d) {
+    return 1.0 - smoothstep(0.5, 1.5, d);
+}
+
+const vec3 GLASS_CARD_UP = vec3(0.0, 1.0, 0.0);
+
+// Pixel distance from 'at' to the segment that starts at 'from' and stops at 'to'.
+float glassCardSegment(vec2 at, vec2 from, vec2 to) {
+    vec2 span = to - from;
+    vec2 rel = at - from;
+    float share = clamp(dot(rel, span) / dot(span, span), 0.0, 1.0);
+    return distance(rel, span * share);
+}
+
+// A fine checkerboard, cream at the bottom shading to red at the top, so an upside-down image is easy to see.
+vec3 glassCardBoard(vec2 xy) {
+    vec2 cell = floor(xy * 7.0);
+    float parity = mod(cell.x + cell.y, 2.0);
+    vec3 warm = mix(vec3(0.9, 0.82, 0.6), vec3(0.8, 0.12, 0.08), smoothstep(-1.2, 1.2, xy.y));
+    return mix(vec3(0.05, 0.06, 0.08), warm, parity);
+}
+
+// A glass ball (centre, radius) seen orthographically along -z, in front of a board 2.3 units behind its centre:
+// beyond the ball lens's focus (about 1.5 radii behind the centre), so the view through it is inverted.
+vec3 glassCardBall(vec2 xy, float radius, float ior, vec3 sigma) {
+    float reach = dot(xy, xy) / (radius * radius);
+    if (reach >= 1.0) return glassCardBoard(xy);
+    vec3 intoScreen = vec3(0.0, 0.0, -1.0);
+    vec3 entry = vec3(xy, radius * sqrt(1.0 - reach));
+    vec3 n = entry / radius;
+    float mirror = litFresnelSchlick(n.z, litF0FromIor(ior));          // n.z is the cosine to the eye
+    vec3 sky = mix(vec3(0.05), vec3(1.2, 1.35, 1.6), smoothstep(-0.2, 0.6, reflect(intoScreen, n).y));
+    vec3 inside;
+    litRefractTIR(intoScreen, n, 1.0 / ior, inside);
+    vec3 at = entry;
+    vec3 carried = vec3(1.0);
+    vec3 seen = vec3(0.0);
+    for (int bounce = 0; bounce < 4; bounce++) {
+        float chord = -2.0 * dot(at, inside);                      // from one side of the ball to the other
+        vec3 far = at + inside * chord;
+        carried *= exp(-sigma * chord);
+        vec3 leaving;
+        if (litRefractTIR(inside, far / radius, ior, leaving)) {
+            vec2 onBoard = far.xy + leaving.xy * (2.3 + far.z) / max(-leaving.z, 0.05);
+            seen = carried * glassCardBoard(onBoard);
+            break;
+        }
+        at = far;
+        inside = leaving;
+    }
+    return mix(seen, sky, mirror);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.03, 0.033, 0.04);
+    if (pixel.x < 240.0) {
+        // ---- ray diagram: the surface at y = 135, glass below
+        float surface = 135.0;
+        if (pixel.y < surface) paint = vec3(0.07, 0.09, 0.13);
+        paint = mix(paint, vec3(0.4, 0.45, 0.55), glassCardInk(abs(pixel.y - surface)));
+        vec2 source = vec2(30.0, 25.0);
+        for (int ray = 0; ray < 8; ray++) {
+            vec2 meet = vec2(42.0 + 27.0 * float(ray), surface);
+            vec2 travel = normalize(meet - source);
+            float guide = abs(pixel.x - meet.x) < 0.75 && abs(pixel.y - surface) < 26.0
+                          && mod(pixel.y, 6.0) < 3.0 ? 1.0 : 0.0;
+            paint = mix(paint, vec3(0.3, 0.32, 0.38), guide);
+            paint = mix(paint, vec3(0.95), glassCardInk(glassCardSegment(pixel, source, meet)));
+            vec3 bent;
+            bool through = litRefractTIR(vec3(travel, 0.0), GLASS_CARD_UP, 1.5, bent);    // glass 1.5 to air 1.0
+            vec2 tip = meet + bent.xy * 110.0;
+            vec3 ink = through ? vec3(1.0, 0.7, 0.2) : vec3(1.0, 0.25, 0.2);
+            paint = mix(paint, ink, glassCardInk(glassCardSegment(pixel, meet, tip)));
+        }
+    } else if (pixel.x < 360.0) {
+        // ---- a glass ball in front of a checkerboard
+        vec2 xy = (pixel - vec2(300.0, 135.0)) / 55.0;
+        vec3 sigma = litSigmaFromColour(vec3(0.35, 0.8, 0.7), 1.0);
+        paint = srgbEncode(tmPbrNeutral(glassCardBall(xy, 0.95, 1.5, sigma)));
+    } else {
+        // ---- Beer-Lambert strips, 0..3 units across, one swatch each
+        float x = (pixel.x - 368.0) / 104.0 * 3.0;
+        vec3 targets[3] = vec3[3](vec3(0.35, 0.8, 0.7), vec3(0.95, 0.6, 0.15), vec3(0.85, 0.35, 0.5));
+        for (int row = 0; row < 3; row++) {
+            float top = 256.0 - 86.0 * float(row);
+            if (x >= 0.0 && x <= 3.0) {
+                if (pixel.y <= top && pixel.y > top - 22.0 && x <= 1.0) {
+                    paint = srgbEncode(targets[row]);                  // the swatch
+                } else if (pixel.y <= top - 26.0 && pixel.y > top - 70.0) {
+                    vec3 sigma = litSigmaFromColour(targets[row], 1.0);
+                    paint = srgbEncode(exp(-sigma * x));
+                }
+                float tick = abs(x - 1.0) * 104.0 / 3.0;                 // a white mark under the strip at 1 unit
+                if (pixel.y <= top - 71.0 && pixel.y > top - 79.0) {
+                    paint = mix(paint, vec3(1.0), glassCardInk(tick));
+                }
+            }
+        }
+    }
+    color = vec4(paint, 1.0);
+}
