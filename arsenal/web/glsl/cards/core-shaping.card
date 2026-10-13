@@ -1,0 +1,171 @@
+//! {"card": "core-shaping", "uses": ["core-shaping"], "t": [0], "size": [640, 360],
+//!  "note": "Ten panels, each a unit square with a quarter grid; white rings mark the points each curve promises to pass through, so a curve must run through the centre of every ring. Top row: shpLinstep (blue) and shpSmoother (orange) from 0.25 to 0.75, crossing at the middle, the orange one leaving and arriving flat; shpImpulse at k = 4 (orange) and k = 10 (blue), peaking at exactly 1 at x = 1/4 and 1/10; shpPulse centred at 0.5, exactly 0 beyond 0.2 and 0.8; shpGain at k = 3 (an S, orange), 1/3 (an inverse S, blue) and 1 (the grey diagonal), all through the centre; shpParabola at k = 1, 2 and 6, narrowing, all touching 1 in the middle. Bottom row: shpSoftAbs (orange) over the grey |x| on x from -1 to 1, lifted to 0.2 at the crease; shpTri over two periods; shpRemap of 0.3..0.7 onto 0..1 on a y axis from -0.5 to 1.5, running corner to corner past both rings (unclamped); shpInvPower at radius 0.2 with k = 2 (blue) and 8 (orange) on a y axis to 1.5, both through (0.2, 1) and climbing a clean asymptote at x = 0; and two slow fields of coupled triangle waves whose near-agreement shpInvPower (over shpSoftAbs of the gap) turns into bright cyan hairlines, the filament trick of AURORA in miniature."}
+// Apache-2.0, Akashic Aurora. The test card for core/shaping.glsl, written fresh: the curve-plot form, one panel per
+// curve family, with the promised fixed points ringed.
+
+// The curves in each panel (GLSL has no function pointers). Panels 0..8 are plots; panel 9 is the moire field.
+float shapingCardCurve(int panel, int which, float x) {
+    if (panel == 0) {
+        return which == 0 ? shpLinstep(0.25, 0.75, x) : shpSmoother(0.25, 0.75, x);
+    }
+    if (panel == 1) {
+        return shpImpulse(x, which == 0 ? 4.0 : 10.0);
+    }
+    if (panel == 2) {
+        return shpPulse(x, 0.5, 0.3);
+    }
+    if (panel == 3) {
+        return shpGain(x, which == 0 ? 3.0 : (which == 1 ? 1.0 / 3.0 : 1.0));
+    }
+    if (panel == 4) {
+        return shpParabola(x, which == 0 ? 1.0 : (which == 1 ? 2.0 : 6.0));
+    }
+    if (panel == 5) {
+        return which == 0 ? shpSoftAbs(x, 0.04) : abs(x);
+    }
+    if (panel == 6) {
+        return shpTri(2.0 * x);
+    }
+    if (panel == 7) {
+        return shpRemap(x, 0.3, 0.7, 0.0, 1.0);
+    }
+    return shpInvPower(x, 0.2, which == 0 ? 2.0 : 8.0);
+}
+
+int shapingCardCurves(int panel) {
+    if (panel == 0 || panel == 1 || panel == 5 || panel == 8) {
+        return 2;
+    }
+    if (panel == 3 || panel == 4) {
+        return 3;
+    }
+    return 1;
+}
+
+// Each panel's data window: x from .x to .y, y from .z to .w.
+vec4 shapingCardWindow(int panel) {
+    if (panel == 5) {
+        return vec4(-1.0, 1.0, 0.0, 1.0);
+    }
+    if (panel == 8) {
+        return vec4(0.0, 1.0, 0.0, 1.5);
+    }
+    if (panel == 7) {
+        return vec4(0.0, 1.0, -0.5, 1.5);
+    }
+    return vec4(0.0, 1.0, 0.0, 1.0);
+}
+
+// The fixed points to ring in each panel (up to three; a point off the window means none).
+vec2 shapingCardMark(int panel, int k) {
+    vec2 none = vec2(-9.0);
+    if (panel == 0) {
+        return k == 0 ? vec2(0.25, 0.0) : (k == 1 ? vec2(0.75, 1.0) : vec2(0.5, 0.5));
+    }
+    if (panel == 1) {
+        return k == 0 ? vec2(0.25, 1.0) : (k == 1 ? vec2(0.1, 1.0) : none);
+    }
+    if (panel == 2) {
+        return k == 0 ? vec2(0.5, 1.0) : (k == 1 ? vec2(0.2, 0.0) : vec2(0.8, 0.0));
+    }
+    if (panel == 3) {
+        return k == 0 ? vec2(0.5, 0.5) : (k == 1 ? vec2(0.0) : vec2(1.0));
+    }
+    if (panel == 4) {
+        return k == 0 ? vec2(0.5, 1.0) : (k == 1 ? vec2(0.0) : vec2(1.0, 0.0));
+    }
+    if (panel == 5) {
+        return k == 0 ? vec2(0.0, 0.2) : none;
+    }
+    if (panel == 6) {
+        return k == 0 ? vec2(0.25, 1.0) : (k == 1 ? vec2(0.5, 0.0) : vec2(0.75, 1.0));
+    }
+    if (panel == 7) {
+        return k == 0 ? vec2(0.3, 0.0) : (k == 1 ? vec2(0.7, 1.0) : none);
+    }
+    if (panel == 8) {
+        return k == 0 ? vec2(0.2, 1.0) : none;
+    }
+    return none;
+}
+
+// The colour of each curve: orange, blue, green in order, except where the note names them otherwise; grey for a
+// reference curve drawn only to compare against.
+vec3 shapingCardHue(int panel, int which) {
+    vec3 orange = vec3(1.0, 0.62, 0.22);
+    vec3 blue = vec3(0.4, 0.65, 1.0);
+    if ((panel == 3 && which == 2) || (panel == 5 && which == 1)) {
+        return vec3(0.5);
+    }
+    if (which == 2) {
+        return vec3(0.45, 0.9, 0.55);
+    }
+    bool blueFirst = panel == 0 || panel == 8;
+    return (which == 0) == blueFirst ? blue : orange;
+}
+
+// Ink for a curve crossing this pixel column. It enters at one height and leaves at another (all three in pixels:
+// the column's left edge, middle and right edge), so it covers the span between them; a pixel is lit by how close it
+// is to that span. Flat, steep, a jump or an asymptote: each stays one even stroke.
+float shapingCardLine(float yPx, float leftPx, float middlePx, float rightPx) {
+    float low = min(leftPx, min(middlePx, rightPx));
+    float high = max(leftPx, max(middlePx, rightPx));
+    float outside = max(max(low - yPx, yPx - high), 0.0);
+    return 1.0 - smoothstep(0.5, 1.3, outside);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(128.0, 180.0);
+    int column = int(pixel.x / panelSize.x);
+    int rowFromTop = int((iResolution.y - pixel.y) / panelSize.y);
+    int panel = column + 5 * rowFromTop;
+    vec2 inPanel = pixel - vec2(float(column) * panelSize.x, iResolution.y - float(rowFromTop + 1) * panelSize.y);
+    vec2 squareMin = vec2(12.0, 38.0);
+    float squareSide = 104.0;
+    vec2 at01 = (inPanel - squareMin) / squareSide;
+    bool inSquare = all(greaterThanEqual(at01, vec2(0.0))) && all(lessThanEqual(at01, vec2(1.0)));
+    bool besideSquare = at01.x >= 0.0 && at01.x <= 1.0 && at01.y >= -0.06 && at01.y <= 1.06;
+
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+    if (inSquare) {
+        vec2 toGrid = abs(fract(at01 * 4.0 + 0.5) - 0.5) * squareSide / 4.0;
+        paint = mix(vec3(0.085, 0.095, 0.115), vec3(0.17, 0.18, 0.22), 1.0 - smoothstep(0.3, 0.9, min(toGrid.x, toGrid.y)));
+    }
+
+    if (panel == 9) {
+        if (inSquare) {
+            // two slow fields of coupled triangle waves; where they nearly agree, (r / gap)^k lights a hairline.
+            // shpSoftAbs both rounds the crease of the gap and keeps it off zero (the offset AURORA uses).
+            float fieldA = shpTri(2.2 * at01.x + 0.35 * shpTri(1.6 * at01.y));
+            float fieldB = shpTri(1.4 * at01.y + 0.25 * shpTri(2.6 * at01.x + 0.3));
+            float gap = shpSoftAbs(fieldA - fieldB, 0.0004);
+            float glow = shpInvPower(gap, 0.03, 1.3);
+            paint = vec3(0.02, 0.03, 0.08) + (1.0 - exp(-glow * vec3(0.25, 0.75, 1.1)));
+        }
+    } else {
+        vec4 window = shapingCardWindow(panel);
+        vec2 span = vec2(window.y - window.x, window.w - window.z);
+        vec2 perPixel = span / squareSide;
+        vec2 data = vec2(window.x, window.z) + at01 * span;
+        float yPx = at01.y * squareSide;
+        int curves = shapingCardCurves(panel);
+        for (int which = 0; which < 3; which++) {
+            if (which >= curves) {
+                break;
+            }
+            // heights in pixels, held within a window's height of the plot so 2^64 never reaches the arithmetic
+            vec3 heights = vec3(shapingCardCurve(panel, which, data.x - 0.5 * perPixel.x),
+                                shapingCardCurve(panel, which, data.x),
+                                shapingCardCurve(panel, which, data.x + 0.5 * perPixel.x));
+            vec3 heightsPx = (clamp(heights, window.z - span.y, window.w + span.y) - window.z) / perPixel.y;
+            float ink = shapingCardLine(yPx, heightsPx.x, heightsPx.y, heightsPx.z);
+            paint = mix(paint, shapingCardHue(panel, which), ink * float(besideSquare));
+        }
+        for (int markIndex = 0; markIndex < 3; markIndex++) {
+            vec2 mark = shapingCardMark(panel, markIndex);
+            float ringPx = abs(length((data - mark) / perPixel) - 4.5);
+            paint = mix(paint, vec3(1.0), (1.0 - smoothstep(0.5, 1.2, ringPx)) * float(mark.x > -5.0));
+        }
+    }
+    color = vec4(paint, 1.0);
+}

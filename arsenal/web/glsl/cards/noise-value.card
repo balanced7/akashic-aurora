@@ -1,0 +1,49 @@
+//! {"card": "noise-value", "uses": ["noise-value"], "t": [0, 2], "size": [480, 270],
+//!  "note": "LEFT: noiseValue2 over 9 x 9 cells in grey (0.5 + 0.5 n), the lattice crossings ringed in amber: a soft plateau centred on every ring (the corner's own value, held flat because the quintic fade is flat at every crossing) with smooth shoulders between, and no crease or step along any cell edge. That rounded-square look is value noise's nature and the reason it is used inside fBm and fog rather than alone. TOP RIGHT: a slice of noiseValue3 that moves through z with time, so t = 0 and t = 2 differ while staying the same kind of field. BOTTOM RIGHT: a plot of noiseValue2 along one row of the left panel, with guide lines at -1, 0 and +1: the curve is smooth through every cell edge (the tick marks) and never leaves the guides. A broken module shows a grid, kinks at the ticks, a curve past the guides, or a frozen top-right slice."}
+// Apache-2.0, Akashic Aurora. The test card of noise/value.glsl, written fresh for the house.
+
+const float CARD_SPLIT = 270.0;     // the left panel is a 270 x 270 square
+const float CARD_CELLS = 9.0;       // lattice cells across the left panel
+const float CARD_ROW = 4.37;        // the row of the field the plot follows (in cells)
+
+// About one pixel of ink at distance d (in pixels).
+float cardInk(float d) {
+    return 1.0 - smoothstep(0.5, 1.5, d);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.03, 0.035, 0.05);
+    float cellPx = CARD_SPLIT / CARD_CELLS;
+    if (pixel.x < CARD_SPLIT) {
+        vec2 p = pixel / cellPx;
+        paint = vec3(0.5 + 0.5 * noiseValue2(p, 7u));
+        vec2 toCorner = (p - floor(p + 0.5)) * cellPx;         // pixels to the nearest lattice crossing
+        float ring = abs(length(toCorner) - 3.0);
+        paint = mix(paint, vec3(1.0, 0.65, 0.15), cardInk(ring));
+        paint = mix(paint, vec3(0.3, 0.6, 1.0), 0.6 * cardInk(abs(pixel.y - CARD_ROW * cellPx)));   // the plotted row
+    } else if (pixel.y >= 135.0) {
+        vec2 p = (pixel - vec2(CARD_SPLIT, 135.0)) / cellPx;
+        paint = vec3(0.5 + 0.5 * noiseValue3(vec3(p, 0.6 * iTime), 7u));
+    } else {
+        // the plot: x runs over the first 6 cells of the plotted row, y from -1.25 at the bottom to +1.25 at the top
+        vec2 box = pixel - vec2(CARD_SPLIT + 6.0, 8.0);
+        vec2 size = vec2(480.0 - CARD_SPLIT - 12.0, 135.0 - 16.0);
+        if (all(greaterThanEqual(box, vec2(0.0))) && all(lessThanEqual(box, size))) {
+            float unitsPerPx = 6.0 / size.x;
+            float x = box.x * unitsPerPx;
+            float toY = size.y / 2.5;                          // pixels per unit of noise
+            float y0 = 0.5 * size.y;
+            paint = vec3(0.06, 0.07, 0.09);
+            for (int guide = 0; guide < 3; guide++) {          // -1, 0 and +1
+                paint = mix(paint, vec3(0.28, 0.3, 0.36), cardInk(abs(box.y - (y0 + float(guide - 1) * toY))));
+            }
+            float tick = abs(fract(x + 0.5) - 0.5) / unitsPerPx;
+            paint = mix(paint, vec3(0.5, 0.42, 0.25), cardInk(tick) * step(abs(box.y - y0), 6.0));
+            float n = noiseValue2(vec2(x, CARD_ROW), 7u);
+            float slope = (noiseValue2(vec2(x + unitsPerPx, CARD_ROW), 7u) - n) * toY;   // pixels up per pixel across
+            float miss = abs(box.y - (y0 + n * toY)) / sqrt(1.0 + slope * slope);
+            paint = mix(paint, vec3(0.35, 0.7, 1.0), cardInk(miss));
+        }
+    }
+    color = vec4(paint, 1.0);
+}

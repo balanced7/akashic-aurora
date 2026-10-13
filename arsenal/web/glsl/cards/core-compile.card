@@ -1,0 +1,28 @@
+//! {"card": "core-compile", "uses": ["core-compile", "core-const", "core-frame", "core-rotate"], "t": [0], "size": [320, 180],
+//!  "note": "Two rings of beads drawn by loops whose bounds pass through unrollBarrier: exactly twelve on the outer ring and seven on the inner, evenly spaced, the colour running from blue (the first bead, pointing right) to orange (the last). A gap means the barrier cut the count short; an orange bead painted over the blue first one means the loop ran past its count."}
+// Apache-2.0, Akashic Aurora. The test card for core/compile.glsl, written fresh. The barrier's job (keeping a loop a
+// loop for the compiler) cannot be seen in a picture; its promise (the count is still n) can.
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+    vec3 firstBeadHue = vec3(0.3, 0.6, 1.0);
+    vec3 lastBeadHue = vec3(1.0, 0.62, 0.25);
+
+    int outerBeads = unrollBarrier(12, iFrame);
+    for (int bead = 0; bead < outerBeads; bead++) {
+        vec2 beadCentre = rotate2(TAU * float(bead) / 12.0) * vec2(0.72, 0.0);
+        float edge = distance(p, beadCentre) - 0.075;
+        vec3 hue = mix(firstBeadHue, lastBeadHue, float(bead) / 11.0);
+        paint = mix(paint, hue, 1.0 - smoothstep(-0.5 * px, 0.5 * px, edge));
+    }
+    int innerBeads = unrollBarrier(7, iFrame);
+    for (int bead = 0; bead < innerBeads; bead++) {
+        vec2 beadCentre = rotate2(TAU * float(bead) / 7.0) * vec2(0.36, 0.0);
+        float edge = distance(p, beadCentre) - 0.06;
+        vec3 hue = mix(firstBeadHue, lastBeadHue, float(bead) / 6.0);
+        paint = mix(paint, hue, 1.0 - smoothstep(-0.5 * px, 0.5 * px, edge));
+    }
+    color = vec4(paint, 1.0);
+}

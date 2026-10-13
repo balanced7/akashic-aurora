@@ -1,0 +1,42 @@
+//! {"card": "input-mouse", "uses": ["input-mouse"], "t": [0], "size": [384, 216],
+//!  "note": "A truth table of lamps. Columns, left to right, are five mouse states: never touched (0, 0, 0, 0); the
+//!  frame of a click at (100, 50); a drag in progress from there; after the button is released; and the live iMouse,
+//!  which in a headless render has never been touched. Rows, top to bottom: mouseUntouched, mouseHeld,
+//!  mouseJustClicked, and 'mouseDragOrigin is the click' (the origin equals (100, 50)). Lit lamps are green, dark ones
+//!  grey. Expected: row 1 lit only in columns 1 and 5; row 2 lit in columns 2 and 3; row 3 lit only in column 2; row 4
+//!  lit in columns 2, 3 and 4. Column 5 must match column 1. Any other pattern is a broken module (or a host that no
+//!  longer builds iMouse the Shadertoy way)."}
+// Apache-2.0, Akashic Aurora. The test card for input/mouse.glsl, written fresh.
+
+// The mouse states the columns test, built the way the shader lab's runtime builds iMouse (signs carry the button).
+vec4 mouseCardState(int column) {
+    if (column == 0) return vec4(0.0);                              // never touched
+    if (column == 1) return vec4(100.0, 50.0, 100.0, 50.0);         // the frame the button went down
+    if (column == 2) return vec4(140.0, 70.0, 100.0, -50.0);        // dragging: held, click signal spent
+    if (column == 3) return vec4(140.0, 70.0, -100.0, -50.0);       // released
+    return iMouse;                                                  // live (untouched in a headless render)
+}
+
+bool mouseCardLamp(int row, vec4 mouse) {
+    if (row == 0) return mouseUntouched(mouse);
+    if (row == 1) return mouseHeld(mouse);
+    if (row == 2) return mouseJustClicked(mouse);
+    return all(equal(mouseDragOrigin(mouse), vec2(100.0, 50.0)));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 grid = vec2(5.0, 4.0);
+    vec2 cellPos = pixel / iResolution.xy * grid;
+    vec2 cell = floor(cellPos);
+    int column = int(cell.x);
+    int row = 3 - int(cell.y);                                      // row 0 at the top
+    vec2 local = (fract(cellPos) - 0.5) * (iResolution.xy / grid) / (iResolution.y / grid.y);   // y in -0.5..0.5
+    float px = grid.y / iResolution.y;
+
+    bool lit = mouseCardLamp(row, mouseCardState(column));
+    float lamp = 1.0 - smoothstep(0.28 - px, 0.28 + px, length(local));
+    vec3 paint = column == 4 ? vec3(0.1, 0.1, 0.14) : vec3(0.07, 0.07, 0.09);   // the live column is shaded
+    vec3 lampInk = lit ? vec3(0.25, 0.95, 0.35) : vec3(0.22, 0.22, 0.25);
+    paint = mix(paint, lampInk, lamp);
+    color = vec4(paint, 1.0);
+}

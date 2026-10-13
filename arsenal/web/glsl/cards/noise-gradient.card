@@ -1,0 +1,47 @@
+//! {"card": "noise-gradient", "uses": ["noise-gradient"], "t": [0, 2], "size": [480, 270],
+//!  "note": "LEFT: noiseGrad2 over 9 x 9 cells in grey (0.5 + 0.5 n), every lattice crossing ringed in amber: the centre of EVERY ring is the same mid grey, because gradient noise is exactly zero on the lattice; the field between is crisper and more varied than value noise, with no square grid. TOP RIGHT: a slice of noiseGrad3 moving through z with time (t = 0 and t = 2 differ). BOTTOM RIGHT: a plot of noiseGrad2 along the lattice row y = 4 of the left panel (the blue line), guides at -1, 0 and +1: the curve crosses the middle guide exactly at every tick (the integers) and never leaves the outer guides. A broken module shows rings with dark or bright centres, a curve that misses the ticks or passes a guide, a grid, or a frozen slice."}
+// Apache-2.0, Akashic Aurora. The test card of noise/gradient.glsl, written fresh for the house.
+
+const float CARD_SPLIT = 270.0;
+const float CARD_CELLS = 9.0;
+const float CARD_ROW = 4.0;         // a lattice row: the plot must cross zero at every integer x
+
+float cardInk(float d) {
+    return 1.0 - smoothstep(0.5, 1.5, d);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.03, 0.035, 0.05);
+    float cellPx = CARD_SPLIT / CARD_CELLS;
+    if (pixel.x < CARD_SPLIT) {
+        vec2 p = pixel / cellPx;
+        paint = vec3(0.5 + 0.5 * noiseGrad2(p, 7u));
+        vec2 toCorner = (p - floor(p + 0.5)) * cellPx;
+        paint = mix(paint, vec3(1.0, 0.65, 0.15), cardInk(abs(length(toCorner) - 4.0)));
+        paint = mix(paint, vec3(0.3, 0.6, 1.0), 0.5 * cardInk(abs(pixel.y - CARD_ROW * cellPx))
+                                                * step(5.0, length(toCorner)));     // the row, gapped at the rings
+    } else if (pixel.y >= 135.0) {
+        vec2 p = (pixel - vec2(CARD_SPLIT, 135.0)) / cellPx;
+        paint = vec3(0.5 + 0.5 * noiseGrad3(vec3(p, 0.6 * iTime), 7u));
+    } else {
+        vec2 box = pixel - vec2(CARD_SPLIT + 6.0, 8.0);
+        vec2 size = vec2(480.0 - CARD_SPLIT - 12.0, 135.0 - 16.0);
+        if (all(greaterThanEqual(box, vec2(0.0))) && all(lessThanEqual(box, size))) {
+            float unitsPerPx = 6.0 / size.x;
+            float x = box.x * unitsPerPx;
+            float toY = size.y / 2.5;
+            float y0 = 0.5 * size.y;
+            paint = vec3(0.06, 0.07, 0.09);
+            for (int guide = 0; guide < 3; guide++) {          // -1, 0 and +1
+                paint = mix(paint, vec3(0.28, 0.3, 0.36), cardInk(abs(box.y - (y0 + float(guide - 1) * toY))));
+            }
+            float tick = abs(fract(x + 0.5) - 0.5) / unitsPerPx;
+            paint = mix(paint, vec3(1.0, 0.65, 0.15), cardInk(tick) * step(abs(box.y - y0), 9.0));
+            float n = noiseGrad2(vec2(x, CARD_ROW), 7u);
+            float slope = (noiseGrad2(vec2(x + unitsPerPx, CARD_ROW), 7u) - n) * toY;
+            float miss = abs(box.y - (y0 + n * toY)) / sqrt(1.0 + slope * slope);
+            paint = mix(paint, vec3(0.35, 0.7, 1.0), cardInk(miss));
+        }
+    }
+    color = vec4(paint, 1.0);
+}

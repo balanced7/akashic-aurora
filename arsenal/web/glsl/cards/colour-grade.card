@@ -1,0 +1,41 @@
+//! {"card": "colour-grade", "uses": ["colour-grade", "colour-transfer"], "t": [0], "size": [320, 180],
+//!  "note": "Top, one muted test image (hues across each panel, dim at its foot and bright at its top) in four
+//!  panels: as it is; grdSaturation 0, a true grey whose brightness matches the original point for point (blue goes
+//!  dark grey, yellow light grey); grdSaturation 1.7, richer colour at the same brightness; grdAwayFrom middle grey
+//!  (0.18) at k = 0.6, candy colour AND more contrast (dark rows darker, bright rows brighter). Bottom, a grey ramp of
+//!  display values, upper half as it is, lower half through grdSCurveDisp at full amount: darker darks and brighter
+//!  lights, meeting the upper half exactly at the middle tick. A grey panel whose blues come out light, a saturation
+//!  panel brighter or darker than the original, or an S-curve that misses the middle, is a broken module."}
+// Apache-2.0, Akashic Aurora. The card for colour/grade.glsl: four grades of one image and the S-curve.
+
+// The test image, linear light: a muted hue wheel across u, from dim at v = 0 to bright at v = 1.
+vec3 cardGrSource(float u, float v) {
+    vec3 wheel = 0.5 + 0.3 * cos(6.28318530718 * (u + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)));   // muted: grades stay in gamut
+    return srgbDecode(wheel) * (0.15 + 0.85 * v);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.05, 0.055, 0.07);
+    float margin = 12.0;
+    float along = (pixel.x - margin) / (iResolution.x - 2.0 * margin);
+    float y = pixel.y;
+    if (along >= 0.0 && along <= 1.0) {
+        if (y >= 64.0 && y <= 168.0) {
+            float panel = min(floor(along * 4.0), 3.0);
+            float u = fract(along * 4.0);
+            if (u > 0.04 && u < 0.96) {
+                vec3 src = cardGrSource((u - 0.04) / 0.92, (y - 64.0) / 104.0);
+                vec3 lin = src;
+                if (panel == 1.0) lin = grdSaturation(src, 0.0);
+                if (panel == 2.0) lin = grdSaturation(src, 1.7);
+                if (panel == 3.0) lin = grdAwayFrom(src, vec3(0.18), 0.6);           // away from middle grey
+                paint = srgbEncode(min(lin, vec3(1.0)));
+            }
+        } else if (y >= 14.0 && y <= 54.0) {
+            vec3 ramp = vec3(along);
+            paint = y >= 35.0 ? ramp : (y <= 33.0 ? grdSCurveDisp(ramp, 1.0) : paint);
+            paint = abs(along - 0.5) * (iResolution.x - 2.0 * margin) < 0.75 ? vec3(1.0, 0.3, 0.2) : paint;
+        }
+    }
+    color = vec4(paint, 1.0);
+}

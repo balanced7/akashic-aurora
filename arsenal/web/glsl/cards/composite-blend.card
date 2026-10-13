@@ -1,0 +1,71 @@
+//! {"card": "composite-blend", "uses": ["composite-blend"], "t": [0], "size": [384, 216],
+//!  "note": "Six panels, two rows of three. Top row, translucent layers over a grey checkerboard: (1) cmpOver with
+//!  straight colour, a half-transparent red disc in front of a half-transparent blue one; (2) the same scene through
+//!  cmpOverPremul with premultiplied colour, which must look identical to panel 1; (3) three half-transparent sheets
+//!  (red nearest, then green, then blue) gathered front to back with cmpUnder, where red must sit on top wherever it
+//!  overlaps. Bottom row, light on black: (4) cmpAdd, a red and a green lamp whose overlap turns yellow and brighter
+//!  than either; (5) cmpScreen, the same lamps, overlap brighter but never past white; (6) cmpMax, two thin rings that
+//!  cross without any bright knot where they cross. Panels 1 and 2 differing, blue showing over red in panel 3, a dark
+//!  fringe round any disc edge, or a bright knot in panel 6 is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for composite/blend.glsl, written fresh.
+
+// A soft-edged disc: 1 inside, 0 outside, about a pixel of edge (px is one pixel in panel units).
+float blendCardDisc(vec2 p, vec2 centre, float radius, float px) {
+    return 1.0 - smoothstep(-px, px, length(p - centre) - radius);
+}
+
+// A thin ring of light, about two pixels wide.
+float blendCardRing(vec2 p, vec2 centre, float radius, float px) {
+    return 1.0 - smoothstep(0.5 * px, 1.5 * px, abs(length(p - centre) - radius));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 grid = vec2(3.0, 2.0);
+    vec2 cell = floor(pixel / iResolution.xy * grid);
+    int panel = int(cell.x) + (cell.y > 0.5 ? 0 : 3);      // 0..2 on the top row, 3..5 on the bottom
+    vec2 panelSize = iResolution.xy / grid;
+    vec2 p = (pixel - (cell + 0.5) * panelSize) / panelSize.y;   // panel-centred, y in -0.5..0.5
+    float px = 1.0 / panelSize.y;
+
+    vec3 checker = vec3(mod(floor(p.x * 8.0) + floor(p.y * 8.0), 2.0) > 0.5 ? 0.55 : 0.35);
+    vec4 back = vec4(checker, 1.0);
+    vec3 shown;
+    if (panel == 0 || panel == 1) {
+        vec4 red = vec4(1.0, 0.15, 0.1, 0.5 * blendCardDisc(p, vec2(-0.12, 0.05), 0.24, px));
+        vec4 blue = vec4(0.1, 0.3, 1.0, 0.5 * blendCardDisc(p, vec2(0.12, -0.05), 0.24, px));
+        if (panel == 0) {
+            shown = cmpOver(red, cmpOver(blue, back)).rgb;
+        } else {
+            vec4 redP = vec4(red.rgb * red.a, red.a);
+            vec4 blueP = vec4(blue.rgb * blue.a, blue.a);
+            shown = cmpOverPremul(redP, cmpOverPremul(blueP, back)).rgb;
+        }
+    } else if (panel == 2) {
+        vec4 gathered = vec4(0.0);
+        for (int sheet = 0; sheet < 3; sheet++) {          // nearest first: red, then green, then blue
+            vec2 sheetCentre = sheet == 0 ? vec2(-0.12, 0.08) : (sheet == 1 ? vec2(0.12, 0.08) : vec2(0.0, -0.12));
+            vec3 sheetInk = sheet == 0 ? vec3(1.0, 0.15, 0.1) : (sheet == 1 ? vec3(0.2, 0.9, 0.25) : vec3(0.1, 0.3, 1.0));
+            float cover = 0.6 * blendCardDisc(p, sheetCentre, 0.2, px);
+            cmpUnder(gathered, vec4(sheetInk * cover, cover));
+        }
+        cmpUnder(gathered, back);                          // the backdrop is the farthest layer
+        shown = gathered.rgb;
+    } else {
+        vec3 lampA = vec3(0.9, 0.1, 0.05) * blendCardDisc(p, vec2(-0.1, 0.0), 0.24, px);
+        vec3 lampB = vec3(0.1, 0.8, 0.1) * blendCardDisc(p, vec2(0.1, 0.0), 0.24, px);
+        if (panel == 3) {
+            shown = cmpAdd(lampA, lampB);
+        } else if (panel == 4) {
+            shown = cmpScreen(lampA, lampB);
+        } else {
+            vec3 ringA = vec3(0.2, 0.8, 1.0) * blendCardRing(p, vec2(-0.1, 0.0), 0.22, px);
+            vec3 ringB = vec3(0.2, 0.8, 1.0) * blendCardRing(p, vec2(0.1, 0.0), 0.22, px);
+            shown = cmpMax(ringA, ringB);
+        }
+    }
+    // a hairline frame round each panel
+    vec2 edge = abs(fract(pixel / iResolution.xy * grid) - 0.5) * panelSize;
+    float frame = smoothstep(0.5 * panelSize.y - 1.5, 0.5 * panelSize.y - 0.5, edge.y)
+                + smoothstep(0.5 * panelSize.x - 1.5, 0.5 * panelSize.x - 0.5, edge.x);
+    color = vec4(mix(clamp(shown, 0.0, 1.0), vec3(0.25, 0.25, 0.3), clamp(frame, 0.0, 1.0)), 1.0);
+}

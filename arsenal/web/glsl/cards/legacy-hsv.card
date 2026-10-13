@@ -1,0 +1,32 @@
+//! {"card": "legacy-hsv", "uses": ["legacy-hsv", "colour-transfer"], "t": [0], "size": [320, 180],
+//!  "note": "Top, the HSV rainbow at full saturation and value, with a white line tracing the luminance of what is shown
+//!  (0 at the band's foot, 1 at its top): the line peaks at yellow and cyan, sags at magenta and red and nearly touches
+//!  the floor at blue, although every column has V = 1. That is the whole case against HSV as a measure. Middle, hue
+//!  across and saturation up (white along the bottom edge, full colour along the top). Bottom, colours sent through
+//!  rgbToHsv and back through hsvToRgb, darkening to the right: a smooth band with no red specks (red marks a round-trip
+//!  error above 1e-4). A rainbow whose seams jump, a trace that stays flat, or red specks is a broken module."}
+// Apache-2.0, Akashic Aurora. The card for legacy/hsv.glsl: the rainbow and its luminance, the hue-saturation plane,
+// and the round trip.
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.05, 0.055, 0.07);
+    float margin = 12.0;
+    float along = (pixel.x - margin) / (iResolution.x - 2.0 * margin);
+    float y = pixel.y;
+    if (along >= 0.0 && along <= 1.0) {
+        if (y >= 128.0 && y <= 168.0) {
+            vec3 shown = hsvToRgb(vec3(along, 1.0, 1.0));                  // display values, as HSV is used
+            float level = luminance(srgbDecode(shown));
+            float traceY = 128.0 + 40.0 * level;
+            paint = mix(shown, vec3(1.0), 1.0 - smoothstep(0.6, 1.6, abs(y - traceY)));
+        } else if (y >= 62.0 && y <= 118.0) {
+            paint = hsvToRgb(vec3(along, (y - 62.0) / 56.0, 1.0));
+        } else if (y >= 14.0 && y <= 52.0) {
+            vec3 c = hsvToRgb(vec3(fract(along * 2.0), 0.35 + 0.6 * (y - 14.0) / 38.0, 1.0 - 0.8 * along));
+            vec3 back = hsvToRgb(rgbToHsv(c));
+            float miss = length(back - c);
+            paint = mix(back, vec3(1.0, 0.0, 0.0), step(1e-4, miss));
+        }
+    }
+    color = vec4(paint, 1.0);
+}

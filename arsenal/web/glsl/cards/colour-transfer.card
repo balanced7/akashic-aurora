@@ -1,0 +1,72 @@
+//! {"card": "colour-transfer", "uses": ["colour-transfer"], "t": [0], "size": [320, 180],
+//!  "note": "Left, a curve plot on the unit square with a quarter grid: srgbEncode (orange) bows ABOVE the grey diagonal,
+//!  srgbDecode (blue) is its mirror image below it, and cbrtSigned (green) rises steepest of all from 0; all three meet the
+//!  diagonal at 0 and at 1. Top right, light rising evenly from 0 to 1, encoded with srgbEncode: it brightens fast and
+//!  spends most of its length in the light half, because the eye counts ratios. Under it, the same numbers written WITHOUT
+//!  the encode: darker along most of its length, since every column shows less light than it holds (0.5 shows as 21%):
+//!  what a forgotten encode looks like. Bottom right, four patches of equal Rec. 709 luminance (grey, red, green, blue):
+//!  roughly alike in brightness although blue's channel is ten times green's (saturated blue still looks a little
+//!  brighter: the Helmholtz-Kohlrausch effect). An encode curve that crosses the diagonal, a top ramp darker than the one
+//!  under it, or a blue patch far brighter than the grey is a broken module."}
+// Apache-2.0, Akashic Aurora. The card for colour/transfer.glsl: a curve plot, two ramps and a luminance test.
+
+// How much of a line about one pixel wide covers this point; the miss is divided by the curve's steepness so steep
+// stretches stay as thick as flat ones.
+float cardTrInk(vec2 at, float curveY, float slope, float px) {
+    float miss = abs(at.y - curveY) / sqrt(1.0 + slope * slope);
+    return 1.0 - smoothstep(0.75 * px, 1.75 * px, miss);
+}
+
+// The curves on the plot, by index (GLSL has no function pointers).
+float cardTrCurve(int which, float x) {
+    vec3 v = vec3(x);
+    if (which == 0) return srgbEncode(v).x;
+    if (which == 1) return srgbDecode(v).x;
+    if (which == 2) return cbrtSigned(v).x;
+    return x;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.05, 0.055, 0.07);
+
+    // ---- left: the curve plot
+    float side = 0.84 * iResolution.y;
+    float margin = 0.08 * iResolution.y;
+    vec2 at = (pixel - vec2(margin)) / side;
+    float px = 1.0 / side;
+    bool inSquare = all(greaterThanEqual(at, vec2(0.0))) && all(lessThanEqual(at, vec2(1.0)));
+    if (inSquare) {
+        paint = vec3(0.09, 0.1, 0.12);
+        vec2 toGrid = abs(fract(at * 4.0 + 0.5) - 0.5) * 0.25;
+        paint = mix(paint, vec3(0.19, 0.2, 0.24), 1.0 - smoothstep(0.0, px, min(toGrid.x, toGrid.y)));
+    }
+    if (at.x >= 0.0 && at.x <= 1.0 && at.y >= -2.0 * px && at.y <= 1.0 + 2.0 * px) {
+        vec3 inkOf[4] = vec3[4](vec3(1.0, 0.6, 0.2), vec3(0.35, 0.6, 1.0), vec3(0.4, 0.9, 0.45), vec3(0.55));
+        for (int which = 3; which >= 0; --which) {                // the diagonal first, so the curves sit on top
+            float y = cardTrCurve(which, at.x);
+            float slope = (cardTrCurve(which, at.x + 0.5 * px) - cardTrCurve(which, at.x - 0.5 * px)) / px;
+            paint = mix(paint, inkOf[which], cardTrInk(at, y, min(slope, 400.0), px));
+        }
+    }
+
+    // ---- right: two ramps and the luminance patches
+    float x0 = 2.0 * margin + side + 4.0;
+    float x1 = iResolution.x - margin;
+    float along = (pixel.x - x0) / (x1 - x0);
+    float y = pixel.y / iResolution.y;
+    if (along >= 0.0 && along <= 1.0) {
+        if (y >= 0.70 && y <= 0.92) {
+            paint = srgbEncode(vec3(along));                     // light 0..1, encoded: even steps to the eye
+        } else if (y >= 0.44 && y <= 0.66) {
+            paint = vec3(along);                                 // the same light with no encode: too dark
+        } else if (y >= 0.08 && y <= 0.36) {
+            int which = int(min(floor(along * 4.0), 3.0));
+            // patch 0 is white; patches 1..3 are the identity matrix's columns: red, green, blue
+            vec3 lamp = which == 0 ? vec3(1.0) : mat3(1.0)[which - 1];
+            vec3 lin = lamp * (0.05 / luminance(lamp));
+            float gap = fract(along * 4.0);
+            paint = (gap > 0.06 && gap < 0.94) ? srgbEncode(lin) : paint;
+        }
+    }
+    color = vec4(paint, 1.0);
+}

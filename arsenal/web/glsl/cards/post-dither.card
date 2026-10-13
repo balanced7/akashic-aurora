@@ -1,0 +1,30 @@
+//! {"card": "post-dither", "uses": ["post-dither"], "t": [0, 1], "size": [384, 216],
+//!  "note": "Three bands of the same ramp, black at the left to white at the right, shown on a pretend 4-bit screen
+//!  (16 steps) so the bands are easy to see. Top: the ramp rounded to 16 steps with no dither, a staircase of 16 flat
+//!  bars. Middle: ditherOut at 16 levels, then the same rounding: the steps dissolve into a fine, even speckle whose
+//!  average follows the smooth ramp, and the first and last tenth (exactly black and exactly white in the ramp) stay
+//!  solid black and solid white with no specks. Bottom: the true ramp for comparison. The two frames (t = 0 and t = 1)
+//!  must be identical: the mask never moves. Specks in the black or white ends, a speckle that changes between frames,
+//!  or bars still visible in the middle band are a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for post/dither.glsl, written fresh.
+
+// What a canvas with `levels` code values stores: the nearest code.
+vec3 ditherCardQuantise(vec3 enc, float levels) {
+    return floor(enc * (levels - 1.0) + 0.5) / (levels - 1.0);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cardUv = pixel / iResolution.xy;
+    float levels = 16.0;
+    float ramp = clamp((cardUv.x - 0.1) / 0.8, 0.0, 1.0);  // flat black for the first tenth, flat white for the last
+    vec3 enc = vec3(ramp);
+
+    vec3 banded = ditherCardQuantise(enc, levels);
+    vec3 dithered = ditherCardQuantise(ditherOut(enc, pixel, levels), levels);
+    vec3 band = cardUv.y > 2.0 / 3.0 ? banded : (cardUv.y > 1.0 / 3.0 ? dithered : enc);
+
+    // a blue hairline between the bands (blue, so it never reads as part of a grey ramp)
+    float seam = min(abs(cardUv.y - 1.0 / 3.0), abs(cardUv.y - 2.0 / 3.0)) * iResolution.y;
+    band = mix(vec3(0.0, 0.3, 0.6), band, smoothstep(0.5, 1.5, seam));
+    color = vec4(band, 1.0);
+}

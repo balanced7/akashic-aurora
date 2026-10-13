@@ -1,4 +1,129 @@
 {
   "api": "arsenal.glsl-module/v1",
-  "files": []
+  "files": [
+    {
+      "path": "colour/grade.glsl",
+      "sha256": "ffc07a483bf845b71d9b91a152d012e7dc8dab0c70a476f5f81bd0dd5ec12444"
+    },
+    {
+      "path": "colour/oklab.glsl",
+      "sha256": "d26d498ca80be26a9ed0a636c69458ac556ac04c843d9506d273aabe81bf5343"
+    },
+    {
+      "path": "colour/palette.glsl",
+      "sha256": "5c6f801b5f6180c0d5779ca06959db7768cc2cd8393c8447ae9cef32721477d0"
+    },
+    {
+      "path": "colour/tone.glsl",
+      "sha256": "797e25c736dc2c5f9dc97d4c85fa1c671ac46de21e250c5c9c77917482007177"
+    },
+    {
+      "path": "colour/transfer.glsl",
+      "sha256": "9b964271414bf9312e800478a8e1d72a4cc35b75a75c9f5867302a2c27dce480"
+    },
+    {
+      "path": "composite/blend.glsl",
+      "sha256": "b40bf8d8b86d8dd08695c11c7a0a0eb68fcc4ac0fc28d6c177acea2e79e7b9b1"
+    },
+    {
+      "path": "core/clock.glsl",
+      "sha256": "8b43651c78de91e658b9c59ddf955b0c9d80aae933376a49739f6ecf976339a5"
+    },
+    {
+      "path": "core/compile.glsl",
+      "sha256": "6e4fd639aa7b3981a21754c8d9e26316b9fd5cec1b2df9e97cad526123e9a750"
+    },
+    {
+      "path": "core/const.glsl",
+      "sha256": "381aee2498be17c1952b3a11cf104b37df6fa99c25f104d39576f775778d8533"
+    },
+    {
+      "path": "core/frame.glsl",
+      "sha256": "428c058a5322c172b4f58c31b885107871083da4c56660ba4b1c6740402b0f68"
+    },
+    {
+      "path": "core/int.glsl",
+      "sha256": "d0edd46451a5b29feab412b8fe3ad8298617f9e5dfbce67f86b511ff30b3d7ed"
+    },
+    {
+      "path": "core/rotate.glsl",
+      "sha256": "a228f38eba3a5b81036f314f86d1cd71af049c84374b961eb3de2e2d6bbe403c"
+    },
+    {
+      "path": "core/safe.glsl",
+      "sha256": "91f11f3d50925096e4d951467c553ce7fbbc4e2040e7dd6f7f4d66a72307f8a8"
+    },
+    {
+      "path": "core/shaping.glsl",
+      "sha256": "0fb02a982bf8e415d482b79eeee94682111783dd38359aa543e503d1b248230d"
+    },
+    {
+      "path": "debug/views.glsl",
+      "sha256": "2a5aadb4dcba1372131774193db22fda17a96c2719e78122bc3f2708a2191d1d"
+    },
+    {
+      "path": "hash/pcg.glsl",
+      "sha256": "e61f38617b3efda4b01669a05c6ce8127410ff868d9f7754614ec5e961594e44"
+    },
+    {
+      "path": "input/audio.glsl",
+      "sha256": "4ea8225b8334c8e522834b812a062fdd373c1337a2f6b68f6b673dbeeb2f130e"
+    },
+    {
+      "path": "input/mouse.glsl",
+      "sha256": "e3ee8833f8f9d8a3e0cc52f86cc9ecabec06465635e2b30767888d0503944836"
+    },
+    {
+      "path": "legacy/hash-sine.glsl",
+      "sha256": "c2ac8c1029cd3aa6f2c5f3e0ca0ae6a293c69b1e577c52fbd7269e2ec8e92fb9"
+    },
+    {
+      "path": "legacy/hsv.glsl",
+      "sha256": "7e712f8cbee625caa79464d7192197de84f91c7e24fcaa575cb5cfa778d4e5c2"
+    },
+    {
+      "path": "legacy/tone-superlinear.glsl",
+      "sha256": "54f35e031ed4a6b7f3e7e2961a207c54797db0f74c8d7a4fe3a017471bb736ae"
+    },
+    {
+      "path": "motion/envelope.glsl",
+      "sha256": "4467e79526955ff28b34d7d06174dde4530bee4f2db4d3d968d5f52f79e7d349"
+    },
+    {
+      "path": "noise/dither-masks.glsl",
+      "sha256": "240d9877f2c875396f5a96bd38f76ba95d43476993d16433e20a5ad4c307545a"
+    },
+    {
+      "path": "noise/fbm.glsl",
+      "sha256": "9c7c175006b0fd1adde493e816c759465f0bef55f8ba71a60230a35437546c86"
+    },
+    {
+      "path": "noise/gradient.glsl",
+      "sha256": "7d065b8391a254292cbacc48afe5ad32e8743ec3436a47d6b5076878fc4785fc"
+    },
+    {
+      "path": "noise/value.glsl",
+      "sha256": "c5dcb2596b1e080f4bea1ca50f7894e63dc2e7b985478d62ea3d7b20218c748f"
+    },
+    {
+      "path": "noise/warp.glsl",
+      "sha256": "7f8c6efbdbdd817512ea2f19ac6e181a9b219c2b0115b94be5197c1783958769"
+    },
+    {
+      "path": "post/display-out.glsl",
+      "sha256": "f31f6c9fc8492e7e5e26a1a843ffbf6b5d1fdc8b54763cfcf0aa1db85017973d"
+    },
+    {
+      "path": "post/dither.glsl",
+      "sha256": "8289e0b66cc7197e3e418d2594310aeb2284dd118f3f5f67339d2721ce4295b8"
+    },
+    {
+      "path": "post/vignette.glsl",
+      "sha256": "18018ac30cb15bb9afe8bee7fe146dd25036fbb3cee157fc64fe6c62f1d7a61f"
+    },
+    {
+      "path": "sim/feedback.glsl",
+      "sha256": "1f1f6f24b06089240be293b9b9f7099f94830a5300b60c1ac74f6cf422299b11"
+    }
+  ]
 }

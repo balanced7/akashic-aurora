@@ -1,0 +1,54 @@
+//! {"card": "motion-envelope", "uses": ["motion-envelope"], "t": [0, 2], "size": [384, 216],
+//!  "note": "Top: a curve plot, one second of clock across, 0 to 1 up, on a grid of tenths. envRamp starting at 0.1 s for
+//!  0.3 s (orange): flat, a straight climb, flat at 1 from 0.4 s. envWindow from 0.45 s to 0.95 s with 0.15 s edges
+//!  (green): zero until 0.45 s, smooth up, flat top, smooth down to exactly zero at 0.95 s. envCubicEase (blue) and
+//!  envSineEase (violet) over the whole second: both pass the exact centre, the cubic flatter at the ends and steeper
+//!  in the middle. envFlashSafe (white): zero until the 1/3 s line (marked in red), full by 0.5 s. Bottom strip:
+//!  envBreath along the curtain (four body wavelengths across) as brightness; mostly lit with a few dim stretches and
+//!  brighter patches, and between t = 0 and t = 2 the pattern drifts (the bright patches more than the body). A curve
+//!  with a kink where it should be smooth, a window that is not zero at its ends, a gate open before the red line, or a
+//!  strip identical at both times is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for motion/envelope.glsl, written fresh.
+
+const int ENVELOPE_CARD_CURVES = 5;
+
+// The plotted curves, by index (GLSL has no function values), at clock x seconds.
+float envelopeCardCurve(int which, float x) {
+    if (which == 0) return envRamp(x, 0.1, 0.3);
+    if (which == 1) return envWindow(x, 0.45, 0.95, 0.15);
+    if (which == 2) return envCubicEase(x);
+    if (which == 3) return envSineEase(x);
+    return envFlashSafe(x);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cardUv = pixel / iResolution.xy;
+    float stripTop = 0.2;
+
+    // the plot area: x is one second of clock, y is 0..1, with a margin
+    vec2 plotPos = vec2((cardUv.x - 0.04) / 0.92, ((cardUv.y - stripTop) / (1.0 - stripTop) - 0.06) / 0.88);
+    vec2 pxSize = vec2(1.0 / (0.92 * iResolution.x), 1.0 / (0.88 * (1.0 - stripTop) * iResolution.y));
+    vec3 plot = vec3(0.06, 0.07, 0.09);
+    vec2 toGrid = abs(fract(plotPos * 10.0 + 0.5) - 0.5) / 10.0;
+    float gridInk = max(1.0 - smoothstep(0.0, pxSize.x, toGrid.x), 1.0 - smoothstep(0.0, pxSize.y, toGrid.y));
+    plot = mix(plot, vec3(0.15, 0.16, 0.19), gridInk);
+    float thirdLine = 1.0 - smoothstep(0.5 * pxSize.x, 1.5 * pxSize.x, abs(plotPos.x - 1.0 / 3.0));
+    plot = mix(plot, vec3(0.8, 0.15, 0.1), thirdLine);
+    vec3 inks[ENVELOPE_CARD_CURVES] = vec3[ENVELOPE_CARD_CURVES](vec3(1.0, 0.6, 0.15), vec3(0.3, 0.9, 0.4),
+        vec3(0.35, 0.6, 1.0), vec3(0.75, 0.45, 1.0), vec3(0.95));
+    for (int which = 0; which < ENVELOPE_CARD_CURVES; ++which) {
+        float y = envelopeCardCurve(which, plotPos.x);
+        float slope = (envelopeCardCurve(which, plotPos.x + 0.5 * pxSize.x)
+                     - envelopeCardCurve(which, plotPos.x - 0.5 * pxSize.x)) / pxSize.x;
+        float miss = abs(plotPos.y - y) / sqrt(1.0 + slope * slope * (pxSize.x * pxSize.x) / (pxSize.y * pxSize.y));
+        plot = mix(plot, inks[which], 1.0 - smoothstep(0.6 * pxSize.y, 1.6 * pxSize.y, miss));
+    }
+    float inUnit = step(0.0, plotPos.x) * step(plotPos.x, 1.0);
+    plot = mix(vec3(0.06, 0.07, 0.09), plot, inUnit);
+
+    // the strip: envBreath along four body wavelengths, as a teal curtain's brightness
+    float breath = envBreath(4.0 * cardUv.x, iTime, vec2(0.1, 0.35));
+    vec3 strip = vec3(0.15, 0.95, 0.75) * breath;
+
+    color = vec4(cardUv.y < stripTop ? strip : plot, 1.0);
+}

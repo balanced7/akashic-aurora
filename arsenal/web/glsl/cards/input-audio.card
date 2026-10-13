@@ -1,0 +1,90 @@
+//! {"card": "input-audio", "uses": ["input-audio"], "t": [0], "size": [528, 216],
+//!  "note": "Top: the 88-key piano laid on a log-frequency axis from A0 (27.5 Hz, left) to C8 (4186 Hz, right), every
+//!  semitone the same width, found by turning each column's frequency back into a note with hzToMidi: white keys
+//!  pale, black keys dark and shorter, in the familiar 2-and-3 groups. A cyan tick above the keys is A4 placed by
+//!  midiToHz(69); an amber tick below them is A4 placed by pianoKeyToHz(49): the two must line up over the same white
+//!  key, and middle C carries a small red dot. Middle: how many spectrum bins one semitone spans at the runtime's
+//!  sample rate (log scale, the white line is one bin): red where a semitone is narrower than one bin (the notes the
+//!  spectrum cannot tell apart, up to about G4), green where it spans two or more. Bottom: five check lamps, green
+//!  when they hold: the MIDI round trip is exact, and an empty channel reads silence through audSpectrum, audBand and
+//!  audWave, and audByteToDb then audByteToAmp agree with each other. Ticks that miss each other, a keyboard whose black
+//!  keys fall out of the 2-and-3 pattern, or a grey lamp is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for input/audio.glsl, written fresh.
+
+const float AUDIO_CARD_LO = 27.5;            // A0
+const float AUDIO_CARD_HI = 4186.009;        // C8
+
+// Frequency at x in 0..1 across the card, on a log axis, and back.
+float audioCardHz(float x) {
+    return AUDIO_CARD_LO * exp2(x * log2(AUDIO_CARD_HI / AUDIO_CARD_LO));
+}
+
+float audioCardX(float hz) {
+    return log2(hz / AUDIO_CARD_LO) / log2(AUDIO_CARD_HI / AUDIO_CARD_LO);
+}
+
+// The five checks, one per lamp.
+bool audioCardCheck(int which) {
+    if (which == 0) {
+        float worst = 0.0;
+        for (int m = 21; m <= 108; m += 7) worst = max(worst, abs(hzToMidi(midiToHz(float(m))) - float(m)));
+        return worst < 1e-3;
+    }
+    if (which == 1) return audSpectrum(iChannel0, 0.3) == 0.0;
+    if (which == 2) return audBand(iChannel0, 20.0, 20000.0, iSampleRate) == 0.0;
+    if (which == 3) return audWave(iChannel0, 0.3) == 0.0;
+    float amp = audByteToAmp(0.5);                         // -65 dB
+    return abs(20.0 * log2(amp) / log2(10.0) - audByteToDb(0.5)) < 1e-3;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cardUv = pixel / iResolution.xy;
+    float pxX = 1.0 / iResolution.x;
+    vec3 paint = vec3(0.06, 0.07, 0.09);
+
+    // the keyboard, between 55 % and 90 % of the height
+    float keysLo = 0.55, keysHi = 0.9;
+    float midi = hzToMidi(audioCardHz(cardUv.x));
+    float note = floor(midi + 0.5);
+    float pc = mod(note, 12.0);                            // 0 is C
+    bool black = pc == 1.0 || pc == 3.0 || pc == 6.0 || pc == 8.0 || pc == 10.0;
+    float keyY = (cardUv.y - keysLo) / (keysHi - keysLo);
+    float seam = abs(fract(midi + 0.5) - 0.5) / max(fwidth(midi), 1e-6);   // pixels from a key edge
+    if (keyY >= 0.0 && keyY <= 1.0) {
+        vec3 key = black ? (keyY > 0.38 ? vec3(0.05) : vec3(0.85, 0.85, 0.8)) : vec3(0.85, 0.85, 0.8);
+        paint = mix(vec3(0.3), key, smoothstep(0.3, 1.0, seam));
+        if (note == 60.0 && abs(keyY - 0.12) < 0.06) paint = vec3(0.9, 0.15, 0.1);   // middle C
+    }
+    float tickA = audioCardX(midiToHz(69.0));
+    float tickB = audioCardX(pianoKeyToHz(49.0));
+    float nearA = 1.0 - smoothstep(0.8 * pxX, 1.8 * pxX, abs(cardUv.x - tickA));
+    float nearB = 1.0 - smoothstep(0.8 * pxX, 1.8 * pxX, abs(cardUv.x - tickB));
+    if (cardUv.y > keysHi + 0.01 && cardUv.y < keysHi + 0.08) paint = mix(paint, vec3(0.2, 0.9, 1.0), nearA);
+    if (cardUv.y < keysLo - 0.01 && cardUv.y > keysLo - 0.08) paint = mix(paint, vec3(1.0, 0.7, 0.2), nearB);
+
+    // bins per semitone, between 22 % and 45 %, on a log2 scale from 1/16 to 8 bins
+    float plotLo = 0.22, plotHi = 0.45;
+    float plotY = (cardUv.y - plotLo) / (plotHi - plotLo);
+    if (plotY >= 0.0 && plotY <= 1.0) {
+        float hz = audioCardHz(cardUv.x);
+        float binHz = iSampleRate / 2048.0;
+        float perSemitone = hz * (exp2(1.0 / 12.0) - 1.0) / binHz;
+        float level = (log2(perSemitone) + 4.0) / 7.0;     // 1/16 bin at the bottom, 8 bins at the top
+        vec3 bar = perSemitone < 1.0 ? vec3(0.85, 0.2, 0.15) : (perSemitone < 2.0 ? vec3(0.8, 0.65, 0.2)
+                                                                                : vec3(0.25, 0.8, 0.35));
+        paint = plotY < level ? bar * 0.8 : vec3(0.09, 0.1, 0.12);
+        float oneBin = 4.0 / 7.0;
+        float lineInk = 1.0 - smoothstep(0.0, 1.5 / ((plotHi - plotLo) * iResolution.y), abs(plotY - oneBin));
+        paint = mix(paint, vec3(0.95), lineInk);
+    }
+
+    // five check lamps along the bottom
+    if (cardUv.y < 0.16) {
+        vec2 lampPos = vec2(cardUv.x * 5.0, cardUv.y / 0.16);
+        int which = int(floor(lampPos.x));
+        vec2 local = (vec2(fract(lampPos.x), lampPos.y) - 0.5) * vec2(iResolution.x / 5.0, 0.16 * iResolution.y);
+        float lamp = 1.0 - smoothstep(9.0, 10.5, length(local));
+        paint = mix(paint, audioCardCheck(which) ? vec3(0.25, 0.95, 0.35) : vec3(0.25, 0.25, 0.28), lamp);
+    }
+    color = vec4(paint, 1.0);
+}

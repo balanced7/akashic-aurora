@@ -1,0 +1,31 @@
+//! {"card": "dither-masks", "uses": ["dither-masks"], "t": [0], "size": [480, 270],
+//!  "note": "TOP THREE STRIPS: the same ramp from black to half grey, written to an exaggerated 4-bit staircase (16 levels) so banding is easy to see. Strip 1 (top), no dither: eight hard bands. Strip 2, plus triangular dither of one step from dthIgn: the bands are gone, replaced by an even fine grain whose average follows the smooth ramp. Strip 3, the same from dthR2: also band-free, an even, slightly more regular grain. BOTTOM: the masks themselves, every mask pixel drawn 4 x 4: dthIgn (left) is a fine diagonal weave in which each 3 x 3 block holds nearly every shade; dthR2 (right) is an even scatter on a golden-ratio stride, with no clumps and only a faint diagonal order. Nothing moves: both masks are static. A broken module shows bands surviving in strips 2 and 3, a grain darker or lighter than the ramp, clumps or a crosshatch in the masks."}
+// Apache-2.0, Akashic Aurora. The test card of noise/dither-masks.glsl, written fresh for the house.
+
+const float CARD_LEVELS = 15.0;     // code values above zero: a 4-bit staircase, to make banding obvious
+
+float cardRule(float x) {
+    return 1.0 - smoothstep(0.0, 1.0, abs(x));
+}
+
+// The ramp written to the staircase, with `dither` (in code values, -1..1) added before the rounding.
+float cardQuantise(float v, float dither) {
+    return floor(v * CARD_LEVELS + 0.5 + dither) / CARD_LEVELS;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.02, 0.025, 0.035);
+    float ramp = 0.5 * pixel.x / 480.0;
+    if (pixel.y >= 216.0) {
+        paint = vec3(cardQuantise(ramp, 0.0));
+    } else if (pixel.y >= 162.0 && pixel.y < 211.0) {
+        paint = vec3(cardQuantise(ramp, dthTriFromUniform(dthIgn(pixel))));
+    } else if (pixel.y >= 108.0 && pixel.y < 157.0) {
+        paint = vec3(cardQuantise(ramp, dthTriFromUniform(dthR2(pixel))));
+    } else if (pixel.y < 103.0) {
+        vec2 big = floor(pixel / 4.0);                     // each mask pixel drawn 4 x 4
+        paint = vec3(pixel.x < 240.0 ? dthIgn(big) : dthR2(big));
+        paint = mix(paint, vec3(0.75, 0.2, 0.1), cardRule(pixel.x - 240.0));
+    }
+    color = vec4(paint, 1.0);
+}

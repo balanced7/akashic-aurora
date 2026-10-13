@@ -1,0 +1,43 @@
+//! {"card": "hash-pcg", "uses": ["hash-pcg"], "t": [0], "size": [480, 270],
+//!  "note": "Three test patterns for the house dice. LEFT: hash33 of every pixel as red, green and blue: even, colourful static with no stripes, no diagonal moire and no repeating tile. MIDDLE: hash21 of 9-pixel cells around the origin (the faint red cross marks x = 0 and y = 0): the cells on the negative side look exactly like the positive side, with no mirror image and no seam at the axes. RIGHT: a logic analyser of hashU1 over 160 consecutive inputs, one row per output bit, bit 0 at the bottom: every row is an equally busy random barcode. A broken hash shows stripes, a mirrored or seamed cross, a quiet or periodic bit row, or a repeating block."}
+// Apache-2.0, Akashic Aurora. The test card of hash/pcg.glsl, written fresh for the house.
+
+// The card's frame: three panels of 160 x 270 pixels side by side.
+const float CARD_PANEL = 160.0;
+
+// A thin vertical rule between panels.
+float cardRule(float x) {
+    return 1.0 - smoothstep(0.0, 1.0, abs(x));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float panel = floor(pixel.x / CARD_PANEL);
+    vec2 local = vec2(pixel.x - panel * CARD_PANEL, pixel.y);
+    vec3 paint;
+    if (panel < 1.0) {
+        // every pixel its own three dice: hash33 of the integer pixel
+        paint = hash33(vec3(floor(local), 0.0));
+    } else if (panel < 2.0) {
+        // 9-pixel cells around an origin in the middle of the panel; negative cells wrap by two's complement
+        vec2 p = (local - vec2(80.0, 135.0)) / 9.0;
+        paint = vec3(hash21(p));
+        float axes = max(cardRule(local.x - 80.0), cardRule(local.y - 135.0));    // two pixels wide at half ink
+        paint = mix(paint, vec3(1.0, 0.1, 0.05), 0.9 * axes);
+    } else {
+        // logic analyser: column = input word (0..159), row = output bit (0 at the bottom), 32 rows of 8 pixels
+        uint word = uint(local.x);
+        float row = floor((local.y - 7.0) / 8.0);
+        if (row < 0.0 || row > 31.0) {
+            paint = vec3(0.04, 0.05, 0.07);
+        } else {
+            uint bit = (hashU1(word) >> uint(row)) & 1u;
+            float lit = float(bit);
+            float gap = step(7.0, mod(local.y - 7.0, 8.0));           // one dark line between rows
+            vec3 trace = mix(vec3(0.05, 0.12, 0.08), vec3(0.35, 1.0, 0.55), lit);
+            paint = mix(trace, vec3(0.02), gap);
+        }
+    }
+    float rules = cardRule(pixel.x - CARD_PANEL) + cardRule(pixel.x - 2.0 * CARD_PANEL);
+    paint = mix(paint, vec3(0.0), clamp(rules, 0.0, 1.0));
+    color = vec4(paint, 1.0);
+}

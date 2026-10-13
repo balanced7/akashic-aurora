@@ -1,0 +1,47 @@
+//! {"card": "post-vignette", "uses": ["post-vignette"], "t": [0], "size": [384, 216],
+//!  "note": "A flat grey frame through vigCorner at full strength, on a 16:9 card. The middle half of the frame should
+//!  look untouched and the darkening should gather in the four corners, all four equally dark. Three thin rings mark
+//!  where the light has fallen to 95 % (green), 80 % (amber) and 60 % (red): they are true circles, not ellipses
+//!  stretched to the frame, and the red one stays inside the corners. The inset box at the bottom plots the multiplier
+//!  from the centre (left) to a corner (right) at amount 0.25 (the finish default, blue), 0.6 (the legacy chunk, grey)
+//!  and 1 (white): all start flat at 1 and end at 1 - 0.83 x amount. Black side bars, rings that touch the sides,
+//!  corners of unequal darkness, or a curve that sags from the very left are a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for post/vignette.glsl, written fresh.
+
+// One thin ring where a smooth field crosses `level`, about a pixel and a half wide (fwidth of a continuous value).
+float vignetteRing(float field, float level) {
+    float across = abs(field - level) / max(fwidth(field), 1e-6);
+    return 1.0 - smoothstep(0.75, 1.5, across);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 frameUv = pixel / iResolution.xy;
+    float widthPerHeight = iResolution.x / iResolution.y;
+
+    // the field: flat grey through the vignette at full strength, over the whole card
+    float lift = vigCorner(frameUv, widthPerHeight, 1.0);
+    vec3 paint = vec3(0.72) * lift;
+    paint = mix(paint, vec3(0.3, 0.95, 0.4), vignetteRing(lift, 0.95));
+    paint = mix(paint, vec3(1.0, 0.7, 0.2), vignetteRing(lift, 0.80));
+    paint = mix(paint, vec3(1.0, 0.25, 0.2), vignetteRing(lift, 0.60));
+
+    // the inset: reach 0 (centre) to 1 (corner) across it, the multiplier up it; the bottom corners stay in view
+    vec2 boxLo = vec2(0.22, 0.04), boxHi = vec2(0.78, 0.38);
+    vec2 inBox = (frameUv - boxLo) / (boxHi - boxLo);
+    vec2 plotPos = vec2(inBox.x, (inBox.y - 0.08) / 0.84);              // y 0..1 inside a margin
+    vec2 toCorner = vec2(0.5) + 0.5 * plotPos.x * vec2(1.0, 1.0);       // the diagonal from the centre to (1, 1)
+    float pxY = 1.0 / (0.84 * (boxHi.y - boxLo.y) * iResolution.y);
+    vec3 plot = vec3(0.06, 0.07, 0.09);
+    float gridY = abs(fract(plotPos.y * 4.0 + 0.5) - 0.5) / 4.0;
+    plot = mix(plot, vec3(0.16, 0.17, 0.2), 1.0 - smoothstep(0.0, pxY, gridY));
+    for (int strength = 0; strength < 3; strength++) {     // amount 0.25 (blue), 0.6 (grey), 1 (white)
+        float amount = strength == 0 ? 0.25 : (strength == 1 ? 0.6 : 1.0);
+        vec3 curveInk = strength == 0 ? vec3(0.35, 0.6, 1.0) : vec3(0.6 + 0.4 * float(strength - 1));
+        float curveY = vigCorner(toCorner, widthPerHeight, amount);
+        float miss = abs(plotPos.y - curveY) / max(fwidth(plotPos.y - curveY), 1e-6);
+        plot = mix(plot, curveInk, 1.0 - smoothstep(0.75, 1.75, miss));
+    }
+
+    bool insideBox = all(greaterThanEqual(inBox, vec2(0.0))) && all(lessThanEqual(inBox, vec2(1.0)));
+    color = vec4(insideBox ? plot : paint, 1.0);
+}

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 3f76cbc1. A bound you discover by collision is not awareness -- this sheet
+> Derived at 55883bc2. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (358 numeric constants)
+## Mechanical bounds (362 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -339,6 +339,7 @@ Class: reference
 | `CANONICAL_MAXLEN` | 100,000 | core/signals/agent_signal_ledger.py | signals retained on the canonical stream |
 | `CAP` | 50 | core/comm/pager.py |  |
 | `CAP` | 90,000 | research/reviewed/success-sweep-raw-2026-08-10/extract_daniil_success_talk.py |  |
+| `CARD_TIMEOUT_S` | 60 | arsenal/shaders/cards.py | one job (one card, every t); a burst still ends under three minutes (render.py) |
 | `CATEGORY_CAP_PER_ATOM` | 3 | core/library/taxonomy.py |  |
 | `CHAIN_WARN_THRESHOLD` | 50 | core/learning/agent_memory.py |  |
 | `CHECK_TIMEOUT_S` | 30 | arsenal/shaders/render.py |  |
@@ -387,6 +388,7 @@ Class: reference
 | `ENGINE_MAX` | 40 | arsenal/jam/schemas.py |  |
 | `EVENT_SCAN_LIMIT` | 5,000 | core/recall/funnel.py |  |
 | `EVIDENCE_MS` | 30,000 | arsenal/practice.py | a key change's evidence compares the notes heard this long on either side of it |
+| `FBM_MAX_OCTAVES` | 8 | arsenal/shaders/twins/noise.py |  |
 | `FIGURE_STAGE_MS` | 1,500 | arsenal/practice.py | ...unless it lasted this long with its chord's notes struck again inside it: a figure |
 | `FILMSTRIP_TIMEOUT_S` | 150 | arsenal/shaders/render.py |  |
 | `FLOOR` | 4,900 | scripts/check_fresh_clone.py |  |
@@ -451,6 +453,7 @@ Class: reference
 | `MAX_BODY` | 400 | core/toolbelt/toast.py | gratitude is short; the leaderboard guard is distinct-users love |
 | `MAX_CHARS_PER_ENTRY` | 170 | core/narrative/chronicler.py |  |
 | `MAX_CHECKS` | 8 | arsenal/jam/schemas.py |  |
+| `MAX_CHROMA_STEPS` | 24 | arsenal/shaders/twins/colour.py | bisection steps for oklchMaxChroma (the piano's own count) |
 | `MAX_CLIPS` | 500 | arsenal/serve.py |  |
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
 | `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
@@ -487,6 +490,7 @@ Class: reference
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
 | `MAX_STRING` | 200 | arsenal/pianolooks.py |  |
 | `MAX_TAGS` | 12 | arsenal/jam/schemas.py |  |
+| `MAX_TAPS` | 64 | arsenal/shaders/twins/finish.py | audBand's loop bound |
 | `MAX_TARGETS` | 32 | core/events/touch.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TEXT` | 500 | arsenal/pianocue.py |  |

@@ -1,0 +1,49 @@
+//! {"card": "noise-fbm", "uses": ["noise-fbm"], "t": [0, 2], "size": [480, 270],
+//!  "note": "Six panels, the origin at the centre of each. TOP ROW: fbmGrad2 with 1, 3 and 8 octaves (lacunarity 2, gain 0.5): finer and finer detail on top of the first octave's large shapes (it keeps half the weight at 8 octaves), the mean staying mid grey and nothing clipping (normalised: more octaves never brighten it), the contrast softening a little because independent octaves partly cancel. No square grid, no regular bumps and no pinch at the centre. BOTTOM LEFT: 6 octaves at gain gainFromHurst(0.5, 2) = 0.707, visibly rougher. BOTTOM MIDDLE: fbmGrad3 sliced at a z that moves with time (t = 0 and t = 2 differ). BOTTOM RIGHT: one row of the top panels plotted for 1 octave (dim) and 8 octaves (bright), guides at -1, 0, +1: the bright curve follows the dim one's swells, smaller and with wiggles added, and stays inside the guides. A broken module shows a grid, a bright or dark dot at a centre, a top row that brightens left to right, or a frozen slice."}
+// Apache-2.0, Akashic Aurora. The test card of noise/fbm.glsl, written fresh for the house.
+
+const vec2 CARD_PANEL = vec2(160.0, 135.0);
+const float CARD_UNITS = 40.0;      // pixels per noise unit: each panel spans 4 x 3.4 units
+
+float cardInk(float d) {
+    return 1.0 - smoothstep(0.5, 1.5, d);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cell = floor(pixel / CARD_PANEL);
+    vec2 local = pixel - cell * CARD_PANEL;
+    vec2 p = (local - 0.5 * CARD_PANEL) / CARD_UNITS;
+    float panel = cell.x + 3.0 * (1.0 - cell.y);         // 0 1 2 on the top row, 3 4 5 below
+    vec3 paint;
+    if (panel < 0.5) {
+        paint = vec3(0.5 + 0.5 * fbmGrad2(p, 1, 2.0, 0.5, 5u));
+    } else if (panel < 1.5) {
+        paint = vec3(0.5 + 0.5 * fbmGrad2(p, 3, 2.0, 0.5, 5u));
+    } else if (panel < 2.5) {
+        paint = vec3(0.5 + 0.5 * fbmGrad2(p, 8, 2.0, 0.5, 5u));
+    } else if (panel < 3.5) {
+        paint = vec3(0.5 + 0.5 * fbmGrad2(p, 6, 2.0, gainFromHurst(0.5, 2.0), 5u));
+    } else if (panel < 4.5) {
+        paint = vec3(0.5 + 0.5 * fbmGrad3(vec3(p, 0.4 * iTime), 6, 2.0, 0.5, 5u));
+    } else {
+        // plot the row y = 0 of the top panels: x across the panel, value -1.25..1.25 up it
+        float toY = CARD_PANEL.y / 2.5;
+        float y0 = 0.5 * CARD_PANEL.y;
+        float unitsPerPx = 1.0 / CARD_UNITS;
+        paint = vec3(0.06, 0.07, 0.09);
+        for (int guide = 0; guide < 3; guide++) {          // -1, 0 and +1
+            paint = mix(paint, vec3(0.28, 0.3, 0.36), cardInk(abs(local.y - (y0 + float(guide - 1) * toY))));
+        }
+        for (int which = 0; which < 2; which++) {
+            int octaves = which == 0 ? 1 : 8;
+            float n = fbmGrad2(vec2(p.x, 0.0), octaves, 2.0, 0.5, 5u);
+            float slope = (fbmGrad2(vec2(p.x + unitsPerPx, 0.0), octaves, 2.0, 0.5, 5u) - n) * toY;
+            float miss = abs(local.y - (y0 + n * toY)) / sqrt(1.0 + slope * slope);
+            vec3 ink = which == 0 ? vec3(0.3, 0.38, 0.5) : vec3(0.45, 0.85, 1.0);
+            paint = mix(paint, ink, cardInk(miss));
+        }
+    }
+    float edge = min(min(local.x, CARD_PANEL.x - local.x), min(local.y, CARD_PANEL.y - local.y));
+    paint = mix(paint, vec3(0.0), cardInk(edge));          // a thin black frame per panel
+    color = vec4(paint, 1.0);
+}

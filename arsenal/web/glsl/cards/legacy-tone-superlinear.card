@@ -1,0 +1,63 @@
+//! {"card": "legacy-tone-superlinear", "uses": ["legacy-tone-superlinear", "colour-tone", "colour-transfer"],
+//!  "t": [0, 1], "size": [320, 180],
+//!  "note": "Left, scene light 0..2 across against display 0..1: tmTanh alone (grey) and tmTanh after tmSuperlinear at
+//!  k = 0.85 (orange). The two lie together in the darks and part in the mids and highs, the orange reaching the
+//!  shoulder sooner. Right, one warm glow field shown twice: left half through tanh alone, right half through the
+//!  superlinear term then tanh. The faint halo is the same on both sides; the cores on the right are hotter and
+//!  tighter. The blobs drift between t = 0 and t = 1. Curves that part in the darks, or a right half brighter
+//!  everywhere rather than at the cores, is a broken module."}
+// Apache-2.0, Akashic Aurora. The card for legacy/tone-superlinear.glsl: a curve pair and a glow field before and after.
+
+float cardSlCurve(int which, float x) {
+    vec3 v = vec3(x);
+    return which == 0 ? tmTanh(v).x : tmTanh(tmSuperlinear(v, 0.85)).x;
+}
+
+// Three soft blobs: a glow field that is dim almost everywhere and bright at a few cores.
+float cardSlField(vec2 p, float t) {
+    float glow = 0.0;
+    for (int blob = 0; blob < 3; blob++) {
+        float k = float(blob);
+        vec2 centre = vec2(0.5 * cos(2.1 * k + 0.4 * t), 0.35 * sin(1.7 * k + 0.3 * t + 1.0));
+        vec2 off = p - centre;
+        glow += (0.55 + 0.25 * k) * exp(-dot(off, off) * (9.0 + 4.0 * k));
+    }
+    return glow;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.05, 0.055, 0.07);
+    float margin = 12.0;
+
+    // ---- left: the curve pair, light 0..2 across
+    float side = iResolution.y - 2.0 * margin;
+    vec2 at = (pixel - vec2(margin)) / side;
+    float px = 1.0 / side;
+    if (all(greaterThanEqual(at, vec2(0.0))) && all(lessThanEqual(at, vec2(1.0)))) {
+        paint = vec3(0.09, 0.1, 0.12);
+        vec2 toGrid = abs(fract(at * 4.0 + 0.5) - 0.5) * 0.25;
+        paint = mix(paint, vec3(0.19, 0.2, 0.24), 1.0 - smoothstep(0.0, px, min(toGrid.x, toGrid.y)));
+    }
+    if (at.x >= 0.0 && at.x <= 1.0 && at.y >= -2.0 * px && at.y <= 1.0 + 2.0 * px) {
+        for (int which = 0; which < 2; ++which) {
+            float y = cardSlCurve(which, 2.0 * at.x);
+            float slope = (cardSlCurve(which, 2.0 * (at.x + 0.5 * px)) - cardSlCurve(which, 2.0 * (at.x - 0.5 * px))) / px;
+            float miss = abs(at.y - y) / sqrt(1.0 + slope * slope);
+            vec3 ink = which == 0 ? vec3(0.6) : vec3(1.0, 0.6, 0.2);
+            paint = mix(paint, ink, 1.0 - smoothstep(0.75 * px, 1.75 * px, miss));
+        }
+    }
+
+    // ---- right: the glow field, tanh alone | superlinear then tanh
+    float x0 = 2.0 * margin + side;
+    float x1 = iResolution.x - margin;
+    if (pixel.x >= x0 && pixel.x <= x1 && pixel.y >= margin && pixel.y <= iResolution.y - margin) {
+        float mid = 0.5 * (x0 + x1);
+        vec2 p = (pixel - vec2(pixel.x < mid ? 0.5 * (x0 + mid) : 0.5 * (mid + x1), 0.5 * iResolution.y))
+                 / (0.5 * (x1 - x0));
+        vec3 light = cardSlField(p, iTime) * vec3(1.0, 0.55, 0.25);
+        vec3 shown = pixel.x < mid ? tmTanh(light) : tmTanh(tmSuperlinear(light, 0.85));
+        paint = abs(pixel.x - mid) < 1.0 ? vec3(0.3) : srgbEncode(shown);
+    }
+    color = vec4(paint, 1.0);
+}

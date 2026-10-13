@@ -1,0 +1,80 @@
+//! {"card": "colour-tone", "uses": ["colour-tone", "colour-transfer"], "t": [0], "size": [480, 270],
+//!  "note": "Left, the curves against scene light in camera stops, 1/64 to 4 across (a grid line every stop; the
+//!  brighter lines mark middle grey 0.18 and 1.0), display-linear 0..1 up: tmPbrNeutral (green) climbs steepest, being
+//!  the identity up to about 0.76, then bends hard; tmTanh (orange) and tmExp (yellow) follow the light closely through
+//!  the darks and flatten near 1; tmAcesFit (red) sits clearly LOWER in the darks and mids (its toe: 0.14 at middle
+//!  grey) and catches up at the top; tmReinhard (grey) rises slowly and is only at 0.8 by 4; tmRootGain at gain 0.5
+//!  (blue) leads everything in the deep darks (a root lifts faint light most) and reaches 1 at 4. Right, the
+//!  hue-exposure test: orange, blue and green lights from 4 stops under to 6 over (expose), each through the ACES fit
+//!  (upper strip) and PBR Neutral (lower strip). Under ACES orange swings to yellow and blue to cyan on the way to white
+//!  (the notorious six); under PBR Neutral each pales toward white along its own line (orange to peach, blue to
+//!  lavender) without swinging to a neighbouring primary. Bottom, a dim violet glow brightened two ways: per-channel
+//!  gamma (upper) bleaches it toward lavender, displayHueSafeGamma (lower) keeps it a saturated violet. A curve that
+//!  passes 1, an ACES curve above tanh at middle grey, or a lower violet strip as pale as the upper is a broken
+//!  module."}
+// Apache-2.0, Akashic Aurora. The card for colour/tone.glsl: a curve plot, the hue-exposure test and hue-safe gamma.
+
+const int CARD_TN_CURVES = 6;
+
+// The curves on the plot, by index (GLSL has no function pointers); x is scene light.
+float cardTnCurve(int which, float x) {
+    vec3 v = vec3(x);
+    if (which == 0) return tmReinhard(v).x;
+    if (which == 1) return tmRootGain(v, 0.5).x;
+    if (which == 2) return tmPbrNeutral(v).x;
+    if (which == 3) return tmAcesFit(v).x;
+    if (which == 4) return tmExp(v).x;
+    return tmTanh(v).x;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.05, 0.055, 0.07);
+    float margin = 12.0;
+
+    // ---- left: curve plot, scene light 2^-6 .. 2^2 across (one grid line per stop), display-linear 0..1 up
+    float side = iResolution.y - 2.0 * margin;
+    vec2 at = (pixel - vec2(margin)) / side;
+    float px = 1.0 / side;
+    if (all(greaterThanEqual(at, vec2(0.0))) && all(lessThanEqual(at, vec2(1.0)))) {
+        paint = vec3(0.09, 0.1, 0.12);
+        vec2 toGrid = abs(fract(at * vec2(8.0, 4.0) + 0.5) - 0.5) / vec2(8.0, 4.0);
+        paint = mix(paint, vec3(0.19, 0.2, 0.24), 1.0 - smoothstep(0.0, px, min(toGrid.x, toGrid.y)));
+        float marks = min(abs(at.x - (log2(0.18) + 6.0) / 8.0), abs(at.x - 0.75));     // middle grey and 1.0
+        paint = mix(paint, vec3(0.42, 0.44, 0.5), 1.0 - smoothstep(0.0, px, marks));
+    }
+    if (at.x >= 0.0 && at.x <= 1.0 && at.y >= -2.0 * px && at.y <= 1.0 + 2.0 * px) {
+        vec3 inkOf[CARD_TN_CURVES] = vec3[CARD_TN_CURVES](vec3(0.7), vec3(0.35, 0.6, 1.0), vec3(0.4, 0.9, 0.45),
+                                                          vec3(1.0, 0.3, 0.3), vec3(1.0, 0.9, 0.3), vec3(1.0, 0.6, 0.2));
+        for (int which = 0; which < CARD_TN_CURVES; ++which) {
+            float y = cardTnCurve(which, exp2(8.0 * at.x - 6.0));
+            float slope = (cardTnCurve(which, exp2(8.0 * (at.x + 0.5 * px) - 6.0))
+                           - cardTnCurve(which, exp2(8.0 * (at.x - 0.5 * px) - 6.0))) / px;
+            float miss = abs(at.y - y) / sqrt(1.0 + min(slope * slope, 1.0e5));
+            paint = mix(paint, inkOf[which], 1.0 - smoothstep(0.75 * px, 1.75 * px, miss));
+        }
+    }
+
+    // ---- right: the hue-exposure test and hue-safe gamma
+    float x0 = 2.0 * margin + side;
+    float x1 = iResolution.x - margin;
+    float along = (pixel.x - x0) / (x1 - x0);
+    float y = pixel.y;
+    if (along >= 0.0 && along <= 1.0) {
+        vec3 lights[3] = vec3[3](vec3(1.0, 0.3, 0.04), vec3(0.04, 0.2, 1.0), vec3(0.08, 1.0, 0.15));
+        float ev = mix(-4.0, 6.0, along);
+        for (int lamp = 0; lamp < 3; lamp++) {
+            float top = 258.0 - 64.0 * float(lamp);                          // each light: two strips of 28 px
+            if (y <= top && y >= top - 58.0) {
+                vec3 lin = expose(lights[lamp] * (0.18 / luminance(lights[lamp])), ev);
+                bool aces = y >= top - 28.0;
+                bool inStrip = aces || y <= top - 30.0;
+                paint = inStrip ? srgbEncode(aces ? tmAcesFit(lin) : tmPbrNeutral(lin)) : paint;
+            }
+        }
+        if (y >= 14.0 && y <= 62.0) {
+            vec3 glow = vec3(0.03, 0.004, 0.06) * (0.05 + 1.5 * along);
+            paint = y >= 39.0 ? pow(glow, vec3(1.0 / 2.2)) : (y <= 37.0 ? displayHueSafeGamma(glow, 2.2) : paint);
+        }
+    }
+    color = vec4(paint, 1.0);
+}

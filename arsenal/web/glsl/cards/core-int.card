@@ -1,0 +1,42 @@
+//! {"card": "core-int", "uses": ["core-int", "core-const", "core-frame"], "t": [0], "size": [480, 270],
+//!  "note": "Top: a tiling whose colour repeats every 3 cells across and every 2 cells up, numbered by cellIndex and wrapped by imodFloor, running straight through the origin (where the white axes cross) with no doubled cell and no reversal. Bottom: two strips of cells with a 4-colour cycle. The upper strip is the house (cellIndex then imodFloor): every cell the same width, the cycle unbroken across the white tick at x = 0. The lower strip is the plain int() conversion for contrast: int() truncates toward zero, so the cell at zero is twice as wide. If the upper strip ever looks like the lower one, cellIndex is broken; if the top tiling shifts its pattern at an axis, imodFloor is."}
+// Apache-2.0, Akashic Aurora. The test card for core/int.glsl, written fresh.
+
+// A distinct colour for each of `count` classes.
+vec3 intCardColour(int index, int count) {
+    float h = float(index) / float(count);
+    return 0.45 + 0.4 * cos(TAU * (h + vec3(0.0, 0.33, 0.67)));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+
+    if (p.y > -0.3) {
+        // the 2D tiling, origin at (0, 0.35), cells 0.26 across
+        float cellSize = 0.26;
+        vec2 grid = (p - vec2(0.0, 0.35)) / cellSize;
+        ivec2 cell = ivec2(cellIndex(grid.x), cellIndex(grid.y));
+        ivec2 klass = imodFloor(cell, ivec2(3, 2));
+        paint = intCardColour(klass.x + 3 * klass.y, 6);
+        vec2 toBorder = abs(fract(grid) - 0.5);
+        float border = (0.5 - max(toBorder.x, toBorder.y)) * cellSize;
+        paint *= 0.55 + 0.45 * smoothstep(0.5 * px, 1.5 * px, border);
+        float axis = min(abs(grid.x), abs(grid.y)) * cellSize;
+        paint = mix(paint, vec3(1.0), 1.0 - smoothstep(0.5 * px, 1.5 * px, axis));
+    } else {
+        float stripCell = 0.18;
+        float across = p.x / stripCell;
+        bool houseStrip = p.y > -0.62 && p.y < -0.42;
+        bool plainStrip = p.y > -0.94 && p.y < -0.74;
+        if (houseStrip || plainStrip) {
+            int number = houseStrip ? cellIndex(across) : int(across);
+            paint = intCardColour(imodFloor(number, 4), 4);
+            float seam = abs(fract(across + 0.5) - 0.5) * stripCell;
+            paint *= 0.55 + 0.45 * smoothstep(0.5 * px, 1.5 * px, seam);
+        }
+        paint = mix(paint, vec3(1.0), (1.0 - smoothstep(0.5 * px, 1.5 * px, abs(p.x))) * float(p.y > -0.97));
+    }
+    color = vec4(paint, 1.0);
+}

@@ -1,0 +1,65 @@
+//! {"card": "colour-oklab", "uses": ["colour-oklab"], "t": [0, 2], "size": [480, 270],
+//!  "note": "Left, one hue's slice of the sRGB gamut in OKLCH: lightness up, chroma across. Inside the gamut each point
+//!  shows its own colour; outside, a dim copy of where oklchClip sends it (same row, same hue, less chroma). A thin white
+//!  line traces oklchMaxChroma along the edge, and a white ring marks oklchCusp at the slice's most colourful tip. The
+//!  hue turns with time: red-orange at t = 0 (cusp near the middle height), teal-green at t = 2 (cusp high, near white).
+//!  Right, top to bottom: an OKLCH sweep at one lightness and chroma, all hues equally bright; blue to yellow mixed in
+//!  linear RGB (a grey middle), in OKLab (even lightness, near-neutral middle) and in OKLCH (stays colourful through cyan
+//!  and green); six swatches of one orange turned by sixths of a turn with hueRotateOklch (equal brightness, different
+//!  hues); and grey to teal in OKLCH, which stays teal all the way (a grey has no hue to sweep from). A ring off the tip,
+//!  a white line off the edge, or a sweep with bright and dark bands is a broken module."}
+// Apache-2.0, Akashic Aurora. The card for colour/oklab.glsl: a gamut slice, a sweep, three blends and a rotation.
+
+const vec3 CARD_OK_BLUE = vec3(0.02, 0.05, 0.9);
+const vec3 CARD_OK_YELLOW = vec3(0.9, 0.75, 0.02);
+const vec3 CARD_OK_TEAL = vec3(0.0, 0.42, 0.36);
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 paint = vec3(0.05, 0.055, 0.07);
+    float margin = 15.0;
+
+    // ---- left: a gamut slice at hue h, chroma 0..0.33 across, lightness 0..1 up
+    float side = iResolution.y - 2.0 * margin;
+    vec2 at = (pixel - vec2(margin)) / side;
+    float hue = 0.08 + 0.2 * iTime;
+    if (all(greaterThanEqual(at, vec2(0.0))) && all(lessThanEqual(at, vec2(1.0)))) {
+        float chroma = 0.33 * at.x;
+        float L = at.y;
+        vec3 lin = linearFromOklab(oklabFromOklch(vec3(L, chroma, hue)));
+        paint = inGamut(lin, 0.0) ? srgbEncode(lin) : 0.3 * srgbEncode(oklchClip(vec3(L, chroma, hue)));
+        float edgeAt = oklchMaxChroma(L, hue, 0.0) / 0.33;
+        float edgeInk = 1.0 - smoothstep(0.6, 1.6, abs(at.x - edgeAt) * side);
+        paint = mix(paint, vec3(1.0), 0.8 * edgeInk);
+        vec2 cusp = oklchCusp(hue);
+        float ring = abs(length((at - vec2(cusp.y / 0.33, cusp.x)) * side) - 5.0);
+        paint = mix(paint, vec3(1.0), 1.0 - smoothstep(0.7, 1.7, ring));
+    }
+
+    // ---- right: rows
+    float x0 = 2.0 * margin + side;
+    float x1 = iResolution.x - margin;
+    float along = (pixel.x - x0) / (x1 - x0);
+    float y = pixel.y;
+    if (along >= 0.0 && along <= 1.0) {
+        vec3 lin = vec3(-1.0);
+        if (y >= 222.0 && y <= 255.0) {
+            lin = oklchClip(vec3(0.72, 0.11, along));                          // one lightness, one chroma, all hues
+        } else if (y >= 188.0 && y <= 216.0) {
+            lin = mix(CARD_OK_BLUE, CARD_OK_YELLOW, along);                    // linear RGB: grey in the middle
+        } else if (y >= 154.0 && y <= 182.0) {
+            lin = mixOklab(CARD_OK_BLUE, CARD_OK_YELLOW, along);
+        } else if (y >= 120.0 && y <= 148.0) {
+            lin = mixOklch(CARD_OK_BLUE, CARD_OK_YELLOW, along);
+        } else if (y >= 58.0 && y <= 108.0) {
+            float slot = min(floor(along * 6.0), 5.0);
+            float gap = fract(along * 6.0);
+            if (gap > 0.08 && gap < 0.92) {
+                lin = hueRotateOklch(vec3(0.8, 0.25, 0.1), slot / 6.0 + 0.02 * iTime);
+            }
+        } else if (y >= 15.0 && y <= 46.0) {
+            lin = mixOklch(vec3(0.18), CARD_OK_TEAL, along);                   // grey borrows teal's hue
+        }
+        paint = lin.x >= 0.0 ? srgbEncode(lin) : paint;
+    }
+    color = vec4(paint, 1.0);
+}

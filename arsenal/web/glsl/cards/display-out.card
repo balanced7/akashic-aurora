@@ -1,0 +1,37 @@
+//! {"card": "display-out", "uses": ["display-out"], "t": [0, 1, 2, 3], "size": [384, 216],
+//!  "note": "The tone-mapper test card through displayOut at the Finish panel's defaults (exposure 0, saturation 1,
+//!  vignette 0.25, no S-curve, 8-bit dither); each frame is one display curve: t = 0 tanh (glow field), 1 film
+//!  density (1 - e^-x), 2 ACES fit, 3 PBR Neutral. Columns are exposure, 7 stops below middle grey at the left to 7
+//!  stops above at the right (the centre column is 0.18 grey, a mid grey on screen); rows from the top are grey, red,
+//!  yellow, green, cyan, blue and magenta at equal scene luminance. Every row rises smoothly from black at the left;
+//!  the grey row reaches near-white and stays exactly grey (no tint), and the corners are a little darker than the
+//!  middle. The first three curves work channel by channel, so a pure primary tops out at its own full colour and
+//!  never whitens (the per-channel trade-off, colour report 5.5); tanh is the brightest at middle grey, ACES the
+//!  darkest and most contrasty. PBR Neutral (t = 3) alone carries the brightest columns of every hue on toward white
+//!  while the hue holds. Banding in the dark columns, a tinted grey row, PBR Neutral failing to whiten, or two frames
+//!  that match (the curve choice ignored) is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for post/display-out.glsl, written fresh.
+
+const int DISPLAY_CARD_ROWS = 7;
+
+// The row's scene colour: grey and the six primaries and secondaries, each scaled to a Rec. 709 luminance of 1, so at
+// any one exposure every row carries the same light and the rows differ only in how the curve treats their hue.
+vec3 displayCardHue(int row) {
+    // which of red, green and blue each row lights, as three bits (red 4, green 2, blue 1): grey is all three
+    int lit = row == 0 ? 7 : (row == 1 ? 4 : (row == 2 ? 6 : (row == 3 ? 2 : (row == 4 ? 3 : (row == 5 ? 1 : 5)))));
+    vec3 primaries = vec3(float((lit / 4) % 2), float((lit / 2) % 2), float(lit % 2));
+    return primaries / dot(primaries, vec3(0.2126, 0.7152, 0.0722));   // a Rec. 709 luminance of 1 for every row
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cardUv = pixel / iResolution.xy;
+    int row = clamp(int((1.0 - cardUv.y) * float(DISPLAY_CARD_ROWS)), 0, DISPLAY_CARD_ROWS - 1);
+    float stops = mix(-7.0, 7.0, cardUv.x);
+    vec3 scene = 0.18 * exp2(stops) * displayCardHue(row);
+    int curve = int(floor(iTime + 0.5));                   // one display curve per frame
+    vec3 shown = displayOut(scene, pixel, iResolution.xy, 0.0, curve, 1.0, 0.25, 0.0, 256.0);
+    // a thin dark line between rows, so each hue reads as its own strip
+    float rowEdge = abs(fract((1.0 - cardUv.y) * float(DISPLAY_CARD_ROWS) + 0.5) - 0.5) * iResolution.y / 7.0;
+    shown *= smoothstep(0.4, 1.2, rowEdge);
+    color = vec4(shown, 1.0);
+}

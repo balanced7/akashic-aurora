@@ -1,0 +1,39 @@
+//! {"card": "core-rotate", "uses": ["core-rotate", "core-const", "core-frame"], "t": [0, 1], "size": [480, 270],
+//!  "note": "Eight flags on a dim circle, each turned another eighth of a turn counter-clockwise from the red one pointing right, the hue stepping round the colour wheel counter-clockwise. Every flag carries its pennant on its counter-clockwise side; a mirrored matrix would flip one. A white outline drawn at a whole turn (eight eighths) sits exactly on the red flag. Between t = 0 and t = 1 the whole wheel turns one sixteenth of a turn counter-clockwise. A flag that shrinks, shears or lands off the circle is a broken rotation."}
+// Apache-2.0, Akashic Aurora. The test card for core/rotate.glsl, written fresh.
+
+// The flag in its own frame, pointing along +x: a shaft from the hub outwards with a pennant on its +y side.
+// Returns a signed distance (negative inside).
+float rotateCardFlag(vec2 local) {
+    vec2 shaftRun = vec2(0.6, 0.0);
+    float along = clamp(dot(local - vec2(0.18, 0.0), shaftRun) / dot(shaftRun, shaftRun), 0.0, 1.0);
+    float shaft = length(local - vec2(0.18, 0.0) - along * shaftRun) - 0.014;
+    vec2 pastPennant = abs(local - vec2(0.69, 0.065)) - vec2(0.09, 0.05);
+    float pennant = length(max(pastPennant, 0.0)) + min(max(pastPennant.x, pastPennant.y), 0.0);
+    return min(shaft, pennant);
+}
+
+// A hue for position h around the wheel (0 red, then on round through yellow, green, blue).
+vec3 rotateCardHue(float h) {
+    vec3 wheelPhase = h + vec3(0.0, -1.0, 1.0) / 3.0;        // red, green and blue a third of a turn apart
+    return 0.5 + 0.5 * cos(TAU * wheelPhase);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    float wheelTurn = TAU * iTime / 16.0;
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+    paint = mix(paint, vec3(0.2, 0.22, 0.27), 1.0 - smoothstep(0.5, 1.2, abs(length(p) - 0.82) / px));
+
+    for (int flag = 0; flag < 8; flag++) {
+        float angle = float(flag) * TAU / 8.0 + wheelTurn;
+        vec2 local = rotate2(-angle) * p;                // the point turned back into the flag's own frame
+        float shape = rotateCardFlag(local);
+        paint = mix(paint, rotateCardHue(float(flag) / 8.0), 1.0 - smoothstep(-0.5 * px, 0.5 * px, shape));
+    }
+    // eight eighths of a turn: back home, on top of flag 0
+    vec2 home = rotate2(-(TAU + wheelTurn)) * p;
+    paint = mix(paint, vec3(1.0), 1.0 - smoothstep(0.4, 1.1, abs(rotateCardFlag(home)) / px));
+    color = vec4(paint, 1.0);
+}

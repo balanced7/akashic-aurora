@@ -1,0 +1,36 @@
+//! {"card": "noise-warp", "uses": ["noise-warp"], "t": [0, 2], "size": [480, 270],
+//!  "note": "Three panels over the same patch of fabric, the warp amount breathing with time (2.0 at t = 0, about 2.8 at t = 2). LEFT: the push itself, warpVec2, as false colour (red = x push, green = y push, grey = none): two independent soft fields, so the colours wander through reds, greens, yellows and purples rather than along one diagonal. MIDDLE: warpFbm2 in grey, the fBm bent once: bands curl and stretch into ribbons. RIGHT: warpNested2 coloured by its own intermediates (blue to teal by the value, amber where q pushed far, rose where r points right): marble and smoke with layered colour. A broken module shows a diagonal-only push (one stream for both components), straight unbent bands, glittering threads, or a frozen picture."}
+// Apache-2.0, Akashic Aurora. The test card of noise/warp.glsl, written fresh for the house.
+
+const float CARD_PANEL = 160.0;
+const float CARD_UNITS = 60.0;      // pixels per noise unit: the finest octave stays several pixels wide
+
+float cardRule(float x) {
+    return 1.0 - smoothstep(0.0, 1.0, abs(x));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float panel = floor(pixel.x / CARD_PANEL);
+    vec2 local = vec2(pixel.x - panel * CARD_PANEL, pixel.y);
+    vec2 p = local / CARD_UNITS + vec2(3.1, 1.7);
+    float amount = 2.0 + 0.8 * sin(0.9 * iTime);
+    vec3 paint;
+    if (panel < 1.0) {
+        vec2 push = warpVec2(p, 4, 11u);
+        paint = vec3(clamp(0.5 + 1.2 * push, 0.0, 1.0), 0.5);
+    } else if (panel < 2.0) {
+        paint = vec3(0.5 + 0.5 * warpFbm2(p, amount, 4, 11u));
+    } else {
+        vec2 q;
+        vec2 r;
+        float v = warpNested2(p, amount, 4, 11u, q, r);
+        float lum = clamp(0.5 + 0.6 * v, 0.0, 1.0);
+        paint = mix(vec3(0.04, 0.08, 0.2), vec3(0.1, 0.55, 0.6), lum);
+        paint = mix(paint, vec3(0.95, 0.65, 0.25), clamp(2.0 * length(q) - 0.3, 0.0, 1.0) * 0.7);
+        paint = mix(paint, vec3(0.85, 0.35, 0.45), clamp(2.5 * r.x, 0.0, 1.0) * 0.5);
+        paint *= 0.4 + 0.9 * lum;
+    }
+    float rules = cardRule(pixel.x - CARD_PANEL) + cardRule(pixel.x - 2.0 * CARD_PANEL);
+    paint = mix(paint, vec3(0.0), clamp(rules, 0.0, 1.0));
+    color = vec4(paint, 1.0);
+}

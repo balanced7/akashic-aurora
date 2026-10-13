@@ -1,0 +1,95 @@
+//! {"card": "core-const", "uses": ["core-const", "core-safe", "core-frame"], "t": [0], "size": [480, 270],
+//!  "note": "Left: a grey circle carrying 24 gold dashes of equal length all the way round, including across the seam on its left (the negative x axis), which only happens if TAU is a whole turn. A teal equilateral triangle sits in it; its corners are placed twice, once with SQRT3 (white dots) and once from angles built on PI and TAU (red rings), and every dot sits centred in its ring and on the circle. Right: a golden rectangle cut into squares nine times. Each remainder is golden again only if PHI * PHI = PHI + 1, so the squares tile with no gap or overlap and the gold quarter-circle spiral runs on unbroken from square to square. A dot outside its ring, a short dash at the seam, or a gap in the squares is a broken constant."}
+// Apache-2.0, Akashic Aurora. The test card for core/const.glsl, written fresh. Each constant is checked against
+// geometry that only closes if the constant is right, the way a machinist checks a square against a known right angle.
+
+// Distance from p to the straight segment between two points.
+float constCardSegment(vec2 p, vec2 from, vec2 to) {
+    vec2 run = to - from;
+    float share = dot(p - from, run) / dot2(run);          // where p's foot falls along the run: 0 at from, 1 at to
+    vec2 nearest = from + run * clamp(share, 0.0, 1.0);
+    return distance(p, nearest);
+}
+
+// How much a stroke covers this pixel: dist is the distance to its centre line, halfWidthPx its half width in pixels.
+float constCardInk(float dist, float halfWidthPx, float px) {
+    return 1.0 - smoothstep(halfWidthPx - 0.5, halfWidthPx + 0.5, dist / px);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 p = uvCentered(pixel, iResolution.xy);
+    float px = uvPixel(iResolution.xy);
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+
+    // ---- left: the circle, its 24 dashes, the triangle
+    vec2 ringCentre = vec2(-0.98, 0.0);
+    float radius = 0.78;
+    vec2 fromCentre = p - ringCentre;
+    float fromRing = abs(length(fromCentre) - radius);
+    paint = mix(paint, vec3(0.32, 0.34, 0.4), constCardInk(fromRing, 0.6, px));
+
+    vec2 heading = safeNormalize(fromCentre, vec2(1.0, 0.0));
+    float turns = atan(heading.y, heading.x) / TAU;                 // -0.5..0.5, the seam on the negative x axis
+    float dashPhase = fract(turns * 24.0);                           // a dash is lit for the first half of each 24th
+    float arcPerDash = TAU * radius / 24.0;
+    float insideDash = dashPhase < 0.5 ? min(dashPhase, 0.5 - dashPhase) : -min(dashPhase - 0.5, 1.0 - dashPhase);
+    float dashInk = smoothstep(-0.5 * px, 0.5 * px, insideDash * arcPerDash) * constCardInk(fromRing, 3.0, px);
+    paint = mix(paint, vec3(1.0, 0.78, 0.3), dashInk);
+
+    vec2 cornerTop = ringCentre + radius * vec2(0.0, 1.0);
+    vec2 cornerLeft = ringCentre + radius * vec2(-0.5 * SQRT3, -0.5);
+    vec2 cornerRight = ringCentre + radius * vec2(0.5 * SQRT3, -0.5);
+    float edges = min(constCardSegment(p, cornerTop, cornerLeft),
+                      min(constCardSegment(p, cornerLeft, cornerRight), constCardSegment(p, cornerRight, cornerTop)));
+    paint = mix(paint, vec3(0.3, 0.8, 0.75), constCardInk(edges, 0.75, px));
+    float nearestCorner = min(length(p - cornerTop), min(length(p - cornerLeft), length(p - cornerRight)));
+    paint = mix(paint, vec3(1.0), constCardInk(nearestCorner, 3.5, px));
+
+    // the same three corners from angles: a quarter turn, then a third of a turn each
+    float ringMiss = 1e9;
+    for (int corner = 0; corner < 3; corner++) {
+        float angle = 0.5 * PI + float(corner) * TAU / 3.0;
+        vec2 onCircle = cos(angle - vec2(0.0, 0.5 * PI));    // (cos, sin) in one call: cos(a - PI / 2) is sin(a)
+        vec2 spot = ringCentre + radius * onCircle;
+        ringMiss = min(ringMiss, abs(length(p - spot) - 7.0 * px));
+    }
+    paint = mix(paint, vec3(1.0, 0.42, 0.35), constCardInk(ringMiss, 0.7, px));
+
+    // ---- right: a golden rectangle, cut into a square and a smaller golden rectangle, nine times
+    float rectHeight = 1.1;
+    vec2 rectCorner = vec2(-0.08, -0.55);
+    vec2 golden = p - rectCorner;
+    vec2 halfRect = 0.5 * vec2(rectHeight * PHI, rectHeight);
+    vec2 pastEdge = abs(golden - halfRect) - halfRect;
+    float rectBorder = abs(max(pastEdge.x, pastEdge.y));
+    bool inGolden = max(pastEdge.x, pastEdge.y) <= 0.0;
+
+    vec2 frame = golden;            // this pixel in the current rectangle's own frame: [0, side * PHI] x [0, side]
+    float side = rectHeight;
+    float cuts = 1e9;
+    float spiral = 1e9;
+    float depth = -1.0;
+    for (int step = 0; step < 9; step++) {
+        bool inRect = frame.x >= 0.0 && frame.x <= side * PHI && frame.y >= 0.0 && frame.y <= side;
+        bool inSquare = inRect && frame.x <= side;
+        if (inSquare && depth < 0.0) {
+            depth = float(step);
+        }
+        if (inRect) {
+            cuts = min(cuts, abs(frame.x - side));
+        }
+        if (inSquare) {
+            spiral = min(spiral, abs(length(frame - vec2(side, 0.0)) - side));
+        }
+        frame = vec2(side - frame.y, frame.x - side);    // a quarter turn into the remainder's frame
+        side *= PHI - 1.0;                                // the remainder's short side: side / PHI
+    }
+    if (inGolden && depth >= 0.0) {
+        paint = mix(vec3(0.07, 0.09, 0.2), vec3(0.3, 0.2, 0.08), depth / 8.0);
+    }
+    paint = mix(paint, vec3(0.62, 0.64, 0.7), constCardInk(cuts, 0.5, px) * float(inGolden));
+    paint = mix(paint, vec3(0.62, 0.64, 0.7), constCardInk(rectBorder, 0.6, px));
+    paint = mix(paint, vec3(1.0, 0.78, 0.3), constCardInk(spiral, 0.9, px) * float(inGolden));
+
+    color = vec4(paint, 1.0);
+}

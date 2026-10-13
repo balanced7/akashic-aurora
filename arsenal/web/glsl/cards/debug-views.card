@@ -1,0 +1,85 @@
+//! {"card": "debug-views", "uses": ["debug-views"], "t": [0, 1], "size": [480, 270],
+//!  "note": "Top left: dbgHeatRamp from black through violet, red-orange and amber to white, its brightness traced in cyan: a straight climb, because the five stops are spaced at even brightness (the white ticks mark the three inner stops), and it never dips. Top middle: dbgHeatCount on a pretend march whose step count peaks at a silhouette ring: heat inside the budget, pure magenta where the ring goes over it. Top right: dbgRangeScope over five bands: NaN (magenta), Inf (cyan), a negative (blue), above 1 (red), and an in-range gradient shown as greys. Bottom left: dbgNaN over a colour gradient with a disc whose green is NaN and a ring whose blue is -Inf: both magenta, the gradient untouched. Bottom middle: dbgSlice on a true circle distance (left half: evenly spaced light lines, warm inside, a white zero line; the circle grows between t = 0 and t = 1) and on a squashed circle that is not a distance (right half: the lines bunch above and below it). Bottom right: dbgCells on a grid of cells: local position as red and green, a different tint in every cell, white borders."}
+// Apache-2.0, Akashic Aurora. The test card for debug/views.glsl, written fresh. The bad values are made on purpose
+// and every one is turned into a colour before the pixel is written, so the card's own NaN probe must find nothing.
+
+// Rec. 709 luma: how bright the ramp looks.
+float viewsCardLuma(vec3 rgb) {
+    vec3 weights709 = vec3(0.2126, 0.7152, 0.0722);
+    return dot(weights709, rgb);
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 panelSize = vec2(160.0, 135.0);
+    int column = int(pixel.x / panelSize.x);
+    int rowFromTop = int((iResolution.y - pixel.y) / panelSize.y);
+    int panel = column + 3 * rowFromTop;
+    vec2 panelOrigin = vec2(float(column) * panelSize.x, iResolution.y - float(rowFromTop + 1) * panelSize.y);
+    vec2 inPanel = pixel - panelOrigin;
+    vec2 centred = (inPanel - 0.5 * panelSize) / 60.0;      // panel units: 60 pixels each, y up
+    float unitPx = 1.0 / 60.0;
+    float notANumber = intBitsToFloat(0x7fc00000 + int(iTime));     // a quiet NaN; iTime stops it folding
+    float infinite = intBitsToFloat(0x7f800000 + int(iTime) * 0);    // +Inf
+
+    // dbgSlice reads screen derivatives, so both of its fields are computed for every pixel, from one panel's
+    // centre (continuous across the whole card), before anything branches.
+    vec2 sliceAt = (pixel - vec2(1.5, 0.5) * panelSize) / 60.0;
+    float radius = 0.55 + 0.25 * iTime;
+    float trueDistance = length(sliceAt - vec2(-0.62, 0.0)) - radius;
+    float squashed = length((sliceAt - vec2(0.62, 0.0)) * vec2(1.0, 2.2)) - radius;
+    vec3 sliceTrue = dbgSlice(trueDistance, 0.12);
+    vec3 sliceSquashed = dbgSlice(squashed, 0.12);
+
+    vec3 paint = vec3(0.04, 0.05, 0.07);
+    if (panel == 0) {
+        float t = clamp((inPanel.x - 10.0) / 140.0, 0.0, 1.0);
+        vec3 ramp = dbgHeatRamp(t);
+        bool inBand = inPanel.y > 18.0 && inPanel.y < 117.0 && inPanel.x > 10.0 && inPanel.x < 150.0;
+        if (inBand) {
+            paint = ramp;
+            float traceY = 18.0 + 99.0 * viewsCardLuma(ramp);
+            paint = mix(paint, vec3(0.0, 0.85, 1.0), 1.0 - smoothstep(0.7, 1.5, abs(inPanel.y - traceY)));
+        }
+        float tick = abs(fract(t * 4.0 + 0.5) - 0.5) * 140.0 / 4.0;
+        bool tickRow = inPanel.y > 8.0 && inPanel.y < 16.0 && inPanel.x > 12.0 && inPanel.x < 148.0;
+        paint = mix(paint, vec3(1.0), (1.0 - smoothstep(0.5, 1.2, tick)) * float(tickRow));
+    } else if (panel == 1) {
+        float silhouette = abs(length(centred * vec2(1.0, 1.15)) - 0.75);
+        float steps = 6.0 + 70.0 * exp(-silhouette * 9.0);
+        paint = dbgHeatCount(steps, 60.0);
+    } else if (panel == 2) {
+        float band = floor(inPanel.x / 32.0);
+        float up = inPanel.y / panelSize.y;
+        vec4 value = vec4(up, up, up, 1.0);
+        if (band == 0.0) {
+            value.r = notANumber;
+        } else if (band == 1.0) {
+            value.b = infinite;
+        } else if (band == 2.0) {
+            value.g = -0.3;
+        } else if (band == 3.0) {
+            value.r = 1.4;
+        }
+        paint = dbgRangeScope(value);
+    } else if (panel == 3) {
+        vec3 picture = vec3(0.2 + 0.6 * inPanel.x / panelSize.x, 0.25 + 0.5 * inPanel.y / panelSize.y, 0.55);
+        float fromMiddle = length(centred);
+        if (fromMiddle < 0.35) {
+            picture.g = notANumber;
+        } else if (abs(fromMiddle - 0.8) < 0.07) {
+            picture.b = -infinite;
+        }
+        paint = dbgNaN(picture);
+    } else if (panel == 4) {
+        paint = sliceAt.x < 0.0 ? sliceTrue : sliceSquashed;
+    } else {
+        vec2 period = vec2(0.4, 0.3);
+        vec2 cellId = floor(centred / period + 0.5);
+        vec2 local = centred - cellId * period;
+        paint = dbgCells(local, cellId, period, unitPx);
+    }
+    // dark gutters between panels
+    vec2 toGutter = min(inPanel, panelSize - inPanel);
+    paint *= smoothstep(0.5, 1.5, min(toGutter.x, toGutter.y));
+    color = vec4(paint, 1.0);
+}

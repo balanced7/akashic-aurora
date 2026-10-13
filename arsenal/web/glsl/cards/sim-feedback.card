@@ -1,0 +1,61 @@
+//! {"card": "sim-feedback", "uses": ["sim-feedback"], "t": [0], "size": [384, 216],
+//!  "note": "Left, two thirds of the card: a full-white pixel of an 8-bit feedback buffer fading over 240 frames
+//!  (four seconds at 60 Hz) from the left, brightness up, on a square-root scale so the dim end is readable. Grey:
+//!  multiplied by 0.98 a frame and rounded to 8 bits, as a stored trail is; it flattens near a tenth of full
+//!  brightness (byte 24 or 25, the amber line) and never reaches black. Green: fbDecay with keep 0.98 and a floor of
+//!  one 8-bit step, same rounding; it follows the grey curve at first, then drops to exactly zero well before the
+//!  right edge. Right third: a grid of cells, a third of them poisoned with NaN, a third with infinity and a third
+//!  with a huge finite value, all passed through simSanitize (bound 1, fallback dark teal): the poisoned cells show
+//!  dark teal, the huge ones show white (clamped), and the card's NaN probe counts zero. A green curve that flattens
+//!  above zero, a magenta cell in the probe, or a black cell where teal is expected is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card for sim/feedback.glsl, written fresh.
+
+const int FEEDBACK_CARD_FRAMES = 240;
+
+// Brightness of a stored 8-bit pixel after `frames` frames of a decay step, starting from full white.
+// which 0: multiply only. which 1: fbDecay with a floor of one 8-bit step.
+float feedbackCardTrail(int which, int frames) {
+    float stored = 1.0;                                    // full white
+    for (int frame = 0; frame < FEEDBACK_CARD_FRAMES; frame++) {
+        if (frame >= frames) break;
+        float next = which == 0 ? stored * 0.98 : fbDecay(vec3(stored), 0.98, 1.0 / 255.0).x;
+        stored = floor(next * 255.0 + 0.5) / 255.0;        // the 8-bit write
+    }
+    return stored;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec2 cardUv = pixel / iResolution.xy;
+    vec3 paint = vec3(0.06, 0.07, 0.09);
+    float split = 2.0 / 3.0;
+
+    if (cardUv.x < split) {
+        vec2 plotPos = vec2((cardUv.x / split - 0.03) / 0.94, (cardUv.y - 0.06) / 0.88);
+        float pxY = 1.0 / (0.88 * iResolution.y);
+        int frames = int(clamp(plotPos.x, 0.0, 1.0) * float(FEEDBACK_CARD_FRAMES));
+        float stuckLine = sqrt(24.5 / 255.0);
+        paint = mix(paint, vec3(0.8, 0.55, 0.15), 1.0 - smoothstep(0.5 * pxY, 1.5 * pxY, abs(plotPos.y - stuckLine)));
+        for (int which = 0; which < 2; ++which) {
+            float level = sqrt(feedbackCardTrail(which, frames));
+            float ink = 1.0 - smoothstep(1.0 * pxY, 2.5 * pxY, abs(plotPos.y - level));
+            paint = mix(paint, which == 0 ? vec3(0.65) : vec3(0.3, 0.95, 0.4), ink);
+        }
+        float inUnit = step(0.0, plotPos.x) * step(plotPos.x, 1.0);
+        paint = mix(vec3(0.06, 0.07, 0.09), paint, inUnit);
+    } else {
+        vec2 cellPos = vec2((cardUv.x - split) / (1.0 - split), cardUv.y) * vec2(4.0, 6.0);
+        vec2 cell = floor(cellPos);
+        float index = cell.x + 4.0 * cell.y;
+        float zero = step(1e9, pixel.x);                    // 0 at run time, so nothing is folded away
+        float poison = mod(index, 3.0);
+        vec4 raw = vec4(0.5);
+        if (poison < 0.5) raw = vec4(zero / zero);           // NaN
+        else if (poison < 1.5) raw = vec4(1.0 / zero);       // +Inf
+        else raw = vec4(1e30);                               // huge but finite
+        vec4 safe = simSanitize(raw, 1.0, vec4(0.0, 0.25, 0.25, 1.0));
+        vec2 inCell = abs(fract(cellPos) - 0.5);
+        float border = step(0.42, max(inCell.x, inCell.y));
+        paint = mix(safe.rgb, vec3(0.2), border);
+    }
+    color = vec4(paint, 1.0);
+}

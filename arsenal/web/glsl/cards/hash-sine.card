@@ -1,0 +1,33 @@
+//! {"card": "hash-sine", "uses": ["hash-sine", "hash-pcg"], "t": [0], "size": [480, 270],
+//!  "note": "Why the sine hash is legacy. Four columns, each a patch of per-pixel grey noise read at a growing distance from the origin: 0, 10^4, 3 x 10^4 and 10^5 pixels (a big coordinate, or a clock fed into the hash after a long uptime). TOP BAND: hashSine21. MIDDLE BAND: hashSine31 on the slice z = 1. Near the origin both are plain white static, which is why the house used them everywhere; further out the static coarsens, then turns into diagonal stripes, and on this renderer (SwiftShader) it collapses to one flat grey by 10^5, because the sine of a huge argument is whatever each GPU's sine makes of it. BOTTOM STRIP: the house pcg hash (hash21) at the same four distances: even static in every column. A legacy twin is pinned by its CPU twin, not by this picture; the picture shows the failure it carries."}
+// Apache-2.0, Akashic Aurora. The test card of legacy/hash-sine.glsl, written fresh for the house.
+
+const float CARD_COLUMN = 120.0;
+
+float cardRule(float x) {
+    return 1.0 - smoothstep(0.0, 1.0, abs(x));
+}
+
+// How far from the origin column k reads its patch: 0, 1e4, 3e4, 1e5 pixels.
+float cardDistance(float k) {
+    return k < 0.5 ? 0.0 : (k < 1.5 ? 1.0e4 : (k < 2.5 ? 3.0e4 : 1.0e5));
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    float column = floor(pixel.x / CARD_COLUMN);
+    vec2 local = floor(vec2(pixel.x - column * CARD_COLUMN, pixel.y));
+    vec2 at = local + cardDistance(column);
+    float v;
+    if (pixel.y >= 150.0) {
+        v = hashSine21(at);
+    } else if (pixel.y >= 60.0) {
+        v = hashSine31(vec3(at, 1.0));
+    } else {
+        v = hash21(at);
+    }
+    vec3 paint = vec3(v);
+    float rules = cardRule(pixel.x - CARD_COLUMN) + cardRule(pixel.x - 2.0 * CARD_COLUMN)
+                + cardRule(pixel.x - 3.0 * CARD_COLUMN) + cardRule(pixel.y - 150.0) + cardRule(pixel.y - 60.0);
+    paint = mix(paint, vec3(0.75, 0.2, 0.1), clamp(rules, 0.0, 1.0));
+    color = vec4(paint, 1.0);
+}
