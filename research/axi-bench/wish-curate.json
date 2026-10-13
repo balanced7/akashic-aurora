@@ -1,0 +1,270 @@
+{
+  "verb": "wish-curate",
+  "before_ref": "50c2ee6f (50c2ee6f)",
+  "model": "claude-haiku-5-5",
+  "repeats": 5,
+  "before": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 334,
+    "stdout_chars": 1002,
+    "stdout_lines": 16,
+    "cost_usd": 0.032,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": false,
+      "unknown_flag_lists_valid_flags": false,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "3/5",
+    "questions": [
+      {
+        "q": "How many wishes are open?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "5",
+          "5",
+          "5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many wishes have been folded?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which is the oldest open wish? Give its id only.",
+        "expected": "W01",
+        "answers": [
+          "W01",
+          "W01",
+          "W01",
+          "W01",
+          "W01"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who filed wish W03?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command declines wish W02? Give the command only.",
+        "expected": [
+          "wish-curate bench",
+          "--id w02",
+          "--as decline",
+          "--reason"
+        ],
+        "answers": [
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the wish declined? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "wish-curate",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "# wishlist: 5 open | 2 folded | 0 declined\n#   DECLINE HAS NEVER BEEN USED. With it unused, 'open' means both 'queued' and\n#   'never', and the two render identically -- which is why filing stops.\n#\n# the 3 oldest open, awaiting a disposition:\n  W01    (07-18, claude) Make recall faster on big stores.\n  W02    (07-20, kimi) Show lock ttl in human units.\n  W03    (08-01, deepseek) Doctor should name the dead seat.\n\n# dispose of one with:\n#   uv run agent_cli.py wish-curate bench --id W## --as fold --task T### [--reason ...]\n#   uv run agent_cli.py wish-curate bench --id W## --as keep --reason '<why still>'\n#   uv run agent_cli.py wish-curate bench --id W## --as decline --reason '<why not>'\n# a DECLINE is the loop working. Nothing is ever deleted -- declined wishes teach too.\n"
+      },
+      "unknown": {
+        "argv": [
+          "wish-curate",
+          "bench",
+          "--id",
+          "W77",
+          "--as",
+          "keep",
+          "--reason",
+          "still wanted"
+        ],
+        "exit": 2,
+        "stdout": "[wish-curate] REFUSED: no wish W77 in the ledger -- refusing rather than silently doing nothing\n"
+      },
+      "noreason": {
+        "argv": [
+          "wish-curate",
+          "bench",
+          "--id",
+          "W01",
+          "--as",
+          "decline"
+        ],
+        "exit": 2,
+        "stdout": "[wish-curate] REFUSED: decline needs --reason: an undeclared decline is exactly the silent state this verb exists to end\n"
+      }
+    }
+  },
+  "after": {
+    "accuracy": 1.0,
+    "correct": 30,
+    "asked": 30,
+    "output_tokens": 269,
+    "stdout_chars": 959,
+    "stdout_lines": 21,
+    "cost_usd": 0.0265,
+    "conformance": {
+      "unknown_flag_exit_2": true,
+      "unknown_flag_on_stdout": true,
+      "unknown_flag_lists_valid_flags": true,
+      "help_exit_0": true,
+      "no_ansi_in_agent_stdout": true
+    },
+    "conformance_passed": "5/5",
+    "questions": [
+      {
+        "q": "How many wishes are open?",
+        "expected": 5,
+        "answers": [
+          "5",
+          "open: 5",
+          "5",
+          "open: 5",
+          "5"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "How many wishes have been folded?",
+        "expected": 2,
+        "answers": [
+          "2",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Which is the oldest open wish? Give its id only.",
+        "expected": "W01",
+        "answers": [
+          "W01",
+          "W01",
+          "W01",
+          "W01",
+          "W01"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Who filed wish W03?",
+        "expected": "deepseek",
+        "answers": [
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek",
+          "deepseek"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "What command declines wish W02? Give the command only.",
+        "expected": [
+          "wish-curate bench",
+          "--id w02",
+          "--as decline",
+          "--reason"
+        ],
+        "answers": [
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'",
+          "uv run agent_cli.py wish-curate bench --id W02 --as decline --reason '<why not>'"
+        ],
+        "correct": 5
+      },
+      {
+        "q": "Was the wish declined? Answer yes or no.",
+        "expected": "no",
+        "answers": [
+          "no",
+          "no",
+          "no",
+          "no",
+          "no"
+        ],
+        "correct": 5
+      }
+    ],
+    "runs": {
+      "list": {
+        "argv": [
+          "wish-curate",
+          "bench"
+        ],
+        "exit": 0,
+        "stdout": "open: 5\nfolded: 2\ndeclined: 0\nnote: \"decline has never been used: with it unused, 'open' means both 'queued' and 'never', and the two render identically -- which is why filing stops\"\nshown: 3\noldest_open[3]{id,filed,by,wish}:\n  W01,07-18,claude,Make recall faster on big stores.\n  W02,07-20,kimi,Show lock ttl in human units.\n  W03,08-01,deepseek,Doctor should name the dead seat.\nhelp[3]:\n  uv run agent_cli.py wish-curate bench --id W## --as fold --task T###\n  uv run agent_cli.py wish-curate bench --id W## --as keep --reason '<why still>'\n  uv run agent_cli.py wish-curate bench --id W## --as decline --reason '<why not>'\n"
+      },
+      "unknown": {
+        "argv": [
+          "wish-curate",
+          "bench",
+          "--id",
+          "W77",
+          "--as",
+          "keep",
+          "--reason",
+          "still wanted"
+        ],
+        "exit": 2,
+        "stdout": "error: \"refused: no wish W77 in the ledger -- refusing rather than silently doing nothing\"\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py wish-curate bench\n"
+      },
+      "noreason": {
+        "argv": [
+          "wish-curate",
+          "bench",
+          "--id",
+          "W01",
+          "--as",
+          "decline"
+        ],
+        "exit": 2,
+        "stdout": "error: \"refused: decline needs --reason: an undeclared decline is exactly the silent state this verb exists to end\"\ncode: REFUSED\nhelp[1]:\n  uv run agent_cli.py wish-curate bench\n"
+      }
+    }
+  }
+}

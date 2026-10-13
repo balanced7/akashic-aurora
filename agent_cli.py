@@ -3823,10 +3823,17 @@ def cmd_wish_curate(args):
     """
     import re as _re
 
+    from core.axi import out
+
+    cli = _cli()
     path = Path(os.getenv("AKASHIC_WISHLIST_FILE", str(Path(__file__).resolve().parent / "docs" / "WISHLIST.md")))
     if not path.exists():
-        print(f"[wish-curate] REFUSED: {path} missing -- the ledger is git-tracked; restore it first")
-        return 2
+        return out.fail(
+            f"{path} missing: the ledger is git-tracked; restore it first",
+            code="NOT_FOUND",
+            hints=[] if os.getenv("AKASHIC_WISHLIST_FILE") else ["git checkout -- docs/WISHLIST.md"],
+            exit_code=out.EXIT_USAGE,
+        )
     doc = path.read_text(encoding="utf-8")
 
     if not getattr(args, "wish_id", None):
@@ -3835,21 +3842,29 @@ def cmd_wish_curate(args):
         folded = len(_re.findall(r"^- \[x\] W\d+", doc, _re.M))
         declined = len(_re.findall(r"^- \[~\] W\d+", doc, _re.M))
         n = max(1, int(getattr(args, "count", 3) or 3))
-        print(f"# wishlist: {total} open | {folded} folded | {declined} declined")
+        listing: dict = {"open": total, "folded": folded, "declined": declined}
         if declined == 0:
-            print("#   DECLINE HAS NEVER BEEN USED. With it unused, 'open' means both 'queued' and")
-            print("#   'never', and the two render identically -- which is why filing stops.")
-        print("#")
-        print(f"# the {min(n, len(opens))} oldest open, awaiting a disposition:")
+            listing["note"] = (
+                "decline has never been used: with it unused, 'open' means both 'queued' and 'never', "
+                "and the two render identically -- which is why filing stops"
+            )
+        rows = []
         for wid, who, head in opens[:n]:
-            print(f"  {wid!s:<6} ({who!s}) {head.rstrip()}")
-        print()
-        print("# dispose of one with:")
-        print(f"#   {_cli()} wish-curate %s --id W## --as fold --task T### [--reason ...]" % args.agent_id)
-        print(f"#   {_cli()} wish-curate %s --id W## --as keep --reason '<why still>'" % args.agent_id)
-        print(f"#   {_cli()} wish-curate %s --id W## --as decline --reason '<why not>'" % args.agent_id)
-        print("# a DECLINE is the loop working. Nothing is ever deleted -- declined wishes teach too.")
-        return 0
+            date, _, by = who.partition(",")
+            rows.append({"id": wid, "filed": date.strip(), "by": by.strip() or None, "wish": head.rstrip()})
+        listing["shown"] = len(rows)
+        listing["oldest_open"] = rows
+        me = args.agent_id
+        first = rows[0]["id"] if len(rows) == 1 else "W##"
+        # A DECLINE is the loop working. Nothing is ever deleted -- declined wishes teach too.
+        hints = [
+            f"{cli} wish-curate {me} --id {first} --as fold --task T###",
+            f"{cli} wish-curate {me} --id {first} --as keep --reason '<why still>'",
+            f"{cli} wish-curate {me} --id {first} --as decline --reason '<why not>'",
+        ]
+        if not rows:
+            hints = [f'{cli} wish {me} "<what would have helped>"']
+        return out.emit(listing, hints=hints, title="Wishlist curation")
 
     action = (getattr(args, "as_", None) or "").strip()
     try:
@@ -3862,10 +3877,8 @@ def cmd_wish_curate(args):
             seat=args.agent_id,
         )
     except ValueError as e:
-        print(f"[wish-curate] REFUSED: {e}")
-        return 2
+        return out.fail(f"refused: {e}", code="REFUSED", hints=[f"{cli} wish-curate {args.agent_id}"], exit_code=2)
     path.write_text(new_doc, encoding="utf-8")
-    print(msg)
     with contextlib.suppress(Exception):
         from core.events.event_log import capture_event  # noqa: PLC0415, RUF100  # lazy: as every agent_cli verb
 
@@ -3880,7 +3893,8 @@ def cmd_wish_curate(args):
                 "task": getattr(args, "task", "") or "",
             },
         )
-    return 0
+    receipt = {"curated": args.wish_id, "as": action, "result": msg.removeprefix("[wish-curate] ")}
+    return out.emit(receipt, title="Wishlist curation")  # a confirmation answers itself
 
 
 def cmd_wish(args):

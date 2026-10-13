@@ -7,7 +7,7 @@ This page lists every verb the `aurora` command offers. A script builds it from 
 
 Each verb prints for an agent or for a person. [Commands](/docs/reference/commands) explains how to choose with `--output agent` or `--output human`. A verb marked as converted has been measured before and after the change. The bench gives a reader model only the verb's output and checks its answers against known data.
 
-121 verbs; 118 converted to agent and human output.
+121 verbs; 119 converted to agent and human output.
 
 ## `alias`
 
@@ -4060,7 +4060,10 @@ help[1]:
 | | |
 |---|---|
 | Does | the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id) |
-| Output | One format for every reader. Not converted to agent and human modes yet. |
+| Output | Agent mode (TOON) and human mode (colour). |
+| Reader accuracy | 100% before, 100% after |
+| Output tokens | 334 before, 269 after (-19%) |
+| AXI checks | 3/5 before, 5/5 after. [bench report](https://github.com/balanced7/akashic-aurora/blob/master/research/axi-bench/wish-curate.md) |
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
@@ -4070,6 +4073,24 @@ help[1]:
 | `--reason` |   |   | why -- required for keep and decline |
 | `--task` |   |   | the T-number that absorbed it -- required for fold |
 | `--count` |   |   | how many oldest-open to list when no --id is given (default 3) |
+
+Agent output of `aurora wish-curate bench` on the bench data:
+
+```text
+open: 5
+folded: 2
+declined: 0
+note: "decline has never been used: with it unused, 'open' means both 'queued' and 'never', and the two render identically -- which is why filing stops"
+shown: 3
+oldest_open[3]{id,filed,by,wish}:
+  W01,07-18,claude,Make recall faster on big stores.
+  W02,07-20,kimi,Show lock ttl in human units.
+  W03,08-01,deepseek,Doctor should name the dead seat.
+help[3]:
+  uv run agent_cli.py wish-curate bench --id W## --as fold --task T###
+  uv run agent_cli.py wish-curate bench --id W## --as keep --reason '<why still>'
+  uv run agent_cli.py wish-curate bench --id W## --as decline --reason '<why not>'
+```
 
 ## `wrap`
 
