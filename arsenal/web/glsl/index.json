@@ -99,11 +99,11 @@
     },
     {
       "path": "groups/aurora-band.glsl",
-      "sha256": "f14e440394bffaf470a058166d099ca3a6e5f8610015e0d9487bc5db2420989e"
+      "sha256": "e324df9b9762a4be23f99a4776167eacc7c12fb252b9ac497f151b2de2398823"
     },
     {
       "path": "groups/aurora-sheets.glsl",
-      "sha256": "b56d3fb5d9bae65ab58a612a5c453e8c40c988cb1441424ca5d050acf409a265"
+      "sha256": "8e9322aec2047fd83c83825c173815e3d6d53a396966f85be02e7e19fd7487cc"
     },
     {
       "path": "groups/glow-xray.glsl",

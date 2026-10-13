@@ -5,13 +5,14 @@ tests/test_glsl_twins_groups_g1.py.
 WHY. A recipe is a wiring diagram, and a wiring diagram's promises are measurable without a screen: nothing at all glows
 under a hem, the hem is sharp and the top fades, colour climbs in physical order (or analogous with one coral accent)
 and never goes silver or white (a hot spot is scaled down as a whole colour before the display curve can bleach it),
-the energetic fringe is a thin coloured edge in pieces that gives way to any drape behind it (never an outline along
-every hem), a curtain's end fades instead of standing as a wall, the glow lift bends magnitude and never hue, the
-motion is slow and never loops, a ray stands up its own column, a quality tier changes cost and not exposure (its grain
-stays faint and unstructured), a far curtain blurs instead of aliasing, the lake is the sky's exact mirror. This twin
-wires the batch-A and batch-B twins exactly as the GLSL wires the modules, one numpy expression per GLSL line,
-vectorised over pixels (pixel arrays end in a last axis of 2; colours come back with a last axis of 3), so a seat that
-cannot see can check every one of them, and the slow test can match the GPU pixel for pixel.
+the energetic fringe is a thin coloured edge in short pieces at every clock, as thick on screen near as far, that
+gives way to any drape behind it and to a fold seen edge-on (never an outline along every hem), a curtain's end fades
+instead of standing as a wall, the glow lift bends magnitude and never hue, the motion is slow and never loops, a ray
+stands up its own column, a quality tier changes cost and not exposure (its grain stays faint and unstructured), a far
+curtain blurs instead of aliasing, the lake is the sky's exact mirror. This twin wires the batch-A and batch-B twins
+exactly as the GLSL wires the modules, one numpy expression per GLSL line, vectorised over pixels (pixel arrays end in a
+last axis of 2; colours come back with a last axis of 3), so a seat that cannot see can check every one of them, and the
+slow test can match the GPU pixel for pixel.
 
 Apache-2.0, Akashic Aurora. Written fresh; no corpus code. The constants below are the recipes' own; a change to
 either side is a change to both.
@@ -45,15 +46,22 @@ PALETTES = [
 PHYSICAL = 1                                               # the default palette of both tiers: green body, red crown
 GLOW_GAMMA = 1.25                                          # the glow lift (displayHueSafeGamma) of both tiers
 LUMA = np.array([0.2126, 0.7152, 0.0722])                  # Rec. 709 luminance, for the fringe's yield
-FRINGE_KM = 6.0                                            # the energetic layer at the bottom is 6 fringe km thick
+FRINGE_KM = 6.0                                            # the sheets' energetic layer is 6 fringe km thick
 FRINGE_ALT_KM = 90.0                                       # auroraLineColor(90, 1) is the nitrogen fringe alone
 FRINGE_SCALE_KM = 2.5                                      # its own auroraProfile scale height
 FRINGE_GAIN = 1.6                                          # its brightness against the body's peak
-FRINGE_PATCH = (0.8, 0.18, 0.1)                            # energetic past a value noise of 0.8 - 0.18 fringe, +-0.1
-FRINGE_PATCH_DRIFT = 0.05                                  # the energetic stretches drift along, per second of clock
-FRINGE_PATCH_ROW, FRINGE_PATCH_SEED = 5.0, 13              # the noise's row and seed
 FRINGE_YIELD = 0.05                                        # it gives way where other light passes this much of it
+# the energetic stretches: the curtain cut into cells along it, each lit over a stretch of its own (never reaching the
+# cell's ends) on its own slow life cycle, the whole drifting slowly along, so no piece outgrows its cell
+STRETCH_LENGTH = (0.3, 0.4, 0.65)                          # a stretch is (0.3 + 0.4 dice) (0.65 + 0.35 fringe) cells
+STRETCH_RAMP = 0.08                                        # its ends fade over this much of a cell
+STRETCH_SHARE = (0.4, 0.4)                                 # a cell is lit for 0.4 + 0.4 fringe of its life cycle ...
+STRETCH_FADE = 0.1                                         # ... fading in and out over this much of it
+STRETCH_LIFE_S = 120.0                                     # a cell's life cycle, seconds of clock
+STRETCH_DRIFT = 0.05                                       # cells per second the stretches drift along the curtain
+STRETCH_SEED = 13.0                                        # hash33's third lane
 WHITE_KNEE, WHITE_LIMIT = 0.2, 0.35                        # the lifted glow's weakest channel: knee and ceiling
+WHITE_ARG_CAP = 10.0                                       # tanh's argument is clamped here (colour/tone.glsl, tmTanh)
 
 # ------------------------------------------------------------------------------------------------- the band tier
 BAND_GLOW_GAMMA = GLOW_GAMMA
@@ -76,7 +84,10 @@ BAND_RAY_GAIN = (0.08, 2.4)                                # between the rays, a
 BAND_GAPS = (0.1, 0.75)                                    # envBreath through smoothstep: real gaps along it
 BAND_GAP_RAMP = 0.2                                        # ... low-passed over this many frame units along x
 BAND_GAP_WEIGHTS = (1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0)     # by seven samples, weighted as a triangle
-BAND_PATCH_FREQ = 1.3                                      # the fringe's energetic stretches: noise cells per unit
+BAND_FRINGE_KM = 3.0                                       # the fringe layer, fringe km at unit depth, times the scale:
+#                                                            fringe / 200 of the frame's height at any depth (up to
+#                                                            1.35 px at 270, at fringe 1)
+BAND_STRETCH_FREQ = 3.0                                    # stretch cells per unit of frame x times the curtain's scale
 BAND_FABRIC_KNEE = 0.25                                    # the fabric's soft cap: f / (1 + knee f)
 BAND_GATHER_CAP = 2.2                                      # a fold seen edge-on gathers at most this much light
 BAND_BREATH_SHIFT = 0.5                                    # each curtain breathes half a wave out of step
@@ -141,26 +152,32 @@ def bandLowestHem(hemHeight, curtains, aspect=16.0 / 9.0):
     return min(lowest) - rag
 
 
-def fringeKm(fringe):
-    """The energetic layer's thickness under the body: FRINGE_KM x fringe (a hair above 0 at fringe 0)."""
-    return max(FRINGE_KM * min(max(float(fringe), 0.0), 1.0), 1e-2)
-
-
-def fringeLayer(zKm, fringe):
-    """1 inside the energetic layer (the bottom half of its FRINGE_KM x fringe), falling to 0 at its top; 0 everywhere
-    at fringe 0."""
+def fringeKm(fringe, km=FRINGE_KM, scale=1.0):
+    """The energetic layer's thickness under the body, in km above the lower edge: km x fringe x scale (a hair above 0
+    at fringe 0). The sheets' layer is FRINGE_KM; the band's is BAND_FRINGE_KM times the curtain's scale (its depth),
+    so it stands the same height on screen at every depth."""
     f = min(max(float(fringe), 0.0), 1.0)
-    layer = fringeKm(fringe)
+    return np.maximum(float(km) * f * np.asarray(scale, dtype=np.float64), 1e-2)
+
+
+def fringeLayer(zKm, fringe, km=FRINGE_KM, scale=1.0):
+    """1 inside the energetic layer (the bottom half of its fringeKm), falling to 0 at its top; 0 everywhere at fringe
+    0."""
+    f = min(max(float(fringe), 0.0), 1.0)
+    layer = fringeKm(fringe, km, scale)
     return _smoothstep(0.0, 0.25, f) * (1.0 - _smoothstep(0.5 * layer, layer, np.asarray(zKm, dtype=np.float64)))
 
 
-def fringeEmission(zKm, fringe):
+def fringeEmission(zKm, fringe, km=FRINGE_KM, scale=1.0):
     """The energetic fringe's own brightness zKm above the curtain's lower edge: a thin emitter that rises at the edge
-    (auroraProfile, 3 km scale) and is gone at the layer's top, where the body begins. A layer of its own UNDER the
-    body, not a tint over it: summed with the body on the same pixels its near-complement colour would read as silver,
-    so the two never share an altitude."""
+    (auroraProfile of zKm / scale, a 2.5 km scale height at unit depth) and is gone at the layer's top, where the body
+    begins. A layer of its own UNDER the body, not a tint over it: summed with the body on the same pixels its
+    near-complement colour would read as silver, so the two never share an altitude. With the band's scale, the layer
+    and its profile both stretch with depth, so the fringe is the same shape on screen near and far."""
     z = np.asarray(zKm, dtype=np.float64)
-    return FRINGE_GAIN * fringeLayer(z, fringe) * np.asarray(A.auroraProfile(z, 0.0, FRINGE_SCALE_KM), np.float64)
+    unit = z / np.asarray(scale, dtype=np.float64)
+    return (FRINGE_GAIN * fringeLayer(z, fringe, km, scale)
+            * np.asarray(A.auroraProfile(unit, 0.0, FRINGE_SCALE_KM), np.float64))
 
 
 def fringeTint(palette):
@@ -171,18 +188,33 @@ def fringeTint(palette):
     return CORAL
 
 
-def fringePatch(at, fringe, clock):
-    """How energetic the curtain is at `at` (a coordinate along it, in noise cells), 0 to 1: a smooth value noise
-    through a soft threshold that the fringe knob lowers (about 15 per cent of the curtain at fringe 0.35, 30 per cent
-    at 1), drifting slowly along. The lower border of a real display lights only under its energetic stretches: drawn
-    the whole length of every hem, the fringe reads as a glowing outline."""
-    at = np.asarray(at, dtype=np.float64)
+def fringeStretches(at, lane, fringe, clock):
+    """How energetic the curtain is at `at` (a coordinate along it, in cells), 0 to 1: the curtain is cut into cells,
+    and each cell (dice from hash33 of (cell, lane, 13), lane being the curtain's or the arc's index) is lit over one
+    stretch of its own, (0.3 + 0.4 dice) (0.65 + 0.35 fringe) of the cell long, placed at random but never reaching the
+    cell's ends, its ends fading over 0.08 of a cell; each cell is lit for 0.4 + 0.4 fringe of its own 120 s life
+    cycle (fading in and out over a tenth of it), and the whole drifts along at 0.05 cells a second. The stretches
+    cover about 14 per cent of its length at 0.35, 30 at 1 (the mean over 4000 cells and ten minutes, measured: 13.5
+    and 29.5). A piece is never longer than 0.7 of its cell at any clock, and two pieces never touch: a smooth noise
+    through a threshold joined its lit runs into 40 to 70 per cent of the frame at most clocks. The lower border of a
+    real display lights only under its energetic stretches: drawn the whole length of every hem, the fringe reads as a
+    glowing outline."""
+    from . import hash as HS
     f = min(max(float(fringe), 0.0), 1.0)
-    where = np.stack(np.broadcast_arrays(at - FRINGE_PATCH_DRIFT * float(clock), np.full_like(at, FRINGE_PATCH_ROW)),
-                     -1)
-    value = 0.5 + 0.5 * np.asarray(N.noiseValue2(where, FRINGE_PATCH_SEED), np.float64)
-    centre = FRINGE_PATCH[0] - FRINGE_PATCH[1] * f
-    return _smoothstep(centre - FRINGE_PATCH[2], centre + FRINGE_PATCH[2], value)
+    at = np.asarray(at, dtype=np.float64) - STRETCH_DRIFT * float(clock)
+    cell = np.floor(at)
+    inside = at - cell
+    lanes = np.broadcast_to(np.asarray(lane, dtype=np.float64), at.shape)
+    dice = np.asarray(HS.hash33(np.stack([cell, lanes, np.full_like(at, STRETCH_SEED)], -1)), np.float64)
+    length = ((STRETCH_LENGTH[0] + STRETCH_LENGTH[1] * dice[..., 1])
+              * (STRETCH_LENGTH[2] + (1.0 - STRETCH_LENGTH[2]) * f))
+    start = 0.5 + (dice[..., 2] - 0.5) * (0.8 - length) - 0.5 * length
+    dash = (_smoothstep(start, start + STRETCH_RAMP, inside)
+            * (1.0 - _smoothstep(start + length - STRETCH_RAMP, start + length, inside)))
+    life = np.mod(dice[..., 0] + float(clock) / STRETCH_LIFE_S, 1.0)
+    share = STRETCH_SHARE[0] + STRETCH_SHARE[1] * f
+    lit = _smoothstep(0.0, STRETCH_FADE, life) * (1.0 - _smoothstep(share - STRETCH_FADE, share, life))
+    return dash * lit
 
 
 def fringeYield(otherLight, fringePeak, share=FRINGE_YIELD):
@@ -197,11 +229,13 @@ def fringeYield(otherLight, fringePeak, share=FRINGE_YIELD):
 def whiteCap(glow):
     """The ceiling under white: where the lifted glow's weakest channel passes WHITE_KNEE, the whole colour is scaled
     so that channel eases toward WHITE_LIMIT along a tanh shoulder (identity and slope 1 at the knee). Hue and
-    saturation are kept; only a hot spot's magnitude gives way, so it stays coloured through the display curve."""
+    saturation are kept; only a hot spot's magnitude gives way, so it stays coloured through the display curve. The
+    tanh's argument is clamped at 10 (where tanh is 1 in a float), as the house's tmTanh does: some drivers build tanh
+    from exponentials that overflow to NaN past about 88."""
     glow = np.asarray(glow, dtype=np.float64)
     weakest = glow.min(-1)
     span = WHITE_LIMIT - WHITE_KNEE
-    eased = WHITE_KNEE + span * np.tanh(np.maximum(weakest - WHITE_KNEE, 0.0) / span)
+    eased = WHITE_KNEE + span * np.tanh(np.minimum(np.maximum(weakest - WHITE_KNEE, 0.0) / span, WHITE_ARG_CAP))
     return glow * np.where(weakest > WHITE_KNEE, eased / np.maximum(weakest, 1e-6), 1.0)[..., None]
 
 
@@ -279,17 +313,21 @@ def auroraBand(pixel, res, clock, intensity, hemHeight, curtainWidth, fold, rays
         alt = BAND_EDGE_KM + BAND_KM_PER_UNIT * above
         edge = BAND_EDGE_KM + 2.0 * BAND_HEM_RAG_KM * (n - 0.5)
         tall = BAND_SCALE_H + (BAND_RAY_SCALE_H - BAND_SCALE_H) * (ray_mix * ray)
-        start = edge + fringeKm(fringe)                     # the body begins where the fringe layer ends
+        # the body begins where the fringe layer ends; the layer is BAND_FRINGE_KM x fringe at unit depth, times the
+        # scale, so it stands fringe / 200 of the frame's height at every depth
+        start = edge + fringeKm(fringe, BAND_FRINGE_KM, scale)
         profile = (np.asarray(A.auroraProfile(alt, start, tall), np.float64)
                    + BAND_BORDER[1] * np.asarray(A.auroraProfile(alt, start, BAND_BORDER[0]), np.float64))
         hue = bandHue(alt, palette)
-        low = fringeEmission(alt - edge, fringe)
+        low = fringeEmission(alt - edge, fringe, BAND_FRINGE_KM, scale)
         if int(view) == 2:
             body_light = body_light + share * hue * profile[..., None]
             fringe_light = fringe_light + share * tint * low[..., None]
             continue
         gate = bandGapGate(along, scale, width, k, clock)
-        energetic = fringePatch(BAND_PATCH_FREQ * along + 7.7 * k, fringe, clock)
+        # the stretches are cells along frame x times the scale, not along `along`: a fixed length on screen at this
+        # depth, whatever the curtain's width
+        energetic = fringeStretches(BAND_STRETCH_FREQ * p[..., 0] * scale, k, fringe, clock)
         body_light = body_light + share * hue * (profile * fabric * gate)[..., None]
         energy = share * fabric * gate * energetic
         fringe_light = fringe_light + tint * (energy * low)[..., None]
@@ -322,9 +360,18 @@ SHEET_BAND = 0.2                                           # the creases live wi
 SHEET_RAYS = (9.0, 0.08, 2.4)                              # rays per curtain width along, between, core gain
 SHEET_LOD = (0.3, 0.8)                                     # crease cycles per pixel where the creases fade out
 SHEET_STRAND_MEAN = 0.02                                   # the carved field's mean, what a fine footprint fades to
-SHEET_PATCH_FREQ = 5.0                                     # the fringe's energetic stretches: noise cells per width
+SHEET_STRETCH_FREQ = 3.0                                   # stretch cells per unit of plan x over the hem's height
 SHEET_FRINGE_GAIN = 4.8                                    # the brightest fringe sheet's light (never the sheets' sum)
-SHEET_FRINGE_YIELD = 0.01                                  # it gives way where the drape passes this share of its peak
+# The sheets' yield is a safety margin, not load-bearing: at 0.01 (its value before 1.3.0) every pin still holds. What
+# 0.004 buys is the half-faded third pixel of edge where a drape lies behind the fringe. Measured with the pins' own
+# mask over the 24 fringe clocks (2026-10-13): on the narrowest curtain 5 of 4977 fringe pixels stand 3 px across at
+# 0.01, 0 of 3045 at 0.004; with every knob at its top (palette 2), 121 of 8387 against 6 of 5583, the 95th percentile
+# at that pin's limit of 3 px at four clocks against one. It also draws a third fewer fringe pixels (2019 against 3038
+# at the default width), so a change to it is a change to the look.
+SHEET_FRINGE_YIELD = 0.004                                 # it gives way where the drape passes this share of its peak
+SHEET_FOLD_GATE = (4.0, 6.0)                               # ... and where the arc's band at the hem stands this tall
+#                                                            on screen, in 1 / 270 of the frame (a fold seen edge-on)
+SHEET_FRINGE_RAYS = 0.5                                    # the fringe follows the rays this far (the body: fully)
 
 
 def sheetHue(frac, palette):
@@ -410,6 +457,28 @@ def _sheet_footprint(spot, bend, fold, clock, fine, reach, gap):
     return (band * strands + SHEET_ARC_GAIN * curtain) * strength, arc
 
 
+def sheetFoldGate(pixel, res, ro, basis, focal, water, hemSpot, bend, reach, hem, width, fold, clock):
+    """1 where an arc's band at the hem's sheet is a thin line on screen, falling to 0 where it stands SHEET_FOLD_GATE
+    (4 to 6) card pixels tall or more (a card pixel being 1 / 270 of the frame's height): a fold seen edge-on, where
+    the arc runs along the line of sight. There its lower border is a floor seen from below, not an edge, and a fringe
+    on it is a blob up to 10 px across. How tall: twice the band's own half-width at the hem, length(0.009, 0.9 reach),
+    over how much its smooth part (0.9 spot.y + 0.5 fold bend, without the filament ripple) changes one card pixel up
+    the frame (the ray there mirrored too below the horizon, met on the hem's sheet, its own bend read there)."""
+    pixel = np.asarray(pixel, dtype=np.float64)
+    up = _cam_ray(pixel + np.array([0.0, float(res[1]) / 270.0]), res, basis, focal)
+    up = np.where(np.asarray(water)[..., None], up * np.array([1.0, -1.0, 1.0]), up)
+    up_bowed = up * np.array([1.0, SHEET_BOWL[0], 1.0]) + np.array([0.0, SHEET_BOWL[1], 0.0])
+    t_up = np.maximum(_plane_t(ro, up_bowed, hem), 0.0)
+    up_spot = (ro[[0, 2]] + up[..., [0, 2]] * t_up[..., None]) / width
+    up_bend = N.warpFbm2(np.stack([0.35 * up_spot[..., 0] + 0.011 * clock, 0.8 * up_spot[..., 1] - 0.007 * clock], -1),
+                         1.0, 3, 23)
+    here = SHEET_ARCS[0] * hemSpot[..., 1] + 0.5 * fold * bend
+    above = SHEET_ARCS[0] * up_spot[..., 1] + 0.5 * fold * up_bend
+    band = 2.0 * np.sqrt(SHEET_ARCS[1] ** 2 + (SHEET_ARCS[0] * np.asarray(reach, np.float64)) ** 2)
+    standing = band / np.maximum(np.abs(above - here), 1e-6)
+    return 1.0 - _smoothstep(SHEET_FOLD_GATE[0], SHEET_FOLD_GATE[1], standing)
+
+
 def auroraSheets(pixel, res, ro, basis, focal, clock, intensity, hemHeight, curtainWidth, fold, rays, fringe, palette,
                  sky, lake, layers, view):
     """The twin of auroraSheets: the sky (or its mirror in the lake) plus the stacked curtains, shape (..., 3)."""
@@ -436,6 +505,9 @@ def auroraSheets(pixel, res, ro, basis, focal, clock, intensity, hemHeight, curt
     spacing = top / float(max(count - 1, 1)) ** SHEET_POWER
     keep = 2.0 ** (-SHEET_KEEP_LAYERS / count)
     tint = fringeTint(palette)
+    fold_gate = 1.0
+    if float(fringe) > 0.0:
+        fold_gate = sheetFoldGate(pixel, res, ro, basis, focal, water, hem_spot, bend, reach, hem, width, fold, clock)
     drape = np.zeros(look.shape[:-1] + (3,))
     light = np.zeros_like(drape)
     fringe_light = np.zeros_like(drape)
@@ -466,8 +538,12 @@ def auroraSheets(pixel, res, ro, basis, focal, clock, intensity, hemHeight, curt
         if np.any(layer > 0.0):                             # the GLSL reads the fringe only where the layer is
             # the brightest fringe sheet, never their sum: a fold seen edge-on stacks every fringe sheet on one pixel
             # (a hot blob), and a sum would make the fringe's exposure follow the layer count
-            energetic = fringePatch(SHEET_PATCH_FREQ * spot[..., 0] + 7.7 * np.floor(arc + 0.5), fringe, clock)
-            energy = strands * layer * energetic
+            energetic = fringeStretches(SHEET_STRETCH_FREQ * spot[..., 0] * width / hem, np.floor(arc + 0.5), fringe,
+                                        clock)
+            # the rays only halfway: under full rays the fringe broke into crumbs a ray wide
+            soft = SHEET_FRINGE_RAYS * ray_mix
+            edge_lit = foot * ((1.0 - soft) + soft * (SHEET_RAYS[1] + SHEET_RAYS[2] * ray))
+            energy = edge_lit * layer * energetic * fold_gate
             low = SHEET_FRINGE_GAIN * energy * np.asarray(A.auroraProfile(alt, SHEET_EDGE_KM, FRINGE_SCALE_KM),
                                                            np.float64)
             fringe_light = np.maximum(fringe_light, tint * low[..., None])

@@ -33,6 +33,12 @@ ceiling at the card's size, and the band's curtains ended in vertical walls. Eac
 failing on the recipes as they were, the white ceiling and the fringe's thin-edge rule on the GPU too (the extremes
 parity card).
 
+THE SECOND FRINGE FIX (2026-10-13, the second re-review). The fringe pin sampled t = 0 and 4, two of the rare frames
+where the band held its rule: over 24 clocks it broke it at 22 (pieces up to 336 px, 4 px thick on the left of the
+frame), and the sheets at 4. The pins now sample 24 clocks over ten minutes, the hem and width corners, each third of
+the frame apart and three late clocks on the GPU (the late parity card); the documented coverage and the white cap's
+tanh clamp are pinned too. Each was seen failing on the recipes as they were.
+
 Apache-2.0, Akashic Aurora. Written fresh for the house; no corpus code.
 """
 from __future__ import annotations
@@ -436,12 +442,16 @@ def test_band_house_palette_is_analogous_with_one_coral_accent():
     assert np.all((_hue_deg(a.CORAL) > 20.0) & (_hue_deg(a.CORAL) < 50.0)), "coral: a warm orange-pink"
     from arsenal.shaders.twins import atmos as AT
     z = np.linspace(-5.0, 60.0, 6501)
-    for fringe in (0.1, 0.35, 1.0):
-        low = a.fringeEmission(z, fringe)
-        body = AT.auroraProfile(z, a.fringeKm(fringe), a.BAND_SCALE_H)
-        assert low.max() > 0.0 and np.all(low[z > a.fringeKm(fringe)] == 0.0) and np.all(low[z <= 0.0] == 0.0)
-        assert np.all(low * body == 0.0), "the fringe and the body never share an altitude"
-    assert np.all(a.fringeEmission(z, 0.0) == 0.0), "no fringe asked, none drawn"
+    # the sheets' layer (FRINGE_KM), and the band's at the depths a curtain is drawn (BAND_FRINGE_KM at unit depth,
+    # times the curtain's scale: a fixed thickness on screen)
+    for km, scale in ((a.FRINGE_KM, 1.0), (a.BAND_FRINGE_KM, 0.68), (a.BAND_FRINGE_KM, 1.0), (a.BAND_FRINGE_KM, 3.8)):
+        for fringe in (0.1, 0.35, 1.0):
+            low = a.fringeEmission(z, fringe, km, scale)
+            span = a.fringeKm(fringe, km, scale)
+            body = AT.auroraProfile(z, span, a.BAND_SCALE_H)
+            assert low.max() > 0.0 and np.all(low[z > span] == 0.0) and np.all(low[z <= 0.0] == 0.0)
+            assert np.all(low * body == 0.0), "the fringe and the body never share an altitude"
+        assert np.all(a.fringeEmission(z, 0.0, km, scale) == 0.0), "no fringe asked, none drawn"
 
 
 def test_aurora_is_never_silver_and_never_blown_to_white():
@@ -571,10 +581,15 @@ def _runs(mask):
     return across[mask]
 
 
-def _check_fringe_is_an_edge(rgb, palette, label, thickness=(2, 3)):
+THIRDS = {"columns": ("left", "middle", "right"), "rows": ("bottom", "middle", "top")}
+
+
+def _check_fringe_is_an_edge(rgb, palette, label, thickness=(2, 3), across=None):
     """A thin coloured edge, never a full-width line: no piece longer than a third of the frame, and thin (at 95 per
-    cent of its pixels at most thickness[0] pixels across at 480 x 270, nowhere past thickness[1]). Returns its longest
-    piece, in pixels, for the caller's check that it is drawn at all."""
+    cent of its pixels at most thickness[0] pixels across at 480 x 270, nowhere past thickness[1]). With `across`
+    ("columns" or "rows") the 95th percentile holds in each third of the frame apart, so a thin edge at one depth cannot
+    hide a thick one at another (the band's depth runs across x, the sheets' up the frame). Returns its longest piece,
+    in pixels, for the caller's check that it is drawn at all."""
     width = rgb.shape[1]
     mask = _fringe_mask(rgb, palette)
     spans = [hi - lo + 1 for lo, hi in _pieces(mask)] or [0]
@@ -582,32 +597,140 @@ def _check_fringe_is_an_edge(rgb, palette, label, thickness=(2, 3)):
     assert max(spans) <= width / 3.0, f"{label}: a fringe line {max(spans)} px long across {width}: an outline"
     assert np.percentile(runs, 95) <= thickness[0] and runs.max() <= thickness[1], \
         f"{label}: the fringe is {np.percentile(runs, 95):.0f} px thick (95th percentile), {runs.max()} at most"
+    if across is not None and mask.any():
+        thick = np.zeros(mask.shape, np.int64)
+        thick[mask] = runs
+        if across == "rows":
+            thick, mask = thick.T, mask.T
+        size = mask.shape[1]
+        for third, name in enumerate(THIRDS[across]):
+            part = slice(third * size // 3, (third + 1) * size // 3)
+            here = thick[:, part][mask[:, part]]
+            if here.size >= 12:
+                assert np.percentile(here, 95) <= thickness[0], \
+                    f"{label}: the fringe is {np.percentile(here, 95):.0f} px thick (95th percentile) in the {name} " \
+                    f"third of the frame"
     return max(spans)
 
 
-def test_aurora_fringe_is_a_thin_coloured_edge_never_a_full_width_line():
+def _fringe_items(tier, palette, **over):
+    """The fringe pins' knobs: the full fringe in `palette` and (the band) three curtains, every other knob at its
+    default but for `over`, as _card_picture's key."""
+    items = dict(fringe=1.0, palette=palette, **over)
+    if tier == "band":
+        items["curtains"] = 3
+    return tuple(sorted(items.items()))
+
+
+# The fringe pins' clocks: 24 spread over ten minutes, on no common step (the recipes' rates are incommensurate), each
+# palette taking every third. The pin before them sampled t = 0 and 4 only, two of the rare frames that held the rule.
+FRINGE_CLOCKS = (0.0, 4.0, 11.0, 25.0, 37.0, 50.0, 68.0, 90.0, 113.0, 141.0, 175.0, 199.0, 230.0, 262.0, 300.0, 350.0,
+                 366.0, 401.0, 437.0, 470.0, 505.0, 540.0, 575.0, 599.0)
+FRINGE_ACROSS = {"band": "columns", "sheets": "rows"}
+FRINGE_CORNER_CLOCKS = (37.0, 175.0, 350.0, 575.0)
+# The narrowest curtain under the default hem, as (clock, palette): t = 4 and 37, where the second re-review found the
+# sheets 3 to 4 px thick, and t = 50 and 141 in the palettes the every-clock pin gives them, where the sheets' fold gate
+# is what keeps a fold seen edge-on from drawing a blob (the third re-review: without it 4 and 9 px thick)
+FRINGE_NARROW_FRAMES = ((4.0, 1), (37.0, 2), (50.0, 2), (141.0, 0))
+
+
+@pytest.mark.parametrize("tier", ["band", "sheets"])
+def test_aurora_fringe_is_short_and_thin_at_every_clock(tier):
     """Re-review 2026-10-13, MEDIUM-HIGH: with the energetic fringe on, either tier drew a crisp saturated line along
-    every ragged hem across the whole frame, coral in House and magenta in Physical, 3 to 4 px thick at fringe 1: with
-    three curtains, the review's rows of hills with glowing outlines. The old pins only checked that the fringe sits
-    under the body. The lower border of a real display is energetic only in places, under the brightest stretches of
-    the curtain. At the full fringe, in every palette, both tiers, at the card size: the fringe shows as pieces of a
-    thin coloured edge (at most 2 px across, 3 anywhere), none longer than a third of the frame, and a stretch of it at
-    least 4 per cent of the frame long is drawn. With every light-making knob at its top the edge may wrap up the side
-    of a fold seen edge-on: at most 3 px across, 5 anywhere."""
-    for tier in ("band", "sheets"):
-        for palette in (0, 1, 2):
-            longest = 0
-            for clock in (0.0, 4.0):
-                items = (("curtains", 3), ("fringe", 1.0), ("palette", palette)) if tier == "band" else \
-                    (("fringe", 1.0), ("palette", palette))
-                rgb = _finished(_card_picture(tier, clock, items))
-                label = f"{tier}, palette {palette}, t = {clock}"
-                longest = max(longest, _check_fringe_is_an_edge(rgb, palette, label))
-            assert longest >= 0.04 * CARD_RES[0], f"{tier}, palette {palette}: the fringe is not drawn ({longest} px)"
-            rgb = _finished(_card_picture(tier, 4.0, _extreme(tier, palette)))
-            longest = _check_fringe_is_an_edge(rgb, palette, f"{tier}, palette {palette}, every knob at its top",
-                                               thickness=(3, 5))
-            assert longest >= 0.04 * CARD_RES[0], f"{tier}, palette {palette}, every knob at its top: not drawn"
+    every ragged hem across the whole frame, the review's rows of hills with glowing outlines. The lower border of a real
+    display is energetic only in places, under the brightest stretches of the curtain. The second re-review (same day)
+    found the fix held only at the two clocks its pin sampled: over 24 clocks from 0 to 575 s the band broke the rule
+    at 22 (pieces up to 336 px, and 3 to 4 px thick on the left of the frame, where depth draws the curtain at 0.68 of
+    its size), the sheets at 4 (a 184 px piece; 6 px at a fold). The energetic stretches were a value noise of about 5
+    cells across the frame, whose lit runs joined into 40 to 70 per cent of it, and the band's fringe was 6 km thick at
+    every depth, so 2.7 / scale px on screen. At 24 clocks spread over ten minutes, each palette at 8 of them, at the
+    card size: no piece longer than a third of the frame, at most 2 px across at 95 per cent of its pixels (in each
+    third of the frame apart) and 3 anywhere, and each palette draws a piece at least 4 per cent of the frame long. With
+    every light-making knob at its top (t = 4 and 350) the edge may wrap up the side of a fold seen edge-on: at most 3 px
+    across, 5 anywhere."""
+    drawn = [0, 0, 0]
+    for i, clock in enumerate(FRINGE_CLOCKS):
+        palette = i % 3
+        rgb = _finished(_card_picture(tier, clock, _fringe_items(tier, palette)))
+        label = f"{tier}, palette {palette}, t = {clock:g}"
+        drawn[palette] = max(drawn[palette], _check_fringe_is_an_edge(rgb, palette, label, across=FRINGE_ACROSS[tier]))
+    for palette in (0, 1, 2):
+        assert drawn[palette] >= 0.04 * CARD_RES[0], f"{tier}, palette {palette}: the fringe is not drawn " \
+                                                     f"({drawn[palette]} px at most over eight clocks)"
+        longest = 0
+        for clock in (4.0, 350.0):
+            rgb = _finished(_card_picture(tier, clock, _extreme(tier, palette)))
+            label = f"{tier}, palette {palette}, every knob at its top, t = {clock:g}"
+            longest = max(longest, _check_fringe_is_an_edge(rgb, palette, label, thickness=(3, 5)))
+        assert longest >= 0.04 * CARD_RES[0], f"{tier}, palette {palette}, every knob at its top: not drawn"
+
+
+@pytest.mark.parametrize("tier", ["band", "sheets"])
+def test_aurora_fringe_is_short_and_thin_at_the_hem_and_width_corners(tier):
+    """Second re-review 2026-10-13: off the pinned point the band's fringe was 4 px thick at the 95th percentile and up
+    to 6 px at curtain widths 0.3 to 0.5, the sheets' 3 to 4 px at width 0.4 (hem 1, t = 4 and 37). At every corner of
+    the hem height and curtain width ranges, at two late clocks each, and at the narrowest curtain under the default hem
+    at t = 4, 37, 50 and 141 (FRINGE_NARROW_FRAMES), at the full fringe: the same thin edge in pieces. A corner may draw
+    little or no fringe (at the sheets' broadest, the arcs sit low by the horizon). Third re-review (same day), MEDIUM:
+    no pin guarded the sheets' fold gate (sheetFoldGate): stubbed to 1 every test passed, yet on the narrowest curtain
+    it is what keeps a fold seen edge-on (the arc running along the line of sight) from drawing a blob, 9 px thick at
+    the 95th percentile at t = 141 and 4 px at t = 50 without it. Both clocks are run here, each in the palette the
+    every-clock pin gives it."""
+    lib = M.load_library(strict=False)
+    file = "groups/aurora-band.glsl" if tier == "band" else "groups/aurora-sheets.glsl"
+    knobs = {p["name"]: p for p in _module(lib, file).header["params"]}
+    fn = _band if tier == "band" else _sheets
+    late = FRINGE_CORNER_CLOCKS
+    corners = [(h, w) for h in knobs["hemHeight"]["range"] for w in knobs["curtainWidth"]["range"]]
+    cases = [(hem, width, ((late[j], j % 3), (late[(j + 2) % 4], (j + 1) % 3))) for j, (hem, width) in
+             enumerate(corners)]
+    cases.append((knobs["hemHeight"]["default"], knobs["curtainWidth"]["range"][0], FRINGE_NARROW_FRAMES))
+    for hem, width, frames in cases:
+        for clock, palette in frames:
+            over = dict(_fringe_items(tier, palette, hemHeight=hem, curtainWidth=width))
+            rgb = _finished(fn(_grid(480, 270), CARD_RES, clock, **over))
+            label = f"{tier}, hem {hem}, width {width}, palette {palette}, t = {clock:g}"
+            _check_fringe_is_an_edge(rgb, palette, label, across=FRINGE_ACROSS[tier])
+
+
+def test_aurora_fringe_docs_say_what_the_twin_measures():
+    """Second re-review 2026-10-13, LOW: the fringe help, the band's contract and the twin's docstring said the
+    energetic stretches cover about 15 per cent of the curtain at 0.35 and 30 at 1, while the twin measured 22 and 36;
+    the docstring of fringeEmission gave a 3 km scale height where FRINGE_SCALE_KM is 2.5. The coverage every doc gives
+    is the twin's own, within a point: the stretches' mean over 4000 cells and 40 clocks spread over ten minutes."""
+    a = _aurora()
+    at = (np.arange(4000 * 16) + 0.5) / 16.0 - 2000.0
+    clocks = np.linspace(0.0, 600.0, 40, endpoint=False)
+    measured = {f: 100.0 * np.mean([a.fringeStretches(at, 0.0, f, c).mean() for c in clocks]) for f in (0.35, 1.0)}
+    lib = M.load_library(strict=False)
+    texts = {"twin fringeStretches": a.fringeStretches.__doc__}
+    for file in ("groups/aurora-band.glsl", "groups/aurora-sheets.glsl"):
+        h = _module(lib, file).header
+        texts[f"{file} help"] = next(p["help"] for p in h["params"] if p["name"] == "fringe")
+        texts[f"{file} contract"] = h["contract"]
+    said = re.compile(r"about (\d+) per\s?cent of (?:its|the curtain's|each arc's) length at (?:fringe )?0\.35,? "
+                      r"(?:and )?(\d+) at 1")
+    for name, text in texts.items():
+        found = said.findall(" ".join(text.split()))
+        assert found, f"{name}: no coverage given"
+        for low, high in found:
+            assert abs(int(low) - measured[0.35]) <= 1.0 and abs(int(high) - measured[1.0]) <= 1.0, \
+                f"{name} says {low} and {high} per cent; the twin measures {measured[0.35]:.1f} and {measured[1.0]:.1f}"
+    doc = " ".join(a.fringeEmission.__doc__.split())
+    assert f"{a.FRINGE_SCALE_KM:g} km scale" in doc, f"fringeEmission's docstring: {doc}"
+
+
+def test_aurora_white_cap_clamps_its_tanh():
+    """Second re-review 2026-10-13, LOW: the white cap called a raw tanh((weakest - 0.2) / 0.15), without the clamp
+    that colour/tone.glsl:30 says the house needs (some drivers build tanh from exponentials that overflow to NaN past
+    about 88). Unreachable inside today's knob ranges (the argument stays under 18), clamped for portability: every tanh
+    the aurora recipes call reads a clamped argument."""
+    for file in ("groups/aurora-band.glsl", "groups/aurora-sheets.glsl"):
+        lines = (LIB / file).read_text(encoding="utf-8").splitlines()
+        code = "\n".join(line.split("//")[0] for line in lines if not line.startswith("//!"))
+        calls = re.findall(r"\btanh\s*\(\s*(\w*)\s*\(?", code)
+        assert calls, f"{file}: no tanh left (the white cap moved?)"
+        assert all(c in ("clamp", "min") for c in calls), f"{file}: tanh of an unclamped argument ({calls})"
 
 
 def _band_gate_row(clock, curtainWidth, samples=1920):
@@ -1002,45 +1125,92 @@ def _twin_parity_image():
 
 
 # The aurora tiers with every light-making knob at its top (_extreme), one panel per palette, at the cards' 480 x 270,
-# finished the cards' way without the vignette and the dither (srgbEncode(tanh(tmSuperlinear(c, 0.85)))): the band
-# along the top row, the sheets along the bottom. The GPU's own picture must then hold the white ceiling and the
-# fringe's thin-edge rule, besides matching the twins.
+# finished the cards' way without the vignette and the dither (srgbEncode(tanh(tmSuperlinear(c, 0.85)))), at t = 4 and
+# 350 (the second fringe fix: its pieces come and go, so one clock may hold only short ones): from the top, the band and
+# the sheets at t = 4, then the band and the sheets at t = 350. The GPU's own picture must then hold the white ceiling
+# and the fringe's thin-edge rule, and draw a piece in each palette at one of the two clocks, besides matching the twins.
+EXTREMES_CLOCKS = (4.0, 350.0)
 EXTREMES_CARD = """\
 //! {"card": "parity-aurora-extremes", "uses": ["aurora-band", "aurora-sheets", "legacy-tone-superlinear",
-//!  "display-out"], "t": [0], "size": [1440, 540],
+//!  "display-out"], "t": [0], "size": [1440, 1080],
 //!  "note": "Not a house card: the aurora tiers at every light-making knob's top (intensity 3, fringe 1, rays 1,
-//!  folds 1, three curtains), one 480x270 panel per palette, the band above and the sheets below, finished by the
-//!  house tail without the vignette and the dither, compared with the CPU twins and held to the white ceiling and the
-//!  fringe's thin-edge rule."}
+//!  folds 1, three curtains), one 480x270 panel per palette, from the top the band and the sheets at t = 4, then the
+//!  band and the sheets at t = 350, finished by the house tail without the vignette and the dither, compared with the
+//!  CPU twins and held to the white ceiling and the fringe's thin-edge rule."}
 // Apache-2.0, Akashic Aurora. Written fresh for the parity test.
 float densityAt(vec3 p) { return 0.0; }
 float mapScene(vec3 p) { return 1e9; }
 void mainImage(out vec4 color, in vec2 pixel) {
     int column = int(pixel.x) / 480;
-    int row = int(pixel.y) / 270;
-    vec2 local = pixel - vec2(480.0 * float(column), 270.0 * float(row));
+    int fromBottom = int(pixel.y) / 270;
+    int row = 3 - fromBottom;                                 // 0 at the top of the PNG
+    vec2 local = pixel - vec2(480.0 * float(column), 270.0 * float(fromBottom));
     vec2 res = vec2(480.0, 270.0);
+    float clock = row < 2 ? 4.0 : 350.0;
     vec3 c;
-    if (row == 1) {
-        c = auroraBand(local, res, 4.0, 3.0, 0.6, 1.0, 1.0, 1.0, 1.0, column, 1.0, 3, 0);
+    if (row == 0 || row == 2) {
+        c = auroraBand(local, res, clock, 3.0, 0.6, 1.0, 1.0, 1.0, 1.0, column, 1.0, 3, 0);
     } else {
         vec3 eye = vec3(0.0);
-        c = auroraSheets(local, res, eye, camLookAt(eye, vec3(0.0, 0.22, -1.0), 0.0), 1.8, 4.0, 3.0, 1.0, 0.8, 1.0, 1.0,
-                         1.0, column, 1.0, 0.55, 36, 0);
+        c = auroraSheets(local, res, eye, camLookAt(eye, vec3(0.0, 0.22, -1.0), 0.0), 1.8, clock, 3.0, 1.0, 0.8, 1.0,
+                         1.0, 1.0, column, 1.0, 0.55, 36, 0);
     }
     color = vec4(srgbEncode(tmTanh(tmSuperlinear(max(c, vec3(0.0)), 0.85))), 1.0);
 }
 """
 
 
+# The fringe at late clocks: the band (three curtains) and the sheets at the full fringe, every other knob at its
+# default, at t = 37, 175 and 350 s (the second re-review measured pieces of 185 to 336 px at these on the GPU), one
+# 480 x 270 panel per palette (columns) and per tier and clock (rows, the band's three above the sheets' three), finished
+# as the extremes card is. The GPU's own picture must hold the white ceiling and the fringe's thin-edge rule, and the
+# panels the twin sweep also renders must match the twin.
+FRINGE_LATE_CLOCKS = (37.0, 175.0, 350.0)
+FRINGE_LATE_CARD = """\
+//! {"card": "parity-aurora-fringe-late", "uses": ["aurora-band", "aurora-sheets", "legacy-tone-superlinear",
+//!  "display-out"], "t": [0], "size": [1440, 1620],
+//!  "note": "Not a house card: the aurora tiers at the full fringe (the band with three curtains), every other knob at
+//!  its default, at t = 37, 175 and 350 s: one 480x270 panel per palette (columns), the band's three clocks above the
+//!  sheets' three (rows), finished by the house tail without the vignette and the dither, held to the white ceiling and
+//!  the fringe's thin-edge rule and compared with the twins where the twin sweep renders the same panel."}
+// Apache-2.0, Akashic Aurora. Written fresh for the parity test.
+float densityAt(vec3 p) { return 0.0; }
+float mapScene(vec3 p) { return 1e9; }
+void mainImage(out vec4 color, in vec2 pixel) {
+    int column = int(pixel.x) / 480;
+    int fromBottom = int(pixel.y) / 270;
+    int row = 5 - fromBottom;                                 // 0 at the top of the PNG
+    vec2 local = pixel - vec2(480.0 * float(column), 270.0 * float(fromBottom));
+    vec2 res = vec2(480.0, 270.0);
+    int late = row - 3 * (row / 3);
+    float clock = late == 0 ? 37.0 : (late == 1 ? 175.0 : 350.0);
+    vec3 c;
+    if (row < 3) {
+        c = auroraBand(local, res, clock, 1.2, 0.6, 1.0, 0.5, 0.75, 1.0, column, 1.0, 3, 0);
+    } else {
+        vec3 eye = vec3(0.0);
+        c = auroraSheets(local, res, eye, camLookAt(eye, vec3(0.0, 0.22, -1.0), 0.0), 1.8, clock, 1.2, 1.0, 0.8, 0.5,
+                         0.8, 1.0, column, 1.0, 0.55, 36, 0);
+    }
+    color = vec4(srgbEncode(tmTanh(tmSuperlinear(max(c, vec3(0.0)), 0.85))), 1.0);
+}
+"""
+
+
+def _extremes_rows():
+    """EXTREMES_CARD's panels from the top of its PNG: (tier, clock, rows)."""
+    order = [(tier, clock) for clock in EXTREMES_CLOCKS for tier in ("band", "sheets")]
+    return [(tier, clock, slice(270 * i, 270 * (i + 1))) for i, (tier, clock) in enumerate(order)]
+
+
 def _twin_extremes_image():
     """The twin of EXTREMES_CARD as 8-bit codes, PNG rows top down."""
-    out = np.zeros((540, 1440, 3))
+    out = np.zeros((1080, 1440, 3))
     for palette in (0, 1, 2):
         cols = slice(480 * palette, 480 * (palette + 1))
-        out[270:, cols] = _finished(_card_picture("band", 4.0, _extreme("band", palette)))
-        out[:270, cols] = _finished(_card_picture("sheets", 4.0, _extreme("sheets", palette)))
-    return np.round(out * 255.0)[::-1]
+        for tier, clock, rows in _extremes_rows():
+            out[rows, cols] = _finished(_card_picture(tier, clock, _extreme(tier, palette)))[::-1]
+    return np.round(out * 255.0)
 
 
 @pytest.mark.slow
@@ -1051,8 +1221,10 @@ def test_the_glsl_matches_its_twins_on_swiftshader(tmp_path):
     cards_dir.mkdir()
     (cards_dir / "parity-groups-g1.card").write_text(PARITY_CARD, encoding="utf-8", newline="\n")
     (cards_dir / "parity-aurora-extremes.card").write_text(EXTREMES_CARD, encoding="utf-8", newline="\n")
-    report = K.render_cards(["parity-groups-g1", "parity-aurora-extremes"], cards_dir=cards_dir,
-                            out_root=tmp_path / "out", allow_tracked=True, lock_wait_min=5, quiet=True)
+    (cards_dir / "parity-aurora-fringe-late.card").write_text(FRINGE_LATE_CARD, encoding="utf-8", newline="\n")
+    report = K.render_cards(["parity-groups-g1", "parity-aurora-extremes", "parity-aurora-fringe-late"],
+                            cards_dir=cards_dir, out_root=tmp_path / "out", allow_tracked=True, lock_wait_min=5,
+                            quiet=True)
     if report["driver"].get("error") and "lock" in str(report["driver"]["error"]).lower():
         pytest.skip(f"the GPU lock stayed busy: {report['driver']['error']}")
     for row in report["cards"]:
@@ -1077,10 +1249,11 @@ def test_the_glsl_matches_its_twins_on_swiftshader(tmp_path):
     gpu = np.asarray(Image.open(png).convert("RGB")).astype(np.float64)
     cpu = _twin_extremes_image()
     for palette in (0, 1, 2):
-        for tier, rows in (("band", slice(0, 270)), ("sheets", slice(270, 540))):
-            cols = slice(480 * palette, 480 * (palette + 1))
+        cols = slice(480 * palette, 480 * (palette + 1))
+        drawn = {"band": 0, "sheets": 0}
+        for tier, clock, rows in _extremes_rows():
             miss = np.abs(gpu[rows, cols] - cpu[rows, cols]).max(-1)
-            label = f"{tier}, palette {palette}, every knob at its top, on the GPU"
+            label = f"{tier}, palette {palette}, every knob at its top, t = {clock:g}, on the GPU"
             assert np.mean(miss > 2) < 0.0005 and np.mean(miss > 1) < 0.005 and miss.mean() < 0.2, \
                 f"{label}: {np.mean(miss > 2):.5f} of pixels off by more than two codes, {np.mean(miss > 1):.5f} by " \
                 f"more than one, {miss.mean():.3f} on average"
@@ -1088,4 +1261,34 @@ def test_the_glsl_matches_its_twins_on_swiftshader(tmp_path):
             white = g.min(-1).max()
             assert white <= WHITE_CEILING, f"{label}: a pixel's weakest channel is {white:.3f}"
             longest = _check_fringe_is_an_edge(g[::-1], palette, label, thickness=(3, 5))
-            assert longest >= 0.04 * 480, f"{label}: the fringe is not drawn ({longest} px)"
+            drawn[tier] = max(drawn[tier], longest)
+        for tier, longest in drawn.items():
+            assert longest >= 0.04 * 480, \
+                f"{tier}, palette {palette}, every knob at its top, on the GPU: the fringe is not drawn at t = 4 or " \
+                f"350 ({longest} px)"
+    # the late clocks: the GPU's own picture against the brief in every panel, against the twin where the twin sweep
+    # (test_aurora_fringe_is_short_and_thin_at_every_clock) renders the same panel, with the extremes' margins
+    png = sorted((tmp_path / "out" / "parity-aurora-fringe-late").glob("t0*.png"))[0]
+    gpu = np.asarray(Image.open(png).convert("RGB")).astype(np.float64)
+    swept = {(clock, i % 3) for i, clock in enumerate(FRINGE_CLOCKS)}
+    compared = 0
+    for tier_index, tier in enumerate(("band", "sheets")):
+        drawn = 0
+        for step, clock in enumerate(FRINGE_LATE_CLOCKS):
+            rows = slice(270 * (3 * tier_index + step), 270 * (3 * tier_index + step + 1))
+            for palette in (0, 1, 2):
+                cols = slice(480 * palette, 480 * (palette + 1))
+                label = f"{tier}, palette {palette}, the full fringe at t = {clock:g}, on the GPU"
+                g = gpu[rows, cols] / 255.0
+                white = g.min(-1).max()
+                assert white <= WHITE_CEILING, f"{label}: a pixel's weakest channel is {white:.3f}"
+                drawn = max(drawn, _check_fringe_is_an_edge(g[::-1], palette, label, across=FRINGE_ACROSS[tier]))
+                if (clock, palette) in swept:
+                    compared += 1
+                    cpu = np.round(_finished(_card_picture(tier, clock, _fringe_items(tier, palette))) * 255.0)[::-1]
+                    miss = np.abs(gpu[rows, cols] - cpu).max(-1)
+                    assert np.mean(miss > 2) < 0.0005 and np.mean(miss > 1) < 0.005 and miss.mean() < 0.2, \
+                        f"{label}: {np.mean(miss > 2):.5f} of pixels off the twin by more than two codes, " \
+                        f"{np.mean(miss > 1):.5f} by more than one, {miss.mean():.3f} on average"
+        assert drawn >= 0.04 * 480, f"{tier} at the late clocks on the GPU: the fringe is not drawn ({drawn} px)"
+    assert compared == 6, f"{compared} late panels compared with the twin sweep, six expected"
