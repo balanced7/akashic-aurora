@@ -1,0 +1,117 @@
+{
+  "about": "Param descriptors shared by the two twins of the param schema: arsenal/web/lib/params.js (tests/params_schema.test.mjs) and arsenal/params.py (tests/test_params_schema.py). The verdicts both must reproduce are in verdicts.json beside this file. Descriptors here may leave optional fields out (curve, help, recBlocked, order, uniform, derived, cost); the schema fills them. The headers are written for this fixture in our own words: aurora-sheets is the example recipe header of the unified architecture draft (section 3.2), display-out is the house display seam of atlas H9, twin-demo exercises a derived param, a colour, a vector and a toggle. The edge set holds a step below a millionth, a range past 2^53 and a choice worth 2^60; the deep set holds derived expressions at, over and far over the 128-token cap; the tiny set holds ranges without a step whose ends need more than six decimals (one of them more than nine). No corpus code anywhere.",
+  "sets": {
+    "core": [
+      {"id": "intensity", "group": "light", "label": "Intensity", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 2, "step": 0.01}, "default": 1},
+      {"id": "hemHeight", "group": "shape", "label": "Hem height", "type": "range", "unit": "world", "range": {"min": 0.5, "max": 4}, "default": 1.2},
+      {"id": "layers", "group": "quality", "label": "Layers", "type": "range", "unit": "count", "range": {"min": 8, "max": 48, "step": 1}, "default": 26, "cost": true},
+      {"id": "freq", "group": "sound", "label": "Pitch", "type": "range", "unit": "hz", "range": {"min": 20, "max": 20000, "step": 1}, "default": 440, "curve": "log"},
+      {"id": "ev", "group": "finish", "label": "Exposure", "type": "range", "unit": "stops", "range": {"min": -4, "max": 4, "step": 0.1}, "default": 0},
+      {"id": "mode", "group": "finish", "label": "Display curve", "type": "choice", "unit": "choice", "default": "tanh",
+       "values": [{"value": "tanh", "label": "Soft (tanh)"}, {"value": "aces", "label": "ACES fit"}, {"value": "neutral", "label": "PBR Neutral"}]},
+      {"id": "levels", "group": "quality", "label": "Detail", "type": "choice", "default": 1,
+       "values": [{"value": 0, "label": "Off"}, {"value": 1, "label": "Low"}, {"value": 2, "label": "High"}]},
+      {"id": "rays", "group": "shape", "label": "Rays", "type": "toggle", "unit": "bool", "default": true, "recBlocked": true},
+      {"id": "tint", "group": "light", "label": "Tint", "type": "colour", "unit": "colour", "default": [1, 0.5, 0.25]},
+      {"id": "offset", "group": "shape", "label": "Offset", "type": "vec", "unit": "world", "range": {"min": -1, "max": 1, "step": 0.05}, "default": [0, 0.5]},
+      {"id": "glow", "group": "light", "label": "Glow", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 4, "step": 0.01}, "default": 2, "derived": "intensity * 2"},
+      {"id": "angle", "group": "shape", "label": "Angle", "type": "range", "unit": "deg", "range": {"min": 0, "max": 360, "step": 1}, "default": 90}
+    ],
+    "strings": [
+      {"id": "framing", "group": "frame", "label": "Framing", "type": "choice", "default": "9:16",
+       "values": [{"value": "9:16", "label": "Tall 9:16"}, {"value": "16:9", "label": "Wide 16:9"}]},
+      {"id": "name", "group": "frame", "label": "Name", "type": "choice", "default": "plain",
+       "values": [{"value": "plain", "label": "Plain"}, {"value": "a b&c/é", "label": "Awkward"}, {"value": "x+y=z?", "label": "Symbols"}]}
+    ],
+    "units": [
+      {"id": "r01", "label": "Ratio", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 1, "step": 0.01}, "default": 0.5},
+      {"id": "r01free", "label": "Ratio, no step", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 1}, "default": 0.5},
+      {"id": "r01fine", "label": "Ratio, fine", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 1, "step": 0.001}, "default": 0.5},
+      {"id": "r2", "label": "Multiplier", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 2, "step": 0.01}, "default": 1},
+      {"id": "world", "label": "Height", "type": "range", "unit": "world", "range": {"min": 0.5, "max": 4}, "default": 1.2},
+      {"id": "count", "label": "Layers", "type": "range", "unit": "count", "range": {"min": 8, "max": 48, "step": 1}, "default": 26},
+      {"id": "countImplied", "label": "Layers, step implied", "type": "range", "unit": "count", "range": {"min": 8, "max": 48}, "default": 26},
+      {"id": "hz", "label": "Pitch", "type": "range", "unit": "hz", "range": {"min": 20, "max": 20000, "step": 1}, "default": 440, "curve": "log"},
+      {"id": "stops", "label": "Exposure", "type": "range", "unit": "stops", "range": {"min": -4, "max": 4, "step": 0.1}, "default": 0},
+      {"id": "db", "label": "Gain", "type": "range", "unit": "db", "range": {"min": -60, "max": 12, "step": 0.5}, "default": 0},
+      {"id": "deg", "label": "Angle", "type": "range", "unit": "deg", "range": {"min": 0, "max": 360, "step": 1}, "default": 90},
+      {"id": "rad", "label": "Phase", "type": "range", "unit": "rad", "range": {"min": 0, "max": 6.2832, "step": 0.01}, "default": 1},
+      {"id": "turns", "label": "Hue", "type": "range", "unit": "turns", "range": {"min": 0, "max": 1, "step": 0.001}, "default": 0.25},
+      {"id": "sec", "label": "Decay", "type": "range", "unit": "sec", "range": {"min": 0, "max": 10, "step": 0.1}, "default": 1},
+      {"id": "persec", "label": "Drift", "type": "range", "unit": "per-sec", "range": {"min": 0, "max": 4, "step": 0.05}, "default": 0.25},
+      {"id": "kelvin", "label": "White point", "type": "range", "unit": "kelvin", "range": {"min": 1000, "max": 12000, "step": 100}, "default": 6500},
+      {"id": "nm", "label": "Wavelength", "type": "range", "unit": "nm", "range": {"min": 380, "max": 780, "step": 1}, "default": 550},
+      {"id": "px", "label": "Blur", "type": "range", "unit": "px", "range": {"min": 0, "max": 64, "step": 0.5}, "default": 2},
+      {"id": "bits", "label": "Depth", "type": "range", "unit": "bits", "range": {"min": 1, "max": 16}, "default": 8},
+      {"id": "on", "label": "Enabled", "type": "toggle", "default": false},
+      {"id": "pick", "label": "Pick", "type": "choice", "default": "a", "values": [{"value": "a", "label": "Alpha"}, {"value": "b", "label": "Beta"}]},
+      {"id": "col", "label": "Colour", "type": "colour", "default": [0, 0, 0]},
+      {"id": "v3", "label": "Mix", "type": "vec", "unit": "ratio", "range": {"min": 0, "max": 1, "step": 0.01}, "default": [0.1, 0.2, 0.3]},
+      {"id": "exp01", "label": "Softness", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 1}, "default": 0.1, "curve": "exp"},
+      {"id": "lin02", "label": "Gain", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 2}, "default": 1}
+    ],
+    "edge": [
+      {"id": "fine", "label": "Fine", "type": "range", "unit": "world", "range": {"min": 0, "max": 1, "step": 1e-7}, "default": 0.5},
+      {"id": "big", "label": "Big", "type": "range", "unit": "hz", "range": {"min": 0, "max": 1e22, "step": 1}, "default": 0},
+      {"id": "huge", "label": "Huge", "type": "choice", "default": 0,
+       "values": [{"value": 0, "label": "Zero"}, {"value": 1152921504606846976, "label": "Two to the sixtieth"}]},
+      {"id": "top", "label": "Top", "type": "range", "unit": "count", "range": {"min": 0, "max": 1152921504606846976, "step": 1}, "default": 0},
+      {"id": "topv", "label": "Top pair", "type": "vec", "unit": "count", "range": {"min": 0, "max": 1152921504606846976, "step": 1}, "default": [0, 0]}
+    ],
+    "deep": [
+      {"id": "a", "label": "A", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 1, "step": 0.01}, "default": 0.5},
+      {"id": "atCap", "label": "At the cap", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 100, "step": 0.01}, "default": 0,
+       "derived": "-a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a"},
+      {"id": "overCap", "label": "Over the cap", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 100, "step": 0.01}, "default": 0,
+       "derived": "a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a+a"},
+      {"id": "parens", "label": "Deep brackets", "type": "range", "unit": "ratio", "range": {"min": 0, "max": 1, "step": 0.01}, "default": 0,
+       "derived": "((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((a))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))"}
+    ],
+    "tiny": [
+      {"id": "logTiny", "label": "Log tiny", "type": "range", "unit": "world", "range": {"min": 1e-7, "max": 1e-3}, "default": 1e-7, "curve": "log"},
+      {"id": "narrow", "label": "Narrow", "type": "range", "unit": "world", "range": {"min": 1e-7, "max": 1e-6}, "default": 5e-7},
+      {"id": "below", "label": "Below the ninth decimal", "type": "range", "unit": "world", "range": {"min": 1e-10, "max": 1}, "default": 1e-10, "curve": "log"}
+    ]
+  },
+  "headers": {
+    "aurora-sheets": {
+      "name": "aurora-sheets", "kind": "recipe", "cat": "G8", "family": "G", "version": "0.1.0", "order": 60,
+      "license": "Apache-2.0",
+      "entry": "vec3 auroraSheets(vec3 ro, vec3 rd, float t, vec2 pixel, float intensity, float hemHeight, float fold, float rays, float layers)",
+      "params": [
+        {"name": "intensity", "label": "Intensity", "unit": "ratio", "range": [0, 2], "default": 1, "step": 0.01, "group": "light"},
+        {"name": "hemHeight", "label": "Hem height", "unit": "world", "range": [0.5, 4], "default": 1.2, "group": "shape"},
+        {"name": "fold", "label": "Folds", "unit": "ratio", "range": [0, 1], "default": 0.4, "group": "shape"},
+        {"name": "rays", "label": "Rays", "unit": "ratio", "range": [0, 1], "default": 0.6, "group": "shape"},
+        {"name": "layers", "label": "Layers", "unit": "count", "range": [8, 48], "default": 26, "step": 1, "group": "quality", "cost": true}
+      ]
+    },
+    "display-out": {
+      "name": "display-out", "kind": "recipe", "cat": "H9", "family": "H", "version": "0.1.0", "order": 90,
+      "license": "Apache-2.0",
+      "entry": "vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev, int curve, float saturation, float vignette, float sCurve, float ditherLevels)",
+      "params": [
+        {"name": "ev", "label": "Exposure", "unit": "stops", "range": [-4, 4], "default": 0, "step": 0.1, "group": "finish",
+         "help": "Brightness before the display curve, in doublings of light."},
+        {"name": "curve", "label": "Display curve", "unit": "choice", "choices": ["Soft (tanh)", "Exponential", "ACES fit", "PBR Neutral"],
+         "default": 0, "group": "finish", "help": "How bright light rolls off into white."},
+        {"name": "saturation", "label": "Saturation", "unit": "ratio", "range": [0, 2], "default": 1, "step": 0.01, "group": "finish"},
+        {"name": "vignette", "label": "Vignette", "unit": "ratio", "range": [0, 1], "default": 0.2, "step": 0.01, "group": "finish"},
+        {"name": "sCurve", "label": "Contrast curve", "unit": "ratio", "range": [0, 1], "default": 0, "step": 0.01, "group": "finish"},
+        {"name": "ditherLevels", "label": "Dither levels", "unit": "count", "range": [16, 1024], "default": 255, "step": 1, "curve": "log",
+         "group": "finish", "help": "Code values per channel the dither aims at (255 for an 8-bit screen)."}
+      ]
+    },
+    "twin-demo": {
+      "name": "twin-demo", "kind": "recipe", "cat": "A5", "family": "A", "version": "0.1.0",
+      "params": [
+        {"name": "fold", "label": "Folds", "unit": "ratio", "range": [0, 1], "default": 0.4, "step": 0.01},
+        {"name": "doubleFold", "label": "Double fold", "unit": "ratio", "range": [0, 2], "default": 1.2, "step": 0.01,
+         "derived": "fold * 2 + min(fold, 0.5)"},
+        {"name": "tint", "label": "Tint", "unit": "colour", "default": [1, 0.9, 0.8]},
+        {"name": "warp", "label": "Warp", "unit": "world", "range": [-1, 1], "default": [0, 0, 0], "step": 0.05},
+        {"name": "on", "label": "Enabled", "unit": "bool", "default": true, "recBlocked": true}
+      ]
+    }
+  }
+}
