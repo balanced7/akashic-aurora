@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0366f7c3. A bound you discover by collision is not awareness -- this sheet
+> Derived at 24732cae. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -292,7 +292,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (354 numeric constants)
+## Mechanical bounds (358 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -397,6 +397,7 @@ Class: reference
 | `FRESH_MIN_DEFAULT` | 30 | core/comm/wake_seat.py | AKASHIC_WAKE_MARKER_FRESH_MIN overrides |
 | `FULL_TOP_MAX` | 69 | arsenal/jam/schemas.py | A4, hard |
 | `GEMINI` | 3 | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py | Gemini strategic review |
+| `GEOMETRIC_CAP` | 4,096 | arsenal/shaders/glsl.py | a v *= k loop still running after this many steps is treated as unbounded |
 | `GIT_BUDGET` | 70 | scripts/ops/wishlist_triage_task.py | subprocess calls are the cost here, not tokens |
 | `GIT_CAP` | 10 | agent/harness/delta.py | commits listed before the pull pointer takes over |
 | `GRACE_MS` | 100 | arsenal/practice.py | ...except a grace note or crush sounding under this long, which is heard only while it sou |
@@ -453,6 +454,7 @@ Class: reference
 | `MAX_CLIPS` | 500 | arsenal/serve.py |  |
 | `MAX_CMD_OUT` | 16,000 | core/comm/toolbox.py |  |
 | `MAX_EXACT_NOTES` | 24 | arsenal/jam/schemas.py |  |
+| `MAX_EXPANSION_DEPTH` | 3 | arsenal/shaders/glsl.py | a top-level macro that expands into another is followed this far, no further |
 | `MAX_FILE_BYTES` | 120,000 | core/comm/toolbox.py |  |
 | `MAX_FPS` | 120 | arsenal/shaders/render.py |  |
 | `MAX_HEADER_DEPTH` | 32 | arsenal/shaders/modules.py | brackets and braces outside strings; a real header nests four deep |
@@ -498,6 +500,7 @@ Class: reference
 | `MIN_BEATS` | 2 | core/narrative/episode_suggester.py | a thin episode has nothing worth bookending |
 | `MIN_CELL_H` | 8 | arsenal/media/sheet.py | px: a shorter cell shows nothing a reader can use, so the layout refuses instead |
 | `MIN_EVENTS_PER_WINDOW` | 4 | arsenal/media/avsync.py |  |
+| `MIN_FAMILY` | 3 | arsenal/shaders/census.py | smaller clusters are reported as loners |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |
@@ -606,6 +609,7 @@ Class: reference
 | `TOUCH_MIN_MS` | 10,000 | arsenal/practice.py | a session shorter than this has no notes-a-minute rate |
 | `TRY_CONCEPT_MIN` | 2 | arsenal/practice_riff.py |  |
 | `TRY_EARLY_MIN_PHRASES` | 3 | arsenal/practice_riff.py | try rule 4 ("start one phrase a beat early") needs a few phrases to speak of |
+| `UNKNOWN_BOUND_CAP` | 10,000,000 | arsenal/shaders/glsl.py | a computed trip count above this is treated as unbounded |
 | `VARIANT_LABEL_MAX` | 60 | arsenal/jam/schemas.py |  |
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
