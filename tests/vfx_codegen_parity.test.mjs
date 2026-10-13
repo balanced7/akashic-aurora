@@ -15,8 +15,9 @@
 // through a line-for-line JS twin otherwise; when both run they must agree.
 //
 // Run: node tests/vfx_codegen_parity.test.mjs     (zero dependencies; exits 1 on any failure)
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import vm from 'node:vm';
@@ -51,6 +52,32 @@ function lineDiff(a, b) {
   for (let k = i; k < x.length - j; k++) out.push('- ' + x[k]);
   for (let k = i; k < y.length - j; k++) out.push('+ ' + y[k]);
   for (let k = x.length - j; k < Math.min(x.length, x.length - j + 2); k++) out.push('  ' + x[k]);
+  return out.join('\n');
+}
+// Every changed run as its own hunk (a longest-common-subsequence walk over lines), two lines of context each: the
+// printed record of the declared difference, which touches a few lines spread through a long text.
+function hunks(a, b) {
+  const x = a.split('\n'), y = b.split('\n');
+  const L = Array.from({ length: x.length + 1 }, () => new Int32Array(y.length + 1));
+  for (let i = x.length - 1; i >= 0; i--) {
+    for (let j = y.length - 1; j >= 0; j--) L[i][j] = x[i] === y[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  }
+  const ops = [];
+  for (let i = 0, j = 0; i < x.length || j < y.length;) {
+    if (i < x.length && j < y.length && x[i] === y[j]) { ops.push(['  ', x[i++]]); j++; }
+    else if (i < x.length && (j === y.length || L[i + 1][j] >= L[i][j + 1])) ops.push(['- ', x[i++]]);
+    else ops.push(['+ ', y[j++]]);
+  }
+  const keep = new Set();
+  ops.forEach((o, k) => { if (o[0] !== '  ') for (let d = -2; d <= 2; d++) keep.add(k + d); });
+  const out = [];
+  let last = -2;
+  ops.forEach((o, k) => {
+    if (!keep.has(k)) return;
+    if (k !== last + 1) out.push('@@');
+    out.push(o[0] + o[1]);
+    last = k;
+  });
   return out.join('\n');
 }
 
@@ -190,13 +217,64 @@ for (const c of CHUNKS) {
     m.body === c.body, m ? '' : 'missing from the library');
 }
 
+// ---- the declared differences --------------------------------------------------------------------------------------
+// THE DECLARED DIFFERENCES. Anything else that differs between the writers is a failure.
+const DECLARED = [{
+  id: 'mask-port',
+  defect: 'census D1 (research/in-flight/shader-school-2026-10-13/arc-vfx-bench.md, section 6), and the S5 review ' +
+    '(item 3: every block that has a colB gets a default m, so a blend that reads m compiles everywhere)',
+  rule: "a wire from a mask's m output feeds the receiving block's m, never its colour: colB stays unwired " +
+    '(vec3(0.)) and the block declares float m = <mask>_m. Every other block with a colB input (graph) and every ' +
+    'blend tile declares float m = 0.5, the even mix mix-blend uses today',
+  pixels: 'none with the shipped chunks: a mask block never writes col, so the legacy colB = <mask>_col was already ' +
+    'vec3(0.), and no shipped blend reads m yet (mix-blend still mixes at a constant 0.5). When mix-blend reads m, an ' +
+    'unwired blend keeps its 0.5 mix and a wired one follows the mask',
+}];
+// The bench's unwired mask value: the 0.5 mix-blend mixes at today, so "mix-blend reads m" moves no unwired pixel.
+const M_DEFAULT = '0.5';
+// The declared rewrite, applied to the legacy text: in the block of every node with a colB input, a `float m` follows
+// the colB line (replacing the `float m = 0.;` an m-output block already declares there). When the colB port is fed
+// from a mask's m, `vec3 colB = <A>_col;` becomes `vec3 colB = vec3(0.);` and the block's m is the mask's; otherwise
+// m is the default.
+function declaredRewrite(legacy, G) {
+  if (!legacy || legacy.err) return legacy;
+  const lines = legacy.src.split('\n');
+  for (const node of G.nodes) {
+    const c = CHUNKS.find((x) => x.name === node.chunk);
+    if (!c || !(c.in && c.in.colB)) continue;
+    const head = lines.indexOf(`  // ---- ${c.name} (${node.id}) ----`);
+    if (head < 0) continue;   // not reached from OUTPUT: no block was written
+    const eB = G.edges.filter((e) => e.to === node.id && e.toPort === 'colB')[0];
+    const fromMask = !!eB && eB.fromPort === 'm';
+    const k = lines.findIndex((l, i) => i > head && l.startsWith('    vec3 colB = '));
+    if (fromMask) lines[k] = '    vec3 colB = vec3(0.);';
+    const m = fromMask ? `    float m = ${eB.from}_m;` : `    float m = ${M_DEFAULT};`;
+    if (lines[k + 1] === '    float m = 0.;') lines[k + 1] = m;
+    else lines.splice(k + 1, 0, m);
+  }
+  return { src: lines.join('\n') };
+}
+// The same declared difference on a tile: a blend tile's block declares the default m beside its colB.
+const BLEND_TILE_BLOCK = '  { vec3 col=_raw; vec3 colB=_b; float alpha=1.;\n';
+function declaredThumbRewrite(legacy, c) {
+  if (typeof legacy !== 'string' || !c || c.kind !== 'blend') return legacy;
+  return legacy.replace(BLEND_TILE_BLOCK, `  { vec3 col=_raw; vec3 colB=_b; float alpha=1.; float m=${M_DEFAULT};\n`);
+}
+// The legacy text again from a shipped one: drop exactly the default-m lines the declared difference adds.
+const withoutDefaultM = (r) => (r && r.src ? { src: r.src.split('\n').filter((l) => l !== `    float m = ${M_DEFAULT};`).join('\n') } : r);
+
 // ---- 1. thumbnails: every chunk ---------------------------------------------------------------------------------------
 let n = 0;
 for (const c of CHUNKS) {
   const want = legacyThumb(c);
-  let got;
+  let twin, got;
+  try { twin = gen.thumb(c, { ref: page.THUMB_REF, refB: page.THUMB_REF_B, maskFix: false }); } catch (e) { twin = 'threw: ' + e.message; }
   try { got = gen.thumb(c, { ref: page.THUMB_REF, refB: page.THUMB_REF_B }); } catch (e) { got = 'threw: ' + e.message; }
-  check(`thumb ${c.name} (${c.kind}) is byte-identical`, want === got, typeof got === 'string' ? lineDiff(want, got) : '');
+  check(`thumb ${c.name} (${c.kind}): maskFix off is byte-identical`, want === twin, typeof twin === 'string' ? lineDiff(want, twin) : '');
+  const expect = declaredThumbRewrite(want, c);
+  check(`thumb ${c.name} (${c.kind}): shipped = legacy + the declared default m only`, expect === got,
+    typeof got === 'string' ? lineDiff(expect, got) : '');
+  if (c.kind === 'blend') check(`thumb ${c.name}: the declared default m is really there`, expect !== want);
   n++;
 }
 // With the calibration ramp missing, both writers refuse (the page's own tile code catches it and lists the chunk).
@@ -231,33 +309,6 @@ for (const [label, s, items] of chains) {
 check('every saved chain and group was compared', Object.keys(COMPOS).length >= 1 && Object.keys(GROUPS).length >= 1);
 
 // ---- 3. graphs: every saved graph, one node per chunk, and graphs built by the page's own editing code -----------------
-// THE DECLARED DIFFERENCES. Anything else that differs between the writers is a failure.
-const DECLARED = [{
-  id: 'mask-port',
-  defect: 'census D1 (research/in-flight/shader-school-2026-10-13/arc-vfx-bench.md, section 6)',
-  rule: "a wire from a mask's m output feeds the receiving block's m, never its colour: colB stays unwired " +
-    '(vec3(0.)) and the block declares float m = <mask>_m',
-  pixels: 'none with the shipped chunks: a mask block never writes col, so the legacy colB = <mask>_col was already ' +
-    'vec3(0.); the blend now SEES the mask, and no shipped blend reads m yet (mix-blend still mixes at 0.5)',
-}];
-// The declared rewrite, applied to the legacy text: in the block of every node whose colB port is fed from a mask's m,
-// `vec3 colB = <A>_col;` becomes `vec3 colB = vec3(0.);` and the block's m is the mask's.
-function declaredRewrite(legacy, G) {
-  if (!legacy || legacy.err) return legacy;
-  const lines = legacy.src.split('\n');
-  for (const node of G.nodes) {
-    const eB = G.edges.filter((e) => e.to === node.id && e.toPort === 'colB')[0];
-    const c = CHUNKS.find((x) => x.name === node.chunk);
-    if (!eB || eB.fromPort !== 'm' || !c || !(c.in && c.in.colB)) continue;
-    const head = lines.indexOf(`  // ---- ${c.name} (${node.id}) ----`);
-    if (head < 0) continue;   // not reached from OUTPUT: no block was written
-    const k = lines.indexOf(`    vec3 colB = ${eB.from}_col;`, head);
-    lines[k] = '    vec3 colB = vec3(0.);';
-    if (lines[k + 1] === '    float m = 0.;') lines[k + 1] = `    float m = ${eB.from}_m;`;
-    else lines.splice(k + 1, 0, `    float m = ${eB.from}_m;`);
-  }
-  return { src: lines.join('\n') };
-}
 const maskWired = (G) => G.edges.some((e) => e.toPort === 'colB' && e.fromPort === 'm');
 function compareGraph(label, G) {
   const want = legacyGraph(G);
@@ -274,7 +325,7 @@ function compareGraph(label, G) {
 const SAVED = JSON.parse(readFileSync(at('design/vfx-graphs.json'), 'utf8'));
 for (const [k, G] of Object.entries(SAVED)) {
   const { want, shipped } = compareGraph(`saved "${k}"`, G);
-  if (!maskWired(G)) check(`saved graph "${k}" is untouched by the declared fix`, same(want, shipped));
+  if (!maskWired(G)) check(`saved graph "${k}" differs from legacy only by the default m lines`, same(want, withoutDefaultM(shipped)));
 }
 check('every saved graph was compared', Object.keys(SAVED).length >= 1);
 
@@ -314,7 +365,7 @@ if (fixture) {
     console.log(`\nDECLARED DIFFERENCE ${DECLARED[0].id} -- ${DECLARED[0].defect}`);
     console.log(`  rule:   ${DECLARED[0].rule}`);
     console.log(`  pixels: ${DECLARED[0].pixels}`);
-    console.log(lineDiff(want.src, shipped.src).split('\n').map((l) => '    ' + l).join('\n') + '\n');
+    console.log(hunks(want.src, shipped.src).split('\n').map((l) => '    ' + l).join('\n') + '\n');
   }
 }
 
@@ -410,14 +461,20 @@ const loaded = await dp.loadCodegen(realImport);
 check('with modlib served, the page selects the shared composer by default', loaded === true && dp.CODEGEN.mode === 'modlib' &&
   /modlib/.test(status()), status());
 check('the Compose card writes the legacy bytes through the composer', dp.genChainGLSL() === dp.buildGLSL());
-for (const c of CHUNKS.slice(0, 8)) check(`the thumb writer agrees for ${c.name}`, dp.genThumbGLSL(c) === dp.thumbShaderFor(c));
+for (const c of CHUNKS.slice(0, 8)) {
+  check(`the thumb writer ships legacy + the declared default m for ${c.name}`,
+    dp.genThumbGLSL(c) === declaredThumbRewrite(dp.thumbShaderFor(c), c));
+}
+check('...a blend tile among them (add-blend), so the default m is shipped by the page',
+  CHUNKS.slice(0, 8).some((c) => c.kind === 'blend'));
 if (fixture) {
   dp.G = JSON.parse(JSON.stringify(fixture));
   const shippedPage = dp.genGraphGLSL();
   check('the Graph card ships the declared mask-port fix', same(shippedPage, gen.graph(fixture)) &&
     !same(shippedPage, dp.buildGraphGLSL()));
   dp.G = JSON.parse(JSON.stringify(demo));
-  check('...and an unmasked saved graph is byte-identical', same(dp.genGraphGLSL(), dp.buildGraphGLSL()));
+  check('...and an unmasked saved graph ships legacy + the default m only',
+    same(dp.genGraphGLSL(), declaredRewrite(dp.buildGraphGLSL(), demo)));
 }
 check('no fallback happened on honest data', dp.warnings.length === 0, JSON.stringify(dp.warnings).slice(0, 300));
 
@@ -429,5 +486,148 @@ check('...the status line names the fallback', /legacy for this chain/.test(stat
 check('...and the console carries both texts', dp.warnings.length === 1);
 dp.CODEGEN.gen = { chain() { throw new Error('boom'); } };
 check('a composer that throws is caught too', dp.genChainGLSL() === dp.buildGLSL() && /boom/.test(status()), status());
+
+// The red line reports one build, not the session: the next build that matches the legacy bytes clears it (S5 review
+// item 2; before, one fallback left "legacy for this chain" up for good, over builds that were shipping modlib text).
+const isRed = () => /err/.test(dp.el('codegenline').className);
+dp.CODEGEN.gen = null;                       // the honest composer again: codegenGen rebuilds it over CHUNKS
+const cleared = dp.genChainGLSL();
+check('the next byte-identical build clears the red status line', cleared === dp.buildGLSL() && !isRed() &&
+  dp.CODEGEN.mode === 'modlib' && /^codegen: modlib/.test(status()) && !/legacy for this/.test(status()), status());
+dp.CODEGEN.gen = { graph: () => ({ src: 'drifted' }) };
+dp.CODEGEN.genOf = dp.CHUNKS;
+dp.G = JSON.parse(JSON.stringify(demo));
+dp.genGraphGLSL();
+const wentRed = isRed();
+dp.CODEGEN.gen = null;
+const back = dp.genGraphGLSL();
+check('...and so does a graph build, whose shipped text carries the declared difference', wentRed && !isRed() &&
+  same(back, gen.graph(demo)) && /^codegen: modlib/.test(status()), status());
+
+// ---- 5. the snippet ABI: m is declared by the writer, never by a chunk -------------------------------------------------
+// S5 review item 3. The planned "mix-blend reads m" change must compile in a blend tile and in a graph with no mask
+// wired, and a chunk that declared its own `float m` would collide with the writer's on the shipped path only (the page
+// compares the mask-fix-off text, which has no m), so it is refused here instead.
+const declaresM = (body) => /\bfloat[ \t\r\n]+m\b/.test(body.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, ' '));
+for (const c of CHUNKS) check(`chunk ${c.name} does not declare m itself (the writer declares it)`, !declaresM(c.body || ''));
+{
+  const READS_M = 'col = mix(col, colB, m);';
+  const chunksM = CHUNKS.map((c) => (c.name === 'mix-blend' ? { ...c, body: READS_M } : c));
+  const genM = codegen.createBenchCodegen(modlib, chunksM);
+  const mixB = chunksM.find((c) => c.name === 'mix-blend');
+  // Is `float m` declared in the body's own block, above the body? Walk up from the body line to the block's opening.
+  const mDeclaredAbove = (src, bodyLine) => {
+    const lines = src.split('\n');
+    let k = lines.findIndex((l) => l.trim() === bodyLine);
+    if (k < 0) return false;
+    for (let depth = 0; --k >= 0;) {
+      const l = lines[k];
+      if (depth === 0 && /\bfloat m ?=/.test(l)) return true;
+      depth += (l.match(/}/g) || []).length - (l.match(/{/g) || []).length;
+      if (depth < 0) return false;          // left the block without meeting a declaration
+    }
+    return false;
+  };
+  const tile = genM.thumb(mixB, { ref: page.THUMB_REF, refB: page.THUMB_REF_B });
+  check('a blend tile that reads m declares it (the default) in the blend\'s block', mDeclaredAbove(tile, READS_M), tile.slice(-600));
+  const one = { nodes: [OUT, { id: 'n2', chunk: 'mix-blend' }, { id: 'n3', chunk: SOURCES[0] }, { id: 'n4', chunk: SOURCES[1] }],
+    edges: [{ from: 'n2', fromPort: 'col', to: 'n1', toPort: 'col', type: 'vec3' },
+      { from: 'n3', fromPort: 'col', to: 'n2', toPort: 'col', type: 'vec3' },
+      { from: 'n4', fromPort: 'col', to: 'n2', toPort: 'colB', type: 'vec3' }], seq: 5 };
+  const unwired = genM.graph(one);
+  check('a graph blend that reads m with no mask wired declares the default', !!unwired.src &&
+    mDeclaredAbove(unwired.src, READS_M) && unwired.src.includes(`    float m = ${M_DEFAULT};`), JSON.stringify(unwired).slice(0, 300));
+  const bare = { nodes: [OUT, { id: 'n2', chunk: 'mix-blend' }], edges: [{ from: 'n2', fromPort: 'col', to: 'n1', toPort: 'col', type: 'vec3' }], seq: 3 };
+  check('...and so does one with nothing wired into it at all', mDeclaredAbove(genM.graph(bare).src || '', READS_M));
+  if (fixture) {
+    const wired = genM.graph(fixture);
+    const maskEdge = fixture.edges.find((e) => e.toPort === 'colB' && e.fromPort === 'm');
+    check('a graph blend fed by a mask declares m from the mask', !!wired.src && mDeclaredAbove(wired.src, READS_M) &&
+      wired.src.includes(`    float m = ${maskEdge.from}_m;`));
+  }
+  check('the legacy-equivalent twin declares no m (it must stay the legacy bytes)',
+    !mDeclaredAbove(genM.graph(one, { maskFix: false }).src, READS_M) &&
+    !mDeclaredAbove(genM.thumb(mixB, { ref: page.THUMB_REF, refB: page.THUMB_REF_B, maskFix: false }), READS_M));
+}
+
+// ---- 6. the route snippet for bifrost_ui.py ---------------------------------------------------------------------------
+// S5 review item 4: os.path.commonpath raises ValueError when a link inside the folder resolves onto another drive,
+// which made the route a 500 instead of a 404. The snippet's own code is run here, exactly as Heimdall would paste it.
+{
+  const md = readFileSync(at('research/in-flight/shader-school-2026-10-13/snippet-bifrost-glsl-route.md'), 'utf8');
+  const blocks = [...md.matchAll(/```python\n([\s\S]*?)```/g)].map((m) => m[1]);
+  const route = blocks.find((b) => b.includes('def _glsl_route('));
+  check('the snippet carries the _glsl_route function', !!route);
+  const prog = [
+    'import json, os, sys',
+    'REPO = sys.argv[1]',
+    'exec(sys.stdin.read())',
+    'out = {"modlib": _glsl_route("/glsl/modlib.js"), "up": _glsl_route("/glsl/../scripts/bifrost_ui.py")}',
+    'def other_drive(paths):',
+    '    raise ValueError("Paths don\'t have the same drive")',
+    'os.path.commonpath = other_drive',
+    'try:',
+    '    out["other_drive"] = _glsl_route("/glsl/modlib.js")',
+    'except Exception as exc:',
+    '    out["other_drive"] = "raised " + type(exc).__name__',
+    'sys.stdout.write("@@ROUTE@@" + json.dumps(out))',
+  ].join('\n');
+  const r = route ? spawnSync('py', ['-c', prog, ROOT], { input: route, encoding: 'utf8', timeout: 60000 }) : null;
+  if (r && !r.error && r.status === 0 && r.stdout.includes('@@ROUTE@@')) {
+    const out = JSON.parse(r.stdout.slice(r.stdout.lastIndexOf('@@ROUTE@@') + 9));
+    check('the snippet serves modlib.js', same(out.modlib, ['arsenal/web/glsl/modlib.js', 'application/javascript']), JSON.stringify(out));
+    check('the snippet refuses a traversal', out.up === null, JSON.stringify(out));
+    check('the snippet answers a link onto another drive with None (a 404), not a ValueError (a 500)',
+      out.other_drive === null, JSON.stringify(out.other_drive));
+  } else if (route) {
+    console.log(`snippet: not run (py did not run: ${r && (r.error ? r.error.message : String(r.stderr).trim().split('\n').pop())})`);
+  }
+}
+
+// ---- 7. the order lint keeps the two helper orders in step ------------------------------------------------------------
+// S5 review item 1: the writers order helper chunks by different rules (legacy: `order || 50`, ties by file name, no
+// reordering for a call; the composer: order as written, ties by name, a callee first). Each shape below makes the two
+// texts differ, which would quietly pin the bench to legacy; `py -m arsenal shader lib lint` must refuse every one, and
+// passes the shipped chunks. The second declared difference the reviewer offered instead is not taken: legacy stays
+// the default.
+{
+  const ORDER_CASES = [
+    ['order 0', [{ name: 'zz-first', kind: 'helper', cat: 'math', order: 0, body: 'float zzFirst(float x){ return x * 0.625; }' }],
+      /zz-first: .*order 0/],
+    ['an equal-order prefix tie', [
+      { name: 'tw', kind: 'helper', cat: 'math', order: 30, body: 'float twA(float x){ return x * 0.375; }' },
+      { name: 'tw-b', kind: 'helper', cat: 'math', order: 30, body: 'float twB(float x){ return x * 0.125; }' }],
+    /tw-b: .*prefix/],
+    ['a helper calling a later helper', [
+      { name: 'aa-early', kind: 'helper', cat: 'math', order: 5, body: 'float aaEarly(vec3 p){ return h31(p.zyx) * 0.5; }' }],
+    /aa-early: .*h31\(\)/],
+  ];
+  const lintDir = (records) => {
+    const dir = mkdtempSync(join(tmpdir(), 'vfx-order-'));
+    try {
+      for (const rec of records) writeFileSync(join(dir, `${rec.name}.glsl`), codegen.chunkSource(rec), 'utf8');
+      const r = spawnSync('py', ['-m', 'arsenal', 'shader', 'lib', 'lint', '--dir', dir, '--json'],
+        { cwd: ROOT, encoding: 'utf8', timeout: 120000 });
+      if (r.error) return { skipped: r.error.message };
+      try { return { status: r.status, problems: JSON.parse(r.stdout).problems }; } catch { return { status: r.status, problems: [String(r.stderr)] }; }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  };
+  const clean = lintDir(CHUNKS);
+  if (clean.skipped) {
+    console.log(`order lint: not run (py did not run: ${clean.skipped})`);
+  } else {
+    check('the order lint passes the shipped chunks', clean.status === 0 && clean.problems.length === 0, JSON.stringify(clean));
+    for (const [label, extra, want] of ORDER_CASES) {
+      // the bench reads chunk files in sorted file-name order (bifrost_ui._vfx_chunks_read)
+      const chunks = [...CHUNKS, ...extra].sort((a, b) => (`${a.name}.glsl` < `${b.name}.glsl` ? -1 : 1));
+      const p = pageSandbox(chunks), g = codegen.createBenchCodegen(modlib, chunks);
+      p.el('csource').value = SOURCES[0]; p.chain = [];
+      check(`order case "${label}": the two writers really differ`, p.buildGLSL() !== g.chain(SOURCES[0], []));
+      const r = lintDir(chunks);
+      check(`order case "${label}": lint refuses it`, r.status === 1 && r.problems.length === 1 && want.test(r.problems[0]),
+        JSON.stringify(r));
+    }
+  }
+}
 
 finish();

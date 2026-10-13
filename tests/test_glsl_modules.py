@@ -1390,6 +1390,92 @@ def test_the_javascript_twin_matches_on_every_s1_extension(tmp_path):
         assert j == p, f"library spec {i} differs between the twins"
 
 
+# ---------- the bench's helper order (S5 review, 2026-10-13) ----------
+# WHY: the VFX bench (scripts/vfx.html) ships the shared composer's GLSL only when it is byte-identical to its legacy
+# writer's, and the two put helper chunks in order by different rules: legacy sorts by `order || 50` (so 0 reads as 50)
+# and breaks ties by FILE name, then never reorders for a call; the composer reads 0 as 0, breaks ties by NAME and puts
+# a callee first. The reviewer built one chunk set per rule and each one quietly pinned the bench to legacy. Rather
+# than declare a second difference, lint refuses a bench helper of those shapes, so the legacy bytes stay the default
+# and the two orders provably agree.
+
+def _bench(tmp_path, files):
+    d = tmp_path / "vfx-chunks"
+    d.mkdir(parents=True, exist_ok=True)
+    for fname, text in files.items():
+        (d / fname).write_text(text, encoding="utf-8")
+    return M.load_library([d])
+
+
+def _bench_problems(lib):
+    return [p for n in lib.names() for p in M.lint(lib.modules[n], library_module=False, library=lib)]
+
+
+def test_lint_refuses_a_bench_helper_at_order_zero(tmp_path):
+    lib = _bench(tmp_path, {"zero.glsl": mod("zero", "float zeroPad(float x){ return x + 0.125; }", order=0),
+                            "fine.glsl": mod("fine", "float finePad(float x){ return x - 0.125; }", order=10)})
+    problems = _bench_problems(lib)
+    assert len(problems) == 1 and problems[0].startswith("zero: ") and "order 0" in problems[0], problems
+    assert "50" in problems[0]                                  # says how the legacy writer reads it
+    alone = M.parse_module(mod("zero", "float zeroPad(float x){ return x; }", order=0), "zero.glsl")
+    assert any("order 0" in p for p in M.lint(alone, library_module=False))   # no library needed for this one
+
+
+def test_lint_refuses_equal_order_bench_helpers_whose_file_and_name_orders_disagree(tmp_path):
+    # 'glow-b.glsl' sorts before 'glow.glsl' ('-' is below '.'), while the name 'glow' sorts before 'glow-b'.
+    lib = _bench(tmp_path, {"glow.glsl": mod("glow", "float glowA(float x){ return x * 0.75; }", order=30),
+                            "glow-b.glsl": mod("glow-b", "float glowB(float x){ return x * 0.25; }", order=30)})
+    problems = _bench_problems(lib)
+    assert len(problems) == 1 and "glow" in problems[0] and "glow-b" in problems[0], problems
+    assert "order 30" in problems[0] and "prefix" in problems[0]
+    # the same pair at different orders, or with an '_' (which sorts after '.'), is fine
+    assert _bench_problems(_bench(tmp_path / "x", {
+        "glow.glsl": mod("glow", "float glowA(float x){ return x * 0.75; }", order=30),
+        "glow-b.glsl": mod("glow-b", "float glowB(float x){ return x * 0.25; }", order=31)})) == []
+    assert _bench_problems(_bench(tmp_path / "y", {
+        "glow.glsl": mod("glow", "float glowA(float x){ return x * 0.75; }", order=30),
+        "glow_b.glsl": mod("glow_b", "float glowB(float x){ return x * 0.25; }", order=30)})) == []
+
+
+def test_lint_refuses_a_bench_helper_that_calls_a_helper_the_legacy_writer_emits_later(tmp_path):
+    lib = _bench(tmp_path, {
+        "base.glsl": mod("base", "float baseTone(float x){ return x * 0.5 + 0.125; }", order=20),
+        "early.glsl": mod("early", "float earlyTone(float x){ return baseTone(x) * 0.25; }", order=10),
+        "late.glsl": mod("late", "float lateTone(float x){ return baseTone(x) * 0.75; }", order=40),
+        "tied.glsl": mod("tied", "float tiedTone(float x){ return baseTone(x) - 0.5; }", order=20)})
+    problems = _bench_problems(lib)
+    assert len(problems) == 1 and problems[0].startswith("early: ") and "baseTone()" in problems[0], problems
+    # tied: order 20 like base, but 'base.glsl' comes first by file and by name, so legacy already emits base first
+    assert not any(p.startswith(("late:", "tied:", "base:")) for p in problems)
+
+
+def test_lint_refuses_a_bench_helper_that_needs_a_chunk_the_legacy_writer_never_emits(tmp_path):
+    lib = _bench(tmp_path, {
+        "consts.glsl": mod("consts", "const float BENCH_K = 0.375;", kind="const", order=5),
+        "user.glsl": mod("user", "float userK(float x){ return x * BENCH_K; }", order=10)})
+    problems = _bench_problems(lib)
+    assert len(problems) == 1 and problems[0].startswith("user: ") and "consts" in problems[0], problems
+    assert "helper" in problems[0]
+
+
+def test_the_bench_order_rules_apply_to_bench_helpers_only(tmp_path):
+    # a library module at order 0 is fine (the composer reads 0 as 0 everywhere a library module is composed), and a
+    # bench snippet's order is read by neither writer
+    lib = lib_from(tmp_path, {"lib0.glsl": mod("lib0", "float libZero(float x){ return x; }", order=0,
+                                                license="Apache-2.0", credits=[])})
+    assert M.lint(lib.get("lib0"), library_module=True, library=lib) == []
+    snip = _bench(tmp_path, {"tint.glsl": mod("tint", "col *= 0.875;", kind="modifier", cat="colour", order=0)})
+    assert _bench_problems(snip) == []
+
+
+def test_the_shipped_bench_chunks_keep_the_two_orders_in_step():
+    lib = M.load_library([CHUNKS])
+    assert _bench_problems(lib) == []
+    helpers = [n for n in lib.names() if lib.modules[n].kind == "helper"]
+    legacy = sorted(helpers, key=lambda n: (lib.modules[n].header.get("order") or 50,
+                                            Path(lib.modules[n].path).name))
+    assert lib.resolve(helpers) == legacy        # what the rules guarantee, seen on the real chunks
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 def test_the_javascript_twin_matches_on_every_round_two_fix(tmp_path):
     """Re-review round 2, through both twins: unknown providers refuse unresolved calls naming the files; a file that
