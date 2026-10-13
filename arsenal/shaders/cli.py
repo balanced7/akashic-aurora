@@ -141,8 +141,34 @@ def cmd_missing(ns) -> int:
     return 0
 
 
+MEDIA_BUNDLE = "shadertoy-media.json"
+
+
+def media_snippet(paths: List[str], bundle_name: str = MEDIA_BUNDLE) -> str:
+    """A console snippet for a signed-in shadertoy.com tab: the harvest helper, then one paced run that fetches every
+    path and saves ONE bundle file (Brave asks where to save; that click is the only human step). The paths are
+    shadertoy's own content-hash names, so the snippet carries nothing private."""
+    helper = (HERE / "harvest.js").read_text(encoding="utf-8")
+    return (helper.rstrip() + "\n" +
+            f"__st.run('media', async () => {{ const m = await __st.media({json.dumps(paths)}); "
+            f"__st.download({json.dumps(bundle_name)}, {{ media: m }}); return Object.keys(m).length; }});\n")
+
+
 def cmd_harvest_js(ns) -> int:
-    print(HERE / "harvest.js")
+    if not ns.media:
+        print(HERE / "harvest.js")
+        return 0
+    paths = C.media_to_fetch()
+    if not paths:
+        print("the corpus already holds every medium its shaders sample", file=sys.stderr)
+        return 0
+    if ns.json:
+        _print({"paths": paths, "snippet": media_snippet(paths)}, True, str)
+        return 0
+    print(f"// {len(paths)} media to fetch. Paste into the DevTools console of a signed-in shadertoy.com tab (type"
+          f" 'allow pasting' first if Brave asks), save the file it offers, then:\n"
+          f"//   py -m arsenal shader ingest <the saved {MEDIA_BUNDLE}>")
+    print(media_snippet(paths))
     return 0
 
 
@@ -166,7 +192,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(fn=cmd_show)
     p = sub.add_parser("missing", help="ids and media the corpus still lacks")
     p.set_defaults(fn=cmd_missing)
-    p = sub.add_parser("harvest-js", help="path of the browser harvest helper")
+    p = sub.add_parser("harvest-js", help="path of the browser harvest helper, or (--media) a ready-to-paste snippet "
+                                          "that fetches every texture the corpus still lacks into one bundle file")
+    p.add_argument("--media", action="store_true")
     p.set_defaults(fn=cmd_harvest_js)
     for name, register in VERBS.items():
         register(sub)

@@ -250,6 +250,29 @@ def missing_media(corpus: Optional[Path] = None) -> List[str]:
     return sorted(need)
 
 
+_SITE_MEDIA = re.compile(r"^/media/a/[0-9a-f]{16,}\.[A-Za-z0-9]+$")
+
+
+def media_to_fetch(corpus: Optional[Path] = None) -> List[str]:
+    """The site paths a harvest should fetch: every missing /media/a/<hash>.<ext> a shader samples, plus the five extra
+    faces (<hash>_1.<ext> .. _5) of every cubemap input, because a cubemap is six files and the shader JSON names only
+    the first. Placeholder paths (/media/previz/...) are Shadertoy's own UI stand-ins and are never fetched."""
+    corpus = _root(corpus)
+    have = {p.name for p in (corpus / "media").iterdir()} if (corpus / "media").exists() else set()
+    want = set()
+    for sid in all_ids(corpus):
+        for p in load_meta(sid, corpus).get("passes") or []:
+            for i in p.get("inputs") or []:
+                src = i.get("src") or ""
+                if not _SITE_MEDIA.match(src) or i.get("type") not in ("texture", "cubemap", "volume", "video", "music"):
+                    continue
+                want.add(src)
+                if i.get("type") == "cubemap":
+                    stem, ext = src.rsplit(".", 1)
+                    want.update(f"{stem}_{k}.{ext}" for k in range(1, 6))
+    return sorted(w for w in want if Path(w).name not in have)
+
+
 def missing_ids(corpus: Optional[Path] = None) -> Dict[str, List[str]]:
     """Ids named by a set whose shader is not saved yet (e.g. a playlist page harvested before its shaders were)."""
     have = set(all_ids(corpus))
