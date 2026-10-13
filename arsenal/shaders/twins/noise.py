@@ -33,6 +33,16 @@ GRAD2_LONG, GRAD2_SHORT = math.cos(math.pi / 8.0), math.sin(math.pi / 8.0)
 GRAD2_SCALE = 1.5132
 GRAD3_SCALE = 0.9649
 
+# One seed, one independent field PER KIND. Value noise, gradient noise and the 3D hash wrappers all hash with pcg3d or
+# pcg4d, so each kind XORs its own tag into the seed lane; otherwise they read the same dice (value noise at seed 0 was
+# exactly 2 hash31(cell, 0) - 1 on the lattice, and a value corner's sign was its gradient's y sign: batch-A review,
+# defect 1). The tags are words of pi's fraction after the warps' three, and differ pairwise in bits 16-31 by a
+# pattern that is neither all zeros nor all ones, so no seed or cell z of magnitude below 2^16 meets another kind.
+NOISE_TAG_VALUE2 = 0x03707344
+NOISE_TAG_VALUE3 = 0xA4093822
+NOISE_TAG_GRAD2 = 0x299F31D0
+NOISE_TAG_GRAD3 = 0x082EFA98
+
 # fBm octave hygiene: every octave turns by the golden angle (2D) or by the golden angle about the axis (1, 2, 3) (3D),
 # so no two octaves' lattices line up; its lacunarity is detuned upward by an irregular 0 to 2 per cent; it steps off
 # the lattice by a fixed offset (gradient noise is zero at the origin in EVERY octave, a visible pinch without it);
@@ -61,6 +71,11 @@ def _p(p):
 
 def _seed(seed, shape):
     return np.broadcast_to(np.asarray(seed, dtype=np.uint64) & np.uint64(0xFFFFFFFF), shape).astype(np.uint32)
+
+
+def _lane(seed, shape, tag):
+    """The seed lane a kind hashes with: seed ^ its tag (one kind's dice never another's)."""
+    return _seed(seed, shape) ^ np.uint32(tag)
 
 
 def _fade(t):
@@ -92,10 +107,10 @@ def _value_corner2(cells, seed):
 
 
 def noiseValue2(p, seed):
-    """Signed value noise: a random value in [-1, 1) at every lattice corner (pcg3d of (cell, seed)), blended by the
-    quintic fade. Equal to its corner value on the lattice; within [-1, 1)."""
+    """Signed value noise: a random value in [-1, 1) at every lattice corner (pcg3d of (cell, seed ^ NOISE_TAG_VALUE2)),
+    blended by the quintic fade. Equal to its corner value on the lattice; within [-1, 1)."""
     cells, f = _corner_cells(p)
-    s = _seed(seed, f.shape[:-1])
+    s = _lane(seed, f.shape[:-1], NOISE_TAG_VALUE2)
     a = _value_corner2(_plus(cells, (0, 0)), s)
     b = _value_corner2(_plus(cells, (1, 0)), s)
     c = _value_corner2(_plus(cells, (0, 1)), s)
@@ -110,9 +125,9 @@ def _value_corner3(cells, seed):
 
 
 def noiseValue3(p, seed):
-    """The 3D version: eight corners hashed by pcg4d of (cell, seed)."""
+    """The 3D version: eight corners hashed by pcg4d of (cell, seed ^ NOISE_TAG_VALUE3)."""
     cells, f = _corner_cells(p)
-    s = _seed(seed, f.shape[:-1])
+    s = _lane(seed, f.shape[:-1], NOISE_TAG_VALUE3)
     u = _fade(f)
     v = {k: _value_corner3(_plus(cells, k), s) for k in
          ((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 1))}
@@ -122,11 +137,11 @@ def noiseValue3(p, seed):
 
 
 # ---------------------------------------------------------------------------------------------- gradient noise
-def noiseGradRamp2(cells, corner, seed, in_cell):
+def noiseGradRamp2(cells, corner, stream, in_cell):
     """One corner's ramp: the gradient of corner (0 or 1 per axis) of the cell, picked by the top three bits of
-    pcg3d(cell + corner, seed).x, dotted with the offset from that corner. Zero AT the corner, which is why gradient
-    noise crosses zero on every lattice point."""
-    word = H.pcg3d(np.concatenate([_plus(cells, corner), seed[..., None].astype(np.uint64)], axis=-1))[..., 0]
+    pcg3d(cell + corner, stream).x, dotted with the offset from that corner. Zero AT the corner, which is why gradient
+    noise crosses zero on every lattice point. `stream` is the already-tagged lane (noiseGrad2 passes seed ^ its tag)."""
+    word = H.pcg3d(np.concatenate([_plus(cells, corner), stream[..., None].astype(np.uint64)], axis=-1))[..., 0]
     d = in_cell - np.asarray(corner, dtype=np.float64)
     swap = ((word >> 29) & 1).astype(bool)
     gx = np.where(swap, GRAD2_SHORT, GRAD2_LONG)
@@ -137,18 +152,20 @@ def noiseGradRamp2(cells, corner, seed, in_cell):
 
 
 def noiseGrad2(p, seed):
-    """Improved Perlin gradient noise in 2D: zero on the lattice, quintic fade, within [-1, 1] (extreme about 0.9999)."""
+    """Improved Perlin gradient noise in 2D: zero on the lattice, quintic fade, within [-1, 1] (extreme about 0.9999).
+    Hashes with seed ^ NOISE_TAG_GRAD2."""
     cells, f = _corner_cells(p)
-    s = _seed(seed, f.shape[:-1])
+    s = _lane(seed, f.shape[:-1], NOISE_TAG_GRAD2)
     r = {k: noiseGradRamp2(cells, k, s, f) for k in ((0, 0), (1, 0), (0, 1), (1, 1))}
     u = _fade(f)
     return GRAD2_SCALE * _lerp(_lerp(r[0, 0], r[1, 0], u[..., 0]), _lerp(r[0, 1], r[1, 1], u[..., 0]), u[..., 1])
 
 
-def noiseGradRamp3(cells, corner, seed, in_cell):
-    """One corner's ramp in 3D: Perlin's edge gradient number (pcg4d(cell + corner, seed).x mod 12): k >> 2 names the
-    plane (xy, xz, yz), bits 0 and 1 the two signs. Each dot product is one add: no multiplies."""
-    word = H.pcg4d(np.concatenate([_plus(cells, corner), seed[..., None].astype(np.uint64)], axis=-1))[..., 0]
+def noiseGradRamp3(cells, corner, stream, in_cell):
+    """One corner's ramp in 3D: Perlin's edge gradient number (pcg4d(cell + corner, stream).x mod 12): k >> 2 names
+    the plane (xy, xz, yz), bits 0 and 1 the two signs. Each dot product is one add: no multiplies. `stream` is the
+    already-tagged lane (noiseGrad3 passes seed ^ its tag)."""
+    word = H.pcg4d(np.concatenate([_plus(cells, corner), stream[..., None].astype(np.uint64)], axis=-1))[..., 0]
     d = in_cell - np.asarray(corner, dtype=np.float64)
     k = word % np.uint32(12)
     plane = k >> 2
@@ -160,9 +177,10 @@ def noiseGradRamp3(cells, corner, seed, in_cell):
 
 
 def noiseGrad3(p, seed):
-    """Improved Perlin gradient noise in 3D (Perlin 2002: edge gradients, quintic fade), within [-1, 1]."""
+    """Improved Perlin gradient noise in 3D (Perlin 2002: edge gradients, quintic fade), within [-1, 1]. Hashes with
+    seed ^ NOISE_TAG_GRAD3."""
     cells, f = _corner_cells(p)
-    s = _seed(seed, f.shape[:-1])
+    s = _lane(seed, f.shape[:-1], NOISE_TAG_GRAD3)
     r = {k: noiseGradRamp3(cells, k, s, f) for k in
          ((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 1))}
     u = _fade(f)

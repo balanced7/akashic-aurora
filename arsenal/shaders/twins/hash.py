@@ -29,6 +29,9 @@ LCG_MUL, LCG_ADD = np.uint64(1664525), np.uint64(1013904223)        # Numerical 
 PCG_MUL, PCG_ADD = np.uint64(747796405), np.uint64(2891336453)      # PCG's 32-bit LCG step
 PCG_OUT_MUL = np.uint64(277803737)                                  # PCG's RXS-M-XS output multiplier
 TAG_2D = 0x9E3779B9      # the third lane of the 2D wrappers (2^32 / golden ratio), so 2D never repeats a 3D slice
+# XORed into the 3D wrappers' z lane (a word of pi's fraction, as the noise and warp tags are): without it hash31 of
+# (cell, z) read the same dice as value and gradient noise at seed z, and as any direct pcg3d caller with a small lane.
+TAG_3D = 0xEC4E6C89
 SINE_K2 = (127.1, 311.7)
 SINE_K3 = (127.1, 311.7, 74.7)
 SINE_SCALE = 43758.5453123   # the same 32-bit float as the 43758.5453 some files write
@@ -101,7 +104,8 @@ def _with_lane(cells, lane_value):
 
 
 def hash21(p):
-    """[0, 1) for the cell of a 2D point: pcg3d of (cell, TAG_2D), first lane."""
+    """[0, 1) for the cell of a 2D point: pcg3d of (cell, TAG_2D), first lane. The 2D wrappers and the 3D ones meet
+    only at z = TAG_2D ^ TAG_3D = 0x72791530, a cell no float32 can floor to (it is not a multiple of 128)."""
     return u01(pcg3d(_with_lane(cellU2(p), TAG_2D))[..., 0])
 
 
@@ -109,13 +113,20 @@ def hash22(p):
     return u01(pcg3d(_with_lane(cellU2(p), TAG_2D))[..., :2])
 
 
+def _tagged_cell3(p):
+    """The cell of a 3D point with TAG_3D XORed into its z lane: the 3D wrappers' own dice."""
+    cells = cellU3(p).copy()
+    cells[..., 2] ^= np.uint32(TAG_3D)
+    return cells
+
+
 def hash31(p):
-    """[0, 1) for the cell of a 3D point: pcg3d of the cell, first lane (hash33's .x)."""
-    return u01(pcg3d(cellU3(p))[..., 0])
+    """[0, 1) for the cell of a 3D point: pcg3d of (cell.x, cell.y, cell.z ^ TAG_3D), first lane (hash33's .x)."""
+    return u01(pcg3d(_tagged_cell3(p))[..., 0])
 
 
 def hash33(p):
-    return u01(pcg3d(cellU3(p)))
+    return u01(pcg3d(_tagged_cell3(p)))
 
 
 def _sine_hash(p, k, scale):
