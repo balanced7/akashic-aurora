@@ -218,6 +218,9 @@
       <button data-s="avatar" onclick="setSubject('avatar')">avatar</button>
     </div>
     <p class="note" id="subjnote"></p>
+    <!-- WHICH WRITER made the GLSL on screen (shader school S5): the shared composer when it loads, the page's own
+         legacy writers otherwise, and why. A silent fallback would look exactly like the new path working. -->
+    <p class="note" id="codegenline">codegen: legacy (the shared composer has not been loaded)</p>
 
     <div id="avatarctl">
       <h2>Render style</h2>
@@ -763,6 +766,97 @@ async function saveGroup(){
   if(r.ok){ el('gname').value=''; refreshGroups(); }
 }
 
+// ---- CODEGEN: which writer turns chunks into GLSL ------------------------------------------------
+// Shader school S5 (2026-10-13). buildGLSL, buildGraphGLSL and thumbShaderFor below are the LEGACY
+// writers and stay exactly as they were. scripts/vfx-codegen.js is the same three rebuilt on the
+// house module composer (arsenal/web/glsl/modlib.js), so the bench reads its chunks the way every
+// other surface does: one parser, one dependency resolver, one uniform list.
+//
+// Every build goes through a gen* dispatcher, and the dispatcher runs BOTH writers. The legacy text
+// is the oracle; the composer's text ships only when it is byte-identical to it (the Graph card's
+// one declared difference, the mask-port fix, is compared with the fix switched off). A build that
+// differs ships the legacy text and says so in red on the status line, with both texts in the
+// console. Identical text compiles to identical pixels, so "zero pixel change" is checked on every
+// build, not once in a test (tests/vfx_codegen_parity.test.mjs is the once).
+//
+// The composer comes from /vfx-codegen.js and /glsl/modlib.js. bifrost_ui.py (DeepSeek's file)
+// serves neither yet, so at :8787 the import fails, the page stays on legacy and says why; the route
+// snippet for Heimdall is research/in-flight/shader-school-2026-10-13/snippet-bifrost-glsl-route.md.
+// ?codegen=legacy forces the old path without fetching anything.
+var CODEGEN = {mode:'legacy', why:'', mod:null, modlib:null, gen:null, genOf:null};
+
+function setCodegen(mode, why){
+  CODEGEN.mode = mode; CODEGEN.why = why;
+  var e = el('codegenline');
+  e.textContent = 'codegen: ' + mode + ' — ' + why;
+  e.className = 'note';
+}
+function codegenFallback(what, why){
+  var e = el('codegenline');
+  e.textContent = 'codegen: legacy for this ' + what + ' — ' + why +
+                  ' (the shared composer is tried again on the next build; ?codegen=legacy turns it off)';
+  e.className = 'note err';
+}
+// importer is for the node test; the page passes nothing and gets the browser's own import().
+function loadCodegen(importer){
+  var q = '';
+  try{ q = new URLSearchParams(location.search).get('codegen') || ''; }catch(e){}
+  if(q === 'legacy'){ setCodegen('legacy', 'forced by ?codegen=legacy'); return Promise.resolve(false); }
+  var imp = importer || function(u){ return import(u); };
+  setCodegen('legacy', 'loading the shared composer…');
+  return Promise.all([imp('/vfx-codegen.js'), imp('/glsl/modlib.js')]).then(function(m){
+    CODEGEN.mod = m[0]; CODEGEN.modlib = m[1]; CODEGEN.gen = null; CODEGEN.genOf = null;
+    setCodegen('modlib', 'the shared composer (arsenal/web/glsl/modlib.js) writes the GLSL; every build is ' +
+                         'checked byte for byte against the legacy writer, which still runs');
+    return true;
+  }, function(err){
+    setCodegen('legacy', 'the shared composer did not load here (' + String((err && err.message) || err).slice(0, 90) +
+               '); this server needs the /glsl/ and /vfx-codegen.js routes (snippet for bifrost_ui.py: ' +
+               'research/in-flight/shader-school-2026-10-13/snippet-bifrost-glsl-route.md)');
+    return false;
+  });
+}
+// One composer per chunk list: refreshChunks replaces CHUNKS, and the next build rebuilds over it.
+function codegenGen(){
+  if(!CODEGEN.gen || CODEGEN.genOf !== CHUNKS){
+    CODEGEN.gen = CODEGEN.mod.createBenchCodegen(CODEGEN.modlib, CHUNKS);
+    CODEGEN.genOf = CHUNKS;
+  }
+  return CODEGEN.gen;
+}
+// twin(g) is the composer's legacy-equivalent text, held to the legacy bytes; ship(g), when given,
+// is what goes to the GPU instead (the same text plus a declared fix). Anything wrong: legacy ships.
+function codegenPick(what, old, twin, ship){
+  if(CODEGEN.mode !== 'modlib') return old;
+  try{
+    var g = codegenGen(), neu = twin(g);
+    if(JSON.stringify(neu) !== JSON.stringify(old)){
+      console.warn('vfx codegen: the shared composer wrote different GLSL for this ' + what +
+                   '; shipping the legacy text', {legacy: old, modlib: neu});
+      codegenFallback(what, 'the shared composer wrote different GLSL (both texts are in the console)');
+      return old;
+    }
+    return ship ? ship(g) : neu;
+  }catch(e){
+    codegenFallback(what, 'the shared composer failed: ' + String((e && e.message) || e).slice(0, 120));
+    return old;
+  }
+}
+function genChainGLSL(){
+  var old = buildGLSL();          // the legacy writer always runs: it is the oracle the new one is held to
+  return codegenPick('chain', old, function(g){ return g.chain(el('csource').value, chain); });
+}
+function genGraphGLSL(){
+  var old = buildGraphGLSL();
+  return codegenPick('graph', old,
+    function(g){ return g.graph(G, {maskFix:false}); },   // must equal the legacy bytes
+    function(g){ return g.graph(G); });                    // ships: the same plus the declared mask-port fix
+}
+function genThumbGLSL(c){
+  var old = thumbShaderFor(c);
+  return codegenPick('thumb', old, function(g){ return g.thumb(c, {ref:THUMB_REF, refB:THUMB_REF_B}); });
+}
+
 // The generator. Helpers are hoisted and DEDUPLICATED by name -- two chunks both needing h31 must
 // not emit it twice, which is a link error rather than a warning.
 function buildGLSL(){
@@ -804,7 +898,7 @@ function buildGLSL(){
 }
 
 function buildComp(){
-  var g = buildGLSL();
+  var g = genChainGLSL();
   if(!g){ el('cmsg').className='note err'; el('cmsg').textContent='pick a source first'; return; }
   el('glsl').value = g;                           // the code view IS the same object, not a copy
   var err = av.trySource(g);
@@ -1301,7 +1395,7 @@ function buildGraphGLSL(){
 }
 
 function buildGraph(){
-  var r = buildGraphGLSL();
+  var r = genGraphGLSL();
   if(r.err){ gmsg(r.err, true); return; }
   el('glsl').value = r.src;
   var err = av.trySource(r.src);
@@ -1484,7 +1578,7 @@ function pvShow(c){
   pvStop(); pvName = c.name;
   el('pvname').textContent = c.kind + ' · ' + c.name;
   el('pvnote').textContent = c.note || '';
-  var err = PV.trySource(thumbShaderFor(c));
+  var err = PV.trySource(genThumbGLSL(c));
   if(err){ el('pvnote').textContent = 'does not compile: ' + err.slice(0,120); return; }
   PV._resize(150);
   // Inherit the bench's live state so the preview is in YOUR context, not a demo.
@@ -1598,7 +1692,7 @@ async function generateThumbs(useClips){
     var c = targets[i];
     el('chatmsg').textContent = (useClips ? 'recording (real time, ~'+Math.ceil((targets.length-i)*2.2)+'s left) ' : 'rendering ') + (i+1)+'/'+targets.length+'  '+c.name;
     try{
-      var err = av.trySource(thumbShaderFor(c));
+      var err = av.trySource(genThumbGLSL(c));
       if(err){ fail.push(c.name); continue; }
       av._resize(THUMB_CELL);
       // A SPRITE STRIP, NOT A STILL. Daniil's point is exact: a still cannot tell a shape-morph
@@ -1657,7 +1751,7 @@ async function refreshThumbs(){
 // we have in the vfx engine, and you have it as a standalone tool you can call."
 //
 // Exactly that, and the "same script" part is the whole point. Each op below calls the function the
-// UI's own buttons call -- thumbShaderFor, renderSheet, renderGrid, snap -- so a CLI-requested
+// UI's own buttons call -- genThumbGLSL, renderSheet, renderGrid, snap -- so a CLI-requested
 // render CANNOT disagree with a clicked one. A second renderer in Python would have duplicated
 // every shader into something that drifts silently until the two disagree and nobody knows which
 // is right.
@@ -1681,7 +1775,7 @@ async function runJob(j){
     if(a.chunk){
       var cc = chunkBy(a.chunk);
       if(!cc) return {ok:false, error:'no such chunk: '+a.chunk};
-      var ce = av.trySource(thumbShaderFor(cc));
+      var ce = av.trySource(genThumbGLSL(cc));
       if(ce) return {ok:false, error:ce.slice(0,240)};
     } else {
       // FORCE the recompile. setStyle early-returns when the requested name equals this.style,
@@ -1708,7 +1802,7 @@ async function runJob(j){
   if(j.op === 'thumb'){
     var c = chunkBy(a.chunk);
     if(!c) return {ok:false, error:'no such chunk: '+a.chunk};
-    var err = av.trySource(thumbShaderFor(c));
+    var err = av.trySource(genThumbGLSL(c));
     if(err) return {ok:false, error:err.slice(0,240)};
     av._resize(a.cell || 200);
     av._t0 = (performance.now()/1000) - (a.t==null?1.0:a.t);
@@ -1817,7 +1911,7 @@ async function runJob(j){
   }
   if(j.op === 'graph'){
     if(a.graph){ G = a.graph; ensureOutput(); renderGraph(); }
-    var g = buildGraphGLSL();
+    var g = genGraphGLSL();
     if(g.err) return {ok:false, error:g.err};
     var e2 = av.trySource(g.src);
     if(e2) return {ok:false, error:e2.slice(0,240)};
@@ -2214,6 +2308,7 @@ var LIBRARY = [
   setState('thinking');
   refreshPresets();
   refreshSketches();
+  loadCodegen();        // the shared composer, or the legacy writers and the reason (status line, left card)
   refreshThumbs().then(refreshChunks);   // thumbs first: the palette draws tiles if they exist
   refreshCompos();
   refreshGroups();      // after chunks: the palette redraws with groups once they land
