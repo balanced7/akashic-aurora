@@ -12,7 +12,20 @@ the piano down with it. So this is a separate, standard-library server that serv
     /corpus/<id>/shader.json    state/.../corpus/shaders/<id>/  one corpus shader, exactly as saved
     /corpus/media/<file>        state/.../corpus/media/         the textures, cubemap faces and volumes shaders sample
     /jobs/<name>.json           state/arsenal/shaders/jobs/     shader JSON `render` wrote for a .frag or loose .json path
+    /atlas.json                 arsenal/shaders/atlas.json      the primitive atlas as data (our own words)
+    /shelf/index.json           state/.../shaders/shelf/        the Shelf: the Loved shaders' cards (shelf.py; private)
+    /renders/<id>/<file>.png    state/.../shaders/renders/      SwiftShader stills and filmstrip sheets (private)
+    /study/<id>.md              state/.../shaders/study/        the study notes (private)
+    /cards/<name>/<file>.png    state/.../shaders/cards/        module test cards (`py -m arsenal shader card`)
+    /webl/<file>                arsenal/web/lib/                params.js, params-ui.js, workbench/*: the page parts
     /health                     who this is, so `render` can tell this server from anything else on the port
+
+The Shelf's routes are shaped like a datasheet drawer: one fixed file (/atlas.json, /shelf/index.json), or one level of
+named files in one folder (/renders/<id>/<file>.png, /cards/<name>/<file>.png), each name checked against a pattern
+before it touches the disk. Pictures only where pictures are meant: a receipt or a filmstrip's frame folder is not
+served. A STUDY-ONLY shader (its own header withholds permission, or the atlas rules it so) is shown by its study note
+and never by its pictures: /renders/ refuses its id with a 403 whatever sits on disk, reading the Shelf's index and the
+atlas's `loved` list at request time (either is enough; the atlas alone holds when no Shelf has been built).
 
 LOOPBACK ONLY IS A RULE, NOT A DEFAULT. The corpus is other people's work, mostly CC BY-NC-SA; serving it beyond this
 machine would be redistributing it. So there is no host option at all: the bind address is the constant 127.0.0.1, and a
@@ -49,11 +62,21 @@ LAB = ROOT / "arsenal" / "web" / "shaderlab"
 LIB = ROOT / "arsenal" / "web" / "glsl"   # the house library's home (build spec 2026-10-13, ruling 1)
 JOBS = ROOT / "state" / "arsenal" / "shaders" / "jobs"
 LIB_ROUTES = ("/lib/", "/glsl/")
+STATE = ROOT / "state" / "arsenal" / "shaders"
+ATLAS = ROOT / "arsenal" / "shaders" / "atlas.json"     # a file, not a folder
+SHELF = STATE / "shelf"                                 # shelf.py writes index.json here
+RENDERS = STATE / "renders"                             # render.py's default out dir: renders/<id>/
+STUDY = STATE / "study"
+CARDS = STATE / "cards"                                 # the card verb: cards/<module name>/
+WEBL = ROOT / "arsenal" / "web" / "lib"
 
 LOOPBACK_HOSTNAMES = {"127.0.0.1", "localhost", "::1"}
 SHADER_ID = re.compile(r"[A-Za-z0-9]{6}")                   # a Shadertoy id, as corpus.save_shader requires
 MEDIA_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,200}")  # media are saved by basename (Shadertoy names them by hash)
 JOB_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,96}\.json")
+RENDER_KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")  # a corpus id, local-<stem> (render.py), or a group's name
+CARD_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,96}")  # a module name (modules.NAME_RE), as a folder name
+PNG_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.png")
 CHUNK = 1024 * 1024
 
 TYPES = {
@@ -235,13 +258,64 @@ class Handler(BaseHTTPRequestHandler):
                 name = path[len("/jobs/"):]
                 target = safe_file(roots["jobs"], name) if JOB_NAME.fullmatch(name) else None
                 return self._file(target) if target else self._not_found()
+            if path == "/atlas.json":
+                atlas = Path(roots["atlas"])
+                target = safe_file(atlas.parent, atlas.name)
+                return self._file(target) if target else self._not_found()
+            if path == "/shelf/index.json":
+                target = safe_file(roots["shelf"], "index.json")
+                return self._file(target) if target else self._not_found()
+            m = re.fullmatch(r"/renders/([^/]+)/([^/]+)", path)
+            if m:
+                key, name = m.groups()
+                if not (RENDER_KEY.fullmatch(key) and PNG_NAME.fullmatch(name)):
+                    return self._not_found()
+                if key.lower() in self.server.study_only_ids():
+                    return self._json(403, {"error": f"{key} is study only: it is shown by its study note "
+                                                     f"(/study/{key}.md), never by its pictures"})
+                target = safe_file(roots["renders"], f"{key}/{name}")
+                return self._file(target) if target else self._not_found()
+            m = re.fullmatch(r"/study/([^/]+)\.md", path)
+            if m:
+                target = safe_file(roots["study"], f"{m.group(1)}.md") if SHADER_ID.fullmatch(m.group(1)) else None
+                return self._file(target) if target else self._not_found()
+            m = re.fullmatch(r"/cards/([^/]+)/([^/]+)", path)
+            if m:
+                ok = CARD_NAME.fullmatch(m.group(1)) and PNG_NAME.fullmatch(m.group(2))
+                target = safe_file(roots["cards"], f"{m.group(1)}/{m.group(2)}") if ok else None
+                return self._file(target) if target else self._not_found()
+            if path.startswith("/webl/"):
+                target = safe_file(roots["webl"], path[len("/webl/"):])
+                return self._file(target) if target else self._not_found()
             return self._not_found()
         except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
             return  # the page went away mid-file (a render job timed out and its tab was closed)
 
 
 ROUTES = ["/health", "/lab/<file>", "/lib/<file>", "/glsl/<file>", "/corpus/<id>/shader.json", "/corpus/media/<file>",
-          "/jobs/<name>.json"]
+          "/jobs/<name>.json", "/atlas.json", "/shelf/index.json", "/renders/<id>/<file>.png", "/study/<id>.md",
+          "/cards/<name>/<file>.png", "/webl/<file>"]
+
+
+def _json_or_none(path: Path) -> Optional[dict]:
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def study_only_from(shelf_index: Optional[dict], atlas: Optional[dict]) -> frozenset:
+    """Lower-cased ids whose pictures are never served: study only in the Shelf's index or in the atlas's loved list.
+    Lower case because Windows folds case in paths, so /renders/abcde2/ would reach abcDE2's folder."""
+    ids = set()
+    for row in (shelf_index or {}).get("shaders") or []:
+        if isinstance(row, dict) and row.get("study_only") and isinstance(row.get("id"), str):
+            ids.add(row["id"].lower())
+    for row in (atlas or {}).get("loved") or []:
+        if isinstance(row, dict) and row.get("study_only") and isinstance(row.get("id"), str):
+            ids.add(row["id"].lower())
+    return frozenset(ids)
 
 
 class ShaderServer(ThreadingHTTPServer):
@@ -250,7 +324,9 @@ class ShaderServer(ThreadingHTTPServer):
     allow_reuse_address = False  # on Windows, reuse would let two servers share a port
 
     def __init__(self, port: int = DEFAULT_PORT, *, lab: Path = LAB, lib: Path = LIB,
-                 corpus: Path = C.CORPUS, jobs: Path = JOBS, verbose: bool = False):
+                 corpus: Path = C.CORPUS, jobs: Path = JOBS, atlas: Path = ATLAS, shelf: Path = SHELF,
+                 renders: Path = RENDERS, study: Path = STUDY, cards: Path = CARDS, webl: Path = WEBL,
+                 verbose: bool = False):
         validate_bind(HOST, port)
         super().__init__((HOST, port), Handler)
         try:
@@ -258,8 +334,29 @@ class ShaderServer(ThreadingHTTPServer):
         except BindRefused:
             self.server_close()
             raise
-        self.roots = {"lab": Path(lab), "lib": Path(lib), "corpus": Path(corpus), "jobs": Path(jobs)}
+        # "atlas" is the one root that is a file; every other root is a folder a route serves from.
+        self.roots = {"lab": Path(lab), "lib": Path(lib), "corpus": Path(corpus), "jobs": Path(jobs),
+                      "atlas": Path(atlas), "shelf": Path(shelf), "renders": Path(renders), "study": Path(study),
+                      "cards": Path(cards), "webl": Path(webl)}
         self.verbose = verbose
+        self._study_only_cache: Tuple[tuple, frozenset] = ((), frozenset())
+        self._study_only_lock = threading.Lock()
+
+    def study_only_ids(self) -> frozenset:
+        """The ids /renders/ refuses, re-read whenever the Shelf's index or the atlas changes on disk."""
+        sources = (Path(self.roots["shelf"]) / "index.json", Path(self.roots["atlas"]))
+        stamp = []
+        for p in sources:
+            try:
+                st = p.stat()
+                stamp.append((st.st_mtime_ns, st.st_size))
+            except OSError:
+                stamp.append(None)
+        stamp = tuple(stamp)
+        with self._study_only_lock:
+            if self._study_only_cache[0] != stamp:
+                self._study_only_cache = (stamp, study_only_from(_json_or_none(sources[0]), _json_or_none(sources[1])))
+            return self._study_only_cache[1]
 
     @property
     def base_url(self) -> str:
@@ -305,6 +402,9 @@ def banner(server: ShaderServer) -> List[str]:
             f"[shaderlab]   lab     {base}/lab/   <- {server.roots['lab']}  (pages for headless.mjs on SwiftShader)",
             f"[shaderlab]   library {base}/glsl/ and {base}/lib/   <- {server.roots['lib']}",
             f"[shaderlab]   corpus  {base}/corpus/<id>/shader.json, {base}/corpus/media/<file>",
+            f"[shaderlab]   shelf   {base}/atlas.json, {base}/shelf/index.json, {base}/renders/<id>/<file>.png, "
+            f"{base}/study/<id>.md, {base}/cards/<name>/<file>.png",
+            f"[shaderlab]   parts   {base}/webl/   <- {server.roots['webl']}",
             "[shaderlab]   render a picture with `py -m arsenal shader render <id>`, not by opening a page"]
 
 
