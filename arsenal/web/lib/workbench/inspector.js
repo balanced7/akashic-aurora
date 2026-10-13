@@ -46,17 +46,31 @@ const list = (doc, items, cls) => {
 };
 const mono = (doc, text) => h(doc, 'code', 'wb-mono', text);
 const fmt = (x) => String(Math.round(Number(x) * 10) / 10);
-/** The Stage's pre-flight as one line: what the tiny frame took, what that predicts, where it started (or why not).
- *  The warm-up before the timed frames shades one pixel (the stage's measure()); a re-measure (pf.why) says it was
- *  measured again and whether it kept its scale, stepped up or continued, never "started". */
+/** The Stage's pre-flight as one line: what the tiny frame took, the larger frames and the growth taken from them,
+ *  what every frame pays whatever its size (when it is something, or a reading set aside), what that predicts, where it
+ *  started (or why not). The warm-up before the timed frames shades one pixel (the stage's measure()); a re-measure
+ *  (pf.why) says it was measured again and whether it kept its scale, stepped up or continued, never "started". */
 export function preflightText(pf) {
   if (!pf) return null;
   const at = (wh) => (Array.isArray(wh) ? `${wh[0]} × ${wh[1]}` : '?');
   const warm = pf.compileMs !== null && pf.compileMs !== undefined ? `, after a one-pixel draw of ${fmt(pf.compileMs)} ms (its compile)` : '';
-  const two = pf.second ? `, then ${at(pf.second.size)} in ${fmt(pf.second.ms)} ms (growth exponent ${pf.exponent ?? 1})` : '';
+  // What every frame pays whatever its size (the one-pixel draw again, timed): only the rest grows with the pixels. Said
+  // only when it is something; a reading the stage set aside (more than the tiny frame took: a hiccup in the timing) is
+  // said as that, not as what every frame pays.
+  const oMs = pf.overhead && Number.isFinite(Number(pf.overhead.ms)) ? Math.round(Number(pf.overhead.ms) * 100) / 100 : null;
+  const fixed = oMs === null ? ''
+    : pf.overhead.setAside ? `; a per-frame reading of ${oMs} ms, more than the tiny frame took, was set aside as a hiccup`
+      : oMs > 0 ? `; every frame pays ${oMs} ms whatever its size` : '';
+  // The larger readings, and the growth taken from them: the most they allow, said as such when they could not prove it.
+  const larger = [pf.second, ...(Array.isArray(pf.more) ? pf.more : [])].filter(Boolean);
+  const g = pf.growth || null;
+  const growth = g && g.readings < 2 ? `growth taken as the heaviest, exponent ${pf.exponent ?? 3}: one reading cannot show it`
+    : g && !g.proven ? `growth exponent ${pf.exponent ?? 1}, the most its readings allow` : `growth exponent ${pf.exponent ?? 1}`;
+  const two = larger.length ? `, then ${larger.map((q) => `${at(q.size)} in ${fmt(q.ms)} ms`).join(', ')} (${growth})`
+    : g && g.readings < 2 && !pf.refused ? ` (${growth})` : '';
   const timed = pf.timedWith && pf.timedWith !== 'render' ? ` (timed with ${pf.timedWith})` : '';
   const head = pf.ms === null || pf.ms === undefined ? `${at(pf.size)} frame failed`
-    : `${at(pf.size)} px in ${fmt(pf.ms)} ms${timed}${warm}${two}`;
+    : `${at(pf.size)} px in ${fmt(pf.ms)} ms${timed}${warm}${two}${fixed}`;
   const again = pf.why ? `measured again (${pf.why}): ` : '';
   if (pf.refused) return `${again}${head} · refused: ${pf.refused}`;
   const verb = pf.how === 'kept' ? 'stays at' : pf.how === 'raised' ? 'stepped up to' : pf.why ? 'continues at' : 'started at';
@@ -68,6 +82,8 @@ export function mountInspector(doc, root, opts = {}) {
   const onParams = typeof opts.onParams === 'function' ? opts.onParams : () => {};
   const onCategory = typeof opts.onCategory === 'function' ? opts.onCategory : () => {};
   const onGroup = typeof opts.onGroup === 'function' ? opts.onGroup : () => {};
+  // Receipts come from a live run; while live runs are off (the Stage's switch, stage.js) the empty receipt says why.
+  const live = opts.live !== false;
   let paramsLib = opts.paramsLib || null;
   let paramsWhy = opts.paramsWhy || null;
   const { side, body } = panel(doc, root, 'wb-inspector', 'Inspector', '');
@@ -84,9 +100,10 @@ export function mountInspector(doc, root, opts = {}) {
     clearReceipt();
   }
   function clearReceipt() {
+    const what = 'the modules and their versions, the composed sha256, the renderer and the scale';
     receiptBox.replaceChildren(put(h(doc, 'div', 'wb-receipt is-empty'), h(doc, 'p', 'wb-kicker', 'Receipt'),
-      hint(doc, 'Nothing has run yet. A live run writes here what ran: the modules and their versions, the composed '
-        + 'sha256, the renderer and the scale.')));
+      hint(doc, live ? `Nothing has run yet. A live run writes here what ran: ${what}.`
+        : `Nothing has run. Live runs are off until their safety review clears; once they are on, a live run writes here what ran: ${what}.`)));
   }
 
   function titleBlock(kicker, title, sub, chips) {

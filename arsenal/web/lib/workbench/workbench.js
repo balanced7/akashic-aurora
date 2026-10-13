@@ -124,13 +124,9 @@ export async function mountWorkbench(doc, root, opts = {}) {
 
   // ---- the panels ----
   let atlas = null, lib = null;
-  const inspector = mountInspector(doc, inspEl, {
-    paramsLib: null, paramsWhy: 'still loading',
-    onParams: (values, descriptors, node) => stage.setParams({ values, descriptors, module: node && node.name }),
-    onCategory: (categoryId) => { setTab('bench'); library.reveal(categoryId); },
-    onGroup: (name) => { setTab('bench'); library.revealGroup(name); },
-  });
-  // The Stage reads the one switch (opts.env: the page whose address and storage it reads; by default this page's own).
+  // The Stage reads the one switch (opts.env: the page whose address and storage it reads; by default this page's own),
+  // so it is mounted first: the Inspector and the Strip say what they show according to it. The Stage reaches the
+  // Inspector and the Strip only when something runs, after both are mounted.
   const stage = mountStage(doc, stageEl, {
     loadRuntime: () => importModule(routes.runtime), env: opts.env,
     raf: opts.raf, caf: opts.caf, now: opts.now, dpr: opts.dpr, isHidden, onVisibilityChange,
@@ -139,6 +135,12 @@ export async function mountWorkbench(doc, root, opts = {}) {
     setTimeout: opts.setTimeout, clearTimeout: opts.clearTimeout,
     onReceipt: (r) => inspector.showReceipt(r),
     onTake: (t) => strip.addTake(t),
+  });
+  const inspector = mountInspector(doc, inspEl, {
+    paramsLib: null, paramsWhy: 'still loading', live: stage.live,
+    onParams: (values, descriptors, node) => stage.setParams({ values, descriptors, module: node && node.name }),
+    onCategory: (categoryId) => { setTab('bench'); library.reveal(categoryId); },
+    onGroup: (name) => { setTab('bench'); library.revealGroup(name); },
   });
   const strip = mountStrip(doc, stripEl, { live: stage.live });
   safety.textContent = stage.live

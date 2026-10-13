@@ -34,16 +34,42 @@
 //     through ANGLE (2026-10-13): ldSfWV's 128 x 72 frames read 0 ms, its prediction after a window grew was 227 ms and
 //     the next frame took 615 ms; with the read-back the same frames read 11 ms, the prediction was 305 ms and the
 //     frames took 238 to 250 ms. A reading under 1 ms is repeated and averaged, so one tick of the timer is not read as
-//     cost. A tiny frame that alone takes over 200 ms is refused outright: nothing more runs. Else the time is scaled by
-//     the pixel ratio to predict the full
-//     frame, and the stage starts at the largest scale whose predicted frame fits a 30 ms budget (never above the class's
-//     own start). When the tiny frame leaves room, a second pair at 128 x 72 (four times the pixels) measures how the
-//     cost grows: the growth the two readings PROVE once the timer's resolution is allowed for (the exponent's lower
-//     bound: 1.96 for a cost that goes with the square of its pixels read at 0.5 and 8 ms; never forced back to linear
-//     because the readings are small), and never below the linear prediction. If even the smallest scale would take
-//     past the watchdog's one-frame limit (500 ms), it is refused too;
-//     between the budget and that limit it starts at the smallest scale and says so. Think of a crane's test lift: a
-//     small load first, and the rated load is worked out from what the small one did.
+//     cost. A tiny frame that alone takes over 200 ms is refused outright: nothing more runs. When even the heaviest
+//     growth (the cube, below) keeps it under the one-frame limit, a second pair at 128 x 72 (four times the pixels)
+//     shows how the cost grows with the pixels, as an exponent (1 when it goes with them, 2 when it goes with their
+//     square); a tiny frame too heavy for that (from about 7.8 ms) gets its second pair at 90 x 51 (about twice the
+//     pixels) when the cube keeps that under the limit, so a heavy one, or one a stall inflated, is not refused on one
+//     reading. Guarded only to the square, a cube-law tiny frame of 20 ms drew a 1280 ms 128 x 72 one. Part of every
+//     frame does not grow: the read-back's round trip and the submission, paid whatever the size. The one-pixel draw,
+//     timed the same way, measures that part, and the growth is judged on the rest, the pixels' own work: behind 0.1 ms
+//     of it a square-law cost of 0.03 ms at 64 x 36 reads 0.13 and 0.58 ms, which as totals look linear (and drew a
+//     300 ms first frame). It is read twice, before the second pair and after it, and the smaller kept: a hiccup in the
+//     timing (a GC pause, the scheduler) only ever adds time. It is in every frame, so it is never taken to be more than
+//     the smallest one, and a reading above that is the hiccup, set aside: the part is then anywhere from nothing to
+//     that frame. One slow draw read as the part (10 ms beside a 0.34 ms tiny frame) left no work to grow, and the
+//     guard below drew a 576 ms pre-flight frame. Each reading is uncertain by the timer's resolution over the draws it
+//     averaged, and the stage takes the MOST growth the readings allow: growth they cannot rule out is taken to be
+//     there, the way a cost class not declared runs as C4. Far above the resolution that is close to the truth (2.07
+//     for a cost that goes with the square of its pixels, read at 0.5 and 8 ms); within it the readings cannot bound
+//     the growth, and it is the heaviest, the cube of the pixels. Taking
+//     the least they allow instead (as this stage did until 2026-10-13) read two readings within the resolution as
+//     linear: a square-law cost read at 0.005 ms at 64 x 36 was predicted at 7.7 ms and drew a 750 ms first frame. One
+//     reading alone (a tiny frame too heavy for a second) shows no growth and is taken at the heaviest. While the two
+//     largest readings leave the growth unproven (the least and the most they allow more than 0.1 apart), larger pairs
+//     follow, four times the pixels each (256 x 144, 512 x 288, 1024 x 576), each only when even the heaviest growth of
+//     the pixels' work keeps it under the ladder's 150 ms step cap and it is no larger than the frame at the largest
+//     scale the class lets it start at (a C4 subject's half scale): a cheap shader is measured on frames big enough to
+//     show its growth, nearer the size it will be drawn at, and never on a frame larger than any it may start on. The
+//     work behind every guard and prediction is taken at its most: the reading at its most, less the per-frame part at
+//     its LEAST (taking the part at its most off it predicted 25.2 ms for a 25.41 ms frame). Each scale's prediction is
+//     the per-frame part at its most plus the largest reading's work at its most, grown to that scale's pixels at that
+//     exponent, and never below any reading times its pixel ratio (the spec's linear prediction): for a cost that is a
+//     fixed part plus any power of its pixels up to the cube, no prediction is below the frame while the readings are
+//     within their uncertainty (and the part's two readings hold at most one hiccup between them). The stage starts at
+//     the largest scale whose predicted frame fits the 30 ms budget (never above the class's own start). If even the
+//     smallest scale would take past the watchdog's one-frame limit (500 ms), it is refused too; between the budget and
+//     that limit it starts at the smallest scale and says so. Think of a crane's test lift: a small load first, and the
+//     rated load is worked out from what the small one did, at the worst the lift allows.
 //   * THE SIZE THE PRE-FLIGHT MEASURED IS LOCKED. The drawing buffer is the stage box times the device pixel ratio times
 //     the scale, and the pre-flight's prediction holds for that size only. So the canvas never changes size while it
 //     draws: when the box, the pixel ratio (a window maximised, browser zoom, another monitor) or the scale changes, the
@@ -128,12 +154,21 @@ export const HEAVY_SCALE = 0.5;
 export const MAX_SIDE = 4096;            // a drawing buffer never exceeds this on either side
 // The pre-flight: frames 0 and 1 at w x h (the slower counts); refused when that alone takes over refuseMs; the start
 // scale keeps the predicted full frame within budgetMs. A second pair at twice each side (w2 x h2: four times the
-// pixels) is drawn when the first leaves room for it, so a cost that grows faster than the pixels shows before any
-// larger frame. A reading under repsUnderMs is drawn again (up to maxReps, until about repsTargetMs in all) and
-// averaged; the timer's resolution (resolutionMs, divided by the draws averaged) is each reading's uncertainty, and the
-// growth the stage uses is what the two readings prove within it.
-export const PREFLIGHT = Object.freeze({ w: 64, h: 36, w2: 128, h2: 72, refuseMs: 200, budgetMs: 30,
-  repsUnderMs: 1, repsTargetMs: 2, maxReps: 8, resolutionMs: 0.1 });
+// pixels) is drawn when even the heaviest growth (the cube) keeps it under the watchdog's one-frame limit, so a cost
+// that grows faster than the pixels shows before any larger frame; when it does not, a pair at `mid` (about twice the
+// pixels) is drawn instead if that keeps under it. A reading under repsUnderMs is drawn again (up to maxReps, until
+// about repsTargetMs in all) and averaged; the timer's resolution (resolutionMs, divided by the draws averaged) is each
+// reading's uncertainty. While the two largest readings leave the growth unproven (the least and the most they allow
+// differ by more than growthTolerance), larger pairs are drawn in turn (`grow`, four times the pixels each), each only
+// when even the heaviest growth keeps it under the ladder's step cap and it is no larger than the frame at the largest
+// scale the plan may choose (the class's start).
+export const PREFLIGHT = Object.freeze({ w: 64, h: 36, w2: 128, h2: 72, mid: Object.freeze([90, 51]), refuseMs: 200, budgetMs: 30,
+  repsUnderMs: 1, repsTargetMs: 2, maxReps: 8, resolutionMs: 0.1,
+  grow: Object.freeze([Object.freeze([256, 144]), Object.freeze([512, 288]), Object.freeze([1024, 576])]),
+  growthTolerance: 0.1 });
+// The heaviest growth the pre-flight takes a cost to have: the cube of its pixels. Growth the readings cannot rule out
+// is taken to be there, up to this, the way a cost class not declared is run as the heaviest (C4).
+export const HEAVIEST_GROWTH = 3;
 // After a hold, Run again draws no more pixels than one scale step below the buffer that tripped; this much allowance
 // absorbs the rounding of odd sides (a step is at least 1.27 times the pixels of the next, so it never merges two).
 const STEP_SLACK = 1.05;
@@ -246,42 +281,126 @@ export function createWatchdog({ slowMs = WATCHDOG.slowMs, trip = WATCHDOG.trip,
   };
 }
 
-/** The pre-flight's verdict from its tiny frames. tinyMs: what the tiny frame took (the slower of frames 0 and 1, gl.finish
- *  included); tinyPx, fullPx: its pixels and the full frame's at scale 1; classScale: the largest scale it may choose
- *  (the class's start, or the scale a run was at), which the pre-flight may lower, never raise. The full frame is
- *  predicted as tinyMs times the pixel ratio (conservative: a tiny frame keeps a wide GPU partly idle and carries the
- *  fixed cost of a submission). With a second reading (secondMs at secondPx), the growth between the two sets an
- *  exponent in [1, 3]: the lower bound the readings prove, each uncertain by its timer resolution (resolutionMs for the
- *  tiny one, secondResolutionMs, by default the same, for the second). With live evidence
- *  ({ms, px}: the slowest recent frame gap and the pixels it was drawn at), each scale's prediction is the larger of the
- *  pre-flight's and that evidence grown to its pixels. pxByScale gives each scale's real pixel count (else fullPx times
- *  the scale squared). Returns {ok, scale, predictedMs, predictedFullMs, perScale: [{scale, px, ms, pf, live}],
- *  overBudget, refused, exponent, ...}; refused (a sentence) when the tiny frame alone is over refuseMs, or when even
- *  the smallest scale would take past limitMs. */
-export function preflightPlan({ tinyMs, tinyPx, fullPx, classScale = 1, secondMs = null, secondPx = null, scales = SCALES,
-  budgetMs = PREFLIGHT.budgetMs, refuseMs = PREFLIGHT.refuseMs, limitMs = WATCHDOG.gapMs,
+/** What every frame pays whatever its size (the read-back's round trip, the submission), as bounds {lo, hi, setAside},
+ *  from its reading (`overhead`, {ms, err}: the one-pixel draw timed, uncertain by err) and the frames' readings
+ *  ([{ms, err}]). Every frame pays it, so it is never more than the smallest frame at its most (hi). A hiccup in the
+ *  timing (a GC pause, the scheduler) only ever adds time, so a reading whose least is above that is the hiccup, not the
+ *  cost: it is set aside, and the part every frame pays is then known only to lie between nothing and that frame. Null
+ *  when nothing was read. */
+export function perFrameBounds(overhead, frames = []) {
+  if (!overhead) return null;
+  if (Number.isFinite(Number(overhead.lo)) && Number.isFinite(Number(overhead.hi))) {
+    const lo = Math.max(0, Number(overhead.lo));
+    return { lo, hi: Math.max(lo, Number(overhead.hi)), setAside: !!overhead.setAside };
+  }
+  const om = Math.max(0, Number(overhead.ms) || 0), eo = Math.max(0, Number(overhead.err) || 0);
+  const caps = (Array.isArray(frames) ? frames : []).filter((q) => q && Number.isFinite(Number(q.ms)))
+    .map((q) => Math.max(0, Number(q.ms)) + Math.max(0, Number(q.err) || 0));
+  const cap = caps.length ? Math.min(...caps) : Infinity;
+  const lo = Math.max(0, om - eo);
+  if (lo > cap) return { lo: 0, hi: cap, setAside: true };
+  return { lo, hi: Math.min(om + eo, cap), setAside: false };
+}
+
+/** The most a frame of `px` pixels can take, from a reading r ({ms, px, err}) whose pixels' work grows as the pixels to
+ *  the power `exponent` at most, behind a per-frame part within `perFrame` ({lo, hi}, perFrameBounds; null: none taken
+ *  off): that part at its most, plus the reading's work at its most (the reading at its most, less the part at its
+ *  LEAST), grown to `px`. For a cost that is that part plus a power of the pixels no steeper than `exponent`, it is
+ *  never below the frame while the readings are within their uncertainty. */
+export function frameAtMost(r, px, exponent, perFrame = null) {
+  const lo = perFrame ? perFrame.lo : 0, hi = perFrame ? perFrame.hi : 0;
+  const work = Math.max(0, (Number(r.ms) || 0) + Math.max(0, Number(r.err) || 0) - lo);
+  return hi + work * (Number(px) / Number(r.px)) ** exponent;
+}
+
+/** How the pixels' own cost grows from reading a to a larger reading b ({ms, px, err}: a frame's time, its pixels, and
+ *  its uncertainty, the timer's resolution over the draws it averaged), as an exponent of the pixels (1: it goes with
+ *  the pixels, 2: with their square): {low, high, proven}. A frame's time is a cost every frame pays whatever its size
+ *  (`overhead`: the read-back's round trip and the submission, measured by a draw that shades one pixel, as {ms, err}
+ *  or as perFrameBounds' {lo, hi}) plus its pixels' work, and only the work grows. low and high are the least and the
+ *  most growth the readings allow with each, the overhead included, anywhere within its bounds, clamped to
+ *  [1, HEAVIEST_GROWTH]. When the smaller reading's work is within its uncertainty of nothing, nothing bounds the growth
+ *  from above and high is the heaviest. proven: low and high are within PREFLIGHT.growthTolerance of each other. */
+export function growthBounds(a, b, overhead = null) {
+  const r = Number(b && b.px) / Number(a && a.px);
+  if (!(r > 1)) return { low: 1, high: HEAVIEST_GROWTH, proven: false };
+  const am = Number(a.ms) || 0, bm = Number(b.ms) || 0;
+  const ea = Math.max(0, Number(a.err) || 0), eb = Math.max(0, Number(b.err) || 0);
+  // The most growth: the larger reading at its most over the smaller at its least, with the most overhead taken from
+  // both (taking more from both makes the ratio steeper); the least: the other way round. The overhead is never more
+  // than either reading (perFrameBounds), and a reading of it above them is set aside.
+  const ob = perFrameBounds(overhead, [a, b]);
+  const oHi = ob ? ob.hi : 0, oLo = ob ? ob.lo : 0;
+  const clamp = (x) => Math.min(HEAVIEST_GROWTH, Math.max(1, x));
+  const hiTop = bm + eb - oHi, hiBottom = am - ea - oHi;
+  const high = hiBottom > 0 && hiTop > 0 ? clamp(Math.log(hiTop / hiBottom) / Math.log(r)) : HEAVIEST_GROWTH;
+  const loTop = bm - eb - oLo, loBottom = am + ea - oLo;
+  const low = loTop > 0 && loBottom > 0 ? clamp(Math.log(loTop / loBottom) / Math.log(r)) : 1;
+  return { low, high, proven: high - low <= PREFLIGHT.growthTolerance };
+}
+// An upper bound kept an upper bound when it is shown to two decimals.
+const up2 = (x) => Math.ceil(Number(x) * 100 - 1e-6) / 100;
+
+/** The pre-flight's verdict from its readings. tinyMs: what the tiny frame took (the slower of frames 0 and 1, the
+ *  read-back wait included); tinyPx, fullPx: its pixels and the full frame's at scale 1; classScale: the largest scale
+ *  it may choose (the class's start, or the scale a run was at), which the pre-flight may lower, never raise. Larger
+ *  readings: secondMs at secondPx (four times the tiny frame's pixels), then `readings` ([{ms, px, resolutionMs}], the
+ *  larger frames the pre-flight drew beyond it). Each reading is uncertain by its timer resolution over the draws it
+ *  averaged (resolutionMs for the tiny one; secondResolutionMs, by default the same, for the second). overheadMs, when
+ *  measured (a draw that shades one pixel, uncertain by overheadResolutionMs), is what every frame pays whatever its
+ *  size; it does not grow with the pixels. It is never taken to be more than the smallest reading, and a reading of it
+ *  above that is a hiccup, set aside (perFrameBounds; overheadSetAside says so): the part is then anywhere from nothing
+ *  to that reading.
+ *
+ *  The growth is the MOST the pixels' work in the two largest readings allows (growthBounds' high): growth they cannot
+ *  rule out is taken to be there, and one reading alone, which shows none, is taken at the heaviest (pixels cubed), the
+ *  way a cost class not declared runs as C4. Each scale's prediction is the overhead at its most plus the largest
+ *  reading's work at its most (that reading at its most, less the overhead at its least: frameAtMost) grown to the
+ *  scale's pixels at that exponent, and never below any reading times its pixel ratio (the spec's linear prediction
+ *  from the tiny frame): for a cost that is a fixed overhead plus any power of its pixels up to the cube, no prediction
+ *  is below the frame while the readings are within their uncertainty. With live evidence ({ms, px}: the slowest recent frame gap
+ *  and the pixels it was drawn at), each scale's prediction is the larger of the pre-flight's and that evidence grown
+ *  to its pixels. pxByScale gives each scale's real pixel count (else fullPx times the scale squared). Returns {ok,
+ *  scale, predictedMs, predictedFullMs, perScale: [{scale, px, ms, pf, live}], overBudget, refused, exponent, growth:
+ *  {low, high, proven, readings}, overheadMs, ...}; refused (a sentence) when the tiny frame alone is over refuseMs, or
+ *  when even the smallest scale would take past limitMs. */
+export function preflightPlan({ tinyMs, tinyPx, fullPx, classScale = 1, secondMs = null, secondPx = null, readings = null,
+  overheadMs = null, overheadResolutionMs = null,
+  scales = SCALES, budgetMs = PREFLIGHT.budgetMs, refuseMs = PREFLIGHT.refuseMs, limitMs = WATCHDOG.gapMs,
   resolutionMs = PREFLIGHT.resolutionMs, secondResolutionMs = null, live = null, pxByScale = null } = {}) {
   const ms = Math.max(0, Number(tinyMs) || 0);
   const tPx = Math.max(1, Number(tinyPx) || 1);
   const fPx = Math.max(1, Number(fullPx) || 1);
   const ratio = fPx / tPx;
-  // With a second, larger frame: the growth exponent between the two (1 when the cost is linear in pixels, 2 when it
-  // goes with their square), clamped to [1, 3]. Each reading is uncertain by the timer's resolution over the draws it
-  // averaged, so the exponent is the LOWER BOUND the two prove: the second at its smallest over the tiny one at its
-  // largest. Noise cannot inflate it (0.2 and 1.6 ms read once at 0.1 ms ticks prove 1.16, not the 1.5 they claim at
-  // face value), and small readings keep the growth they do prove (0.1 and 0.8 ms averaged over 8 and 3 draws: 1.38;
-  // forcing them to linear predicted 20 ms for a 100 ms frame). Far above the resolution it is the plain exponent
-  // (0.5 and 8 ms averaged: 1.96 for a true 2). The prediction is never below the spec's linear one (tiny time times
-  // the pixel ratio), nor below the second reading's.
-  const two = secondMs !== null && secondMs !== undefined && Number(secondMs) >= 0 && Number(secondPx) > tPx;
-  const err1 = Math.max(0, Number(resolutionMs) || 0);
-  const err2 = secondResolutionMs === null || secondResolutionMs === undefined ? err1 : Math.max(0, Number(secondResolutionMs) || 0);
-  let exponent = 1;
-  if (two) {
-    const lo = Number(secondMs) - err2, hi = ms + err1;
-    if (lo > 0 && hi > 0) exponent = Math.min(3, Math.max(1, Math.log(lo / hi) / Math.log(Number(secondPx) / tPx)));
-  }
-  const model = (p) => Math.max(ms * (p / tPx), two ? Number(secondMs) * (p / Number(secondPx)) ** exponent : 0);
+  const errOf = (x, otherwise) => (x === null || x === undefined ? otherwise : Math.max(0, Number(x) || 0));
+  const err1 = errOf(resolutionMs, 0);
+  // The readings, smallest first, each with its uncertainty. One no larger than the reading before it is left out.
+  const pts = [{ ms, px: tPx, err: err1 }];
+  const add = (m, p, err) => {
+    if (m === null || m === undefined || !(Number(m) >= 0) || !(Number(p) > pts[pts.length - 1].px)) return;
+    pts.push({ ms: Number(m), px: Number(p), err });
+  };
+  add(secondMs, secondPx, errOf(secondResolutionMs, err1));
+  for (const q of Array.isArray(readings) ? readings : []) if (q) add(q.ms, q.px, errOf(q.resolutionMs, err1));
+  const top = pts[pts.length - 1];
+  // What every frame pays whatever its size, when it was measured ({ms, err}); not measured, nothing is taken off. It is
+  // part of every frame, so it is never more than the smallest of them; a reading above that is a hiccup in the timing,
+  // set aside (perFrameBounds): a 10 ms reading beside a 0.34 ms tiny frame zeroed the work of a cube-law cost and
+  // predicted 129 ms for a 25 s frame.
+  const over = overheadMs === null || overheadMs === undefined || !(Number(overheadMs) >= 0) ? null
+    : { ms: Number(overheadMs), err: errOf(overheadResolutionMs, err1) };
+  const perFrame = perFrameBounds(over, pts);
+  // Within the timer's resolution two readings allow anything up to the cube: 0.005 and 0.08 ms averaged over 8 draws
+  // each are taken at 3 (as their least, linear, they predicted 7.7 ms for a 750 ms frame). Far above it, the most they
+  // allow is close to the truth: 0.5 and 8 ms averaged over 4 draws and read once give 2.05 for a true 2. A fixed cost
+  // per frame is taken off first: behind 0.1 ms of it, a square-law cost of 0.03 ms at 64 x 36 reads 0.13 and 0.58 ms,
+  // which as totals allow no more than 1.19 (a 300 ms frame predicted at 27 ms); as the pixels' work they allow the cube.
+  const g = pts.length > 1 ? growthBounds(pts[pts.length - 2], top, perFrame) : { low: 1, high: HEAVIEST_GROWTH, proven: false };
+  const exponent = g.high;
+  // The per-frame part at its most, plus the largest reading's work at its most (that reading at its most, less the
+  // part at its LEAST) grown at that exponent (frameAtMost); never below any reading times its pixel ratio. Taking the
+  // part at its most off the work too predicted 25.2 ms for a 25.41 ms frame.
+  const model = (p) => Math.max(frameAtMost(top, p, exponent, perFrame), ...pts.map((q) => q.ms * (p / q.px)));
   const ev = live && Number(live.ms) > 0 && Number(live.px) > 0 ? { ms: Number(live.ms), px: Number(live.px) } : null;
   const predict = (p) => Math.max(model(p), ev ? liveGrowth(ev, p, exponent) : 0);
   const pxAt = (s, i) => (Array.isArray(pxByScale) && Number(pxByScale[i]) > 0 ? Number(pxByScale[i]) : fPx * s * s);
@@ -290,7 +409,9 @@ export function preflightPlan({ tinyMs, tinyPx, fullPx, classScale = 1, secondMs
     return { scale: s, px: Math.round(p), ms: r1(predict(p)), pf: r1(model(p)), live: ev ? r1(liveGrowth(ev, p, exponent)) : null };
   });
   const base = { tinyMs: r1(ms), ratio: r1(ratio), predictedFullMs: r1(predict(fPx)), perScale, budgetMs, refuseMs, limitMs,
-    exponent: Math.round(exponent * 100) / 100, live: ev ? { ms: r1(ev.ms), px: ev.px } : null };
+    exponent: up2(exponent), growth: { low: Math.round(g.low * 100) / 100, high: up2(g.high), proven: g.proven, readings: pts.length },
+    overheadMs: over ? Math.round(over.ms * 100) / 100 : null, overheadSetAside: !!(perFrame && perFrame.setAside),
+    live: ev ? { ms: r1(ev.ms), px: ev.px } : null };
   if (ms > refuseMs) {
     return { ...base, ok: false, scale: null, predictedMs: null, overBudget: true,
       refused: `the tiny pre-flight frame alone took ${fmtMs(ms)} ms (the limit is ${refuseMs} ms)` };
@@ -304,8 +425,12 @@ export function preflightPlan({ tinyMs, tinyPx, fullPx, classScale = 1, secondMs
   }
   const smallest = pool[0];
   if (smallest.ms > limitMs) {
+    // Say when the growth behind the number is one the readings could not prove.
+    const steep = g.proven ? '' : pts.length < 2
+      ? ', taking the heaviest growth (pixels cubed): one reading cannot show how its cost grows'
+      : `, taking the steepest growth its readings allow (pixels to the power ${up2(exponent)})`;
     return { ...base, ok: false, scale: null, predictedMs: smallest.ms, overBudget: true,
-      refused: `even at ${smallest.scale} × a frame would take about ${fmtMs(smallest.ms)} ms, past the watchdog's ${limitMs} ms one-frame limit` };
+      refused: `even at ${smallest.scale} × a frame would take about ${fmtMs(smallest.ms)} ms, past the watchdog's ${limitMs} ms one-frame limit${steep}` };
   }
   return { ...base, ok: true, scale: smallest.scale, predictedMs: smallest.ms, overBudget: true, refused: null };
 }
@@ -470,6 +595,7 @@ export function mountStage(doc, root, opts = {}) {
     worstGap: 0,         // the slowest frame gap since Run (for the receipt and the screenshot driver)
     inFlight: false,     // a live frame was drawn that no watchdog tick has judged yet
     pausedBy: null,      // the knob rebuild (its number) that holds the loop while it compiles and measures
+    leaving: false,      // the subject is being replaced: its last frame is judged, but its receipt is not sent
   };
   const watchdog = createWatchdog();
   // Refusals last for the page: a subject refused once is not run again when it is picked again (kind:id -> words).
@@ -679,13 +805,19 @@ export function mountStage(doc, root, opts = {}) {
     st.trip = null; st.loaded = null; st.gaps = []; st.paramsPending = false; st.busy = false;
     st.basis = null; st.locked = null; st.lockedScale = null; st.measures = 0; st.worstGap = 0;
     st.inFlight = false; st.pausedBy = null;
+    setClass(box, 'is-held', false);   // a hold's outline belongs to the program it held, not to the next still
     markScales();
     stopBtn.disabled = true; takeBtn.disabled = true; scaleSel.disabled = true;
   }
 
   function setSubject(s) {
     // A frame in flight from the subject leaving is judged first: a refusal it earns is remembered for that subject.
-    if (st.running) judgeInFlight();
+    // Its receipt is not sent: the host has moved on to the next subject (the Workbench has already cleared the
+    // Inspector's receipt for it), and the leaving one's would land beside the new datasheet.
+    if (st.running) {
+      st.leaving = true;
+      try { judgeInFlight(); } finally { st.leaving = false; }
+    }
     teardown();
     st.subject = s || null;
     st.params = null;
@@ -769,16 +901,32 @@ export function mountStage(doc, root, opts = {}) {
   }
 
   // The readings, at the stage's size now: frames 0 and 1 at PREFLIGHT size (the slower counts), after one draw that
-  // shades one pixel; then, when they leave room, frames 0 and 1 at four times the pixels; then the toy is reset so its
-  // live run starts at frame 0 with clean buffers. A frame that throws is a refusal.
-  function measure(toy, canvas, timeSec) {
+  // shades one pixel; then, when they leave room, frames 0 and 1 at four times the pixels (about twice, for a heavy
+  // tiny frame) with what a frame costs whatever its size (that one-pixel draw, timed) read before and after them, and
+  // larger pairs while those leave the growth unproven, none larger than the frame at maxScale (the largest scale the
+  // plan may choose: the class's start, or the scale a run is at); then the toy is reset so its live run starts at
+  // frame 0 with clean buffers. A frame that throws is a refusal.
+  function measure(toy, canvas, timeSec, maxScale = 1) {
     const basis = basisNow();
     const fullSize = sizeAt(1, basis);
     const gl = toy && toy.gl;
     const timedWith = !gl ? 'render' : [typeof gl.finish === 'function' && 'gl.finish',
       typeof gl.readPixels === 'function' && 'readPixels'].filter(Boolean).join(' + ') || 'render';
     const finish = () => drainGl(gl);
-    let size = [PREFLIGHT.w, PREFLIGHT.h], compileMs = null, a0 = null, a1 = null, second = null;
+    const SCISSOR_TEST = 0x0C11;
+    const scissors = !!gl && typeof gl.enable === 'function' && typeof gl.scissor === 'function';
+    // One draw that shades a single pixel (scissored to 1 x 1), timed like a frame when `timed`.
+    const onePixel = (timed) => {
+      gl.enable(SCISSOR_TEST);
+      gl.scissor(0, 0, 1, 1);
+      try {
+        if (timed) return timeDraw(toy, finish, timeSec, 0);
+        toy.render({ time: timeSec, frame: 0 });
+        return null;
+      } finally { gl.disable(SCISSOR_TEST); }
+    };
+    let size = [PREFLIGHT.w, PREFLIGHT.h], compileMs = null, a0 = null, a1 = null, second = null, overhead = null;
+    const more = [];
     try {
       toy.resize(PREFLIGHT.w, PREFLIGHT.h);
       size = [canvas.width || PREFLIGHT.w, canvas.height || PREFLIGHT.h];
@@ -789,12 +937,9 @@ export function mountStage(doc, root, opts = {}) {
       // SwiftShader through ANGLE (2026-10-13, timed with the read-back wait): with a 0 x 0 warm-up, frame 0 of Ms2XWc
       // (C0) read 2.8 ms against 0.3 ms for frame 1; with 1 x 1 the compile (17 ms; lfscD7's 88.5 ms) lands here and
       // frame 0 reads 0.5 ms.
-      if (gl && typeof gl.enable === 'function' && typeof gl.scissor === 'function') {
-        const SCISSOR_TEST = 0x0C11;
+      if (scissors) {
         const c0 = now();
-        gl.enable(SCISSOR_TEST);
-        gl.scissor(0, 0, 1, 1);
-        try { toy.render({ time: timeSec, frame: 0 }); } finally { gl.disable(SCISSOR_TEST); }
+        onePixel(false);
         finish();
         compileMs = now() - c0;
       }
@@ -803,16 +948,65 @@ export function mountStage(doc, root, opts = {}) {
       a0 = timeDraw(toy, finish, timeSec, 0);
       if (a0.ms <= PREFLIGHT.refuseMs) a1 = timeDraw(toy, finish, timeSec, 1);
       const ms = Math.max(a0.ms, a1 ? a1.ms : 0);
-      // The second point: four times the pixels, drawn only when the first leaves room for even a square-law growth
-      // (16 times its time) under the one-frame limit. timeDraw drains the queue first, so the reallocation the resize
-      // queues is not billed to it.
-      if (ms <= PREFLIGHT.refuseMs && ms * 16 <= WATCHDOG.gapMs) {
-        toy.resize(PREFLIGHT.w2, PREFLIGHT.h2);
-        const size2 = [canvas.width || PREFLIGHT.w2, canvas.height || PREFLIGHT.h2];
+      const errOf = (reps) => PREFLIGHT.resolutionMs / (reps || 1);
+      const tinyAt = a1 && a1.ms > a0.ms ? a1 : a0;
+      const tiny = { ms, px: area(size), err: errOf(tinyAt.reps) };
+      // The second point: four times the pixels, drawn only when the first leaves room for even the heaviest growth
+      // the stage takes (the cube: 64 times its time) under the one-frame limit. Guarded only to the square (16 times),
+      // a cube-law tiny frame of 20 ms drew a 1280 ms 128 x 72 one. When four times could pass the limit, about twice
+      // the pixels (PREFLIGHT.mid, 8 times the time at the cube) if that cannot: a heavy tiny frame, or one a stall
+      // inflated (25 ms), still gets a second reading, and one inflated reading does not refuse the subject. Nothing
+      // is taken off for what every frame pays here: the tiny frame at its most is a bound on its own work. timeDraw
+      // drains the queue first, so the reallocation the resize queues is not billed to it.
+      const at2 = ms <= PREFLIGHT.refuseMs ? [[PREFLIGHT.w2, PREFLIGHT.h2], PREFLIGHT.mid]
+        .find(([w2, h2]) => frameAtMost(tiny, w2 * h2, HEAVIEST_GROWTH) <= WATCHDOG.gapMs) : null;
+      if (at2) {
+        // What every frame pays whatever its size (the read-back's round trip, the submission): the one-pixel draw
+        // again, timed as the frames are. Only the rest grows with the pixels, and left in the readings it hides that
+        // growth: behind 0.1 ms of it a square-law cost of 0.03 ms at 64 x 36 reads 0.13 and 0.58 ms, which looks linear.
+        const o1 = scissors ? onePixel(true) : null;
+        toy.resize(at2[0], at2[1]);
+        const size2 = [canvas.width || at2[0], canvas.height || at2[1]];
         const b0 = timeDraw(toy, finish, timeSec, 0);
         const b1 = b0.ms <= WATCHDOG.gapMs ? timeDraw(toy, finish, timeSec, 1) : null;
         const slow2 = b1 && b1.ms > b0.ms ? b1 : b0;
         second = { size: size2, ms: slow2.ms, frame0Ms: b0.ms, laterMs: b1 ? b1.ms : null, reps: slow2.reps };
+        // ...and read once more, after that pair. A hiccup in the timing (a GC pause, the scheduler) only ever adds
+        // time, so the smaller of the two readings is kept, uncertain by the larger of their resolutions: one slow draw
+        // (a 10 ms reading for a 0.2 ms cost) zeroed the pixels' work, and a 576 ms pre-flight frame was drawn.
+        const o2 = o1 && scissors ? onePixel(true) : null;
+        if (o1) {
+          const kept = o2 && o2.ms < o1.ms ? o2 : o1;
+          overhead = { ms: kept.ms, reps: kept.reps, err: Math.max(errOf(o1.reps), o2 ? errOf(o2.reps) : 0),
+            reads: [o1, o2].filter(Boolean).map((q) => ({ ms: q.ms, reps: q.reps })) };
+        }
+      }
+      // Larger points, four times the pixels each, while the two largest readings leave the pixels' growth unproven
+      // (their work near the timer's resolution, or hidden behind the overhead), each only when even the heaviest growth
+      // of that work keeps the next frame under the ladder's step cap (the bar a step up meets), and none larger than
+      // the frame at maxScale (a C4 subject's half scale: 1024 x 576 has more pixels than half of 1920 x 1080): each
+      // larger reading stands further above both and nearer the size that will be drawn. A pixels-squared cost read at
+      // 0.01 ms at 64 x 36 (0.16 ms at 128 x 72) allows anything from linear to the cube; its 256 x 144 frame (2.56 ms)
+      // narrows that to about 1.9 to 2.1. The guard takes the work at its most: the larger reading at its most, less
+      // what every frame pays at its LEAST, which is never more than the tiny frame (perFrameBounds sets a hiccup aside).
+      if (second) {
+        const mostPx = area(sizeAt(Math.min(1, Math.max(SCALES[0], Number(maxScale) || 1)), basis));
+        let prev = tiny;
+        let last = { ms: second.ms, px: area(second.size), err: errOf(second.reps) };
+        const o = perFrameBounds(overhead ? { ms: overhead.ms, err: overhead.err } : null, [prev, last]);
+        for (const [gw, gh] of PREFLIGHT.grow) {
+          const nextPx = gw * gh;
+          if (growthBounds(prev, last, o).proven || nextPx > mostPx) break;
+          if (frameAtMost(last, nextPx, HEAVIEST_GROWTH, o) > LADDER.stepCapMs) break;
+          toy.resize(gw, gh);
+          const at = [canvas.width || gw, canvas.height || gh];
+          const c0 = timeDraw(toy, finish, timeSec, 0);
+          const c1 = c0.ms <= LADDER.stepCapMs ? timeDraw(toy, finish, timeSec, 1) : null;
+          const pick = c1 && c1.ms > c0.ms ? c1 : c0;
+          more.push({ size: at, ms: pick.ms, frame0Ms: c0.ms, laterMs: c1 ? c1.ms : null, reps: pick.reps });
+          prev = last;
+          last = { ms: pick.ms, px: area(at), err: errOf(pick.reps) };
+        }
       }
       if (typeof toy.reset === 'function') toy.reset();
     } catch (e) {
@@ -821,7 +1015,7 @@ export function mountStage(doc, root, opts = {}) {
     }
     const slow = a1 && a1.ms > a0.ms ? a1 : a0;
     return { basis, size, fullSize, timedWith, compileMs, ms: slow.ms, frame0Ms: a0.ms, laterMs: a1 ? a1.ms : null,
-      reps: slow.reps, resolutionMs: PREFLIGHT.resolutionMs / slow.reps, second };
+      reps: slow.reps, resolutionMs: PREFLIGHT.resolutionMs / slow.reps, second, more, overhead };
   }
 
   /** The plan from a measurement: the largest scale up to classScale that fits the budget (preflightPlan), with live
@@ -833,15 +1027,24 @@ export function mountStage(doc, root, opts = {}) {
       laterMs: m.laterMs === null || m.laterMs === undefined ? null : r1(m.laterMs), reps: m.reps || 1 };
     if (m.failed) {
       return { ...facts, ok: false, scale: null, ms: null, predictedMs: null, predictedFullMs: null, overBudget: true,
-        refused: m.failed, perScale: [], second: null, exponent: null, live: null };
+        refused: m.failed, perScale: [], second: null, more: [], overhead: null, exponent: null, growth: null, live: null };
     }
+    const more = m.more || [];
     const plan = preflightPlan({ tinyMs: m.ms, tinyPx: area(m.size), fullPx: area(m.fullSize), classScale,
       secondMs: m.second ? m.second.ms : null, secondPx: m.second ? area(m.second.size) : null,
+      readings: more.map((q) => ({ ms: q.ms, px: area(q.size), resolutionMs: PREFLIGHT.resolutionMs / (q.reps || 1) })),
+      overheadMs: m.overhead ? m.overhead.ms : null,
+      overheadResolutionMs: !m.overhead ? null : Number.isFinite(m.overhead.err) ? m.overhead.err
+        : PREFLIGHT.resolutionMs / (m.overhead.reps || 1),
       resolutionMs: m.resolutionMs, secondResolutionMs: m.second ? PREFLIGHT.resolutionMs / (m.second.reps || 1) : null,
       live, pxByScale: SCALES.map((s) => area(sizeAt(s, m.basis))) });
-    return { ...plan, ...facts, ms: plan.tinyMs,
-      second: m.second ? { size: m.second.size, ms: r1(m.second.ms), frame0Ms: r1(m.second.frame0Ms),
-        laterMs: m.second.laterMs === null ? null : r1(m.second.laterMs), reps: m.second.reps || 1 } : null };
+    const shown = (q) => ({ size: q.size, ms: r1(q.ms), frame0Ms: r1(q.frame0Ms), laterMs: q.laterMs === null ? null : r1(q.laterMs),
+      reps: q.reps || 1 });
+    // What every frame pays, as read (the smaller of its two readings, and both), and whether it was set aside.
+    const ms2 = (x) => Math.round(Number(x) * 100) / 100;
+    return { ...plan, ...facts, ms: plan.tinyMs, second: m.second ? shown(m.second) : null, more: more.map(shown),
+      overhead: m.overhead ? { ms: ms2(m.overhead.ms), reps: m.overhead.reps || 1,
+        readsMs: (m.overhead.reads || []).map((q) => ms2(q.ms)), setAside: !!plan.overheadSetAside } : null };
   }
   const rowAt = (pf, s) => ((pf && pf.perScale) || []).find((q) => q.scale === s) || null;
   // The plan as run at scale s: 'start' (Run's rule), 'kept' (no more pixels than were measured, under the step cap),
@@ -856,8 +1059,15 @@ export function mountStage(doc, root, opts = {}) {
     const raised = st.raised ? `Raised to ${st.raised.to || 'unknown (run as C4)'}${st.raised.atLoad ? ' at load' : ''}: ${st.raised.why}. ` : '';
     const lead = why ? `Measured again (${why}): a` : 'Pre-flight: one';
     const which = pf.laterMs !== null && pf.laterMs !== undefined ? ' (the slower of frames 0 and 1)' : '';
-    const head = `${lead} ${px(pf.size)} frame took ${fmtMs(pf.ms)} ms${which}, so a full ${px(pf.fullSize)} frame would take `
-      + `about ${fmtMs(pf.predictedFullMs)} ms`;
+    const big = (pf.more && pf.more.length ? pf.more[pf.more.length - 1] : pf.second) || null;
+    const then = big ? ` and a ${px(big.size)} one ${fmtMs(big.ms)} ms` : '';
+    // The growth behind the prediction, when it is more than the pixels' own or one the readings could not prove.
+    const gr = pf.growth || null;
+    const grows = !gr ? '' : gr.readings < 2 ? ', taking the heaviest growth (pixels cubed): one reading cannot show how its cost grows'
+      : !gr.proven ? `, taking the steepest growth its readings allow (pixels to the power ${pf.exponent})`
+        : pf.exponent >= 1.1 ? `, its cost growing as pixels to the power ${pf.exponent}` : '';
+    const head = `${lead} ${px(pf.size)} frame took ${fmtMs(pf.ms)} ms${which}${then}, so a full ${px(pf.fullSize)} frame would take `
+      + `about ${fmtMs(pf.predictedFullMs)} ms${grows}`;
     const verb = pf.how === 'kept' ? 'it stays at' : pf.how === 'raised' ? 'it stepped up to' : why ? 'it continues at' : 'it started at';
     const tail = `${verb} ${pf.scale} × (about ${fmtMs(pf.predictedMs)} ms a frame)`;
     return `${raised}${head}; ${tail}${pf.overBudget ? `, over the ${PREFLIGHT.budgetMs} ms budget even at the smallest scale` : ''}.`;
@@ -866,7 +1076,8 @@ export function mountStage(doc, root, opts = {}) {
     scale: pf.scale, predictedMs: pf.predictedMs ?? null, overBudget: !!pf.overBudget, refused: pf.refused || null,
     perScale: pf.perScale || [], budgetMs: PREFLIGHT.budgetMs, refuseMs: PREFLIGHT.refuseMs, limitMs: WATCHDOG.gapMs,
     stepCapMs: LADDER.stepCapMs, timedWith: pf.timedWith || null, compileMs: pf.compileMs ?? null, second: pf.second || null,
-    exponent: pf.exponent ?? null, frame0Ms: pf.frame0Ms ?? null, laterMs: pf.laterMs ?? null, reps: pf.reps ?? null,
+    more: pf.more || [], overhead: pf.overhead || null, exponent: pf.exponent ?? null, growth: pf.growth || null,
+    frame0Ms: pf.frame0Ms ?? null, laterMs: pf.laterMs ?? null, reps: pf.reps ?? null,
     basis: pf.basis || null, how: pf.how || null, why: pf.why || null, live: pf.live || null } : null);
 
   // ---- the loop ----
@@ -981,7 +1192,7 @@ export function mountStage(doc, root, opts = {}) {
     }
     markScales();
     setClass(box, 'is-held', true);
-    if (st.receipt) { st.receipt = { ...st.receipt, held: st.trip }; onReceipt(st.receipt); }
+    if (st.receipt) { st.receipt = { ...st.receipt, held: st.trip }; if (!st.leaving) onReceipt(st.receipt); }
   }
 
   // A measurement refused the program (a tiny frame over the refusal limit, even the smallest scale past the one-frame
@@ -1013,7 +1224,7 @@ export function mountStage(doc, root, opts = {}) {
     stopLoop();
     const live = liveEvidence(true);
     const fromPx = area(st.locked);
-    const m = measure(st.toy, st.canvas, clockMs() / 1000);
+    const m = measure(st.toy, st.canvas, clockMs() / 1000, want);
     st.measures++;
     st.inFlight = false;
     let pf = planFor(m, want, live), scale = null, how = null, note = null;
@@ -1215,8 +1426,9 @@ export function mountStage(doc, root, opts = {}) {
       return;
     }
     // The pre-flight: tiny frames decide whether, and at what scale, this program draws a full-size frame here.
-    const m = measure(built.toy, built.canvas, 0);
-    let pf = planFor(m, Math.min(st.scale, st.gate.scale));
+    const startAt = Math.min(st.scale, st.gate.scale);
+    const m = measure(built.toy, built.canvas, 0, startAt);
+    let pf = planFor(m, startAt);
     st.preflight = pf;
     st.measures = 1;
     if (!pf.ok) {
@@ -1371,7 +1583,7 @@ export function mountStage(doc, root, opts = {}) {
     if (!st.running && !forRun) { drop(); st.paramsPending = true; say(PENDING_WORDS); carryOn(); return false; }
     stopLoop();
     try { drainGl(st.toy.gl); } catch (e) { /* lost: nothing queued */ }
-    const m = measure(built.toy, built.canvas, clockMs() / 1000);
+    const m = measure(built.toy, built.canvas, clockMs() / 1000, st.scale);
     let pf = planFor(m, st.scale);
     if (!pf.ok) {
       drop();

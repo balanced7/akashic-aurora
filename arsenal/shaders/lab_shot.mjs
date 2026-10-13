@@ -41,8 +41,8 @@
 // WHAT IT PROVES BESIDES THE PICTURE. Before any page script runs, the driver wraps HTMLCanvasElement.getContext so the
 // page's WebGL requests are counted; the receipt records that count and the number of <canvas> elements after load.
 // Ruling 5 says the lab renders nothing live on page load, and the switch says it is view only: on every view but
-// `run` both counts must be 0, the page must report the switch off and show no Run button, and the receipt says so
-// (rule5). Those views only click UI (a tab, "Put on stage", "Play the filmstrip", "Open study note"); only `run`
+// `run` both counts must be 0, the page must report the switch off, show no Run button, and say live runs are off on
+// the Stage and in the Inspector's empty receipt, and the receipt says so (rule5). Those views only click UI (a tab, "Put on stage", "Play the filmstrip", "Open study note"); only `run`
 // presses Run.
 //
 // Output: <out>/<view>-<w>x<h>.png and <out>/receipt.json. The lab server is reused when one of ours answers on --port,
@@ -254,6 +254,7 @@ async function shoot(browser, base, view, w, h, outDir) {
       .map((i) => i.getAttribute('src')).slice(0, 12),
     live: !!(window.__lab && window.__lab.live), runButton: !!document.querySelector('.wb-run'),
     liveOffLine: document.body.innerText.includes(${JSON.stringify(LIVE_OFF_WORDS.replace(/\.$/, ""))}),
+    receiptOffLine: ((document.querySelector('.wb-insp-receipt') || {}).innerText || '').includes(${JSON.stringify(LIVE_OFF_WORDS.replace(/\.$/, ""))}),
     stage: window.__wb ? window.__wb.stage.state() : null }))()`);
   const shot = await withTimeout(page.send("Page.captureScreenshot", { format: "png" }), 30_000, "screenshot");
   const file = join(outDir, `${view}-${w}x${h}.png`);
@@ -488,8 +489,8 @@ async function main(opt) {
       }
     }
     receipt.rule5 = !receipt.shots.length ? "not checked: no view but run"
-      : receipt.shots.every((s) => s.canvases === 0 && s.contexts.length === 0 && !s.live && !s.runButton && s.liveOffLine)
-        ? "held: view only (the switch off, no Run button, the line said) with no canvas and no WebGL context on every view but run"
+      : receipt.shots.every((s) => s.canvases === 0 && s.contexts.length === 0 && !s.live && !s.runButton && s.liveOffLine && s.receiptOffLine)
+        ? "held: view only (the switch off, no Run button, the line said on the Stage and in the Inspector's receipt) with no canvas and no WebGL context on every view but run"
         : "BROKEN: a view was not view only, created a canvas or asked for a context";
   } catch (e) {
     receipt.error = String(e && e.stack || e);

@@ -63,8 +63,12 @@ switch off, and count runtime loads, canvases, `getContext` calls and animation 
 `stage.js` and require one canvas, one `createToy` and one runtime load, each behind the check.
 
 With the switch on, the Stage keeps the guards described at the top of `stage.js`. It names the cost class before the
-click and starts C3 and C4 at half scale at most. It runs a 64 x 36 pre-flight before any full-size frame and locks
-the size it measured. A larger scale is a ladder of one step at a time, each step capped at 150 ms. The house watchdog
+click and starts C3 and C4 at half scale at most. It runs a pre-flight on small frames before any full-size frame:
+64 x 36, then 128 x 72 (90 x 51 when the tiny frame is too heavy for 128 x 72 at the cube), and larger ones while
+those readings leave the growth unproven, none larger than the frame the class may start at. It takes the steepest
+growth its readings allow (the cube of the pixels when they cannot bound it). It reads what every frame pays twice and
+keeps the smaller, and sets aside a reading larger than the tiny frame (a timing hiccup). It locks the size it
+measured. A larger scale is a ladder of one step at a time, each step capped at 150 ms. The house watchdog
 holds the last frame (one frame over 500 ms, 2.5 s of slow frames, or 45 slow frames in a row). After any hold, Run
 again measures first and draws below the frames that held. A refusal lasts for the page.
 

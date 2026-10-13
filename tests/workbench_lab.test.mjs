@@ -29,6 +29,13 @@ const LADDER = stageMod.LADDER || {};
 // Tests that run the Stage hand it a page that has both; every other mount gets node's globals, which have neither.
 const LIVE_KEY = (stageMod.LIVE_SWITCH && stageMod.LIVE_SWITCH.key) || "arsenal.shaderlab.live";
 const LIVE_ON = { location: { search: "?live=1" }, localStorage: { getItem: (k) => (k === LIVE_KEY ? "on" : null) } };
+// The pre-flight's frame sizes: the tiny pair, the second (or, for a heavy tiny frame, the smaller `mid` one), and the
+// larger ones it draws while its readings leave the growth unproven. A fake cost tells them from live frames by these
+// (no live size in these tests is one).
+const PF_ALL = new Set([`${PREFLIGHT.w}x${PREFLIGHT.h}`, `${PREFLIGHT.w2}x${PREFLIGHT.h2}`,
+  ...(PREFLIGHT.mid ? [`${PREFLIGHT.mid[0]}x${PREFLIGHT.mid[1]}`] : []),
+  ...((PREFLIGHT.grow || []).map(([w, h]) => `${w}x${h}`))]);
+const isPf = (w, h) => PF_ALL.has(`${w}x${h}`);
 import { composedFacts, mountInspector, preflightText } from "../arsenal/web/lib/workbench/inspector.js";
 import { mountStrip } from "../arsenal/web/lib/workbench/strip.js";
 import { cardImages, closureCost, mediaFor, mountWorkbench } from "../arsenal/web/lib/workbench/workbench.js";
@@ -128,10 +135,14 @@ function fakeFetch(table = {}) {
 // false gl.finish() returns at once (as it did on SwiftShader through ANGLE, 2026-10-13): only gl.readPixels(), which
 // cannot answer before the frame it reads is drawn, waits the queue out. log.cost gets the toy's number as a fourth
 // argument (the first toy built is 1), and log.compileMs(toy) / log.compileFails(toy), when given, make a toy's compile
-// hold the main thread that long / come back not drawable.
+// hold the main thread that long / come back not drawable. log.overheadMs is what every draw pays whatever it shades
+// (a submission and the read-back's round trip): a draw scissored to one pixel costs that much, and a frame that much
+// more than its pixels' log.cost (its events and shadedLog carry the sum). log.onePixelMs(n, toy), when given and a
+// number, is what the n-th draw scissored to one pixel costs instead (n counts from 0, the warm-up first): a hiccup in
+// the timing (a GC pause, the scheduler) on the draw that reads what every frame pays.
 function fakeRuntime(log = { created: 0, renders: 0, resizes: [], destroyed: 0, shaders: [] }, { clock = null } = {}) {
   Object.assign(log, { finishes: 0, resets: 0, sizes: [], cost: null, coldMs: 0, shaded: 0, reallocMs: 0, toys: 0,
-    events: [], shadedLog: [], ...log });
+    overheadMs: 0, events: [], shadedLog: [], ...log });
   return {
     log,
     module: {
@@ -168,9 +179,17 @@ function fakeRuntime(log = { created: 0, renders: 0, resizes: [], destroyed: 0, 
             if (cold && !(log.coldNeedsPixels && clippedAway)) { if (clock && log.coldMs) clock.spend(log.coldMs); cold = false; }
             if (!log.asyncGpu) { spend(queued); queued = 0; }
             const w = canvas.width, h = canvas.height;
-            if (scissor) { log.events.push({ kind: "render", toy, w, h, iFrame: f, ms: 0, scissor: true }); return { frame: f, time: a && a.time }; }
+            const over = clock && Number(log.overheadMs) > 0 ? Number(log.overheadMs) : 0;
+            if (scissor) {
+              const n = log.onePixelDraws = (log.onePixelDraws || 0) + 1;
+              const hit = clock && typeof log.onePixelMs === "function" ? log.onePixelMs(n - 1, toy) : null;
+              const ms = Number.isFinite(hit) ? hit : over;
+              log.events.push({ kind: "render", toy, w, h, iFrame: f, ms, scissor: true });
+              if (log.asyncGpu) queued += ms; else spend(ms);
+              return { frame: f, time: a && a.time };
+            }
             log.shaded++; log.sizes.push([w, h]);
-            const ms = clock && typeof log.cost === "function" ? log.cost(w, h, f, toy) : 0;
+            const ms = over + (clock && typeof log.cost === "function" ? log.cost(w, h, f, toy) : 0);
             log.shadedLog.push({ toy, w, h, iFrame: f, ms });
             log.events.push({ kind: "render", toy, w, h, iFrame: f, ms, scissor: false });
             if (log.asyncGpu) queued += ms; else spend(ms);
@@ -528,19 +547,23 @@ async function withGlobalFetch(fetchFn, fn) {
   eq("pre-flight constants: a 64 x 36 frame, refused over 200 ms, a 30 ms budget",
     [PREFLIGHT.w, PREFLIGHT.h, PREFLIGHT.refuseMs, PREFLIGHT.budgetMs], [64, 36, 200, 30]);
   const base = { tinyPx: 64 * 36, fullPx: 64 * 36 * 100 };   // the full frame has 100 times the pixels
-  let p = preflightPlan({ ...base, tinyMs: 0.1, classScale: 1 });
+  // The choice of scale, with a cost proven linear: a second reading at four times the pixels and four times the time,
+  // read exactly (no timer uncertainty), so the prediction is the tiny time times the pixel ratio. (One reading alone
+  // is taken at the heaviest growth: the third round's pins, below.)
+  const lin = (tinyMs) => ({ tinyMs, secondMs: tinyMs * 4, secondPx: 64 * 36 * 4, resolutionMs: 0 });
+  let p = preflightPlan({ ...base, ...lin(0.1), classScale: 1 });
   eq("light: full scale (10 ms predicted)", [p.ok, p.scale, p.predictedFullMs, p.predictedMs], [true, 1, 10, 10]);
-  eq("never above the class default", preflightPlan({ ...base, tinyMs: 0.1, classScale: 0.5 }).scale, 0.5);
-  p = preflightPlan({ ...base, tinyMs: 1, classScale: 1 });
+  eq("never above the class default", preflightPlan({ ...base, ...lin(0.1), classScale: 0.5 }).scale, 0.5);
+  p = preflightPlan({ ...base, ...lin(1), classScale: 1 });
   eq("100 ms predicted at full scale starts at half (25 ms)", [p.scale, p.predictedMs], [0.5, 25]);
-  p = preflightPlan({ ...base, tinyMs: 4, classScale: 1 });
+  p = preflightPlan({ ...base, ...lin(4), classScale: 1 });
   eq("400 ms predicted starts at a quarter (25 ms)", [p.scale, p.predictedMs, p.overBudget], [0.25, 25, false]);
   eq("the prediction at every scale is kept for the receipt", p.perScale.map((x) => [x.scale, x.ms]),
     [[0.25, 25], [0.5, 100], [0.75, 225], [1, 400]]);
-  p = preflightPlan({ ...base, tinyMs: 10, classScale: 0.5 });
+  p = preflightPlan({ ...base, ...lin(10), classScale: 0.5 });
   check("over the budget even at a quarter, under the one-frame limit: the smallest scale, marked over budget",
     p.ok && p.scale === 0.25 && p.overBudget && p.predictedMs === 62.5, JSON.stringify(p));
-  p = preflightPlan({ ...base, tinyMs: 100, classScale: 0.5 });
+  p = preflightPlan({ ...base, ...lin(100), classScale: 0.5 });
   check("a first frame predicted past the watchdog's 500 ms limit even at a quarter is refused", !p.ok && /500 ms/.test(p.refused), p.refused);
   p = preflightPlan({ ...base, tinyMs: 250, classScale: 0.5 });
   check("a tiny frame alone over 200 ms is refused", !p.ok && /200 ms/.test(p.refused) && p.scale === null, p.refused);
@@ -573,9 +596,15 @@ async function withGlobalFetch(fetchFn, fn) {
   eq("the toy is reset after the pre-flight, so the live run starts at frame 0", rt.log.resets, 1);
   eq("then it starts at the scale the prediction allows: a quarter, 160 x 90", rt.log.resizes.at(-1), [160, 90]);
   const pf = receipts.at(-1).preflight;
-  check("the receipt holds the measured numbers", pf && pf.ms === 4 && pf.predictedFullMs === 400 && pf.scale === 0.25
-    && pf.predictedMs === 25 && pf.size[0] === 64 && pf.fullSize[0] === 640, JSON.stringify(pf));
-  check("and the stage says them", /64 × 36/.test(textOf(root)) && /\b4 ms/.test(textOf(root)) && /400 ms/.test(textOf(root)), textOf(byClass(root, "wb-stage-status")[0]));
+  // 4 and 16 ms, each read once (0.1 ms of timer each), less a per-frame cost measured at 0 ms (over 8 draws: 0.0125 ms
+  // of timer), allow growth up to log(16.0875 / 3.8875) / log 4 = 1.025 (shown 1.03). The prediction is the per-frame
+  // cost at its most (0.0125 ms) plus the 128 x 72 reading's work at its most: 16.1 ms (the reading at its most, less
+  // the per-frame cost at its least, 0; the fourth round), grown to the full frame's 25 times the pixels at that, 435.6
+  // ms; at a quarter, 25.4 ms (the frame: 25).
+  check("the receipt holds the measured numbers", pf && pf.ms === 4 && pf.predictedFullMs === 435.6 && pf.scale === 0.25
+    && pf.predictedMs === 25.4 && pf.size[0] === 64 && pf.fullSize[0] === 640 && pf.exponent === 1.03, JSON.stringify(pf));
+  check("and the stage says them", /64 × 36/.test(textOf(root)) && /\b4 ms/.test(textOf(root)) && /128 × 72 one 16 ms/.test(textOf(root))
+    && /435\.6 ms/.test(textOf(root)), textOf(byClass(root, "wb-cost-row")[0]));
   eq("the receipt keeps the SwiftShader signal", receipts.at(-1).swiftshader, { warmMs: 125.8, size: [480, 270] });
   clock.pump(16); clock.pump(16);
   check("it runs at the chosen scale", rt.log.sizes.at(-1)[0] === 160 && stage.state().running);
@@ -596,7 +625,8 @@ async function withGlobalFetch(fetchFn, fn) {
   stage.setParams({ values: { gain: 2 }, descriptors: [] });
   await timers.at(-1)();
   await settle();
-  eq("a rebuild is held to Run's own 30 ms budget: 50 ms at 1 x is swapped in at 0.75 x (28.1 ms)", stage.state().scale, 0.75);
+  // 0.5 and 2 ms allow growth up to 1.09, which puts 0.75 x at 37 ms (its frames: 28.1) and 0.5 x at 15.3 ms.
+  eq("a rebuild is held to Run's own 30 ms budget: 50 ms at 1 x is swapped in at 0.5 x (15.3 ms predicted), not 1 x", stage.state().scale, 0.5);
   rt.log.cost = perPixel(10);    // 1000 ms at 1 x
   stage.setParams({ values: { gain: 3 }, descriptors: [] });
   await timers.at(-1)();
@@ -623,12 +653,15 @@ async function withGlobalFetch(fetchFn, fn) {
   eq("a raise before frames are measured at this scale is refused", stage.state().scale, 0.25);
   check("and says to let it draw first", /let it draw/i.test(textOf(byClass(root, "wb-stage-status")[0])), textOf(byClass(root, "wb-stage-status")[0]));
   pumpN(8);   // 160 x 90 frames: 62.5 ms each, 78.5 ms apart
-  eq("the next step stays shut: 0.5 x would be about 314 ms by the frames drawn now, past the 150 ms step cap",
+  // A 10 ms tiny frame could make a 640 ms 128 x 72 one at the cube, so its second reading is at 90 x 51 (19.9 ms; the
+  // fourth round). 10 and 19.9 ms read once each allow growth up to 1.03 (shown): 78.5 ms grown to four times the
+  // pixels at that is 327.3 ms.
+  eq("the next step stays shut: 0.5 x would be about 327 ms by the frames drawn now, past the 150 ms step cap",
     options.map((o) => o.disabled), [false, true, true, true]);
   stage.setScale(1);
   eq("a raise past the step cap is refused", stage.state().scale, 0.25);
   check("and says by what: the slowest recent frame, grown to the step's pixels, against the cap",
-    /0\.5 × would take about 314 ms a frame by the frames drawn at 0\.25 × \(the slowest of the last \d+ took 78\.5 ms\), past the ladder's 150 ms step cap/
+    /0\.5 × would take about 327\.3 ms a frame by the frames drawn at 0\.25 × \(the slowest of the last \d+ took 78\.5 ms\), past the ladder's 150 ms step cap/
       .test(textOf(byClass(root, "wb-stage-status")[0])), textOf(byClass(root, "wb-stage-status")[0]));
   rt.log.cost = null;
 
@@ -639,7 +672,7 @@ async function withGlobalFetch(fetchFn, fn) {
   await settle();
   eq("a light C3 subject starts at its class's half scale", [stage.state().scale, stage.state().canvas], [0.5, [320, 180]]);
   pumpN(8);   // 320 x 180: 12.5 ms each, 28.5 ms apart
-  eq("the next step opens (0.75: about 64 ms by the frames drawn now); past it stays shut",
+  eq("the next step opens (0.75: about 69 ms by the frames drawn now, at the growth its readings allow); past it stays shut",
     options.map((o) => o.disabled), [false, false, false, true]);
   const resetsBeforeStep = rt.log.resets;
   stage.setScale(1);
@@ -648,7 +681,7 @@ async function withGlobalFetch(fetchFn, fn) {
   eq("the step is a size change: the pre-flight ran again at the new size before its first frame", rt.log.resets, resetsBeforeStep + 1);
   pumpN(8);   // 480 x 270: 28.1 ms each, 44.1 ms apart
   stage.setScale(1);
-  eq("then 1 x (about 78 ms by the frames drawn now)", stage.state().scale, 1);
+  eq("then 1 x (about 82.6 ms by the frames drawn now)", stage.state().scale, 1);
   stage.setScale(0.25);
   eq("lowering is always allowed", stage.state().scale, 0.25);
   rt.log.cost = null;
@@ -656,27 +689,31 @@ async function withGlobalFetch(fetchFn, fn) {
   // The pre-flight's second, larger tiny frame (128 x 72) catches a cost that grows faster than the pixels: here the
   // square of them, 0.5 ms at 64 x 36 and about 5 s at the full 640 x 360, which one tiny frame would put at 50 ms. The
   // stage averages a reading under 1 ms over several draws, so the timer's 0.1 ms ticks are a fortieth of it here.
-  // The exponent is the growth the two readings PROVE: each is uncertain by the timer's resolution over the draws
-  // averaged, so it is the lower bound, log((8 - 0.025) / (0.5 + 0.025)) / log 4 = 1.96 here, close to the true 2.
+  // The exponent is the MOST growth the two readings allow: each is uncertain by the timer's resolution over the draws
+  // averaged, so the larger at the top of its uncertainty over the smaller at the bottom of its, log((8 + 0.025) /
+  // (0.5 - 0.025)) / log 4 = 2.039 here (shown 2.04), a little above the true 2 and never below it. The prediction grows
+  // 8.025 ms at that: 5691.1 ms for the full frame (its true 5000), 19.9 ms at a quarter (its true 19.5).
   p = preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 8, secondPx: 9216, classScale: 1, resolutionMs: 0.025 });
-  eq("two points: the exponent's lower bound and the prediction it makes", [p.exponent, p.predictedFullMs, p.scale, p.predictedMs], [1.96, 4432.1, 0.25, 19.2]);
-  eq("one point (or a flat second) stays the spec's linear tiny-time-times-pixel-ratio",
+  eq("two points: the most growth they allow and the prediction it makes", [p.exponent, p.predictedFullMs, p.scale, p.predictedMs], [2.04, 5691.1, 0.25, 19.9]);
+  eq("one point alone shows no growth and is taken at the heaviest (0.6 ms, the reading at the top of its uncertainty, times the pixel ratio cubed); a flat second proves the spec's linear tiny-time-times-pixel-ratio",
     [preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, classScale: 1 }).predictedFullMs,
-      preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 1, secondPx: 9216, classScale: 1 }).predictedFullMs], [50, 50]);
-  eq("the same two readings taken once each (0.1 ms ticks) still prove most of the growth: 1.86, never below either reading",
+      preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 1, secondPx: 9216, classScale: 1 }).predictedFullMs], [600000, 50]);
+  eq("the same two readings taken once each (0.1 ms ticks) allow up to 2.17, and that is what is used",
     [preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 8, secondPx: 9216, classScale: 1 }).exponent,
-      preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 8, secondPx: 9216, classScale: 1 }).predictedFullMs > 200], [1.86, true]);
+      preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 8, secondPx: 9216, classScale: 1 }).predictedFullMs > 5000], [2.17, true]);
   stage.setSubject(subject("C2"));
   rt.log.cost = (w, h) => 0.5 * ((w * h) / 2304) ** 2;
   byClass(root, "wb-run")[0].fire("click");
   await settle();
   const pfq = receipts.at(-1).preflight;
-  check("on the stage: averaged readings, a second frame at 128 x 72, the exponent's lower bound 1.96, and a start at a quarter",
-    pfq.second && pfq.second.size[0] === 128 && pfq.second.ms === 8 && pfq.reps > 1 && pfq.exponent === 1.96 && stage.state().scale === 0.25, JSON.stringify(pfq));
+  // 0.5 ms averaged over 4 draws (0.025 ms of timer) and 8 ms read once (0.1), less a per-frame cost measured at 0 ms
+  // (0.0125 ms of timer): up to log(8.0875 / 0.4625) / log 4 = 2.064 (shown 2.07).
+  check("on the stage: averaged readings, a second frame at 128 x 72, the most growth they allow (2.07), and a start at a quarter",
+    pfq.second && pfq.second.size[0] === 128 && pfq.second.ms === 8 && pfq.reps > 1 && pfq.exponent === 2.07 && stage.state().scale === 0.25, JSON.stringify(pfq));
   pumpN(8);   // 160 x 90: 19.5 ms each, 35.5 ms apart
   stage.setScale(1);
-  eq("its ladder stops at a quarter: the frames drawn now, grown at that exponent, put 0.5 x at 537.8 ms", stage.state().scale, 0.25);
-  check("and says so", /0\.5 × would take about 537\.8 ms a frame/.test(textOf(byClass(root, "wb-stage-status")[0])), textOf(byClass(root, "wb-stage-status")[0]));
+  eq("its ladder stops at a quarter: the frames drawn now, grown at that exponent, put 0.5 x at 626.4 ms", stage.state().scale, 0.25);
+  check("and says so", /0\.5 × would take about 626\.4 ms a frame/.test(textOf(byClass(root, "wb-stage-status")[0])), textOf(byClass(root, "wb-stage-status")[0]));
 
   // A cost that grows after the first frame (a shader whose buffers fill, as ldSfWV did on SwiftShader): the pre-flight
   // sees the cheap first frame; the ladder sees the frames drawn now.
@@ -688,7 +725,7 @@ async function withGlobalFetch(fetchFn, fn) {
   rt.log.cost = perPixel(10);   // 250 ms frames at 320 x 180 from now on
   pumpN(8);
   stage.setScale(0.75);
-  eq("0.75 x is refused though the pre-flight said 2.8 ms: the frames drawn now predict about 598 ms", stage.state().scale, 0.5);
+  eq("0.75 x is refused though the pre-flight said 2.9 ms: the frames drawn now predict about 633.5 ms", stage.state().scale, 0.5);
   check("and says from what", /frames drawn at 0\.5 ×/.test(textOf(byClass(root, "wb-stage-status")[0])), textOf(byClass(root, "wb-stage-status")[0]));
   check("no frame past the one-frame limit was drawn in all of this (a jump to 1 x would have been 5 s)", worst < WATCHDOG.gapMs, String(worst));
   rt.log.cost = null;
@@ -808,7 +845,7 @@ async function withGlobalFetch(fetchFn, fn) {
   check("tripped: the button names the cost and the lower scale Run again will use", /C3/.test(textOf(again)) && /quarter scale/.test(textOf(again)), textOf(again));
 
   // One frame near the GPU reset limit trips at once: run again, and every live frame now takes 700 ms.
-  rt.log.cost = (w, h) => (w * h > 128 * 72 ? 700 : 0);
+  rt.log.cost = (w, h) => (isPf(w, h) ? 0 : 700);
   again.fire("click");
   await settle();
   const r0 = rt.log.renders;
@@ -859,7 +896,7 @@ async function withGlobalFetch(fetchFn, fn) {
 // frames cost time by their pixels (and, where the defect needs it, by their frame number). Each was seen failing on
 // the stage as reviewed, before the fix.
 {
-  const PF_SIZES = new Set(["64x36", "128x72"]);   // the pre-flight's tiny frames; no live size in these pins is one
+  const PF_SIZES = PF_ALL;   // the pre-flight's frames; no live size in these pins is one
   const isLive = (e) => e.kind === "render" && !e.scissor && !PF_SIZES.has(`${e.w}x${e.h}`);
   // The invariant: every live frame is drawn at the size the stage last admitted (a receipt names it, with what the
   // pre-flight predicted there), and costs no more than that prediction. A frame at a size nothing measured, or above
@@ -877,13 +914,15 @@ async function withGlobalFetch(fetchFn, fn) {
     }
     return bad;
   }
-  function rig({ cost = null, box = [640, 360], dpr = 1 } = {}) {
+  function rig({ cost = null, box = [640, 360], dpr = 1, overheadMs = 0, onePixelMs = null } = {}) {
     const doc = fakeDocument();
     [doc.boxW, doc.boxH] = box;
     const root = doc.createElement("section");
     const clock = fakeClock();
     const rt = fakeRuntime(undefined, { clock });
     rt.log.cost = cost;
+    rt.log.overheadMs = overheadMs;
+    rt.log.onePixelMs = onePixelMs;
     const timers = [], sizeFns = [], receipts = [];
     const r = { doc, root, clock, rt, timers, receipts, dpr, away: null, worst: 0 };
     r.stage = mountStage(doc, root, {
@@ -1038,7 +1077,7 @@ async function withGlobalFetch(fetchFn, fn) {
     let k = 0;
     // 12.5 ms frames at 0.25 x, and every 15th live frame 25 times that (312 ms): under the one-frame limit, so the
     // watchdog lets it pass; a step to 0.5 x would make it 1250 ms.
-    const r = rig({ cost: (w, h) => { const base = perPx(2)(w, h); if (w * h <= 128 * 72) return base; k++; return k % 15 === 0 ? base * 25 : base; } });
+    const r = rig({ cost: (w, h) => { const base = perPx(2)(w, h); if (isPf(w, h)) return base; k++; return k % 15 === 0 ? base * 25 : base; } });
     r.stage.setSubject(subject("C4"));
     await r.run();
     eq("pin 4: starts at a quarter", r.stage.state().scale, 0.25);
@@ -1053,7 +1092,7 @@ async function withGlobalFetch(fetchFn, fn) {
   {
     // Held: a knob change draws nothing (as reviewed: a full frame at the scale that had just held, unwatched).
     let heavy = false;
-    const r = rig({ cost: (w, h) => (heavy && w * h > 128 * 72 ? 700 : perPx(0.5)(w, h)) });
+    const r = rig({ cost: (w, h) => (heavy && !isPf(w, h) ? 700 : perPx(0.5)(w, h)) });
     r.stage.setSubject(subject("C2", { acceptsParams: true }));
     await r.run();
     r.pump(3);
@@ -1122,7 +1161,8 @@ async function withGlobalFetch(fetchFn, fn) {
     r.stage.setParams({ values: { gain: 2 }, descriptors: [] });
     await r.timers.at(-1)();
     await settle();
-    eq("pin 5: the rebuilt program starts within Run's 30 ms budget: 0.75 x (28.1 ms), not 1 x (50 ms)", r.stage.state().scale, 0.75);
+    // 0.5 and 2 ms allow growth up to 1.09: 0.75 x at 37 ms (its frames: 28.1), 0.5 x at 15.3 ms.
+    eq("pin 5: the rebuilt program starts within Run's 30 ms budget: 0.5 x (15.3 ms predicted), not 1 x (50 ms)", r.stage.state().scale, 0.5);
     const ev = r.rt.log.events.slice(mark);
     const firstTimed = ev.findIndex((e) => e.kind === "render" && e.toy === toyBefore + 1 && !e.scissor);
     check("pin 5: the program on stage was drained (gl.finish) before the rebuilt one's first timed frame",
@@ -1137,14 +1177,18 @@ async function withGlobalFetch(fetchFn, fn) {
     r.stage.setSubject(subject("C2"));
     await r.run();
     const pf = r.stage.state().preflight || {};
-    check("pin 7: the 128 x 72 frame reads its own 8 ms (the queue drained first), so the growth reads linear",
-      pf.second && pf.second.ms === 8 && pf.exponent === 1, JSON.stringify(pf.second) + " exponent " + pf.exponent);
+    // 2 and 8 ms read once each, less a per-frame cost measured at 0 ms (0.0125 ms of timer), allow up to
+    // log(8.0875 / 1.8875) / log 4 = 1.0496; billed the 6 ms reallocation (14 ms) they would allow up to 1.45.
+    check("pin 7: the 128 x 72 frame reads its own 8 ms (the queue drained first), so the growth reads linear within the timer's resolution (1.05 at most)",
+      pf.second && pf.second.ms === 8 && pf.exponent <= 1.05, JSON.stringify(pf.second) + " exponent " + pf.exponent);
   }
   {
-    // Noise cannot inflate the growth: single readings near the timer's resolution give its lower bound, log(1.5 / 0.3) /
-    // log 4 = 1.16 for the reviewer's 0.2 and 1.6 ms, never the 1.5 they claim at face value (re-review 2: nor 1).
-    eq("pin 7: single readings near the timer's resolution give the growth they prove: 1.16, not the face value 1.5",
-      preflightPlan({ tinyMs: 0.2, tinyPx: 2304, fullPx: 1260 * 708, classScale: 0.5, secondMs: 1.6, secondPx: 9216 }).exponent, 1.16);
+    // Single readings near the timer's resolution cannot prove their growth, so the most they allow is used (third
+    // round): log(1.7 / 0.1) / log 4 = 2.04 (shown 2.05) for the reviewer's 0.2 and 1.6 ms read once, above the 1.5 they
+    // show at face value and never below what they could be. What keeps such a reading from capping the whole run is
+    // the ladder below: it steps from the frames drawn now, and every step measures again.
+    eq("pin 7: single readings near the timer's resolution are taken at the most growth they allow: 2.05, not the face value 1.5",
+      preflightPlan({ tinyMs: 0.2, tinyPx: 2304, fullPx: 1260 * 708, classScale: 0.5, secondMs: 1.6, secondPx: 9216 }).exponent, 2.05);
     // A first pre-flight inflated once (a 25 ms tiny frame, as a stall would make it) puts 0.5 x past the one-frame
     // limit (625 ms); the live frames are cheap. The ladder steps from the frames drawn now and measures again at the step.
     let once = true;
@@ -1189,7 +1233,7 @@ async function withGlobalFetch(fetchFn, fn) {
   // A cost that is cheap for the pre-flight's tiny frames and for the first `after` live frames, then `slowMs` a frame.
   const stallAfter = (after, slowMs, tinyMs = 0.3) => {
     let n = 0;
-    return (w, h) => { if (w * h <= 128 * 72) return perPx(tinyMs)(w, h); n += 1; return n > after ? slowMs : 8; };
+    return (w, h) => { if (isPf(w, h)) return perPx(tinyMs)(w, h); n += 1; return n > after ? slowMs : 8; };
   };
   const pumpUntil = (r, done, max = 200) => { for (let i = 0; i < max && r.stage.state().running && !done(); i++) r.pump(1); };
   const lastLiveMs = (r) => { const l = r.liveFrames(); return l.length ? l.at(-1).ms : 0; };
@@ -1265,8 +1309,9 @@ async function withGlobalFetch(fetchFn, fn) {
   {
     const p = preflightPlan({ tinyMs: 0.1, tinyPx: 2304, fullPx: 230400, secondMs: 0.8, secondPx: 9216, classScale: 1,
       resolutionMs: 0.1 / 8, secondResolutionMs: 0.1 / 3 });
-    check("re-review 2: 0.1 and 0.8 ms averaged over 8 and 3 draws prove growth above linear: the lower bound, 1.38",
-      p.exponent === 1.38, String(p.exponent));
+    // Up to log((0.8 + 0.1 / 3) / (0.1 - 0.1 / 8)) / log 4 = 1.626 (shown 1.63); at face value they show 1.5.
+    check("re-review 2: 0.1 and 0.8 ms averaged over 8 and 3 draws are never reset to linear: the most growth they allow, 1.63",
+      p.exponent === 1.63, String(p.exponent));
     for (const [label, tinyMs, e, box, dpr, reviewed] of [
       ["pixels^1.5 read at 0.1 ms", 0.1, 1.5, [640, 360], 1, "100 ms"],
       ["pixels^2 read at 0.1 ms", 0.1, 2, [640, 360], 1, "316 ms"],
@@ -1286,7 +1331,7 @@ async function withGlobalFetch(fetchFn, fn) {
   // ---- re-review 3 (LOW-MEDIUM): after a hold Run again always measures, and its step down is in pixels ----
   {
     // Held at 0.5 x (320 x 180, a 900 ms frame), then the window goes to a 2x display: 0.25 x there IS 320 x 180.
-    const big = (w, h) => w * h > 30000;
+    const big = (w, h) => !isPf(w, h) && w * h > 30000;
     let n = 0;
     const r = rig({ cost: (w, h) => { if (!big(w, h)) return perPx(0.3)(w, h); n += 1; return n > 6 ? 900 : perPx(0.3)(w, h); } });
     r.stage.setSubject(subject("C4"));
@@ -1303,13 +1348,15 @@ async function withGlobalFetch(fetchFn, fn) {
   }
   {
     // Held at 0.75 x (480 x 270), then the pixel ratio 1 to 1.5: 0.5 x there IS 480 x 270, so the step is to 0.25 x.
-    // Frames of 480 x 270 or more take 900 ms from the 7th live frame on; smaller ones stay cheap.
+    // Frames of 480 x 270 or more take 900 ms from the 7th live frame on; smaller ones stay cheap. (0.35 and 1.4 ms, then
+    // 5.6 ms at 256 x 144, allow growth up to 1.08, which puts 0.75 x at 21.9 ms: within the budget.)
     let n = 0;
-    const r = rig({ cost: (w, h) => { if (w * h <= 128 * 72) return perPx(0.5)(w, h); n += 1; return n > 6 && w * h >= 480 * 270 ? 900 : perPx(0.5)(w, h); } });
+    const r = rig({ cost: (w, h) => { if (isPf(w, h)) return perPx(0.35)(w, h); n += 1; return n > 6 && w * h >= 480 * 270 ? 900 : perPx(0.35)(w, h); } });
     r.stage.setSubject(subject("C2"));
     await r.run();
-    check("re-review 3: a 50 ms program starts at 0.75 x", r.stage.state().scale === 0.75, String(r.stage.state().scale));
+    check("re-review 3: a 35 ms program starts at 0.75 x", r.stage.state().scale === 0.75, String(r.stage.state().scale));
     r.pump(10);
+    check("re-review 3: and is held there", r.stage.state().halted === "tripped" && (r.stage.state().trip || {}).scale === 0.75, JSON.stringify(r.stage.state().trip));
     const measures = r.stage.state().measures, before = r.liveFrames().length;
     r.dpr = 1.5;
     await r.run();
@@ -1324,7 +1371,7 @@ async function withGlobalFetch(fetchFn, fn) {
   {
     // A 1800 ms frame at 0.5 x; Run again draws at 0.25 x, where the frames take 450 ms: slow, under the one-frame limit.
     let n = 0;
-    const r = rig({ cost: (w, h) => { if (w * h <= 128 * 72) return perPx(0.3)(w, h); n += 1; return n > 10 ? w * h * (1800 / 57600) : perPx(0.3)(w, h); } });
+    const r = rig({ cost: (w, h) => { if (isPf(w, h)) return perPx(0.3)(w, h); n += 1; return n > 10 ? w * h * (1800 / 57600) : perPx(0.3)(w, h); } });
     r.stage.setSubject(subject("C4"));
     await r.run();
     pumpUntil(r, () => false, 20);
@@ -1347,7 +1394,7 @@ async function withGlobalFetch(fetchFn, fn) {
     // Frames of 300 ms at 0.5 x, then the window shrinks a little: fewer pixels than were measured, but 300 ms is past
     // the ladder's step cap, so the size change starts over by Run's rule instead of keeping 0.5 x.
     let heavy = false;
-    const r = rig({ cost: (w, h) => (heavy && w * h > 128 * 72 ? 300 : perPx(0.5)(w, h)) });
+    const r = rig({ cost: (w, h) => (heavy && !isPf(w, h) ? 300 : perPx(0.5)(w, h)) });
     r.stage.setSubject(subject("C4"));
     await r.run();
     r.pump(3);
@@ -1362,7 +1409,7 @@ async function withGlobalFetch(fetchFn, fn) {
   // ---- re-review 5 (LOW): a knob value that is refused or does not compile is no GPU gap for the program on stage ----
   {
     // The rebuilt program's tiny frames take 600 ms (the pre-flight refuses it); the program on stage draws 8 ms frames.
-    const r = rig({ cost: (w, h, f, toy) => (w * h <= 128 * 72 ? (toy >= 2 ? 600 : perPx(0.3)(w, h)) : 8) });
+    const r = rig({ cost: (w, h, f, toy) => (isPf(w, h) ? (toy >= 2 ? 600 : perPx(0.3)(w, h)) : 8) });
     r.stage.setSubject(subject("C4", { acceptsParams: true }));
     await r.run();
     r.pump(10);
@@ -1431,6 +1478,317 @@ async function withGlobalFetch(fetchFn, fn) {
     const pf = r.receipts.at(-1).preflight || {};
     check("re-review 8: a re-measure's receipt carries why it measured again and what it did", pf.why === "the stage changed size" && pf.how === "kept",
       JSON.stringify({ how: pf.how, why: pf.why }));
+  }
+
+  // ==================================== the lab re-review's new defects (2026-10-13, third round), one pin each --
+  // ---- third round (MEDIUM): an exponent the readings cannot prove is taken as the heaviest growth they allow ----
+  {
+    // 0.005 and 0.08 ms, each averaged over 8 draws (0.0125 ms of timer each): within the timer's resolution of each
+    // other, they allow anything from linear growth to pixels cubed.
+    const p = preflightPlan({ tinyMs: 0.005, tinyPx: 2304, fullPx: 1260 * 708, classScale: 1, secondMs: 0.08, secondPx: 9216,
+      resolutionMs: 0.1 / 8, secondResolutionMs: 0.1 / 8 });
+    check("third round: readings within the timer's resolution prove no growth, so it is taken as the heaviest, 3 (as reviewed: linear)",
+      p.exponent === 3, String(p.exponent));
+    // One reading alone proves no growth either (the stage takes one when the tiny frame is too heavy for a second).
+    const one = preflightPlan({ tinyMs: 40, tinyPx: 2304, fullPx: 230400, classScale: 0.5 });
+    check("third round: one reading is taken at the heaviest growth too, so a 40 ms tiny frame is refused (before: started at 0.25 x, 250 ms predicted, linear)",
+      one.exponent === 3 && !one.ok && /500 ms/.test(one.refused || ""), JSON.stringify({ exponent: one.exponent, ok: one.ok, refused: one.refused }));
+    // Readings far above the resolution keep the growth they show: 0.5 and 8 ms, a cost that goes with the square.
+    const sq = preflightPlan({ tinyMs: 0.5, tinyPx: 2304, fullPx: 230400, secondMs: 8, secondPx: 9216, classScale: 1, resolutionMs: 0.025 });
+    check("third round: well-resolved readings are taken at the most they allow, a little above the true 2, never below",
+      sq.exponent >= 2 && sq.exponent <= 2.05, String(sq.exponent));
+
+    // The reviewer's cases on the stage: costs that go with a power of the pixels, read within the timer's resolution.
+    for (const [label, tinyMs, e, box, dpr, reviewed] of [
+      ["pixels^2 read at 0.01 ms", 0.01, 2, [640, 360], 1, "a 100 ms first frame"],
+      ["pixels^2 read at 0.005 ms", 0.005, 2, [1260, 708], 1, "750 ms"],
+      ["pixels^2 read at 0.005 ms, a 1600 x 900 box at a pixel ratio of 1.5", 0.005, 2, [1600, 900], 1.5, "9.9 s"],
+      ["pixels^1.5 read at 0.01 ms in that box", 0.01, 1.5, [1600, 900], 1.5, "527 ms"]]) {
+      const r = rig({ cost: (w, h) => tinyMs * ((w * h) / 2304) ** e, box, dpr });
+      r.stage.setSubject(subject("C2"));
+      await r.run();
+      r.pump(3);
+      const first = r.liveFrames()[0];
+      const pf = r.stage.state().preflight || {};
+      check(`third round: ${label}: the first live frame costs no more than predicted, and stays within the budget unless the stage said it would not (as reviewed: ${reviewed})`,
+        !!first && unadmitted(r.rt.log).length === 0 && (first.ms <= PREFLIGHT.budgetMs || pf.overBudget) && first.ms < WATCHDOG.slowMs,
+        JSON.stringify({ first, exponent: pf.exponent, predictedMs: pf.predictedMs, scale: pf.scale, overBudget: pf.overBudget, bad: unadmitted(r.rt.log).slice(0, 2) }));
+    }
+
+    // A grid like the reviewer's: four boxes, growth from pixels^1 to pixels^3, tiny readings from 0.001 to 0.3 ms.
+    const bad = [];
+    let cases = 0;
+    for (const [box, dpr] of [[[320, 180], 1], [[640, 360], 1], [[1260, 708], 1], [[1600, 900], 1.5]]) {
+      for (const e of [1, 1.5, 2, 2.5, 3]) {
+        for (const tinyMs of [0.001, 0.003, 0.005, 0.01, 0.03, 0.1, 0.3]) {
+          cases += 1;
+          const r = rig({ cost: (w, h) => tinyMs * ((w * h) / 2304) ** e, box, dpr });
+          r.stage.setSubject(subject("C2"));
+          await r.run();
+          r.pump(3);
+          const pf = r.stage.state().preflight || {};
+          const over = unadmitted(r.rt.log);
+          const first = r.liveFrames()[0];
+          if (over.length || (first && first.ms > PREFLIGHT.budgetMs && !pf.overBudget)) {
+            bad.push(`${box.join("x")}@${dpr} pixels^${e} at ${tinyMs} ms: ${over[0] || `first frame ${Math.round(first.ms * 10) / 10} ms, not said over budget`}`);
+          }
+        }
+      }
+    }
+    check(`third round: on a grid of ${cases} costs that go with a power of the pixels, no live frame costs more than the stage predicted for it`,
+      bad.length === 0, `${bad.length} cases: ${bad.slice(0, 5).join("; ")}`);
+
+    // The reviewer's other regime: a fixed cost every frame pays (the read-back's round trip, the submission) hides how
+    // the pixels' own cost grows. A square-law cost of 0.03 ms at 64 x 36 behind 0.1 ms of it reads 0.13 and 0.58 ms:
+    // the total looks linear, and a full 640 x 360 frame is 300 ms.
+    {
+      const r = rig({ cost: (w, h) => 0.03 * ((w * h) / 2304) ** 2, overheadMs: 0.1 });
+      r.stage.setSubject(subject("C2"));
+      await r.run();
+      r.pump(3);
+      const first = r.liveFrames()[0];
+      const pf = r.stage.state().preflight || {};
+      check("third round: a square-law cost behind a fixed per-frame cost starts where its first frame stays within the budget (as reviewed: could start near 675 ms; at 640 x 360, 300 ms)",
+        !!first && unadmitted(r.rt.log).length === 0 && (first.ms <= PREFLIGHT.budgetMs || pf.overBudget) && first.ms < WATCHDOG.slowMs,
+        JSON.stringify({ first, exponent: pf.exponent, overhead: pf.overhead, predictedMs: pf.predictedMs, scale: pf.scale, second: pf.second, more: pf.more }));
+    }
+    const badOver = [];
+    let casesOver = 0;
+    for (const [box, dpr] of [[[640, 360], 1], [[1600, 900], 1.5]]) {
+      for (const overheadMs of [0.05, 0.2, 1]) {
+        for (const e of [1, 2, 3]) {
+          for (const tinyMs of [0.003, 0.03, 0.3]) {
+            casesOver += 1;
+            const r = rig({ cost: (w, h) => tinyMs * ((w * h) / 2304) ** e, box, dpr, overheadMs });
+            r.stage.setSubject(subject("C2"));
+            await r.run();
+            r.pump(3);
+            const pf = r.stage.state().preflight || {};
+            const over = unadmitted(r.rt.log);
+            const first = r.liveFrames()[0];
+            if (over.length || (first && first.ms > PREFLIGHT.budgetMs && !pf.overBudget)) {
+              badOver.push(`${box.join("x")}@${dpr} ${overheadMs} ms + pixels^${e} at ${tinyMs} ms: ${over[0] || `first frame ${Math.round(first.ms * 10) / 10} ms, not said over budget`}`);
+            }
+          }
+        }
+      }
+    }
+    check(`third round: on a grid of ${casesOver} costs that are a fixed per-frame cost plus a power of the pixels, no live frame costs more than predicted`,
+      badOver.length === 0, `${badOver.length} cases: ${badOver.slice(0, 5).join("; ")}`);
+
+    // The larger pre-flight frames: drawn while the readings leave the growth unproven, each only when even the heaviest
+    // growth keeps it under the ladder's step cap; none when the first two readings prove it. Here 0.01 and 0.16 ms allow
+    // linear to the cube; the 256 x 144 frame reads 2.56 ms, and a 512 x 288 one could take 169 ms at the cube, so it
+    // is not drawn.
+    const r = rig({ cost: (w, h) => 0.01 * ((w * h) / 2304) ** 2 });
+    r.stage.setSubject(subject("C2"));
+    await r.run();
+    const pfm = r.stage.state().preflight || {};
+    check("third round: readings within the timer's resolution draw a larger pre-flight frame (256 x 144) and stop where the next could pass the 150 ms step cap",
+      Array.isArray(pfm.more) && pfm.more.length === 1 && JSON.stringify(pfm.more[0].size) === "[256,144]" && pfm.more.every((q) => q.ms <= LADDER.stepCapMs),
+      JSON.stringify(pfm.more));
+    const r2 = rig({ cost: perPx(2) });
+    r2.stage.setSubject(subject("C2"));
+    await r2.run();
+    const pf2 = r2.stage.state().preflight || {};
+    check("third round: readings that prove their growth (2 and 8 ms) draw no larger frame", Array.isArray(pf2.more) && pf2.more.length === 0, JSON.stringify(pf2.more));
+
+    // A guard, not a pin (it passes before and after): a cheap linear cost is not left at a low scale by the heaviest
+    // growth. Read at 0.01 ms, it is measured on larger frames until its growth is proven, and starts at full scale in a
+    // 1920 x 1080 box.
+    const r3 = rig({ cost: perPx(0.01), box: [1920, 1080] });
+    r3.stage.setSubject(subject("C2"));
+    await r3.run();
+    eq("third round (guard): a linear cost read at 0.01 ms starts at full scale in a 1920 x 1080 box", r3.stage.state().scale, 1);
+  }
+
+  // ---- third round (LOW): a hold found while the subject changes sends no receipt, and its refusal stands ----
+  {
+    // 8 ms frames at a quarter, then 1500 ms from the 21st: another subject is picked while that frame is in flight.
+    const r = rig({ cost: stallAfter(20, 1500, 2) });
+    r.stage.setSubject(subject("C2", { id: "leave1", title: "Leaving" }));
+    await r.run();
+    eq("third round: it starts at a quarter", r.stage.state().scale, 0.25);
+    pumpUntil(r, () => lastLiveMs(r) >= 1500);
+    const n = r.receipts.length;
+    r.stage.setSubject(subject("C2", { id: "next01", title: "Next" }));
+    check("third round: the leaving subject's hold sends no receipt once another is picked (as reviewed: its held receipt reached the Inspector)",
+      r.receipts.length === n, JSON.stringify(r.receipts.slice(n).map((x) => ({ subject: x.subject, held: !!x.held }))));
+    check("third round: and leaves no amber outline on the next subject's still",
+      !hasClass(byClass(r.root, "wb-stage-box")[0], "is-held"), byClass(r.root, "wb-stage-box")[0].className);
+    r.stage.setSubject(subject("C2", { id: "leave1", title: "Leaving" }));
+    const btn = byClass(r.root, "wb-run")[0];
+    check("third round: the refusal that hold earned still stands for its subject", btn.disabled && /refused/i.test(textOf(btn)), textOf(btn));
+  }
+
+  // ---- third round (LOW, cosmetic): picking another subject takes a hold's outline off ----
+  {
+    const r = rig({ cost: stallAfter(5, 700, 0.3) });
+    r.stage.setSubject(subject("C2", { id: "held01" }));
+    await r.run();
+    r.pump(10);
+    const box = byClass(r.root, "wb-stage-box")[0];
+    check("third round: a hold outlines the stage", r.stage.state().tripped && hasClass(box, "is-held"), `${r.stage.state().tripped} ${box.className}`);
+    r.stage.setSubject(subject("C2", { id: "other1" }));
+    check("third round: picking another subject takes the outline off (as reviewed: 'wb-stage-box is-held' on its still)",
+      !hasClass(box, "is-held"), box.className);
+  }
+
+  // =================================== the lab re-review's new defects (2026-10-13, fourth round), one pin each --
+  // The pre-flight's frames are the ones drawn before the first receipt (a refusal sends one too); the larger ones are
+  // those above 128 x 72. pow(ms, e): a cost of `ms` at 64 x 36 that grows as the pixels to the power e.
+  const preFrames = (r) => {
+    const ev = r.rt.log.events;
+    const k = ev.findIndex((e) => e.kind === "admit");
+    return (k < 0 ? ev : ev.slice(0, k)).filter((e) => e.kind === "render" && !e.scissor);
+  };
+  const pow = (ms, e) => (w, h) => ms * ((w * h) / 2304) ** e;
+  const r2ms = (x) => Math.round(x * 100) / 100;
+  // What went wrong in one run: a larger pre-flight frame past the ladder's step cap, any pre-flight frame past the
+  // one-frame limit, or a live frame above what the stage predicted for it.
+  function overLimits(r) {
+    const pre = preFrames(r);
+    const out = [];
+    const larger = pre.filter((e) => e.w * e.h > PREFLIGHT.w2 * PREFLIGHT.h2 && e.ms > LADDER.stepCapMs + 1e-9);
+    if (larger.length) out.push(`a ${larger[0].w} x ${larger[0].h} pre-flight frame took ${r2ms(larger[0].ms)} ms (the step cap is ${LADDER.stepCapMs})`);
+    const huge = pre.filter((e) => e.ms > WATCHDOG.gapMs);
+    if (huge.length) out.push(`a ${huge[0].w} x ${huge[0].h} pre-flight frame took ${r2ms(huge[0].ms)} ms (the limit is ${WATCHDOG.gapMs})`);
+    const bad = unadmitted(r.rt.log);
+    if (bad.length) out.push(bad[0]);
+    return out;
+  }
+
+  // ---- fourth round (MEDIUM): one hiccup on the timed one-pixel draw does not lift the guards ----
+  {
+    // The per-frame cost read as 10 ms (a GC pause) beside a 0.34 ms tiny frame and a 9.2 ms 128 x 72 one: what every
+    // frame pays is part of every frame, so it is never more than the smallest of them, and a reading above that is a
+    // hiccup. A cube-law cost: the truth at 0.25 x of a 1920 x 1080 box is about 25 s a frame.
+    const truth = (p) => 0.2 + (9 / 64) * (p / 2304) ** 3;
+    const p = preflightPlan({ tinyMs: 0.2 + 9 / 64, tinyPx: 2304, fullPx: 1920 * 1080, classScale: 1, resolutionMs: 0.1 / 6,
+      secondMs: 9.2, secondPx: 9216, secondResolutionMs: 0.1, overheadMs: 10, overheadResolutionMs: 0.1 });
+    const under = p.perScale.filter((q) => q.ms < truth(q.px) - 0.05);
+    check("fourth round: a per-frame reading above the tiny frame is set aside, so no scale is predicted below its frame (as reviewed: 0.25 x started at about 129 ms for a 25 s frame)",
+      under.length === 0 && !p.ok, JSON.stringify({ ok: p.ok, scale: p.scale, under: under.map((q) => [q.scale, q.ms, Math.round(truth(q.px))]) }));
+
+    // The reviewer's cases on the stage (a 1920 x 1080 box, 0.2 ms per frame): one slow draw (n = 1, the first timed
+    // one-pixel draw) while the per-frame cost is read.
+    for (const [label, cost, spike, reviewed] of [
+      ["cube, 9 ms of work at 128 x 72, a 10 ms hiccup", pow(9 / 64, 3), 10, "a 576 ms 256 x 144 frame"],
+      ["cube, 2.5 ms of work at 128 x 72, a 1.5 ms hiccup", pow(2.5 / 64, 3), 1.5, "a 160 ms 256 x 144 frame"],
+      ["square, 20 ms of work at 128 x 72, a 25 ms hiccup", pow(20 / 16, 2), 25, "a 320 ms 256 x 144 frame"],
+      ["pixels^2.5, 1 ms of work at 128 x 72, a 25 ms hiccup", pow(1 / 4 ** 2.5, 2.5), 25, "started at 338 ms predicted, first live frame 742 ms"]]) {
+      const r = rig({ cost: (w, h) => cost(w, h), box: [1920, 1080], overheadMs: 0.2, onePixelMs: (n) => (n === 1 ? spike : null) });
+      r.stage.setSubject(subject("C2"));
+      await r.run();
+      r.pump(3);
+      const why = overLimits(r);
+      const pf = r.stage.state().preflight || {};
+      check(`fourth round: ${label}: no pre-flight frame past its cap and no live frame above its prediction (as reviewed: ${reviewed})`,
+        why.length === 0, `${why.join("; ")} | overhead ${JSON.stringify(pf.overhead)}`);
+      check(`fourth round: ${label}: the per-frame cost is read twice and the smaller kept (0.2 ms, not the hiccup)`,
+        !!pf.overhead && Math.abs(pf.overhead.ms - 0.2) < 0.005, JSON.stringify(pf.overhead));
+    }
+
+    // Both timed one-pixel draws slow: the smaller reading is still the hiccup, above the tiny frame, so it is set aside
+    // and the work is taken whole.
+    {
+      const r = rig({ cost: pow(9 / 64, 3), box: [1920, 1080], overheadMs: 0.2, onePixelMs: (n) => (n >= 1 ? 10 : null) });
+      r.stage.setSubject(subject("C2"));
+      await r.run();
+      r.pump(3);
+      const why = overLimits(r);
+      check("fourth round: every timed one-pixel draw slow (10 ms): the reading is set aside, and no pre-flight frame passes its cap (as reviewed: a 576 ms frame)",
+        why.length === 0, why.join("; "));
+    }
+
+    // A grid like the reviewer's: two boxes, growth from the square to the cube, 1 to 30 ms of work at 128 x 72, and a
+    // hiccup of 1.5, 10 or 40 ms on the first timed one-pixel draw, then on every one.
+    const bad = [];
+    let cases = 0;
+    for (const [box, dpr] of [[[1920, 1080], 1], [[1366, 768], 1.25]]) {
+      for (const e of [2, 2.5, 3]) {
+        for (const at128 of [1, 2.5, 5, 9, 20, 30]) {
+          for (const [spike, every] of [[1.5, false], [10, false], [40, false], [10, true]]) {
+            cases += 1;
+            const r = rig({ cost: pow(at128 / 4 ** e, e), box, dpr, overheadMs: 0.2,
+              onePixelMs: (n) => ((every ? n >= 1 : n === 1) ? spike : null) });
+            r.stage.setSubject(subject("C2"));
+            await r.run();
+            r.pump(3);
+            const why = overLimits(r);
+            if (why.length) bad.push(`${box.join("x")}@${dpr} pixels^${e} ${at128} ms at 128x72, ${every ? "every" : "one"} ${spike} ms hiccup: ${why[0]}`);
+          }
+        }
+      }
+    }
+    check(`fourth round: on a grid of ${cases} hiccups on the timed one-pixel draw, no pre-flight frame passes its cap and no live frame its prediction (as reviewed: 64 of 216 past the cap, worst 1920 ms)`,
+      bad.length === 0, `${bad.length} cases: ${bad.slice(0, 4).join("; ")}`);
+  }
+
+  // ---- fourth round (LOW): the work bound takes what every frame pays at its LEAST ----
+  {
+    // The reviewer's numbers: a cube-law cost of 0.1 ms at 64 x 36 behind a true 1 ms per frame, read as 1.1 ms (each
+    // reading uncertain by 0.1 ms). True frames: 25.41 ms at 0.25 x and 1563.5 ms at 0.5 x of a 640 x 360 box.
+    const p = preflightPlan({ tinyMs: 1.1, tinyPx: 2304, fullPx: 640 * 360, classScale: 1, secondMs: 7.4, secondPx: 9216,
+      resolutionMs: 0.1, secondResolutionMs: 0.1, overheadMs: 1.1, overheadResolutionMs: 0.1 });
+    const at = (s) => (p.perScale.find((q) => q.scale === s) || {}).ms;
+    check("fourth round: within the readings' uncertainty no prediction is below the frame (as reviewed: 25.2 and 1539.3 ms for 25.41 and 1563.5)",
+      at(0.25) >= 25.41 && at(0.5) >= 1563.5, JSON.stringify({ q: at(0.25), h: at(0.5) }));
+
+    // The same on the stage's guard for the larger pre-flight frames: a true 1 ms per frame read as 1.1 ms, and a
+    // cube-law cost whose 256 x 144 frame takes 153 ms. Taking 1.1 + 0.1 off the 128 x 72 reading predicted 146.8 ms.
+    const r = rig({ cost: pow(2.375 / 64, 3), box: [1920, 1080], overheadMs: 1, onePixelMs: (n) => (n >= 1 ? 1.1 : null) });
+    r.stage.setSubject(subject("C2"));
+    await r.run();
+    r.pump(3);
+    const why = overLimits(r);
+    check("fourth round: the guard on a larger pre-flight frame takes the per-frame cost at its least (as reviewed: a 153 ms 256 x 144 frame past the 150 ms cap)",
+      why.length === 0, why.join("; "));
+  }
+
+  // ---- fourth round (LOW): the 128 x 72 pair is guarded to the cube, the growth the stage now assumes ----
+  {
+    for (const [tinyMs, reviewed] of [[20, "a 1280 ms 128 x 72 frame"], [7.9, "a 505.6 ms 128 x 72 frame"]]) {
+      const r = rig({ cost: pow(tinyMs, 3), box: [1920, 1080] });
+      r.stage.setSubject(subject("C2"));
+      await r.run();
+      r.pump(3);
+      const why = overLimits(r);
+      check(`fourth round: a cube-law tiny frame of ${tinyMs} ms draws no 128 x 72 frame past the one-frame limit (as reviewed: ${reviewed})`,
+        why.length === 0, why.join("; "));
+    }
+    // When 128 x 72 could pass the limit at the cube, the second reading is at about twice the pixels (90 x 51, eight
+    // times the time at the cube): a heavy tiny frame (10 ms; 1000 ms at 1 x) still gets one, and still starts at the
+    // smallest scale, over the budget, instead of being refused on one reading taken at the cube.
+    {
+      const rh = rig({ cost: perPx(10) });
+      rh.stage.setSubject(subject("C2"));
+      await rh.run();
+      const pfh = rh.stage.state().preflight || {};
+      check("fourth round: a 10 ms tiny frame, too heavy for 128 x 72 at the cube, takes its second reading at 90 x 51 and starts at the smallest scale",
+        !!pfh.second && JSON.stringify(pfh.second.size) === "[90,51]" && pfh.scale === 0.25 && pfh.overBudget === true && overLimits(rh).length === 0,
+        JSON.stringify({ second: pfh.second, scale: pfh.scale, overBudget: pfh.overBudget, why: overLimits(rh) }));
+    }
+    // A guard, not a pin: SwiftShader's ldSfWV read its tiny frame at 4.1 to 5.2 ms; at 5.2 ms its 128 x 72 pair is still drawn.
+    const r = rig({ cost: perPx(5.2), box: [1280, 720] });
+    r.stage.setSubject(subject("C2"));
+    await r.run();
+    const pf = r.stage.state().preflight || {};
+    check("fourth round (guard): a 5.2 ms tiny frame still draws its 128 x 72 pair", !!pf.second && pf.second.size[0] === 128, JSON.stringify(pf.second));
+  }
+
+  // ---- fourth round (NIT, decision): the larger pre-flight frames stay within the scale the class may start at ----
+  {
+    // A C4 subject in a 1920 x 1080 box starts at 0.5 x at most: 960 x 540, 518,400 pixels. A cheap linear cost read
+    // under the timer's resolution leaves its growth unproven up to 512 x 288, and 1024 x 576 has more pixels than that.
+    const r = rig({ cost: perPx(0.001), box: [1920, 1080] });
+    r.stage.setSubject(subject("C4"));
+    await r.run();
+    const most = 960 * 540;
+    const big = preFrames(r).filter((e) => e.w * e.h > most);
+    const pf = r.stage.state().preflight || {};
+    check("fourth round: a C4 subject's pre-flight draws nothing larger than its half-scale frame (as reviewed: 1024 x 576)",
+      big.length === 0 && pf.scale === 0.5, JSON.stringify({ big: big.slice(0, 2).map((e) => [e.w, e.h]), scale: pf.scale }));
   }
 }
 
@@ -1542,6 +1900,9 @@ async function withGlobalFetch(fetchFn, fn) {
   eq("the lab as opened: no runtime import, no canvas, no context, no animation frame",
     [imports.filter((u) => /toy-runtime/.test(u)).length, doc.canvases, doc.getContextCalls, clock.rafCalls], [0, 0, 0, 0]);
   check("the lab as opened: the Strip's takes say why there are none", /Live runs are off/.test(textOf(byClass(root, "wb-strip")[0])), textOf(byClass(root, "wb-strip")[0]));
+  const emptyReceipt = textOf(byClass(root, "wb-insp-receipt")[0] || root);
+  check("the lab as opened: the Inspector's empty receipt says live runs are off (third round; as reviewed: 'A live run writes here what ran...')",
+    /Live runs are off until their safety review clears/.test(emptyReceipt) && !/^\s*Receipt\s+Nothing has run yet\. A live run writes here/.test(emptyReceipt), emptyReceipt);
 }
 
 // ============================================================================ stage: cards and params --
@@ -1574,6 +1935,21 @@ async function withGlobalFetch(fetchFn, fn) {
 }
 
 // ===================================================================== inspector: header, params, receipt --
+// ---- fourth round (NIT): the pre-flight line says what every frame pays only when it is something, and never a
+// reading the stage set aside as a hiccup ----
+{
+  const base = { size: [64, 36], ms: 2, fullSize: [640, 360], predictedFullMs: 237.4, scale: 0.25, predictedMs: 12.9, budgetMs: 30,
+    timedWith: "gl.finish + readPixels", compileMs: 0, second: { size: [128, 72], ms: 8 }, exponent: 1.05,
+    growth: { low: 1, high: 1.05, proven: true, readings: 2 } };
+  const zero = preflightText({ ...base, overhead: { ms: 0.004, reps: 8 } });
+  check("fourth round: a per-frame reading that rounds to 0 is not said (as reviewed: 'every frame pays 0 ms whatever its size')",
+    !/every frame pays/.test(zero), zero);
+  const some = preflightText({ ...base, overhead: { ms: 0.2, reps: 8 } });
+  check("fourth round (guard): a per-frame reading of 0.2 ms is said", /every frame pays 0\.2 ms whatever its size/.test(some), some);
+  const hiccup = preflightText({ ...base, overhead: { ms: 10, reps: 1, setAside: true } });
+  check("fourth round: a per-frame reading set aside as a hiccup is said as such, not as what every frame pays",
+    !/every frame pays/.test(hiccup) && /set aside/.test(hiccup) && /10 ms/.test(hiccup), hiccup);
+}
 {
   const facts = composedFacts("// arsenal.glsl-module/v1 compose: a, b\n// modules: a@1.0.0 b@0.2.0\n// sha256: abc123\n\nfloat a(){return 1.0;}\n");
   eq("composed facts", facts, { modules: ["a@1.0.0", "b@0.2.0"], sha: "abc123" });
@@ -1602,6 +1978,14 @@ async function withGlobalFetch(fetchFn, fn) {
     modules: ["core-safe@1.0.0"], sha: "deadbeef", compile: { ok: true } });
   check("the receipt of what ran: modules@version and the composed sha",
     textOf(root).includes("core-safe@1.0.0") && textOf(root).includes("deadbeef") && /AMD Radeon/.test(textOf(root)));
+  // The empty receipt says why nothing has run: with live runs off, that they are off (third round, NIT).
+  const rootOff = doc.createElement("section");
+  mountInspector(doc, rootOff, { live: false });
+  check("view only: the Inspector's empty receipt says live runs are off (as reviewed: only 'A live run writes here what ran...')",
+    /Live runs are off until their safety review clears/.test(textOf(byClass(rootOff, "wb-insp-receipt")[0])), textOf(rootOff));
+  const rootOn = doc.createElement("section");
+  mountInspector(doc, rootOn, { live: true });
+  check("with them on, it says what a live run will write", /A live run writes here/.test(textOf(byClass(rootOn, "wb-insp-receipt")[0])), textOf(rootOn));
 
   // A loved shader's datasheet links its techniques and its groups back into the Library.
   const jumps = [];
@@ -1762,6 +2146,9 @@ async function withGlobalFetch(fetchFn, fn) {
   const runBtn = byClass(root, "wb-run")[0];
   check("the Run button names the heaviest class of the closure (C3), not the module's own (C0)", /C3/.test(textOf(runBtn)) && /half scale/.test(textOf(runBtn)), textOf(runBtn));
   check("and the cost line says which module made it so", /heavy-mod/.test(textOf(byClass(root, "wb-stage")[0])));
+  check("with the switch on, the Inspector's empty receipt says a live run writes there, not that runs are off",
+    /A live run writes here/.test(textOf(byClass(root, "wb-insp-receipt")[0])) && !/Live runs are off/.test(textOf(byClass(root, "wb-insp-receipt")[0])),
+    textOf(byClass(root, "wb-insp-receipt")[0]));
   const origShow = wb.inspector.showReceipt;
   wb.inspector.showReceipt = (r) => { receipts.push(r); origShow(r); };
   await withGlobalFetch(globalFetchFrom(table), async () => { runBtn.fire("click"); await settle(); });
@@ -1787,6 +2174,56 @@ async function withGlobalFetch(fetchFn, fn) {
   await settle();
   clock.pump(16);
   check("an explicit Run resumes it, iTime continuous", wb.stage.state().running && rt.log.lastTime - t0 < 0.1, `${t0} -> ${rt.log.lastTime}`);
+}
+
+// ====== third round (LOW): a module picked while a loved shader's frame stalls shows its own datasheet and no old receipt --
+// The reviewer's probe: Heartfelt runs live at half scale, a frame stalls at 1500 ms, and a module is picked in the
+// Library while it is in flight. The Stage judges that frame as the subject leaves; the Inspector must not then show
+// Heartfelt's held receipt beside the module's datasheet.
+{
+  const doc = fakeDocument();
+  const root = doc.createElement("main");
+  const clock = fakeClock();
+  const rt = fakeRuntime(undefined, { clock });
+  let live = 0;
+  rt.log.cost = (w, h) => { if (isPf(w, h)) return w * h * (0.3 / 2304); live += 1; return live > 6 ? 1500 : 8; };
+  const modText = '//! {"name": "core-safe", "kind": "helper", "cat": "A1", "family": "A", "version": "1.0.0", "license": "Apache-2.0",\n//!  "cost": {"class": "C0"}, "contract": "never NaN"}\nfloat safeSqrt(float x) { return sqrt(max(x, 0.0)); }\n';
+  const table = {
+    "/atlas.json": atlas,
+    "/glsl/index.json": { api: "arsenal.glsl-module/v1", files: [{ path: "core/safe.glsl", sha256: "x" }] },
+    "/glsl/core/safe.glsl": modText,
+    "/shelf/index.json": { shaders: [{ id: "ltffzl", title: "Heartfelt", renders: { status: "rendered", stills: [{ t: 1, url: "/renders/ltffzl/t1.00.png" }] } }] },
+    "/corpus/ltffzl/shader.json": { renderpass: [{ type: "image", code: "void mainImage(out vec4 c, in vec2 p){c=vec4(1);}" }] },
+  };
+  const modlib = await import("../arsenal/web/glsl/modlib.js");
+  const wb = await withGlobalFetch(globalFetchFrom(table), async () => {
+    const w = await mountWorkbench(doc, root, {
+      fetch: fakeFetch(table), raf: clock.raf, caf: clock.caf, now: clock.now, dpr: () => 1, env: LIVE_ON,
+      importModule: async (url) => {
+        if (/modlib/.test(url)) return modlib;
+        if (/toy-runtime/.test(url)) return rt.module;
+        throw new Error(`no module at ${url}`);
+      },
+      isHidden: () => false, onVisibilityChange: () => {}, onResize: () => () => {},
+    });
+    await w.ready;
+    return w;
+  });
+  byClass(byClass(root, "wb-shelf-card")[0], "wb-stage-btn")[0].fire("click");
+  await settle();
+  await withGlobalFetch(globalFetchFrom(table), async () => { byClass(root, "wb-run")[0].fire("click"); await settle(); });
+  const insp = () => textOf(byClass(root, "wb-insp-receipt")[0]);
+  check("third round (Workbench): Heartfelt runs live, its receipt in the Inspector",
+    wb.stage.state().running && /Heartfelt/.test(insp()), JSON.stringify({ running: wb.stage.state().running, scale: wb.stage.state().scale, receipt: insp().slice(0, 120) }));
+  for (let i = 0; i < 40 && wb.stage.state().running && !rt.log.shadedLog.some((e) => e.ms >= 1500); i++) clock.pump(16);
+  check("third round (Workbench): a 1500 ms frame is in flight", wb.stage.state().running && rt.log.shadedLog.some((e) => e.ms >= 1500));
+  const row = byClass(byClass(root, "wb-library")[0], "wb-module").find((x) => x.dataset.path === "core/safe.glsl");
+  row.fire("click");
+  await settle();
+  check("third round (Workbench): the module is on stage, its datasheet in the Inspector",
+    wb.stage.state().subject === "core-safe" && /never NaN/.test(textOf(byClass(root, "wb-inspector")[0])), String(wb.stage.state().subject));
+  check("third round (Workbench): and no receipt of Heartfelt's beside it (as reviewed: 'Subject Heartfelt ... Scale 0.5 x')",
+    !/Heartfelt/.test(insp()) && /Nothing has run/.test(insp()), insp().slice(0, 200));
 }
 
 // ================================== a Shelf subject: study-only refusal client-side, stand-ins, SwiftShader warm ms --
