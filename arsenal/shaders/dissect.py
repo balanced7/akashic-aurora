@@ -285,8 +285,9 @@ def view_from_json(shader: dict, source: str = "") -> ShaderView:
         if rp.get("type") == "common":
             continue
         prog = G.Program(rp.get("code") or "", file=C.pass_stem(rp.get("name")) + ".glsl", base=common)
+        # A Shadertoy pass, never a library: with no entry point found, none of its functions is walked as one.
         passes.append(PassView(rp.get("name") or "Image", rp.get("type") or "image", prog.file, prog,
-                               G.Unit([common, prog]),
+                               G.Unit([common, prog], library=False),
                                [C._input_row(i) for i in rp.get("inputs") or []],
                                [{"id": o.get("id"), "channel": o.get("channel")} for o in rp.get("outputs") or []]))
     return ShaderView(info.get("id") or "", info.get("name") or "", info.get("username") or "", source, passes, common)
@@ -1733,17 +1734,28 @@ def detect_glow_and_volume(ctx: Ctx) -> None:
 # ---------- detectors: inputs, time, camera, anti-aliasing ----------
 
 def _channel_aliases(prog: G.Program, ch: int) -> Set[str]:
+    """iChannel<ch> and every object-like #define that only renames it, followed through renamings of renamings
+    (`#define KEYS Pressed` beside `#define Pressed iChannel2`): each of those #defines names the channel and reads
+    nothing; the read is where a name is used."""
     names = {f"iChannel{ch}"}
-    for name, d in prog.defines.items():
-        if d.params is None and re.fullmatch(r"\(?\s*iChannel" + str(ch) + r"\s*\)?", d.body or ""):
-            names.add(name)
-    return names
+    while True:
+        rx = re.compile(r"\(?\s*(?:" + "|".join(map(re.escape, sorted(names))) + r")\s*\)?")
+        more = {name for name, d in prog.defines.items()
+                if d.params is None and name not in names and rx.fullmatch(d.body or "")}
+        if not more:
+            return names
+        names |= more
 
 
 def _live_tokens(ctx: Ctx) -> Iterator[Tuple[G.Fn, G.Token]]:
+    """Every token in the body of a live function or macro, except one naming the body's own parameter: a macro's
+    parameter is the argument it is called with and a function's shadows a uniform of that name (glsl.Fn.param_names),
+    so `#define WAVE(iTime) sin(iTime)` and `float f(float iTime)` read no clock."""
     for fn in ctx.fns:
+        own = fn.param_names
         for t in fn.toks[fn.start:fn.end]:
-            yield fn, t
+            if t.text not in own:
+                yield fn, t
 
 
 def detect_inputs(ctx: Ctx) -> None:
@@ -1772,9 +1784,12 @@ def detect_inputs(ctx: Ctx) -> None:
                 for m in re.finditer(r"texelFetch \( (?:" + "|".join(names) + r") , ivec2 \( [^,]+ , (\d) \)", fn.flat):
                     reads.add("spectrum" if m.group(1) == "0" else "waveform")
             line = hits[0][1] if hits else 1
-            # bound but never read is reported below the floor: the shader does not USE audio
+            # bound but never read is reported below the floor: the shader does not USE audio. In a pass with no entry
+            # point found, no code was followed, so "never read" would be a negative over a search that never ran.
+            unread = (", bound; no entry point found, so no code was searched for a read" if not ctx.entries
+                      else ", bound but never read")
             ctx.add("audio.input", hits[0][0].file if hits else pv.file, line, 0.95 if hits else 0.4,
-                    f"{typ} on iChannel{ch}" + (f", read {len(hits)} time(s)" if hits else ", bound but never read"),
+                    f"{typ} on iChannel{ch}" + (f", read {len(hits)} time(s)" if hits else unread),
                     channel=ch, type=typ, reads=sorted(reads) or None)
         elif typ == "keyboard" and hits:
             ctx.add("input.keyboard", hits[0][0].file, hits[0][1], 0.95, f"keyboard on iChannel{ch}", channel=ch)
@@ -1788,6 +1803,8 @@ def detect_inputs(ctx: Ctx) -> None:
     frames = 0
     first = None
     for fn in ctx.fns:
+        if "iFrame" in fn.param_names:
+            continue                       # every iFrame in this body is its own parameter (_live_tokens)
         for m in re.finditer(r"\biFrame\b", fn.flat):
             around = fn.flat[max(0, m.start() - 12):m.end() + 8]
             if re.search(r"min \( (?:iFrame|0\.?0*) , (?:0\.?0*|iFrame)|max \( 0\.?0* , - iFrame|iFrame (?:==|<|<=) [0-9]",
@@ -1956,7 +1973,8 @@ def _cost(ctx: Ctx) -> dict:
                 w, path = mult(chain)
                 if w > best_w:
                     best_w, best_path = w, path
-            for c in fn.calls:
+            # unit.calls: a function the body hands to a macro that calls it is this body's call (glsl.Unit.calls)
+            for c in unit.calls(fn):
                 if c.builtin or c.name == name or c.name not in unit.graph:
                     continue
                 encl = fn.enclosing_loops(c.idx)
@@ -2154,6 +2172,10 @@ def human(rep: dict, evidence: int = EVIDENCE_SHOWN) -> str:
                    (f" ... +{len(dead) - 12}" if len(dead) > 12 else ""))
     notes = [f"{p['file']}: #if at line(s) {p['unsure_ifs']} could not be evaluated (first branch kept)"
              for p in rep["passes"] if p["unsure_ifs"]] + [x for p in rep["passes"] for x in p["problems"]]
+    notes += [f"{p['file']}: no entry point found (no {'/'.join(G.ENTRY_POINTS[:3])} and no top-level code calling a "
+              f"function), so none of its code was followed: no technique searched, no cost walked, every function it "
+              f"defines listed dead"
+              for p in rep["passes"] if not p["entries"]]
     if notes:
         out.append("NOTES  " + "; ".join(notes))
     return "\n".join(out)

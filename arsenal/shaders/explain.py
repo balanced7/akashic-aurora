@@ -16,13 +16,15 @@ interprets (a detector recognising a technique, a prediction, our own notes) is 
                          pass and its inputs as declared, a cycle the declared inputs close, a uniform or a declared
                          channel read on the line cited (iTime, iFrame, iMouse, iChannel<n>: the ledger checks that a
                          token of LIVE code on that line holds it, so a comment, an #if branch the preprocessor drops, a
-                         function no entry point reaches, a #define that only renames it and a macro's own parameter
-                         named like it (`#define WAVE(t) sin(t)` beside `#define t iTime`) are never a read; a macro
-                         or function Common defines is live code of every pass that reaches it, and a #define alias
-                         counts in its own pass and, from Common, in every pass; when the dissector's line is not a
-                         live read, the first live read is cited instead, and with none a channel's read falls back to
-                         its declaration), a function present at a line (mainSound), functions no entry point reaches
-                         when the reader followed every pass that could reach them
+                         function no entry point reaches (and nothing in a pass with no entry point found, its own
+                         helpers included), a #define that only renames it (or renames a renaming) and a function's or
+                         macro's own parameter named like it (`#define WAVE(t) sin(t)` or `float wave(float t)` beside
+                         `#define t iTime`) are never a read; a macro or function Common defines is live code of every
+                         pass that reaches it, and a #define alias (an alias of an alias too) counts in its own pass
+                         and, from Common, in every pass; when the dissector's line is not a live read, the first live
+                         read is cited instead, and with none a channel's read falls back to its declaration), a
+                         function present at a line (mainSound), functions no entry point reaches when the reader
+                         followed every pass that could reach them
     observed-in-render   a receipt written by `render` or `filmstrip` says the page compiled, drew, walked or jumped
     measured             a number a receipt measured: mean luma of a frame, milliseconds per frame on SwiftShader
     inferred             a reading made from evidence rather than seen: every technique the dissector recognises from
@@ -112,8 +114,8 @@ CODE: Dict[str, Tuple[Path, ...]] = {
 # an observation as it stands: the first live read is cited instead (in the pass files or in Common); with none, a
 # channel tag cites the declaration and says no read was found, and a uniform's row is inferred, the dissector's word
 # alone. When the reader found no entry point in a pass the read could sit in, "no read found" was never searched for:
-# the row is inferred, and says so (a channel row whose line sits in that pass cites the declaration alone). A macro's
-# own parameter is never a read, whatever it is named.
+# the row is inferred, and says so (a channel row whose line sits in that pass cites the declaration alone). A
+# function's or macro's own parameter is never a read, whatever it is named (glsl.Fn.param_names).
 RAW_READS: Dict[str, Optional[Tuple[str, ...]]] = {
     "animation.time": tuple(sorted(D.TIME_UNIFORMS)),
     "animation.frame": ("iFrame",),
@@ -423,8 +425,10 @@ class _Builder:
     def _index_live_code(self) -> None:
         """What the dissector's own reachability walk calls live, per pass, by (file, line): every token in the body of
         a function or macro an entry point reaches (Common's under each pass that prepends it), with the macro's name
-        when the token sits in one, except a macro's own parameters; and the head line of each live function. A token
-        in an #if branch the preprocessor dropped never enters a body, so an inactive line holds no live token."""
+        when the token sits in one, except the body's own parameters; and the head line of each live function. A token
+        in an #if branch the preprocessor dropped never enters a body, so an inactive line holds no live token. A pass
+        with no entry point the reader recognises reaches nothing (glsl.Unit, library=False), so none of its tokens is
+        live, its own helpers included."""
         self.live: Dict[str, Dict[Tuple[str, int], set]] = {}
         self.live_heads: Dict[str, set] = {}
         self._names_seen: Dict[Tuple[Tuple[str, ...], Optional[str]], set] = {}     # _visible's cache
@@ -440,9 +444,10 @@ class _Builder:
                     if macro is not None and (getattr(fn, "end_line", None) or fn.line) > fn.line:
                         self.spans[(fn.file, fn.line)] = fn.end_line
                     heads.add((fn.file, fn.line, fn.name))
-                    # A macro's own parameter stands for the argument it is called with, so it is never a read of
-                    # anything, even when it is named like a uniform or an alias (`#define WAVE(t) sin(t)`).
-                    params = {pp.name for pp in fn.params} if macro is not None else set()
+                    # A macro's own parameter stands for the argument it is called with, and a function's shadows what
+                    # it is named like, so neither is ever a read of anything, even when it is named like a uniform or
+                    # an alias (`#define WAVE(t) sin(t)`, `float wave(float t)` beside `#define t iTime`).
+                    params = fn.param_names
                     for t in fn.toks[fn.start:fn.end]:
                         if t.text not in params:
                             toks.setdefault((fn.file, t.line), set()).add((t.text, macro))
@@ -481,13 +486,18 @@ class _Builder:
         """The names and every literal #define alias of one of them (`#define keyTex iChannel1`, `#define T iTime`)
         that Common defines (it is prepended to every pass) and, when pass_file is given, that pass's own code defines.
         Another pass's #define is never included: Buffer A's `#define T iTime` does not make Image's own `T` the clock.
-        A use of the alias is a read; the #define line itself only renames."""
-        out = list(names)
-        rx = re.compile(r"^\s*#\s*define\s+(\w+)\s+\(?\s*(?:" + "|".join(map(re.escape, names)) + r")\s*\)?\s*$", re.M)
-        for p in self.inp.passes:
-            if p["type"] == "common" or (pass_file is not None and p["file"] == pass_file):
-                out += rx.findall(p["code"])
-        return list(dict.fromkeys(out))
+        Renamings are followed through renamings (`#define KEYS Pressed` beside `#define Pressed iChannel2`). A use of
+        any of these names is a read; each #define line itself only renames."""
+        out = list(dict.fromkeys(names))
+        codes = [p["code"] for p in self.inp.passes
+                 if p["type"] == "common" or (pass_file is not None and p["file"] == pass_file)]
+        while True:
+            rx = re.compile(r"^\s*#\s*define\s+(\w+)\s+\(?\s*(?:" + "|".join(map(re.escape, out)) + r")\s*\)?\s*$",
+                            re.M)
+            more = [n for code in codes for n in rx.findall(code) if n not in out]
+            if not more:
+                return out
+            out += list(dict.fromkeys(more))
 
     def _visible(self, base: Tuple[str, ...], pf: str, file: str, in_macro: bool) -> set:
         """The names a read goes by in one token of `file` reached from pass `pf`: the raw names and Common's aliases;
@@ -1185,11 +1195,18 @@ class _Builder:
         else:
             q("motion", "How does it change over time?", "partial",
               "; ".join((["stills only"] if not film else []) + why), frames + time_ids + why_ids)
+        # The cost line names only what the claims hold: a static estimate when a pass has one, SwiftShader timing when
+        # a receipt timed a frame. With neither, nothing answers the question (GPU timing is always unknown here).
         cost = [c["id"] for c in b.claims if c.get("kind") in ("cost", "cost_unknown", "timing", "gpu")]
+        est = sum(1 for c in b.claims if c.get("kind") == "cost")
         blind = sum(1 for c in b.claims if c.get("kind") == "cost_unknown")
-        q("cost", "What does it cost?", "partial" if cost else "unresolved",
-          "a static estimate and SwiftShader timing; GPU timing is unknown"
-          + (f"; no static estimate for {blind} pass(es) with no entry point found" if blind else ""), cost)
+        timed = any(c.get("kind") == "timing" for c in b.claims)
+        have = (["a static estimate" + (f" for {est} pass(es)" if blind else "")] if est else []) \
+            + (["SwiftShader timing"] if timed else [])
+        because = ([" and ".join(have)] if have else []) \
+            + ([f"no static estimate for {blind} pass(es) with no entry point found"] if blind else []) \
+            + ([] if timed else ["never timed on SwiftShader (no receipt times a frame)"]) + ["GPU timing is unknown"]
+        q("cost", "What does it cost?", "partial" if est or timed else "unresolved", "; ".join(because), cost)
         study = [c["id"] for c in b.claims if c.get("kind") == "study"]
         corr = [c["id"] for c in b.claims if c.get("kind") == "corroboration"]
         missing = [c["id"] for c in b.claims if c.get("kind") == "study_missing"]

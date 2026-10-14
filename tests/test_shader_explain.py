@@ -12,13 +12,18 @@ repeat with nothing changed returns the earlier answer instead of doing the work
     a technique the dissector recognises by the shape of its math, a function name alone (never counted as a
     technique), the static cost, a prediction from the media folder, the study note and its corroboration section;
   * a read is a token of LIVE code: a line in a function no entry point reaches, in an #if branch the preprocessor
-    drops, a #define that only renames the channel, or a macro's own parameter named like an alias is never an
-    observed read (the first live read is cited, or the declaration with "no read found"); a macro Common defines is
-    live code of the pass that uses it, an alias counts only where its own pass (or Common) defines it, and a #define
-    continued over several lines is cited whole;
-  * a pass in which the reader finds no entry point is said as an unknown, and nothing about it is observed: no dead
-    list, no "no read found" over code the reader never followed, no cost estimate (its cost is unknown), and a channel
-    row there cites the configuration, not the dissector's placeholder line;
+    drops, a #define that only renames the channel (or renames a renaming), or a function's or macro's own parameter
+    named like an alias or a uniform is never an observed read (the first live read is cited, or the declaration with
+    "no read found"); a macro Common defines is live code of the pass that uses it, an alias counts only where its own
+    pass (or Common) defines it, and a #define continued over several lines is cited whole;
+  * a function handed to a macro that calls it (`#define APPLY(f, x) f(x)` ... `APPLY(bend, x)`) is called by the code
+    that hands it over, whatever the parameter is named, so it is never observed unreached; handed to a parameter the
+    body never calls, it is not called;
+  * a pass in which the reader finds no entry point is said as an unknown, and nothing about it is observed or live,
+    its own helpers included: no dead list, no "no read found" over code the reader never followed, no cost estimate
+    (its cost is unknown), and a channel row there cites the configuration, not the dissector's placeholder line;
+  * the cost question names only what the claims hold (a static estimate, SwiftShader timing), and is unresolved when
+    neither exists;
   * "what is it made of" is answered only by a technique recognised from the shape of the math; reads, declarations
     and function names alone leave it partial;
   * a code evidence id names the shader, the SHA-256 (first 8 hex) of the pass source, the pass and a line range, and the
@@ -266,6 +271,59 @@ IMG_RENAMES_T = """#define t iTime
 void mainImage(out vec4 o, in vec2 u) {
     o = vec4(WAVE(2.0));
 }
+"""
+# Common renames the clock and defines WAVE(t); Image calls WAVE with a constant and reads the clock itself through t on
+# line 3, so the macro t IS reached, and WAVE's body (common.glsl line 2) holds a t that is still only its parameter.
+COMMON_T_AND_WAVE = "#define t iTime\n" + WAVE_T
+IMG_READS_T = """void mainImage(out vec4 o, in vec2 u) {
+    o = vec4(WAVE(2.0));
+    o.a = fract(t);
+}
+"""
+# Image's t is an expression, not an alias (`#define t (iTime * 2.0)`), and WAVE's parameter is also called t: nothing
+# ever expands the macro t, so no clock is read (probe p1f). WAVE sits in Common or in Image's own file.
+IMG_EXPR_T = """#define t (iTime * 2.0)
+void mainImage(out vec4 o, in vec2 u) {
+    o = vec4(WAVE(2.0));
+}
+"""
+# A FUNCTION parameter named like the clock's alias (t) or like the clock itself (iTime) shadows it; the variants with a
+# real read put it on line 5 (probe p1g).
+FN_PARAM_T = """#define t iTime
+float swell(float t) { return 0.25 + 0.75 * cos(t); }
+void mainImage(out vec4 hue, in vec2 spot) {
+    hue = vec4(swell(0.5));
+}
+"""
+FN_PARAM_T_READ = FN_PARAM_T.replace("    hue = vec4(swell(0.5));\n", "    hue = vec4(swell(0.5));\n    hue.b = fract(t);\n")
+FN_PARAM_ITIME = FN_PARAM_T.replace("#define t iTime\n", "// no alias here\n").replace("float t", "float iTime") \
+    .replace("cos(t)", "cos(iTime)")
+# Two renamings in a row: KEYS renames Pressed, Pressed renames iChannel2 (or NOW2 renames Now, Now renames the clock);
+# both #defines only rename, and the read is on line 4 (probe p4c).
+CHAIN_KEYS = """#define Pressed iChannel2
+#define KEYS Pressed
+void mainImage(out vec4 o, in vec2 u) {
+    o = vec4(texelFetch(KEYS, ivec2(39, 0), 0).x);
+}
+"""
+CHAIN_CLOCK = """#define Now iTime
+#define NOW2 Now
+void mainImage(out vec4 o, in vec2 u) {
+    o = vec4(fract(NOW2));
+}
+"""
+# Image's entry is built by Common's PAINT (the reader cannot see it), and Image has helpers of its own: one reads the
+# audio input (line 2), one runs a literal loop (probes p3e and p2b).
+COMMON_PAINTS = "#define PAINT void mainImage(out vec4 o, in vec2 u) { o = vec4(u.x / iResolution.x); }\n"
+IMG_HELPERS = """float loudness() {
+    return texture(iChannel1, vec2(0.05, 0.25)).x;
+}
+float ridge(float k) {
+    float acc = 1.5;
+    for (int lap = 2; lap < 11; lap += 1) { acc -= cos(k + 0.3 * float(lap)) / 4.0; }
+    return acc;
+}
+PAINT
 """
 CUBE_SRC = "/media/a/0a1b2c3d4e5f60718293a4b5c6d7e8f9.jpg"
 SKY = """void mainImage(out vec4 c, in vec2 p) {
@@ -599,10 +657,13 @@ def test_a_common_macro_reads_through_the_using_passs_own_alias(world):
 @pytest.mark.parametrize("macro, reads", [(WAVE_T, False), (WAVE_K, True)], ids=["param-t", "param-k"])
 def test_a_macro_parameter_named_like_the_alias_is_not_a_read(world, monkeypatch, where, macro, reads):
     """Image renames the clock (`#define t iTime`) and calls WAVE(2.0). When WAVE's own parameter is called t, the t in
-    its body is the argument, 2.0, never the clock. Before this pin every token in a macro body that matched the using
-    pass's alias counted, the parameter too, and the ledger wrote observed-in-code 'iTime/iDate read 1 time(s) (first at
-    common.glsl:1 ...)' about a shader that reads no clock (latent: no corpus row). The control, a parameter called k
-    beside a t in the body, still reads the clock through Image's alias, and stays observed."""
+    its body is the argument, 2.0, never the clock. Before the first fix every token in a macro body that matched the
+    using pass's alias counted, the parameter too, and the ledger wrote observed-in-code 'iTime/iDate read 1 time(s)
+    (first at common.glsl:1 ...)' about a shader that reads no clock (latent: no corpus row). glsl.py's call graph took
+    the parameter for a use of the macro t as well, so the dissector reported that read in the first place; now nothing
+    reaches `#define t iTime`, the dissector reports no clock, and the ledger has no clock row at all (the ledger's own
+    guard is pinned by the next test). The control, a parameter called k beside a t in the body, still reads the clock
+    through Image's alias, and stays observed."""
     sid = f"xpW{where[0]}{'r' if reads else 'n'}1"
     passes = [_rp("Image", "image", IMG_RENAMES_T if where == "common" else
                   IMG_RENAMES_T.replace("#define t iTime\n", "#define t iTime\n" + macro), [],
@@ -613,14 +674,152 @@ def test_a_macro_parameter_named_like_the_alias_is_not_a_read(world, monkeypatch
     _cite_at(monkeypatch, "animation.time", 1)
     led = X.explain(sid)
     clock = _tagged(led, "animation.time")
-    assert clock, "the dissector's row is kept above the floor; the ledger must say what it makes of it"
     wave = ":common:1-1" if where == "common" else ":image:2-2"
     if reads:
-        assert clock[0]["kind"] == "read" and clock[0]["label"] == "observed-in-code", clock
+        assert clock and clock[0]["kind"] == "read" and clock[0]["label"] == "observed-in-code", clock
         assert any(e.endswith(wave) for e in clock[0]["evidence"]), clock
     else:
-        assert all(c["label"] != "observed-in-code" and c["kind"] != "read" for c in clock), clock
-        assert not any(e.endswith(wave) for c in clock for e in c["evidence"]), clock
+        assert not clock, clock
+
+
+def test_a_macro_parameter_stays_no_read_where_the_alias_it_is_named_like_is_reached(world):
+    """The ledger's own guard (a macro's parameter is never a live token), kept covered now that the call graph no
+    longer reaches an alias through a parameter's name: here Image reads the clock through t on line 3, so `#define t
+    iTime` IS reached and the dissector cites it (common.glsl:1, a #define that only renames). The first live read the
+    ledger finds must be image.glsl:3, never WAVE's body on common.glsl:2, whose t is WAVE's argument."""
+    C.save_shader(_shader("xpWxr1", "Wave Reached", [
+        _rp("Common", "common", COMMON_T_AND_WAVE),
+        _rp("Image", "image", IMG_READS_T, [], [{"id": OUT_IMG, "channel": 0}])]), world["corpus"])
+    led = X.explain("xpWxr1")
+    clock = _tagged(led, "animation.time")
+    assert clock and clock[0]["kind"] == "read" and clock[0]["label"] == "observed-in-code", clock
+    code = [e for e in clock[0]["evidence"] if e.startswith("xpWxr1@")]
+    assert code == [code[0]] and code[0].endswith(":image:3-3"), clock
+    assert "image.glsl:3" in clock[0]["claim"] and "common.glsl:2" not in clock[0]["claim"], clock
+
+
+@pytest.mark.parametrize("where", ["common", "own"])
+def test_a_macro_parameter_named_like_a_macro_that_is_not_an_alias_reaches_nothing(world, where):
+    """`#define t (iTime * 2.0)` is not a renaming, so before this pin the iTime in its body counted as a read wherever
+    t was reached, and the call graph reached t through WAVE's parameter t: the ledger wrote observed-in-code
+    'iTime/iDate read 1 time(s) (first at image.glsl:1)' about a shader that never expands t (probe p1f; latent, no
+    corpus row). Now t is never reached, and no clock row is observed."""
+    sid = f"xpX{where[0]}f1"
+    img = IMG_EXPR_T if where == "common" else IMG_EXPR_T.replace("#define t (iTime * 2.0)\n",
+                                                                   "#define t (iTime * 2.0)\n" + WAVE_T)
+    passes = [_rp("Image", "image", img, [], [{"id": OUT_IMG, "channel": 0}])]
+    if where == "common":
+        passes.insert(0, _rp("Common", "common", WAVE_T))
+    C.save_shader(_shader(sid, f"Expr {where}", passes), world["corpus"])
+    led = X.explain(sid)
+    observed = [c for c in _tagged(led, "animation.time") if c["label"] == "observed-in-code"]
+    assert not observed, observed
+
+
+@pytest.mark.parametrize("code, line", [(FN_PARAM_T, None), (FN_PARAM_T_READ, 5), (FN_PARAM_ITIME, None)],
+                         ids=["alias-named-parameter", "with-a-real-read", "parameter-named-iTime"])
+def test_a_function_parameter_named_like_the_clock_is_not_a_read(world, code, line):
+    """A function's parameter shadows the uniform or alias it is named like: `float swell(float t)` beside `#define t
+    iTime` becomes `float swell(float iTime)`, whose iTime is its argument. Before this pin the ledger cited swell's line
+    2 as an observed clock read (probe p1g; tdSXzD has five such functions, though the line it cites today is a real
+    read), and a parameter named iTime itself read as the clock on line 1. Now only the real read on line 5 is cited,
+    and with none there is no observed clock row."""
+    sid = f"xpF{'r' if line else 'n'}{'i' if 'iTime)' in code.split(chr(10))[1] else 't'}1"
+    C.save_shader(_shader(sid, "Swell", [_rp("Image", "image", code, [], [{"id": OUT_IMG, "channel": 0}])]),
+                  world["corpus"])
+    led = X.explain(sid)
+    clock = _tagged(led, "animation.time")
+    if line is None:
+        assert not [c for c in clock if c["label"] == "observed-in-code"], clock
+        return
+    assert clock and clock[0]["kind"] == "read" and clock[0]["label"] == "observed-in-code", clock
+    cited = [e for e in clock[0]["evidence"] if e.startswith(sid + "@")]
+    assert cited and all(e.endswith(f":image:{line}-{line}") for e in cited), clock
+
+
+@pytest.mark.parametrize("code, tag, inputs", [
+    (CHAIN_KEYS, "input.keyboard", [("keyboard", 2)]),
+    (CHAIN_CLOCK, "animation.time", []),
+], ids=["keyboard", "clock"])
+def test_an_alias_of_an_alias_cites_the_real_read(world, code, tag, inputs):
+    """Both #defines only rename. Before this pin only one level of renaming was followed: the ledger cited line 2
+    (`#define KEYS Pressed`, `#define NOW2 Now`) as an observed read (probe p4c; latent, no corpus row). The read is the
+    use on line 4."""
+    sid = f"xpC{tag[0]}{tag[-1]}1"
+    C.save_shader(_shader(sid, "Chain", [_rp("Image", "image", code, [_inp(ch, typ, "k") for typ, ch in inputs],
+                                             [{"id": OUT_IMG, "channel": 0}])]), world["corpus"])
+    led = X.explain(sid)
+    rows = _tagged(led, tag)
+    assert rows and rows[0]["kind"] == "read" and rows[0]["label"] == "observed-in-code", rows
+    cited = [e for e in rows[0]["evidence"] if e.startswith(sid + "@")]
+    assert cited and all(e.endswith(":image:4-4") for e in cited), rows
+    assert all(not ln.lstrip().startswith("#") for ln in _code_lines(led, rows[0], world)), rows
+
+
+def test_a_helper_in_a_pass_with_no_entry_point_is_never_live(world):
+    """Image's entry is built by Common's PAINT, and Image has helpers of its own. Before this pin the reader walked from
+    every helper as if each were an entry point, so beside 'image.glsl: the reader found no entry point ... none of its
+    code was followed as live' the ledger wrote observed-in-code 'music on iChannel1, read 1 time(s) (first at
+    image.glsl:2)' (probe p3e), and the dissector's cost walked ridge's loop (heaviest 9) under a claim saying no call
+    graph was walked (p2b). Now nothing in the pass is live: the audio row cites the configuration and says the read is
+    unknown, the helpers are listed as unreached only as a reading, and no estimate exists."""
+    C.save_shader(_shader("xpHHH1", "Helper Macro", [
+        _rp("Common", "common", COMMON_PAINTS),
+        _rp("Image", "image", IMG_HELPERS, [_inp(1, "music", "m1", STREAM_SRC)], [{"id": OUT_IMG, "channel": 0}])]),
+        world["corpus"])
+    led = X.explain("xpHHH1")
+    sha = _sha8((world["corpus"] / "shaders" / "xpHHH1" / "shader.json").read_bytes())
+    audio = _tagged(led, "audio.input")
+    assert audio, led["claims"]
+    for c in audio:
+        assert c["label"] != "observed-in-code", c
+        assert c["evidence"] == [f"config:xpHHH1@{sha}:image:iChannel1"], c
+        assert "entry point" in c["claim"], c
+    assert not [c for c in led["claims"] if c.get("kind") == "cost" and c["claim"].startswith("image.glsl")]
+    blind = [c for c in led["claims"] if c.get("kind") == "cost_unknown"]
+    assert len(blind) == 1 and blind[0]["claim"].startswith("image.glsl:"), blind
+    dead = [c for c in led["claims"] if c.get("kind") == "dead" and c["claim"].startswith("image.glsl")]
+    assert dead and all(c["label"] == "inferred" for c in dead), dead
+    assert "loudness()" in dead[0]["claim"] and "ridge()" in dead[0]["claim"], dead
+
+
+# bend is handed to a macro that calls it: under the parameter's own name (the re-review's probe E6), under another
+# name, and after an argument holding commas inside nested parentheses; then (second re-review) inside an expression,
+# through an object-like macro naming it, and to a function-like macro that a second macro is handed and calls. The
+# control hands it to a macro whose body never calls that parameter.
+@pytest.mark.parametrize("sid, macro, use, dead", [
+    ("xpPsn1", "#define APPLY2(bend, v) bend(v)", "APPLY2(bend, at.x / iResolution.x)", False),
+    ("xpPon1", "#define APPLY(f, x) f(x)", "APPLY(bend, at.x / iResolution.x)", False),
+    ("xpPnp1", "#define LATER(x, f) f(x)", "LATER(clamp(at.x, 0.0, (at.y * 2.0)) / iResolution.x, bend)", False),
+    ("xpPsx1", "#define FLIP(bend, v) bend(v)", "FLIP(-bend, at.x / iResolution.x)", False),
+    ("xpPox1", "#define FLIP(f, v) f(v)", "FLIP(0.5 * bend, at.x / iResolution.x)", False),
+    ("xpPsa1", "#define PICKED bend\n#define FLIP(bend, v) bend(v)", "FLIP(PICKED, at.x / iResolution.x)", False),
+    ("xpPsh1", "#define RUNS(bend, v) bend(v)\n#define WITH(m, g, a) m(g, a)", "WITH(RUNS, bend, at.x)", False),
+    ("xpPoh1", "#define RUNS(q, v) q(v)\n#define WITH(m, g, a) m(g, a)", "WITH(RUNS, bend, at.x)", False),
+    ("xpPnc1", "#define KEEP(f, x) (x)", "KEEP(bend, at.x / iResolution.x)", True),
+], ids=["same-name", "other-name", "nested-parentheses", "same-name-negated", "scaled", "same-name-alias",
+        "same-name-macro-passed-a-macro", "macro-passed-a-macro", "not-called"])
+def test_a_function_passed_to_a_macro_that_calls_it_is_not_called_dead(world, sid, macro, use, dead):
+    """Before this pin the first fix made a macro's parameter followed by '(' stop being a call of a function named like
+    it, but never followed the argument the caller passes there: with `#define APPLY2(bend, v) bend(v)` and mainImage
+    calling APPLY2(bend, ...), the ledger wrote observed-in-code 'image.glsl: 1 function(s) no entry point reaches:
+    bend() line 1' (probe E6; latent, no corpus row). Under another name HEAD made the same claim, and corpus shaders
+    hand distance functions to a march macro that way. Now the function the caller passes is the caller's call; handed
+    to a parameter the body never calls, it is still observed unreached. The second re-review found the same false claim
+    where the parameter shares bend's name and the argument is `-bend` (probe S1), an object-like macro naming bend
+    (S2), or a macro handed to a macro (S3: WITH(RUNS, bend, x) is RUNS(bend, x), which is bend(x)), all of which HEAD
+    got right only through the shared name; and under other names (L4b, U3), which HEAD got wrong too."""
+    src = ("float bend(float v) { return v * v; }\n" + macro + "\nvoid mainImage(out vec4 ink, in vec2 at) {\n"
+           "    ink = vec4(" + use + ");\n}\n")
+    C.save_shader(_shader(sid, "Passed On", [_rp("Image", "image", src, [], [{"id": OUT_IMG, "channel": 0}])]),
+                  world["corpus"])
+    led = X.explain(sid)
+    rows = [c for c in led["claims"] if c.get("kind") == "dead"]
+    if not dead:
+        assert not rows, rows
+        return
+    assert len(rows) == 1 and rows[0]["label"] == "observed-in-code", rows
+    assert "bend() line 1" in rows[0]["claim"], rows
 
 
 def test_a_read_in_a_continued_define_cites_the_whole_define(world):
@@ -970,6 +1169,34 @@ def test_the_checklist_is_revisited_with_honest_statuses(world):
     assert a["intent"]["status"] == "partial" and a["made_of"]["status"] == "answered"
     assert a["look"]["status"] == "answered" and a["motion"]["status"] == "answered"
     assert "sound" not in a, "no audio question for a shader with no audio"
+
+
+def _cost_question(sid: str) -> dict:
+    return next(q for q in X.explain(sid)["checklist"] if q["key"] == "cost")
+
+
+def test_the_cost_question_names_only_the_answers_the_claims_hold(world):
+    """The cost line was one template whatever the ledger held: 'a static estimate and SwiftShader timing; GPU timing is
+    unknown'. 290 corpus shaders have no timing claim, and for fsXXzX (no entry point in any pass, never rendered) it
+    opened by naming a static estimate that does not exist. Now it names what the claims hold; with neither an estimate
+    nor a timing there is no answer at all, so the question is unresolved."""
+    C.save_shader(_shader("xpZZZ1", "Built Untimed", [
+        _rp("Common", "common", COMMON_BUILDS),
+        _rp("Buffer A", "buffer", "BUFFERA\n", [_inp(0, "buffer", OUT_A)], [{"id": OUT_A, "channel": 0}]),
+        _rp("Image", "image", "IMAGE\n", [_inp(0, "buffer", OUT_A)], [{"id": OUT_IMG, "channel": 0}])]),
+        world["corpus"])
+    q = _cost_question("xpZZZ1")
+    assert q["status"] == "unresolved", q
+    assert not q["because"].startswith("a static estimate") and "SwiftShader timing" not in q["because"], q
+    assert "no static estimate for 2 pass(es) with no entry point found" in q["because"], q
+    assert "GPU timing is unknown" in q["because"], q
+    C.save_shader(_shader("xpZZZ2", "Untimed", [_rp("Image", "image", CLOCK_ONLY, [], [{"id": OUT_IMG, "channel": 0}])]),
+                  world["corpus"])
+    q = _cost_question("xpZZZ2")
+    assert q["status"] == "partial" and q["because"].startswith("a static estimate; "), q
+    assert "SwiftShader timing" not in q["because"], q
+    q = _cost_question("xpAAA1")                       # an estimate and a timed receipt: both are named
+    assert q["status"] == "partial" and q["because"].startswith("a static estimate and SwiftShader timing; "), q
 
 
 @pytest.mark.parametrize("trouble", ["unsupported", "flat"])

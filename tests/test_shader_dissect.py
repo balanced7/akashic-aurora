@@ -278,6 +278,274 @@ def test_main_image_built_by_a_macro_falls_back_to_the_top_level_code():
     assert "f" in unit.reachable()
 
 
+# A macro's parameter stands for the argument it is called with, and a function's parameter shadows whatever outside
+# shares its name (the preprocessor renames the parameter and its uses alike), so neither is a use of a macro named like
+# it. Our own lines, written for this pin; t is not an alias (its body is an expression), pace is one.
+PARAM_NAMES = """#define t (iTime * 2.0)
+#define pace iTime
+#define GLOW(t) (0.25 + 0.75 * cos(t))
+#define APPLY(fold, x) fold(x)
+float fold(float x) { return abs(x); }
+float swell(float pace) { return 0.25 + 0.75 * cos(pace); }
+void mainImage(out vec4 ink, in vec2 at) {
+    ink = vec4(GLOW(0.5) + swell(0.5) + APPLY(sqrt, 4.0));
+}
+"""
+
+
+def test_a_parameter_is_never_a_use_of_the_macro_it_is_named_like():
+    """Before this pin the call graph took every identifier in a body as a use, the body's own parameters too: GLOW(t)
+    beside `#define t (iTime * 2.0)` reached t, so the dissector and the ledger reported a clock read that nothing ever
+    expands (probe p1f); swell's parameter pace reached the alias pace the same way (p1g); and APPLY's parameter fold
+    reached the function fold(), which only a caller's argument could name. Now none of the three is reached."""
+    unit = G.Unit([G.Program(PARAM_NAMES)])
+    live = unit.reachable()
+    assert {"mainImage", "GLOW", "swell", "APPLY"} <= live, sorted(live)
+    assert not {"t", "pace", "fold"} & live, sorted(live)
+    graph = G.call_graph(unit)
+    assert graph["GLOW"] == [] and graph["swell"] == [] and graph["APPLY"] == [], graph
+    assert [fn.name for fn in unit.dead()] == ["fold"]
+
+
+# A macro whose body calls one of its parameters calls whatever its caller passes in that position, under any name; a
+# parameter the body never calls is only a value. Our own lines, written for these pins.
+PASSED = """float bend(float v) { return v * v; }
+#define SAME(bend, v) bend(v)
+#define APPLY(f, x) f(x)
+#define LATER(x, f) f(x)
+#define SIGNED(sign, f, x) f(sign x)
+#define KEEP(f, x) (x)
+#define OUTER(bend, y) APPLY(bend, y)
+#define AGAIN(f, x) f(x) + AGAIN(bend, x)
+#define WHICH bend
+#define HAND(m, g, a) m(g, a)
+#define HANDS(g, a) HAND(LATER, a, g)
+#define DROPS(g, a) APPLY(-g, a)
+#define ON_BEND(m) m(bend, 0.5)
+void mainImage(out vec4 ink, in vec2 at) {
+    ink = vec4(%s);
+}
+"""
+
+
+@pytest.mark.parametrize("use, called", [
+    ("SAME(bend, at.x / iResolution.x)", True),
+    ("APPLY(bend, at.x)", True),
+    ("LATER(clamp(at.x, 0.0, (at.y * 2.0)), bend)", True),
+    ("SIGNED(, bend, at.x)", True),
+    ("OUTER(bend, at.y)", True),
+    ("SAME(-bend, at.x)", True),
+    ("APPLY(-bend, at.x)", True),
+    ("APPLY(0.5 * bend, at.x)", True),
+    ("DROPS(bend, at.y)", True),
+    ("SAME(WHICH, at.x)", True),
+    ("APPLY(WHICH, at.x)", True),
+    ("HAND(SAME, bend, at.x)", True),
+    ("HAND(APPLY, bend, at.x)", True),
+    ("HANDS(bend, at.y)", True),
+    ("ON_BEND(APPLY)", True),
+    ("KEEP(bend, at.x)", False),
+    ("AGAIN(abs, at.x)", False),
+    ("APPLY(at.bend, at.x)", False),
+    ("APPLY(bend * 0.5, at.x)", False),
+    ("HAND(HAND, bend, at.x)", False),
+], ids=["same-name", "other-name", "nested-parentheses", "empty-argument", "through-a-macro", "same-name-negated",
+        "negated", "scaled", "negated-through-a-macro", "same-name-alias", "alias", "same-name-macro-passed-a-macro",
+        "macro-passed-a-macro", "macro-passed-inside-a-macro", "named-in-the-body", "not-called", "expanded-once",
+        "a-field", "ends-in-a-number", "macro-passed-to-itself"])
+def test_a_function_a_macro_calls_through_its_parameter_is_called_by_the_caller(use, called):
+    """`#define APPLY(f, x) f(x)` calls what its caller passes, so `APPLY(bend, at.x)` in mainImage is mainImage calling
+    bend, whatever the parameter is named. The first fix stopped a parameter followed by '(' being a call of a function
+    named like it, but nothing followed the argument instead: SAME(bend, ...) left bend unreached, and the ledger wrote
+    observed-in-code 'image.glsl: 1 function(s) no entry point reaches: bend() line 1' (re-review probe E6; HEAD reached
+    bend through the parameter's name, and never reached it under another name). The argument is found by position,
+    past commas inside nested parentheses and past an empty argument, and through a macro that hands its own parameter
+    on (OUTER, whose parameter is itself named bend: only OUTER's caller names the function). A parameter the body never
+    calls (KEEP's f) is not a call, and AGAIN's own AGAIN(bend, x) is never expanded (the preprocessor does not expand a
+    macro inside its own expansion), so in both bend stays unreached.
+
+    The second round (re-review probes S1-S3, L4a, L4b, L5, U3, U4): the called name is the argument's LAST token, as
+    the expansion puts it right before '(' -- SAME(-bend, x) is -bend(x) and APPLY(0.5 * bend, x) is 0.5 * bend(x),
+    while `at.bend` is a field and `bend * 0.5` ends in a number. An argument is expanded before it is substituted, so
+    WHICH (an object-like macro whose body is one name) passes bend. A function-like macro passed in a called position
+    is expanded with the arguments the body gives it: HAND(SAME, bend, x) is SAME(bend, x), which is bend(x); HANDS does
+    the same from inside a macro body; ON_BEND(APPLY) is APPLY(bend, 0.5), a call made at the caller's ON_BEND; and
+    HAND(HAND, ...) stays unexpanded (HAND is open), so bend is not called."""
+    unit = G.Unit([G.Program(PASSED % use)])
+    graph = G.call_graph(unit)
+    assert ("bend" in unit.reachable()) is called, sorted(unit.reachable())
+    assert ("bend" in graph["mainImage"]) is called, graph
+    assert [fn.name for fn in unit.dead()] == ([] if called else ["bend"])
+    # the call is the caller's: no macro node reaches bend, and OUTER reaches only the macro it expands into
+    assert not [m for m in ("SAME", "APPLY", "LATER", "SIGNED", "KEEP", "OUTER", "AGAIN", "WHICH", "HAND", "HANDS",
+                            "DROPS", "ON_BEND") if "bend" in graph[m]], graph
+    assert graph["OUTER"] == ["APPLY"], graph
+    # once per call the expansion makes, at a token of the caller's own (so inside its loops), on its line
+    main = unit.functions["mainImage"][0]
+    passed = [c for c in unit.calls(main) if c.name == "bend"]
+    assert len(passed) == (1 if called else 0), [c.name for c in unit.calls(main)]
+    assert all(main.start <= c.idx < main.end and c.line == 15 for c in passed), passed
+
+
+# Counts multiply through a hand-on and a passed macro, and a macro open in the expansion adds nothing. Our own lines.
+COUNTED = """float bend(float v) { return v * v; }
+float lean(float v) { return v + 0.5; }
+#define TWICE(f, x) f(f(x))
+#define QUAD(g, y) (TWICE(g, y) + TWICE(g, y))
+#define TICK(f, x) f(x) + TOCK(f, x)
+#define TOCK(f, x) TICK(f, x)
+#define HAND(m, g, a) m(g, a)
+#define BOTH(m, g, a) (m(g, a) - m(g, a))
+#define SQUARE(f, x) (f(x) * f(x))
+#define SQUARED(g, y) SQUARE(g, y)
+void mainImage(out vec4 ink, in vec2 at) {
+    ink = vec4(%s);
+}
+"""
+
+
+@pytest.mark.parametrize("use, counts, per_pixel", [
+    ("QUAD(bend, at.x)", {"bend": 4}, 1 + 2 + 4),
+    ("SQUARED(bend, at.x)", {"bend": 2}, 1 + 1 + 2),
+    ("HAND(TWICE, bend, at.x)", {"bend": 2}, 1 + 1 + 2),
+    ("BOTH(TWICE, bend, at.x)", {"bend": 4}, 1 + 2 + 4),
+    ("TOCK(bend, at.x) + TICK(lean, at.y)", {"bend": 1, "lean": 1}, None),
+    ("TICK(lean, at.y) + TOCK(bend, at.x)", {"bend": 1, "lean": 1}, None),
+], ids=["hand-on-twice", "hand-on-of-a-square", "macro-passed-a-macro", "macro-passed-a-macro-twice",
+        "open-macro-tock-first", "open-macro-tick-first"])
+def test_calls_through_a_macro_are_counted_per_expansion(use, counts, per_pixel):
+    """QUAD hands its g to TWICE twice, and TWICE calls it twice, so QUAD(bend, x) calls bend 4 times; SQUARED hands its
+    g to SQUARE once, which calls it twice with the same argument, so 2 (a hand-on adds the inner macro's count, not 1:
+    re-review probe U11, mutant A). TICK and TOCK expand into each other: TOCK(bend, x) is TICK(bend, x), which is
+    bend(x) + TOCK(bend, x) with TOCK open, so bend is called once; TICK(lean, y) likewise calls lean once whichever is
+    read first (an answer kept from one expansion is not reused inside another that it met: probe U10, mutant B).
+    HAND(TWICE, bend, x) is TWICE(bend, x): the passed macro's count carries through, and BOTH, which expands what it
+    is passed twice, doubles it."""
+    src = COUNTED % use
+    unit = G.Unit([G.Program(src)])
+    names = [c.name for c in unit.calls(unit.functions["mainImage"][0])]
+    assert {n: names.count(n) for n in counts} == counts, names
+    if per_pixel is not None:
+        assert report(src)["passes"][0]["cost"]["calls_per_pixel"] == per_pixel
+
+
+def test_a_macro_that_returns_the_call_of_its_parameter_calls_it():
+    """A keyword before a parameter is not a type: `#define GIVE(f, x) return f(x)` calls f, so lift, which writes
+    GIVE(bend, x), calls bend (re-review mutant C: reading every identifier before a parameter as a type left bend
+    unreached, and nothing pinned it)."""
+    src = ("float bend(float v) { return v * v; }\n#define GIVE(f, x) return f(x)\n"
+           "float lift(float x) { GIVE(bend, x); }\n"
+           "void mainImage(out vec4 ink, in vec2 at) { ink = vec4(lift(at.x)); }\n")
+    unit = G.Unit([G.Program(src)])
+    assert "bend" in G.call_graph(unit)["lift"] and unit.dead() == [], G.call_graph(unit)
+
+
+@pytest.mark.parametrize("defs, body", [
+    # an operator passed as an argument: (x + swirl(x))
+    ("#define JOIN(op, swirl, v) (v op swirl(v))\n", "ink = vec4(JOIN(+, swirl, at.x));"),
+    # an operator behind a one-name macro
+    ("#define AND &&\n#define BOTHPOS(swirl, gx, v) (gx(v) > 0.0 AND swirl(v) > 0.0)\n",
+     "ink = vec4(BOTHPOS(swirl, abs, at.x) ? 1.0 : 0.0);"),
+    # a keyword behind a one-name macro, called from a helper
+    ("#define RET return\n#define GIVE2(swirl, v) RET swirl(v)\n", None),
+], ids=["operator-argument", "operator-alias", "keyword-alias"])
+def test_an_identifier_standing_for_an_operator_or_keyword_does_not_make_a_parameter_a_declaration(defs, body):
+    """A name after an identifier is being DECLARED only when its ')' is followed by '{' or ';' and that identifier is
+    not an operator or keyword in disguise. Same-name forms (the parameter named swirl, like the function), which HEAD
+    reached by name and the round-4 rule left unreached (re-review of 2026-10-13)."""
+    head = "float swirl(float v) { return v * 0.5; }\n" + defs
+    if body is None:
+        src = head + ("float lift(float x) { GIVE2(swirl, x); }\n"
+                      "void mainImage(out vec4 ink, in vec2 at) { ink = vec4(lift(at.x)); }\n")
+    else:
+        src = head + "void mainImage(out vec4 ink, in vec2 at) { " + body + " }\n"
+    unit = G.Unit([G.Program(src)])
+    assert unit.dead() == [], (unit.dead(), G.call_graph(unit))
+
+
+def test_a_name_declared_through_a_macro_parameter_is_still_a_declaration():
+    """The guard the rule above keeps: `#define DECL(name) float name(float v) { ... }` declares name (its ')' is
+    followed by '{'), so DECL(warp) defines warp and calls nothing."""
+    src = ("#define DECL(name) float name(float v) { return v * 2.0; }\nDECL(warp)\n"
+           "void mainImage(out vec4 ink, in vec2 at) { ink = vec4(at.x); }\n")
+    unit = G.Unit([G.Program(src)])
+    assert "warp" not in G.call_graph(unit).get("mainImage", set()), G.call_graph(unit)
+
+
+# The same pass through the cost walk: bend's loop runs inside the caller's loop, twice per expansion of TWICE.
+PASSED_COST = """float bend(float v) {
+    float sum = v;
+    for (int lap = 1; lap <= 8; lap += 1) { sum = sum * 0.5 + v; }
+    return sum;
+}
+#define TWICE(f, x) f(f(x))
+void mainImage(out vec4 ink, in vec2 at) {
+    for (int turn = 1; turn <= 3; turn += 1) { ink.x += TWICE(bend, at.x); }
+}
+"""
+
+
+def test_a_function_passed_to_a_macro_is_costed_as_the_callers_call():
+    """The calls a macro makes through its parameter are the caller's calls, once per call the expansion makes, inside
+    the caller's own loops: 3 laps x TWICE's 2 calls of bend, each running bend's 8-lap loop. Before this pin the walk
+    stopped at TWICE: heaviest 3 and 3 calls per pixel, bend's loop never counted."""
+    cost = report(PASSED_COST)["passes"][0]["cost"]
+    assert (cost["heaviest"], cost["calls_per_pixel"]) == (24, 9), cost
+    assert [s["fn"] for s in cost["path"] if s["kind"] == "call"] == ["bend"], cost
+
+
+def test_a_macro_that_defines_the_function_its_parameter_names_does_not_call_it():
+    """A guard on the rule above: `#define DECL_HALF(name) float name(float v) {...}` puts its parameter where a
+    function is DEFINED, so DECL_HALF(spare) at top level declares spare and calls nothing. With mainImage built by an
+    object-like macro, the top-level code is the entry, so a definition taken for a call would make spare live."""
+    common = G.Program("#define ENTRY void mainImage(out vec4 ink, vec2 pxc) { float r = iResolution.x;\n",
+                       "common.glsl")
+    image = G.Program("#define DECL_HALF(name) float name(float v) { return v * 0.5; }\nDECL_HALF(halve)\n"
+                      "DECL_HALF(spare)\nENTRY ink = vec4(halve(r)); }\n", base=common)
+    unit = G.Unit([common, image])
+    assert unit.entries() == [G.TOPLEVEL] and {"halve", "spare"} <= set(image.functions), unit.entries()
+    assert "halve" in unit.reachable(), sorted(unit.reachable())
+    assert [fn.name for fn in unit.dead()] == ["spare"], sorted(unit.reachable())
+
+
+# A pass whose entry point an object-like macro Common defines builds (the reader cannot see it), plus a helper of its own.
+NO_ENTRY_COMMON = "#define PAINT void mainImage(out vec4 o, in vec2 u) { o = vec4(u.x / iResolution.x); }\n"
+NO_ENTRY_IMAGE = """float ridge(float k) {
+    float acc = 1.5;
+    for (int lap = 2; lap < 11; lap += 1) { acc -= cos(k + 0.3 * float(lap)) / 4.0; }
+    return acc;
+}
+PAINT
+"""
+
+
+def test_a_pass_with_no_entry_point_reaches_nothing_while_a_library_file_exports_every_function():
+    """Shadertoy calls a pass's mainImage and nothing else, so a helper runs only when the entry calls it. When the reader
+    cannot find the entry (here an object-like macro Common defines builds it), nothing in the pass is known to run.
+    Before this pin the walk started from every function the pass defines, so a pass the ledger calls 'no entry point
+    found, none of its code followed' still had its helpers walked as live: a read in one was observed (probe p3e) and its
+    loop became the cost estimate the ledger says was never made (p2b: heaviest 9 from ridge). A file read on its own
+    (`dissect file.glsl`) with no entry point is a library, and still exports every function it defines."""
+    view = D.view_from_json(pass_json("aaaaam", [
+        rp("Common", "common", NO_ENTRY_COMMON),
+        rp("Image", "image", NO_ENTRY_IMAGE, [{"id": "m", "type": "music", "channel": 1}], [{"id": IMG, "channel": 0}])]))
+    rep = D.dissect_view(view)
+    p = rep["passes"][0]
+    assert p["entries"] == [] and p["cost"]["entry"] is None and p["cost"]["heaviest"] == 1, p
+    assert [d["name"] for d in p["dead"]] == ["ridge"], p
+    assert "image.glsl: no entry point found" in D.human(rep), D.human(rep)
+    # no code was searched for a read of the audio input, so its row never says the input is never read
+    audio = [e for t in rep["techniques"] if t["tag"] == "audio.input" for e in t["evidence"]]
+    assert audio and all("never read" not in e["detail"] and "no entry point found" in e["detail"] for e in audio), audio
+    common = G.Program(NO_ENTRY_COMMON, "common.glsl")
+    unit = G.Unit([common, G.Program(NO_ENTRY_IMAGE, base=common)], library=False)
+    assert unit.entries() == [] and unit.reachable() == set()
+    lib = G.Unit([G.Program("float ridge(float k) { return k; }\nfloat crest(float k) { return ridge(k) * 2.0; }\n")])
+    assert lib.entries() == ["crest", "ridge"] and {"crest", "ridge"} <= lib.reachable()
+    one = D.view_from_source(NO_ENTRY_IMAGE, "ridge.glsl")
+    assert D.dissect_view(one)["passes"][0]["entries"] == ["ridge"]
+
+
 # ---------- loops and their bounds ----------
 
 @pytest.mark.parametrize("pre,header,bound", [
@@ -840,6 +1108,63 @@ def test_the_keyboard_line_is_the_same_under_every_hash_seed():
         assert out.returncode == 0, out.stderr
         seen[seed] = json.loads(out.stdout)
     assert set(map(json.dumps, seen.values())) == {json.dumps([[3]])}, seen
+
+
+# The clock and the frame counter read once each (lines 6 and 7) beside a macro and a function whose PARAMETER is named
+# iTime or iFrame. Our own lines, written for this pin.
+PARAM_SHADOWS = """#define GLOW(iTime) (0.25 + 0.75 * cos(iTime))
+#define STEP(iFrame) (float(iFrame) * 0.125)
+float swell(float iTime) { return 0.25 + 0.75 * cos(iTime); }
+void mainImage(out vec4 ink, in vec2 at) {
+    ink = vec4(GLOW(0.5) + STEP(3) + swell(0.5));
+    ink.r = fract(iTime);
+    ink.g = fract(float(iFrame) * 0.01);
+}
+"""
+
+
+def test_a_parameter_named_like_a_uniform_is_not_a_read_and_is_not_counted():
+    """Before this pin every live token named iTime or iFrame was counted, a parameter's too: the shader above reads the
+    clock once, on line 6, and was reported 'iTime/iDate read 3 time(s)' first at line 1, and the frame counter 'read 2
+    time(s)' first at line 2 (probe p1c). A macro's parameter is the argument it is called with; a function's parameter
+    shadows the uniform."""
+    rows = {t["tag"]: t["evidence"] for t in report(PARAM_SHADOWS)["techniques"]}
+    assert [(e["line"], e["detail"]) for e in rows["animation.time"]] == [(6, "iTime/iDate read 1 time(s)")], rows
+    assert [(e["line"], e["detail"]) for e in rows["animation.frame"]] == \
+        [(7, "iFrame read 1 time(s) beyond the idioms")], rows
+
+
+@pytest.mark.parametrize("src", [
+    "#define t (iTime * 2.0)\n#define GLOW(t) (0.25 + 0.75 * cos(t))\n"
+    "void mainImage(out vec4 ink, in vec2 at) { ink = vec4(GLOW(0.5)); }\n",
+    "#define t iTime\nfloat swell(float t) { return 0.25 + 0.75 * cos(t); }\n"
+    "void mainImage(out vec4 ink, in vec2 at) { ink = vec4(swell(0.5)); }\n",
+], ids=["macro-parameter", "function-parameter"])
+def test_no_clock_is_read_through_a_parameter_named_like_a_macro(src):
+    """Nothing here reads the clock: GLOW's t is its argument and swell's t is its own parameter. Before this pin the
+    call graph reached the macro t through the parameter's name and the dissector reported the iTime in its body."""
+    assert "animation.time" not in {t["tag"] for t in report(src)["techniques"]}
+
+
+# A channel renamed twice: KEYS renames Pressed, which renames iChannel2; the read is where KEYS is used (line 4).
+CHAINED = """#define Pressed iChannel2
+#define KEYS Pressed
+void mainImage(out vec4 ink, in vec2 at) {
+    ink = vec4(texelFetch(KEYS, ivec2(39, 0), 0).x);
+}
+"""
+
+
+@pytest.mark.parametrize("typ, tag", [("keyboard", "input.keyboard"), ("music", "audio.input")])
+def test_an_alias_of_an_alias_is_cited_where_it_is_used(typ, tag):
+    """Both #defines only rename the channel. Before this pin only one level of renaming was followed, so the body of
+    `#define KEYS Pressed` (line 2) was taken for a read and cited (probe p4c)."""
+    view = D.view_from_json(pass_json("aaaaan", [rp("Image", "image", CHAINED, [{"id": "k", "type": typ, "channel": 2}],
+                                                    [{"id": IMG, "channel": 0}])]))
+    rows = [t for t in D.dissect_view(view)["techniques"] if t["tag"] == tag]
+    assert rows and [(e["file"], e["line"]) for e in rows[0]["evidence"]] == [("image.glsl", 4)], rows
+    if tag == "audio.input":
+        assert "read 1 time(s)" in rows[0]["evidence"][0]["detail"], rows
 
 
 def test_evidence_points_at_the_line_that_earned_it():

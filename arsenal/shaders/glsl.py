@@ -16,9 +16,13 @@ tests/test_shader_dissect.py.
 
 WHAT IT IS NOT. It is not a compiler. There is no type checking and no overload resolution (overloads share one name in
 the call graph); macros are not expanded into the code (a function-like macro is a node in the call graph whose body is
-read like a function's); an #if it cannot evaluate keeps its first branch (and says so in Program.unsure_ifs). GLSL block
-comments do not nest (GLSL ES 3.00 section 3.4: a comment ends at the first */), and this reader follows the spec rather
-than guessing -- `/* a /* b */ code` leaves `code` as code, exactly as the compiler would.
+read like a function's, and its own parameters are not identifiers of it: `#define WAVE(t) sin(t)` uses whatever it is
+called with, never a macro named t; a function's parameter likewise shadows anything outside named like it, see
+Fn.param_names; and a macro that calls a parameter calls what its caller passes there: with `#define APPLY(f, x) f(x)`,
+`APPLY(bend, u.x)` is a call of bend by the caller, see Unit.calls); an #if it cannot evaluate keeps its first branch
+(and says so in Program.unsure_ifs). GLSL block comments do not nest (GLSL ES 3.00 section 3.4: a comment ends at the
+first */), and this reader follows the spec rather than guessing -- `/* a /* b */ code` leaves `code` as code, exactly
+as the compiler would.
 
 THE FLAT TEXT CONVENTION. Detectors match shapes of math with regular expressions over a function's *flat text*: its
 active, comment-free tokens joined by single spaces (`t += d * 0.5`, `length ( p ) - r`). One space between every token
@@ -30,7 +34,7 @@ import bisect
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, FrozenSet, Iterable, Iterator, List, Optional, Sequence, Set, Tuple
 
 # ---------- tokens ----------
 
@@ -479,8 +483,10 @@ def _match_brackets(toks: Sequence[Token]) -> List[int]:
     return match
 
 
-def split_top(toks: Sequence[Token], match: Sequence[int], a: int, b: int, sep: str) -> List[Tuple[int, int]]:
-    """Token ranges of toks[a:b] split at `sep` outside brackets."""
+def split_top(toks: Sequence[Token], match: Sequence[int], a: int, b: int, sep: str,
+              keep_empty: bool = False) -> List[Tuple[int, int]]:
+    """Token ranges of toks[a:b] split at `sep` outside brackets. Empty parts are dropped unless keep_empty, which keeps
+    every part in its place (a macro's arguments meet its parameters by position: `F(, x)` passes x second)."""
     out, cur, k = [], a, a
     while k < b:
         x = toks[k].text
@@ -492,7 +498,7 @@ def split_top(toks: Sequence[Token], match: Sequence[int], a: int, b: int, sep: 
             cur = k + 1
         k += 1
     out.append((cur, b))
-    return [(i, j) for i, j in out if j > i]
+    return out if keep_empty else [(i, j) for i, j in out if j > i]
 
 
 @dataclass(eq=False)
@@ -511,12 +517,24 @@ class Fn:
     end: int = 0
     prog: Optional["Program"] = field(default=None, repr=False)
     calls: List[Call] = field(default_factory=list, repr=False)
+    # A macro's calls of its own parameters (`#define APPLY(f, x) f(x)` calls f): not calls of anything named like the
+    # parameter, but of whatever each caller passes in its place (Unit.calls).
+    param_calls: List[Call] = field(default_factory=list, repr=False)
+    object_like: bool = field(default=False, repr=False)    # a macro with no parameter list (`#define WHICH bend`)
     loops: List[Loop] = field(default_factory=list, repr=False)
     idents: Set[str] = field(default_factory=set, repr=False)
     locals: Dict[str, List[Token]] = field(default_factory=dict, repr=False)
     analysed: bool = field(default=False, repr=False)
     _flat: Optional[str] = field(default=None, repr=False)
     _offsets: Optional[List[int]] = field(default=None, repr=False)
+
+    @property
+    def param_names(self) -> Set[str]:
+        """The names this function's or macro's own parameters bind in its body. In a macro a parameter is the argument
+        it is called with; in a function it shadows any global, uniform or object-like #define of the same name (the
+        preprocessor renames a parameter and its uses alike: `#define t iTime` makes `float f(float t)` a function of a
+        parameter called iTime). Either way a token naming one is never a use of anything outside the body."""
+        return {p.name for p in self.params if p.name}
 
     # --- flat text ---
     def text(self, a: int, b: int) -> str:
@@ -959,7 +977,7 @@ class Program:
             toks = d.body_tokens()
             fn = Fn(name=name, kind="macro", ret=None, params=[Param("", p) for p in (d.params or ())], line=d.line,
                     end_line=d.end_line, file=self.file, toks=toks, match=_match_brackets(toks), start=0,
-                    end=len(toks), prog=self)
+                    end=len(toks), prog=self, object_like=d.params is None)
             self.macros[name] = fn
 
     # --- constants ---
@@ -1054,14 +1072,49 @@ def self_text(toks: Sequence[Token], a: int, b: int) -> str:
 
 # ---------- inside a function ----------
 
+def _after_parens(fn: Fn, lp: int) -> Optional[str]:
+    """The text of the token after the ')' that closes the '(' at `lp`, or None at the body's end."""
+    rp = fn.match[lp]
+    return fn.toks[rp + 1].text if rp > lp and rp + 1 < fn.end else None
+
+
+def _alias_target(fn: Fn, name: str) -> str:
+    """Follow one-name object-like macros (`#define RET return`, `#define AND &&`) to what `name` stands for."""
+    macros = getattr(fn.prog, "macros", None) or {}
+    seen: Set[str] = set()
+    while name not in seen:
+        m = macros.get(name)
+        if m is None or not m.object_like or m.end - m.start != 1:
+            break
+        seen.add(name)
+        name = m.toks[m.start].text
+    return name
+
+
 def _analyse_fn(fn: Fn, loops: bool = True) -> None:
     if fn.analysed:
         return
     fn.analysed = True
     toks, match = fn.toks, fn.match
+    own = fn.param_names
     for k in range(fn.start, fn.end):
         t = toks[k]
         if t.kind != IDENT:
+            continue
+        # A parameter is not an identifier of the body it belongs to (Fn.param_names), so the call graph never reaches
+        # a macro through a parameter's name. In a macro it is not a call either: `#define APPLY(f, x) f(x)` calls what
+        # the caller passes, not a function named f, so it is filed in fn.param_calls and Unit.calls makes it a call of
+        # the caller's argument. (`#define DECL(name) float name(float v) {...}` DEFINES what name stands for: a name
+        # after an identifier is being declared only when its ')' is followed by '{' or ';' and that identifier is not
+        # an operator or keyword in disguise -- `#define JOIN(op, fx, v) (v op fx(v))`, `#define AND &&`,
+        # `#define RET return` all CALL fx. Re-review, 2026-10-13.) In a function, a parameter's name followed by '('
+        # can only be a function-like macro of that name, which is a call.
+        if t.text in own and (fn.kind == "macro" or k + 1 >= fn.end or toks[k + 1].text != "("):
+            if fn.kind == "macro" and k + 1 < fn.end and toks[k + 1].text == "(" and not (
+                    k > fn.start and toks[k - 1].kind == IDENT and toks[k - 1].text not in KEYWORDS
+                    and _after_parens(fn, k + 1) in ("{", ";")
+                    and _alias_target(fn, toks[k - 1].text) not in KEYWORDS):
+                fn.param_calls.append(Call(t.text, k, t.line, [], False))
             continue
         fn.idents.add(t.text)
         if t.text in KEYWORDS or k + 1 >= fn.end or toks[k + 1].text != "(":
@@ -1078,6 +1131,30 @@ def _analyse_fn(fn: Fn, loops: bool = True) -> None:
     _find_loops(fn)
     for lp in fn.loops:
         _infer_bound(fn, lp)
+
+
+def _arg_ranges(fn: Fn, c: Call) -> List[Tuple[int, int]]:
+    """The token ranges of a call's arguments in fn, each in its place, empty ones included (a macro's parameters are
+    matched by position)."""
+    lp = c.idx + 1
+    if lp >= fn.end or fn.toks[lp].text != "(":
+        return []
+    rp = fn.match[lp] if fn.match[lp] > lp else fn.end
+    return split_top(fn.toks, fn.match, lp + 1, rp, ",", keep_empty=True) if rp > lp + 1 else []
+
+
+def _arg_last_name(fn: Fn, rng: Tuple[int, int]) -> Optional[int]:
+    """The token index of the name an argument puts right before the '(' a macro writes after that parameter: the
+    argument's LAST token, when it is an identifier that is neither a keyword nor a field after '.'. `-bend` and
+    `0.5 * bend` end in bend (`-bend(x)`, `0.5 * bend(x)`); `at.bend` and `bend * 0.5` name no call."""
+    a, b = rng
+    if b <= a:
+        return None
+    j = b - 1
+    t = fn.toks[j]
+    if t.kind != IDENT or t.text in KEYWORDS or (j > a and fn.toks[j - 1].text == "."):
+        return None
+    return j
 
 
 def _local_constants(fn: Fn) -> Dict[str, List[Token]]:
@@ -1431,9 +1508,18 @@ def trip_count(start, op: str, limit, kind: str, amount) -> Optional[int]:
 
 class Unit:
     """The programs one pass compiles, in order (Common first). Function lookups see all of them; entry points come
-    from the last (the pass itself), or every function when it has none (a library file)."""
+    from the last (the pass itself): a function named like one (ENTRY_POINTS), else top-level code that calls functions
+    (a mainImage built by a function-like macro). With neither, it depends on what the last program is:
 
-    def __init__(self, programs: Sequence[Program]):
+    library=True   a file read on its own (`dissect file.glsl`): a library, whose user may call any function it defines,
+                   so every one of them is an entry point.
+    library=False  a Shadertoy pass: Shadertoy calls its mainImage (mainSound, mainCubemap) and nothing else, so a helper
+                   runs only when the entry calls it. When the reader cannot find the entry (an object-like macro Common
+                   defines builds it), nothing in the pass is known to run: there is no entry point, nothing is
+                   reached, and every function the pass defines is listed as unreached by any entry point found."""
+
+    def __init__(self, programs: Sequence[Program], library: bool = True):
+        self.library = library
         self.programs = [p for p in programs if p is not None]
         self.functions: Dict[str, List[Fn]] = {}
         self.macros: Dict[str, Fn] = {}
@@ -1444,6 +1530,8 @@ class Unit:
         if not any(e in self.program.functions for e in ENTRY_POINTS) and self.program.toplevel.calls:
             # no entry point among the functions: the top-level code is the entry (mainImage built by a macro)
             self.functions[TOPLEVEL] = [self.program.toplevel]
+        self._calls: Dict[Fn, List[Call]] = {}
+        self._summaries: Dict[str, Tuple[Dict[tuple, int], FrozenSet[str]]] = {}
         self.graph = self._graph()
 
     @property
@@ -1459,13 +1547,151 @@ class Unit:
             return self.functions[name]
         return [self.macros[name]] if name in self.macros else []
 
+    def calls(self, fn: Fn) -> List[Call]:
+        """fn's calls once macros expand: its own (Fn.calls), and, at each call it makes of a function-like macro whose
+        expansion calls one of its parameters, the name fn passes in that parameter's position, whatever the names:
+        with `#define APPLY(f, x) f(x)`, `APPLY(bend, u.x)` in mainImage is mainImage calling bend. Each is a Call at
+        the argument's token, or at the macro call for a name the macro body writes (so it sits in the caller's
+        loops), once per call the expansion makes (`f(f(x))` is two), with no arguments of its own (they are written in
+        the macro). The rules, each as the preprocessor has it:
+
+          * the name called is the argument's LAST token, which the expansion puts before '(' (_arg_last_name):
+            APPLY(-bend, x) is -bend(x) and APPLY(0.5 * bend, x) is 0.5 * bend(x); an argument ending in a number, a
+            ')' or a field after '.' names no call;
+          * an argument is expanded before it is substituted, so an object-like macro whose whole body is one name
+            stands for that name (`#define WHICH bend`: APPLY(WHICH, x) calls bend; Unit._alias);
+          * a function-like macro passed in a called position is expanded with the arguments the body writes there,
+            bound by position (`#define HAND(m, g, a) m(g, a)`: HAND(APPLY, bend, x) is APPLY(bend, x), so it calls
+            APPLY and bend); a macro handing its own parameter on, bare or in an expression, is followed the same way
+            (`#define OUTER(g, y) APPLY(-g, y)`: OUTER(bend, x) calls bend), and such a parameter is never the
+            macro's own call, only its callers' (Unit._summary);
+          * a macro is never expanded inside its own expansion: AGAIN(f, x) f(x) + AGAIN(bend, x) calls bend only if
+            its caller passes it, and HAND(HAND, bend, x) leaves HAND(bend, x) unexpanded;
+          * a parameter the body never calls is no call, whatever is passed there.
+
+        Known limits, each with its probe (only the first moves a corpus row: 4dS3Wd lists fbm unreached):
+          * a one-name macro called directly is not followed: `#define NOISE fbm`, then NOISE(p) leaves fbm unreached;
+          * a '(' not written right after the parameter: `#define PASS(f) f`, then PASS(bend)(x) leaves bend unreached;
+          * only a one-name body is followed: APPLY(NEG, x) with `#define NEG -bend` leaves bend unreached;
+          * a macro call as the argument: APPLY(PICK(), x) with `#define PICK() bend` leaves bend unreached;
+          * token pasting is read as plain tokens: V(bend) with `#define V(f) v##f(x)` calls bend, not vbend."""
+        got = self._calls.get(fn)
+        if got is None:
+            got = list(fn.calls)
+            own, opening = (fn.param_names, frozenset((fn.name,))) if fn.kind == "macro" else (set(), frozenset())
+            for c in fn.calls:
+                if not self._function_like(c.name):
+                    continue
+                env = []
+                for rng in _arg_ranges(fn, c):
+                    j = _arg_last_name(fn, rng)
+                    t = fn.toks[j] if j is not None else None
+                    # a macro's own parameter handed on is its callers' call (Unit._summary), never its own
+                    env.append(None if t is None or t.text in own else ("n", self._alias(t.text), j, t.line))
+                for v, times, _, _ in self._expand(c.name, tuple(env), opening, set()):
+                    if v[0] != "n":
+                        continue
+                    _, name, idx, line = v
+                    if idx is None:                  # a name written inside a macro body: the call is at the use
+                        idx, line = c.idx, c.line
+                    builtin = name in BUILTIN_FUNCTIONS or name in TYPES
+                    got.extend(Call(name, idx, line, [], builtin) for _ in range(times))
+            self._calls[fn] = got
+        return got
+
+    def _function_like(self, name: str) -> bool:
+        m = self.macros.get(name)
+        return m is not None and not m.object_like
+
+    def _alias(self, name: str) -> str:
+        """What an argument naming an object-like macro stands for once arguments are expanded: the one name that is
+        the macro's whole body (`#define WHICH bend` stands for bend), followed through such macros, never into one
+        already followed; anything else stands for itself."""
+        seen: Set[str] = set()
+        while name not in seen:
+            m = self.macros.get(name)
+            if m is None or not m.object_like or m.end - m.start != 1 or m.toks[m.start].kind != IDENT:
+                break
+            seen.add(name)
+            name = m.toks[m.start].text
+        return name
+
+    def _expand(self, name: str, env: tuple, opening: FrozenSet[str], met: Set[str], times: int = 1,
+                chain: FrozenSet[str] = frozenset()) -> Iterator[tuple]:
+        """The calls the expansion of the function-like macro `name` makes of what its arguments carry. `env` holds one
+        value per argument position: ("p", i), the i-th parameter of a macro being summarised; ("n", name, idx, line),
+        a name (idx None when it is written inside a macro body); or None, nothing that can be called. Yields
+        (value, times, via, args) per call: via is every macro whose expansion the call sits in, args the call's own
+        argument values. A value naming a function-like macro is expanded in turn with those args, inside every macro
+        of via (so none of them expands again). `met` gathers each macro the walk checked against `opening`."""
+        recs, seen = self._summary(name, opening)
+        met.update(seen)
+        for (i, via, argv), t in sorted(recs.items(), key=lambda kv: kv[0][0]):
+            v = env[i] if i < len(env) else None
+            if v is None:
+                continue
+            n, via = times * t, chain | via
+            args = tuple(env[a[1]] if a is not None and a[0] == "p" and a[1] < len(env)
+                         else (a if a is not None and a[0] == "n" else None) for a in argv)
+            yield v, n, via, args
+            if v[0] == "n" and self._function_like(v[1]):
+                yield from self._expand(v[1], args, opening | via, met, n, via)
+
+    def _summary(self, name: str, opening: FrozenSet[str] = frozenset()) -> Tuple[Dict[tuple, int], FrozenSet[str]]:
+        """What the function-like macro `name` calls through its own parameters when expanded: a count per
+        (parameter position called, via, argument values of that call, in the same ("p", i) / ("n", ...) terms as
+        Unit._expand). Its own calls of them (Fn.param_calls), plus each it hands on to another macro, bare or ending an
+        expression, that calls it there or passes it to a macro it is handed (`#define OUTER(g, y) APPLY(-g, y)` calls
+        g). Names the body itself writes are the macro's own calls (Unit.calls), not counted here. `opening` holds the
+        macros whose expansion this one sits in: the preprocessor never expands a macro inside its own expansion, so
+        one of those adds nothing. The second value is every macro the expansion met; an answer kept from an expansion
+        that met none of `opening` is the same here, and only such answers are kept."""
+        m = self.macros.get(name)
+        if m is None or m.object_like or not m.params:
+            return {}, frozenset()
+        if name in opening:
+            return {}, frozenset((name,))
+        kept = self._summaries.get(name)
+        if kept is not None and not kept[1] & opening:
+            return kept
+        pos = {p.name: i for i, p in enumerate(m.params) if p.name}
+        here = frozenset((name,))
+
+        def value(rng: Tuple[int, int]):
+            j = _arg_last_name(m, rng)
+            if j is None:
+                return None
+            t = m.toks[j].text
+            return ("p", pos[t]) if t in pos else ("n", self._alias(t), None, None)
+
+        recs: Dict[tuple, int] = {}
+        for pc in m.param_calls:
+            key = (pos[pc.name], here, tuple(value(r) for r in _arg_ranges(m, pc)))
+            recs[key] = recs.get(key, 0) + 1
+        met: Set[str] = {name}
+        for c in m.calls:
+            if not self._function_like(c.name):
+                continue
+            env = tuple(value(r) for r in _arg_ranges(m, c))
+            for v, times, via, args in self._expand(c.name, env, opening | here, met):
+                if v[0] == "p":
+                    key = (v[1], via | here, args)
+                    recs[key] = recs.get(key, 0) + times
+        answer = (recs, frozenset(met))
+        if not met & opening:
+            self._summaries[name] = answer
+        return answer
+
     def _graph(self) -> Dict[str, Set[str]]:
         names = self.callables()
         g: Dict[str, Set[str]] = {}
         for name in names:
             out: Set[str] = set()
             for fn in self.nodes(name):
-                out.update(c.name for c in fn.calls if c.name in names)
+                # fn.calls and fn.idents leave out the body's own parameters (_analyse_fn): a parameter named like a
+                # macro or a function is never a use of it. What a caller passes to a macro that calls it is the
+                # caller's call (Unit.calls).
+                out.update(c.name for c in self.calls(fn) if c.name in names)
                 out.update(i for i in fn.idents if i in self.macros)
             out.discard(name)
             g[name] = out
@@ -1476,7 +1702,9 @@ class Unit:
         found = [e for e in ENTRY_POINTS if e in own]
         if found:
             return found
-        return [TOPLEVEL] if TOPLEVEL in self.functions else sorted(own)
+        if TOPLEVEL in self.functions:
+            return [TOPLEVEL]
+        return sorted(own) if self.library else []
 
     def reachable(self, entries: Optional[Iterable[str]] = None) -> Set[str]:
         stack = list(self.entries() if entries is None else entries)
