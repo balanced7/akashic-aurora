@@ -46,6 +46,76 @@ def _loud(msg: str) -> None:
     except Exception:
         pass
 
+
+def _win_exec(command: str):
+    """Split a Windows shell command WITHOUT round-tripping it through the POSIX `shlex`
+    tokenizer, which mangles `|`, `"`, and backtick-quoting on Windows (live incident
+    2026-10-13: `powershell -Command "Get-Date"` had its quotes dropped, so PowerShell
+    ECHOED the text instead of running it; `^|` was passed literally rather than as a pipe).
+
+    A `shlex.split(..., posix=False)` "smart quote" mode exists, but it drops the quotes
+    themselves -- which PowerShell then reads as a bareword to echo. The fix is to hand a
+    PowerShell/cmd.exe command to the interpreter THAT UNDERSTANDS ITS OWN SYNTAX as a
+    single string argument, never re-tokenizing it ourselves.
+
+    Returns a subprocess argv list, or None if the command should fall back to the
+    platform's ordinary splitter. On non-Windows this is a no-op (returns None)."""
+    if os.name != "nt":
+        return None
+    stripped = command.strip()
+    low = stripped.lower()
+    # PowerShell: everything after the tool name becomes ONE -Command script string.
+    # The seat may have written `-NoProfile`/`-Command`/`-EncodedCommand` itself; those are
+    # invocation flags, not script text, so strip the ones we control and keep the REMAINING
+    # tail verbatim as the script (pipes, quotes, backticks intact) rather than re-wrapping
+    # PowerShell's own flags as script body.
+    if low == "powershell" or low.startswith("powershell "):
+        rest = stripped[len("powershell"):].strip()
+        if not rest:
+            return ["powershell"]
+        # Split off leading flag tokens only (no quoting needed at this layer; the leading
+        # flags are the first whitespace-delimited words and carry no spaces themselves).
+        tokens = rest.split()
+        i = 0
+        while i < len(tokens) and tokens[i].lower() in ("-noprofile", "-command", "-encodedcommand"):
+            i += 1
+        body = " ".join(tokens[i:])
+        if not body:
+            return ["powershell"]
+        return ["powershell", "-NoProfile", "-Command", body]
+    # cmd.exe: hand the tail to /c unchanged.
+    if low == "cmd" or low.startswith("cmd ") or low == "cmd.exe" or low.startswith("cmd.exe "):
+        tail = stripped.split(None, 1)
+        body = tail[1] if len(tail) > 1 else ""
+        return (["cmd", "/c", body] if body else ["cmd", "/c"])
+    return None
+
+
+# Pipes/redirects/job-control/substitution -- the operators a bare shlex split cannot carry.
+# A command that uses any of these MUST run through a shell interpreter (cmd.exe /c on
+# Windows, /bin/sh -c elsewhere), which is the one actor that understands | > >> < && || ;
+# and $(...). Without it the metacharacter is silently dropped by the splitter (live
+# incident 2026-10-13: `foo | bar` returned only `foo`'s output; the `| bar` half vanished).
+_COMPOUND_SHELL_META = frozenset("|&;<>")
+
+
+def _shell_command_for(command: str):
+    """Return a (shell, *flags, script) argv that runs `command` through a REAL shell
+    interpreter -- the shape `subprocess.run(..., shell=True)` builds implicitly. Returns
+    None when the command needs no shell (only apply this for compound commands, never to
+    a plain `python -c ...`, whose quoting must NOT round-trip through a second shell)."""
+    if os.name == "nt":
+        return ["cmd", "/c", command]
+    return ["/bin/sh", "-c", command]
+
+
+def _needs_shell(command: str) -> bool:
+    """True when the command carries a pipe/redirect/joiner that only a shell interprets.
+    Conservative: strips nothing, ignores quote context -- this is a routing hint, not a
+    security gate (the seat is already Cap.EXEC-authorised to reach this branch)."""
+    return any(ch in command for ch in _COMPOUND_SHELL_META)
+
+
 MAX_CMD_TIMEOUT       = int(os.getenv("DEEPSEEK_MAX_CMD_TIMEOUT", "300"))  # ceiling a single run_command can't exceed, even if the model asks for more
 
 # Dirs never worth walking (vendored / caches / heavy data) -- keeps search fast and tokens bounded.
@@ -1749,13 +1819,23 @@ class ToolBox:
             # Unrestricted shell for an operator-authorised seat. Still shell=False (argv is
             # split, never handed to a shell interpreter), still Cap.EXEC-gated above, still
             # timeout-capped -- what is lifted is the FAMILY allowlist, not the process bounds.
+            # EXCEPTION: a compound command (pipe/redirect/&&/;) has no argv representation --
+            # shlex turns `|` into a literal token that then goes nowhere (silent pipe drop,
+            # live 2026-10-13). Those run through a real shell interpreter instead, the one
+            # actor that UNDERSTANDS the metacharacter; PATH is unchanged and no tokenization
+            # is attempted, so quoting reaches cmd.exe/sh verbatim.
             import shlex as _shlex
-            try:
-                argv = _shlex.split(command, posix=False)
-            except ValueError as e:
-                return f"REFUSED: could not parse the command ({e})"
-            if not argv:
-                return "REFUSED: empty command"
+            if _needs_shell(command):
+                argv = _shell_command_for(command)
+            else:
+                argv = _win_exec(command)
+                if argv is None:
+                    try:
+                        argv = _shlex.split(command, posix=True)
+                    except ValueError as e:
+                        return f"REFUSED: could not parse the command ({e})"
+                if not argv:
+                    return "REFUSED: empty command"
             env_extra = {"AKASHIC_SEAT_DOOR": "toolbox"}
         elif self.trust:
             # T067-2 G1/G2: UNATTENDED exec is families-only, shell=False.
