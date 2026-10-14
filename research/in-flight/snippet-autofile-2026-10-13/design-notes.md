@@ -94,6 +94,10 @@ rule: system work ships fenced). Daniel said yes to version 1 on 2026-10-13 ("Ye
   funneled through the classifier ("auto mode requires classifier adjudication").
 - **Hooks fire for subagent and workflow tool calls**: the retro counted about 1,418 recall-at-action injections (the
   house PreToolUse hook) inside subagent transcripts (`subagents-late.md`, `rederivations-vs-store.md`).
+- **The live test must include the hint path** (Heimdall's sign-off, 2026-10-13): the byte-path attestation covers
+  FILED snippets only. A hint-shape command (bash `$` or a backquote, PowerShell `$` or a backtick) deliberately lets
+  the shell expand at run time, so the live test runs one and checks the expansion came out CORRECT, not merely that
+  the command ran: that branch is the one seam where what the hook saw and what the interpreter got may differ.
 - **The live test is still owed.** A nested `claude -p` run in a scratch folder with a throwaway hook failed before any
   tool call: "OAuth session expired and could not be refreshed" on the npm CLI (Daniel's login; refreshing it is his
   step). The hook ships un-wired until that live test passes.
