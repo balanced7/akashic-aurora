@@ -973,6 +973,11 @@ class Handler(BaseHTTPRequestHandler):
                         "callsign": r.get("callsign"), "vendor": r.get("vendor"),
                         "family": r.get("family"), "team": r.get("team"),
                         "number": r.get("number"), "state": r.get("state"),
+                        # T088(UI) 2026-10-13: the alias history -- the append-only `formerly:`
+                        # projection, so the console can show "who were they" AND "who are they".
+                        # Derived, never curated (residents.get() projects it from the log). An
+                        # empty list renders absent, not blank -- most residents have one name.
+                        "formerly": list(r.get("formerly") or []),
                         # the schema line as the boot block renders it, so one spelling
                         # travels: "Anthropic | Amber | Blue | 1 - Vandor"
                         "schema": f"{r.get('vendor')} | {r.get('family')} | "
@@ -1659,7 +1664,7 @@ PAGE = r"""<!doctype html>
     --bg:#0a0b0f; --bg2:#0e1015; --panel:#14161d; --panel2:#171a22; --border:#242833;
     --text:#e7e9f0; --muted:#8b90a2; --faint:#727890;
     --claude:#e0915c; --deepseek:#7aa2f7; --user:#5fd39b; --system:#7c8296;
-    --accent:#7aa2f7; --accent2:#9d7cf7; --amber:#f0b246; --danger:#f0666e;
+    --accent:#7aa2f7; --accent2:#9d7cf7; --amber:#f0b246; --danger:#f0666e; --ok:#5fd39b;
     --fleet:#f472b6;
     /* USER-RESIZABLE PANES. Both are DEFAULTS, not ceilings -- a stored user size overrides
        them and survives reload (see the resize controller near mountHeroAvatar). The old
@@ -1965,7 +1970,7 @@ PAGE = r"""<!doctype html>
   .worldline .wbounds{opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none;max-width:200px}
   .worldline .wrow{display:inline-flex;align-items:center;gap:4px;flex:none;white-space:nowrap}
   .worldline .wdot{width:7px;height:7px;border-radius:50%;flex:none}
-  .worldline .wdot.live{background:#5fd39b;box-shadow:0 0 5px rgba(95,211,155,.5)}
+  .worldline .wdot.live{background:var(--ok,#5fd39b);box-shadow:0 0 5px rgba(95,211,155,.5)}
   .worldline .wdot.stale{background:var(--amber,#f0b246)}
   .worldline .wdot.dead,.worldline .wdot.offline{background:var(--muted,rgba(255,255,255,.3))}
   .worldline .wname{font-weight:600}
@@ -1986,12 +1991,27 @@ PAGE = r"""<!doctype html>
   .floorline li{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;flex:none}
   .floorline .fdot{width:7px;height:7px;border-radius:50%;flex:none}
   .floorline .fdot.fired{background:var(--danger,#f0666e);box-shadow:0 0 5px rgba(240,102,110,.6)}
-  .floorline .fdot.clear{background:#5fd39b}
+  .floorline .fdot.clear{background:var(--ok,#5fd39b)}
   .floorline .fdot.unavailable{background:var(--amber,#f0b246)}
   .floorline .fdot.off{background:var(--muted,rgba(255,255,255,.25))}
   .floorline .fstat{color:var(--muted);text-transform:uppercase;font-size:8.5px;letter-spacing:.05em}
   .floorline .frow.unavailable .fstat{color:var(--amber,#f0b246)}
   .floorline .frow.fired .fstat{color:var(--danger,#f0666e)}
+  /* residents (T088 UI 2026-10-13): the earned NAMES, beside the world + floor. Each chip is one
+     ratified resident: CALLSIGN bold, then the designation fragments (family · team · number) and a
+     muted "formerly …" when the alias history holds a prior name. The whole point of Daniil's
+     original directive -- "help me see who is who in the console" -- with the identity that has
+     MEANING (the designation) rather than the vendor id only. rblind = registry not yet read. */
+  .residentline{font-size:10.5px;font-family:var(--mono,ui-monospace,monospace);color:var(--muted);
+    display:flex;align-items:center;gap:2px;flex:none;white-space:nowrap;overflow:hidden}
+  .residentline.rblind{color:var(--danger,#f0666e);opacity:.75}
+  .residentline .rchip{display:inline-flex;align-items:center;gap:4px;padding:1.5px 6px;margin:0 3px;
+    border:1px solid var(--border);border-radius:10px;background:var(--bg2);flex:none}
+  .residentline .rname{font-weight:650;color:var(--text)}
+  .residentline .rdes{opacity:.72;font-size:9.5px;letter-spacing:.02em}
+  .residentline .rdes .sep{opacity:.45;margin:0 2px}
+  .residentline .rform{opacity:.55;font-size:9px;font-style:italic}
+  .residentline .rform b{font-weight:600;font-style:normal;opacity:.85}
   button.ctl{
     font:inherit; font-size:13px; font-weight:600; color:var(--text); cursor:pointer;
     border:1px solid var(--border); background:var(--panel); padding:8px 14px; border-radius:10px;
@@ -2651,6 +2671,7 @@ PAGE = r"""<!doctype html>
     <div class="fpulse green" id="fpulse" title="fleet: all clear"></div>
     <div class="worldline" id="worldline" title="one-world: not yet read — bind the roster"></div>
     <div class="floorline fblind" id="floorline" title="floor: not yet read — bind floor_view"></div>
+    <div class="residentline rblind" id="residentline" title="residents: not yet read — bind the registry"></div>
     <div class="spacer"></div>
     <div class="pills-wrap" id="pillsWrap"><div class="pills" id="pills"></div><div class="rsz rsz-pills" id="pillsGrip" title="drag to resize the agents bar · double-click to reset"></div></div>
     <div id="tiles" class="deck-grid"></div>
@@ -4319,6 +4340,7 @@ function applyStatus(s){
   syncAuroraState(paused, Object.keys(s.halted||{}).length);
   refreshNarrButtons(s.narration || 'key');
   updateFleetPulse(s);
+  renderResidentView();          // T088 UI: the earned names strip, from _residents (already loaded above)
   // renderRecipient() removed from poll loop — the recipient chip only changes on explicit user action
   // (roster click / setTarget). Calling it every 1.2s was doing getBoundingClientRect() layout thrash.
 }
@@ -4708,6 +4730,69 @@ async function pollFloor(){
 pollFloor();
 // Also re-poll the floor on the world tick's cadence so they stay in lockstep without a second timer.
 setInterval(pollFloor, 5000);
+
+// ---- RESIDENTS (T088 UI 2026-10-13): the earned names, beside #worldline/#floorline --------
+// Renders from the ALREADY-POLLED /status `residents` map (applyStatus stores it into _residents),
+// so this costs ZERO extra network/Redis calls -- it re-renders the same data the console already
+// holds, just in the one place Daniil's original directive pointed at: the UI he actually watches.
+//
+// Each chip: CALLSIGN (bold) + the designation fragments (family · team · number) +, when the
+// append-only alias history holds a prior name, a muted "formerly X". This is the identity that
+// HAS meaning -- the designation, the former-name lineage -- surfaced where it can teach the
+// operator, instead of living only in `resident show` and agent-to-agent speech (T272 Finding 5).
+//
+// Honesty: rblind (registry not reached) is RED and distinct; a poll failure renders blind with
+// the reason, never a silent empty strip that implies nobody is a resident.
+var _lastRosterSigForRes = '';
+function renderResidentView(){
+  var el = document.getElementById('residentline'); if(!el) return;
+  var ids = Object.keys(_residents);
+  if(!ids.length){
+    // No residents known: render blind-not-empty on first paint only; after that, keep whatever
+    // was last drawn (an empty registry is a transient, not a full re-bind). The blind cue is the
+    // honest "nothing read yet", not "nobody is a resident" -- the two must not look the same.
+    el.className = 'residentline rblind';
+    el.innerHTML = '<span class="rname">residents: none read</span>';
+    return;
+  }
+  // Stable sort by callsign so chips do not dance between polls.
+  ids.sort(function(x,y){ return (_residents[x].callsign||'').localeCompare(_residents[y].callsign||''); });
+  var sig = ids.map(function(a){ var r=_residents[a]; return a+'|'+r.callsign+'|'+(r.family||'')+'|'+(r.team||'')+'|'+(r.number!=null?r.number:'')+'|'+(r.formerly||[]).join(','); }).join(';;');
+  if(sig === _lastRosterSigForRes){ /* nothing changed -- avoid a DOM rebuild on every 2s status poll */ return; }
+  _lastRosterSigForRes = sig;
+  el.className = 'residentline';
+  el.innerHTML = '';
+  ids.forEach(function(a){
+    var r = _residents[a];
+    var chip = document.createElement('span');
+    chip.className = 'rchip';
+    chip.title = a;                              // hover reveals the stable agent id
+    var name = document.createElement('span');
+    name.className = 'rname';
+    name.textContent = r.callsign;
+    chip.appendChild(name);
+    // designation fragments: family · team · number, only those present (placement may be partial).
+    var des = document.createElement('span');
+    des.className = 'rdes';
+    var parts = [];
+    if(r.family) parts.push(esc(r.family));
+    if(r.team) parts.push(esc(r.team));
+    if(r.number != null) parts.push(String(r.number));
+    if(parts.length){
+      des.innerHTML = ' <span class="sep">·</span> ' + parts.join(' <span class="sep">·</span> ');
+      chip.appendChild(des);
+    }
+    // formerly: the lineage -- who they were. Muted, but present, so a rename is legible.
+    var former = (r.formerly && r.formerly.length) ? r.formerly : [];
+    if(former.length){
+      var f = document.createElement('span');
+      f.className = 'rform';
+      f.innerHTML = ' <span class="sep">←</span> <b>' + esc(former[former.length-1]) + '</b>';
+      chip.appendChild(f);
+    }
+    el.appendChild(chip);
+  });
+}
 
 // --- drag & drop + clipboard paste ---
 const drop=document.getElementById('drop'); const dropZone=document.getElementById('dropZone');

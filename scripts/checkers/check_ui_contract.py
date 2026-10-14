@@ -47,6 +47,16 @@ BASELINE_FILE = ROOT / "state" / "ui_contract_baseline.json"
 
 
 # ---------------------------------------------------------------- M-L8: token law
+def _src_key(line: str) -> str:
+    """Stable location-independent identity for a source line: the normalized line
+    text (non-ASCII folded to a safe marker, so a Unicode glyph in the source can
+    never crash a cp1252 console while the key stays deterministic). Two DIFFERENT
+    selectors that share a color key apart; a line inserted above an existing one
+    leaves the key unchanged."""
+    s = " ".join(line.split())
+    return "".join(ch if ch.isascii() and ch.isprintable() else "?" for ch in s)
+
+
 def _check_raw_hex(lines: list[str]) -> list[str]:
     """No raw hex color in CSS — use CSS variable names.
     ALLOWS: --name:#hex (token definitions), var(--name, #fallback)
@@ -81,7 +91,8 @@ def _check_raw_hex(lines: list[str]) -> list[str]:
                 continue
             problems.append(
                 f"  L{i}: raw hex '{m.group()}' — use a CSS variable instead "
-                f"({'CSS' if in_css else 'JS'} context, token law M-L8)")
+                f"({'CSS' if in_css else 'JS'} context, token law M-L8)"
+                f" | src={_src_key(line)}")
     return problems
 
 
@@ -176,11 +187,14 @@ def _baseline_key(path: Path) -> str:
     return str(path.resolve())
 
 
-def _save_baseline(path: Path, counts: dict) -> None:
+def _save_baseline(path: Path, counts: dict, keys: dict) -> None:
     try:
         BASELINE_FILE.parent.mkdir(parents=True, exist_ok=True)
         existing = _load_baseline_raw()
-        existing[_baseline_key(path)] = counts
+        # Store per-law: {count, keys} so the DELTA comparison can name WHICH hit is new,
+        # not just how many. Keys are line-text identities, stable under line insertion.
+        record = {n: {"count": c, "keys": keys.get(n, [])} for n, c in counts.items()}
+        existing[_baseline_key(path)] = record
         BASELINE_FILE.write_text(json.dumps(existing, indent=2), encoding="utf-8")
         print(f"[ui-contract] baseline recorded -> {BASELINE_FILE} "
               f"(key: {_baseline_key(path)})")
@@ -196,7 +210,17 @@ def _load_baseline_raw() -> dict:
 
 
 def _load_baseline(path: Path) -> dict:
-    return (_load_baseline_raw() or {}).get(_baseline_key(path), {})
+    raw = (_load_baseline_raw() or {}).get(_baseline_key(path), {})
+    # Normalize both schema shapes to {law_name: {"count": int, "keys": list}}:
+    #   legacy   {"token law M-L8": 59, ...}
+    #   current  {"token law M-L8": {"count": 59, "keys": [...]}, ...}
+    norm: dict = {}
+    for name, val in raw.items():
+        if isinstance(val, dict):
+            norm[name] = {"count": val.get("count", 0), "keys": val.get("keys", [])}
+        else:
+            norm[name] = {"count": val, "keys": []}
+    return norm
 
 
 def _check_dedupe_identity(lines: list[str]) -> list[str]:
@@ -231,39 +255,61 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
 
     lines = path.read_text(encoding="utf-8").split("\n")
     all_problems: list[str] = []
-    hits_by_law: list[tuple[str, int, bool]] = []
-
+    # hits_by_law: (name, [hit_strings], ship_grade). A hit string is "  L<line>: <body>".
+    # The line number is NOT identity -- an insertion above an existing hit shifts it, and
+    # the old checker read that shift as a NEW violation (T088: the #fff/#5fd39b false
+    # alarm). Identity is the KEY: the hit body with the unstable "L<line>:" prefix
+    # stripped. Baseline stores counts only (back-compat); the DELTA comparison derives
+    # keys on the fly and reports WHICH line-texts are new, so the operator sees the
+    # exact new violation, not a bare number.
+    hits_by_law: list[tuple[str, list[str], bool]] = []
     for name, fn, ship_grade in _LAW_NAMES:
         hits = fn(lines)
-        hits_by_law.append((name, len(hits), ship_grade))
+        hits_by_law.append((name, hits, ship_grade))
         if hits:
             all_problems.append(f"[ui-contract] {name}: {len(hits)} violation(s)")
             all_problems.extend(hits)
-
     if all_problems:
         print("\n".join(all_problems))
 
-    # Baseline mode: record current violation count
+    def _hit_key(hit: str) -> str:
+        # "  L123: <body>" -> "<body>"; strip and collapse so the key is line-text, not number.
+        _, _, body = hit.partition(":")
+        return " ".join(body.split())
+
+    # Baseline mode: record the keyed SET so a later run can tell "never seen" from
+    # "shifted". Store counts (for back-compat display) PLUS keys (for authoritative diff).
     if baseline:
-        _save_baseline(path, {n: c for n, c, _ in hits_by_law})
+        _save_baseline(path,
+                       {n: len(h) for n, h, _ in hits_by_law},
+                       {n: [_hit_key(x) for x in h] for n, h, _ in hits_by_law})
         return 0
 
     # Compare against baseline if one exists
     bl = _load_baseline(path)
     if bl:
         new_violations = 0
-        for name, count, ship_grade in hits_by_law:
-            prior = bl.get(name, 0)
-            if count > prior:
-                delta = count - prior
+        for name, hits, ship_grade in hits_by_law:
+            rec = bl.get(name, {"count": 0, "keys": []})
+            prior = rec.get("count", 0)
+            prior_keys = set(rec.get("keys", []))
+            cur_keys = [_hit_key(h) for h in hits]
+            new_keys = [k for k in cur_keys if k not in prior_keys]
+            removed = prior_keys - set(cur_keys)
+            count = len(hits)
+            if new_keys:
                 if ship_grade:
-                    new_violations += delta
-                print(f"[ui-contract] {name}: {count} violations "
-                      f"({delta} NEW since baseline{' — BLOCKING' if ship_grade else ' — advisory'})")
-            elif count < prior:
-                print(f"[ui-contract] {name}: {count} violations "
-                      f"({prior - count} FIXED since baseline — update baseline)")
-            else:
+                    new_violations += len(new_keys)
+                print(f"[ui-contract] {name}: {len(new_keys)} NEW violation(s) since "
+                      f"baseline{' — BLOCKING' if ship_grade else ' — advisory'}:")
+                for k in new_keys:
+                    print(f"    + {k}")
+            if removed:
+                print(f"[ui-contract] {name}: {len(removed)} violation(s) FIXED since "
+                      f"baseline:")
+                for k in sorted(removed):
+                    print(f"    - {k}")
+            if not new_keys and not removed:
                 print(f"[ui-contract] {name}: {count} violations (at baseline)")
         if new_violations:
             print(f"[ui-contract] {new_violations} NEW ship-grade violation(s) since "
@@ -274,9 +320,9 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
 
     # No baseline: M-L3 never drives exit-1. M-L8 + M-L1a do.
     ship_problems = 0
-    for name, count, ship_grade in hits_by_law:
-        if ship_grade and count:
-            ship_problems += count
+    for name, hits, ship_grade in hits_by_law:
+        if ship_grade and hits:
+            ship_problems += len(hits)
     if ship_problems:
         return 1
 
