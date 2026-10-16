@@ -21,6 +21,7 @@ This is the canonical connector. All backends and stores build on it so the
 fail-fast guarantee lives in exactly one place.
 """
 
+import importlib.util
 import logging
 import os
 import socket
@@ -42,12 +43,11 @@ def clear_reachability_cache() -> None:
     _REACHABILITY_CACHE.clear()
 
 
-try:
-    import redis
-
-    REDIS_LIBRARY_AVAILABLE = True
-except ImportError:
-    REDIS_LIBRARY_AVAILABLE = False
+# redis-py is imported where a client is built, not here. Importing it costs ~90 ms (it pulls
+# in asyncio and its cluster and observability layers), and every process that touches the
+# foundation paid that at startup, including CLI verbs that never open a connection. Asking
+# whether it is installed is a cheap lookup that does not run it.
+REDIS_LIBRARY_AVAILABLE = importlib.util.find_spec("redis") is not None
 
 
 def _resolve_default_redis_endpoint() -> tuple[str, int]:
@@ -204,7 +204,9 @@ def _note_reachable(port: int) -> None:
             # hand) is not a real Redis: record `embedded`, or nothing would restart it later.
             embedded = False
             try:
-                info = redis.Redis(host=DEFAULT_REDIS_HOST, port=port, socket_timeout=2).info()  # pyright: ignore[reportPossiblyUnboundVariable]  # NameError without redis is caught below
+                import redis
+
+                info = redis.Redis(host=DEFAULT_REDIS_HOST, port=port, socket_timeout=2).info()
                 embedded = info.get("aurora_backend") == "embedded"
             except Exception:
                 pass
@@ -277,7 +279,9 @@ def connect_to_redis_with_fail_fast(
         _note_reachable(port)
 
     try:
-        client = redis.Redis(  # pyright: ignore[reportPossiblyUnboundVariable]  # REDIS_LIBRARY_AVAILABLE checked above
+        import redis
+
+        client = redis.Redis(
             host=host,
             port=port,
             db=db,

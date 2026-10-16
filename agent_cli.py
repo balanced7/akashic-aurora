@@ -13723,7 +13723,28 @@ def cmd_status(args):
     return out.emit(doc, hints=hints, title="Status")
 
 
-def build_parser():
+class _Unbuilt:
+    """Stands in for a verb's parser that this run will never use (build_parser(only=...)).
+    Every call or attribute on it is accepted and does nothing, so the verb's add_argument
+    lines run unchanged without building anything."""
+
+    def __getattr__(self, _name):
+        return self
+
+    def __setattr__(self, _name, _value):
+        pass
+
+    def __call__(self, *_args, **_kwargs):
+        return self
+
+
+_UNBUILT = _Unbuilt()
+
+
+def build_parser(only: str | None = None):
+    """The door's whole parser. With `only`, just the verb of that name (or alias) is built and
+    every other verb's parser is a stand-in: main() uses this to skip building ~160 verbs a run
+    will not use. Anything that lists or documents verbs (discover, help, docs) builds it whole."""
     from core.axi.cli import AxiArgumentParser
 
     p = AxiArgumentParser(
@@ -13735,6 +13756,15 @@ def build_parser():
     )
     p.add_argument("--output", choices=("agent", "human"), help="who reads the output: agent (TOON) or human (colour)")
     sub = p.add_subparsers(dest="cmd", required=True)
+    if only is not None:
+        _add_parser = sub.add_parser
+
+        def _add_only(name, **kwargs):
+            if name == only or only in kwargs.get("aliases", ()):
+                return _add_parser(name, **kwargs)
+            return _UNBUILT
+
+        sub.add_parser = _add_only  # type: ignore[method-assign]
 
     b = sub.add_parser("boot", help="print an agent's startup context")
     b.add_argument("agent_id")
@@ -14839,7 +14869,9 @@ def build_parser():
         "link",
         help="fleet links: identity, invites, membership, sync, the quarantine and promotion (aurora-linkd)",
     )
-    from core.link.cli import ACTIONS as _LINK_ACTIONS
+    _LINK_ACTIONS: tuple = ()
+    if lk is not _UNBUILT:  # core.link.cli costs ~20 ms to import; only the link verb needs it
+        from core.link.cli import ACTIONS as _LINK_ACTIONS
 
     lk.add_argument("action", choices=_LINK_ACTIONS, help="what to do; `aurora link status` shows every link")
     lk.add_argument("args", nargs="*", help="the action's operands: a link, a member, a record, a code or a file")
@@ -15995,15 +16027,16 @@ def build_parser():
     # ---- T278 THE EYE (S0/S1 door; design atom the-eye-design-v2_208b26) ----
     # The formation vocabulary is READ from the module that owns it -- a copy here would
     # drift the moment either side gained a value, and the door would then refuse an edge
-    # kind the substrate happily writes. (stdlib-only import; no boot cost.)
-    from core.eye.connectome import FORMED_VIA as CONNECTOME_FORMED_VIA
-
+    # kind the substrate happily writes. (stdlib-only import, read only when the eye verb is built.)
     eye = sub.add_parser(
         "eye",
         help="THE EYE: the transcript plane as terrain -- ingest "
         "(incremental, coverage-honest), find (phrase, S0; the "
         "grammar lands S1), get (address -> verbatim L0)",
     )
+    CONNECTOME_FORMED_VIA: tuple = ()
+    if eye is not _UNBUILT:
+        from core.eye.connectome import FORMED_VIA as CONNECTOME_FORMED_VIA
     eye_sub = eye.add_subparsers(dest="eye_cmd", required=True)
     eye_in = eye_sub.add_parser(
         "ingest", help="index every session JSONL incrementally; the report IS the coverage contract"
@@ -18432,9 +18465,15 @@ def main(argv=None):
         _os.environ[axi_mode.ENV] = forced
     if not argv:
         sys.exit(cmd_home())
-    from core.axi.cli import parse
+    from core.axi.cli import parse, subcommands
 
-    p = build_parser()
+    # A run names its verb first: build just that verb's parser (~10x cheaper than all of them).
+    # Anything else -- no verb, a flag first, or a word that is not a verb -- gets the whole
+    # parser, so help, "unknown command" and its did-you-mean read exactly as they always have.
+    verb = argv[0] if not argv[0].startswith("-") else None
+    p = build_parser(only=verb) if verb else build_parser()
+    if verb and verb not in subcommands(p):
+        p = build_parser()
     if all(a.startswith("-") for a in argv) and not {"-h", "--help"} & set(argv):
         # Flags and no verb: argparse would complain about the missing verb and never name the
         # flag it does not know. Name it.
