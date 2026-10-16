@@ -32,6 +32,7 @@ def test_missing_es_falls_back_to_walk_not_silent(monkeypatch):
     # door that never opened; the walk answer opens it while still telling the caller it
     # is bounded (so a miss is never read as machine-wide absence).
     monkeypatch.setattr("core.tools.everything.resolve_es", lambda: None)
+    monkeypatch.setattr("core.tools.locate.resolve_plocate", lambda: None)  # nor plocate
     monkeypatch.setattr("core.tools.everything._WALK_ROOTS", ())  # no roots -> no dirs walked
     res = search("1552504210585813062-message.txt")
     assert res.engine == "walk"  # the fallback engine answered, not the index

@@ -50,6 +50,7 @@ def test_the_verb_has_an_engine_even_without_search_everything(monkeypatch, tmp_
     """THE PIN THE INCIDENT NEEDED. Not "it refuses politely" -- it must SEARCH."""
     (tmp_path / "needle_file.txt").write_text("x", encoding="utf-8")
     monkeypatch.setattr(ev, "resolve_es", lambda: None)  # Everything absent
+    monkeypatch.setattr("core.tools.locate.resolve_plocate", lambda: None)  # and no plocate index
     monkeypatch.setattr(ev, "_WALK_ROOTS", (str(tmp_path),))
 
     res = ev.search("needle_file")
@@ -145,6 +146,7 @@ def test_the_walk_does_not_descend_the_same_real_directory_twice(monkeypatch, tm
     real.mkdir()
     (real / "target.bin").write_text("x", encoding="utf-8")
     monkeypatch.setattr(ev, "resolve_es", lambda: None)
+    monkeypatch.setattr("core.tools.locate.resolve_plocate", lambda: None)
     monkeypatch.setattr(ev, "_WALK_ROOTS", (str(real), str(real)))  # same root twice
 
     res = ev.search("target.bin")

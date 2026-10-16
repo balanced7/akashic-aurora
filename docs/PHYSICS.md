@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 555284d9. A bound you discover by collision is not awareness -- this sheet
+> Derived at 25621a48. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (283 names)
+## Configuration flags (286 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -69,6 +69,8 @@ Class: reference
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py |
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py |
+| `AKASHIC_FIND_DB` | `` | core/tools/locate.py |
+| `AKASHIC_FIND_INDEX_MAX_AGE` | `` | core/tools/locate.py |
 | `AKASHIC_FLOW_NO_COUNT` | `` | core/comm/flow_trace.py |
 | `AKASHIC_GATE_NO_CEILING` | `` | scripts/checkers/check_reconciliation_gate.py |
 | `AKASHIC_HEAL_VERBOSE` | `` | agent_cli.py |
@@ -296,6 +298,7 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
+| `XDG_CACHE_HOME` | `` | core/tools/locate.py |
 
 ## Mechanical bounds (332 numeric constants)
 

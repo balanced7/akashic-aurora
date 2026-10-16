@@ -321,8 +321,9 @@
 - `tally.py` — tally — the blind-counter consensus matrix (W48).
 - `toast.py` — toast (T099 · tools-hunt BETA-2) -- gratitude with a receipt (kimi's hunt B3).
 
-## core/tools/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/tools/  (2 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `everything.py` — core/tools/everything.py -- the Search Everything (voidtools) search seam.
+- `locate.py` — core/tools/locate.py -- the plocate engine for the ``find`` verb (Linux/macOS's Everything).
 
 ## core/web/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `door.py` — web door -- the house fetch/search engine (task W-slice v0, night of 2026-09-01).

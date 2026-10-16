@@ -113,6 +113,10 @@ class SearchResult:
     scanned_dirs: int = 0
     roots: list[str] = field(default_factory=list)
     elapsed_s: float = 0.0
+    #: plocate only: how old the answering index was. An index miss is only as good as its age.
+    index_age_s: float | None = None
+    #: Things the reader should know about this answer (a refresh started, a sort approximated).
+    notes: list[str] = field(default_factory=list)
 
     @property
     def count(self) -> int:
@@ -533,6 +537,20 @@ def walk_search(
     )
 
 
+def _locate(query: str, **kw) -> SearchResult | None:
+    """The plocate index when there is one (core/tools/locate.py), else None so the caller
+    walks. No index yet starts a build in the background: this query walks, the next is
+    indexed."""
+    from core.tools import locate
+
+    if locate.resolve_plocate() is None:
+        return None
+    if locate.pick_index()[1] is None:
+        locate.refresh_index()
+        return None
+    return locate.locate_search(query, **kw)
+
+
 def search(
     query: str,
     *,
@@ -577,6 +595,23 @@ def search(
         # it said plainly that no search had run -- but an honest refusal is still a door
         # that does not open, and on a machine without Everything this verb did not exist
         # for anybody. A bounded answer that admits its bounds beats no answer.
+        indexed = _locate(
+            query,
+            match_path=match_path,
+            timeout=timeout,
+            sort=sort,
+            regex=regex,
+            case=case,
+            whole_word=whole_word,
+            dirs_only=dirs_only,
+            files_only=files_only,
+            scope=scope,
+            attributes=attributes,
+        )
+        if indexed is not None:
+            indexed.paths = indexed.paths[: int(max_results)]
+            indexed.hits = indexed.hits[: int(max_results)]
+            return indexed
         return walk_search(query, max_results=max_results, match_path=match_path)
 
     # ES FLAG SHAPES, verified against es.exe 1.1.0.38 -h rather than assumed. Two of the three
@@ -720,6 +755,24 @@ def search_page(
 
     es = resolve_es()
     if es is None:
+        indexed = _locate(
+            query,
+            match_path=match_path,
+            timeout=timeout,
+            sort=sort,
+            regex=regex,
+            case=case,
+            whole_word=whole_word,
+            dirs_only=dirs_only,
+            files_only=files_only,
+            scope=scope,
+            attributes=attributes,
+        )
+        if indexed is not None:
+            end = None if unlimited else offset + limit
+            indexed.paths = indexed.paths[offset:end]
+            indexed.hits = indexed.hits[offset:end]
+            return indexed
         # Fall back to the bounded walk; it has no paging, so honour offset/limit by
         # slicing its ranked result (best effort -- the walk may itself be bounded).
         walked = walk_search(query, max_results=0 if unlimited else offset + limit, match_path=match_path)
@@ -804,6 +857,17 @@ def search_page(
     )
 
 
+def describe_age(age_s: float | None) -> str:
+    """'index 3m old' -- how stale an indexed answer can be, in the unit a person reads."""
+    if age_s is None:
+        return "index age unknown"
+    if age_s < 120:
+        return f"index {age_s:.0f}s old"
+    if age_s < 7200:
+        return f"index {age_s / 60:.0f}m old"
+    return f"index {age_s / 3600:.1f}h old"
+
+
 def format_result(res: SearchResult) -> str:
     """Human-readable render for the CLI/MCP door (kept out of search() so search()
     stays a pure value-returning seam)."""
@@ -824,6 +888,13 @@ def format_result(res: SearchResult) -> str:
             )
         tail = "" if res.exhaustive else "  [BOUNDED -- more may exist beyond the budget]"
         return f"{res.count} match(es) for {res.query!r}  [engine: walk, {scope}]{tail}:" + "\n" + "\n".join(res.paths)
+
+    if res.engine == "plocate":
+        where = f"engine: plocate index, {describe_age(res.index_age_s)}"
+        notes = "".join(f"\n({n})" for n in res.notes)
+        if not res.paths:
+            return f"(no matches for {res.query!r} -- {where}. A file newer than the index may not show yet.){notes}"
+        return f"{res.count} match(es) for {res.query!r}  [{where}]:{notes}\n" + "\n".join(res.paths)
 
     if not res.paths:
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
