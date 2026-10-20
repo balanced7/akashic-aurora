@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 125,
+  "count": 123,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -15,6 +15,8 @@
     "core/comm/bus.py::json_part",
     "core/comm/bus.py::media_part",
     "core/comm/bus.py::text_part",
+    "core/comm/conductor_gate.py::acting_conduct_grant",
+    "core/comm/conductor_gate.py::acting_conductor_approve",
     "core/comm/context_hints.py::clear_all",
     "core/comm/context_hints.py::pending_count",
     "core/comm/door_probe.py::read_verdict",
@@ -52,9 +54,11 @@
     "core/coord/cognitive_metrics.py::record_reasoning",
     "core/coord/cognitive_metrics.py::record_tool_call",
     "core/coord/intent.py::clear_round",
+    "core/coord/shift_loop.py::shift_state_is_complete",
     "core/coord/task_ledger.py::sync_redis_from_git",
     "core/events/event_log.py::rebuild_index",
     "core/events/event_log.py::reset_event_log_singleton",
+    "core/foundation/embedded_redis.py::find_class",
     "core/foundation/redis_connection.py::clear_reachability_cache",
     "core/foundation/sqlite_store.py::backup_to",
     "core/foundation/sqlite_store.py::wal_bytes",
@@ -95,6 +99,7 @@
     "core/narrative/tagging.py::from_list",
     "core/narrative/tagging.py::rollback_to",
     "core/narrative/track_router.py::route_sequence",
+    "core/oneworld/floor.py::self_check",
     "core/primitives/consolidator.py::get_consolidator",
     "core/primitives/embedder.py::is_loaded",
     "core/primitives/embedder.py::similarity",
@@ -103,6 +108,7 @@
     "core/recall/at_action.py::prevention_rate",
     "core/recall/at_action.py::prevention_rate_durable",
     "core/recall/at_action.py::session_flips",
+    "core/screenspace/foreground.py::subscribe",
     "core/signals/coordinator_api.py::get_bootstrap_info",
     "core/signals/coordinator_api.py::get_context_summary",
     "core/signals/coordinator_api.py::get_next_action_suggestion",
@@ -121,15 +127,7 @@
     "core/state/session_checkpoint.py::print_recovery_summary",
     "core/state/session_checkpoint.py::save_checkpoint",
     "core/trust/registry.py::role_template",
-    "core/world.py::assert_may_write",
-    "core/comm/conductor_gate.py::acting_conduct_grant",
-    "core/comm/conductor_gate.py::acting_conductor_approve",
-    "core/comm/remote_relay.py::admitted_count",
-    "core/comm/remote_relay.py::enqueue",
-    "core/comm/remote_relay.py::file_announcement",
-    "core/comm/remote_relay.py::last_admitted",
-    "core/comm/remote_relay.py::render_file_announcement",
-    "core/coord/shift_loop.py::shift_state_is_complete"
+    "core/world.py::assert_may_write"
   ],
   "history": [
     {
@@ -181,6 +179,51 @@
         "core/comm/remote_relay.py::last_admitted",
         "core/comm/remote_relay.py::render_file_announcement",
         "core/coord/shift_loop.py::shift_state_is_complete"
+      ]
+    },
+    {
+      "date": "2026-10-06",
+      "change": "125 -> 126",
+      "why": "THE BACKLOG ROSE, which this ratchet normally forbids, and the reason is a SCOPE EXPANSION rather than new debt -- recorded here because a silently rising backlog is the exact failure the ratchet exists to prevent. Wiring the screenspace ACTUATOR (core/screenspace/act.py + combo.py, reached by `py agent_cli.py screen status|locate|prompt`) made the five observe-half modules reachable, so their module-level EXCEPTIONS entries were deleted by their own UNWIRE-WHEN condition. Graduating a module moves it from the COARSE module gate to the FINE function gate, and the finer gate immediately found a hole one level down that the coarse gate could never report: ForegroundTracker.subscribe. That function is not new and was not newly orphaned -- it became newly VISIBLE. This is test_t159 K14's invariant working in the intended direction (every module examined by one surface or the other), so the honest bookkeeping is to raise the count and name the cause, not to re-add a module exception that would hide it again.",
+      "added": [
+        "core/screenspace/foreground.py::subscribe"
+      ],
+      "added_reason": "ForegroundTracker.subscribe is the tested PURE SEAM of the T386 sec.1.2 foreground model (subscribe -> on_foreground_change -> focus+gen), pinned by tests/test_screenspace_fg_tracker_red.py F-1/F-2. Its CONSUMER has not landed: nothing yet needs a push notification of focus changes, because the actuator polls foreground synchronously inside act.verify() instead. FROZEN rather than wired, because wiring a seam to no consumer is fake integration that rots, and rather than deleted, because it is a load-bearing part of another seat's design (owner: kimi/Heimdall). UNWIRE-WHEN: a watcher verb (design sec.3 `watch(scope, until, timeout)`) or the shadow pulse's push path subscribes to it."
+    },
+    {
+      "date": "2026-10-10",
+      "change": "125 -> 120",
+      "why": "RFC #70 Phase 6 (fleet links cutover): core/comm/remote_relay.py is deleted with the rest of the HMAC bridge, so its five baselined functions (enqueue, file_announcement, render_file_announcement, last_admitted, admitted_count) leave with it. Their outbound purpose is now core/link/export.py, wired from Bus.send; the inbound measurement is the daemon's store.",
+      "removed": [
+        "core/comm/remote_relay.py::admitted_count",
+        "core/comm/remote_relay.py::enqueue",
+        "core/comm/remote_relay.py::file_announcement",
+        "core/comm/remote_relay.py::last_admitted",
+        "core/comm/remote_relay.py::render_file_announcement"
+      ]
+    },
+    {
+      "date": "2026-10-19",
+      "change": "120 (origin/master) / 126 (e-drive/master) -> 122",
+      "why": "MERGE RECONCILIATION, not new debt: reconcile/e-drive-2026-10-19 merged the Windows home line into the Linux fork line. The two sides moved this backlog independently from the same 125: the Linux line REMOVED the five core/comm/remote_relay.py entries when RFC #70 Phase 6 deleted that module (125 -> 120), and the E: line ADDED core/screenspace/foreground.py::subscribe when the screenspace organ got its door (125 -> 126). The union keeps both decisions: 125 - 5 + 1. PLUS ONE, also from the merge: core/oneworld/floor.py lost its module-level EXCEPTIONS entry here because scripts/bifrost_ui.py now reaches it (bifrost_ui -> oneworld.surface -> floor), which moves it from the module gate into this function gate, and floor.self_check -- the floor's falsifier runner, pinned by tests/test_oneworld_floor.py and test_oneworld_sensors.py -- has no production caller yet. UNWIRE-WHEN: a floor surface or scheduled audit runs self_check over the live manifest. Entries re-sorted. Re-run the function gate on the fully merged tree to confirm no entry went stale in the merge.",
+      "removed": [
+        "core/comm/remote_relay.py::admitted_count",
+        "core/comm/remote_relay.py::enqueue",
+        "core/comm/remote_relay.py::file_announcement",
+        "core/comm/remote_relay.py::last_admitted",
+        "core/comm/remote_relay.py::render_file_announcement"
+      ],
+      "added": [
+        "core/oneworld/floor.py::self_check",
+        "core/screenspace/foreground.py::subscribe"
+      ]
+    },
+    {
+      "date": "2026-10-20",
+      "change": "122 -> 123",
+      "why": "Closing the embedded bus server's code-execution hole added a restricted pickle.Unpickler whose find_class override gates fakeredis's RESTORE (core/foundation/embedded_redis.py::_RestoreUnpickler). The pickle machinery calls find_class by name during unpickling, so no production entry point names it statically -- a structural orphan, not latent capability. It is wired in fact: _harden_restore() routes DUMP/RESTORE through it, exercised by tests/test_embedded_redis_sandbox.py and by core/world_seed.copy_prefix's round-trip. UNWIRE-WHEN: fakeredis exposes a documented unpickler hook we can set directly instead of subclassing.",
+      "added": [
+        "core/foundation/embedded_redis.py::find_class"
       ]
     }
   ]

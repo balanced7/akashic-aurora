@@ -113,9 +113,14 @@ def test_dangerous_lua_global_is_nil(client, name):
 
 def test_indexing_the_python_bridge_fails(client):
     """Beyond `type` being nil: actually reaching for the bridge raises, so a script cannot get
-    at Python at all (not merely find the name rebindable)."""
-    with pytest.raises(redis.exceptions.ResponseError):
+    at Python (not merely find the name rebindable). `python` is nil, so indexing it is a Lua
+    error -- which fakeredis's TcpFakeServer reports, for ANY nil-value index, by dropping the
+    connection rather than with a -ERR reply. Either way no Python runs, and the server lives on
+    to serve the next client."""
+    with pytest.raises((redis.exceptions.ResponseError, redis.exceptions.ConnectionError)):
         client.eval("return python.eval", 0)
+    # The escape failed WITHOUT taking the bus down: the pool reconnects and the server answers.
+    assert client.eval("return type(python)", 0) == b"nil"
 
 
 # -- legitimate Lua still works -------------------------------------------------------------
