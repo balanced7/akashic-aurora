@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a7f916d8. A bound you discover by collision is not awareness -- this sheet
+> Derived at 444e1a54. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (263 names)
+## Configuration flags (266 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -64,6 +64,8 @@ Class: reference
 | `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
 | `AKASHIC_DISCORD_WEBHOOKS` | `` | core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
+| `AKASHIC_EMBEDDED_REDIS_DIR` | `` | core/foundation/embedded_redis.py |
+| `AKASHIC_EMBEDDED_REDIS_FLUSH_SEC` | `"0.2"` | core/foundation/embedded_redis.py |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py |
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py |
@@ -99,6 +101,7 @@ Class: reference
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +14 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py |
+| `AKASHIC_REDIS_BACKEND` | `` | core/foundation/embedded_redis.py |
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_REDIS_HOST` | `"localhost"` | scripts/checkers/check_field_parity.py |
 | `AKASHIC_REDIS_PORT` | `16379` | scripts/checkers/check_field_parity.py |
@@ -241,7 +244,7 @@ Class: reference
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
 | `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
-| `LOCALAPPDATA` | `""` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/tools/everything.py +1 |
+| `LOCALAPPDATA` | `""` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/tools/everything.py |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
