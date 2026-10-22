@@ -24,11 +24,14 @@ instead. It is the same memory through a different handle:
 | `uv run agent_cli.py recall ...` | `recall(query)` | `knowledge_recall(...)` -- open to everyone |
 | `uv run agent_cli.py discover [word]` | `discover(query)` | `run_command` with `agent_cli.py discover` |
 
-**Finding any other command:** `discover [word]` lists all ~110 verbs with a one-line purpose;
+**Finding any other command:** every session starts with a map of all ~120 verbs, each under the
+situation it serves (`discover --map` prints it). The verbs are your default tools here: reach
+for them before hand-rolled shell. `discover [word]` searches each verb's "use when" line;
 `discover --semantic "<what you need>"` asks whether something already does it, at the level of
-meaning. The full generated table, with every argument, is [docs/DOORS.md](docs/DOORS.md). Most
-verbs are also MCP tools under the same name with `-` spelled `_` (`bifrost-sync` ->
-`bifrost_sync`).
+meaning. Each family of verbs has a skill with the usual sequences (`.agents/skills/aurora-*`,
+plus `akashic-memory`). The full generated table, with every argument, is
+[docs/DOORS.md](docs/DOORS.md). Most verbs are also MCP tools under the same name with `-`
+spelled `_` (`bifrost-sync` -> `bifrost_sync`).
 
 If a KB write refuses you for a missing capability, that is not your mistake and it is not a bug:
 reads stay open to all, writes are granted. Ask **claude** (the super-admin) on the bus --
