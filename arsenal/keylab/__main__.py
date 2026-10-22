@@ -504,12 +504,46 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", help="MIDI input port for the keys (default: the KeyLab MIDI port)")
     p.set_defaults(func=cmd_chordview, dry_run=False)
 
+    p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
+    p.add_argument("--suite", choices=["synthetic", "loops", "all"], default="synthetic")
+    p.add_argument("--trackers", default="aubio,librosa", help="comma list (registered: aubio, librosa, a, b)")
+    p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
+    p.add_argument("--seed", type=int, default=7, help="sampling seed, so a run can be repeated exactly")
+    p.add_argument("--hop", type=int, default=512)
+    p.set_defaults(func=cmd_beatbench, dry_run=False)
+
     p = sub.add_parser("probe", help="guided W0 hardware session: the LCD asks, the pads answer (1 yes, 2 no, 4 skip)")
     p.add_argument("--only", help="comma list of steps (calibrate always runs first); see --list")
     p.add_argument("--list", action="store_true", help="print the steps and exit")
     p.add_argument("--out", help="receipt JSON path (default state/arsenal/keylab/receipts/probe-<stamp>.json)")
     p.set_defaults(func=cmd_probe, dry_run=False)
     return ap
+
+
+def cmd_beatbench(args) -> int:
+    import importlib
+    from . import beatbench as BB
+    for name, mod in (("a", "beat_a"), ("b", "beat_b")):      # the blind pair registers itself when it exists
+        try:
+            m = importlib.import_module(f"arsenal.keylab.{mod}")
+            BB.register(name, m.Tracker, note=f"{mod}.py (clean, numpy-only)")
+        except ImportError:
+            pass
+    names = [t.strip() for t in args.trackers.split(",") if t.strip()]
+    unknown = [t for t in names if t not in BB.TRACKERS]
+    if unknown:
+        print(f"unknown tracker(s) {unknown}; registered: {sorted(BB.TRACKERS)}")
+        return 2
+    cases = []
+    if args.suite in ("synthetic", "all"):
+        cases += BB.synthetic_suite()
+    if args.suite in ("loops", "all"):
+        cases += BB.loop_suite(n=args.n, rng_seed=args.seed)
+    print(f"beatbench: {len(cases)} cases, trackers {names}")
+    rep = BB.bench(cases, names, hop=args.hop)
+    rep["suite"], rep["n"], rep["seed"] = args.suite, args.n, args.seed
+    print(f"receipt: {BB.save_report(rep)}")
+    return 0
 
 
 def cmd_probe(args) -> int:
