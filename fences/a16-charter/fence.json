@@ -1,0 +1,22 @@
+{
+  "id": "a16-charter",
+  "question": "What should arc A16 (the KeyLab 88 mk3 + sound room + VFX pages project) be: mandate, boundary vs A12 and media-suite, tracks, width, first slice with pre-registered acceptance, risks?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-10-22T17:50:54.250887+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-22T17:52:39.140636+00:00"
+    },
+    "half_a": {
+      "by": "claude",
+      "at": "2026-10-22T17:52:39.830224+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude",
+    "half_a": "claude"
+  }
+}
