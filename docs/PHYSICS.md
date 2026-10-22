@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 869060c7d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 10fc084bf. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -303,7 +303,7 @@ Class: reference
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 | `XDG_CACHE_HOME` | `` | core/tools/locate.py |
 
-## Mechanical bounds (333 numeric constants)
+## Mechanical bounds (334 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -614,6 +614,7 @@ Class: reference
 | `_DEFAULT_BUDGET_LINES` | 12 | agent/harness/context.py | W6; AKASHIC_WHISPER_LINES overrides (R6) |
 | `_DONE_CAP` | 8,192 | core/comm/packet_spec.py |  |
 | `_FAILURE_WINDOW_S` | 120 | core/comm/operator_reply.py |  |
+| `_INSTRUCTIONS_CAP` | 4,096 | ai_setup_mcp.py |  |
 | `_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION` | 9 | scripts/run_job.py |  |
 | `_MAX` | 4,000 | agent_cli.py | clamp absurdly long fields an agent might paste |
 | `_MAX_BLOB` | 3,000,000 | scripts/checkers/check_secrets.py |  |

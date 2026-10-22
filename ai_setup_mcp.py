@@ -411,35 +411,50 @@ def _run_gemini_web(*args: str, prompt: str = "", timeout: int = 240) -> str:
     return _run_script("gemini_web.py", *args, prompt=prompt, timeout=timeout, extra_env=_GEMINI_WEB_ENV)
 
 
-mcp = FastMCP(
-    "akashic-aurora",
-    instructions=(
-        "Akashic Aurora: a shared-memory system for a team of agents. FIRST on any "
-        "task, call boot(agent, task) to load your ranked startup context (past lessons, "
-        "the latest handoff addressed to you, project state) distilled to a token budget. "
-        "As you work, give back: learn(...) records a reusable lesson; log(...) records a "
-        "narrative beat; handoff(...) leaves a briefing the NEXT agent's boot surfaces "
-        "automatically (cross-agent continuity). recall/status/story/events/promoted/bifrost_sync "
-        "are read tools. Not sure a capability exists? discover(query) lists every verb with its "
-        "purpose; discover(query, semantic=True) asks whether something already does it. bifrost_inbox/bifrost_send are the LIVE bus (ephemeral). Use a short, STABLE "
-        "agent id so contributions are attributed and handoffs route correctly. Everything persists on shared Redis, "
-        "so writes from any agent (via CLI or MCP) feed every other agent's next boot. "
-        "FIRST each turn: boot(agent, task) surfaces unread Bifrost mail; in-session also call "
-        "bifrost_inbox(agent) or bifrost_sync(agent) before acting on live messages. "
-        "Free Gemini via web: ask_gemini_web(prompt, mode=gemini|ai_mode|both) uses invisible "
-        "Chrome (gemini_web_login once). ask_gemini_panel fans to web + optional API. "
-        "Concurrency-safe door (slice O1 -- a task id, not O(1) complexity): tools may be "
-        "called in parallel batches; reads run concurrently; writes/sends/consumes "
-        "serialize WITHIN THIS SERVER PROCESS under one lock for ordering. Across "
-        "processes (CLI shells, other doors) there is no global serializer: single-key "
-        "Redis operations are backend-atomic, and multi-step read-modify-write sequences "
-        "need CAS or an advisory lock (see lock/unlock tools) -- do not assume cross-"
-        "process ordering the door cannot give."
-    ),
+#: Claude Code loads server instructions upfront even when every tool hides behind tool search,
+#: and cuts them at 4,096 characters. They are the one always-on channel this door has, so after
+#: the contract below they carry the verb map (core/coord/verb_guide.py), folded to fit. The
+#: concurrency sentences are pinned word for word by tests/test_t284_door_contract_wording.py.
+_INSTRUCTIONS_CAP = 4096
+_INSTRUCTIONS_HEAD = (
+    "Akashic Aurora: a shared-memory system for a team of agents. FIRST on any "
+    "task, call boot(agent, task) to load your ranked startup context; each turn, "
+    "bifrost_sync(agent) for new mail. Give back as you work: learn(...) records a reusable "
+    "lesson, note(...) a durable decision, handoff(...) a briefing the NEXT agent's boot "
+    "surfaces. Use a short, STABLE agent id. Every verb in the map below is a tool here with "
+    "'-' spelled '_' (bifrost-sync -> bifrost_sync) or, if not, the shell command "
+    "`aurora <verb>`; discover(query) searches them by situation. "
+    "Concurrency-safe door (slice O1 -- a task id, not O(1) complexity): tools may be "
+    "called in parallel batches; reads run concurrently; writes/sends/consumes "
+    "serialize WITHIN THIS SERVER PROCESS under one lock for ordering. Across "
+    "processes (CLI shells, other doors) there is no global serializer: single-key "
+    "Redis operations are backend-atomic, and multi-step read-modify-write sequences "
+    "need CAS or an advisory lock (see lock/unlock tools) -- do not assume cross-"
+    "process ordering the door cannot give.\n"
 )
 
 
-@mcp.tool()
+def _instructions() -> str:
+    """The head plus as much of the verb map as fits under the cap (fail-soft: a broken guide
+    costs the map, never the server)."""
+    try:
+        from core.coord.verb_guide import render_map
+
+        vmap = render_map("aurora", max_chars=_INSTRUCTIONS_CAP - len(_INSTRUCTIONS_HEAD) - 1)
+    except Exception:
+        vmap = ""
+    return (_INSTRUCTIONS_HEAD + vmap)[:_INSTRUCTIONS_CAP]
+
+
+#: The verbs a working session reaches for most (verb_guide.CORE) stay loaded instead of hiding
+#: behind tool search, so their schemas and descriptions are in context from the first turn.
+#: The per-tool flag is honoured by Claude Code 2.1.285+; other clients ignore unknown _meta.
+_ALWAYS_LOAD = {"anthropic/alwaysLoad": True}
+
+mcp = FastMCP("akashic-aurora", instructions=_instructions())
+
+
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def boot(agent: str, task: str = "") -> str:
     """Load this agent's startup context. CALL THIS FIRST on a new task.
 
@@ -450,7 +465,7 @@ async def boot(agent: str, task: str = "") -> str:
     return await _athread(_run, agent_cli.cmd_boot, agent_id=agent, task=task or None)
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def learn(
     agent: str,
     experiment: str,
@@ -484,7 +499,7 @@ async def learn(
     )
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def recall(query: str = "", full: str = "") -> str:
     """Search past lessons by keyword. Empty query lists ALL lessons.
     Pass `full` = a lesson's source pointer (e.g. learn:experiment:NAME) to pull its WHOLE record
@@ -512,7 +527,7 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
     )
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def find(
     query: str,
     limit: int = None,  # noqa: RUF013  # ty: ignore[invalid-parameter-default]  # pyright: ignore[reportArgumentType]  # MCP tool input schema (O4c) must stay byte-identical
@@ -581,7 +596,7 @@ async def find(
     )
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def web_fetch(
     url: str, offset: int = 0, limit: int = 8000, raw: bool = False, pdf_full: bool = False, agent: str = ""
 ) -> str:
@@ -647,7 +662,7 @@ async def recall_feedback(source: str, useful: bool = True, noise: bool = False)
     return await _athread(_run, agent_cli.cmd_recall_feedback, lock=True, source=source, useful=useful, noise=noise)
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def note(agent: str, title: str, note: str, context: str = "", category: str = "", supersedes: str = "") -> str:
     """Record a durable, write-once project note -- a decision or WHERE-WE-ARE -- into the substrate,
     not by editing a file. Re-noting the same `title` RETIRES the prior (correct by superseding). It
@@ -681,20 +696,20 @@ async def knowledge_map(topic: str = "", per_layer: int = 6) -> str:
     return await _athread(_run, agent_cli.cmd_knowledge_map, query=topic, per_layer=per_layer)
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def lock(agent: str, path: str, ttl: int = 900) -> str:
     """Claim an advisory path-lock so peers see you're editing PATH (coordination, not OS-enforced).
     Re-claiming your own refreshes the TTL. Now reachable without a shell (membrane door-parity)."""
     return await _athread(_run, agent_cli.cmd_lock, lock=True, agent_id=agent, path=path, ttl=ttl)
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def unlock(agent: str, path: str) -> str:
     """Release an advisory path-lock you hold on PATH."""
     return await _athread(_run, agent_cli.cmd_unlock, lock=True, agent_id=agent, path=path)
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def locks(agent: str = "") -> str:
     """Awareness: which advisory path-locks are held right now, and by whom (across all agents)."""
     return await _athread(_run, agent_cli.cmd_locks, agent_id=agent)
@@ -709,7 +724,7 @@ async def tag_anti_pattern(experiment: str, name: str, reason: str = "") -> str:
     )
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def status() -> str:
     """Honest system status: backend, lesson count, agent-memory count, spine health."""
     return await _athread(_run, agent_cli.cmd_status)
@@ -798,7 +813,7 @@ async def log(
     )
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def handoff(
     from_agent: str, to: str = "", task: str = "", note: str = "", blocker: str = "", list_only: bool = False
 ) -> str:
@@ -1036,7 +1051,7 @@ async def capture(
     return await _athread(_body, lock=bool(as_doc))
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def bifrost_sync(agent: str, limit: int = 10, consume: bool = False) -> str:
     """Bifrost pull floor: refresh presence + peek unread inbox (same data boot() shows).
 
@@ -1089,7 +1104,7 @@ async def link(action: str = "list", link: str = "", record: str = "", limit: in
     return await _athread(_body)
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def bifrost_send(
     from_agent: str, to: str, kind: str = "chat", text: str = "", expect_reply_within: int = 0
 ) -> str:
@@ -1307,7 +1322,7 @@ async def friction(agent: str = "claude", window_h: float = 168.0) -> str:
 #     position verbs (look/go/back/since/inherit/stats) that are not yet census verbs.
 
 
-@mcp.tool()
+@mcp.tool(meta=_ALWAYS_LOAD)
 async def eye(
     eye_cmd: str,
     addr: str = "",
