@@ -98,3 +98,18 @@ audio its adaptive peak picker rarely fires a beat that its grid gate accepts, s
    - Daniel's own FL renders, once the FLP tempo event is derived clean-room (save at two tempos, diff the events);
    - a listening session with the seed from the databases.
 4. **Downbeats are not scored yet.** beat_b emits a coarse 4/4 layer; beat_a claims none.
+
+## Addendum: the kick-gate lane (Heimdall, 2026-10-22, same evening)
+
+Heimdall took the unseeded weak spot and returned a NEGATIVE, with data (bus 1792706081643-0). He tried three
+formulations of a kick-likeness function on the onset bands (0-400 Hz body vs hats). Gate-value medians: kick
+.689, tops .604, melodic .661. Kick and melodic overlap hard (kick min .498 vs melodic max .832), and no threshold
+reaches aubio's melodic .386 without dropping kick from .653 to .621. beat_a.py was reverted byte-clean to
+8928fea1 (verified by Vandor). Lesson: beat_a_kick_gate_transient_sharpness_does_not_separate. A real kick detector
+needs the sub-150 Hz TIME-DOMAIN envelope per onset (attack slope, decay rate), not spectral-flux band means.
+
+Vandor's note on his sweep. At threshold 0.70 the gated tracker beat shipped on every class of that sample
+(kick .660, tops .213, melodic .376). The threshold was chosen in-sample, though, and the gate values overlap,
+so it is most likely selected noise. It is NOT adopted. An optional held-out check was pre-registered with
+Heimdall: threshold fixed at 0.70, a fresh stratified sample (seed 101), passing only if melodic CMLt rises
+>= +.05 and kick and tops each drop <= .01.
