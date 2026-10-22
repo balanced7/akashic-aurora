@@ -1,0 +1,27 @@
+W266	Our own FL controller script for the KeyLab.
+W267	A KeyLab Atlas: understand the full surface.
+W268	An FLP template site with a DAW conversion kit.
+W269	Splice-ify sound chains, buildups and structure.
+W270	Map Addictive Drums 2 notes to chosen pads.
+W271	Pad Learn: play a key, tap a pad, and the pad plays that note.
+W272	The Pad Desk: drop samples on pads and set colour, velocity and ADSR.
+W273	Expose the KeyLab's modes, pad banks and functions.
+W274	Land the chord viewer as a KeyLab VFX mode.
+W275	KeyLab verbs plus a measured key-to-light latency.
+W276	Learn the real send limits and beat them cleverly.
+W277	A stability ladder, with the unstable band used as an effect.
+W278	ledbench names its test pattern on the LCD.
+W279	The KeyLab as a renderable window for the VFX.
+W280	Chord colour and shape schemas, starting with a shape dictionary.
+W281	Pin the sustain fix.
+W282	7ths as one colour, edges that change, and regions for quality and note.
+W283	Spotify-aware light: BPM, track position, a march, and our own chord DB.
+W284	BPM seeded from several sources and refined, with an accuracy bench.
+W285	The KeyLab as a content engine.
+W286	An attention verb: acknowledge, choose, or click to launch.
+W287	The wake message carries the media file's path.
+W288	Host VSTs ourselves: Kontakt, piano, effects and EQ.
+W289	A low-latency sound-craft room that exports to FL.
+W290	The KeyLab as a VFX device, shown in its best light.
+W291	Read and write FL mixer presets and effect chains natively, detached or alongside FL.
+W292	The pages drive the KeyLab display with menus and adaptive colour.

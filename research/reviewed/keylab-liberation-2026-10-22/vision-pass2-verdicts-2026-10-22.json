@@ -1,0 +1,565 @@
+[
+ {
+  "group": "KeyLab Lit vision pass1: code/UI citations",
+  "verdicts": [
+   {
+    "claim": "Web MIDI requests sysex:false at piano.js:3803, cues.js:1697, first-light.js:768, play.js:2027, piano-lab-score.js:299 (spine: 'they all ask for sysex:false')",
+    "status": "corrected",
+    "correct_citation": "arsenal/web/piano.js:3803; arsenal/web/piano/cues.js:1697; arsenal/web/first-light.js:768; arsenal/web/play.js:2027; arsenal/web/piano-lab-score.js:299",
+    "note": "All five line numbers are right, but only piano.js and cues.js pass {sysex:false}. first-light.js, play.js and piano-lab-score.js call requestMIDIAccess() with no options. That means the same thing (sysex defaults to false), but the wording is inexact. Other pages also ask for sysex:false and are not listed: piano-next.js:1347, piano-lab-res.js:1519, piano-lab-vfx.js:1871, piano-lab-judge-head.js:1318, piano-lab-judge-res.js:1520, piano-crystal-studies.js:288, piano/gyre-music.js:16. Suggested wording: 'none request SysEx'."
+   },
+   {
+    "claim": "/vfx has no MIDI code",
+    "status": "confirmed",
+    "correct_citation": "scripts/vfx.html (only script: /agent-avatar.js at :378 plus inline); scripts/agent-avatar.js",
+    "note": "No 'midi' match in vfx.html or agent-avatar.js."
+   },
+   {
+    "claim": "arsenal serve listens on :8793",
+    "status": "confirmed",
+    "correct_citation": "arsenal/serve.py:776 (def serve(port: int = 8793 ...)), HOST 127.0.0.1 at :36"
+   },
+   {
+    "claim": "arsenal serve has no CORS (serve.py ~245-249, 592-594)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/serve.py:239-249 (do_HEAD/GET/POST/PUT only, no do_OPTIONS); :592-594",
+    "note": "The file has no Access-Control header and no OPTIONS handler. Lines 592-594 are an Origin check on cue POSTs: it allows 127.0.0.1/localhost hostnames on any port and returns 403 for anything else. So a page on :8787 passes the Origin check but gets no CORS headers."
+   },
+   {
+    "claim": "serve.py:156-178 App init and 788-805 serve loop with app.cues.close() at shutdown (hub hook point)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/serve.py:156-178 (App.__init__, self.cues = CueHub() at ~168); :797-805 (finally: app.cues.close() at :804)"
+   },
+   {
+    "claim": "bifrost_ui serves :8787",
+    "status": "confirmed",
+    "correct_citation": "scripts/bifrost_ui.py:9, :1633"
+   },
+   {
+    "claim": "shaderlab serves :8797 (arsenal/shaders/serve.py:1-59, read-only)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/shaders/serve.py:1 (docstring: loopback only, read-only), :58 DEFAULT_PORT = 8797"
+   },
+   {
+    "claim": "pianocue.py has a closed EVENT_KINDS tuple (cited ~1-20)",
+    "status": "corrected",
+    "correct_citation": "arsenal/pianocue.py:65 EVENT_KINDS = (\"cue\", \"deck\", \"jam\"); enforced at :229-230",
+    "note": "Lines 1-20 are the module docstring, which describes the SSE routes and publish_event. The tuple itself is at :65."
+   },
+   {
+    "claim": "pianocue.py CueHub fan-out (~190-310)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/pianocue.py:191 class CueHub; publish :223, publish_event :226, subscribe :240, close :304"
+   },
+   {
+    "claim": "bifrost_ui.py ~224-285 holds a VFX renderer lease (6 s expiry)",
+    "status": "confirmed",
+    "correct_citation": "scripts/bifrost_ui.py:224-285 (_VFX_LEASE, VFX_LEASE_TTL = 6.0 at ~239, _vfx_lease, _vfx_job_next)",
+    "note": "A visible tab displaces a hidden one, and the lease renews by polling. This matches the vision's lease design and its 6 s figure."
+   },
+   {
+    "claim": "cues.js ~1063-1200 is a tab arbiter",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/cues.js:1072-1210 (section header :1072, createTabArbiter :1097, return object ~:1200-1208)",
+    "note": "Lines 1063-1070 are VOICE_DYNAMICS. The arbiter starts at :1072. The range is close enough."
+   },
+   {
+    "claim": "keylab88mk3.js models pads 2x6 (~34, 520-525)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/instruments/keylab88mk3.js:34 ('2 x 6 [U]; front row = C..F, back row = F#..B'), :519-525"
+   },
+   {
+    "claim": "keylab88mk3.js screen at ~753-813 (live chord card, dims to 46%)",
+    "status": "corrected",
+    "correct_citation": "keylab88mk3.js:63 (SCREEN_ON 0.92, SCREEN_IDLE 0.46), :578-590 (screen canvas setup), :672-744 (drawScreen), :788-802 (redraw-on-change in update)",
+    "note": "753-813 is the update() loop: pads at 765-785, screen redraw at 788-802, LED roles at 803-815. The screen drawing itself is drawScreen at :672. The comment at :63 says 'idle at 50%', but the value is 0.46."
+   },
+   {
+    "claim": "protocol.py PAD_NOTE map (~83-85), MPC layout",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/protocol.py:81-85 (PAD_CHANNEL 10; PAD_NOTE {1:44..4:47, 5:40..8:43, 9:36..12:39})"
+   },
+   {
+    "claim": "Three pad layouts disagree: protocol.py:83-85 (MPC map), chordview.py:16,29-30 (3x4), keylab88mk3.js:34,520-525 (2x6)",
+    "status": "corrected",
+    "correct_citation": "chordview.py:15 (PAD_PC from PAD_NOTE), :27-36 (GRID 3 across x 4 down, confirmed from Daniel's photo 2026-10-22)",
+    "note": "The chordview line numbers are off: GRID is at :34, its comment at :27-33. protocol.py PAD_NOTE is a note map, not a physical grid, and chordview builds on it. So the actual conflict is the hardware-confirmed 3x4 grid in chordview against the 2x6 pitch-class model in keylab88mk3.js, which is marked [U] unverified. The protocol.py note map does not contradict chordview."
+   },
+   {
+    "claim": "Living edges: in FRAME, the 8 border pads carry harmonic motion",
+    "status": "wrong",
+    "correct_citation": "arsenal/keylab/chordview.py:36 BORDER = top row | bottom row | left col | right col  ('all but pads 6, 7')",
+    "note": "On the 3x4 grid the FRAME border is 10 pads, not 8. Only pads 6 and 7 are interior. The figure 'at most 8 packets' should be rechecked too."
+   },
+   {
+    "claim": "Schema picker: five schemes ROLES/NOTES/QUALITY/SPLIT/FRAME, root always white (chordview.py:34-64)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/chordview.py:39-64 (pad_colors; root white at :49)"
+   },
+   {
+    "claim": "protocol.py:48-57 BUTTONS (34 button LEDs; tap:4) and 226-275 LCD grammar",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/protocol.py:48-54 (BUTTONS ids 0-33 = 34, tap 4), :55 pad bank bases (DAW 82), :225-275 (Screen F1L/F2L/POPUP and builders)"
+   },
+   {
+    "claim": "protocol.py:106 to7",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/protocol.py:106"
+   },
+   {
+    "claim": "piano.js noteColor OKLCH, hue 200 + 30 x fifths index, brightness evened (~321-410)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano.js:326 fifthsIndex, :349 vivid((200 + 30*fifthsIndex(pc)) % 360, 0.72), :376 LUMA_PULL 0.65, :380-398 noteColor",
+    "note": "noteColor returns linear RGB, and channels may exceed 1 (comment above :376). So a tone-map step before to7 really is needed."
+   },
+   {
+    "claim": "harmony-feel.js ~160-180 (families from harmony-feel measures)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/harmony-feel.js:160-179 (FEEL constants: lush/tension/bright/open weights; REST measures simplicity, lushness, tension, brightness, openness, consonance)"
+   },
+   {
+    "claim": "piano/lean.js:1-7 (lean, off in recordings unless switched on)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/lean.js:1-10"
+   },
+   {
+    "claim": "cadence-live.js ~17-28",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/cadence-live.js:17-28 (twin of practice._cadence; CADENCE constants; KINDS)"
+   },
+   {
+    "claim": "agent-avatar.js 9 avatar states (~443-458)",
+    "status": "confirmed",
+    "correct_citation": "scripts/agent-avatar.js:437-457 (ambient, thinking, composing, tool, idle, wedged, throttled, dead, unsensed = 9)"
+   },
+   {
+    "claim": "agent-avatar.js PARAMS/DIALS (~574-592)",
+    "status": "confirmed",
+    "correct_citation": "scripts/agent-avatar.js:574-591 (PARAMS: sub gap thick cube hole spin pulse sat dim round star = 11; DIALS: wire see rate = 3)"
+   },
+   {
+    "claim": "vfx.html ~403-415 parameters sub, gap, thick, cube, hole, spin, pulse, sat, dim, round, star, wire, see, rate",
+    "status": "corrected",
+    "correct_citation": "scripts/agent-avatar.js:574-591 (the names); scripts/vfx.html:403-414 (buildParams builds sliders from AgentAvatar.PARAMS and DIALS)",
+    "note": "vfx.html contains none of these names. It builds its controls from the manifest in agent-avatar.js. The 14 names are right, and the 9 faders + 5 encoders split matches 11 PARAMS + 3 DIALS."
+   },
+   {
+    "claim": "first-light.js CC-learn ~764-830",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/first-light.js:764-850 (connectMIDI :763, onMidiMessage CC-only :794, learn bind :806-813, armLearn :832, persist to localStorage :844-848)"
+   },
+   {
+    "claim": "play.js ~2023-2050 (CC-learn)",
+    "status": "corrected",
+    "correct_citation": "arsenal/web/play.js:2070 (CC dispatch), :2084-2110 (learned CC/note binding via MIDI.learning), :307 learning state",
+    "note": "Lines 2023-2050 are connectMIDI and pickMidiInput, not the learn code."
+   },
+   {
+    "claim": "latency.js:1-15 (leg-by-leg, hardware leg declared)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/latency.js:1-15"
+   },
+   {
+    "claim": "arsenal/take.py:1-6 take ledger (take.json + append-only events.jsonl)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/take.py:1-6"
+   },
+   {
+    "claim": "recorder.js:1-25 CFR H.264 MP4",
+    "status": "confirmed",
+    "correct_citation": "arsenal/web/piano/recorder.js:1-25"
+   },
+   {
+    "claim": "tiktok.py:1-6 1080x1920 shorts",
+    "status": "confirmed",
+    "correct_citation": "arsenal/tiktok.py:1-6",
+    "note": "The file is at arsenal/tiktok.py, not under arsenal/media."
+   },
+   {
+    "claim": "arsenal/fl/vfx/README.md says nothing writes into FL",
+    "status": "confirmed",
+    "correct_citation": "arsenal/fl/vfx/README.md:6 ('Nothing here writes into FL or Documents.'); Status :3 (not yet run inside FL)",
+    "note": "Small naming point: the README calls it the 'Arsenal band' VFX Script (:1). The vision calls it 'Claude Band', a name that appears nowhere in arsenal/fl/vfx."
+   },
+   {
+    "claim": "arsenal/media/audio.py:1-20 LUFS / two-pass loudnorm / qc",
+    "status": "confirmed",
+    "correct_citation": "arsenal/media/audio.py:1-15 (loudness I/LRA/TP, loudnorm_2pass, qc)"
+   },
+   {
+    "claim": "chordview.py sends daw_connect(False) on exit (cited 120-125)",
+    "status": "corrected",
+    "correct_citation": "arsenal/keylab/chordview.py:127-133 (finally: render.clear(); daw_connect(False) at :130)",
+    "note": "Lines 120-125 are the chord-change screen writes inside the loop."
+   },
+   {
+    "claim": "beatsync.py sends daw_connect(False) on exit (118-123)",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/beatsync.py:118-123 (daw_connect(False) at :122)"
+   },
+   {
+    "claim": "beatsync.py:9-11 (MVP limits, wants a dedicated output thread) and :58 cycle mode",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/beatsync.py:9-11; :58 run(... mode=\"cycle\")"
+   },
+   {
+    "claim": "ledframe.py PadRenderer (1-45) assumes it is the only writer; resync() exists",
+    "status": "confirmed",
+    "correct_citation": "arsenal/keylab/ledframe.py:1-11 (latched-state delta rationale), :21-45 (PadRenderer keeps self.state cache, skips unchanged pads), :51 resync",
+    "note": "Default burst=10 with a 4x gap after every 10th packet. The vision's 12 per burst is the device ceiling, not PadRenderer's own setting."
+   },
+   {
+    "claim": "cues.js:1757-1772 is evidence for 'Agent co-performer: Claude's notes light in a cooler second palette'",
+    "status": "corrected",
+    "correct_citation": "arsenal/web/piano.js:537-595 (Claude's keys glow moonlight, never a pitch colour; capped at 0.75 of Daniel's light), :658-662 cueColor fields",
+    "note": "cues.js:1757-1772 is listMidiOutputs/setMidiOutput (routing Claude's voice to a MIDI out). It has nothing to do with colour."
+   },
+   {
+    "claim": "Memory note line citations in the hardware-facts table (memory:9 'Nothing committed yet', :11-12 SysEx, :13 DAW bank, :14 burst, :15 LCD, :16 ports, :17 drift, :23 Carla)",
+    "status": "corrected",
+    "correct_citation": "C:/Users/L5/.claude/memory/keylab-mk3-liberation-2026-10-22.md:11 (Nothing committed yet), :14 SysEx/req 0x00, :15 DAW bank 82-93, :16 36-packet freeze, :17 LCD, :18 ports + 'only one process', :19 drift, :23 Carla/Pedalboard",
+    "note": "The facts are right. Every line number except :23 is 2 lines too low, apparently counted without the frontmatter offset. git status still shows '?? arsenal/keylab/' (confirmed)."
+   }
+  ]
+ },
+ {
+  "group": "KeyLab Lit vision pass 1: house-document citations",
+  "verdicts": [
+   {
+    "claim": "Estate Program c432a7 has arc A12 \"THE FACE\", \"the founder's first love\"",
+    "status": "confirmed",
+    "correct_citation": "docs/library/design/20260901_the-estate-program-fourteen-arcs_c432a7.md:79",
+    "note": "The doc defines A12 as \"the Bifrost UI, the founder's first love\". Its mines include W181, W182 and W58/W59, so the wishes the vision lists are already A12's own mines."
+   },
+   {
+    "claim": "The appetite ranking A8 > A1 > A3 > A12 > A5 is in the Estate Program doc (c432a7)",
+    "status": "corrected",
+    "correct_citation": "docs/library/ruling/20260903_appetite-ranking-2026-09-03_375c23.md:10,33 (also width ruling 369243:42)",
+    "note": "c432a7 only asks for the ranking (line 94, item 13). The ranking itself, \"A8 > A1 > A3 > A12 > A5, yes on A15\", is in its own 09-03 ruling atom 375c23. A12 being #4 holds."
+   },
+   {
+    "claim": "The two-watch width cap of 09-03 binds the Estate Program",
+    "status": "corrected",
+    "correct_citation": "docs/library/ruling/20260903_width-ruling-2026-09-03_369243.md:38-42; docs/ORG.md:8-12,154",
+    "note": "The cap comes from ORG.md (ratified 08-01). The 09-03 width ruling 369243 reaffirmed it and recut Wave 1 into a priority pool. c432a7 itself never states the cap."
+   },
+   {
+    "claim": "ORG.md: one build watch + one design watch; a third needs `pauses:` or Daniel's word",
+    "status": "confirmed",
+    "correct_citation": "docs/ORG.md:9-12,154-156",
+    "note": "Line 154: \"One build, one design/research — never two builds\". Lines 10-12: the ledger refuses a third ACTIVE round without `pauses:` or the operator's recorded word."
+   },
+   {
+    "claim": "ORG.md: a running order is published once 4+ threads are live",
+    "status": "corrected",
+    "correct_citation": "C:/Users/L5/.claude/memory/sequence-visibly-when-threads-multiply.md:18",
+    "note": "ORG.md contains no running-order rule. The 'about 4 or more live' running-order rule is a memory file, not ORG.md."
+   },
+   {
+    "claim": "fa48f2 still lists H1 as FIRST although H1 landed 10-08",
+    "status": "confirmed",
+    "correct_citation": "docs/library/map/20261007_design-night-roadmap-2026-10-07_fa48f2.md:50,116 (updated 2026-10-07T23:47:18); git ef80715e + 4cd98cec dated 2026-10-08",
+    "note": "Line 50 reads 'H1 Piano Rescan hint ← FIRST'. Line 31 says the map is living and should be updated as slices land. The frontmatter arc is media-suite."
+   },
+   {
+    "claim": "The recommended home is 'A12 inside the existing media-suite map' (media-suite sits under A12)",
+    "status": "unverifiable",
+    "correct_citation": "",
+    "note": "No house document puts the media-suite arc under A12. c432a7 has zero 'media' hits, and A12 is defined as the Bifrost UI. This placement is the vision's own proposal and should not be presented as existing structure."
+   },
+   {
+    "claim": "docs/ARCHITECTURE.md never mentions arsenal/",
+    "status": "confirmed",
+    "correct_citation": "docs/ARCHITECTURE.md",
+    "note": "A case-insensitive grep for 'arsenal' returns 0 hits."
+   },
+   {
+    "claim": "tasks.json has no arc field",
+    "status": "confirmed",
+    "correct_citation": "state/coord/tasks.json",
+    "note": "It is a dict of 3 entries. The task keys are acceptance, commit, created, deps, desc, files, history, id, owner, reviewed_by, self_verified, status, title, updated and verified_by, and '\"arc\"' occurs 0 times. Caveat: the file's mtime is 2026-10-01, so it may not be the live task ledger."
+   },
+   {
+    "claim": "d622ac §3: 'a surface is a projection, never a store'",
+    "status": "corrected",
+    "correct_citation": "docs/library/design/20261008_one-world-ui-core-reconciled-spec_d622ac.md:67 (§1 'The two planes')",
+    "note": "The quoted law is §1 rule 1, not §3. §3 (line 90) is the mode schema and §4 (line 108) is the floor, so 'H9 mode schema = d622ac §3-4' holds and only the quote is mis-sectioned. This affects vision lines 30 and 200."
+   },
+   {
+    "claim": "d622ac §3-4 = H9 one-world modes (+ floor)",
+    "status": "confirmed",
+    "correct_citation": "docs/library/design/20261008_one-world-ui-core-reconciled-spec_d622ac.md:26,90,108",
+    "note": ""
+   },
+   {
+    "claim": "dce896:54-62 holds the story-layer rulings",
+    "status": "confirmed",
+    "correct_citation": "docs/library/design/20261013_story-layer-v1-reconciled-design_dce896.md:52-62",
+    "note": "The rulings ledger: one callout at a time, in rests (59); P8 feelings first, P9 no grades, P10 the canvas stays his (60); only the lean is live (61); L3 (62). The 'lean off in recordings unless switched on' wording is actually at 108-109."
+   },
+   {
+    "claim": "dce896:31-34 carries rulings (feelings first / one at a time / no score)",
+    "status": "corrected",
+    "correct_citation": "docs/library/design/20261013_story-layer-v1-reconciled-design_dce896.md:59-60",
+    "note": "Lines 31-34 are Daniel's verbatim 2026-10-12 ask plus 'he often feels unseen in music', not rulings. The no-grades and in-rests rulings are at 59-60."
+   },
+   {
+    "claim": "1328e1:108-111 color on three timescales; S3 palette bleed; S4 Ears; S5 three timescales at ~177-191",
+    "status": "confirmed",
+    "correct_citation": "docs/library/design/20261007_now-playing-multilayer-live-hook_1328e1.md:108-111,177-180,186-191",
+    "note": "S4 Ears (186-190) plans a Focusrite-loopback beat clock. S5 (191) says 'no strobing'."
+   },
+   {
+    "claim": "236d39:107-157 presentation grammar / musical spells",
+    "status": "confirmed",
+    "correct_citation": "docs/library/design/20261007_presentation-grammar-screens-scenes_236d39.md:107-145 (screens incl. LED wall 120), 157 (musical spells)",
+    "note": "The atom says a chord progression, riff or key change casts the spell ('Zelda's ocarina, on a KeyLab'). The specific maj7 = bloom and dom7 = tension mapping is the vision's elaboration, not the atom's."
+   },
+   {
+    "claim": "T399 F4 `map` verb at fences/media-arsenal-contract/reconciliation.md:90-101",
+    "status": "confirmed",
+    "correct_citation": "fences/media-arsenal-contract/reconciliation.md:90-101",
+    "note": "Landed form: `map <producer> -> <target> {range, curve, smooth, precedence}`, with two surfaces (graph mutation vs realtime control) sharing types."
+   },
+   {
+    "claim": "CONDUCT.md L3: one \"that's right\" on the brief before any VISIBLE build",
+    "status": "corrected",
+    "correct_citation": "docs/CONDUCT.md:26-27; 'visible build' wording at dce896:62",
+    "note": "CONDUCT.md L3 reads 'One \"that's right\" before any build. Reflect the spec back and get confirmation before code is written', so it covers all builds, not only visible ones. The vision's narrower wording comes from dce896:62."
+   },
+   {
+    "claim": "WISHLIST has zero hits for keylab, arturia, vfx, sampler, vst, controller, colour",
+    "status": "confirmed",
+    "correct_citation": "docs/WISHLIST.md (2231 lines)",
+    "note": "Case-insensitive counts: keylab 0, arturia 0, vfx 0, sampler 0, vst 0, controller 0, colour 0. 'color' is also 0."
+   },
+   {
+    "claim": "W247 (~1584) = note truth (single note rendered as chord name)",
+    "status": "confirmed",
+    "correct_citation": "docs/WISHLIST.md:1584",
+    "note": "\"A SINGLE NOTE IS RENDERED AS A CHORD NAME, IN A NOTATION WHERE THAT STRING IS ALSO A REAL CHORD.\" (10-02, claude)"
+   },
+   {
+    "claim": "W248 (~1608) = melody-deaf practice log",
+    "status": "confirmed",
+    "correct_citation": "docs/WISHLIST.md:1608",
+    "note": "\"THE PRACTICE LOG HEARS HARMONY AND IS DEAF TO MELODY.\" (10-02, claude)"
+   },
+   {
+    "claim": "W228 (~1364-1366) = .flp find, resolved by a .flp census",
+    "status": "wrong",
+    "correct_citation": "docs/WISHLIST.md:1364-1366",
+    "note": "W228 is 'Refuse `text=True` without `errors=` in subprocess calls -- the silent false-empty'. A failed `find \".flp\"` is only its RECEIPT, a decode bug in subprocess. A .flp census would not resolve it, so drop it from 'wishes this resolves'."
+   },
+   {
+    "claim": "W181/W182 = resolution and GPU idle",
+    "status": "confirmed",
+    "correct_citation": "docs/WISHLIST.md:1201,1203",
+    "note": "W181: the UI only looks right at 4K. W182: the Bifrost UI pins the GPU at idle (coil whine). Both are about the Bifrost UI and both are PARKED at Daniel's instruction. Claiming the hub's 15 fps cap 'resolves' them is a stretch."
+   },
+   {
+    "claim": "W58/T007 = the Void theme as one palette token set",
+    "status": "corrected",
+    "correct_citation": "docs/WISHLIST.md:1849-1854",
+    "note": "W58 (07-24) is 'Aurora background misrendered' (a canvas-size/viewport bug), and it names T007 (Void theme + aurora perf bench) as its natural home. Nothing in it mentions a palette token set. The number W58 is also duplicated: line 331 is a different W58 (kimi, LIBRARY tension)."
+   },
+   {
+    "claim": "INTERIORITY.md:117-119 'like changing dials in a game engine'",
+    "status": "confirmed",
+    "correct_citation": "charters/daniel/INTERIORITY.md:117-118",
+    "note": ""
+   },
+   {
+    "claim": "INTERIORITY.md:14-31 (cited for Scale and Chord lighting)",
+    "status": "confirmed",
+    "correct_citation": "charters/daniel/INTERIORITY.md:14-31",
+    "note": "The founding entry is about school making learning unfun, hating busywork and despising grades. The text exists, but it supports a teaching ethos only indirectly."
+   },
+   {
+    "claim": "INTERIORITY.md:236-238 (cited for licence/provenance guard)",
+    "status": "wrong",
+    "correct_citation": "",
+    "note": "Lines 236-238 are the tenth entry: 'how do we condense the presentation of the world ... Half of the battle is knowing what the given bounds for a thing are.' Nothing there about licences, provenance or refusals. The splice-and-sounds §2.3 citation carries this row alone."
+   },
+   {
+    "claim": "INTERIORITY.md:469 (cited for no-score echo games and retro-record)",
+    "status": "corrected",
+    "correct_citation": "charters/daniel/INTERIORITY.md:29; dce896:60",
+    "note": "Line 469 is the sixteenth entry: noticing frustration, root-causing it, and wanting 'joy and hope'. It says nothing about scores, games or recording. For 'no score' use INTERIORITY:29 (despised grades) and dce896:60 (P9 no grades or percentages)."
+   },
+   {
+    "claim": "second-press-principle.md:11-20: born from a KeyLab reconnect; 'the second press is a question'; menus show a path exists",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/second-press-principle.md:11,13,18-19",
+    "note": "Line 11: born from the piano Rescan incident after the KeyLab reconnected. Line 13: first press = command, second = question. Line 18: menu options make you aware a path exists. Line 19: silence leaves a stub."
+   },
+   {
+    "claim": "second-press-principle.md:37-46: diagnostics with personality that retire on evidence",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/second-press-principle.md:37-46",
+    "note": "The 7th extension (10-08): 'conditional diagnostic messages that are custom'. Vandor's phrasing: 'every diagnostic declares the evidence that retires it'."
+   },
+   {
+    "claim": "project-origin-simon.md:17-25: the oldest want is beautiful live surfaces",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/project-origin-simon.md:3,17-25",
+    "note": "The first wants were an AI dashboard at 4:23 AM on 04-13 and a smooth-scrolling dashboard rebuild. Line 22-23: dashboards are 'the project's oldest standing want'."
+   },
+   {
+    "claim": "media-suite-project:29 'I love it...' = the patch-bay identity",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/media-suite-project-2026-09-13.md:29",
+    "note": "\"I love it and thats a beautiful presentation and color scheme!!!!\": patch-bay palette (aluminium, VU-amber, teal and rose cables), Archivo + JetBrains Mono, a signal-chain diagram."
+   },
+   {
+    "claim": "media-suite-project:49 latency target p95 < 30 ms",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/media-suite-project-2026-09-13.md:49",
+    "note": "\"Daniel's live knob run (latency p95 under 30 ms)\""
+   },
+   {
+    "claim": "media-suite-project:180 glowing peaks",
+    "status": "corrected",
+    "correct_citation": "C:/Users/L5/.claude/memory/media-suite-project-2026-09-13.md:187",
+    "note": "Line 180 is the 'non squigly note line themes' ask. His 'velocity bars with glowing peaks' dynamics ask is at line 187."
+   },
+   {
+    "claim": "media-suite-project:241,269: blind agent proposals, Daniel picks live",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/media-suite-project-2026-09-13.md:241,269",
+    "note": "Line 241: the final heat with a blind 3-lens panel, where Daniel picks live in /piano's Scheme menu. Line 269: Daniel picks live before the port."
+   },
+   {
+    "claim": "media-suite-project:369,378-382 (as-of/confidence stamp; presentation grammar)",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/media-suite-project-2026-09-13.md:369,378-382",
+    "note": "These lines hold the claim passport ('internals precise ... presentation elegant'), confidence carried by grammar, and summoning spells cast by chords. They support a confidence stamp but say nothing about a beat-stamped chord timeline."
+   },
+   {
+    "claim": "ram-freeze-2026-09-24:11-13: the low-memory window is 82-92 h of uptime",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/ram-freeze-2026-09-24-fanout-on-day-four.md:13",
+    "note": "Every boot cycle longer than 80 h hit low memory at 82-92 h. What runs out is COMMIT (~124 GB)."
+   },
+   {
+    "claim": "shader-school-2026-10-13.md:11-16,79: 'tweak one module and have everything update'; shared colour templates pending",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/.claude/memory/shader-school-2026-10-13.md:11-15,79",
+    "note": "The verbatim ask at 11-15. Line 79 lists 'shared colour templates' under 'Still waiting on Daniel'."
+   },
+   {
+    "claim": "arc-piano-studies.md:468: a shared colour module must carry its tone mapper",
+    "status": "confirmed",
+    "correct_citation": "E:/AI-Setup/research/in-flight/shader-school-2026-10-13/arc-piano-studies.md:468-469",
+    "note": "\"Tone mapping differs between surfaces; a shared colour module has to carry the tone mapper as part of the look.\" The vision should cite the full path; this is not a memory file."
+   }
+  ]
+ },
+ {
+  "group": "Inventory and external claims (local-inventory, splice-and-sounds, fl-scripting, FL folders, Python packages, prior-art repos)",
+  "verdicts": [
+   {
+    "claim": "Kontakt 8, Serum 2, Analog Lab V and Addictive Drums 2 are installed (local-inventory.md:21-22,129-165)",
+    "status": "confirmed",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/local-inventory.md:21,132-135,146,151,164-165",
+    "note": "Re-checked on disk 2026-10-22: Kontakt 8.vst3, Serum2.vst3, Analog Lab V.vst3 and XLN Audio/Addictive Drums 2.vst3 all exist in C:/Program Files/Common Files/VST3."
+   },
+   {
+    "claim": "2,687 stock FL WAVs (cited to local-inventory.md:21-22,129-165)",
+    "status": "corrected",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/splice-and-sounds.md:17,36,170",
+    "note": "local-inventory.md does not mention 2,687 anywhere. The number comes from splice-and-sounds.md. A recount on disk confirms 2,687 .wav under C:/Program Files/Image-Line/FL Studio 2026/Data/Patches/Packs."
+   },
+   {
+    "claim": "81 Splice WAVs",
+    "status": "corrected",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/local-inventory.md:22,175; splice-and-sounds.md:12,30",
+    "note": "81 is what was counted on 2026-09-14, and the citation holds. Today's recount of C:/Users/L5/Documents/Splice/Samples/packs finds 82 .wav, so a present-tense 'you own' should say 82 or carry the 09-14 date. Also, local-inventory says 40+ pack folders while splice-and-sounds says 67 packs."
+   },
+   {
+    "claim": "913 .flp projects (Projects folder counted read-only 2026-10-22)",
+    "status": "corrected",
+    "correct_citation": "C:/Users/L5/Documents/Image-Line/FL Studio/Projects (recount 2026-10-22); local-inventory.md:90",
+    "note": "There are 913 .flp files under Projects, recursive, so the file count is exact. But 682 of them have 'autosave' in the name, and only 231 do not. local-inventory.md:90 counted 914 on 09-14 and said 'autosave backups included'. '913 projects' overstates the number of distinct projects. Say '913 .flp files (about 231 not autosaves)'."
+   },
+   {
+    "claim": "Effects OTT, Rev PLATE-140, Kilohearts, Trash, Smooth Operator Pro (local-inventory.md:140)",
+    "status": "confirmed",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/local-inventory.md:140",
+    "note": "On disk: OTT.vst3, Rev PLATE-140.vst3, Trash.vst3, Smooth Operator Pro.vst3, plus 35 kHs *.vst3 snap-ins."
+   },
+   {
+    "claim": "FL drives a Focusrite USB ASIO interface at 48 kHz, buffer 256 (local-inventory.md:112)",
+    "status": "corrected",
+    "correct_citation": "local-inventory.md:112; fl-scripting.md:208; HKCU/SOFTWARE/Image-Line/FL Studio 26/Devices/Audio output and HKCU/SOFTWARE/Image-Line/ASIO",
+    "note": "Focusrite USB ASIO at 48000 Hz is confirmed in the registry. The 256 is bufferSize under HKCU/Image-Line/ASIO, which is the FL Studio ASIO driver's setting, not Focusrite's. FL's own Audio output key shows only 'Buffer length (DS) 4096', and fl-scripting.md:208 says the real ASIO buffer is unverified. Drop 'buffer 256' or label it as FL Studio ASIO's setting."
+   },
+   {
+    "claim": "Splice has no API and automation is banned (splice-and-sounds.md §0.2)",
+    "status": "confirmed",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/splice-and-sounds.md:13",
+    "note": "Item 2 of §0 TL;DR: no API; the Terms of Use ban spiders, robots, scrapers and crawlers. fact-check.md:179 marks 'No public API' as UNVERIFIED (a negative finding) and calls it moot given the ban."
+   },
+   {
+    "claim": "FPC rows (splice-and-sounds.md §1) back the Kit-to-FPC export",
+    "status": "confirmed",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/splice-and-sounds.md:34-35",
+    "note": "FPC presets (Default.fst, Empty.fst, kits) and the GM Drums.txt names file."
+   },
+   {
+    "claim": "splice-and-sounds §0.6, §0.7, §2.3, §3.1 support fill-pads sources, the C5 naming quirk, the licence guard (no redistribution, no AI training) and audition in time and key",
+    "status": "confirmed",
+    "correct_citation": "splice-and-sounds.md:17 (§0.6), :18 (§0.7), :68-76 (§2.3), :83-93 (§3.1)",
+    "note": "§2.3 says AI training is not permitted. The vision's 'no embeddings' rule is the doc's own implication at line 76, not Splice's wording."
+   },
+   {
+    "claim": "FL has no Link (fl-scripting.md §0.5)",
+    "status": "confirmed",
+    "correct_citation": "research/in-flight/fl-jam-bridge-2026-09-14/fl-scripting.md:16; fact-check.md:128",
+    "note": "fact-check.md marks 'No Ableton Link' CONFIRMED."
+   },
+   {
+    "claim": "9 FL mixer presets exist",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/Documents/Image-Line/FL Studio/Presets/Mixer presets",
+    "note": "Exactly 9 .fst files: ele guitar clean with reverb, ele guitar distort with reverb1, ele guitar solo 1, ele guitar solo 2 delay, Ens Spicc, Gated Angy Pad, Piano 1, Piano 2, Supersaw Lead."
+   },
+   {
+    "claim": "Piano 1.fst header 46 4C 68 64 'FLhd', contains 'FL Studio 25.2.5' and 'Fruity Wrapper'",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/Documents/Image-Line/FL Studio/Presets/Mixer presets/Piano 1.fst",
+    "note": "Bytes 0-3 are 46 4C 68 64 and FLdt follows at offset 14. ASCII '25.2.5.5319' is at offset 24. 'FL Studio 25.2.5.5319' is UTF-16LE starting at offset 56, so it runs past the first 64 bytes. 'Fruity Wrapper' is UTF-16LE further into the file, not in the first 64 bytes. Fine for 'byte read', but neither string is ASCII."
+   },
+   {
+    "claim": "A Channel presets folder exists and is empty",
+    "status": "confirmed",
+    "correct_citation": "C:/Users/L5/Documents/Image-Line/FL Studio/Presets/Channel presets",
+    "note": "The folder exists. A recursive listing including hidden items returns 0 entries."
+   },
+   {
+    "claim": "pedalboard and sounddevice missing from py 3.11",
+    "status": "confirmed",
+    "correct_citation": "local-inventory.md:260 (as of 09-14); live py -3.11 check 2026-10-22",
+    "note": "find_spec returns None for both."
+   },
+   {
+    "claim": "numpy, aubio, pyaudiowpatch, soundfile, librosa present in py 3.11",
+    "status": "confirmed",
+    "correct_citation": "live py -3.11 check 2026-10-22",
+    "note": "numpy 2.4.4, aubio (no dist metadata version), PyAudioWPatch 0.2.12.9, soundfile 0.13.1, librosa 0.10.2. local-inventory.md:259 lists only numpy and librosa; the other three were installed later."
+   },
+   {
+    "claim": "Bitwig MIT KeyLab mk3 extension, updated 2026-10-21",
+    "status": "corrected",
+    "correct_citation": "https://github.com/bitwig/bitwig-extensions (src/main/java/com/bitwig/extensions/controllers/arturia/keylab/mk3)",
+    "note": "The official bitwig/bitwig-extensions repo is MIT, has a keylab/mk3 folder, and was pushed 2026-10-21T09:05Z. But the KeyLab mk3 code was last changed 2026-01-26 ('Arturia Keylab Mk3 Stop all scene hold'). The 10-21 date belongs to the repo, not the mk3 extension."
+   },
+   {
+    "claim": "saxofonbrian/keylab-mk3-sysex exists as a protocol cross-check",
+    "status": "confirmed",
+    "correct_citation": "https://github.com/saxofonbrian/keylab-mk3-sysex",
+    "note": "MIT, created 2026-09-07, pushed 2026-10-15. Description: reverse-engineered SysEx, CC maps and LED IDs for the KeyLab 61/88 mk3 screen, plus an Ableton Live + Max for Live proof of concept. Sibling repo: https://github.com/saxofonbrian/KeyLabLive."
+   }
+  ]
+ }
+]

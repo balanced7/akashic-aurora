@@ -1,0 +1,607 @@
+{
+ "synthesis": "# KeyLab 88 mk3 — Surface Map & Build Report\n\n*Synthesis of 7 verified fronts. Every claim tagged `mk3-confirmed` / `mk2-only` / `unclear`, and `LIVE` (host sets in real time) vs `STORED` (MCC store/recall only) wherever color or screen is involved. Open items framed as next-probes.*\n\n**Device identity (mk3-confirmed).** Arturia KeyLab 88 mk3, 2024 gen-3. Device def: `C:/ProgramData/Arturia/MIDI Control Center/Resources/KeyLab3 88.json` — `name=\"KeyLab 3 88\"`, `protocol=\"arturia_v4\"`, `projectId=50`, `templateExtension=\".keylab388\"`, firmware `*.kl3`; `SKU=\"keylab-88-mk3\"`, `usbProductId=718` live under `$.alternatives[0]` (not root). **Trap:** `productId=\"42\"` and `familyId=\"0200\"` are FAMILY-WIDE (mk1 `KeyLab_49_61.json`, mkII `KeyLab_mkII.json`, mk3 all share them) — NOT mk3 discriminators. A tool keying on productId 42 would also match the mkII. Key on `protocol=arturia_v4` + `.keylab388` + `.kl3`. The file literally named `KeyLab3.json` is the **49/61** mk3 (alt sku `keylab-49-mk3`/`keylab-61-mk3`, ext `.keylab3`); the 88 is the separate `KeyLab3 88.json`. `Keylab3_Essential.json` (Essential Mk3) is `protocol=\"arturia_v3\"` — a DIFFERENT dialect; do not carry any 88 result onto it. mkII (`.led` firmware, `arturia_v2`) left untouched throughout.\n\n---\n\n## 1. CONTROL SURFACE (mk3-confirmed)\n\nMCC-editable surface = **43 controls** (`KeyLab3 88.json $.controls`, `$.fields` count 976):\n\n- **Keyboard** 88 keys; **Pitch wheel**, **Mod wheel**, **Sustain**, **Expression** (the 88 adds a second aux pedal — `globalFields` has `Aux Pedal` + `Aux 2 Pedal` vs the 49/61's single `Auxiliary Input`; this is the ONLY surface difference between 49/61 and 88, 963 vs 976 fields).\n- **9 Encoders** + **Main encoder** (Tweak: rotate/click).\n- **9 Faders**.\n- **12 RGB pads × 4 banks (A/B/C/D) = 48 editable cells**, each its own itemType with its own note/CC/color. Pad note defaults (MPC layout, observed in `Default.keylab388` bank A): pads 1–4 = **44–47**, 5–8 = **40–43**, 9–12 = **36–39**; banks octave-shift 44/56/68/80. Default MIDI channel = **Ch.10** (drum). Each pad is a pure MIDI trigger: `Type ∈ {Off, Note, Switched Control, Program Change}`. **There is NO per-pad ADSR / envelope / sample field anywhere in the pad block** (fields 210–221 + Name).\n- **4 screen/display soft-buttons** (DisplayButton5–8) — the only screen controls in the editable surface.\n- **NOT in the editable surface** (fixed-function, firmware-driven): Transport, Chord, Scale, Arp, Hold, Oct, Trans, Prog, Bank, Settings, DisplayButton1–4. (Chord/Scale/Arp/Hold ARE present as per-Part toggles in `globalFields` Part 1/Part 2.)\n\n**Velocity is GLOBAL, not per-pad.** `globalFields`: Global Curves → `Pad Velocity {Linear,Log,Exp,Fixed,Custom}`, `Pad Aftertouch`; PAD Settings → `Pads Sensitivity {LOW,MED,HIGH}`, Aftertouch Min/Max. The `Pads` aggregate itemType (id 93) owns `Velocity Curve`/`Aftertouch Curve` — one setting for all pads, still not per-individual-pad.\n\n**Memories:** 8 slots `[Arturia, DAW, User 1..6]`; slots 1,2 locked/hidden; `force_store_recall_to_working_memory=1`. Device's ONLY declared actions: **`store`, `recall`** (no `sync`).\n\n**Hardware spec (mk3-confirmed via Arturia product page, host-led-crux front):** 3.5\" **320×480** full-color screen with 8 contextual buttons; 12 velocity/pressure-sensitive RGB pads.\n\n---\n\n## 2. COLOR VERDICT — the headline\n\nThe naive files-only answer was \"unknown, needs hardware.\" The **firmware strings change that** — split the verdict by target:\n\n### Screen live-draw — **GREEN** (host sets LIVE over SysEx)\nFirmware `C:/Users/L5/Downloads/KeyLab3_FW__1_5_0.kl3` contains an INBOUND SysEx parser for the LCD. Header bytes **`F0 00 20 6B 7F 42`** confirmed at offsets 0xb47f8, 0x31a7f0, 0x581114 (`00 20 6B` = Arturia mfr id). Inbound parse diagnostics prove the device receives and parses host-sent screen commands: `\"unknow parameter in button of SysEx42 Display\"` @0xc22b0, `\"unknow parameter in screen properties\"` @0xc22f4, `\"unknow screen Id in SysEx42 Display\"` @0xc2400, `\"Color param is too short, stopping parser\"` @0xc224c; screen IDs `kl3::WidePopup/GenericFullscreen/SmallPopup/EmptyScreen/BigPopup` @0xc0eb4–0xc117c. Present in both 1.5.0 and 1.2.1 images. This is host→device real-time **screen** drawing with colored on-screen buttons + text. **Scope: LCD only — no `pad` token in this parser region.** Caveat: parser existence is firmware-proven; an end-to-end render still deserves a bench capture to confirm the command set.\n\n### Pad LEDs in DAW mode via MCU/HUI/CC — **GREEN** (host lights pads LIVE)\nFirmware confirms a live pad-LED driver fed by host contexts: `\"PadLedDispatch opened\"` @0xb6c18, `\"PadLedCtx\"` @0x748468, `\"LedStrip queue is full !\"` @0x865988, `\"DAWControl opened\"` @0x748816, `\"TrackControlMCUHUI opened\"` @0x748964. So the host **can** light pads in real time through the MCU/HUI/CC feedback channel in DAW mode.\n\n### Arbitrary per-pad RGB (Launchpad programmer-mode style: any pad, any of ≥42 colors, anytime, independent of the DAW protocol and of store/recall) — **YELLOW**\nThis is THE VFX question and the evidence cannot yet settle it. Negative firmware check (all count 0 in 1.5.0): `programmer`, `Programmer`, `PadRGB`, `pad rgb`, `set pad`, `SetPad` — **no Launchpad-style arbitrary-pad command string exists**. The `arturia_v4` param-write wire format is compiled into MCC/firmware, not in any readable config. Pads demonstrably CAN be lit live (driver confirmed), but whether color is host-*selectable per pad* or fixed-per-DAW-function, and whether any path exists outside MCU/HUI, is undecidable from strings. **Must bench-test.**\n\n### MCC pad-color editing — **STORED-ONLY** (not a live path)\nColor is two stored params per cell: `Colour` (Bank=0/Custom=1, paramId 210) + `Custom Colour` (STATIC_COLOR_LIST idx 0–41, paramId 211, shown only when Colour=Custom). Written only via `store`/`recall` into memory slots. `KeyLab3 88.json $.actions=[\"store\",\"recall\"]`; MCC.exe strings: `\"Synchronization unsupported for this device. Prefer using Store/Recall.\"`, `\"overwrite the working memory\"`. Proof color persists: `Default.keylab388` key `100_283` interpretation — and in template terms `29_210=0, 29_211=40` (pad1 bankA = Bank mode, custom idx white). **Do NOT read store/recall ability as evidence for or against live SysEx — different channel.** The 42-index palette is the ceiling for *stored* color; whether a *live* path is clamped to 42 or allows 24-bit is unknown.\n\n**Bottom line for Daniel:** Screen VFX = go now (GREEN). Pad-light VFX in DAW mode = go now (GREEN, via MCU/HUI/CC — color may be function-bound). Free-form \"chord-on-pads, any color any pad\" = YELLOW, one hardware capture away from a yes/no.\n\n---\n\n## 3. CONFIG FORMAT — `.keylab388` (mk3-confirmed, generate programmatically)\n\nFiles: `Templates/KeyLab 3 88/Factory/Default.keylab388` (899 keys, 14876 B), `.../Komplete Kontrol.keylab388` (14894 B).\n\n- **Encoding:** UTF-8, **CRLF**, **tab-indented**, flat object. **NOT strict JSON — trailing comma before the final `}`.** Head: `{\\r\\n\\t\"device\": \"KeyLab 3 88\",\\r\\n\\t\"version\": \"1.0.6\",`. Tail: `...\\r\\n}` after a trailing comma. → custom-serialize or post-process (append `,` before close; a strict `json.dumps` will not round-trip).\n- **Keys:** `\"<group>_<paramId>\": int` and `\"STRING_<group>_<paramId>\": \"text\"`.\n- **Pad cells:** each pad = 4 consecutive groups (banks A/B/C/D). **Pad1 = groups 29–32.** Within a pad-bank group, paramId offsets:\n  `210 Colour · 211 Custom Colour · 212 Type · 213 Note · 214 CC Number · 215 Program Number · 216 MIDI Channel · 217 Option · 218 Off Value · 219 On Value · 220 Bank LSB · 221 Bank MSB`.\n- **Set a pad color (stored):** `\"<grp>_210\": 1` (Custom) + `\"<grp>_211\": <0..41>`. If `_210=0` (Bank) the custom index is ignored.\n- **Palette (42 fixed ARGB `0xAARRGGBB`, alpha always FF):** 0=red `FF0000`, 8=green `01FF00`, 18=magenta `FF00FF`, 23=blue `0000FF`, 40=white `FFFFFF`, 41=grey `D0D0D0`. Same list drives button colour (paramId 790).\n- **Trap:** the `10` on every default pad is `_216 MIDI Channel = Ch.10`, NOT a color.\n- **Global:** `\"0_1\"` velocity curve (`5`=Global in `Default`); `deviceGlobalParametersId=64`; 5 custom curves.\n- **Caveat on \"defaults\":** the schema `default` key read `null`; values like NOTE 44 / On 127 are *observed in the `Default.keylab388` template*, not a declared default — treat as sample, not spec.\n- **Device schema reference:** `KeyLab3 88.json $.fields` (976, paramId→{name,type,list/min/max}), `$.controls` (43). Firmware image: `keylab-3-88_Firmware_Update_1.1.1.572.kl3` (7.2 MB, UNENCRYPTED — plaintext C++ symbols, fully analyzable).\n\n---\n\n## 4. FL STUDIO BUILD PATH (concrete)\n\nDaniel = FL producer, non-programmer; Vandor drives the code. Core constraint from §1: **the hardware pads carry no sample/ADSR** — they are MIDI triggers only. So the instrument lives in software, and the keyboard is a controller + a light surface.\n\n**(a) Sexy drag-drop pad sampler (per-pad color/velocity/ADSR).** Recommended: **standalone companion app + virtual MIDI port**, not a VST, not an FL MIDI script.\n- Virtual port: **loopMIDI** (Windows) creates a port that bridges hardware ↔ app ↔ FL.\n- The app owns the sampler (per-pad sample, ADSR, velocity curve, color UI) and the audio engine (or routes MIDI into FL's native **FPC**, which already does drag-drop + per-pad). Pads fire Note On (default Ch.10, notes 36–47 MPC) → app maps to voices.\n- Why not VST: FL's custom-GUI VST path is heavy for a non-programmer workflow and awkward for drag-drop; why not FL MIDI scripting: too limited for a rich sampler UI and can't own a polished drag-drop surface.\n- Stack fit: this is a natural extension of the existing web/Three.js arsenal (`arsenal/web/piano/...`) → Electron or a local web app with Web MIDI is the lowest-friction, best-looking route and reuses `keylab88mk3.js`.\n\n**(b) Live LED feedback.** Two real channels, both firmware-confirmed, both gated by one code fix:\n- **Screen:** send SysEx `F0 00 20 6B 7F 42 ...` (SysEx42 Display) — GREEN, but exact payload grammar needs one capture to lock down.\n- **Pads:** MCU/HUI/CC feedback in DAW mode — GREEN for lighting, color-selectability YELLOW.\n- **MUST-FIX code blocker:** both Web MIDI entry points request `sysex:false` (`piano.js:3803`, `piano/cues.js:1697`). No SysEx pad/screen control is reachable until these flip to `sysex:true` + a permission re-grant. An `output.send([status,d1,d2])` path already exists (`piano/cues.js:1536`) — confirmed in software, but it has never been shown to light a real pad, and today it can't carry SysEx.\n\n---\n\n## 5. THREE-FEATURE FEASIBILITY\n\n**(a) Drag-drop sampler onto pads — GREEN.** Entirely software-side; hardware just sends Note On. No device limitation blocks it. Use loopMIDI + standalone app (or FL FPC). Per-pad notes/channels are fully known (§1, §3).\n\n**(b) Color + velocity + ADSR UI — GREEN with one caveat.** Build it in the companion app's own state — nothing stops a rich UI. The caveat is *what maps back to hardware*: ADSR and per-pad velocity are **software-only** (hardware velocity is global, `globalFields` Pad Velocity; no per-pad ADSR exists). Pad **color** can be pushed to the app's virtual pads live today; pushing it to the *physical* pad LEDs live is the YELLOW item in (c).\n\n**(c) Chord-on-pads VFX mode — YELLOW (virtual GREEN, physical YELLOW).** The software model is already built and verified: `arsenal/web/piano/instruments/keylab88mk3.js` models 12 pads as 2 InstancedMeshes in 2 rows of 6 (pitch-class order), two-layer backlit (body ×0.35 + HDR rim ×2.3), colored by `ctx.noteColor(60+pc, velocity)`, with an attack/release envelope and a chord-root LED; chord source of truth is `state.chord {name,nns,key}` from `piano.js lookChord`/`Theory.detect`; the 480×320-style screen canvas and 12-pitch-class-dot mask (`drawScreen`) are reusable for the physical screen. So **on-screen VFX = GREEN now.** Driving the **physical** pad LEDs with chord colors is YELLOW pending the one capture: whether arbitrary per-pad RGB is host-settable outside MCU/HUI. *Cross-family flags to carry:* the real 88's 2×6 pad geometry is only `[U]` in `spec.md:44` (count 12 is firm, physical/MIDI order is not); and `spec.md:86`'s \"backlit through translucent edges\" / tops-lit detail is `[R]` from one reviewer who may have described the **Essential Mk3**, so don't harden it as mk3-88.\n\n---\n\n## 6. HARDWARE TEST PLAN (settle every YELLOW)\n\nTools: **Protokol** (Arturia's own, free) or **MIDI-OX**, plus MCC and loopMIDI. Connect the KeyLab 88 mk3 over USB.\n\n**Probe 1 — Capture a stored color-set SysEx (settles the MCC path + reveals the wire format).**\n1. Open Protokol, enable SysEx view, select the KeyLab's USB-MIDI *and* \"DAW/MCU\" ports (log both).\n2. Open MCC, connect to the KeyLab, open a User template.\n3. Change ONE pad's Custom Colour (e.g. pad 1 → red idx 0 → green idx 8). Watch Protokol **before pressing Store**. → If a SysEx/param-write appears on color change *without* Store, that's a candidate **live** path (capture the exact bytes). If nothing appears until Store, the color only moves on store/recall (confirms stored-only, matches files).\n4. Press Store to a User slot; capture the burst. Diff the two captures to isolate the color field.\n\n**Probe 2 — The VFX question: can the host light an arbitrary pad an arbitrary color LIVE?**\n1. In MCC/device, switch the keyboard to a **DAW mode** (MCU or HUI). Via loopMIDI, feed the KeyLab from a DAW or a tiny script.\n2. Observe which pad LEDs the host lights and whether color is choosable or fixed-per-function (watch the `PadLedDispatch`/MCU feedback). Capture the messages the host sends that change a pad LED.\n3. Separately, replay the Probe-1 color SysEx (if any) *outside* MCC via MIDI-OX \"Send SysEx\" and see if a pad re-lights with no Store. → A pad lighting from a replayed message with no store = **GREEN for free-form pad VFX**; nothing = stays YELLOW/likely MCU-bound.\n\n**Probe 3 — Screen live-draw (upgrade firmware-inferred → observed).**\nSend a minimal SysEx42 Display message `F0 00 20 6B 7F 42 ...` from MIDI-OX and watch the LCD. Start from the parser's screen IDs (WidePopup/SmallPopup/BigPopup/GenericFullscreen/EmptyScreen). Confirms the host can draw text/colored buttons live and lets you map the payload grammar.\n\n**Probe 4 — Grounding checks.**\n- Tap each default pad with Protokol open: confirm notes 36–47 and that `_216=10` really transmits on **MIDI Ch.10** (rule out an off-by-one vs `Active=0` in the list).\n- Photograph/measure the physical pad grid: confirm 2×6 and the physical→MIDI order (settles `spec.md:44 [U]`).\n- Note idle pad/button colors with nothing pressed (settles the idle-rim model).\n- Confirm tops-lit vs edges-only on the real pads (settles the `[R]`/Essential-Mk3 ambiguity in `spec.md:86`).\n\n**Probe 5 — Code prerequisite before any live test from the arsenal.** Flip `sysex:false → true` at `piano.js:3803` and `piano/cues.js:1697`, re-grant the Web MIDI SysEx permission, then retry the existing `output.send` path (`cues.js:1536`) against a captured command.\n\n---\n\n## What the evidence CANNOT yet show (next-probes, not verdicts)\n\n1. **Free-form per-pad live RGB** — no firmware token for it (`programmer`/`PadRGB`/`set pad` all absent), but pads provably light live in DAW mode. Probe 1+2 decide it. *This is the single pivot for the chord-on-pads dream.*\n2. **Live color depth** — stored model is 42 indices; a live path's depth (42-clamped vs 24-bit) is unknown. Probe 2.\n3. **SysEx42 payload grammar** — screen parser is confirmed *inbound*; the exact command set is not yet mapped. Probe 3.\n4. **arturia_v4 param-write wire format** — compiled into MCC/firmware, in no readable config; reverse from capture or from `keylab-3-88_..._572.kl3`.\n5. **Physical pad geometry/order** on the 88 (count 12 firm; layout `[U]`). Probe 4.\n6. **Essential Mk3** runs `arturia_v3` — a separate answer; never carry an 88 result onto it.\n\nThe two files that must never be conflated: `KeyLab3 88.json` (the 88, `arturia_v4`, `.keylab388`) is the only device source here; `KeyLab3.json` is the 49/61; `Keylab3_Essential.json` is `arturia_v3`; `KeyLab_mkII.json` is a different generation (`arturia_v2`, `.led`) and was not used for any claim.",
+ "verified": [
+  {
+   "front": "L1 — Device Definition: Arturia KeyLab 88 mk3 (MCC device model, protocol arturia_v4) — ADVERSARIAL VERIFY",
+   "verified": [
+    {
+     "claim": "KeyLab3.json = 'KeyLab 3' (alts keylab-49-mk3, keylab-61-mk3); the 88 is its own sibling 'KeyLab3 88.json' ('KeyLab 3 88', alt keylab-88-mk3). Both share projectId 50, productId '42', familyId 0200, mfr 00206B, protocol arturia_v4, 8 memories, 43 controls, 85 itemTypes.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED by direct read of both files. KeyLab3.json: name='KeyLab 3', alternatives sku=['keylab-49-mk3','keylab-61-mk3']. KeyLab3 88.json: name='KeyLab 3 88', alternatives sku=['keylab-88-mk3']. Both: projectId=50, productId='42', familyId='0200', manufacturerId='00206B', protocol='arturia_v4', memories=8, controls=43, itemTypes=85.",
+     "note": "Verified static-definition metadata, not a live-control capability. The important no-conflation move (file name 'KeyLab3' = the 49/61, NOT the 88) is correct and material."
+    },
+    {
+     "claim": "The 49/61-mk3 and 88-mk3 definitions are structurally identical on the control surface and color model; only functional difference is a second aux pedal on the 88.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED. controlIds lists compare EQUAL (43 ids identical). Both: 85 itemTypes, 56 STATIC_COLOR_LIST palettes, 2352 'rgb' literals. globalFields groups: 49/61 has single 'Auxiliary Input'; 88 replaces it with 'Aux Pedal' + 'Aux 2 Pedal'. Field count 963 (49/61) vs 976 (88) = the aux-pedal delta + capitalization. So pad/color/control findings are legitimately mk3-confirmed for the 88.",
+     "note": "Verified. I did not byte-diff every RGB value across all 56 palettes, but count, control-id set and field inventory all match; identity claim is sound."
+    },
+    {
+     "claim": "MCC-editable surface = 43 controls: Keyboard, Pitch/Mod wheels, Sustain, Expression, Encoders(9), MainEnc(Tweak/rotate/Click), Faders(9), 12 Pads x 4 banks, DisplayButton5-8. Transport/Chord/Scale/Arp/Hold/Oct/Trans/Prog/Bank/Settings/DisplayButton1-4 are NOT in the editable surface.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED exactly. controls[] ids: Keyboard=4, PitchWheel=18, ModWheel=19, Sustain=20, Expression=21, Encoder1-9=23/36/37/38/51/52/53/58/79, MainEnc=80/81/82, Fader1-9=84-92, Pads aggregate=93 + Pads Bank A-D=142-145, Pad1-12 banks=94-141, DisplayButton5-8=146-149. The listed fixed-function buttons are absent from controls[].",
+     "note": "'Absent from editable controls' is file-confirmed. The further inference 'driven by DAW Protocol + firmware' is reasonable but NOT provable from JSON. Chord/Scale/Arp/Hold-as-per-Part-toggle sub-claim IS confirmed (globalFields Part 1 fields 29-32, Part 2 fields 41-44 = Hold/Chord/Arp/Scale)."
+    },
+    {
+     "claim": "Exactly 12 RGB pads x 4 banks (A/B/C/D) = 48 editable pad cells, each with its own note/CC/color.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED. controls Pad1..Pad12 each expose items 'Pad{n} Bank A/B/C/D' (ids 94-141); each cell is its own itemType with its own 13-field block."
+    },
+    {
+     "claim": "A pad is a pure MIDI trigger (Type = Off/Note/Switched Control/Program Change) with NO per-pad ADSR/envelope/sample field.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED. Pad1 Bank A itemType fields = [272 Colour, 273 CUSTOM COLOUR, 274 Type{Off,Note,Switched Control,Program Change}, 275 NOTE, 276 CC Number, 277 Program Number, 278 MIDI Channel, 279 Option{Gate,Toggle}, 280 Off Value, 281 On Value, 282 Bank LSB, 283 Bank MSB, 911 Name]. No attack/decay/sustain/release/sample field exists anywhere in the pad block.",
+     "note": "Core claim solid. MINOR: the finding's specific default values (NOTE def44, CC def36, On Value def127, etc.) were NOT present in the 'default' JSON key (it read null in my dump) — those defaults are unverified from this key and should not be stated as fact."
+    },
+    {
+     "claim": "Pad velocity response is a GLOBAL setting, not per-pad.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED in substance. globalFields 'Global Curves': field 9 'Pad Velocity'{Linear,Logarithmic,Exponential,Fixed,Custom}, field 11 'Pad Aftertouch'. 'PAD Settings': field 58 'Pads Sensitivity'{LOW,MEDIUM,HIGH}, 63/64 Aftertouch Min/Max. 'Custom Curves' 12-16. All paramId 64 (global). No velocity field in any per-pad-per-bank cell.",
+     "note": "MINOR IMPRECISION: the finding said 'no velocity/curve field appears inside any pad itemType', but the 'Pads' AGGREGATE itemType (id 93) does own fields 269 'Velocity Curve' and 271 'Aftertouch Curve'. These are one setting for all pads (still not per-individual-pad), so the substantive claim 'global, not per-pad' holds; the absolute wording is slightly wrong."
+    },
+    {
+     "claim": "STATIC_COLOR_LIST is a FIXED 42-entry palette (val 0-41) of 0xAARRGGBB strings, alpha always 0xFF; this is the only color vocabulary any RGB control can store.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED. field 273 type STATIC_COLOR_LIST, minValue 0 maxValue 41, 42 entries. val0=0xFFFF0000 (red), val40=0xFFFFFFFF (white), val41=0xFFD0D0D0 (grey). All 42 entries start 0xFF (alpha fixed).",
+     "note": "This constrains the STORED palette to 42 indices; it does NOT establish whether a live protocol could send arbitrary 24-bit color (unknown — hardware item)."
+    },
+    {
+     "claim": "2352 'rgb' fields = 56 palettes x 42; palettes attach to 48 pad cells + 4 pad-bank aggregates + 4 display buttons. Encoders, faders, MainEnc, keyboard have NO color.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED exactly. 56 STATIC_COLOR_LIST fields; itemTypes owning one = 48 pad-cell + 4 'Pads Bank A-D' aggregate + 4 DisplayButton = 56. 56*42=2352 = count of 'rgb' literals. Keyboard/Encoder 1/Fader 1/MainEnc each own zero color fields."
+    },
+    {
+     "claim": "A pad's color is TWO stored params: 'Colour' (Bank vs Custom, paramId 210) and 'CUSTOM COLOUR' (palette index, paramId 211), the latter shown only when Colour=Custom.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED. field 272 'Colour' LIST {Bank=0, Custom=1} paramId 210; field 273 'CUSTOM COLOUR' STATIC_COLOR_LIST paramId 211 with conditions [{paramId:210, values:[1]}]."
+    },
+    {
+     "claim": "Color is a STORED parameter inside an 8-memory store/recall model; the device's ONLY declared actions are 'store'/'recall'; a saved .keylab3 template persists color as a plain integer.",
+     "bucket": "stored-only",
+     "evidence": "CONFIRMED. KeyLab3.json: actions=['store','recall'], memories=8, memories_name=['Arturia','DAW','User 1'..'User 6'], hidden_memories=[1,2], memoriesNonEditable=[1,2], is_working_memory=0, force_store_recall_to_working_memory=1, reload_globals_after_store=1. Templates/KeyLab 3/Factory/Default.keylab3 key '100_283':40 — verified as itemId_paramId format: item 100 = 'Pad2 Bank C', paramId 283 = its CUSTOM COLOUR, value 40 = white palette index. Color demonstrably persisted.",
+     "note": "The '100_283' citation initially looked wrong (field id 283 = 'Bank MSB'), but the template key is itemId_PARAMID, and paramId 283 on item 100 is CUSTOM COLOUR — the citation is valid. This is the strongest proof that color is STORED; it says nothing about live push."
+    },
+    {
+     "claim": "CRITICAL: whether a host can set pad LED color LIVE in real time over MIDI/SysEx CANNOT be determined from KeyLab3.json. Color is proven stored-only; a real-time path is neither documented nor ruled out; MUST be tested on hardware.",
+     "bucket": "unverified-needs-hw",
+     "evidence": "CONFIRMED and correctly conservative. Grep of KeyLab3.json: 'sysex'=0, '0xF0'=0, 'animation'=0, 'realtime'/'real-time'=0, 'wire'=0, 'message'=0, 'Ableton'=0. The lone 'Live' token is a DAW-protocol list value ('str':'Live'); 'template' is only 'templateExtension':'.keylab3'. No field/flag/message-template/animation/live-set structure exists. The arturia_v4 param-write wire message is not in any readable config file.",
+     "note": "This is the right call. No finding claimed 'confirmed-live', which is correct — there is ZERO file evidence for a host-driven live LED/VFX path. The honest verdict is UNKNOWN pending a USB-MIDI capture while editing a pad color in MCC."
+    }
+   ],
+   "mk2_conflations": [
+    "NONE FOUND. Every claim is cited to KeyLab3.json or 'KeyLab3 88.json' (both mk3 / protocol arturia_v4); none draws on any mkII file. The one real conflation risk — that the file literally named 'KeyLab3.json' is the 49/61-mk3 and NOT the user's 88 — was explicitly handled by the agent (separate 'KeyLab3 88.json' read and diffed). The templates folder's 'KeyLab mkII' entry was correctly left untouched. No mkII fact was smuggled in as mk3."
+   ],
+   "must_test": [
+    "THE central VFX question: can a third-party host set a pad LED color LIVE (no 'store') over MIDI/SysEx? Capture USB-MIDI while dragging a pad color in MCC and look for a per-change SysEx/param-write that lights the LED without a store action. File evidence is silent; arturia_v4 param-write message is compiled into MCC/firmware, not readable.",
+    "Can pad LEDs show arbitrary 24-bit color or animation when driven live, or are they clamped to the 42-index palette the JSON exposes? The stored model is 42 indices only; a live protocol's color depth is unknown.",
+    "Can the host drive the SCREEN / DisplayButton5-8 content live? JSON gives the 4 screen buttons a stored color field but no live-draw path; screen control is entirely unaddressed by the files.",
+    "Confirm the arturia_v4 param-set wire format and whether it is usable outside MCC (reverse from a USB capture / the firmware .kl3), since no readable config contains any byte template.",
+    "Minor: confirm the per-pad field default values (NOTE/CC/On Value/Bank defaults). The JSON 'default' key read as null; the finding's def44/def36/def1/def127 are unverified and may be MCC-UI defaults rather than file-declared."
+   ]
+  },
+  {
+   "front": "template-format",
+   "verified": [
+    {
+     "claim": "Template format: .keylab388 is UTF-8, CRLF, tab-indented, flat JSON-like object with a TRAILING COMMA before final brace (not strict JSON). Default.keylab388 = 899 keys, 14876 bytes; keys are <group>_<paramId>:int and STRING_<group>_<paramId>:text.",
+     "bucket": "stored-only",
+     "evidence": "Re-read Default.keylab388: bytes 0x00 = `{\\r\\n\\t\"device\": \"KeyLab 3 88\",\\r\\n\\t\"version\": \"1.0.6\",`; tail = `...\"STRING_9_864\": \"Encoder 4\",\\r\\n}`; grep -c '\":' = 899; size 14876 B (ls). Komplete Kontrol.keylab388 = 14894 B.",
+     "note": "Fully CONFIRMED. This is a file-format fact about the stored artifact, not a live-control claim. Trailing comma + CRLF both present as stated."
+    },
+    {
+     "claim": "Extension for the 88 is .keylab388 (NOT .keylab3, which is the 49/61 variant); Essential Mk3 is .keylabessential3.",
+     "bucket": "stored-only",
+     "evidence": "KeyLab3 88.json $.templateExtension='.keylab388'; KeyLab3.json ext='.keylab3' device='KeyLab 3'; Keylab3_Essential.json ext='.keylabessential3'. Folder listings confirm Default.keylab3/Komplete Kontrol.keylab3 and Default.keylabessential3 in the sibling Factory folders.",
+     "note": "Extension claim CONFIRMED. BUT the finding's sub-claim 'all three mk3 variants share protocol arturia_v4' is FALSE: KeyLab3 88 and KeyLab3 (49/61) are arturia_v4, but Keylab3_Essential.json $.protocol = 'arturia_v3'. Flagged under conflations."
+    },
+    {
+     "claim": "Resources/KeyLab3 88.json is the authoritative device-definition schema; fields array (976) maps paramId->{name,type,list/min/max}; controls=43; header manufacturerId 00206B, familyId 0200, productId 42, projectId 50, SKU keylab-88-mk3, usbProductId 718, protocol arturia_v4.",
+     "bucket": "stored-only",
+     "evidence": "py json: len(fields)=976, len(controls)=43, manufacturerId='00206B', familyId='0200', productId='42', projectId=50, protocol='arturia_v4', firmwareFormat='$3.$2.$1'. SKU='keylab-88-mk3' and usbProductId=718 found under $.alternatives[0] (NOT top level). fields[0]=Velocity Curve paramId 1.",
+     "note": "CONFIRMED with two precision fixes: SKU & usbProductId live at $.alternatives[0], not $ root; the pattern key is $.alternatives[0].firmwareUpdater... and the top-level key is 'firmwareFilePattern':'*.kl3' (finding wrote 'firmwarePattern'). Values all correct."
+    },
+    {
+     "claim": "Each pad stores 4 configs = Pad Banks A/B/C/D, so each pad = 4 consecutive template groups (Pad1 = groups 29-32), notes octave-shifted 44/56/68/80 across banks.",
+     "bucket": "stored-only",
+     "evidence": "$.controls Pads.items = id28 'Pads', 77 'Pads Bank A', 78 B, 79 C, 80 D. Default.keylab388: 29_213=44, 30_225=56, 31_237=68, 32_249=80 (each bank +12).",
+     "note": "CONFIRMED exactly."
+    },
+    {
+     "claim": "Pad-bank group layout, paramId order +0..+11: Colour, Custom Colour, Type, Note, CC Number, Program Number, MIDI Channel, Option, Off Value, On Value, Bank LSB, Bank MSB. Pad notes pads1-4=44-47, 5-8=40-43, 9-12=36-39 (MPC layout).",
+     "bucket": "stored-only",
+     "evidence": "fields paramId 210-221 names re-read: 210 Colour,211 Custom Colour,212 Type,213 Note,214 CC Number,215 Program Number,216 MIDI Channel,217 Option,218 Off Value,219 On Value,220 Bank LSB,221 Bank MSB. Default pad-bank-A notes across groups 29,33,37,...,73 = 44,45,46,47,40,41,42,43,36,37,38,39.",
+     "note": "CONFIRMED exactly, names and note defaults."
+    },
+    {
+     "claim": "Pad color in a template = paramId +1 'Custom Colour' (STATIC_COLOR_LIST idx 0-41), applies ONLY when +0 'Colour'=1 (Custom); when Colour=0 (Bank) the custom index is ignored. Nothing shows it is live-settable.",
+     "bucket": "stored-only",
+     "evidence": "fields paramId 211: type STATIC_COLOR_LIST, min 0 max 41, name 'Custom Colour', conditions [{paramId:210,values:[1]}]. Default 29_210=0,29_211=40. Komplete Kontrol 29_210=1,29_211=1 (and 29_212 1->2, 29_216 10->1).",
+     "note": "CONFIRMED and correctly conservative. This is the pad-color claim and it is explicitly a STORED palette-index into a memory slot, not demonstrated live. Correctly NOT confirmed-live."
+    },
+    {
+     "claim": "Palette = 42 fixed ARGB colors idx 0-41 (0xAARRGGBB, all FF alpha): 0=red FF0000, 8=green 01FF00, 18=magenta FF00FF, 23=blue 0000FF, 40=white FFFFFF, 41=grey D0D0D0; button Colour (paramId 790) uses the identical list.",
+     "bucket": "stored-only",
+     "evidence": "fields paramId 211.list dumped: 0:FFFF0000,...,8:FF01FF00,18:FFFF00FF,23:FFFF0000FF->FF0000FF,40:FFFFFFFF,41:FFD0D0D0 (42 entries). fields paramId 790 name='Colour', same STATIC_COLOR_LIST.",
+     "note": "CONFIRMED exactly, all 42 entries match. Finding's own caveat ('ceiling for template color, not necessarily live SysEx') is appropriately hedged."
+    },
+    {
+     "claim": "The constant 10 on every pad is paramId +6 'MIDI Channel'=Ch.10 (drum channel), NOT a color index — a trap for naive readers.",
+     "bucket": "stored-only",
+     "evidence": "fields paramId 216 = LIST {Active=0, Ch.1=1 ... Ch.10=10 ...}. Default 29_216=10; Komplete Kontrol 29_216=1. Color is the separate paramId 211.",
+     "note": "CONFIRMED. Correctly debunks the color-vs-channel trap."
+    },
+    {
+     "claim": "Velocity Curve is GLOBAL (paramId 1, {Linear0,Log1,Exp2,Fixed3,Custom4,Global5}); Default stores 0_1=5 (Global). Aftertouch curve = paramId 3. Five Custom Curves exist; deviceGlobalParametersId=64.",
+     "bucket": "stored-only",
+     "evidence": "fields paramId 1 = Velocity Curve list ending Global=5; paramId 3 = Aftertouch Curve; Default.keylab388 0_1=5. $.globalFields-order = [Global Parameters,Aux Pedal,Aux 2 Pedal,PAD Settings,Aftertouch,Parts,Part 1,Part 2,MIDI,Global Curves,Custom Curves]; Custom Curve name count=5; Velocity Curve & Aftertouch Curve each appear twice (keyboard+pad); deviceGlobalParametersId=64.",
+     "note": "CONFIRMED exactly."
+    },
+    {
+     "claim": "The ONLY MCC actions on a .keylab388 are store and recall, against 8 memory slots (Arturia, DAW, User1-6; slots 1,2 locked). So the template is a store-to-slot artifact, not a live control stream.",
+     "bucket": "stored-only",
+     "evidence": "$.actions=['store','recall']; $.memories=8; $.memories_name=['Arturia','DAW','User 1'..'User 6']; $.memoriesNonEditable=[1,2]; $.hidden_memories=[1,2]; force_store_recall_to_working_memory=1.",
+     "note": "CONFIRMED exactly. This is the load-bearing proof that the template path is store/recall, NOT per-frame live color. Correctly stored-only."
+    },
+    {
+     "claim": "Whether the mk3 88 accepts LIVE real-time pad-LED color over MIDI/SysEx (the VFX use case) is UNKNOWN from these config/UI files; they contain no live-LED/SysEx/realtime/setColor vocabulary. Protocol is 'arturia_v4'; must be settled by firmware or hardware capture.",
+     "bucket": "unverified-needs-hw",
+     "evidence": "grep -ic over KeyLab3 88.json: sysex=0, led=0, realtime=0, setcolor=0, command=0; 'live'=1 (a 'Live' string value only). $.protocol='arturia_v4', firmware Firmware/keylab-3-88_Firmware_Update_1.1.1.572.kl3 exists (7.2 MB binary).",
+     "note": "CONFIRMED that these files are silent on live LED control. Correct conservative verdict: live-color feasibility is genuinely unknown from FRONT-L2 and REQUIRES hardware/firmware. Do not read store/recall ability as evidence for or against live SysEx."
+    },
+    {
+     "claim": "Encoders/faders/buttons each have their own stored field layouts, all CC/note oriented; no live-color field except button Colour. Encoder 1 fields = Type{Off/Control/RPN-NRPN}, CC Number, Option, MIDI Channel, Mode, Min, Max, LSB, MSB, Name (paramIds 44-52 + 861).",
+     "bucket": "stored-only",
+     "evidence": "itemTypes id 'Encoder 1' fields=[41,42,43,44,45,46,47,48,49,827] -> resolved paramIds 44 Type,45 CC Number,46 Option,47 MIDI Channel,48 Mode,49 Min Value,50 Max Value,51 LSB,52 MSB,861 Name. fields paramId 44 = {Off0,Control1,RPN/NRPN2}. Button color = fields paramId 790 'Colour'.",
+     "note": "CONFIRMED (input finding was truncated; the verifiable portion matches). Only stored button Colour exists; no live-color field anywhere in the schema."
+    }
+   ],
+   "mk2_conflations": [
+    "Intra-mk3 protocol error (NOT a mkII slip, but a cross-variant conflation the task cares about): finding #2 asserts 'all three mk3 variants share protocol arturia_v4'. FALSE. KeyLab3 88.json and KeyLab3.json (49/61) are arturia_v4, but Keylab3_Essential.json (KeyLab Essential Mk3) is $.protocol='arturia_v3'. The Essential Mk3 may use a different SysEx dialect and its palette/pad model should not be assumed identical to the 88.",
+    "No mkII facts were smuggled into any finding - all cited evidence is genuinely from the mk3-88 files (KeyLab3 88.json, *.keylab388). The findings correctly kept the 88 (.keylab388) separate from the 49/61 (.keylab3) and from the mkII (which in the Firmware folder ships *.led firmware, a different generation). The Resources folder DOES contain a KeyLab_mkII.json trap; no finding touched it. Good.",
+    "Precision (not a conflation but worth flagging before anyone re-parses): header facts SKU='keylab-88-mk3' and usbProductId=718 are under $.alternatives[0], not the JSON root ($.SKU/$.usbProductId are absent/None); and the firmware-pattern key is 'firmwareFilePattern':'*.kl3' at root, not 'firmwarePattern'."
+   ],
+   "must_test": [
+    "THE VFX question: does the real mk3 88 accept LIVE per-frame pad-LED color over MIDI/SysEx? Config/UI files are silent (0 sysex/led/realtime tokens). Settle by MIDI-monitoring the hardware (or decoding the arturia_v4 SysEx from keylab-3-88_Firmware_Update_1.1.1.572.kl3) - do NOT infer from the store/recall template path.",
+    "Can button LEDs (and the 42-color vocabulary) be driven live independently of a stored memory slot? Same unknown as pads; needs a capture.",
+    "Can the SCREEN be driven live (text/images/graphics) by the host over MIDI/SysEx? Entirely unaddressed by these files - the only screen vocabulary is a stored 'Display Brightness' global param and physical 'DisplayButton5-8' controls; no image/text push path. Hardware/firmware only.",
+    "Does pushing an edited template actually re-light pads immediately, or only on recall/power cycle? force_store_recall_to_working_memory=1 hints at immediate working-memory apply, but confirm on hardware; even if yes, this is slot-swap latency, not per-frame VFX control.",
+    "Confirm the live-color answer separately for the KeyLab Essential Mk3 since it runs arturia_v3, a different protocol - do not carry an 88 result over to it.",
+    "Whether paramId 216 value 10 truly transmits on MIDI channel 10 (vs an off-by-one in the LIST where Active=0) - trivial to confirm with a MIDI monitor while tapping a default pad."
+   ]
+  },
+  {
+   "front": "firmware-strings",
+   "verified": [
+    {
+     "claim": "Both mk3 firmware images (1.5.0 and 1.2.1) are UNENCRYPTED and fully string/symbol analyzable.",
+     "bucket": "stored-only",
+     "evidence": "Plaintext C++ symbols confirmed in both .kl3 files: 1.5.0 has kl3:: symbols and WidgetMgr getPage mangled names at 0xc0eb4+; 1.2.1 grep -a counts: 'kl3::' x12, 'SysEx42 Display' x3, 'PadLedDispatch' x3, 'Vegas' x3. Files exist: 1.5.0 (7,550,541 B), 1.2.1 (7,722,297 B) in C:/Users/L5/Downloads/.",
+     "note": "[not a live/stored control claim] Verified TRUE as a methodology/enabling fact. Exact entropy numbers not re-derived, but plaintext symbols in BOTH images prove analyzability directly, so the material claim stands. Bucketed non-live by default."
+    },
+    {
+     "claim": "A real-time host->device SysEx command drives the mk3 LCD: colored on-screen buttons/widgets + text, parsed live. Header F0 00 20 6B 7F 42; parser 'SysEx42 Display'; targets screen not pads.",
+     "bucket": "confirmed-live",
+     "evidence": "RAW bytes F0 00 20 6B 7F 42 confirmed at 0xb47f8, 0x31a7f0, 0x581114 in KeyLab3_FW__1_5_0.kl3 (not ASCII text - the actual match bytes; 00 20 6B is Arturia's SysEx mfr id). Inbound-parser diagnostics at exact cited offsets: 'Color param is too short, stopping parser...' @0xc224c, 'unknow parameter in button of SysEx42 Display' @0xc22b0, 'unknow parameter in screen properties...' @0xc22f4, 'unknow screen Id in SysEx42 Display' @0xc2400, plus Numerical/string param and append/prepend sub-parsers; screen IDs kl3::WidePopup/GenericFullscreen/SmallPopup/EmptyScreen/BigPopup @0xc0eb4-0xc117c. No 'pad' token anywhere in this parser region.",
+     "note": "CONFIRMED-LIVE for the SCREEN only. The 'too short, stopping parser'/'unknow parameter' strings are classic INBOUND parse diagnostics - the device receives and parses this SysEx, i.e. host-driven real-time screen drawing. This is hard firmware evidence of a live host->device channel, but it addresses the LCD, NOT the 12 RGB pads. A full end-to-end render is still worth a bench capture, but the parser existence/structure is solid. Agent did NOT overclaim: it explicitly scoped this to screen, not pads."
+    },
+    {
+     "claim": "A live host-driven pad-LED path exists in DAW mode, but arbitrary per-pad RGB 'set pad N now' independent of MCU/HUI and store/recall is NOT provable from strings - UNKNOWN, needs hardware.",
+     "bucket": "unverified-needs-hw",
+     "evidence": "Pad-LED driver + host-fed contexts confirmed in KeyLab3_FW__1_5_0.kl3: 'PadLedDispatch opened' @0xb6c18(748568), 'PadLedCtx' @0x748468+, 'LedStrip queue is full !' @0x865988, 'DAWControl opened' @0x748816, 'TrackControlMCUHUI opened' @0x748964, 'External_access context closed' @0x749368. Negative check (all count 0): 'programmer','Programmer','PadRGB','pad rgb','set pad','SetPad' - no Launchpad-style arbitrary-pad command string in firmware.",
+     "note": "Bucket CONFIRMED correct and appropriately conservative. The host CAN light pads live in DAW mode (MCU/HUI/CC feedback), proven by the contexts above. Whether arbitrary color/addressing is exposed outside the MCU/HUI protocol and outside store/recall is genuinely NOT decidable from strings. THE core VFX open question - must bench-test."
+    },
+    {
+     "claim": "MCC's mk3 pad-color editing is STORED-ONLY: palette index 0-41 written only via store/recall into memory slots incl. working memory; no live color action.",
+     "bucket": "stored-only",
+     "evidence": "C:/ProgramData/Arturia/MIDI Control Center/Resources/KeyLab3 88.json: actions=['store','recall'] (no 'sync'); per-control pairs Colour (type LIST, paramId 210) + Custom Colour (type STATIC_COLOR_LIST, minValue 0, maxValue 41, paramId 211), repeated for every control (paramIds 222/223, 234/235, ... 414/415); is_working_memory=0, force_store_recall_to_working_memory=1. MCC.exe (C:/Program Files (x86)/Arturia/MIDI Control Center/): 'overwrite the working memory' x3, 'Synchronization unsupported for this device. Prefer using Store/Recall.', 'Working Memory'.",
+     "note": "CONFIRMED stored-only. One sub-detail NOT verifiable: the finding's 'first palette entry = 0xFFFF0000 red' does not appear in KeyLab3 88.json (searched FFFF0000/0xFFFF0000/4294901760 = 0 hits); the actual 42 RGB values live elsewhere. 42-entry palette (0-41) and store/recall-only are solid. Bucket unchanged."
+    },
+    {
+     "claim": "mk3 device identity: manufacturer 00206B, familyId 0200, productId 42, projectId 50, protocol arturia_v4, template .keylab388; 0x42 aligns with SysEx header byte and 'SysEx42' parser.",
+     "bucket": "stored-only",
+     "evidence": "KeyLab3 88.json: name='KeyLab 3 88', manufacturerId='00206B', familyId='0200', productId='42' (quoted hex string, like manufacturerId), projectId=50, protocol='arturia_v4', templateExtension='.keylab388'. Cross-check: KeyLab_mkII.json productId=42 familyId='0200'; KeyLab_49_61.json productId=42 familyId='0200'.",
+     "note": "MOSTLY CONFIRMED but OVERSTATED. productId '42' and familyId '0200' are IDENTICAL across mk1(49-61), mkII AND mk3 - they are NOT mk3 discriminators (see conflations). productId being hex '42' does line up with the raw 0x42 SysEx byte, but that byte is family-wide. The genuine mk3 markers are protocol=arturia_v4, projectId=50, templateExtension=.keylab388 / firmware .kl3. A VFX tool must key on those, not productId 42."
+    },
+    {
+     "claim": "Device-family hygiene: mk1/mkII/mk3 distinct and NOT conflated; mk3=arturia_v4+.kl3, mkII=.led, mk1(49-61)=arturia_v2+actions incl 'sync'.",
+     "bucket": "stored-only",
+     "evidence": "Templates/ dir lists 'KeyLab mkII', 'KeyLab 3', 'KeyLab 3 88' as separate entries. Firmware/ dir: keylab-3-88_...572.kl3 and keylab3_...572.kl3 (mk3, .kl3) vs keylab-88-mkII_...1492.led (mkII, .led). KeyLab_49_61.json protocol='arturia_v2' actions=['store','recall','sync']; KeyLab3 88.json protocol='arturia_v4' actions=['store','recall'].",
+     "note": "CONFIRMED and upholds the non-conflation claim for all firmware-string findings (SysEx42/PadLed/Vegas all verified to live in the mk3 .kl3 images, both 1.2.1 and 1.5.0). Minor: mkII protocol is also arturia_v2 (same generation as mk1), and mkII actions are store/recall only (no sync); the finding only characterized mk1's sync, which is accurate."
+    },
+    {
+     "claim": "The firmware's 'Live' strings are the DAW name 'Live' (Ableton), NOT a live/working mode.",
+     "bucket": "stored-only",
+     "evidence": "KeyLab3_FW__1_5_0.kl3 region 0xbeaf0-0xbeb40: 'Cubase','FL Studio','HUI','Live'@0xbeb0c,'Logic Pro','MCU','Pro Tools','Reaper','Reason' - a contiguous DAW/protocol name list.",
+     "note": "CONFIRMED and this is a correctly conservative (anti-optimistic) reading. 'Live' = Ableton Live in the DAW list; it is NOT evidence of any live-color capability. Bucketed not-live."
+    },
+    {
+     "claim": "Per-control stored config vocabulary: COLOUR, CUSTOM COLOUR, NOTE, ON/OFF VALUE, DISPLAY BUTTON 1-4, BANK MSB/LSB, PROGRAM NUMBER, CC NUMBER, MAX/MIN VALUE, PARTS.",
+     "bucket": "stored-only",
+     "evidence": "KeyLab3_FW__1_5_0.kl3 at ~0xb7cxx: 'DISPLAY BUTTON 1'@0xb7cb0,'BANK MSB'@0xb7cc8,'BANK LSB'@0xb7cd4,'ON VALUE'@0xb7ce0,'OFF VALUE'@0xb7cec,'PROGRAM NUMBER'@0xb7d00,'CC NUMBER'@0xb7d10,'COLOUR'@0xb7d1c,'CUSTOM COLOUR'@0xb7d2c,'MAX VALUE'@0xb7d44,'MIN VALUE'@0xb7d50,'PARTS'@0xb7d5c,'NOTE'@0xb74fa.",
+     "note": "CONFIRMED, matches cited offset range. Reinforces that pad colour is a stored per-control field (store/recall model), i.e. the MCC/on-device editor route is stored-only."
+    },
+    {
+     "claim": "A firmware idle light show ('Vegas' mode, 5/15/30 min) exists but is device-driven, not a host live-color channel.",
+     "bucket": "stored-only",
+     "evidence": "KeyLab3_FW__1_5_0.kl3: '5 min. Vegas'@0xbebb1,'15 min. Vegas'@0xbebb0,'30 min. Vegas'@0xbebc8; also present x3 in 1.2.1.",
+     "note": "CONFIRMED. Device-driven idle screensaver with timeout options; correctly ruled OUT as a host->device live path. Bucketed not-live."
+    }
+   ],
+   "mk2_conflations": [
+    "productId '42' and familyId '0200' are presented in finding #5 as mk3 identity (and '0x42 aligns with SysEx42'), but they are IDENTICAL across KeyLab mk1 (KeyLab_49_61.json), mkII (KeyLab_mkII.json) AND mk3 (KeyLab3 88.json). They are family-wide values, NOT mk3 discriminators. A VFX tool keying on productId 42 to 'target the mk3' would equally match the mkII and mk1. This is the one cross-family hazard I caught - the mkII device file literally carries the same productId 42. Real mk3 discriminators: protocol=arturia_v4, projectId=50, templateExtension=.keylab388, firmware .kl3.",
+    "No mkII-fact-passed-as-mk3 was found in the firmware-string findings themselves. All the load-bearing strings (SysEx42 Display parser, PadLedDispatch/PadLedCtx/LedStrip, DAWControl/TrackControlMCUHUI, Vegas, stored vocab, DAW-name 'Live') were re-verified to exist specifically in the mk3 .kl3 images (both 1.2.1 and 1.5.0), and the stored-color spec came from the mk3 'KeyLab 3 88' device JSON. The agent's non-conflation claim (#6) holds, with only the productId/familyId caveat above."
+   ],
+   "must_test": [
+    "CORE VFX QUESTION: Can an arbitrary per-pad RGB / 'set pad N to this color now' be pushed live over MIDI/SysEx on the real mk3, independent of the MCU/HUI DAW mapping and WITHOUT store/recall (Launchpad programmer-mode style)? Firmware strings cannot decide this - no 'programmer'/'PadRGB'/'set pad' token exists, but the pad-LED driver (PadLedDispatch/LedStrip) proves pads CAN be lit live. Monitor the device with a MIDI capture while driving it.",
+    "Confirm the SysEx42 display protocol (F0 00 20 6B 7F 42 ...) can ONLY address the LCD screen and NOT the 12 pad LEDs - the parser vocabulary has no 'pad' token, but verify on hardware that there is no pad-targeting screen Id or widget that maps to pads.",
+    "End-to-end confirm the SysEx42 screen path actually renders live when the host sends the command (the parser is proven inbound; a bench capture would upgrade this from firmware-inferred to observed).",
+    "In DAW mode, capture exactly what pad-LED feedback the host can drive via MCU/HUI/CC and whether the color is host-selectable or fixed-per-function - this bounds what VFX is possible without a dedicated pad-RGB command.",
+    "Decode the STATIC_COLOR_LIST 42-entry palette's actual RGB values (not present in hex form in KeyLab3 88.json; the finding's '0xFFFF0000 red first entry' could not be confirmed), and test whether a palette index can be pushed live vs only stored."
+   ]
+  },
+  {
+   "front": "FRONT L4 / arsenal-model — the KeyLab 88 mk3 VIRTUAL model (arsenal/web/piano/instruments/keylab88mk3.js) and the pad-lighting-bridge spec",
+   "verified": [
+    {
+     "claim": "F1: 12 pads modeled as 2 InstancedMesh (body+glow rim), laid out 2 rows of 6 in pitch-class order (front C..F pc0-5, back F#..B pc6-11); lighting index = pitch class; printed legend numbers 1..12 per row is a DIFFERENT order",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:220 PAD_COUNT=12; :520-527 padMesh+rimMesh placement loop col=pc%6 row=pc<6?zFront:zBack, comment line 519 'Front row...C..F, back row F#..B'; legend numbers at :365-366",
+     "note": "Verified exactly as a SOFTWARE fact about our own model; the virtual pads are driven live each frame. This says nothing about the real device's pad numbering."
+    },
+    {
+     "claim": "F2: Whether the REAL mk3 88 has a 2x6 grid is only a [U] estimate carried from a 49/61 review; count 12 + RGB are firm but geometry is unconfirmed",
+     "bucket": "unverified-needs-hw",
+     "evidence": "spec.md:42 Pads 12 RGB [M]; :43 pad size 29mm [R]; :44 arrangement '2 rows of 6 ... may not carry over to the 88' [U] KVR",
+     "note": "Correctly and honestly tagged unknown. Must be measured on the physical unit."
+    },
+    {
+     "claim": "F3: Each pad is a two-layer backlit model (body surface x0.35 + HDR edge rim x2.3) matching real pads' 'RGB backlit through translucent edges'",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:640 PAD consts surface:0.35 rim:2.3; :223-230 emissive shader inject totalEmissiveRadiance+=vGlow; :775-778 per-pad glow+rim write",
+     "note": "The SOFTWARE two-layer model is verified. But applies_to:'mk3-confirmed' is OVERSTATED for the real-pad behavior: the backlit-edges detail is [R] single SOS reviewer, and spec.md:86 itself warns one review 'may describe the Essential mk3 [U]' — tops-lit vs edges-only is contested, not confirmed."
+    },
+    {
+     "claim": "F4: pad color = ctx.noteColor(60+pc, velocity, target), a function of pitch class + velocity, returned in LINEAR color space; chord root LED uses same",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:775 ctx.noteColor(60+pc,padVel[pc]||100,tmp); :802 rootCol=ctx.noteColor(60+chordRootPc,110); piano.js:380-398 noteColor def, :398 comment 'linear working space'",
+     "note": "Verified software fact."
+    },
+    {
+     "claim": "F5: pad strikes driven by state.pressed + state.notes via strike()/eachPressed accumulating padSustain(held)+padPeak(attack); lit level is an attack/release envelope (peakTau 0.42, attack 0.018, release 0.22)",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:644-651 strike; :652-659 eachPressed; :635-642 state arrays + PAD consts; :765-772 envelope in update",
+     "note": "Verified software fact."
+    },
+    {
+     "claim": "F6: LED_ROLE is a 9-value enum; update() tints each button LED by role (Rec=red, Loop=amber, Play=green follows keys, Hold=amber follows pedal, Chord glows in chord-root color, Oct=blue)",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:62 LED_ROLE (9 values plain..stop); :495-502 role assignment; :806-823 per-role switch; :748-751 LED_TINT",
+     "note": "Verified. The finding itself states this reactive LED logic is 'OUR software invention, not a documented hardware behavior' — correct, no conflation."
+    },
+    {
+     "claim": "F7: screen is a 960x640 canvas-texture on a MeshBasicMaterial plane representing the real 3.5in 480x320 display; redrawn only on chord/key/mask/dim change; dims IDLE 0.46 vs ON 0.92",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:63 SCREEN_ON=0.92 SCREEN_IDLE=0.46; :579-590 SCREEN_W/H 960/640, CanvasTexture, MeshBasicMaterial, plane+bezel; :793-801 change-guarded redraw; spec.md:38 3.5in 480x320 [M]",
+     "note": "Software verified. The real 480x320 panel size is [M], but whether a HOST can push arbitrary content to the real screen live over MIDI/SysEx is NOT addressed anywhere — our screen is a purely virtual canvas."
+    },
+    {
+     "claim": "F8: screen content is our own chord canvas — CHORD/KEY header, chord name filled with a gradient of its tones' colors, a Nashville-number pill, and 12 pitch-class dots lit for chord tones",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:672-743 drawScreen; header :689-697; name gradient :700-717; Nashville pill :721-733; 12 dots :735-740",
+     "note": "Verified software fact; the 12-dot mask->color logic is reusable for a chord-on-pads mode."
+    },
+    {
+     "claim": "F9: the ctx interface is documented in the module header and assembled by host instrumentCtx() carrying THREE, scene, keyX, isBlack, noteColor, noteCss, KEY, framing, RoundedBoxGeometry, fonts, options, envMap",
+     "bucket": "confirmed-live",
+     "evidence": "keylab88mk3.js:18-20 ctx doc; piano.js:1329-1336 instrumentCtx returns exactly these (noteColor shared)",
+     "note": "Verified. This is the natural seam to add a pad-color sink; a software-architecture fact."
+    },
+    {
+     "claim": "F10: state is one read-only object refreshed in place every frame {pressed:Map, pedal, chord:{name,nns,key}|null, notes:[], sounding:Map}",
+     "bucket": "confirmed-live",
+     "evidence": "piano.js:1263 looks.state = {pressed:new Map(),pedal:false,chord:null,notes:[],sounding:new Map()}; :1195-1198 contract comment; keylab88mk3.js:21 state doc; :753-762 update consumes",
+     "note": "Verified software fact."
+    },
+    {
+     "claim": "F11: state.chord {name,nns,key} is the scene chord source of truth, produced by host lookChord(info) from Theory.detect / chordread.js, null when no chord reads",
+     "bucket": "confirmed-live",
+     "evidence": "piano.js:1602-1609 lookChord builds {name,nns,key} or null; :2810-2812 detectSounding->Theory.detect/pianoReader; :297-310 installReader over Theory.detect; :1716 chordForInstrument snapshot",
+     "note": "Verified software fact."
+    },
+    {
+     "claim": "F12: a MIDI OUTPUT path already exists in the codebase (cues.js) using the standard Web MIDI output.send([status,d1,d2]) pattern with an enabled port",
+     "bucket": "confirmed-live",
+     "evidence": "piano/cues.js:1536 port.send(bytes,at)/port.send(bytes); :1769-1770 a.outputs.get(portId)",
+     "note": "An output.send path is confirmed in software. CRITICAL CAVEAT: this does NOT establish that sending MIDI lights the real pads, and cues.js requests sysex:false (:1697) so it cannot carry SysEx. Whether note/CC vs SysEx is required to light real pads is unknown (needs hardware)."
+    },
+    {
+     "claim": "BLOCKER A (summary): Web MIDI is requested with sysex:false in BOTH entry points, so no SysEx pad-lighting is reachable without a code change + permission re-grant",
+     "bucket": "confirmed-live",
+     "evidence": "piano.js:3803 requestMIDIAccess({sysex:false}); piano/cues.js:1697 requestMIDIAccess({sysex:false})",
+     "note": "Confirmed TRUE as a LIMITATION, not a capability. Both paths are sysex:false today. Any SysEx-based pad/screen control is a must-fix code change, not currently possible."
+    },
+    {
+     "claim": "BLOCKER B (summary): the real mk3's pad addressing and whether it accepts live RGB over MIDI/SysEx is NOT determinable from these files; the 2x6-on-88 layout is itself only a [U] estimate",
+     "bucket": "unverified-needs-hw",
+     "evidence": "spec.md:44 arrangement [U]; spec.md:86 'Colour per bank or per DAW clip state' [R]; no protocol/SysEx spec anywhere in these files",
+     "note": "Honest and correct. spec.md:86 'per DAW clip state' is a WEAK positive hint that some live host->pad lighting exists in DAW mode, but it is a reviewer statement with no documented protocol — must be settled on hardware (or from the actual device manual/MCC, which were not read here)."
+    }
+   ],
+   "mk2_conflations": [
+    "No outright mk2-presented-as-mk3 fact was found in the findings — the agent was careful: F2 flags the '2x6 / one row fewer than mk2' layout as [U] from a 49/61 review, as a comparison not an assertion.",
+    "One EssentialmkIII-vs-mk3 (same family, not literally mk2) risk slipped through in F3: it tags the real-pad 'RGB backlit through translucent edges' as applies_to:'mk3-confirmed', but spec.md:86 warns the source review 'may describe the Essential mk3 [U]' and that tops-lit-vs-edges-only is contested. Downgrade F3's real-device claim to [R]/unclear; the SOFTWARE two-layer model is fine.",
+    "The pad-count 'one row fewer than mk2' phrasing in spec.md:44 is the main place a careless reader could invert mk2/mk3 pad counts — worth guarding in any future pass, but the findings did not invert it."
+   ],
+   "must_test": [
+    "Does the real KeyLab 88 mk3 actually have a 2x6 (12-pad) grid, and in what physical/MIDI order? Count 12 is [M], geometry is [U] (spec.md:44).",
+    "Does the real mk3 accept LIVE pad RGB from a host at all, and via what — Note On velocity-to-color, CC, or SysEx — and what is the per-pad address and the bank A-D selection? No protocol exists in these files (the >10MB manual at spec.md:224 and MCC were not read).",
+    "Is 'Colour per DAW clip state' (spec.md:86) real host-driven live lighting, or only MCC/bank-stored colors? This is exactly the live-vs-stored distinction and is currently unknown.",
+    "On the real mk3, are the pad tops lit or only the translucent edges (spec.md:86 flags this as possibly an Essential-mk3 observation)?",
+    "Can the real 3.5in 480x320 screen be driven with arbitrary host content live, or does it only show device-native UI? Entirely unaddressed; our screen is a purely virtual canvas.",
+    "After flipping sysex:true and granting SysEx permission, does the existing cues.js output.send path actually illuminate any pad/LED? (piano.js:3803 and cues.js:1697 are sysex:false today.)",
+    "Idle colors of pads/buttons when nothing is pressed on the real unit (spec.md:106, tape-measure item #9), to confirm our idle-rim model matches."
+   ]
+  },
+  {
+   "front": "host-led-crux",
+   "verified": [
+    {
+     "claim": "KeyLab mk3 (49/61/88) hardware: full-color 3.5\" 320x480 screen with 8 contextual buttons + 12 velocity/pressure-sensitive RGB pads (gen 3, 2024).",
+     "bucket": "confirmed-live",
+     "evidence": "Arturia product page, verified via WebFetch: 'Full Color 3.5\"320x480px screen with 8 contextual buttons' and 'Velocity and pressure-sensitive RGB pads' / '12 touch & pressure-sensitive pads'. Corroborated by README img alt 'KeyLab 88 mk3 screen driven from Ableton Live'.",
+     "note": "SCOPE: this is a hardware-EXISTENCE claim, vendor-confirmed — NOT itself a live-control claim (the vendor page documents no host/SysEx control). Bucketed confirmed-live only because this is the same hardware shown to be live-driven in findings 2-4; do not read finding 1 alone as proving liveness."
+    },
+    {
+     "claim": "The 3.5\" screen can be drawn LIVE in real time from a host over MIDI SysEx, demonstrated by a shipping, in-daily-use Ableton Live control-surface script on a KeyLab mk3.",
+     "bucket": "confirmed-live",
+     "evidence": "README lines 18-20 ('Everything on these screens ... is sent from Live with the SysEx documented here. The script is KeyLabLive'); README lines 80-81 ('88; only the MIDI port name differs'); 88 mk3 screenshots present (img alt). Marker scheme [code]=production/daily-use (README 44-49).",
+     "note": "CAVEAT the finding under-stated: the live DEMONSTRATION/measurement was on a 61 mk3 (README line 80 'Tested on a KeyLab 61 mk3'); 88-identity is the author's assertion, though 88 mk3 screenshots exist. Single author, not independently reproduced."
+    },
+    {
+     "claim": "Screen envelope F0 00 20 6B 7F 42 <payload> F7; byte 7 selects world: 00 02 04 = DAW mode, 00 01 04 = Arturia mode; the two are isolated; no SysEx changes mode (physical Prog+button 5/6).",
+     "bucket": "confirmed-live",
+     "evidence": "kl.md lines 27-49 (envelope + two families, both [measured]) and 51-74 (mode/handshake 00 02 05 01, [measured] 'handshake, not a mode switch'). Exactly matches finding.",
+     "note": "These are the measured live screen families; structural but part of the proven live path."
+    },
+    {
+     "claim": "12 RGB pads settable LIVE in full RGB over SysEx, DAW-bank ONLY: 00 02 03 <id> <r> <g> <b> 00, each channel 0-127, pad LED ids 82-93 (id=82+padNo-1).",
+     "bucket": "confirmed-live",
+     "evidence": "kl.md 493-497 (family 00 02 03 packet, 'RGB 0-127 per channel'); 527-546 (ids 82-93, uneven provenance); 557-559 ('[measured] These packets only work in the DAW bank. In bank D nothing happens'). Exact match.",
+     "note": "THE VFX-usable live pad path, confirmed. But pad-id provenance is uneven: pad 1 (82) [guess], pads 9-10 (90-91) [guess]; pad 2 (83) & 5-8 (86-89) [code]; pads 3,4,11,12 [measured]. Guessed ids need on-hardware confirmation on the 88."
+    },
+    {
+     "claim": "User-bank pads (banks A-D, MCC-configured) are STORED-ONLY: config family 21 03 40 holds a single PALETTE INDEX (not RGB), and a write forces the unit into User mode, so it cannot be dynamic feedback.",
+     "bucket": "stored-only",
+     "evidence": "kl.md 743-777 ('21 03 40 — where the colours live'; '[measured] colour is a single palette index ... 0x28 white, 0x05 yellow'; '[measured] it throws the unit into User mode, so it cannot be used for dynamic colour feedback while playing'); 851-853 dead-end ('00 02 03 LED packets ... in bank D — ignored entirely'). Exact match.",
+     "note": "Correctly classified by the finding as the task's 'MCC only STORES it' case. Confirms live VFX MUST use the DAW bank + 00 02 03, not the User-bank/MCC route."
+    },
+    {
+     "claim": "The 8 contextual screen buttons have RGB LEDs set LIVE by the host via colour field (field 04) of the 00 02 04 footer packet (no address in the 00 02 03 LED family).",
+     "bucket": "confirmed-live",
+     "evidence": "kl.md 102-118 ('[measured] screen buttons have RGB LEDs, but no address in 00 02 03 ... set purely by the colour field (field 04) of the footer packet in 00 02 04'); 246-266 Arturia button packet ('00 02 04 01 | 00 02 00 | 03 00 00 | 04 7F 7F 7F 00 | 05 \"2\" 00' off; '04 7F 58 00 00' on; field 00=0x03 on/0x02 off). Exact match.",
+     "note": "[measured] for ids 0x01-0x04; 0x08 is [code]. Field values are context-dependent PER button id (kl.md 263-266) — each new id must be measured."
+    },
+    {
+     "claim": "The 12 transport/utility-row buttons also have live-settable RGB LEDs via 00 02 03, LED id = physical position + 3 (ids 4-15).",
+     "bucket": "confirmed-live",
+     "evidence": "kl.md 499-521. Measured: Tap=4, Play=6, Stop=7, Cycle=8, Back=9, Forward=10, Metro=11. [guess]: Rec=5, Redo=12, Undo=13, Quantize=14, Save=15. Finding's medium confidence is appropriate.",
+     "note": "Capability confirmed-live (family measured, 7 ids measured incl. endpoints Tap & Metro); the 5 guessed ids need hardware confirmation."
+    },
+    {
+     "claim": "Live control carries throughput/stability limits: one complete message per packet; ~60 ms spacing between 00 02 04 screen packets; ~12 LED packets fine, ~36 in a burst FREEZES the device (power-cycle); ASCII 32-126 only; a fader readout over certain lists pauses keyboard MIDI ~60ms/100ms.",
+     "bucket": "confirmed-live",
+     "evidence": "kl.md 548-559 (send limits: '36 ... freezes the device'; '[code] 12 packets at once ... is fine'; 'only work in the DAW bank') and 781-818 ('Sending, in practice': one-message/2-4% loss, 60ms spacing, ASCII, the 0x28-list MIDI pause). Exact match.",
+     "note": "These set the realistic frame-rate budget for pad-light VFX. The 12-ok / 36-freeze band and the 60ms spacing should be re-measured on the 88 before building."
+    },
+    {
+     "claim": "Arturia publishes NO official MIDI-implementation / SysEx doc for the mk3 live protocol; every mk3 byte comes from a SINGLE independent reverse-engineering source (saxofonbrian/keylab-mk3-sysex).",
+     "bucket": "unverified-needs-hw",
+     "evidence": "README line 6 ('There is no public documentation of this protocol. Arturia does not publish it'); WebFetch of Arturia product page confirms no host/SysEx-control documentation; source is MIT, per-claim [measured]/[code]/[guess]/[rejected] markers (kl.md 14-23).",
+     "note": "The CLAIM itself (no vendor doc, single source) is CONFIRMED true. Bucketed needs-hw because its import is that the headline capability is high-confidence but every specific byte rests on one un-reproduced author — treat [code]/[guess] bytes as to-verify on the operator's 88."
+    },
+    {
+     "claim": "Do NOT conflate with KeyLab Essential mk3 (different model, screen family 04 01 60, DAW connect 02 0F 40 5A 01) — those bytes do not transfer to the 49/61/88 mk3.",
+     "bucket": "unverified-needs-hw",
+     "evidence": "kl.md 894-897 ('KeyLab Essential mk3 at github.com/PrzemekBarski/... describes a different structure (screen at 04 01 60, DAW connect 02 0F 40 5A 01) and does not transfer to this model'); kl.md 67 ('21 11 40 02 00 <n> from the Essential guide does nothing on this model' [measured]).",
+     "note": "The anti-conflation WARNING is correct and verified (Essential is a different model; shared envelope F0 00 20 6B 7F 42 is the trap). I did NOT independently open the PrzemekBarski repo — the exact Essential bytes (04 01 60 etc.) are the mk3-author's characterization of that guide, not re-confirmed by me. The operator owns the full 88 mk3, NOT the Essential, so this is a don't-use warning, not an 88 capability."
+    }
+   ],
+   "mk2_conflations": [
+    "NONE COMMITTED in the findings. The findings correctly and explicitly separated mk3 from both mkII and KeyLab Essential mk3; every finding is tagged mk3-confirmed and the shared Arturia envelope (F0 00 20 6B 7F 42) is flagged as the conflation trap. This is the opposite of a conflation.",
+    "FLAG (not a caught conflation, an unverified aside): the summary's characterization of the OLDER mkII ('different envelope payload, R/G/B 0-1F, InControl-only') is uncited and could NOT be verified from any cited mk3 source. Do not rely on those mkII specifics until checked against actual mkII documentation.",
+    "SIZE caveat (not mkII): the live screen protocol was MEASURED on a 61 mk3; applicability to the operator's 88 is the author's 'identical, only port name differs' assertion (README line 80). An 88 mk3 screenshot exists in the repo, but no finding shows a full 88-measured run."
+   ],
+   "must_test": [
+    "Guessed pad LED ids on the operator's 88: pad 1 (id 82) and pads 9-10 (ids 90-91) are [guess]-from-formula (kl.md 533-546). Give each pad a distinct colour via 00 02 03 in the DAW bank and confirm the mapping before VFX relies on it.",
+    "Guessed transport-row LED ids: Rec=5, Redo=12, Undo=13, Quantize=14, Save=15 are [guess] (kl.md 504-517). Confirm with an id sweep.",
+    "Freeze/throughput budget on the 88: confirm the 12-packet-ok / 36-packet-freeze threshold and the ~60 ms screen-packet spacing (kl.md 548-559, 793-800). This sets the real pad-light frame rate; a freeze needs a power cycle, so bound it before building.",
+    "88-vs-61 identity: confirm the 00 02 04 screen family AND 00 02 03 DAW-bank pad LEDs behave identically on the operator's specific 88 mk3 (author asserts identical; only measured on 61).",
+    "DAW-bank precondition: confirm the physical mode switch (Prog + screen button 6 -> DAW) and that DAW-bank pads actually accept live 00 02 03 packets on the 88 (and that User banks A-D ignore them, per the dead-end at kl.md 851-853).",
+    "Per-id screen-button colour values: field values are context-dependent per button id (kl.md 263-266); any button id beyond 0x01-0x04/0x08 must be measured individually.",
+    "MIDI-pause gotcha: verify the ~60ms/100ms keyboard MIDI stall under a changing fader readout over a 0x28 list lacking field 01 (kl.md 812-818), and that list title 0x14 / per-item icon avoids it — matters if VFX runs alongside note/fader input."
+   ]
+  },
+  {
+   "front": "daw-fl-path",
+   "verified": [
+    {
+     "claim": "Arturia ships an FL MIDI Controller Scripting (Python) integration for the KeyLab mk3, installed on this machine; Essential mk3 and MKII are separate sibling folders.",
+     "bucket": "confirmed-live",
+     "evidence": "C:/Users/L5/Documents/Image-Line/FL Studio/Settings/Hardware/Arturia KeyLab mk3/device_KL3.py line 1 '# name=KeyLab mk3'; sibling dirs 'Arturia KeyLab Essential mk3' and 'Arturia KeyLab MKII' present in parent; KeyLab_mk3__...FL_Studio__DAW_User_Guide.pdf in folder.",
+     "note": "True by local files (and the script demonstrably sends live SysEx, below). This is an existence/foundation fact, not itself a 'host-sets-live' claim. The two cited web URLs (support.arturia.com, dl.arturia.net guide) were NOT re-fetched in this offline verify; 'official support' rests on Arturia copyright headers in the code + the shipped guide PDF."
+    },
+    {
+     "claim": "FL's bundled scripts (Program Files) contain NO Arturia entry; the mk3 script lives user-side in Documents/.../Settings/Hardware.",
+     "bucket": "confirmed-live",
+     "evidence": "ls 'C:/Program Files/Image-Line/FL Studio 2026/System/Hardware specific' = 30 folders (Akai APC .. Roland PCR), none Arturia; the user Documents Hardware folder is populated with the Arturia KeyLab mk3 scripts.",
+     "note": "Verified true, but it is an install-location fact, not a real-time-control claim. The practical consequence (integration depends on the user-folder script being present/updated) is sound."
+    },
+    {
+     "claim": "mk3 SysEx manufacturer id 00 20 6B; variants 00 20 6B 02 00 0A 02/04/08 (49/61/88); live wrapper F0 00 20 6B 7F 42 <payload> F7.",
+     "bucket": "confirmed-live",
+     "evidence": "device_KL3.py line 2 'supportedHardwareIds=00 20 6B 02 00 0A 02...,04...,08...'; KL3Dispatch.py send_to_device -> device.midiOutSysex(bytes([0xF0,0x00,0x20,0x6B,0x7F,0x42]) + data + bytes([0xF7])).",
+     "note": "Exact wire framing confirmed verbatim; this is the live SysEx path. mk3-confirmed."
+    },
+    {
+     "claim": "Host can set each pad LED live over SysEx; pads individually addressable with RGB across banks A/B/C/D + a DAW bank.",
+     "bucket": "confirmed-live",
+     "evidence": "KL3Return.py init() sends per-pad bytes([0x00,eDaw,eSetLed,ePadNBankX,R,G,B,0x00]) for ePad1BankA..ePad12BankB; LedId.py ePad1BankA=34..ePad12BankDaw=93; ParamId.py eSetLed=3; IntegrationPatchId.py eDaw=2.",
+     "note": "Live per-pad RGB CONFIRMED for banks A & B (24 pads actually emitted at init). Banks C/D (ids 58-81) and the DAW bank (82-93) exist in the enum and would use the identical mechanism, but the shipped script does NOT exercise them - that they physically light should be confirmed on hardware. mk3-confirmed."
+    },
+    {
+     "claim": "LED color on the wire is 3 bytes R,G,B (0-127) plus a 4th flag byte; the 4th byte is a blink/animation flag.",
+     "bucket": "confirmed-live",
+     "evidence": "KL3Return.py init payloads are [R,G,B,0x00] (ePlay=00 0d 00, eRecord=0d 00 00, pads=00 00 0d, neutral=0d 0d 0d); Analog Lab controllers.prefmidi.xml blink strings '0x7f7f7f01/02/03' at lines 104-131.",
+     "note": "The 3-byte RGB + a 4th byte structure is CONFIRMED-LIVE for the full mk3 (the FL script always sends 0x00 in the 4th slot, so it never actually exercises a non-zero flag). The '4th byte = blink' MEANING is sourced ONLY from the 'KeyLab Essential mk3' XML block (line 87) - a DIFFERENT device - so blink semantics/mode-count for the full mk3 are UNVERIFIED and need hardware."
+    },
+    {
+     "claim": "Host drives the mk3 color screen live: text up to 32 chars/line, per-line colortype + RGB, many layouts and icons.",
+     "bucket": "confirmed-live",
+     "evidence": "KL3Display.py Screen_F1L/F2L build [0x00,eDaw,eDisplay]+screenID+<0x00 text(<=32) 0x00>+<0x01 colortype 0x00>+<0x02 RGB 0x00> (+line2 segs 0x03/04/05); ScreenId.py 47 entries incl eScreen1L/2L/Pad/ParamGauge/ColorPicker/Browser; device_KL3.py OnInit SetCenterPage(line1,line2,icon=ekIconsFlStudio_image).",
+     "note": "Confirmed-live, mk3. Text truncates at 32 (line[:length-4]+'...'); real rendered width on the physical OLED worth an eyeball but the live-push capability is proven."
+    },
+    {
+     "claim": "Live control requires a connect/soft-connect handshake first; the FL script sends it on load and tears down on close; only one owner can hold the port.",
+     "bucket": "confirmed-live",
+     "evidence": "KL3Connexion.py DAWConnexion=[0x00,eDaw,eConnection,0x01] / DAWDisconnection=...0x00; device_KL3.py OnInit calls DAWConnexion, OnDeInit DAWDisconnection; ParamId eConnection=5, eSoftConnection=8; Analog Lab XML soft_connect version=3 subcommandid=8 at line 215 (under the 'KeyLab mk3' block).",
+     "note": "CONFIRMED that the FL script sends connect on load and disconnect on close. BUT 'LEDs/screen respond only after the handshake' and the single-owner / second-app-driving-LEDs-while-FL-holds-the-port claims are UNVERIFIED assumptions - these need hardware."
+    },
+    {
+     "claim": "Host sets non-pad button LED colors live too (transport + Save/Undo/Redo/Quantize/Metronome/Back/8 contextual; also Transpose/Octave).",
+     "bucket": "confirmed-live",
+     "evidence": "KL3Return.py init() sends eSetLed for eStop/ePlay/eRecord/eTap/eRepeat/eBackward/eForward/eMetronome/eContextual1-8/eBack/eSave/eQuantize/eUndo/eRedo; Analog Lab controllers.prefmidi.xml set_led_color_string version 3 (lines ~245-287) under the 'KeyLab mk3' block lists eSave=15,eUndo=13,eRedo=12,eTranspM=30..eOctP=33.",
+     "note": "Confirmed-live directly from the FL script for transport/save/undo/redo/quantize/contextual/back. Transpose/Octave LED live is corroborated by the Analog Lab block, and I verified that block IS the full 'KeyLab mk3' controller (device midinames KeyLab 49/61/88 mk3 MIDI) - not Essential. mk3-confirmed."
+    },
+    {
+     "claim": "FL reads pads as note on/off on channel 10, note numbers 0-11 (12 drum pads) -> OnDrumEvent; higher notes are sequencer.",
+     "bucket": "rejected",
+     "evidence": "KL3Process.py ProcessEvent: if status in [153,137]: if data1 NOT in range(0,12) -> OnDrumEvent, else -> OnSeqEvent. FPC_MAP keys start at '36' ('36':37,'37':36,...). OnDrumEvent remaps data1 via FPC_MAP/DRUMAXX_MAP for FPC/Drumaxx. OnSeqEvent handles data1<8 as sequencer press/release.",
+     "note": "INVERTED and wrong on the note range. Notes 0-11 route to OnSeqEvent (the SEQUENCER), everything else routes to OnDrumEvent (the FPC/drum path). And the pads emit notes 36+ (FPC_MAP keys), NOT 0-11. Salvageable truth: pads ARE ch10 note on/off (status 153=0x99 on, 137=0x89 off) and reach FPC via OnDrumEvent+FPC_MAP, so MIDI-Learn into FPC is viable - but the claimed range (0-11) and handler (OnDrumEvent) are both incorrect."
+    },
+    {
+     "claim": "FL reads encoders/knobs and faders as CC each with a capacitive touch event; transport/context buttons as CC; wheels.",
+     "bucket": "confirmed-live",
+     "evidence": "KL3Process.py: midiId dispatch 176->OnCommandEvent, 224->OnWheelEvent; CC handlers Stop=20,Start=21,Record=22,Tap=23,Loop=24,Rewind=25,FastForward=26,Click=27,Back=40,Save=41,Quantize=42,Undo=43,Redo=44,SwitchWindow=117,Context1-8=45-52; KNOB_MAP(91-103),FADER_MAP(105-112),KNOB_TOUCH_MAP(8-15),FADER_TOUCH_MAP(28-36); Navigator range(55,64)/range(65,73).",
+     "note": "Maps verified exactly. This is an INPUT/read fact (not a host-live-output claim); true. Touch-sensitive knobs AND faders confirmed via the separate *_TOUCH_MAP dispatch."
+    },
+    {
+     "claim": "The mk3 presents TWO MIDI ports: a DAW-integration port (SysEx script) and an 'Arturia dev' port that forwards CCs to the Analog Lab plugin on internal port 10.",
+     "bucket": "confirmed-live",
+     "evidence": "device_KeyLab mk3 MIDI.py '# name=KeyLab mk3 Arturia dev', forwardMIDICC(msg,2) with PORT_MIDICC_ANALOGLAB; KL3Process.py forwardMIDICC(... (PORT_MIDICC_ANALOGLAB<<24)) at lines 377/762/849; PORT_MIDICC_ANALOGLAB=10 (device_KL3.py line 36, KL3Process line 33).",
+     "note": "Two FL device scripts and CC-forwarding to internal port 10 are confirmed. The finding's 'yes-live' tag is a mislabel (routing architecture, not live LED). Whether a companion app can own one HARDWARE port while FL holds the DAW port = needs hardware. Also: this file's internal docstring still reads 'Surface: KeyLab mkII MIDI' (Arturia copy-paste leftover); the active '# name=' line is mk3, so no agent error."
+    },
+    {
+     "claim": "MCC only STORES pad note/channel/behaviour/color into device memory slots (the .keylab388 template) - stored-only, not real-time host control.",
+     "bucket": "stored-only",
+     "evidence": "C:/ProgramData/Arturia/MIDI Control Center/Templates/KeyLab 3 88/Factory/Default.keylab388: 'device':'KeyLab 3 88','version':'1.0.6'; named controls Pad 1-12 (4 entries each), Encoder 1-9, Fader 1-9, Main Encoder, BUTTON 1-4, plus numeric param slots; sibling 'Komplete Kontrol.keylab388'.",
+     "note": "Correctly bucketed. This is the MCC memory-slot configuration path (a distinct device-template format 'KeyLab 3 88', separate from mk1/mkII/Essential template folders), not the real-time host path - not VFX-usable live."
+    }
+   ],
+   "mk2_conflations": [
+    "Finding 5 (LED 4th-byte = blink): the blink semantics come from the 'KeyLab Essential mk3' XML block (controllers.prefmidi.xml line 87, patchid_setvalues=15), a DIFFERENT device from the full 'KeyLab mk3' (line 204, patchid_setvalues=1). The agent DID label it 'Essential mk3', so this is a disclosed cross-device inference rather than a silent conflation - but it must not be presented as a full-mk3 fact; blink on the full mk3 remains unverified. (The RGB+4th-byte STRUCTURE itself is independently confirmed for the full mk3 from KL3Return.)",
+    "device_KeyLab mk3 MIDI.py carries a stale internal docstring 'Surface: KeyLab mkII MIDI' (Arturia's own copy-paste). The agent did not conflate - it correctly read the '# name=KeyLab mk3' line - but the file itself mixes mkII/mk3 labels and is a trap for future readers.",
+    "No silent mk2->mk3 conflation found in the LED/screen findings. I verified the summary's claim that mk1 ('KeyLab'), mkII ('KeyLab mkII'), Essential mk3 and full mk3 use different controller blocks / protocol versions / template formats: the Analog Lab XML has five separate <controller> blocks and MCC has separate template folders (KeyLab 3 / KeyLab 3 88 / KeyLab Essential Mk3 / KeyLab mkII / Keylab 88). The Analog Lab button-LED block cited by Finding 8 is under the correct full 'KeyLab mk3' controller (midinames KeyLab 49/61/88 mk3 MIDI), not Essential."
+   ],
+   "must_test": [
+    "Exact pad note numbers + MIDI channel actually emitted by the physical 88 in DAW mode. FPC_MAP keys imply notes 36+ and status 153/137 implies ch10, but Finding 9's '0-11' is wrong - confirm on hardware before building any FPC pad map.",
+    "Whether pad banks C & D (LedId 58-81) and the DAW bank (82-93) physically light via eSetLed - the shipped FL script only exercises banks A & B, so C/D/DAW live-addressability is mechanism-plausible but untested.",
+    "The 4th LED byte's real meaning and the number of blink/animation modes on the FULL mk3 - only the Essential mk3 XML documents blink; the full-mk3 FL script always sends 0x00.",
+    "Whether a second/companion app can hold and drive the hardware's LED+screen SysEx (DAW) port while FL simultaneously owns it - the central risk for the proposed loopMIDI companion-app architecture. Port exclusivity is unknown.",
+    "Whether LEDs/screen respond ONLY after the connect/soft-connect handshake (F7 states this as fact; the script sends the handshake but dependency on it is an assumption).",
+    "Real rendered character width per screen line on the physical OLED (code truncates at 32 incl trailing '...').",
+    "Confirm the physical 88-key unit's SysEx id is 00 20 6B 02 00 0A 08 (device_KL3.py line 2 lists 02/04/08 for 49/61/88)."
+   ]
+  },
+  {
+   "front": "W3 — Prior community reverse-engineering & controller scripts for KeyLab 61/88 mk3",
+   "verified": [
+    {
+     "claim": "saxofonbrian/keylab-mk3-sysex is the genuine, only, hardware-measured mk3 61/88 RE reference (~900 lines, MIT).",
+     "bucket": "confirmed-live",
+     "evidence": "Downloaded raw keylab-mk3-sysex.md = exactly 900 lines; header lines 1-24 verbatim match ('Reverse-engineered notes for the KeyLab 61/88 mk3... not official... Mapped 27-28 August 2026, extended 4-5 September, reviewed... 6 September... Sources: Arturia's own config.lua... a MIDI log... direct measurement on hardware, and two Max for Live JavaScript devices'). Repo + MIT license confirmed via WebFetch of github.com/saxofonbrian/keylab-mk3-sysex.",
+     "note": "Meta/documentation claim (not itself a live-control capability); bucketed confirmed-live only to mark it verified-accurate. NOTE: doc now says 'extended... reviewed 6 Sep, list fields + popup-pauses added 11 October 2026' — the finding's '~900-line, mapped 27-28 Aug extended 4-5 Sep' is right but omits the 11 Oct additions. mk3-confirmed."
+    },
+    {
+     "claim": "The SCREEN/LCD is host-settable LIVE in real time over SysEx (good for VFX text/readouts).",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md line 334: 'Arturia's own script sends ~44 readouts a second without trouble'; line 426 '[measured] A title sent alone... resets the list'; envelope F0 00 20 6B 7F 42 confirmed (line ~16 / repo overview). Content is streamed, not stored.",
+     "note": "CONFIRMED live. Caveat the finding under-weighted: lines 322-353 [measured 11 Oct 2026] a changing 0x1D readout drawn OVER a list makes the keyboard pause its own MIDI ~60ms/100ms; mitigated by title 0x14 or icon field 01 on items. Does not block VFX text but affects timing. mk3-confirmed."
+    },
+    {
+     "claim": "Connect is a per-mode handshake (00 02 05 01 DAW / 00 01 05 01 Arturia), not a mode switch; must match the mode the unit is already in.",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md lines 54-59 verbatim: the four connect/disconnect packets, '[measured] Connect only works when the unit is already in the corresponding mode. It is a handshake, not a mode switch.' line 61-63 [code] sending DAW connect on every init is cheap. config.lua token 'CONNEXION_DAW' cited line 54.",
+     "note": "mk3-confirmed. Also relevant: lines 65-68 note there is NO SysEx that changes mode; mode switch is physical (Prog + screen button). The Essential-mk3 packet '21 11 40 02 00 <n>' does nothing on 61/88 mk3 — a related device-conflation hazard the finding didn't list."
+    },
+    {
+     "claim": "PADS can be lit live in RGB (0-127/channel) via 00 02 03 family, ids 82-93 — but ONLY in the DAW bank; in bank D the packets are ignored. Key VFX enabler and its hard limit.",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md line 495-497 '00 02 03 <id> <r> <g> <b> 00. One packet per LED, RGB 0-127... No screen effect.'; line 529 'LED id = 82 + pad number - 1, i.e. 82-93'; lines 557-558 [measured] 'These packets only work in the DAW bank. In bank D nothing happens — the bank paints its own pads from the stored User program.'; line 851 corroborates '00 02 03... in bank D — ignored entirely'. KeyLabLive README confirms optional clip-launch pads get full colour feedback.",
+     "note": "CONFIRMED live but strictly conditional on DAW bank. must_test_on_hardware. mk3-confirmed. Per-pad id evidence is uneven in source: pad1 id82 and pads9-10 id90-91 are [guess]; pads9-10 came from a session that froze and were discarded — the finding's 'a couple of pad IDs unverified' is accurate."
+    },
+    {
+     "claim": "Hard send limit: ~12 packets/burst OK, 36 FREEZES the device (power-cycle). Caps pad-animation frame rate.",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md lines 550-552 [measured] WARNING '36 LED packets sent in one burst from SysEx Librarian freezes the device, requiring a power cycle... four at a time is plenty'; line 554 [code] '12 packets at once... is fine. The limit is somewhere between 12 and 36.' Send-rules line 790-792 confirm LED packets bypass the 60ms screen queue.",
+     "note": "mk3-confirmed. Exact ceiling (12<x<36) is unmeasured → must_test for any animation throttle."
+    },
+    {
+     "claim": "The MCC/stored pad-colour path (21 03 40 config family) is PALETTE-INDEX only (not RGB) and NOT usable live — a write forces the unit into User mode.",
+     "bucket": "stored-only",
+     "evidence": "mk3.md lines 745-770: write/read/reply/commit packets verbatim; 12-byte pad record stride 0x0C, pad1 at 0x00D3/DF/EB/F7; line 763-764 [measured] 'The colour is a single palette index, not an RGB triple... Known values: 0x28 = default/white, 0x05 = yellow'; line 768-770 [measured] 'it throws the unit into User mode, so it cannot be used for dynamic colour feedback while playing.'",
+     "note": "Correctly STORED-ONLY. Finding accurate. mk3-confirmed."
+    },
+    {
+     "claim": "Screen (footer) buttons have RGB LEDs not addressable in 00 02 03 — their colour is set in the screen packet field 04, live. (Finding also asserted the 0x1D readout 'carries live RGB [measured]'.)",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md lines 102-107 [measured] 'screen buttons have RGB LEDs, but... no address in the 00 02 03 family... set purely by the colour field (field 04) of the footer packet in 00 02 04'. Footer button colour part is [measured] and holds.",
+     "note": "PARTIAL — downgrade one sub-claim. The footer-button field-04 colour is confirmed-live. BUT the finding tagged the fader/encoder READOUT (0x1D) field-04 RGB as '[measured]' live colour — mk3.md line 303-304 says [unverified] 'Whether the device actually colours the popup layout from field 04 has never been confirmed — the field is sent, the effect is unseen.' The byte sequence '04 00 6C 7A 00' is measured in Arturia's packet, but its colour EFFECT is NOT. Readout/popup colour → unverified-needs-hw, not measured. mk3-confirmed (buttons); readout colour unverified."
+    },
+    {
+     "claim": "Transport-row LEDs are live-RGB via 00 02 03, id = physical position + 3 (ids 4-15).",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md lines 499-523 table: Tap=4, Rec=5[guess], Play=6, Stop=7, Cycle=8, Back=9, Forward=10, Metro=11, Redo=12[guess], Undo=13[guess], Quantize=14[guess], Save=15[guess]. Tap/Metro confirmed by LED sweep 4 Sep 2026.",
+     "note": "mk3-confirmed and live. Finding's measured/guess split matches source exactly (7 measured, 5 guess). The five [guess] ids → must_test."
+    },
+    {
+     "claim": "Screen accepts ASCII 32-126 ONLY — accented/non-Latin chars and typographic quotes/dashes are dropped (sometimes the whole packet).",
+     "bucket": "confirmed-live",
+     "evidence": "mk3.md lines 802-804 [code] 'The screen only takes characters in the 32-126 range. Accented and non-Latin characters must be transliterated, and typographic quotes and dashes replaced, or the character — or the packet — is lost.'",
+     "note": "mk3-confirmed. Relevant if VFX overlays render preset/song titles."
+    },
+    {
+     "claim": "saxofonbrian/KeyLabLive is a ready-to-reuse MIT Ableton Live Remote Script for 61/88 mk3 needing only Live (no Max for Live) — a working reference implementation.",
+     "bucket": "confirmed-live",
+     "evidence": "WebFetch of github.com/saxofonbrian/KeyLabLive: repo exists, target 'Arturia KeyLab 61 and 88 mk3', MIT, README confirms 'Requires nothing but Live. No Max for Live licence...', live fader readouts, screen-button track arm with dynamic labels, optional clip-launch pad mode with colour feedback.",
+     "note": "Meta/reference claim, verified-accurate. mk3-confirmed. Reusable under MIT."
+    },
+    {
+     "claim": "CONFLATION TRAP: mkII docs show pads/LEDs freely live-RGB via a DIFFERENT command (02 00 16, 5-bit) than mk3 (00 02 03, 7-bit) — same vendor header; do not carry mkII pad behaviour to mk3.",
+     "bucket": "rejected",
+     "evidence": "Gig Performer PDF (pdftotext of community.gigperformer.com/uploads/short-url/9KTVuv6iAtD8PtBD9hXtrzubhUQ.pdf) line 1 'Arturia KeyLab MkII SysEx'; line 3 'From the Arturia Forum for Keylab MkI... The forum threads list MkI SysEx, therefore some reverse engineering for MkII'; line 4 'Monochrome LEDs F0 00 20 6B 7F 42 02 00 10 <LEDID> <BRIGHTNESS> F7 BRIGHTNESS 00..7f 128 steps; Colour LEDs F0 00 20 6B 7F 42 02 00 16 <LEDID> <R> <G> <B> F7 R,G,B 00...1F 32 steps.' Contrast mk3.md line 495-497.",
+     "note": "Bucket 'rejected' = this is a mk2-only fact, NOT applicable to mk3 (per task rubric). The FINDING itself is CORRECT and valuable — it is flagging the trap, not committing it. mk3 uses 00 02 03 7-bit, bank-gated; 02 00 16 must never be sent to mk3. Also note the mkII PDF is itself hedged RE derived from MkI threads — doubly unreliable for mk3."
+    },
+    {
+     "claim": "Everything else on GitHub tagged 'KeyLab' is a different device (mk1 / mkII / Essential mk3); DrivenByMoss supports no KeyLab at all.",
+     "bucket": "confirmed-live",
+     "evidence": "WebSearch: DrivenByMoss supported-controller list / mossgrabers.de — no KeyLab mk3 dedicated support (only Arturia Beatstep); mk3 works via class-compliant MIDI only. Gig Performer PDF confirmed as mkII (above).",
+     "note": "PARTIALLY VERIFIABLE: this finding was TRUNCATED in the task input (cut at 'danryu/ArturiaAbleton = Artu...'), so the full per-repo list (danryu/maranite/savuori=mk1, MrMatch246/soyersoyer=Essential mk3) could not be individually re-opened here. The DrivenByMoss negative holds. The core conclusion — the only 61/88 mk3 RE is saxofonbrian's two repos — is consistent with all evidence gathered. Treat the itemized other-repo list as unverified in detail."
+    }
+   ],
+   "mk2_conflations": [
+    "The finding set did NOT itself conflate mkII with mk3 — it correctly isolates the mkII 02 00 16 (5-bit 00..1F RGB) command as mk2-only and warns against porting it. Verified against the Gig Performer 'Arturia KeyLab MkII SysEx' PDF, which also self-identifies as mkI-derived RE. Only the shared vendor header F0 00 20 6B 7F 42 is common; the LED grammar and colour resolution differ (mkII 02 00 16 5-bit vs mk3 00 02 03 7-bit, bank-gated).",
+    "One OVERSTATEMENT (not a mk2 conflation but an evidence inflation): finding #7 tags the 0x1D fader/encoder readout field-04 RGB as '[measured]' live colour. Source mk3.md line 303-304 says it is [unverified] — 'the field is sent, the effect is unseen.' The footer-BUTTON field-04 colour IS measured; the readout/popup colour is not. Do not assume live-coloured readouts without hardware confirmation.",
+    "Related device-conflation hazard the findings omitted: the KeyLab ESSENTIAL mk3 packet '21 11 40 02 00 <n>' (a mode-switch on Essential) does NOTHING on 61/88 mk3 (mk3.md line 66-68). Essential mk3 scripts (MrMatch246, soyersoyer) are a separate device from the 61/88 mk3 and must not be treated as interchangeable."
+   ],
+   "must_test": [
+    "Pad LED ids on Daniel's unit: confirm the id = 82 + pad-1 formula per pad, especially pad 1 (id 82, [guess]) and pads 9-10 (ids 90-91, [guess] — originally measured in a session that froze and was discarded). Light each pad its own colour and look.",
+    "The DAW-bank-only constraint for live pad RGB: verify that 00 02 03 pad packets are ignored in bank D / User mode and only paint in the DAW bank — this decides whether live pad VFX is possible at all (must keep the unit in the DAW/DrumRack bank).",
+    "Exact LED burst ceiling between 12 and 36 packets in one send (source only brackets it) — needed to set a safe pad-animation frame rate without freezing the device.",
+    "Transport-row LED ids for Rec(5), Redo(12), Undo(13), Quantize(14), Save(15) — all [guess] from the position+3 formula, never individually measured.",
+    "Whether the fader/encoder readout (0x1D) and popup field-04 colour actually render on screen — source says [unverified], 'the field is sent, the effect is unseen' — if coloured live readouts are wanted for VFX.",
+    "Full colour palette for the stored 21 03 40 path (only 0x28=white, 0x05=yellow known) — lower VFX priority since this path is stored-only and forces User mode, but needed if static per-pad colours are ever used.",
+    "Live pad colour stability while playing (whether rapid repaints interact with note output / the ~60ms list pauses) — KeyLabLive's clip mode suggests it works, but confirm on Daniel's own KeyLab 88 mk3 before building VFX on it."
+   ]
+  }
+ ]
+}

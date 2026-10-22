@@ -1,0 +1,302 @@
+{
+ "synthesis": "# Hosting VST3s from Python on Windows — honest build plan\n\n**Bottom line up front:** The vision splits cleanly into an **easy half that ships now in pure Python** (effects/EQ/reverb chains + popping plugin GUIs) and a **hard half that cannot be pure Python** (playing Kontakt live from the KeyLab at low latency). The hard half is absolutely buildable — but the realtime audio core must be native C++ (Carla's engine), with Python as the control/UI layer. Any claim of a pure-Python realtime VSTi host is a red flag: the GIL plus garbage-collection pauses cause dropouts at the small buffers live playing needs. The good news: `arsenal/keylab` is already 80% of the control layer.\n\n---\n\n## 1. THE EASY SLICE — effects chains (EQ / reverb) — SHIPPABLE NOW\n\n**Library: `spotify/pedalboard`.** This is the right tool and it's trivial on Win + Py 3.11.\n\n```\npip install pedalboard\n```\n\nOffline (process a rendered or recorded buffer):\n```python\nfrom pedalboard import Pedalboard, Reverb, HighpassFilter, LowShelfFilter, load_plugin\nfrom pedalboard.io import AudioFile\n\nboard = Pedalboard([\n    HighpassFilter(cutoff_frequency_hz=80),\n    LowShelfFilter(cutoff_frequency_hz=200, gain_db=3, q=0.7),   # built-in EQ shaping\n    load_plugin(r\"C:\\Program Files\\Common Files\\VST3\\FabFilter Pro-Q 3.vst3\"),  # or any VST3 EQ\n    Reverb(room_size=0.5, wet_level=0.3),\n])\nwith AudioFile(\"in.wav\") as f:\n    audio = f.read(f.frames); sr = f.samplerate\nout = board(audio, sr)\n```\n\nLive (mic/interface → effects → speakers, realtime-safe because the DSP runs on JUCE's C++ thread, not a Python callback):\n```python\nfrom pedalboard.io import AudioStream\nwith AudioStream(input_device_name=\"...\", output_device_name=\"...\",\n                 buffer_size=256) as stream:\n    stream.plugins = board          # hot-swappable while streaming\n    input(\"Streaming — Enter to stop...\")\n```\n\nSupported, actively maintained (latest **v0.9.26**, tested Py 3.10–3.15, amd64 Windows wheels). Sources: pedalboard README https://github.com/spotify/pedalboard and io reference https://spotify.github.io/pedalboard/reference/pedalboard.io.html (as of 2026-10-22).\n\n---\n\n## 2. THE INSTRUMENT SLICE — live Kontakt with its GUI\n\n**pedalboard CAN host Kontakt, but only OFFLINE.** Its instrument API hands the plugin a complete timestamped MIDI list and returns a fixed-duration buffer — a render-a-clip model, not a play-live model. Its realtime `AudioStream` is audio-in/audio-out **only and rejects instrument plugins** (open issue #307 is literally a user trying to host Kontakt and getting \"only Plugin type is supported\": https://github.com/spotify/pedalboard/issues/307). It also can't select ASIO on Windows (issue #384). So pedalboard is the wrong engine for live playing.\n\n**The honest live engine: Carla (falkTX / KXStudio).** A true realtime host — VST2/VST3/AU/LV2 — that opens Kontakt's native GUI, runs ASIO on Windows for low latency, and ships a documented Python control API (`carla_backend.py`: `carla_standalone_host_init`, `carla_engine_init`, `carla_add_plugin`, `carla_set_parameter_value`, …). Python loads the plugin, builds the chain, and tweaks parameters; Carla's C++ engine runs the audio thread. That is exactly the \"arsenal hosts a VST\" shape.\n\nThe realtime pattern (non-negotiable law):\n- **Audio callback = native C++** (Carla's engine). Never a Python function.\n- **MIDI input = fine in Python.** `python-rtmidi`/`mido` (or your existing `winmidi.MidiIn`) read the keybed easily — MIDI is low-rate, sparse, and never touches the sample-accurate audio path.\n- **GUI** pops via Carla; pedalboard's own `show_editor()` blocks the calling thread and can't be repositioned on Windows (issue #386), another reason not to lean on it for live.\n\nCaveats to budget for: Carla ASIO on Windows needs ASIO4All (or a native ASIO interface) and has a known rough edge — intermittent startup distortion until you nudge the buffer size (issue #2081 https://github.com/falkTX/Carla/issues/2081). Use Carla's **own shipped `carla_backend`**, NOT the pip `pycarla` wrapper (JACK/Linux-first, Windows is an unfinished TODO: https://github.com/00sapo/pycarla). Carla Host API docs: https://kx.studio/ns/dev-docs/CarlaBackend/group__CarlaHostAPI.html (as of 2026-10-22).\n\n**Skip DawDreamer** for this — it's offline-render-only (pre-loaded MIDI, `engine.render()`, blocking `open_editor()`); great for batch/ML bounces, useless for performance. **Skip RenderMan** (unmaintained VST2 ancestor).\n\n---\n\n## 3. LATENCY VERDICT\n\n**Can it feel like a real instrument? Yes — through Carla+ASIO, not through Python.**\n\n- Dedicated ASIO interface at 128–256 samples / 48 kHz ≈ **~3–12 ms** round-trip. Under ~10 ms feels immediate.\n- ASIO4All over onboard audio ≈ **~15–24 ms** — playable, a careful player notices it.\n- A DIY pure-Python loop (`python-rtmidi` → `instrument.process(reset=False)` per block → `sounddevice` out) is *technically* possible but **unsupported and glitch-prone**: pedalboard's own FAQ warns Python GC causes \"random pops, clicks, or audio drop-outs\" in live audio (https://spotify.github.io/pedalboard/faq.html). You'd oversize buffers to survive GC, pushing real latency well above the theoretical block size. Not product-grade.\n\nFor serious live use, **a native host (Carla, or a thin JUCE host) is the honest answer.** Python orchestrates; it must not sit in the callback. Never use WASAPI-shared or DirectSound for live.\n\n---\n\n## 4. THE INTEGRATION ANGLE — why this is the whole keyboard, not just-another-host\n\n`arsenal/keylab` already IS the control layer; the VST host is one new audio sink behind it:\n\n- **`winmidi.MidiIn`** already captures live notes + SysEx in a WinMM callback.\n- **`chordview.py`** already reads the keys, names the chord on the LCD, lights the pads by role/quality, and has a `--sound` flag that **forwards notes to the Windows GM synth so you hear them**. Swapping that GM-synth sink for a **Carla-engine sink** is the entire product leap: you play, you hear Kontakt, and *simultaneously* the pads show chord tones and the LCD shows the chord name.\n- **`beatsync.py`** already drives the pads from WASAPI loopback — so the same light bed can react to the sound Kontakt is producing.\n- The pad/LED bus has a hard limit baked in (`PAD_GAP`, ~12-packet ceiling, documented freeze wall) — that lives on the control path and is unaffected by the audio engine.\n\nSo the differentiator isn't \"a Python VST host\" (Carla already exists). It's **the KeyLab becoming a self-teaching instrument**: Kontakt's real sound + live chord naming + theory-lit pads + beat-reactive lights, one surface, Python-glued. That's the product no plain host ships.\n\nArchitecture: `winmidi.MidiIn` (keys) → Python chord/theory + pad/LCD paint → fan the same MIDI to `carla_backend` → Carla engine (Kontakt + EQ/reverb chain, ASIO out). pedalboard stays for offline bounce/preset-audition and effect-chain design.\n\n---\n\n## 5. FIRST PROBE — the single cheapest test\n\n**Don't write code first. Install Carla standalone, load Kontakt, set the driver to ASIO (ASIO4All if no interface), and play the KeyLab live — judge latency by feel and note the buffer size Carla reports.** One download, zero code, and it answers the make-or-break question directly: *does Kontakt-from-the-keybed feel immediate on this machine?*\n\n- If **yes** → the live path is viable; next step is `carla_backend` from Python to load the plugin and fan `winmidi` MIDI into the engine, wiring it behind `chordview`.\n- If **no / too laggy** → the honest call is to treat live playing as \"use a real host/DAW\" and keep the Python product scoped to the effects rack + offline render + the chord/pad/light intelligence.\n\nA secondary 5-minute Python confirmation (`pip install pedalboard`, `load_plugin` the Kontakt .vst3, call `show_editor()`) proves the plugin loads and its GUI pops on this box — useful, but it does **not** test the live-latency question, so do the Carla probe first.\n\n---\n\n*Note for the record:* this is reusable fleet knowledge (pedalboard = offline+effects; Carla = the live engine; never Python in the audio callback). Worth a `learn:` entry if you want it persisted — I didn't write to shared memory from this workflow run to avoid a duplicate; say the word and it goes in.\n\nGrounding files: `E:\\AI-Setup\\arsenal\\keylab\\chordview.py`, `E:\\AI-Setup\\arsenal\\keylab\\winmidi.py`, `E:\\AI-Setup\\arsenal\\keylab\\beatsync.py`, `E:\\AI-Setup\\arsenal\\keylab\\__main__.py`.",
+ "found": [
+  {
+   "front": "spotify/pedalboard is the right tool for HOSTING VST3s from Python on Windows 3.11 - it loads both instruments (Kontakt) and effects (EQ/reverb), renders MIDI to audio, and pops the plugin's native GUI with show_editor(). BUT it is fundamentally an OFFLINE/batch render engine. Its instrument API renders a fixed list of MIDI messages into a fixed-duration buffer; it has NO live-MIDI input path. Its live-audio class (AudioStream) streams a mic/interface THROUGH effects in realtime but cannot be fed MIDI to drive an instrument. So \"play Kontakt live from a MIDI keyboard with low latency\" is not a supported pedalboard feature. It is achievable as a DIY loop (python-rtmidi -> instrument.process(..., reset=False) per block -> sounddevice out), but that fights Python's garbage collector (documented to cause pops/clicks/dropouts) and is unsupported. For a shippable live-instrument product, a thin JUCE/native host (or an existing host like Carla/Element driven from Python) is the honest route; pedalboard is excellent for the offline-render and effects-chain half of the vision.",
+   "summary": "Verified against pedalboard's own docs, GitHub releases/issues, and community reports, current as of 2026-10-22 (latest release v0.9.26). pedalboard DOES load VST3 instruments AND effects on Windows + Python 3.11 (pip install pedalboard, tested 3.10-3.15, amd64 wheels), renders MIDI->audio, and opens the plugin GUI via show_editor(). The hard limit is REALTIME LIVE PLAYING: (1) the instrument/MIDI API is offline - you hand it a complete, timestamped MIDI list and it returns a fixed-duration buffer; (2) the realtime AudioStream class is audio-in/audio-out only and accepts no MIDI, so it cannot drive an instrument from a keyboard; (3) the library itself warns that Python GC causes random pops/clicks/dropouts in live use and is best for soft-realtime / large-buffer streaming. A DIY realtime instrument loop is technically possible because process() has reset=False to preserve voice/sustain state across blocks - combine with python-rtmidi (live MIDI capture) and python-sounddevice (continuous output callback) - but it is unsupported, glitch-prone under GC, and has no official latency guarantees. show_editor() works on Windows but blocks the main thread and can't be dragged/positioned natively (community workaround: PlugAndVoice patches it with pywin32). Recommendation: use pedalboard for the offline-render engine, effect/EQ/reverb chains, and GUI popping; for true low-latency live Kontakt playing, back the \"arsenal\" with a native JUCE host or an external host process rather than expecting pedalboard to do realtime instrument hosting.",
+   "findings": [
+    {
+     "claim": "pedalboard loads VST3 INSTRUMENT plugins (not just effects) and renders MIDI messages to audio.",
+     "confidence": "high",
+     "detail": "Added in v0.7.4 (announced by maintainer Peter Sobot). Both VST3Plugin and AudioUnitPlugin accept MIDI. Load via load_plugin('path.vst3'); call instrument([Message('note_on',note=60), Message('note_off',note=60,time=5)], duration=5, sample_rate=sr). Works for Kontakt-class instruments that ship as VST3 on Windows.",
+     "source_url": "https://x.com/psobot/status/1669455929161445381",
+     "as_of": "2023-06-15",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "The instrument/MIDI render is OFFLINE and buffer-bound: you pass a complete timestamped MIDI list and get back exactly `duration` seconds of audio - there is no continuous live-MIDI streaming in this API.",
+     "confidence": "high",
+     "detail": "Docs: 'The returned array will contain duration seconds worth of audio... Each MIDI message will be sent to the plugin at its timestamp, where a timestamp of 0 indicates the start of the buffer, and a timestamp equal to duration indicates the end.' This is fundamentally a render-a-clip model, not a play-live model.",
+     "source_url": "https://spotify.github.io/pedalboard/reference/pedalboard.html",
+     "as_of": "2026-10-22",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "show_editor() opens the plugin's native GUI (e.g. Kontakt) and works on Windows, but it BLOCKS the calling (main) thread until the window closes and has no native window management.",
+     "confidence": "high",
+     "detail": "Introduced v0.5.0 (March 2022). Issue #386 documents Windows limitations: must run on the main thread; code after show_editor() doesn't execute until the window is closed; editor windows can't be dragged/minimized/repositioned and multiple editors stack in the top-left corner. Community workaround 'PlugAndVoice' (TheBlackTemple, comment Jul 18 2026) patches multi-instance + draggable windows using pywin32. Practical consequence: you cannot easily run the GUI AND stream audio from the same Python thread without workarounds.",
+     "source_url": "https://github.com/spotify/pedalboard/issues/386",
+     "as_of": "2026-07-18",
+     "realtime_capable": "unknown",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "pedalboard's realtime AudioStream class streams live audio THROUGH effects (mic/interface in -> effects -> out) on Windows, but it accepts NO MIDI and therefore cannot drive an instrument from a keyboard.",
+     "confidence": "high",
+     "detail": "Docs: AudioStream 'allows interacting with live streams of audio from an input audio device... and/or to an output device.' buffer_size controls frames between hardware and Python. Introduced v0.7.0 for macOS & Windows (Linux added v0.9.14). The io reference describes only audio in/out via stream.plugins (effects); there is no MIDI input. So the live path and the instrument path do not connect inside pedalboard.",
+     "source_url": "https://spotify.github.io/pedalboard/reference/pedalboard.io.html",
+     "as_of": "2026-10-22",
+     "realtime_capable": "partial",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "pedalboard itself warns that Python garbage collection causes random pops/clicks/dropouts in live audio; it is positioned for soft-realtime / large-buffer streaming, not strict live performance.",
+     "confidence": "high",
+     "detail": "FAQ: Python 'randomly pauses on a regular interval to clean up unused objects... for live audio this can result in random pops, clicks, or audio drop-outs that are very difficult to prevent.' It explicitly says large multi-second buffers or soft-realtime (network streaming, chunk-by-chunk offline) are fine. HN commenter camtarn (Jul 22 2025): the docs say nothing about latency, 'a make-or-break quality for most realtime audio'; it 'feels like a batch processing library which has had realtime support bolted on.'",
+     "source_url": "https://spotify.github.io/pedalboard/faq.html",
+     "as_of": "2025-07-22",
+     "realtime_capable": "partial",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "A DIY realtime live-instrument loop is technically possible because process() has reset=False to preserve voice/sustain state across successive blocks - but it is unsupported, has no official latency guarantee, and is glitch-prone under GC.",
+     "confidence": "medium",
+     "detail": "API: 'If calling process multiple times while processing the same... MIDI stream, set reset to False' (default resets internal state each call). Standard DIY pattern: capture live MIDI with python-rtmidi/mido, run a python-sounddevice OutputStream callback, and each callback call instrument.process(empty_block, midi_messages=events_this_block, reset=False) and emit the audio. Latency ~= block size (e.g. 256-512 frames ~ 6-12ms at 44.1kHz) but Python-in-the-callback + GC jitter means you must oversize buffers to avoid dropouts, so realistic safe latency is higher and glitch risk is real. No official example or support exists for this; the docs show no state-preserving streaming-instrument example.",
+     "source_url": "https://spotify.github.io/pedalboard/reference/pedalboard.html",
+     "as_of": "2026-10-22",
+     "realtime_capable": "partial",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Effect chains (EQ, reverb) are fully supported and are pedalboard's core strength, both offline and in live AudioStream.",
+     "confidence": "high",
+     "detail": "Built-in effects include Reverb and filters (and a BrickwallLimiter added in v0.9.25); you can also load third-party EQ as a VST3. Effects chain as a Pedalboard([...]) and can be used offline on rendered instrument audio or appended to AudioStream.plugins for live processing of an audio input. Note: effect plugins still cannot be passed MIDI (instrument-only feature).",
+     "source_url": "https://spotify.github.io/pedalboard/examples.html",
+     "as_of": "2026-10-22",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Installation on Windows + Python 3.11 is trivial and fully supported.",
+     "confidence": "high",
+     "detail": "README: 'pedalboard is thoroughly tested with Python 3.10, 3.11, 3.12, 3.13, 3.14, and 3.15'; prebuilt platform wheels for amd64 (x86-64 Intel/AMD) on Windows. Install with `pip install pedalboard`. VST3 format is supported on Windows/macOS/Linux (Audio Units are macOS-only).",
+     "source_url": "https://github.com/spotify/pedalboard",
+     "as_of": "2026-10-22",
+     "realtime_capable": "unknown",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Current release is v0.9.26; the library is actively maintained as of October 2026.",
+     "confidence": "medium",
+     "detail": "Latest tag v0.9.26 (release note: Linux x86_64 wheels target AVX baseline to avoid illegal-instruction crashes); v0.9.25 added Python 3.15 support + BrickwallLimiter; v0.9.24 added num_threads to AudioFile.encode. Version confirmed high; exact release dates shown ambiguously (the fetch rendered a day/month without a reliable year), so treat the specific dates as approximate.",
+     "source_url": "https://github.com/spotify/pedalboard/releases",
+     "as_of": "2026-10-22",
+     "realtime_capable": "unknown",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "For a shippable low-latency live-instrument product, pedalboard alone is the wrong engine - back the live path with a native host; use pedalboard for offline render, effects, and GUI.",
+     "confidence": "medium",
+     "detail": "Honest architecture split for the 'piano arsenal hosts VSTs' idea: (a) OFFLINE render / bounce / effect+EQ chains / preset auditioning / GUI tweaking via show_editor -> pedalboard is ideal; (b) LIVE play-Kontakt-from-keyboard with reliable low latency -> use a native/JUCE-based host (write a tiny JUCE AudioProcessorGraph host, or drive an existing host such as Carla or Element as a subprocess), because it runs the audio callback in C++ with no Python GC in the realtime path. Python can still orchestrate, load presets, and manage the UI around it. This matches the documented reality rather than over-promising realtime from a batch library.",
+     "source_url": "https://news.ycombinator.com/item?id=44645046",
+     "as_of": "2026-10-22",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    }
+   ]
+  },
+  {
+   "front": "THE HONEST FRONT: which Python-adjacent VST host actually does LIVE low-latency instrument playing on Windows.\n\nThe non-negotiable law first: Python cannot sit inside the realtime audio callback. The GIL plus non-deterministic garbage-collection pauses cause buffer underruns (xruns/dropouts) at the small buffer sizes live playing needs. Every \"Python VST host\" that works for realtime delegates the audio thread to native C/C++ and uses Python only as an orchestration/control layer. pycarla's own README states this outright: \"Python has no strong real-time capabilities ... this method delegates most of the realtime stuffs to external C/C++ programs.\" So \"piano arsenal hosts a VST live\" is absolutely buildable — but the realtime core must be native (Carla's engine or a JUCE host), with Python driving it. Treat any claim of a pure-Python realtime VSTi host as a red flag.\n\nHEAD-TO-HEAD:\n\n1. DawDreamer (DBraun, JUCE-based, docs v0.9.1) — OFFLINE RENDER ONLY. It builds a render graph and calls engine.render() to bounce audio. MIDI is pre-loaded (load_midi() from a file, or add_midi_note() programmatically) — there is no live MIDI-keyboard callback. open_editor() does exist and opens the plugin's real GUI, but the docs say it \"is blocking - it will pause Python execution until you close the editor window,\" i.e. it's for tweaking/saving a preset, not for performing. Verdict for your goal (a): NO. Great for batch synthesis / ML datasets / offline stem bouncing. Windows + Py 3.11 fine (wheels cover 3.11-3.14).\n\n2. Spotify pedalboard — PARTIAL, and only for the effects half. Its AudioStream class does real live audio in->plugins->out on Windows (introduced v0.7.0 for macOS/Windows), with a buffer_size knob for latency. BUT AudioStream is audio-effects-only: it has no MIDI input and does not drive instrument plugins. Feeding MIDI to an instrument in pedalboard is an OFFLINE numpy render (pass mido messages, get a buffer back). So: your goal (b) realtime EQ/reverb chain on a live audio input = YES; your goal (a) live Kontakt from a keyboard = NO. show_editor() exists but is a blocking offline GUI, same caveat as DawDreamer. Actively maintained, pip wheels, Windows + Py 3.11.\n\n3. Carla (falkTX / KXStudio) — THE realtime answer on Windows. Full realtime plugin host: VST2, VST3, LV2, AU, SF2/SFZ; it opens plugins' native custom GUIs; Rack and Patchbay routing for building effect chains; and critically it ships a C API with a documented Python module (carla_backend.py: carla_standalone_host_init, carla_engine_init, carla_add_plugin, carla_set_parameter_value...) so you can load Kontakt, insert an EQ/reverb, and tweak parameters from Python while a native engine runs the audio. On Windows it drives ASIO for low latency — \"The published macOS and Windows Carla builds support ASIO devices... the application requires ASIO4All installed\" (or a native ASIO device). It can run headless/embedded. This is what a \"piano arsenal that hosts VSTs\" should be built on. Caveats: ASIO can be finicky (open issue #2081: intermittent startup distortion until you nudge the buffer size); and you want Carla's OWN shipped carla_backend, not the pip \"pycarla\" wrapper.\n\n4. pycarla (pip, LIMUNIMI/00sapo) — realtime + offline, but JACK-centric and Linux-first. Windows/Mac install is an explicit TODO and the maintainer \"refuses to support non-free software.\" Not your Windows path; go to Carla's native carla_backend directly instead.\n\n5. RenderMan (fedden) — the ancestor of DawDreamer. C++/JUCE VSTi host with Python bindings for offline feature extraction (MFCC/FFT/RMS) for ML. VST2-era, offline, effectively unmaintained and superseded by DawDreamer. Not realtime. Skip.\n\n6. JUCE build-your-own (AudioPluginHost is JUCE's reference host) / RenderMan-style custom — the fully-owned product path. Realtime audio is native C++; expose a control API to Python via pybind11 or OSC/IPC. Most work, cleanest product, no third-party licensing drama.",
+   "summary": "Brutally honest 2026 verdict for hosting VST3s from Python on Windows (Py 3.11) to (a) play Kontakt live from a MIDI keyboard with its GUI and low latency, and (b) run realtime EQ/reverb chains:\n\nThere is no pure-Python realtime VST host, and there shouldn't be — the GIL and GC pauses make Python unsafe inside the audio callback. The working pattern is native-engine + Python-control.\n\n- For LIVE instrument playing (goal a): the realistic choice is CARLA (falkTX). It is a true realtime host with ASIO on Windows, hosts VST3, opens Kontakt's real GUI, and exposes a Python control API (carla_backend.py: init engine, add_plugin, set_parameter_value). Python orchestrates; Carla's native engine runs the audio. Use Carla's own shipped carla_backend, not the pip \"pycarla\" wrapper (JACK/Linux-only, Windows is an unsupported TODO).\n- For realtime EFFECT chains (goal b): Carla does this, and so does Spotify pedalboard's AudioStream (live audio-in -> effects -> out on Windows, with a buffer_size latency knob) — but pedalboard AudioStream is effects-only, no MIDI, so it cannot play a live instrument.\n- DawDreamer is OFFLINE RENDER ONLY (pre-loaded MIDI, engine.render(); its open_editor() is a blocking preset-tweak GUI, not live). Excellent for batch/ML/offline bounces, useless for live performance.\n- RenderMan is the old VST2 offline ancestor of DawDreamer; unmaintained; skip.\n\nRecommended build for the \"piano arsenal that hosts a VST\" product: fastest path = drive/embed Carla's engine (carla_backend + ASIO) as the realtime core, Python for UI/routing/presets; most-owned path = a small JUCE host (model it on JUCE's AudioPluginHost) with a pybind11/OSC control bridge. Target ASIO at 128-256 samples/48kHz (~3-6 ms) for playable latency; never WASAPI-shared/DirectSound for live, and never Python in the callback. Latency and GUI are solved by the native layer, not by Python.",
+   "findings": [
+    {
+     "claim": "No pure-Python realtime VST host exists or should; viable hosts delegate the audio thread to native C/C++ and use Python only for control (GIL + GC pauses cause xruns at live buffer sizes).",
+     "detail": "pycarla README (the Carla-based Python host) states it directly: 'Python has no strong real-time capabilities since it cannot run with parallel threads. This method delegates most of the realtime stuffs to external C/C++ programs.' This is the architectural constraint behind every option below.",
+     "confidence": "high",
+     "source_url": "https://github.com/00sapo/pycarla",
+     "as_of": "2026-10-22 (accessed)",
+     "realtime_capable": "partial",
+     "win_py311_ok": "unknown"
+    },
+    {
+     "claim": "DawDreamer is offline-render only — it cannot play a live instrument from a MIDI keyboard.",
+     "detail": "It builds a processor graph and calls engine.render() to bounce audio. MIDI is pre-loaded via load_midi() (from a file) or add_midi_note() (programmatic); there is no live MIDI callback. Ideal for batch/ML/offline stem rendering, not performance.",
+     "confidence": "high",
+     "source_url": "https://github.com/DBraun/DawDreamer",
+     "as_of": "2026-10-22 (accessed), docs v0.9.1",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "DawDreamer's open_editor() opens the real plugin GUI but BLOCKS Python — it is for preset tweaking, not live play.",
+     "detail": "Docs: 'open_editor() is blocking - it will pause Python execution until you close the editor window.' So you can see Kontakt's UI to set a patch, but you cannot perform while code runs.",
+     "confidence": "high",
+     "source_url": "https://dirt.design/DawDreamer/user_guide/plugin_processor.html",
+     "as_of": "2026-10-22 (accessed), docs v0.9.1",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Spotify pedalboard can do realtime LIVE EFFECTS on Windows via AudioStream, with a latency (buffer_size) control — but effects only, no MIDI/instrument.",
+     "detail": "AudioStream streams live audio input through an effects pedalboard in realtime ('Introduced in v0.7.0 for macOS and Windows'; buffer_size 'controls the size (in frames) of the buffer between the audio hardware and Python'). AudioStream has no MIDI input and does not host instruments. Good for goal (b) realtime EQ/reverb on a live input; not for goal (a).",
+     "confidence": "high",
+     "source_url": "https://spotify.github.io/pedalboard/reference/pedalboard.io.html",
+     "as_of": "2026-10-22 (accessed)",
+     "realtime_capable": "partial",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "In pedalboard, driving an INSTRUMENT with MIDI is an offline numpy render, not live.",
+     "detail": "Pedalboard supports VST3 instruments by passing a list of MIDI messages (mido) and returning a rendered numpy buffer — a batch operation. It cannot take a live MIDI keyboard stream into an instrument in realtime.",
+     "confidence": "high",
+     "source_url": "https://github.com/spotify/pedalboard",
+     "as_of": "2026-10-22 (accessed), (c)2021-2026",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Carla (falkTX/KXStudio) is a true REALTIME plugin host that hosts VST3, opens plugins' native custom GUIs, and runs on Windows with ASIO for low latency — the practical choice for live Kontakt.",
+     "detail": "Carla supports VST2/VST3/LV2/AU/SF2/SFZ, shows custom plugin UIs, and offers Rack/Patchbay routing for effect chains. Windows low-latency uses ASIO: 'The published macOS and Windows Carla builds support ASIO devices... the application requires ASIO4All installed and running' (or a native ASIO device).",
+     "confidence": "high",
+     "source_url": "https://kx.studio/News/?action=view&url=carla-21-rc1-is-here",
+     "as_of": "2026-10-22 (accessed); ASIO support since Carla 2.1",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Carla exposes a documented Python control API (carla_backend), so Python can load plugins, build chains, and set parameters while the native engine runs the audio.",
+     "detail": "The Carla Host API (carla_standalone_host_init, carla_engine_init, carla_add_plugin, carla_set_parameter_value, etc.) is wrapped by the shipped carla_backend.py module and is usable on Windows. Real third-party examples exist (e.g. a carla-mcp-server's carla_controller.py importing carla_backend). This is the clean 'piano-arsenal-hosts-a-VST' integration path.",
+     "confidence": "high",
+     "source_url": "https://kx.studio/ns/dev-docs/CarlaBackend/group__CarlaHostAPI.html",
+     "as_of": "2026-10-22 (accessed)",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Carla's ASIO on Windows can be finicky — budget for setup/robustness, not a known blocker.",
+     "detail": "Open issue #2081: 'Intermittent startup distortion with ASIO; buffer change restores audio, DSP load sometimes stuck at 0%.' Workable (changing buffer size recovers it) but a real-world rough edge to handle in a product.",
+     "confidence": "medium",
+     "source_url": "https://github.com/falkTX/Carla/issues/2081",
+     "as_of": "2026-10-22 (accessed)",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "The pip package 'pycarla' is JACK/Linux-first and NOT the Windows path — use Carla's own carla_backend instead.",
+     "detail": "pycarla does realtime+offline but is built on Carla+JACK; its README lists 'Installation scripts for windows and mac' as an unfinished TODO and the maintainer declines to support non-free (Windows/Mac) platforms. On Windows, drive Carla's shipped carla_backend directly.",
+     "confidence": "high",
+     "source_url": "https://github.com/00sapo/pycarla",
+     "as_of": "2026-10-22 (accessed), pycarla 0.3.3",
+     "realtime_capable": "partial",
+     "win_py311_ok": "no"
+    },
+    {
+     "claim": "RenderMan (fedden) is the offline VST2-era ancestor of DawDreamer — unmaintained and not realtime; skip it.",
+     "detail": "C++/JUCE VSTi host with Python bindings for offline audio + feature extraction (MFCC/FFT/RMS) for ML preset research. Superseded by DawDreamer (which adds VST3/effects/graphs). No realtime/live capability.",
+     "confidence": "high",
+     "source_url": "https://github.com/fedden/RenderMan",
+     "as_of": "2026-10-22 (accessed)",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "unknown"
+    },
+    {
+     "claim": "The fully-owned product path is a native JUCE host (model: JUCE AudioPluginHost) with a Python control bridge (pybind11 or OSC/IPC).",
+     "detail": "Realtime audio + ASIO + live MIDI must be C++. Expose load/param/route/transport to Python. More effort than embedding Carla, but no third-party licensing coupling and a cleaner product surface. Carla-embed is the faster first version.",
+     "confidence": "medium",
+     "source_url": "https://github.com/juce-framework/JUCE",
+     "as_of": "2026-10-22 (accessed)",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    }
+   ]
+  },
+  {
+   "front": "THE REALTIME PATH + LATENCY REALITY. To play a VST instrument live on Windows you need a C++ realtime audio thread driven by a low-latency API (ASIO, or WASAPI-exclusive) with small buffers (64-256 samples) that both pulls audio blocks and receives MIDI inside its callback. Python can own/launch that thread, but the instant the callback itself is a Python function it runs under the GIL and is exposed to garbage-collection pauses, which cause buffer underruns and audible glitches. The audio-DSP community's own verdict (jackclient-python and rtmixer docs) is explicit: Python is not suitable for the realtime audio thread; the callback must be in C/C++, with Python used only for control and UI. Spotify's pedalboard already does this correctly for EFFECTS (its AudioStream runs the DSP on JUCE's own C++ audio thread, not a Python callback, so it is realtime-safe), but it refuses to host instruments in that stream and cannot select ASIO on Windows - so live Kontakt-from-a-MIDI-keyboard is NOT achievable in pedalboard today. Realistic round-trip latency with a dedicated ASIO interface is ~3-12 ms at 128-256 samples; ASIO4All on onboard audio is ~15-24 ms; pedalboard's WASAPI-shared path on Windows sits higher still. Main failure modes: buffer underruns (xruns), the GIL/GC stalling a Python callback, and blocking the audio thread on the GUI/main thread.",
+   "summary": "Your two asks split cleanly. (b) Effect chains (EQ/reverb/any VST3 effect) on a live signal with the plugin's own GUI: SHIPPABLE in pure Python today via pedalboard's AudioStream + show_editor() - it works and is realtime-safe because the DSP runs on JUCE's C++ thread, and you can hot-swap the chain while streaming. (a) Playing Kontakt / a piano VSTi live from a MIDI keyboard with its GUI at low latency: NOT doable with any current pure-Python host - pedalboard renders instruments offline only (MIDI list + fixed duration) and rejects instrument plugins in AudioStream (open issue #307, which is literally a user trying to host Kontakt), and a DIY sounddevice-callback host hits the GIL/GC wall. The honest product architecture is Python as the CONTROL + UI layer driving a C++ realtime engine: wrap Carla (full VST2/VST3/AU/LV2 host with plugin GUIs, MIDI input, and ASIO on Windows; its own frontend is Python and carla-backend bindings ship with it) or build a thin JUCE host for the live-instrument path, and keep pedalboard for the effects rack. 'Just use a real host/DAW' - Carla, or Reaper driven by Python via ReaScript - is the correct answer the moment dependable low-latency live instrument playing is the requirement. So: effects-hosting is a real near-term feature; a pure-Python live-instrument host is not - that piece needs a C++ engine underneath.",
+   "findings": [
+    {
+     "claim": "A pure-Python realtime audio thread is fragile by design: a Python audio callback runs under the GIL and can be stalled by garbage collection, causing xruns/glitches. The fix used in practice is a C callback (rtmixer); the honest guidance is to keep the realtime path in C/C++ and use Python only for control.",
+     "confidence": "high",
+     "detail": "jackclient-python docs state Python 'is not really suitable for real-time processing' and recommend C/C++ for a reliable realtime audio/MIDI app, citing the GIL and GC pauses blocking the process callback. python-rtmixer exists specifically because its callback is implemented in C (via CFFI) and never acquires the GIL, so audio interrupts are serviced without waiting on GC/GIL. This is the core reason a DIY sounddevice-callback VSTi host is not production-grade.",
+     "as_of": "2026-10-22",
+     "source_url": "https://python-rtmixer.readthedocs.io/en/0.1.1/",
+     "realtime_capable": "partial",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Realistic Windows round-trip latency: dedicated ASIO interface ~3-12 ms at 128-256 samples; ASIO4All on onboard audio ~15-24 ms. ASIO/WASAPI-exclusive + small buffers is mandatory for live playing.",
+     "confidence": "high",
+     "detail": "Published 2026 figures: 128 samples @48k ~2.7-6 ms RTT, 256 samples ~5-12 ms, plus 1-3 ms driver overhead (ASIO lowest on Windows). ASIO4All on generic onboard typically 15-24 ms. Under ~10 ms feels immediate; above ~20 ms a live player notices it. sounddevice exposes WasapiSettings(exclusive=True) and AsioSettings for this; its PortAudio callback runs at realtime priority but is still a Python function unless you use a C callback.",
+     "as_of": "2026-10-22",
+     "source_url": "https://www.soundbridge.io/asio-vs-wasapi",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "pedalboard (Spotify) DOES do realtime EFFECTS live: AudioStream streams input->effects->output with the DSP on JUCE's C++ audio thread (not a Python callback), you can hot-swap stream.plugins mid-stream, and show_editor() opens the plugin's native GUI. This is a genuine near-term feature for an EQ/reverb/effects rack.",
+     "confidence": "high",
+     "detail": "AudioStream introduced v0.7.0 (macOS/Windows). Because pedalboard is a JUCE wrapper, the realtime audio runs in JUCE's audio thread; an HN practitioner reports latency 'has not been an issue' when CPU is reasonable, though pedalboard documents no latency spec and is described as 'a batch processing library which has had realtime support bolted on'. Current version 0.9.25 (2026-09-09); tested on Python 3.10-3.15, Windows x86-64, so 3.11 is fine.",
+     "as_of": "2026-10-22",
+     "source_url": "https://pypi.org/project/pedalboard/0.9.25/",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "pedalboard CANNOT host a VST instrument (Kontakt) live: AudioStream rejects instrument plugins and instruments can only be rendered OFFLINE from a fixed MIDI list + duration. This blocks the 'play a piano/Kontakt live from the keyboard' use case.",
+     "confidence": "high",
+     "detail": "Open issue #307 (opened 2024-03-21, still open) is a user building a Python Kontakt host who gets 'only pedalboard_native.Plugin type is supported' when adding a VST3 instrument to AudioStream; per the FAQ, instruments would require modifying pedalboard even though JUCE supports them. The only supported instrument API is offline: instrument([Message('note_on',...), Message('note_off',..., time=5)], duration=5, sample_rate=...), which renders the whole passage at once - there is no incremental/streaming MIDI-to-audio.",
+     "as_of": "2026-10-22",
+     "source_url": "https://github.com/spotify/pedalboard/issues/307",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "pedalboard's AudioStream on Windows cannot select ASIO or JACK - it exposes only default Windows devices (WASAPI-class) and was reported capped at ~8 channels - so you cannot get ASIO-grade latency through pedalboard itself.",
+     "confidence": "medium",
+     "detail": "Open issue #384 (opened 2024-11-10): user cannot list/connect ASIO devices or a JACK server via AudioStream; output_device_names shows only default Windows devices with an 8-channel limit, and the suggested workaround is to route audio out through sounddevice (which does support ASIO/JACK). Implication: for low-latency live work you fall back to the DIY sounddevice path (and its Python-callback GIL risk) or to a C++ host.",
+     "as_of": "2026-10-22",
+     "source_url": "https://github.com/spotify/pedalboard/issues/384",
+     "realtime_capable": "partial",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "The honest realtime answer for live instruments is Carla: a full C++ plugin host (VST2/VST3/AU/LV2) with plugin GUIs, MIDI input, and ASIO on Windows, that is itself Python-scriptable - so you can keep a Python control/UI layer while the realtime engine is C++.",
+     "confidence": "high",
+     "detail": "Carla supports LADSPA/DSSI/LV2/VST2/VST3/AU and native drivers including low-latency ASIO and JACK (ASIO4All required on Windows for generic hardware). Its frontend is Python (PyQt) and carla-backend host-control bindings ship with it (CarlaHostAPI). Latest Carla ~0.9.16 (2025-09-14). This is the realistic engine to put under a 'piano arsenal that hosts a VST' - Python orchestrates, Carla plays Kontakt live with its GUI.",
+     "as_of": "2026-10-22",
+     "source_url": "https://kx.studio/ns/dev-docs/CarlaBackend/group__CarlaHostAPI.html",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "The pycarla Python wrapper is NOT the Windows path: it is JACK/Linux-oriented and stale (0.3.3, ~2019). Drive Carla via its bundled carla-backend bindings or run the Carla app instead.",
+     "confidence": "medium",
+     "detail": "pycarla delegates realtime to Carla's C/C++ engine and does MIDI/audio via the C JACK API - good concept, but it is built around JACK and its last release (0.3.3) is years old, while Carla itself keeps shipping. On Windows, use carla-backend (ships with Carla) or script the Carla host directly rather than relying on pycarla.",
+     "as_of": "2026-10-22",
+     "source_url": "https://pypi.org/project/pycarla/",
+     "realtime_capable": "partial",
+     "win_py311_ok": "unknown"
+    },
+    {
+     "claim": "DawDreamer is offline-only: a render-graph engine that processes VSTs/MIDI to a buffer/file with no live audio-device output and no plugin GUI. Great for batch/ML MIDI->audio, useless for live playing.",
+     "confidence": "high",
+     "detail": "DawDreamer (0.9.1 docs; from CCRMA/Stanford, ISMIR 2021) is architected for offline batch processing; its RenderEngine renders blocks (512 a good default for offline) to memory, not to a realtime device, and it does not open plugin editor GUIs. Use it for rendering piano passages from MIDI through Kontakt offline, not for the live rig.",
+     "as_of": "2026-10-22",
+     "source_url": "https://dirt.design/DawDreamer/user_guide/render_engine.html",
+     "realtime_capable": "offline-only",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "Live MIDI INPUT is not the bottleneck: python-rtmidi/mido read a MIDI keyboard fine in Python because MIDI is low-rate. The hard part is the realtime AUDIO thread, not the MIDI.",
+     "confidence": "high",
+     "detail": "A standard architecture is python-rtmidi callback -> lock-free queue -> C/C++ audio engine that consumes MIDI at block boundaries. MIDI events are sparse and small, so Python handling them is fine; the GIL/GC problem only bites the sample-accurate audio callback. This is why the split 'Python control, C++ audio' works.",
+     "as_of": "2026-10-22",
+     "source_url": "https://jackclient-python.readthedocs.io/en/0.5.1/",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    },
+    {
+     "claim": "When dependable low-latency live instrument playing is the requirement, 'just use a real host/DAW' is the correct call: Carla as an embeddable engine, or a DAW like Reaper scriptable from Python via ReaScript.",
+     "confidence": "high",
+     "detail": "A real C++ host/DAW gives you rock-solid ASIO, instrument + effect chains, GUIs, plugin state, and MIDI routing out of the box. Reaper exposes a full Python ReaScript API for automation. The product-shaped recommendation: ship the pedalboard effects rack now (it genuinely works), and for the live-instrument piece wrap Carla or build a thin JUCE host rather than attempting a pure-Python audio callback.",
+     "as_of": "2026-10-22",
+     "source_url": "https://github.com/spotify/pedalboard",
+     "realtime_capable": "yes",
+     "win_py311_ok": "yes"
+    }
+   ]
+  }
+ ]
+}

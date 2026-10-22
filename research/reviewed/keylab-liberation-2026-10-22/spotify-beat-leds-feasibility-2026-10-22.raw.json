@@ -1,0 +1,270 @@
+{
+ "synthesis": "Build plan synthesized below from the verified findings (all confirmed current as of 2026-10-22) and grounded against our existing `arsenal/keylab` toolkit.\n\n---\n\n# Beat-marching pads → chord DB: build plan for Daniel + Vandor\n\n**The one-sentence reality:** Spotify gives you *what's playing and where in the track*, but as of 2024-11-27 it gives a new app **zero** tempo/beat/key data (audio-features & audio-analysis return 403, no replacement 18 months on). So the LED march **cannot** come from Spotify — the beat must be computed locally from captured audio. Good news: every piece needed installs cleanly on Python 3.11 Windows from prebuilt wheels, and our `arsenal/keylab` SysEx toolkit already lights the pads.\n\n---\n\n## 1. NOW-PLAYING + POSITION — recommended path: Windows SMTC (no OAuth)\n\nRead the Spotify **desktop** app's metadata and playback position straight from Windows' System Media Transport Controls. No Spotify account tier, no OAuth, no token refresh.\n\n- **Package:** `winrt-Windows.Media.Control` v3.2.1 (2025-06-06), the modern pywinrt namespaced package — prebuilt cp311 win_amd64 wheels, no compiler. (https://pypi.org/pypi/winrt-Windows.Media.Control/json)\n- **Reject:** the old monolithic `winsdk` (frozen 2023, legacy) and the bare `winrt` package (abandoned 2021, Py3.7–3.9 only).\n- **API:** `MediaManager.request_async()` → enumerate `get_sessions()`, filter `session.source_app_user_model_id == 'Spotify.exe'` → `try_get_media_properties_async()` for title/artist/album, `get_playback_info().playback_status` for play/pause, `get_timeline_properties()` for `.position` / `.end_time`.\n- **Critical behavior:** `position` is a **snapshot** valid only as of `.last_updated_time` (UTC). It does **not** tick on its own. For a smooth progress animation, poll ~1–5 s and extrapolate every frame: `live_pos = position + (now_utc − last_updated_time)` while status == PLAYING; re-sync on `add_timeline_properties_changed`/`add_playback_info_changed` for seeks and pauses. Import namespace is `winrt` (`from winrt.windows.media.control import ...`).\n\n**When to fall back to the Spotify Web API instead:** only if you need the Spotify *web* player (which routes through the browser's SMTC session, not `Spotify.exe`) or metadata when the desktop app isn't the SMTC source. That path needs OAuth Authorization-Code-with-PKCE, a **Premium** app owner, and self-allowlisting (dev mode caps at 5 users in 2026); `GET /me/player/currently-playing` + `progress_ms`/`timestamp`/`duration_ms` still work (https://developer.spotify.com/documentation/web-api/references/changes/february-2026). `spotipy` 2.26.0 (2026-03-03, pure-Python, clean 3.11 install) wraps it. **Default to SMTC** — it's strictly simpler for the solo-desktop case.\n\n---\n\n## 2. BPM / BEAT — recommended path: WASAPI loopback + realtime beat tracker\n\nSince Spotify's beat grid is gone, capture the PC's audio output and run a causal beat tracker on it.\n\n- **Capture:** `PyAudioWPatch` 0.2.12.9 (2026-10-06) — low-latency WASAPI loopback, prebuilt cp311 wheels, `get_default_wasapi_loopback()`. (https://pypi.org/project/PyAudioWPatch/) Alternative block-pull API: `soundcard` 0.4.6 (2026-04-12, pure-Python + cffi). **Not** vanilla `sounddevice`/`pyaudio` — neither does loopback on Windows without a virtual cable.\n- **Beat tracker:** `aubio-ledfx` 0.4.12 (2026-10-03) — the LedFx team's maintained aubio fork, prebuilt cp311–3.15 Windows wheels, still imported as `aubio` with the `aubio.tempo` API. (https://pypi.org/project/aubio-ledfx/)\n  - **Reject** classic `pip install aubio` — abandoned at 0.4.9 (2019), source-only, no wheels, build-painful on 3.11.\n  - **Reject for realtime** madmom (last release 2017, needs old-numpy + Cython + MSVC) and BeatNet (pulls madmom). librosa/`beat_this` are offline/whole-file — use them in the chord phase, not the live loop.\n\n**One-line install:** `py -m pip install PyAudioWPatch aubio-ledfx`\n\n**Realtime loop (standard causal usage):**\n```python\ntempo = aubio.tempo('default', buf_size, hop_size, samplerate)  # samplerate = 48000!\n# each captured block (downmixed to mono):\nif tempo(samples):\n    fire_pad(); bpm = tempo.get_bpm()\n```\n\n---\n\n## 3. PIP INSTALL LIST (we already have librosa/numpy/scipy/requests)\n\n```\npy -m pip install \"winrt-Windows.Media.Control[all]\" PyAudioWPatch aubio-ledfx\n```\nOptional / later:\n- `soundcard` — alternative to PyAudioWPatch if loopback misbehaves.\n- `vamphost` — the chord-phase host (section 5); has cp311 win_amd64 wheels.\n- `spotipy` — only if you take the Web-API fallback in section 1.\n\n**No MIDI dependency needed** for the LEDs: our `arsenal/keylab` already does SysEx over WinMM via ctypes (no python-rtmidi/mido).\n\n---\n\n## 4. HONEST GOTCHAS\n\n- **Beat-synced LEDs cannot come from Spotify, full stop.** audio-features/audio-analysis died 2024-11-27, return 403 for new apps, no replacement, no waitlist (https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api). \"March to the beat\" is the *harder* half; SMTC is the easy half.\n- **Loopback captures ALL system audio** — Discord pings, notification dings, a second tab all land in the beat tracker. Expect the lock to wobble when other apps make noise.\n- **Samplerate trap:** WASAPI loopback is typically 48000 Hz / 2-ch / float32 shared-mix. You MUST downmix to mono and pass **48000** (not 44100) to `aubio.tempo`, or the BPM is wrong.\n- **Realtime lock latency:** ~30–80 ms per beat flag, **a few seconds to lock a stable BPM**, and aubio routinely reports **half/double BPM** — add octave-correction/smoothing if the pads must stay on the right subdivision. (The latency numbers are a reasoned estimate, not a hard benchmark — measure on the rig.)\n- **Silence handling:** loopback yields silent/no-data frames when nothing plays — guard the loop so it doesn't stall or lock onto noise.\n- **SMTC position is a snapshot** (section 1) — extrapolate or the progress bar jumps.\n- **Install audit noise (benign):** winrt-runtime/Media.Control show a \"files added late\" PyPI notice (3.14 wheels uploaded 2025-09-20) — maintainer adding 3.14 support, not a compromise.\n- **aubio-ledfx caveat:** clean install + standard `aubio.tempo` are confirmed; its PyPI page does **not** document the \"reduced-latency/multi-octave\" improvements some sources attribute to it — treat those as unverified.\n\n---\n\n## 5. CHORD PHASE — realistic path to a time-synced chord DB\n\n**Architecture: analyze once, replay in sync.** Do NOT run a chord model on short live buffers (inaccurate, high latency). Instead:\n\n1. **Offline per track:** capture or load the audio, run **Chordino (NNLS-Chroma)** to get `(start, end, chord)` labels. Host: `vamphost` (cp311 win_amd64 wheels, latest 1.4.0 2026-10-07 — https://pypi.org/pypi/vamphost/json). **Caveat:** pip gives you the *engine only* — you must separately drop the Chordino/NNLS-Chroma plugin DLL into `C:\\Program Files\\Vamp Plugins` (or set `VAMP_PATH`); the model is a free download from vamp-plugins.org / isophonics.net.\n2. **Store** `(track_id, time, chord)` rows in our own DB (fits the Akasha append-only substrate).\n3. **Replay:** sync stored `(time, chord)` to the live position from SMTC (section 1) — the LEDs change color on chord changes in time with the music.\n\n**Accuracy expectations:** Chordino is older-gen (~mid-70s% maj/min, weaker on 7ths/inversions) — fine for \"march the pads to the chord,\" weak for a precise sheet. Higher accuracy = modern PyTorch chord models (BTC transformer / ChordMini family; torch has clean cp311 wheels, you supply weights) — **but** ChordMini's pipeline drags in madmom's Windows build pain; budget WSL/Linux or a torch-only model that avoids madmom.\n\n**Seeding / why Ultimate Guitar won't directly feed it:**\n- **Ultimate Guitar:** no sanctioned API; only brittle ToS-violating scrapers, and its sheets are chord-over-lyric **text with no timestamps** — unusable as `(track,time,chord)` directly. Useful at most as a chord-vocabulary/validation hint.\n- **Chordify:** has time-synced chords but closed, ToS forbids automated access.\n- **AcousticBrainz:** dead (submissions ended 2022).\n- **Academic sets (Isophonics/Beatles, McGill Billboard, RWC-Pop):** time-aligned annotations but no audio and tiny fixed song lists — use to **validate** our extractor, not to populate it.\n\nBottom line: there is **no legal time-synced chord feed to pull at scale** — we generate the DB ourselves with Chordino/torch over audio we have, and use the external sources only for validation and chord-name hints.\n\n---\n\n## 6. MVP SLICE — smallest thing that makes the pads march\n\nWe already own the output layer — **`arsenal/keylab`** (SysEx over WinMM, no deps):\n- `py -m arsenal.keylab connect` arms DAW mode (gates the LEDs).\n- `pad <1..12> <colour>`, `led`, `all`, `rainbow`, `chord <spec>` light the RGB pads; `bench --hz` already measured the colour-update ceiling.\n- Wire format in `arsenal/keylab/protocol.py` (byte-builders, testable, read from Arturia's own FL integration script); I/O in `winmidi.py`.\n\n**MVP (one evening):**\n1. `py -m pip install PyAudioWPatch aubio-ledfx`\n2. `py -m arsenal.keylab connect` (close FL first so it isn't fighting for the DAW port).\n3. Small script: PyAudioWPatch loopback → downmix mono @48000 → `aubio.tempo` → **on each beat flag, advance a color/pad cursor** by calling into `arsenal.keylab.protocol` builders (reuse the `pad`/`led` SysEx path directly rather than shelling out per beat, to stay inside the LedStrip queue's rate ceiling). Colors can cycle a palette per beat, or map BPM→hue.\n4. Confirm against `bench` findings that per-beat sends stay under the visible-stall rate.\n\nThat alone gives \"pads march to the beat, changing color as it clicks through.\" **Layer 2** adds SMTC (section 1) for a position-driven progress animation. **Layer 3** adds the offline Chordino DB (section 5) so pad colors follow chord changes.\n\n**Pre-flight checks before building:** confirm the KeyLab enumerates as `KeyLab 88 mk3 DAW` (`py -m arsenal.keylab ports`); if you take the Spotify Web-API fallback, confirm Daniel's account is Premium (dead app otherwise).\n\n---\n\n**Key files referenced (all absolute):** `E:\\AI-Setup\\arsenal\\keylab\\README.md`, `E:\\AI-Setup\\arsenal\\keylab\\protocol.py`, `E:\\AI-Setup\\arsenal\\keylab\\winmidi.py`, `E:\\AI-Setup\\arsenal\\keylab\\__main__.py`, `E:\\AI-Setup\\arsenal\\midiports.py`.",
+ "verified": [
+  {
+   "front": "Spotify Web API — current (2026) state: you CAN get now-playing + track position in realtime, but you CANNOT get BPM/beat-grid/key from Spotify for any new app. Player-read endpoints (GET /me/player, GET /me/player/currently-playing) survived the Feb/March 2026 endpoint purge and still return is_playing, progress_ms, timestamp and item.duration_ms — enough to drive a realtime position animation. But the only Spotify source of tempo/beat-grid/key (GET /audio-features, GET /audio-analysis) has been deprecated since 2024-11-27, returns 403 for any app without a pre-existing quota extension, still carries a \"Deprecated\" banner in 2026, and has NO official replacement 18 months on. CONSEQUENCE for the LED-march goal: beat-synced lights cannot come from Spotify — BPM/beats must come from local audio capture (WASAPI loopback) + a realtime beat tracker (librosa/aubio/madmom/Essentia), or a fuzzy third-party per-track BPM lookup (single number, no in-time grid). VERDICT: front confirmed current as of 2026-10-22.",
+   "verified": [
+    {
+     "claim": "GET /me/player (Get Playback State) and GET /me/player/currently-playing (Get Currently Playing Track) are STILL AVAILABLE in 2026 — explicitly listed under 'Player' in the 'still available' section of the official Feb 2026 changelog; they survived the Feb/March 2026 endpoint removals (which killed ~15 catalog/profile/'Get Several' endpoints).",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/documentation/web-api/references/changes/february-2026"
+    },
+    {
+     "claim": "currently-playing needs scope user-read-currently-playing; full playback state (/me/player) needs user-read-playback-state. Response gives is_playing, progress_ms, timestamp and item.duration_ms — enough to interpolate realtime track position — but NOT tempo/beat/key.",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/documentation/web-api/reference/get-the-users-currently-playing-track"
+    },
+    {
+     "claim": "OAuth: Authorization Code with PKCE is the officially recommended flow for desktop/native apps (no client secret stored); access tokens are short-lived (~1h) and refreshed via the refresh token. A long-running LED app must handle token refresh (proactively and on 401).",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/documentation/web-api/concepts/authorization"
+    },
+    {
+     "claim": "DEPRECATED/BROKEN for new apps: GET /audio-features and GET /audio-analysis (the ONLY Spotify source of tempo/BPM, beat grid and key) were deprecated 2024-11-27 and return HTTP 403 for any app created — or without a pending quota extension — after that date. The endpoint docs still show a 'Deprecated' banner in 2026. Same-day casualties: recommendations, related-artists, featured-playlists.",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/documentation/web-api/reference/get-audio-features"
+    },
+    {
+     "claim": "As of mid-2026 there is STILL NO official Spotify replacement for tempo/BPM/beat/key — no waitlist, no public statement. No third-party service reproduces a BEAT GRID (per-beat timestamps); alternatives (GetSongBPM, AcousticBrainz, ReccoBeats, Essentia, etc.) give at most a single BPM number with fuzzy track matching. Reproducing the old beat grid requires running a beat tracker on the audio yourself.",
+     "status": "confirmed-current",
+     "source_url": "https://freqblog.com/blog/spotify-audio-features-replacement-2026/"
+    },
+    {
+     "claim": "A brand-new dev app CAN read the owner's currently-playing, but 2026 Development Mode is tightened: max 5 allowlisted users (down from 25) AND the app OWNER must have a Spotify Premium account. Non-allowlisted users get 403. For solo/own-playback use this is fine (allowlist yourself, hold Premium).",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/documentation/web-api/concepts/quota-modes"
+    },
+    {
+     "claim": "Extended Quota Mode is NOT obtainable by an individual: since 2025-05-15 Spotify only accepts applications from organizations (registered business entity, launched service with 250k+ MAU, key-market availability, up to 6-week review). A solo hobby project will never qualify — but does not NEED extended quota for personal single-user use.",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/documentation/web-api/concepts/quota-modes"
+    },
+    {
+     "claim": "July 2026 quota update: client IDs raised to 25 per developer account, but quota is now SHARED per developer account across all dev-mode client IDs (splitting work across apps buys no extra budget); it did NOT raise the 5-user cap or grant extended quota. 429 bodies now include reason:'QUOTA_EXCEEDED'.",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/blog/2026-07-23-web-api-quota-updates"
+    },
+    {
+     "claim": "Python client: spotipy is the standard Web API wrapper, installs cleanly on Python 3.11 Windows (pure-Python, pip wheel, no compiled/native build; core deps requests/urllib3; memcache is an optional extra). Latest 2.26.0 released 2026-03-03 — after the Feb 2026 migration, so it tracks the renamed/removed endpoints. It cannot restore the dead audio-features/analysis endpoints (calling them just surfaces Spotify's 403).",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/project/spotipy/"
+    }
+   ],
+   "gotchas": [
+    "Beat-synced LEDs CANNOT come from Spotify in 2026. Spotify gives you position (progress_ms) but zero tempo/beat/key for a new app. The LED march-to-the-beat must be driven by a LOCAL realtime beat tracker, not the Web API.",
+    "progress_ms is a snapshot, not a live clock. To animate smoothly you must interpolate: position_now = progress_ms + (wall_clock_now - timestamp) while is_playing, and only re-poll /me/player every ~1-5s (polling tighter risks the 429 QUOTA_EXCEEDED). There is no push/websocket for playback position — you poll.",
+    "The app OWNER must have Spotify Premium for a dev-mode app to function at all, and you must add yourself to the 5-user allowlist. Free-tier owner = dead app. Confirm Daniel's account is Premium before building.",
+    "Access tokens expire ~1h. A long-running LED daemon MUST refresh proactively (and retry once on 401) or it goes dark mid-session. spotipy's SpotifyPKCE auth manager handles this if you persist the token cache.",
+    "For the realtime BPM/beat grid: capture system audio via WASAPI loopback (soundcard or pyaudiowpatch on Windows — NOT vanilla pyaudio, which lacks loopback). Then run a realtime beat tracker. librosa installs cleanly (numpy/scipy/soundfile wheels) but is batch-oriented, not truly realtime; aubio is lighter and streaming-friendly but its PyPI wheels have been flaky on Py3.11/Windows (may need a build or a prebuilt wheel) — VERIFY aubio installs before committing to it. madmom/Essentia are heavier builds on Windows — budget for build pain.",
+    "The ultimatechords/own-chord-DB endgame depends ENTIRELY on local audio analysis (chroma + chord recognition on the captured waveform), because Spotify will never hand you key/chord data. Architect the pipeline around local DSP from day one; treat Spotify purely as the 'what track + where in it' metadata source.",
+    "Third-party BPM lookups (GetSongBPM, ReccoBeats, AcousticBrainz) return ONE BPM number per track via fuzzy title/artist matching — no per-beat timestamps and no in-time grid, so they cannot drive a marching animation even as a fallback. Useful only as a tempo hint.",
+    "spotipy full-compatibility caveat is now resolved: 2.26.0 shipped 2026-03-03, right after the Feb 2026 migration, so it reflects the endpoint renames. If anything behaves oddly, confirm the installed version is >= 2.26.0 (older pinned versions predate the migration)."
+   ]
+  },
+  {
+   "front": "win-nowplaying — VERIFIED, holds up as of 2026-10-22. Reading \"now playing + position\" for the Spotify desktop app on Windows/Python 3.11 via SMTC (Windows.Media.Control) is the right, OAuth-free front, and every package and behavior claim in it checks out against current (2025/2026) sources. Install `winrt-Windows.Media.Control[all]` (v3.2.1, 2025-06-06) — the modern pywinrt namespaced package, prebuilt cp311 win_amd64 wheels, no compiler; it hard-depends on winrt-runtime~=3.2.1.0 and the [all] extra pulls winrt-Windows.Foundation/Foundation.Collections/Media/Storage.Streams (all ~=3.2.1). The old monolithic `winsdk` (1.0.0b10, 2023-08) still imports on 3.11 but is frozen/legacy; the bare `winrt` package (1.0.21033.1, 2021-02) is abandoned — reject it. SMTC delivers title/artist/album, play/pause status, and a timeline position that is a SNAPSHOT valid only as of last_updated_time — it must be polled and extrapolated for smooth per-frame LED motion. The hard ceiling to flag up front: SMTC never exposes BPM/tempo/beats/chords, and Spotify's audio-features/audio-analysis API (the classic BPM + beat-grid source) was cut off for new apps on 2024-11-27 with no replacement, so realtime tempo and the eventual chord-DB are an entirely separate workstream (local WASAPI loopback + librosa/aubio/madmom, or a third-party service).",
+   "verified": [
+    {
+     "claim": "The current package for SMTC is the pywinrt namespaced winrt-Windows.Media.Control; latest v3.2.1 (2025-06-06), requires_python >=3.9, ships a prebuilt cp311 win_amd64 wheel, and hard-depends on winrt-runtime~=3.2.1.0. The [all] extra pulls winrt-Windows.Foundation, Foundation.Collections, Media, and Storage.Streams (all ~=3.2.1). Install with pip install \"winrt-Windows.Media.Control[all]\"; no compiler needed.",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/pypi/winrt-Windows.Media.Control/json"
+    },
+    {
+     "claim": "winrt-runtime is a compiled extension but ships a prebuilt cp311 win_amd64 wheel (v3.2.1, 2025-06-06, ~242 kB) — no local C++ build required on Python 3.11 Windows.",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/project/winrt-runtime/"
+    },
+    {
+     "claim": "The old monolithic winsdk package is frozen at 1.0.0b10 (2023-08-11, pre-release) — it still imports on Python 3.8-3.12 (from winsdk.windows.media.control import ...) but is legacy/superseded by the namespaced packages; usable only as a fallback, not the thing to build on.",
+     "status": "stale-or-deprecated",
+     "source_url": "https://pypi.org/project/winsdk/"
+    },
+    {
+     "claim": "The bare 'winrt' PyPI package is Microsoft's abandoned original — last release 1.0.21033.1 on 2021-02-03, labeled Beta, targets only Python 3.7-3.9, never updated for modern projection. Do NOT use.",
+     "status": "rejected",
+     "source_url": "https://pypi.org/project/winrt/"
+    },
+    {
+     "claim": "SMTC reads title/artist/album and play/pause status with no OAuth: MediaManager.request_async() then try_get_media_properties_async() -> .title/.artist/.album_title and get_playback_info().playback_status; pywinrt projects WinRT PascalCase to snake_case.",
+     "status": "confirmed-current",
+     "source_url": "https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessionmanager"
+    },
+    {
+     "claim": "Timeline position is a SNAPSHOT, not a live clock: get_timeline_properties().position (timedelta) is valid only as of .last_updated_time (UTC); .end_time gives length. For smooth per-beat LED motion you must poll (~30-60 Hz) and extrapolate live_pos = position + (now_utc - last_updated_time) while playing; a last_updated_time stuck at the 1601 sentinel means the app publishes no position.",
+     "status": "confirmed-current",
+     "source_url": "https://learn.microsoft.com/en-us/uwp/api/windows.media.control.globalsystemmediatransportcontrolssessiontimelineproperties.lastupdatedtime"
+    },
+    {
+     "claim": "The Spotify DESKTOP app integrates with SMTC and reports metadata, play/pause status, and timeline position/duration; filter multiple players by session.source_app_user_model_id ('Spotify.exe'); the Spotify WEB player instead routes through the browser's SMTC session. (Desktop integration confirmed; the specific '~4.5 s republish interval' detail comes from a single third-party GitHub source and is not independently verifiable.)",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/Widdit/now-playing-service/pull/71"
+    },
+    {
+     "claim": "SMTC exposes no BPM/tempo/beats/chords, and Spotify's audio-features/audio-analysis API (the classic BPM + beat-grid source) was cut off for apps created after 2024-11-27 (403, no waitlist, no public path forward). Realtime tempo for this project must come from local audio analysis (WASAPI loopback -> librosa/aubio/madmom) or a third-party service; the chord-change DB is a further, separate workstream.",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api"
+    }
+   ],
+   "gotchas": [
+    "Position does not tick on its own. get_timeline_properties().position is frozen at its last_updated_time; relying on timeline-changed events alone gives coarse, jumpy motion. Run your own ~30-60 Hz poll loop and extrapolate (pos + (now_utc - last_updated_time)) while status == PLAYING, and re-sync on add_timeline_properties_changed / add_playback_info_changed for seeks and pauses.",
+    "Top-level import namespace is winrt (not winsdk). With the namespaced packages you write 'from winrt.windows.media.control import ...'; the winsdk-era 'from winsdk.windows...' path only applies to the legacy package.",
+    "Do not call get_current_session() blindly if more than one app can play. It can return the browser, a game, or another player. Enumerate mgr.get_sessions() and filter by source_app_user_model_id == 'Spotify.exe'. Note that listening via Spotify's WEB player makes the source the browser's AUMID, not Spotify.exe, so this front only covers the desktop app.",
+    "PyPI flags a benign 'files added late' notice on both winrt-runtime and winrt-Windows.Media.Control: three CPython 3.14 wheels were uploaded 2025-09-20, over three months after the 2025-06-06 release. This is the maintainer adding 3.14 support, not a compromise, but it is the kind of warning that can spook an automated install audit.",
+    "The '~4.5 s Spotify republish interval' in the front is from one third-party GitHub project, not an official source. The direction (Spotify republishes periodically + immediately on events) is sound and is exactly why extrapolation is required, but do not treat 4.5 s as a guaranteed constant — measure it at runtime.",
+    "The whole BPM/beat/chord goal is NOT reachable through this front or through the Spotify API anymore. Spotify killed audio-features/audio-analysis for new apps on 2024-11-27 with no replacement 18+ months on. Budget realtime tempo as a genuinely separate build (WASAPI loopback capture into librosa/aubio/madmom beat tracking, or a third-party service like ReccoBeats), and the timed chord-change DB as a third layer beyond that. Set expectations: 'march to the beat' is the harder half, not the SMTC half.",
+    "winrt-runtime is a compiled C-extension; it only runs cleanly on Python 3.11 because a prebuilt cp311 wheel exists. If the environment ever drifts to a Python with no matching wheel (e.g. a brand-new minor before wheels ship), pip would attempt a source build and likely fail. The 3.11 pin in this project's Python-version strategy is exactly what keeps this clean."
+   ]
+  },
+  {
+   "front": "realtime-audio",
+   "verified": [
+    {
+     "claim": "PyAudioWPatch is the best low-latency WASAPI loopback capture lib on Python 3.11 Windows and installs cleanly from prebuilt wheels (no compiler). Latest 0.2.12.9 released 2026-10-06, wheels for CPython 3.9-3.15 incl. 3.11/3.12/3.13, WASAPI loopback via get_default_wasapi_loopback()/get_wasapi_loopback_analogue_by_index(). Note: it is MORE current than the finding stated (finding said ~0.2.12.x Jan 2025; actual latest is Oct 2026).",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/project/PyAudioWPatch/"
+    },
+    {
+     "claim": "soundcard does native WASAPI loopback on Windows and installs cleanly (pure Python + cffi, no build). Latest 0.4.6 released 2026-04-12; loopback support present since 2018. Good block-pull alternative to PyAudioWPatch.",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/project/SoundCard/"
+    },
+    {
+     "claim": "Plain python-sounddevice is NOT a loopback tool: WasapiSettings still exposes only exclusive, auto_convert, and explicit_sample_format -- no loopback flag (docs confirm, latest release 0.5.6, 2026-08-17). It installs cleanly on 3.11 but cannot capture speaker output without a fork or virtual cable.",
+     "status": "confirmed-current",
+     "source_url": "https://python-sounddevice.readthedocs.io/en/latest/api/platform-specific-settings.html"
+    },
+    {
+     "claim": "The classic `pip install aubio` is abandoned and build-painful on 3.11 Windows: last release 0.4.9 is from 2019-02-08, source-only tar.gz with no wheels. Do not use it; the algorithm is fine but the packaging is the blocker.",
+     "status": "stale-or-deprecated",
+     "source_url": "https://pypi.org/project/aubio/"
+    },
+    {
+     "claim": "aubio-ledfx is the realtime beat/tempo pick: maintained fork by the LedFx team, `pip install aubio-ledfx` with prebuilt Windows wheels for CPython 3.11-3.15, still imported as `aubio` with the aubio.tempo API. Latest 0.4.12 released 2026-10-03. (The install and maintained status are confirmed; the fork's specific 'realtime tempo improvements' are not documented on its PyPI page -- see gotchas.)",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/project/aubio-ledfx/"
+    },
+    {
+     "claim": "madmom is the most accurate classical tracker but inactive and painful on 3.11: last release 0.16.1 dates to 2017-11-14 (finding said 2018 -- actually 2017), no updates since, and it breaks on modern numpy/Python 3.10+ without old-numpy pins + Cython + a C compiler.",
+     "status": "stale-or-deprecated",
+     "source_url": "https://github.com/CPJKU/madmom/releases"
+    },
+    {
+     "claim": "BeatNet (latest 1.1.3, 2023-11-28) inherits madmom's install pain: its setup.py install_requires lists madmom>=0.16.1 (plus librosa, torch, etc.), so it cannot install cleanly on 3.11 Windows without first solving madmom.",
+     "status": "confirmed-current",
+     "source_url": "https://raw.githubusercontent.com/mjhydri/BeatNet/main/setup.py"
+    },
+    {
+     "claim": "beat_this (CPJKU, ISMIR 2024, 'Beat This! Accurate Beat Tracking Without DBN Postprocessing') installs cleanly where PyTorch wheels exist -- madmom is OPTIONAL (only for --dbn postprocessing) -- but it is offline whole-file only, no streaming/realtime API. Ideal for the eventual chord/beat-over-time DB, not live LEDs.",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/CPJKU/beat_this"
+    },
+    {
+     "claim": "librosa.beat.beat_track installs cleanly on 3.11 Windows but is offline-oriented; not suited to sub-100ms live LED sync. Use it for after-the-fact tempo/beat extraction.",
+     "status": "confirmed-current",
+     "source_url": "https://librosa.org/doc/latest/generated/librosa.beat.beat_track.html"
+    },
+    {
+     "claim": "Minimal realtime loop is correct: tempo = aubio.tempo('default', buf_size, hop_size, samplerate); each captured block -> is_beat = tempo(samples); if is_beat: fire pad and read tempo.get_bpm(). Standard causal aubio.tempo usage.",
+     "status": "confirmed-current",
+     "source_url": "https://www.maxhaesslein.de/notes/real-time-beat-prediction-with-aubio/"
+    },
+    {
+     "claim": "Honest realtime latency with aubio.tempo: ~30-80ms end-to-end beat flag, a few seconds to lock a stable BPM, occasional half/double-BPM. Plausible from the causal design and hop sizing, but this is a reasoned estimate, not a hard 2026 benchmark -- measure on the actual rig.",
+     "status": "uncertain",
+     "source_url": "https://www.maxhaesslein.de/notes/real-time-beat-prediction-with-aubio/"
+    },
+    {
+     "claim": "CRITICAL for the broader Spotify goal: Spotify deprecated audio_features (BPM) and audio_analysis (beat grid) on 2024-11-27; new/dev-mode apps without a pre-deadline quota extension get 403, and ~18 months on there is still no official replacement. You can still read what is playing + track position via the Web API, but you CANNOT get BPM/beats from Spotify -- which is exactly why the loopback+analysis route is the right approach.",
+     "status": "confirmed-current",
+     "source_url": "https://community.spotify.com/t5/Spotify-for-Developers/Web-API-Get-Track-s-Audio-Features-403-error/td-p/6654507"
+    }
+   ],
+   "gotchas": [
+    "Spotify can no longer give you BPM or a beat grid: the audio_features and audio_analysis endpoints were deprecated 2024-11-27 and new apps get 403. The Web API still returns now-playing track + playback position, so use Spotify only for 'what's playing / where in the track', and get tempo/beats from WASAPI loopback + a local analyzer.",
+    "WASAPI loopback on Windows is typically 48000 Hz, 2-channel, float32, shared-mode mix. You MUST downmix to mono and pass the real samplerate (48000, not 44100) to aubio.tempo, or BPM will be wrong.",
+    "WASAPI loopback delivers silence / 'no data' when nothing is playing. Handle it: PyAudioWPatch yields silent frames; soundcard needed its PR #167 fix (synthesize zeros after ~50ms) to avoid stalling on silence-at-start.",
+    "aubio-ledfx's PyPI page confirms it is a maintained fork with clean 3.11-3.15 wheels and the aubio.tempo API, but does NOT document the specific 'dynamic/multi-octave/reduced-latency' realtime improvements the finding attributed to it -- treat those accuracy claims as unverified; what's proven is the clean install + the standard aubio.tempo behavior.",
+    "aubio.tempo routinely reports half- or double-BPM and needs a few seconds of steady beat to lock. Expect it; add octave-correction / smoothing if the LEDs must stay on the right subdivision.",
+    "madmom (last release 2017-11-14) and therefore BeatNet (requires madmom>=0.16.1 in setup.py) will NOT pip-install cleanly on Python 3.11 Windows -- they need an old-numpy pin, Cython, and a C compiler. The highest-accuracy live trackers are the ones with the worst install story here.",
+    "Split the stack by job: live LEDs = PyAudioWPatch (or soundcard) + aubio-ledfx; the eventual chord/beat-over-time DB = beat_this or librosa run offline over recorded tracks. beat_this, librosa, and classic aubio are all offline/build-constrained and wrong for the realtime loop.",
+    "Out of scope of this audio research but worth flagging for the actual goal: lighting the Arturia KeyLab mk3 RGB pads is a separate MIDI/SysEx output problem (python-rtmidi / mido), not part of this capture+beat stack. The verified work here produces the beat flag and BPM (the input); mapping that to pad colors is a distinct output layer still to be built/verified."
+   ]
+  },
+  {
+   "front": "chords",
+   "verified": [
+    {
+     "claim": "Chordino (NNLS-Chroma) Vamp plugin via the Python vamp/vamphost package is the cleanest working Windows+Python 3.11 chord path and ships prebuilt cp311 win_amd64 wheels, giving time-synced chord labels.",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/pypi/vamphost/json"
+    },
+    {
+     "claim": "madmom does NOT install cleanly on Python 3.11: the only PyPI release (0.16.1, 2018) is broken on Python 3.10+ (collections.MutableSequence import); the git main 0.17.dev0 fixes it but is a from-source Cython/MSVC build on Windows.",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/CPJKU/madmom/issues/502"
+    },
+    {
+     "claim": "autochord explicitly does NOT support Windows; it is a 2021 ISMIR demo (tested Ubuntu 18.04 only), runs NNLS-Chroma for chroma + a TensorFlow Bi-LSTM-CRF, outputs (start,end,chord) / .lab, and is inactive.",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/cjbayron/autochord"
+    },
+    {
+     "claim": "essentia (has a ChordsDetection algorithm) has NO Windows Python bindings; its own docs say 'Python bindings are not supported yet' on Windows, so it cannot be pip-installed for native Windows Python 3.11 use (WSL2/Docker only).",
+     "status": "confirmed-current",
+     "source_url": "https://essentia.upf.edu/installing.html"
+    },
+    {
+     "claim": "chord-extractor (wraps Chordino, outputs ChordChange(chord, timestamp)) is Linux-first: its compiled Chordino binary defaults to Linux 64-bit; other OSes must install the Vamp plugin pack and set VAMP_PATH, plus libsndfile - not a clean Windows install.",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/ohollo/chord-extractor"
+    },
+    {
+     "claim": "For higher accuracy, modern PyTorch deep chord models (BTC transformer / chord-CNN, e.g. the ChordMini family) are the current route and torch has clean cp311 Windows wheels, but you supply the model weights.",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/ptnghia-j/ChordMiniApp"
+    },
+    {
+     "claim": "Realtime chord recognition is materially harder and less accurate than offline; near-realtime (1-3 s rolling buffer, ~1-2 s latency) is feasible but frame-accurate live chords are not a solved, accurate thing.",
+     "status": "uncertain",
+     "source_url": "https://www.audiolabs-erlangen.de/resources/MIR/FMP/C5/C5S3_ChordRec_Beatles.html"
+    },
+    {
+     "claim": "Spotify is NOT a source of chords, BPM, or audio: Get Audio Features and Get Audio Analysis were deprecated for new apps on 27 Nov 2024 (still in force 2026), and Spotify never exposes raw audio; currently-playing track + progress_ms (position) remain available.",
+     "status": "confirmed-current",
+     "source_url": "https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api"
+    },
+    {
+     "claim": "To analyze what Spotify is playing you must capture the PC's audio output via WASAPI loopback (e.g. PyAudioWPatch or soundcard); PyAudioWPatch is actively maintained and pip-installs with cp311 Windows wheels.",
+     "status": "confirmed-current",
+     "source_url": "https://pypi.org/project/PyAudioWPatch/"
+    },
+    {
+     "claim": "Ultimate Guitar has NO sanctioned public API; only unofficial reverse-engineered mobile-API scrapers exist (ToS-violating, brittle), and its chord sheets are chord-over-lyric text with no per-chord timestamps - unusable directly for a (track,time,chord) DB.",
+     "status": "confirmed-current",
+     "source_url": "https://github.com/joncardasis/ultimate-api"
+    },
+    {
+     "claim": "Chordify produces time-synced chords but is a closed product with no public developer API, and its Terms forbid automated access/scraping (bots, spiders, scrapers) without express written permission, personal non-commercial use only.",
+     "status": "confirmed-current",
+     "source_url": "https://chordify.net/pages/terms-and-conditions/"
+    },
+    {
+     "claim": "AcousticBrainz shut down: submissions ended June 2022 and the live API went offline after the 16 Feb 2022 announcement; only the one-time static data dumps remain (and its data was low-level descriptors, not time-synced chords).",
+     "status": "confirmed-current",
+     "source_url": "https://blog.metabrainz.org/2022/02/16/acousticbrainz-making-a-hard-decision-to-end-the-project/"
+    }
+   ],
+   "gotchas": [
+    "NEW 2026 Spotify squeeze not in the original findings: beyond the Nov-2024 audio-features/analysis death, Spotify tightened developer ('dev mode') access again in Feb 2026 - new integrations now require a Premium account and test-user limits, with a migration dated ~Feb 11 / Mar 9 2026. Plan for Premium + OAuth even just to read currently-playing / progress_ms. (TechCrunch 2026-02-06; rspotify issue #550)",
+    "The one PyPI-fetch that said vamphost has 'no Windows wheels' was WRONG - the raw JSON (pypi.org/pypi/vamphost/json) shows cp311 win_amd64 wheels for 1.2.1 through 1.4.0 (latest 1.4.0, 2026-10-07, requires_python >=3.10). Verify library claims against the JSON/files API, not a prose scrape.",
+    "vamphost is only the HOST - you still must separately install the Chordino / NNLS-Chroma plugin DLL into C:\\Program Files\\Vamp Plugins (or set VAMP_PATH). pip gives you the engine, not the plugin; the chord model is a separate free download from vamp-plugins.org / isophonics.net.",
+    "Chordino accuracy is older-generation (~mid-70s% maj/min WCSR, worse on 7ths/inversions/bass, ~50-70%). It is reliable and fully offline but will mislabel extended chords - fine for 'march the LEDs to the chord', weak for a precise chord DB.",
+    "Architecture: do the chord analysis ONCE offline per track into the DB, then on replay sync stored (time,chord) to Spotify's reported progress_ms. Do not try to run Chordino/madmom on short live buffers - that is the inaccurate, high-latency path. BPM/beat grid likewise must be computed locally (librosa/madmom) from loopback, since Spotify no longer gives tempo.",
+    "Academic ground-truth datasets (Isophonics/Beatles, McGill Billboard, RWC-Pop) DO give time-aligned chord annotations but ship NO audio and cover a fixed small song set - they are for VALIDATION of your extractor, not for coverage. Hooktheory (~70k songs) is beat-relative, not audio-second, and behind an account. There is no legal, sanctioned, time-synced chord feed to pull at scale (this part of the findings list was truncated but matches what was verifiable).",
+    "ChordMini runs its backend on Python 3.10.x and leans on madmom for beat tracking - so the 'modern PyTorch route' still drags in the madmom build pain on Windows. Budget for either WSL/Linux for the deep models or a torch-only chord model that avoids madmom. The arXiv id cited in the finding (2512.22621) was not independently confirmed; the ChordMiniApp repo and its models are confirmed active.",
+    "madmom's realistic Windows install is 'pip install git+https://github.com/CPJKU/madmom.git' which needs Cython + MSVC Build Tools and still has reported numpy-float/Windows build snags - not a wheel. Do not promise a clean pip install.",
+    "torch itself installs clean on cp311 Windows, but confirm the exact cp311 wheel for your CUDA/CPU build via the official --index-url (download.pytorch.org); PyPI's default is CPU-only and newest releases chase the newest Python first."
+   ]
+  }
+ ]
+}

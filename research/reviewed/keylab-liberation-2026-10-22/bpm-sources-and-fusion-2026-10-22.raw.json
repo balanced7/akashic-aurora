@@ -1,0 +1,290 @@
+{
+ "synthesis": "I have full grounding now. The key discovery: this isn't greenfield — `arsenal/keylab/` already implements both halves, and the real code uses **aubio**, not librosa, which changes the seed mechanism the FINDINGS assumed. Here is the synthesized build plan.\n\n---\n\n# Build plan: seed `arsenal/keylab` beat detection from BPM databases + find the real LED ceiling\n\n## 0. What already exists (grounding — this is not greenfield)\n\n- `arsenal/keylab/beatsync.py` — the realtime loop. Reads **WASAPI loopback** (so it's source-agnostic: Spotify/YouTube/FL all drive it identically) and runs `aubio.tempo(\"default\", 1024, 512, rate)`. Already reads **Windows SMTC** via `now_playing()` → `{title, artist, status}`. Stated limitation: aubio reports half/double tempo on some tracks; no seed.\n- `arsenal/keylab/ledframe.py` — `PadRenderer`, a **delta renderer** that is already the \"cleverer than the hardware\" lever: pads *latch*, so it diffs the 12-pad buffer and sends only changed pads (walking dot = 1–2 packets/frame instead of 12). Tracks a compression ratio.\n- `arsenal/keylab/__main__.py` — the `bench` verb (host→driver throughput + paced visual-ceiling ramp) and `PAD_GAP = 0.008`.\n- `winmidi.py` — `MidiOut.send_sysex` blocks until the driver accepts (1s deadline poll); `MidiIn` can capture SysEx (for screen-grammar work).\n\n**Confirmed-on-hardware facts, dated 2026-10-22 in the code** (these are receipts, not guesses):\n- Device **hard-freezes on ~36 SysEx packets in one tight burst** (needs a power cycle). **12 is the measured safe ceiling.**\n- REQ byte `0x00` renders true RGB on DAW-bank pads; `0x02` came out white (colour ignored).\n- `ledframe` runs `gap=0.006`, `burst=10` (an extra 4× breath every 10 packets).\n\n**The single most important correction to the FINDINGS:** the FINDINGS' third research front is entirely about `librosa.feature.tempo(start_bpm=…, std_bpm=…)`. **The live loop uses aubio, and `aubio.tempo()` has no `start_bpm`/prior parameter.** You cannot inject a DB seed into aubio as a prior. The seed must enter a different way (see §3). This is the thing that would have burned a build cycle if taken from the FINDINGS as-is.\n\n---\n\n## 1. `bpm.py` — which sources, in what order, exact requests\n\nReconciling the three research fronts (they partly disagree on AcousticBrainz; the truth is: **submissions froze Feb 2022 but the READ API is live and returned HTTP 200 today** — alive but stale, nothing post-2022).\n\nPriority chain for an `\"Artist - Title\"` string:\n\n**Source 1 — GetSongBPM (primary; direct name lookup).** Free, needs a free key + a **mandatory visible backlink to getsongbpm.com** (account suspended without it), 3000 req/hr.\n- Current host `https://api.getsong.co/`; legacy `https://api.getsongbpm.com` as fallback.\n- `GET /search/?api_key=KEY&type=both&lookup=song:on my mind artist:shift k3y` (urlencoded) → array of matches with `id`.\n- `GET /song/?api_key=KEY&id=<id>` → `song.tempo` (string integer — validate for null/empty).\n- Header alt: `X-API-KEY: KEY`.\n- **Open item:** Cloudflare blocks anonymous fetch, so field names beyond `tempo` are reconstructed from third-party clients. Do one live call with the real key to confirm shape + which host answers before wiring in.\n\n**Source 2 — MusicBrainz → AcousticBrainz (keyless; older catalog).**\n- `GET https://musicbrainz.org/ws/2/recording/?query=artist:\"Shift K3Y\" AND recording:\"On My Mind\"&fmt=json&limit=3` → `recordings[0].id` (MBID). **Mandatory** descriptive `User-Agent: AkashicKeyLab/1.0 ( rubandan@gmail.com )`; **~1 req/s** or you get 503 on *all* requests.\n- `GET https://acousticbrainz.org/api/v1/<mbid>/low-level` (no key) → `rhythm.bpm` (float; it's an Essentia estimate, not editorial). High-level endpoint does **not** carry tempo.\n- Bulk: `/api/v1/low-level?recording_ids=<m1>;<m2>&features=rhythm.bpm` (≤25 MBIDs). Coverage check: `/api/v1/count?recording_ids=<mbid>` (0 = not covered → fall through).\n- **Gotcha:** misses anything after ~2022; 2024 tracks return 404 here.\n\n**Source 3 — Deezer (keyless; low-weight cross-check).**\n- `GET https://api.deezer.com/search?q=<artist title>` → `data[0].id` → `GET https://api.deezer.com/track/<id>` → `bpm` float. **Treat `bpm:0` as \"missing\", not \"no beat\"** — it returned 0 for both tracks tested. Vote only, never trust alone.\n\n**Deliberately excluded:** Spotify audio-features (**dead, 403 since 2024-11-27**); ReccoBeats (free/no-key but keys off a Spotify *track ID*, not artist+title — only usable after an ID-resolution hop); Tunebat (paid/Cloudflare scrape-only); RapidAPI \"Song BPM\" (not clearly maintained).\n\n**Module shape:** one `lookup(artist, title) -> list[Source(name, bpm, weight, confidence)]`, each source isolated in try/except (fail-soft per AGENTS.md), **cached by `(artist.lower(), title.lower())`** on disk/JSON — SMTC fires the same track repeatedly and the rate limits (MB 1/s, GetSongBPM 3000/hr) demand it. A free-key-absent run must still work off sources 2+3.\n\n---\n\n## 2. Fusing multiple DB values + one local measurement → one trusted BPM\n\n**Do not naive-average.** Different pressings legitimately differ (observed: 123 BPM album vs 130 BPM DJ-mix for the same track), and detectors lock to 2×/½×/1.5× octaves. Algorithm:\n\n1. Gather all answering DB values + one local measurement (librosa one-shot on a ~15 s warmup buffer — see §3).\n2. **Octave-fold** every value into one reference band (e.g. 70–140 BPM) by ×2/÷2 so half/double collapse together.\n3. **Cluster + median** the folded values; discard a lone outlier >8% from the cluster.\n4. The cluster median is the **seed**. Keep a confidence = (how many sources agreed within tolerance). A single-source seed is \"weak\"; 2+ agreeing is \"trusted\".\n5. Record which octave was chosen so the live detector's output can be snapped back to it.\n\n`snap_to_octave(detected, anchor, factors=(0.5, 2/3, 1, 1.5, 2))` → the multiple of `detected` nearest `anchor` in **log2** space, clamped to 40–300 BPM. This is the deterministic half/double fix and the only place the seed needs to touch the live path.\n\n---\n\n## 3. Feeding the seed to the realtime loop (the aubio correction)\n\nBecause `aubio.tempo()` takes **no tempo prior**, the clean architecture is two-stage, not \"pass start_bpm to aubio\":\n\n- **Warmup (one-shot, seeded):** buffer ~12–15 s of loopback at the start of a track (SMTC title-change is the trigger). Run `librosa.feature.tempo(onset_envelope=…, start_bpm=seed, std_bpm=1.0, aggregate=np.median, max_tempo=300)` with the §2 DB seed as `start_bpm` and a **tight** `std_bpm` — this is where librosa's prior genuinely helps. `snap_to_octave` its result against the DB seed → the **locked anchor BPM**.\n- **Live march (aubio, unchanged for phase):** keep `aubio.tempo` running for **onset/phase** — it already flags the actual beats, so the visual march stays musical even when its printed BPM octave is wrong. Use the locked anchor only to: (a) display the true BPM, (b) **octave-gate** aubio's `get_bpm()` (snap it to the anchor before any tempo-derived animation), and (c) **phase-predict**: once anchored, you know the beat *period*, so you can schedule the next pad repaint at `last_beat + 60/anchor_bpm` and correct phase from aubio onsets rather than waiting for them — tighter timing and it rides through aubio's dropouts.\n\nIf you'd rather stay single-engine, keep aubio for onsets and compute the seeded global BPM with librosa only during warmup — don't try to retrofit a prior into aubio.\n\n**Also wire beatsync → PadRenderer:** `beatsync.run()` currently sends all 12 pads inline with a crude `MIN_LIGHT_GAP=0.12` guard and does **not** use `ledframe.PadRenderer`. Routing it through `PadRenderer` gives the delta compression for free (most beat animations change 1–2 pads) and keeps every frame structurally under the 12-packet freeze ceiling. This is the highest-value refinement already sitting on the table.\n\n**Honest gotchas:** GetSongBPM/Tunebat Cloudflare-block anonymous fetch (confirm shape with a real key); AcousticBrainz is blind post-2022; Deezer bpm is usually 0; MusicBrainz text match can mis-resolve on dirty SMTC strings (remixes, \"feat.\", bracket tags) — normalize the title before querying and keep the local measurement as the always-available ground truth. Net latency of the DB chain (MB 1 req/s + two hops) is ~1–3 s, which is why it's a **warmup seed**, not a per-beat call.\n\n---\n\n## 4. LED send-limit testing (the half the FINDINGS skipped — but the code already probes it)\n\nThe research fronts all flagged this as \"separate workstream, not investigated.\" It's actually the more mature half in-repo. The honest state: `bench` measures **host→driver accept time**, which is *not* the device's render ceiling — the firmware has a bounded `LedStrip` queue and the real limit shows as **visible lag/stall**, so it needs eyes on the pads. Test plan to find the true ceiling empirically and exploit the latch:\n\n1. **Burst-size sweep (find the freeze cliff precisely).** The code asserts ~36 freezes / 12 safe. Instrument it: send bursts of N packets with **zero** inter-packet gap, N = 12,16,20,24,28,32,36, power-cycling between runs, and log the largest N that renders cleanly. Pin the exact cliff rather than the inherited \"~36\".\n2. **Gap vs. burst trade (two-axis).** For each burst size, sweep `gap` = 0 / 2 / 4 / 6 / 8 ms. The hypothesis to test: a longer gap lets a *larger* burst through safely (the queue drains between packets). Output a small grid: `(burst, gap) → clean? | stalled | froze`. This replaces the single `PAD_GAP=0.008` guess with a measured safe frontier.\n3. **Sustained-rate ceiling.** Use `bench --hz` ramp (20→40→60→80→120 Hz) watching for the first visible stall; that Hz × packets-per-frame is the real sustained budget.\n4. **Beat the hardware with the latch (the clever part, already half-built).** The lever is `ledframe`'s delta send: effective frame rate scales with *pads that changed*, not 12. Quantify it — run each animation (march/pulse/rainbow-scroll) through `PadRenderer` and read its `compression` stat; a walking dot should sustain far higher frame rates than a full-repaint at the same packet budget because it only spends 1–2 packets/frame. Combine with #2: pick the (burst, gap) that keeps even the rare full-repaint frame under the measured cliff, then let the diff do the rest.\n5. **Receipts.** Per drill doctrine, each confirmed limit gets a dated line (the code already stamps 2026-10-22 findings) — a limit without a dated, eyes-on receipt is presumed unverified.\n\nThe hardware needs the KeyLab physically in DAW mode (close FL so it doesn't contend for the DAW port), so #1–#4 are bench runs Daniel executes with the board in front of him; the harness and logging I/we build, the visual verdict is his.\n\n---\n\n**Net:** build `bpm.py` as a fail-soft, cached `lookup()` over GetSongBPM (keyed) + MusicBrainz→AcousticBrainz + Deezer; fuse by octave-fold-then-median, not mean; seed a **librosa** warmup pass (not aubio — aubio has no prior) and use the result only as an octave anchor + phase predictor over the existing aubio onset march; and route `beatsync` through the existing `PadRenderer`. The LED ceiling is a two-axis (burst × gap) bench sweep that pins the real freeze cliff and then exploits the pad latch to render far under it. Files to touch: new `arsenal/keylab/bpm.py`; edits to `beatsync.py` (seed hook + PadRenderer wiring); extend the `bench` verb for the burst×gap grid. The one blocker on the BPM half is the free GetSongBPM key (Daniel must register it and host the required backlink); everything else is keyless and buildable now.",
+ "found": [
+  {
+   "front": "Programmatic BPM lookup by artist+title (to seed a realtime beat detector): GetSongBPM is the one genuinely free name-based API that works today; FreqBlog is a cheap paid fallback with a no-card free tier; Tunebat is paid/scrape-only; Spotify audio-features (the old standby) is deprecated.",
+   "summary": "For \"artist - title\" strings from Windows SMTC, GetSongBPM (getsongbpm.com) is the recommended seed source in Oct 2026: free, name-based (type=both with song:/artist: qualifiers), returns an integer `tempo`, needs a free API key and a visible backlink to getsongbpm.com, limited to 3000 req/hr. Base URL on the official docs is now https://api.getsong.co/; older libraries still use https://api.getsongbpm.com (legacy host, treat as secondary). songbpm.com is the same brand/data as GetSongBPM, not a separate API. A \"RapidAPI Song BPM\" listing is not clearly maintained today; the live RapidAPI-style name->BPM services are thin wrappers/catalogs (e.g. track-analysis.p.rapidapi.com) and FreqBlog's api.freqblog.com (needs key, free tier no card, ~£0.17/1k paid). Tunebat has a \"Music Metadata API\" page but it is a paid/commercial offering (no free tier) and is otherwise scrape-only behind Cloudflare; third-party Tunebat wrappers are unofficial. Spotify's Audio Features/Analysis endpoints (the classic free tempo source) were deprecated Nov 2024; ReccoBeats is a free no-key replacement but keys off Spotify track IDs/audio, not artist+title. For the \"seed from multiple DBs\" plan: query GetSongBPM first, optionally cross-check FreqBlog (which also returns bpm_alt to flag half/double-time), and reconcile before handing the value to the local detector. NOTE: this report covers only the BPM-lookup FRONT; the LED send-limit testing in Daniel's request is a separate workstream not investigated here. GetSongBPM and Tunebat both block anonymous fetch via Cloudflare, so exact JSON was reconstructed from third-party clients/docs (confidence noted per item); verifying the live response shape against a real key is the one open item.",
+   "findings": [
+    {
+     "claim": "GetSongBPM is a free API that returns a numeric BPM for an artist+title query, and is the best seed source today.",
+     "detail": "Name-based lookup. Official base URL is https://api.getsong.co/ (older clients use https://api.getsongbpm.com). Combined search: GET /search/?api_key=KEY&type=both&lookup=song:on my mind artist:shift k3y (urlencoded; type can be song|artist|both; for 'both' prepend terms with 'song:' and 'artist:'). /search/ returns an array of matching songs each with an id; GET /song/?api_key=KEY&id=SONG_ID returns the song object whose integer BPM is in the `tempo` field (response['song']['tempo'], a string integer, validate for null). Also /artist/?id=, and /tempo/?bpm=40-220 for reverse BPM search. API key via url param api_key or X-API-KEY header.",
+     "confidence": "high",
+     "source_url": "https://getsongbpm.com/api",
+     "as_of": "2026-10-22 (accessed; official docs + github.com/iandioch/songchallenge get_track_bpms.py + musictechlab.io blog)",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "GetSongBPM requires a free API key plus a mandatory visible backlink to getsongbpm.com, with a 3000 req/hour cap.",
+     "detail": "Register at getsongbpm.com/api to get a free key (you supply the website/app where the backlink will live). Usage is free but 'a link back to GetSongBPM.com is required (website or store listing), or the account will be suspended without notice.' Rate limit: 3000 requests/hour; exceeding it blocks the key for one hour. For a single SMTC track lookup this is ample.",
+     "confidence": "high",
+     "source_url": "https://getsongbpm.com/api",
+     "as_of": "2026-10-22 (accessed)",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "The GetSongBPM base-URL has two hosts in the wild; api.getsong.co is the current official one, api.getsongbpm.com is legacy-but-still-referenced.",
+     "detail": "The official getsongbpm.com/api page states the base URL is https://api.getsong.co/. Third-party code (iandioch/songchallenge, musictechlab.io, the CPAN WebService::GetSongBPM module) still uses https://api.getsongbpm.com. Treat api.getsong.co as authoritative; if api.getsongbpm.com fails, switch to api.getsong.co. Worth a live smoke test with a real key before wiring into the seed path.",
+     "confidence": "medium",
+     "source_url": "https://metacpan.org/pod/WebService::GetSongBPM",
+     "as_of": "2026-10-22 (accessed)",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "songbpm.com is the same brand/dataset as GetSongBPM, not a separate API.",
+     "detail": "songbpm.com surfaces the same BPM/key catalog as getsongbpm.com and routes developers to the same GetSongBPM Web API; there is no distinct songbpm.com developer API. Use the GetSongBPM endpoints above. (The 'songbpm.com/@api' result is a user profile named 'api', not an API endpoint.)",
+     "confidence": "medium",
+     "source_url": "https://songbpm.com/",
+     "as_of": "2026-10-22 (accessed)",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "FreqBlog offers a name-based BPM/key API with a no-card free tier (good cross-check / second DB).",
+     "detail": "GET https://api.freqblog.com/lookup?track=TRACK&artist=ARTIST with header X-Api-Key: KEY. Returns JSON incl. bpm (float, e.g. 85.39) AND bpm_alt (the doubled/halved alternative, e.g. 170.78) to handle half-time detection, plus key, camelot, energy, danceability. Pricing 'from £0.17 per 1,000 requests' with a 'free tier, no card' option. Catalog lookups advertised <100ms. Useful as a second source and specifically for reconciling half/double-time against the local detector.",
+     "confidence": "medium",
+     "source_url": "https://freqblog.com/blog/bpm-key-from-track-name/",
+     "as_of": "2026-10-22 (accessed)",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "Tunebat has no free API: its 'Music Metadata API' is paid/commercial, otherwise it is scrape-only behind Cloudflare.",
+     "detail": "tunebat.com/API advertises a Music Metadata API (search_tracks by name/artist -> track_id -> get_track_details with BPM, key, Camelot, energy, etc. over 100M+ tracks), but it is a paid commercial product with no documented free tier, and the site is Cloudflare-gated so anonymous programmatic access is blocked. Third-party 'Tunebat API' wrappers (e.g. parse.bot) are unofficial scrapers and were unreachable/404 when checked. Scraping Tunebat's web pages for BPM is against its ToS and brittle. Not recommended for the free seed path.",
+     "confidence": "medium",
+     "source_url": "https://tunebat.com/API",
+     "as_of": "2026-10-22 (accessed; page itself 403/Cloudflare to anonymous fetch)",
+     "free_no_key": "no"
+    },
+    {
+     "claim": "A dedicated RapidAPI 'Song BPM' API is not clearly maintained in 2026; live RapidAPI name->BPM services are wrappers/catalogs.",
+     "detail": "No current, clearly-maintained RapidAPI listing titled exactly 'Song BPM' surfaced. What is live on RapidAPI are catalog/analysis wrappers such as track-analysis.p.rapidapi.com (/pktx/analysis for name lookup, /pktx/key-bpm for lightweight BPM+key) and generic 'Music Metadata API' listings; these need a RapidAPI key (free tier varies by plan) and are effectively re-wraps of the same underlying catalogs. Prefer calling GetSongBPM or FreqBlog directly rather than paying the RapidAPI middleman.",
+     "confidence": "low",
+     "source_url": "https://rapidapi.com/search/song%20bpm",
+     "as_of": "2026-10-22 (accessed; not directly confirmed live)",
+     "free_no_key": "unknown"
+    },
+    {
+     "claim": "Spotify Audio Features/Analysis (the classic free tempo-by-track source) is DEPRECATED since Nov 2024.",
+     "detail": "Spotify deprecated the Audio Features and Audio Analysis Web API endpoints in November 2024 for new apps; they can no longer be relied on to fetch tempo/BPM by track. This removes the historically easiest free route and is why GetSongBPM/FreqBlog matter. Do not build the seed on Spotify audio-features.",
+     "confidence": "high",
+     "source_url": "https://blog.metabrainz.org/2024/11/28/pissed-off-by-spotify-enshittifying-more-api-endpoints-we-can-help/",
+     "as_of": "deprecated 2024-11; confirmed 2026-10-22",
+     "free_no_key": "no"
+    },
+    {
+     "claim": "ReccoBeats is a free, no-key audio-features API positioned as a Spotify replacement, but it is NOT artist+title lookup.",
+     "detail": "reccobeats.com exposes a free 'get track's audio features' endpoint and an 'extract audio features from uploaded file' endpoint, no key required. However it keys off Spotify track IDs or an actual audio file, not an artist+title string, so it does not directly satisfy the SMTC 'artist - title' seed need without a prior ID-resolution step. Candidate only if you also resolve a track ID (e.g. via MusicBrainz/Spotify search) or feed audio.",
+     "confidence": "medium",
+     "source_url": "https://reccobeats.com/docs/apis/reccobeats-api",
+     "as_of": "2026-10-22 (accessed)",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "AcousticBrainz (open BPM/feature dataset) stopped collecting data in 2022 and should not be treated as current.",
+     "detail": "acousticbrainz.org halted data collection in 2022; only downloadable archive dumps remain. Coverage is stale and incomplete for recent releases, so it is unsuitable as a live seed source though the bulk dump could be a free offline fallback for older catalog.",
+     "confidence": "medium",
+     "source_url": "https://acousticbrainz.org/",
+     "as_of": "collection ended 2022; confirmed 2026-10-22",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "Practical seed recipe for 'starting BPM from multiple DBs' + open verification item.",
+     "detail": "Recommended: (1) query GetSongBPM /search?type=both then /song for integer tempo; (2) optionally query FreqBlog for bpm + bpm_alt; (3) reconcile: if detectors/sources disagree by ~2x, that is half/double-time -> pick the octave matching the live detector's range; otherwise take the DB consensus as the starting BPM and let the realtime detector refine. OPEN ITEM: GetSongBPM and Tunebat both Cloudflare-block anonymous fetch, so exact JSON field names beyond `tempo` were reconstructed from third-party clients (songchallenge, CPAN module, musictechlab); do one live call with a real free key to confirm the response shape and which base host (api.getsong.co vs api.getsongbpm.com) responds before wiring it into the detector.",
+     "confidence": "medium",
+     "source_url": "https://getsongbpm.com/api",
+     "as_of": "2026-10-22",
+     "free_no_key": "needs-free-key"
+    }
+   ]
+  },
+  {
+   "front": "OPEN PATH (no key, confirmed live 2026-10-22): MusicBrainz search -> recording MBID -> AcousticBrainz low-level -> rhythm.bpm. Both hops tested HTTP 200. Step 1: GET https://musicbrainz.org/ws/2/recording/?query=artist:\"Shift K3Y\" AND recording:\"On My Mind\"&fmt=json&limit=3 with a real User-Agent (no key); take recordings[0].id (got ec3af0a8-9d0d-4707-bb04-14cf04004cc9). Step 2: GET https://acousticbrainz.org/api/v1/<mbid>/low-level (no key); read rhythm.bpm. CAVEAT: AcousticBrainz froze submissions Feb 2022, so it only covers recordings analyzed on/before ~2022. The 2024 Shift K3Y MBID returned 404 there; an older control (Daft Punk MBID 2862aa26...) returned 200 with rhythm.bpm=130.21. So the open path works but misses post-2022 tracks -- for those, fall through to ReccoBeats (free, no key, returned tempo=123.47 for the same Daft Punk track) and GetSongBPM (free key + backlink). Seed the local detector with the median of whatever sources answer, and reconcile version mismatches (a DJ-mix MBID read 130 while the canonical album track reads 123).",
+   "summary": "Scope: this run answers only the BPM-from-databases seeding question (the LED send-limit / hardware testing ask in your message was not part of this research task). Headline: AcousticBrainz read API is NOT dead -- it is alive in 2026. Submissions were frozen 16 Feb 2022, but the website and read/query API stayed online, and I confirmed it live today: /api/v1/<mbid>/low-level and /high-level both return HTTP 200, no API key, and BPM lives at rhythm.bpm in the LOW-LEVEL response (high-level has mood/genre/danceability classifiers, not tempo). Coverage is ~7.5M unique recordings but nothing analyzed after ~2022. MusicBrainz is the free, keyless resolver from \"artist + title\" to a recording MBID (mandatory User-Agent, ~1 req/s per IP, 503 on overrun). For the \"seed from multiple DBs\" plan, the practical free stack is: MusicBrainz->AcousticBrainz for older catalog; ReccoBeats (free, no key, Spotify-ID mapped, returns tempo) for modern tracks; GetSongBPM (free key, mandatory backlink, 3000/hr) as a third vote. Deezer's public /track exposes a bpm field with no key but it returned 0 for both tracks I tested -- unreliable for BPM. Spotify's audio-features (the old tempo source) is DEAD for any app created after 27 Nov 2024 (HTTP 403), no official replacement. AcoustID (free key) resolves an audio fingerprint to an MBID but does not itself return BPM. All live checks ran 2026-10-22.",
+   "findings": [
+    {
+     "claim": "MusicBrainz search API resolves 'artist + title' to a recording MBID with no API key; confirmed live HTTP 200.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "GET https://musicbrainz.org/ws/2/recording/?query=artist:\"Shift K3Y\" AND recording:\"On My Mind\"&fmt=json&limit=3 returned recordings[0].id = ec3af0a8-9d0d-4707-bb04-14cf04004cc9, score 100. Use recordings[0].id as the MBID. Lucene query fields: recording: (title) and artist:. fmt=json for JSON.",
+     "free_no_key": "yes",
+     "source_url": "https://musicbrainz.org/doc/MusicBrainz_API/Search"
+    },
+    {
+     "claim": "MusicBrainz requires a descriptive User-Agent and rate-limits to ~1 request/sec per IP; over-limit returns HTTP 503 (all requests, not just the excess). No key.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "Official doc verbatim: rate is on average 1 request per second per IP; exceeding it declines ALL your requests with 503 until the rate drops. User-Agent format: 'AppName/version ( contact-url-or-email )', e.g. 'MyApp/1.0 ( me@example.com )'. Enough info to contact the maintainer is mandatory. No API key exists for the read service.",
+     "free_no_key": "yes",
+     "source_url": "https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting"
+    },
+    {
+     "claim": "AcousticBrainz READ API is still online and working in 2026 (submissions frozen, reads survived).",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "Live test today: GET https://acousticbrainz.org/api/v1/2862aa26-1b45-46b3-ae43-e617d8a6bcbf/low-level returned HTTP 200 with rhythm.bpm=130.205566406; the /high-level endpoint returned HTTP 200 with danceability present. Submissions stopped 16 Feb 2022; MetaBrainz stated 'the API for downloading features will remain working until we notify otherwise' and 'the website and its API will continue to be available'. No key, CC0 data.",
+     "free_no_key": "yes",
+     "source_url": "https://musicbrainz.org/doc/AcousticBrainz"
+    },
+    {
+     "claim": "BPM lives at rhythm.bpm in the AcousticBrainz LOW-LEVEL response, not high-level.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "Single: GET /api/v1/<mbid>/low-level -> JSON path rhythm.bpm (float). high-level endpoint carries classifier outputs (mood, genre, danceability) and does NOT contain tempo. AcousticBrainz BPM was computed by Essentia's RhythmExtractor2013, so values are algorithmic estimates, not editorial.",
+     "free_no_key": "yes",
+     "source_url": "https://acousticbrainz.readthedocs.io/api.html"
+    },
+    {
+     "claim": "AcousticBrainz supports a bulk read of up to 25 MBIDs per call with a features filter, useful for polling several tracks at once.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "GET https://acousticbrainz.org/api/v1/low-level?recording_ids=<mbid1>;<mbid2>&features=rhythm.bpm returned HTTP 200 (semicolon-separated). MAX_ITEMS_PER_BULK_REQUEST=25. Coverage check: GET /api/v1/count?recording_ids=<mbid> returns {mbid:{count:N}} (N=number of stored submissions, 0 = not covered). The 'n' param selects among multiple submissions for one MBID.",
+     "free_no_key": "yes",
+     "source_url": "https://acousticbrainz.readthedocs.io/api.html"
+    },
+    {
+     "claim": "AcousticBrainz coverage is ~7.5M unique recordings (MBIDs) and contains nothing analyzed after the ~2022 freeze; modern tracks are absent.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "Dataset frozen at the June 2022 dump (~7.5M unique recordings / up to ~30M raw submissions). Confirmed the gap live: the 2024 Shift K3Y 'On My Mind' MBID (ec3af0a8...) returned HTTP 404 from /low-level, while the pre-2022 Daft Punk MBID returned 200. Full CC0 data dumps (incl. a BPM/key feature dump) remain downloadable for offline/local seeding.",
+     "free_no_key": "yes",
+     "source_url": "https://community.metabrainz.org/t/acousticbrainz-submissions-data-dumps-and-next-steps/589843"
+    },
+    {
+     "claim": "ReccoBeats is a free, no-key API that returns tempo for modern tracks and is the leading drop-in for Spotify's dead audio-features; confirmed live.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "Live: GET https://api.reccobeats.com/v1/track?ids=<spotifyTrackId> returns a ReccoBeats internal id; GET https://api.reccobeats.com/v1/audio-features?ids=<reccobeatsId> returned tempo=123.474 (plus danceability, energy) for Daft Punk HBFS -- accurate for the canonical album version. Keyed off Spotify track IDs, so it covers current catalog AcousticBrainz lacks. Caveat: community reports coverage/reliability is uneven; test against your real catalog.",
+     "free_no_key": "yes",
+     "source_url": "https://api.reccobeats.com"
+    },
+    {
+     "claim": "Deezer's public /track endpoint exposes a bpm field with NO key, but it is frequently 0/unpopulated -- unreliable as a BPM source.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "GET https://api.deezer.com/search?q=<text> (keyless) -> take data[0].id -> GET https://api.deezer.com/track/<id>. The track object includes a 'bpm' field, but it returned bpm:0 for BOTH tested tracks (Shift K3Y 'On My Mind' id 3155512161 AND Daft Punk HBFS). Good keyless metadata/ISRC source, poor BPM coverage; treat a 0 as 'missing', not 'no beat'.",
+     "free_no_key": "yes",
+     "source_url": "https://api.deezer.com/track/3155512161"
+    },
+    {
+     "claim": "Spotify Get Audio Features (the old tempo/key source) is deprecated and returns HTTP 403 for any app created after 27 Nov 2024 -- do not design around it.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "On 27 Nov 2024 Spotify removed GET /v1/audio-features (and audio-analysis, recommendations, related-artists, featured-playlists) for apps without pre-existing extended access; new apps get 403 and there is no official replacement. This is why ReccoBeats/GetSongBPM matter. Avoid any tutorial that still tells you to pull tempo from Spotify audio-features.",
+     "free_no_key": "no",
+     "source_url": "https://developer.spotify.com/documentation/web-api/reference/get-audio-features"
+    },
+    {
+     "claim": "GetSongBPM offers a free API with tempo+key but requires a free key AND a mandatory visible backlink to getsongbpm.com; ~3000 req/hour.",
+     "confidence": "medium",
+     "as_of": "2026-10-22",
+     "detail": "Sign up at getsongbpm.com/api for a free key. Terms: a link back to GetSongBPM.com is REQUIRED or the account is suspended without notice. ~3000 requests/hour, no OAuth, returns tempo and musical key; editorial/crowd values often rounded to integers. Not live-tested this run (key-gated); status corroborated by 2026 sources.",
+     "free_no_key": "needs-free-key",
+     "source_url": "https://getsongbpm.com/api"
+    },
+    {
+     "claim": "AcoustID (free key) resolves an audio fingerprint to a recording MBID but does not itself return BPM -- it is a resolver, not a tempo source.",
+     "confidence": "high",
+     "as_of": "2026-10-22",
+     "detail": "Use AcoustID only when you have the audio file and SMTC artist/title text is too dirty for a MusicBrainz text search: Chromaprint fingerprint -> AcoustID lookup (free application API key, register at acoustid.org) -> MBID -> then AcousticBrainz for BPM. BPM still has to come from AcousticBrainz/ReccoBeats/local analysis.",
+     "free_no_key": "needs-free-key",
+     "source_url": "https://acoustid.org/webservice"
+    },
+    {
+     "claim": "For the 'seed from multiple DBs' plan: take the median of the sources that answer, flag version mismatches, and keep a local analyzer (Essentia/aubio/librosa) as ground-truth fallback.",
+     "confidence": "medium",
+     "detail": "Observed divergence in this run: a Daft Punk DJ-mix MBID read 130.2 BPM in AcousticBrainz while the canonical album track read 123.5 in ReccoBeats -- same song, different pressing/version, so a naive average is wrong. Suggested seed order: (1) MusicBrainz->AcousticBrainz low-level rhythm.bpm for older catalog; (2) ReccoBeats tempo for modern; (3) GetSongBPM as a third vote. Snap to the nearest source value, not the raw mean, and remember detectors commonly lock to half/double tempo -- let the DB seed disambiguate the octave, then let your realtime detector refine phase/drift.",
+     "free_no_key": "yes",
+     "source_url": "https://essentia.upf.edu/"
+    }
+   ]
+  },
+  {
+   "front": "FRONT — measuring BPM ourselves with librosa, seeded by a DB value\n\nTwo functions, one of which the task prompt conflates:\n\n- librosa.feature.tempo(...) — the tempo estimator. Signature (librosa 0.10+/main): `librosa.feature.tempo(*, y=None, sr=22050, onset_envelope=None, tg=None, hop_length=512, start_bpm=120, std_bpm=1.0, ac_size=8.0, max_tempo=320.0, aggregate=np.mean, prior=None)`. This is where start_bpm + std_bpm live. It was moved from librosa.beat.tempo in v0.10.0 (librosa.beat.tempo still aliases it but is the old name). With aggregate=np.mean (or np.median) it returns a SINGLE global BPM; aggregate=None returns a per-frame tempo curve.\n- librosa.beat.beat_track(...) — beat *tracking*. Signature: `librosa.beat.beat_track(*, y=None, sr=22050, onset_envelope=None, hop_length=512, start_bpm=120.0, tightness=100, trim=True, bpm=None, prior=None, units='frames', sparse=True)`. Note: it has NO std_bpm. It takes start_bpm (initial guess), an optional prior distribution, or bpm= (which FORCES the tempo and only solves beat phase). Use this when you want beat *positions*; use feature.tempo when you only want a stable scalar BPM.\n\nHow to pass a DB-sourced seed as the prior:\n- feature.tempo: set start_bpm=seed and tighten std_bpm (lower = pins near the seed; raise to let detection roam). start_bpm/std_bpm build a pseudo-log-normal prior over BPM centered on the seed. Passing prior=<scipy.stats frozen dist over BPM> overrides both.\n- beat_track: set start_bpm=seed, or bpm=seed to force it, or pass prior=<dist>. There is no std_bpm knob here.\n\nStable global BPM from a ~10-20 s buffer: compute the onset envelope once, feed it to feature.tempo with aggregate=np.median (steadier than the default mean on short clips), resample to a fixed sr first, then snap to the seed's octave.\n\nThe half/double (and triple-meter) octave error: autocorrelation-based tempo often locks onto 2x, 0.5x, 1.5x or 2/3x the true beat. Resolve it deterministically by choosing the octave multiple of the detected tempo nearest the trusted seed in log2 space.\n\nMinimal code:\n\n```python\nimport numpy as np, librosa\n\nSR, HOP = 22050, 512\n\ndef snap_to_octave(detected, anchor, factors=(0.5, 2/3, 1.0, 1.5, 2.0)):\n    \"\"\"Fix half/double/triple error: octave of `detected` closest to `anchor` in log2.\"\"\"\n    c = np.array([detected * f for f in factors])\n    c = c[(c > 40) & (c < 300)]\n    return float(c[np.argmin(np.abs(np.log2(c) - np.log2(anchor)))])\n\ndef measure_bpm(y, sr, seed=None):\n    \"\"\"Stable global BPM from a short mono buffer. `seed` = DB-sourced BPM prior+anchor.\"\"\"\n    if getattr(y, \"ndim\", 1) > 1:\n        y = librosa.to_mono(y)\n    if sr != SR:\n        y = librosa.resample(y, orig_sr=sr, target_sr=SR); sr = SR\n\n    oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=HOP)\n\n    start_bpm = float(seed) if seed else 120.0\n    std_bpm   = 1.0 if seed else 4.0          # tight prior when the seed is trusted\n\n    tempo = librosa.feature.tempo(\n        onset_envelope=oenv, sr=sr, hop_length=HOP,\n        start_bpm=start_bpm, std_bpm=std_bpm,\n        aggregate=np.median, max_tempo=300.0,\n    )\n    tempo = float(np.atleast_1d(tempo)[0])    # returns a 1-element ndarray even for mono\n    return snap_to_octave(tempo, float(seed)) if seed else tempo\n\n# If you also need beat POSITIONS (phase), seed beat_track (no std_bpm here):\n# tempo, beats = librosa.beat.beat_track(onset_envelope=oenv, sr=SR, hop_length=HOP,\n#                                        start_bpm=float(seed),   # initial guess\n#                                        # bpm=float(seed),       # FORCE tempo, find phase only\n#                                        trim=False)\n# beat_times = librosa.frames_to_time(beats, sr=SR, hop_length=HOP)\n```\n\nNotes for the realtime loop: keep sr and hop fixed across captures so the onset frame rate is stable; 12-20 s of audio is plenty for feature.tempo's autocorrelation (ac_size=8 s window). For the user's \"seed from multiple DBs\": poll GetSongBPM + Deezer, reconcile (median or agreement) to one seed, pass it as start_bpm, and let snap_to_octave correct octave slips — that is the cheapest path to accuracy without re-tuning the detector per track.",
+   "summary": "Pipeline the task describes (SMTC artist+title -> DB BPM -> seed a librosa realtime detector) is sound and buildable in 2026, but the DB landscape shifted hard. Spotify's audio-features (the old go-to for tempo) was deprecated 2024-11-27 with no official replacement, and AcousticBrainz's live API shut down in Feb 2022 (its CC0 data dump survives offline). For name-based lookup from an artist+title string, the two live, practical sources are GetSongBPM (free, needs a free API key + mandatory backlink, 3000 req/hr, returns BPM+key) and Deezer's public /track endpoint (keyless, has a bpm field, but coverage is spotty/often 0). AcoustID+MusicBrainz can identify a track to an MBID with a free key but carry NO tempo themselves. Recommended: poll GetSongBPM + Deezer, reconcile to one seed, and feed it to librosa. On the FRONT: use librosa.feature.tempo (moved from librosa.beat.tempo in 0.10.0) with start_bpm=seed + a tight std_bpm and aggregate=np.median for a stable global BPM; librosa.beat.beat_track has start_bpm/prior/bpm but NO std_bpm (the task prompt conflates the two). Resolve the classic half/double octave error by snapping the detected value to the octave multiple nearest the seed in log2 space. The user's separate LED send-limit testing request is a distinct empirical thread (needs the actual controller/protocol) and is not covered by this research pass.",
+   "findings": [
+    {
+     "claim": "Spotify Web API audio-features (which returned tempo/BPM) was deprecated for new apps on 2024-11-27 and still has no official replacement in 2026; new apps get 403, only apps with a pre-existing quota extension retain access.",
+     "confidence": "high",
+     "detail": "Spotify killed audio_features, audio_analysis, recommendations, related-artists and featured-playlists for new integrations. The old 13-field vector (incl. tempo, key, time_signature) is gone for new builds. Do NOT design the seed path around Spotify.",
+     "source_url": "https://dev.to/birrings/spotifys-audiofeatures-api-died-in-2024-heres-what-i-built-to-replace-it-3dn3",
+     "as_of": "2026-10",
+     "free_no_key": "no"
+    },
+    {
+     "claim": "GetSongBPM API is the main live name-based BPM source: free to use, requires a free API key, mandates a visible backlink to GetSongBPM.com, ~3000 requests/hour, /search by artist+title returns BPM (tempo) and key.",
+     "confidence": "high",
+     "detail": "Key via api_key URL param or X-API-KEY header; register at getsongbpm.com/api. Limitation: returns essentially just BPM + key (two useful fields). Exceeding the rate cap blocks the key for 1 hour. Good primary seed source.",
+     "source_url": "https://getsongbpm.com/api",
+     "as_of": "2026-10",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "Deezer's public catalog API exposes a bpm field on the full track object and needs NO API key for /track, /search, /album, /artist (OAuth only for user data) — a good keyless secondary seed, but bpm is frequently 0/missing.",
+     "confidence": "high",
+     "detail": "Flow: GET https://api.deezer.com/search?q=artist+title -> take a track id -> GET https://api.deezer.com/track/{id} and read the `bpm` float (bpm is NOT present on album track listings, only on the direct /track resource). Rate ~50 req/5s. Coverage/accuracy of bpm is inconsistent, so treat it as a vote, not ground truth.",
+     "source_url": "https://deezer-python.readthedocs.io/en/stable/api_reference/resources/track.html",
+     "as_of": "2026-10",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "AcousticBrainz (the old free source of per-track rhythm.bpm) shut down its live service in Feb 2022; only its CC0 data dumps survive and are still downloadable, keyed by MusicBrainz MBID.",
+     "confidence": "high",
+     "detail": "Lowlevel dump (~589GB compressed, includes rhythm.bpm + ~120 descriptors) and highlevel dump (~39GB) cover ~30M submissions, public-domain (CC0). Usable only offline and only if you first resolve the track to an MBID. No live API — do not call acousticbrainz.org endpoints expecting data.",
+     "source_url": "https://blog.metabrainz.org/2022/02/16/acousticbrainz-making-a-hard-decision-to-end-the-project/",
+     "as_of": "2026-10",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "AcoustID + MusicBrainz identify a track (fingerprint -> MBID) with a free API key but carry NO tempo/BPM data themselves.",
+     "confidence": "high",
+     "detail": "AcoustID free tier: register at acoustid.org/new-applications, 3 req/sec, no cost; needs a Chromaprint fingerprint (so it needs audio, not just a title string). MusicBrainz has no tempo/meter fields. Only useful here as a bridge to an MBID for keying into the offline AcousticBrainz dump.",
+     "source_url": "https://acoustid.org/",
+     "as_of": "2026-10",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "TuneBat offers a commercial (paid) metadata API returning BPM/key/Camelot/energy; its catalog values historically derived from Spotify audio-features, so post-2024 freshness is a risk, and unofficial scraping of tunebat.com is common but fragile/ToS-gray.",
+     "confidence": "medium",
+     "detail": "Not a free keyless option. songbpm.com (sibling to getsongbpm) is the web UI with the same data; getsongbpm.com/api is the programmatic door. Prefer GetSongBPM+Deezer over scraping TuneBat.",
+     "source_url": "https://tunebat.com/API",
+     "as_of": "2026-10",
+     "free_no_key": "no"
+    },
+    {
+     "claim": "Recommended multi-DB seed strategy (matches the user's 'starting bpm from multiple DBs' ask): poll GetSongBPM and Deezer in parallel, reconcile to one value (prefer their agreement; else median), then pass that as the librosa start_bpm prior and octave anchor.",
+     "confidence": "high",
+     "detail": "Both are free (GetSongBPM needs a free key). Reconciling across sources plus octave-snapping the detector output against the seed is the cheapest route to robust per-track accuracy without retuning the detector. Cache results by (artist,title) to stay under rate limits.",
+     "free_no_key": "needs-free-key"
+    },
+    {
+     "claim": "librosa.feature.tempo is the estimator carrying the start_bpm/std_bpm prior; it was moved from librosa.beat.tempo in v0.10.0. Signature: feature.tempo(*, y=None, sr=22050, onset_envelope=None, tg=None, hop_length=512, start_bpm=120, std_bpm=1.0, ac_size=8.0, max_tempo=320.0, aggregate=np.mean, prior=None).",
+     "confidence": "high",
+     "detail": "aggregate=np.mean (default) or np.median returns a single global BPM scalar; aggregate=None returns a per-frame tempo curve. start_bpm+std_bpm form a pseudo-log-normal prior centered on start_bpm; pass start_bpm=seed and lower std_bpm to pin near the seed. A scipy.stats frozen dist via prior= overrides start_bpm/std_bpm.",
+     "source_url": "https://librosa.org/doc/main/api/generated/librosa.feature.tempo.html",
+     "as_of": "2026-10",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "librosa.beat.beat_track has NO std_bpm parameter — the task prompt's 'start_bpm/std_bpm on beat_track' is a conflation. Signature: beat_track(*, y=None, sr=22050, onset_envelope=None, hop_length=512, start_bpm=120.0, tightness=100, trim=True, bpm=None, prior=None, units='frames', sparse=True).",
+     "confidence": "high",
+     "detail": "To seed beat_track: pass start_bpm=seed (initial guess), OR bpm=seed to FORCE the tempo and solve only beat phase, OR prior=<dist>. std_bpm lives only on feature.tempo. Use beat_track when you need beat positions; use feature.tempo when you only need a stable scalar BPM.",
+     "source_url": "https://librosa.org/doc/main/api/generated/librosa.beat.beat_track.html",
+     "as_of": "2026-10",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "The classic half/double (and triple-meter 1.5x / 0.667x) octave error is best fixed by snapping the detected tempo to the octave multiple nearest the trusted seed in log2 space.",
+     "confidence": "high",
+     "detail": "candidates = detected * {0.5, 2/3, 1, 1.5, 2}; keep those in a sane BPM band (e.g. 40-300); pick argmin(|log2(cand) - log2(seed)|). Deterministic, cheap, and resolves nearly all octave slips when a DB seed exists.",
+     "free_no_key": "yes"
+    },
+    {
+     "claim": "For a stable global BPM from a ~10-20 s buffer: resample to a fixed sr (22050), compute onset_strength once, then feature.tempo with aggregate=np.median; keep sr and hop_length constant across captures so the onset frame rate is stable.",
+     "confidence": "high",
+     "detail": "feature.tempo's autocorrelation window is ac_size=8 s by default, so 12-20 s is ample. np.median over the aggregated estimate is steadier than the default mean on short clips. Cap max_tempo (~300) to suppress spurious high-BPM peaks.",
+     "source_url": "https://librosa.org/doc/main/auto_tutorials/03-advanced/plot_dynamic_beat.html",
+     "as_of": "2026-10",
+     "free_no_key": "yes"
+    }
+   ]
+  }
+ ]
+}
