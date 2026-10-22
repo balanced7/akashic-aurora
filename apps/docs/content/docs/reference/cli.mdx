@@ -916,7 +916,7 @@ help[1]:
 
 | | |
 |---|---|
-| Does | list every verb + its purpose (the self-describing door) |
+| Does | list every verb with when to use it and its purpose (the self-describing door) |
 | Output | Agent mode (TOON) and human mode (colour). |
 | Reader accuracy | 83% before, 100% after |
 | Output tokens | 1,745 before, 2,018 after (+16%) |
@@ -924,8 +924,11 @@ help[1]:
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `<query>` |   |   | optional substring to filter verbs by name/purpose |
+| `<query>` |   |   | optional substring to filter verbs by name, purpose, use-when line or keyword |
 | `--json` |   |   |   |
+| `--map` |   |   | print the situation map every session starts with: each verb under the situation it serves |
+| `--awareness` |   |   | measure, from this machine's Claude transcripts, how often agents needed reminding of a verb, looked one up, used one, or followed a suggestion (read-only) |
+| `--since` |   |   | with --awareness: only sessions active on or after this ISO date |
 | `--semantic` |   |   | ask at the level of MEANING instead of substring: 'does this system already do X?' Returns EXISTS/WHAT/GAP/NEAREST MISS over the verb table + module index. Costs one model call (~20s, under a cent). A failed or malformed call renders UNKNOWN, never 'no' -- this verb exists to stop absence being inferred, so it must never infer one |
 
 Agent output of `aurora discover` on the bench data:
@@ -1170,7 +1173,7 @@ help[2]:
 
 | | |
 |---|---|
-| Does | find a file BY NAME anywhere on the machine (Search Everything / es.exe) |
+| Does | find a file BY NAME anywhere on the machine (Search Everything / es.exe; plocate off Windows) |
 | Output | Agent mode (TOON) and human mode (colour). |
 | Reader accuracy | 100% before, 100% after |
 | Output tokens | 1,738 before, 204 after (-88%) |
@@ -1178,7 +1181,8 @@ help[2]:
 
 | Flag | Required | Values | What it does |
 |---|---|---|---|
-| `<query>` | yes |   | Everything search term -- a bare word matches any filename substring, case-insensitive |
+| `<query>` |   |   | Everything search term -- a bare word matches any filename substring, case-insensitive |
+| `--reindex` |   |   | rebuild the plocate index now and wait for it (Linux/macOS; it otherwise refreshes itself in the background) |
 | `--limit` |   |   | max results (default 0 = no cap, return everything) |
 | `--offset` |   |   | skip this many ranked results before returning (paging past --limit) |
 | `--path` |   |   | match against the full path, not just the name |
