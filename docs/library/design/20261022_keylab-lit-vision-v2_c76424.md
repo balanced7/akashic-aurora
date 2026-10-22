@@ -4,6 +4,7 @@ akashic_sha: f6b104892446
 schema_version: 1
 status: draft
 type: design
+arc: A16
 date: 2026-10-22
 title: keylab-lit-vision-v2
 gist: "KeyLab Lit v2: the KeyLab 88 mk3, a low-latency sound room and the VFX pages as one instrument. 11 pillars, the hub spine, 9 waves, 13 ratification questions, 23 probes. DRAFT, unratified"
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:46:59"
-updated: "2026-10-22T09:47:00"
+updated: "2026-10-22T14:21:32"
 ---
 <!-- GENERATED PROJECTION of art_20261022_keylab-lit-vision-v2_c76424 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 

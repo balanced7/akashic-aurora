@@ -4,6 +4,7 @@ akashic_sha: 8d228a8a60ca
 schema_version: 1
 status: draft
 type: brief
+arc: A16
 date: 2026-10-22
 title: keylab-lit-brief
 gist: "Brief for KeyLab Lit: Daniel's words verbatim, the intent, the one question (light-first?) and what his yes unlocks. DRAFT"
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:47:00"
-updated: "2026-10-22T09:47:01"
+updated: "2026-10-22T14:21:33"
 ---
 <!-- GENERATED PROJECTION of art_20261022_keylab-lit-brief_98d71b -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 

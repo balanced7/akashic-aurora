@@ -4,6 +4,7 @@ akashic_sha: b1a422c0311e
 schema_version: 1
 status: current
 type: report
+arc: A16
 date: 2026-10-22
 title: keylab-mk3-surface-map
 gist: "# KeyLab 88 mk3 surface map (15-agent RE swarm: device JSON, templates, firmware, arsenal model, web) > Provenance: Claude Code workflow `w1"
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:29:34"
-updated: "2026-10-22T09:30:03"
+updated: "2026-10-22T14:21:30"
 ---
 <!-- GENERATED PROJECTION of art_20261022_keylab-mk3-surface-map_11dce3 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 

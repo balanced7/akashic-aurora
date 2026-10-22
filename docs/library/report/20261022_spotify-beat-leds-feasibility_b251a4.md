@@ -4,6 +4,7 @@ akashic_sha: 484f5fec4937
 schema_version: 1
 status: current
 type: report
+arc: A16
 date: 2026-10-22
 title: spotify-beat-leds-feasibility
 gist: "# Spotify now-playing + realtime beat for the pads (SMTC, WASAPI loopback, aubio-ledfx; Spotify BPM API dead) > Provenance: Claude Code work"
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:30:01"
-updated: "2026-10-22T09:30:04"
+updated: "2026-10-22T14:21:31"
 ---
 <!-- GENERATED PROJECTION of art_20261022_spotify-beat-leds-feasibility_b251a4 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 

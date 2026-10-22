@@ -4,6 +4,7 @@ akashic_sha: 3b29b1db7ca3
 schema_version: 1
 status: current
 type: report
+arc: A16
 date: 2026-10-22
 title: bpm-sources-and-fusion
 gist: "# BPM databases + librosa fusion to seed the live beat detector > Provenance: Claude Code workflow `wa4rlk1e3`, run 2026-10-22 by claude (Va"
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:30:02"
-updated: "2026-10-22T09:30:04"
+updated: "2026-10-22T14:21:31"
 ---
 <!-- GENERATED PROJECTION of art_20261022_bpm-sources-and-fusion_8adf88 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 

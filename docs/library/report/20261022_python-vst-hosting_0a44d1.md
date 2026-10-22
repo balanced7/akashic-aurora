@@ -4,6 +4,7 @@ akashic_sha: 0eaa07aed561
 schema_version: 1
 status: current
 type: report
+arc: A16
 date: 2026-10-22
 title: python-vst-hosting
 gist: "# Hosting VST3 from Python on Windows: Pedalboard for effects, Carla for live instruments > Provenance: Claude Code workflow `wu4q2dkoo`, ru"
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:30:02"
-updated: "2026-10-22T09:30:05"
+updated: "2026-10-22T14:21:32"
 ---
 <!-- GENERATED PROJECTION of art_20261022_python-vst-hosting_0a44d1 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 

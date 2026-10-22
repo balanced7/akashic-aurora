@@ -4,6 +4,7 @@ akashic_sha: 1911f1ba3323
 schema_version: 1
 status: current
 type: report
+arc: A16
 date: 2026-10-22
 title: keylab-mk3-sysex-protocol
 gist: "# KeyLab 88 mk3 — Surface Map & SysEx Protocol (v2, cross-verified) Two independent passes agree: (1) Vandor read Arturia's own **FL Studio "
@@ -17,7 +18,7 @@ supersedes: null
 superseded: null
 citations: []
 created: "2026-10-22T09:30:03"
-updated: "2026-10-22T09:30:05"
+updated: "2026-10-22T14:21:32"
 ---
 <!-- GENERATED PROJECTION of art_20261022_keylab-mk3-sysex-protocol_0744e9 -- DO NOT EDIT. The atom is the truth; regeneration overwrites this file. Edit through the doc verbs. -->
 
