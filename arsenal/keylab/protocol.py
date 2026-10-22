@@ -237,6 +237,8 @@ class Screen:
     POPUP1L = 23   # one-line popup (simplest)
     POPUP2L = 24   # two-line popup
     POPUP3L = 25   # three-line popup
+    KNOB = 28      # knob graphic with a 0-127 bar (probe P15: unconfirmed on the hardware)
+    FADER = 29     # fader graphic with a 0-127 bar (probe P15: unconfirmed on the hardware)
 
 
 def _ascii32(text) -> list:
@@ -272,6 +274,19 @@ def screen_popup2(line1, line2, color1=(255, 255, 255), color2=(0, 200, 160)) ->
 def screen_full2(line1, line2, color1=(0, 200, 160), color2=(255, 255, 255)) -> bytes:
     """Two-line FULL-SCREEN view (not a popup). screenId 12."""
     return _two_line(Screen.F2L, line1, line2, color1, color2)
+
+
+def screen_param(screen_id: int, name, value_text, level: int, color=(0, 200, 160)) -> bytes:
+    """Knob (28) or fader (29) screen: a parameter's name, its value text and a 0-127 bar. The field tags are the
+    facts read from KL3Display's knob and fader screens (tag 0 = the value line, 1 = the name line, 2 = the bar
+    level, 3 = colour type, 4 = RGB). Unconfirmed on the hardware until probe P15 says it draws."""
+    d = _screen(screen_id)
+    d += [0x00] + _ascii32(value_text) + [0x00]
+    d += [0x01] + _ascii32(name) + [0x00]
+    d += [0x02, max(0, min(127, int(level))), 0x00]
+    d += [0x03, 1, 0x00]
+    d += [0x04, to7(color[0]), to7(color[1]), to7(color[2]), 0x00]
+    return sysex(d)
 
 
 def selftest() -> List[str]:

@@ -52,6 +52,7 @@ Every row carries a dated receipt and its class: **eyes** = Daniel watched the d
 | `ledbench rate [--sweep 5,10,20,40,80,120]` · `spacing` · `burst` | measure the LED limits; the rate sweep flashes N pads before level N |
 | `bench` | host-to-driver send latency (mean/p50/p99) and sustained rate |
 | `monitor` | print incoming MIDI (tap a pad, move a fader) |
+| `probe [--only steps] [--list]` | the guided W0 hardware session: the LCD asks, you answer on the pads (1 yes, 2 no, 4 skip); receipts land in `state/arsenal/keylab/receipts/` |
 
 Colours: a name (`red green blue cyan magenta yellow orange purple pink teal amber white off`), `#rrggbb`, or `r,g,b`.
 Global: `--port SUBSTR`; `--dry-run` prints bytes and sends nothing; `--bank A|B|C|D|DAW`.

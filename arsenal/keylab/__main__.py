@@ -503,7 +503,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sound", action="store_true", help="forward your notes to the Windows synth so you hear them")
     p.add_argument("--port", help="MIDI input port for the keys (default: the KeyLab MIDI port)")
     p.set_defaults(func=cmd_chordview, dry_run=False)
+
+    p = sub.add_parser("probe", help="guided W0 hardware session: the LCD asks, the pads answer (1 yes, 2 no, 4 skip)")
+    p.add_argument("--only", help="comma list of steps (calibrate always runs first); see --list")
+    p.add_argument("--list", action="store_true", help="print the steps and exit")
+    p.add_argument("--out", help="receipt JSON path (default state/arsenal/keylab/receipts/probe-<stamp>.json)")
+    p.set_defaults(func=cmd_probe, dry_run=False)
     return ap
+
+
+def cmd_probe(args) -> int:
+    from . import probe as PR
+    if args.list:
+        print((PR.__doc__ or "").split("Steps", 1)[-1].strip())
+        return 0
+    only = [s.strip() for s in args.only.split(",")] if args.only else None
+    unknown = [s for s in (only or []) if s not in PR.STEPS]
+    if unknown:
+        print(f"unknown step(s) {unknown}; choose from {PR.STEPS}")
+        return 2
+    session = PR.Session(PR.Rig(PR.open_real_ports), args.out or PR.default_receipt_path())
+    print(f"probe: receipts -> {session.path}")
+    path = session.run(only)
+    print(f"probe done: {path}")
+    return 0
 
 
 def main(argv=None) -> int:
