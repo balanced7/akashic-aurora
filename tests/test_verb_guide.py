@@ -116,20 +116,37 @@ def test_session_start_outside_scope_gets_no_map(monkeypatch):
     assert ctx.build_autoboot_context("/somewhere/else", "claude") == ""
 
 
+#: Read the MCP server in a child process. Importing ai_setup_mcp installs its thread-local stdout
+#: proxy around whatever sys.stdout is at that moment; imported inside a test, that is pytest's
+#: per-test capture, and every later in-process MCP call writes into a dead buffer
+#: (test_t060's CLI/MCP comparison read an empty string after this test until it moved out).
+#: The probe writes to sys.__stdout__: the proxy routes a plain print from an unarmed thread to
+#: stderr by design, so the JSON-RPC channel can never carry a stray line.
+_MCP_PROBE = """
+import asyncio, json, sys, ai_setup_mcp as door
+tools = asyncio.run(door.mcp.list_tools())
+sys.__stdout__.write(json.dumps({"instructions": door.mcp.instructions or "",
+                  "always": sorted(t.name for t in tools if (t.meta or {}).get("anthropic/alwaysLoad")),
+                  "names": sorted(t.name for t in tools)}) + "\\n")
+"""
+
+
 def test_mcp_instructions_fit_their_cap_and_core_tools_stay_loaded():
-    import asyncio
+    import json
+    import subprocess
 
-    import ai_setup_mcp as door
-
-    instructions = door.mcp.instructions or ""
+    r = subprocess.run(
+        [sys.executable, "-c", _MCP_PROBE], cwd=ROOT, capture_output=True, text=True, timeout=120, check=True
+    )
+    probe = json.loads(r.stdout.strip().splitlines()[-1])
+    instructions = probe["instructions"]
     assert len(instructions) <= 4096
     assert vg.MARK in instructions
     assert "boot(agent, task)" in instructions
-    tools = {t.name: t for t in asyncio.run(door.mcp.list_tools())}
     for verb in vg.CORE:
         name = "web_fetch" if verb == "web" else verb.replace("-", "_")
-        if name in tools:
-            assert (tools[name].meta or {}).get("anthropic/alwaysLoad") is True, name
+        if name in probe["names"]:
+            assert name in probe["always"], name
 
 
 # ------------------------------------------------------------------------------- layer 3
