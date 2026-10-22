@@ -321,7 +321,8 @@ def cmd_show(args) -> int:
 
 def cmd_beat(args) -> int:
     from . import beatsync
-    return beatsync.run(port=args.port, secs=args.secs, mode=args.mode, bank=args.bank)
+    extra = {} if args.engine == "aubio" else {"lead_ms": args.lead_ms, "seed_bpm": args.seed_bpm, "offline": args.offline}
+    return beatsync.run(port=args.port, secs=args.secs, mode=args.mode, bank=args.bank, engine=args.engine, **extra)
 
 
 def cmd_ledbench(args) -> int:
@@ -484,6 +485,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--secs", type=float, default=None, help="auto-stop after N seconds (default: until Ctrl-C)")
     p.add_argument("--port")
     p.add_argument("--bank", default="DAW")
+    p.add_argument("--engine", choices=["a", "aubio"], default="a", help="a = the house tracker, painting ahead of the beat")
+    p.add_argument("--lead-ms", type=float, default=15.0, help="paint this many ms before the predicted beat")
+    p.add_argument("--seed-bpm", type=float, default=None, help="skip the database lookup and use this BPM as the seed")
+    p.add_argument("--offline", action="store_true", help="no database lookup")
     p.set_defaults(func=cmd_beat, dry_run=False)
 
     p = sub.add_parser("ledbench", help="characterize the LED send limits (rate / spacing / burst)")
@@ -508,6 +513,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--suite", choices=["synthetic", "loops", "all"], default="synthetic")
     p.add_argument("--trackers", default="aubio,librosa", help="comma list (registered: aubio, librosa, a, b)")
     p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
+    p.add_argument("--per-cat", type=int, default=0, help="stratified loops: this many per category (kick/tops/melodic)")
+    p.add_argument("--seeded", action="store_true", help="also run every loop with its true BPM as the seed")
     p.add_argument("--seed", type=int, default=7, help="sampling seed, so a run can be repeated exactly")
     p.add_argument("--hop", type=int, default=512)
     p.set_defaults(func=cmd_beatbench, dry_run=False)
@@ -538,7 +545,18 @@ def cmd_beatbench(args) -> int:
     if args.suite in ("synthetic", "all"):
         cases += BB.synthetic_suite()
     if args.suite in ("loops", "all"):
-        cases += BB.loop_suite(n=args.n, rng_seed=args.seed)
+        if args.per_cat:
+            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed)
+            loops = BB.loop_suite(n=len(picked), paths=picked, rng_seed=args.seed)
+        else:
+            loops = BB.loop_suite(n=args.n, rng_seed=args.seed)
+        cases += loops
+        if args.seeded:
+            import copy
+            for c in loops:
+                s = copy.copy(c)
+                s.seed_bpm, s.name = c.bpm, c.name + " [seeded]"
+                cases.append(s)
     print(f"beatbench: {len(cases)} cases, trackers {names}")
     rep = BB.bench(cases, names, hop=args.hop)
     rep["suite"], rep["n"], rep["seed"] = args.suite, args.n, args.seed

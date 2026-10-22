@@ -498,7 +498,11 @@ def check_tracker(factory: Callable, rate: int = 44100, hop: int = 512) -> List[
 import re as _re
 
 _BPM_RE = _re.compile(r"(?<!\d)(\d{2,3})\s?bpm", _re.I)
-_DRUMMY = ("drum", "perc", "kick", "top", "beat", "groove", "break", "hat", "snare", "clap")
+# Three kinds, because they are not equally answerable: a loop WITH a kick marks the beat; a hats/tops/percussion
+# loop with no kick leaves beat vs off-beat genuinely ambiguous in isolation (in a song, the kick settles it), so
+# AMLt is the fair metric there; melodic loops have no drums at all.
+_KICKY = ("drum loop", "drum fill", "breakbeat", "break", "groove", "kick", "full drum", "beat")
+_TOPS = ("hat", "top", "perc", "shaker", "clap", "snare", "cymbal", "ride", "tamb", "conga", "bongo")
 
 
 def parse_bpm(name: str) -> Optional[int]:
@@ -514,6 +518,29 @@ def find_bpm_loops(max_results: int = 6000) -> List[str]:
     from core.tools.everything import search
     r = search(r"regex:(?i)\d{2,3}\s?bpm.*\.(wav|flac|aiff?|mp3)$", max_results=max_results)
     return [p for p in r.paths if "loop" in p.lower() and parse_bpm(os.path.basename(p))]
+
+
+def loop_category(path: str) -> str:
+    low = os.path.basename(path).lower()
+    return "kick" if any(w in low for w in _KICKY) else "tops" if any(w in low for w in _TOPS) else "melodic"
+
+
+def stratified_loops(per_cat: int = 30, rng_seed: int = 23) -> List[str]:
+    """per_cat loop paths from each category (kick / tops / melodic), so a run is not dominated by melodic loops
+    (most of the pool) and each class is scored with enough cases to mean something."""
+    pool = find_bpm_loops()
+    rng = np.random.default_rng(rng_seed)
+    rng.shuffle(pool)
+    quota = {"kick": per_cat, "tops": per_cat, "melodic": per_cat}
+    picked = []
+    for p in pool:
+        c = loop_category(p)
+        if quota[c] > 0:
+            picked.append(p)
+            quota[c] -= 1
+        if not any(quota.values()):
+            break
+    return picked
 
 
 def loop_suite(n: int = 40, rng_seed: int = 7, tile_secs: float = 30.0, paths: Optional[List[str]] = None,
@@ -550,7 +577,7 @@ def loop_suite(n: int = 40, rng_seed: int = 7, tile_secs: float = 30.0, paths: O
         audio = np.tile(mono, reps)[: int(tile_secs * rate)].astype(np.float32)
         bpm = float(parse_bpm(os.path.basename(p)))
         name = os.path.basename(p)
-        cat = "drums" if any(w in name.lower() for w in _DRUMMY) else "melodic"
+        cat = loop_category(p)
         cases.append(Case(name, audio, int(rate), beat_times(bpm, tile_secs, 0.0), bpm, phase_known=True,
                           source="loop", meta={"path": p, "category": cat, "loop_secs": round(len(mono) / rate, 2)}))
     return cases
