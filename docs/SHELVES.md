@@ -168,7 +168,7 @@ This is door 1 of the library schema (docs/LIBRARY.md).
 - ⚪ `docs/library/design/20260723_deepseek-super-wiki-brainstorm-2026-07-2_581d2d.md` — draft · 2026-07-23
 - ⚪ `docs/library/design/20260723_deepseek-taxonomy-ergonomics-2026-07-23_e6b68a.md` — draft · 2026-07-23
 - ⚪ `docs/library/design/20260723_mcp-door-concurrency-counter-deepseek-20_e29404.md` — draft · 2026-07-23
-- ⚪ `docs/library/design/20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784.md` — draft · arc: SA-1 (docs/security-amendment-deepseek-scoped-admin-2026-07-22.md) · 2026-07-23
+- ⚪ `docs/library/design/20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784.md` — draft · arc: SA-1 · 2026-07-23
 - ⚪ `docs/library/design/20260722_audit-the-belief-vs-belief-photographer_59fafa.md` — draft · 2026-07-22
 - ⚪ `docs/library/design/20260722_p1-co-design-daemon-as-default-resident_32fda9.md` — draft · 2026-07-22
 - ⚪ `docs/library/design/20260722_p1-co-design-daemon-as-default-the-seat_13d655.md` — draft · 2026-07-22

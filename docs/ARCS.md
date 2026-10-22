@@ -23,7 +23,7 @@ Every file declaring an `Arc:` header, grouped by arc. Current files first; arch
 
 </details>
 
-## sa-1 (docs/security-amendment-deepseek-scoped-admin-2026-07-22.md) (0 + 1 archived)
+## sa-1 (0 + 1 archived)
 
 *(all archived)*
 

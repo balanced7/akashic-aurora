@@ -76,21 +76,6 @@ _ROOT_DOCS = ("AGENTS.md", "CLAUDE.md", "README.md", "bootstrap.md")
 # silent dumping ground. Keep this SMALL -- root-anchoring already excludes most false positives.
 REF_ALLOWLIST = {
     # "some/path.py": {"expires": "2026-12-31", "reason": "why this ref is legitimately not on disk"},
-    "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md": {
-        "expires": "2026-09-30",
-        "reason": "RENEWED 2026-09-16 by Daniel's call (the 09-15 expiry blocked every commit, "
-        "including the mirror.py publish guard; the atom fix would commit other seats' "
-        "uncommitted store/docs/design.jsonl). RENEWED 2026-08-24 (first expiry lapsed "
-        "mid-marathon): the path lives as "
-        "PROSE inside the SA-1 arc label on atoms, rendered into generated ARCS/"
-        "SHELVES; real file is docs/library/design/20260722_security-schema-"
-        "amendment-scoped-admin-g_17c9ca.md. ATOM SIDE DONE 2026-09-16: "
-        "art_20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784 relabelled arc "
-        "'SA-1' (AtomFamily.set_arc, v3) and its projection re-rendered; its JSONL line "
-        "waits in the working tree with the other seats' uncommitted atom lines. What is "
-        "left: the ARCS/SHELVES full regen, which also cites ~10 uncommitted 09-01..05 "
-        "projections (21 F FAILs if committed alone). Remove this entry when it lands.",
-    },
 }
 
 
