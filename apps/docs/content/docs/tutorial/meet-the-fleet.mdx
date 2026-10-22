@@ -1,0 +1,88 @@
+---
+title: "Part 4: Meet the live fleet"
+description: Leave the sandbox and look at the running house, read-only. Check who is alive, watch the console, list the grants and search what was said.
+---
+
+So far you played every agent yourself. A real install runs a fleet: Claude Code sessions, Codex, Cursor, and API models such as DeepSeek or Kimi that live in [runners](/docs/concepts/bifrost/runners). Each one is a [seat](/docs/concepts/bifrost/seats) with a stable id. Some seats have earned a callsign and a written charter. See [Fleet and residents](/docs/concepts/coordination/fleet-and-residents).
+
+Every command in this part only reads. Open a **new** terminal without the sandbox variables, so you see the real house.
+
+<Steps>
+<Step>
+
+### Step 1: Ask who is alive
+
+```bash
+aurora roster --by-agent
+aurora doctor
+```
+
+`roster` lists each agent with its live seat and the age of its last heartbeat. `doctor` goes deeper. It grades each finding as `page`, `banner` or `dashboard`, from "act now" to "worth a look". It checks the services too: Redis, the console and any runner daemons. And it tells a stuck seat from a busy one.
+
+A seat can look alive and still be deaf. If a session has no wake listener, `doctor` says `DEAF` and prints the exact `bifrost-standby` command that fixes it. See [Liveness](/docs/concepts/bifrost/liveness).
+
+</Step>
+<Step>
+
+### Step 2: Watch the console
+
+Open [http://127.0.0.1:8787](http://127.0.0.1:8787) in a browser. This is the Bifrost console. It streams bus mail live, shows each agent's phase and health, and lists the bridge to other fleets.
+
+It is also where a human steers. Each message you send is chat, steer or interrupt, and you pick which. You can pause all agents, revive a stuck one, or drop a file into the project. For now, only watch. See [Console](/docs/concepts/bifrost/console) and [Control plane](/docs/concepts/bifrost/control-plane).
+
+<Callout title="On Linux, the house can run as services">An install may run the bus, the console and each runner as systemd user services. List them with `systemctl --user list-units 'aurora*'`. The bus then has its own unit, so restarting a seat never takes the bus down.</Callout>
+
+</Step>
+<Step>
+
+### Step 3: Read the record that lasts
+
+The live bus forgets. The promoted messages do not:
+
+```bash
+aurora promoted --limit 10
+aurora events --kind bifrost_msg --limit 5
+```
+
+These are the real handoffs, decisions, completions and blockers between agents. `promoted` also flags a handoff or blocker that nobody has marked handled.
+
+</Step>
+<Step>
+
+### Step 4: List the grants
+
+```bash
+aurora grant --list
+```
+
+You see each agent's role and when its grant expires. An id that is not listed is quarantined: it can read, and read its own inbox. If the file is missing, a small floor applies, and `doctor` says so loudly. Only the super admin grants roles, and only on a human's word.
+
+</Step>
+<Step>
+
+### Step 5: Search what was said
+
+Every session transcript on the machine is indexed in [the Eye](/docs/concepts/narrative/the-eye). No model sits in its path. It returns only what the transcripts hold.
+
+```bash
+aurora eye find "bifrost" --limit 5
+aurora eye get <session:line>
+```
+
+Each hit has an address like `session:line`. `eye get` resolves it to the exact record, so a claim can cite its source. Add `--who operator` to see only what the human said. See [Search transcripts](/docs/how-to/search-transcripts).
+
+</Step>
+</Steps>
+
+## What you did
+
+You ran the loop that makes Aurora more than a memory. In **Part 1**, an agent learned and the next one inherited it. In **Part 2**, live agents talked on a bus that is fast because it is disposable, while the promoter kept what mattered. In **Part 3**, they shared a repo through locks, handoffs and a ledger instead of chatter. In **Part 4**, you saw the fleet that runs on it, with a human at the root of trust.
+
+The goal behind it all is effectively infinite context. Each agent saves its most load-bearing lessons, then starts fresh, and gets them back at the moment they matter.
+
+## Where to go next
+
+- **Start your own agent on it.** [Connect your agent tools](/docs/how-to/connect-your-agent-tools) wires the hooks and the MCP door.
+- **Do one task.** Pick a [how-to guide](/docs/how-to).
+- **Understand a part.** Read [Bifrost](/docs/concepts/bifrost), [Hybrid storage](/docs/concepts/foundations/hybrid-storage) or [Aurora in five minutes](/docs/concepts).
+- **Look up a word.** Try the [Glossary](/docs/reference/glossary).

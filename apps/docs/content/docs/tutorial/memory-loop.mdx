@@ -1,0 +1,128 @@
+---
+title: "Part 1: The memory loop"
+description: Play one agent for one short session. Boot, learn, recall and hand off, and watch a lesson reach the next agent.
+---
+
+In this part you play one agent for one short session. You start it, learn something, find it again and hand off to the next agent. It takes about ten minutes.
+
+You need the sandbox from the [tutorial start](/docs/tutorial#set-up-the-sandbox). Run every command in that terminal.
+
+<Steps>
+<Step>
+
+### Step 1: Boot
+
+Every session starts with boot. Pick a short name for yourself and say what you are about to do.
+
+```bash
+aurora boot alice --task "learn how Aurora works"
+```
+
+Boot prints the lessons that best match your task. It adds open blockers, handoffs addressed to you and unread mail. In a fresh sandbox it may say you are the first agent. That is fine.
+
+Boot stays inside a token budget of about 9,000 tokens on purpose. More context makes models worse, so boot hands you the best part, not everything. Read more in [Boot](/docs/concepts/memory/boot).
+
+</Step>
+<Step>
+
+### Step 2: Find a verb
+
+Aurora has more than a hundred verbs. You don't need to learn them. Ask for the ones that match a word.
+
+```bash
+aurora discover recall
+```
+
+Each verb comes with a one-line purpose. To ask whether something already does what you need, add `--semantic "<what you need>"`. See [Discover](/docs/concepts/tools/discover).
+
+</Step>
+<Step>
+
+### Step 3: Learn something
+
+Pretend you found a gotcha. Record it as a lesson.
+
+```bash
+aurora learn alice --experiment tutorial_sandbox \
+  --tried "tried Aurora with only REDIS_DB set" \
+  --result "my test lesson still reached the shared files" \
+  --recommend "Use when trying Aurora for the first time, before you learn anything: set REDIS_DB, AI_SETUP and AKASHIC_RECALL_STATE_DIR first." \
+  --success no
+```
+
+The experiment name is the lesson's key. Record the same name again and you update the lesson, not copy it.
+
+Look at the shape of `--recommend`. It starts with when the lesson applies: "Use when …, before …". A lesson that names its moment can show up at that moment. Put what did not work in `--tried`. That part saves the next agent the most. See [Lessons](/docs/concepts/memory/lessons).
+
+</Step>
+<Step>
+
+### Step 4: Find it again
+
+Search memory the way a later agent would.
+
+```bash
+aurora recall REDIS_DB
+```
+
+Your lesson comes back under its name, `tutorial_sandbox`. Recall matches the words in a lesson, so search for a word it holds. Searching for `sandbox` finds nothing here, because that word is only in the name.
+
+Each lesson also has a source pointer: `learn:experiment:tutorial_sandbox`. That pointer is how you cite it. See [Recall](/docs/concepts/memory/recall).
+
+</Step>
+<Step>
+
+### Step 5: Ask before you act
+
+Now ask what Aurora knows about a file before you touch it.
+
+```bash
+aurora recall-at --path core/foundation/store.py
+```
+
+It shows at most three lessons tied to that path, or nothing at all. Silence is a real answer. It means nothing passed the relevance bar.
+
+This is the heart of Aurora. Memory arrives at the moment of action, not in a giant startup prompt. In Claude Code, Codex and Cursor, hooks run this for you before each edit and shell command. See [Recall at action](/docs/concepts/memory/recall-at-action).
+
+</Step>
+<Step>
+
+### Step 6: Say what helped
+
+If a lesson changed what you did, tell Aurora. Useful lessons rank higher next time.
+
+```bash
+aurora recall-feedback --source learn:experiment:tutorial_sandbox --useful
+```
+
+Use `--noise` for a lesson that was off-target. Lessons that show up often and never help fade over time. This closes the [recall loop](/docs/concepts/memory/recall-loop).
+
+</Step>
+<Step>
+
+### Step 7: Hand off
+
+End the session by leaving a note for whoever comes next.
+
+```bash
+aurora handoff alice --to bob --task "finish the tour" --note "I stopped after recall-at."
+```
+
+Now boot as the next agent:
+
+```bash
+aurora boot bob --task "finish the tour"
+```
+
+Your note appears under `context` as `handoff from alice`. Bob picks up where you stopped, with no chat history to reread. See [Handoff](/docs/concepts/bifrost/handoff).
+
+</Step>
+</Steps>
+
+<Callout type="warn" title="Boot refused to start as bob?">A terminal inside an agent session carries that agent's id, such as `AKASHIC_AGENT_ID=claude`. Boot then refuses to load another agent's record. Run the tutorial in a plain terminal, or unset that variable there.</Callout>
+
+## What you did
+
+You ran the whole memory loop. **Boot** loaded what others knew. **Learn** gave something back. **Recall** found it again, and **recall-at** brought it to the moment of action. **Feedback** taught recall what helps. **Handoff** carried your place to the next agent.
+
+So far each agent worked alone, one after the other. Next, two agents talk while both are running: [Part 2: Talk on the bus](/docs/tutorial/talk-on-the-bus).

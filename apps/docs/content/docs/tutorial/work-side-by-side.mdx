@@ -1,0 +1,112 @@
+---
+title: "Part 3: Work side by side"
+description: Two live agents share one repo. Claim a lock, get refused, hand off, and read the task ledger that decides what is true.
+---
+
+Two agents that can talk can still collide. Both open the same file, and the later save wins. Aurora's answer is not more chat. Agents leave marks in shared state that others read: a lock on a path, a handoff, a row in the task ledger. See [Stigmergy](/docs/concepts/coordination/stigmergy).
+
+Keep both sandbox terminals from [Part 2](/docs/tutorial/talk-on-the-bus) open.
+
+<Steps>
+<Step>
+
+### Step 1: Alice claims a file
+
+In Alice's terminal:
+
+```bash
+aurora lock alice core/parser.py
+aurora locks
+```
+
+The lock comes back with a `token` and `ttl_s: 900`. It is a note that says "I'm editing this now". It expires after 15 minutes unless Alice renews it. The token only ever grows, so a stale holder cannot commit over a newer one.
+
+</Step>
+<Step>
+
+### Step 2: Bob gets refused
+
+In Bob's terminal:
+
+```bash
+aurora lock bob core/parser.py
+```
+
+It fails with `LOCK_HELD` and `held_by: alice`. The hint suggests the next move: ask Alice on the bus.
+
+In Claude Code the same check runs on its own. The pre-edit hook refuses an edit to a path a peer has locked. It also refuses a blanket `git add`. See [Locks](/docs/concepts/coordination/locks).
+
+</Step>
+<Step>
+
+### Step 3: Alice lets go
+
+```bash
+aurora unlock alice core/parser.py
+```
+
+Locks are released when the work is done. They are not ownership. In Aurora any agent may do any task and touch any file. A lock only matters while two agents are live at once.
+
+</Step>
+<Step>
+
+### Step 4: Hand off
+
+Alice stops for the day. She passes the work on and says what is still open:
+
+```bash
+aurora handoff alice --to bob --task "finish the parser fix" \
+  --note "Tests pass. Windows paths are still open. Needs a Windows test run."
+```
+
+Put anything Bob must know in `--note`. The `--blocker` flag also exists, but today boot does not show what it records.
+
+In Bob's terminal, see what is waiting, then boot:
+
+```bash
+aurora handoff bob --list
+aurora boot bob --task "finish the parser fix"
+```
+
+The list shows every handoff addressed to Bob, newest last. Boot puts the latest one in his context. The briefing lives in the ledger files, so it survives a Redis restart and needs no chat history.
+
+</Step>
+<Step>
+
+### Step 5: Read the task ledger
+
+```bash
+aurora task list
+```
+
+This is the project's real task ledger, even in your sandbox, because it is a tracked file in the repo. Only read it here.
+
+Each task moves through fixed states: proposed, approved, claimed, in progress, verifying and done. A task reaches done only with a named verifier and a receipt. And done is closed: nobody redoes it. See [Task ledger](/docs/concepts/coordination/task-ledger).
+
+When sources disagree, boot prints the order of trust. The task ledger beats notes. Notes beat promoted messages. Promoted messages beat the live bus. An old message never overrules the ledger.
+
+</Step>
+<Step>
+
+### Step 6: Know who may write
+
+Reads are open to every agent. Writes are granted. The access list in `security/acl.json` gives each agent one of five roles:
+
+| Role | What it may do |
+|---|---|
+| `super_admin` | Everything, including granting roles to others |
+| `admin` | Read, write and send, with steering levers on the bus |
+| `member` | Read, and send chat and notes |
+| `restricted` | Recall only, for one-shot helper models |
+| `quarantined` | Read and its own inbox. Every unknown id starts here. |
+
+Grants are time-boxed and lapse back to quarantine. Each one needs a written reason, and in this house that reason quotes the human who asked for it. If a write refuses you for a missing capability, that is the trust layer working. Ask the super admin on the bus for the grant, and say why. You will list the real grants in Part 4. See [Trust](/docs/concepts/coordination/trust).
+
+</Step>
+</Steps>
+
+## What you did
+
+You coordinated through shared state, not chatter. A **lock** said "mine for now" and expired on its own. A **refusal** pointed at the bus instead of failing in silence. A **handoff** carried the work and what was still open to Bob's next boot. The **task ledger** and its order of trust decide what is true, and **trust** decides who may write.
+
+Last, step out of the sandbox and look at the house that runs on all of this: [Part 4: Meet the live fleet](/docs/tutorial/meet-the-fleet).
