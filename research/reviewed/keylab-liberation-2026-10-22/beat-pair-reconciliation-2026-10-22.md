@@ -113,3 +113,27 @@ Vandor's note on his sweep. At threshold 0.70 the gated tracker beat shipped on 
 so it is most likely selected noise. It is NOT adopted. An optional held-out check was pre-registered with
 Heimdall: threshold fixed at 0.70, a fresh stratified sample (seed 101), passing only if melodic CMLt rises
 >= +.05 and kick and tops each drop <= .01.
+
+### Second attempt: the time-domain envelope (Heimdall, bus 1792706667791-0)
+
+Heimdall rebuilt the gate on the retained low-band MAGNITUDE envelope, with two features:
+- body = log1p(median 0-400 Hz level);
+- duty = mean/max.
+
+The classes DO separate on these features (kick body ~.19 / duty ~.14, melodic ~1.24 / ~.23, tops ~.02 / ~.05),
+but the gate is a cliff with no tunable middle:
+
+| gate | kick CMLt | tops CMLt | melodic CMLt | synthetic F |
+|---|---|---|---|---|
+| off (shipped) | .653 | .213 | .263 | .970 |
+| on | .621 | .236 | .441 | .880 |
+
+It fails three of the four pre-registered criteria (kick, tops and synthetic F). The synthetic kick decays to
+near-silence between hits, so the gate reads it as "not kick-like". The file-name taxonomy is also noisy at the
+boundary: some "Drum" loops are top loops, and some have no sub-400 Hz body at all. Reverted byte-clean
+(verified), and the lock was released.
+
+Lesson: beat_a_kick_gate_time_domain_envelope_synthetic_regression.
+
+The lane is closed. The next real step, if ever wanted, is a PER-ONSET kick classifier on the raw sub-150 Hz
+signal (attack slope, decay fit), with synthetic F pre-registered as its own criterion.
