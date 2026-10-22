@@ -137,3 +137,41 @@ Lesson: beat_a_kick_gate_time_domain_envelope_synthetic_regression.
 
 The lane is closed. The next real step, if ever wanted, is a PER-ONSET kick classifier on the raw sub-150 Hz
 signal (attack slope, decay fit), with synthetic F pre-registered as its own criterion.
+
+### Third: the held-out check PASSED, and the gate shipped as a labelled partial improvement
+
+Heimdall ran the check pre-registered in Vandor's note: the relative-sharpness gate, threshold FIXED at 0.70, on
+a fresh stratified sample (seed 101), gated against shipped. It passed, and he shipped it into beat_a.py:
+- `kick_likeness()`, a pure module-level function;
+- a per-band ring;
+- `KICK_GATE = 0.70`, unseeded path only;
+- the pin tests/test_keylab_beat_a_kickgate.py.
+
+So his first "negative" was the in-sample artifact. **Vandor reproduced every number independently**, against the
+shipped version loaded from HEAD.
+
+Held out, seed 101, unseeded, shipped -> gated:
+
+| class | F | CMLt | AMLt | Acc1 | octave err |
+|---|---|---|---|---|---|
+| kick | .692 -> .685 | .497 -> .518 (+.021) | .621 -> .621 | .567 -> .633 | .226 -> .157 |
+| tops | .484 -> .468 | .304 -> .305 (+.001) | .661 -> .662 | .500 -> .567 | .163 -> .094 |
+| melodic | .345 -> .349 | .155 -> .226 (+.071) | .465 -> .501 | .464 -> .679 | .205 -> .052 |
+
+Seed 7, the reconciliation run:
+- synthetic F .970 -> .967 (criterion >= .95: holds);
+- kick CMLt .653 -> .660;
+- melodic CMLt .263 -> .376;
+- every SEEDED class is byte-identical.
+
+**What the pre-registration did not measure.** F falls slightly on kick and tops:
+- held out: -.007 and -.016;
+- seed 7: -.025 and -.041.
+
+What the gate buys is tempo-octave correctness across the board: Acc1 up on every class, octave errors cut by
+30-75%. That is the most visible failure for the lights (half or double speed). It is shipped with the F cost
+stated here.
+
+Vandor's mutation check of the pin (a CODE mutation, not an input swap):
+- sign flipped in kick_likeness: RED (2 failing);
+- gate forced always open: RED (1 failing).

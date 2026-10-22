@@ -33,6 +33,41 @@ CONFIRM_S = 0.09        # how long after an expected beat we wait to confirm it
 PLL_PHASE = 0.5         # share of the timing error taken into the beat time
 PLL_PERIOD = 0.08       # share of the timing error taken into the period
 ONSET_LAG_S = 0.0       # systematic detector delay (calibrated on the synthetic suite)
+KICK_GATE = 0.70        # accent rule may halve tempo only when kick_likeness() >= this (see _metrical_level)
+
+
+def kick_likeness(band_hist: np.ndarray) -> float:
+    """0..1: how 'kick-like' the recent per-band onset flux is, by RELATIVE transient sharpness (low bands vs the
+    hats band). A pure function over `band_hist` -- the most recent rows of the per-band onset-flux ring, one
+    four-band vector per frame (bands: [sub/kick, snare body, mids, hats]). Module-level so it is swappable and
+    testable in isolation; stdlib + numpy only (licence firewall).
+
+    A kick/snare loop has a spiky low-band (kick body) flux -- one pulse per beat, high peak/mean -- and a
+    relatively steady hats band; a hats-only (tops) loop is the opposite (spiky high band, flat low band); a
+    melodic loop is sustained (low spikiness in both, but with real low-band magnitude). So the sign of
+    (low-band sharpness - hats-band sharpness), folded with the low-band magnitude share, separates a body pulse
+    from the rest. This is NOT the earlier failed gate (band energy share + periodicity, which gated nothing,
+    medians .276 vs .275): it measures the sharpness of the ATTACK, on the onset bands.
+
+    PARTIAL IMPROVEMENT, not a full kick detector (2026-10-22, pre-registered test, fresh seed 101, 88 loops):
+    gating the unseeded accent-rule halving at threshold 0.70 lifts melodic CMLt +.071 with kick +.021 and tops
+    +.001 (all non-regressive). It does NOT reach the stronger aubio parity on hats/melodic that a per-onset
+    sub-150 Hz attack/decay detector would; it is labelled as a partial improvement over shipped beat_a.
+    """
+    h = np.asarray(band_hist, dtype=np.float64)
+    if h.shape[0] < 8 or h.shape[1] < 4:
+        return 0.0
+    low = h[:, 0] * 2.0 + h[:, 1] * 1.5       # kick + snare body (0-400 Hz), accent-weighted
+    hat = h[:, 3]                             # hats band (2500 Hz+)
+
+    def sharp(x):
+        return float(x.max() / (x.mean() + 1e-9))
+
+    s_low, s_hat = sharp(low), sharp(hat)
+    mag_ratio = float(low.max()) / (float(low.max()) + float(hat.max()) + 1e-9)
+    rel = (s_low - s_hat) / (s_low + s_hat + 1e-9)   # -1..+1: positive = low band spikier than hats (kick-like)
+    like = 0.55 * np.clip((rel + 1.0) / 2.0, 0.0, 1.0) + 0.45 * mag_ratio
+    return float(np.clip(like, 0.0, 1.0))
 
 
 class Tracker:
@@ -54,6 +89,8 @@ class Tracker:
         n_hist = int(HIST_S * self.fr)
         self.oss_t = np.zeros(n_hist, dtype=np.float32)      # full-band onset strength (tempo)
         self.oss_p = np.zeros(n_hist, dtype=np.float32)      # low-weighted onset strength (phase)
+        # Per-band onset-flux ring for the kick gate; each row is the four-band flux vector at one frame.
+        self.band_hist = np.zeros((n_hist, 4), dtype=np.float32)
         self.frames = 0
         self.every = max(1, int(round(TEMPO_EVERY_S * self.fr)))
         self.seed = float(seed_bpm) if seed_bpm else None
@@ -109,9 +146,11 @@ class Tracker:
         self.prev = mag
         self.oss_t = np.roll(self.oss_t, -1)
         self.oss_p = np.roll(self.oss_p, -1)
+        self.band_hist = np.roll(self.band_hist, -1, axis=0)
         bands = np.array([flux[b].mean() if len(b) else 0.0 for b in self.bands])
         self.oss_t[-1] = float(bands @ self.w_even)
         self.oss_p[-1] = float(bands @ self.w_accent)
+        self.band_hist[-1] = bands
         self.frames += 1
         out: List[dict] = []
         have = min(self.frames, len(self.oss_t)) / self.fr
@@ -174,11 +213,19 @@ class Tracker:
 
         Measured trade-off (2026-10-22, 89 stratified loops from Daniel's packs, unseeded): with this rule, kick
         loops F .73 / CMLt .60 (aubio .65 / .51); without it .62 / .50. But hats-only and melodic loops get worse
-        (CMLt .29 / .28 vs .34 / .45 without). A kick gate was tried and REMOVED: sub-bass share and periodicity do
-        not separate kick loops from melodic ones (medians .276 vs .275), so the gate gated nothing. Kept because
-        the lights mostly follow full mixes with drums; seeded tracking, the main path, does not use it."""
+        (CMLt .29 / .28 vs .34 / .45 without). Kept because the lights mostly follow full mixes with drums; seeded
+        tracking, the main path, does not use it.
+
+        KICK GATE (2026-10-22): halving is only the right reading when the material has a body transient, so it is
+        gated on kick_likeness() (relative transient sharpness of the low bands vs the hats band) at KICK_GATE.
+        Below the threshold the material is hats-only or sustained, and bpm is returned unchanged. This is a
+        LABELLED PARTIAL IMPROVEMENT, not a full kick detector: pre-registered on fresh seed 101 it lifts melodic
+        CMLt +.071 with kick +.021 and tops +.001 (all non-regressive); it was confirmed on unseen data after being
+        fitted on seed 7 (a post-hoc pick that could not confirm itself, now did)."""
         slow = bpm / 2.0
         if slow < BPM_LO:
+            return bpm
+        if kick_likeness(self.band_hist) < KICK_GATE:
             return bpm
         on, off, strength = self._comb_scores(60.0 / slow)
         if strength > 1.0 and on > 0 and off < 0.6 * on:
