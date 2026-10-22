@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at bfe9c295. A bound you discover by collision is not awareness -- this sheet
+> Derived at c143ead0. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (282 names)
+## Configuration flags (284 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -236,6 +236,8 @@ Class: reference
 | `GEMINI_WEB_TIMEOUT_MS` | `"120000"` | scripts/gemini_web.py |
 | `GEMINI_WEB_TZ` | `"America/New_York"` | scripts/gemini_web.py |
 | `GEMMA_URL` | `"http://localhost:5000"` | research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py |
+| `GETSONGBPM_API_KEY` | `` | arsenal/keylab/tempo.py |
+| `GET_SONG_BPM_KEY` | `` | arsenal/keylab/tempo.py |
 | `GIT_AUTHOR_NAME` | `` | scripts/mirror.py |
 | `KIMI_API_KEY` | `` | scripts/kimi_chat.py |
 | `KIMI_BASE_URL` | `"https://api.moonshot.ai/v1"` | core/comm/ask.py |
