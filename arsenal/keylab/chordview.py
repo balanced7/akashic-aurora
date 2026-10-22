@@ -14,26 +14,39 @@ from .theory import name_chord, analyze
 
 PAD_PC = {pad: P.PAD_NOTE[pad] % 12 for pad in range(1, 13)}  # the pitch-class each pad represents
 
+# Colours live OUTSIDE the wash zone. On this device warm low-saturation colours (amber, yellow, orange, lime) come
+# out close to white (README "Confirmed facts"), and the root is white, so a gold third was indistinguishable from
+# the root. Every non-white colour below has a hue outside 15-100 degrees (pinned in tests/test_keylab_w0.py).
+# The LED gamut probe (A16 W0 d) will replace these hand-picked values with a measured LED-safe table.
+#
 # interval-from-root -> colour: the "harmonic role" of each chord tone
-ROLE_COLORS = {0: (255, 255, 255), 1: (255, 0, 120), 2: (150, 0, 255), 3: (255, 150, 0), 4: (255, 200, 0),
-               5: (0, 210, 160), 6: (255, 40, 0), 7: (0, 160, 255), 8: (255, 0, 200), 9: (150, 255, 0),
-               10: (0, 220, 90), 11: (0, 255, 130)}
-# chord quality -> one mood colour
-QUALITY_COLORS = {"": (255, 180, 0), "maj7": (255, 150, 40), "maj9": (255, 150, 40), "6": (255, 200, 0),
+ROLE_COLORS = {0: (255, 255, 255),   # root: white
+               1: (255, 0, 120),     # b9: pink
+               2: (150, 0, 255),     # 9: purple
+               3: (255, 0, 255),     # minor 3rd: magenta
+               4: (255, 0, 0),       # major 3rd: red
+               5: (0, 210, 160),     # 4th / 11: teal
+               6: (255, 40, 0),      # tritone: red-orange
+               7: (0, 120, 255),     # 5th: blue
+               8: (255, 0, 170),     # #5 / b6: rose
+               9: (0, 255, 255),     # 6th / 13: cyan
+               10: (0, 220, 90),     # minor 7th: green
+               11: (0, 255, 130)}    # major 7th: spring green
+# chord quality -> one mood colour (the major family is red/rose now; it was amber, which washed to white)
+QUALITY_COLORS = {"": (255, 0, 0), "maj7": (255, 0, 80), "maj9": (255, 0, 80), "6": (255, 0, 40),
+                  "add9": (255, 0, 60),
                   "m": (0, 90, 255), "m7": (0, 120, 220), "m9": (0, 120, 220), "m6": (0, 140, 200),
                   "madd9": (0, 120, 220), "m7b5": (90, 0, 220), "dim": (150, 0, 200), "dim7": (120, 0, 210),
-                  "aug": (255, 40, 0), "7": (0, 200, 80), "9": (0, 200, 80), "7sus4": (0, 200, 120),
-                  "sus2": (0, 200, 180), "sus4": (0, 200, 180), "add9": (255, 120, 0), "5": (200, 200, 200)}
+                  "aug": (255, 0, 255), "7": (0, 200, 80), "9": (0, 200, 80), "7sus4": (0, 200, 120),
+                  "sus2": (0, 200, 180), "sus4": (0, 200, 180), "5": (0, 255, 255)}
 
 
-# Physical pad grid, 3 across x 4 down, as printed on the unit. Confirmed 2026-10-22 from Daniel's photo of the
-# 12-colour test (pad n lit COLORS[n-1]: left column came up blue/purple/magenta/pink = pads 9-12, right column
-# red/orange/amber/yellow = pads 1-4):
+# Physical pad grid, 3 across x 4 down, as printed on the unit (the one copy lives in protocol.GRID):
 #     9  5  1
 #    10  6  2
 #    11  7  3
 #    12  8  4
-GRID = [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]]
+GRID = P.GRID
 TOP_ROW = set(GRID[0])                                                    # {9, 5, 1}
 BORDER = set(GRID[0]) | set(GRID[-1]) | {r[0] for r in GRID} | {r[-1] for r in GRID}   # all but pads 6, 7
 
@@ -69,6 +82,31 @@ def pad_colors(sounding, root, quality, scheme, base):
     return out
 
 
+class Voicing:
+    """Which notes are sounding: held keys plus notes the sustain pedal (CC 64) is holding. Pure, so it is pinned
+    without hardware (tests/test_keylab_w0.py)."""
+
+    def __init__(self):
+        self.down, self.sustained, self.pedal = set(), set(), False
+
+    def feed(self, status: int, d1: int, d2: int) -> None:
+        kind = status & 0xF0
+        if kind == 0x90 and d2 > 0:
+            self.down.add(d1); self.sustained.discard(d1)
+        elif kind == 0x80 or (kind == 0x90 and d2 == 0):
+            self.down.discard(d1)
+            if self.pedal:
+                self.sustained.add(d1)             # the pedal holds the note past key release
+        elif kind == 0xB0 and d1 == 64:            # CC 64 = sustain pedal
+            self.pedal = d2 >= 64
+            if not self.pedal:
+                self.sustained.clear()             # pedal up -> release the sustained notes
+
+    @property
+    def sounding(self) -> set:
+        return self.down | self.sustained
+
+
 def run(secs: Optional[float] = None, keys_port: Optional[str] = None, led_port: Optional[str] = None,
         chord_color=(0, 200, 160), scheme: str = "roles", sound: bool = False) -> int:
     from .ledframe import PadRenderer
@@ -85,7 +123,7 @@ def run(secs: Optional[float] = None, keys_port: Optional[str] = None, led_port:
         except Exception as exc:
             print(f"(no synth available: {exc})")
 
-    down, sustained, pedal = set(), set(), False
+    voicing = Voicing()
     last = object()  # sentinel so the first state always draws
     out.send_sysex(P.screen_full2("CHORD", "play...", color1=chord_color, color2=(160, 160, 160)))
     listener.start()
@@ -99,18 +137,8 @@ def run(secs: Optional[float] = None, keys_port: Optional[str] = None, led_port:
                     continue
                 if synth is not None:
                     synth.send_short(data[0], data[1], data[2])   # play it so you hear it
-                status, d1, d2 = data[0] & 0xF0, data[1], data[2]
-                if status == 0x90 and d2 > 0:
-                    down.add(d1); sustained.discard(d1)
-                elif status == 0x80 or (status == 0x90 and d2 == 0):
-                    down.discard(d1)
-                    if pedal:
-                        sustained.add(d1)             # sustain pedal holds the note past key release
-                elif status == 0xB0 and d1 == 64:     # CC 64 = sustain pedal
-                    pedal = d2 >= 64
-                    if not pedal:
-                        sustained.clear()             # pedal up -> release the sustained notes
-            sounding = down | sustained
+                voicing.feed(data[0], data[1], data[2])
+            sounding = voicing.sounding
             name, root, qual = analyze(sorted(sounding)) if sounding else (None, None, None)
             if name != last:
                 last = name

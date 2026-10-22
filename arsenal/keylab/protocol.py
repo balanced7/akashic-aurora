@@ -85,6 +85,10 @@ PAD_CHANNEL = 10
 PAD_NOTE = {1: 44, 2: 45, 3: 46, 4: 47, 5: 40, 6: 41, 7: 42, 8: 43, 9: 36, 10: 37, 11: 38, 12: 39}
 _NOTE_PAD = {note: pad for pad, note in PAD_NOTE.items()}
 
+# The physical grid as printed on the unit, 3 across x 4 down. The ONE copy: chordview, the hub's scene and any
+# browser twin import it from here. Confirmed 2026-10-22 from Daniel's photo of the 12-colour test.
+GRID = [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]]
+
 
 def pad_for_pitchclass(pc: int) -> int:
     """Which pad (1..12) plays pitch-class pc (0=C..11=B), per the default note map. 36..47 covers all 12."""

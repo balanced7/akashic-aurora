@@ -1,0 +1,39 @@
+# Evidence: OBS integration and lease primitives (2026-10-22)
+
+The final report of a read-only Explore agent (sonnet), dispatched by Vandor for the A16 design docs
+W293 (OBS) and W294 (last-claimant modes). Persisted unedited per the full-fidelity rule; the agent's
+own UNCONFIRMED marks are kept.
+
+---
+
+## PART A — OBS integration
+
+**1. OBS installed?** Yes. `py E:\AI-Setup\agent_cli.py find obs64.exe` (Everything-index) returned `C:\Program Files\obs-studio\bin\64bit\obs64.exe` (plus a stale prefetch entry). `(Get-Item <path>).VersionInfo` → ProductVersion/FileVersion = **32.2.2**, ProductName "OBS Studio".
+
+**2. obs-websocket enabled?** `%APPDATA%\obs-studio\plugin_config\obs-websocket\config.json`: `server_enabled: false`, `server_port: 4455`, `auth_required: true`. (A `server_password` field is present in the file but is NOT reported here per instructions.) So the plugin is present but its server is currently **off** — it would need to be turned on before any obs-websocket client can connect.
+
+**3. obs-websocket v5 protocol** (github.com/obsproject/obs-websocket, docs/generated/protocol.md):
+- Scene switching: `SetCurrentProgramScene`.
+- Recording: `StartRecord`, `StopRecord`, `ToggleRecord`, `GetRecordStatus`.
+- Streaming: `StartStream`, `StopStream`.
+- Chapter markers: `CreateRecordChapter`, added in RPC v5.0.0. Per `src/requesthandler/RequestHandler_Record.cpp` (obsproject/obs-websocket, lines ~227-248 on GitHub): "As of OBS 30.2.0, the only file format supporting this feature is **Hybrid MP4**." It delegates to `obs_frontend_recording_add_chapter()` and returns "Verify that the output being used supports chapter markers." on failure — i.e. MKV/standard MP4 recordings will reject chapter calls.
+- Events: `RecordStateChanged` (fields `outputActive`, `outputState`, `outputPath`) and `CurrentProgramSceneChanged` (new scene name + uuid).
+- Browser-source overlay data path: UNCONFIRMED against the fetched doc page specifically — this wasn't stated verbatim in protocol.md, but it is the standard, widely-documented OBS pattern (a local page served by your own HTTP server, added as an OBS **Browser Source** pointed at that URL, updated live via WebSocket/SSE/polling from that same server). Treat as general knowledge, not a direct protocol.md citation.
+
+**4. Python client libraries, licenses (SPDX):**
+- `obsws-python` — **GPL-3.0-only** (confirmed on PyPI project page and the LICENSE file at github.com/aatikturk/obsws-python). This is the one that matters: a GPL-3.0 dependency would impose copyleft obligations incompatible with shipping it inside an Apache-2.0 repo (distribution of the combined work would need to be GPL-compatible).
+- `simpleobsws` — **MIT** (confirmed via github.com/IRLToolkit/simpleobsws/blob/master/LICENSE).
+- `obs-websocket-py` — **MIT** (confirmed on its PyPI page).
+- Recommendation if building this: avoid `obsws-python`; `simpleobsws` or `obs-websocket-py` are Apache-2.0-safe.
+
+**5. Existing OBS references in the repo:** `grep -i obs` across `arsenal/` and `scripts/` found ~60 hits, but nearly all are in `arsenal/media/*` (`avsync.py`, `audio.py`, `cut.py`, `catalog.py`, `parse.py`, `peaks.py`, `probe.py`, `door.py`, `league/*`), plus `arsenal/tiktok.py` and `arsenal/web/edit/*.js`, `arsenal/web/piano.js`, `arsenal/web/piano/recorder*.js`. All of these treat OBS only as **the recording tool whose output files get parsed** (file-name timestamp convention, keyframe interval ~4.17s, 6-track audio map, "OBS" encoder tag in ffprobe output) — e.g. `arsenal/media/parse.py:24-34` (OBS file-name stamp parser), `arsenal/media/probe.py:398` (`encoder.startswith("OBS")`). A targeted grep for `obs-websocket|obsws|obs_websocket` in `scripts/` returned **zero** matches, and the same pattern inside `arsenal/` matched nothing beyond the OBS-as-recorder references above. **Conclusion: there is no existing remote-control/scene-switching/overlay code for OBS anywhere in the repo — this design is greenfield**, though the house already has deep OBS *output-file* domain knowledge to build on.
+
+## PART B — leases and "last-claimant-wins"
+
+**6. Existing lease/lock primitives:**
+- `core/comm/locks.py` — Redis-backed advisory **path** lock (`LockManager`, class at lines 70-174). Guarantees: monotonic fencing token (`SEQ_KEY` line 34, minted lines 81-82/107, checked by `validate_token` line 144-150), default TTL 900s (`DEFAULT_TTL` line 35) refreshed only by re-acquiring (re-entrant extend, lines 96-104) — **no separate heartbeat thread**. `release()` (line 121) only lets the holder release; `acquire()` never lets a non-holder override an unexpired lock (lines 105-106) — i.e. no "steal" path exists today. Fail-soft when Redis is down (lines 90-92, 117-119). CLI surface: `cmd_lock` agent_cli.py:7468, `cmd_unlock` agent_cli.py:7483, `cmd_locks` agent_cli.py:8337; argparse wiring at agent_cli.py:9777 (`lock`), 9782 (`unlock`), 9858 (`locks`).
+- `core/comm/runner_lock.py` — Redis-backed **singleton** lock, "at most one live runner per agent id." Guarantees: single-holder + fencing generation (`generation_of` lines 54-57, `_TENURE_GEN` line 51), per-process `instance_token()` (lines 76-80), TTL = `scaled(20)` seconds (`LOCK_TTL` line 41) with an explicit **heartbeat()** function (line 153) the live runner must call before expiry, and crash-safety via TTL expiry + reclaim (docstring lines 10-12). Also has a separate turn-based consumer lease (`claim_consumer`/`refresh_consumer`/`release_consumer`/`stand_down`, lines 224-297) with its own TTL (`SESSION_CONSUMER_TTL = scaled(1800)`, line 46) — this is the closest existing shape to a "foreground lease," though it's scoped to bus-consumer ownership, not device/UI control.
+- `core/foundation/filelock.py` — a **file-backed** (not Redis) cross-process exclusive lock using `msvcrt.locking` (Windows) / `fcntl.flock` (POSIX) on a sidecar `.lock` file (lines 1-56). No TTL/heartbeat at all — relies on the OS releasing the lock when the holder process dies (docstring lines 14-17). Used via its `exclusive()` context manager at e.g. agent_cli.py:2377 and :2479 to guard a ledger read-modify-write.
+- None of these implements "most-recent-claimant-wins" (force-override) or a "pin" combo — `core/comm/locks.py`'s `LockManager` (acquire/release/holder/validate_token + fencing token + TTL) is the best-fit base to extend for a keyboard-lights/LCD lease keyed by a logical resource name (e.g. `"keylab:mode"`) instead of a file path; "pin" would be new behavior (e.g. a `pinned` flag in the stored JSON that `acquire()` checks before allowing a different agent's claim to win). This extension does not exist yet — **UNCONFIRMED/not found** anywhere in the repo.
+
+**7. Local-service-plus-MCP-door pattern:** Confirmed, two concrete examples. `ai_setup_mcp.py` is the "knowledge door" — a `FastMCP("akashic-aurora", ...)` server (constructed ai_setup_mcp.py:327-349) with ~56 tools registered via `@mcp.tool()` decorators starting at ai_setup_mcp.py:356. `arsenal/media/door.py:1-38` is explicitly modeled as a **separate** door so "the knowledge door does not grow by twenty tools" (door.py:3): also `FastMCP(...)` (door.py:21,28), run as `py -m arsenal.media.door` over stdio **or** `--http PORT` (door.py:1), and manually registered via `claude mcp add arsenal-media -- py -m arsenal.media.door` (door.py:11-12) — no auto-discovery. This establishes the house pattern a KeyLab/OBS door should follow: a thin module wrapping existing functions as FastMCP tools, runnable in stdio or HTTP mode from one process, opt-in registered per tool. I did not find a documented design doc formalizing this as a named standard beyond these two modules' own docstrings — treat "this is the house pattern" as inferred from two instances, not a cited policy document (UNCONFIRMED beyond door.py:1-13 and ai_setup_mcp.py:327-356).

@@ -218,7 +218,8 @@ def cmd_bench(args) -> int:
         print(f"  (dry-run) would send {args.count} eSetLed msgs cycling 12 pads; sample:")
         print(f"  {_hex(P.set_led(targets[0], palette[0], req=args.req))}")
         return 0
-    with W.MidiOut(args.port) as out:
+    print("  (limit probe: the burst governor is OFF for this run)")
+    with W.MidiOut(args.port, governor=False) as out:
         _arm(out, args)
         durs = []
         if args.hz:  # paced -- watch for visible stall (the device's render ceiling)
@@ -327,7 +328,8 @@ def cmd_ledbench(args) -> int:
     """Characterize the LED send limits -- run ONE test, watch the pads, report, then we bump the knob.
     rate: one pad toggles fast (watch for lag). spacing: 12 pads at a tight gap (watch for dropped pads).
     burst: N packets with NO spacing -- approaches the ~36 freeze wall, so start small; a power cycle recovers."""
-    with W.MidiOut(args.port, prefer="daw") as out:
+    print("ledbench is a limit probe: the burst governor is OFF for this run")
+    with W.MidiOut(args.port, prefer="daw", governor=False) as out:
         out.send_sysex(P.daw_connect(True)); time.sleep(0.2)
         if args.test == "rate":
             def _pad(n, c):

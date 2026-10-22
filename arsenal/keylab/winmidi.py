@@ -92,7 +92,13 @@ def _match(names: List[str], substr: Optional[str], prefer: Optional[str] = None
 class MidiOut:
     """An open WinMM output. Use as a context manager. send_sysex() blocks until the driver accepts the buffer."""
 
-    def __init__(self, port: Optional[str] = None, prefer: Optional[str] = "daw"):
+    def __init__(self, port: Optional[str] = None, prefer: Optional[str] = "daw", governor=None):
+        # Every SysEx from every producer sharing this output passes one BurstGovernor (the freeze ceiling as a
+        # guarantee). Pass governor=False only for a deliberate limit probe such as `ledbench burst`.
+        if governor is None:
+            from .governor import BurstGovernor
+            governor = BurstGovernor()
+        self.governor = governor or None
         self.mm = _winmm()
         self.names = outputs()
         self.index = _match(self.names, port, prefer)
@@ -121,6 +127,8 @@ class MidiOut:
             raise RuntimeError(f"midiOutShortMsg failed, MMRESULT={rc}")
 
     def send_sysex(self, data: bytes) -> None:
+        if self.governor is not None:
+            self.governor.admit()
         buf = ctypes.create_string_buffer(bytes(data), len(data))
         hdr = MIDIHDR()
         hdr.lpData = ctypes.cast(buf, ctypes.c_char_p)

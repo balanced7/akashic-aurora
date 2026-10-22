@@ -48,3 +48,16 @@ the question each number answers is given in brackets for the reader and is not 
 - 5: built as the house's own FL controller script rather than a modified copy of Arturia's file,
   so it can live in the public repo (Arturia's script is their code; the protocol facts are not).
 - 9, 12, 13: explained again in plain words on Discord.
+
+## Second round (2026-10-22, Discord, verbatim; bus 1792692615162-0)
+
+> 1 all of it
+> 2. Yes
+> 5. Lets do A custom script where we drive but fl integration works, i dont like all the aspects of the default integration so we can riff on the details
+> 7.for the mixer presets lets leave them where they live in the native fl studio folder. For the other stuff it can live where it makes the most sense.
+> 9. Keep it optional we can build or own later
+> 12. When I tried it last I had to click to some program where you click on a pad then have to manually select which midi not it represents the whole interface sucks and is cumbersome. I want us to be able to assign either midi notes easily for easy mapping of drumkits without having to remap or make a custom map in each drum app. Let me know what other questions you have on this
+
+Readings: 1 = push every commit ahead of origin/master. 2 = the rank reading is confirmed: A16 counts
+toward A12 (#4) and keeps its own number. 9 = aubio stays an optional, lazily imported dependency; the
+house writes its own beat detector before anything is bundled. 13 (the Commons) is still unanswered.
