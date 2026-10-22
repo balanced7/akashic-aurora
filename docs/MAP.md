@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (48 of 207 modules lack both pin and paper by name)
+## GAP queue (47 of 207 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -43,7 +43,6 @@ Class: reference
 - core/coord/observations.py
 - core/coord/task_costs.py
 - core/coord/verb_awareness.py
-- core/coord/verb_guide.py
 - core/learning/domains.py
 - core/learning/vfx_chunk_lessons.py
 - core/recall/at_action.py
@@ -201,7 +200,7 @@ Class: reference
 | `terms.py` | terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214). | tests/test_t214_terms_domain.py | GAP |  |
 | `timeline.py` | timeline -- one chronological SET across domains (T211). | tests/test_axi_timeline.py | GAP | `AKASHIC_TIMELINE_FILE_LIMIT` |
 | `verb_awareness.py` | verb_awareness -- do agents reach for the house's verbs without being reminded? | GAP | GAP | `CLAUDE_CONFIG_DIR` |
-| `verb_guide.py` | verb_guide -- WHEN to reach for each verb, in one table every surface is generated from. | GAP | GAP |  |
+| `verb_guide.py` | verb_guide -- WHEN to reach for each verb, in one table every surface is generated from. | tests/test_verb_guide.py | GAP |  |
 | `world_diff.py` | world_diff -- what differs between two worlds, MINUS what should differ. | tests/test_w159_world_diff.py | GAP |  |
 | `world_fidelity.py` | world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered. | tests/test_w163_world_fidelity.py | GAP |  |
 | `world_savepoint.py` | world_savepoint -- a world's two planes under one name, or neither. | tests/test_w160_world_savepoint.py | GAP |  |

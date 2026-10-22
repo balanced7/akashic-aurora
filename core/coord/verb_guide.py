@@ -11,7 +11,7 @@ for lessons by pushing at the moment of relevance ("the failure is in WHEN, not 
 is the same kind of knowledge ("when X, do Y"), so it rides the same pushes:
 
   layer 1  this table: family + a trigger-phrased "Use when ..." line per verb, pinned to the
-           live parser by its tests (no verb without a line, no line without a verb)
+           live parser by tests/test_verb_guide.py (no verb without a line, no line without a verb)
   layer 2  render_map(): the situation map the SessionStart whisper and the MCP server
            instructions carry, so every session starts knowing the whole surface
   layer 3  the family skills (.agents/skills/aurora-*), whose verb tables are generated from
@@ -318,7 +318,7 @@ def _index() -> tuple[dict[str, float], tuple[tuple[str, dict[str, float], tuple
     return idf, rows
 
 
-#: Tuned on fixture prompts in plain operator words: high enough that ordinary coding
+#: Tuned on the fixture prompts in tests/test_verb_guide.py: high enough that ordinary coding
 #: requests stay silent, low enough that a request in plain words finds its verb. Precision
 #: beats recall here -- a wrong suggestion teaches the reader to skip the line.
 MATCH_FLOOR = 9.0
