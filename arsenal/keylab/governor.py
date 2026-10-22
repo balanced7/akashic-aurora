@@ -9,7 +9,7 @@ ceiling waits; nothing is dropped.
 
 The default window is 0.1 s. PadRenderer has been sending up to ~150 packets/s without a freeze, so 12 per
 100 ms (120/s) sits inside behaviour already seen on the hardware. It is a conservative starting value, and
-probe P2 re-measures it.
+probe P24 (the sustained burst window, added by the A16 design docs) re-measures it.
 
 Thread-safe. The clock and sleep are injectable, so the property test runs on a fake clock and cannot flake.
 """
