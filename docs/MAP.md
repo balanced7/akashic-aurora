@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 204 modules lack both pin and paper by name)
+## GAP queue (48 of 207 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -42,6 +42,8 @@ Class: reference
 - core/coord/intent_shadow.py
 - core/coord/observations.py
 - core/coord/task_costs.py
+- core/coord/verb_awareness.py
+- core/coord/verb_guide.py
 - core/learning/domains.py
 - core/learning/vfx_chunk_lessons.py
 - core/recall/at_action.py
@@ -166,7 +168,7 @@ Class: reference
 | `wake_tiers.py` | wake tiers -- the priority dimension the wake decision was missing. | tests/test_wake_tiers.py | GAP |  |
 | `wedge_discriminator.py` | wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule. | tests/test_t376_s5_wedge_discriminator.py | GAP |  |
 
-## core/coord/  (31 modules)
+## core/coord/  (33 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -198,6 +200,8 @@ Class: reference
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `AKASHIC_TASKS_PATH`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
 | `terms.py` | terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214). | tests/test_t214_terms_domain.py | GAP |  |
 | `timeline.py` | timeline -- one chronological SET across domains (T211). | tests/test_axi_timeline.py | GAP | `AKASHIC_TIMELINE_FILE_LIMIT` |
+| `verb_awareness.py` | verb_awareness -- do agents reach for the house's verbs without being reminded? | GAP | GAP | `CLAUDE_CONFIG_DIR` |
+| `verb_guide.py` | verb_guide -- WHEN to reach for each verb, in one table every surface is generated from. | GAP | GAP |  |
 | `world_diff.py` | world_diff -- what differs between two worlds, MINUS what should differ. | tests/test_w159_world_diff.py | GAP |  |
 | `world_fidelity.py` | world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered. | tests/test_w163_world_fidelity.py | GAP |  |
 | `world_savepoint.py` | world_savepoint -- a world's two planes under one name, or neither. | tests/test_w160_world_savepoint.py | GAP |  |
@@ -322,7 +326,7 @@ Class: reference
 | `reinforce.py` | ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use | GAP | GAP |  |
 | `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
 
-## agent/harness/  (15 modules)
+## agent/harness/  (16 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -341,6 +345,7 @@ Class: reference
 | `scope.py` | Repo-scoping policy shared by every harness adapter (Integration Tiers H0). | tests/test_axi_scope.py | docs/library/design/20260722_security-schema-amendment-scoped-admin-g_17c9ca.md | `AI_SETUP` |
 | `seen.py` | Per-session anti-repeat state shared by every recall surface (Integration Tiers H0). | tests/test_w162_seat_seen_family.py | docs/library/report/20260716_mcp-surface-reverse-engineering-deepseek_c79c35.md | `AKASHIC_RECALL_STATE_DIR` |
 | `trace.py` | Push display-only trace lines (tool calls) onto the Bifrost bus so the console shows what | tests/test_axi_packet_trace.py | docs/library/report/20260716_t002-ui-trace-collapse-design-pre-regist_fc22a6.md | `AKASHIC_AGENT_ID`, `AKASHIC_TRACE` |
+| `verbs.py` | The verb pushes every harness shares: the session map, the plan-time suggestion, the | GAP | docs/library/design/20260901_discord-verb-surface-taxonomy-navi-00000_1b1008.md | `AKASHIC_VERB_MAP`, `AKASHIC_VERB_NUDGE` |
 
 ## agent/  (2 modules)
 

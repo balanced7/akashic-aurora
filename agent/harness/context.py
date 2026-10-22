@@ -304,6 +304,24 @@ def _note_line(prefix: str, note, body_clip: int = _LINE_CLAMP, flag: str = "") 
 
 # ---------------------------------------------------------------- the whisper
 def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str:
+    """The whisper, then the verb map for in-scope sessions (agent/harness/verbs.py).
+
+    The map rides OUTSIDE the whisper's line budget and silence rule on purpose: the whisper
+    is news and may rightly say nothing, while the map is the standing answer to "what can I
+    use here" -- a session that starts with no news still needs to know its tools."""
+    whisper = _build_whisper(cwd, agent_id, session_id)
+    if os.getenv("AKASHIC_AUTOBOOT", "1") == "0" or not session_in_scope(cwd):
+        return whisper
+    try:
+        from agent.harness.verbs import build_verb_map
+
+        vmap = build_verb_map(already=len(whisper))
+    except Exception:
+        vmap = ""
+    return "\n".join(p for p in (whisper, vmap) if p)
+
+
+def _build_whisper(cwd: str, agent_id: str, session_id: str = "") -> str:
     """The whisper text for this session's start point, or "" for silence. Each data
     pull is independently fail-soft: a broken piece drops out, it never blanks the rest.
     `session_id` (new, T074 W3) lets SIBLINGS exclude the caller's own incarnation."""

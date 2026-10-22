@@ -2768,18 +2768,44 @@ def cmd_discover(args):
             print(json.dumps(r, ensure_ascii=False, default=str))
             return 0
         return _emit_discover_semantic(args.query or "", r)
+    from core.coord import verb_guide
 
-    verbs = list_verbs(args.query)
+    if getattr(args, "map", False):
+        print(verb_guide.render_map(_cli()))
+        return 0
+    if getattr(args, "awareness", False):
+        return _emit_discover_awareness(args)
+
+    # The use-when lines are searched too: a substring of the SITUATION ("pre-existing test
+    # failure") now finds the verb whose name and purpose never said it.
+    guide = verb_guide.load()
+    q = (args.query or "").strip()
+    ql = q.lower()
+
+    def _hit(n: str, h: str) -> bool:
+        card = guide.get(n) or {}
+        hay = " ".join([n, h, card.get("when", ""), " ".join(card.get("keywords") or [])]).lower()
+        return ql in hay
+
+    verbs = [(n, h) for n, h in list_verbs("") if not ql or _hit(n, h)]
+    rows = [
+        {
+            "verb": n,
+            "when": (guide.get(n) or {}).get("when", ""),
+            "purpose": h,
+            "family": (guide.get(n) or {}).get("family", ""),
+        }
+        for n, h in verbs
+    ]
     if args.json:
-        print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2))
+        print(json.dumps(rows, indent=2))
         return 0
     from core.axi import out
 
-    q = (args.query or "").strip()
     cli = _cli()
     doc: dict[str, Any] = {"query": q} if q else {}
     doc["total"] = len(verbs)
-    doc["verbs"] = [{"verb": n, "purpose": h} for n, h in verbs]
+    doc["verbs"] = [{"verb": r["verb"], "when": r["when"] or r["purpose"]} for r in rows]
     # ZERO MATCHES IS THE MOMENT THE POINTER IS WORTH MOST, and the moment it was
     # missing: asked "check whether a test failure is pre-existing" this path returns 0
     # while `suite-baseline` sits in the list it just searched. A substring search cannot
@@ -2806,6 +2832,23 @@ def _human_discover(console, doc):
         console.print(out.table(doc["verbs"]))
     else:
         console.print(f"[yellow]no verb matches[/] -- {out._esc(doc.get('search') or '')}")
+
+
+def _emit_discover_awareness(args) -> int:
+    """`discover --awareness`: the meter for whether agents reach for verbs unreminded
+    (core/coord/verb_awareness.py). Read-only over this machine's transcripts."""
+    from core.coord.verb_awareness import measure
+
+    r = measure([n for n, _ in list_verbs("")], since=getattr(args, "since", "") or "")
+    if args.json:
+        print(json.dumps(r, indent=2))
+        return 0
+    from core.axi import out
+
+    doc = {k: r[k] for k in r if k not in ("reminded_verbs", "top_verbs")}
+    doc["reminded_verbs"] = ", ".join(f"{v} {n}" for v, n in r["reminded_verbs"]) or "none"
+    doc["top_verbs"] = ", ".join(f"{v} {n}" for v, n in r["top_verbs"]) or "none"
+    return out.emit(doc, title="Verb awareness (operator reminders should fall, distinct verbs used should rise)")
 
 
 def _emit_discover_semantic(query: str, r: dict) -> int:
@@ -13810,9 +13853,28 @@ def build_parser(only: str | None = None):
     tlp.add_argument("--json", action="store_true")
     tlp.set_defaults(fn=cmd_timeline)
 
-    dsc = sub.add_parser("discover", help="list every verb + its purpose (the self-describing door)")
-    dsc.add_argument("query", nargs="?", default="", help="optional substring to filter verbs by name/purpose")
+    dsc = sub.add_parser(
+        "discover", help="list every verb with when to use it and its purpose (the self-describing door)"
+    )
+    dsc.add_argument(
+        "query",
+        nargs="?",
+        default="",
+        help="optional substring to filter verbs by name, purpose, use-when line or keyword",
+    )
     dsc.add_argument("--json", action="store_true")
+    dsc.add_argument(
+        "--map",
+        action="store_true",
+        help="print the situation map every session starts with: each verb under the situation it serves",
+    )
+    dsc.add_argument(
+        "--awareness",
+        action="store_true",
+        help="measure, from this machine's Claude transcripts, how often agents needed reminding of a verb, "
+        "looked one up, used one, or followed a suggestion (read-only)",
+    )
+    dsc.add_argument("--since", default="", help="with --awareness: only sessions active on or after this ISO date")
     dsc.add_argument(
         "--semantic",
         action="store_true",

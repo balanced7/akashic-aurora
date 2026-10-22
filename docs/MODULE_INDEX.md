@@ -98,7 +98,7 @@
 - `wake_tiers.py` — wake tiers -- the priority dimension the wake decision was missing.
 - `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
-## core/coord/  (31 modules)
+## core/coord/  (33 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -127,6 +127,8 @@
 - `task_ledger.py` — Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct).
 - `terms.py` — terms -- the vocabulary a codebase TALKS ABOUT, as a comparable set (T214).
 - `timeline.py` — timeline -- one chronological SET across domains (T211).
+- `verb_awareness.py` — verb_awareness -- do agents reach for the house's verbs without being reminded?
+- `verb_guide.py` — verb_guide -- WHEN to reach for each verb, in one table every surface is generated from.
 - `world_diff.py` — world_diff -- what differs between two worlds, MINUS what should differ.
 - `world_fidelity.py` — world_fidelity -- what a twin CAN and CANNOT do, said out loud before it is discovered.
 - `world_savepoint.py` — world_savepoint -- a world's two planes under one name, or neither.

@@ -316,6 +316,19 @@ def main() -> int:
     # exclude_sources) now prevents the same lesson repeating, so Bash recall front-loads relevant
     # knowledge then goes quiet instead of spamming. The git-guard above remains Bash's job.
     ctx = _recall_context(data)
+    # A shell command that hand-rolls what a house verb does gets one pointer at the verb
+    # (agent/harness/verbs.py): once per verb per session, silent otherwise.
+    if tool in _SHELL_TOOLS:
+        try:
+            from agent.harness.verbs import verb_action_line
+
+            _sid = str(data.get("session_id") or "")
+            _cmd = str((data.get("tool_input") or {}).get("command") or "")
+            vline = verb_action_line(_cmd, _sid, os.getenv("AKASHIC_AGENT_ID") or "", _sid)
+            if vline:
+                ctx = (ctx + "\n" + vline) if ctx else vline
+        except Exception:
+            pass  # a hint must never cost a tool call
     if drift:
         ctx = (drift + "\n" + ctx) if ctx else drift
     # T236: a FACT about the id being minted into this path, at the application site. Composed

@@ -1,0 +1,1829 @@
+{
+ "boot": {
+  "family": "memory",
+  "when": "Use when starting a session or a new slice of work: loads ranked past lessons, blockers, handoffs addressed to you and unread bus mail for that task.",
+  "keywords": [
+   "start of session",
+   "new task",
+   "catch me up",
+   "load context",
+   "what do i need to know",
+   "starting work"
+  ],
+  "args": "<you> --task \"<this slice>\"",
+  "hand_rolled": []
+ },
+ "delta": {
+  "family": "memory",
+  "when": "Use when you come back after a break or mid-session and want only what changed since your last boot: lists moved areas and commits; --ack marks them seen.",
+  "keywords": [
+   "what changed",
+   "since my last boot",
+   "catch up",
+   "what moved",
+   "what did i miss",
+   "changes on disk"
+  ],
+  "args": "<you>",
+  "hand_rolled": []
+ },
+ "compare": {
+  "family": "investigate",
+  "when": "Use when you need what one set has that another lacks (files touched vs tracked, CLI vs MCP verbs, code terms vs lexicon): a checked set difference.",
+  "keywords": [
+   "set difference",
+   "what is missing from",
+   "untracked files",
+   "verbs without mcp tool",
+   "door parity",
+   "compare domains"
+  ],
+  "args": "files:touched files:tracked",
+  "hand_rolled": [
+   {
+    "pattern": "\\bcomm\\s+-(?:12|13|23|1|2|3)\\b.*\\b(?:git\\s+ls-files|agent_cli\\.py)",
+    "why": "compare refuses mismatched key types and flags an incompletely collected side instead of reporting false gaps"
+   }
+  ]
+ },
+ "timeline": {
+  "family": "investigate",
+  "when": "Use when asking what happened in what order, or why something broke recently: lines up events, git commits and task changes in one time-ordered column.",
+  "keywords": [
+   "what happened",
+   "in what order",
+   "sequence of events",
+   "when did this start",
+   "what changed recently",
+   "chronology"
+  ],
+  "args": "--hours 6",
+  "hand_rolled": []
+ },
+ "discover": {
+  "family": "investigate",
+  "when": "Use when you wonder whether a command for something already exists: lists every verb with its purpose; --semantic asks by meaning instead of by word.",
+  "keywords": [
+   "is there a command",
+   "which verb",
+   "does something already do",
+   "list commands",
+   "what tools exist",
+   "how do i"
+  ],
+  "args": "\"<word>\"",
+  "hand_rolled": [
+   {
+    "pattern": "\\bgrep\\b.*\\bdef cmd_",
+    "why": "discover lists every verb with its purpose and can search by meaning"
+   }
+  ]
+ },
+ "learn": {
+  "family": "memory",
+  "when": "Use when you found a reusable fix, gotcha or failed approach another agent could act on: records a lesson; --repeat-of notes an old lesson broken again.",
+  "keywords": [
+   "record a lesson",
+   "lesson learned",
+   "gotcha",
+   "remember this",
+   "worth keeping",
+   "this keeps happening"
+  ],
+  "args": "<you> --experiment SHORT_NAME --tried \"what did not work\" --result \"what happened\" --recommend \"Use when ...\" --success yes",
+  "hand_rolled": []
+ },
+ "scope": {
+  "family": "memory",
+  "when": "Use when a lesson seems too narrow or too broad for where it applies: shows or sets its scope, widens it on cross-harness evidence; set and widen change the lesson.",
+  "keywords": [
+   "lesson scope",
+   "applies to which harness",
+   "widen lesson",
+   "too narrow",
+   "lesson applicability",
+   "scope tree"
+  ],
+  "args": "show --experiment <lesson name>",
+  "hand_rolled": []
+ },
+ "wish": {
+  "family": "ship",
+  "when": "Use when a tool or workflow annoys you or is missing something: files a numbered ergonomics wish in the wishlist so it gets curated, safe against concurrent writers.",
+  "keywords": [
+   "wish",
+   "friction",
+   "annoying",
+   "would be nice",
+   "wishlist",
+   "ergonomics"
+  ],
+  "args": "<you> \"<what would have helped>\" --trigger \"<what hurt>\"",
+  "hand_rolled": [
+   {
+    "pattern": ">>\\s*\\S*docs/WISHLIST\\.md",
+    "why": "wish numbers the entry and locks the file so concurrent filings are not lost"
+   }
+  ]
+ },
+ "wish-curate": {
+  "family": "improve",
+  "when": "Use when clearing the wishlist backlog: bare lists the oldest open wishes; with --id it folds, keeps or declines one and rewrites docs/WISHLIST.md.",
+  "keywords": [
+   "wishlist",
+   "open wishes",
+   "decline a wish",
+   "fold wish",
+   "wish backlog",
+   "curate wishes"
+  ],
+  "args": "<you> --count 3",
+  "hand_rolled": [
+   {
+    "pattern": "\\bsed\\s+-i\\S*\\s.*WISHLIST\\.md",
+    "why": "wish-curate takes the wishlist lock; a hand edit can lose a concurrent filing or tear the file"
+   }
+  ]
+ },
+ "web": {
+  "family": "research",
+  "when": "Use when you need a web page or a web search: fetches a URL with caching, receipts and paging (no silent truncation, PDFs handled) or runs a search; content is untrusted.",
+  "keywords": [
+   "fetch this url",
+   "read this page",
+   "web search",
+   "look it up online",
+   "search the web",
+   "pdf link",
+   "save a web page"
+  ],
+  "args": "fetch <url>",
+  "hand_rolled": [
+   {
+    "pattern": "^\\s*(?:curl|wget)\\b(?!.*\\b(?:localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0)\\b).*https?://",
+    "why": "web caches, pages long text instead of truncating, records a receipt and fences the content as untrusted"
+   }
+  ]
+ },
+ "ask": {
+  "family": "research",
+  "when": "Use when you want another model's answer or second opinion on one question: calls a helper model once; can fan out lenses, run in background, or ask a live seat.",
+  "keywords": [
+   "ask another model",
+   "second opinion",
+   "ask gemini",
+   "ask deepseek",
+   "helper model",
+   "fan out",
+   "different model"
+  ],
+  "args": "\"<question>\" --with <path/to/file.py>",
+  "hand_rolled": [
+   {
+    "pattern": "curl\\b.*(api\\.anthropic\\.com|api\\.openai\\.com|generativelanguage\\.googleapis\\.com|api\\.deepseek\\.com)",
+    "why": "ask handles keys, continuation of cut answers, and journals the route"
+   }
+  ]
+ },
+ "discord": {
+  "family": "fleet",
+  "when": "Use when the human wants fleet updates on their phone: status shows the outbound Discord webhook setup; test and send post real messages to the channel.",
+  "keywords": [
+   "discord",
+   "phone notifications",
+   "webhook",
+   "watch from my phone",
+   "post to discord"
+  ],
+  "args": "status",
+  "hand_rolled": [
+   {
+    "pattern": "\\bcurl\\b.*discord(?:app)?\\.com/api/webhooks",
+    "why": "discord reads the configured webhook without printing it and keeps the forwarding rules in one place"
+   }
+  ]
+ },
+ "gateway": {
+  "family": "fleet",
+  "when": "Use when Discord messages from the operator are not reaching the fleet: status shows the inbound Discord gateway; restart kills and relaunches it, changing live state.",
+  "keywords": [
+   "discord not receiving",
+   "discord gateway",
+   "inbound discord",
+   "restart discord bot",
+   "discord listener down"
+  ],
+  "args": "status",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(?:pgrep|pkill|kill)\\b.*bifrost_runner_discord|\\bps\\b.*\\|\\s*grep\\b.*bifrost_runner_discord",
+    "why": "gateway finds the live process reliably and restart relaunches it detached with its log, never leaving it dead"
+   }
+  ]
+ },
+ "sift": {
+  "family": "research",
+  "when": "Use when a question needs more reading than one context holds, e.g. does a term mean two things in the code: fans readers over evidence, reports disagreement first.",
+  "keywords": [
+   "too much to read",
+   "two meanings",
+   "same word different meaning",
+   "term confusion",
+   "dissent",
+   "naming collision"
+  ],
+  "args": "<term> --dry-run",
+  "hand_rolled": []
+ },
+ "friction": {
+  "family": "fleet",
+  "when": "Use when asking how well a seat's asks get answered: read-only report of open, answered and dead asks, dead rate and time to settle over the last week.",
+  "keywords": [
+   "unanswered asks",
+   "dead asks",
+   "collaboration friction",
+   "time to settle",
+   "response rate",
+   "asks going nowhere"
+  ],
+  "args": "<you> --window-h 168",
+  "hand_rolled": []
+ },
+ "report": {
+  "family": "ship",
+  "when": "Use when you want to present findings as a visual HTML report: prints a page scaffold with the house design kit inlined, ready to fill and publish.",
+  "keywords": [
+   "visual report",
+   "html report",
+   "write up findings",
+   "report page",
+   "design kit",
+   "make a report"
+  ],
+  "args": "--title \"<title>\" --out <path>.html",
+  "hand_rolled": []
+ },
+ "resident": {
+  "family": "fleet",
+  "when": "Use when naming, showing or placing a long-lived agent identity: manages resident callsigns and adjudicates their verdicts; ratify is human-only and writes.",
+  "keywords": [
+   "callsign",
+   "resident",
+   "nominate",
+   "ratify",
+   "roster",
+   "designation"
+  ],
+  "args": "show <callsign>",
+  "hand_rolled": []
+ },
+ "scout": {
+  "family": "coordinate",
+  "when": "Use when about to start work and unsure if a seat is already on it or it was done: a resident model reads ledger and locks, answers, and files a verdict.",
+  "keywords": [
+   "is anyone working on",
+   "already done",
+   "mid-flight",
+   "before i start",
+   "duplicate work",
+   "pre-flight"
+  ],
+  "args": "\"is anyone mid-flight on <area>?\" --by <you>",
+  "hand_rolled": []
+ },
+ "doc": {
+  "family": "ship",
+  "when": "Use when writing a design, brief, report or ruling that belongs in the docs library: creates it with the header, name and home, or adopts an existing loose markdown file.",
+  "keywords": [
+   "new doc",
+   "write a design doc",
+   "docs library",
+   "adopt markdown",
+   "file this document",
+   "library entry"
+  ],
+  "args": "new --type report --title <slug> --seats <you> --body-file <file.md>",
+  "hand_rolled": [
+   {
+    "pattern": "\\bcat\\b[^|]*>\\s*\\S*docs/library/\\S+\\.md",
+    "why": "doc new stamps the header contract, canonical name and library home that a hand-written file lacks"
+   }
+  ]
+ },
+ "tag-anti-pattern": {
+  "family": "memory",
+  "when": "Use when an existing lesson describes something that turned out to be a known-bad approach: tags it as a reusable anti-pattern so recall warns against it; writes memory.",
+  "keywords": [
+   "anti-pattern",
+   "known bad",
+   "don't do this",
+   "mark lesson bad",
+   "bad practice"
+  ],
+  "args": "<you> --experiment <lesson_name> --name <slug> --reason \"<why it is bad>\"",
+  "hand_rolled": []
+ },
+ "corpus": {
+  "family": "improve",
+  "when": "Use when building the replay eval set from past tasks: archive transcripts, mine candidate scenarios, list or validate; accept, reject and retire change it.",
+  "keywords": [
+   "eval set",
+   "task corpus",
+   "replay scenarios",
+   "mine scenarios",
+   "meta-harness",
+   "benchmark from our history"
+  ],
+  "args": "status",
+  "hand_rolled": []
+ },
+ "replay": {
+  "family": "improve",
+  "when": "Use when testing whether a harness config change helps: re-runs a recorded scenario against a candidate config in an isolated sandbox, never the live store or bus.",
+  "keywords": [
+   "replay scenario",
+   "test harness change",
+   "candidate config",
+   "sandbox run",
+   "meta-harness",
+   "does this config help"
+  ],
+  "args": "run --candidate <name> --scenario <id> --redis-db 15",
+  "hand_rolled": []
+ },
+ "grade": {
+  "family": "improve",
+  "when": "Use when evaluating a harness change on test scenarios: grades runs, compares two candidates, estimates noise and statistical power, or labels judge calibration.",
+  "keywords": [
+   "grade runs",
+   "compare candidates",
+   "statistical power",
+   "judge calibration",
+   "evaluate harness",
+   "a/b"
+  ],
+  "args": "compare --candidate <b> --against <a>",
+  "hand_rolled": []
+ },
+ "review": {
+  "family": "improve",
+  "when": "Use when a harness change awaits human sign-off: list and show queued candidates, record a decision, apply or roll back; apply edits the live harness config.",
+  "keywords": [
+   "review queue",
+   "harness change sign-off",
+   "accept candidate",
+   "rollback harness",
+   "apply candidate",
+   "meta-harness review"
+  ],
+  "args": "list",
+  "hand_rolled": []
+ },
+ "loop": {
+  "family": "improve",
+  "when": "Use when running or inspecting the automated harness-improvement loop: proposes, runs and grades candidate configs; run spends real money under a required daily cap.",
+  "keywords": [
+   "improvement loop",
+   "propose candidates",
+   "harness optimization",
+   "candidate lineage",
+   "daily budget",
+   "pareto front"
+  ],
+  "args": "status",
+  "hand_rolled": []
+ },
+ "memreplay": {
+  "family": "improve",
+  "when": "Use when you want proof that a specific lesson actually changes outcomes: snapshots memory, replays scenarios with and without the lesson; run and drain spend money.",
+  "keywords": [
+   "does this lesson help",
+   "lesson impact",
+   "replay",
+   "memory ablation",
+   "with and without"
+  ],
+  "args": "run --lesson <experiment_name> --base <candidate>",
+  "hand_rolled": []
+ },
+ "precompile": {
+  "family": "improve",
+  "when": "Use when turning proven lessons into guards, skills, subagents or instruction lines: plan shows where each lesson routes, build compiles a candidate, check tests a tree.",
+  "keywords": [
+   "lessons into skills",
+   "compile lessons",
+   "make a guard from a lesson",
+   "precompile",
+   "instruction lines",
+   "graduate lesson to hook"
+  ],
+  "args": "plan",
+  "hand_rolled": []
+ },
+ "modes": {
+  "family": "improve",
+  "when": "Use when deciding whether lessons should be shown at action time or baked into skills and hooks: shows the memory mode, compares modes, flags stale compiled lessons.",
+  "keywords": [
+   "memory mode",
+   "precompiled lessons",
+   "interpretive vs compiled",
+   "hybrid memory",
+   "stale compiled",
+   "bake lessons in"
+  ],
+  "args": "show",
+  "hand_rolled": []
+ },
+ "compress": {
+  "family": "improve",
+  "when": "Use when trimming what the harness injects into context: lists the pieces, reads their usage telemetry, and searches for which pieces matter; run spends task runs.",
+  "keywords": [
+   "trim context",
+   "compress harness",
+   "which pieces matter",
+   "context bloat",
+   "prompt size"
+  ],
+  "args": "pieces",
+  "hand_rolled": []
+ },
+ "provenance": {
+  "family": "fleet",
+  "when": "Use when you need to know which harness, model, effort and environment a session runs under: shows the session's provenance record, writing it if missing.",
+  "keywords": [
+   "which model am i",
+   "session provenance",
+   "harness and model",
+   "effort level",
+   "session environment"
+  ],
+  "args": "--json",
+  "hand_rolled": []
+ },
+ "recall": {
+  "family": "memory",
+  "when": "Use when you hit a problem someone may have seen before, or before trying a fix: searches past lessons by keyword; --full pulls one lesson's whole record.",
+  "keywords": [
+   "have we seen this",
+   "past lessons",
+   "search memory",
+   "known gotcha",
+   "did anyone learn",
+   "what do we know about"
+  ],
+  "args": "\"<keyword>\"",
+  "hand_rolled": [
+   {
+    "pattern": "redis-cli\\b.*\\b(?:keys|scan)\\b.*learn:",
+    "why": "recall ranks and renders lessons from the store and its file mirror instead of raw keys"
+   }
+  ]
+ },
+ "list": {
+  "family": "memory",
+  "when": "Use when you want to browse every lesson in shared memory rather than search it: prints lessons newest first with a total count.",
+  "keywords": [
+   "all lessons",
+   "list lessons",
+   "browse memory",
+   "how many lessons",
+   "everything in memory"
+  ],
+  "args": "--limit 50",
+  "hand_rolled": []
+ },
+ "recall-at": {
+  "family": "memory",
+  "when": "Use when about to edit a file or run a command: shows the lessons and peer locks that apply to it; the hook usually does this for you automatically.",
+  "keywords": [
+   "lessons for this file",
+   "before i edit",
+   "anything i should know",
+   "gotchas for this command",
+   "who has this locked"
+  ],
+  "args": "--path <file>",
+  "hand_rolled": []
+ },
+ "recall-feedback": {
+  "family": "memory",
+  "when": "Use when a recalled lesson actually changed what you did, or was off-target: votes it useful or noise so future recall ranks it better; writes to shared memory.",
+  "keywords": [
+   "that lesson helped",
+   "lesson was useful",
+   "lesson was noise",
+   "irrelevant lesson",
+   "vote on lesson",
+   "mark useful"
+  ],
+  "args": "--source learn:experiment:<name> --useful",
+  "hand_rolled": []
+ },
+ "repeat": {
+  "family": "memory",
+  "when": "Use when someone repeated a mistake a lesson already warned about: records the violation and whether recall fired; --report shows how long after learning each one broke.",
+  "keywords": [
+   "repeated mistake",
+   "did it again",
+   "lesson ignored",
+   "violated lesson",
+   "same mistake again"
+  ],
+  "args": "<lesson_name> --what \"<what happened>\" --recall-outcome fired",
+  "hand_rolled": []
+ },
+ "recall-prevention": {
+  "family": "improve",
+  "when": "Use when asking whether recalled lessons actually prevented failures: read-only report of violations and prevention candidates from the outcome stage log.",
+  "keywords": [
+   "did recall help",
+   "prevented failures",
+   "recall effectiveness",
+   "lesson violated",
+   "prevention"
+  ],
+  "args": "--json",
+  "hand_rolled": []
+ },
+ "recall-curate": {
+  "family": "improve",
+  "when": "Use when recall keeps surfacing lessons that never help: reports lessons to bench and stale counters to prune; --apply changes shared memory.",
+  "keywords": [
+   "noisy lessons",
+   "bench lessons",
+   "lessons never help",
+   "prune recall",
+   "curate memory",
+   "recall clutter"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "audit": {
+  "family": "investigate",
+  "when": "Use when you suspect documented beliefs have drifted from reality, such as the verb registry versus the actual parser: prints match or drift rows, read-only.",
+  "keywords": [
+   "drift",
+   "registry out of sync",
+   "belief vs reality",
+   "stale registry",
+   "mismatch"
+  ],
+  "args": "--domain VERBS",
+  "hand_rolled": []
+ },
+ "injections": {
+  "family": "improve",
+  "when": "Use when asking what recall pushed into agents' contexts and what it cost: lists recently injected lessons, their targets and token totals (default 24 hours).",
+  "keywords": [
+   "injected context",
+   "what did recall inject",
+   "context cost",
+   "injection ledger",
+   "tokens pushed"
+  ],
+  "args": "--hours 24",
+  "hand_rolled": []
+ },
+ "harnesses": {
+  "family": "fleet",
+  "when": "Use when asking what your harness (Claude Code, Cursor, Codex, bare CLI) actually supports here, like hooks or automatic recall: prints the capability matrix.",
+  "keywords": [
+   "which harness supports",
+   "cursor support",
+   "codex support",
+   "hook support",
+   "integration tiers",
+   "what does my harness do"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "hooks": {
+  "family": "fleet",
+  "when": "Use when recall injections or other harness hooks are missing, noisy or need switching: shows hook wiring and installs, removes, enables or disables it; edits settings.",
+  "keywords": [
+   "hooks",
+   "hook wiring",
+   "turn off injections",
+   "settings.json hooks",
+   "pretooluse",
+   "install hooks"
+  ],
+  "args": "status",
+  "hand_rolled": [
+   {
+    "pattern": "(sed\\s+-i|jq)\\b.*\\.claude/settings(\\.local)?\\.json",
+    "why": "hooks install/uninstall edits settings safely and can dry-run"
+   }
+  ]
+ },
+ "link": {
+  "family": "fleet",
+  "when": "Use when connecting this fleet to another fleet: identity, invites, joining, membership, sync and cross-fleet mail; invites, joins and removals change shared state.",
+  "keywords": [
+   "link fleets",
+   "invite another fleet",
+   "join a fleet",
+   "cross-fleet",
+   "fleet membership",
+   "other machine"
+  ],
+  "args": "status",
+  "hand_rolled": []
+ },
+ "setup": {
+  "family": "fleet",
+  "when": "Use when setting Aurora up on a new machine or for a new harness: wires hooks, agent id, MCP and git hooks; writes config, so try --dry-run first.",
+  "keywords": [
+   "first time setup",
+   "install hooks",
+   "onboarding",
+   "new machine",
+   "configure harness",
+   "wire mcp"
+  ],
+  "args": "--dry-run",
+  "hand_rolled": []
+ },
+ "fleet": {
+  "family": "fleet",
+  "when": "Use when you want a local Ollama model: lists the local model roster, picks one for a capability and memory budget, or calls one once with a prompt.",
+  "keywords": [
+   "local model",
+   "ollama",
+   "which model",
+   "vram",
+   "local llm",
+   "cheap model"
+  ],
+  "args": "select --capability summarize --max-vram 12",
+  "hand_rolled": [
+   {
+    "pattern": "\\bollama\\s+(run|list|ps)\\b|curl\\b.*:11434/api/",
+    "why": "fleet knows the roster, capabilities and VRAM limits and routes to the right model"
+   }
+  ]
+ },
+ "triage": {
+  "family": "improve",
+  "when": "Use when reviewing which lessons earn their keep: read-only ranking into protect, cost-with-no-return and noise, for a human to merge, graduate or retire.",
+  "keywords": [
+   "lesson value",
+   "noisy lessons",
+   "prune lessons",
+   "which lessons help",
+   "retire lessons",
+   "lesson triage"
+  ],
+  "args": "--min-surfaced 5",
+  "hand_rolled": []
+ },
+ "recall-counters": {
+  "family": "improve",
+  "when": "Use when lesson usefulness counts look split or orphaned: reports misnamed and orphan usage counters; --fold merges and prunes them in shared memory.",
+  "keywords": [
+   "usage counters",
+   "orphan counters",
+   "ghost counters",
+   "fold counters",
+   "counter hygiene"
+  ],
+  "args": "",
+  "hand_rolled": [
+   {
+    "pattern": "redis-cli\\b.*recall:use:",
+    "why": "recall-counters knows which counters are canonical and keeps the ones that carry credit"
+   }
+  ]
+ },
+ "graduate": {
+  "family": "memory",
+  "when": "Use when a lesson's rule is now enforced by automation such as a hook or test: retires it from recall so it stops taking space; --undo brings it back; writes memory.",
+  "keywords": [
+   "graduate lesson",
+   "now enforced",
+   "retire lesson",
+   "automated now",
+   "stop surfacing"
+  ],
+  "args": "<you> --experiment <lesson_name> --enforced-by \"<hook or test>\"",
+  "hand_rolled": []
+ },
+ "sha": {
+  "family": "investigate",
+  "when": "Use when a commit SHA cited in a doc, lesson or ticket is not found in git: follows it across this repo's history rewrites to the commit it became.",
+  "keywords": [
+   "bad object",
+   "commit not found",
+   "unknown revision",
+   "old sha",
+   "history rewrite",
+   "rewritten commit"
+  ],
+  "args": "<sha>",
+  "hand_rolled": []
+ },
+ "note": {
+  "family": "memory",
+  "when": "Use when a project decision or fact should outlive the session (not a lesson): records a durable note; re-noting the same title updates it, --get reads one.",
+  "keywords": [
+   "record a decision",
+   "project note",
+   "remember this decision",
+   "write down",
+   "durable note",
+   "we decided"
+  ],
+  "args": "<you> --title \"<stable title>\" --note \"<decision>\"",
+  "hand_rolled": []
+ },
+ "notes": {
+  "family": "memory",
+  "when": "Use when you want the current project notes (decisions, state, conventions) rather than lessons: lists active notes; --project regenerates the memory digest file.",
+  "keywords": [
+   "project notes",
+   "active notes",
+   "decisions",
+   "notes list",
+   "memory digest"
+  ],
+  "args": "--days 14",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(cat|less|head|tail)\\b.*chronicles/memory\\.md",
+    "why": "notes reads the live store; the digest file can be stale"
+   }
+  ]
+ },
+ "wrap": {
+  "family": "memory",
+  "when": "Use when ending a session or handing off: drafts a where-we-are note from this session's commits, lessons and notes; previews by default, --commit records it.",
+  "keywords": [
+   "wrap up",
+   "end of session",
+   "where we are",
+   "session summary",
+   "closing out",
+   "call it a day"
+  ],
+  "args": "--hours 12",
+  "hand_rolled": []
+ },
+ "status": {
+  "family": "fleet",
+  "when": "Use when asking whether shared memory is up and healthy: shows the storage backend, lesson and key counts, and whether logging paths are silently degraded.",
+  "keywords": [
+   "is memory up",
+   "is redis up",
+   "store health",
+   "how many lessons",
+   "memory backend",
+   "is aurora working"
+  ],
+  "args": "",
+  "hand_rolled": [
+   {
+    "pattern": "redis-cli\\b(?=.*\\b16379\\b)(?=.*\\bping\\b)",
+    "why": "status also reports the fallback mirror, counts and narrative health, not just a ping"
+   }
+  ]
+ },
+ "stats": {
+  "family": "improve",
+  "when": "Use when asking whether recall is paying off: shows how often lessons surfaced, helped, changed an outcome, and were captured, over hours or a per-day trend.",
+  "keywords": [
+   "recall value",
+   "is recall helping",
+   "lessons helped",
+   "recall funnel",
+   "memory usefulness"
+  ],
+  "args": "--days 7",
+  "hand_rolled": []
+ },
+ "log": {
+  "family": "memory",
+  "when": "Use when something happened worth keeping on the timeline but is not a reusable lesson: records a narrative beat (session, note, commit) plus a raw event.",
+  "keywords": [
+   "log this",
+   "note on the timeline",
+   "narrative beat",
+   "record what happened",
+   "milestone"
+  ],
+  "args": "note --summary \"what happened\" --source \"<you>:action\"",
+  "hand_rolled": []
+ },
+ "episode": {
+  "family": "memory",
+  "when": "Use when bookending a session: shows the current open episode, closes it with a drafted summary, or accepts that summary; close and accept write the record.",
+  "keywords": [
+   "close session",
+   "end of session summary",
+   "current episode",
+   "session bookend",
+   "wrap up session"
+  ],
+  "args": "current",
+  "hand_rolled": []
+ },
+ "task": {
+  "family": "coordinate",
+  "when": "Use when proposing, claiming, finishing or listing shared work items, or asking what to do next: manages the task ledger lifecycle; most subcommands change shared state.",
+  "keywords": [
+   "task",
+   "claim task",
+   "next task",
+   "propose task",
+   "mark done",
+   "backlog",
+   "what should i work on"
+  ],
+  "args": "next",
+  "hand_rolled": []
+ },
+ "story": {
+  "family": "memory",
+  "when": "Use when asking for the project's narrative or what was happening at a given time: prints its chapters and themes; --mark starts a new named chapter.",
+  "keywords": [
+   "project story",
+   "chapters",
+   "what was going on at",
+   "narrative",
+   "themes",
+   "history of the project"
+  ],
+  "args": "--themes",
+  "hand_rolled": []
+ },
+ "handoff": {
+  "family": "memory",
+  "when": "Use when you stop, switch agents or end the day with work unfinished: writes a briefing the next agent's boot shows automatically; --list reads ones addressed to you.",
+  "keywords": [
+   "hand off",
+   "handover",
+   "pick up where i left off",
+   "end of session",
+   "pass to",
+   "leave a note for"
+  ],
+  "args": "<you> --to <next_agent> --task \"<what to do>\" --note \"<where it stands>\"",
+  "hand_rolled": []
+ },
+ "events": {
+  "family": "investigate",
+  "when": "Use when you need the raw history of what agents did (tool calls, commands, messages): search, view events around a time or beat, or fetch one; --capture writes.",
+  "keywords": [
+   "what happened at",
+   "raw events",
+   "event history",
+   "tool calls",
+   "around that time",
+   "firehose"
+  ],
+  "args": "--search \"<query>\" --limit 20",
+  "hand_rolled": []
+ },
+ "roster": {
+  "family": "coordinate",
+  "when": "Use when asking which agent seats are actually alive and working right now: lists each seat's proven liveness; --reap re-homes mail stranded on dead seats.",
+  "keywords": [
+   "who is online",
+   "which seats are alive",
+   "live agents",
+   "dead seats",
+   "seat list",
+   "who is working"
+  ],
+  "args": "--by-agent",
+  "hand_rolled": []
+ },
+ "season-score": {
+  "family": "improve",
+  "when": "Use when scoring a round of the agents' bounty season or comparing its two rule sets on the same claims: prints scores, ranks and the policy delta, read-only.",
+  "keywords": [
+   "season score",
+   "bounty",
+   "scoreboard",
+   "round scores",
+   "scoring rules",
+   "leaderboard"
+  ],
+  "args": "--round-file <round.json> --compare",
+  "hand_rolled": []
+ },
+ "grant": {
+  "family": "fleet",
+  "when": "Use when a seat needs a capability or role changed: mints, revokes or lists access grants with a reason and time box; admins only, and it changes shared access.",
+  "keywords": [
+   "missing capability",
+   "grant access",
+   "permission denied",
+   "revoke grant",
+   "acl",
+   "quarantined"
+  ],
+  "args": "--list",
+  "hand_rolled": [
+   {
+    "pattern": "(?:\\bsed\\s+-i\\S*|\\b(?:vi|vim|nano)\\s).*security/acl\\.json",
+    "why": "grant writes atomically, validates the schema, records a reason and time box, and can be undone with --revoke"
+   }
+  ]
+ },
+ "doctor": {
+  "family": "fleet",
+  "when": "Use when the fleet seems stuck or slow, or after deploying to a machine: grades each agent's progress (wedged, stalled, frozen) and services; --deploy checks a machine.",
+  "keywords": [
+   "agent stuck",
+   "fleet health",
+   "is anyone wedged",
+   "stalled agent",
+   "is the deploy working",
+   "nothing is happening"
+  ],
+  "args": "",
+  "hand_rolled": [
+   {
+    "pattern": "\\bps\\b.*\\|\\s*grep\\b.*bifrost_runner(?!_discord)",
+    "why": "doctor judges progress, not mere process presence, and reports services alongside"
+   }
+  ]
+ },
+ "promoted": {
+  "family": "memory",
+  "when": "Use when looking for past handoffs, decisions or important bus messages that must not be lost: lists durable salient messages and flags ones nobody handled.",
+  "keywords": [
+   "past decisions",
+   "important messages",
+   "handoffs history",
+   "unhandled messages",
+   "what was decided on the bus",
+   "durable messages"
+  ],
+  "args": "--limit 20",
+  "hand_rolled": []
+ },
+ "lookback": {
+  "family": "memory",
+  "when": "Use when asking why something is the way it is: searches docs, research, notes, promoted messages, chapters and git commit bodies for the rationale, layered.",
+  "keywords": [
+   "why is it like this",
+   "rationale",
+   "reasoning behind",
+   "history of decision",
+   "design decision",
+   "why did we decide",
+   "why did we choose"
+  ],
+  "args": "\"why does boot use a token budget\"",
+  "hand_rolled": []
+ },
+ "knowledge-map": {
+  "family": "memory",
+  "when": "Use when exploring what the house knows about a topic beyond a flat search: shows matching lessons, notes and docs, their linked neighbours and retired records.",
+  "keywords": [
+   "what do we know about",
+   "related lessons",
+   "knowledge neighborhood",
+   "explore a topic",
+   "superseded lessons"
+  ],
+  "args": "<topic words>",
+  "hand_rolled": []
+ },
+ "fence": {
+  "family": "ship",
+  "when": "Use when a decision needs two independent passes plus a reconciliation: opens a workspace with brief and pass slots and checks method rules at seal; writes files.",
+  "keywords": [
+   "dual pass",
+   "independent review",
+   "two blind passes",
+   "reconciliation",
+   "fenced review",
+   "seal the fence"
+  ],
+  "args": "open <fence-id> --question \"<question>\" --by <you>",
+  "hand_rolled": [
+   {
+    "pattern": "\\bmkdir\\b\\s+(?:-p\\s+)?\\S*fences/",
+    "why": "fence open creates the slots with tool-derived paths and runs the method checks at seal time"
+   }
+  ]
+ },
+ "flow": {
+  "family": "investigate",
+  "when": "Use when a message seems lost, unanswered or delivered twice: shows recent bus asks and answers as a waterfall with gaps and duplicate copies, read-only.",
+  "keywords": [
+   "message lost",
+   "no reply",
+   "delivered twice",
+   "duplicate message",
+   "who answered",
+   "message trace"
+  ],
+  "args": "<agent> --window 6h",
+  "hand_rolled": []
+ },
+ "packet-trace": {
+  "family": "investigate",
+  "when": "Use when wondering which lane a bus message kind would be routed to: explains the static routing rule for one kind without sending anything.",
+  "keywords": [
+   "which lane",
+   "message routing",
+   "route a kind",
+   "where does this message go",
+   "packet route"
+  ],
+  "args": "handoff",
+  "hand_rolled": []
+ },
+ "packet-stats": {
+  "family": "investigate",
+  "when": "Use when checking how the bus router is classifying and routing message kinds before trusting a routing change: reads its per-kind decision counters.",
+  "keywords": [
+   "routing counters",
+   "packet routing",
+   "route stats",
+   "message routing",
+   "router shadow mode"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "mailbox": {
+  "family": "coordinate",
+  "when": "Use when you need one bus message's full state or to declare act/decline/defer on it: shows body, readers and intent; --retire-ghosts --apply writes declines.",
+  "keywords": [
+   "message state",
+   "did they read it",
+   "declare intent",
+   "decline message",
+   "full message body",
+   "unhandled mail"
+  ],
+  "args": "<you> --state <sha>",
+  "hand_rolled": []
+ },
+ "bifrost-ack": {
+  "family": "coordinate",
+  "when": "Use when you have handled a bus message addressed to you: records durably that you acted on it (reading alone does not); only the addressee can ack.",
+  "keywords": [
+   "acknowledge",
+   "mark handled",
+   "ack message",
+   "done with that ask",
+   "close the ask"
+  ],
+  "args": "<you> <msg_id> --note \"what was done\"",
+  "hand_rolled": []
+ },
+ "console-log": {
+  "family": "investigate",
+  "when": "Use when asking what the operator did from the console, such as interjections, bus pauses and resumes, or dropped files: lists those durable events.",
+  "keywords": [
+   "operator interjection",
+   "who paused the bus",
+   "console events",
+   "file drop",
+   "bus control history"
+  ],
+  "args": "--limit 20",
+  "hand_rolled": []
+ },
+ "bifrost-sync": {
+  "family": "coordinate",
+  "when": "Use when starting a turn or when someone may have messaged you: shows presence and unread bus mail without consuming it; --consume marks it read.",
+  "keywords": [
+   "inbox",
+   "unread messages",
+   "any mail",
+   "new messages",
+   "check mail",
+   "bus"
+  ],
+  "args": "<you> --digest",
+  "hand_rolled": [
+   {
+    "pattern": "(?i)redis-cli\\b.*\\bx(read|range|revrange)\\b",
+    "why": "bifrost-sync renders unread mail per agent and tracks presence and cursors correctly"
+   }
+  ]
+ },
+ "bifrost-standby": {
+  "family": "coordinate",
+  "when": "Use when ending a turn and you should wake on new mail: drains the inbox, reports, then blocks as the wake listener; run it as a background task.",
+  "keywords": [
+   "wait for mail",
+   "end of turn",
+   "wake me",
+   "standby",
+   "listen for messages"
+  ],
+  "args": "<you>",
+  "hand_rolled": [
+   {
+    "pattern": "\\bscripts/(?:codex_)?bifrost_wake\\.py\\b",
+    "why": "bifrost-standby names the work lane and parents the listener so its exit actually re-invokes the harness"
+   }
+  ]
+ },
+ "forecast": {
+  "family": "ship",
+  "when": "Use when making a falsifiable prediction about a change at a gate, or scoring one at review: registers bets, scores them, shows calibration; register and score write.",
+  "keywords": [
+   "prediction",
+   "forecast",
+   "place a bet",
+   "calibration",
+   "score the prediction",
+   "expected outcome"
+  ],
+  "args": "register --id <id> --by <you> --statement \"<falsifiable expectation>\" --dies-when \"<condition>\"",
+  "hand_rolled": []
+ },
+ "bifrost-send": {
+  "family": "coordinate",
+  "when": "Use when you need to tell, ask or answer another agent: sends a message on the bus; use --text-file for long or flag-like bodies; directed asks arm a reply deadline.",
+  "keywords": [
+   "message",
+   "tell",
+   "send to",
+   "reply to",
+   "notify",
+   "broadcast",
+   "ask the other agent"
+  ],
+  "args": "<you> --to <agent> --kind request --text-file <msg.txt>",
+  "hand_rolled": [
+   {
+    "pattern": "(?i)redis-cli\\b.*\\bxadd\\b",
+    "why": "bifrost-send stamps sender, kind and reply links that raw stream writes lack"
+   }
+  ]
+ },
+ "suite-baseline": {
+  "family": "ship",
+  "when": "Use when the test suite shows failures and you must know which are yours: records or diffs the suite receipt; --whose runs tests and attributes each failure.",
+  "keywords": [
+   "failing tests",
+   "were these failing before",
+   "inherited failures",
+   "my failures",
+   "test baseline",
+   "pre-existing failures"
+  ],
+  "args": "<you> --whose \"tests/ -k <area>\"",
+  "hand_rolled": [
+   {
+    "pattern": "\\bgit\\s+stash\\b.*\\bpytest\\b",
+    "why": "suite-baseline --whose attributes failures without stash-bisecting a shared worktree"
+   },
+   {
+    "pattern": "^\\s*(?:uv\\s+run\\s+)?(?:python3?\\s+-m\\s+)?pytest(?:\\s+-[\\w-]+)*(?:\\s+tests/?)?(?:\\s+-[\\w-]+)*\\s*$",
+    "why": "after a full-suite run, record it with suite-baseline --from-file so the next seat diffs instead of re-classifying"
+   }
+  ]
+ },
+ "bifrost-drain": {
+  "family": "fleet",
+  "when": "Use when a bus runner must be restarted without losing in-flight work: asks it to finish its current message, release its lock and exit; changes runner state.",
+  "keywords": [
+   "restart runner",
+   "drain",
+   "graceful exit",
+   "stop runner",
+   "relaunch runner"
+  ],
+  "args": "<you> --to <runner_agent> --reason \"<why>\"",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(pkill|killall|kill)\\b.*bifrost_runner",
+    "why": "drain lets the runner finish its message and release its lock instead of being killed mid-turn"
+   }
+  ]
+ },
+ "bifrost-pause": {
+  "family": "fleet",
+  "when": "Use when the human must barge in and the whole fleet should stop: freezes every bus auto-responder, changing shared state (--soft lets work finish); set --ttl.",
+  "keywords": [
+   "pause the fleet",
+   "stop all agents",
+   "freeze the bus",
+   "barge in",
+   "hold everyone"
+  ],
+  "args": "--soft --ttl 600 --reason \"<why>\" --by <you>",
+  "hand_rolled": []
+ },
+ "bifrost-resume": {
+  "family": "fleet",
+  "when": "Use when the bus was paused and seats should pick up work again: unfreezes the bus auto-responders; changes shared state for the whole fleet.",
+  "keywords": [
+   "unpause the bus",
+   "resume the bus",
+   "unfreeze",
+   "bus is paused",
+   "let agents work again"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "bifrost-skip-to-now": {
+  "family": "fleet",
+  "when": "Use when an agent is stuck replaying an old message backlog and the bus is already paused: jumps its cursors to now, dropping unread mail; audited, changes shared state.",
+  "keywords": [
+   "skip backlog",
+   "echo storm",
+   "stuck replaying",
+   "jump cursor",
+   "discard old messages",
+   "message flood"
+  ],
+  "args": "<agent> --by <you> --reason \"<why>\"",
+  "hand_rolled": [
+   {
+    "pattern": "(?i)redis-cli\\b.*\\bh?set\\b.*cursor",
+    "why": "skip-to-now is audited, requires a pause, and moves all cursors consistently"
+   }
+  ]
+ },
+ "bifrost-nudge": {
+  "family": "coordinate",
+  "when": "Use when one specific peer must look at something now or adjust course: sends a targeted interrupt, steer or inform signal; interrupt drops its current work.",
+  "keywords": [
+   "nudge",
+   "interrupt peer",
+   "steer an agent",
+   "get their attention",
+   "tell them to switch"
+  ],
+  "args": "<you> --to <peer> --mode steer \"<what to look at>\"",
+  "hand_rolled": []
+ },
+ "seat-identity": {
+  "family": "coordinate",
+  "when": "Use when hooks, locks or the roster call you by the wrong agent name: shows or binds this session's seat id, which beats the shared environment variable.",
+  "keywords": [
+   "wrong agent id",
+   "who am i",
+   "my seat id",
+   "identity mixup",
+   "named claude by mistake",
+   "bind seat"
+  ],
+  "args": "<you>",
+  "hand_rolled": [
+   {
+    "pattern": "\\bexport\\s+AKASHIC_AGENT_ID=",
+    "why": "a running session cannot change its own env; the per-session binding is what hooks actually read"
+   }
+  ]
+ },
+ "lock": {
+  "family": "coordinate",
+  "when": "Use when you are about to edit a shared file while other agents are live: claims an advisory lock on the path so others see it; unlock when done.",
+  "keywords": [
+   "lock file",
+   "claim file",
+   "editing shared",
+   "avoid clobber",
+   "someone else editing",
+   "concurrent edit"
+  ],
+  "args": "<you> <path/to/file>",
+  "hand_rolled": []
+ },
+ "unlock": {
+  "family": "coordinate",
+  "when": "Use when you finish editing a path you locked: releases your advisory lock so peers can edit it; you cannot release another seat's lock.",
+  "keywords": [
+   "release lock",
+   "unlock file",
+   "done editing",
+   "free the path"
+  ],
+  "args": "<you> <path>",
+  "hand_rolled": []
+ },
+ "focus": {
+  "family": "coordinate",
+  "when": "Use when starting or finishing work on a specific ledger task: checks this session in so tool calls and cost are attributed to it; --clear checks out.",
+  "keywords": [
+   "working on task",
+   "check in to task",
+   "attribute cost",
+   "which task am i on",
+   "check out of task"
+  ],
+  "args": "<you> --set <task id>",
+  "hand_rolled": []
+ },
+ "locks": {
+  "family": "coordinate",
+  "when": "Use when about to edit a shared file while other agents are live, or asking who is editing what: lists held advisory path locks with holder and age.",
+  "keywords": [
+   "who is editing",
+   "held locks",
+   "file locked",
+   "is anyone working on this file",
+   "advisory locks",
+   "anyone else editing"
+  ],
+  "args": "<you>",
+  "hand_rolled": []
+ },
+ "bifrost-fetch": {
+  "family": "coordinate",
+  "when": "Use when a bus message was clipped or says its payload spilled to a blob ref: fetches the full stored body by its ref.",
+  "keywords": [
+   "clipped message",
+   "truncated message",
+   "blob ref",
+   "spilled payload",
+   "full body",
+   "message cut off"
+  ],
+  "args": "--get blob:<sha>",
+  "hand_rolled": []
+ },
+ "captions": {
+  "family": "research",
+  "when": "Use when a YouTube link comes up and you need what is said in it: downloads the captions only (never video) and writes clean readable text.",
+  "keywords": [
+   "youtube",
+   "captions",
+   "what does the video say",
+   "subtitles",
+   "talk transcript"
+  ],
+  "args": "<youtube url> --out <dir>",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(?:yt-dlp|youtube-dl)\\b.*--write-(?:auto-)?sub",
+    "why": "captions skips the video download and cleans and punctuates the text"
+   },
+   {
+    "pattern": "\\bscripts/yt_captions\\.py\\b",
+    "why": "the script is the implementation; the captions verb is the door other seats will find"
+   }
+  ]
+ },
+ "reply": {
+  "family": "coordinate",
+  "when": "Use when answering the human operator over the bus or Discord: sends your reply in one argument and says honestly whether delivery failed; sends a message.",
+  "keywords": [
+   "reply to the operator",
+   "answer daniil",
+   "message the human",
+   "respond on discord",
+   "tell the operator"
+  ],
+  "args": "\"<answer>\"",
+  "hand_rolled": []
+ },
+ "boop": {
+  "family": "fleet",
+  "when": "Use when you just want to confirm the command door answers at all, or a quick look at what is going on around you with --surface: always replies, changes nothing.",
+  "keywords": [
+   "boop",
+   "ping",
+   "are you there",
+   "smoke test",
+   "is the cli alive"
+  ],
+  "args": "--surface --agent <you>",
+  "hand_rolled": []
+ },
+ "find": {
+  "family": "investigate",
+  "when": "Use when you need a file by name anywhere on the machine, including outside the repo: indexed whole-disk search (Everything on Windows, plocate elsewhere).",
+  "keywords": [
+   "where is the file",
+   "can't find file",
+   "locate",
+   "file somewhere on disk",
+   "attachment landed",
+   "search whole machine",
+   "where is that file",
+   "where is that",
+   "downloads folder",
+   "i downloaded"
+  ],
+  "args": "\"<name>\" --preset recent",
+  "hand_rolled": [
+   {
+    "pattern": "^\\s*(?:sudo\\s+)?find\\s+(?:/|~|\\$HOME)(?:\\s|$).*-i?name\\b",
+    "why": "find uses a machine-wide index and ranks results instead of walking the whole disk"
+   },
+   {
+    "pattern": "^\\s*p?locate\\s",
+    "why": "find wraps the index with presets, ranking and a clear message when the indexer is missing"
+   }
+  ]
+ },
+ "manual": {
+  "family": "research",
+  "when": "Use when a design or platform question needs reference manuals such as Apple HIG or One UI: searches the shelved manuals and returns labelled passages.",
+  "keywords": [
+   "design guidelines",
+   "apple hig",
+   "one ui",
+   "platform conventions",
+   "reference manual",
+   "human interface guidelines"
+  ],
+  "args": "search \"<question>\"",
+  "hand_rolled": []
+ },
+ "shell-home": {
+  "family": "investigate",
+  "when": "Use when your shell keeps landing in the wrong directory after a session event: shows where fresh harness shells start; --set picks a home and edits your bashrc.",
+  "keywords": [
+   "wrong directory",
+   "shell cwd",
+   "working directory drift",
+   "where does the shell start",
+   "cwd reset"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "sweep": {
+  "family": "investigate",
+  "when": "Use when starting a turn or getting your bearings: one read-only snapshot of your bus mail, parked asks, fleet health and what moved recently.",
+  "keywords": [
+   "catch me up",
+   "what's going on",
+   "get my bearings",
+   "awareness snapshot",
+   "what changed"
+  ],
+  "args": "<you>",
+  "hand_rolled": []
+ },
+ "orient": {
+  "family": "investigate",
+  "when": "Use when you are lost or returning after a break and want one view of where you stand: composes awareness, a focus on a verb, seat or thread, and landmarks.",
+  "keywords": [
+   "where am i",
+   "get my bearings",
+   "orient me",
+   "overview of my situation",
+   "lost context"
+  ],
+  "args": "--agent <you>",
+  "hand_rolled": []
+ },
+ "shadow": {
+  "family": "investigate",
+  "when": "Use when you want to preview what a bus or toolbox action would do, whether you may do it and what it costs, before doing it: renders it without executing.",
+  "keywords": [
+   "dry run",
+   "preview action",
+   "what would happen",
+   "before sending",
+   "am i allowed"
+  ],
+  "args": "toolbox:bifrost_send --agent <you> --args-json '{\"to\": \"<seat>\", \"text\": \"...\"}'",
+  "hand_rolled": []
+ },
+ "college": {
+  "family": "research",
+  "when": "Use when learning a topic rigorously with separate seats: records sources, a sealed lecture, an independent claim audit, teach-backs and errata; it calls no model.",
+  "keywords": [
+   "course",
+   "lecture",
+   "audit claims",
+   "teach-back",
+   "errata",
+   "study a topic"
+  ],
+  "args": "show <course>",
+  "hand_rolled": []
+ },
+ "ground": {
+  "family": "investigate",
+  "when": "Use when unsure a verb really exists, is wired and is permitted for you, or recovering a seat's state after lost context: prints the evidence ladder; read-only.",
+  "keywords": [
+   "does this verb work",
+   "am i allowed",
+   "is it wired",
+   "verb evidence",
+   "recover seat state",
+   "after context loss"
+  ],
+  "args": "verb:<name> --agent <you>",
+  "hand_rolled": []
+ },
+ "eye": {
+  "family": "investigate",
+  "when": "Use when searching what was said in past agent sessions or what the operator asked for before: indexes session transcripts and finds, cites, counts or traces utterances.",
+  "keywords": [
+   "transcripts",
+   "past sessions",
+   "what did he say",
+   "operator said",
+   "conversation history",
+   "session log",
+   "what did i ask",
+   "asked for before",
+   "earlier session"
+  ],
+  "args": "find \"<phrase>\" --who operator",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(grep|rg|jq)\\b.*\\.claude/projects/\\S*\\.jsonl",
+    "why": "eye indexes every session, labels speakers and returns citable addresses"
+   }
+  ]
+ },
+ "capture": {
+  "family": "coordinate",
+  "when": "Use when a bus message looks truncated or you need its exact text: reads the full message by stream id or a sender's latest, optionally saving it verbatim.",
+  "keywords": [
+   "full message",
+   "truncated message",
+   "exact text",
+   "verbatim",
+   "save the message"
+  ],
+  "args": "--from-agent <peer> --count 3",
+  "hand_rolled": [
+   {
+    "pattern": "\\bredis-cli\\b.*\\bX(?:REV)?RANGE\\b",
+    "why": "capture reads both inbox streams, unwraps the payload and can persist it verbatim"
+   }
+  ]
+ },
+ "alias": {
+  "family": "improve",
+  "when": "Use when you keep typing the same sequence of verbs: mints, lists or retires a named composition on your toolbelt; mint and retire change shared state.",
+  "keywords": [
+   "make a shortcut",
+   "alias",
+   "combine commands",
+   "toolbelt",
+   "repeat this sequence",
+   "macro"
+  ],
+  "args": "<you> list",
+  "hand_rolled": []
+ },
+ "run": {
+  "family": "improve",
+  "when": "Use when you have saved a personal command alias or macro and want to run it: expands the alias into its CLI steps and runs them; --dry shows the steps only.",
+  "keywords": [
+   "alias",
+   "macro",
+   "my shortcut",
+   "toolbelt",
+   "saved command"
+  ],
+  "args": "<you> <alias_name> --dry",
+  "hand_rolled": []
+ },
+ "bench": {
+  "family": "coordinate",
+  "when": "Use when stale asks clog your inbox: lists, parks or unparks messages so fresh mail flows; parked mail is kept and its sender notified, so park changes shared state.",
+  "keywords": [
+   "stale asks",
+   "clogged inbox",
+   "park message",
+   "unpark",
+   "inbox backlog"
+  ],
+  "args": "<you> list",
+  "hand_rolled": []
+ },
+ "tool": {
+  "family": "improve",
+  "when": "Use when trying out a draft play script an agent wrote: lists the sandboxed play tools or runs one with time limits and a receipt.",
+  "keywords": [
+   "play tool",
+   "draft tool",
+   "sandbox script",
+   "try a tool",
+   "experimental script"
+  ],
+  "args": "list",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(?:python3?|py)\\s+\\S*data/play/\\S+\\.py",
+    "why": "tool run executes the draft inside the sandbox with a timeout and records a receipt"
+   }
+  ]
+ },
+ "kata": {
+  "family": "improve",
+  "when": "Use when you have authored or changed a toolbelt alias and want to know if it is real: checks each step parses against the CLI and raises its trust level.",
+  "keywords": [
+   "verify alias",
+   "test alias",
+   "is my alias valid",
+   "toolbelt check",
+   "alias trust"
+  ],
+  "args": "<you> <alias_name>",
+  "hand_rolled": []
+ },
+ "toast": {
+  "family": "memory",
+  "when": "Use when a peer's lesson saved you time: sends them thanks tied to that lesson, verified against the lesson store; sends a bus message.",
+  "keywords": [
+   "thank",
+   "that lesson saved me",
+   "credit a peer",
+   "gratitude",
+   "kudos"
+  ],
+  "args": "<you> <peer> <experiment_name> --credit \"<what it saved>\"",
+  "hand_rolled": []
+ },
+ "clobber-scan": {
+  "family": "ship",
+  "when": "Use when reviewing a Python file or diff that writes shared control keys: flags unconditional overwrites that could clobber another agent's state, to confirm.",
+  "keywords": [
+   "overwrite shared state",
+   "clobber",
+   "unconditional write",
+   "race on keys",
+   "review writes"
+  ],
+  "args": "<path.py>",
+  "hand_rolled": []
+ },
+ "tally": {
+  "family": "research",
+  "when": "Use when several independent reviewers answered the same research opening and you want consensus: aligns their answers by question and shows agree or conflict.",
+  "keywords": [
+   "consensus",
+   "reviewers agree",
+   "counters",
+   "conflicting answers",
+   "blind review",
+   "agreement matrix"
+  ],
+  "args": "<research/opening.md>",
+  "hand_rolled": []
+ },
+ "pulse": {
+  "family": "fleet",
+  "when": "Use when asking where work is piling up across the fleet: read-only pressure map of each seat's backlog, sorted into critical, elevated and normal zones.",
+  "keywords": [
+   "backlog",
+   "pressure",
+   "where is work piling up",
+   "overloaded seat",
+   "queue depth"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "reentry": {
+  "family": "fleet",
+  "when": "Use when the human operator returns and asks what they missed: renders what moved since their last word and their one open question, quoted verbatim.",
+  "keywords": [
+   "what did i miss",
+   "welcome back",
+   "catch the operator up",
+   "since i was away",
+   "operator returns"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "glance": {
+  "family": "investigate",
+  "when": "Use when you want a bounded snapshot of the task program: what needs attention, open tasks, and which checks cannot be made, read-only.",
+  "keywords": [
+   "program snapshot",
+   "what needs attention",
+   "task overview",
+   "orientation",
+   "open tasks"
+  ],
+  "args": "program --brief",
+  "hand_rolled": []
+ },
+ "secret": {
+  "family": "fleet",
+  "when": "Use when the human needs to give you an API key or password: opens a paste window that saves it to the vault, never the transcript; bare lists which exist.",
+  "keywords": [
+   "api key",
+   "password",
+   "credential",
+   "token",
+   "paste a secret",
+   "vault"
+  ],
+  "args": "",
+  "hand_rolled": [
+   {
+    "pattern": ">\\s*\\S*\\.secrets/",
+    "why": "secret takes the value through a window or stdin so it never lands in a transcript or shell history"
+   }
+  ]
+ },
+ "flightdeck": {
+  "family": "fleet",
+  "when": "Use when you want the whole fleet on one page: combines agent health, pressure, lane health, locks and recent commits; --agent drills into one seat.",
+  "keywords": [
+   "fleet at a glance",
+   "dashboard",
+   "overview of everything",
+   "cockpit",
+   "how is the fleet",
+   "one page summary"
+  ],
+  "args": "",
+  "hand_rolled": []
+ },
+ "stand-down": {
+  "family": "coordinate",
+  "when": "Use when this session is retiring and a successor must take your agent's seat: permanently yields the seat for this session, no reclaim; changes shared seat state.",
+  "keywords": [
+   "retire seat",
+   "give up seat",
+   "successor",
+   "stand down",
+   "yield seat",
+   "step aside"
+  ],
+  "args": "<you>",
+  "hand_rolled": []
+ },
+ "unwedge": {
+  "family": "fleet",
+  "when": "Use when an agent seems stuck, silent or not answering: read-only diagnosis combining runner, lanes, backlog and locks into a verdict and recommended fix.",
+  "keywords": [
+   "stuck",
+   "not responding",
+   "wedged",
+   "agent silent",
+   "why isn't it answering",
+   "frozen"
+  ],
+  "args": "<agent>",
+  "hand_rolled": [
+   {
+    "pattern": "\\b(?:pgrep\\s+-\\w*f\\w*|ps\\s+.*\\|\\s*grep)\\b.*\\b(?:bifrost|runner)\\b",
+    "why": "unwedge reads runner, lane cursor, depths and locks together and says what to do"
+   }
+  ]
+ },
+ "followup": {
+  "family": "coordinate",
+  "when": "Use when a verdict or report leaves a question its author must answer: appends the question to its open questions and queues it for that seat; writes both.",
+  "keywords": [
+   "question for the author",
+   "follow up on verdict",
+   "ask the reviewer",
+   "open question",
+   "question back"
+  ],
+  "args": "<you> --on <verdict-file> --to <seat> --ask \"<question>\"",
+  "hand_rolled": []
+ },
+ "defer": {
+  "family": "coordinate",
+  "when": "Use when you need a command run that your seat lacks permission for (exec, write, network): queues it for a capable seat; --done with a receipt discharges it.",
+  "keywords": [
+   "can't run this",
+   "no permission",
+   "read-only seat",
+   "queue command",
+   "someone with write access",
+   "needs exec"
+  ],
+  "args": "<you> \"<command>\" --needs exec --why \"<what it unblocks>\"",
+  "hand_rolled": []
+ },
+ "watch": {
+  "family": "fleet",
+  "when": "Use when starting a long run that must not die silently: declares it so silence raises an alarm, checkpoints while alive, and stands down when done.",
+  "keywords": [
+   "long run",
+   "deadman",
+   "alert if it dies",
+   "overnight run",
+   "keep an eye on"
+  ],
+  "args": "<you> --declare \"<what is running>\" --grace 1800",
+  "hand_rolled": []
+ },
+ "kit": {
+  "family": "fleet",
+  "when": "Use when a seat needs the standard recovery shortcuts for wake loops and stalls: --show previews the kit; without it, installs the bundle onto that seat's toolbelt.",
+  "keywords": [
+   "recovery kit",
+   "install kit",
+   "wake loop recovery",
+   "stall recovery",
+   "toolbelt bundle"
+  ],
+  "args": "<you> --show",
+  "hand_rolled": []
+ }
+}

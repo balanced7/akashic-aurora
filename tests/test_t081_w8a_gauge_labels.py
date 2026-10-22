@@ -23,8 +23,16 @@ Run: py -m pytest tests/test_t081_w8a_gauge_labels.py -q
 import os
 import sys
 
+import pytest
+
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+@pytest.fixture(autouse=True)
+def _whisper_only(monkeypatch):
+    """These pins are about the whisper; the verb map riding after it has its own (test_verb_guide.py)."""
+    monkeypatch.setenv("AKASHIC_VERB_MAP", "0")
 
 
 def _whisper(cwd=None, agent_id="test-agent", session_id="", monkeypatch=None, unread=0, lane_env=None):

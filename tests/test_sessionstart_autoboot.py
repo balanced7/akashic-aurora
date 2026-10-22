@@ -15,6 +15,8 @@ import os
 import sys
 from datetime import datetime, timedelta
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import context as ctx
@@ -23,6 +25,14 @@ from agent.harness.scope import repo_root
 from core.learning.agent_memory import Decision
 
 _REPO = repo_root()
+
+
+@pytest.fixture(autouse=True)
+def _whisper_only(monkeypatch):
+    """These pins are about the whisper; the verb map riding after it has its own (test_verb_guide.py)."""
+    monkeypatch.setenv("AKASHIC_VERB_MAP", "0")
+
+
 _HOME = os.path.expanduser("~")
 _ELSEWHERE = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
 

@@ -83,6 +83,17 @@ def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
     return plan_block(prompt, session_id, session_id, agent_id=agent_id)
 
 
+def build_verb_line(prompt: str, session_id: str, agent_id: str) -> str:
+    """At most one house verb that fits this request, or "" -- and the operator-named-a-verb
+    count (agent/harness/verbs.py). Fail-soft like its siblings."""
+    try:
+        from agent.harness.verbs import verb_plan_line
+
+        return verb_plan_line(prompt, session_id, agent_id, session_id)
+    except Exception:
+        return ""
+
+
 def build_bus_line(agent_id: str) -> str:
     """One line when unread bus mail waits, "" otherwise (silent-at-0). Fail-soft: an
     unreachable bus means no line, never a broken hook."""
@@ -126,6 +137,7 @@ def main() -> int:
         agent_id = _seat(str(data.get("session_id") or ""))
         pieces = [
             build_plan_recall(data.get("prompt") or "", data.get("session_id") or "", agent_id),
+            build_verb_line(data.get("prompt") or "", data.get("session_id") or "", agent_id),
             build_bus_line(agent_id),
             *build_page_lines(),
         ]

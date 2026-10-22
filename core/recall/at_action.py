@@ -1908,13 +1908,27 @@ def _verbs(query: str, command: str | None = None, limit: int = 2) -> list[dict[
         scored.sort(key=lambda t: (-t[0], t[2].get("verb", "")))
         out = []
         for score, hits, e in scored[: max(0, limit)]:
-            out.append({"verb": e["verb"], "purpose": e.get("purpose", ""), "score": round(score, 3), "matched": hits})
+            # What the reader gets is the verb guide's trigger line -- it says WHEN to reach for the
+            # verb, where the parser purpose often only names the slice that built it. Chosen here,
+            # at selection, so every renderer delivers the selected text intact (test_recall_intact).
+            purpose = _verb_when(e["verb"]) or e.get("purpose", "")
+            out.append({"verb": e["verb"], "purpose": purpose, "score": round(score, 3), "matched": hits})
         return out
     except Exception:
         return []
 
 
 _VERB_FLOOR = float(os.environ.get("AKASHIC_VERB_FLOOR", "0.9"))
+
+
+def _verb_when(verb: str) -> str:
+    """The verb's use-when line from core/coord/verb_guide.json, or "" (fail-soft)."""
+    try:
+        from core.coord.verb_guide import load
+
+        return (load().get(verb) or {}).get("when", "")
+    except Exception:
+        return ""
 
 
 def recall_at(

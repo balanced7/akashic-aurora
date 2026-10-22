@@ -29,16 +29,16 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 - `core/foundation` -- DRIFT (8->12), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->69), reviewed 2026-07-26
-- `core/coord` -- DRIFT (11->31), reviewed 2026-07-26
+- `core/coord` -- DRIFT (11->33), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->6), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->18), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->5), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->9), reviewed 2026-07-26
-- `agent/harness` -- DRIFT (9->15), reviewed 2026-07-26
+- `agent/harness` -- DRIFT (9->16), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->22), reviewed 2026-07-26
-- `scripts/generators` -- DRIFT (6->14), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->15), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->8), reviewed 2026-07-26
 - `tests` -- DRIFT (331->910), reviewed 2026-07-26
 
@@ -134,7 +134,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/coord` -- 31 modules  ·  DRIFT (11->31)
+## `core/coord` -- 33 modules  ·  DRIFT (11->33)
 
 **What it does.** Coordination primitives: advisory path locks, the RB-21 consumer seat with generations, the task ledger with gated transitions, the conductor, and expectation/redrive bookkeeping.
 
@@ -380,7 +380,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `agent/harness` -- 15 modules  ·  DRIFT (9->15)
+## `agent/harness` -- 16 modules  ·  DRIFT (9->16)
 
 **What it does.** The seat side of the fleet: how an agent session is launched, kept alive, woken from idle, and stood down. Includes the wake listener, seat lifecycle and the runner glue that turns a bus message into a live turn.
 
@@ -471,7 +471,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 14 modules  ·  DRIFT (6->14)
+## `scripts/generators` -- 15 modules  ·  DRIFT (6->15)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 

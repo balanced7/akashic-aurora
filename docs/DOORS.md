@@ -41,7 +41,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` `--fields` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
 | `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
-| `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |
+| `discover` | list every verb with when to use it and its purpose (the self-describing door) | `<query>` `--json` `--map` `--awareness` `--since` `--semantic` |
 | `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt,arc}` |
 | `doctor` | fleet liveness doctor (L2): progress, not presence | `--agents` `--deploy` `--page` `--progress` `--json` |
 | `episode` | session bookends: current episode, close+draft, accept | `<action>* {current,close,accept}` `<chapter_id>` `--title` `--desc` `--why` `--accept-title` `--accept-desc` `--accept-why` `--json` |

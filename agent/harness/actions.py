@@ -60,6 +60,13 @@ def _agent(agent_id: str | None) -> str | None:
     return agent_id or os.getenv("AKASHIC_AGENT_ID")
 
 
+def _verb_keys(res: dict) -> list:
+    """Verbs recall's verb channel just surfaced, as seen-set keys. The verb nudges
+    (agent/harness/verbs.py) share the per-session seen set, so a verb named here is not
+    suggested again by them."""
+    return [f"verb:{v.get('verb')}" for v in res.get("verbs", []) if v.get("verb")]
+
+
 def recall_block(
     session_key: str, seen_key: str, path: str | None, command: str | None, agent_id: str | None = None
 ) -> str:
@@ -83,7 +90,7 @@ def recall_block(
         out = render(res)
         if out:
             srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
-            mark_seen(seen_key, srcs)
+            mark_seen(seen_key, srcs + _verb_keys(res))
             target = normalize_target(path or None, command or None)
             mark_impression(session_key, target, srcs)
             log_injection(session_key, "action", target, srcs, len(out))
@@ -143,7 +150,7 @@ def plan_block(prompt: str, session_key: str, seen_key: str, agent_id: str | Non
         if not out:
             return ""
         srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
-        mark_seen(seen_key, srcs)
+        mark_seen(seen_key, srcs + _verb_keys(res))
         log_injection(session_key, "plan", "", srcs, len(out))
         return out
     except Exception:
