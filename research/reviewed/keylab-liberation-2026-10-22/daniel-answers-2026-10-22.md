@@ -61,3 +61,21 @@ the question each number answers is given in brackets for the reader and is not 
 Readings: 1 = push every commit ahead of origin/master. 2 = the rank reading is confirmed: A16 counts
 toward A12 (#4) and keeps its own number. 9 = aubio stays an optional, lazily imported dependency; the
 house writes its own beat detector before anything is bundled. 13 (the Commons) is still unanswered.
+
+## Third round (2026-10-22, Discord, verbatim; bus 1792693015565-0)
+
+Answering Vandor's pad-mapping questions a-e (bus 1792692664769-0) and adding the FL fader rule:
+
+> Lets let the play pause controls work with FL but the fades for mixer is dumb, i want them unassociated so I can link them to whatever by default. We could have the pads do different things depending on mode, we could have performance mode for triggering patterns we can swap mid performance to drums and back, idk what would be the easiest way to set that up.
+>
+> I use addictive Drums 2, and may get GGD for kontakt, i also want to try recreating fruity fpc, it can be used as a starting point but I think we can come up with something better with a quick color select and decay for color adsr.
+>
+> For b, yes this exactly
+>
+> C. Lets try both, wont hurt to know more about how things work
+> D. All of the above with a default curve we decide on later that is easy to adjust, perhaps adsr window with handles
+> E. Lets do different kits and perhaps different instruments
+
+The questions: a) which drum apps; b) learn mode (press a pad, then the key whose note you want);
+c) the map in the keyboard or in the hub; d) velocity per pad (fixed, played curve, or a choice);
+e) banks as kit sections or as whole different kits.

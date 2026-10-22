@@ -86,6 +86,15 @@ BENIGN_FINGERPRINTS: Dict[str, str] = {
                         "proves nothing. Same class as the t223/remote-bridge redaction "
                         "pins already allowlisted below, but entered by FINGERPRINT rather "
                         "than by path so a genuine key in that file would still fire",
+    # VERIFIED the same way, not assumed (2026-10-22, claude): sha256 of each literal was computed
+    # independently and equals the fingerprint scan_tracked() reported for that file. Both are
+    # path-traversal canaries: the shader servers must refuse to serve a file holding this string.
+    "7a3f6495f4c5cd1f": "tests/test_shader_harness.py canary SECRET = \"TOPSECRET-not-for-the-lab\" "
+                        "(36 bytes): written to a file just outside the lab's roots so the "
+                        "traversal pins can prove it is never served -- not a credential",
+    "24fe7cafa8bbc8b0": "tests/test_shader_serve_routes.py canary SECRET = \"TOPSECRET-not-for-the-shelf\" "
+                        "(38 bytes): written beside the shelf's roots so the traversal pins can "
+                        "prove it is never served -- not a credential",
 }
 
 # path -> WHY it is allowed. A bare path is refused (see _check_allowlist).
