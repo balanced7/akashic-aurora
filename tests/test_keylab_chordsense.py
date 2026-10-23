@@ -1110,16 +1110,13 @@ def test_vj_events_follow_the_engine_contract():
 
 # --- Daniel's Joy to the World ---------------------------------------------------------------------------------
 
-_SCRATCH = ("C:/Users/L5/AppData/Local/Temp/claude/E--/88c7ecac-d149-46ae-8e9a-612d5ba3736a/scratchpad/"
-            "joy_notes.json")
 JOY_BPM = 100.0
 BEAT = 60.0 / JOY_BPM
 
 
 def _joy_path():
     root = Path(__file__).resolve().parents[1]
-    for p in (os.environ.get("KEYLAB_JOY_NOTES"), root / "state" / "arsenal" / "keylab" / "joy_notes.json",
-              _SCRATCH):
+    for p in (os.environ.get("KEYLAB_JOY_NOTES"), root / "state" / "arsenal" / "keylab" / "joy_notes.json"):
         if p and Path(p).is_file():
             return Path(p)
     return None
