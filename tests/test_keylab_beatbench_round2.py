@@ -805,8 +805,13 @@ def test_a_tuned_on_file_name_never_enters_a_held_out_draw_and_temp_copies_are_n
     keep = ntpath.join("D:", "packs", "Kick Loop 9 120 BPM.wav")
     temp = ntpath.join("C:", "Users", "x", "AppData", "Local", "Temp", "pytest-of-x", "packs", "Drum Loop 1 120 BPM.wav")
 
+    # a temp copy outside pytest's folder (a scratch render) and a recycle-bin copy are not packs either
+    scratch = ntpath.join("C:", "Users", "x", "AppData", "Local", "Temp", "claude", "scratch", "Kick Loop 3 120 BPM.wav")
+    binned = ntpath.join("D:\\", "$Recycle.Bin", "S-1-5-21", "Kick Loop 4 120 BPM.wav")
+
     class R:
-        paths = [keep, temp]
+        paths = [keep, temp, scratch, binned]
     import core.tools.everything as E
     monkeypatch.setattr(E, "search", lambda *a, **k: R())
     assert BB.find_bpm_loops() == [keep]
+    assert not any(c in x for x in BB._NOT_A_PACK for c in ("\a", "\t"))

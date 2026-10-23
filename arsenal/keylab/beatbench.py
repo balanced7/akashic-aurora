@@ -975,7 +975,8 @@ def parse_bpm(name: str) -> Optional[int]:
     return bpm if 60 <= bpm <= 200 else None
 
 
-_NOT_A_PACK = ("\appdata\local\temp\\", "pytest-of-", "\$recycle.bin\\")
+# Backslashes doubled: in a plain literal "\a" is BEL and "\t" is TAB, so until 2026-10-23 the temp entry matched nothing.
+_NOT_A_PACK = ("\\appdata\\local\\temp\\", "pytest-of-", "\\$recycle.bin\\")
 
 
 def find_bpm_loops(max_results: int = 200000) -> List[str]:
