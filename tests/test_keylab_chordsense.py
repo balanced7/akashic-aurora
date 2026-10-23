@@ -911,11 +911,14 @@ def test_chords_under_loud_noise_and_a_washy_pad_are_still_heard():
 def test_a_ride_cymbal_is_not_named_as_chords():
     """Round 2: a ride (sixty sustained inharmonic partials over 300 Hz-9 kHz, struck on the 8ths) read as chords
     94 % of the time: its partials stand clear and steady, but its energy sits above the voices' register."""
-    rng = np.random.default_rng(111)
+    from scipy.signal import butter, sosfilt
+    rng = np.random.default_rng(109)
     n, L = int(12 * RATE), int(1.6 * RATE)
     tl = np.arange(L) / RATE
     ride = sum(rng.uniform(0.2, 1) * np.sin(2 * np.pi * f * tl + rng.uniform(0, 6)) * np.exp(-tl / rng.uniform(0.3, 1.5))
                for f in rng.uniform(300, 9000, 60))
+    ride = ride + 0.5 * sosfilt(butter(2, 4000, "highpass", fs=RATE, output="sos"),
+                                rng.standard_normal(L)) * np.exp(-tl / 0.08)
     x = np.zeros(n)
     for t0 in np.arange(0.0, 12.0, 60 / 96 / 2):
         i = int(t0 * RATE)
