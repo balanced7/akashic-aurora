@@ -585,6 +585,108 @@ def test_random_chords_and_a_loud_bright_bass(bass_db):
         assert full >= 0.85 and root >= 0.95, (full, root)
 
 
+def square(midi, secs, rate=RATE):
+    """A band-limited square wave: the odd harmonics at 1/h, no even ones at all."""
+    f0 = 440.0 * 2 ** ((midi - 69) / 12)
+    t = np.arange(int(secs * rate)) / rate
+    x = sum(np.sin(2 * np.pi * h * f0 * t) / h for h in range(1, int(0.45 * rate / f0) + 1, 2))
+    return x * np.minimum(1.0, t / 0.005) * np.clip((secs - t) / 0.05, 0.0, 1.0)
+
+
+def bass_mix(seq, wave, lowest, db, rate=RATE):
+    """The random set's voices WITHOUT their bass note, and a bass instrument playing the root from MIDI `lowest`
+    up (28 = E1, 41 Hz .. D#2; 36 = C2 .. B2), `db` above the voices, over the drums."""
+    audio, truth = render([(notes[1:], d, "") for notes, d, _ in seq], drums=False)
+    truth = [(t0, t1, rq) for (t0, t1, _), (_, _, rq) in zip(truth, seq)]
+    mix = audio.astype(np.float64)
+    bass = np.concatenate([wave(lowest + (r - lowest) % 12, d, rate) for _, d, (r, _) in seq])[:len(mix)]
+    mix = mix + bass * np.sqrt(np.mean(mix ** 2) / np.mean(bass ** 2)) * 10 ** (db / 20)
+    mix /= np.max(np.abs(mix))
+    drums = BB.synth_case("bed", 120, len(mix) / rate, rate, style="drums", rng_seed=1).audio[:len(mix)]
+    return (0.6 * mix + 0.6 * drums / np.max(np.abs(drums))).astype(np.float32), truth
+
+
+@pytest.mark.parametrize("wave", ["saw", "square"])
+@pytest.mark.parametrize("lowest", [28, 36])
+@pytest.mark.parametrize("db", [6, 12])
+def test_a_low_or_hollow_bass_keeps_the_root(wave, lowest, db):
+    """Round 2: a sub bass under C2 (E1-D#2, 41-78 Hz: where a hardstyle or house bass lives) used to be found only
+    by its 2nd harmonic, its 3rd, 5th and 7th stayed in the harmony, and the root read N (43-53 % at +12 dB); a
+    square bass (no even partials) fooled the one power law that took the bass's series out. The bass is now found
+    from 39 Hz, its odd and even partials have a law each, and the voices are no longer explained away by the bass's
+    own overtones. Root >= 95 % at +6 and +12 dB; (root, quality) >= 85 % at +6 dB."""
+    audio, truth = bass_mix(random_set(), saw if wave == "saw" else square, lowest, db)
+    _, events = listen(audio)
+    full, root = rq_accuracy(chords_of(events), truth)
+    assert root >= 0.95 and (db > 6 or full >= 0.85), (full, root)
+
+
+def supersaw(midi, secs, rng, rate=RATE, voices=7, spread=0.25):
+    """Seven saws detuned across +-spread semitones, each with its own phase: a trance / hardstyle lead chord."""
+    f0 = 440.0 * 2 ** ((midi - 69) / 12)
+    t = np.arange(int(secs * rate)) / rate
+    x = np.zeros(len(t))
+    for v in range(voices):
+        fd = f0 * 2 ** (spread * (2 * v / (voices - 1) - 1) / 12)
+        ph = rng.uniform(0, 2 * np.pi)
+        for h in range(1, int(6000 / fd) + 1):
+            x += np.sin(2 * np.pi * h * fd * t + h * ph) / h
+    return x * np.minimum(1.0, t / 0.01) * np.clip((secs - t) / 0.03, 0.0, 1.0)
+
+
+def hardstyle(seq, bpm=150.0, rate=RATE, sub_db=6.0, kick_db=6.0, tail_hz=49.0, drive=4.0, seed=4):
+    """seq [(root, quality, secs)]: supersaw chords from G3 up, a sub bass on the root at E1-D#2 (a sine and a
+    little octave), a distorted four-on-the-floor kick whose tail sits at `tail_hz`, and the sidechain duck that
+    pumps the chords and the sub under every kick. Levels are RMS against the chords."""
+    rng = np.random.default_rng(seed)
+    n = int(sum(d for _, _, d in seq) * rate)
+    chords, sub, truth, t = np.zeros(n), np.zeros(n), [], 0.0
+    for root, q, d in seq:
+        i0 = int(t * rate)
+        tones = sorted(55 + ((root + iv - 55) % 12) for iv in CS.QUALITIES[q][0])
+        for m in tones + [tones[0] + 12]:
+            x = supersaw(m, d, rng)
+            chords[i0:i0 + len(x)] += x[:n - i0]
+        f0 = 440.0 * 2 ** ((28 + (root - 4) % 12 - 69) / 12)
+        tt = np.arange(min(int(d * rate), n - i0)) / rate
+        sub[i0:i0 + len(tt)] = ((np.sin(2 * np.pi * f0 * tt) + 0.15 * np.sin(4 * np.pi * f0 * tt))
+                                * np.minimum(1, tt / 0.01) * np.clip((d - tt) / 0.02, 0, 1))
+        truth.append((t, t + d, (root, q)))
+        t += d
+    tk = np.arange(int(0.32 * rate)) / rate
+    kick = np.tanh(drive * np.sin(2 * np.pi * np.cumsum(tail_hz + 260.0 * np.exp(-tk * 38.0)) / rate)) \
+        * np.exp(-tk / 0.16) + 0.5 * np.random.default_rng(1).standard_normal(len(tk)) * np.exp(-tk / 0.004)
+    beat = 60.0 / bpm
+    tb = np.arange(int(beat * rate)) / rate
+    duck, kicks = np.ones(n), np.zeros(n)
+    for k in np.arange(0.0, n / rate, beat):
+        i = int(k * rate)
+        kicks[i:i + len(kick)] += kick[:n - i]
+        duck[i:i + len(tb)] = (1.0 - 0.85 * np.exp(-tb / 0.09))[:n - i]
+    rms = lambda x: np.sqrt(np.mean(x ** 2)) + 1e-12
+    mix = duck * (chords / rms(chords) + sub / rms(sub) * 10 ** (sub_db / 20)) + kicks / rms(kicks) * 10 ** (kick_db / 20)
+    return (0.9 * mix / np.max(np.abs(mix))).astype(np.float32), truth
+
+
+# a minor-key hardstyle progression's pool: i, VI, III, VII, iv, v and V7, with the colours producers reach for
+HARDSTYLE_POOL = [(9, "min"), (5, "maj"), (0, "maj"), (7, "maj"), (2, "min"), (4, "min"), (4, "7"), (9, "sus2"),
+                  (7, "sus4"), (5, "maj7"), (2, "m7"), (9, "m7")]
+
+
+@pytest.mark.parametrize("tail_hz", [55.0, 49.0])
+def test_hardstyle_kick_sub_bass_and_supersaw_chords(tail_hz):
+    """Daniel's hardstyle: a distorted kick on every beat at 150 BPM, a sub bass on the root under 65 Hz ducking
+    under it, supersaw chords on top, in A minor. The kick's tail sits in the same band as the sub (tuned to the
+    tonic, A1, or off it, G1); it swells and fades with every beat while the sub holds, so the sub is the bass.
+    The right root >= 90 % of the time and (root, quality) >= 85 % (round 1: 74-76 % root)."""
+    rng = np.random.default_rng(8)
+    seq = [HARDSTYLE_POOL[int(rng.integers(len(HARDSTYLE_POOL)))] + (1.6,) for _ in range(24)]
+    audio, truth = hardstyle(seq, tail_hz=tail_hz, kick_db=3.0, drive=2.0)
+    _, events = listen(audio)
+    full, root = rq_accuracy(chords_of(events), truth, settle=0.6)
+    assert root >= 0.90 and full >= 0.85, (full, root)
+
+
 def test_a_melody_alone_is_not_a_chord():
     """A single-note melody (C D E G, four times, each note ringing into the next) used to read as one power chord
     per note (one note and its 3rd harmonic match '5') and found a key. A chord now needs two of its own tones

@@ -309,19 +309,23 @@ class ChordSense:
     """
 
     # audio: chroma pitch range (MIDI), the bass band, and where the long FFT hands over to the short one
-    LO_MIDI, HI_MIDI = 33, 100                  # A1 (55 Hz) .. E7 (2.6 kHz)
-    BASS_LO, BASS_HI = 36, 59                   # C2 (65 Hz) .. B3 (247 Hz): above the bass drum's tail
+    LO_MIDI, HI_MIDI = 27, 100                  # D#1 (39 Hz) .. E7 (2.6 kHz)
+    BASS_LO, BASS_HI = 27, 59                   # D#1 (39 Hz) .. B3 (247 Hz): a sub bass's fundamental is heard
+    HARM_LO = 36                                # C2 (65 Hz): below it is the bass's register, never a chord voice
     SPLIT_MIDI = 57                             # below: the long FFT's peaks; at and above: the short FFT's
     BINS_PER_SEMI = 3
     MAX_SAMPLE = 1e5                            # a sample beyond this (or NaN / Inf) is not audio: silence
     PROM_HALF, PROM_DB = 12, (10.0, 20.0)       # a peak's sinusoidality: 0 at 10 dB over the local level, 1 at 20
     TONAL_ON, TONAL_OFF = 0.25, 0.12            # tonality hysteresis: chords are heard above ON, N below OFF
+    N_BOOST = (0.30, 2.0)                       # below this tonality N gains this much per unit of tonality short
     CLEAR_TONALITY = 0.6                        # ... and at full confidence from this tonality up
     # the overtones a note explains in the semitones above it (offset, share): harmonics 2-8 of a bright tone
     _OVERTONES = ((12, 0.55), (19, 0.35), (24, 0.25), (28, 0.2), (31, 0.17), (34, 0.14), (36, 0.13))
     NOTE_ON, FEW_NOTES = 0.2, 1.0               # a pitch class sounds as a note above NOTE_ON; fewer than two of
     #                                             a chord's tones sounding costs it FEW_NOTES (it cannot win)
-    VOICE_FLOOR = 0.04                          # voices quieter than this share of the bass note are its residue
+    LAW_FLOOR, LAW_MAX_H, LAW_Q = 0.02, 12, 0.8
+    TWELFTH_SHARE = 0.5                         # a bass's 12ths give up this share of what its law predicts
+    VOICE_FLOOR = 0.10                          # voices quieter than this share of the bass note are its residue
     DYAD_HOLD_S = 0.20                          # extra hold for a chord with only two of its tones sounding
     FOREIGN_BASS = (0.10, 0.03)                 # score cost of a bass outside the chord: normally / under a lone bass
     UNEXPLAINED = 0.10                          # a chord claiming a lone bass pays this per voice it leaves out
@@ -497,6 +501,7 @@ class ChordSense:
         self._bass_bins = (bin_midi >= self.BASS_LO) & (bin_midi <= self.BASS_HI)
         bb = np.flatnonzero(self._bass_bins)
         self._bb = (int(bb[0]), int(bb[-1]) + 1)                   # the bass band, a contiguous run of fine bins
+        self._hs = int(np.argmax(bin_midi >= self.HARM_LO))       # fine bins below this are the sub band
         self._series_cache: Dict[int, tuple] = {}
         self._semi_pc = (self.LO_MIDI + np.arange(self._nb // self.BINS_PER_SEMI)) % 12
         self._hk = max(5, int(round(self.hpss_s / self._dt))) | 1
@@ -529,7 +534,7 @@ class ChordSense:
         self._h_off = np.round(self.BINS_PER_SEMI * 12.0 * np.log2(hn)).astype(int)
         # the bass's 12ths (h = 3, 6, 12 ..) land on the fifth of the chord it usually carries, and a chord tone
         # there cannot be told from a brighter bass: they give up only half of what the law predicts
-        self._h_share = np.where(np.round(12.0 * np.log2(hn)).astype(int) % 12 == 7, 0.5, 1.0)
+        self._h_share = np.where(np.round(12.0 * np.log2(hn)).astype(int) % 12 == 7, self.TWELFTH_SHARE, 1.0)
         offs = np.arange(-1, 5)[:, None]                            # search window: 1 bin flat .. 1-4 bins sharp
         self._h_win = (offs, offs <= 1 + (hn[None, :] >= 13) + (hn[None, :] >= 25) + (hn[None, :] >= 37))
         self._fe_ready = True
@@ -665,6 +670,11 @@ class ChordSense:
         p = median_filter(fine, size=17, mode="constant")
         h2 = h * h
         harm = np.minimum(fine, h) * (h2 / (h2 + p * p + 1e-18))
+        # the sub band (below C2) holds a kick's tail as well as a sub bass. In the long window a kick swells and
+        # fades with every beat (a 120 BPM kick's median there is ~25 times its minimum), a bass note holds: the sub
+        # band keeps only what held through the WHOLE past window
+        hs = self._hs
+        np.minimum(harm[:hs], self._hring[:, :hs].min(axis=0), out=harm[:hs])
         # onset evidence BEFORE the median (which delays the harmony on purpose): the per-pitch-class rise of the
         # raw spectrum, kept ~0.8 s so a decided chord can be back-dated to the attack that started it
         raw = np.sqrt(np.bincount(self._bin_pc, weights=fine, minlength=12))
@@ -677,12 +687,14 @@ class ChordSense:
         self._flux_t[self._fpos] = self._t
         self._fpos = (self._fpos + 1) % len(self._flux_t)
         energy = float(harm.sum())
-        total = float(fine.sum())
         # tonality: the share of the peak energy that is SINUSOIDAL (standing clear of the spectrum around it) times
-        # the share that is STEADY (the harmonic split): noise and drums ~0, a chord 0.5-0.8 even under drums. With
-        # hysteresis: 'tonal' switches on above TONAL_ON and off only below TONAL_OFF, so a chord does not flicker
-        # to N and back at a drum fill, and a hiss or a riser never reaches the chords
-        steady = energy / total if total > 1e-9 else 0.0
+        # the share that is STEADY (the harmonic split, judged from C2 up: a kick's tail is no reason to hear noise):
+        # noise and drums ~0, a chord 0.5-0.8 even under drums. With hysteresis: 'tonal' switches on above TONAL_ON
+        # and off only below TONAL_OFF, so a chord does not flicker to N and back at a drum fill, and a hiss or a
+        # riser never reaches the chords
+        total = float(fine[hs:].sum())
+        steady = float(harm[hs:].sum()) / total if total > 1e-9 else 0.0
+        self._sinus_share, self._steady = sinus_share, steady
         self._tonality += self._a_tonal * (sinus_share * steady - self._tonality)
         if self._tonal and self._tonality < self.TONAL_OFF:
             self._tonal = False
@@ -691,14 +703,15 @@ class ChordSense:
         self._clarity = _unit(self._tonality / self.CLEAR_TONALITY)
         # the bass NOTE (its fundamental and its harmonic series) comes out of the harmony: a loud or bright bass
         # must not turn maj7 into 5; it is heard in the bass chroma (the bass note, inversions, slash chords)
-        upper, bpc, a1 = self._split_bass(harm)
-        # note salience: each semitone minus what the overtones of the notes below it explain, so dissonance and
-        # pedals are heard in the NOTES, not in their 12ths and 17ths (and never in the bass's own overtones)
-        semi = harm.reshape(-1, self.BINS_PER_SEMI).sum(axis=1)
-        expl = np.zeros_like(semi)
+        upper, bpc, a1, voices = self._split_bass(harm)
+        # note salience: each semitone of the voices minus what the overtones of the voices below it explain, so
+        # dissonance and pedals are heard in the NOTES, not in their 12ths and 17ths. The bass's own series is already
+        # out of the voices: explaining the voices by ITS overtones too took them twice (under a loud bass no voice
+        # was left sounding)
+        semi_v = voices.reshape(-1, self.BINS_PER_SEMI).sum(axis=1)
+        expl = np.zeros_like(semi_v)
         for off, g in self._OVERTONES:
-            expl[off:] += g * semi[:-off]
-        semi_v = semi if bpc is None else upper.reshape(-1, self.BINS_PER_SEMI).sum(axis=1)
+            expl[off:] += g * semi_v[:-off]
         sal = np.bincount(self._semi_pc, weights=np.maximum(semi_v - expl, 0.0), minlength=12)
         self._salience_s += self._a_sal * (sal - self._salience_s)
         self._a1_s += self._a_sal * (a1 - self._a1_s)
@@ -721,7 +734,7 @@ class ChordSense:
         if bnote is not None:
             present[bnote] = 1.0
         # when little of the energy is harmonic (drums, noise, applause), 'N' gets the benefit of the doubt
-        n_boost = 2.0 * max(0.0, 0.30 - self._tonality) if self._tonal else 2.0
+        n_boost = self.N_BOOST[1] * max(0.0, self.N_BOOST[0] - self._tonality) if self._tonal else 2.0
         return self._step(self._harmony(self._chroma_s, bnote), self._bass_s.copy(), energy, quiet, True, present,
                           present > self.PEDAL_ON_AUDIO, n_boost, lone,
                           None if lone is None else self._harmony(self._chroma_s, None))
@@ -745,41 +758,65 @@ class ChordSense:
             c[bnote] = max(c[bnote], 0.5 * float(c.max()))
         return c ** self.gamma
 
-    def _split_bass(self, harm: np.ndarray) -> Tuple[np.ndarray, Optional[int], float]:
-        """(upper, bass pitch class, fundamental amplitude): the harmonic spectrum with the bass note's own harmonic
-        series taken out. The bass note is the lowest significant peak of the bass band. Its partials' strength
-        follows a power law a1 * h^-p (a sawtooth p = 1, a piano bass steeper); p is read from the CLEANEST of
-        harmonics 2..12 (a high quantile: a chord tone landing on a harmonic only makes that one look brighter), and
-        each harmonic gives up at most what the law predicts (its 12ths only half, see _h_share), so the chord's
-        own partials stay."""
+    def _split_bass(self, harm: np.ndarray) -> Tuple[np.ndarray, Optional[int], float, np.ndarray]:
+        """(upper, bass pitch class, fundamental amplitude, voices): the harmonic spectrum with the bass note's own
+        harmonic series taken out. The bass note is the lowest significant peak of the bass band. Its partials'
+        strength follows a power law a1 * h^-p (a sawtooth p = 1, a piano bass steeper; odd and even partials each
+        their own, see _law); p is read from the CLEANEST of harmonics 2..12 (a high quantile: a chord tone landing on
+        a harmonic only makes that one look brighter), and each harmonic gives up at most what the law predicts, so
+        the chord's own partials stay. In `upper` (the chroma) the 12ths give up only half (see _h_share: the fifth
+        of the chord usually sits there); in `voices` (the notes sounding) all of it, so a bass note's own 12th is
+        never a second note (one note is not a power chord)."""
         b0, b1 = self._bb
         band = harm[b0:b1]
         bmax = float(band.max())
         if bmax <= self.BASS_MIN * float(harm.max()):
-            return harm, None, 0.0                                  # nothing in the bass band worth the name
+            upper = harm.copy()
+            upper[:self._hs] = 0.0                                  # nothing in the bass band worth the name
+            return upper, None, 0.0, upper
         i0 = b0 + int(np.argmax(band > self.BASS_SIG * bmax))
         if i0 + 1 < self._nb and harm[i0 + 1] > harm[i0]:
             i0 += 1                                                 # the peak, not its shoulder
         a1 = float(harm[i0])
         upper = harm.copy()
         upper[i0] = 0.0
-        cand, valid, cols, hlog, share, low = self._series(i0)
+        voices = upper
+        cand, valid, cols, hlog, share, low, odd = self._series(i0)
         if cols.size:
             vals = np.where(valid, harm[cand], -1.0)
             j = np.argmax(vals, axis=0)
             obs = np.maximum(vals[j, cols], 0.0)
-            m = (obs > 0) & low
-            if m.sum() >= 2:
-                ph = np.log(a1 / obs[m]) / hlog[m]
-                ph.sort()
-                q = 0.8 * (ph.size - 1)                             # the 80th percentile, interpolated
-                i = int(q)
-                p = float(ph[i] + (ph[min(i + 1, ph.size - 1)] - ph[i]) * (q - i))
-                p = min(max(p, 0.5), 4.0)
-                take = np.minimum(obs, a1 * np.exp(-p * hlog)) * share
-                upper -= np.bincount(cand[j, cols], weights=take, minlength=self._nb)
+            # one law for the odd partials and one for the even: a square bass has no even partials at all (one law
+            # for both read it as a dull bass and left its 3rd, 5th, 7th .. in the harmony), and the even partials
+            # are never taken as BRIGHTER than the odd (they are the root's octaves and the 12ths, where the chord's
+            # own root and fifth sit)
+            ok = obs > self.LAW_FLOOR * a1
+            p_odd = self._law(a1, obs, hlog, ok & low & odd, self.LAW_Q)
+            p_even = self._law(a1, obs, hlog, ok & low & ~odd, self.LAW_Q)
+            if p_odd is not None or p_even is not None:
+                if p_odd is None:
+                    p_odd = p_even
+                p_even = p_odd if p_even is None else max(p_even, p_odd)
+                take = np.minimum(obs, a1 * np.exp(-np.where(odd, p_odd, p_even) * hlog))
+                voices = np.maximum(upper - np.bincount(cand[j, cols], weights=take, minlength=self._nb), 0.0)
+                upper -= np.bincount(cand[j, cols], weights=take * share, minlength=self._nb)
                 np.maximum(upper, 0.0, out=upper)
-        return upper, int(self._bin_pc[i0]), a1
+                voices[:self._hs] = 0.0
+        upper[:self._hs] = 0.0                                      # the sub band is the bass's alone
+        return upper, int(self._bin_pc[i0]), a1, voices
+
+    @staticmethod
+    def _law(a1: float, obs: np.ndarray, hlog: np.ndarray, m: np.ndarray, quantile: float = 0.8) -> Optional[float]:
+        """The power-law exponent p (a1 * h^-p) read from the CLEANEST of the partials m: the 80th percentile of their
+        exponents (a chord tone landing on a partial only makes that one look brighter); None with fewer than two."""
+        if int(m.sum()) < 2:
+            return None
+        ph = np.log(a1 / obs[m]) / hlog[m]
+        ph.sort()
+        q = quantile * (ph.size - 1)                                # the 80th percentile, interpolated
+        i = int(q)
+        p = float(ph[i] + (ph[min(i + 1, ph.size - 1)] - ph[i]) * (q - i))
+        return min(max(p, 0.5), 4.0)
 
     def _series(self, i0: int):
         """The bass note's harmonic series seen from fine bin i0 (cached per bin): for harmonics 2..48 inside the
@@ -792,7 +829,7 @@ class ChordSense:
             cand = idx[ok][None, :] + self._h_win[0]
             valid = self._h_win[1][:, ok] & (cand < self._nb)
             c = (np.minimum(cand, self._nb - 1), valid, np.arange(int(ok.sum())), self._h_log[ok],
-                 self._h_share[ok], self._h_num[ok] <= 12)
+                 self._h_share[ok], self._h_num[ok] <= self.LAW_MAX_H, self._h_num[ok] % 2 == 1)
             self._series_cache[i0] = c
         return c
 
@@ -996,6 +1033,7 @@ class ChordSense:
         self._chroma, self._bass, self._energy, self._present = c, b, energy, present
         self._lone = lone
         s = self._scores(c, b, harmonics, present, lone, upper)
+        self._last_s = s
         s[-1] += n_boost
         if quiet:
             s[-1] = 10.0                                            # silence: N, decisively
