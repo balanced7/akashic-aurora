@@ -477,6 +477,66 @@ def test_a_common_tone_of_a_plain_loop_is_not_a_pedal(names):
     assert not [e for e in events if e["type"] == "pedal"]
 
 
+def _pedal_timeline(evs, end, step=0.1):
+    """Feed note events in `step` chunks; return (events, [(t, snapshot)])."""
+    cs = CS.ChordSense()
+    out, snaps, pos = [], [], 0
+    for k in range(int((end + 0.5) / step) + 1):
+        now = k * step
+        chunk = []
+        while pos < len(evs) and evs[pos]["t"] <= now:
+            chunk.append(evs[pos])
+            pos += 1
+        out += cs.feed_notes(chunk, now=now)
+        snaps.append((now, cs.snapshot()))
+    return out, snaps
+
+
+# voice-led loops whose common tones run through most (not all) of the chords
+LOOP_V = {"Dm": [38, 57, 62, 65], "Bb": [46, 58, 62, 65], "F": [41, 57, 60, 65], "C": [36, 55, 60, 64],
+          "Em": [40, 55, 59, 64], "Am": [45, 57, 60, 64], "G": [43, 55, 59, 62], "Dm7": [38, 57, 60, 65],
+          "G7": [43, 55, 59, 65]}
+
+
+@pytest.mark.parametrize("names,beats", [(["C", "G", "Am", "Em", "F", "C", "F", "G"], 2), (["Am", "F", "C", "G"], 2),
+                                         (["C", "Am", "F", "Dm7", "G7"], 2), (["C", "Am", "F", "Dm7", "G7"], 1),
+                                         (["Dm", "Bb", "F"], 4), (["C", "Em", "Am"], 4)])
+def test_no_pedal_on_plain_progressions(names, beats):
+    """Round 2: Pachelbel, Am-F-C-G and C-Am-F-Dm7-G7 (one or two beats a chord) read a false pedal in audio
+    (G, E, C: a previous chord's tail ringing over the next counted as a held, clashing note) and C-Am-F-Dm7-G7 at
+    one beat a chord on the keys too. A pedal must now be really HELD (struck, or sounding fresh: not a tail) and
+    sound in nearly every chord span it runs through; the note of the next chord arriving while the label still
+    names the last one does not clash."""
+    evs, end = play([(LOOP_V[n], beats) for n in names] * 6, beat=0.5)
+    out, _ = _pedal_timeline(evs, end)
+    assert not [e for e in out if e["type"] == "pedal"], [e for e in out if e["type"] == "pedal"]
+    audio, _ = render([(LOOP_V[n], beats * 0.5, n) for n in names] * 6, strike_every=0.5, seed=21)
+    _, events = listen(audio)
+    assert not [e for e in events if e["type"] == "pedal"], [(e["note"], e["t"]) for e in events if e["type"] == "pedal"]
+
+
+@pytest.mark.parametrize("which", ["Db over Db-Gb-Bbm-Ab", "A over Am-G-F-E"])
+def test_a_pedal_the_chord_name_absorbs_is_still_found(which):
+    """Round 2: a held note the chord name absorbs (Ab + a held Db reads Absus4, G + A Gadd9, E + A Esus4) never
+    clashed, so the re-struck Db over Db-Gb-Bbm-Ab (Db also voiced inside Gb and Bbm) was lost in audio and flapped
+    on and off on the keys. A held note that is only the chord's colour (the 4th of sus4, the 7th of a seventh) now
+    clashes: the pedal is found on both ears, once, and stays."""
+    if which.startswith("Db"):
+        prog, pc = [[37, 49, 53, 56, 73], [42, 54, 58, 61, 73], [46, 53, 58, 61, 73], [44, 56, 60, 63, 73]], 1
+    else:
+        prog, pc = [[45, 57, 60, 64, 81], [43, 55, 59, 62, 81], [41, 53, 57, 60, 81], [40, 52, 56, 59, 81]], 9
+    evs, end = play([(c, 4) for c in prog] * 4, beat=0.5)
+    out, snaps = _pedal_timeline(evs, end)
+    on = [e for e in out if e["type"] == "pedal" and e["on"]]
+    assert len(on) == 1 and on[0]["pc"] == pc, [(e["note"], e["t"], e["on"]) for e in out if e["type"] == "pedal"]
+    later = [s["pedal"] is not None and s["pedal"]["pc"] == pc for t, s in snaps if t >= on[0]["t"] and t < end]
+    assert np.mean(later) >= 0.95, np.mean(later)
+    audio, _ = render([(c, 2.0, "") for c in prog] * 4, strike_every=0.5, seed=6)
+    _, events = listen(audio)
+    on = [e for e in events if e["type"] == "pedal" and e["on"]]
+    assert len(on) == 1 and on[0]["pc"] == pc, [(e["note"], e["t"], e["on"]) for e in events if e["type"] == "pedal"]
+
+
 def _noise(kind, secs, rng):
     from scipy.signal import butter, istft, sosfilt, stft
     n = int(secs * RATE)

@@ -286,6 +286,7 @@ _LOWER = {"min", "m7", "dim"}
 _NUM_SUFFIX = {"maj": "", "min": "", "7": "7", "maj7": "maj7", "m7": "7", "sus2": "sus2", "sus4": "sus4",
                "dim": "\u00b0", "aug": "+", "add9": "add9", "5": "5"}
 _EXTENSION = {"add9": 2, "7": 10, "maj7": 11, "m7": 10}      # the tone a four-note chord adds to its triad
+_COLOUR = {"7": (10,), "maj7": (11,), "m7": (10,), "sus4": (5,)}
 _FUNCTION_TENSION = {"tonic": 0.0, "subdominant": 0.10, "dominant": 0.28, "secondary dominant": 0.30,
                      "borrowed": 0.20, "neapolitan": 0.30, "chromatic": 0.30}
 
@@ -414,18 +415,22 @@ class ChordSense:
     TAIL_HOLD_S = 0.20                          # extra hold for a chord that may be the last one's ringing tail
     SAME_ROOT_HOLD_S = 0.25                     # extra hold when only the quality would change, not the root
     DOWNGRADE_HOLD_S = 1.0                      # ... and when it would only drop a tone of the chord held
-    # pedal: audio counts a pitch class as sounding above this share of the loudest note salience; notes count
-    # it while its key is down or it was struck within PEDAL_STRIKE_S. A run survives gaps of PEDAL_GAP_S and
-    # becomes a pedal once it has lasted pedal_min_s over at least PEDAL_CHORDS different chord roots AND has been
-    # held THROUGH harmony it does not belong to: clashing with (not a tone of) the chord under it for at least
-    # PEDAL_CLASH of the time it sounded over chords -- or, over a wide-ranging run (PEDAL_WIDE roots or more,
-    # where a held note keeps fitting in as root, third or fifth), for PEDAL_CLASH_S at all. A common tone of a
-    # loop never clashes, so it is never a pedal
-    PEDAL_ON_AUDIO = 0.30
+    # pedal: audio counts a pitch class as sounding above PEDAL_ON_AUDIO of the loudest note, and as HELD when it is
+    # not a line's tail (struck before the newest note and fading); notes count it while its key is down or it was
+    # struck within PEDAL_STRIKE_S, and as held while down, sustained, or struck again since the chord began. A run
+    # survives gaps of PEDAL_GAP_S and becomes a pedal once it has lasted pedal_min_s over PEDAL_CHORDS different
+    # chord roots, been held PEDAL_HELD of the time, sounded in all but PEDAL_MISS of the chord spans it ran through
+    # (each span's first SPAN_SKIP_S, the last chord's tail, not counted) AND either clashed with the harmony for
+    # PEDAL_CLASH of its held time (not a chord tone, or only the chord's colour: see _COLOUR) or held on as a drone
+    # for PEDAL_DRONE_S over PEDAL_DRONE_ROOTS roots. A loop's common tone fits every chord it is in and leaves out a
+    # chord or two: it is no pedal
+    PEDAL_ON_AUDIO = 0.15
     PEDAL_STRIKE_S = 1.2
     PEDAL_GAP_S = {"audio": 1.2, "notes": 0.6}
     PEDAL_CHORDS, PEDAL_CLASH = 3, 0.15
-    PEDAL_WIDE, PEDAL_CLASH_S = 5, 0.5
+    PEDAL_HELD = {"audio": 0.7, "notes": 0.85}
+    PEDAL_MISS, SPAN_SKIP_S = 0.15, 0.35
+    PEDAL_DRONE_S, PEDAL_DRONE_ROOTS = 16.0, 4
     RING_NOTE_ON = 0.5                          # notes: a released note ringing out counts as sounding above this
     RING_OUT_S = 0.6                            # notes: a released key (no sustain pedal) fades over this...
     DAMP_S = 0.12                               # ...and much faster once a new chord is struck:
@@ -480,6 +485,13 @@ class ChordSense:
         cnt = tm.sum(axis=1)
         roots = np.append(self._roots, -1)
         self._nested = ((common == cnt[:, None]) | (common == cnt[None, :])) & (roots[:, None] == roots[None, :])
+        # a held pitch class CLASHES with a chord when it is not one of its tones, or is only its colour: the 9th of
+        # sus2 / add9, the 4th of sus4, the 7th of a seventh chord (what the held note itself would make of a triad)
+        self._clash_mask = ~self._tone_mask[:-1]
+        for r in range(12):
+            for qi, q in enumerate(QUALITY_NAMES):
+                for iv in _COLOUR.get(q, ()):
+                    self._clash_mask[r * nq + qi, (r + iv) % 12] = True
         self._key_chord = self._tone_mask / self._tone_count[:, None]
         for r in range(12):
             self._key_chord[r * nq + QUALITY_NAMES.index("7"), (r + 5) % 12] += self.DOMINANT_PULL
@@ -526,6 +538,17 @@ class ChordSense:
         self._run_roots = np.zeros((12, 12), dtype=bool)   # the chord roots each run was heard over
         self._run_over = np.zeros(12)           # seconds each run has sounded over a chord ...
         self._run_clash = np.zeros(12)          # ... and of those, clashed with it (not one of its tones)
+        self._run_held = np.zeros(12)           # seconds each run was really held (struck, or sounding fresh)
+        self._held_since = np.full(12, -1.0)    # when each pitch class's current held streak began (-1 = none)
+        self._held_last = np.full(12, -1e9)
+        self._acc_held = np.zeros(12)           # seconds each pitch class has been held, ever (for span lookups)
+        self._acc_ring = np.zeros((96, 12))     # ... its last ~2 s of frames
+        self._acc_ring_t = np.full(96, -1e9)
+        self._acc_pos = 0
+        self._run_spans = np.zeros(12)          # chord spans each run has run through ...
+        self._run_missed = np.zeros(12)         # ... and of those, the ones its note did not sound in
+        self._span_onset: Optional[float] = None
+        self._span_change: Optional[float] = None   # a chord change's onset, not yet accounted
         self._pedal: Optional[int] = None
         self._pedal_strength = 0.0
         # what the renderer reads
@@ -847,7 +870,8 @@ class ChordSense:
         sounding = present > self.NOTE_ON
         newest = float(self._att_t[sounding].max()) if sounding.any() else -1e9
         loud = self._salience_s >= self.FADE[1] * max(smax, self._a1_s)     # against the bass note too
-        tail = fading & ~loud & (self._att_t < newest - self.SYNC_S)
+        old = fading & (self._att_t < newest - self.SYNC_S)
+        tail = old & ~loud
         fresh = np.where(tail, np.minimum(present, 0.5 * self.NOTE_ON), present)
         bnote, lone = self._bass_note(self._bass_s, self._chroma_s)
         if bnote is not None:
@@ -858,7 +882,8 @@ class ChordSense:
         n_boost = self.N_BOOST[1] * max(0.0, self.N_BOOST[0] - self._tonality) if self._tonal else 2.0
         return self._step(self._harmony(self._chroma_s, bnote), self._bass_s.copy(), energy, quiet, True, present,
                           present > self.PEDAL_ON_AUDIO, n_boost, lone,
-                          None if lone is None else self._harmony(self._chroma_s, None), fresh)
+                          None if lone is None else self._harmony(self._chroma_s, None), fresh,
+                          (present > self.PEDAL_ON_AUDIO) & ~old)
 
     def _bass_note(self, bass: np.ndarray, upper: np.ndarray) -> Tuple[Optional[int], Optional[int]]:
         """(the bass note's pitch class or None, the same when it is LONE: the voices above do not carry it)."""
@@ -1105,10 +1130,13 @@ class ChordSense:
         # for the pedal a note is ON while its key is down or it was struck within PEDAL_STRIKE_S: what the
         # player keeps playing, not what merely rings
         pedal_on = down | (t - self._last_strike < self.PEDAL_STRIKE_S)
+        # ... and HELD: down, on the sustain pedal, or struck again since the chord under it began (a note of the
+        # previous chord struck a moment ago is that chord's tail, not a note held over this one)
+        held = down | holding | (self._last_strike >= max(self._label_t, t - self.PEDAL_STRIKE_S))
         self._set_pulse(self._strike_energy)
         self._strike_energy = 0.0
         return self._step(self._harmony(upper, bnote), bass, energy, energy < 0.05, False, present, pedal_on,
-                          0.0, lone, None if lone is None else self._harmony(upper, None), fresh)
+                          0.0, lone, None if lone is None else self._harmony(upper, None), fresh, held)
 
     def _level_of(self, note: int, t: float) -> float:
         """How loud a struck note still sounds: a string fades; a held key keeps sounding (organ, pads); a released
@@ -1181,7 +1209,7 @@ class ChordSense:
     def _step(self, c: np.ndarray, b: np.ndarray, energy: float, quiet: bool, harmonics: bool,
               present: np.ndarray, pedal_on: np.ndarray, n_boost: float = 0.0,
               lone: Optional[int] = None, upper: Optional[np.ndarray] = None,
-              fresh: Optional[np.ndarray] = None) -> List[dict]:
+              fresh: Optional[np.ndarray] = None, pedal_held: Optional[np.ndarray] = None) -> List[dict]:
         """One frame of the shared back end. c: compressed chroma; b: bass distribution; present: the pitch
         classes sounding as notes (0..1); pedal_on: the pitch classes the pedal detector counts as held;
         n_boost: extra weight for 'no chord' on non-tonal frames; lone / upper: a bass pitch class the voices do
@@ -1259,7 +1287,7 @@ class ChordSense:
                 elif t - self._bass_since >= self.bass_hold_s:
                     out.extend(self._change(best, nb, self._label_conf, bass_only=True))
         self._update_key(c, harmonics, quiet)
-        out.extend(self._update_tension(present, pedal_on, quiet))
+        out.extend(self._update_tension(present, pedal_on, quiet, pedal_held))
         return out
 
     def _margin(self, s: np.ndarray, state: int) -> float:
@@ -1364,6 +1392,8 @@ class ChordSense:
             t_change = self._inst_since if self._inst == state else self._cand_since
             if self._source == "audio" and root is not None:
                 t_change = self._onset_before(t_change, chord_tones(root, quality))
+        if not bass_only and root is not None:
+            self._span_change = t_change
         ev = self._chord_event(t, t_change)
         out = [ev]
         # resolution: tension that had built up falls back onto the tonic
@@ -1494,7 +1524,15 @@ class ChordSense:
             ped = self._pedal_strength * clash
         return float(1.0 - (1.0 - min(base, 1.0)) * (1.0 - 0.75 * ped))
 
-    def _update_tension(self, present: np.ndarray, pedal_on: np.ndarray, quiet: bool) -> List[dict]:
+    def _acc_at(self, when: float) -> np.ndarray:
+        """The cumulative held seconds per pitch class as of `when` (the last frame at or before it, within ~2 s)."""
+        ok = self._acc_ring_t <= when + 1e-9
+        if not ok.any():
+            return self._acc_ring[int(np.argmin(self._acc_ring_t))]
+        return self._acc_ring[int(np.argmax(np.where(ok, self._acc_ring_t, -np.inf)))]
+
+    def _update_tension(self, present: np.ndarray, pedal_on: np.ndarray, quiet: bool,
+                        held: Optional[np.ndarray] = None) -> List[dict]:
         t, dt = self._t, self._dt
         out: List[dict] = []
         # dissonance of what is sounding: interval-class roughness between the notes, weighted by their level
@@ -1502,30 +1540,73 @@ class ChordSense:
         norm = float(w.sum() ** 2 - (w * w).sum())
         self._diss = float(w @ _ROUGH @ w) / norm if norm > 1e-9 else 0.0
         # pedal: one pitch class held or re-struck (short gaps allowed) for pedal_min_s while the harmony moves
-        # under it -- at least PEDAL_CHORDS different chord ROOTS (Am, Am7 and Asus2 are one) -- and CLASHES with
-        # it: for at least PEDAL_CLASH of the time it sounds over a chord, it is not one of that chord's tones. A
-        # common tone of a plain loop (the C of Am-F-C) never clashes, so it is never a pedal
+        # under it -- at least PEDAL_CHORDS different chord ROOTS (Am, Am7 and Asus2 are one) -- really HELD for
+        # PEDAL_HELD of that time (struck or sounding fresh, not a previous chord's tail ringing over), and CLASHING
+        # with the harmony for PEDAL_CLASH of the time it is held over a chord: it is not one of the chord's tones,
+        # or it is only the colour the held note itself gives the chord (Ab + a held Db reads Absus4, G + A Gadd9,
+        # Eb-Gb-Bb + Db Ebm7: judged against the chord without it, it clashes). A common tone of a plain loop (the
+        # C of Am-F-C: root, third or fifth of every chord it sounds in) never clashes, and a tone the loop leaves
+        # out now and then (the C of C-Am-F-Dm7-G7) is not held through it: neither is a pedal
         root, quality = self._state_rq(self._label)
+        held = pedal_on if held is None else held
         if not quiet:
             new = pedal_on & (self._run_start < 0)
             self._run_start[new] = t
             self._run_clash[new] = 0.0
             self._run_over[new] = 0.0
+            self._run_held[new] = 0.0
             self._run_roots[new] = False
+            self._run_spans[new] = 0.0
+            self._run_missed[new] = 0.0
             self._last_seen[pedal_on] = t
+            self._run_held[held & (self._run_start >= 0)] += dt
+            # a held streak: since when each pitch class has been held without a break. A note that came in
+            # AFTER the chord under it was named is the next chord arriving (the label lags the attack), not a
+            # note held through this one: it does not clash yet
+            self._held_since[held & (self._held_since < 0)] = t
+            self._held_last[held] = t
+            # every chord span (onset to onset, >= 0.4 s): did each run's note sound in it at all? A pedal sounds
+            # in every chord it runs through; a loop's common tone leaves one out (the C of C-Am-F-Dm7-G7, absent
+            # from the G7), however short the gap
+            self._acc_held[held] += dt
+            self._acc_ring[self._acc_pos] = self._acc_held
+            self._acc_ring_t[self._acc_pos] = t
+            self._acc_pos = (self._acc_pos + 1) % len(self._acc_ring_t)
+            if self._span_change is not None:
+                onset, self._span_change = self._span_change, None
+                # (its first SPAN_SKIP_S is the last chord's tail ringing over, which is not this chord's)
+                inner = 0.0 if self._span_onset is None else onset - self._span_onset - self.SPAN_SKIP_S
+                if inner >= 0.25:
+                    inside = self._acc_at(onset) - self._acc_at(self._span_onset + self.SPAN_SKIP_S)
+                    live = self._run_start >= 0
+                    self._run_spans[live] += 1
+                    self._run_missed[live & (inside < 0.25 * inner)] += 1
+                self._span_onset = onset
+            self._held_since[t - self._held_last > 0.3] = -1.0
             if root is not None:                                    # the roots it is HEARD over, and clashes
                 self._run_roots[pedal_on, root] = True
-                self._run_over[pedal_on] += dt
-                self._run_clash[pedal_on & ~self._tone_mask[self._label]] += dt
+                self._run_over[held] += dt
+                through = (self._held_since >= 0) & (self._held_since <= self._label_t)
+                self._run_clash[held & through & self._clash_mask[self._label]] += dt
         self._run_start[(self._run_start >= 0) & (t - self._last_seen > self.PEDAL_GAP_S[self._source])] = -1.0
         dur = np.where(self._run_start >= 0, t - self._run_start, 0.0)
         long_ = dur >= self.pedal_min_s
         pedal = None
         if long_.any():
             roots = self._run_roots.sum(axis=1)
-            clash = ((self._run_clash >= self.PEDAL_CLASH * np.maximum(self._run_over, 1e-9))
-                     | ((roots >= self.PEDAL_WIDE) & (self._run_clash >= self.PEDAL_CLASH_S)))
-            ok = long_ & (roots >= self.PEDAL_CHORDS) & clash
+            share = self._run_clash / np.maximum(self._run_over, 1e-9)
+            lax = np.ones(12)
+            if self._pedal is not None:
+                lax[self._pedal] = 0.6                              # hysteresis: a pedal on stays on more easily
+            clash = share >= self.PEDAL_CLASH * lax
+            # ... or a DRONE: held through PEDAL_DRONE_S over PEDAL_DRONE_ROOTS roots or more, whether it fits the
+            # chords or not. Daniel's Db under the end of Joy to the World is one: it fits most of the chords over it
+            # and is struck with them, but it never stops. A loop's common tone leaves out a chord or two within a
+            # few seconds (the C of C-Am-F-Dm7-G7), or runs over only three roots (the C of Am-F-C)
+            drone = (dur >= self.PEDAL_DRONE_S) & (roots >= self.PEDAL_DRONE_ROOTS)
+            ok = (long_ & (roots >= self.PEDAL_CHORDS) & (clash | drone)
+                  & (self._run_held >= self.PEDAL_HELD[self._source] * lax * np.maximum(dur, 1e-9))
+                  & (self._run_missed <= self.PEDAL_MISS / lax * self._run_spans))
             if ok.any():
                 pedal = int(np.argmax(np.where(ok, dur, -1.0)))
         pedal_events: List[dict] = []
