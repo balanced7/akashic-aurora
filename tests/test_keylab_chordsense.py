@@ -1011,6 +1011,38 @@ def test_a_modulation_is_heard_within_eight_seconds():
         assert all(k in ("C major", "A major") for _, k in got), got
 
 
+def test_a_borrowed_bVII_loop_stays_in_its_key():
+    """Round 2: C-Bb-F-C (C with a borrowed bVII) flipped to F major for 3 s on the 4 s key memory. The fast way to a
+    new key now waits until the first key has stood a few seconds, and needs the rival's own tonic chord to have
+    been heard more than the current key's lately: C keeps coming home."""
+    prog = [[36, 48, 52, 55, 60], [46, 50, 53, 58, 62], [41, 53, 57, 60, 65], [36, 48, 52, 55, 60]]
+    evs, end = play([(x, 4) for x in prog] * 8)
+    keys = [e["key"] for e in CS.ChordSense().feed_notes(evs, now=end) if e["type"] == "key"]
+    audio, _ = render([(x, 2.0, "") for x in prog] * 6, strike_every=0.5)
+    keys_audio = [e["key"] for e in listen(audio)[1] if e["type"] == "key"]
+    assert keys == ["C major"] and keys_audio == ["C major"], (keys, keys_audio)
+
+
+def test_key_confidence_is_the_evidence_not_the_switching_margin():
+    """Round 2: a key reached by the fast memory was announced at confidence 1.0 (its switching margin / 0.15,
+    clipped), so a passing key read as surely as a settled one. Confidence is now the key's share of a softmax over
+    all 24 keys' fits, the fast memory blended with a long one a key change does not reset: a key just reached is
+    believed less than one that has stood, and the belief grows as the new key holds."""
+    c = [[36, 48, 52, 55, 60], [41, 53, 57, 60, 65], [43, 55, 59, 62, 65], [36, 48, 52, 55, 60]]
+    d = [[38, 50, 54, 57, 62], [43, 55, 59, 62, 67], [45, 57, 61, 64, 67], [38, 50, 54, 57, 62]]
+    evs, end = play([(x, 4) for x in c] * 4 + [(x, 4) for x in d] * 4)
+    out, snaps = _pedal_timeline(evs, end)
+    keys = [(e["t"], e["key"], e["confidence"]) for e in out if e["type"] == "key"]
+    assert keys[0][1] == "C major" and keys[-1][1] == "D major", keys
+    steady_c = [s["key_confidence"] for t, s in snaps if 20.0 <= t < 30.0]
+    assert min(steady_c) >= 0.8, min(steady_c)
+    moved = [k for k in keys if k[0] > 32.0]
+    assert moved and all(cf <= 0.8 for _, _, cf in moved), moved
+    t_d, _, c_d = keys[-1]
+    later = [s["key_confidence"] for t, s in snaps if t_d + 9.0 <= t < t_d + 11.0]
+    assert later and min(later) >= c_d + 0.1, (c_d, later)
+
+
 def test_vj_events_follow_the_engine_contract():
     """to_vj_events maps every chordsense event onto the VJ engine's SSE contract (arsenal/keylab/vj.py): chord in
     its own shape, plus the new key and tension events -- so wiring chordsense into vj.py is a few lines."""
@@ -1126,6 +1158,22 @@ def test_joy_notes_db_major_and_the_pedal_at_the_end(joy):
     diatonic = {1, 3, 5, 6, 8, 10, 0}
     share = np.mean([e["root"] in diatonic for e in chords if e["t"] > 60 * BEAT])
     assert share >= 0.85, share
+
+
+def test_joy_keys_hold_db_major_and_believe_it_most(joy):
+    """Round 2: on the keys Joy held Db major 0.93 of the time with 6 announcements, and the passing keys (Eb minor,
+    Gb major, Ab major) were announced at confidence 1.0 while Db major got 0.36-0.52. Now Db major holds >= 0.9
+    with at most 5 announcements, and every passing key is believed less than Db major ever is."""
+    notes, ppq = joy
+    evs = CS.score_to_events(notes, ppq, JOY_BPM)
+    end = evs[-1]["t"]
+    events = CS.ChordSense().feed_notes(evs, now=end)
+    keys = [(e["key"], e["confidence"]) for e in events if e["type"] == "key"]
+    assert _key_share(events, "Db major", 60 * BEAT, end) >= 0.9
+    assert len(keys) <= 5, keys
+    db = [cf for k, cf in keys if k == "Db major"]
+    others = [cf for k, cf in keys[1:] if k != "Db major"]
+    assert db and all(cf < min(db) for cf in others), keys
 
 
 def render_score(notes, ppq, bpm, rate, ring_s=0.6, seed=3):

@@ -435,11 +435,18 @@ class ChordSense:
     RING_OUT_S = 0.6                            # notes: a released key (no sustain pedal) fades over this...
     DAMP_S = 0.12                               # ...and much faster once a new chord is struck:
     CHORD_NOTES, CHORD_SPREAD_S = 3, 0.06       # this many keys within this long
-    # key: announced after KEY_FIRST_S of tonal time; changed only when a rival leads by KEY_MARGIN for
-    # KEY_DWELL_S in the long memory (key_tau), or by KEY_FAST_MARGIN for KEY_FAST_DWELL_S in the last few seconds
-    # (KEY_FAST_TAU); a dominant 7th adds DOMINANT_PULL of evidence for the tonic it resolves to
+    # key: announced after KEY_FIRST_S of tonal time (with KEY_FIRST_CONF of the belief); changed when a rival leads
+    # by KEY_MARGIN for KEY_DWELL_S in the long memory (key_tau), or by KEY_FAST_MARGIN for KEY_FAST_DWELL_S in the
+    # last few seconds (KEY_FAST_TAU) -- the fast way only once the first key has stood KEY_SETTLE_S, when the
+    # rival's own tonic chord has been heard lately (KEY_TONIC: at least 0.4 s of it, 1.25 x the key's own) and the
+    # rival leads the two memories blended too (KEY_BLEND_MARGIN), unless the key's tonic has gone (under KEY_GONE).
+    # A dominant 7th adds DOMINANT_PULL of evidence for the tonic it resolves to. Confidence is the key's share of a
+    # softmax (KEY_SHARPNESS) over all 24 keys' fits, the fast memory blended with a long one never reset
     KEY_FIRST_S, KEY_MARGIN, KEY_DWELL_S = 3.0, 0.05, 4.0
-    KEY_FAST_TAU, KEY_FAST_MARGIN, KEY_FAST_DWELL_S = 4.0, 0.20, 1.5
+    KEY_FAST_TAU, KEY_FAST_MARGIN, KEY_FAST_DWELL_S = 4.0, 0.20, 1.2
+    KEY_TONIC, KEY_BLEND_MARGIN, KEY_GONE = (0.4, 1.25), 0.0, 0.1
+    KEY_SETTLE_S = 6.0
+    KEY_SHARPNESS, KEY_FIRST_CONF = 12.0, 0.12
     DOMINANT_PULL = 0.5
 
     def __init__(self, rate: int = 48000, hop: int = 512, *, frame_s: float = 0.02, p_stay: float = 0.985,
@@ -493,6 +500,16 @@ class ChordSense:
                 for iv in _COLOUR.get(q, ()):
                     self._clash_mask[r * nq + qi, (r + iv) % 12] = True
         self._key_chord = self._tone_mask / self._tone_count[:, None]
+        # (states, 24): the keys whose TONIC chord each state is -- a major-family chord on a major tonic, a minor
+        # one on a minor tonic, a power chord or a sus half each way (N is nobody's)
+        self._tonic_of = np.zeros((12 * nq + 1, 24))
+        for r in range(12):
+            for qi, q in enumerate(QUALITY_NAMES):
+                both = q in ("5", "sus2", "sus4")
+                if q not in ("min", "m7", "dim"):
+                    self._tonic_of[r * nq + qi, KEYS.index((r, "major"))] = 0.5 if both else 1.0
+                if q not in ("maj", "7", "maj7", "aug", "add9"):
+                    self._tonic_of[r * nq + qi, KEYS.index((r, "minor"))] = 0.5 if both else 1.0
         for r in range(12):
             self._key_chord[r * nq + QUALITY_NAMES.index("7"), (r + 5) % 12] += self.DOMINANT_PULL
         self._support = np.full(12 * nq, 3.0)  # sounding tones per chord state, as of the last frame
@@ -522,11 +539,14 @@ class ChordSense:
         # key
         self._key_acc = np.zeros(12)
         self._key_fast = np.zeros(12)
+        self._key_ever = np.zeros(12)
         self._key_decay: Optional[float] = None
         self._key: Optional[Tuple[int, str]] = None
         self._key_conf = 0.0
         self._key_rival: Optional[Tuple[int, str]] = None
         self._key_rival_since = 0.0
+        self._tonic_acc = np.zeros(24)          # how much each key's tonic chord has been heard lately
+        self._key_first_t = 0.0                 # when the first key was named
         self._tonal_s = 0.0
         self._pending_key_event = False
         # tension, pedal, resolution
@@ -1451,37 +1471,58 @@ class ChordSense:
         ev = dt * (0.6 * x + 0.4 * chord)
         self._key_acc = self._key_decay * self._key_acc + ev
         self._key_fast = self._key_fast_decay * self._key_fast + ev
+        self._key_ever = self._key_decay * self._key_ever + ev          # never reset: the confidence's memory
+        # how much each key's own TONIC chord has been heard lately (the fast memory's time constant)
+        self._tonic_acc *= self._key_fast_decay
+        self._tonic_acc += dt * self._tonic_of[self._label]
         if self._tonal_s < 1.0 or self._frames % 5:                 # 24 correlations every 5th frame is plenty
             return
-        (bk, br), (_, r2), rs = self._key_scores(self._key_acc)
-        conf = _unit((br - r2) / 0.15) * _unit(br)
+        (bk, br), _, rs = self._key_scores(self._key_acc)
+        (fk, fr), _, frs = self._key_scores(self._key_fast)
         cur = self._key
         if cur is None:
-            if self._tonal_s >= self.KEY_FIRST_S and conf >= 0.25:
-                self._key, self._key_conf = bk, conf
+            if self._tonal_s >= self.KEY_FIRST_S and self._key_belief(rs, frs, bk) >= self.KEY_FIRST_CONF:
+                self._key = bk
+                self._key_conf = self._key_belief(rs, frs, bk)
+                self._key_first_t = self._t
                 self._pending_key_event = True
             return
         # a rival key: one the long memory (key_tau) prefers to the current key by KEY_MARGIN, or one the last few
         # seconds (KEY_FAST_TAU) prefer by KEY_FAST_MARGIN -- a modulation shows there long before the long memory
-        # turns over, and it must hold for its own, shorter dwell
-        (fk, fr), _, frs = self._key_scores(self._key_fast)
+        # turns over, and it must hold for its own, shorter dwell; but only when the rival's tonic chord has been
+        # heard lately at least as much as the current key's (C-Bb-F-C keeps coming home to C: it is C with a
+        # borrowed bVII, not F major; a key that has really gone has stopped coming home)
         rival, dwell = None, self.KEY_DWELL_S
         if bk != cur and br - rs[cur] > self.KEY_MARGIN:
             rival = bk
-        if fk != cur and fr - frs[cur] > self.KEY_FAST_MARGIN and (rival is None or rival == fk):
+        if (fk != cur and fr - frs[cur] > self.KEY_FAST_MARGIN and (rival is None or rival == fk)
+                and self._tonic_acc[KEYS.index(fk)] >= max(self.KEY_TONIC[0],
+                                                           self.KEY_TONIC[1] * self._tonic_acc[KEYS.index(cur)])
+                and self._t - self._key_first_t >= self.KEY_SETTLE_S
+                and ((rs[fk] + fr) - (rs[cur] + frs[cur]) > 2 * self.KEY_BLEND_MARGIN
+                     or self._tonic_acc[KEYS.index(cur)] < self.KEY_GONE)):
             rival, dwell = fk, self.KEY_FAST_DWELL_S
-        if rival is None:
-            self._key_rival = None
-            self._key_conf = conf if bk == cur else _unit((rs[cur] - br + 0.15) / 0.3)
-            return
-        if self._key_rival != rival:
+        if rival is not None and self._key_rival != rival:
             self._key_rival, self._key_rival_since = rival, self._t
-        elif self._t - self._key_rival_since >= dwell:
+        elif rival is not None and self._t - self._key_rival_since >= dwell:
             self._key, self._key_rival = rival, None
-            self._key_conf = conf if rival == bk else _unit((fr - frs[cur]) / 0.15)
             # the long memory starts over from the recent past, so it does not drag the old key back
             self._key_acc = self._key_fast * (self.key_tau / self.KEY_FAST_TAU)
             self._pending_key_event = True
+            rs = self._key_scores(self._key_acc)[2]
+        elif rival is None:
+            self._key_rival = None
+        # confidence comes from the key evidence itself, never from the switching margin: how much of the belief
+        # (a softmax over all 24 keys, the fast memory blended with a long one that a key change does not reset)
+        # the key holds -- a key just switched to on a few seconds' evidence is not yet a confident one
+        self._key_conf = self._key_belief(self._key_scores(self._key_ever)[2], frs, self._key)
+
+    def _key_belief(self, rs: dict, frs: dict, key: Tuple[int, str]) -> float:
+        """The share of a softmax over the 24 keys' correlations (long and fast memory blended) that `key` holds."""
+        r = np.array([0.5 * (rs[k] + frs[k]) for k in KEYS])
+        e = np.exp(self.KEY_SHARPNESS * (r - r.max()))
+        return float(e[KEYS.index(key)] / e.sum())
+
 
     def _key_scores(self, acc: np.ndarray):
         """((key, r) best, (key, r) second, {key: r}): Pearson r of a decayed chroma with all 24 profiles."""
