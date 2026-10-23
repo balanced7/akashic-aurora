@@ -25,7 +25,10 @@ NOTE_ON, NOTE_OFF, CC = 0x90, 0x80, 0xB0
 
 
 def _free_port() -> int:
-    for port in range(8900, 9000):
+    """A free port in the test-UI band (config.allocate_test_ui_port raises if it would leave the band)."""
+    import config
+    for offset in range(config.PORT_TEST_UI_MAX - config.PORT_TEST_UI_BASE + 1):
+        port = config.allocate_test_ui_port(offset)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.bind(("127.0.0.1", port))
