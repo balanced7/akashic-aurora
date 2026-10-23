@@ -100,6 +100,54 @@ def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str
     return path
 
 
+class _Painter:
+    """Paints the pads on its OWN thread, so the audio loop never waits for a light. (Until 2026-10-23 the loop slept
+    until each paint was due and then spent ~60 ms sending 12 pad colours; the loopback buffer overflowed meanwhile and
+    ~15 % of the audio was silently dropped: 513 s kept of a 600 s run. The tracker saw holes that look like phase
+    jumps, and tapped answer keys lost their clock.)"""
+
+    def __init__(self, render, mode: str, min_gap: float, verbose: bool):
+        import queue
+        import threading
+        self.render, self.mode, self.min_gap, self.verbose = render, mode, min_gap, verbose
+        self.q = queue.Queue()
+        self.painted: list = []
+        self.beats = 0
+        self._stop = threading.Event()
+        self._t = threading.Thread(target=self._run, name="pad-painter", daemon=True)
+        self._t.start()
+
+    def submit(self, fire_at: float, info: dict) -> None:
+        self.q.put((fire_at, info))
+
+    def _run(self) -> None:
+        import queue
+        last = 0.0
+        while not self._stop.is_set():
+            try:
+                fire_at, info = self.q.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            wait = fire_at - time.perf_counter()
+            if wait > 0:
+                time.sleep(wait)
+            now = time.perf_counter()
+            if now - last < self.min_gap:
+                continue
+            last = now
+            self.painted.append(now)
+            if len(self.painted) > 64:
+                del self.painted[:-64]
+            self.beats += 1
+            _paint(self.render.set_frame, self.mode, self.beats)
+            if self.verbose:
+                print(f"  beat {self.beats:4d}  bpm {info['bpm']:5.1f}  conf {info['confidence']:.2f}")
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._t.join(timeout=1.0)
+
+
 def _save_session(blocks, rate, clock, hand_in, np_) -> None:
     """Write what the tracker heard (FLAC) and, beside it, the hand's taps and nudges on the SAME audio clock:
     a tapped-through song is an answer key made by ear (state/, never committed)."""
@@ -196,7 +244,6 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     print(f"seed: {seed:.1f} BPM from the databases" if seed else "seed: none (the tracker finds the tempo itself)")
     tracker = Tracker(rate, HOP, seed_bpm=seed)
     hand_in = None
-    painted: list = []                 # wall-clock times the lights actually flashed (for the hand's comparison)
     if hand:
         from .beathand import Hand, folded_ratio, RESEED_DIFF, RESEED_GAP_S
         hand_in = Hand(verbose=verbose)
@@ -216,20 +263,26 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
 
     saved_blocks: list = []            # save=True: the audio exactly as the tracker heard it
     clock: list = []                   # (audio_t, perf_counter) pairs, to put the hand's taps on the audio clock
+    painter = _Painter(render, mode, 0.12, verbose)
+    wall0 = None                       # wall time of the first block: audio_t should keep pace with it
+    dropped_warned = 0.0
     audio_t = 0.0                      # seconds of audio fed to the tracker
     tracker_t0 = 0.0                   # where the current tracker's own clock started (moves on a re-seed)
     tap_locked = False                 # the hand is tapping: the lights follow the taps
     last_tap_tempo = None
     last_reseed = -1e9
     fired_for = -1.0                   # the predicted beat we last painted
-    step = beats = 0
-    last_light = 0.0
-    MIN_LIGHT_GAP = 0.12               # never repaint faster than this, whatever the prediction says
     t_end = (time.perf_counter() + secs) if secs else None
     try:
         while t_end is None or time.perf_counter() < t_end:
             raw = stream.read(HOP, exception_on_overflow=False)
             wall_now = time.perf_counter()
+            if wall0 is None:
+                wall0 = wall_now - HOP / rate
+            behind = (wall_now - wall0) - (audio_t + HOP / rate)
+            if behind - dropped_warned > 0.25:
+                dropped_warned = behind
+                print(f"  [audio] {behind:.2f} s of audio lost so far (the loop fell behind the loopback)")
             frames = np.frombuffer(raw, dtype=np.float32)
             if ch > 1:
                 frames = frames.reshape(-1, ch).mean(axis=1)
@@ -253,7 +306,7 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
                     hand_txt = ""
                     if hand_in is not None and ahead:
                         period = 60.0 / ahead[0]["bpm"]
-                        vs = hand_in.versus(painted[-32:], period)
+                        vs = hand_in.versus(painter.painted[-32:], period)
                         tp = hand_in.tap_tempo()
                         if vs:
                             hand_txt += f"  | your taps {vs['offset_ms']:+.0f} ms vs lights (steady {vs['steady']:.2f})"
@@ -307,25 +360,13 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
                                 HOP / rate)
             if fire_at is None:
                 continue                                   # not this block's job yet
-            wait = fire_at - time.perf_counter()
-            if wait > 0:
-                time.sleep(wait)
             fired_for = t_next
-            now = time.perf_counter()
-            if now - last_light < MIN_LIGHT_GAP:
-                continue
-            last_light = now
-            painted.append(now)
-            if len(painted) > 64:
-                del painted[:-64]
-            beats += 1
-            step += 1
-            _paint(render.set_frame, mode, step)
-            if verbose:
-                print(f"  beat {beats:4d}  bpm {ahead[0]['bpm']:5.1f}  conf {ahead[0]['confidence']:.2f}")
+            painter.submit(fire_at, ahead[0])              # the painter thread waits; the audio loop never does
     except KeyboardInterrupt:
         pass
     finally:
+        painter.stop()
+        beats = painter.beats
         try:
             render.set_frame(["off"] * 12)
             if connect:
@@ -344,7 +385,7 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
                                       "state", "arsenal", "keylab", "receipts")
                 os.makedirs(logdir, exist_ok=True)
                 lp = os.path.join(logdir, f"hand-{time.strftime('%Y%m%d-%H%M%S')}.json")
-                json.dump({"taps_and_nudges": hand_in.log, "painted": painted}, open(lp, "w"), indent=0)
+                json.dump({"taps_and_nudges": hand_in.log, "painted": painter.painted}, open(lp, "w"), indent=0)
                 print(f"hand log: {lp}")
         try:
             stream.stop_stream(); stream.close(); inst.terminate()
