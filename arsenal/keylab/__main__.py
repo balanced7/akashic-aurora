@@ -411,12 +411,27 @@ def chord_line(e: dict) -> str:
 
 def cmd_chords(args) -> int:
     import json
-    from . import chordsense as CS
 
     def show(events):
         for e in events:
-            print(json.dumps(e) if args.json else chord_line(e), flush=True)
+            try:
+                print(json.dumps(e) if args.json else chord_line(e), flush=True)
+            except OSError:                 # the reader went away (| head): stop quietly
+                raise BrokenPipeError
 
+    try:
+        return _chords(args, show)
+    except BrokenPipeError:
+        try:
+            sys.stdout = open(os.devnull, "w")       # nothing left to flush into a closed pipe at exit
+        except OSError:
+            pass
+        return 0
+
+
+def _chords(args, show) -> int:
+    import json
+    from . import chordsense as CS
     if args.notes:
         doc = json.loads(pathlib.Path(args.notes).read_text(encoding="utf-8"))
         notes, ppq = (doc["notes"], int(doc.get("ppq", 96))) if isinstance(doc, dict) else (doc, 96)
@@ -452,9 +467,13 @@ def _chords_live(args, show) -> int:
     t_end = (time.perf_counter() + args.secs) if args.secs else None
     try:
         while t_end is None or time.perf_counter() < t_end:
+            # the loopback hands over nothing while nothing plays: poll, so --secs and Ctrl-C still work
+            if stream.get_read_available() < 512:
+                time.sleep(0.005)
+                continue
             raw = stream.read(512, exception_on_overflow=False)
             show(cs.feed(np.frombuffer(raw, dtype=np.float32).reshape(-1, ch)))
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, BrokenPipeError):
         pass
     finally:
         try:
