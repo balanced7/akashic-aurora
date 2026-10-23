@@ -340,6 +340,7 @@ def test_a_repeated_note_over_moving_chords_is_a_pedal_and_tension_rises():
             tension_on_ab.append((now, snap["tension"]))
     pedals = [e for e in out if e["type"] == "pedal" and e["on"]]
     assert pedals and pedals[0]["note"] == "Db" and pedals[0]["chords"] >= 3, pedals
+    assert pedals[0]["clash"] >= 0.15, pedals            # it is NOT a tone of the Ab under it: a real clash
     early = [v for tt, v in tension_on_ab if tt < 10]
     late = [v for tt, v in tension_on_ab if tt > 22]
     assert early and late and np.mean(late) > np.mean(early) + 0.1, (np.mean(early), np.mean(late))
@@ -392,6 +393,328 @@ def test_chordsense_keeps_the_licence_firewall():
     src = (Path(CS.__file__)).read_text(encoding="utf-8")
     assert not violations(src)
     assert not reach_violations(src)
+
+
+# --- verifier round 1 (2026-10-23): each pin failed on the merged engine (baa47b0a) and passes now ----------------
+
+def test_a_non_finite_sample_does_not_silence_the_analysis():
+    """One NaN or Inf block used to poison the anti-alias filter's state for good: every frame after it was NaN
+    and no event ever came again. A non-finite sample is now heard as silence (and an absurd one is clipped)."""
+    cs = CS.ChordSense(RATE, HOP)
+    for bad in (np.nan, np.inf, -np.inf, 1e300):
+        cs.feed(np.full(HOP, bad, dtype=np.float64))
+    audio, truth = render([(VOICINGS[k], 2.0, k) for k in EIGHT], strike_every=0.5)
+    events = []
+    for i in range(0, len(audio), HOP):
+        events.extend(cs.feed(audio[i:i + HOP]))
+    names = [e["name"] for e in chords_of(events)]
+    assert [n for n in names if n != "N"] == EIGHT, names
+    snap = cs.snapshot()
+    assert all(np.isfinite(snap["chroma"])) and np.isfinite(snap["tension"])
+
+
+def loop_events(names, reps=6, beat=0.5, beats=4):
+    """A plain loop of block chords on the keys, every voicing sharing the C4 (the common tone)."""
+    v = {"Am": [45, 57, 60, 64], "F": [41, 57, 60, 65], "C": [36, 55, 60, 64]}
+    evs, end = play([(v[n], beats) for n in names] * reps, beat=beat)
+    return evs, end, v
+
+
+@pytest.mark.parametrize("names", [["Am", "F", "C"], ["C", "Am", "F", "C"]])
+def test_a_common_tone_of_a_plain_loop_is_not_a_pedal(names):
+    """The C of Am-F-C sounds through every chord, but it is a tone of every chord: it never clashes, so it is not
+    a pedal, and the loop's tension stays flat however often it repeats (it used to climb 0.17 -> 0.55)."""
+    evs, end, v = loop_events(names)
+    cs = CS.ChordSense()
+    out, tension = [], []
+    pos = 0
+    for k in range(int((end + 0.5) / 0.1) + 1):
+        now = k * 0.1
+        chunk = []
+        while pos < len(evs) and evs[pos]["t"] <= now:
+            chunk.append(evs[pos])
+            pos += 1
+        out += cs.feed_notes(chunk, now=now)
+        tension.append((now, cs.snapshot()["tension"]))
+    assert not [e for e in out if e["type"] == "pedal"], [e for e in out if e["type"] == "pedal"]
+    loop_s = len(names) * 2.0
+    per_rep = [np.mean([x for t, x in tension if r * loop_s <= t < (r + 1) * loop_s]) for r in range(1, 6)]
+    assert max(per_rep) - min(per_rep) < 0.03, per_rep
+    # the same loop heard as audio, re-struck on every beat over the drums
+    audio, _ = render([(v[n], 2.0, n) for n in names] * 6, strike_every=0.5)
+    _, events = listen(audio)
+    assert not [e for e in events if e["type"] == "pedal"]
+
+
+def _noise(kind, secs, rng):
+    from scipy.signal import butter, istft, sosfilt, stft
+    n = int(secs * RATE)
+    if kind == "white":
+        return 0.3 * rng.standard_normal(n)
+    if kind == "pink":
+        spec = np.fft.rfft(rng.standard_normal(n))
+        spec[1:] /= np.sqrt(np.fft.rfftfreq(n, 1.0 / RATE)[1:])
+        spec[0] = 0.0
+        x = np.fft.irfft(spec, n)
+        return 0.3 * x / np.std(x)
+    if kind == "riser":                                  # a noise band sweeping 200 Hz -> 8 kHz, swelling
+        f, tt, z = stft(rng.standard_normal(n), RATE, nperseg=1024)
+        fc = 200.0 * 40.0 ** (tt / tt[-1])
+        gain = np.exp(-0.5 * ((np.log2(np.maximum(f, 1.0))[:, None] - np.log2(fc)[None, :]) / 0.6) ** 2)
+        x = istft(z * gain, RATE, nperseg=1024)[1][:n]
+        return 0.5 * x * np.linspace(0.2, 1.0, len(x)) / np.max(np.abs(x))
+    x = np.zeros(n)
+    if kind == "crackle":                                # vinyl: sparse clicks over a faint hiss
+        x += 0.01 * rng.standard_normal(n)
+        for p in rng.integers(0, n - 200, rng.poisson(40 * secs)):
+            m = int(rng.integers(20, 200))
+            x[p:p + m] += rng.uniform(-1, 1) * np.exp(-np.arange(m) / (m / 4)) * rng.standard_normal(m) * 0.8
+        return sosfilt(butter(2, [300, 9000], "bandpass", fs=RATE, output="sos"), x)
+    if kind == "applause":                               # many overlapping band-limited claps
+        for p in rng.integers(0, n - 2000, rng.poisson(60 * secs)):
+            m = int(rng.integers(300, 1500))
+            fc = rng.uniform(800, 3000)
+            burst = sosfilt(butter(2, [fc / 1.6, fc * 1.6], "bandpass", fs=RATE, output="sos"),
+                            rng.standard_normal(m) * np.exp(-np.arange(m) / (m / 5)))
+            x[p:p + m] += rng.uniform(0.2, 1.0) * burst
+        return 0.5 * x / np.max(np.abs(x))
+    # loops in 16ths at 120 BPM: noise hats (a gentle 2 kHz high-pass reaches well into the chroma band), a shaker
+    # (band-passed, soft attack) and 808-style metallic hats (six square oscillators: SINUSOIDAL partials)
+    t, k = 0.0, 0
+    tt = np.arange(int(0.08 * RATE)) / RATE
+    metal = sum(np.sign(np.sin(2 * np.pi * 2 * f0 * tt)) for f0 in (205.3, 304.4, 369.6, 522.7, 540.0, 800.0))
+    metal = sosfilt(butter(2, 800, "highpass", fs=RATE, output="sos"), metal)
+    hp = butter(2, 2000, "highpass", fs=RATE, output="sos")
+    bp = butter(2, [1000, 9000], "bandpass", fs=RATE, output="sos")
+    while t < secs:
+        if kind == "hats":
+            hit = sosfilt(hp, rng.standard_normal(len(tt))) * np.exp(-tt / (0.02 if k % 4 else 0.05))
+        elif kind == "shaker":
+            hit = sosfilt(bp, rng.standard_normal(len(tt))) * np.minimum(1, tt / 0.02) * np.exp(-tt / 0.03)
+        else:
+            hit = metal * np.exp(-tt / (0.02 if k % 4 else 0.05))
+        i = int(t * RATE)
+        x[i:i + len(hit)] += hit[:n - i] * (1.0 if k % 2 == 0 else 0.6)
+        t += 0.125
+        k += 1
+    return 0.6 * x / np.max(np.abs(x))
+
+
+def chord_time(chords, secs):
+    """Share of 20 ms steps over `secs` at which a chord (not N) is the decided label."""
+    on = [label_at(chords, t) for t in np.arange(0.0, secs, 0.02)]
+    return float(np.mean([e is not None and e["root"] is not None for e in on]))
+
+
+@pytest.mark.parametrize("kind", ["white", "pink", "riser", "crackle", "applause", "hats", "shaker", "hats808"])
+def test_noise_is_not_named_as_chords(kind):
+    """Noise used to read as chords (its tonality sat at ~0.67, over the 0.55 bar, and N had no hold): pink noise
+    was a chord 65 % of the time, a riser 47 %, white noise 16 %. Now a peak must stand clear of the spectrum
+    around it to count as tonal, and N <-> chord has hysteresis."""
+    x = _noise(kind, 12.0, np.random.default_rng(3)).astype(np.float32)
+    _, events = listen(x)
+    assert chord_time(chords_of(events), 12.0) <= 0.02, [e["name"] for e in chords_of(events)]
+
+
+def test_a_chord_under_a_shaker_holds_and_the_shaker_alone_is_n():
+    """The hysteresis both ways: a chord keeps its name under a dense shaker loop; when the chord stops and the
+    shaker plays on, the label falls to N and stays there."""
+    chord, _ = render([(VOICINGS["Am"], 4.0, "Am")], strike_every=1.0, drums=False)
+    shaker = _noise("shaker", 10.0, np.random.default_rng(5))
+    mix = 0.5 * shaker
+    mix[:len(chord)] += 0.6 * chord
+    _, events = listen(mix.astype(np.float32))
+    names = [(e["name"], e["t"]) for e in chords_of(events)]
+    assert [n for n, _ in names] == ["Am", "N"], names
+    assert names[1][1] < 5.0, names
+
+
+def random_set(n=24, seed=11):
+    """Random chords: any root, eight qualities, the root in the bass and the chord in a random inversion above."""
+    rng = np.random.default_rng(seed)
+    quals = ["maj", "min", "7", "maj7", "m7", "sus2", "sus4", "dim"]
+    seq = []
+    for _ in range(n):
+        root, q = int(rng.integers(12)), quals[int(rng.integers(len(quals)))]
+        upper = sorted({52 + ((root + i - 52) % 12) for i in CS.QUALITIES[q][0]})
+        inv = int(rng.integers(len(upper)))
+        seq.append(([36 + root] + sorted(upper[inv:] + [u + 12 for u in upper[:inv]]), 2.0, (root, q)))
+    return seq
+
+
+def saw(midi, secs, rate=RATE):
+    """A band-limited sawtooth: every harmonic at 1/h, the brightest bass there is."""
+    f0 = 440.0 * 2 ** ((midi - 69) / 12)
+    t = np.arange(int(secs * rate)) / rate
+    x = sum(np.sin(2 * np.pi * h * f0 * t) / h for h in range(1, int(0.45 * rate / f0) + 1))
+    return x * np.minimum(1.0, t / 0.005) * np.clip((secs - t) / 0.05, 0.0, 1.0)
+
+
+def rq_accuracy(chords, truth, settle=0.7):
+    """(full, root): the share of 50 ms samples after `settle` whose decided (root, quality) / root is right."""
+    full = root = tot = 0
+    for t0, t1, (r, q) in truth:
+        for t in np.arange(t0 + settle, t1, 0.05):
+            e = label_at(chords, t)
+            tot += 1
+            full += e is not None and (e["root"], e["quality"]) == (r, q)
+            root += e is not None and e["root"] == r
+    return full / tot, root / tot
+
+
+@pytest.mark.parametrize("bass_db", [None, 6, 12])
+def test_random_chords_and_a_loud_bright_bass(bass_db):
+    """24 random chords over the drums: >= 95 % (root, quality) / >= 98 % root on their own. Under a sawtooth bass
+    playing the root 6 or 12 dB above them, the bass used to leak into the harmony (maj7, m7 and sus2 collapsed to
+    power chords: 66 % at +6 dB, 12 % at +12); the bass note now leaves the harmony with its harmonic series."""
+    seq = random_set()
+    audio, truth = render([(notes, d, "") for notes, d, _ in seq], drums=False)
+    truth = [(t0, t1, rq) for (t0, t1, _), (_, _, rq) in zip(truth, seq)]
+    mix = audio.astype(np.float64)
+    if bass_db is not None:
+        bass = np.concatenate([saw(36 + r, d) for _, d, (r, _) in seq])[:len(mix)]
+        mix = mix + bass * np.sqrt(np.mean(mix ** 2) / np.mean(bass ** 2)) * 10 ** (bass_db / 20)
+        mix /= np.max(np.abs(mix))
+    drums = BB.synth_case("bed", 120, len(mix) / RATE, RATE, style="drums", rng_seed=1).audio[:len(mix)]
+    mix = (0.6 * mix + 0.6 * drums / np.max(np.abs(drums))).astype(np.float32)
+    _, events = listen(mix)
+    full, root = rq_accuracy(chords_of(events), truth)
+    if bass_db is None:
+        assert full >= 0.95 and root >= 0.98, (full, root)
+    else:
+        assert full >= 0.85 and root >= 0.95, (full, root)
+
+
+def test_a_melody_alone_is_not_a_chord():
+    """A single-note melody (C D E G, four times, each note ringing into the next) used to read as one power chord
+    per note (one note and its 3rd harmonic match '5') and found a key. A chord now needs two of its own tones
+    sounding as notes, and a two-note reading must hold longer."""
+    rng = np.random.default_rng(2)
+    seq = [60, 62, 64, 67] * 4
+    buf = np.zeros(int((len(seq) * 0.5 + 1) * RATE))
+    for i, m in enumerate(seq):
+        x = piano(m, 0.45, RATE, 0.3, rng)
+        buf[int(i * 0.5 * RATE):int(i * 0.5 * RATE) + len(x)] += x
+    _, events = listen((0.8 * buf / np.max(np.abs(buf))).astype(np.float32))
+    named = [e["name"] for e in chords_of(events) if e["root"] is not None]
+    assert len(named) <= 1, named
+    assert not [e for e in events if e["type"] == "key"]
+
+
+def test_an_idle_gap_costs_one_step():
+    """The keys path used to step every 20 ms frame through a gap: half an hour of silence was ~90,000 frames
+    (3.3 s) in one call. Once nothing sounds and the state has settled, the gap is one jump."""
+    cs = CS.ChordSense()
+    cs.feed_notes([{"t": 0.0, "note": m, "vel": 90} for m in (60, 64, 67)], now=1.0)
+    cs.feed_notes([{"t": 1.0, "note": m, "vel": 0} for m in (60, 64, 67)], now=2.0)
+    t0 = time.perf_counter()
+    cs.feed_notes([], now=1800.0)
+    assert time.perf_counter() - t0 < 0.02
+    assert abs(cs.snapshot()["t"] - 1800.0) < 0.05 and cs.snapshot()["tension"] < 1e-6
+    out = cs.feed_notes([{"t": 1800.5, "note": m, "vel": 90} for m in (57, 60, 64)], now=1802.0)
+    assert [e["name"] for e in chords_of(out)] == ["Am"]
+
+
+def test_confidence_is_an_agreement_margin():
+    """confidence used to be the HMM posterior (~0.99 on everything). It is now how far the reading leads its best
+    rival, times the share of its tones sounding, times the clarity of the sound: it ranks readings."""
+    def conf(notes, noise=0.0):
+        audio, _ = render([(notes, 4.0, "")], strike_every=0.5, drums=False)
+        audio = audio + noise * np.random.default_rng(1).standard_normal(len(audio))
+        cs, _ = listen(audio.astype(np.float32))
+        return cs.snapshot()["chord"]["confidence"]
+    triad = conf([45, 57, 60, 64, 69])                                      # Am, clean
+    assert triad >= 0.8
+    assert conf([45, 57, 60, 64, 69], noise=0.15) < triad - 0.1            # the same chord under noise
+    assert conf([60, 64]) < triad - 0.2                                     # a bare dyad: two thirds of a triad
+    assert conf([43, 50, 55, 60, 62]) < 0.5                                 # G-D-G-C-D: Gsus4 or Csus2?
+    audio, _ = render([(VOICINGS[k], 2.0, k) for k in EIGHT], strike_every=0.5)
+    confs = [e["confidence"] for e in chords_of(listen(audio)[1])]
+    assert min(confs) < 0.7 and max(confs) > 0.9, confs                     # it spreads, it is not a constant
+
+
+def test_pulse_comes_from_the_harmony_not_the_drums():
+    """pulse used to be the raw spectral rise, so drums alone flashed it to 1.0. It is now the rise of the HARMONIC
+    part: drums alone never pulse, re-struck chords do."""
+    drums = BB.synth_case("d", 120, 10, RATE, style="drums").audio
+    cs = CS.ChordSense(RATE, HOP)
+    pulses = []
+    for i in range(0, len(drums), HOP):
+        cs.feed(drums[i:i + HOP])
+        pulses.append(cs.snapshot()["pulse"])
+    assert max(pulses) == 0.0
+    audio, _ = render([(VOICINGS[k], 2.0, k) for k in EIGHT], strike_every=0.5)
+    cs = CS.ChordSense(RATE, HOP)
+    pulses = []
+    for i in range(0, len(audio), HOP):
+        cs.feed(audio[i:i + HOP])
+        pulses.append(cs.snapshot()["pulse"])
+    assert max(pulses) >= 0.9 and np.mean(np.array(pulses) > 0.3) > 0.02
+
+
+def test_names_before_a_key_follow_common_usage():
+    """With no key yet, minor chords are spelled the way charts spell them: C#m, not Dbm (major stays Db)."""
+    assert [CS.chord_name(r, q) for r, q in ((1, "min"), (8, "min"), (6, "min"), (3, "min"), (10, "min"))] == \
+        ["C#m", "G#m", "F#m", "Ebm", "Bbm"]
+    assert [CS.chord_name(r, q) for r, q in ((1, "maj"), (8, "maj"), (3, "dim"))] == ["Db", "Ab", "D#dim"]
+    assert CS.chord_name(1, "min", 8) == "C#m/G#"
+    assert CS.chord_name(1, "min", None, (1, "major")) == "Dbm"                     # a key still decides
+    audio, _ = render([([37, 49, 52, 56, 61], 4.0, "C#m")], strike_every=0.5)
+    assert [e["name"] for e in chords_of(listen(audio)[1])] == ["C#m"]
+
+
+def test_a_triad_over_a_lone_bass_is_a_slash_chord():
+    """G-B-D over a lone C in the bass is G/C, not Csus2 (which leaves the B out); E-G-B over a lone C is still
+    Cmaj7 (the bass joins the voices into a chord that explains all of them)."""
+    for notes, want in (([36, 55, 59, 62, 67], "G/C"), ([36, 52, 55, 59, 64], "Cmaj7")):
+        audio, _ = render([(notes, 4.0, want)], strike_every=0.5)
+        assert [e["name"] for e in chords_of(listen(audio)[1])] == [want], want
+        evs, end = play([(notes, 8)])
+        assert [e["name"] for e in chords_of(CS.ChordSense().feed_notes(evs, now=end))] == [want], want
+
+
+def test_a_modulation_is_heard_within_eight_seconds():
+    """C major for 32 s, then A major (I-IV-V7-I): the key used to need 21 s (by way of A minor). A fast 4 s memory
+    beside the 18 s one, and a dominant 7th pointing at its tonic, hear it within 8 s on the keys and in audio."""
+    c = [[36, 48, 52, 55, 60], [41, 53, 57, 60, 65], [43, 55, 59, 62, 65], [36, 48, 52, 55, 60]]
+    a = [[45, 57, 61, 64, 69], [38, 50, 54, 57, 62], [40, 52, 56, 59, 62], [45, 57, 61, 64, 69]]
+    evs, end = play([(x, 4) for x in c] * 4 + [(x, 4) for x in a] * 4)
+    keys = [(e["t"], e["key"]) for e in CS.ChordSense().feed_notes(evs, now=end) if e["type"] == "key"]
+    audio, _ = render([(x, 2.0, "") for x in c] * 4 + [(x, 2.0, "") for x in a] * 4, strike_every=0.5)
+    keys_audio = [(e["t"], e["key"]) for e in listen(audio)[1] if e["type"] == "key"]
+    for got in (keys, keys_audio):
+        assert got[0][1] == "C major" and got[-1][1] == "A major", got
+        assert next(t for t, k in got if k == "A major") - 32.0 <= 8.0, got
+        assert all(k in ("C major", "A major") for _, k in got), got
+
+
+def test_vj_events_follow_the_engine_contract():
+    """to_vj_events maps every chordsense event onto the VJ engine's SSE contract (arsenal/keylab/vj.py): chord in
+    its own shape, plus the new key and tension events -- so wiring chordsense into vj.py is a few lines."""
+    import json
+    audio, _ = render([(DB[k], 2.0, k) for k in ("Db", "Gb", "Ab7", "Db")] * 2, strike_every=0.5)
+    _, events = listen(audio)
+    vj = [v for e in events for v in CS.to_vj_events(e)]
+    json.dumps(vj)                                                          # plain JSON, ready for 'data:'
+    chord_keys = {"t", "src", "name", "root", "quality", "pcs", "bass", "roman", "key", "conf", "changed"}
+    chords = [v for v in vj if v["t"] == "chord"]
+    assert chords and all(set(v) == chord_keys and v["src"] == "audio" and v["changed"] is True for v in chords)
+    db7 = next(v for v in chords if v["name"] == "Ab7")
+    assert db7["root"] == 8 and db7["quality"] == "7" and db7["pcs"] == [0, 3, 6, 8] and 0.0 <= db7["conf"] <= 1.0
+    assert [(v["name"], v["conf"] >= 0) for v in vj if v["t"] == "key"] == [("Db major", True)]
+    assert all(set(v) == {"t", "name", "conf"} for v in vj if v["t"] == "key")
+    tension = [v for v in vj if v["t"] == "tension"]
+    assert len(tension) >= len(chords) and all(set(v) == {"t", "value", "pedal_pc"} and 0.0 <= v["value"] <= 1.0
+                                               for v in tension)
+    # the minor spelling is the engine's ('m'), the keys are 'keys', and a pedal becomes a tension event
+    minor = CS.to_vj_events({"type": "chord", "src": "keys", "name": "C#m", "root": 1, "quality": "min", "bass": 1,
+                             "roman": None, "key": None, "confidence": 0.7, "changed": True, "tension": 0.2,
+                             "pedal_pc": None})
+    assert minor[0]["quality"] == "m" and minor[0]["src"] == "keys" and minor[0]["pcs"] == [1, 4, 8]
+    ped = CS.to_vj_events({"type": "pedal", "pc": 1, "on": True, "tension": 0.6})
+    assert ped == [{"t": "tension", "value": 0.6, "pedal_pc": 1}]
+    assert CS.to_vj_events({"type": "pedal", "pc": 1, "on": False, "tension": 0.2})[0]["pedal_pc"] is None
+    assert CS.to_vj_events({"type": "nothing"}) == []
 
 
 # --- Daniel's Joy to the World ---------------------------------------------------------------------------------
