@@ -13,6 +13,8 @@ Verbs:
   bench                latency / rate-limit harness for colour updates (host throughput + a visual ceiling ramp)
   display <text>       EXPERIMENTAL: push text to the onboard screen (grammar unconfirmed -- for bench probing)
   monitor              print incoming MIDI (tap a pad to see its note) -- needs the keyboard attached
+  vj                   the VJ engine: keys, pads, controls, the beat, energy, hits and chords as live events
+                       (SSE on 127.0.0.1:8794) for a visual page; the page can light the pads back
 
 Global: --port SUBSTR picks the output by name (default: first containing 'keylab'); --dry-run prints bytes, sends nothing.
 """
@@ -389,6 +391,15 @@ def cmd_chordview(args) -> int:
     return chordview.run(secs=args.secs, keys_port=args.port, scheme=args.scheme, sound=args.sound)
 
 
+def cmd_vj(args) -> int:
+    from . import vj
+    return vj.run(port=args.port, engine=args.engine, leds=not args.no_leds, connect=args.connect,
+                  replay_midi=args.replay_midi, replay_bpm=args.replay_bpm, replay_stretch=args.replay_stretch,
+                  replay_pattern=args.replay_pattern, replay_audio=args.replay_audio, audio=not args.no_audio,
+                  midi=not args.no_midi, rate_limit=args.rate_limit, pads=args.pads, ahead_ms=args.ahead_ms,
+                  offset_ms=args.offset_ms, seed_bpm=args.seed_bpm, secs=args.secs, quiet=args.quiet)
+
+
 # --- dispatch ------------------------------------------------------------------------------------
 def _add_send_flags(p, color_default=None):
     p.add_argument("--port", help="output port name substring (default: first containing 'keylab')")
@@ -564,6 +575,44 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--list", action="store_true", help="print the steps and exit")
     p.add_argument("--out", help="receipt JSON path (default state/arsenal/keylab/receipts/probe-<stamp>.json)")
     p.set_defaults(func=cmd_probe, dry_run=False)
+
+    p = sub.add_parser(
+        "vj", help="the VJ engine: keys, pads, controls, beat, energy, hits and chords as live events for a page",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Serve the KeyLab and the music as Server-Sent Events (GET /api/events, GET /api/state, "
+                    "POST /api/pads) on 127.0.0.1 for a visual page. Contract and details: arsenal/keylab/vj.py.",
+        epilog="PADS: both pad modes are accepted. DAW mode arrives on the 'KeyLab 88 mk3 DAW' input (channel 10, "
+               "notes 0-11);\nthe normal pad bank arrives on the 'KeyLab 88 mk3 MIDI' input (channel 10, notes 36-47). "
+               "While FL Studio's\nArturia script runs, DAW-mode pads 1-8 ALSO toggle FL step-sequencer steps on "
+               "release -- with FL open,\nswitch the pads to the normal bank. One LED writer at a time: do not run "
+               "beat/chordview/show alongside.\nControls are learned on touch (any CC; absolute or relative-around-64).")
+    p.add_argument("--port", type=int, default=8794, help="HTTP port on 127.0.0.1 (default 8794)")
+    vj_engines = ["a"] + sorted(
+        x.stem[len("beat_"):] for x in pathlib.Path(__file__).parent.glob("beat_*.py") if x.stem != "beat_a")
+    p.add_argument("--engine", choices=vj_engines, default="a",
+                   help="beat tracker: a = the house tracker (shipped); others are opt-in contestants (w, g, ...)")
+    p.add_argument("--no-leds", action="store_true", help="never write the pad LEDs (POST /api/pads answers 409)")
+    p.add_argument("--connect", action="store_true",
+                   help="send DAW connect when FL Studio is NOT running (default: guest mode, never connects)")
+    p.add_argument("--replay-midi", metavar="FILE",
+                   help="play notes as if live: a JSON note list or an FL project (.flp, read-only)")
+    p.add_argument("--replay-bpm", type=float, help="tempo for tick-based replays (default: the file's, else 100)")
+    p.add_argument("--replay-stretch", type=int,
+                   help="which stretch of playing to replay, 1-based (default: the largest; 0 = all)")
+    p.add_argument("--replay-pattern", type=int, help=".flp: which pattern (default: the newest with notes)")
+    p.add_argument("--replay-audio", metavar="FILE",
+                   help="analyse this audio file in real time instead of the loopback ('demo' = a made-up groove)")
+    p.add_argument("--no-audio", action="store_true", help="no audio at all (MIDI only)")
+    p.add_argument("--no-midi", action="store_true", help="do not open the KeyLab inputs")
+    p.add_argument("--rate-limit", action="store_true",
+                   help="flash safety at the source: at most 3 'hit' events in any second")
+    p.add_argument("--pads", choices=["both", "daw", "bank"], default="both", help="which pad mode to accept")
+    p.add_argument("--ahead-ms", type=float, default=250.0, help="announce each beat this long before it lands")
+    p.add_argument("--offset-ms", type=float, default=0.0, help="shift every beat's due time (+ = later)")
+    p.add_argument("--seed-bpm", type=float, help="seed the beat tracker with this tempo")
+    p.add_argument("--secs", type=float, help="stop after N seconds (default: until Ctrl-C)")
+    p.add_argument("--quiet", action="store_true", help="print only warnings")
+    p.set_defaults(func=cmd_vj, dry_run=False)
     return ap
 
 
