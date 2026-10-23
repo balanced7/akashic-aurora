@@ -938,6 +938,39 @@ def test_an_idle_gap_costs_one_step():
     assert [e["name"] for e in chords_of(out)] == ["Am"]
 
 
+def test_a_stuck_key_across_a_long_gap_costs_one_step_and_bad_times_are_refused():
+    """Round 2: with a key still held (a stuck note, a held organ chord) half an hour cost 5 s of frames, one by one:
+    the idle jump only knew silence. Held keys whose level has reached the floor a held key keeps are a steady
+    state too: the gap is jumped (the key memories take the same evidence as a geometric sum, the pedal runs and
+    the tension move as they would), and the result matches stepping frame by frame. And now=inf (or NaN) is
+    refused with a ValueError, not an OverflowError deep in the clock."""
+    cs = CS.ChordSense()
+    cs.feed_notes([{"t": 0.0, "note": 60, "vel": 90}], now=1.0)
+    t0 = time.perf_counter()
+    cs.feed_notes([], now=1800.0)
+    assert time.perf_counter() - t0 < 0.05
+    assert abs(cs.snapshot()["t"] - 1800.0) < 0.05
+
+    def run(jump):
+        cs = CS.ChordSense()
+        if not jump:
+            cs._steady_held = lambda: False
+        out = cs.feed_notes([{"t": 0.0, "note": m, "vel": 90} for m in (48, 52, 55, 60)], now=1.0)
+        out += cs.feed_notes([], now=61.0)
+        out += cs.feed_notes([{"t": 61.0, "note": m, "vel": 0} for m in (48, 52, 55, 60)]
+                             + [{"t": 61.1, "note": m, "vel": 90} for m in (45, 52, 57, 60)], now=64.0)
+        s = cs.snapshot()
+        return [(e["type"], e.get("name") or e.get("key"), round(e["t"], 2)) for e in out], s
+    (a, sa), (b, sb) = run(True), run(False)
+    assert a == b, (a, b)
+    assert abs(sa["tension"] - sb["tension"]) < 1e-3 and abs(sa["key_confidence"] - sb["key_confidence"]) < 1e-3
+    for bad in (float("inf"), float("nan")):
+        with pytest.raises(ValueError):
+            CS.ChordSense().feed_notes([], now=bad)
+        with pytest.raises(ValueError):
+            CS.ChordSense().feed_notes([{"t": bad, "note": 60, "vel": 90}])
+
+
 def test_confidence_is_an_agreement_margin():
     """confidence used to be the HMM posterior (~0.99 on everything). It is now how far the reading leads its best
     rival, times the share of its tones sounding, times the clarity of the sound: it ranks readings."""

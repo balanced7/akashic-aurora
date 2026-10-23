@@ -25,14 +25,22 @@ Events (dicts; `t` = seconds of input consumed when the event was decided; `src`
               synthetic set): beat matching wants the onset, not the moment the decision was safe. tension is what
               this chord carries now. confidence (0..1) is an agreement margin, not a posterior: how far the
               chord's score leads the best RIVAL reading (Am or Em for C; not Cmaj7 or C5, which are colours of
-              it), times the share of its tones sounding as notes, times how clearly tonal the sound is -- an
-              ambiguous voicing (G-C-D: Gsus4 or Csus2?), a bare dyad or a chord under noise read low.
-              Before a key is known chords are spelled by common usage (C#m, G#m, D#dim; Db, Ab, Eb).
-  key         {key, tonic, mode, confidence, chord, numeral, figure, roman, function}
-  pedal       {pc, note, on, strength, since, chords, clash_s, clash, tension}: one pitch class held or re-struck
-              while the harmony moves under it (PEDAL_CHORDS different chord roots) AND clashes with it (not a
-              tone of the chord under it for a real share of the time); its pull on the tension grows the longer
-              it holds. A common tone of a plain loop (the C of Am-F-C) is not a pedal.
+              it), times the share of its tones sounding as notes, times how clearly tonal the sound is, times how
+              little the bass note dwarfs the voices -- an ambiguous voicing (G-C-D: Gsus4 or Csus2?), a bare
+              dyad, a chord under noise or under a bass 12 dB over it read low. Names follow the key: a root is
+              spelled by the degree it sits on (borrowed and chromatic roots as lowered degrees: Bb, Eb, Ab in C;
+              leading-tone diminished chords and minor's raised degrees as sharps: G#dim, F#m in A minor), a
+              slash bass by its interval above the root. Before a key is known chords are spelled by common usage
+              (C#m, G#m, D#dim; Db, Ab, Eb).
+  key         {key, tonic, mode, confidence, chord, numeral, figure, roman, function}: confidence is the key's share
+              of a softmax over all 24 keys' fits (the fast memory blended with a long one a key change does not
+              reset): a key just reached on a few seconds' evidence is believed less than one that has stood.
+  pedal       {pc, note, on, strength, since, chords, clash_s, clash, tension}: one pitch class really held or
+              re-struck (not a previous chord's tail ringing over) through nearly every chord while the harmony
+              moves under it (PEDAL_CHORDS different chord roots), AND clashing with it -- not a tone of the chord
+              under it, or only the colour it gives it (Ab + a held Db reads Absus4) -- or held on as a drone over
+              four roots or more; its pull on the tension grows the longer it holds. A common tone of a plain loop
+              (the C of Am-F-C, of C-Am-F-Dm7-G7) is not a pedal.
   resolution  {from, to, chord, numeral, pedal_pc}: tension that had built up falls back onto the tonic
 
 For the VJ engine (arsenal/keylab/vj.py, its Server-Sent Events contract) `to_vj_events(event)` maps each event to
@@ -52,29 +60,39 @@ one for the treble) read as interpolated spectral PEAKS, each with its sinusoida
 local level of the spectrum: partials stand clear, the peaks of noise do not); a tuning-offset estimate (a circular
 mean of the peaks' deviations from the A440 grid); the peaks binned on a log-frequency grid of three bins per
 semitone; a causal harmonic / percussive split on that grid (a median over a short PAST window in time against a
-median across frequency, soft mask), so drum hits and bass-drum sweeps stay out of the harmony. TONALITY = the
-sinusoidal share of the peak energy times its steady (harmonic) share, with hysteresis: white or pink noise, a
-riser, vinyl crackle, applause and hi-hat or shaker loops read 'N', and a chord does not drop to 'N' at a drum
-fill. The bass NOTE (the lowest significant peak of 65-250 Hz) is taken out of the harmony with its own harmonic
-series (a power law fitted to its cleanest partials), so a loud or bright bass cannot turn a maj7 into a 5; it
-comes back as a chord tone at half weight, or as a slash under the voices when they do not carry it (G-B-D over
-a C bass is G/C, not Csus2). From what is left: a 12-bin chroma, a BASS chroma (weighted toward the lowest note)
-for inversions and slash chords, and an overtone-corrected note salience: the notes sounding, for dissonance, the
-pedal, and the rule that a chord needs two of its own tones sounding (a melody note and its overtones is not a
-power chord; a dyad must hold longer than a triad).
+median across frequency, soft mask), so drum hits and bass-drum sweeps stay out of the harmony; below C2 only what
+held through the whole past window counts (a kick's tail swells and fades with every beat, a sub bass holds).
+TONALITY = the sinusoidal share of the peak energy times its steady (harmonic) share, times a register factor (a
+sound whose harmonic energy sits mostly above C6 -- 808 hats, a ride -- must be that much more tonal), with
+hysteresis (0.08 on, 0.04 off: retuned on real pads and synth-chord loops): white or pink noise, a riser, vinyl
+crackle, applause and hi-hat or shaker loops read 'N', and a chord does not drop to 'N' at a drum fill. The bass
+NOTE (the lowest significant peak of 39-250 Hz: a sub bass at E1 is found by its fundamental) is taken out of the
+harmony with its own harmonic series (a power law for its odd and one for its even partials, fitted to its
+cleanest partials that are there: a square bass has no even ones, a hum or a low-passed sub stops after a few), so
+a loud or bright bass cannot turn a maj7 into a 5; it comes back as a chord tone at half weight, or as a slash
+under the voices when they do not carry it (G-B-D over a C bass is G/C, not Csus2). From what is left: a 12-bin
+chroma, a BASS chroma (weighted toward the lowest note) for inversions and slash chords, and an overtone-corrected
+note salience: the notes sounding, for dissonance, the pedal, and the rules that a chord needs two of its own
+tones sounding (a melody note and its overtones is not a power chord; a dyad must hold longer than a triad) and
+that a new chord is not built from a line's tail (a note struck before the newest one and fading: the last note
+of a melody or a bass line ringing into the next). A chord already named holds through one or two of its own
+notes for a few seconds (a staccato comp's top note, an arpeggio between its notes).
 
 Back end: templates for major, minor, 7, maj7, m7, sus2, sus4, dim, aug, add9 and 5, with the expected
 overtones for audio and plain for notes, scored by correlation with the chroma; a bass term (root in the bass,
 a chord tone in the bass = an inversion, a foreign bass = a penalty); an 'N' state; an online HMM forward filter
 (a sticky self-transition) plus a hold rule, so labels do not flicker. A Krumhansl-Kessler key tracker with two
-memories (18 s for stability, 4 s to hear a modulation within ~7 s) and hysteresis, where a dominant 7th also
-points at the tonic it resolves to; roman numerals and function in that key (I, IV, V7, vi, bVII, V/V ...).
+memories (18 s for stability, 4 s to hear a modulation within ~5-8 s) and hysteresis, where a dominant 7th also
+points at the tonic it resolves to, and the fast memory may move the key only when the rival's own tonic chord
+has been heard lately more than the current key's (C-Bb-F-C stays C); roman numerals and function in that key (I,
+IV, V7, vi, bVII, V/V ...).
 Tension 0..1 from the chord's circle-of-fifths distance, its function and colour, the dissonance of what is
 sounding, and the pedal.
 
 Rules it was built under (the keylab licence firewall): numpy, scipy and the standard library only; no models,
 no files, no I/O; causal (nothing ever looks ahead); bounded work per call, so it never blocks an audio loop (a
-non-finite sample is heard as silence; the keys path jumps an idle gap in one step). At 48 kHz with hop 512 it
+non-finite sample is heard as silence; the keys path jumps an idle gap, or a held one, in one step; a non-finite
+time is refused). At 48 kHz with hop 512 it
 runs far over 20x real time on one core (pinned by tests/test_keylab_chordsense.py).
 """
 from __future__ import annotations
@@ -407,6 +425,8 @@ class ChordSense:
     DYAD_HOLD_S = 0.20                          # extra hold for a chord with only two of its tones sounding
     FOREIGN_BASS = (0.10, 0.03)                 # score cost of a bass outside the chord: normally / under a lone bass
     UNEXPLAINED = 0.10                          # a chord claiming a lone bass pays this per voice it leaves out
+    CONF_MASK = (0.8, 0.12, 0.7)                # ... and lower (by up to 0.7) as the bass note dwarfs the voices: a
+    #                                             bass share of 0.8 -> 0.92 is where a chord's colour gets lost
     CONF_MARGIN, CONF_TAU_S = 0.15, 0.25        # confidence: 1.0 needs this score lead over the best rival (and
     #                                             every tone sounding, in clear tonal sound), averaged over TAU
     BASS_SIG, BASS_TAU_S = 0.3, 0.12            # the lowest bass peak above this share of the loudest = the bass
@@ -529,6 +549,7 @@ class ChordSense:
         self._cand_hold = min_hold_s
         self._cand_conf = 0.0
         self._clarity = 1.0                     # how clearly tonal the sound is (audio: from the tonality), 0..1
+        self._unmasked = 1.0                    # ... and how little the bass note dwarfs the voices (audio)
         self._lone: Optional[int] = None
         self._full_t = 0.0                      # when the chord held last had two or more of its tones sounding
         self._label_t = 0.0                     # when the chord held was named
@@ -571,6 +592,8 @@ class ChordSense:
         self._span_change: Optional[float] = None   # a chord change's onset, not yet accounted
         self._pedal: Optional[int] = None
         self._pedal_strength = 0.0
+        self._last_held: Optional[np.ndarray] = None        # the last frame's held pitch classes (pedal)
+        self._last_key_ev: Optional[np.ndarray] = None      # ... and its key evidence (a held chord's, repeated)
         # what the renderer reads
         self._chroma = np.zeros(12)
         self._bass = np.zeros(12)
@@ -870,6 +893,8 @@ class ChordSense:
         # the notes sounding (0..1): the upper voices against the loudest of them, counted only when they are
         # more than a residue of the bass's own overtones; and the bass note itself
         smax = max(float(self._salience_s.max()), self.VOICE_FLOOR * self._a1_s, 1e-12)
+        dom = self._a1_s / (float(self._salience_s.max()) + self._a1_s + 1e-12)   # how much the bass dwarfs the voices
+        self._unmasked = 1.0 - self.CONF_MASK[2] * _unit((dom - self.CONF_MASK[0]) / self.CONF_MASK[1])
         present = self._salience_s / smax
         # a voice in the bass's register (below C3) beside the bass note is mostly the last bass note ringing on: it
         # counts against the bass note itself (LOW_VOICE of it), not against the voices (a bass line is no dyads)
@@ -1034,9 +1059,13 @@ class ChordSense:
         out: List[dict] = []
         for ev in events:
             t = float(ev["t"] if isinstance(ev, dict) else ev[0])
+            if not math.isfinite(t):
+                raise ValueError("a note event's time must be a finite number of seconds")
             self._advance(t, out)
             self._apply_note(ev, t)
         if now is not None:
+            if not math.isfinite(float(now)):
+                raise ValueError("now must be a finite number of seconds")
             self._advance(float(now), out)
         return out
 
@@ -1050,6 +1079,13 @@ class ChordSense:
                 if n > 0:
                     self._jump(n)
                 return
+            if self._held and self._steady_held():
+                # keys held down and nothing else moving (a stuck note, a held organ chord): every frame would be
+                # the same frame, so the gap is jumped too, all but its last frame, which runs as usual
+                n = int(math.floor((until - self._t) / self._dt + 1e-9)) - 1
+                if n > 50:
+                    self._steady_jump(n)
+                    continue
             self._t += self._dt
             out.extend(self._notes_frame())
 
@@ -1058,6 +1094,53 @@ class ChordSense:
         return (self._label == self._N and self._cand is None and self._pedal is None
                 and not self._pending_key_event and self._strike_energy == 0.0
                 and bool((self._run_start < 0).all()) and self._post[self._N] > 0.999)
+
+    def _steady_held(self) -> bool:
+        """True when the held notes can no longer change: every one of them down, struck more than 3 s ago (its
+        level at the floor a held key keeps), no chord, bass or key change pending, the chord held a second."""
+        t = self._t
+        for vel, t_on, key_down, t_off, t_damp in self._held.values():
+            if not key_down or t_off is not None or t - t_on < 3.0:
+                return False
+        return (self._cand is None and self._bass_cand is None and not self._pending_key_event
+                and self._strike_energy == 0.0 and t - self._label_t >= 1.0 and self._last_held is not None
+                and (self._label == self._N or self._key is not None))      # (a first key is still to come)
+
+    def _steady_jump(self, n: int) -> None:
+        """n identical frames with keys held: the clock moves, the key memories take n more of the same evidence
+        (a geometric sum), the pedal runs n more frames of the same notes, the tension relaxes to its target."""
+        dt = self._dt
+        span = n * dt
+        self._t += span
+        self._frames += n
+        t = self._t
+        if self._key_decay is not None and self._last_key_ev is not None and self._label != self._N:
+            for name, d in (("_key_acc", self._key_decay), ("_key_fast", self._key_fast_decay),
+                            ("_key_ever", self._key_decay)):
+                dn = d ** n
+                setattr(self, name, dn * getattr(self, name) + self._last_key_ev * (1.0 - dn) / (1.0 - d))
+            dn = self._key_fast_decay ** n
+            self._tonic_acc = dn * self._tonic_acc + dt * self._tonic_of[self._label] * (1.0 - dn) / (1.0 - self._key_fast_decay)
+            self._tonal_s += span
+        held = self._last_held
+        live = self._run_start >= 0
+        self._last_seen[held] = t
+        self._held_last[held] = t
+        self._run_held[held & live] += span
+        self._acc_held[held] += span
+        self._acc_ring[self._acc_pos] = self._acc_held
+        self._acc_ring_t[self._acc_pos] = t
+        self._acc_pos = (self._acc_pos + 1) % len(self._acc_ring_t)
+        if self._label != self._N:
+            self._run_over[held] += span
+            through = (self._held_since >= 0) & (self._held_since <= self._label_t)
+            self._run_clash[held & through & self._clash_mask[self._label]] += span
+        target = self._tension_now(*self._state_rq(self._label))
+        tau = 0.35 if target > self.tension else 0.8
+        self.tension = target + (self.tension - target) * math.exp(-span / tau)
+        self._tension_peak = max(self.tension, self._tension_peak * math.exp(-span / 6.0))
+        self._pulse_ref = max(self._pulse_ref * math.exp(-span / 5.0), 1e-9)
+        self._pulse = 0.0
 
     def _jump(self, n: int) -> None:
         """n silent frames at once: only the clock and the exponential decays move."""
@@ -1319,6 +1402,7 @@ class ChordSense:
         m = _unit((float(s[state]) - rival) / self.CONF_MARGIN)
         if state != self._N:
             m *= min(1.0, float(self._support[state]) / float(self._tone_count[state])) * self._clarity
+            m *= self._unmasked
         return m
 
     def _bass_of(self, state: int, b: np.ndarray) -> Optional[int]:
@@ -1469,6 +1553,7 @@ class ChordSense:
         # also points at the tonic it resolves to (E7 says 'A', which A and D alone cannot)
         chord = self._key_chord[self._label]
         ev = dt * (0.6 * x + 0.4 * chord)
+        self._last_key_ev = ev
         self._key_acc = self._key_decay * self._key_acc + ev
         self._key_fast = self._key_fast_decay * self._key_fast + ev
         self._key_ever = self._key_decay * self._key_ever + ev          # never reset: the confidence's memory
@@ -1590,6 +1675,7 @@ class ChordSense:
         # out now and then (the C of C-Am-F-Dm7-G7) is not held through it: neither is a pedal
         root, quality = self._state_rq(self._label)
         held = pedal_on if held is None else held
+        self._last_held = held
         if not quiet:
             new = pedal_on & (self._run_start < 0)
             self._run_start[new] = t
