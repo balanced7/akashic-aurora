@@ -350,7 +350,7 @@ let demo = null;
 
 // engine
 // link: open, the engine's hello and status, and whether pad colours may be posted (vj-core.js EngineLink)
-const engine = { url: ENGINE_URL, es: null, link: new EngineLink(), events: 0, bad: 0, lastMsg: -1e9 };
+const engine = { url: ENGINE_URL, es: null, link: new EngineLink(), events: 0, bad: 0, demoEvents: 0, lastMsg: -1e9 };
 const led = { last: "", lastAt: -1e9, computedAt: -1e9, inflight: false, backoffUntil: 0, posts: 0, log: [] };
 
 // GL
@@ -753,16 +753,20 @@ function currentMix(nowMs) {
 }
 
 // ------------------------------------------------------------------------------------------------- the events --
-function handleEvent(raw) {
+// `from` is "engine" (the stream, or the test hook speaking for it) or "demo" (the page's own scripted show). The demo's
+// hello and status never reach the engine link: they would overwrite a connected engine's own (its leds, its name in the
+// HUD), and its events are counted apart so the engine's counters stay the engine's.
+function handleEvent(raw, from = "engine") {
   const ev = parseEvent(raw);
-  if (!ev) { engine.bad++; return; }
-  engine.events++;
+  const fromDemo = from === "demo";
+  if (!ev) { if (!fromDemo) engine.bad++; return; }
+  if (fromDemo) engine.demoEvents++; else engine.events++;
   const nowMs = performance.now();
   const nowS = nowMs / 1000;
   switch (ev.t) {
     case "hello":
     case "status":
-      engine.link.event(ev);
+      if (!fromDemo) engine.link.event(ev);
       break;
     case "beat":
       beat.schedule(nowMs, ev);
@@ -1431,6 +1435,7 @@ function connectEngine() {
   };
 }
 
+const demoEvent = (ev) => handleEvent(ev, "demo");
 function setDemo(on) {
   if (on && !demo) {
     demo = new DemoScript({ pads: DEMO_PADS });
@@ -1453,8 +1458,8 @@ function onFrame(rafNow) {
   const nowMs = performance.now();
   const nowS = nowMs / 1000;
   if (demo) {
-    demo.tick(nowMs, handleEvent);
-    demo.flush(nowMs, handleEvent);
+    demo.tick(nowMs, demoEvent);
+    demo.flush(nowMs, demoEvent);
   }
   updateMusic(nowMs, nowS, dt);
   fx.update(nowS);
@@ -1560,6 +1565,7 @@ function updateHud(nowMs) {
     eng = h ? `connected · ${h.src || "engine"} · beat ${h.beat_engine || "?"} · pads ${h.pads_mode || "?"}` : "connected";
     if (h && h.pads_mode === "daw") eng += " · FL may see pads 1-8";
     if (options.leds && engine.link.ledsOff) eng += ` · pad lights off: ${engine.link.ledsOff}`;
+    if (demo) eng += " · demo playing on top";
   } else eng = `connecting to ${engine.url}… (keyboard pads work meanwhile)`;
   if (engine.link.status) eng += ` · ${engine.link.status}`;    // cleared on disconnect: never a dead engine's last word
   setText("hud-engine", eng);
@@ -1804,8 +1810,8 @@ function toggleFullscreen() {
 const stage = createStage({
   stage: stageEl,
   beat: () => beat, deck: () => deck, sets: () => sets, setId: (i) => (sets[i] ? sets[i].id : null),
-  // the demo numbers its bars; the engine does not. The page's own demo counts even while a dropped engine's link has
-  // forgotten the demo's hello (EngineLink.disconnected clears it), as in a showcase that fell back to the demo.
+  // the demo numbers its bars; the engine does not. The page's own demo is known by `demo` (its hello never reaches the
+  // engine link); an engine replaying its own demo groove (--replay-audio demo) says so in its hello.
   barsKnown: () => !!demo || !!(engine.link.hello && engine.link.hello.beat_engine === "demo"),
   palette: () => palNow, hit: () => hit.pulse,
   nextSet: (style) => nextSet(null, performance.now(), style),
@@ -1835,7 +1841,7 @@ window.__vj = {
     setA: sets[deck.a] && sets[deck.a].id, setB: sets[deck.b] && sets[deck.b].id, mix: +currentMix(performance.now()).toFixed(3),
     fading: deck.running, pickup: deck.pickup,
     engine: { url: engine.url, open: engine.link.open, hello: engine.link.hello, events: engine.events, bad: engine.bad,
-              status: engine.link.status, ledsOff: engine.link.ledsOff, refused: engine.link.refused },
+              demoEvents: engine.demoEvents, status: engine.link.status, ledsOff: engine.link.ledsOff, refused: engine.link.refused },
     demo: !!demo, bpm: beat.bpm, beats: beat.count, chord: chord.name, chordSrc: chord.src, stars: starCount,
     pedal: { key: pedal.key, strikes: pedal.strikes(), tension: +pedal.tension().toFixed(3), resolved: pedal.resolvedCount },
     tension: feelFrame ? +feelFrame.colour.tension.toFixed(3) : null,

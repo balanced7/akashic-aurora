@@ -535,6 +535,15 @@ try {
   await padActivity(6000);
   leds.off_posts = postsIn("off", mark);
   leds.off_state = (await stats()).engine;
+  // the page's own demo playing on top of a connected engine must not speak for it: before 2026-10-23 its hello reached
+  // the engine link, cleared "LEDs are off" and put "demo" in the HUD as the engine's name
+  await evaluate(`window.__vj.demo(true)`);
+  const withDemo = await settle((s) => (s.engine.demoEvents > 5 ? s : false));
+  await evaluate(`window.__vj.demo(false)`);
+  leds.demo_on_top = withDemo ? { ledsOff: withDemo.engine.ledsOff, src: withDemo.engine.hello && withDemo.engine.hello.src,
+                                  demoEvents: withDemo.engine.demoEvents } : null;
+  checks.the_page_demo_never_speaks_for_the_engine = !!withDemo && withDemo.engine.ledsOff === "LEDs are off (--no-leds)" &&
+    !!withDemo.engine.hello && withDemo.engine.hello.src === "keylab-vj";
   mark = padPosts.length;
   ledsMode = "refuse";
   hello(true);
