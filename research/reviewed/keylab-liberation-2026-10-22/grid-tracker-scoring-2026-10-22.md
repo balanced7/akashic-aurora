@@ -184,6 +184,15 @@ run on every contestant (bright-bass-probe-2026-10-22.py, next to this record; `
 - **TYNAN.** Its "groovininininin" bass is very likely the bright kind. So neither grid tracker is yet proven on
   the music that started this round. A recording of the real failure is the missing test (the critic asked for it
   too).
+- **beat_h does not survive either (corrected, Heimdall).** Its .538 is a half-time lock: 128 → 63.9, 140 → 70,
+  150 → 112.5, with CMLt 0 in every case. It hit every other beat, and F's ±70 ms matching credited half of them.
+  Vandor first read that .538 as "least hurt", which was a misreading of F. Heimdall instrumented the lock and
+  measured the bass's band split: the saw puts 12.6 % of a hit's energy in 220–1000 Hz and 3 % above 1 kHz,
+  exactly where every accent rule looks for a hat. His conclusion: band-splitting cannot separate a hat accent
+  from a bright bass attack. The accent has to key on REGULARITY over bars (hats and snares steady on the grid, a
+  syncopated bass intermittent). Verbatim: grid-tracker-bright-bass-heimdall-2026-10-22.md. Lesson:
+  `beat_h_bright_bass_survival_is_halftime_lock`.
+- **For scoring.** On bright bass, read CMLt and the per-case estimated BPM, never F or AMLt alone.
 - **Round 2's first job.** Bright-bass drift cases belong in round 2's pre-registration, and the shared accent
   weakness is the first thing to fix. One candidate is HARMONIC structure (a pitched bass has evenly spaced
   partials, while a kick, snare or hat is noise-like or inharmonic). That keeps it "pure maths at runtime".
