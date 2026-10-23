@@ -1,0 +1,235 @@
+// Node tests for the VJ rig's pure logic (arsenal/web/vj-core.js). Zero dependencies:
+//   node tests/vj_core.test.mjs
+// Sections: the event contract; the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
+// the effect bank (velocity, hold and release, dampen, choke, the fixed pool); the beat clock (scheduling, refreshed
+// predictions, the flywheel); the pedal detector (Joy to the World's repeated D-flat over a walking bass); the star layout;
+// the pad and control maps; the strip layout every VJ preset reads; the demo script; and the pitch colours baked into the
+// presets (they must equal the piano's palette as ported here).
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import * as C from "../arsenal/web/vj-core.js";
+
+const here = (p) => fileURLToPath(new URL(p, import.meta.url));
+let pass = 0, fail = 0;
+function check(name, cond, detail = "") {
+  if (cond) pass++;
+  else { fail++; console.log(`FAIL ${name}${detail ? `: ${detail}` : ""}`); }
+}
+const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
+
+// ------------------------------------------------------------------------------------------------ the contract --
+{
+  const P = C.parseEvent;
+  check("hello", P({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", pads_mode: "both" }).pads_mode === "both");
+  check("hello with an unknown pads_mode keeps none", P({ t: "hello", pads_mode: "weird" }).pads_mode === "");
+  const b = P({ t: "beat", due_ms: 220, bpm: 121.5, conf: 2, n: 7, on_beat: null });
+  check("beat clamps conf", b.conf === 1 && b.n === 7 && b.on_beat === null && b.bpm === 121.5);
+  check("beat without bpm is refused", P({ t: "beat", due_ms: 100 }) === null);
+  check("energy clamps", P({ t: "energy", bass: 3, mid: -1, high: 0.5, level: NaN }).bass === 1);
+  check("hit band defaults to full", P({ t: "hit", strength: 0.4, band: "cowbell" }).band === "full");
+  const ch = P({ t: "chord", src: "audio", name: "Dbmaj7", root: 13, pcs: [1, 5, 8, 12, 1, 0.5] });
+  check("chord root and pcs fold into 0..11 and dedupe", ch.root === 1 && ch.pcs.join() === "1,5,8,0" && ch.src === "audio");
+  check("note off", P({ t: "note", key: 61, vel: 0, on: false }).on === false);
+  check("note out of range refused", P({ t: "note", key: 128, vel: 1, on: true }) === null);
+  check("pad out of range refused", P({ t: "pad", pad: 13, vel: 1, on: true }) === null);
+  const pad = P({ t: "pad", pad: 3, vel: 0.5, on: true, src: "bank" });
+  check("pad", pad.pad === 3 && pad.src === "bank" && pad.on);
+  const ctl = P({ t: "ctl", id: "cc105", kind: "rel", value: 0.5, delta: -3 });
+  check("ctl rel", ctl.kind === "rel" && ctl.delta === -3);
+  check("ctl with a hostile id refused", P({ t: "ctl", id: "<script>", kind: "abs", value: 1 }) === null);
+  check("unknown type refused", P({ t: "nope" }) === null && P(null) === null && P("x") === null);
+}
+
+// --------------------------------------------------------------------------------------------------- the gate --
+{
+  const g = new C.FlashGate();
+  let granted = 0;
+  for (let i = 0; i < 10; i++) if (g.request(i * 0.1)) granted++;      // ten requests in 0.9 s
+  check("ten requests in a second give three flashes", granted === 3, `granted ${granted}`);
+  check("the gate's log agrees", g.maxInAnyWindow() <= 3 && g.refused === 7);
+  check("granted onsets are a third of a second apart", g.log().every((t, i, a) => i === 0 || t - a[i - 1] >= 1 / 3 - 1e-9));
+  const g2 = new C.FlashGate();
+  let n = 0;
+  for (let t = 0; t < 10; t += 0.01) if (g2.request(t)) n++;              // a strobe asking 100 times a second for 10 s
+  check("a fast strobe never beats three a second", g2.maxInAnyWindow() <= 3 && n <= 30, `${n} in 10 s, max ${g2.maxInAnyWindow()}`);
+  check("envFlashSafe twin", C.envFlashSafe(0.2) === 0 && C.envFlashSafe(0.5) === 1 && C.envFlashSafe(0.6) === 1 &&
+        C.envFlashSafe(0.4) > 0 && C.envFlashSafe(0.4) < 1);
+  check("the first flash is unattenuated", C.envFlashSafe(new C.FlashGate().prevGap) === 1);
+}
+
+// --------------------------------------------------------------------------------------------- ADSR and bank --
+{
+  const def = { a: 0.1, d: 0.2, s: 0.5, r: 0.4 };
+  check("adsr attack", near(C.adsr(def, 0.05, 0, null), 0.5));
+  check("adsr peak", near(C.adsr(def, 0.1, 0, null), 1));
+  check("adsr sustain", near(C.adsr(def, 2, 0, null), 0.5));
+  check("adsr release starts at the sustain", near(C.adsr(def, 2, 0, 2), 0.5));
+  check("adsr release ends at zero", C.adsr(def, 2.401, 0, 2) === 0);
+  check("adsr release is monotone", C.adsr(def, 2.1, 0, 2) > C.adsr(def, 2.3, 0, 2));
+  check("adsr dampened release is faster", C.adsr(def, 2.1, 0, 2, 1, 0.15) === 0 && C.adsr(def, 2.03, 0, 2, 1, 0.15) > 0);
+  check("a dampened release is never shorter than 60 ms", near(C.releaseTime({ r: 0.18 }, 0.15), 0.06) &&
+        near(C.releaseTime({ r: 0.04 }, 0.15), 0.04) && near(C.releaseTime({ r: 0.9 }, 0.15), 0.135));
+
+  const bank = new C.EffectBank();
+  const one = bank.trigger("shockwave", 1, 0, { pad: 1 });
+  bank.update(0.01);
+  check("a one-shot starts", one.active && one.env > 0.9);
+  bank.release(1, 0.05);                                 // the pad lets go: a one-shot plays on
+  bank.update(0.3);
+  check("a one-shot ignores the pad's release", one.active && one.env > 0);
+  check("velocity lengthens a one-shot", C.adsr(C.EFFECTS.shockwave, 0.8, 0, null, 0.6 + 0.8 * 1) >
+        C.adsr(C.EFFECTS.shockwave, 0.8, 0, null, 0.6 + 0.8 * 0.1));
+  bank.update(3);
+  check("a one-shot ends", !one.active);
+
+  const held = bank.trigger("particles", 0.8, 10, { pad: 6 });
+  bank.update(12);
+  check("a holdable sustains while held", held.active && near(held.env, C.EFFECTS.particles.s));
+  bank.release(6, 12);
+  bank.update(12 + C.EFFECTS.particles.r * 0.5);
+  check("a holdable releases on note-off", held.active && held.env < C.EFFECTS.particles.s);
+  bank.update(12 + C.EFFECTS.particles.r + 0.01);
+  check("and is gone after its release", !held.active);
+
+  const h2 = bank.trigger("strobe", 1, 20, { pad: 5 });
+  const o2 = bank.trigger("laser", 1, 20, { pad: 2 });
+  bank.update(20.05);
+  const before = h2.env;
+  bank.dampen(20.05);
+  bank.update(20.052);
+  check("dampen releases from where it is (no cut)", h2.active && h2.env > 0.85 * before, `${before} -> ${h2.env}`);
+  bank.update(20.05 + 0.07);
+  check("dampen ends everything fast", !h2.active && !o2.active, `${h2.active} ${o2.active}`);
+
+  bank.trigger("glitch", 1, 30, { pad: 4 });
+  bank.trigger("kaleido", 1, 30, { pad: 7 });
+  bank.choke();
+  check("choke silences everything now", bank.activeCount() === 0);
+
+  for (let i = 0; i < 40; i++) bank.trigger("shockwave", 0.5, 40 + i * 0.001, { pad: 1 });
+  check("the pool never grows", bank.fx.length === C.MAX_FX && bank.activeCount() === C.MAX_FX);
+  check("every pad action is known", C.DEFAULT_PAD_MAP.every((a) => C.PAD_ACTIONS.includes(a)));
+  check("pads 1-4 one-shots, 5-8 holdable", C.DEFAULT_PAD_MAP.slice(0, 4).every((a) => !C.EFFECTS[a].hold) &&
+        C.DEFAULT_PAD_MAP.slice(4, 8).every((a) => C.EFFECTS[a].hold));
+  check("pads 9-12 dampen choke kill next", C.DEFAULT_PAD_MAP.slice(8).join() === "dampen,choke,kill,next");
+  check("the full-frame effects are marked flash", C.EFFECTS.flash.flash && C.EFFECTS.strobe.flash && C.EFFECTS.invert.flash);
+}
+
+// ---------------------------------------------------------------------------------------------- the beat clock --
+{
+  const clock = new C.BeatClock();
+  clock.schedule(1000, { due_ms: 200, bpm: 120, conf: 0.9, n: 1, on_beat: 0.8 });
+  clock.schedule(1050, { due_ms: 160, bpm: 120, conf: 0.9, n: 1, on_beat: 0.8 });   // the same beat, refined
+  check("a refreshed prediction replaces the old one", clock.qlen === 1 && clock.q[0] === 1210);
+  check("not fired early", clock.update(1205, 0.016) === 0);
+  check("fired when due", clock.update(1211, 0.016) === 1 && clock.pulse === 1 && clock.count === 1);
+  check("phase mid-beat (the beat lands at its scheduled time, not the frame's)", near(clock.phase(1460), 0.5, 1e-9));
+  check("next beat from the flywheel", near(clock.nextBeatAt(1300), 1710));
+  clock.update(1711, 0.016);
+  check("the flywheel keeps time when predictions stop", clock.count === 2);
+  clock.update(1711 + 5000, 0.016);
+  check("but not forever", clock.count === 2 && !clock.alive(6800));
+  clock.schedule(9000, { due_ms: -500, bpm: 120, conf: 0.9, n: 9, on_beat: null });
+  check("a stale beat is dropped", clock.qlen === 0);
+}
+
+// -------------------------------------------------------------------------------------------- the pedal star --
+{
+  // Joy to the World's ending: D-flat 5 struck on every beat while the bass walks down under it
+  const det = new C.PedalDetector();
+  const walk = [49, 48, 46, 44, 42, 41, 39, 37, 36, 37, 39, 41];
+  for (let i = 0; i < walk.length; i++) {
+    const t = i * 0.5;
+    det.strike(walk[i], t, -1);
+    det.strike(73, t + 0.01, (walk[i] + 1) * 4096);
+    det.update(t + 0.02, 0.02);
+  }
+  check("the repeated note is the pedal", det.key === 73 && det.strikes() === 12, `key ${det.key} strikes ${det.strikes()}`);
+  check("its tension grows with the strikes", near(det.tension(), 1 - Math.exp(-12 / 24)));
+  det.update(5.5 + 1.7, 1.7);
+  check("the run ends when the repeats stop", det.key === -1 && det.resolvePulse > 0.1 && det.resolvedCount === 12);
+
+  const still = new C.PedalDetector();
+  for (let i = 0; i < 8; i++) still.strike(73, i * 0.4, 5 * 4096);    // repeated over an unmoving harmony
+  check("a repeat over a still harmony is not a pedal", still.key === -1);
+  const slow = new C.PedalDetector();
+  for (let i = 0; i < 8; i++) slow.strike(73, i * 2.5, (40 + i) * 4096);
+  check("strikes too far apart are not a run", slow.key === -1);
+}
+
+// ------------------------------------------------------------------------------------------ stars and colours --
+{
+  const p = [0, 0];
+  C.starPosition(60, p);
+  check("C sits at twelve o'clock", near(p[0], 0, 1e-9) && p[1] > 0);
+  C.starPosition(67, p);
+  check("G is one step clockwise", p[0] > 0 && p[1] > 0);
+  const lo = [0, 0], hi = [0, 0];
+  C.starPosition(24, lo); C.starPosition(96, hi);
+  check("the register is the radius", Math.hypot(...lo) < Math.hypot(...hi) && Math.hypot(...hi) < 0.45);
+  const pcs = C.pitchColours();
+  check("twelve pitch colours", pcs.length === 36 && pcs.every((v) => Number.isFinite(v) && v >= 0));
+  // the piano's C (#27c5cd as sRGB) and G-flat (#ff4760)
+  check("C is the piano's teal", C.rgbToHex(pcs[0], pcs[1], pcs[2]) === "#27c5cd");
+  check("G-flat is the piano's red", C.rgbToHex(pcs[18], pcs[19], pcs[20]) === "#ff4760");
+  // the constants baked into the presets must equal the port (to the 4 decimals written there)
+  for (const file of ["vj-chord-constellations.frag", "vj-led-wall.frag"]) {
+    const src = readFileSync(here(`../arsenal/web/presets/${file}`), "utf8");
+    const block = src.match(/const vec3 PC_COL\[12\] = vec3\[12\]\(([\s\S]*?)\);/);
+    check(`${file} carries PC_COL`, !!block);
+    if (!block) continue;
+    const nums = [...block[1].matchAll(/-?\d+\.\d+/g)].map((m) => +m[0]);
+    check(`${file} PC_COL has 36 numbers`, nums.length === 36);
+    check(`${file} PC_COL equals the piano's palette`, nums.every((v, i) => Math.abs(v - pcs[i]) < 6e-5),
+          nums.map((v, i) => (v - pcs[i]).toFixed(5)).filter((d) => Math.abs(+d) >= 6e-5).join(" "));
+  }
+  check("hex encodes linear light", C.rgbToHex(1, 0.5, 0) === "#ffbc00" && C.rgbToHex(-1, 2, 0) === "#00ff00");
+  const lab = new Float64Array(3), back = new Float64Array(3);
+  C.linearToOklab(0.2, 0.5, 0.9, lab);
+  C.oklabToLinear(lab[0], lab[1], lab[2], back);
+  check("oklab round trip", near(back[0], 0.2, 1e-6) && near(back[1], 0.5, 1e-6) && near(back[2], 0.9, 1e-6));
+}
+
+// -------------------------------------------------------------------------------------------- maps and strip --
+{
+  check("pad map: junk falls back", C.normalizePadMap(["flash", "nope", 7]).join() ===
+        ["flash", ...C.DEFAULT_PAD_MAP.slice(1)].join());
+  const m = C.normalizeCtlMap({ cc120: "sat", cc105: null, "bad id!": "hueA", cc1: "nothing" });
+  check("ctl map: learned, removed, refused", m.cc120 === "sat" && !("cc105" in m) && !("bad id!" in m) && !("cc1" in m));
+  const learned = C.learnBinding(C.DEFAULT_CTL_MAP, "cc7", "hueA");
+  check("learn moves a target to the new control", learned.cc7 === "hueA" && !("cc105" in learned));
+  check("faders 1-9 are CC105-113", ["cc105", "cc106", "cc107", "cc108", "cc109", "cc110", "cc111", "cc112", "cc113"]
+        .map((c) => C.DEFAULT_CTL_MAP[c]).join() === "hueA,hueB,sat,bright,trails,strobeRate,accent,xfade,bassReact");
+  check("rel nudges, abs sets", near(C.applyCtl(0.5, { kind: "rel", delta: 8 }), 0.625) &&
+        near(C.applyCtl(0.5, { kind: "abs", value: 0.2 }), 0.2) && C.applyCtl(0.99, { kind: "rel", delta: 64 }) === 1);
+  const s = C.createStrip();
+  check("the strip is 16 x 6 RGBA", s.length === 16 * 6 * 4 && C.STRIP.W === 16 && C.STRIP.H === 6);
+  C.stripSet(s, 15, 2, 1, 2, 3, 4);
+  check("stripSet writes texel (x, y)", s[(2 * 16 + 15) * 4] === 1 && s[(2 * 16 + 15) * 4 + 3] === 4);
+  // every VJ preset recognises the strip by exactly that size
+  for (const file of ["vj-laser-cathedral.frag", "vj-reactor.frag", "vj-aurora-curtains.frag", "vj-led-wall.frag", "vj-chord-constellations.frag"]) {
+    const src = readFileSync(here(`../arsenal/web/presets/${file}`), "utf8");
+    check(`${file} recognises the 16x6 strip`, src.includes("textureSize(u_video, 0) == ivec2(16, 6)"));
+    check(`${file} line 1`, src.split(/\r?\n/)[0] === "#version 300 es");
+  }
+}
+
+// ------------------------------------------------------------------------------------------------- the demo --
+{
+  const demo = new C.DemoScript({ bpm: 120, pads: true });
+  const got = [];
+  for (let t = 0; t <= 64000; t += 16) { demo.tick(t, (e) => got.push(e)); demo.flush(t, (e) => got.push(e)); }
+  const parsed = got.map((e) => C.parseEvent(e));
+  check("every demo event passes the contract", parsed.every(Boolean), JSON.stringify(got[parsed.findIndex((p) => !p)]));
+  check("the demo says hello first", got[0].t === "hello");
+  const beats = got.filter((e) => e.t === "beat");
+  check("beats are announced ahead", beats.length > 100 && beats.every((b) => b.due_ms > 0 && b.due_ms <= 260));
+  check("the demo plays chords, notes, hits and pads", ["chord", "note", "hit", "pad", "energy"].every((t) => got.some((e) => e.t === t)));
+  const db5 = got.filter((e) => e.t === "note" && e.key === 73 && e.on);
+  check("the demo ends on the D-flat pedal", db5.length >= 20, `${db5.length} strikes`);
+  const ons = got.filter((e) => e.t === "note" && e.on).length, offs = got.filter((e) => e.t === "note" && !e.on).length;
+  check("every demo note is released", ons - offs <= 6, `${ons} on, ${offs} off`);
+}
+
+console.log(`vj_core: ${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

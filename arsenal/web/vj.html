@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>VJ Rig — arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="vj.css" />
+</head>
+<body>
+<main class="stage" id="stage" aria-label="VJ stage">
+  <canvas id="gl" tabindex="0" aria-label="VJ render surface"></canvas>
+
+  <section class="hud" id="hud" aria-label="HUD" aria-live="off">
+    <header class="hud-head">
+      <span class="hud-brand">VJ</span>
+      <span class="hud-dot" id="hud-beatdot" aria-hidden="true"></span>
+      <span class="hud-set" id="hud-set">loading sets&hellip;</span>
+    </header>
+    <dl class="hud-grid">
+      <div class="hud-row"><dt>engine</dt><dd id="hud-engine">&mdash;</dd></div>
+      <div class="hud-row"><dt>beat</dt><dd id="hud-beat">&mdash;</dd></div>
+      <div class="hud-row"><dt>chord</dt><dd id="hud-chord">&mdash;</dd></div>
+      <div class="hud-row"><dt>pedal</dt><dd id="hud-pedal">&mdash;</dd></div>
+      <div class="hud-row"><dt>effects</dt><dd id="hud-fx">&mdash;</dd></div>
+      <div class="hud-row"><dt>flash gate</dt><dd id="hud-flash">&mdash;</dd></div>
+      <div class="hud-row"><dt>last control</dt><dd id="hud-ctl">&mdash;</dd></div>
+      <div class="hud-row"><dt>render</dt><dd id="hud-gl">&mdash;</dd></div>
+    </dl>
+    <div class="hud-pads" id="hud-pads" aria-label="Pad grid"></div>
+    <p class="hud-keys">H HUD &middot; M map &middot; F fullscreen &middot; <kbd>1</kbd>&ndash;<kbd>0</kbd> <kbd>-</kbd> <kbd>=</kbd> pads (Shift hard) &middot; <kbd>Q</kbd> dampen <kbd>W</kbd> choke <kbd>E</kbd> kill <kbd>R</kbd> next &middot; <kbd>D</kbd> demo</p>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="banner" id="banner" role="alert" hidden="hidden"></div>
+
+  <aside class="panel" id="panel" aria-label="Mapping" hidden="hidden">
+    <header class="panel-head">
+      <h2>Mapping</h2>
+      <button type="button" class="btn" id="btn-close-panel" title="Close (M or Esc)">Close</button>
+    </header>
+
+    <section class="panel-sec" aria-label="Sets">
+      <h3>Sets</h3>
+      <ol class="set-list" id="set-list"></ol>
+      <p class="note">Click a set to crossfade to it. <kbd>R</kbd> or pad 12 crossfades to the next one over two beats. Fader 8 mixes toward the cued set by hand; after a switch it picks up again once you pull it to the bottom.</p>
+    </section>
+
+    <section class="panel-sec" aria-label="Set parameters">
+      <h3>Set parameters <span class="sub" id="param-set-name"></span></h3>
+      <div class="params" id="params"></div>
+      <p class="note">The KeyLab's knobs nudge these (relative), learn any other control below.</p>
+    </section>
+
+    <section class="panel-sec" aria-label="Pads">
+      <h3>Pads</h3>
+      <div class="pad-map" id="pad-map"></div>
+      <div class="row"><button type="button" class="btn" id="btn-reset-pads">Reset pads</button></div>
+      <p class="note">Velocity shapes each effect; holding a pad sustains the holdable ones until you let go.
+        Both pad sources work: the DAW-mode pads (DAW port, channel 10) and the normal pad bank (MIDI port, channel 10,
+        notes 36&ndash;47). <strong>While FL Studio's Arturia script runs, the DAW-mode pads 1&ndash;8 also toggle FL
+        step-sequencer steps when released</strong>: switch the KeyLab to its pad bank to keep FL's sequencer untouched.</p>
+    </section>
+
+    <section class="panel-sec" aria-label="Faders and knobs">
+      <h3>Faders and knobs</h3>
+      <div class="targets" id="targets"></div>
+      <div class="row">
+        <button type="button" class="btn" id="btn-reset-ctl">Reset bindings</button>
+        <span class="learn-status" id="learn-status" aria-live="polite"></span>
+      </div>
+      <p class="note">Learn on touch: click <em>Learn</em>, then move a fader or knob. Any control the engine reports works.</p>
+    </section>
+
+    <section class="panel-sec" aria-label="Options">
+      <h3>Options</h3>
+      <label class="check"><input type="checkbox" id="opt-hits" checked="checked" /> Hits accent the picture (kept below the flash threshold)</label>
+      <label class="check"><input type="checkbox" id="opt-leds" checked="checked" /> Light the KeyLab pads (through the engine)</label>
+    </section>
+  </aside>
+</main>
+<script type="module" src="vj.js"></script>
+</body>
+</html>
