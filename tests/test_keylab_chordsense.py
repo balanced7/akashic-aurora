@@ -267,6 +267,37 @@ def test_names_follow_the_key_spelling():
     assert CS.key_name(1, "major") == "Db major" and CS.key_name(1, "minor") == "C# minor"
 
 
+def test_borrowed_and_chromatic_chords_are_spelled_by_their_degree():
+    """Round 2: inside C major or A minor, chromatic chords came out sharp (Bb as A#, Eb as D#, Ab as G#: a sharp
+    key's spelling for every pitch). A root is now spelled by the degree it sits on: borrowed and chromatic roots
+    are lowered degrees (bII, bIII, bV, bVI, bVII), leading-tone diminished chords and minor's raised 3rd / 6th /
+    7th are sharps, a slash bass by its interval above the root, in every key."""
+    C, Am = (0, "major"), (9, "minor")
+    assert [CS.chord_name(r, q, None, C) for r, q in ((10, "maj"), (3, "maj"), (8, "maj"), (1, "maj"), (5, "min"),
+                                                       (10, "7"), (6, "7"))] == ["Bb", "Eb", "Ab", "Db", "Fm",
+                                                                                 "Bb7", "Gb7"]
+    assert [CS.chord_name(r, q, None, C) for r, q in ((1, "dim"), (3, "dim"), (6, "dim"), (8, "dim"), (2, "7"),
+                                                       (4, "7"), (9, "7"))] == ["C#dim", "D#dim", "F#dim", "G#dim",
+                                                                                "D7", "E7", "A7"]
+    assert [CS.chord_name(r, q, None, Am) for r, q in ((10, "maj"), (5, "maj"), (0, "maj"), (7, "maj"), (8, "dim"),
+                                                        (4, "7"), (6, "min"), (1, "min"))] == \
+        ["Bb", "F", "C", "G", "G#dim", "E7", "F#m", "C#m"]
+    assert CS.chord_name(2, "maj", 6, C) == "D/F#" and CS.chord_name(8, "maj", 0, C) == "Ab/C"
+    assert CS.chord_name(7, "maj", 0, C) == "G/C" and CS.chord_name(10, "maj", 2, (7, "major")) == "Bb/D"
+    # every key: one accidental at most (bVII of Db major is B, not Cb), and the pedal notes follow the same rules
+    for tonic in range(12):
+        for mode in ("major", "minor"):
+            assert all(len(CS.chord_name(r, "maj", None, (tonic, mode))) <= 2 for r in range(12))
+    assert CS.spell_note(1, (1, "major")) == "Db" and CS.spell_note(10, C) == "Bb" and CS.spell_note(6, C) == "F#"
+    # heard: C - Bb - F - C in audio names the Bb as Bb
+    audio, _ = render([([36, 48, 52, 55, 60], 2.0, ""), ([46, 50, 53, 58, 62], 2.0, ""),
+                       ([41, 53, 57, 60, 65], 2.0, ""), ([36, 48, 52, 55, 60], 2.0, "")] * 3, strike_every=0.5)
+    cs, events = listen(audio)
+    assert cs.key == (0, "major")
+    names = {e["name"] for e in chords_of(events) if e["key"] == "C major"}
+    assert "Bb" in names and "A#" not in names, names
+
+
 # --- the notes path: the same theory, played -------------------------------------------------------------------
 
 def play(chords, beat=0.5, vel=90):
@@ -701,6 +732,136 @@ def test_a_melody_alone_is_not_a_chord():
     named = [e["name"] for e in chords_of(events) if e["root"] is not None]
     assert len(named) <= 1, named
     assert not [e for e in events if e["type"] == "key"]
+
+
+def ringing_line(notes, step, rel, kind="epiano", rate=RATE, seed=31):
+    """A one-note line where every note rings into the next: held for `step`, then a `rel` s release. epiano: a
+    bell-ish decaying tone; pluck: a string whose upper partials die fast."""
+    rng = np.random.default_rng(seed)
+    buf = np.zeros(int((len(notes) * step + rel + 1) * rate))
+    for i, m in enumerate(notes):
+        f0 = 440.0 * 2 ** ((m - 69) / 12)
+        t = np.arange(int((step + rel) * rate)) / rate
+        x = np.zeros(len(t))
+        for h in range(1, 12):
+            if h * f0 > 0.45 * rate:
+                break
+            decay = (0.6 + 0.9 * h) if kind == "epiano" else (0.8 + 0.5 * h)
+            x += np.sin(2 * np.pi * h * f0 * t + rng.uniform(0, 6.28)) * np.exp(-t * decay) / h ** (1.5 if kind == "epiano" else 1.0)
+        x *= np.minimum(1.0, t / 0.002) * np.where(t < step, 1.0, np.clip(1 - (t - step) / rel, 0, 1))
+        j = int(i * step * rate)
+        buf[j:j + len(x)] += x
+    return (0.8 * buf / np.max(np.abs(buf))).astype(np.float32)
+
+
+@pytest.mark.parametrize("line", ["bass", "pluck"])
+def test_a_line_ringing_into_its_next_note_is_not_a_chord(line):
+    """Round 2: a one-note bass line (E2 G2 A2 B2 A2 G2) whose notes ring into each other read 16-18 chords and a
+    key; a ringing pluck melody five sus2 chords and A major. A line's previous note, struck before the newest one
+    and fading, no longer builds a chord with it (notes struck together and fading together still do)."""
+    if line == "bass":
+        audio = ringing_line([40, 43, 45, 47, 45, 43] * 4, 0.5, 0.5)
+    else:
+        audio = ringing_line([64, 67, 69, 71, 69, 67, 64, 62] * 3, 0.35, 0.4, kind="pluck")
+    _, events = listen(audio)
+    named = [e["name"] for e in chords_of(events) if e["root"] is not None]
+    assert len(named) <= 2, named
+    assert not [e for e in events if e["type"] == "key"]
+
+
+@pytest.mark.parametrize("hold,step", [(0.45, 0.5), (0.9, 1.0), (0.25, 0.5)])
+def test_a_melody_on_the_keys_is_not_a_chord(hold, step):
+    """Round 2: C-D-E-G on the keys, no pedal, each note released just before the next, read 9-15 chords: the
+    released note rings out and the two made a dyad. A released note now builds a new chord only while it is
+    still loud (above RING_NOTE_ON of the loudest), and a dyad still has to hold longer."""
+    evs, t = [], 0.0
+    for m in [60, 62, 64, 67] * 4:
+        evs += [{"t": t, "note": m, "vel": 90}, {"t": t + hold, "note": m, "vel": 0}]
+        t += step
+    evs.sort(key=lambda e: (e["t"], e["vel"] > 0))
+    out = CS.ChordSense().feed_notes(evs, now=t + 1.0)
+    named = [e["name"] for e in chords_of(out) if e["root"] is not None]
+    assert len(named) <= 1, named
+
+
+def test_an_arpeggio_with_sustain_still_reads_its_chord():
+    """What the line rule must not cost: C-E-G-B broken over the sustain pedal (audio: each note ringing on; keys:
+    the pedal down, each key released) is still C or Cmaj7, on both ears."""
+    rng = np.random.default_rng(4)
+    buf = np.zeros(int(9 * RATE))
+    for k in range(4):                                     # four bars of the broken chord, every note ringing 3 s
+        for i, m in enumerate([60, 64, 67, 71]):
+            x = piano(m, 3.0, RATE, 0.3, rng)
+            j = int((2 * k + 0.25 * i) * RATE)
+            buf[j:j + len(x)] += x[:len(buf) - j]
+    _, events = listen((0.8 * buf / np.max(np.abs(buf))).astype(np.float32))
+    named = [e["name"] for e in chords_of(events) if e["root"] is not None]
+    assert named and set(named) <= {"C", "Cmaj7"}, named
+    evs = [{"t": 0.0, "sustain": 127}]
+    for k in range(4):
+        for i, m in enumerate([60, 64, 67, 71]):
+            t0 = 2 * k + 0.25 * i
+            evs += [{"t": t0, "note": m, "vel": 80}, {"t": t0 + 0.2, "note": m, "vel": 0}]
+        evs.append({"t": 2 * k + 1.9, "sustain": 0})
+        evs.append({"t": 2 * k + 1.95, "sustain": 127})
+    evs.sort(key=lambda e: e["t"])
+    out = CS.ChordSense().feed_notes(evs, now=8.5)
+    named = [e["name"] for e in chords_of(out) if e["root"] is not None]
+    assert named and set(named) <= {"C", "Cmaj7"}, named
+
+
+def test_chords_under_loud_noise_and_a_washy_pad_are_still_heard():
+    """Round 2: round 1's tonality bar (0.25) silenced real pads and synth chords (40 real chordal loops: chord time
+    88 -> 77 %, a NodeX pad and a Cymatics pad to 0 %) and chords under pink noise at 0 dB SNR (93 -> 25 %). The
+    bar is now 0.08 (noise sits at ~0.00-0.04), with N's benefit of the doubt below 0.25, and sounds whose harmonic
+    energy lives above C6 (808 hats, a ride) must be that much more tonal. Pink noise at 0 dB: chords >= 70 % of the
+    time and the right root on >= 80 % of them; a 9-voice detuned pad drowned in a long reverb: >= 70 %."""
+    from scipy.signal import fftconvolve
+    seq = random_set(16, seed=7)
+    audio, truth = render([(notes, d, "") for notes, d, _ in seq], drums=False)
+    truth = [(t0, t1, rq) for (t0, t1, _), (_, _, rq) in zip(truth, seq)]
+    rng = np.random.default_rng(99)
+    spec = np.fft.rfft(rng.standard_normal(len(audio)))
+    spec[1:] /= np.sqrt(np.fft.rfftfreq(len(audio), 1.0 / RATE)[1:])
+    spec[0] = 0.0
+    pink = np.fft.irfft(spec, len(audio))
+    mix = audio + pink / np.std(pink) * np.std(audio)
+    _, events = listen((0.9 * mix / np.max(np.abs(mix))).astype(np.float32))
+    chords = chords_of(events)
+    on = chord_time(chords, len(audio) / RATE)
+    full, root = rq_accuracy(chords, truth)
+    assert on >= 0.70 and root >= 0.8 * on, (on, full, root)
+    # the pad: three detuned saws per note, a 2.5 s noise-tail reverb, mostly wet
+    pad = np.zeros(int(16 * RATE))
+    for k, (r, q) in enumerate([(9, "min"), (5, "maj"), (0, "maj"), (7, "maj")]):
+        for iv in CS.QUALITIES[q][0]:
+            m = 57 + (r + iv - 57) % 12
+            t = np.arange(int(4 * RATE)) / RATE
+            for det in (-0.12, 0.0, 0.11):
+                f0 = 440.0 * 2 ** ((m + det - 69) / 12)
+                x = sum(np.sin(2 * np.pi * h * f0 * t + rng.uniform(0, 6.28)) / h * np.exp(-h / 5.0) for h in range(1, 12))
+                pad[int(4 * k * RATE):int(4 * k * RATE) + len(t)] += x * np.minimum(1.0, t / 0.3) * np.minimum(1.0, (4 - t) / 0.3)
+    ir = rng.standard_normal(int(2.5 * RATE)) * np.exp(-np.arange(int(2.5 * RATE)) / RATE * 6.9 / 2.5)
+    wet = fftconvolve(pad, ir)[:len(pad)]
+    pad = 0.3 * pad / np.max(np.abs(pad)) + 0.7 * wet / np.max(np.abs(wet))
+    _, events = listen((0.8 * pad / np.max(np.abs(pad))).astype(np.float32))
+    assert chord_time(chords_of(events), 16.0) >= 0.70, [e["name"] for e in chords_of(events)]
+
+
+def test_a_ride_cymbal_is_not_named_as_chords():
+    """Round 2: a ride (sixty sustained inharmonic partials over 300 Hz-9 kHz, struck on the 8ths) read as chords
+    94 % of the time: its partials stand clear and steady, but its energy sits above the voices' register."""
+    rng = np.random.default_rng(111)
+    n, L = int(12 * RATE), int(1.6 * RATE)
+    tl = np.arange(L) / RATE
+    ride = sum(rng.uniform(0.2, 1) * np.sin(2 * np.pi * f * tl + rng.uniform(0, 6)) * np.exp(-tl / rng.uniform(0.3, 1.5))
+               for f in rng.uniform(300, 9000, 60))
+    x = np.zeros(n)
+    for t0 in np.arange(0.0, 12.0, 60 / 96 / 2):
+        i = int(t0 * RATE)
+        x[i:i + L] += ride[:n - i]
+    _, events = listen((0.6 * x / np.max(np.abs(x))).astype(np.float32))
+    assert chord_time(chords_of(events), 12.0) <= 0.10, [e["name"] for e in chords_of(events)]
 
 
 def test_an_idle_gap_costs_one_step():
