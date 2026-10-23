@@ -476,6 +476,70 @@ def test_played_chord_outranks_the_song_estimate_for_a_moment():
     assert r.view()[0] == "Am  (song)"
 
 
+def test_line_1_carries_the_roman_numeral_and_the_key_in_their_own_case():
+    """vj --chords sense: chordsense's numeral and key ride with the chord on line 1 -- the only line the script leaves in
+    its own case (line 2 would show 'vi' as 'VI' and 'Db' as 'DB')."""
+    r = S.Readout()
+    r.feed({"t": "hello", "v": 1, "chords": "sense"}, 0.0)
+    r.feed({"t": "key", "name": "Db major", "conf": 0.8, "src": "keys"}, 0.1)
+    r.feed({"t": "chord", "src": "keys", "name": "Gbmaj7", "root": 6, "quality": "maj7", "bass": 6, "roman": "IVmaj7",
+            "key": "Db major", "conf": 1.0}, 0.2)
+    r.feed({"t": "beat", "bpm": 150.2, "conf": 0.8, "n": 1}, 0.3)
+    line1, _c1, line2, _c2 = r.view()
+    assert line1 == "Gbmaj7  IVmaj7  in Db" and line2 == "150 BPM"
+    frame = S.render(r.view())
+    assert b"\x00Gbmaj7  IVmaj7  in Db\x00" in frame and b"150 BPM" in frame
+    r.feed({"t": "chord", "src": "keys", "name": "Bbm", "root": 10, "quality": "m", "roman": "vi", "key": "Db major"}, 0.4)
+    assert r.view()[0] == "Bbm  vi  in Db"                        # the lower-case numeral survives
+    r.feed({"t": "chord", "src": "keys", "name": "Ab7/C", "root": 8, "quality": "7", "bass": 0, "roman": "V65",
+            "key": "Db major"}, 0.5)
+    assert r.view()[0] == "Ab7/C  V65  in Db"
+    r.feed({"t": "key", "name": "Bb minor", "conf": 0.7}, 0.6)        # the key moved: the old numeral is not shown
+    assert r.view()[0] == "Ab7/C  in Bbm"
+    r.feed({"t": "chord", "src": "keys", "name": "Ebdim", "root": 3, "quality": "dim", "roman": "ii°",
+            "key": "Bb minor"}, 0.7)
+    assert r.view()[0] == "Ebdim  iio  in Bbm" and b"\x00Ebdim  iio  in Bbm\x00" in S.render(r.view())   # ASCII
+
+
+def test_line_1_from_the_song_and_from_an_engine_with_no_numerals():
+    r = S.Readout(prefer_keys_s=0.0)
+    r.feed({"t": "_up"}, 0)
+    r.feed({"t": "chord", "src": "audio", "name": "Am", "quality": "m", "roman": "i", "key": "A minor"}, 1.0)
+    assert r.view()[0] == "Am  i  in Am  (song)"                   # no key event yet: the chord's own key
+    r.feed({"t": "chord", "src": "audio", "name": "N", "root": None, "quality": None, "roman": None,
+            "key": "A minor"}, 2.0)
+    assert r.view()[0] == "--"                                     # no chord (drums, noise): nothing stale
+    r.feed({"t": "chord", "src": "audio", "name": "F", "quality": "maj"}, 3.0)   # --chords basic: no numeral, no key
+    assert r.view()[0] == "F  (song)"
+
+
+def test_a_long_line_1_drops_song_then_key_never_the_chord_or_numeral():
+    assert S.fit_line(["Gbmaj7", "IVmaj7", "in Db", "(song)"], drop=(3, 2)) == "Gbmaj7  IVmaj7  in Db  (song)"
+    # 34 characters with two spaces: one space each fits (31), and nothing is left out
+    assert S.fit_line(["Dbmaj7/Ab", "IVmaj64", "in Dbm", "(song)"], drop=(3, 2)) == "Dbmaj7/Ab IVmaj64 in Dbm (song)"
+    long = ["C#m7b5/G", "#VIImaj65/V", "in C#m", "(song)"]
+    line = S.fit_line(long, drop=(3, 2))
+    assert len(line) <= S.LINE_LEN and line.startswith("C#m7b5/G") and "#VIImaj65/V" in line
+    assert S.fit_line(["A" * 20, "B" * 10, "in Db", "(song)"], drop=(3, 2)) == "A" * 20 + "  " + "B" * 10
+    assert S.key_short("F# minor") == "F#m" and S.key_short("Gb major") == "Gb" and S.key_short("nonsense") is None
+
+
+def test_the_live_readout_redraws_only_when_the_chord_numeral_or_key_changes():
+    q = queue.Queue()
+    for evt in ({"t": "hello", "v": 1, "chords": "sense"}, {"t": "key", "name": "Db major", "conf": 0.8},
+                {"t": "chord", "src": "keys", "name": "Gb", "root": 6, "quality": "maj", "roman": "IV", "key": "Db major"},
+                {"t": "tension", "value": 0.3, "pedal_pc": None},                        # no change on the screen
+                {"t": "chord", "src": "keys", "name": "Gb", "root": 6, "quality": "maj", "roman": "IV",
+                 "key": "Db major", "changed": False},                                 # the same chord again
+                {"t": "key", "name": "Db major", "conf": 0.9}):                        # the same key again
+        q.put(evt)
+    out = FakeOut(governed=True, clock=time.perf_counter)
+    S.run_live(out, events=q, secs=0.5, verbose=False, goodbye=False)
+    texts = [d.decode("ascii", "replace") for d in out.sent]
+    assert texts and "Gb  IV  in Db" in texts[-1], texts
+    assert sum("Gb  IV  in Db" in t for t in texts) == 1, texts
+
+
 def test_scene_event_and_offline():
     r = S.Readout(scene="One")
     r.feed({"t": "_up"}, 0)

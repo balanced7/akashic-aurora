@@ -14,7 +14,10 @@
 //   3. THE COMPOSITE: mixes the sets, bends them (kaleidoscope, glitch, shockwave refraction, freeze), adds the overlay and
 //      applies the full-frame accents (invert, the gated white flash and strobe pulses), saturation and master brightness.
 // The engine (arsenal keylab-vj, GET <engine>/api/events, Server-Sent Events) feeds beats, energy, hits, chords, notes,
-// pads and controls; ?demo=1 plays a scripted show through the same path; the keyboard plays the pads without either.
+// pads and controls; with chordsense (vj --chords sense) also the key, each chord's roman numeral and the harmony's
+// tension (vj-core.js EngineHarmony: the HUD shows key and numeral, the tension feeds the strip, a key change accents
+// through the chord-change path). ?demo=1 plays a scripted show through the same path; the keyboard plays the pads
+// without either.
 // The page posts its pad colours back (POST <engine>/api/pads, at most ten a second) only while the engine's hello says
 // it has LEDs, and stops at the first refusal until the engine's next hello (vj-core.js EngineLink).
 //
@@ -24,7 +27,7 @@ import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
   starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, actionLabel, TARGETS,
   DEFAULT_CTL_MAP, normalizeCtlMap, learnBinding, applyCtl, FlashGate, EffectBank, BeatClock, PedalDetector,
-  pedalSignature, EngineLink, DemoScript,
+  pedalSignature, EngineLink, EngineHarmony, DemoScript,
 } from "./vj-core.js";
 import { createStage } from "./vj-stage.js";   // wave 2: beat-synced transitions, the post look, the showcase tour
 
@@ -57,6 +60,7 @@ const LED_INTERVAL_MS = 100;           // pad lights: at most 10 posts a second
 const XFADE_BEATS = 2;
 const XFADE_FALLBACK_MS = 1200;
 const KILL_OUT_S = 0.3, KILL_IN_S = 0.5;
+const KEY_ACCENT = 0.5;                // a key change's accent: half a chord change's pulse (and no palette move, no flash)
 const STORE = { pads: "arsenal.vj.padMap", ctl: "arsenal.vj.ctlMap", values: "arsenal.vj.values", opts: "arsenal.vj.options" };
 const KEY_PADS = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9,
                    Digit0: 10, Minus: 11, Equal: 12 };
@@ -323,7 +327,9 @@ const keyPadDown = new Uint8Array(13);
 const energy = { bass: 0, mid: 0, high: 0, level: 0, tBass: 0, tMid: 0, tHigh: 0, tLevel: 0, last: -1e9 };
 const hit = { pulse: 0, kick: 0, snare: 0, hat: 0, bloom: 0 };
 let pulseEnv = 0;
-const chord = { name: "", root: -1, pcs: [], src: "", t: -1e9, quality: "" };
+const chord = { name: "", root: -1, pcs: [], src: "", t: -1e9, quality: "", roman: "", key: "", bass: -1, conf: null };
+const harm = new EngineHarmony();      // the engine's key and tension (chordsense); the page's own estimate without them
+let keyAccents = 0;
 let chordPulse = 0, travel = 1, drawOn = 1, lastDrawRestart = -1e9;
 const kHeld = new Uint8Array(128), kSus = new Uint8Array(128);
 const kVel = new Float32Array(128), kT0 = new Float64Array(128), kStrike = new Float32Array(128);
@@ -765,8 +771,16 @@ function handleEvent(raw, from = "engine") {
   const nowS = nowMs / 1000;
   switch (ev.t) {
     case "hello":
+      if (!fromDemo) { engine.link.event(ev); harm.reset(); }   // a new engine: its key and tension are still to come
+      break;
     case "status":
       if (!fromDemo) engine.link.event(ev);
+      break;
+    case "key":
+      if (harm.event(ev)) keyChange(nowS);
+      break;
+    case "tension":
+      harm.event(ev);
       break;
     case "beat":
       beat.schedule(nowMs, ev);
@@ -808,15 +822,30 @@ function setChord(ev, nowS) {
   chord.pcs = ev.pcs;
   chord.src = ev.src;
   chord.quality = ev.quality;
+  chord.roman = ev.roman;
+  chord.key = ev.key;
+  chord.bass = ev.bass;
+  chord.conf = ev.conf;
   chord.t = nowS;
-  feelState.chord = ev.name ? { name: ev.name } : null;
+  // 'N' (the audio hears no chord: drums, noise, a lone line) is no chord for the harmony feel either
+  feelState.chord = ev.name && !(ev.name === "N" && ev.root < 0) ? { name: ev.name } : null;
   if (changed && ev.changed) chordChange(nowS);
+}
+// The accent every harmonic change gives: the chord pulse (strip row 0, texel 15) and a restart of the constellation's
+// draw-on. A chord change gives it whole and moves the palette to the chord's colours; a key change (the engine's key
+// event) gives a smaller one and leaves the palette to the chords. Neither asks the flash gate: no flash, ever.
+function chordAccent(nowS, strength) {
+  chordPulse = Math.max(chordPulse, strength);
+  if (nowS - lastDrawRestart > 0.25) { drawOn = 0; lastDrawRestart = nowS; }
+}
+function keyChange(nowS) {
+  keyAccents++;
+  chordAccent(nowS, KEY_ACCENT);
 }
 function chordChange(nowS) {
   palBefore.set(palNow);
   travel = 0;
-  chordPulse = 1;
-  if (nowS - lastDrawRestart > 0.25) { drawOn = 0; lastDrawRestart = nowS; }
+  chordAccent(nowS, 1);
   // the chord's stops: its root, then its other tones by how far above the root they sit
   const root = chord.root >= 0 ? chord.root : (chord.pcs[0] ?? -1);
   if (root < 0) { chordPresence = 0; return; }
@@ -993,6 +1022,7 @@ function updateMusic(nowMs, nowS, dt) {
   const target = 0.65 * energy.bass + 0.35 * hit.pulse;
   pulseEnv += (target - pulseEnv) * (1 - Math.exp(-dt / (target > pulseEnv ? 0.012 : 0.18)));
   chordPulse *= Math.exp(-dt / 0.5);
+  harm.update(dt);
   travel = Math.min(1, travel + dt / 0.9);
   drawOn = Math.min(1, drawOn + dt / (0.25 + 0.1 * Math.max(3, starCount)));
   pedal.update(nowS, dt);
@@ -1079,7 +1109,8 @@ function buildStrip(nowMs, nowS) {
   stripSet(S, 12, 0, ph, beat.pulse, ((beat.count % 4) + ph) / 4, beat.count % 64);
   stripSet(S, 13, 0, T.hueA, T.hueB, T.sat, T.bright);
   const c = feelFrame ? feelFrame.colour : null;
-  stripSet(S, 14, 0, T.trails, T.bassReact, Math.max(c ? c.tension : 0, pedal.tension() * 0.8), c ? c.lushness : 0);
+  // tension: the engine's (chordsense) while it sends one, else the page's own; then the page's pedal star (EngineHarmony)
+  stripSet(S, 14, 0, T.trails, T.bassReact, harm.stripTension(c ? c.tension : 0, pedal.tension()), c ? c.lushness : 0);
   stripSet(S, 15, 0, chordPulse, chord.root, Math.min(60, nowS - chord.t), c ? c.brightness : 0.5);
   // row 1: pitch classes, hit, energy, pedal
   for (let pc = 0; pc < 12; pc++) stripSet(S, pc, 1, pcLevel[pc], pcStrike[pc], pcReg[pc], pcHeld[pc]);
@@ -1422,6 +1453,7 @@ function connectEngine() {
     es.close();
     if (engine.es !== es) return;
     engine.link.disconnected();          // the old engine's hello and status are no longer the truth
+    harm.reset();                        // ... nor its key and tension: the page's own estimate takes over again
     engine.es = null;
     setTimeout(connectEngine, engineBackoff);
     engineBackoff = Math.min(10000, engineBackoff * 1.6);
@@ -1562,7 +1594,8 @@ function updateHud(nowMs) {
   else if (!engine.url) eng = "off · keyboard pads only";
   else if (engine.link.open) {
     const h = engine.link.hello;
-    eng = h ? `connected · ${h.src || "engine"} · beat ${h.beat_engine || "?"} · pads ${h.pads_mode || "?"}` : "connected";
+    eng = h ? `connected · ${h.src || "engine"} · beat ${h.beat_engine || "?"}${h.chords ? ` · chords ${h.chords}` : ""}` +
+              ` · pads ${h.pads_mode || "?"}` : "connected";
     if (h && h.pads_mode === "daw") eng += " · FL may see pads 1-8";
     if (options.leds && engine.link.ledsOff) eng += ` · pad lights off: ${engine.link.ledsOff}`;
     if (demo) eng += " · demo playing on top";
@@ -1572,9 +1605,20 @@ function updateHud(nowMs) {
   const bpm = beat.bpm > 0 && beat.alive(nowMs) ? `${beat.bpm.toFixed(1)} bpm · conf ${beat.conf.toFixed(2)}` : "no beat";
   setText("hud-beat", bpm + (beat.onBeat !== null && beat.alive(nowMs) ? ` · on-beat ${beat.onBeat.toFixed(2)}` : "") + ` · #${beat.count}`);
   const c = feelFrame ? feelFrame.colour : null;
-  setText("hud-chord", chord.name ? `${chord.name} (${chord.src})${c ? ` · tension ${c.tension.toFixed(2)} · lush ${c.lushness.toFixed(2)}` : ""}` : "—");
+  const tension = harm.live ? `tension ${harm.value.toFixed(2)} (engine)` : c ? `tension ${c.tension.toFixed(2)}` : "";
+  const colour = [tension, c ? `lush ${c.lushness.toFixed(2)}` : ""].filter(Boolean).join(" · ");
+  const none = chord.name === "N" && chord.root < 0;
+  // the confidence only for a chord heard in the audio (a played chord is read exactly: always 1)
+  const conf = chord.src === "audio" && chord.conf !== null && !none ? ` ${chord.conf.toFixed(2)}` : "";
+  setText("hud-chord", chord.name ? `${none ? "no chord" : chord.name}${chord.roman ? `  ${chord.roman}` : ""} (${chord.src}` +
+    `${conf})${colour ? ` · ${colour}` : ""}` : "—");
+  // the key: the engine's key event, else the key the last chord's numeral was read in
+  const keyNow = harm.key || chord.key;
+  setText("hud-key", keyNow ? `${keyNow}${harm.key ? ` · conf ${harm.keyConf.toFixed(2)}${harm.keySrc ? ` (${harm.keySrc})` : ""}` : ""}` +
+    `${chord.roman && chord.key === keyNow ? ` · ${chord.roman}` : ""}` : "—");
   setText("hud-pedal", pedal.key >= 0 ? `${noteName(pedal.key)} ×${pedal.strikes()} · tension ${pedal.tension().toFixed(2)}` :
-    (pedal.resolvePulse > 0.05 ? `released (${pedal.resolvedCount} strikes)` : "—"));
+    (pedal.resolvePulse > 0.05 ? `released (${pedal.resolvedCount} strikes)` :
+      harm.live && harm.pedalPc >= 0 ? `${NOTE_NAMES[harm.pedalPc]} held under the harmony (engine)` : "—"));
   const parts = [];
   for (const f of fx.fx) if (f.active) parts.push(`${f.type}${f.tr === null && EFFECTS[f.type].hold ? "●" : ""} ${f.env.toFixed(2)}`);
   if (kill.pending !== null) parts.push(kill.pending === 0 ? "KILL on beat" : "revive on beat");
@@ -1843,6 +1887,10 @@ window.__vj = {
     engine: { url: engine.url, open: engine.link.open, hello: engine.link.hello, events: engine.events, bad: engine.bad,
               demoEvents: engine.demoEvents, status: engine.link.status, ledsOff: engine.link.ledsOff, refused: engine.link.refused },
     demo: !!demo, bpm: beat.bpm, beats: beat.count, chord: chord.name, chordSrc: chord.src, stars: starCount,
+    roman: chord.roman, chordKey: chord.key, bass: chord.bass, chordConf: chord.conf,
+    harmony: { key: harm.key, keyConf: harm.keyConf, keySrc: harm.keySrc, keyChanges: harm.keyChanges, keyAccents,
+               live: harm.live, tension: +harm.value.toFixed(3), target: harm.target, pedalPc: harm.pedalPc,
+               src: harm.src, strip: +strip[(0 * STRIP.W + 14) * 4 + 2].toFixed(3), chordPulse: +chordPulse.toFixed(3) },
     pedal: { key: pedal.key, strikes: pedal.strikes(), tension: +pedal.tension().toFixed(3), resolved: pedal.resolvedCount },
     tension: feelFrame ? +feelFrame.colour.tension.toFixed(3) : null,
     effects: fx.fx.filter((f) => f.active).map((f) => ({ type: f.type, pad: f.pad, env: +f.env.toFixed(3), vel: f.vel,

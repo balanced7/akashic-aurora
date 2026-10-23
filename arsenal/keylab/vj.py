@@ -15,12 +15,18 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
   Every route but the stream answers with Connection: close (no kept-alive connection outlives its response), and
   a stopping engine refuses new streams (503).
 
-  hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","pads_mode":"daw|bank|both",
+  hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","chords":"sense|basic","pads_mode":"daw|bank|both",
           "leds":true|false,"leds_reason":null|".."}   leds false: do not POST /api/pads, it would be refused
   beat   {"t":"beat","due_ms":..,"bpm":..,"conf":0..1,"n":..,"on_beat":0..1|null}  sent ~250 ms BEFORE the beat
   energy {"t":"energy","bass":..,"mid":..,"high":..,"level":..}                      40 Hz, each 0..1, auto-gained
   hit    {"t":"hit","strength":0..1,"band":"kick|snare|hat|full"}                   a heavy transient
-  chord  {"t":"chord","src":"keys|audio","name":"Dbmaj7","root":0..11,"quality":"maj7","pcs":[..],"changed":true}
+  chord  {"t":"chord","src":"keys|audio","name":"Dbmaj7","root":0..11,"quality":"maj7","pcs":[..],"changed":true,
+          "bass":0..11,"roman":"Imaj7"|null,"key":"Db major"|null,"conf":0..1}
+          name 'N' (root, quality and bass null, pcs []) = the audio hears no chord (drums, noise, a lone line);
+          roman is the chord in `key`, the key the page is told (below); --chords basic sends the first seven fields
+  key    {"t":"key","name":"Db major","conf":0..1,"src":"keys|audio"}  the key, when it lands or moves (--chords sense)
+  tension {"t":"tension","value":0..1,"pedal_pc":0..11|null,"src":"keys|audio"}  the harmony's tension: with every
+          chord, pedal and resolution chordsense decides, from the ear that names the key (--chords sense)
   note   {"t":"note","key":0..127,"vel":0..1,"on":bool}        pedal {"t":"pedal","on":bool}
   pad    {"t":"pad","pad":1..12,"vel":0..1,"on":bool,"src":"daw|bank"}
   ctl    {"t":"ctl","id":"cc105","kind":"abs|rel","value":0..1,"delta":int}
@@ -42,9 +48,19 @@ What feeds it:
           stays near 64, a fader wanders far from it. A learned kind is announced as a status
   AUDIO   WASAPI loopback (whatever is playing), or --replay-audio FILE in real time (--loop repeats it), or
           --replay-audio demo (a made-up groove) -> the beat tracker (beat_<engine>.Tracker, predictions sent ahead, one per beat), the
-          referee's on-beat score (beatref), energy bands, a heavy-hit detector, and chords from the AUDIO: a
-          12-bin chroma from the spectrum's peaks, smoothed, matched to major/minor/7th templates, sent only on a
-          confident change
+          referee's on-beat score (beatref), energy bands, a heavy-hit detector, and chords from the AUDIO. --chords
+          sense (the default): chordsense.ChordSense fed every loopback block, its events mapped by
+          chordsense.to_vj_events (chord with roman, key, bass and confidence; key; tension). --chords basic: the
+          older detector (AudioChords: a 12-bin chroma from the spectrum's peaks, matched to major/minor/7th templates,
+          sent only on a confident change), and no key or tension events
+  HARMONY --chords sense also runs a second ChordSense on the KEYS (feed_notes, its clock stepped every 20 ms by the
+          MIDI thread). The keys' chord NAME stays today's reading (Voicing + theory.analyze after the settle: exact
+          on held piano chords and ~45 ms from the attack, where chordsense's notes path takes ~180 ms and reads
+          85 % against 97 % on held block chords, measured 2026-10-23); when that reading cannot name what sounds (a
+          held pedal note foreign to the chord, a sustain-pedal wash) the keys' chordsense chord is sent instead
+          (78 % against 32 % with a re-struck pedal note). The key and the tension come from chordsense: from the keys
+          while they have been played in the last 10 s, else from the audio; every chord's roman numeral is spelled
+          in that key
   REPLAY  --replay-midi FILE plays a note list (JSON) or an FL project's pattern notes (.flp, read-only) as if
           played live, so the rig can be tried without the keyboard. A file that carries no tempo plays at 100 BPM
           and says so ('tempo unknown, assumed 100 BPM (--replay-bpm to set)'). replay_events() computes the same
@@ -52,7 +68,12 @@ What feeds it:
 
 Threads: the audio loop never sleeps or waits on anything but its own source (the loopback's read is the clock);
 publishing is a non-blocking put per client; HTTP, the MIDI dispatcher, the pad painter and the replay each run on
-their own thread. LEDs: one LED-writing process only (do not run `beat`, `chordview` or `show` at the same time);
+their own thread. The audio chordsense runs inline in the audio loop, a bounded step per block (any exception is
+counted and said, never fatal to the beat, the energy or the hits); measured 2026-10-23 on a real-time synthesized
+hardstyle replay at 48 kHz: 2400 of 2400 blocks read, capture timing gap +0.6 ms over 25.6 s, 0 late blocks, the
+whole loop 0.87 ms a block (p99 2.8 ms) of which chordsense 0.28 ms (p99 0.88 ms), against a 10.7 ms block (the basic
+chords: 0.67 ms, p99 2.4 ms). GET /api/state carries the same record live: audio.timing.capture (beatsync.capture_timing
+of the blocks read) and audio.timing.proc_ms / sense_ms. LEDs: one LED-writing process only (do not run `beat`, `chordview` or `show` at the same time);
 guest mode (no DAW connect) unless --connect and FL is not running; every packet passes the BurstGovernor.
 The verb's stdout is line-buffered (core.foundation.streams), so a piped engine's console arrives as it happens.
 """
@@ -96,6 +117,9 @@ PAD_DEDUP_S = 0.04            # the same pad on both inputs within this long is 
 SILENT_BEATS_S = 1.5          # no beats are announced after this long of silence
 KEYS_WITNESS_S = 10.0         # the key: audio chords count as evidence only after the keys have been quiet this long
 MAX_PADS_BODY = 4096
+CHORD_MODES = ("sense", "basic")   # --chords: chordsense on both ears (default), or the older audio templates only
+SENSE_TICK_S = 0.02           # the keys' chordsense clock is stepped at least this often (its frame is 20 ms)
+TIMING_KEEP = 4096            # per-block processing times kept for the state route's percentiles
 
 PC_NAMES = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 _SHARP_TO_FLAT = {"C#": "Db", "D#": "Eb", "G#": "Ab", "A#": "Bb"}
@@ -346,9 +370,11 @@ def _db(p: float) -> float:
 
 class Analyzer:
     """Per audio block: energy (40 Hz), heavy hits (immediately) and the audio chord (on a confident change).
-    feed(block, audio_t) -> events. Pure numpy, causal, no wall clock (so it is pinned offline)."""
+    feed(block, audio_t) -> events. Pure numpy, causal, no wall clock (so it is pinned offline). chords=False leaves
+    the chord to chordsense (Harmony, --chords sense): no AudioChords runs at all."""
 
-    def __init__(self, rate: int, hop: int = HOP, rate_limit: bool = False, energy_hz: float = ENERGY_HZ):
+    def __init__(self, rate: int, hop: int = HOP, rate_limit: bool = False, energy_hz: float = ENERGY_HZ,
+                 chords: bool = True):
         self.rate, self.hop = int(rate), int(hop)
         self.n = 2048 if rate > 32000 else 1024
         self.win = np.hanning(self.n).astype(np.float32)
@@ -375,7 +401,7 @@ class Analyzer:
         self.hpk_decay = math.exp(-self.dt / 3.0)
         self.last_hit = -1e9
         self.hit_gap = HIT_SAFE_GAP_S if rate_limit else HIT_MIN_GAP_S
-        self.chords = AudioChords(rate, hop)
+        self.chords = AudioChords(rate, hop) if chords else None
 
     def silent_for(self, now: float) -> float:
         return 0.0 if self.silent_since is None else max(0.0, now - self.silent_since)
@@ -400,9 +426,10 @@ class Analyzer:
         h = self._hit(mag, silent, audio_t)
         if h:
             out.append(h)
-        c = self.chords.feed(x, audio_t, silent=silent)
-        if c:
-            out.append(c)
+        if self.chords is not None:
+            c = self.chords.feed(x, audio_t, silent=silent)
+            if c:
+                out.append(c)
         return out
 
     def _energy(self, mag, silent: bool, audio_t: float) -> Optional[dict]:
@@ -583,6 +610,205 @@ class AudioChords:
         root, q, pcs = self.labels[best]
         return {"t": "chord", "src": "audio", "name": PC_NAMES[root] + ("" if q == "maj" else q), "root": root,
                 "quality": q, "pcs": list(pcs), "changed": True, "conf": round(score, 3)}
+
+
+# =====================================================================================================================
+# harmony: chordsense on both ears (--chords sense)
+# =====================================================================================================================
+_KEY_PC = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8,
+           "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11}
+# a chord quality as the page spells it (theory's and chordsense's VJ spellings) -> the one chordsense's roman() reads;
+# the chords chordsense has no template for read as the nearest it has (a 9 as its 7, a 6 or madd9 as its triad, a
+# dim7 or a half-diminished 7th as diminished), so their numeral carries the degree and the family, not the extension
+_ROMAN_QUALITY = {"maj": "maj", "m": "min", "min": "min", "7": "7", "maj7": "maj7", "m7": "m7", "sus2": "sus2",
+                  "sus4": "sus4", "dim": "dim", "aug": "aug", "add9": "add9", "5": "5", "6": "maj", "m6": "min",
+                  "madd9": "min", "dim7": "dim", "m7b5": "dim", "7sus4": "sus4", "9": "7", "maj9": "maj7", "m9": "m7"}
+
+
+def parse_key(name) -> Optional[Tuple[int, str]]:
+    """'Db major' / 'F# minor' (the key event's name) -> (tonic pitch class, 'major' | 'minor'), or None."""
+    if not isinstance(name, str):
+        return None
+    parts = name.split()
+    if len(parts) != 2 or parts[0] not in _KEY_PC or parts[1] not in ("major", "minor"):
+        return None
+    return _KEY_PC[parts[0]], parts[1]
+
+
+def key_has_flats(name) -> Optional[bool]:
+    """True when the key's signature has flats (Gb major and Eb minor count as flat keys), None for no key."""
+    k = parse_key(name)
+    if k is None:
+        return None
+    return (MAJOR_SIG if k[1] == "major" else MINOR_SIG)[k[0]] < 0
+
+
+def roman_in(root, quality, bass, key) -> Optional[str]:
+    """The roman numeral of a chord in a key ('IV', 'V65', 'bVII', 'V7/V'), spelled by chordsense's own reading
+    (chordsense.roman + full_roman), or None with no key or a chord it cannot place."""
+    k = parse_key(key)
+    q = _ROMAN_QUALITY.get(quality)
+    if k is None or q is None or root is None:
+        return None
+    try:
+        from . import chordsense as CS
+        num, fig, _function = CS.roman(int(root) % 12, q, None if bass is None else int(bass) % 12, k[0], k[1])
+        return CS.full_roman(num, fig)
+    except Exception:                                 # a chordsense that changed under us names no numeral, never fails
+        return None
+
+
+class Harmony:
+    """chordsense on both ears, merged into the page's events (--chords sense).
+
+    audio: a ChordSense fed every block the audio loop reads (feed_audio, on the audio thread). keys: a second one fed
+    the played notes and the sustain pedal (note, tick: on the MIDI thread; tick steps its clock while nothing is
+    played). Each ear's events go through chordsense.to_vj_events. Then, under one lock:
+      key      the page is told ONE key: the keys' while they have been played in the last witness_s seconds (what
+               Daniel plays outranks what the speakers are estimated to play), else the audio's; either one when the
+               other has none. A key event goes out when that key moves, also when it moves because the witness changed.
+      tension  from the same ear (the keys while they are the witness, else the audio); a change of ear sends the new
+               ear's latest value, so the page's tension is never a mix of two ears.
+      chords   audio chords are published as they come (decorate: the name spelled for the page, the roman numeral
+               in the key the page is told). Keys chords are RETURNED (t 'chord', src 'keys') for the engine, which
+               publishes them only while its own keys reading cannot name what sounds (Engine._sense_keys).
+    Every call is bounded: one block, or the 20 ms frames since the last tick."""
+
+    def __init__(self, rate: Optional[int] = None, hop: int = HOP, witness_s: float = KEYS_WITNESS_S):
+        from . import chordsense as CS
+        self._CS = CS
+        self.audio = CS.ChordSense(int(rate), int(hop)) if rate else None
+        self.keys = CS.ChordSense()
+        self.witness_s = witness_s
+        self._lock = threading.Lock()
+        self._key: Dict[str, Optional[Tuple[str, float]]] = {"audio": None, "keys": None}
+        self._tension: Dict[str, Optional[dict]] = {"audio": None, "keys": None}
+        self._struck = -math.inf          # when a key was last struck (the clock the notes come on)
+        self._kt: Optional[float] = None  # the keys' chordsense clock: the latest time handed to it
+        self.key_shown: Optional[dict] = None       # the key event the page was last told
+        self.tension_shown: Optional[dict] = None   # ... and the tension event
+        self._tension_src: Optional[str] = None
+        self.counts = {"audio_blocks": 0, "keys_ticks": 0, "key_events": 0, "tension_events": 0}
+
+    # ---- the ears
+    def feed_audio(self, block, now: float) -> List[dict]:
+        """One audio block (mono or (n, channels) float) -> the page events it decided (chord, key, tension)."""
+        evs = self.audio.feed(block)
+        self.counts["audio_blocks"] += 1
+        return self._take("audio", evs, now) if evs else self.refresh(now)
+
+    def note(self, ev: dict, t: float) -> List[dict]:
+        """One played event for the keys ear: {"note", "vel"} (vel 0 = off) or {"sustain": 0..127}, at time t."""
+        t = t if self._kt is None else max(t, self._kt)
+        self._kt = t
+        if ev.get("vel", 0) > 0 and "note" in ev:
+            with self._lock:
+                self._struck = t
+        return self._take("keys", self.keys.feed_notes([{**ev, "t": t}]), t)
+
+    def tick(self, now: float) -> List[dict]:
+        """Let the keys' clock reach `now` (chords decided while notes ring, the key, the tension relaxing)."""
+        now = now if self._kt is None else max(now, self._kt)
+        self._kt = now
+        self.counts["keys_ticks"] += 1
+        return self._take("keys", self.keys.feed_notes([], now=now), now)
+
+    # ---- merging
+    def _keys_witness(self, now: float) -> bool:
+        return now - self._struck <= self.witness_s
+
+    def key_now(self, now: Optional[float] = None) -> Optional[Tuple[str, float, str]]:
+        """(name, conf, ear) of the key the page should be told now, or None."""
+        with self._lock:
+            return self._key_now(self._kt if now is None else now)
+
+    def _key_now(self, now) -> Optional[Tuple[str, float, str]]:
+        order = ("keys", "audio") if (now is not None and self._keys_witness(now)) else ("audio", "keys")
+        for ear in order:
+            k = self._key[ear]
+            if k is not None:
+                return k[0], k[1], ear
+        return None
+
+    def _tension_ear(self, now) -> str:
+        if self.audio is None:
+            return "keys"
+        return "keys" if (now is not None and self._keys_witness(now)) else "audio"
+
+    def refresh(self, now: float) -> List[dict]:
+        """The key / tension the page should have now, as events when they differ from what it was last told."""
+        out: List[dict] = []
+        with self._lock:
+            k = self._key_now(now)
+            if k is not None and (self.key_shown is None or self.key_shown["name"] != k[0]):
+                self.key_shown = {"t": "key", "name": k[0], "conf": k[1], "src": k[2]}
+                self.counts["key_events"] += 1
+                out.append(dict(self.key_shown))
+            ear = self._tension_ear(now)
+            if ear != self._tension_src:
+                self._tension_src = ear
+                tv = self._tension[ear]
+                if tv is not None and tv != self.tension_shown:
+                    self.tension_shown = tv
+                    self.counts["tension_events"] += 1
+                    out.append(dict(tv))
+        return out
+
+    def _take(self, ear: str, events: List[dict], now: float) -> List[dict]:
+        """One call's chordsense events -> page events. Keys are taken first and announced first (refresh), so a
+        chord decided in the same frame as a modulation reaches the page after the key it is spelled in."""
+        vj: List[dict] = []
+        for e in events:
+            vj += self._CS.to_vj_events(e, src=ear)
+        with self._lock:
+            for v in vj:
+                if v.get("t") == "key" and v.get("name"):
+                    self._key[ear] = (v["name"], float(v.get("conf") or 0.0))
+        out = self.refresh(now)
+        for v in vj:
+            kind = v.get("t")
+            if kind == "tension":
+                tv = {"t": "tension", "value": round(min(1.0, max(0.0, float(v.get("value") or 0.0))), 3),
+                      "pedal_pc": v.get("pedal_pc"), "src": ear}
+                with self._lock:
+                    self._tension[ear] = tv
+                    if ear == self._tension_ear(now):
+                        self._tension_src = ear
+                        self.tension_shown = tv
+                        self.counts["tension_events"] += 1
+                        out.append(dict(tv))
+            elif kind == "chord":
+                out.append(v)                       # decorated by the engine, in the key refresh() just settled
+        return out
+
+    def decorate(self, chord: dict, now: Optional[float] = None, fallback_flats: bool = False) -> dict:
+        """A chord event for the page: its roman numeral in the key the page is told (recomputed when the ear that
+        named the chord heard another key), that key, and the name spelled the page's way (flats; pitch class 6 is Gb
+        in a flat key). A chord with no root (N) carries no numeral."""
+        k = self.key_now(now)
+        key = k[0] if k else None
+        out = dict(chord)
+        if out.get("root") is None:
+            out["roman"] = None
+        elif key != chord.get("key") or "roman" not in chord:
+            out["roman"] = roman_in(out["root"], out.get("quality"), out.get("bass"), key)
+        out["key"] = key
+        flats = key_has_flats(key)
+        if out.get("name") and out["name"] != "N":
+            out["name"] = spell(out["name"], fallback_flats if flats is None else flats)
+        return out
+
+    def snapshot(self) -> dict:
+        """For the state route: each ear's key and tension, and what the page was last told."""
+        with self._lock:
+            return {"key": self.key_shown["name"] if self.key_shown else None,
+                    "key_src": self.key_shown["src"] if self.key_shown else None,
+                    "tension": self.tension_shown["value"] if self.tension_shown else None,
+                    "tension_src": self._tension_src,
+                    "ears": {ear: {"key": None if self._key[ear] is None else self._key[ear][0],
+                                   "tension": None if self._tension[ear] is None else self._tension[ear]["value"]}
+                             for ear in ("audio", "keys")},
+                    **self.counts}
 
 
 class BeatClock:
@@ -959,30 +1185,47 @@ def note_schedule(notes) -> List[Tuple[float, int, int, int]]:
     return [(t, 0x90 if kind else 0x80, k, v) for t, kind, k, v in ev]
 
 
-def replay_events(replay: "Replay") -> List[Tuple[float, dict]]:
+def replay_events(replay: "Replay", chords: str = "sense", tail_s: float = 3.0) -> List[Tuple[float, dict]]:
     """The events a page receives from replaying `replay`, computed offline on a simulated clock: [(seconds, event)].
-    The same path as a live replay (note_schedule -> Engine._handle: notes, the key, the keys' chord after its settle),
-    with no threads and no waiting, so a whole take runs in a moment. The settle is simulated the way the MIDI loop
-    runs it: a pending chord is announced at its deadline unless a message arrives first. Used to give page logic a
-    real take to be tested on (tests/fixtures/vj/)."""
-    eng = Engine(http_port=None, say=lambda _m: None)
+    The same path as a live replay (note_schedule -> Engine._handle: notes, the key, the keys' chord after its settle,
+    and with --chords sense the keys' chordsense: key, tension, and its chord where the keys' reading has no name),
+    with no threads and no waiting, so a whole take runs in a moment. The MIDI loop is simulated the way it runs: a
+    pending chord is announced at its deadline unless a message arrives first, and the keys' chordsense clock steps
+    every SENSE_TICK_S; the clock runs on tail_s past the last message. Used to give page logic a real take to be
+    tested on (tests/fixtures/vj/)."""
+    eng = Engine(http_port=None, chords=chords, say=lambda _m: None)
     clock = [0.0]
+    tick = [0.0]
     out: List[Tuple[float, dict]] = []
     eng.hub.tap(lambda e: out.append((round(clock[0], 4), e)))
 
-    def settle(t: float) -> None:
-        p = eng._chord_pending
-        if p is not None and p[0] <= t:
-            eng._chord_pending = None
-            clock[0] = p[0]
-            eng._announce_keys_chord(p[1])
+    def advance(t: float) -> None:
+        """The MIDI loop's own work up to t: due settles and the harmony's clock steps, in time order."""
+        while True:
+            p = eng._chord_pending
+            due = p[0] if p is not None else math.inf
+            nxt = tick[0] + SENSE_TICK_S if eng.harmony is not None else math.inf
+            if min(due, nxt) > t:
+                return
+            if due <= nxt:
+                eng._chord_pending = None
+                clock[0] = due
+                eng._announce_keys_chord(p[1])
+            else:
+                tick[0] = clock[0] = nxt
+                eng._sense_tick(nxt)
 
+    last = 0.0
     for t, st, key, vel in note_schedule(replay.notes):
-        settle(t)
-        clock[0] = t
+        advance(t)
+        clock[0] = last = t
         eng._handle("midi", st, key & 0x7F, vel & 0x7F, t)
-        settle(t)
-    settle(float("inf"))
+    advance(last + max(tail_s, CHORD_SETTLE_MAX_S))
+    p = eng._chord_pending
+    if p is not None:
+        eng._chord_pending = None
+        clock[0] = p[0]
+        eng._announce_keys_chord(p[1])
     return out
 
 
@@ -1202,8 +1445,9 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json(200, self.engine.state())
         if path in ("/", "/api"):
             return self._json(200, {"src": SRC, "v": CONTRACT_V, "routes": {
-                "GET /api/events": "Server-Sent Events: hello, beat, energy, hit, chord, note, pedal, pad, ctl, status",
-                "GET /api/state": "last chord, bpm, connected inputs, audio health, LED state",
+                "GET /api/events": "Server-Sent Events: hello, beat, energy, hit, chord, key, tension, note, pedal, "
+                                   "pad, ctl, status",
+                "GET /api/state": "last chord, bpm, the key, connected inputs, audio health and timing, LED state",
                 "POST /api/pads": '{"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads'}})
         return self._json(404, {"error": f"no route {path}"})
 
@@ -1313,10 +1557,16 @@ class Engine:
                  rate_limit: bool = False, ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0,
                  seed_bpm: Optional[float] = None, heartbeat_s: float = HEARTBEAT_S, replay: Optional[Replay] = None,
                  replay_delay: float = 1.5, verbose: bool = False, verbose_http: bool = False,
-                 say: Callable[[str], None] = print):
+                 say: Callable[[str], None] = print, chords: str = "sense"):
         if pads_mode not in ("daw", "bank", "both"):
             raise ValueError("pads_mode must be daw, bank or both")
+        if chords not in CHORD_MODES:
+            raise ValueError(f"chords must be one of {', '.join(CHORD_MODES)}")
         self.http_port, self.beat_engine, self.source = http_port, beat_engine, source
+        self.chords = chords
+        # --chords sense: chordsense on the audio (when there is a source) and on the keys
+        self.harmony: Optional[Harmony] = (Harmony(rate=getattr(source, "rate", None)) if chords == "sense" else None)
+        self._keys_lost = False                      # the keys' own reading cannot name what sounds now
         self.pads_mode, self.rate_limit = pads_mode, rate_limit
         self.ahead_s, self.offset_s, self.seed_bpm = ahead_ms / 1000.0, offset_ms / 1000.0, seed_bpm
         self.heartbeat_s, self.replay, self.replay_delay = heartbeat_s, replay, replay_delay
@@ -1352,7 +1602,14 @@ class Engine:
         self.audio = {"source": getattr(source, "name", None), "rate": getattr(source, "rate", None),
                       "running": False, "blocks": 0, "behind_s": 0.0, "late_blocks": 0, "proc_ms_avg": 0.0,
                       "proc_ms_max": 0.0, "idle_s": 0.0, "silence_filled_s": 0.0, "dropped_s": 0.0,
-                      "level_db": None, "chord_analysis": None}
+                      "level_db": None, "chord_analysis": None, "chords": chords,
+                      "sense_ms_avg": None, "sense_ms_max": None}
+        # the capture timing record of the blocks the audio loop read: the first and the latest hand-over, and the
+        # samples between (beatsync.capture_timing turns them into wall vs sample time); per-block processing times
+        self._timing: Optional[dict] = None
+        self._proc_ms: deque = deque(maxlen=TIMING_KEEP)
+        self._sense_ms: deque = deque(maxlen=TIMING_KEEP)
+        self._sense_errors = 0
         self.replay_state = None if replay is None else {"label": replay.label, "notes": len(replay.notes),
                                                          "seconds": round(replay.seconds, 1), "played": 0,
                                                          "done": False}
@@ -1427,13 +1684,20 @@ class Engine:
         """leds tells the page whether POST /api/pads can light anything; when it cannot, leds_reason says why and
         the page does not post (a refused post every 100 ms would be spam)."""
         on = self.led_out is not None
-        return {"t": "hello", "v": CONTRACT_V, "src": SRC, "beat_engine": self.beat_engine,
+        return {"t": "hello", "v": CONTRACT_V, "src": SRC, "beat_engine": self.beat_engine, "chords": self.chords,
                 "pads_mode": self.pads_mode, "leds": on,
                 "leds_reason": None if on else (self.led_refusal or "no LED output")}
 
     def greeting(self) -> List[dict]:
-        """What a page gets the moment it connects: hello, where things stand, and the chord sounding now."""
+        """What a page gets the moment it connects: hello, where things stand, the key and tension the page would
+        have been told, and the chord sounding now."""
         out = [self.hello(), {"t": "status", "msg": self.summary()}]
+        if self.harmony is not None:
+            snap_key, snap_t = self.harmony.key_shown, self.harmony.tension_shown
+            if snap_key:
+                out.append(dict(snap_key))
+            if snap_t:
+                out.append(dict(snap_t))
         if self.last["chord"]:
             out.append({**self.last["chord"], "changed": False})
         return out
@@ -1443,17 +1707,67 @@ class Engine:
         audio = self.audio["source"] or "no audio"
         leds = "LEDs on" if self.led_out is not None else (self.led_refusal or "LEDs off")
         rp = f" | replaying {self.replay.label}" if self.replay is not None else ""
-        return f"{SRC} v{CONTRACT_V}: {ins} | {audio} | beat_{self.beat_engine} | pads {self.pads_mode} | {leds}{rp}"
+        return (f"{SRC} v{CONTRACT_V}: {ins} | {audio} | beat_{self.beat_engine} | chords {self.chords} | "
+                f"pads {self.pads_mode} | {leds}{rp}")
+
+    def key_name(self) -> Optional[str]:
+        """The key the page is told (chordsense, --chords sense), else the spelling helper's (KeyFinder) estimate."""
+        if self.harmony is not None:
+            k = self.harmony.key_now()
+            if k is not None:
+                return k[0]
+        return self.key.name()
+
+    def _flats(self) -> bool:
+        """Spell pitch class 6 as Gb? By the key the page is told, else by KeyFinder's estimate."""
+        if self.harmony is not None:
+            k = self.harmony.key_now()
+            f = key_has_flats(k[0]) if k else None
+            if f is not None:
+                return f
+        return self.key.flats()
+
+    def timing(self) -> dict:
+        """The audio loop's timing receipt: the capture timing record of the blocks it read (beatsync.capture_timing:
+        wall time from the first hand-over to the latest against the samples read; 'gap' True when they differ by more
+        than 20 ms beyond the idle grace a paused loopback leaves), and the per-block processing cost, whole loop and
+        chordsense's share, in ms (avg, p50, p99, max over the last TIMING_KEEP blocks)."""
+        out: dict = {}
+        tm = self._timing
+        if tm is not None:
+            from .beatsync import GAP_TOL_S, capture_timing
+            rec = capture_timing(*tm)
+            grace = float(getattr(self.source, "gap_s", 0.0) or 0.0)
+            rec["idle_grace_s"] = round(grace, 3)
+            rec["unexplained_gap_ms"] = round(rec["gap_ms"] - 1000.0 * grace, 1)
+            rec["gap"] = abs(rec["unexplained_gap_ms"]) > 1000.0 * GAP_TOL_S
+            out["capture"] = rec
+        for name, buf in (("proc_ms", self._proc_ms), ("sense_ms", self._sense_ms)):
+            vals = None
+            for _attempt in range(3):                     # the audio thread appends while this reads
+                try:
+                    vals = np.array(tuple(buf), dtype=float) if buf else None
+                    break
+                except RuntimeError:
+                    continue
+            out[name] = None if vals is None or not len(vals) else {
+                "blocks": int(len(vals)), "avg": round(float(vals.mean()), 3),
+                "p50": round(float(np.percentile(vals, 50)), 3), "p99": round(float(np.percentile(vals, 99)), 3),
+                "max": round(float(vals.max()), 3)}
+        return out
 
     def state(self) -> dict:
         return {"v": CONTRACT_V, "src": SRC, "uptime_s": round(time.perf_counter() - self._t0, 1),
-                "port": self.port, "beat_engine": self.beat_engine, "pads_mode": self.pads_mode,
+                "port": self.port, "beat_engine": self.beat_engine, "chords": self.chords,
+                "pads_mode": self.pads_mode,
                 "rate_limit": self.rate_limit, "bpm": self.beat["bpm"], "conf": self.beat["conf"],
                 "beat_n": self.beat["n"], "on_beat": self.beat["on_beat"],
                 "chord": self.last["chord"], "chord_keys": self.last["chord_keys"],
-                "chord_audio": self.last["chord_audio"], "key": self.key.name(),
+                "chord_audio": self.last["chord_audio"], "key": self.key_name(),
+                "harmony": None if self.harmony is None else {**self.harmony.snapshot(),
+                                                              "errors": self._sense_errors},
                 "inputs": {k: getattr(self.inputs.get(k), "name", None) for k in ("midi", "daw")},
-                "audio": dict(self.audio),
+                "audio": {**self.audio, "timing": self.timing()},
                 "leds": {"enabled": self.painter is not None, "refused": self.led_refusal,
                          "refusal_status": None if self.led_out is not None else self.led_refusal_status,
                          **self.led_info,
@@ -1485,9 +1799,13 @@ class Engine:
         self._mq.put((kind, status & 0xFF, d1 & 0x7F, d2 & 0x7F, time.perf_counter() if t is None else t))
 
     def _midi_loop(self) -> None:
+        next_tick = time.perf_counter()
         while not self._stop.is_set():
             p = self._chord_pending
-            timeout = 0.25 if p is None else max(0.0, p[0] - time.perf_counter())
+            now = time.perf_counter()
+            timeout = 0.25 if p is None else max(0.0, p[0] - now)
+            if self.harmony is not None:                  # the keys' chordsense clock steps every SENSE_TICK_S
+                timeout = min(timeout, max(0.0, next_tick - now))
             try:
                 item = self._mq.get(timeout=timeout)
             except queue.Empty:
@@ -1501,6 +1819,42 @@ class Engine:
             if p is not None and time.perf_counter() >= p[0]:
                 self._chord_pending = None
                 self._announce_keys_chord(p[1])
+            if self.harmony is not None:
+                now = time.perf_counter()
+                if now >= next_tick:
+                    next_tick = now + SENSE_TICK_S
+                    self._sense_tick(now)
+
+    def _sense_tick(self, now: float) -> None:
+        try:
+            self._sense_keys(self.harmony.tick(now), now)
+        except Exception as exc:                          # the keys' harmony never takes the dispatcher down
+            self._sense_failed("keys", exc)
+
+    def _sense_note(self, ev: dict, t: float) -> None:
+        try:
+            self._sense_keys(self.harmony.note(ev, t), t)
+        except Exception as exc:
+            self._sense_failed("keys", exc)
+
+    def _sense_failed(self, ear: str, exc: Exception) -> None:
+        self._sense_errors += 1
+        if self._sense_errors in (1, 10, 100, 1000):      # said, but never a flood
+            self.status(f"!chordsense ({ear}): {type(exc).__name__}: {exc} ({self._sense_errors} so far)")
+
+    def _sense_keys(self, events: List[dict], t: float) -> None:
+        """The keys' chordsense events: key and tension go to the page; its CHORD only while today's reading
+        (Voicing + theory.analyze) cannot name what sounds -- a held note foreign to the chord, a pedal wash."""
+        for e in events:
+            if e.get("t") != "chord":
+                self.publish(e)
+            elif self._keys_lost and e.get("root") is not None:
+                evt = self.harmony.decorate(e, t, self.key.flats())
+                if evt["name"] != self._keys_shown:
+                    evt["changed"] = evt["name"] != self._keys_last
+                    self._keys_shown = self._keys_last = evt["name"]
+                    self.last["chord"] = self.last["chord_keys"] = evt
+                    self.publish(evt)
 
     def _handle(self, kind: str, status: int, d1: int, d2: int, t: float) -> None:
         if status >= 0xF0:
@@ -1525,7 +1879,10 @@ class Engine:
                     self.key.add((d1,), t, d2 / 127.0)
                     self._keys_t = t
                 self.voicing.feed(status, d1, d2)
-                return self._keys_changed(t)
+                self._keys_changed(t)
+                if self.harmony is not None:
+                    self._sense_note({"note": d1, "vel": d2 if on else 0}, t)
+                return
             return self._button(f"note{d1}", d2 if on else 0, kind, ch)
         if hi == 0xB0:
             if d1 == 64:
@@ -1536,6 +1893,8 @@ class Engine:
                     self.publish({"t": "pedal", "on": on})
                     if not on:
                         self._keys_changed(t)
+                if self.harmony is not None and kind == "midi":
+                    self._sense_note({"sustain": d2}, t)
                 return
             dec, note = self.cc.feed(f"{kind}:{ch}:cc{d1}", d1, d2, t)
             if note:
@@ -1583,22 +1942,33 @@ class Engine:
         if not sounding:
             self._keys_shown = None
             self._chord_pending = None
+            self._keys_lost = False
             return
         name, root, qual = analyze(sorted(sounding))
         if root is None or qual == "note":
             self._chord_pending = None
+            # a set of notes with no name (not a lone note): the keys' chordsense speaks for it (--chords sense)
+            self._keys_lost = root is None
             return
-        name = spell(name, self.key.flats())
+        self._keys_lost = False
+        name = spell(name, self._flats())
         if name == self._keys_shown:
             self._chord_pending = None
             return
         evt = {"t": "chord", "src": "keys", "name": name, "root": int(root), "quality": _quality(qual),
                "pcs": sorted({n % 12 for n in sounding})}
+        if self.harmony is not None:
+            evt["bass"] = min(sounding) % 12
         first = self._chord_pending[2] if self._chord_pending is not None else t
         self._chord_pending = (min(t + CHORD_SETTLE_S, first + CHORD_SETTLE_MAX_S), evt, first)
 
     def _announce_keys_chord(self, evt: dict) -> None:
         evt = {**evt, "changed": evt["name"] != self._keys_last}
+        if self.harmony is not None:                      # the numeral in the key the page is told; exact: conf 1
+            try:
+                evt = self.harmony.decorate({**evt, "conf": 1.0}, None, self._flats())
+            except Exception as exc:                      # then today's plain keys chord, never a lost dispatcher
+                self._sense_failed("keys", exc)
         self._keys_shown = self._keys_last = evt["name"]
         self.last["chord"] = self.last["chord_keys"] = evt
         self.publish(evt)
@@ -1612,11 +1982,13 @@ class Engine:
         except Exception as exc:
             self.status(f"!beat_{self.beat_engine} would not start: {type(exc).__name__}: {exc}")
             return
-        ana = Analyzer(rate, HOP, rate_limit=self.rate_limit)
+        harmony = self.harmony if (self.harmony is not None and self.harmony.audio is not None) else None
+        ana = Analyzer(rate, HOP, rate_limit=self.rate_limit, chords=harmony is None)
         a = self.audio
         a["running"] = True
         audio_t, wall0, idle, warned = 0.0, None, 0.0, 0.0
-        proc_sum = 0.0
+        proc_sum = sense_sum = 0.0
+        sense_n = 0
         t_read = time.perf_counter()
         try:
             while not self._stop.is_set():
@@ -1625,7 +1997,12 @@ class Engine:
                 if block is None:
                     self.status("audio source ended")
                     break
-                dur = len(block) / rate
+                n = len(block)
+                # (first hand-over, its frames, latest hand-over, samples read, rate): one tuple, replaced whole, so
+                # the state route never reads a half-updated record
+                tm = self._timing
+                self._timing = ((t_got, n, t_got, n, rate) if tm is None else (tm[0], tm[1], t_got, tm[3] + n, rate))
+                dur = n / rate
                 if wall0 is None:
                     wall0 = t_got - dur
                 elif t_got - t_read > dur + 0.2:
@@ -1650,7 +2027,24 @@ class Engine:
                         self.audio_chord_seen(evt, t_got)
                         self.last["chord"] = self.last["chord_audio"] = evt
                     self.publish(evt)
+                if harmony is not None:
+                    t_s = time.perf_counter()
+                    try:
+                        sensed = [self._audio_sense_chord(e, t_got) if e["t"] == "chord" else e
+                                  for e in harmony.feed_audio(block, t_got)]
+                    except Exception as exc:              # chordsense never stops the beat, the energy, the hits
+                        self._sense_failed("audio", exc)
+                        sensed = []
+                    s_ms = (time.perf_counter() - t_s) * 1000.0
+                    for evt in sensed:
+                        self.publish(evt)
+                    sense_sum += s_ms
+                    sense_n += 1
+                    self._sense_ms.append(s_ms)
+                    a["sense_ms_avg"] = round(sense_sum / sense_n, 4)
+                    a["sense_ms_max"] = round(max(a["sense_ms_max"] or 0.0, s_ms), 3)
                 proc = time.perf_counter() - t_got
+                self._proc_ms.append(proc * 1000.0)
                 a["blocks"] += 1
                 proc_sum += proc
                 a["proc_ms_avg"] = round(1000.0 * proc_sum / a["blocks"], 3)
@@ -1662,7 +2056,13 @@ class Engine:
                 a["dropped_s"] = round(getattr(src, "dropped_s", 0.0), 2)
                 if a["blocks"] % 16 == 0:
                     a["level_db"] = round(ana.level_db, 1)
-                    a["chord_analysis"] = ana.chords.last
+                    if harmony is None:
+                        a["chord_analysis"] = ana.chords.last
+                    else:
+                        snap = harmony.audio.snapshot()
+                        a["chord_analysis"] = {"chord": snap["chord"]["name"], "key": snap["key"],
+                                               "key_confidence": snap["key_confidence"], "tension": snap["tension"],
+                                               "pedal": snap["pedal"], "tuning_cents": snap["tuning_cents"]}
                 t_read = time.perf_counter()
         except Exception as exc:
             self.status(f"!audio loop stopped: {type(exc).__name__}: {exc}")
@@ -1677,6 +2077,15 @@ class Engine:
             self.key.add(evt["pcs"], t)
         if evt["root"] == 6:
             evt["name"] = pc_name(6, self.key.flats()) + evt["name"][2:]
+        return evt
+
+    def _audio_sense_chord(self, evt: dict, t: float) -> dict:
+        """A chordsense audio chord for the page (--chords sense): decorated in the key the page is told, and evidence
+        for the spelling helper's key while the keys are quiet, as audio_chord_seen does for the basic chords."""
+        evt = self.harmony.decorate(evt, t, self.key.flats())
+        if evt.get("root") is not None and t - self._keys_t > KEYS_WITNESS_S:
+            self.key.add(evt["pcs"], t)
+        self.last["chord"] = self.last["chord_audio"] = evt
         return evt
 
     # ----------------------------------------------------------------------------------------------- replay
@@ -1726,7 +2135,7 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
         replay_pattern: Optional[int] = None, replay_audio: Optional[str] = None, loop: bool = False,
         audio: bool = True, midi: bool = True, rate_limit: bool = False, pads: str = "both",
         ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0, seed_bpm: Optional[float] = None,
-        secs: Optional[float] = None, quiet: bool = False) -> int:
+        secs: Optional[float] = None, quiet: bool = False, chords: str = "sense") -> int:
     line_buffered_stdout()
     say = print
     replay = None
@@ -1771,7 +2180,7 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
 
     eng = Engine(http_port=port, beat_engine=engine, source=source, led_out=led_out, led_refusal=refusal,
                  led_refusal_status=refusal_status, pads_mode=pads, rate_limit=rate_limit, ahead_ms=ahead_ms, offset_ms=offset_ms, seed_bpm=seed_bpm,
-                 replay=replay, verbose=not quiet, say=say)
+                 replay=replay, verbose=not quiet, say=say, chords=chords)
     eng.led_info = led_info
     if midi:
         eng.attach_inputs(open_keylab_inputs(eng.feed_midi, say=say))
@@ -1809,6 +2218,12 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
                 pass
             led_out.close()
         st = eng.state()
+        tm = st["audio"]["timing"]
+        cap, pm, sm = tm.get("capture"), tm.get("proc_ms"), tm.get("sense_ms")
         say(f"vj done -- events {st['events']} | audio blocks {st['audio']['blocks']}, late {st['audio']['late_blocks']}, "
-            f"behind {st['audio']['behind_s']} s | dropped frames {st['dropped']}")
+            f"behind {st['audio']['behind_s']} s | dropped frames {st['dropped']}"
+            + (f" | capture {cap['sample_secs']:.1f} s of samples over {cap['wall_secs']:.1f} s wall, "
+               f"unexplained gap {cap['unexplained_gap_ms']:+.0f} ms{' GAP' if cap['gap'] else ''}" if cap else "")
+            + (f" | per block {pm['avg']:.2f} ms avg, p99 {pm['p99']:.2f}, max {pm['max']:.2f}" if pm else "")
+            + (f" (chordsense {sm['avg']:.2f} avg, p99 {sm['p99']:.2f})" if sm else ""))
     return 0

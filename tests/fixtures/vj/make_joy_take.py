@@ -1,6 +1,7 @@
 """Write state/arsenal/keylab/joy_take_events.json (gitignored): Daniel's Joy to the World take as the VJ page receives it.
 
     py tests/fixtures/vj/make_joy_take.py <notes>      # a score-log JSON note list, or the .flp itself
+    py tests/fixtures/vj/make_joy_take.py --refresh    # re-run the engine on the notes the fixture already keeps
 
 The take is the newest score-log pattern of Worship Grandeur Piano.flp (pattern 7, stretch 2: 1378 notes, D-flat major,
 ending on D-flat 4 struck 89 times over a walking bass). The project carries no tempo, so it plays at the replay's
@@ -43,6 +44,17 @@ def main(argv) -> int:
     if len(argv) != 1:
         print(__doc__)
         return 2
+    if argv[0] == "--refresh":
+        # the engine changed (chord naming, the settle, chordsense on the keys): the same notes, the events anew
+        if not OUT.exists():
+            print(f"no fixture to refresh at {OUT}: make it from the take's notes first")
+            return 1
+        doc = json.loads(OUT.read_text(encoding="utf-8"))
+        rp = V.Replay([tuple(n) for n in doc["note_list"]], doc.get("replay", "joy"))
+        doc["events"] = rows(V.replay_events(rp))
+        OUT.write_text(json.dumps(doc, separators=(",", ":")) + "\n", encoding="utf-8")
+        print(f"refreshed {OUT} ({len(doc['events'])} rows)")
+        return 0
     rp = V.load_replay(argv[0])
     doc = {
         "what": "Daniel's Joy to the World take (Worship Grandeur Piano.flp score log, pattern 7, stretch 2) as the VJ "

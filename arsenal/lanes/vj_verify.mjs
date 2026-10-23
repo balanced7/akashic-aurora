@@ -15,7 +15,9 @@
 // measured relative luminance of the rendered frames); the engine contract works end to end (hello, beats, chords, a pad,
 // controls, learn-on-touch, and pad colours posted back at no more than ten a second); an engine whose hello says it has
 // no LEDs is never posted to, a refused post stops posting until the engine's next hello, and a dropped connection
-// clears the old engine's status (the fake engine has a no-LEDs mode for this); the pedal star finds a note struck over
+// clears the old engine's status (the fake engine has a no-LEDs mode for this); chordsense's key, roman numeral and
+// tension (vj --chords sense) show in the HUD, the engine's tension feeds the strip in place of the page's own estimate,
+// a key change accents without a flash, and an engine without them leaves the page as it was; the pedal star finds a note struck over
 // and over while the bass walks under it; the showcase tour follows an engine that plays beats instead of starting
 // the page's demo over it; no page exceptions or console errors.
 // Writes state/arsenal/receipts/vj-<stamp>/receipt.json and the screenshots beside it; exits 1 if the verdict fails.
@@ -46,11 +48,15 @@ const { values: opt } = parseArgs({
     "lock-dir": { type: "string", default: LOCK_DIR },
     "play-port": { type: "string", default: "8933" },
     "no-play": { type: "boolean", default: false },
+    // the real engine (py -m arsenal.keylab vj --replay-audio demo --no-leds --no-midi) for the chordsense phase
+    "real-engine-port": { type: "string", default: "8934" },
+    "no-real-engine": { type: "boolean", default: false },
   },
 });
 let PORT = Number(opt.port), ENGINE_PORT = Number(opt["engine-port"]), PLAY_PORT = Number(opt["play-port"]);
-let playServer = null;
-for (const p of [PORT, ENGINE_PORT, PLAY_PORT]) {
+let REAL_PORT = Number(opt["real-engine-port"]);
+let playServer = null, realEngine = null;
+for (const p of [PORT, ENGINE_PORT, PLAY_PORT, REAL_PORT]) {
   if (p === 8793 || !(p >= 8900 && p <= 8999)) {
     console.log(`ERROR port ${p}: the receipt uses the test band 8900-8999 only (8793 is Daniel's server)`);
     process.exit(2);
@@ -513,6 +519,79 @@ try {
   checks.pad_map_is_editable = report.engine_contract.pad_edit === "invert";
   checks.pad_lights_posted_at_most_ten_a_second = bodyOk && posts.length >= 2 && maxPerSecond <= 10;
 
+  // -------------------------------------- E1: chordsense's key, numeral and tension (vj --chords sense) --
+  // The engine's hello says which chord engine runs; key {name, conf}, tension {value, pedal_pc} and the chord's roman /
+  // key / bass / conf come from chordsense (arsenal/keylab/vj.py Harmony, chordsense.to_vj_events). The HUD shows the key
+  // and the numeral; the engine's tension feeds the strip's tension texel (row 0, x 14, z) IN PLACE of the page's own
+  // estimate, never on top of it; a key change accents through the chord-change path and never asks the flash gate; an
+  // engine that sends none of it leaves the page as it was.
+  const hudOf = () => evaluate(`({ key: document.getElementById("hud-key").textContent,
+    chord: document.getElementById("hud-chord").textContent, engine: document.getElementById("hud-engine").textContent })`);
+  const harmony = {};
+  send({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", chords: "sense", pads_mode: "both", leds: true, leds_reason: null });
+  send({ t: "key", name: "Db major", conf: 0.82, src: "keys" });
+  send({ t: "chord", src: "keys", name: "Gbmaj7", root: 6, quality: "maj7", pcs: [1, 5, 6, 10], changed: true, bass: 6,
+         roman: "IVmaj7", key: "Db major", conf: 1 });
+  send({ t: "tension", value: 0.62, pedal_pc: 1, src: "keys" });
+  const sensed = await settle((s) => (s.harmony.key === "Db major" && s.roman === "IVmaj7" && s.harmony.live &&
+                                      s.engine.hello && s.engine.hello.chords === "sense" ? s : false));
+  await delay(250);                       // the HUD redraws every 100 ms; the strip is rebuilt on the next frame
+  const fed = sensed ? await stats() : null;
+  harmony.sensed = fed ? { harmony: fed.harmony, roman: fed.roman, chord: fed.chord, chordKey: fed.chordKey,
+                           bass: fed.bass, chordConf: fed.chordConf, pageTension: fed.tension,
+                           pedalTension: fed.pedal.tension } : null;
+  harmony.hud = await hudOf();
+  await tap("H");
+  await delay(300);
+  harmony.screenshot = await shot("hud-key-roman-tension");
+  await tap("H");
+  console.log(`[harmony] HUD key "${harmony.hud.key}" | chord "${harmony.hud.chord}"`);
+  checks.engine_key_and_roman_show_in_the_hud = !!sensed && /Db major/.test(harmony.hud.key) && /IVmaj7/.test(harmony.hud.key) &&
+    /^Gbmaj7\s+IVmaj7 \(keys\)/.test(harmony.hud.chord) && /chords sense/.test(harmony.hud.engine) &&
+    sensed.bass === 6 && sensed.chordConf === 1;
+  // the engine's tension, not stacked on the page's: the strip carries max(engine, page pedal x 0.8) -- and when the
+  // engine says the tension is gone, the strip follows it down even while the page's own estimate would say more
+  checks.engine_tension_feeds_the_strip = !!fed && Math.abs(fed.harmony.tension - 0.62) < 0.05 &&
+    Math.abs(fed.harmony.strip - Math.max(fed.harmony.tension, fed.pedal.tension * 0.8)) < 0.03 &&
+    /tension 0\.6\d \(engine\)/.test(harmony.hud.chord);
+  send({ t: "tension", value: 0, pedal_pc: null, src: "keys" });
+  const relaxed = await settle((s) => (s.harmony.tension < 0.03 ? s : false));
+  harmony.relaxed = relaxed ? { harmony: relaxed.harmony, pageTension: relaxed.tension, pedalTension: relaxed.pedal.tension } : null;
+  // the Dbmaj7 held since phase E gives the page's own estimate a tension of its own (its major 7th): the strip must
+  // follow the engine below it, which only a replacement (not a max, not a sum) does
+  checks.engine_tension_replaces_the_page_estimate_never_adds = !!relaxed && relaxed.tension !== null &&
+    relaxed.tension > 0.1 && relaxed.harmony.strip < relaxed.tension - 0.05 &&
+    Math.abs(relaxed.harmony.strip - Math.max(relaxed.harmony.tension, relaxed.pedal.tension * 0.8)) < 0.03;
+  // a key change: a small accent through the chord-change path (the chord pulse, the constellation redraw), no flash
+  const gate0 = (await stats()).flash;
+  const accents0 = (await stats()).harmony.keyAccents;
+  send({ t: "key", name: "Ab major", conf: 0.7, src: "keys" });
+  const moved = await settle((s) => (s.harmony.keyAccents === accents0 + 1 && s.harmony.key === "Ab major" ? s : false));
+  harmony.key_change = moved ? { accents: moved.harmony.keyAccents, chordPulse: moved.harmony.chordPulse, gate: moved.flash } : null;
+  await delay(1100);
+  const gate1 = (await stats()).flash;
+  harmony.gate = { before: gate0, after: gate1 };
+  checks.a_key_change_accents_without_a_flash = !!moved && moved.harmony.chordPulse > 0.2 &&
+    gate1.granted === gate0.granted && gate1.refused === gate0.refused && gate1.maxInAnyWindow <= 3;
+  // an engine that sends no key, no tension and no numerals (--chords basic, an older engine): the page as before
+  send({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", chords: "basic", pads_mode: "both", leds: true, leds_reason: null });
+  send({ t: "chord", src: "audio", name: "Am", root: 9, quality: "m", pcs: [0, 4, 9], changed: true, conf: 0.9 });
+  const basicSeen = await settle((s) => (s.chord === "Am" && !s.harmony.live && s.harmony.key === "" ? s : false));
+  await delay(250);
+  const basic = basicSeen ? await stats() : null;    // a frame later: the strip rebuilt without the engine's tension
+  harmony.basic = { hud: await hudOf(), harmony: basic ? basic.harmony : null, pageTension: basic ? basic.tension : null };
+  checks.an_engine_without_chordsense_leaves_the_page_estimate = !!basic && basic.roman === "" &&
+    Math.abs(basic.harmony.strip - Math.max(basic.tension ?? 0, basic.pedal.tension * 0.8)) < 0.03 &&
+    harmony.basic.hud.key === "—" && /^Am \(audio 0\.90\)/.test(harmony.basic.hud.chord) && !/\(engine\)/.test(harmony.basic.hud.chord);
+  report.engine_contract.harmony = harmony;
+  hello(true);                            // back to the plain fake engine for the phases that follow
+  // the chords above set the palette travelling, and the page posts its pad colours while they change: let the posts go
+  // quiet before E2 counts them (a post made before E2's no-LEDs hello arrives would be counted against it)
+  for (let quiet = 0, n = padPosts.length, end = Date.now() + 8000; quiet < 700 && Date.now() < end; ) {
+    await delay(100);
+    if (padPosts.length === n) quiet += 100; else { quiet = 0; n = padPosts.length; }
+  }
+
   // ----------------------------- E2: an engine without LEDs is not asked; a refusal stops posting until hello --
   // Pads 1-4 pressed five times a second, so the pad colours keep changing (the page posts only a changed frame). Each
   // window is longer than the old page's five-second retry after a refusal, which posted twice in it.
@@ -628,6 +707,52 @@ try {
   report.page_errors = await evaluate("window.__vj.errors()");
   report.final_stats = await stats();
 
+  // ------------------------------- E4: the REAL engine's chordsense, end to end (no keyboard, no LEDs, no loopback) --
+  // py -m arsenal.keylab vj --replay-audio demo --no-leds --no-midi on a test-band port: its made-up groove (C Am F G under
+  // a kick, a snare and hats) goes through chordsense, and the page must show the key and the numerals it hears.
+  if (!opt["no-real-engine"]) {
+    REAL_PORT = await freeInBand(REAL_PORT);
+    const real = { port: REAL_PORT, url: `http://127.0.0.1:${REAL_PORT}` };
+    realEngine = spawn("py", ["-m", "arsenal.keylab", "vj", "--port", String(REAL_PORT), "--no-leds", "--no-midi",
+                              "--replay-audio", "demo", "--chords", "sense", "--quiet", "--secs", "180"],
+                       { cwd: REPO, stdio: "ignore", windowsHide: true });
+    await waitFor(async () => { try { return (await fetch(`${real.url}/api/state`)).ok; } catch { return false; } },
+                  30000, "the real VJ engine on its test port");
+    await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=${real.url}&hud=0&watchdog=0` });
+    await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page (real engine)");
+    let heard = null;
+    try {
+      heard = await waitFor(async () => {
+        const s = await stats();
+        return s.engine.hello && s.engine.hello.chords === "sense" && s.harmony.key && s.roman && s.harmony.live ? s : null;
+      }, 40000, "the real engine's key and numerals on the page");
+    } catch { /* judged below */ }
+    await delay(400);
+    real.hud = await evaluate(`({ key: document.getElementById("hud-key").textContent,
+      chord: document.getElementById("hud-chord").textContent, engine: document.getElementById("hud-engine").textContent })`);
+    await tap("H");
+    await delay(300);
+    real.screenshot = await shot("real-engine-key-roman");
+    await tap("H");
+    const last = await stats();
+    real.page = heard ? { hello: heard.engine.hello, key: heard.harmony.key, keySrc: heard.harmony.keySrc,
+                          roman: heard.roman, chord: heard.chord, chordSrc: heard.chordSrc, tension: heard.harmony.tension,
+                          bad: last.engine.bad, events: last.engine.events } : null;
+    try { real.state = await (await fetch(`${real.url}/api/state`)).json(); } catch { real.state = null; }
+    report.page_errors = report.page_errors.concat(await evaluate("window.__vj.errors()"));
+    console.log(`[real engine] key "${real.hud.key}" | chord "${real.hud.chord}"`);
+    const ev = real.state ? real.state.events : {};
+    checks.the_real_engine_shows_key_and_roman_on_the_page = !!heard && /^(C major|A minor) /.test(real.hud.key + " ") &&
+      ["C major", "A minor"].includes(heard.harmony.key) && heard.chordSrc === "audio" && /\(audio/.test(real.hud.chord) &&
+      last.engine.bad === 0 && (ev.key || 0) >= 1 && (ev.tension || 0) >= 1 && (ev.chord || 0) >= 2 &&
+      real.state.chords === "sense" && real.state.audio.timing.capture && real.state.audio.timing.capture.gap === false;
+    report.real_engine = real;
+    // the page leaves first: an engine killed under an open stream makes Chrome log a reset connection
+    await S("Page.navigate", { url: "about:blank" });
+    await delay(500);
+    spawnSync("taskkill", ["/PID", String(realEngine.pid), "/T", "/F"], { windowsHide: true, timeout: 15000 });
+  }
+
   // the edited pad map and the learned control survive a reload (localStorage), and the reset buttons restore defaults
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=off&hud=0&watchdog=0` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page (reload)");
@@ -708,6 +833,9 @@ try {
   if (chrome && chrome.exitCode === null) spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { windowsHide: true, timeout: 15000 });
   if (playServer && playServer.exitCode === null) {
     spawnSync("taskkill", ["/PID", String(playServer.pid), "/T", "/F"], { windowsHide: true, timeout: 15000 });
+  }
+  if (realEngine && realEngine.exitCode === null) {
+    spawnSync("taskkill", ["/PID", String(realEngine.pid), "/T", "/F"], { windowsHide: true, timeout: 15000 });
   }
   for (const c of sse) { try { c.end(); } catch { /* closed */ } }
   web.close();

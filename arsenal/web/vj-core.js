@@ -9,6 +9,7 @@
 // This module holds everything the VJ page decides that can be tested without a browser:
 //   - the event contract (keylab-vj engine -> page, Server-Sent Events, v1) and its validation   parseEvent
 //   - what the page knows of its engine, and whether it may post pad colours                     EngineLink
+//   - the engine's key and tension (chordsense), and how its tension meets the page's own        EngineHarmony
 //   - the accent effects, their ADSR envelopes and how velocity shapes them                      EFFECTS, EffectBank
 //   - the flash gate: at most three full-field flashes in any second (WCAG 2.3.1)                 FlashGate
 //   - the predicted-beat clock the engine's 'beat' events feed                                    BeatClock
@@ -67,16 +68,38 @@ export function stripSet(strip, x, y, r, g, b, a) {
 const clamp01 = (x) => (x > 1 ? 1 : x < 0 ? 0 : x);
 const num = (v, fallback = null) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const BANDS = new Set(["kick", "snare", "hat", "full"]);
+const pc12 = (p) => ((p % 12) + 12) % 12;
+// a key as chordsense names it ("Db major", "F# minor"); a roman numeral as it spells one ("IV", "V65/V", "bVII", "vii°")
+const KEY_NAME = /^[A-G][#b]? (major|minor)$/;
+const ROMAN = /^[#b]?[IViv]{1,4}(?:[°+]|sus[24]|add9|maj|[0-9]{1,2})*(?:\/[#b]?[IViv]{1,4}[°+]?)?$/;
+export const keyName = (v) => (typeof v === "string" && KEY_NAME.test(v) ? v : "");
+export const romanNumeral = (v) => (typeof v === "string" && v.length <= 16 && ROMAN.test(v) ? v : "");
 
 export function parseEvent(obj) {
   if (!obj || typeof obj !== "object" || typeof obj.t !== "string") return null;
   switch (obj.t) {
     case "hello":
       // leds: true / false from an engine that says; null from one that does not (an older engine: post, and stop on refusal)
+      // chords: which chord engine runs ("sense": chordsense, with key and tension events; "basic"; "" = an older engine)
       return { t: "hello", v: num(obj.v, 0), src: String(obj.src || ""), beat_engine: String(obj.beat_engine || ""),
+               chords: ["sense", "basic"].includes(obj.chords) ? obj.chords : "",
                pads_mode: ["daw", "bank", "both"].includes(obj.pads_mode) ? obj.pads_mode : "",
                leds: obj.leds === true ? true : obj.leds === false ? false : null,
                leds_reason: typeof obj.leds_reason === "string" ? obj.leds_reason.slice(0, 200) : "" };
+    case "key": {
+      // the key the engine hears (chordsense): a name it could not have written, or no confidence number, is malformed
+      const name = keyName(obj.name), conf = num(obj.conf);
+      if (!name || conf === null) return null;
+      return { t: "key", name, conf: clamp01(conf), src: obj.src === "audio" ? "audio" : obj.src === "keys" ? "keys" : "" };
+    }
+    case "tension": {
+      // the harmony's tension 0..1, and the pitch class held as a pedal under it (-1 = none)
+      const value = num(obj.value), ped = obj.pedal_pc;
+      if (value === null) return null;
+      if (ped !== null && ped !== undefined && !Number.isInteger(ped)) return null;
+      return { t: "tension", value: clamp01(value), pedal_pc: Number.isInteger(ped) ? pc12(ped) : -1,
+               src: obj.src === "audio" ? "audio" : obj.src === "keys" ? "keys" : "" };
+    }
     case "beat": {
       const due = num(obj.due_ms), bpm = num(obj.bpm);
       if (due === null || bpm === null || bpm <= 0) return null;
@@ -91,10 +114,14 @@ export function parseEvent(obj) {
       return { t: "hit", strength: clamp01(num(obj.strength, 0.5)), band: BANDS.has(obj.band) ? obj.band : "full" };
     case "chord": {
       const root = num(obj.root);
-      const pcs = Array.isArray(obj.pcs) ? obj.pcs.filter((p) => Number.isInteger(p)).map((p) => ((p % 12) + 12) % 12) : [];
+      const pcs = Array.isArray(obj.pcs) ? obj.pcs.filter((p) => Number.isInteger(p)).map(pc12) : [];
+      const conf = num(obj.conf);
+      // chordsense's fields (--chords sense): an older engine, or a malformed field, leaves them empty -- never the chord
       return { t: "chord", src: obj.src === "audio" ? "audio" : "keys", name: typeof obj.name === "string" ? obj.name.slice(0, 24) : "",
-               root: root === null ? -1 : ((Math.round(root) % 12) + 12) % 12, quality: String(obj.quality || ""),
-               pcs: [...new Set(pcs)].slice(0, 12), changed: obj.changed !== false };
+               root: root === null ? -1 : pc12(Math.round(root)), quality: String(obj.quality || ""),
+               pcs: [...new Set(pcs)].slice(0, 12), changed: obj.changed !== false,
+               bass: Number.isInteger(obj.bass) ? pc12(obj.bass) : -1, roman: romanNumeral(obj.roman), key: keyName(obj.key),
+               conf: conf === null ? null : clamp01(conf) };
     }
     case "note": {
       const key = num(obj.key);
@@ -161,6 +188,48 @@ export class EngineLink {
     this.ledsOff = `refused (HTTP ${status}); waiting for the engine's next hello`;
     return true;
   }
+}
+
+// ------------------------------------------------------------------------------------------- the engine's harmony --
+// What the engine's chordsense says (vj --chords sense): the key (key events) and the tension (tension events). The page
+// has its own harmonic tension (harmony-feel's, from the notes it sees) and its own pedal star. While the engine sends
+// tension, the engine's value REPLACES the page's harmonic estimate -- it is the same quantity, heard with the key, and it
+// already carries the engine's pedal pull -- so the strip's tension stays max(harmonic, page pedal x 0.8) with ONE
+// harmonic term, never the two of them stacked. An engine that sends no tension (--chords basic, an older engine, no
+// engine) leaves the page's own estimate in charge. The engine's value moves in steps (one per chord it decides), so it is
+// eased: up in ~0.35 s, down in ~0.8 s, as chordsense eases its own. reset() on every engine hello and disconnect.
+export class EngineHarmony {
+  constructor({ rise = 0.35, fall = 0.8, pedalWeight = 0.8 } = {}) {
+    this.rise = rise; this.fall = fall; this.pedalWeight = pedalWeight;
+    this.keyChanges = 0;
+    this.reset();
+  }
+  reset() {
+    this.key = ""; this.keyConf = 0; this.keySrc = "";
+    this.live = false;           // the engine has sent a tension since its hello
+    this.target = 0; this.value = 0; this.pedalPc = -1; this.src = "";
+  }
+  // a parsed key or tension event (parseEvent). Returns true when the key moved (or first landed): the page accents it.
+  event(ev) {
+    if (ev.t === "key") {
+      const moved = ev.name !== this.key;
+      this.key = ev.name; this.keyConf = ev.conf; this.keySrc = ev.src;
+      if (moved) this.keyChanges++;
+      return moved;
+    }
+    if (ev.t === "tension") {
+      if (!this.live) this.value = ev.value;       // the first value is taken as it is (no ease up from 0)
+      this.live = true; this.target = ev.value; this.pedalPc = ev.pedal_pc; this.src = ev.src;
+    }
+    return false;
+  }
+  update(dt) {
+    if (!this.live) return;
+    const tau = this.target > this.value ? this.rise : this.fall;
+    this.value += (this.target - this.value) * (1 - Math.exp(-Math.max(0, dt) / tau));
+  }
+  harmonic(pageTension) { return this.live ? this.value : pageTension; }
+  stripTension(pageTension, pedalTension) { return Math.max(this.harmonic(pageTension), pedalTension * this.pedalWeight); }
 }
 
 // ------------------------------------------------------------------------------------------------- pitch colours --
