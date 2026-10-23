@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ccc72a3f. A bound you discover by collision is not awareness -- this sheet
+> Derived at ed581047. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (378 numeric constants)
+## Mechanical bounds (380 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -483,6 +483,7 @@ Class: reference
 | `MAX_NAME` | 60 | arsenal/pianolooks.py |  |
 | `MAX_NOTES` | 88 | arsenal/pianocue.py |  |
 | `MAX_NOTES_PER_LANE` | 4,096 | arsenal/fl/vfx/arsenal_band.py |  |
+| `MAX_PADS_BODY` | 4,096 | arsenal/keylab/vj.py |  |
 | `MAX_PATTERNS` | 64 | arsenal/fl/vfx/arsenal_band.py |  |
 | `MAX_PER_PUMP` | 20 | core/comm/discord_feed.py |  |
 | `MAX_PINNED` | 24 | arsenal/present/scene.py |  |
@@ -673,6 +674,7 @@ Class: reference
 | `_RATE_LIMIT_MAX_RETRIES` | 3 | core/comm/discord_bridge.py |  |
 | `_REASK_WINDOW_S` | 1,800 | core/comm/bus.py | 30 min; BIFROST_REASK_WINDOW_S overrides |
 | `_RECYCLE_SLACK_MS` | 1,000 | core/comm/wake_seat.py | parent may not be YOUNGER than child by more |
+| `_SCORE_CAP` | 6 | arsenal/keylab/vj.py |  |
 | `_SHA_LEN` | 24 | core/comm/blobs.py | 96 bits of sha256 -- ample for a single-user blob store |
 | `_STALE_DAYS` | 7 | agent/harness/context.py | W5: note-derived lines gain [STALE] at this age |
 | `_SWITCH_MIN_BEATS` | 2 | core/narrative/episode_suggester.py | ...and needs >=2 of them, unanimous, on a non-episode track |
