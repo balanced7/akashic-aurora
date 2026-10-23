@@ -47,6 +47,8 @@ Every row carries a dated receipt and its class: **eyes** = Daniel watched the d
 | `chord <spec> [--play]` | light a chord's pads (`Cmaj7`, `F#m`, `C E G`, `60 64 67`) |
 | `note <n> [--pad N]` | send a Note On/Off |
 | `display <text> [--line2 … --full]` | write the LCD: one-line popup, two-line popup, or persistent full screen |
+| `screen <text> [--line2 …] [--layout full\|inverted\|big\|line\|popup\|title\|icon]` · `screen --labels "a,b,…"` | write the screen in **guest mode** (never the DAW connect: FL keeps the KeyLab), every byte built exactly as Arturia's FL script builds it; `--labels` names the 8 screen buttons. Receipt in `state/arsenal/keylab/receipts/screen-*.json` |
+| `screen --live [--scene NAME] [--pulse] [--source vj\|keys] [--reassert S]` | keep **chord, BPM and the VJ scene** on the screen, from the VJ engine's feed (`127.0.0.1:8794/api/events`) or straight from the keys; redraws only on change, at most every 100 ms; `--pulse` adds a beat marker drawn on the beat |
 | `chordview [--scheme notes\|roles\|quality\|split\|frame] [--sound]` | play the keys: chord name on the LCD, chord tones lit on the pads, sustain pedal honoured; `--sound` forwards your notes to the Windows synth |
 | `beat [--mode cycle\|rainbow\|march] [--engine a\|g\|...\|aubio] [--lead-ms 15]` | march the pads to whatever is playing (WASAPI loopback). The default engine is `beat_a`, the house tracker: it seeds the tempo from the song databases (SMTC now-playing) and paints each beat `--lead-ms` BEFORE it lands. `--engine w` / `--engine g` are opt-in live trials of the grid trackers (they hold half-time bass music on the bench; not shipped, see below); any `beat_<name>.py` contestant works the same way. `--engine aubio` is the old reactive path |
 | `beatbench [--suite synthetic\|loops\|all\|drift\|shift] [--per-cat 30] [--seeded] [--trackers aubio,a,g]` | score beat trackers on one ruler: synthetic ground truth plus the BPM-labelled loops in your own packs (read in place); receipts in `state/arsenal/keylab/receipts/` |
@@ -84,7 +86,34 @@ Facts only (numbers and ids); the full map with sources is
   Run alongside FL in guest mode (`beat --no-connect`): FL keeps the connection and the screen, and we only paint
   the pads. Not yet tested: whether FL repaints pads during transport, when its step-sequencer view drives pads 1-8.
 
+## The screen, live (`screen.py`)
+The screen is a layout engine: the computer picks a firmware layout and fills in text, per-line colour, a 0-127 bar,
+an icon number or button labels (no raw pixels). `screen.py` builds every layout exactly as Arturia's FL script does
+(`KL3Display.py`, `KL3Buttons.py`; `tests/test_keylab_screen.py` runs Arturia's own classes against stub FL modules
+and compares every byte). Facts from that script worth knowing:
+- Frame: `F0 00 20 6B 7F 42 00 02 04 <screen id> <fields> F7`, each field `[tag] value 00`. Colours are 0-127 per
+  channel (FL halves its 8-bit colours). Colour type 1 = use the RGB that follows.
+- Lines: ASCII only, or the **whole** line becomes ".Undefined text."; over 32 characters becomes the first 28 +
+  "..."; **line 2 and line 3 are upper-cased**. So the live readout keeps the chord on line 1 ("Am" stays "Am").
+- Screen buttons: label slot = screen id - 1; slots 0-3 sit on buttons 5-8, slots 4-7 on buttons 1-4.
+- Never sent: 38 (boot), 43 (pedal calibration), 44 (bootloader). The writer refuses them and anything that is not
+  a screen frame, so it can never send the DAW connect or an LED.
+
+**Sharing the screen with FL Studio.** FL's script repaints its own screen and all eight button labels whenever FL
+refreshes for anything but plain mixer / control-value changes (a window focus change, a selection, transport start
+or stop, a rename or recolour), repaints a popup on every idle tick while Rewind / Fast-forward is held, and draws
+knob and fader popups when a control moves. `screen --live` redraws only when its own text changes, so after an FL
+repaint FL's screen stays until the next chord, BPM or scene change; `--reassert 3` wins it back every 3 s. The clean
+answers: FL closed (then `screen --live --connect`, refused while FL runs) or our own FL script with a VJ hand-off
+mode (design D8). When FL closes, its script sends the DAW disconnect; whether the screen still draws our frames
+without the connect is not yet known (first test below).
+
+**Awaiting Daniel's eyes.** 2026-10-23 01:26, one guest-mode frame (screen 12, "Aurora" / "NIGHT SHIFT") went to
+"KeyLab 88 mk3 DAW" without an error, with FL Studio **not running** (receipt
+`state/arsenal/keylab/receipts/screen-20261023-012612.json`). Nobody could look at the screen.
+
 ## Still open
+- Does the screen draw a frame without the DAW connect when FL is closed? (The 01:26 test asks; see above.)
 - Can our WinMM input and the piano page's Web MIDI hold "KeyLab 88 mk3 MIDI" at the same time? Untested.
 - Which input port carries the faders and knobs in DAW mode, MIDI or DAW? (`monitor` on each answers it.)
 - Full 7-bit colour depth versus snapping to the stored 42-colour palette.
@@ -98,8 +127,10 @@ from the databases, pure analysis that never imports the port (Heimdall's lane) 
 tracker (blind-pair winner) · `beat_b.py` the other blind contestant · `beat_g.py` / `beat_h.py` / `beat_w.py`
 the grid-tracker contestants (Daniel's "detect the grid", 2026-10-22; scored in
 `research/reviewed/keylab-liberation-2026-10-22/grid-tracker-scoring-2026-10-22.md`) · `beatbench.py` the ruler
-they are all judged by · `probe.py` the guided hardware session · `__main__.py` the verbs.
+they are all judged by · `probe.py` the guided hardware session · `screen.py` the screen encoder (identical to
+Arturia's script), the guest-mode writer and the live chord / BPM / scene readout · `__main__.py` the verbs.
 
-Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone) and
+Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone), `tests/test_keylab_screen.py`
+(the screen bytes, the never-send refusals, pacing, the live readout against a fake engine) and
 `tests/test_keylab_tempo*.py`. Licence: `beatsync` and `tempo` import aubio (GPLv3+) lazily, only when you run
 them; it is never vendored or required. A house beat detector replaces it before anything is bundled.

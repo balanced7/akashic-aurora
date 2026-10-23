@@ -230,6 +230,10 @@ def display_text(text: str, screen_id: int = 23, req: int = REQ_CTRL, ctx: int =
 #   line  = [tag] + ascii(<=32 chars, 32..126) + [0x00]
 #   ctype = [tag] + [colortype] + [0x00]           (colortype 1 = use the custom RGB that follows)
 #   color = [tag] + [r, g, b] (0..127) + [0x00]
+# NOTE (2026-10-23): the builders below differ from the script in two ways -- a line over 32 characters is cut to
+# 29 + "..." here (the script: 28 + "..."), and line 2 is NOT upper-cased here (the script upper-cases it). They are
+# kept as they are because chordview and probe rely on them (a chord name on line 2 stays "Am", not "AM").
+# arsenal/keylab/screen.py is the byte-identical encoder, pinned against Arturia's own classes.
 class Screen:
     PROPERTIES = 0
     F1L = 10       # one line, full screen
