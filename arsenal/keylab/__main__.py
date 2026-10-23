@@ -323,8 +323,10 @@ def cmd_show(args) -> int:
 def cmd_beat(args) -> int:
     from . import beatsync
     extra = {} if args.engine == "aubio" else {"lead_ms": args.lead_ms, "seed_bpm": args.seed_bpm, "offline": args.offline,
-                                               "connect": not args.no_connect}
-    return beatsync.run(port=args.port, secs=args.secs, mode=args.mode, bank=args.bank, engine=args.engine, **extra)
+                                               "connect": not args.no_connect, "referee": args.referee,
+                                               "hand": args.hand, "save": args.save}
+    return beatsync.run(port=args.port, secs=args.secs, mode=args.mode, bank=args.bank, engine=args.engine,
+                        verbose=not args.quiet, **extra)
 
 
 def cmd_ledbench(args) -> int:
@@ -497,6 +499,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--offline", action="store_true", help="no database lookup")
     p.add_argument("--no-connect", action="store_true",
                    help="guest mode: FL Studio keeps the KeyLab connection and screen; we only paint the pads")
+    p.add_argument("--referee", action="store_true",
+                   help="print every 2 s how ON BEAT the lights are, judged against the kicks (beatref.py)")
+    p.add_argument("--quiet", action="store_true", help="do not print every beat (useful with --referee)")
+    p.add_argument("--save", action="store_true",
+                   help="save the audio the tracker heard, with your taps on the same clock (state/, never committed)")
+    p.add_argument("--hand", action="store_true",
+                   help="tap any pad on the beat (tempo + phase by ear, re-seeds a tracker at the wrong tempo); "
+                        "the first fader you move nudges the lights (centre = none, up = later)")
     p.set_defaults(func=cmd_beat, dry_run=False)
 
     p = sub.add_parser("ledbench", help="characterize the LED send limits (rate / spacing / burst)")
@@ -518,8 +528,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_chordview, dry_run=False)
 
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
-    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift"], default="synthetic",
-                   help="all = synthetic + loops (the reconciliation set); drift = constant-tempo syncopation traps")
+    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift", "bright", "real"],
+                   default="synthetic",
+                   help="all = synthetic + loops (the reconciliation set); drift = constant-tempo syncopation traps; "
+                        "bright = drift with a sawtooth bass; real = your recordings with confirmed ground truth")
     p.add_argument("--trackers", default="aubio,librosa",
                    help="comma list: aubio, librosa, and every arsenal/keylab/beat_<name>.py by its <name> (a, b, ...)")
     p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
@@ -527,7 +539,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seeded", action="store_true", help="also run every loop with its true BPM as the seed")
     p.add_argument("--seed", type=int, default=7, help="sampling seed, so a run can be repeated exactly")
     p.add_argument("--hop", type=int, default=512)
+    p.add_argument("--exclude-seeds", default="",
+                   help="held-out draw: leave out every loop the stratified draws at these seeds used (e.g. 7,11)")
+    p.add_argument("--vs", default="", help="print each tracker's per-class PAIRED difference against this one")
+    p.add_argument("--unconfirmed", action="store_true", help="real suite: include recordings not yet listened to")
     p.set_defaults(func=cmd_beatbench, dry_run=False)
+
+    p = sub.add_parser("record", help="capture what is playing to a local FLAC (state/, never committed)")
+    p.add_argument("--secs", type=float, default=90.0)
+    p.add_argument("--name", help="file label (default: the now-playing artist and title)")
+    p.set_defaults(func=cmd_record, dry_run=False)
+
+    p = sub.add_parser("annotate", help="fit an offline beat grid to a recording and render it with clicks to check")
+    p.add_argument("path", nargs="?", help="recording (default: the newest)")
+    p.add_argument("--bpm", type=float, help="force the tempo (e.g. after the ear check said half or double)")
+    p.set_defaults(func=cmd_annotate, dry_run=False)
+
+    p = sub.add_parser("confirm", help="mark a recording's ground truth as listened to and correct")
+    p.add_argument("path", nargs="?", help="recording (default: the newest)")
+    p.set_defaults(func=cmd_confirm, dry_run=False)
 
     p = sub.add_parser("probe", help="guided W0 hardware session: the LCD asks, the pads answer (1 yes, 2 no, 4 skip)")
     p.add_argument("--only", help="comma list of steps (calibrate always runs first); see --list")
@@ -562,9 +592,16 @@ def cmd_beatbench(args) -> int:
         cases += BB.drift_suite()
     if args.suite == "shift":
         cases += BB.shift_suite()
+    if args.suite == "bright":
+        cases += BB.bright_drift_suite()
+    if args.suite == "real":
+        cases += BB.recording_suite(confirmed_only=not args.unconfirmed)
     if args.suite in ("loops", "all"):
         if args.per_cat:
-            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed)
+            exclude = set()
+            for s in filter(None, args.exclude_seeds.split(",")):
+                exclude |= set(BB.stratified_loops(30, rng_seed=int(s)))
+            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed, exclude=exclude or None)
             loops = BB.loop_suite(n=len(picked), paths=picked, rng_seed=args.seed)
         else:
             loops = BB.loop_suite(n=args.n, rng_seed=args.seed)
@@ -578,7 +615,73 @@ def cmd_beatbench(args) -> int:
     print(f"beatbench: {len(cases)} cases, trackers {names}")
     rep = BB.bench(cases, names, hop=args.hop)
     rep["suite"], rep["n"], rep["seed"] = args.suite, args.n, args.seed
+    if args.vs and args.vs in rep["trackers"] and "cases" in rep["trackers"][args.vs]:
+        group = {}
+        for c in cases:
+            cat = (c.meta or {}).get("category", c.source)
+            group[c.name] = f"{cat}{' seeded' if c.seed_bpm and c.source == 'loop' else ''}"
+        ref = rep["trackers"][args.vs]["cases"]
+        rep["paired"] = {}
+        for name, t in rep["trackers"].items():
+            if name == args.vs or "cases" not in t:
+                continue
+            out = {}
+            for g in sorted(set(group.values())):
+                rc = [r for r in t["cases"] if group.get(r["case"]) == g]
+                rr = [r for r in ref if group.get(r["case"]) == g]
+                out[g] = {k: BB.paired(rc, rr, k) for k in ("F", "CMLt", "bpm_spread")}
+                f, c, sp = out[g]["F"], out[g]["CMLt"], out[g]["bpm_spread"]
+                if f.get("n"):
+                    print(f"[paired] {name} - {args.vs} | {g:18} n {f['n']:3}  F {f['mean']:+.3f} {f['ci95']}  "
+                          f"CMLt {c['mean']:+.3f} {c['ci95']}  spread {sp.get('mean', 0):+.3f} {sp.get('ci95')}")
+            rep["paired"][name] = out
     print(f"receipt: {BB.save_report(rep)}")
+    return 0
+
+
+def _newest_recording(path=None):
+    import glob
+    import os
+    from . import beatbench as BB
+    if path:
+        return path
+    files = sorted(glob.glob(os.path.join(BB.RECORDINGS_DIR, "*.flac")))
+    if not files:
+        raise SystemExit("no recordings yet: py -m arsenal.keylab record")
+    return files[-1]
+
+
+def cmd_record(args) -> int:
+    from . import beatsync
+    beatsync.record(args.secs, name=args.name)
+    return 0
+
+
+def cmd_annotate(args) -> int:
+    import json
+    import soundfile as sf
+    from . import beatbench as BB
+    path = _newest_recording(args.path)
+    data, rate = sf.read(path, dtype="float32", always_2d=True)
+    audio = data.mean(axis=1)
+    g = BB.fit_grid(audio, rate, *((args.bpm - 0.3, args.bpm + 0.3) if args.bpm else ()))
+    clicks = BB.render_clicks(audio, rate, g["bpm"], g["first_beat"], path[:-5] + " CLICKS.wav")
+    json.dump({**g, "confirmed": False, "method": "fit_grid, whole track; awaiting the ear check"},
+              open(path + ".beats.json", "w", encoding="utf-8"), indent=1)
+    print(f"{g['bpm']} BPM, first beat {g['first_beat']} s -> listen: {clicks}")
+    print("if the clicks sit on the beat all the way: py -m arsenal.keylab confirm")
+    return 0
+
+
+def cmd_confirm(args) -> int:
+    import json
+    import time as _t
+    path = _newest_recording(args.path)
+    side = path + ".beats.json"
+    meta = json.load(open(side, encoding="utf-8"))
+    meta["confirmed"], meta["confirmed_at"] = True, _t.strftime("%Y-%m-%d %H:%M:%S")
+    json.dump(meta, open(side, "w", encoding="utf-8"), indent=1)
+    print(f"confirmed: {side}")
     return 0
 
 

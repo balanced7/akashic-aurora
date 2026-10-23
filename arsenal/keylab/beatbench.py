@@ -125,6 +125,17 @@ def _bass(rate: int) -> np.ndarray:
     return (np.sin(2 * np.pi * np.cumsum(freq) / rate) * _env(n, rate, 0.15)).astype(np.float32)
 
 
+def _saw_bass(rate: int) -> np.ndarray:
+    """The same note as _bass (pitch drop, envelope) with a SAWTOOTH waveform: harmonics all the way up the
+    spectrum, like the buzzy bass of real half-time bass music. Round 1's grid trackers held the sine bass and
+    lost the beat to this one (bright-bass probe, 2026-10-22), so round 2 scores both."""
+    n = int(0.22 * rate)
+    t = np.arange(n) / rate
+    freq = 55 + 15 * np.exp(-t * 40)
+    ph = np.cumsum(freq) / rate
+    return ((2.0 * (ph % 1.0) - 1.0) * _env(n, rate, 0.15)).astype(np.float32)
+
+
 # 16th positions (0-15 in a 4/4 bar) where the syncopated bass lands: never on a beat (0, 4, 8, 12).
 SYNC_BASS_16THS = (3, 6, 10, 13, 15)
 
@@ -145,14 +156,15 @@ def _place(buf: np.ndarray, sound: np.ndarray, t: float, rate: int, gain: float 
 def synth_case(name: str, bpm: float, secs: float = 30.0, rate: int = 44100, style: str = "drums",
                offset: float = 0.5, swing: float = 0.0, ramp_to: Optional[float] = None, noise: float = 0.0,
                seed_bpm: Optional[float] = None, rng_seed: int = 7, step_at: Optional[float] = None,
-               step_to: Optional[float] = None) -> Case:
+               step_to: Optional[float] = None, bass: str = "sine") -> Case:
     """Exact-ground-truth audio. style: click | drums | sparse (kick only on 1, hats off) | offbeat (hats
     on the 'and', the classic octave trap) | halftime_bass (kick on 1, snare on 3, soft quarter hats, and LOUD
     sub-bass hits on syncopated 16ths, never on a beat -- tonight's TYNAN failure, 2026-10-22)."""
     rng = np.random.default_rng(rng_seed)
     beats = beat_times(bpm, secs, offset, ramp_to, step_at, step_to)
     buf = np.zeros(int(secs * rate) + rate, dtype=np.float32)
-    kick, snare, hat, click, bass = _kick(rate), _snare(rate, rng), _hat(rate, rng), _click(rate), _bass(rate)
+    kick, snare, hat, click = _kick(rate), _snare(rate, rng), _hat(rate, rng), _click(rate)
+    bass_note = _saw_bass(rate) if bass == "saw" else _bass(rate)
     for k, t in enumerate(beats):
         nxt = beats[k + 1] if k + 1 < len(beats) else t + 60.0 / bpm
         half = t + (nxt - t) * (0.5 + swing / 2)
@@ -167,7 +179,7 @@ def synth_case(name: str, bpm: float, secs: float = 30.0, rate: int = 44100, sty
             _place(buf, hat, t, rate, 0.4)
             for sub in range(4):                              # this beat's four 16ths
                 if pos * 4 + sub in SYNC_BASS_16THS:
-                    _place(buf, bass, t + (nxt - t) * sub / 4, rate, 1.3)
+                    _place(buf, bass_note, t + (nxt - t) * sub / 4, rate, 1.3)
         elif style == "sparse":
             if pos == 0:
                 _place(buf, kick, t, rate)
@@ -188,7 +200,7 @@ def synth_case(name: str, bpm: float, secs: float = 30.0, rate: int = 44100, sty
     ref_bpm = float(np.median(60.0 / np.diff(beats))) if len(beats) > 1 else bpm
     return Case(name, audio, rate, beats, ref_bpm, seed_bpm=seed_bpm, source="synthetic",
                 meta={"style": style, "swing": swing, "ramp_to": ramp_to, "noise": noise, "offset": offset,
-                      "step_at": step_at, "step_to": step_to})
+                      "step_at": step_at, "step_to": step_to, "bass": bass})
 
 
 def synthetic_suite(rate: int = 44100, secs: float = 30.0) -> List[Case]:
@@ -216,6 +228,18 @@ def drift_suite(rate: int = 44100, secs: float = 40.0) -> List[Case]:
         s.append(synth_case(f"halftime_bass_{bpm}", bpm, secs, rate, style="halftime_bass"))
     s.append(synth_case("halftime_bass_140_seeded", 140, secs, rate, style="halftime_bass", seed_bpm=140))
     s.append(synth_case("halftime_bass_140_noisy", 140, secs, rate, style="halftime_bass", noise=0.15))
+    return s
+
+
+def bright_drift_suite(rate: int = 44100, secs: float = 40.0) -> List[Case]:
+    """Round 2 (pre-registered 2026-10-22): the drift suite with a BRIGHT (sawtooth) bass. Same patterns, tempi,
+    seed and noise as drift_suite; only the bass timbre changes. A tracker must hold the beat here too, because
+    real half-time bass music (TYNAN) has harmonic-rich bass, not a sine."""
+    s = []
+    for bpm in (140, 150, 128):
+        s.append(synth_case(f"bright_bass_{bpm}", bpm, secs, rate, style="halftime_bass", bass="saw"))
+    s.append(synth_case("bright_bass_140_seeded", 140, secs, rate, style="halftime_bass", seed_bpm=140, bass="saw"))
+    s.append(synth_case("bright_bass_140_noisy", 140, secs, rate, style="halftime_bass", noise=0.15, bass="saw"))
     return s
 
 
@@ -399,6 +423,16 @@ def score(case: Case, result: Dict) -> Dict:
         out["lead_ms"] = round(float(np.median(leads)), 1)
     if case.phase_known and len(case.beats):
         ref_t, est_t = _trim(case.beats, SKIP_FIRST), _trim(est, SKIP_FIRST)
+        spans = (case.meta or {}).get("spans")
+        if spans:
+            # a real song is scored only inside the sections a person has confirmed by ear; quiet bits and
+            # breakdowns between them have no reference beat, so neither side is counted there
+            def inside(x):
+                keep = np.zeros(len(x), dtype=bool)
+                for a, b in spans:
+                    keep |= (x >= a) & (x < b)
+                return x[keep]
+            ref_t, est_t = inside(ref_t), inside(est_t)
         out["F"] = round(f_measure(est_t, ref_t), 3)
         out.update({k: round(v, 3) for k, v in cml_aml(est_t, ref_t).items()})
         lt = lock_time(est, case.beats)
@@ -609,10 +643,11 @@ def loop_category(path: str) -> str:
     return "kick" if any(w in low for w in _KICKY) else "tops" if any(w in low for w in _TOPS) else "melodic"
 
 
-def stratified_loops(per_cat: int = 30, rng_seed: int = 23) -> List[str]:
+def stratified_loops(per_cat: int = 30, rng_seed: int = 23, exclude: Optional[set] = None) -> List[str]:
     """per_cat loop paths from each category (kick / tops / melodic), so a run is not dominated by melodic loops
-    (most of the pool) and each class is scored with enough cases to mean something."""
-    pool = find_bpm_loops()
+    (most of the pool) and each class is scored with enough cases to mean something. `exclude` drops paths (a
+    held-out draw excludes every loop that was ever used for tuning)."""
+    pool = [p for p in find_bpm_loops() if not exclude or p not in exclude]
     rng = np.random.default_rng(rng_seed)
     rng.shuffle(pool)
     quota = {"kick": per_cat, "tops": per_cat, "melodic": per_cat}
@@ -664,6 +699,176 @@ def loop_suite(n: int = 40, rng_seed: int = 7, tile_secs: float = 30.0, paths: O
         cat = loop_category(p)
         cases.append(Case(name, audio, int(rate), beat_times(bpm, tile_secs, 0.0), bpm, phase_known=True,
                           source="loop", meta={"path": p, "category": cat, "loop_secs": round(len(mono) / rate, 2)}))
+    return cases
+
+
+# --- round 2: paired comparison, and real recordings with listened-to ground truth -----------------------------
+
+def paired(rows_c: List[Dict], rows_ref: List[Dict], key: str, n_boot: int = 4000, seed: int = 0) -> Dict:
+    """Per-case paired difference contestant - reference on one metric, over the cases both scored (matched by
+    case name). Returns the mean difference and a 95 % bootstrap interval. Round 2 replaced round 1's fixed
+    margin on one draw of 30 loops (smaller than the draw-to-draw noise: beat_a's own kick F moved .17 between two
+    draws) with this: the same loops for both trackers, judged loop by loop."""
+    ref = {r["case"]: r for r in rows_ref}
+    d = np.array([r[key] - ref[r["case"]][key] for r in rows_c
+                  if isinstance(r.get(key), (int, float)) and r["case"] in ref
+                  and isinstance(ref[r["case"]].get(key), (int, float))], dtype=float)
+    if not len(d):
+        return {"n": 0}
+    rng = np.random.default_rng(seed)
+    boots = d[rng.integers(0, len(d), size=(n_boot, len(d)))].mean(axis=1)
+    lo, hi = np.percentile(boots, [2.5, 97.5])
+    return {"n": int(len(d)), "mean": round(float(d.mean()), 4), "ci95": [round(float(lo), 4), round(float(hi), 4)]}
+
+
+RECORDINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                              "state", "arsenal", "keylab", "recordings")
+
+
+def fit_grid(audio: np.ndarray, rate: int, bpm_lo: float = 60.0, bpm_hi: float = 200.0, hop: int = 256) -> Dict:
+    """OFFLINE reference grid for a real recording: the constant tempo and first beat that best fit the WHOLE
+    track's onsets (it sees the future, so it is a reference, never a tracker). Electronic music made in a DAW
+    holds one tempo, which is what makes a whole-track fit trustworthy. The result is only ground truth after a
+    person has listened to the click render and said it sits on the beat (annotate -> confirm)."""
+    n_fft = 2048
+    win = np.hanning(n_fft)
+    frames = 1 + (len(audio) - n_fft) // hop
+    env = np.zeros(frames)
+    prev = None
+    for i in range(frames):
+        mag = np.log1p(100.0 * np.abs(np.fft.rfft(audio[i * hop:i * hop + n_fft] * win)))
+        if prev is not None:
+            env[i] = np.maximum(mag - prev, 0.0).mean()
+        prev = mag
+    env = np.maximum(env - np.median(env), 0.0)
+    fps = rate / hop
+    t = (np.arange(frames) * hop + n_fft / 2) / rate
+    best = None
+    for bpm in np.arange(bpm_lo, bpm_hi, 0.05):
+        period = 60.0 / bpm
+        ph = np.exp(2j * np.pi * t / period)
+        z = (env * ph).sum() / (env.sum() + 1e-12)
+        score = abs(z)
+        if best is None or score > best[0]:
+            best = (score, bpm, (np.angle(z) / (2 * np.pi)) % 1.0 * period)
+    score, bpm, first = best
+    # the octave this score cannot tell apart: report the alternatives too, a person decides by ear
+    return {"bpm": round(float(bpm), 3), "first_beat": round(float(first), 4), "fit": round(float(score), 4),
+            "fps": round(fps, 2)}
+
+
+def _flux_envelopes(audio: np.ndarray, rate: int, hop: int = 256):
+    n_fft = 2048
+    win = np.hanning(n_fft)
+    frames = 1 + (len(audio) - n_fft) // hop
+    freqs = np.fft.rfftfreq(n_fft, 1.0 / rate)
+    low = freqs < 150.0
+    env_lo, env_all, rms = np.zeros(frames), np.zeros(frames), np.zeros(frames)
+    prev = None
+    for i in range(frames):
+        seg = audio[i * hop:i * hop + n_fft]
+        mag = np.log1p(100.0 * np.abs(np.fft.rfft(seg * win)))
+        if prev is not None:
+            d = np.maximum(mag - prev, 0.0)
+            env_lo[i], env_all[i] = d[low].mean(), d.mean()
+        prev = mag
+        rms[i] = np.sqrt(np.mean(seg ** 2))
+    t = (np.arange(frames) * hop + n_fft / 2) / rate
+    return t, env_lo, env_all, rms
+
+
+def fit_sections(audio: np.ndarray, rate: int, bpm: Optional[float] = None, quiet_db: float = 4.0,
+                 min_len_s: float = 6.0) -> Dict:
+    """OFFLINE reference grids for a real song, ONE PER SECTION. Real tracks re-enter after a breakdown at a phase
+    of their own (Daniel's ear check on Hard Driver, 2026-10-23: the click "lagged" in the intro and was early by
+    about 100 ms after the quiet part, a jump of about 150 ms; one whole-track grid cannot sit on both). Sections
+    are the loud stretches between quiet ones; each gets its own phase (and a tempo within +-0.5 % of the song's),
+    fitted to the kick band where the kick is clear, else to all bands. Quiet stretches get no reference beats and
+    are not scored. Still a REFERENCE: ground truth only after the ear check."""
+    t, env_lo, env_all, rms = _flux_envelopes(audio, rate)
+    song = fit_grid(audio, rate, *((bpm - 0.3, bpm + 0.3) if bpm else ()))
+    loud = 20 * np.log10(np.convolve(rms, np.ones(64) / 64, mode="same") + 1e-9)
+    is_loud = loud > np.median(loud) - quiet_db
+    sections = []
+    start = None
+    for i, on in enumerate(list(is_loud) + [False]):
+        if on and start is None:
+            start = i
+        elif not on and start is not None:
+            a, b = t[start], t[min(i, len(t) - 1)]
+            if b - a >= min_len_s:
+                sections.append([float(a), float(b)])
+            start = None
+    out = []
+    for a, b in sections:
+        sel = (t >= a) & (t < b)
+        best = None
+        for env, band in ((env_lo, "kick"), (env_all, "all")):
+            e = np.maximum(env[sel] - np.median(env[sel]), 0.0)
+            for bp in np.arange(song["bpm"] * 0.995, song["bpm"] * 1.005, 0.01):
+                period = 60.0 / bp
+                z = (e * np.exp(2j * np.pi * t[sel] / period)).sum() / (e.sum() + 1e-12)
+                if best is None or abs(z) > best[0] * (1.15 if band == "all" else 1.0):
+                    best = (abs(z), bp, (np.angle(z) / (2 * np.pi)) % 1.0 * period, band)
+            if best[3] == "kick" and best[0] > 0.12:
+                break                     # a clear kick decides; only fall back to all bands when it is weak
+        out.append({"start": round(a, 3), "end": round(b, 3), "bpm": round(float(best[1]), 3),
+                    "first_beat": round(float(best[2]), 4), "fit": round(float(best[0]), 3), "band": best[3]})
+    return {"bpm": song["bpm"], "sections": out}
+
+
+def section_beats(sections: List[Dict]) -> np.ndarray:
+    beats = []
+    for sec in sections:
+        period = 60.0 / sec["bpm"]
+        k0 = math.ceil((sec["start"] - sec["first_beat"]) / period)
+        tb = sec["first_beat"] + k0 * period
+        while tb < sec["end"]:
+            beats.append(tb)
+            tb += period
+    return np.array(sorted(beats))
+
+
+def render_clicks(audio: np.ndarray, rate: int, bpm: float, first_beat: float, path: str,
+                  beats: Optional[np.ndarray] = None) -> str:
+    """The recording with a click on every reference beat (accent on every 4th), for the listen check."""
+    import soundfile as sf
+    out = audio.astype(np.float32).copy() * 0.6
+    click = _click(rate)
+    if beats is None:
+        beats = np.arange(first_beat, len(out) / rate, 60.0 / bpm)
+    for k, t in enumerate(beats):
+        _place(out, click, float(t), rate, 0.9 if k % 4 == 0 else 0.5)
+    sf.write(path, np.clip(out, -1, 1), rate)
+    return path
+
+
+def recording_suite(root: Optional[str] = None, confirmed_only: bool = True, max_secs: float = 90.0) -> List[Case]:
+    """Daniel's own recordings (beatsync.record; state/, never committed) that carry a sidecar
+    `<file>.beats.json` {"bpm", "first_beat", "confirmed"}. Only confirmed ground truth is scored unless asked."""
+    import glob
+    import soundfile as sf
+    cases = []
+    for p in sorted(glob.glob(os.path.join(root or RECORDINGS_DIR, "*.flac"))):
+        side = p + ".beats.json"
+        if not os.path.exists(side):
+            continue
+        meta = json.load(open(side, encoding="utf-8"))
+        if confirmed_only and not meta.get("confirmed"):
+            continue
+        data, rate = sf.read(p, dtype="float32", always_2d=True)
+        audio = data.mean(axis=1)[: int(max_secs * rate)]
+        secs = len(audio) / rate
+        if meta.get("sections"):
+            secs_ = [s for s in meta["sections"] if s["start"] < secs]
+            beats = section_beats(secs_)
+            meta = {**meta, "spans": [[s["start"], min(s["end"], secs)] for s in secs_]}
+        else:
+            first = float(meta["first_beat"]) % (60.0 / float(meta["bpm"]))
+            beats = beat_times(float(meta["bpm"]), secs, first)
+        cases.append(Case(os.path.basename(p), audio, int(rate), beats, float(meta["bpm"]),
+                          seed_bpm=meta.get("seed_bpm"), phase_known=True, source="recording",
+                          meta={"path": p, **meta}))
     return cases
 
 

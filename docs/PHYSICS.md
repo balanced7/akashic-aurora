@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at c2d14c70. A bound you discover by collision is not awareness -- this sheet
+> Derived at ffe8ba0e. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (374 numeric constants)
+## Mechanical bounds (377 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -519,11 +519,13 @@ Class: reference
 | `MIN_CELL_H` | 8 | arsenal/media/sheet.py | px: a shorter cell shows nothing a reader can use, so the layout refuses instead |
 | `MIN_EVENTS_PER_WINDOW` | 4 | arsenal/media/avsync.py |  |
 | `MIN_FAMILY` | 3 | arsenal/shaders/census.py | smaller clusters are reported as loners |
+| `MIN_KICKS` | 4 | arsenal/keylab/beatref.py | fewer onsets than this in the window: no verdict |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
 | `MIN_NOTES` | 16 | arsenal/keylab/beat_g.py |  |
 | `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |
+| `MIN_TAPS` | 5 | arsenal/keylab/beathand.py | this many steady taps make a tempo |
 | `MIN_VERIFIED` | 5 | core/coord/lens_ledger.py |  |
 | `MIN_WINDOW_MS` | 400 | arsenal/practice.py | shorter windows are transients |
 | `MIN_WITHIN_S` | 30 | core/comm/expectations.py | clamp floor: sub-30s reply deadlines on a turn-based bus are noise |
@@ -642,6 +644,7 @@ Class: reference
 | `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |
 | `WINDOW` | 30 | core/coord/method_drift.py |  |
 | `WINDOW` | 240 | scripts/checkers/check_pointer_promises.py |  |
+| `WINDOW_BEATS` | 8 | arsenal/keylab/beatref.py | judge over about this many beats |
 | `WINDOW_PENALTY_MS` | 600 | arsenal/practice.py | the cost of one more window, in pitch-class-milliseconds |
 | `WINDOW_TICKS` | 2,048 | arsenal/analysis.py |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |

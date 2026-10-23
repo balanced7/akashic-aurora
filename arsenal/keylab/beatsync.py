@@ -55,6 +55,77 @@ def _open_loopback(pa):
         raise RuntimeError("no WASAPI loopback device found")
 
 
+def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str] = None) -> str:
+    """Capture what is playing (WASAPI loopback) to a local FLAC, named after the now-playing track, so a tracker
+    can be judged on the REAL song instead of synthetic audio (Daniel, 2026-10-22: "most definitely"). Recordings
+    are third-party audio: they live under state/ (gitignored), are never committed, and are for local testing
+    only. Returns the file path."""
+    import os
+    import re
+    import numpy as np
+    import pyaudiowpatch as pa
+    import soundfile as sf
+
+    inst, dev = _open_loopback(pa)
+    rate = int(dev["defaultSampleRate"])
+    ch = int(dev["maxInputChannels"]) or 2
+    np_ = now_playing() or {}
+    label = name or " - ".join(x for x in (np_.get("artist"), np_.get("title")) if x) or "loopback"
+    safe = re.sub(r"[^\w\- .()]+", "_", label).strip()[:80]
+    root = out_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                   "state", "arsenal", "keylab", "recordings")
+    os.makedirs(root, exist_ok=True)
+    path = os.path.join(root, f"{time.strftime('%Y%m%d-%H%M%S')} {safe}.flac")
+    stream = inst.open(format=pa.paFloat32, channels=ch, rate=rate, input=True,
+                       input_device_index=dev["index"], frames_per_buffer=HOP)
+    print(f"recording {secs:.0f} s of '{label}' from {dev['name']} @ {rate} Hz -> {path}")
+    chunks, need = [], int(secs * rate)
+    try:
+        got = 0
+        while got < need:
+            raw = stream.read(HOP, exception_on_overflow=False)
+            frames = np.frombuffer(raw, dtype=np.float32).reshape(-1, ch)
+            chunks.append(frames.copy())
+            got += len(frames)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            stream.stop_stream(); stream.close(); inst.terminate()
+        except Exception:
+            pass
+    audio = np.concatenate(chunks) if chunks else np.zeros((0, ch), dtype=np.float32)
+    sf.write(path, audio, rate, format="FLAC", subtype="PCM_16")
+    print(f"saved {len(audio) / rate:.1f} s -> {path}")
+    return path
+
+
+def _save_session(blocks, rate, clock, hand_in, np_) -> None:
+    """Write what the tracker heard (FLAC) and, beside it, the hand's taps and nudges on the SAME audio clock:
+    a tapped-through song is an answer key made by ear (state/, never committed)."""
+    import json
+    import os
+    import re
+    import numpy as np
+    import soundfile as sf
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                        "state", "arsenal", "keylab", "recordings")
+    os.makedirs(root, exist_ok=True)
+    label = " - ".join(x for x in ((np_ or {}).get("artist"), (np_ or {}).get("title")) if x) or "session"
+    safe = re.sub(r"[^\w\- .()]+", "_", label).strip()[:80]
+    path = os.path.join(root, f"{time.strftime('%Y%m%d-%H%M%S')} {safe} (live).flac")
+    sf.write(path, np.concatenate(blocks), rate, format="FLAC", subtype="PCM_16")
+    meta = {"source": "beat --save (the tracker's own input)", "now_playing": label}
+    if hand_in is not None and hand_in.log and len(clock) >= 2:
+        at = np.array([c[0] for c in clock]); wall = np.array([c[1] for c in clock])
+        def to_audio(t):                       # perf_counter -> seconds into this recording
+            return float(np.interp(t, wall, at, left=at[0] + (t - wall[0]), right=at[-1] + (t - wall[-1])))
+        meta["taps"] = [round(to_audio(t), 4) for t, kind, _ in hand_in.log if kind == "tap"]
+        meta["nudges"] = [[round(to_audio(t), 4), v] for t, kind, v in hand_in.log if kind == "nudge"]
+    json.dump(meta, open(path + ".hand.json", "w", encoding="utf-8"), indent=1)
+    print(f"saved the session: {path} ({len(meta.get('taps', []))} taps)")
+
+
 def _paint(light, mode: str, step: int) -> None:
     if mode == "rainbow":
         light([P.hue(i + step, 12) for i in range(12)])          # scroll a rainbow
@@ -96,7 +167,7 @@ def _seed_for(np_: Optional[dict], offline: bool) -> Optional[float]:
 def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mode: str = "cycle",
                    bank: str = "DAW", gap: float = 0.005, verbose: bool = True, lead_ms: float = 15.0,
                    seed_bpm: Optional[float] = None, offline: bool = False, connect: bool = True,
-                   engine: str = "a") -> int:
+                   engine: str = "a", referee: bool = False, hand: bool = False, save: bool = False) -> int:
     """The house tracker (beat_a, the blind-pair winner, beatbench 2026-10-22) driving the pads AHEAD of the beat:
     each frame is painted at the PREDICTED beat time minus lead_ms, so the light lands on the beat instead of
     after it. lead_ms covers the device's own ~10 ms plus the loopback capture delay; tune it by eye/ear (P21
@@ -124,6 +195,16 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
         print(f"now playing: {np_.get('artist','?')} - {np_.get('title','?')}")
     print(f"seed: {seed:.1f} BPM from the databases" if seed else "seed: none (the tracker finds the tempo itself)")
     tracker = Tracker(rate, HOP, seed_bpm=seed)
+    hand_in = None
+    painted: list = []                 # wall-clock times the lights actually flashed (for the hand's comparison)
+    if hand:
+        from .beathand import Hand, folded_ratio, RESEED_DIFF, RESEED_GAP_S
+        hand_in = Hand(verbose=verbose)
+    ref = None
+    if referee:
+        from .beatref import Referee
+        ref = Referee(rate, HOP)
+        next_verdict = 2.0
 
     out = W.MidiOut(port, prefer="daw")
     if connect:
@@ -133,7 +214,13 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     print(f"loopback: {dev['name']} @ {rate}Hz x{ch}  (engine=beat_{engine}, mode={mode}, lead {lead_ms:.0f} ms"
           f"{', GUEST: FL keeps the connection' if not connect else ''})")
 
+    saved_blocks: list = []            # save=True: the audio exactly as the tracker heard it
+    clock: list = []                   # (audio_t, perf_counter) pairs, to put the hand's taps on the audio clock
     audio_t = 0.0                      # seconds of audio fed to the tracker
+    tracker_t0 = 0.0                   # where the current tracker's own clock started (moves on a re-seed)
+    tap_locked = False                 # the hand is tapping: the lights follow the taps
+    last_tap_tempo = None
+    last_reseed = -1e9
     fired_for = -1.0                   # the predicted beat we last painted
     step = beats = 0
     last_light = 0.0
@@ -150,14 +237,74 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
             if block.shape[0] != HOP:
                 continue
             tracker.feed(block)
+            if save:
+                saved_blocks.append(block.copy())
+                if len(clock) == 0 or audio_t - clock[-1][0] >= 1.0:
+                    clock.append((audio_t + HOP / rate, wall_now))
             audio_t += HOP / rate
-            ahead = tracker.predict(audio_t)
+            # a re-seeded tracker counts its own time from zero: shift its predictions onto the stream's clock
+            ahead = [{**b, "t_beat": b["t_beat"] + tracker_t0} for b in (tracker.predict(audio_t - tracker_t0) or [])]
+            if ref is not None:
+                ref.predicted(ahead or [])
+                ref.feed(block)
+                if audio_t >= next_verdict:
+                    next_verdict = audio_t + 2.0
+                    v = ref.verdict()
+                    hand_txt = ""
+                    if hand_in is not None and ahead:
+                        period = 60.0 / ahead[0]["bpm"]
+                        vs = hand_in.versus(painted[-32:], period)
+                        tp = hand_in.tap_tempo()
+                        if vs:
+                            hand_txt += f"  | your taps {vs['offset_ms']:+.0f} ms vs lights (steady {vs['steady']:.2f})"
+                        if tp:
+                            hand_txt += f" tap {60.0 / tp:.1f} BPM"
+                        if hand_in.cc is not None:
+                            hand_txt += f"  fader {hand_in.nudge_ms:+.0f} ms"
+                    if v.get("state") == "ok":
+                        meter = "#" * max(0, int(round(v["on_beat"] * 10)))
+                        print(f"  [referee {audio_t:6.1f}s] on-beat {v['on_beat']:+.2f} {meter:<10} offset "
+                              f"{v['offset_ms']:+6.0f} ms  steady {v['consistency']:.2f}  bpm {v['tracker_bpm']:.1f}"
+                              f" / kicks {v.get('kick_bpm', 0):.1f}{' agree x' + str(v['agree_streak']) if v.get('agree') else ''}"
+                              f"{hand_txt}")
+                    else:
+                        print(f"  [referee {audio_t:6.1f}s] {v.get('state')}{hand_txt}")
+            nudge_ms = 0.0
+            if hand_in is not None:
+                hand_in.poll()
+                nudge_ms = hand_in.nudge_ms
+                grid = hand_in.tap_grid(wall_now)
+                if grid is not None:
+                    # TAP-LOCK: while the hand taps, the lights follow the taps (the hand is the metronome)
+                    if not tap_locked:
+                        print(f"  [hand] tap-lock: the lights follow your taps ({60.0 / grid[1]:.1f} BPM)")
+                    tap_locked = True
+                    last_tap_tempo = grid[1]
+                    nxt_wall, per = grid
+                    ahead = [{"t_beat": audio_t + (nxt_wall - wall_now), "bpm": 60.0 / per, "phase": 0.0,
+                              "confidence": 1.0}]
+                elif tap_locked:
+                    tap_locked = False
+                    print("  [hand] taps stopped: back to the tracker")
+                    # taps just stopped: re-seed ONCE if the hand's tempo and the tracker's disagree
+                    tp = last_tap_tempo
+                    if (tp and ahead and folded_ratio(60.0 / tp, ahead[0]["bpm"]) > RESEED_DIFF
+                            and audio_t - last_reseed > RESEED_GAP_S):
+                        print(f"  [hand] re-seeding beat_{engine} from your taps: {60.0 / tp:.1f} BPM "
+                              f"(it said {ahead[0]['bpm']:.1f})")
+                        tracker = Tracker(rate, HOP, seed_bpm=60.0 / tp)
+                        tracker_t0 = audio_t
+                        last_reseed = audio_t
+                        if ref is not None:
+                            ref.pred.clear()
+                        continue
             if not ahead:
                 continue
             t_next = ahead[0]["t_beat"]
             if abs(t_next - fired_for) < 0.05:
                 continue
-            fire_at = fire_time(t_next, audio_t, wall_now, time.perf_counter(), lead_ms / 1000.0, HOP / rate)
+            fire_at = fire_time(t_next, audio_t, wall_now, time.perf_counter(), (lead_ms - nudge_ms) / 1000.0,
+                                HOP / rate)
             if fire_at is None:
                 continue                                   # not this block's job yet
             wait = fire_at - time.perf_counter()
@@ -168,6 +315,9 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
             if now - last_light < MIN_LIGHT_GAP:
                 continue
             last_light = now
+            painted.append(now)
+            if len(painted) > 64:
+                del painted[:-64]
             beats += 1
             step += 1
             _paint(render.set_frame, mode, step)
@@ -183,6 +333,19 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
         except Exception:
             pass
         out.close()
+        if save and saved_blocks:
+            _save_session(saved_blocks, rate, clock, hand_in, np_)
+        if hand_in is not None:
+            hand_in.close()
+            if hand_in.log:
+                import json
+                import os
+                logdir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                      "state", "arsenal", "keylab", "receipts")
+                os.makedirs(logdir, exist_ok=True)
+                lp = os.path.join(logdir, f"hand-{time.strftime('%Y%m%d-%H%M%S')}.json")
+                json.dump({"taps_and_nudges": hand_in.log, "painted": painted}, open(lp, "w"), indent=0)
+                print(f"hand log: {lp}")
         try:
             stream.stop_stream(); stream.close(); inst.terminate()
         except Exception:
