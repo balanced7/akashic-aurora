@@ -93,6 +93,7 @@ Row ids (K1, F2, ...) are used by the morning census in Part 3.
 | S4 | Aux 2 | Global "Aux 2 Pedal", same options (this is the only surface difference between the 88 and the 49/61) | Same | As S3 | Second footswitch: previous scene, or tap tempo |
 
 ### Pads (12 physical pads, 3 across x 4 down: printed `9 5 1 / 10 6 2 / 11 7 3 / 12 8 4`)
+> **Erratum, 2026-10-23:** this layout is the 2026-10-22 photo read sideways. On the unit the pads are 4 across x 3 down, `1 2 3 4 / 5 6 7 8 / 9 10 11 12` (Daniel at the device); see [erratum-pad-grid-2026-10-23.md](erratum-pad-grid-2026-10-23.md).
 
 | # | Control | MIDI mode | DAW mode | Evidence | What we could do with it |
 |---|---|---|---|---|---|
