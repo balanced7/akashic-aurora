@@ -46,6 +46,92 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
         P({ t: "hello", leds: "yes" }).leds === null);
 }
 
+// ------------------------------------------------- the contract: chordsense's key, tension and chord fields --
+// vj --chords sense (arsenal/keylab/vj.py, chordsense.to_vj_events): key {name, conf}, tension {value, pedal_pc}, and the
+// chord's roman / key / bass / conf. Clamped like every other number; malformed -> null; an engine that sends none of it
+// (--chords basic, an older engine, the page's demo) still parses exactly as before.
+{
+  const P = C.parseEvent;
+  const k = P({ t: "key", name: "Db major", conf: 0.82, src: "keys" });
+  check("key", k.t === "key" && k.name === "Db major" && near(k.conf, 0.82) && k.src === "keys");
+  check("key conf clamps", P({ t: "key", name: "F# minor", conf: 7 }).conf === 1 && P({ t: "key", name: "A minor", conf: -2 }).conf === 0);
+  check("key without a src keeps none", P({ t: "key", name: "C major", conf: 0.5 }).src === "" &&
+        P({ t: "key", name: "C major", conf: 0.5, src: "<b>" }).src === "");
+  check("key with no name is refused", P({ t: "key", conf: 0.5 }) === null && P({ t: "key", name: null, conf: 0.5 }) === null);
+  check("key with a name chordsense could not write is refused", P({ t: "key", name: "H major", conf: 0.5 }) === null &&
+        P({ t: "key", name: "Db dorian", conf: 0.5 }) === null && P({ t: "key", name: "<script>", conf: 0.5 }) === null &&
+        P({ t: "key", name: "Db major ".repeat(9), conf: 0.5 }) === null);
+  check("key without a confidence is refused", P({ t: "key", name: "C major" }) === null &&
+        P({ t: "key", name: "C major", conf: "high" }) === null && P({ t: "key", name: "C major", conf: NaN }) === null);
+
+  const tn = P({ t: "tension", value: 0.42, pedal_pc: 1, src: "audio" });
+  check("tension", tn.value === 0.42 && tn.pedal_pc === 1 && tn.src === "audio");
+  check("tension clamps", P({ t: "tension", value: 3 }).value === 1 && P({ t: "tension", value: -1 }).value === 0);
+  check("tension with no pedal says -1", P({ t: "tension", value: 0.2, pedal_pc: null }).pedal_pc === -1 &&
+        P({ t: "tension", value: 0.2 }).pedal_pc === -1);
+  check("tension pedal folds into 0..11", P({ t: "tension", value: 0.2, pedal_pc: 13 }).pedal_pc === 1 &&
+        P({ t: "tension", value: 0.2, pedal_pc: -1 }).pedal_pc === 11);
+  check("tension without a value is refused", P({ t: "tension" }) === null && P({ t: "tension", value: "0.4" }) === null &&
+        P({ t: "tension", value: Infinity }) === null);
+  check("tension with a pedal that is no pitch class is refused", P({ t: "tension", value: 0.3, pedal_pc: 1.5 }) === null &&
+        P({ t: "tension", value: 0.3, pedal_pc: "Db" }) === null);
+
+  const ch = P({ t: "chord", src: "keys", name: "Gb", root: 6, quality: "maj", pcs: [6, 10, 1], changed: true,
+                 bass: 6, roman: "IV", key: "Db major", conf: 1 });
+  check("chord carries roman, key, bass and conf", ch.roman === "IV" && ch.key === "Db major" && ch.bass === 6 && ch.conf === 1);
+  const inv = P({ t: "chord", src: "audio", name: "Ab7/C", root: 8, quality: "7", pcs: [0, 3, 6, 8], bass: 12,
+                  roman: "V65", key: "Db major", conf: 1.7 });
+  check("chord bass folds, conf clamps", inv.bass === 0 && inv.conf === 1 && inv.roman === "V65");
+  for (const r of ["bVII", "vii°", "V7/V", "V43/IV", "IVmaj42", "i64", "Vsus4", "#IV", "bII", "I5", "bVIadd9", "III+"]) {
+    check(`roman ${r} is taken`, P({ t: "chord", name: "x", root: 0, roman: r }).roman === r);
+  }
+  const bad = P({ t: "chord", src: "audio", name: "C", root: 0, quality: "maj", pcs: [0, 4, 7], bass: "C", roman: "<img>",
+                  key: "C lydian", conf: "sure" });
+  check("malformed new chord fields empty out, the chord stays", bad !== null && bad.name === "C" && bad.bass === -1 &&
+        bad.roman === "" && bad.key === "" && bad.conf === null);
+  check("a long roman is refused", P({ t: "chord", name: "C", root: 0, roman: "IIIIIIIIIIIIIIIIII" }).roman === "");
+  const old = P({ t: "chord", src: "keys", name: "Dbmaj7", root: 1, quality: "maj7", pcs: [1, 5, 8, 0], changed: true });
+  check("an older engine's chord parses as before, the new fields empty", old.name === "Dbmaj7" && old.root === 1 &&
+        old.pcs.join() === "1,5,8,0" && old.roman === "" && old.key === "" && old.bass === -1 && old.conf === null);
+  const none = P({ t: "chord", src: "audio", name: "N", root: null, quality: null, pcs: [], bass: null, roman: null,
+                   key: "A minor", conf: 1, changed: true });
+  check("the audio's no-chord (N)", none.name === "N" && none.root === -1 && none.pcs.length === 0 && none.bass === -1 &&
+        none.roman === "" && none.key === "A minor");
+  check("hello says which chord engine runs", P({ t: "hello", chords: "sense" }).chords === "sense" &&
+        P({ t: "hello", chords: "basic" }).chords === "basic" && P({ t: "hello" }).chords === "" &&
+        P({ t: "hello", chords: "magic" }).chords === "");
+}
+
+// ------------------------------------------------------------------------------------- the engine's harmony --
+{
+  const P = C.parseEvent;
+  const H = new C.EngineHarmony();
+  check("no engine tension: the page's own estimate is the harmonic term", !H.live && H.harmonic(0.37) === 0.37 &&
+        near(H.stripTension(0.37, 0.9), 0.72));
+  check("a key landing is a change (the page accents it)", H.event(P({ t: "key", name: "Db major", conf: 0.6 })) === true &&
+        H.key === "Db major" && H.keyChanges === 1);
+  check("the same key again is not", H.event(P({ t: "key", name: "Db major", conf: 0.9 })) === false && H.keyChanges === 1 &&
+        near(H.keyConf, 0.9));
+  check("a modulation is", H.event(P({ t: "key", name: "Eb major", conf: 0.7 })) === true && H.keyChanges === 2);
+  H.event(P({ t: "tension", value: 0.6, pedal_pc: 1, src: "keys" }));
+  check("the first engine tension is taken as it is", H.live && near(H.value, 0.6) && H.pedalPc === 1);
+  check("... and REPLACES the page's harmonic estimate: never both", near(H.harmonic(0.95), 0.6) &&
+        near(H.harmonic(0.1), 0.6));
+  check("the page's pedal star still counts, through the same max", near(H.stripTension(0.95, 0.5), 0.6) &&
+        near(H.stripTension(0.1, 1), 0.8));
+  H.event(P({ t: "tension", value: 0.1, pedal_pc: null }));
+  H.update(0.1);
+  check("a step down eases (~0.8 s)", H.value < 0.6 && H.value > 0.5 && H.pedalPc === -1, `${H.value}`);
+  for (let i = 0; i < 300; i++) H.update(1 / 60);
+  check("and arrives", near(H.value, 0.1, 1e-3));
+  H.event(P({ t: "tension", value: 0.9 }));
+  H.update(0.1);
+  check("a step up eases faster (~0.35 s)", H.value > 0.1 + 0.2 * 0.8 && H.value < 0.9);
+  H.reset();
+  check("reset (a new hello, a dropped engine) gives the page its own estimate back", !H.live && H.key === "" &&
+        H.harmonic(0.2) === 0.2 && H.keyChanges === 2);
+}
+
 // ------------------------------------------------------------------------------------------- the engine link --
 {
   const P = C.parseEvent;

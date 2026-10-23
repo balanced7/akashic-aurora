@@ -155,8 +155,8 @@ def test_sse_stream_delivers_every_event_type_with_the_contract_fields():
             sse.close()
 
     hello = sse.of("hello")[0]
-    assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "pads_mode": "both",
-                     "leds": False, "leds_reason": "LEDs are off (--no-leds)"}
+    assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "chords": "sense",
+                     "pads_mode": "both", "leds": False, "leds_reason": "LEDs are off (--no-leds)"}
     assert all(isinstance(s["msg"], str) and s["msg"] for s in sse.of("status"))
 
     beats = sse.of("beat")
@@ -355,7 +355,7 @@ def test_replay_of_a_short_note_list_produces_note_and_chord_events_in_order(tmp
         time.sleep(0.15)
     finally:
         eng.stop()
-    seq = [(e["t"], e.get("key", e.get("name")), e.get("on")) for e in seen if e["t"] in ("note", "chord")]
+    seq = [(e["t"], e["key"] if e["t"] == "note" else e["name"], e.get("on")) for e in seen if e["t"] in ("note", "chord")]
     assert seq == [("note", 60, True), ("note", 64, True), ("note", 67, True), ("chord", "C", None),
                    ("note", 60, False), ("note", 64, False), ("note", 67, False),
                    ("note", 57, True), ("note", 60, True), ("note", 64, True), ("chord", "Am", None),
@@ -644,6 +644,239 @@ def test_vj_verb_is_registered():
     args = build_parser().parse_args(["vj", "--port", "8901", "--no-leds", "--rate-limit", "--replay-audio", "demo"])
     assert args.verb == "vj" and args.port == 8901 and args.no_leds and args.rate_limit
     assert args.engine == "a" and args.replay_audio == "demo" and args.loop is False
+    assert args.chords == "sense"
+    assert build_parser().parse_args(["vj", "--chords", "basic"]).chords == "basic"
+
+
+# --- chordsense in the engine (--chords sense, the default) ------------------------------------------------------------
+# The music it is for: hardstyle (a kick and a LOW sub bass, fundamentals 40-65 Hz, under supersaw chords) and worship
+# piano (block chords under a held pedal note). Everything here is synthesized in the test.
+
+def _f0(m):
+    return 440.0 * 2 ** ((m - 69) / 12)
+
+
+def _hardstyle(prog=((57, "m"), (53, ""), (48, ""), (55, "")), bpm=150.0, bars=3, seed=3):
+    """A minor i-VI-III-VII: supersaw chords (five detuned saws a tone), a sine sub bass on each root with its
+    fundamental inside 40-65 Hz, a pitched kick on every beat. -> (float32 mono, [(t0, t1, root pc)])."""
+    rng = np.random.default_rng(seed)
+    beat = 60.0 / bpm
+    seg = 4 * beat
+    n_seg = len(prog) * bars
+    t = np.arange(int(n_seg * seg * RATE)) / RATE
+    x = np.zeros(len(t))
+    truth = []
+    for k in range(n_seg):
+        root, q = prog[k % len(prog)]
+        i0, i1 = int(k * seg * RATE), int((k + 1) * seg * RATE)
+        tt = t[i0:i1]
+        env = np.minimum(1, (tt - tt[0]) / 0.02) * np.minimum(1, (tt[-1] - tt + 1e-3) / 0.02)
+        for m in (root + 12, root + 12 + (3 if q == "m" else 4), root + 19):
+            for v in range(5):
+                f = _f0(m) * 2 ** ((v - 2) * 0.06 / 12)
+                ph = rng.uniform(0, 2 * np.pi)
+                for h in range(1, 20):
+                    x[i0:i1] += 0.07 * env * np.sin(2 * np.pi * h * f * tt + h * ph) / h
+        b = 24 + root % 12
+        while _f0(b) > 65.5:
+            b -= 12
+        x[i0:i1] += 0.5 * env * np.sin(2 * np.pi * _f0(b) * tt)
+        truth.append((k * seg, (k + 1) * seg, root % 12))
+    for kb in range(int(n_seg * 4)):
+        i0 = int(kb * beat * RATE)
+        i1 = min(len(t), i0 + int(0.3 * RATE))
+        d = t[i0:i1] - t[i0]
+        x[i0:i1] += 0.8 * np.tanh(2.5 * np.sin(2 * np.pi * np.cumsum(50 + 130 * np.exp(-d / 0.03)) / RATE)
+                                  * np.exp(-d / 0.18))
+    return (0.8 * x / np.abs(x).max()).astype(np.float32), truth
+
+
+def _run_audio(tmp_path, x, chords="sense", realtime=False, timeout=60.0):
+    import soundfile as sf
+    wav = tmp_path / "music.wav"
+    sf.write(str(wav), x, RATE)
+    eng = V.Engine(http_port=None, source=V.FileSource(wav, realtime=realtime), chords=chords, say=_quiet)
+    seen = _collect(eng)
+    eng.start()
+    try:
+        assert _wait(lambda: any(e["t"] == "status" and e["msg"] == "audio source ended" for e in seen), timeout)
+        st = eng.state()
+    finally:
+        eng.stop()
+    return eng, seen, st
+
+
+CHORD_FIELDS = {"t", "src", "name", "root", "quality", "pcs", "changed", "bass", "roman", "key", "conf"}
+
+
+def test_the_engine_publishes_chord_key_and_tension_from_a_synthesized_audio_replay(tmp_path):
+    x, truth = _hardstyle()
+    eng, seen, st = _run_audio(tmp_path, x)
+    assert eng.hello()["chords"] == "sense" and st["chords"] == "sense"
+    chords = [e for e in seen if e["t"] == "chord"]
+    keys = [e for e in seen if e["t"] == "key"]
+    tensions = [e for e in seen if e["t"] == "tension"]
+    assert chords and keys and tensions, {e["t"] for e in seen}
+    for c in chords:                                     # the contract: to_vj_events' chord, spelled for the page
+        assert set(c) == CHORD_FIELDS and c["src"] == "audio" and c["changed"] is True, c
+        assert 0.0 <= c["conf"] <= 1.0
+        if c["root"] is None:
+            assert c["name"] == "N" and c["pcs"] == [] and c["roman"] is None
+        else:
+            assert 0 <= c["root"] < 12 and c["root"] in c["pcs"] and c["bass"] in c["pcs"]
+            assert "#" not in c["name"].split("/")[0][:2] or c["name"].startswith("F#")      # the page's flats
+    # the harmony is heard: the roots played (A F C G) are the roots named
+    named = [c["root"] for c in chords if c["root"] is not None]
+    assert len(named) >= 6 and sum(r in (9, 5, 0, 7) for r in named) >= 0.8 * len(named), named
+    # the key: one the page can parse, the relative pair of what was played; every chord after it is read in it
+    for k in keys:
+        assert set(k) == {"t", "name", "conf", "src"} and V.parse_key(k["name"]) and 0 <= k["conf"] <= 1
+        assert k["src"] == "audio"
+    assert keys[0]["name"] in ("A minor", "C major"), keys
+    key_now = None
+    for e in seen:
+        if e["t"] == "key":
+            key_now = e["name"]
+        elif e["t"] == "chord" and key_now and e["root"] is not None:
+            assert e["key"] == key_now and e["roman"] == V.roman_in(e["root"], e["quality"], e["bass"], key_now), e
+    assert any(c["roman"] for c in chords)
+    for tv in tensions:
+        assert set(tv) == {"t", "value", "pedal_pc", "src"} and 0.0 <= tv["value"] <= 1.0 and tv["src"] == "audio"
+        assert tv["pedal_pc"] is None or 0 <= tv["pedal_pc"] < 12
+    assert st["key"] == keys[-1]["name"] and st["harmony"]["key"] == keys[-1]["name"]
+    assert st["harmony"]["errors"] == 0 and st["audio"]["timing"]["sense_ms"]["blocks"] == st["audio"]["blocks"]
+
+
+def test_chords_basic_still_works_and_sends_no_key_or_tension(tmp_path):
+    x, _truth = _hardstyle(bars=2)
+    eng, seen, st = _run_audio(tmp_path, x, chords="basic")
+    assert eng.hello()["chords"] == "basic" and st["chords"] == "basic" and st["harmony"] is None
+    chords = [e for e in seen if e["t"] == "chord"]
+    assert [c["name"] for c in chords][:4] == ["Am", "F", "C", "G"], [c["name"] for c in chords]
+    assert all(set(c) == {"t", "src", "name", "root", "quality", "pcs", "changed", "conf"} for c in chords)
+    assert not any(e["t"] in ("key", "tension") for e in seen)
+    assert st["audio"]["timing"]["sense_ms"] is None and st["audio"]["chord_analysis"]["best"]
+
+
+def test_hello_and_the_summary_advertise_the_chord_engine():
+    for mode in ("sense", "basic"):
+        eng = V.Engine(http_port=None, chords=mode, say=_quiet)
+        assert eng.hello()["chords"] == mode and f"chords {mode}" in eng.summary()
+        assert eng.greeting()[0]["chords"] == mode
+    with pytest.raises(ValueError):
+        V.Engine(http_port=None, chords="magic", say=_quiet)
+
+
+def test_the_audio_loop_reads_every_block_in_real_time_with_chordsense_on(tmp_path):
+    """The audio loop never blocks: paced like a device, every block is read, the capture timing record (wall time vs
+    sample time, beatsync.capture_timing) shows no gap, and chordsense's share of a block stays far under the block."""
+    x, _truth = _hardstyle(bars=1)                          # 6.4 s
+    eng, seen, st = _run_audio(tmp_path, x, realtime=True, timeout=20.0)
+    a = st["audio"]
+    want = int(np.ceil(len(x) / V.HOP))
+    assert a["blocks"] == want and a["dropped_s"] == 0.0
+    cap = a["timing"]["capture"]
+    assert cap["samples"] == want * V.HOP and cap["gap"] is False and abs(cap["unexplained_gap_ms"]) < 20.0, cap
+    assert a["behind_s"] < 0.05 and a["late_blocks"] <= 2, a
+    block_ms = 1000.0 * V.HOP / RATE
+    sm = a["timing"]["sense_ms"]
+    assert sm["blocks"] == want and sm["p99"] < 0.5 * block_ms, sm
+    assert any(e["t"] == "chord" for e in seen)
+
+
+def test_the_keys_name_chords_as_today_and_chordsense_adds_key_roman_and_tension():
+    """Held piano chords keep today's names (theory, after the 30 ms settle: exact, and ~45 ms from the attack where
+    chordsense's notes path takes ~180 ms); chordsense gives the key, each chord's numeral and the tension; where the
+    keys' reading has no name (a C7 under a held D-flat), chordsense's chord is sent instead."""
+    prog = [(1, (0, 4, 7)), (6, (0, 4, 7)), (8, (0, 4, 7)), (10, (0, 3, 7))]
+    notes, t = [], 0.0
+    for _rep in range(3):
+        for root, iv in prog:
+            lh = 36 + root if root >= 4 else 48 + root
+            for k in (lh, lh + 12) + tuple(60 + (root + i) % 12 for i in iv):
+                notes.append((t, t + 1.45, k, 90))
+            t += 1.5
+    t_c7 = t
+    for k in (48, 60, 64, 67, 70, 73):                     # C7, and D-flat 5 held over it: no name for theory
+        notes.append((t, t + 2.5, k, 90))
+    ev = V.replay_events(V.Replay(notes, "worship"))
+    chords = [(tt, e) for tt, e in ev if e["t"] == "chord"]
+    played = [(tt, e) for tt, e in chords if tt < t_c7]
+    assert [e["name"] for _tt, e in played] == ["Db", "Gb", "Ab", "Bbm"] * 3
+    assert all(abs((tt + 1e-9) % 1.5 - V.CHORD_SETTLE_S) < 1e-6 for tt, _e in played)   # 30 ms after each attack
+    assert all(e["src"] == "keys" and e["conf"] == 1.0 and set(e) == CHORD_FIELDS for _tt, e in played)
+    keys = [(tt, e) for tt, e in ev if e["t"] == "key"]
+    assert keys and keys[0][1]["name"] == "Db major" and keys[0][1]["src"] == "keys" and keys[0][0] < 6.0
+    after = [e for tt, e in played if tt > keys[0][0]]
+    assert [e["roman"] for e in after][-4:] == ["I", "IV", "V", "vi"] and all(e["key"] == "Db major" for e in after)
+    tensions = [e for _tt, e in ev if e["t"] == "tension"]
+    assert tensions and all(e["src"] == "keys" and 0 <= e["value"] <= 1 for e in tensions)
+    c7 = [e for tt, e in chords if tt >= t_c7]
+    assert c7 and c7[0]["root"] == 0 and c7[0]["src"] == "keys", c7
+
+
+def test_the_page_is_told_one_key_the_keys_while_they_play_else_the_audio():
+    h = V.Harmony(rate=RATE)
+    key = lambda name, conf=0.8: {"type": "key", "t": 0.0, "src": "x", "key": name, "tonic": 0, "mode": "major",
+                                   "confidence": conf}
+    tension = lambda v, pc=None: {"type": "pedal", "t": 0.0, "src": "x", "pc": pc if pc is not None else 0,
+                                  "on": pc is not None, "tension": v}
+    out = h._take("audio", [key("C major")], 1.0)
+    assert [(e["t"], e["name"], e["src"]) for e in out] == [("key", "C major", "audio")]
+    h._struck = 100.0                                       # Daniel plays
+    out = h._take("keys", [key("Db major", 0.6)], 100.0)
+    assert [(e["name"], e["src"]) for e in out if e["t"] == "key"] == [("Db major", "keys")]
+    assert h._take("audio", [key("G major")], 105.0) == []    # the speakers' key waits while the keys are the witness
+    assert [e["value"] for e in h._take("audio", [tension(0.9)], 105.5) if e["t"] == "tension"] == []
+    kt = h._take("keys", [tension(0.3, pc=1)], 106.0)
+    assert [(e["value"], e["pedal_pc"], e["src"]) for e in kt] == [(0.3, 1, "keys")]
+    back = h.refresh(110.5)                                 # 10.5 s since the last key: the audio speaks again
+    assert [(e["t"], e.get("name"), e.get("value"), e["src"]) for e in back] == [("key", "G major", None, "audio"),
+                                                                                 ("tension", None, 0.9, "audio")]
+    assert h.refresh(111.0) == [] and h.snapshot()["key"] == "G major"
+    # every chord is read in the key the page is told, whatever key the ear that heard it was in
+    c = h.decorate({"t": "chord", "src": "audio", "name": "A#", "root": 10, "quality": "maj", "pcs": [2, 5, 10],
+                    "bass": 10, "roman": "I", "key": "A# major", "conf": 0.5, "changed": True}, 111.0)
+    assert c["key"] == "G major" and c["roman"] == V.roman_in(10, "maj", 10, "G major") == "bIII"
+    assert c["name"] == "Bb"                                # the page's flats
+
+
+def test_a_chordsense_failure_stops_neither_the_audio_nor_the_keys():
+    def broken(*_a, **_k):
+        raise RuntimeError("a chordsense that broke")
+
+    src = V.SynthSource(rate=RATE, bpm=120.0, chords=("C",), realtime=False, seconds=3.0)
+    eng = V.Engine(http_port=None, source=src, say=_quiet)
+    eng.harmony.feed_audio = broken
+    eng.harmony.tick = broken
+    eng.harmony.note = broken
+    eng.harmony.decorate = broken
+    seen = _collect(eng)
+    eng.start()
+    try:
+        assert _wait(lambda: any(e["t"] == "status" and e["msg"] == "audio source ended" for e in seen), 30)
+        eng.feed_midi("daw", 0x99, 3, 90)                  # the MIDI thread still runs (pads)
+        for k in (60, 64, 67):
+            eng.feed_midi("midi", NOTE_ON, k, 100)          # ... and today's keys chord still comes
+        assert _wait(lambda: any(e["t"] == "pad" for e in seen) and any(e["t"] == "chord" for e in seen), 3)
+        st = eng.state()
+    finally:
+        eng.stop()
+    assert st["audio"]["blocks"] == int(np.ceil(3.0 * RATE / V.HOP)) and any(e["t"] == "energy" for e in seen)
+    assert st["harmony"]["errors"] >= st["audio"]["blocks"]
+    said = [e["msg"] for e in seen if e["t"] == "status" and "chordsense" in e["msg"]]
+    assert said and len(said) <= 4 and "a chordsense that broke" in said[0]     # said, never a flood
+    assert [e["name"] for e in seen if e["t"] == "chord"] == ["C"]
+
+
+def test_the_page_gets_the_key_and_tension_it_missed_when_it_connects():
+    eng = V.Engine(http_port=None, say=_quiet)
+    eng.harmony._take("keys", [{"type": "key", "t": 0, "src": "keys", "key": "Db major", "tonic": 1, "mode": "major",
+                                "confidence": 0.7},
+                               {"type": "pedal", "t": 0, "src": "keys", "pc": 1, "on": True, "tension": 0.4}], 0.0)
+    kinds = [e["t"] for e in eng.greeting()]
+    assert kinds[:4] == ["hello", "status", "key", "tension"]
+    assert eng.state()["key"] == "Db major"
 
 
 # --- the end-to-end findings (2026-10-23) ---------------------------------------------------------------------------
@@ -890,7 +1123,7 @@ def test_replay_events_are_the_live_replays_events_on_a_simulated_clock(tmp_path
     path = tmp_path / "notes.json"
     path.write_text(json.dumps(notes), encoding="utf-8")
     ev = V.replay_events(V.load_replay(path))
-    seq = [(t, e["t"], e.get("key", e.get("name")), e.get("on")) for t, e in ev]
+    seq = [(t, e["t"], e["key"] if e["t"] == "note" else e["name"], e.get("on")) for t, e in ev if e["t"] in ("note", "chord")]
     assert seq == [(0.0, "note", 60, True), (0.0, "note", 64, True), (0.0, "note", 67, True),
                    (0.03, "chord", "C", None),
                    (0.4, "note", 60, False), (0.4, "note", 64, False), (0.4, "note", 67, False),

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 99819745. A bound you discover by collision is not awareness -- this sheet
+> Derived at dcf7aabc. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (381 numeric constants)
+## Mechanical bounds (382 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -630,6 +630,7 @@ Class: reference
 | `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py | chars: below this a body is "a pointer with manners" |
 | `TIMELINE_PER_AREA_MIN` | 3 | arsenal/practice.py | ...shrinking to this many when the brief runs long (an area under ASK_MIN_AREA_S: 2 at mos |
 | `TIMEOUT` | 15 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |
+| `TIMING_KEEP` | 4,096 | arsenal/keylab/vj.py | per-block processing times kept for the state route's percentiles |
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py | D3 (deepseek verdict 2026-07-19): the 4000 door |
 | `TOUCH_MIN_MS` | 10,000 | arsenal/practice.py | a session shorter than this has no notes-a-minute rate |

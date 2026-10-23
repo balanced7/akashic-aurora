@@ -26,8 +26,10 @@ Three layers, each usable alone:
 
 3. THE LIVE READOUT: chord, BPM and scene from the VJ engine's SSE feed (127.0.0.1:8794/api/events: hello, beat,
    chord, ...), or the chord straight from the keys (`--source keys`, the chordview reading), drawn on the
-   two-line full screen 12 (the one CONFIRMED to stay up with no flicker, 2026-10-22). Chord on line 1 (line 2 is
-   upper-cased by the script's rule, which would turn "Am" into "AM"); "128 BPM | SCENE" on line 2.
+   two-line full screen 12 (the one CONFIRMED to stay up with no flicker, 2026-10-22). Chord, roman numeral and key
+   on line 1, "Gbmaj7  IVmaj7  in Db" (line 2 is upper-cased by the script's rule, which would turn "Am" into "AM",
+   "vi" into "VI" and "Db" into "DB"; the numeral and the key come from `vj --chords sense`, chordsense);
+   "128 BPM | SCENE" on line 2.
 
 Sharing the screen with FL Studio (honest, from reading device_KL3.py and KL3Return.py): FL's script repaints its own
 screen (screen 13 or 11) and all eight button labels from OnRefresh whenever FL's refresh flags are anything other than
@@ -500,8 +502,36 @@ def _quality_color7(quality) -> Tuple[int, int, int]:
     return rgb7(QUALITY_COLORS.get(q, (255, 255, 255)))
 
 
+def key_short(name) -> Optional[str]:
+    """'Db major' -> 'Db', 'Bb minor' -> 'Bbm' (the key on line 1, where the case of 'b' survives)."""
+    parts = str(name or "").split()
+    if len(parts) != 2 or parts[1] not in ("major", "minor") or not parts[0][:1].isalpha():
+        return None
+    return parts[0] + ("m" if parts[1] == "minor" else "")
+
+
+def fit_line(parts: Sequence[str], drop: Sequence[int] = (), length: int = LINE_LEN) -> str:
+    """Join the non-empty parts with two spaces, or one when two do not fit in `length`; then leave out the parts at
+    the indices in `drop`, in that order, until it fits (the script would cut it to 28 characters and '...')."""
+    keep = [True] * len(parts)
+    for k in [None, *drop]:
+        if k is not None:
+            keep[k] = False
+        words = [p for p, on in zip(parts, keep) if on and p]
+        for sep in ("  ", " "):
+            line = sep.join(words)
+            if len(line) <= length:
+                return line
+    return " ".join(p for p, on in zip(parts, keep) if on and p)
+
+
 class Readout:
-    """What the screen should say, from VJ-engine events. Pure (no I/O, the clock is passed in) so it is pinned."""
+    """What the screen should say, from VJ-engine events. Pure (no I/O, the clock is passed in) so it is pinned.
+
+    Line 1 (shown in its own case) carries the chord, its roman numeral and the key -- 'Gbmaj7  IVmaj7  in Db' -- because
+    the script upper-cases lines 2 and 3 (vi and VI, Db and DB would be lost there). The key comes from the engine's key
+    events (vj --chords sense), else from the chord's own key field; the numeral is shown only while it is read in the
+    key shown. An audio 'N' (no chord: drums, noise) shows '--'."""
 
     def __init__(self, scene: Optional[str] = None, prefer_keys_s: float = 3.0, pulse: bool = False):
         self.connected = False          # the engine has answered at least once
@@ -509,6 +539,9 @@ class Readout:
         self.chord: Optional[str] = None
         self.quality: Optional[str] = None
         self.chord_src: Optional[str] = None
+        self.roman: Optional[str] = None
+        self.chord_key: Optional[str] = None     # the key the chord's numeral is read in
+        self.key: Optional[str] = None           # the engine's key event
         self.t_keys = -math.inf
         self.prefer_keys_s = prefer_keys_s
         self.bpm_shown: Optional[int] = None
@@ -531,9 +564,14 @@ class Readout:
     def feed(self, evt: dict, now: float) -> None:
         t = evt.get("t")
         if t in ("_up", "hello"):
+            if t == "hello":
+                self.key = None         # a (re)started engine: its key event follows its hello
             self.connected = self.up = True
         elif t == "_down":
             self.up = False
+        elif t == "key":
+            if key_short(evt.get("name")):
+                self.key = ascii_clean(evt["name"]).strip()
         elif t == "chord":
             name = evt.get("name")
             if not name:
@@ -543,7 +581,12 @@ class Readout:
                 return                  # what you play outranks what the song is estimated to play, for a moment
             if src == "keys":
                 self.t_keys = now
-            self.chord, self.quality, self.chord_src = ascii_clean(name).strip(), evt.get("quality"), src
+            none = name == "N" and evt.get("root") is None
+            self.chord = None if none else ascii_clean(name).strip()
+            self.quality, self.chord_src = evt.get("quality"), src
+            roman, key = evt.get("roman"), evt.get("key")
+            self.roman = ascii_clean(roman).strip() if isinstance(roman, str) and roman and not none else None
+            self.chord_key = ascii_clean(key).strip() if isinstance(key, str) and key_short(key) else None
         elif t == "beat":
             self.set_bpm(evt.get("bpm"))
             conf = evt.get("conf")
@@ -570,7 +613,7 @@ class Readout:
         if not self.connected:
             return ("Aurora", ANALOG_LAB_BLUE7, "waiting for the VJ engine", DIM7)
         if self.chord:
-            line1 = self.chord + ("  (song)" if self.chord_src == "audio" else "")
+            line1 = self.line1()
             c1 = _quality_color7(self.quality)
         else:
             line1, c1 = "--", DIM7
@@ -584,6 +627,15 @@ class Readout:
             parts.append(self.scene)
         c2 = self.scene_color or (WHITE7 if self.locked else DIM7)
         return (line1, c1, " | ".join(parts), c2)
+
+    def line1(self) -> str:
+        """'Gbmaj7  IVmaj7  in Db', '(song)' after an audio chord. When it does not fit the screen's 32 characters,
+        '(song)' goes first, then the key."""
+        key = self.key or self.chord_key
+        roman = self.roman if (self.roman and (self.chord_key is None or key == self.chord_key)) else None
+        short = key_short(key)
+        return fit_line([self.chord or "--", roman or "", f"in {short}" if short else "",
+                         "(song)" if self.chord_src == "audio" else ""], drop=(3, 2))
 
 
 def render(view, layout: int = ScreenId.F2L) -> bytes:
