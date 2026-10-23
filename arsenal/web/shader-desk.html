@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<title>Shader Desk — arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/web/shader-desk.css" />
+</head>
+<body>
+<div class="desk" id="desk">
+  <main class="stage" id="stage" aria-label="Stage">
+    <canvas id="gl" aria-label="Shader Desk render surface"></canvas>
+    <div class="stage-tag" id="stage-tag"><span id="tag-name">loading presets…</span><span class="stage-tag-sub" id="tag-sub"></span></div>
+    <div class="stage-hint" id="stage-hint">H hides the panel · F fullscreen · ← → or the dial: scenes · 1–8 scenes · B blackout</div>
+    <div class="stage-error" id="stage-error" role="alert" hidden="hidden"></div>
+  </main>
+
+  <aside class="rail" id="rail" aria-label="Controls">
+    <header class="rail-head">
+      <span class="brand">Shader Desk</span>
+      <span class="brand-sub">the KeyLab on Play's shaders</span>
+    </header>
+
+    <section class="panel" aria-label="Scenes">
+      <h2 class="panel-title">Scenes <span class="panel-count" id="scene-count"></span></h2>
+      <ol class="scene-list" id="scene-list"></ol>
+    </section>
+
+    <section class="panel" aria-label="Parameters">
+      <h2 class="panel-title">Parameters <span class="panel-count" id="param-note"></span></h2>
+      <div id="params"></div>
+      <p class="panel-note">Faders 1–8 drive these in order and catch a value only when they pass it; knobs 1–8 trim them finely.
+        Fader 9 is intensity, knob 9 is hue. <em>learn</em> binds a parameter to the next control you move or touch.</p>
+    </section>
+
+    <div id="keylab"></div>
+
+    <footer class="rail-foot">
+      <span id="foot-stats">—</span>
+    </footer>
+  </aside>
+</div>
+<script type="module" src="/web/shader-desk.js"></script>
+</body>
+</html>
