@@ -2,8 +2,8 @@
 
 A16 W0 owes hardware receipts that only Daniel's eyes can give (fences/a16-charter/reconciliation.md V7). This
 turns them into one sitting at the keyboard with nothing to type: every step shows its instruction on the LCD,
-and he answers on the pads -- pad 1 (top right, green) = yes, pad 2 (under it, red) = no, pad 4 (bottom right,
-white) = skip. Calibration learns what those three pads actually send, so the answers work whatever note map
+and he answers on the pads -- pad 1 (top left, green) = yes, pad 2 (beside it, red) = no, pad 4 (top right,
+white) = skip (protocol.GRID; Daniel corrected the layout at the device, 2026-10-23). Calibration learns what those three pads actually send, so the answers work whatever note map
 the pads carry. Everything heard and shown is written, with timestamps, to
 state/arsenal/keylab/receipts/probe-<stamp>.json, so a photo sent to Discord can be matched to the frame on the pads.
 

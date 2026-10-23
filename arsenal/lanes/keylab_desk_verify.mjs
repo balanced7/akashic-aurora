@@ -261,6 +261,33 @@ try {
   await waitFor("__desk.keylab().source === 'engine'", 10_000, "the fake engine to be the KeyLab source");
   step("the KeyLab source is the (fake) VJ engine", true, { status: await evaluate("(({source, engine, url}) => ({source, engine, url}))(__desk.keylab())") });
 
+  // The pad panel draws the pads where they sit on the unit: 4 across x 3 down, pad 1 top left (Daniel at the device,
+  // 2026-10-23: "pad 1 ... is actually the top left most pad, and itr goes to 4, then row 2 is 5-8 and bottom row is
+  // 9-12"). Read off the RENDERED boxes in the panel's shadow root: rows by their top edge, each row left to right.
+  const padPanel = await evaluate(`(() => {
+    const host = document.querySelector("#keylab .klh-host");
+    const sr = host && host.shadowRoot;
+    const grid = sr && sr.querySelector(".klh-pads");
+    if (!grid) return null;
+    grid.scrollIntoView({ block: "center" });
+    const boxes = [...grid.querySelectorAll(".klh-pad")].map((b) => { const r = b.getBoundingClientRect(); return { pad: Number(b.dataset.pad), x: r.left, y: r.top, w: r.width, h: r.height }; });
+    const tops = [...new Set(boxes.map((b) => Math.round(b.y)))].sort((a, b) => a - b);
+    const lefts = [...new Set(boxes.map((b) => Math.round(b.x)))].sort((a, b) => a - b);
+    const rows = tops.map((t) => boxes.filter((b) => Math.round(b.y) === t).sort((a, b) => a.x - b.x).map((b) => b.pad));
+    const g = grid.getBoundingClientRect();
+    return { rows, columns: lefts.length, minW: Math.min(...boxes.map((b) => b.w)),
+      clip: { x: g.left + scrollX - 6, y: g.top + scrollY - 6, width: g.width + 12, height: g.height + 12 } };
+  })()`);
+  step("the desk's pad panel shows 1 2 3 4 across its top row, then 5-8, then 9-12 (4 across x 3 down)",
+    !!padPanel && JSON.stringify(padPanel.rows) === JSON.stringify([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]) && padPanel.columns === 4 && padPanel.minW > 30,
+    { rows: padPanel && padPanel.rows, columns: padPanel && padPanel.columns, min_pad_width_px: padPanel && Math.round(padPanel.minW) });
+  if (padPanel) {
+    await delay(150);
+    const { data } = await page.send("Page.captureScreenshot", { format: "png", clip: { ...padPanel.clip, scale: 2 } });
+    receipt.png_pads = join(opt.out, `desk-verify-${stamp}-pads.png`);
+    writeFileSync(receipt.png_pads, Buffer.from(data, "base64"));
+  }
+
   // the engine's energy bands, steady, so the picture is lit and the audio texture is the engine's (not silence)
   const ENERGY = { t: "energy", bass: 0.7, mid: 0.55, high: 0.4, level: 0.6 };
   send(ENERGY);

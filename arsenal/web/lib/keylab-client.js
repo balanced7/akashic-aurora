@@ -72,8 +72,11 @@ export const SURFACE = Object.freeze({
 // Pads: DAW port, channel 10, notes 0-11 = pads 1-12 (P1); the MIDI port's bank A, channel 10 (P3, protocol.PAD_NOTE).
 export const PAD_NOTE = Object.freeze({ 1: 44, 2: 45, 3: 46, 4: 47, 5: 40, 6: 41, 7: 42, 8: 43, 9: 36, 10: 37, 11: 38, 12: 39 });
 const NOTE_PAD = Object.fromEntries(Object.entries(PAD_NOTE).map(([pad, note]) => [note, Number(pad)]));
-// The physical grid as printed, 3 across x 4 down (protocol.GRID, the one copy; mirrored for the page).
-export const PAD_GRID = Object.freeze([[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]]);
+// The physical grid, 4 across x 3 down in reading order, rows top (farthest from the player) to bottom: a mirror of
+// protocol.GRID, the one copy, and tests/test_keylab_w0.py pins this line equal to it. Daniel at the device, 2026-10-23:
+// pad 1 is the top-left pad, the top row runs 1-4, then 5-8, and the bottom row is 9-12 (the 2026-10-22 grid was read
+// from a photo turned sideways).
+export const PAD_GRID = Object.freeze([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]);
 export const PC_NAMES = Object.freeze(["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]);
 
 function buildIndex(port) {

@@ -31,10 +31,12 @@ const LAYOUT = {
   // wheels: rubber cylinders, axis along x, sunk into the well so only the top `show` fraction of the diameter is above the plate
   wheels: { x: [62, 97], z: 245, r: 16, w: 18, show: 0.4, well: { x: 79.5, z: 245, w: 70, d: 48 } },
   global: { x: [140, 166, 192, 218], zBack: 276, zFront: 214, w: 20, d: 11 },   // Prog Settings Bank- Bank+ / Oct- Oct+ Trans- Trans+
-  pads: { x0: 306.5, pitch: 33, zFront: 212, zBack: 245, size: 29 },            // 2 x 6 [U]; front row = C..F, back row = F#..B
+  // pads: 3 rows x 4 as on the unit (Daniel, 2026-10-23); x0 / z0 = the front-left pad (pad 9). The order and the row
+  // count are confirmed; the geometry is [U]: the old 2 x 6 block's 33 mm pitch and 29 mm pads, centred where it was
+  pads: { x0: 339.5, z0: 195.5, pitch: 33, cols: 4, rows: 3, size: 29 },
   fx: { x: [314.75, 364.25, 413.75, 463.25], z: 286, w: 30, d: 9 },              // Chord Scale Arp Hold, behind the pads
-  // transport + command: 2 rows of 6 on the pad rows' z; the front row's Stop / Play / Rec are `wide` x wider, and the back
-  // row's buttons sit on the front row's centres (x from x0, left to right)
+  // transport + command: 2 rows of 6 at z 212 / 245 (where the old 2 x 6 pad rows sat); the front row's Stop / Play /
+  // Rec are `wide` x wider, and the back row's buttons sit on the front row's centres (x from x0, left to right)
   transport: { x0: 498, gap: 2.9, w: 13, wide: 1.4, zBack: 245, dBack: 11, zFront: 212, dFront: 14 },
   screen: { x: 660, z: 250, w: 74, d: 49.3, bezelW: 86, bezelD: 60 },           // 3.5 in 480x320 active area [D]
   ctxButtons: { x: [631.5, 650.5, 669.5, 688.5], zFront: 212, zBack: 289, w: 15, d: 8 },
@@ -59,6 +61,14 @@ const EDITIONS = {
            panel: { roughness: 0.6, metalness: 0, clearcoat: 0, specularIntensity: 0.35, sheen: 0 },
            seam: null, fill: 0.35, soft: 0.35 },   // already bright: a small fill keeps the plate under the bloom threshold
 };
+// The pads as they sit on the unit, one entry per pitch class (the instance index update() lights). Each pad lights for
+// its own note (protocol.PAD_NOTE, bank A, MPC layout: pads 9-12 = 36-39, 5-8 = 40-43, 1-4 = 44-47), so the front row,
+// nearest the player, is pads 9-12 = C C# D D#, the middle row pads 5-8 = E F F# G, the back row pads 1-4 = G# A A# B,
+// each row left to right. row 0 = front; xmm / zmm in LAYOUT's frame (z grows toward the back).
+export const PAD_LAYOUT = Object.freeze(Array.from({ length: 12 }, (_, pc) => {
+  const P = LAYOUT.pads, row = Math.floor(pc / P.cols), col = pc % P.cols;
+  return Object.freeze({ pc, pad: (P.rows - 1 - row) * P.cols + col + 1, row, col, xmm: P.x0 + col * P.pitch, zmm: P.z0 + row * P.pitch });
+}));
 const LED_ROLE = { plain: 0, rec: 1, play: 2, loop: 3, hold: 4, chord: 5, oct: 6, ctx: 7, stop: 8 };
 const SCREEN_ON = 0.92, SCREEN_IDLE = 0.46;   // screen brightness: lit, and idle at 50%
 // Lettering: Daniel's picks (Google Fonts, OFL). Outfit by default; ctx.options.font or ?font=raleway|jost picks an alternate.
@@ -358,12 +368,12 @@ uniform float uKlRim; uniform vec3 uKlRimColor; uniform float uKlRimK; uniform f
       // MIDI FX row and the pad block frame
       ["CHORD", "SCALE", "ARP", "HOLD"].forEach((s, i) => label(s, L.fx.x[i], L.fx.z + L.fx.d / 2 + 4.5, 2.4));
       {
-        const x0 = L.pads.x0 - L.pads.size / 2 - 5, x1 = L.pads.x0 + 5 * L.pads.pitch + L.pads.size / 2 + 5;
-        const z0 = L.pads.zFront - L.pads.size / 2 - 5, z1 = L.pads.zBack + L.pads.size / 2 + 5;
+        const P = L.pads, x0 = P.x0 - P.size / 2 - 5, x1 = P.x0 + (P.cols - 1) * P.pitch + P.size / 2 + 5;
+        const z0 = P.z0 - P.size / 2 - 5, z1 = P.z0 + (P.rows - 1) * P.pitch + P.size / 2 + 5;
         g.strokeStyle = faint; g.lineWidth = 0.45 * sx;
         g.beginPath(); g.roundRect(cx(x0), cy(z1), cx(x1) - cx(x0), cy(z0) - cy(z1), 4 * sx); g.stroke();
-        for (let i = 0; i < 12; i++) label(String(i + 1), L.pads.x0 + (i % 6) * L.pads.pitch - L.pads.size / 2 + 2.2,
-                                            (i < 6 ? L.pads.zFront : L.pads.zBack) - L.pads.size / 2 - 2.6, 1.8);
+        // each pad's own number, printed in front of it
+        for (const p of PAD_LAYOUT) label(String(p.pad), p.xmm - P.size / 2 + 2.2, p.zmm - P.size / 2 - 2.6, 1.8);
       }
       // transport and command: 2 rows of 6
       ["SAVE", "UNDO", "REDO", "METRO", "QUANT", "TAP"].forEach((s, i) => label(s, TRANSPORT.x[i], TR.zBack + TR.dBack / 2 + 4, 2.0));
@@ -516,12 +526,12 @@ uniform float uKlRim; uniform vec3 uKlRimColor; uniform float uKlRimK; uniform f
     finish(ledMesh);
     const ledLevel = new Float32Array(buttons.length);
 
-    // Pads: 2 x 6, pitch class order. Front row (nearest the player) C..F, back row F#..B.
+    // Pads: 3 rows x 4 as on the unit (PAD_LAYOUT), instance = pitch class. Front row (nearest the player) pads 9-12 =
+    // C C# D D#, middle pads 5-8 = E F F# G, back pads 1-4 = G# A A# B.
     const padMesh = new THREE.InstancedMesh(roundBox(1, 1, 1, 3, 0.09), mat.pad, PAD_COUNT);
     const rimMesh = new THREE.InstancedMesh(roundBox(1, 1, 1, 2, 0.1), mat.glow, PAD_COUNT);
-    for (let pc = 0; pc < PAD_COUNT; pc++) {
-      const col = pc % 6, row = pc < 6 ? L.pads.zFront : L.pads.zBack;
-      const x = X(L.pads.x0 + col * L.pads.pitch), z = Z(row), s = L.pads.size * MM;
+    for (const { pc, xmm, zmm } of PAD_LAYOUT) {
+      const x = X(xmm), z = Z(zmm), s = L.pads.size * MM;
       place(padMesh, pc, x, yPlate + (H.pad / 2 + 0.8) * MM, z, s, H.pad * MM, s);
       place(rimMesh, pc, x, yPlate + 1.6 * MM, z, s + 3 * MM, 3.2 * MM, s + 3 * MM);
     }
@@ -862,7 +872,9 @@ uniform float uKlRim; uniform vec3 uKlRimColor; uniform float uKlRimK; uniform f
     }
     applyProfile(ctx.framing);
 
-    const closeTarget = [(X(L.pads.x0 + 2.5 * L.pads.pitch) + X(L.screen.x)) / 2 + 1.0, yPlate, Z(245)];
+    // the pad block's centre (mm): unchanged by the 2026-10-23 re-lay, so the close view frames the same spot
+    const padCx = L.pads.x0 + (L.pads.cols - 1) / 2 * L.pads.pitch, padCz = L.pads.z0 + (L.pads.rows - 1) / 2 * L.pads.pitch;
+    const closeTarget = [(X(padCx) + X(L.screen.x)) / 2 + 1.0, yPlate, Z(245)];
     // hero: three-quarter from the front left, high enough (30 deg) that the top panel's controls read
     const heroTarget = [X(CHASSIS.w / 2) + 0.5, Y(-10), (zFront + zBack) / 2 + 0.4];
     const heroYaw = -32 * Math.PI / 180, heroElev = 30 * Math.PI / 180, heroDist = CHASSIS.w * MM * 1.6;
@@ -879,7 +891,7 @@ uniform float uKlRim; uniform vec3 uKlRimColor; uniform float uKlRimK; uniform f
       stage: { floorY, specFloorY, width: CHASSIS.w * MM, depth: CHASSIS.d * MM, front: zFront, back: zBack },
       views: { hero: { target: heroTarget, from: heroFrom, fov: 23 },
                close: { target: closeTarget, from: [closeTarget[0] + 6.5, closeTarget[1] + 10.5, closeTarget[2] + 18.5], fov: 30 } },
-      layout: { MM, X, Z, Y, yPlate, screen: { x: X(L.screen.x), z: Z(L.screen.z) }, pads: { x: X(L.pads.x0 + 2.5 * L.pads.pitch), z: Z((L.pads.zFront + L.pads.zBack) / 2) } },
+      layout: { MM, X, Z, Y, yPlate, screen: { x: X(L.screen.x), z: Z(L.screen.z) }, pads: { x: X(padCx), z: Z(padCz) } },
     };
   },
 };

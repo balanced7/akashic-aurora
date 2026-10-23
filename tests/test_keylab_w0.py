@@ -56,8 +56,13 @@ def test_pedal_on_any_channel_counts():
 
 # --- the pad grid ------------------------------------------------------------------------------
 
-def test_grid_matches_the_printed_layout():
-    assert P.GRID == [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]]
+def test_grid_matches_the_unit():
+    """Daniel at the device, 2026-10-23: "your pad representation shows pad 1 on the right when its actually the top
+    left most pad, and itr goes to 4, then row 2 is 5-8 and bottom row is 9-12". 4 across x 3 down, reading order,
+    rows top (farthest from the player) to bottom. The 2026-10-22 grid [[9, 5, 1], ...] was this one turned 90 degrees
+    (erratum: research/reviewed/keylab-liberation-2026-10-22/erratum-pad-grid-2026-10-23.md)."""
+    assert P.GRID == [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
+    assert (len(P.GRID), {len(r) for r in P.GRID}) == (3, {4}), "4 across x 3 down"
 
 
 def test_grid_has_one_copy_and_every_pad_once():
@@ -67,8 +72,32 @@ def test_grid_has_one_copy_and_every_pad_once():
 
 
 def test_grid_derived_regions():
-    assert CV.TOP_ROW == {9, 5, 1}
+    assert CV.TOP_ROW == {1, 2, 3, 4}, "split paints the TOP row, pads 1-4 (it was lighting the left column 9 5 1)"
     assert CV.BORDER == set(range(1, 13)) - {6, 7}
+
+
+def test_grid_agrees_with_the_mpc_note_rows():
+    """Two independent facts, one layout: PAD_NOTE (bank A, MPC layout, from Default.keylab388) and GRID (Daniel's eyes).
+    On an MPC layout the notes climb left to right along a row and up the rows, so the grid must read that way too."""
+    notes = [[P.PAD_NOTE[pad] for pad in row] for row in P.GRID]
+    for row in notes:
+        assert row == list(range(row[0], row[0] + len(row))), f"a row's notes ascend by a semitone left to right: {row}"
+    for upper, lower in zip(notes, notes[1:]):
+        assert upper[0] - lower[0] == 4, f"each row sits 4 semitones above the row below it: {upper} over {lower}"
+    assert P.GRID[-1][0] == 9 and P.PAD_NOTE[P.GRID[-1][0]] == 36 == min(P.PAD_NOTE.values()), \
+        "the bottom-left pad (9) plays the lowest note, 36"
+
+
+def test_the_page_mirror_equals_protocol_grid():
+    """keylab-client.js keeps a copy of the grid for the browser (PAD_GRID). Read the JS text itself, so the mirror can
+    never drift from protocol.GRID again: the desk's pad panel draws exactly these rows."""
+    import json
+    import pathlib
+    import re
+    js = (pathlib.Path(__file__).resolve().parents[1] / "arsenal" / "web" / "lib" / "keylab-client.js").read_text(encoding="utf-8")
+    found = re.findall(r"export const PAD_GRID = Object\.freeze\((\[.*?\])\);", js)
+    assert len(found) == 1, "exactly one PAD_GRID declaration in keylab-client.js"
+    assert json.loads(found[0]) == P.GRID
 
 
 def test_daw_bank_led_ids():

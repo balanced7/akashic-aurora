@@ -5,8 +5,9 @@
 //   - the readout: the control you just moved or touched, what it drives, the value as text and as a bar, and while a
 //     fader has not caught its value yet, a ghost mark where the value is and which way to move ("move up to 42%");
 //   - the chord, with the colour its root puts on a hue parameter;
-//   - the 12 pads in their printed layout (9 5 1 / 10 6 2 / 11 7 3 / 12 8 4): scenes on 1-8, snapshots A-D on 9-12
-//     (click = the pad; shift-click or right-click a snapshot pad = store);
+//   - the 12 pads as they sit on the unit, 4 across x 3 down (1 2 3 4 / 5 6 7 8 / 9 10 11 12, PAD_GRID): scenes on
+//     1-8 (the top two rows), snapshots A-D on 9-12 (the bottom row, nearest the player) (click = the pad; shift-click
+//     or right-click a snapshot pad = store);
 //   - optionally the map (every parameter, the controls that drive it, a learn chip) and the options.
 // An `overlay` element (the stage) gets a large readout that fades a moment after the last move, for performing.
 //
@@ -50,7 +51,7 @@ button,select,input{margin:0;width:auto;flex:none;text-transform:none;letter-spa
 .klh-swatch{width:14px;height:14px;border-radius:3px;border:1px solid var(--klh-rule);flex:none;visibility:hidden}
 .klh-swatch.on{visibility:visible}
 .klh-chord-name{font-size:15px;font-weight:600}
-.klh-pads{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.klh-pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .klh-pad{font:inherit;font-size:10px;line-height:1.2;text-align:left;height:44px;padding:3px 5px;border-radius:5px;border:1px solid var(--klh-rule);
   background:var(--klh-panel);color:var(--klh-ink2);cursor:pointer;overflow:hidden;position:relative;display:block;width:100%}
 .klh-pad b{display:block;font-size:9px;color:var(--klh-ink3);font-weight:400;margin-bottom:1px}
@@ -186,6 +187,8 @@ export function mountKeyLabHud(opts) {
     const sec = el(doc, "div", "klh-sec");
     sec.append(el(doc, "p", "klh-sec-t", "Pads: 1-8 scenes, 9-12 snapshots (hold to store)"));
     const grid = el(doc, "div", "klh-pads");
+    // the column count comes from the grid itself, so the panel cannot draw a different shape from PAD_GRID's rows
+    grid.style.gridTemplateColumns = `repeat(${PAD_GRID[0].length}, minmax(0, 1fr))`;
     padsEls = new Map();
     for (const row of PAD_GRID) for (const pad of row) {
       const b = el(doc, "button", "klh-pad");

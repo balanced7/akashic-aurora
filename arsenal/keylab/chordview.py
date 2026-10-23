@@ -41,13 +41,13 @@ QUALITY_COLORS = {"": (255, 0, 0), "maj7": (255, 0, 80), "maj9": (255, 0, 80), "
                   "sus2": (0, 200, 180), "sus4": (0, 200, 180), "5": (0, 255, 255)}
 
 
-# Physical pad grid, 3 across x 4 down, as printed on the unit (the one copy lives in protocol.GRID):
-#     9  5  1
-#    10  6  2
-#    11  7  3
-#    12  8  4
+# Physical pad grid, 4 across x 3 down in reading order (the one copy lives in protocol.GRID; Daniel at the device,
+# 2026-10-23, correcting the sideways 2026-10-22 reading):
+#     1  2  3  4      top row, farthest from the player
+#     5  6  7  8
+#     9 10 11 12      bottom row, nearest the player
 GRID = P.GRID
-TOP_ROW = set(GRID[0])                                                    # {9, 5, 1}
+TOP_ROW = set(GRID[0])                                                    # {1, 2, 3, 4}
 BORDER = set(GRID[0]) | set(GRID[-1]) | {r[0] for r in GRID} | {r[-1] for r in GRID}   # all but pads 6, 7
 
 

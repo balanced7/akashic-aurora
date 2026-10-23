@@ -85,9 +85,20 @@ PAD_CHANNEL = 10
 PAD_NOTE = {1: 44, 2: 45, 3: 46, 4: 47, 5: 40, 6: 41, 7: 42, 8: 43, 9: 36, 10: 37, 11: 38, 12: 39}
 _NOTE_PAD = {note: pad for pad, note in PAD_NOTE.items()}
 
-# The physical grid as printed on the unit, 3 across x 4 down. The ONE copy: chordview, the hub's scene and any
-# browser twin import it from here. Confirmed 2026-10-22 from Daniel's photo of the 12-colour test.
-GRID = [[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]]
+# The physical grid: 4 across x 3 down, numbered in reading order, rows listed top (farthest from the player) to
+# bottom (nearest). The ONE copy: chordview imports it, and the page's mirror (arsenal/web/lib/keylab-client.js
+# PAD_GRID) is pinned equal to it by tests/test_keylab_w0.py.
+#     1  2  3  4
+#     5  6  7  8
+#     9 10 11 12
+# Daniel, 2026-10-23, at the device: "your pad representation shows pad 1 on the right when its actually the top left
+# most pad, and itr goes to 4, then row 2 is 5-8 and bottom row is 9-12 ^__^!"
+# The grid recorded on 2026-10-22 ([[9, 5, 1], [10, 6, 2], [11, 7, 3], [12, 8, 4]], "3 across x 4 down", from his
+# photo of the 12-colour test) was this layout rotated 90 degrees: the photo was read sideways, its rows taken as
+# columns. Pad numbers, LED ids and notes were never affected; only where a pad sits was.
+# It agrees with PAD_NOTE's MPC rows: each row's notes ascend left to right, each row sits 4 semitones above the one
+# below it, and the bottom-left pad (9) plays the lowest note, 36.
+GRID = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]]
 
 
 def pad_for_pitchclass(pc: int) -> int:

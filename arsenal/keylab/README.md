@@ -21,7 +21,7 @@ and the MIT repo saxofonbrian/keylab-mk3-sysex. Every fact below was confirmed o
 
 ## Confirmed facts
 Every row carries a dated receipt and its class: **eyes** = Daniel watched the device and said what he saw
-(his words, from the 2026-10-22 session), **measured** = a tool measured it on this machine.
+(his words, from the 2026-10-22 session unless a row says otherwise), **measured** = a tool measured it on this machine.
 
 | Fact | Value | Receipt |
 |---|---|---|
@@ -29,7 +29,7 @@ Every row carries a dated receipt and its class: **eyes** = Daniel watched the d
 | Pad / LED colour | `[0x00, eDaw=2, eSetLed=3, ledId, R, G, B, 0x00]`, R/G/B 0..127. **req byte 0x00**; 0x02 lights the pad white and ignores colour | 2026-10-22, eyes: with req 0x02, "The pads stayed white"; with 0x00 the colours rendered |
 | Pads with live colour | the **DAW bank, ids 82-93** (pads 1-12), only in physical DAW mode | 2026-10-22, eyes: "we are in Daw mode (Middle) right now", then the pattern showed |
 | Burst limit | ~36 packets in one tight burst **freezes the device** (power cycle). 12 is safe; every SysEx now passes `governor.BurstGovernor` (at most 12 per 100 ms, shared by every producer on the port), and `ledframe.PadRenderer` sends only pads that changed | 2026-10-22, eyes: after the flood, "main lcd was black no matter what buttons i pressed" until a power cycle. The 100 ms window is a conservative starting value; probe P24 re-measures it |
-| Pad grid (printed labels) | 3 across x 4 down: `9 5 1 / 10 6 2 / 11 7 3 / 12 8 4` (`protocol.GRID`, the one copy) | 2026-10-22, eyes: Daniel's photo of the 12-colour test |
+| Pad grid | 4 across x 3 down, numbered in reading order: `1 2 3 4 / 5 6 7 8 / 9 10 11 12`, the top row farthest from the player (`protocol.GRID`, the one copy; it agrees with the MPC note rows, the bottom-left pad 9 = note 36) | 2026-10-23, eyes: Daniel at the device, "your pad representation shows pad 1 on the right when its actually the top left most pad, and itr goes to 4, then row 2 is 5-8 and bottom row is 9-12". It supersedes the 2026-10-22 reading of his photo of the 12-colour test (`9 5 1 / 10 6 2 / 11 7 3 / 12 8 4`, 3 across x 4 down), which was the same grid turned 90 degrees; erratum: `research/reviewed/keylab-liberation-2026-10-22/erratum-pad-grid-2026-10-23.md` |
 | Colour rendering | saturated blues, purples, magentas, pinks and reds read clearly; warm low-saturation colours (amber, yellow, orange, lime) come out close to white | 2026-10-22, eyes: the same photo. The gamut probe (A16 W0 d) replaces this rule of thumb with a measured table |
 | Screen | `[0x00, eDaw=2, eDisplay=4, screenId, tagged fields…]` from KL3Display.py. Popups (23/24/25) dismiss after ~1 s; full-screen two-line F2L (12) stays; a 60 ms colour cycle renders with no flicker | 2026-10-22, eyes: "Hello Daniel flashed for 1 second"; on F2L, "beautifully, flawlessly rendered, 0 ficker!" |
 | Ports | keys and controls arrive on **"KeyLab 88 mk3 MIDI"** (keys ch 1, pads ch 10); pads and screen go out on **"KeyLab 88 mk3 DAW"** | 2026-10-22, measured: `ports`; eyes: chordview named his chords, "the pads changed color and shaper per chord too!!!" |
@@ -66,7 +66,7 @@ Global: `--port SUBSTR`; `--dry-run` prints bytes and sends nothing; `--bank A|B
 ## Chord schemes (`chordview --scheme`)
 `notes` (chord tones lit, root white) · `roles` (root white, major 3rd red, minor 3rd magenta, 5th blue,
 7th green, 9th purple) ·
-`quality` (the whole chord in its mood colour) · `split` (top row 9-5-1 is a quality bar, the rest show roles) ·
+`quality` (the whole chord in its mood colour) · `split` (the top row, pads 1-4, is a quality bar, the rest show roles) ·
 `frame` (the border glows the quality, notes light inside).
 
 ## Hearing the harmony (`chordsense.py`)
