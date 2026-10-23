@@ -684,9 +684,9 @@ def cmd_beatbench(args) -> int:
             seeds = [int(s) for s in args.exclude_seeds.split(",") if s.strip()]
             exclude = BB.held_out_exclusion(seeds, args.exclude_per_cat, pool=pool) if seeds else None
             excluded = sorted(exclude or [])
-            names = BB.receipt_case_names([r for r in args.exclude_receipts.split(",") if r.strip()])                 if args.exclude_receipts else None
+            tuned_names = BB.receipt_case_names([r for r in args.exclude_receipts.split(",") if r.strip()])                 if args.exclude_receipts else None
             picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed, exclude=exclude, pool=pool,
-                                         exclude_names=names)
+                                         exclude_names=tuned_names)
             loops = BB.loop_suite(n=len(picked), paths=picked, rng_seed=args.seed)
         else:
             loops = BB.loop_suite(n=args.n, rng_seed=args.seed)
