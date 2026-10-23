@@ -783,3 +783,30 @@ def test_beatbench_imports_only_the_named_trackers(monkeypatch):
     assert loaded == {"arsenal.keylab.beat_a"}, f"a run of tracker a executed {sorted(loaded)}"
     assert "a" in BB.TRACKERS and set(CLI.tracker_files()) >= {"a", "b", "g", "h", "w"}
     assert CLI.load_trackers(["nope"], BB) == ["nope"]
+
+
+
+def test_a_tuned_on_file_name_never_enters_a_held_out_draw_and_temp_copies_are_not_packs(tmp_path, monkeypatch):
+    """The live index drifts (the bench's own tests leave 'Drum Loop N 120 BPM.wav' files behind), so round 1's
+    tuning set is excluded by the file names its receipts actually scored, and temp/pytest copies are not packs."""
+    import json as _json
+    import ntpath
+    rec = tmp_path / "r.json"
+    _json.dump({"trackers": {"a": {"cases": [{"case": "Kick Loop 1 120 BPM.wav"},
+                                             {"case": "Kick Loop 1 120 BPM.wav [seeded]"},
+                                             {"case": "Hat Loop 2 128 BPM.wav #0123abcd"}]}}}, open(rec, "w"))
+    names = BB.receipt_case_names([str(rec)])
+    assert names == {"kick loop 1 120 bpm.wav", "hat loop 2 128 bpm.wav"}
+    pool = [ntpath.join("D:", "packs", "A", f"Kick Loop {i} 120 BPM.wav") for i in range(1, 6)]
+    pool.append(ntpath.join("F:", "copy", "Hat Loop 2 128 BPM.wav"))
+    picked = BB.stratified_loops(10, rng_seed=31, pool=pool, dedupe=False, exclude_names=names)
+    assert picked and not any(ntpath.basename(p).lower() in names for p in picked)
+
+    keep = ntpath.join("D:", "packs", "Kick Loop 9 120 BPM.wav")
+    temp = ntpath.join("C:", "Users", "x", "AppData", "Local", "Temp", "pytest-of-x", "packs", "Drum Loop 1 120 BPM.wav")
+
+    class R:
+        paths = [keep, temp]
+    import core.tools.everything as E
+    monkeypatch.setattr(E, "search", lambda *a, **k: R())
+    assert BB.find_bpm_loops() == [keep]

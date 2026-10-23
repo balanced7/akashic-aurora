@@ -975,11 +975,32 @@ def parse_bpm(name: str) -> Optional[int]:
     return bpm if 60 <= bpm <= 200 else None
 
 
-def find_bpm_loops(max_results: int = 6000) -> List[str]:
-    """Loops whose FILE NAME carries a BPM, from the Everything index (no drive crawl)."""
+_NOT_A_PACK = ("\appdata\local\temp\\", "pytest-of-", "\$recycle.bin\\")
+
+
+def find_bpm_loops(max_results: int = 200000) -> List[str]:
+    """Loops whose FILE NAME carries a BPM, from the Everything index (no drive crawl). Reads the WHOLE index (a
+    capped slice made the pool an arbitrary first-N that any stray file reshuffled) and skips temp, test and
+    recycle-bin copies (the bench's own tests write 'Drum Loop N 120 BPM.wav' files that pytest keeps)."""
     from core.tools.everything import search
     r = search(r"regex:(?i)\d{2,3}\s?bpm.*\.(wav|flac|aiff?|mp3)$", max_results=max_results)
-    return [p for p in r.paths if "loop" in p.lower() and parse_bpm(os.path.basename(p))]
+    return [p for p in r.paths if "loop" in p.lower() and parse_bpm(os.path.basename(p))
+            and not any(x in p.lower() for x in _NOT_A_PACK)]
+
+
+def receipt_case_names(paths: Iterable[str]) -> set:
+    """The loop FILE NAMES a bench receipt scored (seeded twins and content-hash suffixes folded): the tuning set
+    as it actually ran, independent of how the live index has drifted since."""
+    import re as _re
+    names = set()
+    for rp in paths:
+        rep_ = json.load(open(rp, encoding="utf-8"))
+        for t in rep_.get("trackers", {}).values():
+            for row in t.get("cases", []):
+                n = row["case"].replace(" [seeded]", "")
+                n = _re.sub(r" #[0-9a-f]{8}$", "", n)
+                names.add(n.lower())
+    return names
 
 
 def loop_category(path: str) -> str:
@@ -1122,7 +1143,8 @@ def dedupe_by_content(paths: Iterable[str]) -> Tuple[List[str], Dict[str, int]]:
 
 
 def stratified_loops(per_cat: int = 30, rng_seed: int = 23, exclude: Optional[Iterable[str]] = None,
-                     pool: Optional[List[str]] = None, dedupe: bool = True) -> List[str]:
+                     pool: Optional[List[str]] = None, dedupe: bool = True,
+                     exclude_names: Optional[set] = None) -> List[str]:
     """per_cat loop paths from each category (kick / tops / melodic), so a run is not dominated by melodic loops
     (most of the pool) and each class is scored with enough cases to mean something.
 
@@ -1132,6 +1154,10 @@ def stratified_loops(per_cat: int = 30, rng_seed: int = 23, exclude: Optional[It
     dedupe=False is the round-1 draw exactly as it ran (the index's order, no dedupe, exclusion by path); it
     exists so a held-out set can exclude precisely the loops round 1 tuned on."""
     pool = list(pool) if pool is not None else find_bpm_loops()
+    if exclude_names:
+        # by file name too: a copy of a tuned-on loop in another folder, or one the drifting index no longer
+        # draws at the same seed, still never enters a held-out set
+        pool = [p for p in pool if os.path.basename(p).lower() not in exclude_names]
     if not dedupe:
         pool = [p for p in pool if not exclude or p not in exclude]
     else:

@@ -401,6 +401,13 @@ def _add_send_flags(p, color_default=None):
                    help="pad bank (default DAW -- the only bank with live host colour; keyboard must be in DAW mode)")
 
 
+def _positive_float(x: str) -> float:
+    v = float(x)
+    if not v > 0:
+        raise argparse.ArgumentTypeError("must be a positive number")
+    return v
+
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="arsenal.keylab", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -545,6 +552,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--exclude-seeds", default="",
                    help="held-out draw (needs --per-cat): leave out every loop, by CONTENT, that the stratified draws "
                         "at these seeds used (e.g. 7,11)")
+    p.add_argument("--exclude-receipts", default="",
+                   help="comma list of bench receipts whose scored loops (by file name) never enter this draw")
     p.add_argument("--exclude-per-cat", type=int, default=30,
                    help="the --per-cat of the excluded draws (round 1 drew 30 per category)")
     p.add_argument("--vs", default="", help="print each tracker's per-class PAIRED difference against this one "
@@ -565,7 +574,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("annotate", help="fit an offline beat grid to a recording and render it with clicks to check")
     p.add_argument("path", nargs="?", help="recording (default: the newest)")
-    p.add_argument("--bpm", type=float, help="force the tempo to exactly this (e.g. after the ear check said half or "
+    p.add_argument("--bpm", type=_positive_float, help="force the tempo to exactly this (e.g. after the ear check said half or "
                                              "double); only the phase is fitted")
     p.add_argument("--unverified-timing", action="store_true",
                    help="annotate a recording made before captures recorded their timing (no .rec.json)")
@@ -675,7 +684,9 @@ def cmd_beatbench(args) -> int:
             seeds = [int(s) for s in args.exclude_seeds.split(",") if s.strip()]
             exclude = BB.held_out_exclusion(seeds, args.exclude_per_cat, pool=pool) if seeds else None
             excluded = sorted(exclude or [])
-            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed, exclude=exclude, pool=pool)
+            names = BB.receipt_case_names([r for r in args.exclude_receipts.split(",") if r.strip()])                 if args.exclude_receipts else None
+            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed, exclude=exclude, pool=pool,
+                                         exclude_names=names)
             loops = BB.loop_suite(n=len(picked), paths=picked, rng_seed=args.seed)
         else:
             loops = BB.loop_suite(n=args.n, rng_seed=args.seed)
