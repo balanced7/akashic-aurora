@@ -505,7 +505,8 @@ def chord_line(e: dict) -> str:
         return f"{t}  KEY {e['key']}  (confidence {e['confidence']:.2f})"
     if kind == "pedal":
         if e["on"]:
-            return f"{t}  PEDAL {e['note']} since {e['since']:.2f}s, over {e['chords']} chords"
+            return (f"{t}  PEDAL {e['note']} since {e['since']:.2f}s, over {e['chords']} chord roots, "
+                    f"clashing {e.get('clash', 0.0):.0%} of the time")
         return f"{t}  pedal {e['note']} released (strength reached {e['strength']:.2f})"
     if kind == "resolution":
         return f"{t}  RESOLUTION {e['from']:.2f} -> {e['to']:.2f} on {e['chord']} ({e['numeral']})"
@@ -514,11 +515,16 @@ def chord_line(e: dict) -> str:
 
 def cmd_chords(args) -> int:
     import json
+    from . import chordsense as CS
 
     def show(events):
         for e in events:
             try:
-                print(json.dumps(e) if args.json else chord_line(e), flush=True)
+                if args.vj:                 # the VJ engine's SSE events (chord, key, tension), one per line
+                    for v in CS.to_vj_events(e):
+                        print(json.dumps(v), flush=True)
+                else:
+                    print(json.dumps(e) if args.json else chord_line(e), flush=True)
             except OSError:                 # the reader went away (| head): stop quietly
                 raise BrokenPipeError
 
@@ -776,6 +782,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--notes", help="a score JSON ({notes: [{pos, len, key, vel}], ppq}) through the keys path")
     p.add_argument("--bpm", type=float, default=100.0, help="--notes: the tempo the score's ticks play at")
     p.add_argument("--json", action="store_true", help="one JSON event per line (for a renderer), not text")
+    p.add_argument("--vj", action="store_true",
+                   help="one JSON event per line in the VJ engine's SSE contract (chord, key, tension)")
     p.set_defaults(func=cmd_chords, dry_run=False)
 
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
