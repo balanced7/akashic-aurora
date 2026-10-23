@@ -356,6 +356,18 @@ try {
   const k1Recalled = await u("u_k1");
   step("snapshot A: hold pad 9 stores, a tap glides back", Math.abs(k1Moved - k1Knob) > 0.1 && Math.abs(k1Recalled - k1Knob) < 2e-3, { stored: k1Knob, moved: k1Moved, recalled: k1Recalled });
 
+  // every preset draws in the desk's runtime (Play's contract): 30 frames at a fixed clock from a cleared history
+  const looks = [];
+  for (const sc of scenes.filter((x) => x.ok)) {
+    const f = await evaluate(`(() => { __desk.renderer.select(${JSON.stringify(sc.id)}, { fadeMs: 0 }); return __desk.renderer.still({ time: 3, frames: 30 }); })()`, 30_000);
+    const luma = Math.round((0.2126 * f.mean[0] + 0.7152 * f.mean[1] + 0.0722 * f.mean[2]) * 10) / 10;
+    looks.push({ id: sc.id, luma, mean: f.mean, png: await shot(`look-${sc.id}`) });
+  }
+  receipt.looks = looks;
+  step("every preset draws a lit frame in the desk's runtime (mean luma above 3 of 255)", looks.every((l) => l.luma > 3), { looks: looks.map((l) => `${l.id} ${l.luma}`) });
+  await evaluate(`__desk.select(${JSON.stringify("aurora-ribbons")})`);
+  await settle(300);
+
   // pad 2 switches the scene
   const second = scenes.filter((s) => s.ok)[1].id;
   send({ t: "pad", pad: 2, vel: 0.9, on: true, src: "daw" }); send({ t: "pad", pad: 2, vel: 0, on: false, src: "daw" });

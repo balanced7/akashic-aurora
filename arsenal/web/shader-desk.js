@@ -238,6 +238,8 @@ function setPerform(on) { deskEl.classList.toggle("perform", on); }
 if (q.get("ui") === "0") setPerform(true);
 document.addEventListener("keydown", (e) => {
   if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && e.target.type !== "range") return;
+  // a slider with keyboard focus keeps its own arrow, Home, End and Page keys
+  if (e.target && e.target.type === "range" && /^(Arrow|Home$|End$|Page)/.test(e.key)) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key;
   if (k === "h" || k === "H") setPerform(!deskEl.classList.contains("perform"));
