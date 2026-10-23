@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Play + KeyLab — arsenal</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0f1114; overflow: hidden; }
+  #play { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  #over { position: fixed; inset: 0; pointer-events: none; }
+  #note { position: fixed; left: 12px; top: 10px; font: 12px "JetBrains Mono", Consolas, monospace; color: #a3acb7;
+    background: rgba(15,17,20,.8); padding: 6px 9px; border-radius: 4px; pointer-events: none; }
+</style>
+</head>
+<body>
+<!-- Play, unchanged, in a frame on the same server; the KeyLab drives Play's own macro sliders (so Play's own code,
+     audio engine, presets and take ledger do the work) and its presets through window.__play. -->
+<iframe id="play" src="/play" title="Play" allow="midi; microphone; autoplay; fullscreen"></iframe>
+<div id="over"></div>
+<div id="note">loading Play…</div>
+<script type="module">
+  import { mountKeyLab } from "/web/lib/keylab-hosts.js";
+  const frame = document.getElementById("play");
+  const note = document.getElementById("note");
+  function tryMount(tries = 0) {
+    const w = frame.contentWindow;
+    let ready = false;
+    try { ready = !!(w && w.__play && w.document.querySelector("input.macro-range")); } catch { ready = false; }
+    if (!ready) {
+      if (tries > 100) { note.textContent = "Play did not load in the frame (is this page on the arsenal server, 8793?)"; return; }
+      return setTimeout(() => tryMount(tries + 1), 150);
+    }
+    window.__keylab = mountKeyLab({ win: w, doc: document, parent: document.body, overlay: document.getElementById("over"),
+      namespace: "play", title: "KeyLab · Play" });
+    note.remove();
+  }
+  frame.addEventListener("load", () => tryMount());
+</script>
+</body>
+</html>

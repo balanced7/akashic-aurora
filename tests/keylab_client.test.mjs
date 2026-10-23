@@ -257,6 +257,38 @@ function fakeMidi(names) {
   kl.stop();
 }
 
+// ------------------------------------------------------------------------------------------- the screen hook --
+{
+  const clk = fakeClock();
+  const { ES, made } = fakeES();
+  const calls = [];
+  let answer = 200;
+  const fetchFn = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return { ok: answer === 200, status: answer }; };
+  const kl = createKeyLabClient({ EventSource: ES, requestMIDIAccess: null, fetch: fetchFn, now: clk.now, setTimeout: clk.setTimeout,
+    clearTimeout: clk.clearTimeout, url: "http://127.0.0.1:8999/api/events", fallback: "off" });
+  check("no screen request while the engine is not up", kl.postScreen({ screen: "fader", name: "x", value: "1", level: 1 }) === false);
+  kl.start(); made[0].open();
+  kl.postScreen({ screen: "fader", name: "flow", value: "10%", level: 13 });
+  kl.postScreen({ screen: "fader", name: "flow", value: "20%", level: 25 });
+  kl.postScreen({ screen: "knob", name: "sphere → cube", value: "84°", level: 300 });
+  clk.advance(100); await clk.settle();
+  check("screen: three asks inside 80 ms are one request, the latest", calls.length === 1 && calls[0].body.value === "84 deg" && calls[0].body.screen === "knob", JSON.stringify(calls));
+  check("screen: the route is the engine's /api/screen", calls[0].url === "http://127.0.0.1:8999/api/screen");
+  check("screen: text is plain ASCII and the bar is clamped to 0..127", calls[0].body.name === "sphere -> cube" && calls[0].body.level === 127, JSON.stringify(calls[0].body));
+  answer = 404;
+  kl.postScreen({ screen: "fader", name: "a", value: "1", level: 1 });
+  clk.advance(100); await clk.settle();
+  check("screen: an engine without the route answers 404 and the status says so", kl.status().screen === "unsupported");
+  const n = calls.length;
+  check("screen: after a 404 the client stops asking for a minute", kl.postScreen({ screen: "fader", name: "b", value: "2", level: 2 }) === false);
+  clk.advance(61_000, 1000); await clk.settle();
+  answer = 200;
+  kl.postScreen({ screen: "fader", name: "c", value: "3", level: 3 });
+  clk.advance(100); await clk.settle();
+  check("screen: and asks again after it", calls.length === n + 1);
+  kl.stop();
+}
+
 // ------------------------------------------------------------------------------------------- the binder --
 function fakeHost() {
   const values = { k1: 0.4, k2: 0.6, k3: 0.5, hue: 0, intensity: 0.8 };

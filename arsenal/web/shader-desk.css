@@ -86,9 +86,11 @@ html, body { margin: 0; height: 100%; background: var(--ground); color: var(--in
 .params-row.inert { opacity: .45; }
 
 /* the KeyLab panel sits in the rail, in the rail's colours */
-#keylab .klh { --klh-ink: var(--ink); --klh-ink2: var(--ink-2); --klh-ink3: var(--ink-3); --klh-rule: var(--rule);
+#keylab { --klh-ink: var(--ink); --klh-ink2: var(--ink-2); --klh-ink3: var(--ink-3); --klh-rule: var(--rule);
   --klh-accent: var(--control); --klh-ok: var(--audio); --klh-warn: var(--accent); --klh-panel: color-mix(in srgb, var(--ink) 5%, transparent);
   border-top: 1px solid var(--rule); padding-top: 10px; }
+#keylab .klh-host { --klh-ink: var(--ink); --klh-ink2: var(--ink-2); --klh-ink3: var(--ink-3); --klh-rule: var(--rule);
+  --klh-accent: var(--control); --klh-ok: var(--audio); --klh-warn: var(--accent); --klh-panel: color-mix(in srgb, var(--ink) 5%, transparent); }
 .rail-foot { border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 8px; color: var(--ink-3); font-size: 10.5px; }
 
 @media (max-width: 760px) {

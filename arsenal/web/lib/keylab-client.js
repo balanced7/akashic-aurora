@@ -254,7 +254,7 @@ export function createKeyLabClient(opts = {}) {
   };
   const bus = emitter();
   const status = {
-    api: KEYLAB_CLIENT_API, source: "none", engine: env.useEngine ? "off" : "disabled", midi: "off",
+    api: KEYLAB_CLIENT_API, source: "none", engine: env.useEngine ? "off" : "disabled", midi: "off", screen: "unknown",
     url: env.url, inputs: [], lastEventAt: null, hello: null, events: 0,
   };
   let es = null, connectTimer = null, dropTimer = null, retryTimer = null, started = false;
@@ -514,6 +514,38 @@ export function createKeyLabClient(opts = {}) {
     }, env.chordSettleMs);
   }
 
+  // ------------------------------------------------------------------------------------------- the engine's screen --
+  // Show a parameter on the KeyLab's own screen (the knob / fader screens, protocol.screen_param 28 / 29: a name, the
+  // value as text and a 0-127 bar). The ENGINE draws it; this asks. PROPOSED CONTRACT, not in vj.py yet:
+  //   POST /api/screen {"screen": "fader" | "knob", "name": "flow", "value": "42%", "level": 0..127, "color": [r, g, b]}
+  // Latest wins, at most one request per 80 ms (the screen renders flicker-free at 60 ms spacing: surface map Y3).
+  // An engine without the route answers 404 and the client stops asking for a minute.
+  const scr = { pending: null, timer: null, lastAt: -1e9, offUntil: -1e9 };
+  const ascii = (t, n = 32) => String(t ?? "").replace(/\u00b0/g, " deg").replace(/\u2192/g, "->").normalize("NFKD")
+    .replace(/[^\x20-\x7e]/g, "").slice(0, n);
+  function postScreen(payload) {
+    if (status.engine !== "up" || !env.fetch || env.now() < scr.offUntil || !payload) return false;
+    scr.pending = { screen: payload.screen === "knob" ? "knob" : "fader", name: ascii(payload.name), value: ascii(payload.value),
+      level: Math.max(0, Math.min(127, Math.round(+payload.level || 0))),
+      color: Array.isArray(payload.color) ? payload.color.slice(0, 3).map((c) => Math.max(0, Math.min(255, Math.round(+c || 0)))) : [0, 200, 160] };
+    if (scr.timer) return true;
+    scr.timer = env.setTimeout(flushScreen, Math.max(0, 80 - (env.now() - scr.lastAt)));
+    return true;
+  }
+  async function flushScreen() {
+    scr.timer = null;
+    const body = scr.pending;
+    scr.pending = null;
+    if (!body) return;
+    scr.lastAt = env.now();
+    const base = env.url.replace(/\/api\/events.*$/, "");
+    try {
+      const r = await env.fetch(base + "/api/screen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (r && (r.status === 404 || r.status === 405 || r.status === 501)) { scr.offUntil = env.now() + 60_000; setStatus({ screen: "unsupported" }); }
+      else if (r && r.ok) setStatus({ screen: "ok" });
+    } catch { /* the engine went away: the status machine handles that */ }
+  }
+
   // ------------------------------------------------------------------------------------------- the engine's pads --
   // Ask the engine to colour the 12 DAW-bank pads ("#rrggbb" x 12). The engine paints through its governor; this
   // sends nothing to the keyboard itself, and refuses unless the engine is up.
@@ -536,7 +568,7 @@ export function createKeyLabClient(opts = {}) {
   }
   function stop() {
     started = false;
-    env.clearTimeout(connectTimer); env.clearTimeout(dropTimer); env.clearTimeout(retryTimer); env.clearTimeout(keys.timer);
+    env.clearTimeout(connectTimer); env.clearTimeout(dropTimer); env.clearTimeout(retryTimer); env.clearTimeout(keys.timer); env.clearTimeout(scr.timer);
     if (es) { try { es.close(); } catch { /* closed */ } es = null; }
     detachMidi(true);
     setStatus({ engine: env.useEngine ? "off" : "disabled", midi: access ? "standby" : "off" });
@@ -548,7 +580,7 @@ export function createKeyLabClient(opts = {}) {
     on: bus.on,
     onBeat: (fn) => bus.on("beat", fn),
     onChord: (fn) => bus.on("chord", fn),
-    start, stop, connectMidi, feedEngine, feedMidi, postPads,
+    start, stop, connectMidi, feedEngine, feedMidi, postPads, postScreen,
     status: snapshotStatus,
     get source() { return status.source; },
   };
@@ -559,7 +591,7 @@ export function createKeyLabClient(opts = {}) {
 // the binder
 // ====================================================================================================================
 export const PICKUP_TOLERANCE = 0.02;     // a fader within 2 % of the value (about 2.5 of its 127 steps) has caught it
-export const DEFAULT_OPTIONS = Object.freeze({ layout: "desk", chordHue: true, smoothMs: 80, lightPads: false });
+export const DEFAULT_OPTIONS = Object.freeze({ layout: "desk", chordHue: true, smoothMs: 80, lightPads: false, screen: false });
 
 function descriptorOf(p) {
   const min = isNum(p.min) ? p.min : 0, max = isNum(p.max) && p.max > min ? p.max : min + 1;

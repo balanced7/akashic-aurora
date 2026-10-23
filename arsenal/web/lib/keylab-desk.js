@@ -15,17 +15,21 @@
 // page) may be painting them.
 import { PAD_GRID, controlLabel, controlShort, fifthsTurn } from "./keylab-client.js";
 
-const CSS_ID = "klh-style";
+// The panel lives in a shadow root: a host page's own CSS (the VFX Bench styles every button full width) cannot reach
+// it. Colours are custom properties with defaults on :host, so a page restyles it by setting --klh-* on the element it
+// passes as `parent` (an outer page's declaration on the host element wins over :host).
 const CSS = `
-.klh,.klh-overlay{--klh-bg:rgba(16,18,22,.86);--klh-panel:rgba(255,255,255,.04);--klh-ink:#e6e8eb;--klh-ink2:#a3acb7;--klh-ink3:#7f8994;
-  --klh-rule:rgba(255,255,255,.09);--klh-accent:#e47fa7;--klh-ok:#4cc2ba;--klh-warn:#f0a443;
-  font:12px/1.35 "JetBrains Mono","Cascadia Mono",Consolas,monospace;color:var(--klh-ink);box-sizing:border-box}
-.klh *{box-sizing:border-box}
+:host{--klh-bg:rgba(16,18,22,.86);--klh-panel:rgba(255,255,255,.04);--klh-ink:#e6e8eb;--klh-ink2:#a3acb7;--klh-ink3:#7f8994;
+  --klh-rule:rgba(255,255,255,.09);--klh-accent:#e47fa7;--klh-ok:#4cc2ba;--klh-warn:#f0a443;display:block}
+.klh,.klh-overlay{font:12px/1.35 "JetBrains Mono","Cascadia Mono",Consolas,monospace;color:var(--klh-ink);box-sizing:border-box;text-align:left}
+.klh *,.klh-overlay *{box-sizing:border-box}
+button,select,input{margin:0;width:auto;flex:none;text-transform:none;letter-spacing:normal;box-shadow:none}
 .klh.klh-floating{position:fixed;right:14px;bottom:14px;width:300px;max-height:calc(100vh - 28px);overflow:auto;z-index:2147483000;
   background:var(--klh-bg);backdrop-filter:blur(10px);border:1px solid var(--klh-rule);border-radius:8px;padding:10px;
   box-shadow:0 12px 40px rgba(0,0,0,.45)}
 .klh-head{display:flex;align-items:center;gap:8px}
-.klh-title{font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--klh-ink2);flex:1}
+.klh-title{font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:11px;color:var(--klh-ink2);flex:1;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .klh-dot{width:8px;height:8px;border-radius:50%;background:var(--klh-ink3);flex:none}
 .klh-dot.up{background:var(--klh-ok);box-shadow:0 0 8px var(--klh-ok)}.klh-dot.midi{background:var(--klh-warn);box-shadow:0 0 8px var(--klh-warn)}
 .klh-src{color:var(--klh-ink2);font-size:11px;margin:4px 0 0}
@@ -43,12 +47,15 @@ const CSS = `
 .klh-bar.pending .klh-bar-fill{background:var(--klh-ink3)}.klh-bar.pending .klh-bar-ghost{opacity:.9}
 .klh-hint{color:var(--klh-warn);font-size:11px;min-height:15px;margin-top:4px}
 .klh-chord{display:flex;align-items:center;gap:8px;min-height:20px}
-.klh-swatch{width:14px;height:14px;border-radius:3px;border:1px solid var(--klh-rule);flex:none}
+.klh-swatch{width:14px;height:14px;border-radius:3px;border:1px solid var(--klh-rule);flex:none;visibility:hidden}
+.klh-swatch.on{visibility:visible}
 .klh-chord-name{font-size:15px;font-weight:600}
 .klh-pads{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-.klh-pad{font:inherit;font-size:10px;text-align:left;height:38px;padding:3px 5px;border-radius:5px;border:1px solid var(--klh-rule);
-  background:var(--klh-panel);color:var(--klh-ink2);cursor:pointer;overflow:hidden;position:relative}
-.klh-pad b{display:block;font-size:9px;color:var(--klh-ink3);font-weight:400}
+.klh-pad{font:inherit;font-size:10px;line-height:1.2;text-align:left;height:44px;padding:3px 5px;border-radius:5px;border:1px solid var(--klh-rule);
+  background:var(--klh-panel);color:var(--klh-ink2);cursor:pointer;overflow:hidden;position:relative;display:block;width:100%}
+.klh-pad b{display:block;font-size:9px;color:var(--klh-ink3);font-weight:400;margin-bottom:1px}
+.klh-pad span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.klh-pad.snap:not(.full) span{color:var(--klh-ink3)}
 .klh-pad.scene{border-left:3px solid var(--pad-c,#555)}
 .klh-pad.on{color:var(--klh-ink);background:color-mix(in srgb,var(--pad-c,#e47fa7) 26%,transparent);border-color:var(--pad-c,#e47fa7)}
 .klh-pad.snap.full{color:var(--klh-ink);border-color:#3a5bd0}
@@ -83,12 +90,15 @@ function el(doc, tag, cls, text) {
   if (text !== undefined) e.textContent = text;
   return e;
 }
-function ensureCss(doc) {
-  if (doc.getElementById(CSS_ID)) return;
-  const s = el(doc, "style");
-  s.id = CSS_ID;
-  s.textContent = CSS;
-  (doc.head || doc.documentElement).appendChild(s);
+// A host element with its own shadow root and the panel's CSS inside; returns [host, shadowRoot].
+function isolated(doc, hostStyle) {
+  const host = el(doc, "div", "klh-host");
+  if (hostStyle) host.setAttribute("style", hostStyle);
+  const shadow = host.attachShadow({ mode: "open" });
+  const style = el(doc, "style");
+  style.textContent = CSS;
+  shadow.append(style);
+  return [host, shadow];
 }
 const hueCss = (turn) => `hsl(${Math.round(turn * 360)} 70% 58%)`;
 
@@ -142,7 +152,6 @@ function readoutBlock(doc) {
 export function mountKeyLabHud(opts) {
   const doc = opts.doc || document;
   const { client, binder } = opts;
-  ensureCss(doc);
   const parent = opts.parent || doc.body;
   const floating = opts.floating ?? (parent === doc.body);
   const root = el(doc, "section", "klh" + (floating ? " klh-floating" : ""));
@@ -159,7 +168,7 @@ export function mountKeyLabHud(opts) {
   head.append(dot, title, allow, fold);
   const src = el(doc, "p", "klh-src", "");
   const body = el(doc, "div", "klh-body");
-  root.append(head, src, body);
+  root.append(head, src);   // the readout section goes between these and the body: it stays visible when folded
 
   const readSec = el(doc, "div", "klh-sec");
   const panelRead = readoutBlock(doc);
@@ -170,7 +179,7 @@ export function mountKeyLabHud(opts) {
   const chordNote = el(doc, "span", "klh-src", "play a chord: its root turns the hue");
   chord.append(sw, chordName, chordNote);
   readSec.append(chord);
-  body.append(readSec);
+  root.append(readSec, body);
 
   let padsEls = null;
   if (opts.pads !== false) {
@@ -221,6 +230,7 @@ export function mountKeyLabHud(opts) {
     const layout = box("layout", "Desk layout: fader n = parameter n, knob n trims it");
     const chordHue = box("chordHue", "Chord root turns the hue");
     const lights = box("lightPads", "Light the pads (through the VJ engine)");
+    const screen = box("screen", "Show values on the KeyLab's screen (needs the engine's /api/screen)");
     const l = el(doc, "label");
     const smooth = el(doc, "select");
     for (const [v, t] of [[0, "instant"], [40, "snappy (40 ms)"], [80, "smooth (80 ms)"], [200, "glide (200 ms)"]]) {
@@ -230,16 +240,21 @@ export function mountKeyLabHud(opts) {
     l.append(doc.createTextNode("Smoothing "), smooth);
     sec.append(l);
     body.append(sec);
-    optEls = { layout, chordHue, lights, smooth };
+    optEls = { layout, chordHue, lights, screen, smooth };
   }
-  parent.append(root);
+  const [hostEl, shadow] = isolated(doc);
+  shadow.append(root);
+  parent.append(hostEl);
 
-  // ---- the stage overlay
-  let overlay = null, overlayTimer = null;
+  // ---- the stage overlay (its own shadow root, laid over the stage)
+  let overlay = null, overlayTimer = null, overlayHost = null;
   if (opts.overlay) {
     overlay = readoutBlock(doc);
     overlay.root.className = "klh-overlay";
-    opts.overlay.append(overlay.root);
+    let oshadow;
+    [overlayHost, oshadow] = isolated(doc, "position:absolute;inset:0;pointer-events:none;z-index:5");
+    oshadow.append(overlay.root);
+    opts.overlay.append(overlayHost);
   }
 
   // ---- painting
@@ -249,7 +264,11 @@ export function mountKeyLabHud(opts) {
     dot.className = "klh-dot" + (s.dot ? " " + s.dot : "");
     src.textContent = s.text;
     allow.hidden = !s.button;
-    if (optEls) optEls.lights.disabled = st.source !== "engine";
+    if (optEls) {
+      optEls.lights.disabled = st.source !== "engine";
+      optEls.screen.disabled = st.source !== "engine";
+      optEls.screen.parentElement.title = st.screen === "unsupported" ? "This VJ engine has no /api/screen yet: nothing is drawn" : "";
+    }
   }
   function paintOptions() {
     if (!optEls) return;
@@ -257,6 +276,7 @@ export function mountKeyLabHud(opts) {
     optEls.layout.checked = o.layout === "desk";
     optEls.chordHue.checked = !!o.chordHue;
     optEls.lights.checked = !!o.lightPads;
+    optEls.screen.checked = !!o.screen;
     optEls.smooth.value = String([0, 40, 80, 200].includes(o.smoothMs) ? o.smoothMs : 80);
   }
   function paintMap() {
@@ -295,14 +315,14 @@ export function mountKeyLabHud(opts) {
           b.style.setProperty("--pad-c", sc.colour || "#e47fa7");
           if (sc.id === cur) b.classList.add("on");
         }
-        b.append(el(doc, "b", "", `pad ${pad}`), doc.createTextNode(sc ? sc.label : "—"));
+        b.append(el(doc, "b", "", `pad ${pad}`), el(doc, "span", "", sc ? sc.label : "\u2014"));
         b.title = sc ? `Pad ${pad}: ${sc.label}` : `Pad ${pad}: no scene`;
       } else {
         const slot = pad - 8;
         const full = binder.hasSnapshot(slot);
         b.classList.add("snap");
         if (full) b.classList.add("full");
-        b.append(el(doc, "b", "", `pad ${pad}`), doc.createTextNode(`Snap ${"ABCD"[slot - 1]}${full ? "" : " (empty)"}`));
+        b.append(el(doc, "b", "", `pad ${pad}`), el(doc, "span", "", `Snap ${"ABCD"[slot - 1]}${full ? "" : " \u00b7 empty"}`));
         b.title = `Pad ${pad}: tap recalls snapshot ${"ABCD"[slot - 1]}, hold (or shift-click) stores it`;
       }
       if (pad === hitPad) b.classList.add("hit");
@@ -334,7 +354,7 @@ export function mountKeyLabHud(opts) {
     client.on("chord", (c) => {
       chordName.textContent = c.name || "";
       chordNote.textContent = typeof c.root === "number" && binder.options.chordHue ? "root → hue" : "";
-      if (typeof c.root === "number") sw.style.background = hueCss(fifthsTurn(c.root));
+      if (typeof c.root === "number") { sw.style.background = hueCss(fifthsTurn(c.root)); sw.classList.add("on"); }
     }),
     client.on("pad", (e) => { if (e.on) paintPads(e.pad); }),
     binder.on("readout", showReadout),
@@ -349,7 +369,7 @@ export function mountKeyLabHud(opts) {
     root.classList.toggle("klh-collapsed");
     fold.textContent = root.classList.contains("klh-collapsed") ? "+" : "–";
   });
-  if (opts.collapsed) fold.click();
+  if (opts.collapsed ?? floating) fold.click();   // on another page, start small: header, source and readout
   // the map's values change while you play: repaint it a few times a second, never per event
   const mapTimer = mapEl ? setInterval(() => { if (!root.classList.contains("klh-collapsed")) paintMap(); }, 400) : null;
 
@@ -357,8 +377,19 @@ export function mountKeyLabHud(opts) {
   return {
     root,
     refresh() { paintStatus(); paintOptions(); paintMap(); paintPads(); },
-    destroy() { for (const off of offs) off(); clearInterval(mapTimer); clearTimeout(overlayTimer); root.remove(); overlay?.root.remove(); },
+    destroy() { for (const off of offs) off(); clearInterval(mapTimer); clearTimeout(overlayTimer); hostEl.remove(); overlayHost?.remove(); },
   };
+}
+
+// Mirror the readout on the KeyLab's own screen through the engine (client.postScreen), while the option is on: a
+// fader or knob you move or touch shows its parameter, its value and a bar. The client keeps the rate legal.
+export function wireScreen(client, binder) {
+  return binder.on("readout", (r) => {
+    if (!binder.options.screen || client.source !== "engine" || !r.param || r.source === "scene") return;
+    const knob = /^knob/.test(r.control || "");
+    client.postScreen({ screen: knob ? "knob" : "fader", name: r.label, value: r.pending ? `-> ${r.text}` : r.text,
+      level: Math.round((r.pending ? r.pending.at : (r.pos ?? 0)) * 127) });
+  });
 }
 
 // Colour the pads through the VJ engine when something worth showing changes. Never on a timer: a scene change, a

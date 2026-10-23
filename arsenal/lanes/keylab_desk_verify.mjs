@@ -47,7 +47,7 @@ const BASE_PORT = Number(opt.port);
 if (!(BASE_PORT >= 8900 && BASE_PORT <= 8998)) { console.log("ERROR --port must be in the test band 8900-8998"); process.exit(2); }
 const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
 mkdirSync(opt.out, { recursive: true });
-const receipt = { api: "arsenal.receipt/v0", title: "KeyLab fader -> shader uniform -> frame (headless, SwiftShader, fake engine)",
+const receipt = { api: "arsenal.receipt/v0", title: "KeyLab -> shader uniforms on the Shader Desk, Play and the VFX Bench (headless, SwiftShader, fake engine)",
   started_at: new Date().toISOString(), steps: [], console: [], verdict: null,
   not_measured: ["the real KeyLab (no device is touched)", "the real VJ engine (a fake one speaks its contract)",
     "Web MIDI (headless Chrome has no MIDI devices)", "frame rate on Daniel's GPU (this is SwiftShader)"] };
@@ -72,14 +72,41 @@ function presetList() {
     return { id, file, url: `/web/presets/${file}`, name: h.name || id, author: h.author || "", tags: h.tags || [], params: h.params || [], problems: [] };
   });
 }
+// The /keylab/ allowlist, read from arsenal/keylab/webmount.py itself, so this check serves exactly what the snippet
+// would make the Bifrost console serve.
+const KEYLAB_ROUTES = Object.fromEntries([...readFileSync(join(REPO, "arsenal", "keylab", "webmount.py"), "utf8")
+  .matchAll(/^\s+"([a-z0-9-]+\.js)": "([^"]+)",$/gm)].map((m) => [m[1], m[2]]));
+// The two VFX Bench presets the stub serves as scenes (the bench's own preset shape).
+const BENCH_PRESETS = {
+  "keylab-test-a": { style: "geodesic", state: "thinking", params: { sub: 1.2 }, tint: [0.9, 0.2, 0.6], dials: { wire: 0.5, see: 0.85, rate: 0.5 } },
+  "keylab-test-b": { style: "geodesic", state: "thinking", params: { sub: 4.4 }, tint: [0.2, 0.4, 1.0], dials: { wire: 0.5, see: 0.85, rate: 0.5 } },
+};
+const json = (res, obj, code = 200) => { res.writeHead(code, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify(obj)); };
+const file200 = (res, path, type, transform) => {
+  let body = readFileSync(path);
+  if (transform) body = transform(body.toString("utf8"));
+  res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
+  res.end(body);
+};
 function staticServer() {
   return createServer((req, res) => {
     const url = new URL(req.url, "http://x");
-    if (url.pathname === "/api/presets") {
-      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-      return res.end(JSON.stringify({ presets: presetList() }));
-    }
-    if (!url.pathname.startsWith("/web/")) { res.writeHead(404); return res.end("not found"); }
+    const p = url.pathname;
+    if (p === "/api/presets") return json(res, { presets: presetList() });
+    // Play, as the arsenal server serves it (its other /api/ routes 404 here; Play keeps running without them)
+    if (p === "/play") return file200(res, join(WEB, "play.html"), TYPES[".html"]);
+    // The VFX Bench, as the Bifrost console serves it, WITH the one-line vfx.html change from webmount.py applied
+    if (p === "/vfx") return file200(res, join(REPO, "scripts", "vfx.html"), TYPES[".html"],
+      (t) => t + '\n<script type="module" src="/keylab/keylab-mount.js"></script>\n');   // vfx.html has no </body>: the line goes at the end
+    if (p === "/agent-avatar.js") return file200(res, join(REPO, "scripts", "agent-avatar.js"), TYPES[".js"]);
+    const km = /^\/keylab\/([a-z0-9-]+\.js)$/.exec(p);
+    if (km) { const rel = KEYLAB_ROUTES[km[1]]; if (!rel) { res.writeHead(404); return res.end(); } return file200(res, join(REPO, rel), TYPES[".js"]); }
+    if (p === "/vfx/presets") return json(res, BENCH_PRESETS);
+    if (p === "/vfx/bench") return json(res, null);
+    if (p === "/vfx/job/next") return json(res, {});
+    if (p === "/events") { res.writeHead(200, { "Content-Type": "text/event-stream" }); res.write(": stub\n\n"); return; }
+    if (p.startsWith("/vfx/") || p === "/send") return json(res, req.method === "POST" ? { ok: true } : (/(chunks|sketches|graphs|compositions|groups|thumbs|clips)$/.test(p) ? [] : {}));
+    if (!p.startsWith("/web/")) { res.writeHead(404); return res.end("not found"); }
     const file = normalize(join(WEB, decodeURIComponent(url.pathname.slice(5))));
     if (!file.startsWith(WEB + sep)) { res.writeHead(404); return res.end("not found"); }
     let body;
@@ -89,6 +116,7 @@ function staticServer() {
   });
 }
 const sse = new Set();
+const screens = [];
 function fakeEngine() {
   return createServer((req, res) => {
     const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Private-Network": "true" };
@@ -101,6 +129,12 @@ function fakeEngine() {
       sse.add(res);
       req.on("close", () => sse.delete(res));
       return;
+    }
+    if (url.pathname === "/api/screen" && req.method === "POST") {   // the proposed screen route: record what the page asks to draw
+      let body = "";
+      req.on("data", (c) => { body += c; });
+      req.on("end", () => { try { screens.push(JSON.parse(body)); } catch { screens.push({ bad: body.slice(0, 80) }); } });
+      res.writeHead(200, { ...cors, "Content-Type": "application/json" }); return res.end('{"ok":true}');
     }
     if (url.pathname === "/api/pads" && req.method === "POST") {   // the desk may ask for pad colours: count, light nothing
       receipt.pad_posts = (receipt.pad_posts || 0) + 1;
@@ -256,6 +290,17 @@ try {
   step("the rendered frame changed", after.hash !== before.hash && diff.mean_abs_luma > 0.5, { before: brief(before), after: brief(after), diff });
   receipt.pngs = [pngBefore, pngAfter];
 
+  // the readout on the KeyLab's screen (opt-in; the fake engine has the proposed /api/screen)
+  await evaluate("__desk.option('screen', true)");
+  screens.length = 0;
+  for (const v of [0.9, 0.8, 0.7, 0.6]) { fader(2, v); await delay(10); }   // four moves inside 80 ms: one or two posts, the last value wins
+  await settle(400);
+  const lastScreen = screens.at(-1) || null;
+  step("screen: a fader move asks the engine to draw the fader screen (throttled, latest wins)", screens.length >= 1 && screens.length <= 3
+    && lastScreen && lastScreen.screen === "fader" && lastScreen.name.startsWith("bands") && lastScreen.value === "60%" && lastScreen.level === 76,
+    { posts: screens.length, last: lastScreen });
+  await evaluate("__desk.option('screen', false)");
+
   // a relative knob trims it finely: -64 ticks of 384
   knob(1, -64); await settle(700);
   const k1Knob = await u("u_k1");
@@ -309,7 +354,74 @@ try {
 
   clearInterval(energyTimer);
   receipt.console_errors = receipt.console.filter((c) => c.type === "exception" || c.type === "error").length;
-  step("no page exceptions or console errors", receipt.console_errors === 0, { console: receipt.console.slice(0, 5) });
+  step("the desk: no page exceptions or console errors", receipt.console_errors === 0, { console: receipt.console.slice(0, 5) });
+  receipt.console_desk = receipt.console.splice(0);
+
+  // ======================================================================== Play, unchanged, in a frame
+  await page.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/web/keylab-play.html?keylab=${encodeURIComponent(`http://127.0.0.1:${engPort}/api/events`)}` });
+  await waitFor("window.__keylab && __keylab.kind === 'play' && __keylab.client.source === 'engine'", 30_000, "the KeyLab to mount on Play");
+  const P = "document.getElementById('play').contentWindow";
+  await waitFor(`${P}.__play.presets().length > 1`, 15_000, "Play's preset list");
+  const playScenes = await evaluate("__keylab.host.scenes().map((s) => s.id)");
+  step("Play: its presets are the KeyLab's scenes", playScenes.length >= 6, { scenes: playScenes });
+  const ribbonsAt = playScenes.indexOf("aurora-ribbons");
+  send({ t: "pad", pad: ribbonsAt + 1, vel: 0.8, on: true, src: "daw" }); send({ t: "pad", pad: ribbonsAt + 1, vel: 0, on: false, src: "daw" });
+  await waitFor(`(${P}.__play.active() || {}).id === 'aurora-ribbons' && ${P}.__play.active().compiled`, 15_000, "Play to switch to aurora-ribbons");
+  step(`Play: pad ${ribbonsAt + 1} switches Play to aurora-ribbons through window.__play`, true);
+  await settle(400);
+  const macro = (t) => evaluate(`(() => { const d = ${P}.document; const r = d.querySelector('input.macro-range[aria-label="${t}"]');
+    const row = r.closest('.macro'); return { value: Number(r.value), shown: row.querySelector('.macro-val').textContent, name: row.querySelector('.macro-name').textContent }; })()`);
+  const pk1 = await macro("k1");
+  step("Play: k1 is flow at Play's default", pk1.name === "flow" && pk1.value === 500, pk1);
+  fader(1, 0.0); await settle(300);
+  const pk1Hold = await macro("k1");
+  step("Play: pickup holds (fader at 0, flow stays 0.50)", pk1Hold.value === 500, pk1Hold);
+  for (const v of [0.2, 0.4, 0.6, 0.8, 1.0]) { fader(1, v); await delay(40); }
+  await settle(700);
+  const pk1After = await macro("k1");
+  step("Play: fader 1 drives Play's own k1 handler to 1.00 (its readout says so)", pk1After.value === 1000 && pk1After.shown === "1.00", pk1After);
+  knob(9, 30); await settle(700);
+  const phue = await macro("hue");
+  step("Play: knob 9 turns Play's hue (30 ticks of 128 per turn = 84 degrees)", Math.abs(phue.value - Math.round(30 / 128 * 1000)) <= 2, phue);
+  receipt.pngs.push(await shot("play"));
+  receipt.console_play = receipt.console.splice(0);
+  const playOwn = receipt.console_play.filter((c) => /keylab/i.test(c.text) && (c.type === "exception" || c.type === "error"));
+  step("Play: no KeyLab errors (Play's own 404s on this stub server are not counted)", playOwn.length === 0, { keylab_errors: playOwn, play_console: receipt.console_play.length });
+
+  // ======================================================================== the VFX Bench, with the snippet applied
+  await page.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/vfx?keylab=${encodeURIComponent(`http://127.0.0.1:${engPort}/api/events`)}` });
+  try {
+    await waitFor("window.__keylab && __keylab.kind === 'vfx-bench' && __keylab.client.source === 'engine' && window.av && av.prog", 30_000, "the KeyLab to mount on the bench");
+  } catch (err) {
+    const why = await evaluate("({ keylab: window.__keylab ? { kind: __keylab.kind, pending: !!__keylab.pending, source: __keylab.client && __keylab.client.source } : null, AgentAvatar: !!window.AgentAvatar, av: !!window.av, prog: !!(window.av && av.prog) })").catch((e) => String(e));
+    step("VFX Bench: the mount came up", false, { why, console: receipt.console.slice(-6) });
+    throw err;
+  }
+  step("VFX Bench: /keylab/keylab-mount.js loads through the webmount allowlist and finds the bench", true,
+    { routes: Object.keys(KEYLAB_ROUTES) });
+  const benchSub = () => evaluate("({ target: av.target.sub, gpu: av.gl.getUniform(av.prog, av.u.u_sub), slider: Number(document.querySelector('#params input').value), out: (document.getElementById('out').value.match(/sub: ([0-9.]+)/) || [])[1] })");
+  await settle(500);
+  const s0 = await benchSub();
+  const pos0 = (s0.target - 0.8) / 4.2;
+  for (const v of [0.05, 0.2, 0.35, 0.5, 0.65, 0.8, 0.9]) { fader(1, v); await delay(40); }
+  await settle(800);
+  const s1 = await benchSub();
+  const want = 0.8 + 0.9 * 4.2;
+  step("VFX Bench: fader 1 catches subdivision on the way up and drives it to 4.58", Math.abs(s1.target - want) < 0.01, { before: s0, after: s1, pickup_at: Math.round(pos0 * 1000) / 1000 });
+  step("VFX Bench: the avatar's u_sub on the GPU follows (gl.getUniform)", Math.abs(s1.gpu - want) < 0.05, { u_sub: s1.gpu });
+  step("VFX Bench: the bench's own slider and hand-off row show it", Math.abs(s1.slider - want) < 0.03 && Math.abs(Number(s1.out) - want) < 0.01, { slider: s1.slider, handoff: s1.out });
+  send({ t: "chord", src: "keys", name: "Bb", root: 10, quality: "maj", pcs: [2, 5, 10], changed: true });
+  await settle(2200);
+  const tintHue = await evaluate("(() => { const [r,g,b] = av.target.tint; const mx = Math.max(r,g,b), mn = Math.min(r,g,b), d = mx - mn; let h = 0; if (d > 1e-9) h = mx === r ? ((g-b)/d) % 6 : mx === g ? (b-r)/d + 2 : (r-g)/d + 4; return ((h*60)+360)%360; })()");
+  step("VFX Bench: a Bb chord turns the tint to 300 degrees (root 10 -> 10 fifths round)", Math.abs(tintHue - 300) < 3, { tint_hue: tintHue });
+  send({ t: "pad", pad: 2, vel: 0.8, on: true, src: "daw" }); send({ t: "pad", pad: 2, vel: 0, on: false, src: "daw" });
+  await settle(900);
+  const s2 = await benchSub();
+  step("VFX Bench: pad 2 loads the bench's second saved preset (sub 4.4)", Math.abs(s2.target - 4.4) < 0.01, { sub: s2.target });
+  receipt.pngs.push(await shot("vfx-bench"));
+  receipt.console_vfx = receipt.console.splice(0);
+  const vfxOwn = receipt.console_vfx.filter((c) => /keylab/i.test(c.text) && (c.type === "exception" || c.type === "error"));
+  step("VFX Bench: no KeyLab errors (the stubbed bench endpoints are not counted)", vfxOwn.length === 0, { keylab_errors: vfxOwn, bench_console: receipt.console_vfx.length });
   receipt.elapsed_ms = Date.now() - t0;
 } catch (err) {
   step("run", false, { error: String(err && err.stack || err).slice(0, 800) });

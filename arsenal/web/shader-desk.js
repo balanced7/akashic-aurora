@@ -19,7 +19,7 @@
 // URL: ?preset=<id> start there; ?keylab=<events url> or ?keylab=midi; ?scale=0.5 render scale; ?ui=0 perform mode;
 // ?freeze=<seconds> hold the shader clock (for checks). Test hook: window.__desk.
 import { createBinder, createKeyLabClient } from "./lib/keylab-client.js";
-import { mountKeyLabHud, wirePadLights } from "./lib/keylab-desk.js";
+import { mountKeyLabHud, wirePadLights, wireScreen } from "./lib/keylab-desk.js";
 import { renderParams } from "./lib/params-ui.js";
 import { createPresetRenderer, listPresets, parseHeader } from "./lib/preset-gl.js";
 
@@ -95,6 +95,7 @@ const binder = createBinder(client, host, { namespace: "shader-desk" });
 const hud = mountKeyLabHud({ client, binder, parent: $("keylab"), floating: false, overlay: stage, title: "KeyLab",
   map: false, scenes: host.scenes, scene: host.scene });
 wirePadLights(client, binder);
+wireScreen(client, binder);
 client.onBeat(() => r.beat(1));
 client.on("energy", (e) => r.setBands(e));
 client.on("hit", (e) => r.hit(e.strength));
@@ -269,6 +270,7 @@ window.__desk = {
   bindings: () => binder.describe(),
   readout: () => binder.readout,
   learn: (id) => binder.learn(id),
+  option: (key, value) => binder.setOption(key, value),
   renderer: r,
 };
 
