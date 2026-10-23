@@ -69,8 +69,13 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
   check("tension clamps", P({ t: "tension", value: 3 }).value === 1 && P({ t: "tension", value: -1 }).value === 0);
   check("tension with no pedal says -1", P({ t: "tension", value: 0.2, pedal_pc: null }).pedal_pc === -1 &&
         P({ t: "tension", value: 0.2 }).pedal_pc === -1);
-  check("tension pedal folds into 0..11", P({ t: "tension", value: 0.2, pedal_pc: 13 }).pedal_pc === 1 &&
-        P({ t: "tension", value: 0.2, pedal_pc: -1 }).pedal_pc === 11);
+  // -1 is the page's own "none", so it never wraps to 11 (B); a number past 11 is no pitch class, not a folded one
+  check("tension pedal out of 0..11 is none, never wrapped", P({ t: "tension", value: 0.2, pedal_pc: 13 }).pedal_pc === -1 &&
+        P({ t: "tension", value: 0.2, pedal_pc: -1 }).pedal_pc === -1 && P({ t: "tension", value: 0.2, pedal_pc: 99 }).pedal_pc === -1);
+  check("chord bass out of 0..11 is none", P({ t: "chord", name: "C", root: 0, pcs: [0, 4, 7], bass: -1 }).bass === -1 &&
+        P({ t: "chord", name: "C", root: 0, pcs: [0, 4, 7], bass: 16 }).bass === -1 &&
+        P({ t: "chord", name: "C/E", root: 0, pcs: [0, 4, 7], bass: 4 }).bass === 4);
+  check("a no-chord carries no numeral", P({ t: "chord", name: "N", root: null, pcs: [], roman: "IV" }).roman === "");
   check("tension without a value is refused", P({ t: "tension" }) === null && P({ t: "tension", value: "0.4" }) === null &&
         P({ t: "tension", value: Infinity }) === null);
   check("tension with a pedal that is no pitch class is refused", P({ t: "tension", value: 0.3, pedal_pc: 1.5 }) === null &&
@@ -81,7 +86,7 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
   check("chord carries roman, key, bass and conf", ch.roman === "IV" && ch.key === "Db major" && ch.bass === 6 && ch.conf === 1);
   const inv = P({ t: "chord", src: "audio", name: "Ab7/C", root: 8, quality: "7", pcs: [0, 3, 6, 8], bass: 12,
                   roman: "V65", key: "Db major", conf: 1.7 });
-  check("chord bass folds, conf clamps", inv.bass === 0 && inv.conf === 1 && inv.roman === "V65");
+  check("chord bass outside 0..11 is none (the contract sends 0..11), conf clamps", inv.bass === -1 && inv.conf === 1 && inv.roman === "V65");
   for (const r of ["bVII", "vii°", "V7/V", "V43/IV", "IVmaj42", "i64", "Vsus4", "#IV", "bII", "I5", "bVIadd9", "III+"]) {
     check(`roman ${r} is taken`, P({ t: "chord", name: "x", root: 0, roman: r }).roman === r);
   }

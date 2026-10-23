@@ -714,7 +714,7 @@ try {
     REAL_PORT = await freeInBand(REAL_PORT);
     const real = { port: REAL_PORT, url: `http://127.0.0.1:${REAL_PORT}` };
     realEngine = spawn("py", ["-m", "arsenal.keylab", "vj", "--port", String(REAL_PORT), "--no-leds", "--no-midi",
-                              "--replay-audio", "demo", "--chords", "sense", "--quiet", "--secs", "180"],
+                              "--replay-audio", "demo", "--quiet", "--secs", "180"],   // the default chords (blend)
                        { cwd: REPO, stdio: "ignore", windowsHide: true });
     await waitFor(async () => { try { return (await fetch(`${real.url}/api/state`)).ok; } catch { return false; } },
                   30000, "the real VJ engine on its test port");
@@ -724,7 +724,7 @@ try {
     try {
       heard = await waitFor(async () => {
         const s = await stats();
-        return s.engine.hello && s.engine.hello.chords === "sense" && s.harmony.key && s.roman && s.harmony.live ? s : null;
+        return s.engine.hello && s.engine.hello.chords === "blend" && s.harmony.key && s.roman && s.harmony.live ? s : null;
       }, 40000, "the real engine's key and numerals on the page");
     } catch { /* judged below */ }
     await delay(400);
@@ -745,7 +745,7 @@ try {
     checks.the_real_engine_shows_key_and_roman_on_the_page = !!heard && /^(C major|A minor) /.test(real.hud.key + " ") &&
       ["C major", "A minor"].includes(heard.harmony.key) && heard.chordSrc === "audio" && /\(audio/.test(real.hud.chord) &&
       last.engine.bad === 0 && (ev.key || 0) >= 1 && (ev.tension || 0) >= 1 && (ev.chord || 0) >= 2 &&
-      real.state.chords === "sense" && real.state.audio.timing.capture && real.state.audio.timing.capture.gap === false;
+      real.state.chords === "blend" && real.state.audio.timing.capture && real.state.audio.timing.capture.gap === false;
     report.real_engine = real;
     // the page leaves first: an engine killed under an open stream makes Chrome log a reset connection
     await S("Page.navigate", { url: "about:blank" });

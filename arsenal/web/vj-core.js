@@ -69,6 +69,8 @@ const clamp01 = (x) => (x > 1 ? 1 : x < 0 ? 0 : x);
 const num = (v, fallback = null) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const BANDS = new Set(["kick", "snare", "hat", "full"]);
 const pc12 = (p) => ((p % 12) + 12) % 12;
+// a pitch class that must already be one (a pedal, a bass): 0..11, else -1 = none. Never wrapped: -1 is not B, 99 not Eb
+const pcOrNone = (p) => (Number.isInteger(p) && p >= 0 && p < 12 ? p : -1);
 // a key as chordsense names it ("Db major", "F# minor"); a roman numeral as it spells one ("IV", "V65/V", "bVII", "vii°")
 const KEY_NAME = /^[A-G][#b]? (major|minor)$/;
 const ROMAN = /^[#b]?[IViv]{1,4}(?:[°+]|sus[24]|add9|maj|[0-9]{1,2})*(?:\/[#b]?[IViv]{1,4}[°+]?)?$/;
@@ -80,9 +82,10 @@ export function parseEvent(obj) {
   switch (obj.t) {
     case "hello":
       // leds: true / false from an engine that says; null from one that does not (an older engine: post, and stop on refusal)
-      // chords: which chord engine runs ("sense": chordsense, with key and tension events; "basic"; "" = an older engine)
+      // chords: which chord engine runs ("blend": the templates name the audio chords, chordsense sends the key and the
+      // tension; "sense": chordsense names them too; "basic": no key or tension events; "" = an older engine)
       return { t: "hello", v: num(obj.v, 0), src: String(obj.src || ""), beat_engine: String(obj.beat_engine || ""),
-               chords: ["sense", "basic"].includes(obj.chords) ? obj.chords : "",
+               chords: ["blend", "sense", "basic"].includes(obj.chords) ? obj.chords : "",
                pads_mode: ["daw", "bank", "both"].includes(obj.pads_mode) ? obj.pads_mode : "",
                leds: obj.leds === true ? true : obj.leds === false ? false : null,
                leds_reason: typeof obj.leds_reason === "string" ? obj.leds_reason.slice(0, 200) : "" };
@@ -97,7 +100,7 @@ export function parseEvent(obj) {
       const value = num(obj.value), ped = obj.pedal_pc;
       if (value === null) return null;
       if (ped !== null && ped !== undefined && !Number.isInteger(ped)) return null;
-      return { t: "tension", value: clamp01(value), pedal_pc: Number.isInteger(ped) ? pc12(ped) : -1,
+      return { t: "tension", value: clamp01(value), pedal_pc: pcOrNone(ped),
                src: obj.src === "audio" ? "audio" : obj.src === "keys" ? "keys" : "" };
     }
     case "beat": {
@@ -120,7 +123,7 @@ export function parseEvent(obj) {
       return { t: "chord", src: obj.src === "audio" ? "audio" : "keys", name: typeof obj.name === "string" ? obj.name.slice(0, 24) : "",
                root: root === null ? -1 : pc12(Math.round(root)), quality: String(obj.quality || ""),
                pcs: [...new Set(pcs)].slice(0, 12), changed: obj.changed !== false,
-               bass: Number.isInteger(obj.bass) ? pc12(obj.bass) : -1, roman: romanNumeral(obj.roman), key: keyName(obj.key),
+               bass: pcOrNone(obj.bass), roman: root === null ? "" : romanNumeral(obj.roman), key: keyName(obj.key),
                conf: conf === null ? null : clamp01(conf) };
     }
     case "note": {

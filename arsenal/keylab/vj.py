@@ -24,9 +24,9 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
           "bass":0..11,"roman":"Imaj7"|null,"key":"Db major"|null,"conf":0..1}
           name 'N' (root, quality and bass null, pcs []) = the audio hears no chord (drums, noise, a lone line);
           roman is the chord in `key`, the key the page is told (below); --chords basic sends the first seven fields
-  key    {"t":"key","name":"Db major","conf":0..1,"src":"keys|audio"}  the key, when it lands or moves (--chords sense)
+  key    {"t":"key","name":"Db major","conf":0..1,"src":"keys|audio"}  the key, when it lands or moves (blend, sense)
   tension {"t":"tension","value":0..1,"pedal_pc":0..11|null,"src":"keys|audio"}  the harmony's tension: with every
-          chord, pedal and resolution chordsense decides, from the ear that names the key (--chords sense)
+          chord, pedal and resolution chordsense decides, from the ear that names the key (blend, sense)
   note   {"t":"note","key":0..127,"vel":0..1,"on":bool}        pedal {"t":"pedal","on":bool}
   pad    {"t":"pad","pad":1..12,"vel":0..1,"on":bool,"src":"daw|bank"}
   ctl    {"t":"ctl","id":"cc105","kind":"abs|rel","value":0..1,"delta":int}
@@ -49,11 +49,15 @@ What feeds it:
   AUDIO   WASAPI loopback (whatever is playing), or --replay-audio FILE in real time (--loop repeats it), or
           --replay-audio demo (a made-up groove) -> the beat tracker (beat_<engine>.Tracker, predictions sent ahead, one per beat), the
           referee's on-beat score (beatref), energy bands, a heavy-hit detector, and chords from the AUDIO. --chords
-          sense (the default): chordsense.ChordSense fed every loopback block, its events mapped by
-          chordsense.to_vj_events (chord with roman, key, bass and confidence; key; tension). --chords basic: the
-          older detector (AudioChords: a 12-bin chroma from the spectrum's peaks, matched to major/minor/7th templates,
-          sent only on a confident change), and no key or tension events
-  HARMONY --chords sense also runs a second ChordSense on the KEYS (feed_notes, its clock stepped every 20 ms by the
+          blend (the default): the older detector NAMES the audio chords (AudioChords: a 12-bin chroma from the
+          spectrum's peaks, matched to major/minor/7th templates, sent only on a confident change), each decorated
+          with its roman numeral and spelling in the key chordsense tells the page, while chordsense.ChordSense, fed
+          every loopback block, sends the key and the tension (its own audio chords are not published). Measured
+          2026-10-23 on a kick + sub bass + supersaw render: templates 59 % exact (root 59 %), chordsense 38 % (root
+          61 %; the kick's sweep adds tones: F read Dm7, C read Cadd9); without drums chordsense led, 74 % to 68 %.
+          --chords sense: chordsense names the audio chords too (chord with roman, key, bass and confidence; key;
+          tension, through chordsense.to_vj_events). --chords basic: the templates only, no key or tension events
+  HARMONY --chords blend and sense also run a second ChordSense on the KEYS (feed_notes, its clock stepped every 20 ms by the
           MIDI thread). The keys' chord NAME stays today's reading (Voicing + theory.analyze after the settle: exact
           on held piano chords and ~45 ms from the attack, where chordsense's notes path takes ~180 ms and reads
           85 % against 97 % on held block chords, measured 2026-10-23); when that reading cannot name what sounds (a
@@ -117,7 +121,10 @@ PAD_DEDUP_S = 0.04            # the same pad on both inputs within this long is 
 SILENT_BEATS_S = 1.5          # no beats are announced after this long of silence
 KEYS_WITNESS_S = 10.0         # the key: audio chords count as evidence only after the keys have been quiet this long
 MAX_PADS_BODY = 4096
-CHORD_MODES = ("sense", "basic")   # --chords: chordsense on both ears (default), or the older audio templates only
+# --chords: blend (default) = the older audio templates NAME the audio chords (they hold up best under a hardstyle kick
+# and sub bass, verified 2026-10-23) while chordsense on both ears gives the key, the roman numerals and the tension;
+# sense = chordsense names the audio chords too; basic = the older templates only, no key or tension events.
+CHORD_MODES = ("blend", "sense", "basic")
 SENSE_TICK_S = 0.02           # the keys' chordsense clock is stepped at least this often (its frame is 20 ms)
 TIMING_KEEP = 4096            # per-block processing times kept for the state route's percentiles
 
@@ -643,6 +650,39 @@ def key_has_flats(name) -> Optional[bool]:
     return (MAJOR_SIG if k[1] == "major" else MINOR_SIG)[k[0]] < 0
 
 
+_PC_OF = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "Fb": 4, "E#": 5, "F": 5, "F#": 6, "Gb": 6,
+          "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11, "Cb": 11, "B#": 0}
+
+
+def _root_token(s: str) -> str:
+    return s[:2] if len(s) > 1 and s[1] in "#b" else s[:1]
+
+
+def spell_in_key(name, root, quality, key) -> Optional[str]:
+    """A chord name re-spelled for a key by scale degree (chordsense.spell_root / spell_note): the root and any slash
+    bass change letter, the suffix is kept as written. In E major the iii chord is G#m, not Abm; in C major the
+    borrowed bVII is Bb, not A#. None with no key, no root, or a name whose root is not the event's root (then the
+    caller keeps its own spelling)."""
+    k = parse_key(key)
+    if k is None or root is None or not isinstance(name, str) or not name or name == "N":
+        return None
+    try:
+        from . import chordsense as CS
+        head, _, slash = name.partition("/")
+        r = _root_token(head)
+        if _PC_OF.get(r) != int(root) % 12:
+            return None
+        out = CS.spell_root(int(root) % 12, _ROMAN_QUALITY.get(quality), k)[0] + head[len(r):]
+        if slash:
+            b = _root_token(slash)
+            if b not in _PC_OF:
+                return None
+            out += "/" + CS.spell_note(_PC_OF[b], k) + slash[len(b):]
+        return out
+    except Exception:                                 # a chordsense that changed under us keeps the old spelling
+        return None
+
+
 def roman_in(root, quality, bass, key) -> Optional[str]:
     """The roman numeral of a chord in a key ('IV', 'V65', 'bVII', 'V7/V'), spelled by chordsense's own reading
     (chordsense.roman + full_roman), or None with no key or a chord it cannot place."""
@@ -783,8 +823,9 @@ class Harmony:
 
     def decorate(self, chord: dict, now: Optional[float] = None, fallback_flats: bool = False) -> dict:
         """A chord event for the page: its roman numeral in the key the page is told (recomputed when the ear that
-        named the chord heard another key), that key, and the name spelled the page's way (flats; pitch class 6 is Gb
-        in a flat key). A chord with no root (N) carries no numeral."""
+        named the chord heard another key), that key, and the name spelled by the key's scale degrees (spell_in_key:
+        G#m in E major, Bb in C major), else the page's way (flats; pitch class 6 is Gb in a flat key). A chord with no
+        root (N) carries no numeral."""
         k = self.key_now(now)
         key = k[0] if k else None
         out = dict(chord)
@@ -794,7 +835,10 @@ class Harmony:
             out["roman"] = roman_in(out["root"], out.get("quality"), out.get("bass"), key)
         out["key"] = key
         flats = key_has_flats(key)
-        if out.get("name") and out["name"] != "N":
+        named = spell_in_key(out.get("name"), out.get("root"), out.get("quality"), key)
+        if named:
+            out["name"] = named
+        elif out.get("name") and out["name"] != "N":
             out["name"] = spell(out["name"], fallback_flats if flats is None else flats)
         return out
 
@@ -1185,7 +1229,7 @@ def note_schedule(notes) -> List[Tuple[float, int, int, int]]:
     return [(t, 0x90 if kind else 0x80, k, v) for t, kind, k, v in ev]
 
 
-def replay_events(replay: "Replay", chords: str = "sense", tail_s: float = 3.0) -> List[Tuple[float, dict]]:
+def replay_events(replay: "Replay", chords: str = "blend", tail_s: float = 3.0) -> List[Tuple[float, dict]]:
     """The events a page receives from replaying `replay`, computed offline on a simulated clock: [(seconds, event)].
     The same path as a live replay (note_schedule -> Engine._handle: notes, the key, the keys' chord after its settle,
     and with --chords sense the keys' chordsense: key, tension, and its chord where the keys' reading has no name),
@@ -1557,15 +1601,16 @@ class Engine:
                  rate_limit: bool = False, ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0,
                  seed_bpm: Optional[float] = None, heartbeat_s: float = HEARTBEAT_S, replay: Optional[Replay] = None,
                  replay_delay: float = 1.5, verbose: bool = False, verbose_http: bool = False,
-                 say: Callable[[str], None] = print, chords: str = "sense"):
+                 say: Callable[[str], None] = print, chords: str = "blend"):
         if pads_mode not in ("daw", "bank", "both"):
             raise ValueError("pads_mode must be daw, bank or both")
         if chords not in CHORD_MODES:
             raise ValueError(f"chords must be one of {', '.join(CHORD_MODES)}")
         self.http_port, self.beat_engine, self.source = http_port, beat_engine, source
         self.chords = chords
-        # --chords sense: chordsense on the audio (when there is a source) and on the keys
-        self.harmony: Optional[Harmony] = (Harmony(rate=getattr(source, "rate", None)) if chords == "sense" else None)
+        # --chords sense / blend: chordsense on the audio (when there is a source) and on the keys
+        self.harmony: Optional[Harmony] = (Harmony(rate=getattr(source, "rate", None))
+                                           if chords in ("sense", "blend") else None)
         self._keys_lost = False                      # the keys' own reading cannot name what sounds now
         self.pads_mode, self.rate_limit = pads_mode, rate_limit
         self.ahead_s, self.offset_s, self.seed_bpm = ahead_ms / 1000.0, offset_ms / 1000.0, seed_bpm
@@ -1983,7 +2028,8 @@ class Engine:
             self.status(f"!beat_{self.beat_engine} would not start: {type(exc).__name__}: {exc}")
             return
         harmony = self.harmony if (self.harmony is not None and self.harmony.audio is not None) else None
-        ana = Analyzer(rate, HOP, rate_limit=self.rate_limit, chords=harmony is None)
+        blend = harmony is not None and self.chords == "blend"   # the templates name, chordsense keys and tensions
+        ana = Analyzer(rate, HOP, rate_limit=self.rate_limit, chords=harmony is None or blend)
         a = self.audio
         a["running"] = True
         audio_t, wall0, idle, warned = 0.0, None, 0.0, 0.0
@@ -2025,13 +2071,18 @@ class Engine:
                 for evt in ana.feed(block, audio_t):
                     if evt["t"] == "chord":
                         self.audio_chord_seen(evt, t_got)
+                        if blend:                     # its numeral and spelling in the key chordsense tells the page
+                            try:
+                                evt = harmony.decorate(evt, t_got, self.key.flats())
+                            except Exception as exc:  # chordsense never stops the chords, beat, energy or hits
+                                self._sense_failed("audio", exc)
                         self.last["chord"] = self.last["chord_audio"] = evt
                     self.publish(evt)
                 if harmony is not None:
                     t_s = time.perf_counter()
                     try:
                         sensed = [self._audio_sense_chord(e, t_got) if e["t"] == "chord" else e
-                                  for e in harmony.feed_audio(block, t_got)]
+                                  for e in harmony.feed_audio(block, t_got) if not (blend and e["t"] == "chord")]
                     except Exception as exc:              # chordsense never stops the beat, the energy, the hits
                         self._sense_failed("audio", exc)
                         sensed = []
@@ -2056,7 +2107,7 @@ class Engine:
                 a["dropped_s"] = round(getattr(src, "dropped_s", 0.0), 2)
                 if a["blocks"] % 16 == 0:
                     a["level_db"] = round(ana.level_db, 1)
-                    if harmony is None:
+                    if harmony is None or blend:
                         a["chord_analysis"] = ana.chords.last
                     else:
                         snap = harmony.audio.snapshot()
@@ -2135,7 +2186,7 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
         replay_pattern: Optional[int] = None, replay_audio: Optional[str] = None, loop: bool = False,
         audio: bool = True, midi: bool = True, rate_limit: bool = False, pads: str = "both",
         ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0, seed_bpm: Optional[float] = None,
-        secs: Optional[float] = None, quiet: bool = False, chords: str = "sense") -> int:
+        secs: Optional[float] = None, quiet: bool = False, chords: str = "blend") -> int:
     line_buffered_stdout()
     say = print
     replay = None

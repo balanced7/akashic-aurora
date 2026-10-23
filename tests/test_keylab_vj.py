@@ -155,7 +155,7 @@ def test_sse_stream_delivers_every_event_type_with_the_contract_fields():
             sse.close()
 
     hello = sse.of("hello")[0]
-    assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "chords": "sense",
+    assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "chords": "blend",
                      "pads_mode": "both", "leds": False, "leds_reason": "LEDs are off (--no-leds)"}
     assert all(isinstance(s["msg"], str) and s["msg"] for s in sse.of("status"))
 
@@ -644,8 +644,9 @@ def test_vj_verb_is_registered():
     args = build_parser().parse_args(["vj", "--port", "8901", "--no-leds", "--rate-limit", "--replay-audio", "demo"])
     assert args.verb == "vj" and args.port == 8901 and args.no_leds and args.rate_limit
     assert args.engine == "a" and args.replay_audio == "demo" and args.loop is False
-    assert args.chords == "sense"
+    assert args.chords == "blend"
     assert build_parser().parse_args(["vj", "--chords", "basic"]).chords == "basic"
+    assert build_parser().parse_args(["vj", "--chords", "sense"]).chords == "sense"
 
 
 # --- chordsense in the engine (--chords sense, the default) ------------------------------------------------------------
@@ -758,8 +759,51 @@ def test_chords_basic_still_works_and_sends_no_key_or_tension(tmp_path):
     assert st["audio"]["timing"]["sense_ms"] is None and st["audio"]["chord_analysis"]["best"]
 
 
+def test_chords_blend_names_with_the_templates_and_keys_and_tensions_with_chordsense(tmp_path):
+    """The default: under a kick and a sub bass the older templates name the audio chords best (59 % exact against
+    chordsense's 38 % on a hardstyle render, 2026-10-23), so they name them, each with its roman numeral in the key
+    chordsense tells the page; chordsense's own audio chords are not published, its key and tension are."""
+    x, _truth = _hardstyle(bars=2)
+    eng, seen, st = _run_audio(tmp_path, x, chords="blend")
+    assert eng.hello()["chords"] == "blend" and st["chords"] == "blend" and st["harmony"] is not None
+    chords = [e for e in seen if e["t"] == "chord"]
+    assert [c["name"] for c in chords][:4] == ["Am", "F", "C", "G"], [c["name"] for c in chords]
+    basic = {"t", "src", "name", "root", "quality", "pcs", "changed", "conf"}
+    assert all(set(c) == basic | {"roman", "key"} and c["src"] == "audio" for c in chords), chords
+    keys = [e for e in seen if e["t"] == "key"]
+    assert keys and any(e["t"] == "tension" for e in seen)
+    assert keys[0]["name"] in ("A minor", "C major"), keys
+    key_now = None
+    for e in seen:
+        if e["t"] == "key":
+            key_now = e["name"]
+        elif e["t"] == "chord" and key_now:
+            assert e["key"] == key_now and e["roman"] == V.roman_in(e["root"], e["quality"], None, key_now), e
+    assert any(c["roman"] for c in chords)
+    assert st["audio"]["chord_analysis"]["best"] and st["harmony"]["errors"] == 0
+
+
+def test_chord_names_are_spelled_by_the_key_they_are_read_in():
+    """By scale degree, not by a fixed flats rule: the iii chord of E major is G#m (not Abm), the borrowed bVII of C
+    major is Bb (not A#); the suffix and a slash bass are kept, the bass re-spelled too."""
+    assert V.spell_in_key("Abm", 8, "m", "E major") == "G#m"
+    assert V.spell_in_key("Dbm7", 1, "m7", "A major") == "C#m7"
+    assert V.spell_in_key("A#", 10, "maj", "C major") == "Bb"
+    assert V.spell_in_key("F#", 6, "maj", "Db major") == "Gb"
+    assert V.spell_in_key("Ab/C", 8, "maj", "Eb major") == "Ab/C"
+    assert V.spell_in_key("Am", 9, "m", None) is None                 # no key: the caller keeps its own spelling
+    assert V.spell_in_key("N", None, None, "C major") is None
+    assert V.spell_in_key("Am", 4, "m", "C major") is None            # the name's root is not the event's root
+    h = V.Harmony(rate=None)
+    h._key["audio"] = ("E major", 0.8)
+    out = h.decorate({"t": "chord", "src": "audio", "name": "Abm", "root": 8, "quality": "m", "pcs": [8, 11, 3],
+                      "changed": True}, 0.0)
+    assert out["name"] == "G#m" and out["key"] == "E major" and out["roman"] == "iii", out
+
+
 def test_hello_and_the_summary_advertise_the_chord_engine():
-    for mode in ("sense", "basic"):
+    assert V.Engine(http_port=None, say=_quiet).hello()["chords"] == "blend"      # the default
+    for mode in ("blend", "sense", "basic"):
         eng = V.Engine(http_port=None, chords=mode, say=_quiet)
         assert eng.hello()["chords"] == mode and f"chords {mode}" in eng.summary()
         assert eng.greeting()[0]["chords"] == mode
@@ -841,12 +885,13 @@ def test_the_page_is_told_one_key_the_keys_while_they_play_else_the_audio():
     assert c["name"] == "Bb"                                # the page's flats
 
 
-def test_a_chordsense_failure_stops_neither_the_audio_nor_the_keys():
+@pytest.mark.parametrize("mode", ["sense", "blend"])
+def test_a_chordsense_failure_stops_neither_the_audio_nor_the_keys(mode):
     def broken(*_a, **_k):
         raise RuntimeError("a chordsense that broke")
 
     src = V.SynthSource(rate=RATE, bpm=120.0, chords=("C",), realtime=False, seconds=3.0)
-    eng = V.Engine(http_port=None, source=src, say=_quiet)
+    eng = V.Engine(http_port=None, source=src, say=_quiet, chords=mode)
     eng.harmony.feed_audio = broken
     eng.harmony.tick = broken
     eng.harmony.note = broken
@@ -858,7 +903,8 @@ def test_a_chordsense_failure_stops_neither_the_audio_nor_the_keys():
         eng.feed_midi("daw", 0x99, 3, 90)                  # the MIDI thread still runs (pads)
         for k in (60, 64, 67):
             eng.feed_midi("midi", NOTE_ON, k, 100)          # ... and today's keys chord still comes
-        assert _wait(lambda: any(e["t"] == "pad" for e in seen) and any(e["t"] == "chord" for e in seen), 3)
+        assert _wait(lambda: any(e["t"] == "pad" for e in seen)
+                     and any(e["t"] == "chord" and e["src"] == "keys" for e in seen), 3)
         st = eng.state()
     finally:
         eng.stop()
@@ -866,7 +912,11 @@ def test_a_chordsense_failure_stops_neither_the_audio_nor_the_keys():
     assert st["harmony"]["errors"] >= st["audio"]["blocks"]
     said = [e["msg"] for e in seen if e["t"] == "status" and "chordsense" in e["msg"]]
     assert said and len(said) <= 4 and "a chordsense that broke" in said[0]     # said, never a flood
-    assert [e["name"] for e in seen if e["t"] == "chord"] == ["C"]
+    chords = [e for e in seen if e["t"] == "chord"]
+    if mode == "sense":
+        assert [e["name"] for e in chords] == ["C"]                      # today's keys chord
+    else:                                                               # blend: the templates still name the audio
+        assert {e["name"] for e in chords} == {"C"} and {e["src"] for e in chords} == {"audio", "keys"}, chords
 
 
 def test_the_page_gets_the_key_and_tension_it_missed_when_it_connects():

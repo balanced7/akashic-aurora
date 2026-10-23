@@ -862,9 +862,10 @@ def build_parser() -> argparse.ArgumentParser:
         x.stem[len("beat_"):] for x in pathlib.Path(__file__).parent.glob("beat_*.py") if x.stem != "beat_a")
     p.add_argument("--engine", choices=vj_engines, default="a",
                    help="beat tracker: a = the house tracker (shipped); others are opt-in contestants (w, g, ...)")
-    p.add_argument("--chords", choices=["sense", "basic"], default="sense",
-                   help="sense = chordsense on the audio and the keys: chords with roman numerals, the key and the "
-                        "tension (default); basic = the older audio chord templates, no key or tension events")
+    p.add_argument("--chords", choices=["blend", "sense", "basic"], default="blend",
+                   help="blend = the older templates name the audio chords (best under a hardstyle kick and sub bass), "
+                        "chordsense on the audio and the keys gives the key, roman numerals and tension (default); "
+                        "sense = chordsense names the audio chords too; basic = the templates only, no key or tension")
     p.add_argument("--no-leds", action="store_true",
                    help="never write the pad LEDs (POST /api/pads answers 409; it answers 503 when no KeyLab DAW "
                         "output is found, and hello tells the page either way so it does not post)")
