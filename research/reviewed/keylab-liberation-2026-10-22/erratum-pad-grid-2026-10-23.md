@@ -101,22 +101,28 @@ The ideas below still work. Their geometry is the old reading turned 90 degrees.
 - `vision-v2-brief-2026-10-22.md:62`: "the twin re-laid to the 9-5-1 grid"
 - `vision-v2-placement-2026-10-22.md:21, 26`: "re-lay the pads from 2x6 to the 9-5-1 3x4 grid"; "add the 9-5-1 grid"
 - `vision-v2-wishes-2026-10-22.md:7, 15, 17`: the Pad Desk, the shape dictionary and living edges on the 9-5-1 grid
-- `vision-pass2-critique-2026-10-22.md:20, 62, 137, 210-211, 217-218`: the 9-5-1 grid, "render this 3x4 layout", the spectrum meter
+- `vision-pass2-critique-2026-10-22.md:20, 62, 137, 210-218`: the 9-5-1 grid, the shape geometry read on it ("columns are chromatic", "each row is an augmented triad", "one fixed shape on a 3x4 torus": turned 90 degrees on the unit, see above), "render this 3x4 layout", the spectrum meter
 - `vision-pass2-verdicts-2026-10-22.json:67-69, 83, 85-86, 92`: the twin's 2x6 (true of the twin then), "GRID 3 across x 4 down"
-- `keylab-vision-pass1-2026-10-22.md:41`; `keylab-vision-pass1-2026-10-22.raw.json:2, 587, 1152`: three disagreeing layouts (MPC map, 3x4, 2x6)
-- `keylab-mk3-surface-map-2026-10-22.raw.json:252, 324, 331, 336`: whether the 88 has a 2x6 grid, an open [U] question then (answer: no, 3 rows x 4)
+- `keylab-vision-pass1-2026-10-22.md:41`; `keylab-vision-pass1-2026-10-22.raw.json:2, 587, 1152, 1948`: three disagreeing layouts (MPC map, 3x4, 2x6), and the pad-to-pitch-class reading laid on chordview's 3-column grid
+- `keylab-mk3-surface-map-2026-10-22.md:93, 117` and its `.raw.json:246, 252, 324, 331, 336`: the twin's 2 rows of 6 in pitch-class order, and "confirm 2×6", an open [U] question then (answer: no, 3 rows x 4)
+- `keylab-mk3-sysex-protocol-2026-10-22.md:70`: "photograph the pad grid (confirm 2×6 ...)"
 
 `fences/a16-charter/`
 
 - `half_a.md:21`, `reconciliation.md:87`: "chordview, the twin and the scene agree on 9 5 1 / 10 6 2 / 11 7 3 / 12 8 4"
-- `half_b.md:45`: "the 9-5-1 pad grid truth"
+- `half_b.md:45`: "the 9-5-1 pad grid truth"; `:59` names the pad grid as part of the first slice's receipts (no layout literal)
 
 `docs/WISHLIST.md` (append-only)
 
 - `:1787` W272, the Pad Desk on "a 9-5-1 grid page"; `:1795` W280, the shape dictionary "On the 9-5-1 grid"; `:1797` W282, living edges on the 10-pad border (the loop still holds)
 
+`research/in-flight/`
+
+- `piano-instruments-2026-09-15/spec.md:44, 66, 103`: the twin's source spec, "2 rows of 6" (marked [U] then), its block size (6 × 33 mm wide, 2 × 33 mm deep) and the open "Pad grid (6×2?)" question
+
 `docs/library/` (generated projections of the atoms above)
 
 - `brief/20261022_keylab-lit-brief_98d71b.md:66`
+- `report/20261022_keylab-mk3-surface-map_11dce3.md:119, 143` and `report/20261022_keylab-mk3-sysex-protocol_0744e9.md:96`: the same "2 x 6" lines as their research records
 - `design/20261022_keylab-lit-vision-v2_c76424.md:46, 89, 124, 142, 143, 154, 231, 452`
 - `design/20261022_a16-d7-drum-pads-kits-learn-envelopes_602d90.md:51` (a draft; see "Not changed here")
