@@ -99,6 +99,16 @@ function staticServer() {
     if (p === "/vfx") return file200(res, join(REPO, "scripts", "vfx.html"), TYPES[".html"],
       (t) => t + '\n<script type="module" src="/keylab/keylab-mount.js"></script>\n');   // vfx.html has no </body>: the line goes at the end
     if (p === "/agent-avatar.js") return file200(res, join(REPO, "scripts", "agent-avatar.js"), TYPES[".js"]);
+    // A page of plain house-control rows (the shape params-ui renders, as on the Shader Lab's Inspector), with no
+    // KeyLab code of its own: the generic mount must find its sliders and set them the way a hand does.
+    if (p === "/test/ranges") {
+      res.writeHead(200, { "Content-Type": TYPES[".html"], "Cache-Control": "no-store" });
+      return res.end(`<!doctype html><meta charset="utf-8"><title>ranges</title><body style="background:#111;color:#ddd">
+        <div class="params-row"><label class="params-label" for="a">gain</label><span class="params-ctl"><input id="a" type="range" min="0" max="2" step="0.01" value="1"></span></div>
+        <div class="params-row"><label class="params-label" for="b">blur</label><span class="params-ctl"><input id="b" type="range" min="0" max="10" step="0.1" value="5"></span></div>
+        <script>window.__heard = []; document.addEventListener("input", (e) => __heard.push([e.target.id, Number(e.target.value)]));</script>
+        <script type="module">import("/web/lib/keylab-mount.js");</script></body>`);
+    }
     const km = /^\/keylab\/([a-z0-9-]+\.js)$/.exec(p);
     if (km) { const rel = KEYLAB_ROUTES[km[1]]; if (!rel) { res.writeHead(404); return res.end(); } return file200(res, join(REPO, rel), TYPES[".js"]); }
     if (p === "/vfx/presets") return json(res, BENCH_PRESETS);
@@ -237,7 +247,7 @@ try {
     return file;
   };
 
-  const url = `http://127.0.0.1:${webPort}/web/shader-desk.html?keylab=${encodeURIComponent(`http://127.0.0.1:${engPort}/api/events`)}&preset=aurora-ribbons&freeze=2&scale=0.5`;
+  const url = `http://127.0.0.1:${webPort}/web/shader-desk.html?keylab=${encodeURIComponent(`http://127.0.0.1:${engPort}/api/events`)}&preset=aurora-ribbons&freeze=2&scale=0.5&watchdog=0`;
   receipt.url = url;
   await page.send("Page.navigate", { url });
   await waitFor("window.__desk && window.__desk.ready()", 30_000, "the desk to load its presets");
@@ -387,6 +397,17 @@ try {
   receipt.console_play = receipt.console.splice(0);
   const playOwn = receipt.console_play.filter((c) => /keylab/i.test(c.text) && (c.type === "exception" || c.type === "error"));
   step("Play: no KeyLab errors (Play's own 404s on this stub server are not counted)", playOwn.length === 0, { keylab_errors: playOwn, play_console: receipt.console_play.length });
+
+  // ======================================================================== any page of sliders (the generic mount)
+  await page.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/test/ranges?keylab=${encodeURIComponent(`http://127.0.0.1:${engPort}/api/events`)}` });
+  await waitFor("window.__keylab && __keylab.kind === 'ranges' && __keylab.client.source === 'engine'", 20_000, "the generic mount on a page of sliders");
+  const rparams = await evaluate("__keylab.host.params().map((p) => p.label + ' ' + p.min + '..' + p.max)");
+  step("sliders page: the generic mount lists each slider by its label and range", rparams.join("|") === "gain 0..2|blur 0..10", { params: rparams });
+  for (const v of [0.2, 0.45, 0.55, 0.75]) { fader(1, v); await delay(40); }   // gain 1 of 0..2 = position 0.5
+  await settle(700);
+  const heard = await evaluate("({ value: Number(document.getElementById('a').value), heard: __heard.filter((h) => h[0] === 'a').length })");
+  step("sliders page: fader 1 catches gain at 0.5 and sets the page's own slider to 1.5, firing its input event", Math.abs(heard.value - 1.5) < 0.011 && heard.heard > 0, heard);
+  receipt.console_ranges = receipt.console.splice(0);
 
   // ======================================================================== the VFX Bench, with the snippet applied
   await page.send("Page.navigate", { url: `http://127.0.0.1:${webPort}/vfx?keylab=${encodeURIComponent(`http://127.0.0.1:${engPort}/api/events`)}` });

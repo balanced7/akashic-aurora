@@ -326,6 +326,14 @@ export function createKeyLabClient(opts = {}) {
   function engineDown(why) {
     if (status.engine === "up") return;
     setStatus({ engine: env.useEngine ? "down" : "disabled" });
+    // A browser's EventSource retries a refused connection every few seconds, and logs each refusal. Close it and ask
+    // again every retryMs instead: the engine is still found when it starts, with a quiet console meanwhile.
+    if (es && started) {
+      try { es.close(); } catch { /* closed */ }
+      es = null;
+      env.clearTimeout(retryTimer);
+      retryTimer = env.setTimeout(() => { if (started && !es) openEngine(); }, env.retryMs);
+    }
     if (env.fallback === "off") { setSource("none", why); return; }
     if (access) { attachMidi(); return; }
     if (env.fallback === "manual") { setStatus({ midi: "needs-permission" }); setSource("none", why); return; }

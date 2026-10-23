@@ -231,11 +231,14 @@ function fakeMidi(names) {
   kl.on("control", (e) => got.push(e));
   ins[1].onmidimessage({ data: [0xb0, 107, 90], timeStamp: 5 });
   check("a message on the DAW input is decoded with the DAW map", got[0]?.control === "fader3" && got[0].port === "daw");
-  made[0].open();
+  check("the silent engine's stream is closed (no retry noise every 3 s)", made[0].closed === true);
+  clk.advance(8100);
+  check("... and the engine is asked again after retryMs", made.length === 2 && !made[1].closed);
+  made[1].open();
   check("the engine arrives: it becomes the source and Web MIDI lets go", kl.source === "engine" && !ins[0].onmidimessage && !ins[1].onmidimessage);
-  made[0].send({ t: "ctl", id: "cc105", kind: "abs", value: 0.25, delta: 0, port: "daw", ch: 1 });
+  made[1].send({ t: "ctl", id: "cc105", kind: "abs", value: 0.25, delta: 0, port: "daw", ch: 1 });
   check("engine events flow", got.length === 2 && got[1].control === "fader1");
-  made[0].fail();
+  made[1].fail();
   clk.advance(3000);
   await clk.settle();
   check("the engine goes away: back to Web MIDI after the grace period", kl.source === "webmidi" && !!ins[0].onmidimessage, kl.source);

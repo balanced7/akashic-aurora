@@ -121,7 +121,11 @@ export function createPresetRenderer(canvas, opts = {}) {
   const target = { level: 0, bass: 0, mid: 0, high: 0 };
   let beatV = 0, pulse = 0, hitV = 0, active = null, from = null, fadeStart = 0, fadeMs = 600, blackout = false;
   let raf = 0, last = 0, frozenTime = null, audioMode = "silence", lastBands = -1e9;
-  const stats = { frames: 0, fps: 0, slow: 0, w: 0, h: 0, errors: [] };
+  const stats = { frames: 0, fps: 0, slow: 0, w: 0, h: 0, errors: [], scale, lowered: null };
+  // First Light's watchdog (Play keeps it too): 20 frames in a row slower than twice the 60 Hz budget halve the
+  // backing scale, down to 0.5, and stats().lowered says so (never a silent drop: the page shows it).
+  const watchdog = opts.watchdog !== false;
+  let slowStreak = 0;
   let fpsWin = { t: 0, n: 0 };
 
   function makePair(w, h) {
@@ -294,6 +298,15 @@ export function createPresetRenderer(canvas, opts = {}) {
     present(mix);
     stats.frames++;
     if (gap > 50) stats.slow++;
+    slowStreak = gap > 2000 / 60 && gap < 1000 ? slowStreak + 1 : 0;   // a gap over 1 s is a hidden tab, not a slow frame
+    if (watchdog && slowStreak >= 20 && scale > 0.5) {
+      const from = scale;
+      scale = Math.max(0.5, scale / 2);
+      slowStreak = 0;
+      stats.scale = scale;
+      stats.lowered = { from, to: scale, gapMs: Math.round(gap), at: new Date().toISOString() };
+      resize();
+    }
     fpsWin.n++;
     if (t - fpsWin.t >= 1000) { stats.fps = Math.round(fpsWin.n * 10000 / (t - fpsWin.t)) / 10; fpsWin = { t, n: 0 }; }
   }
@@ -349,7 +362,7 @@ export function createPresetRenderer(canvas, opts = {}) {
     beat(v = 1) { beatV = Math.max(beatV, clamp(v, 0, 1)); },
     setBlackout(on) { blackout = !!on; },
     get blackout() { return blackout; },
-    setScale(s) { scale = clamp(s, 0.25, 2); resize(); },
+    setScale(s) { scale = clamp(s, 0.25, 2); stats.scale = scale; stats.lowered = null; resize(); },
     freeze(t) { frozenTime = t === null || t === undefined ? null : +t; },
     start() { if (!raf) { last = 0; raf = requestAnimationFrame(loop); } },
     stop() { if (raf) cancelAnimationFrame(raf); raf = 0; },

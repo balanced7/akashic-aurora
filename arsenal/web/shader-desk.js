@@ -17,7 +17,7 @@
 // snapshots stay in this browser (localStorage, namespace "shader-desk").
 //
 // URL: ?preset=<id> start there; ?keylab=<events url> or ?keylab=midi; ?scale=0.5 render scale; ?ui=0 perform mode;
-// ?freeze=<seconds> hold the shader clock (for checks). Test hook: window.__desk.
+// ?freeze=<seconds> hold the shader clock (for checks); ?watchdog=0 never lowers the scale. Test hook: window.__desk.
 import { createBinder, createKeyLabClient } from "./lib/keylab-client.js";
 import { mountKeyLabHud, wirePadLights, wireScreen } from "./lib/keylab-desk.js";
 import { renderParams } from "./lib/params-ui.js";
@@ -33,7 +33,7 @@ const FADE_MS = 600;
 const desk = { scenes: [], hue: 0, intensity: 0.8, panel: null, ready: false, errors: [] };
 let r;
 try {
-  r = createPresetRenderer(canvas, { scale: Number(q.get("scale")) || 1 });
+  r = createPresetRenderer(canvas, { scale: Number(q.get("scale")) || 1, watchdog: q.get("watchdog") !== "0" });
 } catch (err) {
   showError(`The desk needs WebGL2: ${err.message}`);
   throw err;
@@ -252,7 +252,8 @@ document.addEventListener("keydown", (e) => {
 });
 function paintFoot() {
   const s = r.stats(), st = client.status();
-  $("foot-stats").textContent = `${s.w}×${s.h} · ${s.fps || "—"} fps · ${s.fb} · audio: ${s.audio} · KeyLab: ${st.source}`;
+  const scale = s.lowered ? `scale ${s.scale} (lowered from ${s.lowered.from}: frames took ${s.lowered.gapMs} ms)` : `scale ${s.scale}`;
+  $("foot-stats").textContent = `${s.w}×${s.h} · ${scale} · ${s.fps || "—"} fps · ${s.fb} · audio: ${s.audio} · KeyLab: ${st.source}`;
 }
 setInterval(paintFoot, 1000);
 
