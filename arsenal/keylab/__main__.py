@@ -390,6 +390,82 @@ def cmd_chordview(args) -> int:
     return chordview.run(secs=args.secs, keys_port=args.port, scheme=args.scheme, sound=args.sound)
 
 
+def chord_line(e: dict) -> str:
+    """One chordsense event as a readable line."""
+    t = f"{e['t']:8.2f}s"
+    kind = e["type"]
+    if kind == "chord":
+        num = e.get("roman") or ""
+        return (f"{t}  {e['name']:<10} {num:<10} {e.get('function') or '':<18} tension {e['tension']:.2f}"
+                f"   (began {e['t_change']:.2f}s, confidence {e['confidence']:.2f})")
+    if kind == "key":
+        return f"{t}  KEY {e['key']}  (confidence {e['confidence']:.2f})"
+    if kind == "pedal":
+        if e["on"]:
+            return f"{t}  PEDAL {e['note']} since {e['since']:.2f}s, over {e['chords']} chords"
+        return f"{t}  pedal {e['note']} released (strength reached {e['strength']:.2f})"
+    if kind == "resolution":
+        return f"{t}  RESOLUTION {e['from']:.2f} -> {e['to']:.2f} on {e['chord']} ({e['numeral']})"
+    return f"{t}  {e}"
+
+
+def cmd_chords(args) -> int:
+    import json
+    from . import chordsense as CS
+
+    def show(events):
+        for e in events:
+            print(json.dumps(e) if args.json else chord_line(e), flush=True)
+
+    if args.notes:
+        doc = json.loads(pathlib.Path(args.notes).read_text(encoding="utf-8"))
+        notes, ppq = (doc["notes"], int(doc.get("ppq", 96))) if isinstance(doc, dict) else (doc, 96)
+        evs = CS.score_to_events(notes, ppq, args.bpm)
+        show(CS.ChordSense().feed_notes(evs, now=(evs[-1]["t"] + 1.0) if evs else 0.0))
+        return 0
+    if args.live:
+        return _chords_live(args, show)
+    if not args.path:
+        print("chords: give an audio file, --live, or --notes FILE", file=sys.stderr)
+        return 2
+    import soundfile as sf
+    audio, rate = sf.read(args.path, dtype="float32", always_2d=True)
+    cs = CS.ChordSense(rate, 512)
+    for i in range(0, len(audio), 512):
+        show(cs.feed(audio[i:i + 512]))
+    return 0
+
+
+def _chords_live(args, show) -> int:
+    """Read the loopback in 512-frame blocks and print every chordsense event as it is decided (read-only)."""
+    import numpy as np
+    import pyaudiowpatch as pa
+    from . import beatsync
+    from . import chordsense as CS
+    inst, dev = beatsync._open_loopback(pa)
+    rate = int(dev["defaultSampleRate"])
+    ch = int(dev["maxInputChannels"]) or 2
+    stream = inst.open(format=pa.paFloat32, channels=ch, rate=rate, input=True,
+                       input_device_index=dev["index"], frames_per_buffer=512)
+    print(f"listening: {dev['name']} @ {rate} Hz x{ch} (Ctrl-C to stop; silence reads nothing)", flush=True)
+    cs = CS.ChordSense(rate, 512)
+    t_end = (time.perf_counter() + args.secs) if args.secs else None
+    try:
+        while t_end is None or time.perf_counter() < t_end:
+            raw = stream.read(512, exception_on_overflow=False)
+            show(cs.feed(np.frombuffer(raw, dtype=np.float32).reshape(-1, ch)))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            stream.stop_stream()
+            stream.close()
+            inst.terminate()
+        except Exception:
+            pass
+    return 0
+
+
 # --- dispatch ------------------------------------------------------------------------------------
 def _add_send_flags(p, color_default=None):
     p.add_argument("--port", help="output port name substring (default: first containing 'keylab')")
@@ -534,6 +610,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--sound", action="store_true", help="forward your notes to the Windows synth so you hear them")
     p.add_argument("--port", help="MIDI input port for the keys (default: the KeyLab MIDI port)")
     p.set_defaults(func=cmd_chordview, dry_run=False)
+
+    p = sub.add_parser("chords", help="hear the harmony: chord, key, roman numeral, tension, pedal (chordsense)")
+    p.add_argument("path", nargs="?", help="an audio file (wav/flac/ogg/mp3) to stream through, as if live")
+    p.add_argument("--live", action="store_true", help="listen to whatever is playing (WASAPI loopback)")
+    p.add_argument("--secs", type=float, default=None, help="--live: stop after N seconds (default: Ctrl-C)")
+    p.add_argument("--notes", help="a score JSON ({notes: [{pos, len, key, vel}], ppq}) through the keys path")
+    p.add_argument("--bpm", type=float, default=100.0, help="--notes: the tempo the score's ticks play at")
+    p.add_argument("--json", action="store_true", help="one JSON event per line (for a renderer), not text")
+    p.set_defaults(func=cmd_chords, dry_run=False)
 
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
     p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift", "bright", "bright_variants",

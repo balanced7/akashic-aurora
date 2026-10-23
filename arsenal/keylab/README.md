@@ -48,6 +48,7 @@ Every row carries a dated receipt and its class: **eyes** = Daniel watched the d
 | `note <n> [--pad N]` | send a Note On/Off |
 | `display <text> [--line2 … --full]` | write the LCD: one-line popup, two-line popup, or persistent full screen |
 | `chordview [--scheme notes\|roles\|quality\|split\|frame] [--sound]` | play the keys: chord name on the LCD, chord tones lit on the pads, sustain pedal honoured; `--sound` forwards your notes to the Windows synth |
+| `chords [file] [--live] [--notes FILE --bpm 100] [--json]` | hear the harmony (`chordsense`): chord with its inversion, key, roman numeral and function, tension 0..1, pedal and resolution events, from a recording, from whatever is playing (`--live`, loopback, read-only) or from a score through the keys path; `--json` streams one event per line for a renderer |
 | `beat [--mode cycle\|rainbow\|march] [--engine a\|g\|...\|aubio] [--lead-ms 15]` | march the pads to whatever is playing (WASAPI loopback). The default engine is `beat_a`, the house tracker: it seeds the tempo from the song databases (SMTC now-playing) and paints each beat `--lead-ms` BEFORE it lands. `--engine w` / `--engine g` are opt-in live trials of the grid trackers (they hold half-time bass music on the bench; not shipped, see below); any `beat_<name>.py` contestant works the same way. `--engine aubio` is the old reactive path |
 | `beatbench [--suite synthetic\|loops\|all\|drift\|shift\|bright\|bright_variants\|real] [--per-cat 30] [--seeded] [--trackers aubio,a,g] [--vs a]` | score beat trackers on one ruler: synthetic ground truth plus the BPM-labelled loops in your own packs (read in place); receipts (with every argument and each case's file + sha1) in `state/arsenal/keylab/receipts/`. Only the trackers named are imported. `--vs` pairs every tracker with the reference loop by loop (per group and pooled; a cluster bootstrap by pack folder). Held-out sets: `--exclude-seeds 7,11` (with `--per-cat`) drops those draws' loops by CONTENT; `--write-manifest PATH` / `--manifest PATH` freeze a draw and re-score exactly it; `--suite bright_variants --variant-seed N` draws unseen bright basses; `--suite real --since YYYYMMDD-HHMMSS` scores only later recordings |
 | `record [--secs 90]` · `annotate [path] [--bpm X]` · `confirm [path] [--tapkey]` · `tapkey [path]` | real-song ground truth: capture what plays (with a timing record; a capture gap is refused), fit a grid that lists its rival tempi (`--bpm` forces one exactly), listen to the CLICKS render, confirm it (refused if the grid changed since the render). `tapkey` turns the taps of a `beat --save --hand` session into an answer key |
@@ -64,6 +65,27 @@ Global: `--port SUBSTR`; `--dry-run` prints bytes and sends nothing; `--bank A|B
 7th green, 9th purple) ·
 `quality` (the whole chord in its mood colour) · `split` (top row 9-5-1 is a quality bar, the rest show roles) ·
 `frame` (the border glows the quality, notes light inside).
+
+## Hearing the harmony (`chordsense.py`)
+Daniel, 2026-10-23: "realtime audio chord analysis could really help us match beat events to rythm and flow".
+`ChordSense(rate, hop).feed(block)` listens to audio and `feed_notes(events)` to the keys; both run one theory
+(11 chord qualities plus slash chords, a Krumhansl-Kessler key, roman numerals such as V7, bVII and V/V, and a
+tension from function, dissonance and a pedal detector), emit events only when something changes, and
+`snapshot()` gives a renderer the continuous state (tension, chroma, sounding notes, bass, a harmonic `pulse`).
+The audio front end splits harmonic from percussive with a causal median, so drums read as no chord ('N').
+Measured on the synthetic set (48 random progressions, 384 chords over all 12 roots and 11 qualities, random
+voicings, a third of the triads inverted, the beatbench drums on top): the full label (root, quality and bass)
+is right 96.6% of the time once settled, the root 99.2%, with 0.02 stray events per chord (a thinner reading of
+the chord being held, Am7 to Am in an arpeggio, must last a second before it is named). A change is decided
+about 0.5 s after it happens and its `t_change` back-dates it to the attack (median error 9 ms, p90 40 ms), the
+time to line up with beats. About 75x real time at 48 kHz / hop 512 on one core; numpy and scipy only, under
+the same licence firewall as the beat trackers. Daniel's Joy to the World (his FL score log) reads Db major,
+and the closing passage, a D-flat struck 95 times over a walking bass, reads as a Db pedal whose tension sits
+above the opening (0.56 against 0.47 from the notes, 0.60 against 0.49 from an additive audio render). Not yet
+done: no real recording has been scored against a chord answer key (there is none on this machine; on three
+loopback recordings it names about 44 root changes a minute, unchecked), the decision latency is about half a
+second, the key misreads Joy's free intro for its first ~50 beats, and 9th/11th/13th, dim7, m7b5 and 6 chords
+fall outside the vocabulary (they read as the nearest of the 11).
 
 ## Read from Arturia's script, not yet confirmed on the hardware
 Facts only (numbers and ids); the full map with sources is
@@ -99,8 +121,11 @@ from the databases, pure analysis that never imports the port (Heimdall's lane) 
 tracker (blind-pair winner) · `beat_b.py` the other blind contestant · `beat_g.py` / `beat_h.py` / `beat_w.py`
 the grid-tracker contestants (Daniel's "detect the grid", 2026-10-22; scored in
 `research/reviewed/keylab-liberation-2026-10-22/grid-tracker-scoring-2026-10-22.md`) · `beatbench.py` the ruler
-they are all judged by · `probe.py` the guided hardware session · `__main__.py` the verbs.
+they are all judged by · `chordsense.py` chords, key, numerals, tension and pedal from audio or notes (pure
+analysis, never imports the port) · `probe.py` the guided hardware session · `__main__.py` the verbs.
 
-Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone) and
-`tests/test_keylab_tempo*.py`. Licence: `beatsync` and `tempo` import aubio (GPLv3+) lazily, only when you run
-them; it is never vendored or required. A house beat detector replaces it before anything is bundled.
+Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone),
+`tests/test_keylab_tempo*.py` and `tests/test_keylab_chordsense.py` (the eight chords under drums, no flicker,
+Db numerals, the pedal, the speed, Joy to the World). Licence: `beatsync` and `tempo` import aubio (GPLv3+)
+lazily, only when you run them; it is never vendored or required. A house beat detector replaces it before
+anything is bundled.
