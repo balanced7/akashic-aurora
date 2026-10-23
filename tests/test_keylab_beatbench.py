@@ -128,3 +128,29 @@ def test_unavailable_tracker_is_a_skipped_row_not_a_crash(case120):
     BB.register("missing_for_test", Missing, note="test")
     rep = BB.bench([case120], ["missing_for_test"], hop=HOP, log=lambda s: None)
     assert rep["trackers"]["missing_for_test"]["unavailable"] is True
+
+
+# --- the drift ruler (Daniel 2026-10-22: hold the grid, don't chase the notes) ---------------------------------
+
+def test_a_steady_tracker_has_no_drift():
+    beats = [{"t_beat": 5.0 + i * 0.5, "bpm": 120.0} for i in range(30)]
+    d = BB.drift(beats)
+    assert d == {"bpm_spread": 0.0, "tempo_flips": 0}
+
+
+def test_a_wobbling_tracker_is_caught():
+    bpms = [140, 124, 140, 83, 167, 125, 126, 159, 124, 130]          # tonight's TYNAN log, in miniature
+    beats = [{"t_beat": 6.0 + i * 0.45, "bpm": float(b)} for i, b in enumerate(bpms)]
+    d = BB.drift(beats)
+    assert d["tempo_flips"] >= 6 and d["bpm_spread"] > 0.3
+
+
+def test_halftime_bass_ground_truth_keeps_the_bass_off_the_beat():
+    assert not set(BB.SYNC_BASS_16THS) & {0, 4, 8, 12}, "the bass must never sit on a beat"
+    c = BB.synth_case("hb", 140, secs=12.0, rate=22050, style="halftime_bass")
+    assert np.allclose(np.diff(c.beats), 60 / 140) and c.meta["style"] == "halftime_bass"
+
+
+def test_drift_suite_is_constant_tempo():
+    for c in BB.drift_suite(rate=22050, secs=12.0):
+        assert c.meta["ramp_to"] is None and np.allclose(np.diff(c.beats), np.diff(c.beats)[0])

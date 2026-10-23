@@ -95,11 +95,15 @@ def _seed_for(np_: Optional[dict], offline: bool) -> Optional[float]:
 
 def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mode: str = "cycle",
                    bank: str = "DAW", gap: float = 0.005, verbose: bool = True, lead_ms: float = 15.0,
-                   seed_bpm: Optional[float] = None, offline: bool = False) -> int:
+                   seed_bpm: Optional[float] = None, offline: bool = False, connect: bool = True) -> int:
     """The house tracker (beat_a, the blind-pair winner, beatbench 2026-10-22) driving the pads AHEAD of the beat:
     each frame is painted at the PREDICTED beat time minus lead_ms, so the light lands on the beat instead of
     after it. lead_ms covers the device's own ~10 ms plus the loopback capture delay; tune it by eye/ear (P21
-    measures it). The database seed, when found, holds the tempo octave."""
+    measures it). The database seed, when found, holds the tempo octave.
+
+    connect=False is GUEST mode, for when FL Studio's KeyLab script owns the connection (probe P1, 2026-10-22:
+    with FL open, our pad writes land and stay -- the port is shared under the Windows MIDI Service). A guest
+    never sends DAW connect or disconnect, so FL's integration and screen are left exactly as they were."""
     import numpy as np
     import pyaudiowpatch as pa
     from .beat_a import Tracker
@@ -117,10 +121,12 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     tracker = Tracker(rate, HOP, seed_bpm=seed)
 
     out = W.MidiOut(port, prefer="daw")
-    out.send_sysex(P.daw_connect(True))
+    if connect:
+        out.send_sysex(P.daw_connect(True))
     from .ledframe import PadRenderer
     render = PadRenderer(out, bank=bank, gap=gap)
-    print(f"loopback: {dev['name']} @ {rate}Hz x{ch}  (engine=beat_a, mode={mode}, lead {lead_ms:.0f} ms)")
+    print(f"loopback: {dev['name']} @ {rate}Hz x{ch}  (engine=beat_a, mode={mode}, lead {lead_ms:.0f} ms"
+          f"{', GUEST: FL keeps the connection' if not connect else ''})")
 
     audio_t = 0.0                      # seconds of audio fed to the tracker
     fired_for = -1.0                   # the predicted beat we last painted
@@ -167,7 +173,8 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     finally:
         try:
             render.set_frame(["off"] * 12)
-            out.send_sysex(P.daw_connect(False))
+            if connect:
+                out.send_sysex(P.daw_connect(False))
         except Exception:
             pass
         out.close()

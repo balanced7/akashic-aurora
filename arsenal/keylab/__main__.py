@@ -321,7 +321,8 @@ def cmd_show(args) -> int:
 
 def cmd_beat(args) -> int:
     from . import beatsync
-    extra = {} if args.engine == "aubio" else {"lead_ms": args.lead_ms, "seed_bpm": args.seed_bpm, "offline": args.offline}
+    extra = {} if args.engine == "aubio" else {"lead_ms": args.lead_ms, "seed_bpm": args.seed_bpm, "offline": args.offline,
+                                               "connect": not args.no_connect}
     return beatsync.run(port=args.port, secs=args.secs, mode=args.mode, bank=args.bank, engine=args.engine, **extra)
 
 
@@ -489,6 +490,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lead-ms", type=float, default=15.0, help="paint this many ms before the predicted beat")
     p.add_argument("--seed-bpm", type=float, default=None, help="skip the database lookup and use this BPM as the seed")
     p.add_argument("--offline", action="store_true", help="no database lookup")
+    p.add_argument("--no-connect", action="store_true",
+                   help="guest mode: FL Studio keeps the KeyLab connection and screen; we only paint the pads")
     p.set_defaults(func=cmd_beat, dry_run=False)
 
     p = sub.add_parser("ledbench", help="characterize the LED send limits (rate / spacing / burst)")
@@ -510,7 +513,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_chordview, dry_run=False)
 
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
-    p.add_argument("--suite", choices=["synthetic", "loops", "all"], default="synthetic")
+    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift"], default="synthetic",
+                   help="all = synthetic + loops (the reconciliation set); drift = constant-tempo syncopation traps")
     p.add_argument("--trackers", default="aubio,librosa", help="comma list (registered: aubio, librosa, a, b)")
     p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
     p.add_argument("--per-cat", type=int, default=0, help="stratified loops: this many per category (kick/tops/melodic)")
@@ -544,6 +548,8 @@ def cmd_beatbench(args) -> int:
     cases = []
     if args.suite in ("synthetic", "all"):
         cases += BB.synthetic_suite()
+    if args.suite == "drift":
+        cases += BB.drift_suite()
     if args.suite in ("loops", "all"):
         if args.per_cat:
             picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed)

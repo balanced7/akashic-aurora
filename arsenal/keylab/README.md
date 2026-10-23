@@ -77,8 +77,14 @@ Facts only (numbers and ids); the full map with sources is
   (20-22), a colour picker (39) and a browser (40) that Arturia's script never draws: whether the firmware renders
   them is a probe.
 
+## Answered by probe
+- **P1, FL and this toolkit on one DAW port: they SHARE.** Dated 2026-10-22 21:45, from Daniel's eyes. FL Studio
+  was open with Arturia's script connected (the LCD showed "*Addictive Drums") and the Windows MIDI Service
+  running. `pad 5 green --no-connect` opened the port without an error, and pad 5 "is green and staying green".
+  Run alongside FL in guest mode (`beat --no-connect`): FL keeps the connection and the screen, and we only paint
+  the pads. Not yet tested: whether FL repaints pads during transport, when its step-sequencer view drives pads 1-8.
+
 ## Still open
-- Can FL's Arturia script and this toolkit share the DAW port? Not yet tested with a receipt.
 - Can our WinMM input and the piano page's Web MIDI hold "KeyLab 88 mk3 MIDI" at the same time? Untested.
 - Which input port carries the faders and knobs in DAW mode, MIDI or DAW? (`monitor` on each answers it.)
 - Full 7-bit colour depth versus snapping to the stored 42-colour palette.

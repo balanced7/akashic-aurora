@@ -108,6 +108,19 @@ def _hat(rate: int, rng: np.random.Generator) -> np.ndarray:
     return (0.35 * hp * _env(n, rate, 0.012)).astype(np.float32)
 
 
+def _bass(rate: int) -> np.ndarray:
+    """A loud sub-bass note: sharp attack, ~150 ms decay, 55 Hz with a slight drop -- the kind of hit that sits
+    OFF the beat in half-time bass music and drags a note-chasing tracker."""
+    n = int(0.22 * rate)
+    t = np.arange(n) / rate
+    freq = 55 + 15 * np.exp(-t * 40)
+    return (np.sin(2 * np.pi * np.cumsum(freq) / rate) * _env(n, rate, 0.15)).astype(np.float32)
+
+
+# 16th positions (0-15 in a 4/4 bar) where the syncopated bass lands: never on a beat (0, 4, 8, 12).
+SYNC_BASS_16THS = (3, 6, 10, 13, 15)
+
+
 def _click(rate: int) -> np.ndarray:
     n = int(0.01 * rate)
     return (np.sin(2 * np.pi * 1500 * np.arange(n) / rate) * _env(n, rate, 0.003)).astype(np.float32)
@@ -125,17 +138,27 @@ def synth_case(name: str, bpm: float, secs: float = 30.0, rate: int = 44100, sty
                offset: float = 0.5, swing: float = 0.0, ramp_to: Optional[float] = None, noise: float = 0.0,
                seed_bpm: Optional[float] = None, rng_seed: int = 7) -> Case:
     """Exact-ground-truth audio. style: click | drums | sparse (kick only on 1, hats off) | offbeat (hats
-    on the 'and', the classic octave trap)."""
+    on the 'and', the classic octave trap) | halftime_bass (kick on 1, snare on 3, soft quarter hats, and LOUD
+    sub-bass hits on syncopated 16ths, never on a beat -- tonight's TYNAN failure, 2026-10-22)."""
     rng = np.random.default_rng(rng_seed)
     beats = beat_times(bpm, secs, offset, ramp_to)
     buf = np.zeros(int(secs * rate) + rate, dtype=np.float32)
-    kick, snare, hat, click = _kick(rate), _snare(rate, rng), _hat(rate, rng), _click(rate)
+    kick, snare, hat, click, bass = _kick(rate), _snare(rate, rng), _hat(rate, rng), _click(rate), _bass(rate)
     for k, t in enumerate(beats):
         nxt = beats[k + 1] if k + 1 < len(beats) else t + 60.0 / bpm
         half = t + (nxt - t) * (0.5 + swing / 2)
         pos = k % 4
         if style == "click":
             _place(buf, click, t, rate, 1.0 if pos == 0 else 0.6)
+        elif style == "halftime_bass":
+            if pos == 0:
+                _place(buf, kick, t, rate)
+            if pos == 2:
+                _place(buf, snare, t, rate, 0.9)
+            _place(buf, hat, t, rate, 0.4)
+            for sub in range(4):                              # this beat's four 16ths
+                if pos * 4 + sub in SYNC_BASS_16THS:
+                    _place(buf, bass, t + (nxt - t) * sub / 4, rate, 1.3)
         elif style == "sparse":
             if pos == 0:
                 _place(buf, kick, t, rate)
@@ -171,6 +194,18 @@ def synthetic_suite(rate: int = 44100, secs: float = 30.0) -> List[Case]:
     s.append(synth_case("noisy_124", 124, secs, rate, noise=0.25))
     s.append(synth_case("sparse_kick_85", 85, secs, rate, style="sparse"))
     s.append(synth_case("dnb_174_seeded_87", 174, secs, rate, seed_bpm=87))   # a seed off by an octave
+    return s
+
+
+def drift_suite(rate: int = 44100, secs: float = 40.0) -> List[Case]:
+    """Grid-holding under syncopation (Daniel 2026-10-22: "its drifting, i want our beat detection to detect the
+    grid not just the spaced out notes"). Half-time drums with loud off-beat sub-bass; the tempo is constant, so
+    any BPM spread or flip after lock is the tracker chasing notes instead of holding the grid."""
+    s = []
+    for bpm in (140, 150, 128):
+        s.append(synth_case(f"halftime_bass_{bpm}", bpm, secs, rate, style="halftime_bass"))
+    s.append(synth_case("halftime_bass_140_seeded", 140, secs, rate, style="halftime_bass", seed_bpm=140))
+    s.append(synth_case("halftime_bass_140_noisy", 140, secs, rate, style="halftime_bass", noise=0.15))
     return s
 
 
@@ -336,6 +371,7 @@ def score(case: Case, result: Dict) -> Dict:
             octave = [abs(x - 2 * case.bpm) <= TEMPO_TOL * 2 * case.bpm or abs(x - case.bpm / 2) <= TEMPO_TOL * case.bpm / 2
                       for x in locked]
             out["octave_err"] = round(sum(octave) / len(octave), 3)
+    out.update(drift(result["beats"], start=SKIP_FIRST))
     leads = [(b["t_beat"] - b["_at"]) * 1000 for b in result["beats"]]
     if leads:
         out["lead_ms"] = round(float(np.median(leads)), 1)
@@ -348,6 +384,24 @@ def score(case: Case, result: Dict) -> Dict:
         if result.get("predictions"):
             out.update(prediction_error(result["predictions"], case.beats, after=lt if lt is not None else SKIP_FIRST))
     return out
+
+
+FLIP_RATIO = 0.08   # a reported tempo jumping more than 8 % between consecutive beats counts as a flip
+
+
+def drift(beats: List[dict], start: float = SKIP_FIRST) -> Dict:
+    """How steady the reported tempo is once settled. Music made in a DAW has a constant grid, so on constant-
+    tempo material any spread or flip is the tracker chasing notes rather than holding the grid.
+      bpm_spread   (p90 - p10) / median of the reported bpm after `start`; 0 = rock steady
+      tempo_flips  consecutive reported bpm values differing by more than FLIP_RATIO"""
+    vals = [float(b["bpm"]) for b in beats if b.get("bpm") and b["t_beat"] >= start]
+    if len(vals) < 3:
+        return {}
+    v = np.array(vals)
+    med = float(np.median(v))
+    spread = float((np.percentile(v, 90) - np.percentile(v, 10)) / med) if med else 0.0
+    flips = int(np.sum(np.abs(v[1:] / v[:-1] - 1.0) > FLIP_RATIO))
+    return {"bpm_spread": round(spread, 4), "tempo_flips": flips}
 
 
 def summarize(rows: List[Dict]) -> Dict:
@@ -363,6 +417,7 @@ def summarize(rows: List[Dict]) -> Dict:
             "lock_s_median": round(float(np.median(locks)), 2) if locks else None,
             "never_locked": sum(1 for r in rows if "lock_s" in r and r["lock_s"] is None),
             "pred_err_ms": mean("pred_err_ms"), "pred_hit": mean("pred_hit"),
+            "bpm_spread": mean("bpm_spread"), "tempo_flips": mean("tempo_flips"),
             "realtime_x_min": min((r["realtime_x"] for r in rows), default=None)}
 
 
