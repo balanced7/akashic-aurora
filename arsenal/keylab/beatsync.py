@@ -21,6 +21,47 @@ from . import winmidi as W
 
 HOP = 512    # samples per analysis block
 WIN = 1024   # aubio tempo window
+GAP_TOL_S = 0.020   # a capture whose sample time and wall time differ by more than this has a gap
+
+# The clock captures are timed with. A module attribute so a test can drive a capture on a fake clock.
+_clock = time.perf_counter
+
+
+def capture_timing(first_return: float, first_frames: int, last_return: float, n_samples: int, rate: int,
+                   epoch_minus_clock: Optional[float] = None) -> dict:
+    """Did the capture lose time? WASAPI loopback hands over nothing while nothing plays, and an overflow drops
+    samples, so a recording can be shorter than the time it took: the audio after a gap is then earlier than the
+    music was, and a whole-track grid fitted to it is wrong after the gap. The first block began first_frames /
+    rate before it was handed over; from there to the last hand-over is the wall time. The sample count gives the
+    sample time. They must agree within GAP_TOL_S."""
+    wall_start = first_return - first_frames / rate
+    wall_secs = last_return - wall_start
+    sample_secs = n_samples / rate
+    gap_s = wall_secs - sample_secs
+    off = (time.time() - _clock()) if epoch_minus_clock is None else epoch_minus_clock
+    stamp = lambda c: time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(c + off)) + f".{int((c + off) % 1 * 1000):03d}"
+    return {"wall_start": stamp(wall_start), "wall_end": stamp(last_return), "wall_secs": round(wall_secs, 4),
+            "samples": int(n_samples), "rate": int(rate), "sample_secs": round(sample_secs, 4),
+            "gap_ms": round(gap_s * 1000, 1), "gap": abs(gap_s) > GAP_TOL_S}
+
+
+def write_timing(audio_path: str, timing: dict) -> str:
+    """`<audio>.rec.json`, next to the audio: wall_secs, sample_secs, the gap flag (annotate refuses a gap)."""
+    import json
+    side = audio_path + ".rec.json"
+    with open(side, "w", encoding="utf-8") as f:
+        json.dump(timing, f, indent=1)
+    return side
+
+
+def read_timing(audio_path: str) -> Optional[dict]:
+    import json
+    import os
+    side = audio_path + ".rec.json"
+    if not os.path.exists(side):
+        return None
+    with open(side, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def now_playing() -> Optional[dict]:
@@ -80,13 +121,18 @@ def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str
                        input_device_index=dev["index"], frames_per_buffer=HOP)
     print(f"recording {secs:.0f} s of '{label}' from {dev['name']} @ {rate} Hz -> {path}")
     chunks, need = [], int(secs * rate)
+    first = last = None                                   # (clock at hand-over, frames) of the first / last block
     try:
         got = 0
         while got < need:
             raw = stream.read(HOP, exception_on_overflow=False)
+            now = _clock()
             frames = np.frombuffer(raw, dtype=np.float32).reshape(-1, ch)
             chunks.append(frames.copy())
             got += len(frames)
+            if first is None:
+                first = (now, len(frames))
+            last = now
     except KeyboardInterrupt:
         pass
     finally:
@@ -96,7 +142,15 @@ def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str
             pass
     audio = np.concatenate(chunks) if chunks else np.zeros((0, ch), dtype=np.float32)
     sf.write(path, audio, rate, format="FLAC", subtype="PCM_16")
-    print(f"saved {len(audio) / rate:.1f} s -> {path}")
+    if first is not None:
+        timing = capture_timing(first[0], first[1], last, len(audio), rate)
+        write_timing(path, timing)
+        flag = (f"  TIMING GAP: {timing['sample_secs']:.3f} s of samples over {timing['wall_secs']:.3f} s of wall "
+                f"clock ({timing['gap_ms']:+.0f} ms) -- record again before annotating" if timing["gap"] else
+                f"  timing ok ({timing['gap_ms']:+.1f} ms)")
+    else:
+        flag = ""
+    print(f"saved {len(audio) / rate:.1f} s -> {path}{flag}")
     return path
 
 
@@ -148,30 +202,39 @@ class _Painter:
         self._t.join(timeout=1.0)
 
 
-def _save_session(blocks, rate, clock, hand_in, np_) -> None:
+def _save_session(blocks, rate, clock, hand_in, np_, timing: Optional[dict] = None,
+                  root: Optional[str] = None) -> str:
     """Write what the tracker heard (FLAC) and, beside it, the hand's taps and nudges on the SAME audio clock:
-    a tapped-through song is an answer key made by ear (state/, never committed)."""
+    a tapped-through song is an answer key made by ear (state/, never committed). timing (capture_timing of the
+    saved blocks) is written next to the audio as `<file>.rec.json` and into the hand file: a session with a gap
+    (blocks skipped, an overflow) cannot be an answer key, because its taps would land on the wrong audio."""
     import json
     import os
     import re
     import numpy as np
     import soundfile as sf
-    root = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                        "state", "arsenal", "keylab", "recordings")
+    root = root or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                                "state", "arsenal", "keylab", "recordings")
     os.makedirs(root, exist_ok=True)
     label = " - ".join(x for x in ((np_ or {}).get("artist"), (np_ or {}).get("title")) if x) or "session"
     safe = re.sub(r"[^\w\- .()]+", "_", label).strip()[:80]
     path = os.path.join(root, f"{time.strftime('%Y%m%d-%H%M%S')} {safe} (live).flac")
     sf.write(path, np.concatenate(blocks), rate, format="FLAC", subtype="PCM_16")
     meta = {"source": "beat --save (the tracker's own input)", "now_playing": label}
+    if timing is not None:
+        write_timing(path, timing)
+        meta["timing"] = timing
     if hand_in is not None and hand_in.log and len(clock) >= 2:
         at = np.array([c[0] for c in clock]); wall = np.array([c[1] for c in clock])
         def to_audio(t):                       # perf_counter -> seconds into this recording
             return float(np.interp(t, wall, at, left=at[0] + (t - wall[0]), right=at[-1] + (t - wall[-1])))
         meta["taps"] = [round(to_audio(t), 4) for t, kind, _ in hand_in.log if kind == "tap"]
         meta["nudges"] = [[round(to_audio(t), 4), v] for t, kind, v in hand_in.log if kind == "nudge"]
-    json.dump(meta, open(path + ".hand.json", "w", encoding="utf-8"), indent=1)
-    print(f"saved the session: {path} ({len(meta.get('taps', []))} taps)")
+    with open(path + ".hand.json", "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=1)
+    gap = f"  TIMING GAP {timing['gap_ms']:+.0f} ms: not usable as an answer key" if timing and timing["gap"] else ""
+    print(f"saved the session: {path} ({len(meta.get('taps', []))} taps){gap}")
+    return path
 
 
 def _paint(light, mode: str, step: int) -> None:
@@ -266,6 +329,7 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     painter = _Painter(render, mode, 0.12, verbose)
     wall0 = None                       # wall time of the first block: audio_t should keep pace with it
     dropped_warned = 0.0
+    save_first = save_last = None      # hand-over times of the first and last saved block (the gap check)
     audio_t = 0.0                      # seconds of audio fed to the tracker
     tracker_t0 = 0.0                   # where the current tracker's own clock started (moves on a re-seed)
     tap_locked = False                 # the hand is tapping: the lights follow the taps
@@ -292,6 +356,9 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
             tracker.feed(block)
             if save:
                 saved_blocks.append(block.copy())
+                if save_first is None:
+                    save_first = wall_now
+                save_last = wall_now
                 if len(clock) == 0 or audio_t - clock[-1][0] >= 1.0:
                     clock.append((audio_t + HOP / rate, wall_now))
             audio_t += HOP / rate
@@ -375,7 +442,8 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
             pass
         out.close()
         if save and saved_blocks:
-            _save_session(saved_blocks, rate, clock, hand_in, np_)
+            timing = capture_timing(save_first, HOP, save_last, len(saved_blocks) * HOP, rate)
+            _save_session(saved_blocks, rate, clock, hand_in, np_, timing=timing)
         if hand_in is not None:
             hand_in.close()
             if hand_in.log:
