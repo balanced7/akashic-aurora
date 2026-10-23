@@ -487,7 +487,8 @@ def cmd_vj(args) -> int:
     from . import vj
     return vj.run(port=args.port, engine=args.engine, leds=not args.no_leds, connect=args.connect,
                   replay_midi=args.replay_midi, replay_bpm=args.replay_bpm, replay_stretch=args.replay_stretch,
-                  replay_pattern=args.replay_pattern, replay_audio=args.replay_audio, audio=not args.no_audio,
+                  replay_pattern=args.replay_pattern, replay_audio=args.replay_audio, loop=args.loop,
+                  audio=not args.no_audio,
                   midi=not args.no_midi, rate_limit=args.rate_limit, pads=args.pads, ahead_ms=args.ahead_ms,
                   offset_ms=args.offset_ms, seed_bpm=args.seed_bpm, secs=args.secs, quiet=args.quiet)
 
@@ -852,7 +853,9 @@ def build_parser() -> argparse.ArgumentParser:
         x.stem[len("beat_"):] for x in pathlib.Path(__file__).parent.glob("beat_*.py") if x.stem != "beat_a")
     p.add_argument("--engine", choices=vj_engines, default="a",
                    help="beat tracker: a = the house tracker (shipped); others are opt-in contestants (w, g, ...)")
-    p.add_argument("--no-leds", action="store_true", help="never write the pad LEDs (POST /api/pads answers 409)")
+    p.add_argument("--no-leds", action="store_true",
+                   help="never write the pad LEDs (POST /api/pads answers 409; it answers 503 when no KeyLab DAW "
+                        "output is found, and hello tells the page either way so it does not post)")
     p.add_argument("--connect", action="store_true",
                    help="send DAW connect when FL Studio is NOT running (default: guest mode, never connects)")
     p.add_argument("--replay-midi", metavar="FILE",
@@ -863,6 +866,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--replay-pattern", type=int, help=".flp: which pattern (default: the newest with notes)")
     p.add_argument("--replay-audio", metavar="FILE",
                    help="analyse this audio file in real time instead of the loopback ('demo' = a made-up groove)")
+    p.add_argument("--loop", action="store_true", help="--replay-audio FILE: start the file again when it ends")
     p.add_argument("--no-audio", action="store_true", help="no audio at all (MIDI only)")
     p.add_argument("--no-midi", action="store_true", help="do not open the KeyLab inputs")
     p.add_argument("--rate-limit", action="store_true",

@@ -9,10 +9,14 @@ buttons to dampen or stop the effect".
 This is the ENGINE (Python). The page draws; between them there is one contract, Server-Sent Events:
 
   GET  http://127.0.0.1:8794/api/events   one JSON object per 'data:' line, a ': hb' heartbeat every 15 s
-  GET  http://127.0.0.1:8794/api/state    last chord, bpm, connected inputs, audio health, LED state
-  POST http://127.0.0.1:8794/api/pads     {"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads
+  GET  http://127.0.0.1:8794/api/state    last chord, bpm, the key, connected inputs, audio health, LED state
+  POST http://127.0.0.1:8794/api/pads     {"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads: 202 taken,
+                                          409 refused (--no-leds), 503 unavailable (no KeyLab DAW output found)
+  Every route but the stream answers with Connection: close (no kept-alive connection outlives its response), and
+  a stopping engine refuses new streams (503).
 
-  hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","pads_mode":"daw|bank|both"}
+  hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","pads_mode":"daw|bank|both",
+          "leds":true|false,"leds_reason":null|".."}   leds false: do not POST /api/pads, it would be refused
   beat   {"t":"beat","due_ms":..,"bpm":..,"conf":0..1,"n":..,"on_beat":0..1|null}  sent ~250 ms BEFORE the beat
   energy {"t":"energy","bass":..,"mid":..,"high":..,"level":..}                      40 Hz, each 0..1, auto-gained
   hit    {"t":"hit","strength":0..1,"band":"kick|snare|hat|full"}                   a heavy transient
@@ -25,7 +29,8 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
 What feeds it:
   KEYS    the 'KeyLab 88 mk3 MIDI' input: notes (any channel but 10) and the sustain pedal (CC 64) -> note, pedal,
           and a chord named from what is sounding (chordview.Voicing + theory.analyze), after a 30 ms settle so a
-          rolled chord is one event, not three
+          rolled chord is one event, not three. Chord names use flats (Db, Eb, Ab, Bb, as the page's note names
+          do); pitch class 6 is Gb when the key found from the recent notes (KeyFinder) has flats, else F#
   PADS    from EITHER mode: DAW mode arrives on the 'DAW' input, channel 10, notes 0..11 = pads 1..12 (inferred);
           the normal pad bank arrives on the MIDI input, channel 10, notes 36-47 (protocol.PAD_NOTE). While FL's
           Arturia script runs, DAW-mode pads 1-8 ALSO toggle FL's step-sequencer steps on release, so the normal
@@ -35,18 +40,21 @@ What feeds it:
           the dial (116) are relative around 64 -- all read from Arturia's script, NOT confirmed on the hardware, so
           every CC is learned on touch: an encoder repeats a value (an absolute control only sends on change) and
           stays near 64, a fader wanders far from it. A learned kind is announced as a status
-  AUDIO   WASAPI loopback (whatever is playing), or --replay-audio FILE in real time, or --replay-audio demo (a
-          made-up groove) -> the beat tracker (beat_<engine>.Tracker, predictions sent ahead, one per beat), the
+  AUDIO   WASAPI loopback (whatever is playing), or --replay-audio FILE in real time (--loop repeats it), or
+          --replay-audio demo (a made-up groove) -> the beat tracker (beat_<engine>.Tracker, predictions sent ahead, one per beat), the
           referee's on-beat score (beatref), energy bands, a heavy-hit detector, and chords from the AUDIO: a
           12-bin chroma from the spectrum's peaks, smoothed, matched to major/minor/7th templates, sent only on a
           confident change
   REPLAY  --replay-midi FILE plays a note list (JSON) or an FL project's pattern notes (.flp, read-only) as if
-          played live, so the rig can be tried without the keyboard
+          played live, so the rig can be tried without the keyboard. A file that carries no tempo plays at 100 BPM
+          and says so ('tempo unknown, assumed 100 BPM (--replay-bpm to set)'). replay_events() computes the same
+          note and chord events offline, on a simulated clock
 
 Threads: the audio loop never sleeps or waits on anything but its own source (the loopback's read is the clock);
 publishing is a non-blocking put per client; HTTP, the MIDI dispatcher, the pad painter and the replay each run on
 their own thread. LEDs: one LED-writing process only (do not run `beat`, `chordview` or `show` at the same time);
 guest mode (no DAW connect) unless --connect and FL is not running; every packet passes the BurstGovernor.
+The verb's stdout is line-buffered (core.foundation.streams), so a piped engine's console arrives as it happens.
 """
 from __future__ import annotations
 
@@ -70,6 +78,7 @@ from urllib.parse import urlsplit
 import numpy as np
 
 from . import protocol as P
+from .beatsync import IdleFill as _LoopbackIdleFill
 from .chordview import Voicing
 from .theory import analyze
 
@@ -85,19 +94,89 @@ CHORD_SETTLE_S = 0.03         # keys: a chord must hold this long before it is a
 CHORD_SETTLE_MAX_S = 0.08     # ... but never wait longer than this from its first note
 PAD_DEDUP_S = 0.04            # the same pad on both inputs within this long is one hit
 SILENT_BEATS_S = 1.5          # no beats are announced after this long of silence
+KEYS_WITNESS_S = 10.0         # the key: audio chords count as evidence only after the keys have been quiet this long
 MAX_PADS_BODY = 4096
 
 PC_NAMES = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 _SHARP_TO_FLAT = {"C#": "Db", "D#": "Eb", "G#": "Ab", "A#": "Bb"}
 
 
-def spell(name: str) -> str:
-    """theory names chords with sharps ('C#maj7/G#'); the page shows the usual spelling ('Dbmaj7/Ab'), F# kept."""
+def spell(name: str, flats: bool = False) -> str:
+    """theory names chords with sharps ('C#maj7/G#'); the page shows the usual spelling ('Dbmaj7/Ab'). Pitch class 6
+    stays F# unless the key has flats (flats=True): then it is Gb, the way the page's note names show it ('Gb/Db' in
+    D-flat, not 'F#/Db')."""
     out = []
     for part in name.split("/"):
         head = part[:2]
-        out.append(_SHARP_TO_FLAT[head] + part[2:] if head in _SHARP_TO_FLAT else part)
+        if head in _SHARP_TO_FLAT:
+            part = _SHARP_TO_FLAT[head] + part[2:]
+        elif head == "F#" and flats:
+            part = "Gb" + part[2:]
+        out.append(part)
     return "/".join(out)
+
+
+def pc_name(pc: int, flats: bool = False) -> str:
+    """One pitch class as the page spells it: flats, and Gb rather than F# when the key has flats."""
+    return "Gb" if (pc % 12 == 6 and flats) else PC_NAMES[pc % 12]
+
+
+# Krumhansl-Kessler key profiles, and each key's signature (+ sharps, - flats) by tonic pitch class. The two keys with
+# six accidentals either way are taken on the flat side, Gb major and Eb minor, as the page spells every black key flat.
+KK_MAJOR = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+KK_MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+MAJOR_SIG = (0, -5, 2, -3, 4, -1, -6, 1, -4, 3, -2, 5)     # C Db D Eb E F Gb G Ab A Bb B
+MINOR_SIG = (-3, 4, -1, -6, 1, -4, 3, -2, 5, 0, -5, 2)     # Cm C#m Dm Ebm Em Fm F#m Gm G#m Am Bbm Bm
+
+
+class KeyFinder:
+    """The key of what has been played lately, for spelling chord names: note-ons (weighted by velocity) and
+    confident audio chords go into a 12-bin pitch-class histogram that halves every half_life_s, correlated with the
+    Krumhansl-Kessler major and minor profiles on all 12 tonics. key() is None until there is min_weight of evidence
+    and the best correlation reaches min_r; flats() is True when that key's signature has flats. Thread-safe (the
+    keys and the audio both feed it)."""
+
+    def __init__(self, half_life_s: float = 20.0, min_weight: float = 4.0, min_r: float = 0.5):
+        self.half_life_s, self.min_weight, self.min_r = half_life_s, min_weight, min_r
+        self.h = np.zeros(12)
+        self.t: Optional[float] = None
+        self._lock = threading.Lock()
+        prof = np.array([np.roll(KK_MAJOR, r) for r in range(12)] + [np.roll(KK_MINOR, r) for r in range(12)])
+        prof = prof - prof.mean(axis=1, keepdims=True)
+        self._prof = prof / np.linalg.norm(prof, axis=1, keepdims=True)
+
+    def add(self, pcs, t: float, w: float = 1.0) -> None:
+        with self._lock:
+            if self.t is not None and t > self.t:
+                self.h *= 0.5 ** ((t - self.t) / self.half_life_s)
+            self.t = t if self.t is None else max(self.t, t)
+            for pc in pcs:
+                self.h[int(pc) % 12] += w
+
+    def key(self) -> Optional[Tuple[int, str, int]]:
+        """-> (tonic pitch class, 'major' or 'minor', its signature: + sharps, - flats), or None."""
+        with self._lock:
+            h = self.h.copy()
+        if h.sum() < self.min_weight:
+            return None
+        hc = h - h.mean()
+        n = float(np.linalg.norm(hc))
+        if n <= 0:
+            return None
+        r = self._prof @ (hc / n)
+        best = int(np.argmax(r))
+        if r[best] < self.min_r:
+            return None
+        tonic, mode = best % 12, ("major" if best < 12 else "minor")
+        return tonic, mode, (MAJOR_SIG if mode == "major" else MINOR_SIG)[tonic]
+
+    def flats(self) -> bool:
+        k = self.key()
+        return k is not None and k[2] < 0
+
+    def name(self) -> Optional[str]:
+        k = self.key()
+        return None if k is None else f"{pc_name(k[0], k[2] < 0)} {k[1]}"
 
 
 def _quality(sym: Optional[str]) -> str:
@@ -125,9 +204,12 @@ class Hub:
     def frame(evt: dict) -> bytes:
         return b"data: " + json.dumps(evt, separators=(",", ":")).encode("utf-8") + b"\n\n"
 
-    def subscribe(self) -> Tuple[int, queue.Queue]:
+    def subscribe(self) -> Optional[Tuple[int, queue.Queue]]:
+        """A new page's inbox, or None once the hub is closed: a stopped engine serves no new stream."""
         q: queue.Queue = queue.Queue(maxsize=self.maxsize)
         with self._lock:
+            if self.closed:
+                return None
             self._next += 1
             self._clients[self._next] = q
             return self._next, q
@@ -584,81 +666,12 @@ class LoopbackSource:
             pass
 
 
-class IdleFill:
+class IdleFill(_LoopbackIdleFill):
     """Wraps a device whose read() BLOCKS while nothing plays (the WASAPI loopback delivers nothing in silence --
-    measured 2026-10-23: a 3 s read on an idle Focusrite never returned). A reader thread does the blocking reads;
-    read() hands over the device's blocks, or a block of silence once the device has been quiet for grace_s, then one
-    per block period on an absolute schedule, so the analysis clock keeps running through a pause (energy fades,
-    beats stop, the chord memory releases). If the analysis ever falls more than max_backlog_s behind, the oldest
-    blocks are dropped and counted (dropped_s), never silently."""
-
-    def __init__(self, src, grace_s: float = 0.1, max_backlog_s: float = 2.0):
-        self.src, self.rate, self.name = src, src.rate, src.name
-        self.dur = HOP / float(src.rate)
-        self.grace_s = grace_s
-        self.max_blocks = max(4, int(max_backlog_s / self.dur))
-        self.q: "queue.SimpleQueue" = queue.SimpleQueue()
-        self.filled = self.dropped = 0
-        self.gap_s = 0.0                  # wall time no block covers (the grace at the start of each pause)
-        self._idle = False
-        self._last_real: Optional[float] = None
-        self._next_fill = 0.0
-        self._stop = False
-        self._err: Optional[BaseException] = None
-        self._t = threading.Thread(target=self._pump, name="vj-audio-device", daemon=True)
-        self._t.start()
-
-    @property
-    def dropped_s(self) -> float:
-        return self.dropped * self.dur
-
-    def _pump(self) -> None:
-        while not self._stop:
-            try:
-                b = self.src.read()
-            except Exception as exc:
-                self._err = exc
-                self.q.put(None)
-                return
-            self.q.put(b)
-            if b is None:
-                return
-
-    def read(self) -> Optional[np.ndarray]:
-        while self.q.qsize() > self.max_blocks:
-            try:
-                self.q.get_nowait()
-                self.dropped += 1
-            except queue.Empty:
-                break
-        now = time.perf_counter()
-        if self._idle:
-            deadline = self._next_fill
-        else:
-            deadline = (self._last_real if self._last_real is not None else now) + self.dur + self.grace_s
-        try:
-            b = self.q.get(timeout=max(0.0, deadline - now))
-        except queue.Empty:
-            if not self._idle:
-                self._idle = True
-                self.gap_s += self.grace_s
-                self._next_fill = deadline
-            self._next_fill += self.dur
-            self.filled += 1
-            return np.zeros(HOP, dtype=np.float32)
-        if b is None:
-            if self._err is not None:
-                raise self._err
-            return None
-        self._idle = False
-        self._last_real = time.perf_counter()
-        return b
-
-    def close(self) -> None:
-        self._stop = True
-        self._t.join(timeout=0.3)
-        if not self._t.is_alive():        # a reader still blocked in the device's read is left to process exit
-            self.src.close()
+    measured 2026-10-23: a 3 s read on an idle Focusrite never returned): beatsync.IdleFill, the one reader every
+    loopback user shares ('beat' and 'record' hung the same way). read() hands over the device's blocks, or silence in
+    real time once the device has been quiet for grace_s, so the analysis clock keeps running through a pause (energy
+    fades, beats stop, the chord memory releases); a backlog past max_backlog_s is dropped and counted (dropped_s)."""
 
 
 class _Paced:
@@ -840,10 +853,11 @@ class Replay:
     """notes: [(on_s, off_s, key, vel 1..127)] from 0; label: what is being played, for the console and status."""
 
     def __init__(self, notes, label: str, bpm: Optional[float] = None, stretches: Optional[list] = None,
-                 patterns: Optional[list] = None):
+                 patterns: Optional[list] = None, tempo_known: bool = True):
         self.notes = sorted(notes)
         self.label = label
         self.bpm = bpm
+        self.tempo_known = tempo_known       # False: tick-based notes played at an ASSUMED tempo (the label says so)
         self.stretches = stretches or []
         self.patterns = patterns or []       # .flp only: [(id, name, notes)] of every pattern with notes
 
@@ -864,7 +878,8 @@ def load_replay(path, bpm: Optional[float] = None, stretch: Optional[int] = None
       *.flp                                                      an FL project: the NEWEST pattern with notes (the
                                                                  latest score-log dump) unless `pattern` picks one
     Tick-based notes are split into stretches of playing at gaps longer than 8 beats; the LARGEST is played unless
-    `stretch` picks one (1-based; 0 = all). Tempo: bpm, else the file's, else 100 BPM.
+    `stretch` picks one (1-based; 0 = all). Tempo: bpm, else the file's, else 100 BPM -- and then the label says
+    'tempo unknown, assumed 100 BPM (--replay-bpm to set)', so a replay at a guessed tempo never passes for the real one.
     On Worship Grandeur Piano.flp (2026-10-23) the defaults land on Joy to the World: pattern 7, stretch 2, 1378
     notes, Db4 repeating for tension at the end ("the big one with the repeating single note", Daniel)."""
     path = Path(path)
@@ -897,7 +912,10 @@ def load_replay(path, bpm: Optional[float] = None, stretch: Optional[int] = None
         file_bpm = (obj.get("bpm") or obj.get("tempo")) if isinstance(obj, dict) else None
     if not ticks:
         raise ValueError(f"{name}: no notes")
+    known = bool(bpm or file_bpm)
     use_bpm = float(bpm or file_bpm or DEFAULT_REPLAY_BPM)
+    tempo = (f"at {use_bpm:g} BPM" if known else
+             f"tempo unknown, assumed {use_bpm:g} BPM (--replay-bpm to set)")
     ticks = sorted(ticks, key=lambda n: n["pos"])
     gap = STRETCH_GAP_BEATS * ppq
     groups: List[list] = [[ticks[0]]]
@@ -919,8 +937,8 @@ def load_replay(path, bpm: Optional[float] = None, stretch: Optional[int] = None
     p0 = chosen[0]["pos"]
     notes = [((n["pos"] - p0) * spt, (n["pos"] - p0 + max(1, n["len"])) * spt, int(n["key"]), _fl_vel(n["vel"]))
              for n in chosen]
-    return Replay(notes, f"{name}: {which}, {len(notes)} notes at {use_bpm:g} BPM", bpm=use_bpm, stretches=info,
-                  patterns=pat_info)
+    label = f"{name}: {which}, {len(notes)} notes{' ' if known else ', '}{tempo}"
+    return Replay(notes, label, bpm=use_bpm, stretches=info, patterns=pat_info, tempo_known=known)
 
 
 def note_schedule(notes) -> List[Tuple[float, int, int, int]]:
@@ -939,6 +957,33 @@ def note_schedule(notes) -> List[Tuple[float, int, int, int]]:
             ev.append((off, 0, k, 0))
     ev.sort(key=lambda e: (e[0], e[1], e[2]))
     return [(t, 0x90 if kind else 0x80, k, v) for t, kind, k, v in ev]
+
+
+def replay_events(replay: "Replay") -> List[Tuple[float, dict]]:
+    """The events a page receives from replaying `replay`, computed offline on a simulated clock: [(seconds, event)].
+    The same path as a live replay (note_schedule -> Engine._handle: notes, the key, the keys' chord after its settle),
+    with no threads and no waiting, so a whole take runs in a moment. The settle is simulated the way the MIDI loop
+    runs it: a pending chord is announced at its deadline unless a message arrives first. Used to give page logic a
+    real take to be tested on (tests/fixtures/vj/)."""
+    eng = Engine(http_port=None, say=lambda _m: None)
+    clock = [0.0]
+    out: List[Tuple[float, dict]] = []
+    eng.hub.tap(lambda e: out.append((round(clock[0], 4), e)))
+
+    def settle(t: float) -> None:
+        p = eng._chord_pending
+        if p is not None and p[0] <= t:
+            eng._chord_pending = None
+            clock[0] = p[0]
+            eng._announce_keys_chord(p[1])
+
+    for t, st, key, vel in note_schedule(replay.notes):
+        settle(t)
+        clock[0] = t
+        eng._handle("midi", st, key & 0x7F, vel & 0x7F, t)
+        settle(t)
+    settle(float("inf"))
+    return out
 
 
 # =====================================================================================================================
@@ -1118,6 +1163,13 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Private-Network", "true")
 
+    def _close_after(self) -> None:
+        """Every short answer closes its connection. A kept-alive connection would outlive the engine: after stop(),
+        a browser's pooled connection (left over from POST /api/pads) could still ask for /api/events and be served
+        a stream from a stopped engine -- found end to end, 2026-10-23."""
+        self.send_header("Connection", "close")
+        self.close_connection = True
+
     def _json(self, status: int, obj) -> None:
         body = json.dumps(obj).encode("utf-8")
         self.send_response(status)
@@ -1125,6 +1177,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self._cors()
+        self._close_after()
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -1136,10 +1189,13 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Access-Control-Max-Age", "600")
         self.send_header("Content-Length", "0")
+        self._close_after()
         self.end_headers()
 
     def do_GET(self):
         path = urlsplit(self.path).path.rstrip("/") or "/"
+        if self.engine.stopping:
+            return self._json(503, {"error": "the engine is stopping"})
         if path == "/api/events":
             return self._events()
         if path == "/api/state":
@@ -1154,15 +1210,14 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlsplit(self.path).path.rstrip("/")
         if path != "/api/pads":
-            self.close_connection = True
             return self._json(404, {"error": f"no route {path}"})
+        if self.engine.stopping:
+            return self._json(503, {"ok": False, "error": "the engine is stopping"})
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
-            self.close_connection = True
             return self._json(400, {"ok": False, "error": "Content-Length is not a number"})
         if length <= 0 or length > MAX_PADS_BODY:
-            self.close_connection = True
             return self._json(413 if length > 0 else 400, {"ok": False, "error": f"body must be 1..{MAX_PADS_BODY} bytes"})
         raw = self.rfile.read(length)
         try:
@@ -1173,16 +1228,19 @@ class _Handler(BaseHTTPRequestHandler):
         return self._json(status, payload)
 
     def _events(self) -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Accel-Buffering", "no")
-        self._cors()
-        self.end_headers()
-        self.close_connection = True              # no Content-Length: the stream ends when the connection does
         hub = self.engine.hub
-        token, inbox = hub.subscribe()
+        sub = hub.subscribe()
+        if sub is None:                           # the engine is stopping: no stream from a closed hub
+            return self._json(503, {"error": "the engine is stopping"})
+        token, inbox = sub
         try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Accel-Buffering", "no")
+            self._cors()
+            self._close_after()                   # no Content-Length: the stream ends when the connection does
+            self.end_headers()
             self.wfile.write(b"retry: 1000\n\n" + b"".join(Hub.frame(e) for e in self.engine.greeting()))
             last = time.monotonic()
             while True:
@@ -1250,7 +1308,8 @@ class Engine:
     source), so the same engine runs on fakes in the tests and on the KeyLab live."""
 
     def __init__(self, http_port: Optional[int] = DEFAULT_PORT, beat_engine: str = "a", source=None, led_out=None,
-                 led_refusal: Optional[str] = "LEDs are off (--no-leds)", pads_mode: str = "both",
+                 led_refusal: Optional[str] = "LEDs are off (--no-leds)", led_refusal_status: int = 409,
+                 pads_mode: str = "both",
                  rate_limit: bool = False, ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0,
                  seed_bpm: Optional[float] = None, heartbeat_s: float = HEARTBEAT_S, replay: Optional[Replay] = None,
                  replay_delay: float = 1.5, verbose: bool = False, verbose_http: bool = False,
@@ -1265,6 +1324,8 @@ class Engine:
         self.hub = Hub()
         self.led_out = led_out
         self.led_refusal = None if led_out is not None else led_refusal
+        # why POST /api/pads is refused: 409 = the LEDs were turned off (--no-leds), 503 = no DAW output was found
+        self.led_refusal_status = led_refusal_status
         self.led_info: dict = {}
         self.painter: Optional[PadPainter] = None
         self.inputs: Dict[str, object] = {}
@@ -1276,6 +1337,8 @@ class Engine:
         self.port: Optional[int] = None
         # keys / pads / controls
         self.voicing = Voicing()
+        self.key = KeyFinder()                       # spelling: Gb or F#
+        self._keys_t = -1e9                          # when a key was last struck (the audio's key evidence waits)
         self.cc = CCDecoder()
         self._pedal = False
         self._keys_shown: Optional[str] = None       # the chord the keys are showing now (None once all released)
@@ -1319,8 +1382,18 @@ class Engine:
     def attach_inputs(self, inputs: Dict[str, object]) -> None:
         self.inputs.update(inputs)
 
+    @property
+    def stopping(self) -> bool:
+        return self._stop.is_set()
+
     def stop(self) -> None:
+        """In this order: refuse new requests (stopping), stop accepting connections, end every open stream (the hub
+        closes, and refuses any later subscribe), then the threads, the pads and the inputs. Every short route closes
+        its connection, so no kept-alive connection is left to ask a stopped engine for a stream."""
         self._stop.set()
+        if self._server is not None:
+            self._server.shutdown()
+        self.hub.close()
         self._mq.put(None)
         for t in self._threads:
             if t.name != "vj-http":
@@ -1328,9 +1401,7 @@ class Engine:
         audio_done = not any(t.name == "vj-audio" and t.is_alive() for t in self._threads)
         if self.painter is not None:
             self.painter.stop(clear=True)
-        self.hub.close()
         if self._server is not None:
-            self._server.shutdown()
             self._server.server_close()
         for m in self.inputs.values():
             try:
@@ -1353,8 +1424,12 @@ class Engine:
         self.publish({"t": "status", "msg": msg.lstrip("!")})
 
     def hello(self) -> dict:
+        """leds tells the page whether POST /api/pads can light anything; when it cannot, leds_reason says why and
+        the page does not post (a refused post every 100 ms would be spam)."""
+        on = self.led_out is not None
         return {"t": "hello", "v": CONTRACT_V, "src": SRC, "beat_engine": self.beat_engine,
-                "pads_mode": self.pads_mode}
+                "pads_mode": self.pads_mode, "leds": on,
+                "leds_reason": None if on else (self.led_refusal or "no LED output")}
 
     def greeting(self) -> List[dict]:
         """What a page gets the moment it connects: hello, where things stand, and the chord sounding now."""
@@ -1376,10 +1451,12 @@ class Engine:
                 "rate_limit": self.rate_limit, "bpm": self.beat["bpm"], "conf": self.beat["conf"],
                 "beat_n": self.beat["n"], "on_beat": self.beat["on_beat"],
                 "chord": self.last["chord"], "chord_keys": self.last["chord_keys"],
-                "chord_audio": self.last["chord_audio"],
+                "chord_audio": self.last["chord_audio"], "key": self.key.name(),
                 "inputs": {k: getattr(self.inputs.get(k), "name", None) for k in ("midi", "daw")},
                 "audio": dict(self.audio),
-                "leds": {"enabled": self.painter is not None, "refused": self.led_refusal, **self.led_info,
+                "leds": {"enabled": self.painter is not None, "refused": self.led_refusal,
+                         "refusal_status": None if self.led_out is not None else self.led_refusal_status,
+                         **self.led_info,
                          **(self.painter.stats() if self.painter is not None else {})},
                 "replay": self.replay_state, "clients": self.hub.clients, "events": dict(self.hub.counts),
                 "dropped": self.hub.dropped}
@@ -1397,8 +1474,8 @@ class Engine:
                 rgb.append(P.parse_color(c))
         except ValueError as exc:
             return 400, {"ok": False, "error": str(exc)}
-        if self.painter is None:
-            return 409, {"ok": False, "refused": self.led_refusal or "no LED output"}
+        if self.painter is None:                          # 409: turned off on purpose; 503: no device to light
+            return self.led_refusal_status, {"ok": False, "refused": self.led_refusal or "no LED output"}
         coalesced = self.painter.submit(rgb)
         return 202, {"ok": True, "coalesced": coalesced}
 
@@ -1444,6 +1521,9 @@ class Engine:
                 return
             if kind == "midi":
                 self.publish({"t": "note", "key": d1, "vel": round(d2 / 127.0, 3) if on else 0.0, "on": on})
+                if on:
+                    self.key.add((d1,), t, d2 / 127.0)
+                    self._keys_t = t
                 self.voicing.feed(status, d1, d2)
                 return self._keys_changed(t)
             return self._button(f"note{d1}", d2 if on else 0, kind, ch)
@@ -1508,7 +1588,7 @@ class Engine:
         if root is None or qual == "note":
             self._chord_pending = None
             return
-        name = spell(name)
+        name = spell(name, self.key.flats())
         if name == self._keys_shown:
             self._chord_pending = None
             return
@@ -1567,6 +1647,7 @@ class Engine:
                     self.publish(evt)
                 for evt in ana.feed(block, audio_t):
                     if evt["t"] == "chord":
+                        self.audio_chord_seen(evt, t_got)
                         self.last["chord"] = self.last["chord_audio"] = evt
                     self.publish(evt)
                 proc = time.perf_counter() - t_got
@@ -1587,6 +1668,16 @@ class Engine:
             self.status(f"!audio loop stopped: {type(exc).__name__}: {exc}")
         finally:
             a["running"] = False
+
+    def audio_chord_seen(self, evt: dict, t: float) -> dict:
+        """An audio chord is spelled by the key (pitch class 6: Gb in a flat key, else F#), and is evidence for it while
+        the keys are quiet: what Daniel plays is the better witness than everything coming out of the speakers (a demo
+        groove in C under a replay in D-flat left the key undecided, and D-flat's Gb chords read F#)."""
+        if t - self._keys_t > KEYS_WITNESS_S:
+            self.key.add(evt["pcs"], t)
+        if evt["root"] == 6:
+            evt["name"] = pc_name(6, self.key.flats()) + evt["name"][2:]
+        return evt
 
     # ----------------------------------------------------------------------------------------------- replay
     def _replay_loop(self) -> None:
@@ -1613,12 +1704,30 @@ class Engine:
 # =====================================================================================================================
 # the verb
 # =====================================================================================================================
+def line_buffered_stdout() -> None:
+    """A piped engine must speak as it goes: block-buffered stdout held the console (the URL, every warning) until
+    the buffer filled or the process exited (found end to end, 2026-10-23). The house blessing does it -- utf-8,
+    line-buffered, pipe-immune (core.foundation.streams) -- with a plain reconfigure when core is not importable."""
+    try:
+        from core.foundation.streams import self_bless_stdout
+        self_bless_stdout()
+        return
+    except Exception:
+        pass
+    for name in ("stdout", "stderr"):
+        try:
+            getattr(sys, name).reconfigure(line_buffering=True)
+        except Exception:
+            pass
+
+
 def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect: bool = False,
         replay_midi: Optional[str] = None, replay_bpm: Optional[float] = None, replay_stretch: Optional[int] = None,
-        replay_pattern: Optional[int] = None, replay_audio: Optional[str] = None, audio: bool = True,
-        midi: bool = True, rate_limit: bool = False, pads: str = "both", ahead_ms: float = AHEAD_S * 1000,
-        offset_ms: float = 0.0, seed_bpm: Optional[float] = None, secs: Optional[float] = None,
-        quiet: bool = False) -> int:
+        replay_pattern: Optional[int] = None, replay_audio: Optional[str] = None, loop: bool = False,
+        audio: bool = True, midi: bool = True, rate_limit: bool = False, pads: str = "both",
+        ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0, seed_bpm: Optional[float] = None,
+        secs: Optional[float] = None, quiet: bool = False) -> int:
+    line_buffered_stdout()
     say = print
     replay = None
     if replay_midi:
@@ -1635,14 +1744,14 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
 
     source = None
     if replay_audio:
-        source = SynthSource() if replay_audio == "demo" else FileSource(replay_audio)
+        source = SynthSource() if replay_audio == "demo" else FileSource(replay_audio, loop=loop)
     elif audio:
         try:
             source = IdleFill(LoopbackSource())           # the loopback's read blocks while nothing plays
         except Exception as exc:
             say(f"no loopback audio ({type(exc).__name__}: {exc}); running on MIDI only")
 
-    led_out, refusal, led_info = None, "LEDs are off (--no-leds)", {}
+    led_out, refusal, refusal_status, led_info = None, "LEDs are off (--no-leds)", 409, {}
     fl = fl_running()
     if leds:
         try:
@@ -1658,10 +1767,10 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
             elif fl is False:
                 say("FL Studio is not running: if the pads stay dark, rerun with --connect")
         except Exception as exc:
-            led_out, refusal = None, f"no KeyLab DAW output ({exc})"
+            led_out, refusal, refusal_status = None, f"no KeyLab DAW output ({exc})", 503
 
     eng = Engine(http_port=port, beat_engine=engine, source=source, led_out=led_out, led_refusal=refusal,
-                 pads_mode=pads, rate_limit=rate_limit, ahead_ms=ahead_ms, offset_ms=offset_ms, seed_bpm=seed_bpm,
+                 led_refusal_status=refusal_status, pads_mode=pads, rate_limit=rate_limit, ahead_ms=ahead_ms, offset_ms=offset_ms, seed_bpm=seed_bpm,
                  replay=replay, verbose=not quiet, say=say)
     eng.led_info = led_info
     if midi:

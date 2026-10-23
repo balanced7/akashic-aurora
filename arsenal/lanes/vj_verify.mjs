@@ -13,12 +13,15 @@
 // with Shift as hard velocity, held pads sustain and release; Q/W/E/R dampen, choke, kill (and revive) and switch sets;
 // the flash gate holds (ten flash requests in one second give at most three flashes, by the gate's own log AND by the
 // measured relative luminance of the rendered frames); the engine contract works end to end (hello, beats, chords, a pad,
-// controls, learn-on-touch, and pad colours posted back at no more than ten a second); the pedal star finds a note struck
-// over and over while the bass walks under it; no page exceptions or console errors.
+// controls, learn-on-touch, and pad colours posted back at no more than ten a second); an engine whose hello says it has
+// no LEDs is never posted to, a refused post stops posting until the engine's next hello, and a dropped connection
+// clears the old engine's status (the fake engine has a no-LEDs mode for this); the pedal star finds a note struck over
+// and over while the bass walks under it; the showcase tour follows an engine that plays beats instead of starting
+// the page's demo over it; no page exceptions or console errors.
 // Writes state/arsenal/receipts/vj-<stamp>/receipt.json and the screenshots beside it; exits 1 if the verdict fails.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -91,6 +94,9 @@ const web = createServer((req, res) => {
 });
 const sse = new Set();
 const padPosts = [];
+// the fake engine's pad LEDs, as the real engine answers POST /api/pads: "on" = 202 taken; "off" = 409, as `vj --no-leds`
+// answers (its hello says leds false); "refuse" = 409 although its hello said leds true (the refusal path)
+let ledsMode = "on";
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                "Access-Control-Allow-Headers": "Content-Type" };
 const engineServer = createServer((req, res) => {
@@ -107,9 +113,10 @@ const engineServer = createServer((req, res) => {
     let body = "";
     req.on("data", (c) => { body += c; });
     req.on("end", () => {
-      padPosts.push({ t: Date.now(), body, type: req.headers["content-type"] || "" });
-      res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
-      res.end('{"ok":true}');
+      padPosts.push({ t: Date.now(), body, type: req.headers["content-type"] || "", mode: ledsMode });
+      const refused = ledsMode !== "on";
+      res.writeHead(refused ? 409 : 202, { ...CORS, "Content-Type": "application/json", Connection: "close" });
+      res.end(refused ? '{"ok":false,"refused":"LEDs are off (--no-leds)"}' : '{"ok":true,"coalesced":false}');
     });
     return;
   }
@@ -364,10 +371,11 @@ try {
   report.controls.revive = { luma: await luma(), gain: st.kill.gain };
   checks.kill_fades_to_black_and_back = lumaKilled < 0.002 && st.kill.gain > 0.99 && report.controls.revive.luma > 0.001;
   const setBefore = st.setA;
-  await tap("R");                        // next set: crossfade over two beats
+  await tap("R");                        // next set: a transition of two beats, from the next bar (the demo counts bars)
   await delay(200);
   const fading = (await stats()).fading;
-  await delay(2600);
+  // up to four beats' wait for the bar, then two beats of transition (112 bpm: about 3.2 s), then a margin
+  await waitFor(async () => { const s = await stats(); return !s.fading && s.setA !== setBefore; }, 6000, "the switch").catch(() => null);
   st = await stats();
   report.controls.next = { from: setBefore, to: st.setA, fading_seen: fading };
   checks.next_switches_set = fading && st.setA !== setBefore;
@@ -433,7 +441,9 @@ try {
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=http://127.0.0.1:${ENGINE_PORT}&hud=0&watchdog=0` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page (engine run)");
   await waitFor(() => sse.size > 0, 15000, "the page's EventSource");
-  send({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", pads_mode: "both" });
+  const hello = (leds) => send({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", pads_mode: "both", leds,
+                                 leds_reason: leds ? null : "LEDs are off (--no-leds)" });
+  hello(true);
   send({ t: "status", msg: "fake engine for vj_verify" });
   const beatT0 = Date.now();
   let beatN = 0;
@@ -503,11 +513,70 @@ try {
   checks.pad_map_is_editable = report.engine_contract.pad_edit === "invert";
   checks.pad_lights_posted_at_most_ten_a_second = bodyOk && posts.length >= 2 && maxPerSecond <= 10;
 
+  // ----------------------------- E2: an engine without LEDs is not asked; a refusal stops posting until hello --
+  // Pads 1-4 pressed five times a second, so the pad colours keep changing (the page posts only a changed frame). Each
+  // window is longer than the old page's five-second retry after a refusal, which posted twice in it.
+  const padActivity = (ms) => evaluate(`new Promise((done) => {
+    let i = 0;
+    const timer = setInterval(() => {
+      const p = 1 + (i % 4);
+      window.__vj.press(p, 0.5 + 0.1 * (i % 5));
+      setTimeout(() => window.__vj.release(p), 120);
+      if (++i * 200 >= ${ms}) { clearInterval(timer); setTimeout(() => done(true), 200); }
+    }, 200);
+  })`);
+  // every post is stamped with the fake's mode when it arrived, so each phase counts exactly the posts made in it
+  const leds = {};
+  const postsIn = (mode, from) => padPosts.slice(from).filter((p) => p.mode === mode).length;
+  let mark = padPosts.length;
+  ledsMode = "off";
+  hello(false);
+  leds.off_seen = await settle((s) => s.engine.ledsOff === "LEDs are off (--no-leds)");
+  await padActivity(6000);
+  leds.off_posts = postsIn("off", mark);
+  leds.off_state = (await stats()).engine;
+  mark = padPosts.length;
+  ledsMode = "refuse";
+  hello(true);
+  await padActivity(6000);
+  leds.refuse_posts = postsIn("refuse", mark);
+  leds.refuse_state = (await stats()).engine;
+  mark = padPosts.length;
+  ledsMode = "on";
+  hello(true);
+  leds.on_cleared = await settle((s) => s.engine.ledsOff === "");
+  await padActivity(1500);
+  leds.resumed_posts = postsIn("on", mark);
+  report.engine_contract.leds = leds;
+  console.log(`[leds] off: ${leds.off_posts} posts in 6 s; refused: ${leds.refuse_posts} posts in 6 s; on again: ${leds.resumed_posts} in 1.5 s`);
+  checks.no_pad_posts_to_an_engine_without_leds = !!leds.off_seen && leds.off_posts === 0;
+  checks.a_refused_post_stops_posting_until_the_next_hello = leds.refuse_posts === 1 && leds.refuse_state.refused >= 1 &&
+    /refused \(HTTP 409\)/.test(leds.refuse_state.ledsOff) && !!leds.on_cleared && leds.resumed_posts >= 2;
+
+  // --------------------------------------------- E3: a dropped engine's status leaves the HUD with it --
+  send({ t: "status", msg: "fake engine for vj_verify: about to drop" });
+  await settle((s) => s.engine.status === "fake engine for vj_verify: about to drop");
+  for (const c of [...sse]) { try { c.end(); } catch { /* closed */ } }
+  const dropped = await settle((s) => (!s.engine.open ? s : false));
+  report.engine_contract.after_drop = dropped ? dropped.engine : null;
+  const hudText = () => evaluate(`document.getElementById("hud-engine").textContent`);
+  // the HUD redraws a few times a second; give it a moment, then it must not show the dropped engine's last status
+  let hudClean = false;
+  try { hudClean = !!(await waitFor(async () => !(await hudText()).includes("about to drop"), 2000, "the HUD")); } catch { /* stale */ }
+  report.engine_contract.hud_after_drop = await hudText();
+  checks.a_dropped_engine_leaves_no_status = !!dropped && dropped.engine.status === "" && dropped.engine.hello === null &&
+    hudClean;
+  await waitFor(() => sse.size > 0, 20000, "the page reconnecting to the engine");
+  hello(true);
+  await settle((s) => s.engine.hello && s.engine.open);
+
   // ------------------------------------------------------------- F: the pedal star (Joy to the World's end) --
+  // 20 strikes: the star lights at the 16th (vj-core.js PedalDetector, tuned on Daniel's whole take)
   await evaluate(`window.__vj.select("vj-chord-constellations")`);
   for (const k of [49, 65, 68, 72]) send({ t: "note", key: k, vel: 0, on: false });
-  const walk = [49, 48, 46, 44, 42, 41, 39, 37, 36, 37, 39, 41, 42, 44];
-  const names = ["Db", "C7", "Bbm", "Ab", "Gb", "Fm", "Ebm7", "Db", "C7", "Db", "Ebm7", "Fm", "Gb", "Ab"];
+  const walk = [49, 48, 46, 44, 42, 41, 39, 37, 36, 37, 39, 41, 42, 44, 46, 48, 49, 46, 44, 42];
+  const names = ["Db", "C7", "Bbm", "Ab", "Gb", "Fm", "Ebm7", "Db", "C7", "Db", "Ebm7", "Fm", "Gb", "Ab", "Bbm", "C7", "Db",
+                 "Bbm", "Ab", "Gb"];
   for (let i = 0; i < walk.length; i++) {
     send({ t: "chord", src: "keys", name: names[i], root: walk[i] % 12, quality: "", pcs: [walk[i] % 12, 1], changed: true });
     send({ t: "note", key: walk[i], vel: 0.7, on: true });
@@ -524,9 +593,28 @@ try {
   await delay(2200);
   st = await stats();
   report.pedal.after = st.pedal;
-  checks.pedal_star_finds_the_repeated_note = report.pedal.during.key === 73 && report.pedal.during.strikes >= 12 &&
+  checks.pedal_star_finds_the_repeated_note = report.pedal.during.key === 73 && report.pedal.during.strikes >= 16 &&
     report.pedal.during.tension > 0.3;
-  checks.pedal_resolves_when_the_repeats_stop = report.pedal.after.key === -1 && report.pedal.after.resolved >= 12;
+  checks.pedal_resolves_when_the_repeats_stop = report.pedal.after.key === -1 && report.pedal.after.resolved >= 16;
+
+  // ------------------------------------------ G: the showcase follows an engine that plays beats (not the demo) --
+  // Merging the fixes (vj-core.js EngineLink) with the scenes (vj-stage.js) once left the stage's accessors reading
+  // engine.open / engine.hello, which no longer exist: the tour then never saw the engine and started the page's demo
+  // on top of it (found by the verifier's end-to-end replay, 2026-10-23).
+  let showN = 0;
+  const showBeats = setInterval(() => send({ t: "beat", due_ms: 200, bpm: 120, conf: 0.85, n: showN++, on_beat: 0.9 }), 500);
+  await delay(1200);
+  await evaluate("window.__vjx.startShowcase()");
+  await delay(3600);                     // the tour listens 2.5 s for an engine's beats before it starts the demo
+  report.showcase_engine = {
+    show: await evaluate("(() => { const x = window.__vjx.showcase(); return { on: x.on, mode: x.mode }; })()"),
+    demo: (await stats()).demo,
+  };
+  await evaluate("window.__vjx.stopShowcase()");
+  await evaluate("window.__vj.demo(false)");
+  clearInterval(showBeats);
+  checks.showcase_follows_a_playing_engine = report.showcase_engine.show.on && report.showcase_engine.show.mode === "engine" &&
+    report.showcase_engine.demo === false;
 
   report.page_errors = await evaluate("window.__vj.errors()");
   report.final_stats = await stats();
@@ -573,7 +661,9 @@ try {
     // Play's console is Play's business (its audio and take plumbing); the VJ checks judge the VJ page only
     report.play.console = report.console.splice(consoleMark);
     report.play.exceptions = report.exceptions.splice(excMark);
-    checks.vj_presets_load_and_compile_in_play = report.play.presets.length === 5 &&
+    const vjFiles = readdirSync(join(WEB, "presets")).filter((f) => /^vj-.*\.frag$/.test(f)).length;
+    report.play.vj_files = vjFiles;
+    checks.vj_presets_load_and_compile_in_play = report.play.presets.length === vjFiles && vjFiles >= 5 &&
       report.play.rows.every((r) => !r.broken && r.active && r.active.id === r.id && r.active.compiled === true);
     checks.play_raised_no_exception_with_vj_presets = report.play.exceptions.length === 0;
   }
@@ -591,7 +681,14 @@ try {
   // the page's web fonts come from Google; a test browser that cannot reach them is not a page fault
   const external = (c) => /fonts\.(googleapis|gstatic)\.com/.test(`${c.url || ""} ${c.text || ""}`);
   report.external_errors = report.console.filter((c) => (c.type === "error" || c.type === "log-error") && external(c));
-  checks.no_console_errors = !report.console.some((c) => (c.type === "error" || c.type === "log-error") && !external(c));
+  // Chrome logs every refused fetch ("Failed to load resource ... 409"); phase E2 provokes exactly as many refusals as the
+  // fake engine refused posts, so those are expected -- and counted, so a page that kept posting would still show here
+  const refusal = (c) => /\/api\/pads/.test(c.url || "") && /\b409\b/.test(c.text || "");
+  report.expected_refusals = report.console.filter(refusal);
+  const refusedPosts = padPosts.filter((p) => p.mode !== "on").length;
+  checks.refusal_console_lines_match_the_refused_posts = report.expected_refusals.length === refusedPosts;
+  checks.no_console_errors = !report.console.some((c) => (c.type === "error" || c.type === "log-error") && !external(c) &&
+    !refusal(c));
   checks.no_page_recorded_errors = Array.isArray(report.page_errors) && report.page_errors.length === 0;
   checks.no_script_error = !report.error;
   report.verdict = { pass: Object.values(checks).every(Boolean), checks };
@@ -611,7 +708,9 @@ try {
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold a file */ }
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);
   for (const e of report.exceptions) console.log("EXC", e.description || e.text);
-  for (const c of report.console.filter((c) => c.type === "error" || c.type === "log-error")) console.log("CONSOLE", c.text);
+  for (const c of report.console.filter((c) => c.type === "error" || c.type === "log-error")) {
+    console.log(report.expected_refusals?.includes(c) ? "CONSOLE (expected: the refusal phase E2 provokes)" : "CONSOLE", c.text);
+  }
   console.log("verdict:", report.verdict.pass ? "PASS" : "FAIL");
   console.log("receipt:", join(outDir, "receipt.json"));
   process.exit(report.verdict.pass ? 0 : 1);

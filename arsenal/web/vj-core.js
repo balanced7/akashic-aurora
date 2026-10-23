@@ -8,10 +8,11 @@
 //
 // This module holds everything the VJ page decides that can be tested without a browser:
 //   - the event contract (keylab-vj engine -> page, Server-Sent Events, v1) and its validation   parseEvent
+//   - what the page knows of its engine, and whether it may post pad colours                     EngineLink
 //   - the accent effects, their ADSR envelopes and how velocity shapes them                      EFFECTS, EffectBank
 //   - the flash gate: at most three full-field flashes in any second (WCAG 2.3.1)                 FlashGate
 //   - the predicted-beat clock the engine's 'beat' events feed                                    BeatClock
-//   - the pedal detector: one note re-struck while the harmony moves under it                     PedalDetector
+//   - the pedal detector: one note re-struck while the harmony moves under it                     PedalDetector, pedalSignature
 //   - the circle-of-fifths star layout and the house pitch colours                                starPosition, pitchColours
 //   - the default pad and control maps, and their validation for localStorage                     DEFAULT_PAD_MAP, ...
 //   - the VJ strip: the 16x6 float texture a VJ-aware preset reads through u_video                STRIP
@@ -71,8 +72,11 @@ export function parseEvent(obj) {
   if (!obj || typeof obj !== "object" || typeof obj.t !== "string") return null;
   switch (obj.t) {
     case "hello":
+      // leds: true / false from an engine that says; null from one that does not (an older engine: post, and stop on refusal)
       return { t: "hello", v: num(obj.v, 0), src: String(obj.src || ""), beat_engine: String(obj.beat_engine || ""),
-               pads_mode: ["daw", "bank", "both"].includes(obj.pads_mode) ? obj.pads_mode : "" };
+               pads_mode: ["daw", "bank", "both"].includes(obj.pads_mode) ? obj.pads_mode : "",
+               leds: obj.leds === true ? true : obj.leds === false ? false : null,
+               leds_reason: typeof obj.leds_reason === "string" ? obj.leds_reason.slice(0, 200) : "" };
     case "beat": {
       const due = num(obj.due_ms), bpm = num(obj.bpm);
       if (due === null || bpm === null || bpm <= 0) return null;
@@ -114,6 +118,48 @@ export function parseEvent(obj) {
       return { t: "status", msg: String(obj.msg || "").slice(0, 200) };
     default:
       return null;
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ the engine link --
+// What the page knows of the engine it is connected to, and whether it may post pad colours (POST /api/pads). The engine's
+// hello says whether its LEDs can light at all (leds false: --no-leds, or no KeyLab DAW output); a refused post (409 =
+// turned off, 503 = no device or the engine is stopping; 403 and 423 too) also stops posting -- until the next hello,
+// which is the engine saying what changed. Until 2026-10-23 a refusal only paused posting for five seconds, so an engine
+// without LEDs was asked again and again for as long as the page ran. A dropped connection forgets the old engine's
+// hello and status (the next engine may be another one), so the HUD never shows a dead engine's last word as current.
+const REFUSALS = new Set([403, 409, 423, 503]);
+export class EngineLink {
+  constructor() {
+    this.open = false;
+    this.hello = null;        // the parsed hello of the engine now connected, or null
+    this.status = "";         // its last status message
+    this.ledsOff = "";        // why pad colours are not posted now ("" = they may be)
+    this.refused = 0;         // posts the engine refused
+    this.gen = 0;             // bumps on every hello and every disconnect: a late answer to an older post is ignored
+  }
+  connected() { this.open = true; }
+  disconnected() {
+    this.open = false;
+    this.hello = null;
+    this.status = "";
+    this.ledsOff = "";
+    this.gen++;
+  }
+  event(ev) {                 // a parsed event (parseEvent); only hello and status matter here
+    if (ev.t === "hello") {
+      this.hello = ev;
+      this.gen++;
+      this.ledsOff = ev.leds === false ? (ev.leds_reason || "the engine has no pad LEDs") : "";
+    } else if (ev.t === "status") this.status = ev.msg;
+  }
+  mayPostLeds() { return this.open && !this.ledsOff; }
+  // The HTTP status of a POST /api/pads made under generation `gen`. Returns true when it was a refusal now in force.
+  postResult(status, gen = this.gen) {
+    if (!REFUSALS.has(status) || gen !== this.gen) return false;
+    this.refused++;
+    this.ledsOff = `refused (HTTP ${status}); waiting for the engine's next hello`;
+    return true;
   }
 }
 
@@ -622,13 +668,24 @@ export class BeatClock {
 
 // --------------------------------------------------------------------------------------------------- PedalDetector --
 // A pedal point: one note struck again and again while the harmony moves under it. Daniel's Joy to the World ends with
-// D-flat struck 95 times over a walking bass: the repeats build tension that only the end releases. Each key keeps its
-// own run (strikes no more than maxGap apart); a strike counts a harmony move when what sounds under it (the lowest other
-// note, or the chord name) differs from its previous strike. A run with at least minCount strikes and minMoves moves is
-// a pedal; the longest such run is THE pedal. tension = 1 - exp(-count / tensionScale). When the pedal run ends, resolve()
-// reports it once (the page blooms).
+// D-flat 4 struck 89 times over a walking bass (56 s at the replay's 100 BPM): the repeats build tension that only the end
+// releases. Each key keeps its own run (strikes no more than maxGap apart); a strike counts a harmony move when what
+// sounds under it (pedalSignature: the lowest other note and the chord name) differs from its previous strike. A run with
+// at least minCount strikes and minMoves moves is a pedal; the longest such run is THE pedal. tension =
+// 1 - exp(-count / tensionScale). When the pedal run ends, end() reports it once (the page blooms).
+//
+// minCount 16 and minMoves 3, measured on the whole Joy take as the page receives it (tests/fixtures/vj/
+// joy_take_events.json, replayed in tests/vj_core.test.mjs on a steady 60 Hz frame clock): the old 4 / 1 lit the star for
+// 109 s away from the D-flat ending (any repeated melody or inner note: F4, A-flat 4, C4); 12 / 3 for 12.4 s; 16 / 3 for
+// 7.0 s (the repeated F4 - G-flat 4 - A-flat 4 figure over a moving bass at 114-132 s, a pedal-like passage in its own
+// right), while keeping 83.8 % of the ending lit (88.6 % before: it now lights at the 16th strike, ~9 s in). The rule
+// from the end-to-end review: keep at least 75 % of the ending, fewest false alarms. Going further (20 strikes: 4.3 s,
+// 79.7 %) would only be fitting the one F4 run of this take, and a pedal shorter than 20 strikes would never show.
+export function pedalSignature(lowestOther, chordName) {
+  return lowestOther < 0 && !chordName ? -1 : (lowestOther + 1) * 4096 + hashString(chordName || "");
+}
 export class PedalDetector {
-  constructor({ maxGap = 1.6, minCount = 4, minMoves = 1, tensionScale = 24 } = {}) {
+  constructor({ maxGap = 1.6, minCount = 16, minMoves = 3, tensionScale = 24 } = {}) {
     this.maxGap = maxGap;
     this.minCount = minCount;
     this.minMoves = minMoves;

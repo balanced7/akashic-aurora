@@ -110,3 +110,29 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .hud { font-size: 10.5px; }
   .hud-row { grid-template-columns: 70px 1fr; }
 }
+
+/* ------------------------------------------------------------- wave 2: the stage (vj-stage.js), name card and panel -- */
+.namecard {
+  position: absolute; left: 50%; bottom: 9vh; transform: translate(-50%, 10px); max-width: min(880px, calc(100vw - 32px));
+  padding: 14px 26px 16px; text-align: center; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(5, 6, 10, 0.55) 0%, rgba(5, 6, 10, 0.0) 72%);
+}
+.namecard .nc-kicker {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent);
+  opacity: 0.9;
+}
+.namecard .nc-name {
+  font-family: var(--sans); font-weight: 800; font-stretch: 118%; font-size: clamp(30px, 5.2vw, 68px); line-height: 1.04;
+  letter-spacing: 0.01em; color: #f4f6fb; margin: 4px 0 6px; text-shadow: 0 0 24px rgba(120, 170, 255, 0.35);
+}
+.namecard .nc-blurb {
+  font-family: var(--sans); font-weight: 400; font-size: clamp(13px, 1.5vw, 17px); color: var(--ink-dim); line-height: 1.4;
+}
+.stage.showcase .hud { opacity: 0; pointer-events: none; }
+.stage-row { display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: 8px; margin: 4px 0; }
+.stage-row label { color: var(--ink-dim); font-size: 12px; }
+.stage-row select { font: inherit; font-size: 12px; color: var(--ink); background: #161a24; border: 1px solid var(--line); border-radius: 4px; padding: 3px; }
+.stage-sec .target { margin-top: 6px; }
+@media (max-width: 640px) {
+  .namecard { bottom: 6vh; padding: 10px 14px; }
+}

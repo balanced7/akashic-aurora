@@ -7,14 +7,19 @@ all drive the lights the same way. Now-playing title comes from Windows SMTC (no
 Deps (prebuilt cp311 wheels): PyAudioWPatch, aubio-ledfx (imported as `aubio`), numpy.
 Run:  py -m arsenal.keylab beat        (keyboard must be physically in DAW mode)
 
-Known MVP limits (refine later): LED sends block the audio loop briefly on each beat; a dedicated output thread
-would tighten timing. aubio reports half/double tempo on some tracks -- the visual follows the actual beats it
-flags, so the march stays musical even when the printed BPM octave is off.
+The loopback's read() never returns while nothing plays (WASAPI delivers no packets in silence), so no loop here reads
+it directly: IdleFill does the blocking reads on its own thread and hands over silence, in real time, during a pause
+('beat' and 'record' used to hang on silence until something played; the VJ engine found it, 2026-10-23).
+
+Known limits: aubio (the optional old path) reports half/double tempo on some tracks -- the visual follows the actual
+beats it flags, so the march stays musical even when the printed BPM octave is off.
 """
 from __future__ import annotations
 
+import queue
+import threading
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 from . import protocol as P
 from . import winmidi as W
@@ -96,20 +101,150 @@ def _open_loopback(pa):
         raise RuntimeError("no WASAPI loopback device found")
 
 
+class LoopbackStream:
+    """The default speakers' loopback as a block source: read() -> one block of HOP frames, shape (HOP, channels),
+    float32. read() BLOCKS while nothing plays -- read it through IdleFill."""
+
+    def __init__(self, pa):
+        self.inst, dev = _open_loopback(pa)
+        self.dev = dev
+        self.rate = int(dev["defaultSampleRate"])
+        self.channels = int(dev["maxInputChannels"]) or 2
+        self.hop = HOP
+        self.name = f"loopback: {dev['name']} @ {self.rate} Hz"
+        self.stream = self.inst.open(format=pa.paFloat32, channels=self.channels, rate=self.rate, input=True,
+                                     input_device_index=dev["index"], frames_per_buffer=HOP)
+
+    def read(self):
+        import numpy as np
+        raw = self.stream.read(HOP, exception_on_overflow=False)
+        return np.frombuffer(raw, dtype=np.float32).reshape(-1, self.channels).copy()
+
+    def close(self) -> None:
+        try:
+            self.stream.stop_stream(); self.stream.close(); self.inst.terminate()
+        except Exception:
+            pass
+
+
+class IdleFill:
+    """Wraps a device whose read() BLOCKS while nothing plays (the WASAPI loopback delivers nothing in silence --
+    measured 2026-10-23: a 3 s read on an idle Focusrite never returned). A reader thread does the blocking reads and
+    stamps each block's hand-over on the capture clock (_clock); read_stamped() hands over (block, stamp, filled):
+    the device's blocks, or a block of silence once the device has been quiet for grace_s, then one per block period
+    on an absolute schedule, so whatever the blocks drive (a beat tracker, a recording, an analysis clock) keeps
+    running through a pause in real time. The grace at the start of each pause is wall time no block covers (gap_s).
+    If the reader runs more than max_backlog_s ahead of the consumer, the oldest blocks are dropped and counted
+    (dropped_s), never silently; max_backlog_s=None never drops (a recording keeps every sample).
+
+    src: .rate and .read() -> a block (None = ended); optional .name, .hop, .channels (the silence block's shape:
+    (hop,) for 1, else (hop, channels)) and .close(). close() closes src only once the reader has left read() --
+    a reader still blocked in a silent device's read is left to process exit."""
+
+    def __init__(self, src, grace_s: float = 0.1, max_backlog_s: Optional[float] = 2.0):
+        import numpy as np
+        self._np = np
+        self.src, self.rate, self.name = src, int(src.rate), getattr(src, "name", "")
+        self.hop = int(getattr(src, "hop", HOP))
+        ch = int(getattr(src, "channels", 1) or 1)
+        self.fill_shape = (self.hop,) if ch == 1 else (self.hop, ch)
+        self.dur = self.hop / float(self.rate)
+        self.grace_s = grace_s
+        self.max_blocks = None if max_backlog_s is None else max(4, int(max_backlog_s / self.dur))
+        self.q: "queue.SimpleQueue" = queue.SimpleQueue()
+        self.filled = self.dropped = 0
+        self.gap_s = 0.0                  # wall time no block covers (the grace at the start of each pause)
+        self._idle = False
+        self._last_real: Optional[float] = None
+        self._next_fill = 0.0
+        self._stop = False
+        self._err: Optional[BaseException] = None
+        self._t = threading.Thread(target=self._pump, name="loopback-reader", daemon=True)
+        self._t.start()
+
+    @property
+    def dropped_s(self) -> float:
+        return self.dropped * self.dur
+
+    @property
+    def filled_s(self) -> float:
+        return self.filled * self.dur
+
+    def _pump(self) -> None:
+        while not self._stop:
+            try:
+                b = self.src.read()
+                stamp = _clock()
+            except Exception as exc:
+                self._err = exc
+                self.q.put((None, _clock()))
+                return
+            self.q.put((b, stamp))
+            if b is None:
+                return
+
+    def read_stamped(self) -> Tuple[Optional[object], float, bool]:
+        """-> (block or None at the end, its hand-over time on _clock, True if it is a block of silence)."""
+        if self.max_blocks is not None:
+            while self.q.qsize() > self.max_blocks:
+                try:
+                    self.q.get_nowait()
+                    self.dropped += 1
+                except queue.Empty:
+                    break
+        now = time.perf_counter()
+        if self._idle:
+            deadline = self._next_fill
+        else:
+            deadline = (self._last_real if self._last_real is not None else now) + self.dur + self.grace_s
+        try:
+            b, stamp = self.q.get(timeout=max(0.0, deadline - now))
+        except queue.Empty:
+            if not self._idle:
+                self._idle = True
+                self.gap_s += self.grace_s
+                self._next_fill = deadline
+            self._next_fill += self.dur
+            self.filled += 1
+            return self._np.zeros(self.fill_shape, dtype=self._np.float32), _clock(), True
+        if b is None:
+            if self._err is not None:
+                raise self._err
+            return None, stamp, False
+        self._idle = False
+        self._last_real = time.perf_counter()
+        return b, stamp, False
+
+    def read(self):
+        return self.read_stamped()[0]
+
+    def close(self) -> None:
+        self._stop = True
+        self._t.join(timeout=0.3)
+        if not self._t.is_alive():
+            close = getattr(self.src, "close", None)
+            if callable(close):
+                close()
+
+
 def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str] = None) -> str:
     """Capture what is playing (WASAPI loopback) to a local FLAC, named after the now-playing track, so a tracker
     can be judged on the REAL song instead of synthetic audio (Daniel, 2026-10-22: "most definitely"). Recordings
     are third-party audio: they live under state/ (gitignored), are never committed, and are for local testing
-    only. Returns the file path."""
+    only. Returns the file path.
+
+    The loopback is read through IdleFill: while nothing plays, the recording gets silence in real time instead of
+    waiting forever for the first packet (it hung on silence before 2026-10-23). The timing record says how much of
+    it was filled silence (silence_filled_s); a pause in the middle still shows as a timing gap (the grace before
+    the fill starts is wall time no sample covers), so such a recording is never taken for an answer key."""
     import os
     import re
     import numpy as np
     import pyaudiowpatch as pa
     import soundfile as sf
 
-    inst, dev = _open_loopback(pa)
-    rate = int(dev["defaultSampleRate"])
-    ch = int(dev["maxInputChannels"]) or 2
+    src = LoopbackStream(pa)
+    dev, rate, ch = src.dev, src.rate, src.channels
     np_ = now_playing() or {}
     label = name or " - ".join(x for x in (np_.get("artist"), np_.get("title")) if x) or "loopback"
     safe = re.sub(r"[^\w\- .()]+", "_", label).strip()[:80]
@@ -117,18 +252,17 @@ def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str
                                    "state", "arsenal", "keylab", "recordings")
     os.makedirs(root, exist_ok=True)
     path = os.path.join(root, f"{time.strftime('%Y%m%d-%H%M%S')} {safe}.flac")
-    stream = inst.open(format=pa.paFloat32, channels=ch, rate=rate, input=True,
-                       input_device_index=dev["index"], frames_per_buffer=HOP)
     print(f"recording {secs:.0f} s of '{label}' from {dev['name']} @ {rate} Hz -> {path}")
+    feed = IdleFill(src, max_backlog_s=None)              # a recording keeps every sample
     chunks, need = [], int(secs * rate)
     first = last = None                                   # (clock at hand-over, frames) of the first / last block
     try:
         got = 0
         while got < need:
-            raw = stream.read(HOP, exception_on_overflow=False)
-            now = _clock()
-            frames = np.frombuffer(raw, dtype=np.float32).reshape(-1, ch)
-            chunks.append(frames.copy())
+            frames, now, _filled = feed.read_stamped()
+            if frames is None:
+                break
+            chunks.append(frames)
             got += len(frames)
             if first is None:
                 first = (now, len(frames))
@@ -136,18 +270,18 @@ def record(secs: float = 90.0, out_dir: Optional[str] = None, name: Optional[str
     except KeyboardInterrupt:
         pass
     finally:
-        try:
-            stream.stop_stream(); stream.close(); inst.terminate()
-        except Exception:
-            pass
+        feed.close()
     audio = np.concatenate(chunks) if chunks else np.zeros((0, ch), dtype=np.float32)
     sf.write(path, audio, rate, format="FLAC", subtype="PCM_16")
     if first is not None:
         timing = capture_timing(first[0], first[1], last, len(audio), rate)
+        timing["silence_filled_s"] = round(feed.filled_s, 3)
         write_timing(path, timing)
         flag = (f"  TIMING GAP: {timing['sample_secs']:.3f} s of samples over {timing['wall_secs']:.3f} s of wall "
                 f"clock ({timing['gap_ms']:+.0f} ms) -- record again before annotating" if timing["gap"] else
                 f"  timing ok ({timing['gap_ms']:+.1f} ms)")
+        if feed.filled:
+            flag += f"  ({feed.filled_s:.1f} s of it is silence: nothing was playing)"
     else:
         flag = ""
     print(f"saved {len(audio) / rate:.1f} s -> {path}{flag}")
@@ -295,11 +429,8 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     import pyaudiowpatch as pa
     Tracker = importlib.import_module(f"{__package__}.beat_{engine}").Tracker
 
-    inst, dev = _open_loopback(pa)
-    rate = int(dev["defaultSampleRate"])
-    ch = int(dev["maxInputChannels"]) or 2
-    stream = inst.open(format=pa.paFloat32, channels=ch, rate=rate, input=True,
-                       input_device_index=dev["index"], frames_per_buffer=HOP)
+    src = LoopbackStream(pa)
+    dev, rate, ch = src.dev, src.rate, src.channels
     np_ = now_playing()
     seed = seed_bpm or _seed_for(np_, offline)
     if np_:
@@ -324,9 +455,10 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     print(f"loopback: {dev['name']} @ {rate}Hz x{ch}  (engine=beat_{engine}, mode={mode}, lead {lead_ms:.0f} ms"
           f"{', GUEST: FL keeps the connection' if not connect else ''})")
 
-    saved_blocks: list = []            # save=True: the audio exactly as the tracker heard it
+    saved_blocks: list = []            # save=True: the audio exactly as the tracker heard it (silence in a pause)
     clock: list = []                   # (audio_t, perf_counter) pairs, to put the hand's taps on the audio clock
     painter = _Painter(render, mode, 0.12, verbose)
+    feed = IdleFill(src)               # the loopback's read blocks while nothing plays: never read it on this thread
     wall0 = None                       # wall time of the first block: audio_t should keep pace with it
     dropped_warned = 0.0
     save_first = save_last = None      # hand-over times of the first and last saved block (the gap check)
@@ -339,17 +471,18 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
     t_end = (time.perf_counter() + secs) if secs else None
     try:
         while t_end is None or time.perf_counter() < t_end:
-            raw = stream.read(HOP, exception_on_overflow=False)
-            wall_now = time.perf_counter()
+            frames, wall_now, filled = feed.read_stamped()   # wall_now: the block's hand-over on the capture clock
+            if frames is None:
+                break
             if wall0 is None:
                 wall0 = wall_now - HOP / rate
-            behind = (wall_now - wall0) - (audio_t + HOP / rate)
+            behind = (wall_now - wall0) - feed.gap_s - (audio_t + HOP / rate)
             if behind - dropped_warned > 0.25:
                 dropped_warned = behind
-                print(f"  [audio] {behind:.2f} s of audio lost so far (the loop fell behind the loopback)")
-            frames = np.frombuffer(raw, dtype=np.float32)
+                lost = f", {feed.dropped_s:.2f} s of it dropped" if feed.dropped else ""
+                print(f"  [audio] {behind:.2f} s behind the loopback so far{lost} (the loop fell behind)")
             if ch > 1:
-                frames = frames.reshape(-1, ch).mean(axis=1)
+                frames = frames.mean(axis=1)
             block = np.ascontiguousarray(frames, dtype=np.float32)
             if block.shape[0] != HOP:
                 continue
@@ -418,8 +551,8 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
                         if ref is not None:
                             ref.pred.clear()
                         continue
-            if not ahead:
-                continue
+            if filled or not ahead:
+                continue                                   # nothing is playing: no march in the silence
             t_next = ahead[0]["t_beat"]
             if abs(t_next - fired_for) < 0.05:
                 continue
@@ -455,11 +588,9 @@ def run_predictive(port: Optional[str] = None, secs: Optional[float] = None, mod
                 lp = os.path.join(logdir, f"hand-{time.strftime('%Y%m%d-%H%M%S')}.json")
                 json.dump({"taps_and_nudges": hand_in.log, "painted": painter.painted}, open(lp, "w"), indent=0)
                 print(f"hand log: {lp}")
-        try:
-            stream.stop_stream(); stream.close(); inst.terminate()
-        except Exception:
-            pass
-    print(f"done -- {beats} beats painted ahead | {render.stats()}")
+        feed.close()
+    silence = f" | {feed.filled_s:.1f} s of silence while nothing played" if feed.filled else ""
+    print(f"done -- {beats} beats painted ahead | {render.stats()}{silence}")
     return 0
 
 
@@ -473,11 +604,8 @@ def run(port: Optional[str] = None, secs: Optional[float] = None, mode: str = "c
     import aubio
     import pyaudiowpatch as pa
 
-    inst, dev = _open_loopback(pa)
-    rate = int(dev["defaultSampleRate"])
-    ch = int(dev["maxInputChannels"]) or 2
-    stream = inst.open(format=pa.paFloat32, channels=ch, rate=rate, input=True,
-                       input_device_index=dev["index"], frames_per_buffer=HOP)
+    src = LoopbackStream(pa)
+    dev, rate, ch = src.dev, src.rate, src.channels
     tempo = aubio.tempo("default", WIN, HOP, rate)
 
     out = W.MidiOut(port, prefer="daw")
@@ -497,12 +625,14 @@ def run(port: Optional[str] = None, secs: Optional[float] = None, mode: str = "c
     last_light = 0.0  # hardware freeze guard: never repaint faster than MIN_LIGHT_GAP
     MIN_LIGHT_GAP = 0.12
     t_end = (time.perf_counter() + secs) if secs else None
+    feed = IdleFill(src)               # the loopback's read blocks while nothing plays: never read it on this thread
     try:
         while t_end is None or time.perf_counter() < t_end:
-            raw = stream.read(HOP, exception_on_overflow=False)
-            frames = np.frombuffer(raw, dtype=np.float32)
+            frames, _stamp, _filled = feed.read_stamped()
+            if frames is None:
+                break
             if ch > 1:
-                frames = frames.reshape(-1, ch).mean(axis=1)
+                frames = frames.mean(axis=1)
             samples = np.ascontiguousarray(frames, dtype=np.float32)
             if samples.shape[0] != HOP:
                 continue
@@ -535,9 +665,6 @@ def run(port: Optional[str] = None, secs: Optional[float] = None, mode: str = "c
         except Exception:
             pass
         out.close()
-        try:
-            stream.stop_stream(); stream.close(); inst.terminate()
-        except Exception:
-            pass
+        feed.close()
     print(f"done -- {beats} beats | {render.stats()}")
     return 0

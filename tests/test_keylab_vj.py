@@ -9,10 +9,15 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
+import queue
 import socket
 import struct
+import subprocess
+import sys
 import threading
 import time
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -22,6 +27,11 @@ from arsenal.keylab import vj as V
 
 RATE = 48000
 NOTE_ON, NOTE_OFF, CC = 0x90, 0x80, 0xB0
+REPO = Path(__file__).resolve().parents[1]
+# Daniel's real Joy to the World take is his own playing and the repo is public: it lives only in the gitignored
+# state/ folder (or wherever KEYLAB_JOY_TAKE points), and the tests that need it skip when it is absent.
+JOY = Path(os.environ.get("KEYLAB_JOY_TAKE") or (REPO / "state" / "arsenal" / "keylab" / "joy_take_events.json"))
+MAKE_JOY = REPO / "tests" / "fixtures" / "vj"
 
 
 def _free_port() -> int:
@@ -145,7 +155,8 @@ def test_sse_stream_delivers_every_event_type_with_the_contract_fields():
             sse.close()
 
     hello = sse.of("hello")[0]
-    assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "pads_mode": "both"}
+    assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "pads_mode": "both",
+                     "leds": False, "leds_reason": "LEDs are off (--no-leds)"}
     assert all(isinstance(s["msg"], str) and s["msg"] for s in sse.of("status"))
 
     beats = sse.of("beat")
@@ -632,4 +643,272 @@ def test_vj_verb_is_registered():
     from arsenal.keylab.__main__ import build_parser
     args = build_parser().parse_args(["vj", "--port", "8901", "--no-leds", "--rate-limit", "--replay-audio", "demo"])
     assert args.verb == "vj" and args.port == 8901 and args.no_leds and args.rate_limit
-    assert args.engine == "a" and args.replay_audio == "demo"
+    assert args.engine == "a" and args.replay_audio == "demo" and args.loop is False
+
+
+# --- the end-to-end findings (2026-10-23) ---------------------------------------------------------------------------
+# 1. LED refusal spam: hello says whether the LEDs can light; 409 = turned off, 503 = no DAW output
+
+def test_hello_says_whether_the_leds_can_light():
+    on = V.Engine(http_port=None, led_out=_CountingOut(), say=_quiet).hello()
+    off = V.Engine(http_port=None, say=_quiet).hello()
+    assert on["leds"] is True and on["leds_reason"] is None
+    assert off["leds"] is False and off["leds_reason"] == "LEDs are off (--no-leds)"
+
+
+def test_pads_route_answers_503_when_there_is_no_daw_output():
+    port = _free_port()
+    eng = V.Engine(http_port=port, led_refusal="no KeyLab DAW output (not found)", led_refusal_status=503,
+                   say=_quiet).start()
+    try:
+        status, _r, body = _post_json(port, "/api/pads", {"colors": ["#000000"] * 12})
+        assert status == 503 and body["ok"] is False and body["refused"] == "no KeyLab DAW output (not found)"
+        st = _get_json(port, "/api/state")[2]["leds"]
+        assert st["enabled"] is False and st["refusal_status"] == 503
+    finally:
+        eng.stop()
+
+
+def test_run_refuses_with_503_and_says_so_in_hello_when_the_daw_output_will_not_open(monkeypatch):
+    from arsenal.keylab import winmidi as W
+
+    def no_port(*_a, **_k):
+        raise RuntimeError("no output port containing 'keylab'")
+
+    made = {}
+
+    class Spy(V.Engine):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            made["eng"] = self
+
+    monkeypatch.setattr(W, "MidiOut", no_port)
+    monkeypatch.setattr(V, "fl_running", lambda: None)
+    monkeypatch.setattr(V, "line_buffered_stdout", lambda: None)
+    monkeypatch.setattr(V, "Engine", Spy)
+    assert V.run(port=_free_port(), leds=True, audio=False, midi=False, secs=0.2, quiet=True) == 0
+    eng = made["eng"]
+    assert eng.pads_request({"colors": ["#000000"] * 12})[0] == 503
+    assert eng.hello()["leds"] is False and "no KeyLab DAW output" in eng.hello()["leds_reason"]
+
+
+# 3. the zombie stream: a stopped engine serves nothing, not even on a kept-alive connection
+
+def test_a_stopped_engine_serves_no_stream_on_a_kept_alive_connection():
+    port = _free_port()
+    eng = V.Engine(http_port=port, heartbeat_s=0.2, say=_quiet).start()
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
+    c.request("POST", "/api/pads", body=json.dumps({"colors": ["#000000"] * 12}), headers={"Content-Type": "text/plain"})
+    r = c.getresponse()
+    r.read()
+    assert r.status == 409
+    eng.stop()
+    lines = []
+    try:                                   # the same connection a browser would reuse for its next request
+        c.request("GET", "/api/events")
+        r = c.getresponse()
+        end = time.perf_counter() + 1.0
+        while time.perf_counter() < end:
+            line = r.fp.readline() if r.fp else b""
+            if not line:
+                break
+            lines.append(line)
+    except (OSError, http.client.HTTPException):
+        pass                               # refused or closed: nothing served, which is the point
+    finally:
+        c.close()
+    assert not any(x.startswith(b"data:") or x.startswith(b": hb") for x in lines), lines
+
+
+def test_short_routes_close_their_connection():
+    port = _free_port()
+    eng = V.Engine(http_port=port, say=_quiet).start()
+    try:
+        for method, path in (("GET", "/api/state"), ("GET", "/nope"), ("OPTIONS", "/api/pads")):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
+            c.request(method, path)
+            r = c.getresponse()
+            r.read()
+            assert r.getheader("Connection") == "close", (method, path)
+            c.close()
+        status, r, _b = _post_json(port, "/api/pads", {"colors": ["#000000"] * 12})
+        assert status == 409 and r.getheader("Connection") == "close"
+    finally:
+        eng.stop()
+
+
+def test_a_closed_hub_refuses_new_streams():
+    hub = V.Hub()
+    hub.close()
+    assert hub.subscribe() is None
+    port = _free_port()
+    eng = V.Engine(http_port=port, say=_quiet).start()
+    try:
+        eng.hub.close()                    # the moment between closing the hub and the server going away
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=3)
+        c.request("GET", "/api/events")
+        r = c.getresponse()
+        body = r.read()
+        c.close()
+        assert r.status == 503 and b"data:" not in body
+    finally:
+        eng.stop()
+
+
+def test_an_open_stream_ends_when_the_engine_stops():
+    port = _free_port()
+    eng = V.Engine(http_port=port, say=_quiet).start()
+    sse = _SSE(port)
+    try:
+        assert sse.wait_for(lambda: sse.of("hello"), 5)
+        t0 = time.perf_counter()
+        eng.stop()
+        sse._t.join(timeout=3)
+        assert not sse._t.is_alive() and time.perf_counter() - t0 < 3
+    finally:
+        sse.close()
+
+
+# 4. nits: line-buffered stdout, --loop, Gb in flat keys, an assumed replay tempo said out loud
+
+def test_the_engine_console_arrives_while_it_runs_when_piped():
+    port = _free_port()
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONUNBUFFERED"}
+    p = subprocess.Popen([sys.executable, "-m", "arsenal.keylab", "vj", "--no-leds", "--no-midi", "--no-audio",
+                          "--port", str(port), "--secs", "10"], cwd=str(REPO), env=env, stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT)
+    lines: "queue.Queue[bytes]" = queue.Queue()
+    threading.Thread(target=lambda: [lines.put(x) for x in iter(p.stdout.readline, b"")], daemon=True).start()
+    got = []
+    try:
+        end = time.perf_counter() + 7
+        while time.perf_counter() < end and not any(b"VJ engine:" in x for x in got):
+            try:
+                got.append(lines.get(timeout=0.2))
+            except queue.Empty:
+                pass
+        running = p.poll() is None
+    finally:
+        p.kill()
+        p.wait(10)
+    assert any(b"VJ engine:" in x for x in got), got
+    assert running, "the console line must arrive while the engine runs, not at exit"
+
+
+def test_vj_loop_reaches_the_file_source(monkeypatch, tmp_path):
+    from arsenal.keylab import __main__ as CLI
+    got = {}
+    monkeypatch.setattr(V, "run", lambda **kw: got.update(kw) or 0)
+    assert CLI.main(["vj", "--replay-audio", "take.wav", "--loop", "--no-leds", "--port", "8901"]) == 0
+    assert got["loop"] is True and got["replay_audio"] == "take.wav"
+
+    import soundfile as sf
+    wav = tmp_path / "short.wav"
+    sf.write(str(wav), np.zeros(V.HOP * 3, dtype=np.float32), RATE)
+    looped, once = V.FileSource(wav, realtime=False, loop=True), V.FileSource(wav, realtime=False)
+    assert all(looped.read() is not None for _ in range(10))
+    assert [once.read() is not None for _ in range(4)] == [True, True, True, False]
+    looped.close()
+    once.close()
+
+
+def test_pitch_class_6_is_gb_in_a_flat_key_and_f_sharp_otherwise():
+    assert V.spell("F#/C#", flats=True) == "Gb/Db" and V.spell("F#m7/C#") == "F#m7/Db"
+
+    def play(scale, chord):
+        eng = V.Engine(http_port=None, say=_quiet)
+        seen = _collect(eng)
+        eng.start()
+        try:
+            for k in scale:
+                eng.feed_midi("midi", NOTE_ON, k, 100)
+                eng.feed_midi("midi", NOTE_OFF, k, 0)
+            for k in chord:
+                eng.feed_midi("midi", NOTE_ON, k, 100)
+            assert _wait(lambda: any(e["t"] == "chord" for e in seen), 2)
+            time.sleep(0.05)
+        finally:
+            eng.stop()
+        return [e["name"] for e in seen if e["t"] == "chord"][-1], eng.key.key()
+
+    name, key = play([61, 63, 65, 66, 68, 70, 72, 73] * 2, (54, 58, 61))       # D-flat major, then G-flat major
+    assert name == "Gb" and key[2] < 0, (name, key)
+    name, key = play([62, 64, 66, 67, 69, 71, 73, 74] * 2, (54, 57, 61))       # D major, then F-sharp minor
+    assert name == "F#m" and key[2] > 0, (name, key)
+
+    eng = V.Engine(http_port=None, say=_quiet)
+    plain = eng.audio_chord_seen({"t": "chord", "name": "F#", "root": 6, "pcs": [1, 6, 10]}, 0.0)
+    assert plain["name"] == "F#"                                                 # no key yet: F#
+    eng.key.add([61, 63, 65, 66, 68, 70, 72] * 2, 0.1)
+    flat = eng.audio_chord_seen({"t": "chord", "name": "F#m", "root": 6, "pcs": [1, 6, 9]}, 0.2)
+    assert flat["name"] == "Gbm" and eng.state()["key"] == "Db major"
+
+
+def test_the_keys_decide_the_key_over_whatever_else_the_speakers_play():
+    """A demo groove in C under a replay in D-flat left the key undecided (live run, 2026-10-23), so D-flat's Gb chords
+    read F#: while the keys are playing, the audio's chords spell but do not vote."""
+    eng = V.Engine(http_port=None, say=_quiet)
+    t = 100.0
+    for i, k in enumerate([61, 63, 65, 66, 68, 70, 72, 73] * 2):
+        eng._handle("midi", NOTE_ON, k, 100, t + 0.1 * i)
+        eng._handle("midi", NOTE_OFF, k, 0, t + 0.1 * i + 0.05)
+    for j in range(6):
+        eng.audio_chord_seen({"t": "chord", "name": "C", "root": 0, "pcs": [0, 4, 7]}, t + 2 + j)
+    assert eng.key.name() == "Db major"
+    assert eng.audio_chord_seen({"t": "chord", "name": "F#", "root": 6, "pcs": [1, 6, 10]}, t + 9)["name"] == "Gb"
+    for j in range(12):                                    # the keys quiet for longer: the audio's chords count again
+        eng.audio_chord_seen({"t": "chord", "name": "G", "root": 7, "pcs": [2, 7, 11]}, t + 30 + j)
+        eng.audio_chord_seen({"t": "chord", "name": "D", "root": 2, "pcs": [2, 6, 9]}, t + 30.5 + j)
+    assert eng.key.flats() is False
+
+
+def test_a_replay_with_no_tempo_says_the_tempo_is_assumed(tmp_path):
+    path = tmp_path / "take.json"
+    path.write_text(json.dumps({"ppq": 96, "notes": [{"pos": 0, "len": 96, "key": 61, "vel": 64},
+                                                     {"pos": 96, "len": 96, "key": 65, "vel": 64}]}))
+    rp = V.load_replay(path)
+    assert rp.tempo_known is False and rp.bpm == 100.0
+    assert rp.label.endswith("2 notes, tempo unknown, assumed 100 BPM (--replay-bpm to set)"), rp.label
+    timed = V.load_replay(path, bpm=120)
+    assert timed.tempo_known and timed.label.endswith("2 notes at 120 BPM") and "unknown" not in timed.label
+    eng = V.Engine(http_port=None, replay=rp, replay_delay=0.0, say=_quiet)
+    seen = _collect(eng)
+    eng.start()
+    try:
+        assert _wait(lambda: any(e["t"] == "status" and e["msg"] == "replay done" for e in seen), 5)
+    finally:
+        eng.stop()
+    said = [e["msg"] for e in seen if e["t"] == "status"]
+    assert any("tempo unknown, assumed 100 BPM (--replay-bpm to set)" in m for m in said), said
+
+
+# replay_events: the live replay's events, offline -- and the real take the page's pedal star is tested on
+
+def test_replay_events_are_the_live_replays_events_on_a_simulated_clock(tmp_path):
+    notes = [{"pos_s": 0.0, "key": k, "vel": 100, "len_s": 0.4} for k in (60, 64, 67)] + \
+            [{"pos_s": 0.5, "key": k, "vel": 90, "len_s": 0.4} for k in (57, 60, 64)]
+    path = tmp_path / "notes.json"
+    path.write_text(json.dumps(notes), encoding="utf-8")
+    ev = V.replay_events(V.load_replay(path))
+    seq = [(t, e["t"], e.get("key", e.get("name")), e.get("on")) for t, e in ev]
+    assert seq == [(0.0, "note", 60, True), (0.0, "note", 64, True), (0.0, "note", 67, True),
+                   (0.03, "chord", "C", None),
+                   (0.4, "note", 60, False), (0.4, "note", 64, False), (0.4, "note", 67, False),
+                   (0.5, "note", 57, True), (0.5, "note", 60, True), (0.5, "note", 64, True),
+                   (0.53, "chord", "Am", None),
+                   (0.9, "note", 57, False), (0.9, "note", 60, False), (0.9, "note", 64, False)]
+
+
+@pytest.mark.skipif(not JOY.exists(), reason="Daniel's Joy take is kept out of the public repo (state/, gitignored)")
+def test_the_joy_take_fixture_is_what_the_engine_sends_today():
+    """tests/vj_core.test.mjs tunes the pedal star on this fixture; if the engine's events change (chord naming, the
+    settle), regenerate it: py tests/fixtures/vj/make_joy_take.py <the take's notes>."""
+    sys.path.insert(0, str(MAKE_JOY))
+    try:
+        import make_joy_take as M
+    finally:
+        sys.path.pop(0)
+    doc = json.loads(JOY.read_text(encoding="utf-8"))
+    rp = V.Replay([tuple(n) for n in doc["note_list"]], "joy")
+    assert len(rp.notes) == doc["notes"] == 1378
+    assert M.rows(V.replay_events(rp)) == doc["events"]

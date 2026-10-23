@@ -15,20 +15,23 @@
 //      applies the full-frame accents (invert, the gated white flash and strobe pulses), saturation and master brightness.
 // The engine (arsenal keylab-vj, GET <engine>/api/events, Server-Sent Events) feeds beats, energy, hits, chords, notes,
 // pads and controls; ?demo=1 plays a scripted show through the same path; the keyboard plays the pads without either.
+// The page posts its pad colours back (POST <engine>/api/pads, at most ten a second) only while the engine's hello says
+// it has LEDs, and stops at the first refusal until the engine's next hello (vj-core.js EngineLink).
 //
 // URL: ?engine=http://127.0.0.1:8794 (default; "off" for none) ?demo=1 ?demopads=0 ?sets=id,id,... ?hud=0
 // Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader.
 import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
   starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, actionLabel, TARGETS,
-  DEFAULT_CTL_MAP, normalizeCtlMap, learnBinding, applyCtl, FlashGate, EffectBank, BeatClock, PedalDetector, hashString,
-  DemoScript,
+  DEFAULT_CTL_MAP, normalizeCtlMap, learnBinding, applyCtl, FlashGate, EffectBank, BeatClock, PedalDetector,
+  pedalSignature, EngineLink, DemoScript,
 } from "./vj-core.js";
+import { createStage } from "./vj-stage.js";   // wave 2: beat-synced transitions, the post look, the showcase tour
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
 const DEMO_AT_START = QS.get("demo") === "1";
-const DEMO_PADS = QS.get("demopads") !== "0";
+const DEMO_PADS = QS.get("demopads") !== null ? QS.get("demopads") !== "0" : QS.get("showcase") !== "1";   // the tour plays its own accents
 const ENGINE_URL = (() => {
   const asked = QS.get("engine");
   if (asked === "off") return null;
@@ -36,7 +39,10 @@ const ENGINE_URL = (() => {
   return DEMO_AT_START ? null : "http://127.0.0.1:8794";
 })();
 const DEFAULT_SETS = ["vj-laser-cathedral", "vj-reactor", "vj-aurora-curtains", "vj-led-wall", "vj-chord-constellations",
-                      "feedback-tunnel"];
+                      "feedback-tunnel",
+                      // wave 2
+                      "vj-hyperspace", "vj-synthwave-grid", "vj-liquid-chrome", "vj-lissajous-chords", "vj-note-rain",
+                      "vj-fractal-bloom", "vj-geometry-hall", "vj-particle-galaxy"];
 const SET_IDS = (() => {
   const asked = (QS.get("sets") || "").split(",").map((s) => s.trim()).filter((s) => /^[a-z0-9][a-z0-9-]{1,40}$/.test(s));
   return asked.length ? asked : DEFAULT_SETS;
@@ -343,8 +349,9 @@ let freezeCapture = false;
 let demo = null;
 
 // engine
-const engine = { url: ENGINE_URL, es: null, open: false, hello: null, events: 0, bad: 0, status: "", lastMsg: -1e9 };
-const led = { last: "", lastAt: -1e9, computedAt: -1e9, inflight: false, backoffUntil: 0, posts: 0, refused: 0, log: [] };
+// link: open, the engine's hello and status, and whether pad colours may be posted (vj-core.js EngineLink)
+const engine = { url: ENGINE_URL, es: null, link: new EngineLink(), events: 0, bad: 0, lastMsg: -1e9 };
+const led = { last: "", lastAt: -1e9, computedAt: -1e9, inflight: false, backoffUntil: 0, posts: 0, log: [] };
 
 // GL
 const G = { gl: null, lost: false, parallel: null, fbInternal: 0, fbType: 0, fbFormat: "", stripTex: null, audioTex: null,
@@ -533,6 +540,7 @@ function initGL() {
     banner("A built-in VJ shader failed to compile; see the console.");
     return false;
   }
+  if (stage) stage.initGL(gl, { internalFormat: G.fbInternal, type: G.fbType });   // transitions and the look
   return true;
 }
 
@@ -693,18 +701,24 @@ function nextValid(from) {
   }
   return from;
 }
-// Crossfade to set `to` (the next valid one by default) over two beats, or 1.2 s without a beat.
-function nextSet(to = null, nowMs = performance.now()) {
+// Switch to set `to` (the next valid one by default): the stage (vj-stage.js) plans it on the next bar or beat, in the
+// panel's transition style (or `style`), two beats long; 1.2 s from now without a beat.
+function nextSet(to = null, nowMs = performance.now(), style = null) {
   if (deck.running) finishFade();
   const target = to === null ? nextValid(deck.a) : to;
   if (!validSet(target) || target === deck.a) return;
   deck.b = target;
   deck.running = true;
-  deck.start = nowMs;
   deck.from = effectiveManualMix();
-  const p = beat.period();
-  deck.ms = beat.alive(nowMs) && p > 0 ? clamp(XFADE_BEATS * p, 400, 4000) : XFADE_FALLBACK_MS;
-  toast(`→ ${sets[target].name}`);
+  const plan = stage ? stage.plan(nowMs, deck.a, target, style) : null;
+  if (plan) {
+    deck.start = plan.startMs; deck.ms = plan.ms; deck.code = plan.code; deck.seed = plan.seed;
+  } else {
+    const p = beat.period();
+    deck.start = nowMs; deck.code = 0;
+    deck.ms = beat.alive(nowMs) && p > 0 ? clamp(XFADE_BEATS * p, 400, 4000) : XFADE_FALLBACK_MS;
+  }
+  toast(`→ ${sets[target].name}${plan && plan.on !== "now" ? ` · on the ${plan.on}` : ""}`);
   renderSetList();
 }
 function finishFade() {
@@ -717,6 +731,7 @@ function finishFade() {
   if (old !== sets[deck.a] && old !== sets[deck.b]) releaseFb(old);
   renderSetList();
   renderParams();
+  if (stage) stage.landed(performance.now());
 }
 function selectSet(i) {           // a cut, for the test hook and a click while nothing plays
   if (!validSet(i)) return false;
@@ -746,10 +761,8 @@ function handleEvent(raw) {
   const nowS = nowMs / 1000;
   switch (ev.t) {
     case "hello":
-      engine.hello = ev;
-      break;
     case "status":
-      engine.status = ev.msg;
+      engine.link.event(ev);
       break;
     case "beat":
       beat.schedule(nowMs, ev);
@@ -821,7 +834,7 @@ function noteOn(key, vel, nowS) {
   pcStrike[key % 12] = 1;
   feelState.sounding.set(key, { vel: Math.round(vel * 127), t0: nowS, held: true, pedal: false, tRelease: null, strike: true });
   const low = lowestOther(key);
-  pedal.strike(key, nowS, low < 0 && !chord.name ? -1 : (low + 1) * 4096 + hashString(chord.name));
+  pedal.strike(key, nowS, pedalSignature(low, chord.name));
   const g = glints[glintNext];
   glintNext = (glintNext + 1) % glints.length;
   g.x = clamp((key - 21) / 87, 0, 1) * 1.8 - 0.9;
@@ -902,6 +915,7 @@ function toggleKill() {
 // ------------------------------------------------------------------------------------------------- controls --
 function onCtl(ev) {
   lastCtl = { id: ev.id, kind: ev.kind, value: ev.value, delta: ev.delta, target: null };
+  if (stage && stage.onCtl(ev)) { lastCtl.target = "look"; return; }   // the look's fader (vj-stage.js)
   if (learnTarget) {
     ctlMap = learnBinding(ctlMap, ev.id, learnTarget);
     lastCtl.target = learnTarget;
@@ -1258,19 +1272,20 @@ function renderOverlay(nowS) {
   ov.read = write;
 }
 
-function composite(nowMs, nowS, mixAB) {
+function composite(nowMs, nowS, mixAB, mixedTex = null, target = null) {
   const gl = G.gl;
   const A = sets[deck.a], B = sets[deck.b];
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, target);   // the stage's look target, or the screen
   gl.viewport(0, 0, G.width, G.height);
   gl.useProgram(G.compProg);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, A && A.fb ? A.fb.texs[A.fb.read] : G.blackTex);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, B && B.fb && mixAB > 0.001 ? B.fb.texs[B.fb.read] : G.blackTex);
+  // a transition in flight (vj-stage.js) arrives already mixed as u_a, with u_mix 0
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mixedTex || (A && A.fb ? A.fb.texs[A.fb.read] : G.blackTex));
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, B && B.fb && mixAB > 0.001 && !mixedTex ? B.fb.texs[B.fb.read] : G.blackTex);
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.ov.texs[G.ov.read]);
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, G.frz ? G.frz.texs[0] : G.blackTex);
   const u = G.compU;
   gl.uniform2f(u.u_res, G.width, G.height);
-  gl.uniform1f(u.u_mix, A && A.fb ? mixAB : 0);
+  gl.uniform1f(u.u_mix, A && A.fb && !mixedTex ? mixAB : 0);
   const k = fx.strongest("kaleido");
   gl.uniform1f(u.u_kal, k ? k.env : 0);
   gl.uniform1f(u.u_kalN, k ? 2 * Math.round(2 + 4 * k.vel) : 6);
@@ -1362,7 +1377,8 @@ function padLights(nowMs, dt) {
     v = Math.min(v, 1);
     out[i] = rgbToHex(r * v, g * v, b * v);
   }
-  if (!options.leds || !engine.url || !engine.open) return;
+  // an engine whose hello says it has no LEDs, or that refused a post, is not asked again until its next hello
+  if (!options.leds || !engine.url || !engine.link.mayPostLeds()) return;
   if (led.inflight || nowMs < led.backoffUntil || nowMs - led.lastAt < LED_INTERVAL_MS) return;
   const body = JSON.stringify({ colors: out });
   if (body === led.last) return;
@@ -1372,10 +1388,11 @@ function padLights(nowMs, dt) {
   led.posts++;
   led.log.push(Math.round(nowMs));
   if (led.log.length > 200) led.log.shift();
+  const gen = engine.link.gen;
   // a plain-text body keeps this a simple request (no CORS preflight); the engine reads the JSON either way
   fetch(`${engine.url}/api/pads`, { method: "POST", body })
     .then((res) => {
-      if (res.status === 409 || res.status === 403 || res.status === 423) { led.refused++; led.backoffUntil = performance.now() + 5000; }
+      if (engine.link.postResult(res.status, gen)) led.last = "";   // resend the frame once the engine allows it
       else if (!res.ok) led.backoffUntil = performance.now() + 2000;
     })
     .catch(() => { led.backoffUntil = performance.now() + 2000; led.last = ""; })
@@ -1396,18 +1413,18 @@ function connectEngine() {
     return;
   }
   const es = engine.es;
-  es.onopen = () => { engine.open = true; engineBackoff = 1000; };
+  es.onopen = () => { engine.link.connected(); engineBackoff = 1000; };
   es.onerror = () => {
-    engine.open = false;
     es.close();
     if (engine.es !== es) return;
+    engine.link.disconnected();          // the old engine's hello and status are no longer the truth
     engine.es = null;
     setTimeout(connectEngine, engineBackoff);
     engineBackoff = Math.min(10000, engineBackoff * 1.6);
   };
   es.onmessage = (m) => {
     engine.lastMsg = performance.now();
-    engine.open = true;
+    engine.link.connected();
     let obj;
     try { obj = JSON.parse(m.data); } catch { engine.bad++; return; }
     handleEvent(obj);
@@ -1455,6 +1472,7 @@ function onFrame(rafNow) {
   buildAudio(nowS);
   padLights(nowMs, dt);
   persistValues(nowMs);
+  if (stage) stage.tick(nowMs);   // the showcase tour and the name card
 
   if (G.gl && !G.lost) {
     try {
@@ -1467,11 +1485,16 @@ function onFrame(rafNow) {
       const mixAB = currentMix(nowMs);
       const A = sets[deck.a], B = sets[deck.b];
       if (A && A.program) renderSet(A, nowS);
-      if (B && B !== A && B.program && mixAB > 0.001) renderSet(B, nowS);
+      // the cued set also runs while a switch waits for its beat, so its feedback is warm when the transition starts
+      if (B && B !== A && B.program && (mixAB > 0.001 || deck.running)) renderSet(B, nowS);
       if (freezeCapture) { captureFreeze(); freezeCapture = false; }
       fillOverlayUniforms(nowS);
       renderOverlay(nowS);
-      composite(nowMs, nowS, mixAB);
+      const mixed = stage && A && A.fb && B && B.fb && B !== A ?
+        stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
+      const target = stage ? stage.compositeTarget(G.width, G.height) : null;
+      composite(nowMs, nowS, mixAB, mixed, target);
+      if (target) stage.post(G.width, G.height);
       if (probe.on || probe.waiters.length) runProbe(nowMs);
       stats.frames++;
     } catch (err) {
@@ -1516,7 +1539,7 @@ function p95Gap() {
 }
 
 // ------------------------------------------------------------------------------------------------------- HUD --
-let hudVisible = QS.get("hud") !== "0";
+let hudVisible = QS.get("hud") !== null ? QS.get("hud") !== "0" : QS.get("showcase") !== "1";   // the tour opens clean
 function setText(id, text) { const el = $(id); if (el.textContent !== text) el.textContent = text; }
 function updateHud(nowMs) {
   $("hud").classList.toggle("hidden", !hudVisible);
@@ -1532,12 +1555,13 @@ function updateHud(nowMs) {
   let eng;
   if (demo && !engine.url) eng = "demo (scripted show; ?engine= to use the KeyLab engine)";
   else if (!engine.url) eng = "off · keyboard pads only";
-  else if (engine.open) {
-    const h = engine.hello;
+  else if (engine.link.open) {
+    const h = engine.link.hello;
     eng = h ? `connected · ${h.src || "engine"} · beat ${h.beat_engine || "?"} · pads ${h.pads_mode || "?"}` : "connected";
     if (h && h.pads_mode === "daw") eng += " · FL may see pads 1-8";
+    if (options.leds && engine.link.ledsOff) eng += ` · pad lights off: ${engine.link.ledsOff}`;
   } else eng = `connecting to ${engine.url}… (keyboard pads work meanwhile)`;
-  if (engine.status) eng += ` · ${engine.status}`;
+  if (engine.link.status) eng += ` · ${engine.link.status}`;    // cleared on disconnect: never a dead engine's last word
   setText("hud-engine", eng);
   const bpm = beat.bpm > 0 && beat.alive(nowMs) ? `${beat.bpm.toFixed(1)} bpm · conf ${beat.conf.toFixed(2)}` : "no beat";
   setText("hud-beat", bpm + (beat.onBeat !== null && beat.alive(nowMs) ? ` · on-beat ${beat.onBeat.toFixed(2)}` : "") + ` · #${beat.count}`);
@@ -1775,6 +1799,28 @@ function toggleFullscreen() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 
+// ----------------------------------------------------------------------------------------- wave 2: the stage --
+// vj-stage.js: beat-synced transitions, the post look and the showcase tour, reading the page through these accessors.
+const stage = createStage({
+  stage: stageEl,
+  beat: () => beat, deck: () => deck, sets: () => sets, setId: (i) => (sets[i] ? sets[i].id : null),
+  // the demo numbers its bars; the engine does not. The page's own demo counts even while a dropped engine's link has
+  // forgotten the demo's hello (EngineLink.disconnected clears it), as in a showcase that fell back to the demo.
+  barsKnown: () => !!demo || !!(engine.link.hello && engine.link.hello.beat_engine === "demo"),
+  palette: () => palNow, hit: () => hit.pulse,
+  nextSet: (style) => nextSet(null, performance.now(), style),
+  setDemo: (on) => setDemo(on), demoOn: () => !!demo,
+  engineUrl: () => engine.url, engineOpen: () => engine.link.open, engineLastMsg: () => engine.lastMsg,
+  press: (pad, vel) => padOn(pad, vel, "tour"), release: (pad) => padOff(pad), padMap: () => padMap,
+  learning: () => !!learnTarget,
+  unbindCtl: (id) => {
+    ctlMap = { ...ctlMap, [id]: null };
+    safeSet(STORE.ctl, JSON.stringify(ctlMap));
+    if (!$("panel").hidden) renderTargets();
+  },
+  toast, recordError,
+});
+
 // --------------------------------------------------------------------------------------------- the test hook --
 window.__vj = {
   api: VJ_API,
@@ -1788,7 +1834,8 @@ window.__vj = {
     scale: G.scale, scaleDrops: stats.scaleDrops, format: G.fbFormat,
     setA: sets[deck.a] && sets[deck.a].id, setB: sets[deck.b] && sets[deck.b].id, mix: +currentMix(performance.now()).toFixed(3),
     fading: deck.running, pickup: deck.pickup,
-    engine: { url: engine.url, open: engine.open, hello: engine.hello, events: engine.events, bad: engine.bad, status: engine.status },
+    engine: { url: engine.url, open: engine.link.open, hello: engine.link.hello, events: engine.events, bad: engine.bad,
+              status: engine.link.status, ledsOff: engine.link.ledsOff, refused: engine.link.refused },
     demo: !!demo, bpm: beat.bpm, beats: beat.count, chord: chord.name, chordSrc: chord.src, stars: starCount,
     pedal: { key: pedal.key, strikes: pedal.strikes(), tension: +pedal.tension().toFixed(3), resolved: pedal.resolvedCount },
     tension: feelFrame ? +feelFrame.colour.tension.toFixed(3) : null,
@@ -1796,7 +1843,8 @@ window.__vj = {
       held: f.tr === null, granted: f.granted })),
     flash: { granted: gate.granted, refused: gate.refused, maxInAnyWindow: gate.maxInAnyWindow(), log: gate.log().map((t) => +t.toFixed(3)) },
     kill: { gain: +kill.gain.toFixed(3), target: kill.target, pending: kill.pending },
-    leds: { posts: led.posts, refused: led.refused, last: ledColours.slice(), log: led.log.slice(-50) },
+    leds: { posts: led.posts, refused: engine.link.refused, off: engine.link.ledsOff, last: ledColours.slice(),
+            log: led.log.slice(-50) },
     values: { ...T }, padMap: padMap.slice(), ctlMap: { ...ctlMap }, lastCtl,
   }),
   errors: () => errors.slice(),
@@ -1833,9 +1881,14 @@ async function boot() {
   await Promise.all(sets.map(loadSet));
   if (!validSet(deck.a)) deck.a = nextValid(deck.a);
   deck.b = nextValid(deck.a);
+  if (QS.get("showcase") === "1") {   // the tour opens on the first wave-2 set
+    const opener = sets.findIndex((s) => s.id === "vj-hyperspace");
+    if (validSet(opener)) selectSet(opener);
+  }
   renderSetList();
   renderParams();
   window.__vj.ready = true;
   toast(sets[deck.a] ? sets[deck.a].name : "no sets");
+  stage.boot();
 }
 boot();

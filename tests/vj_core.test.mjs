@@ -1,11 +1,12 @@
 // Node tests for the VJ rig's pure logic (arsenal/web/vj-core.js). Zero dependencies:
 //   node tests/vj_core.test.mjs
-// Sections: the event contract; the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
+// Sections: the event contract; the engine link (when the page may post pad colours); the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
 // the effect bank (velocity, hold and release, dampen, choke, the fixed pool); the beat clock (scheduling, refreshed
-// predictions, the flywheel); the pedal detector (Joy to the World's repeated D-flat over a walking bass); the star layout;
+// predictions, the flywheel); the pedal detector (Joy to the World's repeated D-flat over a walking bass, and Daniel's
+// whole real take through it: tests/fixtures/vj/joy_take_events.json); the star layout;
 // the pad and control maps; the strip layout every VJ preset reads; the demo script; and the pitch colours baked into the
 // presets (they must equal the piano's palette as ported here).
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as C from "../arsenal/web/vj-core.js";
 
@@ -38,6 +39,39 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
   check("ctl rel", ctl.kind === "rel" && ctl.delta === -3);
   check("ctl with a hostile id refused", P({ t: "ctl", id: "<script>", kind: "abs", value: 1 }) === null);
   check("unknown type refused", P({ t: "nope" }) === null && P(null) === null && P("x") === null);
+  const hNo = P({ t: "hello", v: 1, src: "keylab-vj", leds: false, leds_reason: "LEDs are off (--no-leds)" });
+  check("hello says whether the engine has LEDs", hNo.leds === false && hNo.leds_reason === "LEDs are off (--no-leds)" &&
+        P({ t: "hello", leds: true }).leds === true);
+  check("an older engine's hello (no leds field) leaves it unknown", P({ t: "hello", v: 1 }).leds === null &&
+        P({ t: "hello", leds: "yes" }).leds === null);
+}
+
+// ------------------------------------------------------------------------------------------- the engine link --
+{
+  const P = C.parseEvent;
+  const L = new C.EngineLink();
+  check("nothing is posted before the engine is connected", !L.mayPostLeds());
+  L.connected();
+  L.event(P({ t: "hello", v: 1, src: "keylab-vj", leds: false, leds_reason: "LEDs are off (--no-leds)" }));
+  check("an engine whose hello says leds false is not posted to", !L.mayPostLeds() && L.ledsOff === "LEDs are off (--no-leds)");
+  L.event(P({ t: "hello", v: 1, src: "keylab-vj", leds: true }));
+  check("a hello with leds true allows posting", L.mayPostLeds());
+  const gen = L.gen;
+  check("a 202 is not a refusal", L.postResult(202, gen) === false && L.mayPostLeds());
+  check("a 409 stops posting", L.postResult(409, gen) === true && !L.mayPostLeds() && L.refused === 1);
+  check("... and keeps it stopped (no retry timer)", !L.mayPostLeds());
+  L.event(P({ t: "status", msg: "pads repainted" }));
+  check("a status does not lift it", !L.mayPostLeds());
+  L.event(P({ t: "hello", v: 1, src: "keylab-vj", leds: true }));
+  check("the next hello lifts it", L.mayPostLeds());
+  check("a late refusal of a post made before that hello is ignored", L.postResult(409, gen) === false && L.mayPostLeds());
+  check("a 503 (no DAW output, or stopping) stops posting too", L.postResult(503) === true && !L.mayPostLeds());
+  L.event(P({ t: "hello", v: 1, src: "keylab-vj" }));
+  check("an older engine's hello allows posting", L.mayPostLeds());
+  L.event(P({ t: "status", msg: "audio: 0.30 s behind" }));
+  L.disconnected();
+  check("a dropped connection forgets the engine's status and hello", L.status === "" && L.hello === null && !L.open &&
+        !L.mayPostLeds());
 }
 
 // --------------------------------------------------------------------------------------------------- the gate --
@@ -137,24 +171,87 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 {
   // Joy to the World's ending: D-flat 5 struck on every beat while the bass walks down under it
   const det = new C.PedalDetector();
-  const walk = [49, 48, 46, 44, 42, 41, 39, 37, 36, 37, 39, 41];
+  const walk = [49, 48, 46, 44, 42, 41, 39, 37, 36, 37, 39, 41, 42, 44, 46, 48, 49, 46, 44, 42];
+  let firstLit = -1;
   for (let i = 0; i < walk.length; i++) {
     const t = i * 0.5;
     det.strike(walk[i], t, -1);
     det.strike(73, t + 0.01, (walk[i] + 1) * 4096);
     det.update(t + 0.02, 0.02);
+    if (firstLit < 0 && det.key === 73) firstLit = i + 1;
   }
-  check("the repeated note is the pedal", det.key === 73 && det.strikes() === 12, `key ${det.key} strikes ${det.strikes()}`);
-  check("its tension grows with the strikes", near(det.tension(), 1 - Math.exp(-12 / 24)));
-  det.update(5.5 + 1.7, 1.7);
-  check("the run ends when the repeats stop", det.key === -1 && det.resolvePulse > 0.1 && det.resolvedCount === 12);
+  check("the repeated note is the pedal", det.key === 73 && det.strikes() === 20, `key ${det.key} strikes ${det.strikes()}`);
+  check("it lights at the 16th strike", firstLit === 16, `lit at strike ${firstLit}`);
+  check("its tension grows with the strikes", near(det.tension(), 1 - Math.exp(-20 / 24)));
+  det.update(9.5 + 1.7, 1.7);
+  check("the run ends when the repeats stop", det.key === -1 && det.resolvePulse > 0.1 && det.resolvedCount === 20);
+  check("the page's strike signature", C.pedalSignature(-1, "") === -1 && C.pedalSignature(36, "Db") ===
+        37 * 4096 + C.hashString("Db") && C.pedalSignature(-1, "Db") === C.hashString("Db"));
 
   const still = new C.PedalDetector();
   for (let i = 0; i < 8; i++) still.strike(73, i * 0.4, 5 * 4096);    // repeated over an unmoving harmony
   check("a repeat over a still harmony is not a pedal", still.key === -1);
   const slow = new C.PedalDetector();
-  for (let i = 0; i < 8; i++) slow.strike(73, i * 2.5, (40 + i) * 4096);
+  for (let i = 0; i < 20; i++) slow.strike(73, i * 2.5, (40 + i) * 4096);
   check("strikes too far apart are not a run", slow.key === -1);
+}
+
+// ------------------------------------------------------------------- the pedal star on Daniel's whole Joy take --
+// tests/fixtures/vj/joy_take_events.json: the take as the page receives it from `vj --replay-midi` (made by
+// tests/fixtures/vj/make_joy_take.py; test_keylab_vj.py checks it is still what the engine produces). It runs through the
+// detector the way the page runs it: notes and chord names update what sounds, each note-on strikes with the page's
+// signature, and update() runs on a steady 60 Hz frame clock (a clock reset to each event's time loses up to a frame per
+// event -- ~6 % of the time on this take, which the first end-to-end sweep did). The ending is the longest run of
+// D-flat 4 strikes (no more than 1.6 s apart). keep = the share of it the star spends on D-flat 4; false alarms = the
+// seconds the star is lit anywhere else (the ending's own release, up to 1.6 s after its last strike, is not one).
+// Daniel's real take is his own playing and the repo is public: it lives in the gitignored state/ folder (or wherever
+// KEYLAB_JOY_TAKE points) and this section skips when it is absent.
+const JOY_TAKE = process.env.KEYLAB_JOY_TAKE || here("../state/arsenal/keylab/joy_take_events.json");
+function joyPedal(opts) {
+  const ev = JSON.parse(readFileSync(JOY_TAKE, "utf8")).events;
+  const db = ev.filter((r) => r[1] === "n" && r[2] === 61).map((r) => r[0]);
+  const runs = [[db[0]]];
+  for (let i = 1; i < db.length; i++) { if (db[i] - db[i - 1] > 1.6) runs.push([]); runs[runs.length - 1].push(db[i]); }
+  const end = runs.reduce((a, b) => (b.length > a.length ? b : a));
+  const T0 = end[0], T1 = end[end.length - 1];
+  const det = new C.PedalDetector(opts);
+  const held = new Uint8Array(128);
+  let chordName = "", tf = null, keep = 0, lit = 0, onEnding = 0;
+  const lowestOther = (key) => { for (let k = 0; k < 128; k++) if (k !== key && held[k]) return k; return -1; };
+  const frames = (t) => {
+    if (tf === null) { tf = t; return; }
+    while (tf + 1 / 60 <= t) {
+      det.update(tf + 1 / 60, 1 / 60);
+      const mid = tf + 1 / 120;
+      if (det.key >= 0) {
+        lit += 1 / 60;
+        if (det.key === 61 && mid >= T0 && mid <= T1 + 1.6) onEnding += 1 / 60;
+        if (det.key === 61 && mid >= T0 && mid <= T1) keep += 1 / 60;
+      }
+      tf += 1 / 60;
+    }
+  };
+  for (const r of ev) {
+    frames(r[0]);
+    if (r[1] === "c") chordName = r[2];
+    else if (r[1] === "n") { held[r[2]] = 1; det.strike(r[2], r[0], C.pedalSignature(lowestOther(r[2]), chordName)); }
+    else held[r[2]] = 0;
+  }
+  frames(tf + 4);
+  return { strikes: end.length, start: T0, seconds: T1 - T0, keep: keep / (T1 - T0), falseS: lit - onEnding };
+}
+if (!existsSync(JOY_TAKE)) {
+  console.log("joy pedal: skipped -- Daniel's Joy take is kept out of the public repo (state/arsenal/keylab/, gitignored)");
+} else {
+  const joy = joyPedal();
+  const old = joyPedal({ minCount: 4, minMoves: 1 });
+  console.log(`joy pedal: the D-flat ending is ${joy.strikes} strikes over ${joy.seconds.toFixed(1)} s from ${joy.start.toFixed(1)} s; ` +
+              `defaults keep ${(100 * joy.keep).toFixed(1)} % with ${joy.falseS.toFixed(1)} s of false alarms ` +
+              `(4 strikes / 1 move: ${(100 * old.keep).toFixed(1)} %, ${old.falseS.toFixed(1)} s)`);
+  check("the Joy take's ending is the 89-strike D-flat run", joy.strikes === 89 && joy.seconds > 55 && joy.seconds < 57);
+  check("the pedal star keeps at least 75 % of the D-flat ending", joy.keep >= 0.75, `${(100 * joy.keep).toFixed(1)} %`);
+  check("and lights for at most 8 s anywhere else in the take", joy.falseS <= 8, `${joy.falseS.toFixed(1)} s`);
+  check("the old setting lit the star for over a minute elsewhere", old.falseS > 60, `${old.falseS.toFixed(1)} s`);
 }
 
 // ------------------------------------------------------------------------------------------ stars and colours --
