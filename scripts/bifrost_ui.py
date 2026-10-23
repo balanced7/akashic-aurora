@@ -872,6 +872,13 @@ class Handler(BaseHTTPRequestHandler):
             from urllib.parse import urlparse, parse_qs
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_sketch_read((q.get("name") or [""])[0]))
+        # KeyLab on the VFX Bench (claude/Vandor 2026-10-23; arsenal/keylab/webmount.py). The
+        # allowlist lives in webmount.keylab_route: five files, no traversal, no other extension.
+        # It returns a repo-relative path, which feeds the existing _static helper unchanged.
+        from arsenal.keylab.webmount import keylab_route
+        hit = keylab_route(path)
+        if hit:
+            return self._static(hit, "application/javascript")
         self.send_error(404)
 
     def _html(self):
