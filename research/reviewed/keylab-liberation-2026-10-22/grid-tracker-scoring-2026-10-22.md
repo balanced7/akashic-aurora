@@ -9,15 +9,36 @@ before any contestant existed: grid-tracker-preregistration-2026-10-22.md (commi
 **No contestant passes every row, so beat_a stays shipped.** The pre-registration says so in advance: "If none
 passes, the record says so, and beat_a stays shipped."
 
+- **beat_w (workflow builder: a discrete bar-pointer filter, after Whiteley/Cemgil/Godsill 2006 and Krebs/Böck/
+  Widmer 2015) comes closest.**
+  - It passes drift (F 1.0), shift (F .987, relock 0.8 s), synthetic (F 1.0), speed, contract and the licence
+    firewall.
+  - On the registered loops it beats beat_a's F and CMLt in **all six** classes.
+  - It fails only the loops row's BPM-spread clause, in four of six classes: kick seeded .058 vs .003, melodic
+    seeded .063 vs .015, tops .043 vs .036, tops seeded .005 vs .003. Its reported BPM wanders more than
+    beat_a's, whose seeded BPM is pinned to the seed.
+  - Its own adversarial auditor found that first (verbatim: grid-tracker-beat-w-build-and-audit-2026-10-22.md).
 - **beat_g (Vandor)** passes drift, shift, synthetic, speed, contract and the licence firewall. It fails the loops
   row on the registered draw (seed 7): kick loops (both seeded and unseeded), melodic seeded CMLt, and BPM spread
   in four groups.
 - **beat_h (Heimdall)** fails drift, shift and synthetic, as his own handback reported. That is confirmed
   independently here.
-- **beat_w (workflow builder)** has not been submitted yet. It is scored when it is.
+- **All three fail a bright-bass probe run after scoring.** It replays the drift suite with a sawtooth bass instead
+  of the bench's pure sine (see "Bright bass" below).
+  - beat_g and beat_w keep the tempo but light the off-beat: F .055 and .044.
+  - TYNAN's bass is likely the bright kind. The drift-suite passes therefore do not yet carry over to the music
+    that started this.
 
-beat_g is wired as an **opt-in live trial**, `py -m arsenal.keylab beat --engine g` (works with `--no-connect`
-guest mode). This is for the music it was built for. The default engine is unchanged.
+Both beat_g and beat_w can be tried live, opt-in: `py -m arsenal.keylab beat --engine w` (or `--engine g`). Both
+work with `--no-connect` guest mode. The default engine is unchanged.
+
+**Daniel's call.** The registered verdict keeps beat_a. Shipping beat_w as the default now would mean waiving the
+spread clause after seeing the results. If chosen, that must be labelled as a post-hoc waiver. Vandor's
+recommendation is not to waive. Instead:
+- keep beat_a as the default;
+- fix the bright-bass weakness, which beat_g and beat_w share;
+- pre-register round 2 with bright-bass drift cases and a paired loop comparison (see the seed-11 notes);
+- let beat_w, the leader, go first.
 
 ## Receipts
 
@@ -29,6 +50,7 @@ All receipts are local; the loop receipts list file paths in Daniel's packs.
 | shift | state/arsenal/keylab/receipts/beatbench-20261022-230740.json |
 | all, `--per-cat 30 --seeded --seed 7` (the registered run) | state/arsenal/keylab/receipts/beatbench-20261022-231143.json |
 | loops, `--seed 11` (a FRESH draw, see "Honesty") | state/arsenal/keylab/receipts/beatbench-20261022-231536.json |
+| beat_w, independent re-run: drift / shift / all seed 7 / loops seed 11 | state/arsenal/keylab/receipts/beatbench-20261022-233126.json, -233132, -233326, -233509 |
 
 ## Results against the registered rows
 
@@ -40,6 +62,7 @@ All receipts are local; the loop receipts list file paths in Daniel's packs.
 | beat_a | .218 | .012 | .009 | 0.2 | 152.4 / .126 | fails |
 | **beat_g** | **.961** | **.951** | **.001** | **0.0** | **1.6 / .964** | **passes** (≥ .85 / .75 / ≤ .02 / ≤ .5) |
 | beat_h | .612 | .200 | .102 | 0.2 | 75.4 / .460 | fails |
+| **beat_w** | **1.000** | **1.000** | **.004** | **0.0** | **5.5 / .994** | **passes** |
 
 ### Shift: 4 cases with a sudden tempo step at 20 s (must FOLLOW)
 
@@ -49,6 +72,7 @@ All receipts are local; the loop receipts list file paths in Daniel's packs.
 | beat_a | .656 | .540 | 3.10 | 2 | fails |
 | **beat_g** | **.940** | **.923** | **3.89** | **0** | **passes** (≥ .85 / .75 / ≤ 4.0 / 0) |
 | beat_h | .511 | .247 | — | 4 | fails |
+| **beat_w** | **.987** | **.978** | **0.80** | **0** | **passes** |
 
 ### Synthetic: 14 cases
 
@@ -57,6 +81,7 @@ All receipts are local; the loop receipts list file paths in Daniel's packs.
 | beat_a | .967 | .902 | the bar's reference |
 | **beat_g** | **.974** | **.958** | **passes** (≥ .95 / .85) |
 | beat_h | .716 | .527 | fails |
+| **beat_w** | **1.000** | **1.000** | **passes** |
 
 ### Loops, seed 7 (the registered draw): 28 kick, 30 tops, 30 melodic, each unseeded and seeded
 
@@ -71,31 +96,53 @@ The bar: F and CMLt each ≥ beat_a − .02, and bpm_spread ≤ beat_a's.
 | melodic | .465 / .376 / .158 | .497 / .379 / .107 | **passes** | .398 / .245 / .095 |
 | melodic, seeded | .547 / .559 / .015 | .525 / .452 / .099 | fails | .445 / .416 / .000 |
 
-Speed (realtime_x_min, bar ≥ 20): beat_a 73.7, beat_g 42.6, beat_h 23.0. Contract (`check_tracker`) and the
-licence firewall are green for both g and h.
+beat_w on the same registered draw, in the same order (kick, kick seeded, tops, tops seeded, melodic, melodic
+seeded), as F / CMLt / spread:
+- .862 / .759 / .059
+- .889 / .821 / **.058**
+- .538 / .425 / **.043**
+- .533 / .439 / **.005**
+- .604 / .536 / .096
+- .621 / .563 / **.063**
+
+F and CMLt pass every class. The bold spreads exceed beat_a's.
+
+Speed (realtime_x_min, bar ≥ 20): beat_a 73.7, beat_g 42.6, beat_h 23.0, beat_w 40.7. Contract (`check_tracker`)
+and the licence firewall are green for g, h and w.
 
 ## Honesty notes (read before trusting any number above)
 
 1. **The scorer is also a contestant.** Vandor wrote beat_g and ran the bench. The bench is mechanical and the
    acceptance was registered first, and every receipt above is reproducible with the commands shown. Even so, the
-   ledger holder certified his own work. **Ask: Heimdall re-runs the four commands and checks the receipts.**
+   ledger holder certified his own work. **Done: Heimdall re-ran all four commands as the second seat.** Every
+   scored number reproduced byte for byte (bus 1792726427747-0). Only realtime_x_min moves with machine load. One
+   loop per draw is unreadable (a LibsndfileError) in both runs, so the case counts agree.
 2. **beat_g was tuned against the registered loop draw.** After the first full run showed beat_g behind on
    loops, Vandor iterated beat_g against the same seed-7 loops: a seed-grid candidate, a bounded seed-octave
    prior, level choice by combined accent, and a cost on 8-tatum beats. So the seed-7 loop numbers are
    in-sample for beat_g. The seed-11 draw below was run once, after tuning stopped, and is the honest
    out-of-sample look.
-3. **beat_h was not tuned here.** It is Heimdall's submitted file, unchanged.
+3. **beat_h and beat_w were not tuned here.** Both are their builders' submitted files, unchanged. beat_w's
+   builder tuned about 20 settings on the three bench suites and on its own 46-case synthetic set, and disclosed
+   it. It never saw the loops. Its seed-7 loop numbers are therefore out of sample, and so are its seed-11
+   numbers.
 
 ### Fresh draw, seed 11 (out of sample for beat_g's tuning)
 
-| class | beat_a F / CMLt / spread | beat_g F / CMLt / spread | beat_h F / CMLt / spread |
-|---|---|---|---|
-| kick | .556 / .422 / .138 | **.744 / .695 / .055** | .464 / .201 / .180 |
-| kick, seeded | .740 / .747 / .003 | **.790 / .780 / .003** | .614 / .665 / .000 |
-| tops | .457 / .378 / .041 | .434 / .366 / .094 | .390 / .241 / .085 |
-| tops, seeded | .532 / .535 / .016 | .468 / .453 / .038 | .543 / .530 / .000 |
-| melodic | .563 / .433 / .183 | .507 / .406 / .207 | .340 / .130 / .201 |
-| melodic, seeded | .555 / .579 / .017 | .589 / .550 / .120 | .467 / .433 / .000 |
+| class | beat_a F / CMLt / spread | beat_g F / CMLt / spread | beat_w F / CMLt / spread | beat_h F / CMLt / spread |
+|---|---|---|---|---|
+| kick | .556 / .422 / .138 | .744 / .695 / .055 | **.835 / .684 / .074** | .464 / .201 / .180 |
+| kick, seeded | .740 / .747 / .003 | .790 / .780 / .003 | .826 / .696 / .005 | .614 / .665 / .000 |
+| tops | .457 / .378 / .041 | .434 / .366 / .094 | **.523 / .396** / .105 | .390 / .241 / .085 |
+| tops, seeded | .532 / .535 / .016 | .468 / .453 / .038 | .560 / .482 / .075 | .543 / .530 / .000 |
+| melodic | .563 / .433 / .183 | .507 / .406 / .207 | **.611 / .516 / .141** | .340 / .130 / .201 |
+| melodic, seeded | .555 / .579 / .017 | .589 / .550 / .120 | **.661 / .608** / .075 | .467 / .433 / .000 |
+
+beat_w on this draw:
+- **Ahead of beat_a on F in every class.**
+- **Ahead on CMLt in four.** It is behind by about .05 on kick seeded and tops seeded.
+- **BPM spread is higher than beat_a's in four classes.** The spread clause fails again, on a different set of
+  classes.
 
 Read together, the two draws say three things.
 
@@ -111,6 +158,35 @@ finding for the NEXT round's pre-registration, and Daniel's call:
 - a paired comparison (both trackers on the same loops, per-loop differences, with a confidence interval);
 - over a larger sample (for example 100 per class across three seeds);
 - instead of a fixed ±.02 margin on one draw.
+
+## Bright bass: the probe all four fail (run after scoring, not a registered row)
+
+beat_w's auditor found that its drift pass "rests on the bench's bass being a pure sine". The same probe was then
+run on every contestant (bright-bass-probe-2026-10-22.py, next to this record; `py <it>` from the repo root):
+- the three drift tempi (128, 140, 150), 40 s each;
+- the bench's own half-time pattern and generator;
+- only the bass timbre changed. A sawtooth has the same pitch drop, envelope and syncopated 16ths, with
+  harmonics up the spectrum.
+
+| bass | beat_a F / CMLt | beat_g F / CMLt / AMLt | beat_w F / CMLt / AMLt | beat_h F / CMLt |
+|---|---|---|---|---|
+| sine (the bench's) | .273 / .004 | .998 / .996 / .996 | 1.000 / 1.000 / 1.000 | .465 / .000 |
+| **sawtooth** | .239 / .008 | **.055 / .034 / .511** | **.044 / .027 / .658** | .538 / .000 |
+| sawtooth, low-passed at 400 Hz | .277 / .061 | .998 / .996 / .996 | 1.000 / 1.000 / 1.000 | .607 / .000 |
+
+**Reading:**
+- **What fails.** With a bright bass, beat_g and beat_w both keep the right TEMPO (128/140/150) but lock the
+  OFF-beat (AMLt .5-.7, F about .05). A bright bass note rises in the upper bands too, so it looks like
+  "kick with hat" to both accent rules:
+  - beat_g's clearest-band slot choice;
+  - beat_w's low-AND-high accent.
+- **What is unaffected.** Filtering the saw's highs restores both trackers.
+- **TYNAN.** Its "groovininininin" bass is very likely the bright kind. So neither grid tracker is yet proven on
+  the music that started this round. A recording of the real failure is the missing test (the critic asked for it
+  too).
+- **Round 2's first job.** Bright-bass drift cases belong in round 2's pre-registration, and the shared accent
+  weakness is the first thing to fix. One candidate is HARMONIC structure (a pitched bass has evenly spaced
+  partials, while a kick, snare or hat is noise-like or inharmonic). That keeps it "pure maths at runtime".
 
 ## What beat_g is, and the ablations that justify each part
 
