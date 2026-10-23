@@ -832,7 +832,8 @@ class ChordSense:
         np.minimum(harm[:hs], self._hring[:, :hs].min(axis=0), out=harm[:hs])
         # onset evidence BEFORE the median (which delays the harmony on purpose): the per-pitch-class rise of the
         # raw spectrum, kept ~0.8 s so a decided chord can be back-dated to the attack that started it
-        raw = np.sqrt(np.bincount(self._bin_pc, weights=fine, minlength=12))
+        # (from C2 up: a kick's sweep and tail below it would back-date a chord to the kick)
+        raw = np.sqrt(np.bincount(self._bin_pc[hs:], weights=fine[hs:], minlength=12))
         rise = np.maximum(raw - self._raw_prev, 0.0)
         self._raw_prev = raw
         self._flux[self._fpos] = rise
@@ -858,14 +859,12 @@ class ChordSense:
         if utot > 1e-12:
             self._low_s += self._a_tonal * (float(upper[:self._c6].sum()) / utot - self._low_s)
         reg = min(1.0, max(self.REGISTER[1], self._low_s / self.REGISTER[0])) ** 2
-        self._sinus_share, self._steady = sinus_share, steady
         self._tonality += self._a_tonal * (sinus_share * steady * reg - self._tonality)
         if self._tonal and self._tonality < self.TONAL_OFF:
             self._tonal = False
         elif not self._tonal and self._tonality > self.TONAL_ON:
             self._tonal = True
         self._clarity = _unit(self._tonality / self.CLEAR_TONALITY)
-        self._dbg = (harm, upper, voices)
         # note salience: each semitone of the voices minus what the overtones of the voices below it explain, so
         # dissonance and pedals are heard in the NOTES, not in their 12ths and 17ths. The bass's own series is already
         # out of the voices: explaining the voices by ITS overtones too took them twice (under a loud bass no voice
@@ -1322,7 +1321,6 @@ class ChordSense:
         self._chroma, self._bass, self._energy, self._present = c, b, energy, present
         self._lone = lone
         s = self._scores(c, b, harmonics, present, lone, upper, fresh)
-        self._last_s = s
         s[-1] += n_boost
         if quiet:
             s[-1] = 10.0                                            # silence: N, decisively
