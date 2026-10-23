@@ -1,0 +1,99 @@
+/* Shader Desk -- arsenal/web/shader-desk.css
+   Play's tokens (FIRST-LIGHT-SPEC.md "Look"), so the desk reads as the same instrument: the stage on the left, a
+   rail on the right, and H hides the rail for performing. Rose is the control path; the KeyLab panel uses it. */
+
+:root {
+  --ground: #0F1114;
+  --panel:  #171A1F;
+  --ink:    #E6E8EB;
+  --ink-2:  #A3ACB7;
+  --ink-3:  #7F8994;
+  --rule:   #2C323A;
+  --accent: #F0A443;
+  --audio:  #4CC2BA;
+  --control:#E47FA7;
+  --font-display: "Archivo", "Arial Narrow", "Segoe UI Semibold", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --rail-w: 360px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --ground: #EDEFF2; --panel: #F8F9FB; --ink: #15171B; --ink-2: #4B5360; --ink-3: #6B7380; --rule: #CBD1D8;
+    --accent: #A35600; --audio: #0D716E; --control: #962C58; color-scheme: light; }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--ground); color: var(--ink); font: 13px/1.4 var(--font-mono); }
+.desk { display: grid; grid-template-columns: minmax(0, 1fr) var(--rail-w); height: 100vh; }
+.desk.perform { grid-template-columns: minmax(0, 1fr) 0; }
+.desk.perform .rail { display: none; }
+
+.stage { position: relative; background: #000; overflow: hidden; min-height: 0; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage-tag { position: absolute; left: 16px; top: 14px; display: flex; flex-direction: column; gap: 2px; pointer-events: none;
+  font-family: var(--font-display); font-stretch: 85%; color: #f2f3f5; text-shadow: 0 1px 12px rgba(0,0,0,.7); }
+#tag-name { font-size: 22px; font-weight: 700; letter-spacing: .02em; }
+.stage-tag-sub { font: 11px var(--font-mono); color: rgba(240,242,245,.7); }
+.stage-hint { position: absolute; left: 16px; bottom: 12px; font-size: 11px; color: rgba(240,242,245,.55); pointer-events: none;
+  transition: opacity .6s ease; }
+.desk.perform .stage-hint { opacity: 0; }
+.stage-error { position: absolute; left: 16px; right: 16px; top: 64px; padding: 10px 12px; border-radius: 6px; background: rgba(120,20,30,.85);
+  color: #fff; white-space: pre-wrap; font-size: 12px; }
+
+.rail { background: var(--panel); border-left: 1px solid var(--rule); overflow-y: auto; padding: 14px 14px 10px; min-height: 0; }
+.rail-head { display: flex; flex-direction: column; margin-bottom: 8px; }
+.brand { font: 800 22px/1 var(--font-display); font-stretch: 80%; letter-spacing: .01em; color: var(--ink); }
+.brand-sub { color: var(--ink-3); font-size: 11px; margin-top: 3px; }
+.panel { border-top: 1px solid var(--rule); padding: 10px 0; }
+.panel-title { margin: 0 0 8px; font: 700 12px var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.panel-count { font: 400 11px var(--font-mono); letter-spacing: 0; text-transform: none; color: var(--ink-3); margin-left: 6px; }
+.panel-note { color: var(--ink-3); font-size: 11px; margin: 8px 0 0; }
+.panel-note em { color: var(--control); font-style: normal; }
+
+.scene-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.scene { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; cursor: pointer;
+  border-left: 3px solid var(--scene-c, var(--rule)); min-width: 0; }
+.scene:hover { border-color: var(--ink-3); border-left-color: var(--scene-c, var(--ink-3)); }
+.scene.on { background: color-mix(in srgb, var(--scene-c, var(--control)) 18%, transparent); border-color: var(--scene-c, var(--control)); }
+.scene.broken { opacity: .5; cursor: not-allowed; }
+.scene-pad { font-size: 10px; color: var(--ink-3); flex: none; width: 22px; }
+.scene-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* params-ui rows (arsenal/web/lib/params-ui.js class names) */
+.params-group { margin: 0 0 6px; }
+.params-grouptitle { margin: 6px 0 4px; font: 600 10px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+/* two lines per parameter: name and its controls (F1 K1 learn) above, a full-width slider, value and reset below */
+.params-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label bind" "ctl ctl";
+  align-items: center; gap: 1px 8px; padding: 4px 0 5px; }
+.params-label { grid-area: label; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.params-ctl { grid-area: ctl; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.desk-bind { grid-area: bind; }
+.params-ctl input[type=range] { flex: 1; min-width: 0; accent-color: var(--control); }
+.params-readout { min-width: 50px; text-align: right; font-variant-numeric: tabular-nums; }
+.params-out { color: var(--ink); }
+.params-unit { color: var(--ink-3); margin-left: 1px; }
+.params-reset { font: inherit; font-size: 10px; background: none; border: 0; color: var(--ink-3); cursor: pointer; padding: 0 2px; }
+.params-reset:hover { color: var(--ink); }
+.desk-bind { display: flex; gap: 4px; align-items: center; justify-content: flex-end; grid-area: bind; }
+.desk-badge { font-size: 9.5px; padding: 1px 4px; border-radius: 3px; border: 1px solid var(--rule); color: var(--ink-3); }
+.desk-badge.learned { border-color: var(--control); color: var(--control); }
+.desk-badge.picked { background: color-mix(in srgb, var(--audio) 22%, transparent); color: var(--ink); }
+.desk-chip { font: inherit; font-size: 10px; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--rule); background: transparent;
+  color: var(--ink-2); cursor: pointer; }
+.desk-chip:hover { border-color: var(--control); }
+.desk-chip.armed { border-color: var(--control); color: var(--ink); background: color-mix(in srgb, var(--control) 25%, transparent); }
+.params-row.hot .params-label { color: var(--control); }
+.params-row.inert { opacity: .45; }
+
+/* the KeyLab panel sits in the rail, in the rail's colours */
+#keylab { --klh-ink: var(--ink); --klh-ink2: var(--ink-2); --klh-ink3: var(--ink-3); --klh-rule: var(--rule);
+  --klh-accent: var(--control); --klh-ok: var(--audio); --klh-warn: var(--accent); --klh-panel: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-top: 1px solid var(--rule); padding-top: 10px; }
+#keylab .klh-host { --klh-ink: var(--ink); --klh-ink2: var(--ink-2); --klh-ink3: var(--ink-3); --klh-rule: var(--rule);
+  --klh-accent: var(--control); --klh-ok: var(--audio); --klh-warn: var(--accent); --klh-panel: color-mix(in srgb, var(--ink) 5%, transparent); }
+.rail-foot { border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 8px; color: var(--ink-3); font-size: 10.5px; }
+
+@media (max-width: 760px) {
+  .desk { grid-template-columns: 1fr; grid-template-rows: 56vh auto; height: auto; min-height: 100vh; }
+  .rail { border-left: 0; border-top: 1px solid var(--rule); }
+}
