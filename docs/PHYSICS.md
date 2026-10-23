@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ffe8ba0e. A bound you discover by collision is not awareness -- this sheet
+> Derived at fcde85c3. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (377 numeric constants)
+## Mechanical bounds (378 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -621,6 +621,7 @@ Class: reference
 | `T5_MIN` | 2 | arsenal/practice_riff.py |  |
 | `T6_MIN_NOTES` | 100 | arsenal/practice_riff.py |  |
 | `T7_MIN` | 3 | arsenal/practice_riff.py |  |
+| `TAP_MIN_TAPS` | 8 | arsenal/keylab/beatbench.py | a stretch needs this many taps to count |
 | `TEMPLATE_MAX_NOTES` | 16 | arsenal/jam/cards.py |  |
 | `TEMPO_WINDOW_MS` | 25 | arsenal/performance.py | a gap's cluster is every in-range gap within 25 ms of it |
 | `TF_LEN_UNIT` | 4,000 | core/recall/lookback.py | chars of text per EXPECTED occurrence of a matched stem: a 12KB doc |

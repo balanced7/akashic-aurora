@@ -106,7 +106,9 @@ def test_f_measure_edge_cases():
 
 
 def test_contract_check_accepts_a_conforming_tracker_and_names_a_broken_one(case120):
-    good = Oracle(BB.beat_times(120, 10.0, 0.5), lead=0.1).factory
+    # the oracle knows beats past the 10 s contract case, so it never runs out of future to predict (round 2's
+    # contract: predict() must not come back empty after lock)
+    good = Oracle(BB.beat_times(120, 12.0, 0.5), lead=0.1).factory
     assert BB.check_tracker(good, rate=RATE) == []
 
     class Broken:
@@ -135,7 +137,7 @@ def test_unavailable_tracker_is_a_skipped_row_not_a_crash(case120):
 def test_a_steady_tracker_has_no_drift():
     beats = [{"t_beat": 5.0 + i * 0.5, "bpm": 120.0} for i in range(30)]
     d = BB.drift(beats)
-    assert d == {"bpm_spread": 0.0, "tempo_flips": 0}
+    assert d == {"bpm_spread": 0.0, "tempo_flips": 0, "bpm_missing": 0}
 
 
 def test_a_wobbling_tracker_is_caught():

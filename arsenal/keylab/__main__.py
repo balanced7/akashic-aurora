@@ -19,6 +19,7 @@ Global: --port SUBSTR picks the output by name (default: first containing 'keyla
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import sys
 import time
@@ -528,10 +529,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_chordview, dry_run=False)
 
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
-    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift", "bright", "real"],
+    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift", "bright", "bright_variants",
+                                       "real"],
                    default="synthetic",
                    help="all = synthetic + loops (the reconciliation set); drift = constant-tempo syncopation traps; "
-                        "bright = drift with a sawtooth bass; real = your recordings with confirmed ground truth")
+                        "bright = drift with a sawtooth bass; bright_variants = held-out bright basses drawn from "
+                        "--variant-seed; real = your recordings with confirmed ground truth")
     p.add_argument("--trackers", default="aubio,librosa",
                    help="comma list: aubio, librosa, and every arsenal/keylab/beat_<name>.py by its <name> (a, b, ...)")
     p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
@@ -540,8 +543,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=7, help="sampling seed, so a run can be repeated exactly")
     p.add_argument("--hop", type=int, default=512)
     p.add_argument("--exclude-seeds", default="",
-                   help="held-out draw: leave out every loop the stratified draws at these seeds used (e.g. 7,11)")
-    p.add_argument("--vs", default="", help="print each tracker's per-class PAIRED difference against this one")
+                   help="held-out draw (needs --per-cat): leave out every loop, by CONTENT, that the stratified draws "
+                        "at these seeds used (e.g. 7,11)")
+    p.add_argument("--exclude-per-cat", type=int, default=30,
+                   help="the --per-cat of the excluded draws (round 1 drew 30 per category)")
+    p.add_argument("--vs", default="", help="print each tracker's per-class PAIRED difference against this one "
+                                            "(it must be one of --trackers)")
+    p.add_argument("--variant-seed", type=int, default=None,
+                   help="bright_variants: the seed the held-out cases are drawn from (the gating one stays secret)")
+    p.add_argument("--write-manifest", metavar="PATH", help="write the drawn loops / recordings (path, size, sha1, "
+                                                            "category) and the draw's parameters to PATH")
+    p.add_argument("--manifest", metavar="PATH", help="score exactly the files a manifest lists, verifying each sha1")
+    p.add_argument("--since", help="real suite: only recordings stamped at or after YYYYMMDD-HHMMSS")
     p.add_argument("--unconfirmed", action="store_true", help="real suite: include recordings not yet listened to")
     p.set_defaults(func=cmd_beatbench, dry_run=False)
 
@@ -552,12 +565,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("annotate", help="fit an offline beat grid to a recording and render it with clicks to check")
     p.add_argument("path", nargs="?", help="recording (default: the newest)")
-    p.add_argument("--bpm", type=float, help="force the tempo (e.g. after the ear check said half or double)")
+    p.add_argument("--bpm", type=float, help="force the tempo to exactly this (e.g. after the ear check said half or "
+                                             "double); only the phase is fitted")
+    p.add_argument("--unverified-timing", action="store_true",
+                   help="annotate a recording made before captures recorded their timing (no .rec.json)")
     p.set_defaults(func=cmd_annotate, dry_run=False)
 
     p = sub.add_parser("confirm", help="mark a recording's ground truth as listened to and correct")
     p.add_argument("path", nargs="?", help="recording (default: the newest)")
+    p.add_argument("--tapkey", action="store_true", help="confirm the tapped answer key (tapkey) instead of the grid")
     p.set_defaults(func=cmd_confirm, dry_run=False)
+
+    p = sub.add_parser("tapkey", help="turn the taps of a `beat --save --hand` session into an answer key to confirm")
+    p.add_argument("path", nargs="?", help="recording (default: the newest one with taps)")
+    p.set_defaults(func=cmd_tapkey, dry_run=False)
 
     p = sub.add_parser("probe", help="guided W0 hardware session: the LCD asks, the pads answer (1 yes, 2 no, 4 skip)")
     p.add_argument("--only", help="comma list of steps (calibrate always runs first); see --list")
@@ -567,25 +588,72 @@ def build_parser() -> argparse.ArgumentParser:
     return ap
 
 
-def cmd_beatbench(args) -> int:
+def tracker_files() -> dict:
+    """{name: path} of every contestant file arsenal/keylab/beat_<name>.py, found WITHOUT importing any of them."""
+    return {p.stem[len("beat_"):]: p for p in sorted(pathlib.Path(__file__).parent.glob("beat_*.py"))}
+
+
+def load_trackers(names, BB) -> list:
+    """Import and register ONLY the named contestants: a run of `--trackers a,w` executes no code from beat_b.py,
+    so one contestant's file can never touch another's run. Returns the names that are unknown."""
     import importlib
-    import pathlib
-    from . import beatbench as BB
-    # Every contestant registers itself: arsenal/keylab/beat_<name>.py with a Tracker class becomes tracker <name>.
-    for path in sorted(pathlib.Path(__file__).parent.glob("beat_*.py")):
-        name = path.stem[len("beat_"):]
+    files = tracker_files()
+    unknown = []
+    for name in names:
+        if name in BB.TRACKERS:
+            continue
+        if name not in files:
+            unknown.append(name)
+            continue
+        path = files[name]
         try:
             m = importlib.import_module(f"arsenal.keylab.{path.stem}")
-            if hasattr(m, "Tracker"):
-                BB.register(name, m.Tracker, note=f"{path.name} (clean, numpy-only)")
         except Exception as exc:                                  # a broken contestant is reported, not fatal
             print(f"[beatbench] could not load {path.name}: {type(exc).__name__}: {exc}")
+            unknown.append(name)
+            continue
+        if hasattr(m, "Tracker"):
+            BB.register(name, m.Tracker, note=f"{path.name} (clean, numpy-only)")
+        else:
+            print(f"[beatbench] {path.name} has no Tracker class")
+            unknown.append(name)
+    return unknown
+
+
+def _beatbench_args_problem(args, names) -> str:
+    """Argument combinations that would silently score the wrong thing are refused before any work is done."""
+    if args.vs and args.vs not in names:
+        return f"--vs {args.vs}: the reference must be one of the scored trackers ({','.join(names)})"
+    if args.exclude_seeds and not args.per_cat:
+        return "--exclude-seeds needs --per-cat: only the stratified draw can leave loops out"
+    if args.suite == "bright_variants" and args.variant_seed is None:
+        return "--suite bright_variants needs --variant-seed N"
+    if args.manifest and args.suite not in ("loops", "real"):
+        return "--manifest works with --suite loops or --suite real"
+    if args.manifest and (args.per_cat or args.exclude_seeds):
+        return "--manifest scores exactly its own list; drop --per-cat / --exclude-seeds"
+    if args.since and args.suite != "real":
+        return "--since applies to --suite real"
+    if args.write_manifest and args.suite not in ("loops", "real"):
+        return "--write-manifest works with --suite loops or --suite real"
+    return ""
+
+
+def cmd_beatbench(args) -> int:
+    import copy
+    from . import beatbench as BB
     names = [t.strip() for t in args.trackers.split(",") if t.strip()]
-    unknown = [t for t in names if t not in BB.TRACKERS]
-    if unknown:
-        print(f"unknown tracker(s) {unknown}; registered: {sorted(BB.TRACKERS)}")
+    problem = _beatbench_args_problem(args, names)
+    if problem:
+        print(f"beatbench: {problem}", file=sys.stderr)
         return 2
-    cases = []
+    unknown = load_trackers(names, BB)
+    if unknown:
+        print(f"unknown tracker(s) {unknown}; available: {sorted(set(BB.TRACKERS) | set(tracker_files()))}",
+              file=sys.stderr)
+        return 2
+    manifest, manifest_sha1 = (BB.read_manifest(args.manifest) if args.manifest else (None, None))
+    cases, loops = [], []
     if args.suite in ("synthetic", "all"):
         cases += BB.synthetic_suite()
     if args.suite == "drift":
@@ -594,60 +662,73 @@ def cmd_beatbench(args) -> int:
         cases += BB.shift_suite()
     if args.suite == "bright":
         cases += BB.bright_drift_suite()
+    if args.suite == "bright_variants":
+        cases += BB.bright_variants_suite(args.variant_seed)
     if args.suite == "real":
-        cases += BB.recording_suite(confirmed_only=not args.unconfirmed)
+        cases += BB.recording_suite(confirmed_only=not args.unconfirmed, since=args.since, manifest=manifest)
+    excluded = []
     if args.suite in ("loops", "all"):
-        if args.per_cat:
-            exclude = set()
-            for s in filter(None, args.exclude_seeds.split(",")):
-                exclude |= set(BB.stratified_loops(30, rng_seed=int(s)))
-            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed, exclude=exclude or None)
+        if manifest is not None:
+            loops = BB.manifest_loops(manifest)
+        elif args.per_cat:
+            pool = BB.find_bpm_loops()
+            seeds = [int(s) for s in args.exclude_seeds.split(",") if s.strip()]
+            exclude = BB.held_out_exclusion(seeds, args.exclude_per_cat, pool=pool) if seeds else None
+            excluded = sorted(exclude or [])
+            picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed, exclude=exclude, pool=pool)
             loops = BB.loop_suite(n=len(picked), paths=picked, rng_seed=args.seed)
         else:
             loops = BB.loop_suite(n=args.n, rng_seed=args.seed)
         cases += loops
         if args.seeded:
-            import copy
             for c in loops:
                 s = copy.copy(c)
                 s.seed_bpm, s.name = c.bpm, c.name + " [seeded]"
                 cases.append(s)
+    written = None
+    if args.write_manifest:
+        drawn = loops if args.suite in ("loops", "all") else cases
+        sha = BB.write_manifest(args.write_manifest, drawn, "loops" if args.suite != "real" else "real",
+                                per_cat=args.per_cat, seed=args.seed, n=args.n,
+                                exclude_seeds=args.exclude_seeds, exclude_per_cat=args.exclude_per_cat,
+                                since=args.since)
+        written = {"path": os.path.abspath(args.write_manifest), "sha1": sha}
+        print(f"manifest: {written['path']} (sha1 {sha})")
     print(f"beatbench: {len(cases)} cases, trackers {names}")
     rep = BB.bench(cases, names, hop=args.hop)
     rep["suite"], rep["n"], rep["seed"] = args.suite, args.n, args.seed
-    if args.vs and args.vs in rep["trackers"] and "cases" in rep["trackers"][args.vs]:
-        group = {}
-        for c in cases:
-            cat = (c.meta or {}).get("category", c.source)
-            group[c.name] = f"{cat}{' seeded' if c.seed_bpm and c.source == 'loop' else ''}"
-        ref = rep["trackers"][args.vs]["cases"]
-        rep["paired"] = {}
-        for name, t in rep["trackers"].items():
-            if name == args.vs or "cases" not in t:
-                continue
-            out = {}
-            for g in sorted(set(group.values())):
-                rc = [r for r in t["cases"] if group.get(r["case"]) == g]
-                rr = [r for r in ref if group.get(r["case"]) == g]
-                out[g] = {k: BB.paired(rc, rr, k) for k in ("F", "CMLt", "bpm_spread")}
-                f, c, sp = out[g]["F"], out[g]["CMLt"], out[g]["bpm_spread"]
-                if f.get("n"):
-                    print(f"[paired] {name} - {args.vs} | {g:18} n {f['n']:3}  F {f['mean']:+.3f} {f['ci95']}  "
-                          f"CMLt {c['mean']:+.3f} {c['ci95']}  spread {sp.get('mean', 0):+.3f} {sp.get('ci95')}")
-            rep["paired"][name] = out
+    rep["args"] = {k: v for k, v in vars(args).items() if k != "func"}
+    rep["argv"] = sys.argv[1:]
+    if manifest is not None:
+        rep["manifest"] = {"path": os.path.abspath(args.manifest), "sha1": manifest_sha1}
+    if written:
+        rep["manifest_written"] = written
+    if excluded:
+        rep["excluded_paths"] = excluded
+    rep["case_index"] = BB.case_index(cases)
+    rc = 0
+    if args.vs:
+        if args.vs in rep["trackers"] and "cases" in rep["trackers"][args.vs]:
+            rep["paired"] = BB.paired_report(cases, rep, args.vs)
+        else:
+            print(f"beatbench: --vs {args.vs}: the reference could not be scored (unavailable); no paired result",
+                  file=sys.stderr)
+            rc = 1
     print(f"receipt: {BB.save_report(rep)}")
-    return 0
+    return rc
 
 
-def _newest_recording(path=None):
+def _newest_recording(path=None, need=None):
     import glob
-    import os
     from . import beatbench as BB
     if path:
         return path
     files = sorted(glob.glob(os.path.join(BB.RECORDINGS_DIR, "*.flac")))
+    if need:
+        files = [f for f in files if os.path.exists(f + need)]
     if not files:
-        raise SystemExit("no recordings yet: py -m arsenal.keylab record")
+        raise SystemExit("no recordings yet: py -m arsenal.keylab record" if not need else
+                         f"no recording has a {need} yet")
     return files[-1]
 
 
@@ -661,27 +742,100 @@ def cmd_annotate(args) -> int:
     import json
     import soundfile as sf
     from . import beatbench as BB
+    from . import beatsync
     path = _newest_recording(args.path)
+    if not os.path.exists(path):
+        print(f"annotate: no such recording: {path}", file=sys.stderr)
+        return 1
+    timing = beatsync.read_timing(path)
+    if timing is None and not args.unverified_timing:
+        print(f"annotate: {os.path.basename(path)} has no capture timing record ({os.path.basename(path)}.rec.json), "
+              f"so a gap in the capture cannot be ruled out. Record it again, or pass --unverified-timing to "
+              f"annotate it anyway (it will not count as held-out ground truth).", file=sys.stderr)
+        return 1
+    if timing is not None:
+        drift_s = abs(float(timing["wall_secs"]) - float(timing["sample_secs"]))
+        if timing.get("gap") or drift_s > beatsync.GAP_TOL_S:
+            print(f"annotate: refused -- {os.path.basename(path)} holds {timing['sample_secs']:.3f} s of samples "
+                  f"captured over {timing['wall_secs']:.3f} s of wall clock ({drift_s * 1000:.0f} ms apart, the limit "
+                  f"is {beatsync.GAP_TOL_S * 1000:.0f} ms). Audio went missing during the capture, so everything after "
+                  f"the gap sits earlier than the music did and one grid cannot fit it. Record it again.",
+                  file=sys.stderr)
+            return 1
     data, rate = sf.read(path, dtype="float32", always_2d=True)
     audio = data.mean(axis=1)
-    g = BB.fit_grid(audio, rate, *((args.bpm - 0.3, args.bpm + 0.3) if args.bpm else ()))
-    clicks = BB.render_clicks(audio, rate, g["bpm"], g["first_beat"], path[:-5] + " CLICKS.wav")
-    json.dump({**g, "confirmed": False, "method": "fit_grid, whole track; awaiting the ear check"},
-              open(path + ".beats.json", "w", encoding="utf-8"), indent=1)
-    print(f"{g['bpm']} BPM, first beat {g['first_beat']} s -> listen: {clicks}")
-    print("if the clicks sit on the beat all the way: py -m arsenal.keylab confirm")
+    g = BB.fit_grid(audio, rate, bpm=args.bpm)
+    clicks = BB.render_clicks(audio, rate, g["bpm"], g["first_beat"], os.path.splitext(path)[0] + " CLICKS.wav")
+    side = {**g, "confirmed": False, "audio_sha1": BB.file_sha1_uncached(path),
+            "timing_verified": timing is not None,
+            "method": f"{g['method']}; whole track; awaiting the ear check"}
+    side["clicks"] = BB.clicks_record(clicks, side)
+    with open(path + ".beats.json", "w", encoding="utf-8") as f:
+        json.dump(side, f, indent=1)
+    forced = " (forced)" if args.bpm is not None else ""
+    print(f"{g['bpm']} BPM{forced}, first beat {g['first_beat']} s -> listen: {clicks}")
+    others = [c for c in g["candidates"] if abs(c["bpm"] / g["bpm"] - 1) > 0.004]
+    if others:
+        print("other tempi it could be (score): " + ", ".join(f"{c['bpm']} {'/'.join(c['rel'])} ({c['score']})"
+                                                         for c in others[:6]))
+    print("if the clicks sit on the beat all the way:")
+    print(f'  py -m arsenal.keylab confirm "{path}"')
+    print("if they are at half or double speed (or 2/3, 3/2):")
+    print(f'  py -m arsenal.keylab annotate "{path}" --bpm <the right one from the list above>')
     return 0
+
+
+def _describe_grid(meta) -> str:
+    if meta.get("sections"):
+        return "; ".join(f"{s['start']:.1f}-{s['end']:.1f} s at {s['bpm']} BPM from {s['first_beat']} s"
+                         for s in meta["sections"])
+    return f"{meta.get('bpm')} BPM, first beat {meta.get('first_beat')} s"
 
 
 def cmd_confirm(args) -> int:
     import json
     import time as _t
+    from . import beatbench as BB
     path = _newest_recording(args.path)
-    side = path + ".beats.json"
-    meta = json.load(open(side, encoding="utf-8"))
+    kind, verb = (".tapkey.json", "tapkey") if args.tapkey else (".beats.json", "annotate")
+    side = path + kind
+    if not os.path.exists(side):
+        print(f"confirm: {os.path.basename(path)} has no {'tapped answer key' if args.tapkey else 'grid'} to confirm "
+              f"yet. First run:\n  py -m arsenal.keylab {verb} \"{path}\"", file=sys.stderr)
+        return 1
+    with open(side, encoding="utf-8") as f:
+        meta = json.load(f)
+    why = BB.clicks_mismatch(meta)
+    if why:
+        print(f"confirm: refused -- {os.path.basename(side)} cannot be confirmed: {why}. Re-render and listen again:\n"
+              f"  py -m arsenal.keylab {verb} \"{path}\"", file=sys.stderr)
+        return 1
+    print(f"confirming the grid you listened to in {meta['clicks']['path']}:")
+    print(f"  {_describe_grid(meta)}")
     meta["confirmed"], meta["confirmed_at"] = True, _t.strftime("%Y-%m-%d %H:%M:%S")
-    json.dump(meta, open(side, "w", encoding="utf-8"), indent=1)
+    with open(side, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=1)
     print(f"confirmed: {side}")
+    return 0
+
+
+def cmd_tapkey(args) -> int:
+    from . import beatbench as BB
+    path = _newest_recording(args.path, need=".hand.json")
+    try:
+        doc = BB.tap_key(path)
+    except ValueError as exc:
+        print(f"tapkey: {exc}", file=sys.stderr)
+        return 1
+    print(f"tapped answer key for {os.path.basename(path)}: {len(doc['sections'])} steady stretch(es), "
+          f"{doc['taps']} taps ({doc['dropped_taps']} outside any stretch)")
+    for s in doc["sections"]:
+        kick = (f"taps {s['kick_offset_ms']:+.0f} ms vs the kicks ({s['kick_matched']:.0%} matched)"
+                if s["kick_offset_ms"] is not None else "no kicks near the taps")
+        print(f"  {s['start']:7.2f}-{s['end']:7.2f} s  {s['bpm']:8.3f} BPM  {s['taps']:3d} taps  "
+              f"jitter {s['jitter_ms']:.0f} ms  {kick}")
+    print(f"written: {path}.tapkey.json\nlisten: {doc['clicks']['path']}\nif the clicks sit on the beat:\n"
+          f'  py -m arsenal.keylab confirm "{path}" --tapkey')
     return 0
 
 
@@ -702,7 +856,25 @@ def cmd_probe(args) -> int:
     return 0
 
 
+def _utf8_safe_stdio() -> None:
+    """A song title in any script must never crash a verb: a piped or redirected Windows stdout defaults to cp1252,
+    and printing a title it cannot encode raised UnicodeEncodeError before a recording had even started. Speak
+    UTF-8, and replace (never raise on) anything that still cannot be written."""
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        reconf = getattr(stream, "reconfigure", None)
+        if callable(reconf):
+            try:
+                reconf(encoding="utf-8", errors="replace")
+            except (ValueError, OSError, TypeError):
+                try:
+                    reconf(errors="replace")
+                except (ValueError, OSError, TypeError):
+                    pass
+
+
 def main(argv=None) -> int:
+    _utf8_safe_stdio()
     args = build_parser().parse_args(argv)
     try:
         return int(args.func(args) or 0)
