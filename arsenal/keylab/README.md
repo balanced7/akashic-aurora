@@ -48,8 +48,8 @@ Every row carries a dated receipt and its class: **eyes** = Daniel watched the d
 | `note <n> [--pad N]` | send a Note On/Off |
 | `display <text> [--line2 … --full]` | write the LCD: one-line popup, two-line popup, or persistent full screen |
 | `chordview [--scheme notes\|roles\|quality\|split\|frame] [--sound]` | play the keys: chord name on the LCD, chord tones lit on the pads, sustain pedal honoured; `--sound` forwards your notes to the Windows synth |
-| `beat [--mode cycle\|rainbow\|march] [--engine a\|aubio] [--lead-ms 15]` | march the pads to whatever is playing (WASAPI loopback). The default engine is `beat_a`, the house tracker: it seeds the tempo from the song databases (SMTC now-playing) and paints each beat `--lead-ms` BEFORE it lands. `--engine aubio` is the old reactive path |
-| `beatbench [--suite synthetic\|loops\|all] [--per-cat 30] [--seeded] [--trackers aubio,a,b]` | score beat trackers on one ruler: synthetic ground truth plus the BPM-labelled loops in your own packs (read in place); receipts in `state/arsenal/keylab/receipts/` |
+| `beat [--mode cycle\|rainbow\|march] [--engine a\|g\|...\|aubio] [--lead-ms 15]` | march the pads to whatever is playing (WASAPI loopback). The default engine is `beat_a`, the house tracker: it seeds the tempo from the song databases (SMTC now-playing) and paints each beat `--lead-ms` BEFORE it lands. `--engine g` is an opt-in live trial of the grid tracker (holds half-time bass music; not shipped, see below); any `beat_<name>.py` contestant works the same way. `--engine aubio` is the old reactive path |
+| `beatbench [--suite synthetic\|loops\|all\|drift\|shift] [--per-cat 30] [--seeded] [--trackers aubio,a,g]` | score beat trackers on one ruler: synthetic ground truth plus the BPM-labelled loops in your own packs (read in place); receipts in `state/arsenal/keylab/receipts/` |
 | `ledbench rate [--sweep 5,10,20,40,80,120]` · `spacing` · `burst` | measure the LED limits; the rate sweep flashes N pads before level N |
 | `bench` | host-to-driver send latency (mean/p50/p99) and sustained rate |
 | `monitor` | print incoming MIDI (tap a pad, move a fader) |
@@ -95,8 +95,10 @@ Facts only (numbers and ids); the full map with sources is
 `bench`/`ledbench` limit probes opt out) · `theory.py` chord naming · `chordview.py` live chord viewer, schemes
 and `Voicing` (held keys + sustain) · `beatsync.py` loopback beat march + SMTC now-playing · `tempo.py` BPM seed
 from the databases, pure analysis that never imports the port (Heimdall's lane) · `beat_a.py` the house beat
-tracker (blind-pair winner) · `beat_b.py` the other blind contestant · `beatbench.py` the ruler both were judged
-by · `probe.py` the guided hardware session · `__main__.py` the verbs.
+tracker (blind-pair winner) · `beat_b.py` the other blind contestant · `beat_g.py` / `beat_h.py`
+the grid-tracker contestants (Daniel's "detect the grid", 2026-10-22; scored in
+`research/reviewed/keylab-liberation-2026-10-22/grid-tracker-scoring-2026-10-22.md`) · `beatbench.py` the ruler
+they are all judged by · `probe.py` the guided hardware session · `__main__.py` the verbs.
 
 Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone) and
 `tests/test_keylab_tempo*.py`. Licence: `beatsync` and `tempo` import aubio (GPLv3+) lazily, only when you run

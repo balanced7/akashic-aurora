@@ -79,3 +79,25 @@ Answering Vandor's pad-mapping questions a-e (bus 1792692664769-0) and adding th
 The questions: a) which drum apps; b) learn mode (press a pad, then the key whose note you want);
 c) the map in the keyboard or in the hub; d) velocity per pad (fixed, played curve, or a choice);
 e) banks as kit sections or as whole different kits.
+
+## Fourth round (2026-10-22, shared bus, via deepseek; verbatim)
+
+Daniel re-confirmed the three remaining push-gate items. His words:
+
+> 1 yes all
+> 2. Keep for now, revisit or build our own later
+> 3.thats fine, we can always change it later
+
+Mapping to the open questions:
+
+- 1 = push scope: **push all of it** (every commit ahead of origin/master, the full 104-back
+  history to 2026-10-07). Confirms and matches the second-round "1 all of it". Push-gate CLOSED.
+- 2 = the GPL/`aubio` licence path (Q9): **keep it for now** as an optional lazily-imported
+  dependency; **revisit or build our own later**. Matches second-round "9. Keep it optional we can
+  build or own later". Push-gate CLOSED.
+- 3 = downloads folder: **E:\Aurora-Tools\ is fine**, "we can always change it later". CLOSED.
+
+Readings: the three push-gates from reconciliation V14 are now all ruled. Rank (A16 counts toward
+A12 #4) and name (KeyLab Control Center) were already confirmed in the second round. What remains
+open from V14: the Commons (Q13) and the "manual bund method" wording (Q12) — but neither is a
+push-gate, so A16 is clear to push once Vandor's probe work lands.

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 64c671fd. A bound you discover by collision is not awareness -- this sheet
+> Derived at b06495ff. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (373 numeric constants)
+## Mechanical bounds (374 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -521,6 +521,7 @@ Class: reference
 | `MIN_FAMILY` | 3 | arsenal/shaders/census.py | smaller clusters are reported as loners |
 | `MIN_MOVE_MS` | 120 | arsenal/performance.py | chord segments shorter than this are passing shapes: kept in the timeline, not in moves |
 | `MIN_N` | 3 | core/comm/turn_metrics.py |  |
+| `MIN_NOTES` | 16 | arsenal/keylab/beat_g.py |  |
 | `MIN_ONSETS` | 8 | arsenal/practice_riff.py |  |
 | `MIN_SPAN_S` | 300 | core/narrative/episode_suggester.py | a just-opened episode never suggests (anti rapid-fire after each close) |
 | `MIN_VERIFIED` | 5 | core/coord/lens_ledger.py |  |

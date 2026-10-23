@@ -19,6 +19,7 @@ Global: --port SUBSTR picks the output by name (default: first containing 'keyla
 from __future__ import annotations
 
 import argparse
+import pathlib
 import sys
 import time
 
@@ -486,7 +487,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--secs", type=float, default=None, help="auto-stop after N seconds (default: until Ctrl-C)")
     p.add_argument("--port")
     p.add_argument("--bank", default="DAW")
-    p.add_argument("--engine", choices=["a", "aubio"], default="a", help="a = the house tracker, painting ahead of the beat")
+    engines = ["a", "aubio"] + sorted(
+        x.stem[len("beat_"):] for x in pathlib.Path(__file__).parent.glob("beat_*.py") if x.stem != "beat_a")
+    p.add_argument("--engine", choices=engines, default="a",
+                   help="a = the house tracker (shipped); any other beat_<name>.py contestant can be tried live "
+                        "(opt-in, e.g. g = the grid tracker); aubio = the old reactive path")
     p.add_argument("--lead-ms", type=float, default=15.0, help="paint this many ms before the predicted beat")
     p.add_argument("--seed-bpm", type=float, default=None, help="skip the database lookup and use this BPM as the seed")
     p.add_argument("--offline", action="store_true", help="no database lookup")
@@ -515,7 +520,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
     p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift"], default="synthetic",
                    help="all = synthetic + loops (the reconciliation set); drift = constant-tempo syncopation traps")
-    p.add_argument("--trackers", default="aubio,librosa", help="comma list (registered: aubio, librosa, a, b)")
+    p.add_argument("--trackers", default="aubio,librosa",
+                   help="comma list: aubio, librosa, and every arsenal/keylab/beat_<name>.py by its <name> (a, b, ...)")
     p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
     p.add_argument("--per-cat", type=int, default=0, help="stratified loops: this many per category (kick/tops/melodic)")
     p.add_argument("--seeded", action="store_true", help="also run every loop with its true BPM as the seed")
@@ -533,13 +539,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def cmd_beatbench(args) -> int:
     import importlib
+    import pathlib
     from . import beatbench as BB
-    for name, mod in (("a", "beat_a"), ("b", "beat_b")):      # the blind pair registers itself when it exists
+    # Every contestant registers itself: arsenal/keylab/beat_<name>.py with a Tracker class becomes tracker <name>.
+    for path in sorted(pathlib.Path(__file__).parent.glob("beat_*.py")):
+        name = path.stem[len("beat_"):]
         try:
-            m = importlib.import_module(f"arsenal.keylab.{mod}")
-            BB.register(name, m.Tracker, note=f"{mod}.py (clean, numpy-only)")
-        except ImportError:
-            pass
+            m = importlib.import_module(f"arsenal.keylab.{path.stem}")
+            if hasattr(m, "Tracker"):
+                BB.register(name, m.Tracker, note=f"{path.name} (clean, numpy-only)")
+        except Exception as exc:                                  # a broken contestant is reported, not fatal
+            print(f"[beatbench] could not load {path.name}: {type(exc).__name__}: {exc}")
     names = [t.strip() for t in args.trackers.split(",") if t.strip()]
     unknown = [t for t in names if t not in BB.TRACKERS]
     if unknown:
