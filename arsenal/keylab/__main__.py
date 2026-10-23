@@ -12,6 +12,8 @@ Verbs:
   note <n>             send a Note On/Off (trigger a sampler voice); --pad n uses that pad's default note
   bench                latency / rate-limit harness for colour updates (host throughput + a visual ceiling ramp)
   display <text>       EXPERIMENTAL: push text to the onboard screen (grammar unconfirmed -- for bench probing)
+  screen <text>        write the screen in GUEST mode (never connects; FL keeps the KeyLab), the encoder byte-identical
+                       to Arturia's FL script; --live keeps chord, BPM and the VJ scene on it (screen.py)
   monitor              print incoming MIDI (tap a pad to see its note) -- needs the keyboard attached
 
 Global: --port SUBSTR picks the output by name (default: first containing 'keylab'); --dry-run prints bytes, sends nothing.
@@ -390,6 +392,95 @@ def cmd_chordview(args) -> int:
     return chordview.run(secs=args.secs, keys_port=args.port, scheme=args.scheme, sound=args.sound)
 
 
+def _screen_frames(args, S) -> list:
+    """The one-shot frames for `screen TEXT` / `screen --labels`, built by the script-identical encoder."""
+    if args.labels is not None:
+        names = [s.strip() for s in args.labels.split(",")]
+        if len(names) > 8:
+            raise ValueError("at most 8 labels (screen buttons 1-8)")
+        frames = []
+        for button in range(1, 9):
+            name = S.ascii_clean(names[button - 1]) if button <= len(names) else ""
+            kind = S.LABEL_TEXT_ACTIVE if button == args.active else (S.LABEL_TEXT if name else S.LABEL_EMPTY)
+            frames.append(S.button_label(S.SLOT_FOR_BUTTON[button], kind, 1, 1, None, S.WHITE7, name, ""))
+        return frames
+    if args.text is None:
+        raise ValueError("give the TEXT to show, or --live, or --labels")
+    line1 = S.ascii_clean(args.text)
+    line2 = S.ascii_clean(args.line2) if args.line2 is not None else ""
+    c1, c2 = S.rgb7(args.color), S.rgb7(args.color2)
+    layout = args.layout
+    if layout in S.LAYOUTS:
+        return [S._TWO_LINE[S.LAYOUTS[layout]](line1, 1, c1, line2, 1, c2)]
+    if layout == "line":
+        return [S.f1l(line1, 1, c1)]
+    if layout == "popup":
+        return [S.p2l(line1, 1, c1, line2, 1, c2) if args.line2 is not None else S.p1l(line1)]
+    if layout == "title":
+        return [S.ti2lfix(line1, 1, c1, line2, 1, c2, args.icon)]
+    if layout == "icon":
+        return [S.li2l(line1, line2, args.icon)]
+    raise ValueError(f"unknown layout {layout!r}")
+
+
+def cmd_screen(args) -> int:
+    """Guest-mode screen writes: never the DAW connect unless --connect, and --connect refuses while FL runs."""
+    from . import screen as S
+    if args.connect and not args.dry_run and S.fl_running():
+        print("screen: --connect refused: FL Studio is running and owns the KeyLab connection. Close FL first, "
+              "or drop --connect (guest mode).", file=sys.stderr)
+        return 2
+    if args.live:
+        out = _open(args)
+        try:
+            if args.connect:
+                out.send_sysex(P.daw_connect(True))
+                time.sleep(0.2)
+            src = "the keys" if args.source == "keys" else args.engine
+            print(f"screen --live on {out.name}: chord, BPM, scene from {src} (Ctrl-C to stop)")
+            stats = S.run_live(out, source=args.source, url=args.engine, scene=args.scene,
+                               layout=S.LAYOUTS[args.layout if args.layout in S.LAYOUTS else "full"],
+                               secs=args.secs, min_interval=args.min_interval, reassert_s=args.reassert,
+                               pulse=args.pulse, keys_port=args.keys_port, bpm=args.bpm)
+            print(f"screen --live done: {stats}")
+        finally:
+            if args.connect:
+                try:
+                    out.send_sysex(P.daw_connect(False))
+                except Exception:
+                    pass
+            out.close()
+        return 0
+    frames = _screen_frames(args, S)
+    for data in frames:
+        S.check(data)                       # refuse before anything opens the port
+    record = {"when": time.strftime("%Y-%m-%d %H:%M:%S"), "verb": "screen", "guest": not args.connect,
+              "layout": "labels" if args.labels is not None else args.layout,
+              "text": args.text, "line2": args.line2, "labels": args.labels,
+              "frames_hex": [_hex(d) for d in frames], "sent": False, "error": None,
+              "fl_running": None if args.dry_run else S.fl_running(),
+              "check": "Daniel's eyes: did the screen show it? (we cannot see the screen)"}
+    try:
+        with _open(args) as out:
+            record["port"] = out.name
+            if args.connect:
+                out.send_sysex(P.daw_connect(True))
+                time.sleep(0.2)
+            writer = S.write_frames(out, frames)
+            record["sent"] = not args.dry_run
+            record["writer"] = writer.stats()
+    except Exception as exc:
+        record["error"] = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        if not args.dry_run:
+            print(f"receipt: {S.write_receipt(args.receipt or S.default_receipt_path(), record)}")
+    if not args.dry_run:
+        for d in frames:
+            print(f"  sent  {_hex(d)}")
+    return 0
+
+
 # --- dispatch ------------------------------------------------------------------------------------
 def _add_send_flags(p, color_default=None):
     p.add_argument("--port", help="output port name substring (default: first containing 'keylab')")
@@ -480,6 +571,42 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--full", action="store_true", help="full-screen 2-line view instead of a popup")
     _add_send_flags(p)
     p.set_defaults(func=cmd_display)
+
+    p = sub.add_parser("screen", help="write the KeyLab screen in guest mode; --live: chord, BPM and VJ scene",
+                       description="Guest mode: never sends the DAW connect (FL Studio keeps the KeyLab). Every frame "
+                                   "is built byte-for-byte like Arturia's FL script, passes the burst governor, and "
+                                   "screens 38 / 43 / 44 are refused. Line 2 shows upper-case (the script's rule).")
+    p.add_argument("text", nargs="?", help="line 1 (ASCII; over 32 characters becomes 28 + '...')")
+    p.add_argument("--line2", help="line 2 (shown upper-case)")
+    p.add_argument("--layout", default="full",
+                   choices=["full", "inverted", "big", "line", "popup", "title", "icon"],
+                   help="full = two lines that stay up (screen 12, confirmed); inverted 13; big 14; line 10; "
+                        "popup 23/24 (gone after ~1 s); title 31 (icon card); icon 16. --live uses full, inverted "
+                        "or big (anything else falls back to full)")
+    p.add_argument("--color", default="teal", help="line 1 colour (name | #rrggbb | r,g,b), halved to 7-bit")
+    p.add_argument("--color2", default="white", help="line 2 colour")
+    p.add_argument("--icon", type=int, default=None, help="icon number for --layout title / icon (e.g. 65 chord)")
+    p.add_argument("--labels", help="comma list of up to 8 names for screen buttons 1-8 (labels; FL repaints them)")
+    p.add_argument("--active", type=int, default=0, help="with --labels: which button (1-8) is drawn as active")
+    p.add_argument("--live", action="store_true", help="keep chord, BPM and scene on the screen until Ctrl-C")
+    p.add_argument("--source", choices=["vj", "keys"], default="vj",
+                   help="vj = the VJ engine's SSE feed (chord + BPM); keys = name chords from the MIDI port directly")
+    p.add_argument("--engine", default="http://127.0.0.1:8794/api/events", help="VJ engine SSE URL")
+    p.add_argument("--scene", help="scene name for line 2 (a {'t':'scene'} event on the feed replaces it)")
+    p.add_argument("--bpm", type=float, help="a BPM to show until the feed says otherwise")
+    p.add_argument("--secs", type=float, default=None, help="--live: stop after N seconds")
+    p.add_argument("--min-interval", type=float, default=0.1, help="--live: at most one frame per this many seconds")
+    p.add_argument("--reassert", type=float, default=0.0,
+                   help="--live: re-send the current frame every N s (wins the screen back after FL repaints it)")
+    p.add_argument("--pulse", action="store_true", help="--live: a 4-step beat marker on line 2, drawn on the beat")
+    p.add_argument("--keys-port", help="--source keys: MIDI input port substring (default: the KeyLab MIDI port)")
+    p.add_argument("--connect", action="store_true",
+                   help="send the DAW connect first and disconnect after -- ONLY with FL Studio closed (refused while "
+                        "FL runs)")
+    p.add_argument("--receipt", help="receipt JSON path (default state/arsenal/keylab/receipts/screen-<stamp>.json)")
+    p.add_argument("--port", help="output port name substring (default: the KeyLab DAW port)")
+    p.add_argument("--dry-run", action="store_true", help="print bytes, send nothing")
+    p.set_defaults(func=cmd_screen)
 
     p = sub.add_parser("monitor", help="print incoming MIDI (tap a pad)")
     p.add_argument("--secs", type=float, default=8.0)
