@@ -154,3 +154,30 @@ def test_halftime_bass_ground_truth_keeps_the_bass_off_the_beat():
 def test_drift_suite_is_constant_tempo():
     for c in BB.drift_suite(rate=22050, secs=12.0):
         assert c.meta["ramp_to"] is None and np.allclose(np.diff(c.beats), np.diff(c.beats)[0])
+
+
+def test_step_ground_truth_changes_tempo_once_at_the_step():
+    b = BB.beat_times(128, 30.0, 0.5, step_at=15.0, step_to=140)
+    ibi = np.diff(b)
+    assert np.allclose(ibi[b[1:] < 15.0], 60 / 128) and np.allclose(ibi[b[:-1] >= 15.0], 60 / 140)
+
+
+def test_relock_is_measured_from_the_step():
+    c = BB.synth_case("st", 120, secs=24.0, rate=22050, step_at=12.0, step_to=140)
+    est = c.beats
+
+    class Exact:
+        def __init__(self, rate, hop, seed_bpm=None):
+            self.now, self.i = 0.0, 0
+
+        def feed(self, block):
+            self.now += len(block) / c.rate
+            out = []
+            while self.i < len(est) and est[self.i] <= self.now:
+                out.append({"t_beat": float(est[self.i]), "bpm": 120.0, "phase": 0.0, "confidence": 1.0})
+                self.i += 1
+            return out
+
+    row = BB.score(c, BB.run_tracker(Exact, c, 512))
+    assert row["relock_s"] == pytest.approx(0.0, abs=0.5)
+    assert row["F"] >= 0.98          # the last beat can fall after the final audio block

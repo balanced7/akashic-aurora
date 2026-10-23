@@ -513,7 +513,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_chordview, dry_run=False)
 
     p = sub.add_parser("beatbench", help="score beat trackers on the same ground truth (synthetic + your BPM loops)")
-    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift"], default="synthetic",
+    p.add_argument("--suite", choices=["synthetic", "loops", "all", "drift", "shift"], default="synthetic",
                    help="all = synthetic + loops (the reconciliation set); drift = constant-tempo syncopation traps")
     p.add_argument("--trackers", default="aubio,librosa", help="comma list (registered: aubio, librosa, a, b)")
     p.add_argument("--n", type=int, default=40, help="loops to sample for the loops suite")
@@ -550,6 +550,8 @@ def cmd_beatbench(args) -> int:
         cases += BB.synthetic_suite()
     if args.suite == "drift":
         cases += BB.drift_suite()
+    if args.suite == "shift":
+        cases += BB.shift_suite()
     if args.suite in ("loops", "all"):
         if args.per_cat:
             picked = BB.stratified_loops(args.per_cat, rng_seed=args.seed)

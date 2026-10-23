@@ -69,8 +69,16 @@ class Case:
     meta: Dict = field(default_factory=dict)
 
 
-def beat_times(bpm: float, secs: float, offset: float = 0.0, ramp_to: Optional[float] = None) -> np.ndarray:
-    """Beat times for a constant tempo, or a linear ramp from bpm to ramp_to over the whole case."""
+def beat_times(bpm: float, secs: float, offset: float = 0.0, ramp_to: Optional[float] = None,
+               step_at: Optional[float] = None, step_to: Optional[float] = None) -> np.ndarray:
+    """Beat times for a constant tempo, a linear ramp from bpm to ramp_to over the whole case, or a sudden STEP
+    to step_to at step_at seconds (a DJ transition / tempo automation; Daniel 2026-10-22: "have shifting bpm")."""
+    if step_at is not None and step_to is not None:
+        out, t = [], offset
+        while t < secs:
+            out.append(t)
+            t += 60.0 / (bpm if t < step_at else step_to)
+        return np.array(out)
     if ramp_to is None:
         period = 60.0 / bpm
         return np.arange(offset, secs, period)
@@ -136,12 +144,13 @@ def _place(buf: np.ndarray, sound: np.ndarray, t: float, rate: int, gain: float 
 
 def synth_case(name: str, bpm: float, secs: float = 30.0, rate: int = 44100, style: str = "drums",
                offset: float = 0.5, swing: float = 0.0, ramp_to: Optional[float] = None, noise: float = 0.0,
-               seed_bpm: Optional[float] = None, rng_seed: int = 7) -> Case:
+               seed_bpm: Optional[float] = None, rng_seed: int = 7, step_at: Optional[float] = None,
+               step_to: Optional[float] = None) -> Case:
     """Exact-ground-truth audio. style: click | drums | sparse (kick only on 1, hats off) | offbeat (hats
     on the 'and', the classic octave trap) | halftime_bass (kick on 1, snare on 3, soft quarter hats, and LOUD
     sub-bass hits on syncopated 16ths, never on a beat -- tonight's TYNAN failure, 2026-10-22)."""
     rng = np.random.default_rng(rng_seed)
-    beats = beat_times(bpm, secs, offset, ramp_to)
+    beats = beat_times(bpm, secs, offset, ramp_to, step_at, step_to)
     buf = np.zeros(int(secs * rate) + rate, dtype=np.float32)
     kick, snare, hat, click, bass = _kick(rate), _snare(rate, rng), _hat(rate, rng), _click(rate), _bass(rate)
     for k, t in enumerate(beats):
@@ -178,7 +187,8 @@ def synth_case(name: str, bpm: float, secs: float = 30.0, rate: int = 44100, sty
     audio = (buf / peak * 0.8)[: int(secs * rate)].astype(np.float32)
     ref_bpm = float(np.median(60.0 / np.diff(beats))) if len(beats) > 1 else bpm
     return Case(name, audio, rate, beats, ref_bpm, seed_bpm=seed_bpm, source="synthetic",
-                meta={"style": style, "swing": swing, "ramp_to": ramp_to, "noise": noise, "offset": offset})
+                meta={"style": style, "swing": swing, "ramp_to": ramp_to, "noise": noise, "offset": offset,
+                      "step_at": step_at, "step_to": step_to})
 
 
 def synthetic_suite(rate: int = 44100, secs: float = 30.0) -> List[Case]:
@@ -207,6 +217,18 @@ def drift_suite(rate: int = 44100, secs: float = 40.0) -> List[Case]:
     s.append(synth_case("halftime_bass_140_seeded", 140, secs, rate, style="halftime_bass", seed_bpm=140))
     s.append(synth_case("halftime_bass_140_noisy", 140, secs, rate, style="halftime_bass", noise=0.15))
     return s
+
+
+def shift_suite(rate: int = 44100, secs: float = 40.0) -> List[Case]:
+    """Real tempo changes the tracker must FOLLOW (not hold): a sudden step at 20 s. Scored by relock_s, the time
+    from the step until 8 consecutive beats hit again. The drift metrics do not apply here, because the shift is
+    real."""
+    return [
+        synth_case("shift_128_to_140", 128, secs, rate, step_at=20.0, step_to=140),
+        synth_case("shift_140_to_128_halftime", 140, secs, rate, style="halftime_bass", step_at=20.0, step_to=128),
+        synth_case("shift_120_to_150", 120, secs, rate, step_at=20.0, step_to=150),
+        synth_case("shift_150_to_120_seeded", 150, secs, rate, step_at=20.0, step_to=120, seed_bpm=150),
+    ]
 
 
 def file_case(path: str, bpm: float, phase_known: bool = False, offset: float = 0.0,
@@ -381,6 +403,11 @@ def score(case: Case, result: Dict) -> Dict:
         out.update({k: round(v, 3) for k, v in cml_aml(est_t, ref_t).items()})
         lt = lock_time(est, case.beats)
         out["lock_s"] = round(lt, 2) if lt is not None else None
+        step_at = (case.meta or {}).get("step_at")
+        if step_at is not None:
+            after = case.beats[case.beats >= step_at]
+            rl = lock_time(est, after)
+            out["relock_s"] = round(rl - step_at, 2) if rl is not None else None
         if result.get("predictions"):
             out.update(prediction_error(result["predictions"], case.beats, after=lt if lt is not None else SKIP_FIRST))
     return out
@@ -418,6 +445,8 @@ def summarize(rows: List[Dict]) -> Dict:
             "never_locked": sum(1 for r in rows if "lock_s" in r and r["lock_s"] is None),
             "pred_err_ms": mean("pred_err_ms"), "pred_hit": mean("pred_hit"),
             "bpm_spread": mean("bpm_spread"), "tempo_flips": mean("tempo_flips"),
+            "relock_s": mean("relock_s"),
+            "never_relocked": sum(1 for r in rows if "relock_s" in r and r["relock_s"] is None),
             "realtime_x_min": min((r["realtime_x"] for r in rows), default=None)}
 
 

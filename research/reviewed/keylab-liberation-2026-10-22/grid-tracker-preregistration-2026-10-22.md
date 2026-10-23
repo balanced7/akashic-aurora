@@ -61,3 +61,44 @@ A contestant ships only if ALL of these hold.
 
 If more than one passes, the best mean CMLt on loops wins, then F. If none passes, the record says so, and
 beat_a stays shipped.
+
+## Addendum, written before any contestant: shifting BPM and two volatility settings
+
+Daniel, verbatim, mid-build:
+- "mechanically not with agents parsing"
+- "perhaps we could adjust bpm, and maybe have a higher and lower volitility setting that are smartly joined or
+  parsed, the volatile one could get guesses from the lower volitility one, what do you think? have shifting bpm
+  and low + high volatility heuristics"
+- "feel free to fan out for research, go crazy / if you want to fan out for build to, feel free to do so, you can
+  make yourself a team, try to use the ask verb to leverage deepseek subagents and tag team with Heimdall hisself"
+
+**Readings:**
+- The DETECTOR is mechanical at runtime: numpy maths, with no model in the loop.
+- Building it may be a team.
+- The two volatility settings map onto an Interacting Multiple Model (IMM) filter: a low-volatility (near
+  constant tempo) model and a high-volatility (tempo moving) model, run together and mixed by a live regime
+  probability. IMM's mixing step is literally "the volatile one gets guesses from the low-volatility one".
+
+**New suite:** `beatbench --suite shift`, four 40 s cases with a sudden tempo STEP at 20 s:
+- 128 -> 140;
+- 140 -> 128 half-time with bass;
+- 120 -> 150;
+- 150 -> 120 seeded at 150.
+
+The new metric, `relock_s`, is the seconds from the step until 8 consecutive beats hit again.
+
+**Baselines, measured before registering:**
+
+| tracker | F | CMLt | mean relock_s | never relocked |
+|---|---|---|---|---|
+| aubio | .747 | .631 | 6.29 | 1 of 4 |
+| beat_a | .656 | .540 | 3.10 | 2 of 4 |
+
+**Shift acceptance, added to the table above:**
+
+| suite | criterion |
+|---|---|
+| shift (4 cases) | mean F >= .85, mean CMLt >= .75, mean relock_s <= 4.0, never_relocked = 0 |
+
+The drift criteria (constant tempo, so it must HOLD) and the shift criteria (a real change, so it must FOLLOW)
+pull in opposite directions. Passing both at once is the point of the two volatility settings.
