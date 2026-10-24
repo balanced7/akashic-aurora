@@ -549,6 +549,43 @@ def test_scene_event_and_offline():
     assert r.view()[2] == "VJ engine offline"
 
 
+def test_the_vj_page_scene_shows_on_line_2_and_the_dial_browse_is_marked():
+    """2026-10-24: the VJ page reports its scene (POST /api/scene) and the engine publishes it as a scene event; line 2
+    shows it after the BPM, and while the dial browses, the scene under the dial with '> ' in front."""
+    r = S.Readout()
+    r.feed({"t": "hello"}, 0)
+    r.feed({"t": "beat", "bpm": 128, "conf": 0.9, "n": 1}, 0)
+    r.feed({"t": "scene", "name": "Laser Cathedral", "index": 0, "count": 14, "color": "#ff4fd8", "browsing": False}, 0)
+    assert r.view()[2] == "128 BPM | Laser Cathedral" and r.view()[3] == S.rgb7("#ff4fd8")
+    r.feed({"t": "scene", "name": "Reactor", "index": 1, "count": 14, "color": "#ff4fd8", "browsing": True}, 1)
+    assert r.view()[2] == "128 BPM | > Reactor"
+    assert b"128 BPM | > REACTOR" in S.render(r.view()), "line 2 is upper-cased by the script's rule"
+    r.feed({"t": "scene", "name": "Laser Cathedral", "index": 0, "count": 14, "color": None, "browsing": False}, 2)
+    assert r.view()[2] == "128 BPM | Laser Cathedral"
+
+
+def test_the_engine_scene_reaches_the_keylab_screen_end_to_end():
+    """The real engine on a test port: a scene POSTed by a page comes out of `screen --live` on line 2."""
+    from arsenal.keylab import vj as V
+    port = _free_test_port()
+    eng = V.Engine(http_port=port, say=lambda _m: None).start()
+    try:
+        st, _b = None, None
+        import http.client
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        c.request("POST", "/api/scene", body=json.dumps({"name": "Synthwave Grid", "index": 7, "count": 14}).encode(),
+                  headers={"Content-Type": "text/plain"})
+        st = c.getresponse().status
+        c.close()
+        assert st == 202
+        out = FakeOut(governed=True, clock=time.perf_counter)
+        S.run_live(out, url=f"http://127.0.0.1:{port}/api/events", secs=1.0, verbose=False, goodbye=False)
+    finally:
+        eng.stop()
+    texts = [d.decode("ascii", "replace") for d in out.sent]
+    assert any("| SYNTHWAVE GRID" in t for t in texts), texts
+
+
 def test_pulse_marks_the_beat():
     r = S.Readout(pulse=True)
     r.feed({"t": "_up"}, 0)
