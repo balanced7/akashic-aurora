@@ -12,13 +12,19 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
   GET  http://127.0.0.1:8794/api/state    last chord, bpm, the key, connected inputs, audio health, LED state
   POST http://127.0.0.1:8794/api/pads     {"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads: 202 taken,
                                           409 refused (--no-leds), 503 unavailable (no KeyLab DAW output found)
+  POST http://127.0.0.1:8794/api/scene    {"name": "Laser Cathedral", "index": 0, "count": 14, "color": "#rrggbb",
+                                          "browsing": false} the scene the page shows (or the one under the dial while
+                                          browsing): 202 taken (published as a scene event when it changed), 400 not a
+                                          scene, 429 more than 8 in a second (Retry-After). An engine older than
+                                          2026-10-24 answers 404 and the page stops asking it
   Every route but the stream answers with Connection: close (no kept-alive connection outlives its response), and
   a stopping engine refuses new streams (503).
 
   hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","chords":"sense|basic","pads_mode":"daw|bank|both",
           "leds":true|false,"leds_reason":null|".."}   leds false: do not POST /api/pads, it would be refused
   beat   {"t":"beat","due_ms":..,"bpm":..,"conf":0..1,"n":..,"on_beat":0..1|null}  sent ~250 ms BEFORE the beat
-  energy {"t":"energy","bass":..,"mid":..,"high":..,"level":..}                      40 Hz, each 0..1, auto-gained
+  energy {"t":"energy","bass":..,"mid":..,"high":..,"level":..}  ~100 a second (one per audio block: 94/s at 48 kHz,
+          86/s at 44.1 kHz; 40/s before 2026-10-24), each 0..1, auto-gained
   hit    {"t":"hit","strength":0..1,"band":"kick|snare|hat|full"}                   a heavy transient
   chord  {"t":"chord","src":"keys|audio","name":"Dbmaj7","root":0..11,"quality":"maj7","pcs":[..],"changed":true,
           "bass":0..11,"roman":"Imaj7"|null,"key":"Db major"|null,"conf":0..1}
@@ -31,6 +37,8 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
   pad    {"t":"pad","pad":1..12,"vel":0..1,"on":bool,"src":"daw|bank"}
   ctl    {"t":"ctl","id":"cc105","kind":"abs|rel","value":0..1,"delta":int}
   status {"t":"status","msg":".."}
+  scene  {"t":"scene","name":"..","index":int,"count":int,"color":"#rrggbb"|null,"browsing":bool}  the page's scene
+          (POST /api/scene), for `screen --live`, which puts it on the KeyLab's screen (line 2: "128 BPM | SCENE")
 
 What feeds it:
   KEYS    the 'KeyLab 88 mk3 MIDI' input: notes (any channel but 10) and the sustain pedal (CC 64) -> note, pedal,
@@ -114,13 +122,19 @@ CONTRACT_V = 1
 HOP = 512                     # samples per audio block (the trackers' hop)
 HEARTBEAT_S = 15.0
 AHEAD_S = 0.25                # a beat is announced this long before it lands (the contract's 150-300 ms)
-ENERGY_HZ = 40.0
+ENERGY_HZ = 100.0             # the energy events' rate cap: in practice one per audio block (HOP / rate: ~94 a second at
+                              # 48 kHz). 40 before 2026-10-24; the page's band envelopes want every block (a kick's rise
+                              # lands within a frame). The audio loop still reads every block (tests/test_keylab_vj.py)
 CHORD_SETTLE_S = 0.03         # keys: a chord must hold this long before it is announced (a rolled chord = 1 event)
 CHORD_SETTLE_MAX_S = 0.08     # ... but never wait longer than this from its first note
 PAD_DEDUP_S = 0.04            # the same pad on both inputs within this long is one hit
 SILENT_BEATS_S = 1.5          # no beats are announced after this long of silence
 KEYS_WITNESS_S = 10.0         # the key: audio chords count as evidence only after the keys have been quiet this long
 MAX_PADS_BODY = 4096
+MAX_SCENE_BODY = 1024
+SCENE_RATE = 8.0              # POST /api/scene: at most this many a second (a token bucket, SCENE_BURST at once)
+SCENE_BURST = 8.0
+SCENE_NAME_MAX = 40
 # --chords: blend (default) = the older audio templates NAME the audio chords (they hold up best under a hardstyle kick
 # and sub bass, verified 2026-10-23) while chordsense on both ears gives the key, the roman numerals and the tension;
 # sense = chordsense names the audio chords too; basic = the older templates only, no key or tension events.
@@ -217,6 +231,38 @@ def _quality(sym: Optional[str]) -> str:
 # =====================================================================================================================
 # the hub: fan-out to every page, never blocking the producer
 # =====================================================================================================================
+def parse_scene(body) -> Tuple[Optional[dict], Optional[str]]:
+    """A POST /api/scene body -> (the scene event, None) or (None, why not). A printable name of 1-40 characters; index
+    -1..999 and count 0..1000 whole numbers; colour '#rrggbb' or absent; browsing a boolean."""
+    if not isinstance(body, dict):
+        return None, 'want {"name": "..", "index": 0, "count": 14, "color": "#rrggbb", "browsing": false}'
+    name = body.get("name")
+    if not isinstance(name, str):
+        return None, "name must be a string"
+    name = "".join(ch for ch in name if ch.isprintable()).strip()
+    if not 1 <= len(name) <= SCENE_NAME_MAX:
+        return None, f"name must be 1..{SCENE_NAME_MAX} printable characters"
+    out = {"t": "scene", "name": name, "index": -1, "count": 0, "color": None, "browsing": False}
+    for key, lo, hi in (("index", -1, 999), ("count", 0, 1000)):
+        v = body.get(key)
+        if v is None:
+            continue
+        if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
+            return None, f"{key} must be a whole number {lo}..{hi}"
+        out[key] = v
+    col = body.get("color")
+    if col not in (None, ""):
+        if (not isinstance(col, str) or len(col) != 7 or col[0] != "#"
+                or any(c not in "0123456789abcdefABCDEF" for c in col[1:])):
+            return None, "color must be '#rrggbb'"
+        out["color"] = col.lower()
+    br = body.get("browsing", False)
+    if not isinstance(br, bool):
+        return None, "browsing must be true or false"
+    out["browsing"] = br
+    return out, None
+
+
 class Hub:
     """Each subscriber gets a bounded queue of ready-made SSE frames. A stalled page loses its OLDEST frames (counted),
     it never stalls the engine. taps are in-process listeners (tests, the console), called on the producer's thread."""
@@ -1490,13 +1536,17 @@ class _Handler(BaseHTTPRequestHandler):
         if path in ("/", "/api"):
             return self._json(200, {"src": SRC, "v": CONTRACT_V, "routes": {
                 "GET /api/events": "Server-Sent Events: hello, beat, energy, hit, chord, key, tension, note, pedal, "
-                                   "pad, ctl, status",
+                                   "pad, ctl, scene, status",
                 "GET /api/state": "last chord, bpm, the key, connected inputs, audio health and timing, LED state",
-                "POST /api/pads": '{"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads'}})
+                "POST /api/pads": '{"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads',
+                "POST /api/scene": '{"name": "..", "index": 0, "count": 14, "color": "#rrggbb", "browsing": false} '
+                                   'the scene the page shows, published as a scene event'}})
         return self._json(404, {"error": f"no route {path}"})
 
     def do_POST(self):
         path = urlsplit(self.path).path.rstrip("/")
+        if path == "/api/scene":
+            return self._scene()
         if path != "/api/pads":
             return self._json(404, {"error": f"no route {path}"})
         if self.engine.stopping:
@@ -1513,6 +1563,35 @@ class _Handler(BaseHTTPRequestHandler):
         except (UnicodeDecodeError, ValueError):
             return self._json(400, {"ok": False, "error": "body is not JSON"})
         status, payload = self.engine.pads_request(body)
+        return self._json(status, payload)
+
+    def _scene(self) -> None:
+        """POST /api/scene: the page says which scene shows; the engine publishes it (when it changed) as a scene event."""
+        if self.engine.stopping:
+            return self._json(503, {"ok": False, "error": "the engine is stopping"})
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self._json(400, {"ok": False, "error": "Content-Length is not a number"})
+        if length <= 0 or length > MAX_SCENE_BODY:
+            return self._json(413 if length > 0 else 400, {"ok": False, "error": f"body must be 1..{MAX_SCENE_BODY} bytes"})
+        raw = self.rfile.read(length)
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return self._json(400, {"ok": False, "error": "body is not JSON"})
+        status, payload = self.engine.scene_request(body)
+        if status == 429:
+            data = json.dumps(payload).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Retry-After", "1")
+            self._cors()
+            self._close_after()
+            self.end_headers()
+            self.wfile.write(data)
+            return None
         return self._json(status, payload)
 
     def _events(self) -> None:
@@ -1641,6 +1720,11 @@ class Engine:
         self._chord_pending: Optional[tuple] = None  # (deadline, event, first_t)
         self._pad_on: Dict[int, Tuple[float, str]] = {}
         self._pb_last: Dict[str, int] = {}
+        # the scene the page reports (POST /api/scene), and the route's token bucket
+        self.scene: Optional[dict] = None
+        self._scene_lock = threading.Lock()
+        self._scene_tokens, self._scene_t = SCENE_BURST, time.perf_counter()
+        self.scene_counts = {"taken": 0, "published": 0, "refused": 0, "limited": 0}
         # shared state for /api/state
         self.last = {"chord": None, "chord_keys": None, "chord_audio": None}
         self.beat = {"bpm": None, "conf": None, "n": 0, "on_beat": None}
@@ -1745,6 +1829,8 @@ class Engine:
                 out.append(dict(snap_t))
         if self.last["chord"]:
             out.append({**self.last["chord"], "changed": False})
+        if self.scene:
+            out.append(dict(self.scene))
         return out
 
     def summary(self) -> str:
@@ -1817,7 +1903,8 @@ class Engine:
                          "refusal_status": None if self.led_out is not None else self.led_refusal_status,
                          **self.led_info,
                          **(self.painter.stats() if self.painter is not None else {})},
-                "replay": self.replay_state, "clients": self.hub.clients, "events": dict(self.hub.counts),
+                "replay": self.replay_state, "scene": self.scene, "scene_counts": dict(self.scene_counts),
+                "clients": self.hub.clients, "events": dict(self.hub.counts),
                 "dropped": self.hub.dropped}
 
     # ----------------------------------------------------------------------------------------------- pads (LEDs)
@@ -1837,6 +1924,33 @@ class Engine:
             return self.led_refusal_status, {"ok": False, "refused": self.led_refusal or "no LED output"}
         coalesced = self.painter.submit(rgb)
         return 202, {"ok": True, "coalesced": coalesced}
+
+    # ----------------------------------------------------------------------------------------------- the scene
+    def scene_request(self, body, now: Optional[float] = None) -> Tuple[int, dict]:
+        """The page's scene. Validated (parse_scene), rate-limited (a token bucket: SCENE_RATE a second, SCENE_BURST at
+        once; beyond it 429), and published as a scene event only when it differs from the last one (name, index or
+        browsing), so a page that repeats itself floods nothing."""
+        now = time.perf_counter() if now is None else now
+        with self._scene_lock:
+            self._scene_tokens = min(SCENE_BURST, self._scene_tokens + max(0.0, now - self._scene_t) * SCENE_RATE)
+            self._scene_t = now
+            if self._scene_tokens < 1.0:
+                self.scene_counts["limited"] += 1
+                return 429, {"ok": False, "error": f"at most {SCENE_RATE:g} scene reports a second",
+                             "retry_ms": int(1000 * (1.0 - self._scene_tokens) / SCENE_RATE) + 1}
+            self._scene_tokens -= 1.0
+        evt, err = parse_scene(body)
+        if evt is None:
+            self.scene_counts["refused"] += 1
+            return 400, {"ok": False, "error": err}
+        self.scene_counts["taken"] += 1
+        prev = self.scene
+        changed = prev is None or any(prev.get(k) != evt.get(k) for k in ("name", "index", "browsing"))
+        self.scene = evt
+        if changed:
+            self.scene_counts["published"] += 1
+            self.publish(dict(evt))
+        return 202, {"ok": True, "changed": changed}
 
     # ----------------------------------------------------------------------------------------------- MIDI
     def feed_midi(self, kind: str, status: int, d1: int, d2: int, t: Optional[float] = None) -> None:
