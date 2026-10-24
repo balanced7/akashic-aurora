@@ -4286,13 +4286,17 @@ def cmd_eye(args):
         from core.eye import pyramid as _PYR
 
         built = None
-        if args.rebuild or not _PYR.nodes():
+        # Build what this read needs: the one session, when its digest is missing or stale.
+        # The whole corpus is rebuilt only on --rebuild (see pyramid.build for why).
+        if args.rebuild:
             built = _PYR.build()
             if args.json:  # --json keeps its old bytes: the build line, then the JSON
                 print(
                     f"[eye] pyramid built: {built['l1_nodes']} exchanges, "
                     f"{built['l2_nodes']} digests across {built['sessions']} sessions"
                 )
+        else:
+            _PYR.ensure(args.addr)
         try:
             z = _PYR.zoom(args.addr)
         except ValueError as e:

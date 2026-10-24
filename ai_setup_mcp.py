@@ -1438,8 +1438,8 @@ async def get(event_id: str, json: bool = False) -> str:
 
 @mcp.tool()
 async def zoom(addr: str, rebuild: bool = False, json: bool = False) -> str:
-    """[eye zoom] LOD navigation: a session -> its L2 digest -> an exchange. Rebuilds the
-    pyramid on first call; pass rebuild to clear a stale one."""
+    """[eye zoom] LOD navigation: a session -> its L2 digest -> an exchange. Builds the
+    session's digest when it is missing or stale; pass rebuild to rebuild every session."""
     return await _athread(_run, agent_cli.cmd_eye, eye_cmd="zoom", addr=addr, rebuild=bool(rebuild), json=bool(json))
 
 

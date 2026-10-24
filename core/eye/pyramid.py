@@ -43,12 +43,85 @@ def _ensure_schema(con) -> None:
         node_id TEXT PRIMARY KEY, level TEXT NOT NULL, session TEXT NOT NULL,
         seq INTEGER NOT NULL, text TEXT NOT NULL, refs TEXT NOT NULL,
         built_at REAL NOT NULL, tokens INTEGER NOT NULL)""")
+    con.execute("CREATE INDEX IF NOT EXISTS pyramid_session ON pyramid(session, level)")
+
+
+def _build_session(con, s: str, now: float) -> tuple[int, int]:
+    """Replace one session's L1+L2 nodes; returns (l1, l2) built. The caller commits."""
+    con.execute("DELETE FROM pyramid WHERE session=?", (s,))
+    l1 = l2 = 0
+    evs = [
+        {"event_id": r[0], "voice": r[1], "text": r[2], "tokens": r[3]}
+        for r in con.execute(
+            "SELECT event_id, voice, text, tokens FROM events WHERE session=? ORDER BY line", (s,)
+        ).fetchall()
+    ]
+    # Group into exchanges. An exchange = a run of operator turn(s) + the replies
+    # until the NEXT operator run. A new exchange opens on an operator event ONLY
+    # after an agent has replied -- because the harness records one operator turn
+    # TWICE (the queue-operation enqueue + the user record, identical text), and
+    # consecutive operator events are one moment, not two exchanges. Caught live on
+    # this very session, 2026-08-11; the fixture below pins the duplicate pattern.
+    exchanges: list[list[dict[str, Any]]] = []
+    cur: list[dict[str, Any]] = []
+    seen_agent = False
+    for e in evs:
+        if e["voice"] == "operator":
+            if cur and seen_agent:
+                exchanges.append(cur)
+                cur, seen_agent = [], False
+            cur.append(e)
+        else:
+            if cur:
+                cur.append(e)
+                if e["voice"] == "agent":
+                    seen_agent = True
+            # leading non-operator events before the first operator turn are
+            # ambient -- they ride the digest via counts, not an exchange
+    if cur and any(x["voice"] == "operator" for x in cur):
+        exchanges.append(cur)
+
+    child_ids = []
+    for i, ex in enumerate(exchanges, start=1):
+        op = next(e for e in ex if e["voice"] == "operator")
+        agent = next((e for e in ex if e["voice"] == "agent"), None)
+        text = _first_sentence(op["text"])
+        if agent:
+            text += " -> " + _first_sentence(agent["text"], cap=140)
+        refs = [e["event_id"] for e in ex]
+        nid = f"{s}/L1:{i:03d}"
+        con.execute(
+            "INSERT INTO pyramid(node_id, level, session, seq, text, refs, built_at, tokens) VALUES(?,?,?,?,?,?,?,?)",
+            (nid, "L1", s, i, text, json.dumps(refs), now, max(1, len(text) // 4)),
+        )
+        child_ids.append(nid)
+        l1 += 1
+
+    # One opener per exchange, deduped -- the same utterance recorded as queue-op
+    # AND user must not appear twice in the digest.
+    op_openers, _last = [], None
+    for ex in exchanges:
+        op = next(e for e in ex if e["voice"] == "operator")
+        line = _first_sentence(op["text"], cap=160)
+        norm = " ".join(line.lower().split())[:80]
+        if norm != _last:
+            op_openers.append(line)
+            _last = norm
+    op_openers = op_openers[:8]
+    digest = " · ".join(op_openers) if op_openers else "(no operator turns)"
+    all_refs = [e["event_id"] for e in evs]
+    con.execute(
+        "INSERT INTO pyramid(node_id, level, session, seq, text, refs, built_at, tokens) VALUES(?,?,?,?,?,?,?,?)",
+        (f"{s}/L2", "L2", s, 0, digest, json.dumps(all_refs[:50]), now, max(1, len(digest) // 4)),
+    )
+    l2 += 1
+    return l1, l2
 
 
 def build(db_path: Path | None = None) -> dict[str, Any]:
-    """(Re)build L1+L2 for every session. Extractive, deterministic, cheap enough to be
-    wholesale at this corpus scale (the incremental refinement rides a later slice --
-    stated, not silent)."""
+    """(Re)build L1+L2 for every session. Extractive and deterministic. A reader that wants
+    one session calls ensure() instead: on the live corpus (17,562 sessions, 2026-10-24) a
+    wholesale build is minutes of work, and zoom must not pay it to read one node."""
     con = _connect(db_path)
     _ensure_schema(con)
     now = time.time()
@@ -57,77 +130,50 @@ def build(db_path: Path | None = None) -> dict[str, Any]:
         sessions = [r[0] for r in con.execute("SELECT DISTINCT session FROM events").fetchall()]
         con.execute("DELETE FROM pyramid")
         for s in sessions:
-            evs = [
-                {"event_id": r[0], "voice": r[1], "text": r[2], "tokens": r[3]}
-                for r in con.execute(
-                    "SELECT event_id, voice, text, tokens FROM events WHERE session=? ORDER BY line", (s,)
-                ).fetchall()
-            ]
-            # Group into exchanges. An exchange = a run of operator turn(s) + the replies
-            # until the NEXT operator run. A new exchange opens on an operator event ONLY
-            # after an agent has replied -- because the harness records one operator turn
-            # TWICE (the queue-operation enqueue + the user record, identical text), and
-            # consecutive operator events are one moment, not two exchanges. Caught live on
-            # this very session, 2026-08-11; the fixture below pins the duplicate pattern.
-            exchanges: list[list[dict[str, Any]]] = []
-            cur: list[dict[str, Any]] = []
-            seen_agent = False
-            for e in evs:
-                if e["voice"] == "operator":
-                    if cur and seen_agent:
-                        exchanges.append(cur)
-                        cur, seen_agent = [], False
-                    cur.append(e)
-                else:
-                    if cur:
-                        cur.append(e)
-                        if e["voice"] == "agent":
-                            seen_agent = True
-                    # leading non-operator events before the first operator turn are
-                    # ambient -- they ride the digest via counts, not an exchange
-            if cur and any(x["voice"] == "operator" for x in cur):
-                exchanges.append(cur)
-
-            child_ids = []
-            for i, ex in enumerate(exchanges, start=1):
-                op = next(e for e in ex if e["voice"] == "operator")
-                agent = next((e for e in ex if e["voice"] == "agent"), None)
-                text = _first_sentence(op["text"])
-                if agent:
-                    text += " -> " + _first_sentence(agent["text"], cap=140)
-                refs = [e["event_id"] for e in ex]
-                nid = f"{s}/L1:{i:03d}"
-                con.execute(
-                    "INSERT INTO pyramid(node_id, level, session, seq, text, refs, "
-                    "built_at, tokens) VALUES(?,?,?,?,?,?,?,?)",
-                    (nid, "L1", s, i, text, json.dumps(refs), now, max(1, len(text) // 4)),
-                )
-                child_ids.append(nid)
-                built_l1 += 1
-
-            # One opener per exchange, deduped -- the same utterance recorded as queue-op
-            # AND user must not appear twice in the digest.
-            op_openers, _last = [], None
-            for ex in exchanges:
-                op = next(e for e in ex if e["voice"] == "operator")
-                line = _first_sentence(op["text"], cap=160)
-                norm = " ".join(line.lower().split())[:80]
-                if norm != _last:
-                    op_openers.append(line)
-                    _last = norm
-            op_openers = op_openers[:8]
-            digest = " · ".join(op_openers) if op_openers else "(no operator turns)"
-            all_refs = [e["event_id"] for e in evs]
-            con.execute(
-                "INSERT INTO pyramid(node_id, level, session, seq, text, refs, built_at, "
-                "tokens) VALUES(?,?,?,?,?,?,?,?)",
-                (f"{s}/L2", "L2", s, 0, digest, json.dumps(all_refs[:50]), now, max(1, len(digest) // 4)),
-            )
-            built_l2 += 1
+            l1, l2 = _build_session(con, s, now)
+            built_l1 += l1
+            built_l2 += l2
         con.commit()
     finally:
         con.close()
     return {"sessions": len(sessions), "l1_nodes": built_l1, "l2_nodes": built_l2, "built_at": round(now, 2)}
+
+
+def ensure(addr: str, db_path: Path | None = None) -> bool:
+    """Build the session `addr` names (a session name or an L1 id) when it has no L2 node
+    or that node is stale. Returns whether it built. A session with no events is left
+    alone, so zoom still refuses a mistyped name rather than minting an empty digest."""
+    session = addr.split("/L", 1)[0]
+    con = _connect(db_path)
+    _ensure_schema(con)
+    try:
+        if not con.execute("SELECT 1 FROM events WHERE session=? LIMIT 1", (session,)).fetchone():
+            return False
+        if not _is_stale(con, f"{session}/L2"):
+            return False
+        _build_session(con, session, time.time())
+        con.commit()
+        return True
+    finally:
+        con.close()
+
+
+def _is_stale(con, node_id: str) -> bool:
+    """True when the node is missing, or its session holds events the build never saw.
+
+    Two ways an event can be unseen. It was INDEXED after the build (indexed_at), which is
+    how a transcript that grew shows up: its new events carry the time they happened, which
+    is before built_at, so the timestamp test alone missed every one of them. Or it is dated
+    after the build, or undated, and no ref names it (the original test, kept)."""
+    r = con.execute("SELECT session, refs, built_at FROM pyramid WHERE node_id=?", (node_id,)).fetchone()
+    if not r:
+        return True
+    row = con.execute(
+        "SELECT COUNT(*) FROM events WHERE session=? AND (indexed_at > ? OR ((ts IS NULL OR ts > ?) "
+        "AND event_id NOT IN (SELECT value FROM json_each(?))))",
+        (r[0], r[2], r[2], r[1]),
+    ).fetchone()
+    return bool(row and row[0])
 
 
 def nodes(db_path: Path | None = None) -> list[dict[str, Any]]:
@@ -171,11 +217,7 @@ def zoom(addr: str, db_path: Path | None = None) -> dict[str, Any]:
                 f"(<session>/L1:NNN); build with the eye door first if the pyramid is empty"
             )
         # staleness: any event in this session the build never saw (fog, never silence)
-        stale_row = con.execute(
-            "SELECT COUNT(*) FROM events WHERE session=? AND (ts IS NULL OR ts > ?) "
-            "AND event_id NOT IN (SELECT value FROM json_each(?))",
-            (r[2], r[6], r[5]),
-        ).fetchone()
+        stale = _is_stale(con, f"{r[2]}/L2")
         children = []
         if r[1] == "L2":
             children = [
@@ -195,5 +237,5 @@ def zoom(addr: str, db_path: Path | None = None) -> dict[str, Any]:
         "built_at": r[6],
         "tokens": r[7],
         "children": children,
-        "is_stale": bool(stale_row and stale_row[0]),
+        "is_stale": stale,
     }

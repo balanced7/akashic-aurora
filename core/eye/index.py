@@ -372,6 +372,12 @@ def _connect(db_path: Path | None) -> sqlite3.Connection:
     con.execute("""CREATE TABLE IF NOT EXISTS chain(
         session TEXT NOT NULL, uuid TEXT NOT NULL, parent_uuid TEXT,
         PRIMARY KEY(session, uuid))""")
+    # Every per-session read (the pyramid, zoom's staleness check, find's session facet) asks
+    # for one session's events. Without this each of them scanned the whole table: measured
+    # 2026-10-24, building the pyramid over 17,562 sessions meant about two billion row reads,
+    # and zoom never returned. Outside the version gate on purpose -- adding an index is
+    # harmless, and the gate's migration re-reads every transcript.
+    con.execute("CREATE INDEX IF NOT EXISTS events_session_line ON events(session, line)")
     if have < _SCHEMA_VERSION:
         cols = {r[1] for r in con.execute("PRAGMA table_info(events)")}
         for col in ("uuid", "parent_uuid"):
