@@ -10,6 +10,8 @@ This script takes the place of Arturia's script on the KeyLab's **DAW** port onl
   Rewind and Fast forward (while held), Save, Undo, Redo.
 - **FL ignores everything else on that port**: the faders, knobs, dial, Back, Quantize, the screen buttons and the
   DAW-bank pads do nothing in FL. Aurora's programs still see them and can bind them to anything.
+- **The bank A-D pads still play in FL**: they pass through untouched, so FPC, Addictive Drums or the selected
+  channel keeps playing them (Arturia's FPC/Drumaxx note remap is not copied, so pads play their plain notes).
 - **FL never writes the screen or the pads.** No more "The Grandeur Pattern 7" repainting over our screen.
 - The Play, Record, Loop and Metronome lights follow FL, changing only when the state changes.
 
@@ -42,20 +44,26 @@ and which script FL has saved for the KeyLab's DAW input.
    Analog Lab / V Collection still get their controls.
 4. Optional check: **View > Script output**, tab **KeyLab 88 mk3 DAW**. It should say
    `Aurora KeyLab v0: FL keeps the transport; ...`.
+5. **After an FL restart or a KeyLab power cycle, check the Controller type again.** Arturia's script claims this
+   keyboard's hardware ID, so FL may link it back by itself. If FL's screen-repainting comes back, that is why.
 
 ## 3. Going back to Arturia's script
 
-**Options > MIDI settings > KeyLab 88 mk3 DAW > Controller type > KeyLab mk3.** That is all. FL unloads ours (which
+**Options > MIDI settings > KeyLab 88 mk3 DAW > Controller type > KeyLab mk3** (it may be listed as
+**KeyLab mk3 (user)**, because Arturia's script lives in your user folder). That is all. FL unloads ours (which
 drops DAW mode) and loads Arturia's (which connects again and repaints everything the way it used to).
 
-To remove our file afterwards: `py -m arsenal.keylab fl-uninstall` (switch back first; it removes only our folder, and
-only if it holds nothing but our file).
+To remove our file afterwards: `py -m arsenal.keylab fl-uninstall`. Switch back first: it refuses while FL has our
+script picked or FL is running (so FL never starts looking for a script that is gone), unless you add `--force`. It
+removes only our folder, and only if it holds nothing but our file.
 
 ## 4. First-run drill (the freeze check, P23)
 
 FL 26.1.3 shipped fixes for "freezes when MIDI scripts call functions in FL Studio" (#22368) and "crash when using
 GlobalTransport commands" (#22359). Your build (26.1.3.5570) has those fixes, but the drill doctrine says we check on
-your machine before trusting it. Every FL function the script can call is listed at the top of the script.
+your machine before trusting it. Image-Line fixed two more related freezes in **26.1.7** (#22604, a freeze when a script
+sends SysEx, and #22725 / #22689 in GlobalTransport); updating FL first is the safest order, and your call. Arturia's
+own script makes the same kinds of calls every day. Every FL function the script can call is listed at the top of the script.
 
 Save your project first. Then, **one button at a time**, wait two seconds after each, and **stop at the first freeze**
 (FL stops responding, or the KeyLab stops answering). Tell Vandor which button it was.
@@ -75,7 +83,7 @@ Save your project first. Then, **one button at a time**, wait two seconds after 
 | 10 | Move a note in the piano roll, then press **Undo**, then **Redo** | the move is undone, then redone | `general.undoUp`, `general.undoDown` |
 | 11 | Press **Save** | FL saves (or asks where, for a new project) | `transport.globalTransport` (save) |
 | 12 | Move every fader, turn every knob and the dial, press Back, Quantize, the screen buttons, tap the pads (DAW position) | **nothing happens in FL** | none |
-| 13 | Pad selector to a normal bank, select an FPC channel, tap a pad | it plays (through the MIDI port, untouched by us); if it does not, tell Vandor | none |
+| 13 | Pad selector to a normal bank, select an FPC channel, tap a pad | it plays (the script passes bank pads to FL untouched); if it does not, tell Vandor | none |
 
 If all fourteen pass, the drill is done: tell Vandor "drill passed" and the date, and it gets a dated receipt.
 

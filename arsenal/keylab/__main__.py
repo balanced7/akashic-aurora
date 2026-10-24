@@ -903,6 +903,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("fl-uninstall", help="remove our FL script folder (only if it holds only our files)")
     p.add_argument("--hardware-dir", help=hw_help)
     p.add_argument("--dry-run", action="store_true", help="say what would be removed; remove nothing")
+    p.add_argument("--force", action="store_true",
+                   help="remove even while FL runs or has our script picked (FL then looks for a script that is gone)")
     p.set_defaults(func=cmd_fl_uninstall)
     p = sub.add_parser("fl-status", help="our FL script: installed? same bytes as the repo? FL running? which "
                                          "script FL has on the DAW input?")
@@ -926,7 +928,7 @@ def cmd_fl_install(args) -> int:
 
 def cmd_fl_uninstall(args) -> int:
     from . import flscript as F
-    return _fl_verb(F.uninstall, args, args.dry_run)
+    return _fl_verb(F.uninstall, args, args.dry_run, args.force)
 
 
 def cmd_fl_status(args) -> int:

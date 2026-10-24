@@ -127,9 +127,9 @@ def test_first_line_names_the_script_and_it_never_auto_claims_the_keyboard():
     assert "supportedHardwareIds" not in text and "supportedDevices" not in text
 
 
-def test_oninit_sends_exactly_the_daw_connect_and_calls_nothing_else(rig):
+def test_oninit_sends_exactly_the_daw_connect_and_the_pad_port_and_calls_nothing_else(rig):
     rig.mod.OnInit()
-    assert [d for _, d in rig.sent] == [P.daw_connect(True)]
+    assert [d for _, d in rig.sent] == [P.daw_connect(True), rig.mod.PAD_PORT_PROPERTY]
     assert rig.mod.DAW_CONNECT == P.daw_connect(True) == bytes.fromhex("F0 00 20 6B 7F 42 00 02 05 01 F7")
     assert rig.fl_calls() == []
 
@@ -238,7 +238,7 @@ def surface_messages():
         if cc in TRANSPORT_EXPECT or cc == 1:
             continue
         out += [(0xB0, cc, 127), (0xB0, cc, 0), (0xB9, cc, 127)]
-    out += [(0x99, 36, 100), (0x89, 36, 0), (0x90, 60, 90), (0x80, 60, 0)]   # other notes, other channels
+    out += [(0x90, 60, 90), (0x80, 60, 0)]                                   # notes on other channels
     out += [(0xD9, 40, 0), (0xD0, 40, 0), (0xC0, 5, 0), (0xF8, 0, 0), (0xFA, 0, 0)]
     return out
 
@@ -260,6 +260,30 @@ def test_the_named_surface_groups_are_all_in_the_sweep():
         assert (0xB0, cc) in covered
     for note in range(12):
         assert (0x90, note) in covered and (0x80, note) in covered
+
+
+def test_bank_pads_pass_to_fl_untouched_and_daw_pads_never_do(rig):
+    rig.mod.OnInit()
+    rig.clear()
+    for status, note, vel in [(0x99, 36, 100), (0x89, 36, 0), (0x99, 51, 90), (0xA9, 40, 30), (0x99, 12, 64)]:
+        ev = rig.msg(status, note, vel)
+        assert ev.handled is False, f"bank pad {status:02X} {note} was swallowed (FPC would go silent)"
+    for note in range(12):                                            # the DAW-bank pads are always swallowed
+        assert rig.msg(0x99, note, 100).handled is True
+    assert rig.msg(0x90, 36, 100).handled is True                     # channel 1 on the DAW port: not a pad
+    assert rig.calls == [] and rig.sent == []
+
+
+def test_bank_pads_can_be_swallowed_too(rig):
+    rig.mod.BANK_PADS_TO_FL = False
+    assert rig.msg(0x99, 36, 100).handled is True
+
+
+def test_oninit_asks_for_the_pads_on_the_daw_port_as_arturia_does(rig):
+    assert rig.mod.PAD_PORT_PROPERTY == bytes.fromhex("F0 00 20 6B 7F 42 00 02 00 14 02 01 00 F7")
+    rig.mod.SEND_PAD_PORT = False
+    rig.mod.OnInit()
+    assert [d for _, d in rig.sent] == [rig.mod.DAW_CONNECT]
 
 
 def test_the_wheels_pass_to_fl_untouched(rig):
@@ -389,7 +413,7 @@ def test_a_long_session_never_sends_a_screen_frame_or_a_pad(rig):
             rig.msg(0xB0, cc, 127 if step % 2 else 0)
     rig.mod.OnDoFullRefresh()
     rig.mod.OnDeInit()
-    handshake = {P.daw_connect(True), P.daw_connect(False)}
+    handshake = {P.daw_connect(True), P.daw_connect(False), rig.mod.PAD_PORT_PROPERTY}
     for _, d in rig.sent:
         assert d.startswith(P.HEADER) and d.endswith(bytes([P.EOX]))
         if d in handshake:
@@ -651,12 +675,23 @@ def test_a_link_in_place_of_our_folder_is_refused(hw, tmp_path):
     assert list(elsewhere.iterdir()) == []
 
 
-def test_uninstall_tells_him_to_switch_back_when_fl_has_ours_picked(hw, monkeypatch):
+def test_uninstall_refuses_while_fl_has_ours_picked_unless_forced(hw, monkeypatch):
     F.install(hw)
     monkeypatch.setattr(F, "daw_port_scripts", lambda: [("FL Studio 26", "KeyLab 88 mk3 DAW", "Aurora KeyLab")])
-    code, lines = F.uninstall(hw)
-    assert code == 0 and '"KeyLab mk3"' in lines[0]
     assert "(ours" in "\n".join(F.status(hw)[1])
+    code, lines = F.uninstall(hw)
+    assert code == 2 and "refused" in lines[0] and '"KeyLab mk3"' in lines[1]
+    assert (hw / F.FOLDER_NAME / F.SCRIPT_NAME).is_file()                 # nothing removed
+    code, lines = F.uninstall(hw, force=True)
+    assert code == 0 and '"KeyLab mk3"' in lines[0] and not (hw / F.FOLDER_NAME).exists()
+
+
+def test_uninstall_refuses_while_fl_runs_unless_forced(hw, monkeypatch):
+    F.install(hw)
+    monkeypatch.setattr(F, "daw_port_scripts", lambda: [])
+    monkeypatch.setattr(F, "fl_running", lambda: True)
+    assert F.uninstall(hw)[0] == 2 and (hw / F.FOLDER_NAME).exists()
+    assert F.uninstall(hw, force=True)[0] == 0 and not (hw / F.FOLDER_NAME).exists()
 
 
 def test_uninstall_leaves_fls_own_ini_for_our_folder(hw):

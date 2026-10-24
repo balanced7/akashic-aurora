@@ -215,7 +215,7 @@ def install(hw: pathlib.Path, dry_run: bool = False, source: pathlib.Path = SOUR
     return 0, lines + next_steps()
 
 
-def uninstall(hw: pathlib.Path, dry_run: bool = False) -> Tuple[int, List[str]]:
+def uninstall(hw: pathlib.Path, dry_run: bool = False, force: bool = False) -> Tuple[int, List[str]]:
     target, problems = _check_target(hw)
     if target is None:
         return 0, [f"nothing to remove: {problems[0]}"]
@@ -228,7 +228,13 @@ def uninstall(hw: pathlib.Path, dry_run: bool = False) -> Tuple[int, List[str]]:
     cached = sorted(cache.iterdir()) if cache.is_dir() else []
     lines = []
     picked = [s for _, _, s in daw_port_scripts() if s == SCRIPT_TITLE]
-    if picked or fl_running():
+    running = fl_running()
+    if (picked or running) and not force:
+        why = "FL has our script picked for the KeyLab 88 mk3 DAW input" if picked else "FL is running"
+        return 2, [f"fl-uninstall refused: {why}.",
+                   f'  First set that input back to "{ARTURIA_TITLE}" in Options > MIDI settings and close FL, so FL',
+                   "  never starts looking for a script that is gone. --force removes it anyway."]
+    if picked or running:
         lines.append(f'Before FL next starts, set the KeyLab 88 mk3 DAW input back to "{ARTURIA_TITLE}" in MIDI'
                      f" settings (FL keeps a loaded script running until then).")
     if dry_run:
