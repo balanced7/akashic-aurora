@@ -22,7 +22,10 @@ import sys
 import time
 from pathlib import Path
 
-BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from core.paths import data_root  # noqa: E402
+
+BASE = data_root()
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 JSONL = BASE / "session_logs" / "learnings.jsonl"
 CHRONICLES = BASE / "chronicles"

@@ -251,7 +251,7 @@ def test_full_record_records_engagement(monkeypatch):
 # ---------- 4. wrap surfaces -------------------------------------------------------------------
 
 def test_wrap_draft_has_recall_review_and_gap_sections():
-    sys.path.insert(0, os.getenv("AI_SETUP", "E:\\AI-Setup"))
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import agent_cli
     flips = [{"t": "c:py fixed_thing.py", "credited": 0}]
     injections = [{"alt": "action", "s": ["learn:experiment:hit", "learn:experiment:miss"], "chars": 200},

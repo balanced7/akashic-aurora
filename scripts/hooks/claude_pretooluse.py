@@ -107,30 +107,49 @@ def _emit_context(text: str) -> None:
 
 
 _REPO_MARKERS = ("agent_cli.py", "scripts/", "core/", "docs/", "tests/", "agent/", "config.py")
-_REPO_ANCHORS = ("e:/ai-setup", "e:\\ai-setup", "/e/ai-setup")
+#: This checkout, derived from where the hook stands (as agent/harness/scope.py does) -- the
+#: guard was pinned to one machine's drive and fired on every repo command anywhere else.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _repo_cd() -> str:
+    """How to spell `cd <repo>` in the harness shell: git-bash form for a Windows drive
+    (E:\\AI-Setup -> /e/AI-Setup), the plain path everywhere else."""
+    fwd = _REPO_ROOT.replace("\\", "/").rstrip("/")
+    if len(fwd) > 1 and fwd[1] == ":":
+        return f"/{fwd[0].lower()}{fwd[2:]}"
+    return fwd
+
+
+def _repo_anchors() -> tuple:
+    """Every spelling of the repo root a command may carry, lowercased for matching."""
+    fwd = _REPO_ROOT.replace("\\", "/").rstrip("/").lower()
+    return tuple({fwd, fwd.replace("/", "\\"), _repo_cd().lower()})
 
 
 def _cwd_drift(data) -> str:
     """A shell call whose command is repo-shaped while its cwd is NOT the repo is the
     false-clean class (grep over missing dirs hits nothing, git says 'not a repository') --
-    the harness shell resets to E:\\ whenever it rebuilds, and the old silent out-of-scope
-    no-op made that reset invisible. Anchored commands (cd /e/AI-Setup && ..., absolute
-    repo paths) stay quiet; intentional non-repo work never mentions repo markers."""
+    the harness shell can reset its cwd whenever it rebuilds, and the old silent out-of-scope
+    no-op made that reset invisible. Anchored commands (cd <repo> && ..., absolute repo
+    paths) stay quiet; intentional non-repo work never mentions repo markers."""
     if (data.get("tool_name") or "") not in _SHELL_TOOLS:
         return ""
     ti = data.get("tool_input")
     cmd = (ti.get("command") or "") if isinstance(ti, dict) else ""
     cwd = (data.get("cwd") or os.getcwd())
-    if cwd.replace("\\", "/").lower().rstrip("/").startswith("e:/ai-setup"):
+    root = _REPO_ROOT.replace("\\", "/").rstrip("/").lower()
+    here = cwd.replace("\\", "/").rstrip("/").lower()
+    if here == root or here.startswith(root + "/"):
         return ""
     low = cmd.lower()
-    if any(a in low for a in _REPO_ANCHORS):
+    if any(a in low for a in _repo_anchors()):
         return ""
     if not any(m in cmd for m in _REPO_MARKERS):
         return ""
-    return (f"[cwd-guard] shell cwd is {cwd} -- NOT E:\\AI-Setup. Repo-relative paths in this "
+    return (f"[cwd-guard] shell cwd is {cwd} -- NOT {_REPO_ROOT}. Repo-relative paths in this "
             "command will miss or FALSE-CLEAN (grep of absent dirs reports zero hits). "
-            "Anchor with `cd /e/AI-Setup && ...` -- the shell resets to E:\\ when it rebuilds.")
+            f"Anchor with `cd {_repo_cd()} && ...` -- the shell can reset its cwd when it rebuilds.")
 
 
 def _recall_context(data) -> str:

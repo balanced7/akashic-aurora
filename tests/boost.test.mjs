@@ -17,11 +17,17 @@ import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// The repo root, derived from this file -- not one machine's drive -- and the interpreter each OS
+// ships under: the py launcher on Windows, python3 elsewhere.
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const PYTHON = process.platform === "win32" ? "py" : "python3";
 
 // The frames are built in Python (numpy is there); here we only drive it and assert the JSON.
 const py = `
 import json, sys, numpy as np
-sys.path.insert(0, r"E:/AI-Setup")
+sys.path.insert(0, ${JSON.stringify(ROOT)})
 from arsenal import boost as B
 
 def frame(kind, shape=(180, 240)):
@@ -58,7 +64,7 @@ const dir = mkdtempSync(join(tmpdir(), "boost-test-"));
 try {
   const script = join(dir, "probe.py");
   writeFileSync(script, py, "utf8");
-  const out = execFileSync("py", [script], { encoding: "utf8", cwd: "E:/AI-Setup" });
+  const out = execFileSync(PYTHON, [script], { encoding: "utf8", cwd: ROOT });
   const d = JSON.parse(out);
   const ann = (k) => d[k].annuli;
 

@@ -151,7 +151,7 @@ def write_config() -> None:
 
 
 def tailnet_ip() -> str:
-    exe = shutil.which("tailscale") or r"C:\Program Files\Tailscale\tailscale.exe"
+    exe = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", ""), "Tailscale", "tailscale.exe")
     try:
         out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True,
                              timeout=10).stdout.strip()
