@@ -170,6 +170,10 @@ def arturia():
     sys.modules["device"] = device
     for m in ("KL3Display", "KL3Dispatch", "KL3Buttons", "ScreenId", "IntegrationPatchId", "ParamId"):
         sys.modules.pop(m, None)
+    # Arturia's folder is read-only for us: importing from it must never write a __pycache__ there (an earlier run of
+    # this fixture did, on 2026-10-23 01:24: cpython-311 .pyc files that FL's own Python 3.12 would never write).
+    saved_dont_write = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     sys.path.insert(0, FL_DIR)
     try:
         display_mod = importlib.import_module("KL3Display")
@@ -177,6 +181,7 @@ def arturia():
         yield display_mod.Display(), buttons_mod.CTXButton, sent
     finally:
         sys.path.remove(FL_DIR)
+        sys.dont_write_bytecode = saved_dont_write
         for m, mod in saved.items():
             if mod is None:
                 sys.modules.pop(m, None)

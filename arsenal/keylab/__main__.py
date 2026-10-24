@@ -17,6 +17,9 @@ Verbs:
   monitor              print incoming MIDI (tap a pad to see its note) -- needs the keyboard attached
   vj                   the VJ engine: keys, pads, controls, the beat, energy, hits and chords as live events
                        (SSE on 127.0.0.1:8794) for a visual page; the page can light the pads back
+  fl-install | fl-uninstall | fl-status
+                       our own FL Studio script for the DAW port (FL keeps the transport, everything else is ours):
+                       copy it into FL's Hardware/Aurora KeyLab folder, remove it, or check it (flscript.py)
 
 Global: --port SUBSTR picks the output by name (default: first containing 'keylab'); --dry-run prints bytes, sends nothing.
 """
@@ -891,7 +894,46 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--secs", type=float, help="stop after N seconds (default: until Ctrl-C)")
     p.add_argument("--quiet", action="store_true", help="print only warnings")
     p.set_defaults(func=cmd_vj, dry_run=False)
+
+    hw_help = "FL's Hardware folder (default: <Documents>/Image-Line/FL Studio/Settings/Hardware)"
+    p = sub.add_parser("fl-install", help="copy our FL script (transport only) into FL's Hardware/Aurora KeyLab folder")
+    p.add_argument("--hardware-dir", help=hw_help)
+    p.add_argument("--dry-run", action="store_true", help="say what would be written; write nothing")
+    p.set_defaults(func=cmd_fl_install)
+    p = sub.add_parser("fl-uninstall", help="remove our FL script folder (only if it holds only our files)")
+    p.add_argument("--hardware-dir", help=hw_help)
+    p.add_argument("--dry-run", action="store_true", help="say what would be removed; remove nothing")
+    p.add_argument("--force", action="store_true",
+                   help="remove even while FL runs or has our script picked (FL then looks for a script that is gone)")
+    p.set_defaults(func=cmd_fl_uninstall)
+    p = sub.add_parser("fl-status", help="our FL script: installed? same bytes as the repo? FL running? which "
+                                         "script FL has on the DAW input?")
+    p.add_argument("--hardware-dir", help=hw_help)
+    p.set_defaults(func=cmd_fl_status, dry_run=False)
     return ap
+
+
+def _fl_verb(work, args, *extra) -> int:
+    from . import flscript as F
+    code, lines = work(F.hardware_dir(args.hardware_dir), *extra)
+    for line in lines:
+        print(line)
+    return code
+
+
+def cmd_fl_install(args) -> int:
+    from . import flscript as F
+    return _fl_verb(F.install, args, args.dry_run)
+
+
+def cmd_fl_uninstall(args) -> int:
+    from . import flscript as F
+    return _fl_verb(F.uninstall, args, args.dry_run, args.force)
+
+
+def cmd_fl_status(args) -> int:
+    from . import flscript as F
+    return _fl_verb(F.status, args)
 
 
 def tracker_files() -> dict:

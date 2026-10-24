@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 43c32050. A bound you discover by collision is not awareness -- this sheet
+> Derived at 63548bae. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (382 numeric constants)
+## Mechanical bounds (383 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -336,6 +336,7 @@ Class: reference
 | `BUILD_MAX_MS` | 4,000 | arsenal/practice.py | a window this short whose notes all ring on under one pedal into the next, which only adds |
 | `BULLET_MIN` | 6 | scripts/checkers/check_bus_atom_pointers.py | or this many list items |
 | `BURST_CAP_S` | 150 | arsenal/shaders/render.py |  |
+| `BURST_LIMIT` | 12 | arsenal/keylab/fl/device_AuroraKeyLab.py |  |
 | `CACHE_TTL` | 3,600 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine.py | 1 hour |
 | `CACHE_TTL` | 3,600 | research/in-flight/t342/dead-modules/_archive__python_old__vision_engine_comfy.py |  |
 | `CACHE_TTL` | 300 | research/in-flight/t342/dead-modules/core__foundation__fast_cache.py | 5 minutes default |
