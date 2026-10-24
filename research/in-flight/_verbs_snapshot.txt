@@ -5,8 +5,11 @@ timeline             one chronological view across domains (events + git + task 
 discover             list every verb + its purpose (the self-describing door)
 learn                record a lesson
 wish                 file an ergonomics wish to docs/WISHLIST.md (one command, auto-numbered, W## echoed back)
+wish-curate          the curation half of the wishlist charter: fold / keep / DECLINE an open wish (read-only with no --id)
+web                  the house web door: fetch a URL (cleaned+raw, etag-cached, receipted, fenced UNTRUSTED) or search
 ask                  ask a helper model ONE question, synchronously (no seat, no lock, no mailbox -- it dies in the call)
 discord              watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists
+gateway              the INBOUND Discord ear (bifrost_runner_discord.py): status = is it running; restart = kill+relaunch it detached (managed resuscitation, gated like any mutation)
 sift                 the NESTED ask (T217): evidence -> hat fan -> curator pairs -> DISSENT FIRST. Use it when the answer needs more reading than fits in one context and you want the disagreements, not a summary
 friction             collaboration-friction readout from existing evidence (T196a): episodes, dead-rate, time-to-settle. Read-only
 report               scaffold a visual report with the design kit inlined (T275)
@@ -19,6 +22,7 @@ list                 list ALL lessons in memory
 recall-at            recall-at-action: relevant lessons/locks for a path or command
 recall-feedback      mark a recalled lesson useful/noise (teaches recall what helps)
 repeat               record that a lesson which ALREADY EXISTED was violated anyway (T253 evidence); --report shows how long after learning each one was broken
+recall-prevention    S2: what recall PREVENTED (stage-log contrastive record) -- observation only, never a grade
 recall-curate        bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps)
 audit                belief-vs-state audit: labeled MATCH/DRIFT rows over durable beliefs vs ground truth (v1: VERBS registry<->parser)
 injections           the injection ledger: what recall pushed into contexts + cost
@@ -27,6 +31,7 @@ fleet                local-model dispatch: roster (list) + capability select + d
 triage               sharpening S1: lessons ranked by measured value (protect / cost-no-return / noise) for review
 recall-counters      sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies)
 graduate             retire a lesson from recall surfacing -- automation now enforces its rule
+sha                  resolve a pre-rewrite commit SHA to the commit it became -- three rewrites have moved ours (T410)
 note                 record a durable project note (write-once; re-note same title to update)
 notes                list active project notes (--project regenerates chronicles/memory.md)
 wrap                 distill this session (commits+lessons+notes) into a DRAFT where-we-are note
@@ -65,9 +70,20 @@ bifrost-nudge        targeted fidelity signal to ONE peer (interrupt|steer|infor
 seat-identity        declare/show THIS session's seat id (binding beats the shared env)
 lock                 claim an advisory path-lock (C2)
 unlock               release your advisory path-lock
+focus                check in/out: attribute THIS session's tool calls to a task
 locks                show who holds which advisory path-locks
 bifrost-fetch        fetch a spilled payload by content-addressed ref (the retrieval half of T113's oversize-send spill)
 captions             YouTube captions -> clean readable text on your Desktop (captions ONLY, never video; named captions not transcript -- transcripts are dead sessions here)
+reply                answer the operator in ONE argument, with an honest delivery verdict (the ordering trap made unrepresentable)
+boop                 the smallest verb in the house: zero arguments, always answered
+find                 find a file BY NAME anywhere on the machine (Search Everything / es.exe)
+manual               the manuals shelf: search reference manuals (Apple HIG, One UI, ...) as labelled passages; ingest a folder; list what is shelved
+shell-home           where the shell is now + where fresh harness shells land (cwd-guard's other half)
+sweep                the awareness snapshot: bus, bench, health, moved -- one bounded read-only block
+orient               VR/GPS scene: awareness + typed focus + landmarks + return tether, read-only and renderer-neutral
+shadow               zero-effect intent shadow: preview one typed ToolBox action before reality changes
+college              source packet -> immutable authored lecture -> independent claim audit -> teach-back -> append-only errata (records the chain; does not browse or call a model)
+ground               typed evidence for verb:<name>, or bounded recovery evidence for seat:<id> --continuity
 eye                  THE EYE: the transcript plane as terrain -- ingest (incremental, coverage-honest), find (phrase, S0; the grammar lands S1), get (address -> verbatim L0)
 capture              full-fidelity bus read: unwrap a message by stream id (or last N from an agent) + optional verbatim-persist (the 5x-hand-written extractor, now a verb)
 alias                toolbelt authoring: mint/list/retire agent-authored verb compositions (sugar-only; honesty labels; quota)
@@ -80,6 +96,7 @@ clobber-scan         W47 (kimi's design): flag unconditional writes to shared co
 tally                W48 (kimi): blind-counter consensus matrix -- scan research/ for counters naming an opening, align their q-ids, print agree/conflict at a glance
 pulse                W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only
 reentry              T341: the operator re-entry render, addressed to Daniil -- what moved (measured), one open door (his words verbatim + eye address), his move (no counts, no ages). Assembly, not charge. READ-only
+glance               T079/T060: bounded read-only WorldSnapshot projections over named authorities
 secret               the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show.
 flightdeck           W25 (deepseek): cockpit one-pager — fleet at a glance. Composes doctor + pulse + lane-health + locks + commits. --agent drills one seat
 stand-down           yield this session's consumer seat PERMANENTLY so a successor can take it immediately (retiring a seat)
