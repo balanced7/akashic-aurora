@@ -116,10 +116,11 @@ def test_session_start_outside_scope_gets_no_map(monkeypatch):
     assert ctx.build_autoboot_context("/somewhere/else", "claude") == ""
 
 
-#: Read the MCP server in a child process. Importing ai_setup_mcp installs its thread-local stdout
-#: proxy around whatever sys.stdout is at that moment; imported inside a test, that is pytest's
-#: per-test capture, and every later in-process MCP call writes into a dead buffer
-#: (test_t060's CLI/MCP comparison read an empty string after this test until it moved out).
+#: Read the MCP server in a child process. Importing ai_setup_mcp swaps sys.stdout for the
+#: server's thread-local proxy, once. Imported inside a test, pytest puts its own sys.stdout back
+#: when that test ends, so the proxy is gone for the rest of the run: every later in-process MCP
+#: call arms a proxy nothing writes through and returns "(no output)" (test_t060's CLI/MCP
+#: comparison read an empty string after this test until it moved out).
 #: The probe writes to sys.__stdout__: the proxy routes a plain print from an unarmed thread to
 #: stderr by design, so the JSON-RPC channel can never carry a stray line.
 _MCP_PROBE = """
