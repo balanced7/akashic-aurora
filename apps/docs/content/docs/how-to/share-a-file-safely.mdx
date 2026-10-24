@@ -1,0 +1,18 @@
+---
+title: Share a file safely
+description: Claim an advisory lock so two live agents don't overwrite each other's edits.
+---
+
+No agent owns a file here. When two agents are live at once, the one about to edit a shared path claims a lock first.
+
+```bash
+aurora lock my_agent core/comm/bus.py      # "I'm editing this now"
+aurora locks                               # who holds what
+aurora unlock my_agent core/comm/bus.py    # release when done
+```
+
+- A lock lasts 15 minutes by default. Pass `--ttl` in seconds to change that. Claiming it again refreshes it.
+- If you crash, the lock expires on its own. Nobody stays blocked.
+- Use a stable agent id, for example with `AKASHIC_AGENT_ID`. Locks and handoffs then point at the right agent.
+
+The lock is advisory: it works because cooperating agents check it. In Claude Code, the edit hook checks it for you and blocks an edit to a path someone else holds. See [Locks](/docs/concepts/coordination/locks).

@@ -1,0 +1,52 @@
+---
+title: Cite or confess
+description: Every claim carries its evidence, or says out loud that the evidence is missing.
+---
+
+Every claim should point at its proof. If you have no proof, say so. A stated gap is cheaper than a confident guess. That is the whole rule.
+
+<Callout type="warn" title="Mostly a habit">Only the fence workspace checks this by machine. Everywhere else it is a rule you follow by hand.</Callout>
+
+## Why it exists
+
+Models make up papers, numbers and file paths that sound right. Once, the project called a benchmark new when one like it already existed. In one fence review, a model's half of the review named files that did not exist, and the round died. Each time, a plain "I don't know" would have cost less.
+
+## How it works
+
+The rule takes a different shape in each place you make claims.
+
+- **Research notes.** Each claim carries one of four tags, shown in the table below.
+- **Web sources.** If you did not fetch a link in this session, you mark it unverified.
+- **Helper models.** When you give an [ask](/docs/concepts/method/ask-and-fan) some files, the prompt tells the helper to cite `file:line`. It must also say when it infers. The `findings` preset adds a `BLIND:` line to each answer. There the helper names what its evidence cannot show.
+- **Fence reviews.** Here a machine checks. In a [fence review](/docs/concepts/method/fence-review), every verdict line needs one confidence tag: `[CERTAIN]`, `[DESIGN]`, `[INFERRED]` or `[UNCERTAIN]`. The workspace refuses to seal a half without them. Then `fence pv` (path verification) checks every `file:line` the halves cite against the repo. The reconciler must name each citation the check could not find, and drop the section that used it. The workspace checks only the naming. It will not seal until the text names every missing citation.
+
+The four research tags:
+
+| Tag | Meaning |
+| --- | --- |
+| `[M]` | Measured here, with a named receipt |
+| `[R]` | An outside source, named |
+| `[C]` | Contested |
+| `[X]` | Believed, but not shown |
+
+## How you use it
+
+```bash
+aurora ask --preset findings --lens "What breaks?" --with core/x.py
+aurora fence pv <fence_id>
+```
+
+## Don't confuse it with
+
+- **Design contract tags** — a design draft also uses `[M]`, but there it means a clause you can measure. Same letter, other meaning.
+- **Fence confidence tags** — `[CERTAIN]` and the rest rate how sure a reviewer is. The research tags say where a claim came from.
+
+## How it connects
+
+- **Built on:** [Ask and fan](/docs/concepts/method/ask-and-fan)
+- **Used by:** [Fence review](/docs/concepts/method/fence-review), [Union, not consensus](/docs/concepts/method/union-not-consensus)
+- **Tools that help:**
+  - [Web door](/docs/concepts/tools/web-door) keeps fetch receipts.
+  - [The Eye](/docs/concepts/narrative/the-eye) finds transcript lines you can quote.
+  - [Rewrite map](/docs/concepts/tools/rewrite-map) turns an old commit id into the commit it became.
+- **Part of:** [The method](/docs/concepts/method)

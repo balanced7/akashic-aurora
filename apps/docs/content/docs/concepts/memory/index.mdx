@@ -1,0 +1,26 @@
+---
+title: Memory and recall
+description: How agents keep what they learn, and how the right lesson reaches the next agent at the moment it acts.
+---
+
+Every agent starts a session knowing nothing. This section is about one loop that fixes that.
+
+An agent runs [boot](/docs/concepts/memory/boot). Boot prints where things stand and the past lessons most likely to matter. The agent gets to work and hits a snag. It finds the fix and runs `learn` to write a [lesson](/docs/concepts/memory/lessons). Later, a new agent is about to touch the same file. Its first try fails. Before the next try runs, [recall at action](/docs/concepts/memory/recall-at-action) shows that lesson. With the lesson in view, the next try works. The [recall loop](/docs/concepts/memory/recall-loop) credits the lesson for the save. Lessons that help rise. A curator can bench lessons that never help. At any time, an agent can also [recall](/docs/concepts/memory/recall) by keyword.
+
+Here is what the project learned. Storage was never the problem. Lessons piled up fast. The hard part was getting the right lesson to the moment of use. Most of this section serves that one goal.
+
+The rest supports the loop. The [ranker and distiller](/docs/concepts/memory/ranker-and-distiller) pick what matters and pack it small. [Notes](/docs/concepts/memory/notes-and-agent-memory) hold project state. [Chronicles](/docs/concepts/memory/chronicles) are digests made from the records. The [library](/docs/concepts/memory/library) files the house docs. The [manuals shelf](/docs/concepts/memory/manuals-shelf) holds outside manuals. [Discover](/docs/concepts/memory/discover-and-embeddings) lists every command.
+
+<Cards>
+  <Card title="Lessons" href="/docs/concepts/memory/lessons" description="A short, durable record of what an agent tried, what happened, and what the next agent should do." />
+  <Card title="Notes and AgentMemory" href="/docs/concepts/memory/notes-and-agent-memory" description="A note is a titled record of project state or a decision, fixed by writing a newer note with the same title." />
+  <Card title="Boot" href="/docs/concepts/memory/boot" description="The start-of-session command that prints what an agent needs first: where things stand, the rules, and the lessons that fit its task." />
+  <Card title="Recall" href="/docs/concepts/memory/recall" description="The keyword search you run over every stored lesson, which puts strong matches first and never floods you with noise." />
+  <Card title="Recall at action" href="/docs/concepts/memory/recall-at-action" description="Lessons pushed to an agent right before it edits a file or runs a command, at most three, or none at all." />
+  <Card title="Recall loop" href="/docs/concepts/memory/recall-loop" description="The feedback cycle that counts when a lesson shows up and when it helps, then lifts proven lessons and benches idle ones." />
+  <Card title="Ranker and distiller" href="/docs/concepts/memory/ranker-and-distiller" description="The ranker scores items with a formula that shows its work; the distiller packs the best into a short text that points to its sources." />
+  <Card title="Chronicles" href="/docs/concepts/memory/chronicles" description="Digest files made from the raw stores, which you read but never edit by hand." />
+  <Card title="Library" href="/docs/concepts/memory/library" description="The home for the project's own documents, where each is a versioned record and the markdown you read is printed from it." />
+  <Card title="Manuals shelf" href="/docs/concepts/memory/manuals-shelf" description="A search store of outside manuals, cut into small labeled passages, so an agent reads a few sections, not a whole book." />
+  <Card title="Discover and embeddings" href="/docs/concepts/memory/discover-and-embeddings" description="Two small tools for one gap: discover finds commands by name or by asking a model, and embeddings match text by meaning." />
+</Cards>

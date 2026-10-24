@@ -1,0 +1,42 @@
+---
+title: Ledger
+description: "The ordered record of what HAPPENED: you add events at the end and read them back from a bookmark."
+---
+
+The Ledger answers one question: what HAPPENED, and in what order? You add events to the end of a named stream. Later, any reader can read them back from a bookmark, called a cursor.
+
+Think of a bank. The [Store](/docs/concepts/foundations/store) is your balance. The Ledger is your statement: every deposit and every withdrawal, in order. A ship's logbook works the same way. You only write at the bottom. Each reader picks up after the last line they read. So the pair stays simple: the Store holds what IS, and the Ledger holds what HAPPENED.
+
+## Why it exists
+
+"What is X now?" and "what happened, in order?" are two different questions. Redis itself treats them in two ways: keys for one, streams for the other. One interface for both would make every call unclear. So events got their own part, a twin of the Store.
+
+The Ledger used to be a class named `Bus`. But nothing pushed messages anywhere. Readers pulled. The name lied, so it changed. That rename started the [naming rules](/docs/concepts/foundations/naming).
+
+## How it works
+
+- It has two verbs. `emit` adds an event to a stream and returns its id. `consume` returns the events after an id you give it.
+- An event is a plain dictionary. The Ledger turns it into text and back.
+- The id is your cursor. Keep the last one you read, and pass it in next time. Ids from one engine do not compare with ids from another.
+- By default each event goes to a file and to Redis. See [hybrid storage](/docs/concepts/foundations/hybrid-storage).
+- In Redis, a stream is a Redis Stream. On disk, it is one JSONL file per stream. An OS file lock lets many processes add rows safely.
+- That lock came from a real loss. The old code rewrote the whole file on each write. It dropped 410 of 18,170 recall outcome records.
+- `emit` never raises. On failure it logs and returns the newest id already on disk. It avoids returning `"0"`, which would make a reader replay the whole stream.
+- A stream can have a size cap, `maxlen`. Past the cap, the oldest rows go. The [append-only record](/docs/concepts/foundations/append-only-record) page explains what that means for history.
+
+## How you use it
+
+No command touches the Ledger head-on. You meet it through `events`, which reads the raw firehose. You also meet it through `handoff`, which writes to the signal ledger. See [signals](/docs/concepts/foundations/signals).
+
+## Don't confuse it with
+
+- **Store** — current values by name. No order, no history.
+- **[Bus](/docs/concepts/bifrost/bus)** — Bifrost's live mail. It pushes messages into each agent's inbox, and nobody keeps them. The Ledger keeps its rows, and readers pull.
+- **[Task ledger](/docs/concepts/coordination/task-ledger)** — a record of who owns which task. Same word, different thing.
+- **[Chronicles](/docs/concepts/memory/chronicles)** — curated highlights made from the Ledger. They are not the raw log.
+
+## How it connects
+
+- **Built on:** [Hybrid storage](/docs/concepts/foundations/hybrid-storage), [Fail soft](/docs/concepts/foundations/fail-soft)
+- **Used by:** [Signals](/docs/concepts/foundations/signals), [Promoter](/docs/concepts/bifrost/promoter), [Narrative spine](/docs/concepts/narrative/narrative-spine), [Chronicles](/docs/concepts/memory/chronicles)
+- **Part of:** [Foundations](/docs/concepts/foundations); its twin is the [Store](/docs/concepts/foundations/store)
