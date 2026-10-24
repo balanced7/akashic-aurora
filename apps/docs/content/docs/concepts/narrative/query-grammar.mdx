@@ -1,0 +1,39 @@
+---
+title: Query grammar
+description: One shared rule for how read commands take filters, handle time, and admit when an answer is partial.
+---
+
+The query grammar is one shared rule for every read command. It fixes the names of the filters. It fixes how time works. And it makes every answer say when it is incomplete. Think of a library form with the same fields at every branch, and a box you must tick when the shelf was half empty.
+
+<Callout type="warn" title="Only the Eye uses it so far">The contract is final, but only [the Eye](/docs/concepts/narrative/the-eye) follows it today. Recall, notes, events and story are next in line. `recall` still uses `--agent` where the grammar says `who`.</Callout>
+
+## Why it exists
+
+The store can answer six kinds of question: who, what kind, related to what, as of when, where, and which exact phrase. Each command offered only one or two of these, with its own names. Worse, an empty answer could hide a mistake. One outside service returned nothing for the month `2025-03`. Yet it had a record for `2025-03-01`. The empty result looked like a real answer. It was a silent failure.
+
+## How it works
+
+- **The time rule.** A row counts only if the system knew it by the date you ask about. Each row carries its `known_at` time. Each request carries its `as_of` time. A row is eligible when `known_at` is on or before `as_of`.
+- **Filters.** The names are `who`, `kind`, `edge`, `edge_to`, `since`, `task`, `file`, `as_of` and `q`. All filters must match. The phrase filter `q` only narrows what the others found. It is the fallback, never the main tool. The `edge` and `edge_to` filters pick records by the kind of link and the record at its far end. The `since` filter asks what changed after a date.
+- **Fail loud.** A badly formed filter is an error that shows the shape it expected. Zero rows is never the answer to a bad filter.
+- **The degraded flag.** Every answer carries `degraded`, plus a reason, when the view is partial. A cold index, a skipped filter, a missing shard or a timeout all count. A missing warning must mean one thing only: the answer is whole.
+- **Link history.** Links record who made them, when and how. Old links lack these fields. A filter on them must flag the answer as degraded, not drop rows in silence.
+
+### What the code does today
+
+The Eye's `find` command follows the grammar, with some gaps against the written contract:
+
+- A bare date such as `2026-08-10` means the **end** of that day, UTC, inclusive. The contract says midnight. The code wins.
+- A bad date fails with a message that shows the right shape.
+- `--kind` takes any text. An unknown kind returns zero rows, not an error.
+- The contract describes a `strict=false` switch. It does not exist yet.
+
+## Don't confuse it with
+
+- **A query language** — there is no syntax to parse, no plain-English search and no embeddings. It is a contract for filter names and answer shape.
+- **"Degraded" in [Bifrost](/docs/concepts/bifrost)** — there it means a seat lost some powers. Here it means the answer is partial.
+
+## How it connects
+
+- **Built on:** [Append-only record](/docs/concepts/foundations/append-only-record) (its two clocks and supersession), [Store](/docs/concepts/foundations/store).
+- **Used by:** [The Eye](/docs/concepts/narrative/the-eye); planned for [Recall](/docs/concepts/memory/recall) and the [Narrative spine](/docs/concepts/narrative/narrative-spine).
