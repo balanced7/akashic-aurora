@@ -1,0 +1,51 @@
+---
+title: Signals
+description: "Two trails of agent activity: a raw firehose of everything, and a signal ledger of a few fixed kinds of news."
+---
+
+Agents leave two trails on the [Ledger](/docs/concepts/foundations/ledger). The firehose, or event log, records everything they do: tool calls, edits, commands and notes. The signal ledger records a few fixed kinds of news, such as "I'm stuck" or "I hand this off".
+
+A building has a camera tape and a sign-in book. The tape catches everything. The book has a few kinds of entry, and each one means something.
+
+## Why it exists
+
+The [narrative spine](/docs/concepts/narrative/narrative-spine) keeps only the important moments. But an agent sometimes needs to drill down to what took place. The firehose fills that gap. Raw events got their own stream, so their open list of kinds stays out of the signal stream. Signals came first, as a light way for agents to announce work.
+
+## How it works
+
+**The firehose.**
+
+- `capture` adds an event to `events:raw` and to the agent's own stream. The shared stream keeps the newest 100,000 events. Each agent's stream keeps 10,000.
+- The `kind` field is open: `tool_call`, `file_edit`, `command`, `note` and more.
+- Each event has a pointer, `event:<stream>:<id>`. A beat, one moment in the [narrative spine](/docs/concepts/narrative/narrative-spine), can use it as its `source`. If the event has aged out of its capped stream, a lookup says so.
+- An index in the [Store](/docs/concepts/foundations/store) sorts events by time, so a search over a time window stays fast. You can rebuild it from the Ledger.
+
+**Signals.**
+
+- "Signal" is the general kind, the genus. It has eight species: action, decision, blocker, handoff, completion, learning, insight and context. That list does not change.
+- `AgentSignalLedger` wraps a Ledger. It writes each signal to the agent's own stream and to the shared `agent:events` stream.
+- `SignalEmitter` gives agents plain verbs, such as `emit_blocker_preventing_progress`. It never touches Redis.
+- Today `handoff` is the main live user. The architecture docs call signals "the older domain layer".
+
+## How you use it
+
+```bash
+aurora events --search "redis down"
+aurora events --around <ref> --window 30m
+aurora events --get event:<stream>:<id>
+aurora handoff <you> --to <agent> --task "..."
+aurora handoff <you> --list
+```
+
+## Don't confuse it with
+
+- **[Bus](/docs/concepts/bifrost/bus)** — live mail between agents. Nobody keeps it.
+- **Beat** — one important moment in the story. The firehose is the raw detail under it.
+- **`kind` and `signal_type`** — an event's `kind` is an open list. A signal's type is a closed list of eight.
+- **`AgentSignalLedger`** — one use of a Ledger, not the Ledger itself.
+
+## How it connects
+
+- **Built on:** [Ledger](/docs/concepts/foundations/ledger), [Store](/docs/concepts/foundations/store)
+- **Used by:** [Narrative spine](/docs/concepts/narrative/narrative-spine), [Handoff](/docs/concepts/bifrost/handoff), [Promoter](/docs/concepts/bifrost/promoter), [Recall loop](/docs/concepts/memory/recall-loop)
+- **Part of:** [Foundations](/docs/concepts/foundations); named by the [genus rule](/docs/concepts/foundations/naming)

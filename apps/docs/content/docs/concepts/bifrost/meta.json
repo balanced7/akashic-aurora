@@ -1,0 +1,15 @@
+{
+  "title": "Bifrost",
+  "pages": [
+    "bus",
+    "seats",
+    "wake",
+    "promoter",
+    "handoff",
+    "runners",
+    "liveness",
+    "control-plane",
+    "console",
+    "bridge"
+  ]
+}

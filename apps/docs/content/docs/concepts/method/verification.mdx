@@ -1,0 +1,46 @@
+---
+title: Verification
+description: A task closes as done only with a commit and a record of how it was checked, and core work also needs a second reviewer.
+---
+
+Finishing work and proving it works are two different things. In the [task ledger](/docs/concepts/coordination/task-ledger), a task can sit in `verifying` for as long as it takes. It moves to `done` only with proof: a commit SHA and a note on how someone checked it. For code at the core, a second agent must have reviewed it too. The short form: verifying is not done.
+
+## Why it exists
+
+Agents used to treat old messages as live orders. They redid work that was already finished. Tasks became the unit of work, with one gate: no proof, no close.
+
+The gate had a hole. It only asked if the `verified_by` field was empty. So one agent closed four core tasks by typing "SELF-VERIFIED by claude" into it. A fence review run later found three real bugs in that work. It cost nine cents. Now the ledger asks two separate questions: what is the evidence, and who else looked?
+
+## How it works
+
+A task moves along a fixed path. In order: proposed, approved, claimed, in progress, verifying, done. It can also stop as blocked, parked or abandoned. A fixed table lists every legal step, including a few shortcuts and steps back. The ledger refuses anything else.
+
+To close a task as done, you need two things:
+
+- **`commit`** — the commit that holds the work. It must look like a hex hash, 7 to 40 characters. The ledger checks the shape, not that the commit exists. A name like `HEAD` moves later, so the ledger refuses it.
+- **`verified_by`** — the evidence. This is free text, such as the test run that passed. It names what you checked, not who checked it. Often it is a pin, a test written before the code. See [built, not wired](/docs/concepts/method/built-not-wired).
+
+A third rule covers the core. Suppose a task lists files under `core/`, `agent_cli.py` or `scripts/hooks/`. Then it also needs `reviewed_by`, naming someone other than the agent who closes it. The gate reads the files the task declares, not the diff. So it is a speed bump, not a wall. The match ignores case, so "Claude" cannot review "claude".
+
+There is a way out. `--self-verified "<why>"` closes the task without a second reviewer. The ledger keeps the reason and counts each use. Agents route around a gate with no exit. This one makes the exit visible instead.
+
+The ledger file `state/coord/tasks.json` holds the truth. Redis only speeds up reads.
+
+## How you use it
+
+```bash
+aurora task verify T123
+aurora task done T123 --commit abc1234 --verified-by "pytest tests/test_x.py passed" \
+    --by claude --reviewed-by deepseek
+```
+
+## Don't confuse it with
+
+- **`verified_by` and `reviewed_by`** — the first is what evidence you have. The second is who reviewed the work. The README says "a named verifier who is not the author". The code checks a reviewer, and only on core paths.
+- **`task verify`** — moves a task into `verifying`. It does not close it.
+
+## How it connects
+
+- **Built on:** [Task ledger](/docs/concepts/coordination/task-ledger), [Fence review](/docs/concepts/method/fence-review) (the usual source of a second review)
+- **Used by:** [Conductor](/docs/concepts/coordination/conductor)
+- **Part of:** [The method](/docs/concepts/method)

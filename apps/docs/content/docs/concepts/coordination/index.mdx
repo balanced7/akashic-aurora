@@ -1,0 +1,24 @@
+---
+title: Coordination
+description: How many agents share one repo without redoing work, clashing on files, or doing what they may not do.
+---
+
+Many agents work in the same repo at the same time. They need to know what work exists, who owns it, and who is editing which file. Aurora does not make them chat it out. They read and write shared marks instead.
+
+The [task ledger](/docs/concepts/coordination/task-ledger) is the list of work. Each task has a status and an owner. [Locks](/docs/concepts/coordination/locks) say who is editing a file right now. Both follow one idea, [stigmergy](/docs/concepts/coordination/stigmergy): leave a mark, and let others read it.
+
+The [conductor](/docs/concepts/coordination/conductor) runs the ledger's commands. It also holds short rounds where agents post plans before they start.
+
+The rest answers who and how. [Fleet and residents](/docs/concepts/coordination/fleet-and-residents) say who is in the fleet and which seats have earned a name. [Charters and briefs](/docs/concepts/coordination/charters-and-briefs) say what each seat is for and what job it has now. [Trust](/docs/concepts/coordination/trust) decides what each seat may do. [Doors](/docs/concepts/coordination/doors) are how an agent reaches it all. [Doctrine](/docs/concepts/coordination/doctrine) is the written law the fleet works by.
+
+<Cards>
+  <Card title="Task ledger" href="/docs/concepts/coordination/task-ledger" description="The one shared list of work, where each task has a status, an owner, and the proof needed to close it." />
+  <Card title="Locks" href="/docs/concepts/coordination/locks" description="Short claims on a file that other agents respect, plus a write that fails if someone changed the value first." />
+  <Card title="Stigmergy" href="/docs/concepts/coordination/stigmergy" description="Agents work together by leaving marks in shared places and reading them, not by talking to each other." />
+  <Card title="Conductor" href="/docs/concepts/coordination/conductor" description="The code that runs your task commands on the task ledger, plus short rounds where agents post plans before they start." />
+  <Card title="Fleet and residents" href="/docs/concepts/coordination/fleet-and-residents" description="The fleet is every agent seat in one install; a resident is a seat that has earned a name, backed by its own lessons." />
+  <Card title="Charters and briefs" href="/docs/concepts/coordination/charters-and-briefs" description="A charter is a seat's standing contract; a brief is a one-off work order handed to a seat." />
+  <Card title="Trust" href="/docs/concepts/coordination/trust" description="Each agent id maps to a set of allowed actions, and an id Aurora does not know may only read." />
+  <Card title="Doors" href="/docs/concepts/coordination/doors" description="The entry points an agent uses to reach the system's verbs, kept in step by a check." />
+  <Card title="Doctrine" href="/docs/concepts/coordination/doctrine" description="The written rules for how the fleet leads, plans and works, and the few that boot shows every seat." />
+</Cards>

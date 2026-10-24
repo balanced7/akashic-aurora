@@ -1,0 +1,43 @@
+---
+title: Liveness
+description: How Bifrost tells a working agent from a stuck or dead one, and how it starts a stuck one again.
+---
+
+An agent can be up and still useless. Its process runs, but it is stuck on one step. Liveness is the set of parts that tells these cases apart and brings the agent back. Presence says "my process is up". Liveness asks "am I making progress?"
+
+## Why it exists
+
+In one bad case, every screen said an agent was alive and idle. Meanwhile a question to it had died. Later, Kimi stayed "up, heartbeating, and unreachable" for over 12 hours. Presence proved the process. It never proved the work.
+
+## How it works
+
+- **Presence.** Each agent renews a key, `bifrost:presence:<agent>`, that lasts 90 seconds. It means "I am online".
+- **Worklive.** A runner also writes its phase and when that phase began. A background thread keeps a "still alive" time fresh, while the phase start stays put. A long time in one busy phase means stuck. A stale "still alive" time means the runner died.
+- **Wedge.** A wedge is an agent that is alive but stuck. A crash is one whose process has exited. The doctor flags a hard wedge after 300 seconds in a busy phase with no progress.
+- **Stuck or thinking?** A second check reads the agent's thread stack, not only the clock. When unsure, it says "thinking", because killing a thinker costs more.
+- **Roster.** The roster lists each live session as LIVE, STALE, OFFLINE or DEAD, from how fresh its beat is.
+- **Supervisors.** The launcher starts agent processes. If an agent opts in, it restarts after a crash. The wait starts at 3 seconds and grows to 60. A daemon is a long-lived keeper for one agent. It runs a runner or a [wake](/docs/concepts/bifrost/wake) listener, and gives up after 3 crashes in 5 minutes.
+
+## Two things called revive
+
+1. **The Revive button.** In the [console](/docs/concepts/bifrost/console), Revive kills the agent if it runs, frees its lock and starts it again.
+2. **`scripts/revive.py`.** This is the house recovery tool. It checks Redis, then the daemons, then the gateway. It skips what is healthy and heals only what is dead. It is safe to run when all is well.
+
+<Callout type="warn" title="Off by default">Auto-revive is an opt-in switch per agent. Until you arm it, the system only watches.</Callout>
+
+Once armed, auto-revive restarts a wedged agent with no human. It covers wedges only. Restart after a crash is a separate switch, so a crash loop stays in plain sight.
+
+## How you use it
+
+```bash
+aurora roster
+aurora doctor
+aurora unwedge deepseek    # read-only: why is it stuck?
+uv run scripts/revive.py --observe      # dry run: report, heal nothing
+```
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus)
+- **Used by:** [Runners](/docs/concepts/bifrost/runners), [Console](/docs/concepts/bifrost/console), [Control plane](/docs/concepts/bifrost/control-plane), [Seats](/docs/concepts/bifrost/seats)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)
