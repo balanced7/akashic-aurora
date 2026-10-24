@@ -10,7 +10,8 @@ py -m arsenal.keylab <verb> [args]      # every verb takes -h
 ## Before anything lights: put the keyboard in DAW mode
 Press **Prog + the 6th screen button**, and set the pad mode to the middle option (**DAW**; left is Arturia
 Program, right is Default). No SysEx can switch modes. Outside DAW mode the pads sit at their white default and
-ignore colour commands. Close FL Studio first: its Arturia script writes the same pads and screen.
+ignore colour commands. Close FL Studio first, or switch its KeyLab DAW input to our own script (`fl-install`, below):
+Arturia's script writes the same pads and screen.
 
 ## Why / provenance
 The protocol was read from **Arturia's own FL Studio script** (readable Python at
@@ -58,6 +59,7 @@ Every row carries a dated receipt and its class: **eyes** = Daniel watched the d
 | `bench` | host-to-driver send latency (mean/p50/p99) and sustained rate |
 | `monitor` | print incoming MIDI (tap a pad, move a fader) |
 | `probe [--only steps] [--list]` | the guided W0 hardware session: the LCD asks, you answer on the pads (1 yes, 2 no, 4 skip); receipts land in `state/arsenal/keylab/receipts/` |
+| `fl-install [--dry-run] [--hardware-dir D]` · `fl-uninstall [--dry-run]` · `fl-status` | our own FL Studio script for the DAW port (below): copy `fl/device_AuroraKeyLab.py` into FL's `Settings/Hardware/Aurora KeyLab/` (refused if that folder holds anything not ours; no other folder is ever opened, Arturia's included), remove it (only our files, then the empty folder), or check it (installed? same bytes as the repo? FL running? which script FL saved for the KeyLab DAW input, read-only from the registry) |
 | `vj [--port 8794] [--engine a] [--chords sense\|basic] [--no-leds] [--replay-midi FILE] [--replay-audio FILE\|demo] [--loop] [--rate-limit]` | the VJ engine (`vj.py`): keys, pedal, pads (DAW mode or the normal bank; with FL's script running, DAW-mode pads 1-8 also toggle FL's step sequencer, so use the bank), every CC (learned on touch: absolute or relative around 64), the beat announced ~250 ms ahead, energy bands, heavy hits and chords from the keys AND from the audio, served as Server-Sent Events on `127.0.0.1:8794/api/events` (`/api/state`; `POST /api/pads` lights the DAW-bank pads, guest mode: 409 when `--no-leds`, 503 when no KeyLab DAW output is found, and the stream's `hello` says `leds: false` either way so the page does not post). `--replay-midi` plays a JSON note list or an FL project's newest score-log pattern (read-only) as if live (a file with no tempo plays at an assumed 100 BPM and says so; `--replay-bpm` sets it); `--replay-audio demo` is a made-up groove for trying a page with no music, `--replay-audio FILE --loop` repeats a file. **`--chords sense`** (the default) runs chordsense on both ears: every loopback block (chords with `roman`, `key`, `bass`, `conf`; a `key` event when the key lands or moves; a `tension` event with every chord, pedal and resolution) and the keys (the chord NAME stays the exact keys reading, ~45 ms after the attack; chordsense names what that reading cannot, such as a chord under a foreign held pedal note, and gives the key, the numerals and the tension; the page is told the keys' key while they have been played in the last 10 s, else the audio's). `--chords basic` keeps the older audio templates and sends no key or tension. `hello` says which runs (`chords`). `/api/state` carries the capture timing record and the per-block cost: on a real-time hardstyle replay 2400 of 2400 blocks read, gap +0.6 ms, 0.87 ms a block (p99 2.8 ms, chordsense 0.28 ms, p99 0.88) against a 10.7 ms block |
 
 Colours: a name (`red green blue cyan magenta yellow orange purple pink teal amber white off`), `#rrggbb`, or `r,g,b`.
@@ -102,6 +104,25 @@ Facts only (numbers and ids); the full map with sources is
 - Screen ids 28/29/30 draw a knob, fader or pad graphic with a live 0-127 bar. The enum also names list screens
   (20-22), a colour picker (39) and a browser (40) that Arturia's script never draws: whether the firmware renders
   them is a probe.
+
+## Our FL script (`fl/device_AuroraKeyLab.py`, design D8, slice v0 "Aurora drives")
+Daniel, 2026-10-22: "Lets let the play pause controls work with FL but the fades for mixer is dumb, i want them
+unassociated so I can link them to whatever by default." Picked in FL as the Controller type of the "KeyLab 88 mk3
+DAW" input in place of Arturia's "KeyLab mk3" (the MIDI input keeps its own script). On the DAW port it:
+- sends the DAW connect on load and the disconnect on unload (the same bytes as `protocol.daw_connect`);
+- drives FL's transport from the transport buttons: Stop 20 (press), Play 21, Record 22, Loop 24 (loop recording) and
+  Metronome 27 (release), Tap 23, Save 41, Undo 43, Redo 44 (press), Rewind 25 / Fast forward 26 (while held);
+- swallows everything else (`handled`, no FL call): faders, knobs, touch sensors, dial, Back 40, Quantize 42, screen
+  buttons, DAW-bank pads. Our programs read the same messages from the shared input (P1 above);
+- lets the pitch and mod wheels through to FL untouched, if they ever arrive on that port;
+- never writes the screen or a pad; it lights only the Play / Record / Loop / Metronome LEDs, on change, at most 11
+  per 100 ms of its own (the handshake keeps the 12th slot).
+Twelve FL functions in all, listed at the top of the script for the P23 freeze drill; eleven of them are ones
+Arturia's script already calls on this machine, `transport.isPlaying` is the new one. Install, the switch back (one
+dropdown) and the first-run drill: `fl/INSTALL.md`. Pins: `tests/test_keylab_fl_script.py` (every transport edge,
+a sweep of every other message, the LED burst rule, the import and FL-call allowlists, the licence check against
+Arturia's files, install / uninstall against a temporary Hardware folder). Not in v0: the heartbeat handoff (FL
+drives when the hub is gone), the Aurora Link port, the pad remap and PERFORM mode.
 
 ## Answered by probe
 - **P1, FL and this toolkit on one DAW port: they SHARE.** Dated 2026-10-22 21:45, from Daniel's eyes. FL Studio
@@ -155,7 +176,8 @@ they are all judged by · `chordsense.py` chords, key, numerals, tension and ped
 analysis, never imports the port) · `probe.py` the guided hardware session · `screen.py` the screen encoder
 (identical to Arturia's script), the guest-mode writer and the live chord / numeral / key / BPM / scene readout ·
 `vj.py` the VJ engine (KeyLab + loopback -> beat / energy / chord / key / tension / pad events on :8794; chordsense
-on both ears) · `__main__.py` the verbs.
+on both ears) · `fl/device_AuroraKeyLab.py` our FL Studio script (transport only) and `fl/INSTALL.md` ·
+`flscript.py` its install / uninstall / status · `__main__.py` the verbs.
 
 Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone), `tests/test_keylab_screen.py`
 (the screen bytes, the never-send refusals, pacing, the live readout against a fake engine),
