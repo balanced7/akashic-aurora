@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="k-body" x1="6" y1="18" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4DABF7"/><stop offset=".55" stop-color="#1C7ED6"/><stop offset="1" stop-color="#3B3FD9"/>
+    </linearGradient>
+    <linearGradient id="k-lid" x1="6" y1="16" x2="42" y2="26" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#99E9F2"/><stop offset=".6" stop-color="#3BC9DB"/><stop offset="1" stop-color="#1098AD"/>
+    </linearGradient>
+    <linearGradient id="k-handle" x1="17" y1="8" x2="31" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#748FFC"/><stop offset="1" stop-color="#4C6EF5"/>
+    </linearGradient>
+  </defs>
+  <path d="M17 18v-4a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v4" stroke="url(#k-handle)" stroke-width="4"/>
+  <rect x="5" y="17" width="38" height="25" rx="6" fill="url(#k-body)"/>
+  <path d="M5 23a6 6 0 0 1 6-6h26a6 6 0 0 1 6 6v4H5v-4Z" fill="url(#k-lid)"/>
+  <rect x="19" y="23.5" width="10" height="7" rx="2.5" fill="#fff"/>
+  <rect x="21.5" y="26" width="5" height="2" rx="1" fill="#1C7ED6" opacity=".55"/>
+</svg>

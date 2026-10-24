@@ -1,0 +1,16 @@
+{
+  "title": "Bifrost",
+  "icon": "bifrost",
+  "pages": [
+    "bus",
+    "seats",
+    "wake",
+    "promoter",
+    "handoff",
+    "runners",
+    "liveness",
+    "control-plane",
+    "console",
+    "bridge"
+  ]
+}

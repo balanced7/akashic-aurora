@@ -1,0 +1,44 @@
+---
+title: RENEW
+description: The loop that keeps an agent's working context healthy across sessions, by noticing decay, saving what matters, and reloading it.
+---
+
+RENEW keeps a long-running agent's working context fresh. It notices when that context goes stale. It saves what is worth keeping. Then it reloads a clean set. It is the membrane's fifth job. The membrane is the layer of hooks between an agent and the knowledge base.
+
+Think of how a computer pages memory. It decides what to write to disk and what to load back, before memory fills with the wrong things. The design borrows the term "paging function" for this job.
+
+<Callout type="warn" title="Partly planned">Two sensors are live. One records session signals at session end. One records each failed tool call. The rest is still a plan: no code exists yet for the health check, the refresh policy, or the rules that enforce it.</Callout>
+
+## Why it exists
+
+Long sessions pile up cognitive debt: stale plans, files read again and again, churn with no progress. The design treats this as a safety issue, not only a speed issue. An agent lost in its own stale context stops doing useful work. It has taken itself out of service.
+
+Tools already compact a chat when it hits a token limit. RENEW aims to differ in four ways. It triggers on health signals, not raw token count. It pulls knowledge from event records with no model. It works across sessions. It ships no policy without a benchmark.
+
+## How it works
+
+The membrane has four jobs. Surface brings the right lessons at the moment you act. Capture records what matters. Enforce runs the checks that hold agents to the rules. Unify keeps one [door](/docs/concepts/coordination/doors) for every tool. The hooks do the first two. One fires before a tool call and recalls lessons. One fires after it and credits outcomes.
+
+RENEW is the fifth job, the one that spans sessions. It is a loop with three steps: notice the debt, capture what lasts, surface a fresh reload. It adds no new subsystem. It reuses [boot](/docs/concepts/memory/boot), the [recall loop](/docs/concepts/memory/recall-loop), the [launcher](/docs/concepts/bifrost/liveness) and [supersession](/docs/concepts/foundations/append-only-record).
+
+### The two sensors
+
+At session end, a hook reads the transcript. It folds it into one lasting `session_signals` event. The event counts tool calls, repeats, commits, and calls per step of progress. It also counts how often the agent reads a file it already read. The system keeps that number but trusts it less. It stays high even on healthy work.
+
+Why a hook? An older recorder needed a person to run it. It died, and the data stopped growing without a word.
+
+A second hook records a `fail` event each time a tool call fails. Those failures are the labels. Set against the signals, they will show which signals predict a bad session. Only then will anyone build a health check.
+
+## Don't confuse it with
+
+- **Chat compaction** — triggered by token count, run by a model, and lossy.
+- **[Episodes](/docs/concepts/narrative/episodes)** — they split the story into scenes. They do not reload context. Both read the same stream of boundary signals, by design.
+- **Three session-state modules** with similar names:
+  - `session_checkpoint` saves crash checkpoints so work can resume.
+  - `session_state` saves a snapshot of the live Bifrost fleet: who ran, doing what.
+  - `session_recovery` reads session history from local files when Redis is down. Nothing calls it yet.
+
+## How it connects
+
+- **Built on:** [Boot](/docs/concepts/memory/boot), [Recall loop](/docs/concepts/memory/recall-loop), [Recall at action](/docs/concepts/memory/recall-at-action), [Liveness](/docs/concepts/bifrost/liveness), [Signals](/docs/concepts/foundations/signals), [Narrative spine](/docs/concepts/narrative/narrative-spine).
+- **Used by:** nothing yet; a refresh policy is still a plan.

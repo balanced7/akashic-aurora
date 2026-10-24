@@ -1,0 +1,43 @@
+---
+title: Fan out a question
+description: Send one question to a helper model, or several different questions at once, and read the results with care.
+---
+
+`ask` sends one question to a helper model and waits for the answer. There is no seat, no lock and no mailbox. The call ends when the answer arrives.
+
+```bash
+aurora ask --with core/comm/bus.py "What does consume() do when the cursor is past the tail?"
+```
+
+`--with` inlines the file with line numbers, so the answer can cite real lines.
+
+## Ask in the background
+
+```bash
+aurora ask --bg --with core/comm/roster.py "List every writer of the roster."
+```
+
+You get a handle back instead of a wall of text. Fetch the answer later with `aurora ask --get <handle>`.
+
+## Fan out
+
+There are two kinds of fan. They are easy to mix up.
+
+- `--fan N` sends the **same** prompt N times. The samples share their blind spots. Use it for a quick consistency check, never for verification.
+- `--lens` or `--prompts-file` sends **different** prompts. This is the one you usually want.
+
+```bash
+aurora ask --geometry lens --preset findings \
+  --lens "Where can this lose a message?" \
+  --lens "Where can two writers race?" \
+  --with core/comm/bus.py "Review this file." --json
+```
+
+`--geometry` declares the shape of the fan. Aurora checks the shape before it spends anything. It refuses a combination that makes no sense.
+
+## Read the results
+
+- Take the union of findings, then check each one. Don't wait for branches to agree.
+- Ask descriptive questions. Words like *should* or *better* invite opinion, and grounding does not fix opinion.
+
+See [Ask and fan](/docs/concepts/method/ask-and-fan) and [Union, not consensus](/docs/concepts/method/union-not-consensus).

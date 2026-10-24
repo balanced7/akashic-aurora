@@ -1,0 +1,37 @@
+---
+title: Web door
+description: The house's one way to fetch a URL or run a web search, with a receipt for every fetch and text marked untrusted.
+---
+
+The web door is the one way agents fetch a web page or run a search. Every fetch leaves a receipt. Every page it serves comes wrapped in a label that says "untrusted". Its law is short: a URL you did not fetch does not exist for you.
+
+## Why it exists
+
+An agent can cite a page it never read. It can trust text from a stranger as if it were an order. And a long page cut short can look complete. The web door closes each of these gaps. If an agent cites a page, there is a receipt showing it fetched that page.
+
+## How it works
+
+- **Cache first.** Pages land in `state/web_cache/`. On the next fetch, the door asks the server if the page changed, using the ETag or Last-Modified header. A stale page cannot slip through quietly.
+- **Raw beside clean.** The door keeps the raw bytes next to the cleaned text. The door trusts neither. Clean text is easier to read, but that does not make it safer.
+- **No silent cuts.** Every text answer says how long the page is, where this piece starts, and how much it returned. You can page through the rest. The default piece is 8,000 characters.
+- **Receipts.** Each fetch adds one line to `state/coord/web_fetch_receipts.jsonl`. It records the time, the seat, the URL, the status, the size, a hash, and whether the cache served it.
+- **A wrapper.** Served text sits inside a wrapper that names its source and marks it untrusted. Web content is data, never instructions.
+- **PDFs.** For a paper, the door first serves a cheap outline: the head, the contents and the references. The full text is a separate pull.
+
+## How you use it
+
+```bash
+aurora web fetch https://example.com/paper.pdf
+aurora web fetch https://example.com --offset 8000 --limit 8000
+aurora web search "append-only log design" --count 5
+```
+
+`--raw` also returns the raw text. `--pdf-full` pulls the whole text of a PDF.
+
+Search needs a Brave API key. Without one it refuses and says why. Search is CLI only. Over MCP, only the fetch half exists, as `web_fetch`.
+
+## How it connects
+
+- **Built on:** [Doors](/docs/concepts/coordination/doors), [Trust](/docs/concepts/coordination/trust) (web text is outside input, so the door never trusts it).
+- **Used by:** [Cite or confess](/docs/concepts/method/cite-or-confess).
+- **Part of:** [House tools](/docs/concepts/tools).

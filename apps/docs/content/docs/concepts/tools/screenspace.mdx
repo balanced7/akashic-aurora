@@ -1,0 +1,39 @@
+---
+title: Screenspace
+description: A package that lets a seat see the screen and read its text, without acting on it.
+---
+
+Screenspace lets a [seat](/docs/concepts/bifrost/seats) see the screen. It can grab the pixels, describe what is on screen in a few words, and read the text. It cannot click or type. The design keeps seeing and acting apart on purpose.
+
+<Callout type="warn" title="Built, not yet wired">All five Screenspace modules exist, but no CLI or MCP verb calls them yet. They sit on the built-ahead list, with a deadline to wire them up.</Callout>
+
+## Why it exists
+
+Some work happens in windows, not in files. An agent that cannot see the screen has to guess what a person sees. Screenspace gives it eyes first. The power to act comes later, behind a separate unlock.
+
+## How it works
+
+The package has two layers.
+
+- **Capture** is the base. It takes one screenshot and returns a frame: the pixels plus a SHA-256 hash.
+- **Engine** sits on top. It turns frames into answers. The `peek` call looks once. The `delta` call says what changed. The `refs` call gives stable handles to what has focus. The `read_text` call reads text. It also says where the text came from, so you never get a bare string.
+
+Three helpers round it out. The `foreground` module tracks which window has focus. The `shadow` module is a fast, light pulse of the screen. The `canary` module reads one real property off the window in front, to prove screen reading works on this machine.
+
+Every import is lazy and [fail-soft](/docs/concepts/foundations/fail-soft). The screen libraries are not pinned in the repo. On a machine with no desktop, the package still loads. It answers `available=False` instead of crashing.
+
+The verbs that act, such as input, are not exported. They wait on a separate unlock that allows writes and GUI control.
+
+## How you use it
+
+There is no CLI or MCP verb yet. One script uses it today: `scripts/look.py` takes a screenshot, asks a vision model to describe it, and records the result.
+
+## Don't confuse it with
+
+- **[The Eye](/docs/concepts/narrative/the-eye)** — it reads session transcripts, not the screen.
+
+## How it connects
+
+- **Built on:** [Fail-soft](/docs/concepts/foundations/fail-soft).
+- **Used by:** `scripts/look.py` only; no verb yet. See [Built, not wired](/docs/concepts/method/built-not-wired).
+- **Part of:** [House tools](/docs/concepts/tools).

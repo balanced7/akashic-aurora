@@ -1,0 +1,17 @@
+{
+  "title": "Memory and recall",
+  "icon": "memory",
+  "pages": [
+    "lessons",
+    "notes-and-agent-memory",
+    "boot",
+    "recall",
+    "recall-at-action",
+    "recall-loop",
+    "ranker-and-distiller",
+    "chronicles",
+    "library",
+    "manuals-shelf",
+    "discover-and-embeddings"
+  ]
+}

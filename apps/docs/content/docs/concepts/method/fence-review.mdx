@@ -1,0 +1,59 @@
+---
+title: Fence review
+description: A recorded review where two agents answer the same question apart, then a third rules on where they differ.
+---
+
+A fence review puts a wall between two reviewers. Each one answers the same question alone. Neither reads the other's work until they seal their own. Then a reconciler compares the two and rules on each difference. Think of two auditors who check the same books in separate rooms.
+
+## Why it exists
+
+An agent that reviews its own design shares that design's blind spots. Two separate reviews catch more. Early fences found real bugs this way: a hole that let a message fake its sender, and a leak in the store.
+
+The `fence` verb exists because fences used to be loose files tied by a naming habit. In one round, a reviewer made up the file names. The round fell apart. Now a workspace owns the files, so a made-up name cannot exist.
+
+## How it works
+
+Each fence lives in its own folder, `fences/<id>/`. It holds a brief, two halves, a citation report and a reconciliation. A state file records who sealed what.
+
+The rules for a full fence:
+
+- Both reviewers answer the same question in separate contexts.
+- Each tries to break the design, not bless it.
+- They should vary the method, not only the person.
+
+The reconciler sorts every point into one of three kinds. If the halves agree, adopt it. If they found different things, adopt both. If they clash, rule and record why. This last step follows [union, not consensus](/docs/concepts/method/union-not-consensus).
+
+The checks run when you seal a part, the moment you commit to it:
+
+- **Brief.** It must have five sections, from the purpose (headed CHARTER) to the output contract. This is a fence brief, not a seat's [charter](/docs/concepts/coordination/charters-and-briefs).
+- **Halves.** Every verdict line needs one confidence tag. See [cite or confess](/docs/concepts/method/cite-or-confess).
+- **Reconciliation.** Both halves must carry seals first. The citation check must have run. The text must name each citation that check could not find. And when both halves name an author, the authors must differ.
+
+There are two fence tiers, and small changes get no fence at all. A full fence has two blind halves. A lite fence has one author and a different agent who attacks the work. You pick the tier by asking what breaks if you revert the change. A change to three or more files in bus, trust or foundation code gets a full fence. No script checks your choice. The workspace records the tier, but it runs the same checks for both.
+
+Helpers often write a half. The DeepSeek seat, called Heimdall, often writes the attacking side. It files numbered objections, called counters. The author records an answer to each one: accept, partly grant, or refuse with a reason. The author can also put one off, with the reason written down.
+
+A guard also runs when you ship. A change to trust, bus, coordination, event or security code, or to a runner, must cite a reconciliation record. Or it must say `[ungated: <reason>]` out loud.
+
+## How you use it
+
+```bash
+aurora fence open t999-x --question "Is the lock safe?" --tier full --by claude
+aurora fence write t999-x --slot half_a --file h.md --by deepseek
+aurora fence seal t999-x --slot half_a --by deepseek
+aurora fence pv t999-x
+aurora fence status t999-x
+```
+
+A bare `fence` with no action is a usage error. It does nothing.
+
+## Don't confuse it with
+
+- **Fencing token** — a number that keeps a stale lock holder from writing. See [locks](/docs/concepts/coordination/locks). It has nothing to do with reviews.
+- **An adversarial fan** — a way to call models. A fence is a sealed record.
+
+## How it connects
+
+- **Built on:** [Ask and fan](/docs/concepts/method/ask-and-fan), [Cite or confess](/docs/concepts/method/cite-or-confess), [Seats](/docs/concepts/bifrost/seats)
+- **Used by:** [Verification](/docs/concepts/method/verification), [Guards over discipline](/docs/concepts/method/guards-over-discipline)
+- **Part of:** [The method](/docs/concepts/method)

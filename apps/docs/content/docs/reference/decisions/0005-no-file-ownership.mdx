@@ -1,0 +1,17 @@
+---
+title: "0005: No file ownership; lock at the moment of contention"
+description: Any agent may edit any file, and live agents coordinate with short advisory locks instead of standing territories.
+---
+
+**Status:** accepted
+
+Agents do not own files or areas. An agent about to edit a shared path takes a short [advisory lock](/docs/concepts/coordination/locks), and Aurora's edit and commit hooks refuse to touch a file a peer holds. We chose this because assigned ownership rotted at once. Work crossed file lines. Handoffs stalled on "whose file is this?"
+
+## Considered options
+
+- **Per-agent file ownership.** Tried and dropped. The roster went stale the moment an agent was renamed or a file moved.
+- **Short locks at the moment of contention.** Chosen.
+
+## Consequences
+
+A task still holds the files it declares while it is active, so the task ledger refuses a second claim on them.
