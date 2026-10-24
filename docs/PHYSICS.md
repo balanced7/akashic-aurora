@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at ead81399. A bound you discover by collision is not awareness -- this sheet
+> Derived at 43c32050. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (382 numeric constants)
+## Mechanical bounds (384 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -497,6 +497,7 @@ Class: reference
 | `MAX_RETRIES` | 3 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py |  |
 | `MAX_ROWS` | 40 | arsenal/media/door.py |  |
 | `MAX_ROWS` | 12 | core/coord/scene.py |  |
+| `MAX_SCENE_BODY` | 1,024 | arsenal/keylab/vj.py |  |
 | `MAX_SEQ_JUMP` | 10,000 | core/comm/bridge_seal.py | a further jump is refused, never materialised |
 | `MAX_SETTINGS` | 64 | arsenal/pianolooks.py |  |
 | `MAX_SIDE` | 2,048 | arsenal/shaders/render.py |  |
@@ -588,6 +589,7 @@ Class: reference
 | `SAME_HARMONY_SHORT_MS` | 1,000 | arsenal/practice.py | ...or when the new bass is shorter than this, on a note the chord already holds |
 | `SAY_MAX` | 120 | arsenal/jam/schemas.py |  |
 | `SCALE_MIN_NOTES` | 12 | arsenal/practice_riff.py |  |
+| `SCENE_NAME_MAX` | 40 | arsenal/keylab/vj.py |  |
 | `SCHEMA_KNOWN_MAX` | 1 | core/library/atoms.py |  |
 | `SEATSEEN_TTL_S` | 86,400 | core/comm/roster.py | kimi F1: death must outlive the worklive TTL to be RENDERABLE |
 | `SECTION_GAP_MS` | 5,000 | arsenal/practice.py | this long with nothing sounding and the pedal up ends a section: key areas, key changes, |
