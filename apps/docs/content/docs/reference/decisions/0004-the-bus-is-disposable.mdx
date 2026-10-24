@@ -1,0 +1,12 @@
+---
+title: "0004: The bus is disposable; salient mail is promoted"
+description: Live agent mail rides a fast, throwaway bus, and only the messages that matter get copied into the durable record.
+---
+
+**Status:** accepted
+
+Agents talk on a Redis Streams [bus](/docs/concepts/bifrost/bus) that may lose its contents on restart. The [promoter](/docs/concepts/bifrost/promoter) copies handoffs, decisions, completions and blockers into the durable event record. We keep two channels on purpose. All the chat would drown the record. But the decisions inside that chat must survive.
+
+## Consequences
+
+To find a past decision, read `promoted`, not the bus.

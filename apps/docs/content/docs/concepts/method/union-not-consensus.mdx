@@ -1,0 +1,38 @@
+---
+title: Union, not consensus
+description: When several reviewers look at the same evidence, keep every distinct finding and check each one, instead of keeping only what they agree on.
+---
+
+Several reviewers read the same files. Each finds some problems. You keep every distinct finding, then you check each one. You do not throw out a finding because only one reviewer saw it. Think of a search party: it checks every sighting, not only the ones three people saw.
+
+<Callout type="warn" title="A rule, not a gate">No script enforces this rule. The tools lean toward it, but you have to follow it yourself.</Callout>
+
+## Why it exists
+
+Three model families once reviewed the same code with the same evidence. All three found one defect: a flag that one step forgot to pass on. Only one model found a second, real bug: a long background prompt crashed because it was too long for the command line. A merge that keeps only shared findings would have thrown that bug away. It was the only unique real finding in the round.
+
+Common advice for groups of agents is to merge by vote. A vote gives fewer false alarms, but it misses more real bugs. A vote makes sense when checking a claim costs a lot. Here, checking a finding costs about one command. So the cheap path is to keep them all and check them all.
+
+## How it works
+
+The rule is "union, then verify". Collect every distinct finding. Treat each one as a claim to knock down. You can write a failing test that proves it, called a [pin](/docs/concepts/method/built-not-wired), or hand it to a helper told to attack it.
+
+The tools follow the same rule:
+
+- A [fan](/docs/concepts/method/ask-and-fan) never filters answers by agreement. Its agreement score is a hint about the fan's shape, not a gate.
+- The lens ledger keeps a record of how each fan question did. It scores a question by findings that survived a check. Agreement earns nothing.
+- `sift` shows dissent first. It labels agreement as weaker evidence than dissent.
+- `tally` builds a table of who said what. It helps a reviewer read. It is never a gate.
+
+In a [fence review](/docs/concepts/method/fence-review), the same idea shows up at the end. When two halves find different things, the reconciler adopts both.
+
+## Don't confuse it with
+
+- **Majority vote** — drops any finding that too few reviewers saw. Union keeps it and checks it.
+- **Self-agreement** — the same model asked the same question many times. Those samples share blind spots, so their agreement proves little.
+
+## How it connects
+
+- **Built on:** [Ask and fan](/docs/concepts/method/ask-and-fan), [Cite or confess](/docs/concepts/method/cite-or-confess)
+- **Used by:** [Fence review](/docs/concepts/method/fence-review)
+- **Part of:** [The method](/docs/concepts/method)
