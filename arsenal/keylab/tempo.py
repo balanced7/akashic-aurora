@@ -239,7 +239,8 @@ def lookup(artist: str, title: str, offline: bool = False) -> List[SourceBpm]:
         from urllib.parse import quote
         mb_query = 'query=artist:"%s" AND recording:"%s"&fmt=json&limit=3' % (artist, title_clean)
         mb_url = "https://musicbrainz.org/ws/2/recording/?" + quote(mb_query, safe='=&\": ')
-        mb = _fetch_json(mb_url, headers={"User-Agent": "AkashicKeyLab/1.0 ( rubandan@gmail.com )"})
+        # MusicBrainz asks for a contact in the User-Agent; the project page serves, so no personal address is sent
+        mb = _fetch_json(mb_url, headers={"User-Agent": "AkashicKeyLab/1.0 ( https://github.com/balanced7/akashic-aurora )"})
         mbid = None
         for rec in (mb or {}).get("recordings", []):
             if rec.get("id"):
