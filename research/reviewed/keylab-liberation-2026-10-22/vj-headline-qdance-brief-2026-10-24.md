@@ -1569,7 +1569,7 @@ This lane was read-only on the repo. Nothing tracked was changed. I wrote scratc
 **Finding 5. The licence guard is strict on fresh code.**
 - `licence_line.py` found 5 breaches in my roughly 100 lines of fresh probe code.
   - The `mainImage` boilerplate matches 298 corpus shaders.
-  - `for (int i = 0; i < 32; i++) { vec3 p = ro + rd * t;` matches 30.
+  - A plain 32-step raymarch loop header followed by its first ray-step line matches 30. (The code itself is left out of this record: quoted, it trips the same guard.)
   - Constant vectors such as `vec3(0.0, 0.0, 1.0)` trip it, because numbers are compared by value.
 - What helps:
   - The VJ host template (`main()`, `u_res`) avoids the `mainImage` boilerplate.
