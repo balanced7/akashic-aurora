@@ -65,6 +65,8 @@ const { values: opt } = parseArgs({
     "lock-dir": { type: "string", default: LOCK_DIR },
     compare: { type: "string", default: "" },
     "burst-s": { type: "string", default: "170" },
+    // only these effects (to re-measure one pad into an existing receipt: drop its rows there first)
+    effects: { type: "string", default: "" },
   },
 });
 const WEB = resolve(opt.web);
@@ -344,7 +346,23 @@ const MEASURE = String.raw`(() => {
       pair += s / a.length; np++;
     }
     pair /= Math.max(np, 1);
-    return { mean_magnitude: mag, pairwise: pair, variety: mag > 1e-6 ? pair / mag : 0 };
+    // the part every hit shares: the magnitude of the mean image over the mean magnitude (1 = eight identical hits)
+    let common = 0;
+    for (let k = 0; k < imgs[0].length; k++) { let s = 0; for (const a of imgs) s += a[k]; common += Math.abs(s / imgs.length); }
+    common /= imgs[0].length;
+    // and the first half (+50 ms) against the second (+100 ms), apart
+    const half = imgs[0].length / 2;
+    const part = (from) => {
+      let m = 0, p = 0, n = 0;
+      for (const a of imgs) { let s = 0; for (let k = from; k < from + half; k++) s += Math.abs(a[k]); m += s / half; }
+      for (let i = 0; i < imgs.length; i++) for (let j = i + 1; j < imgs.length; j++) {
+        let s = 0; for (let k = from; k < from + half; k++) s += Math.abs(imgs[i][k] - imgs[j][k]); p += s / half; n++;
+      }
+      m /= imgs.length; p /= Math.max(n, 1);
+      return m > 1e-6 ? p / m : 0;
+    };
+    return { mean_magnitude: mag, pairwise: pair, variety: mag > 1e-6 ? pair / mag : 0,
+             shared_share: mag > 1e-6 ? common / mag : 0, variety_50ms: part(0), variety_100ms: part(half) };
   }
   function sheet(rows, cols, tileW, tileH) {   // rows: [{ label, keys: [key per col] }]
     const pad = 22, c = document.createElement("canvas");
@@ -491,7 +509,9 @@ async function reloadPages(page, set, extra = "") {
   await page.evaluate("(() => { for (let i = 0; i < 20; i++) window.__impact.step(50); return true; })()");
   return page.evaluate("window.__impact.padMap()");
 }
-const effectPads = (padMap) => padMap.map((a, i) => ({ action: a, pad: i + 1 })).filter((x) => EFFECT_NAMES.has(x.action));
+const ONLY = new Set(opt.effects.split(",").map((s) => s.trim()).filter(Boolean));
+const effectPads = (padMap) => padMap.map((a, i) => ({ action: a, pad: i + 1 }))
+  .filter((x) => EFFECT_NAMES.has(x.action) && (!ONLY.size || ONLY.has(x.action)));
 const EFFECT_NAMES = new Set(["shockwave", "laser", "flash", "glitch", "strobe", "particles", "kaleido", "freeze", "invert", "zoom"]);
 const HOLDABLE = new Set(["strobe", "particles", "kaleido", "freeze", "invert"]);
 
