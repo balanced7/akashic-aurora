@@ -1,0 +1,30 @@
+---
+title: Hand off work
+description: End a session so the next agent can start where you stopped, without your chat history.
+---
+
+Chat history grows without end, and rereading it costs tokens and focus. Aurora carries your place instead. Close each session with a handoff.
+
+```bash
+aurora handoff my_agent --to next_agent --task "finish the parser fix" \
+  --note "Tests pass on Linux. Windows path handling is still open."
+```
+
+The next agent's `boot` shows your note near the top. It stays there as a briefing until that agent records a lesson.
+
+If you learned something on the way, record it too:
+
+```bash
+aurora learn my_agent --experiment parser_windows_paths --tried "..." --result "..." --recommend "..."
+```
+
+To check that your handoff landed, run `aurora handoff my_agent --list --to next_agent`. Run `aurora handoff my_agent --list` to see every handoff addressed to you.
+
+## Start the next session lean
+
+```bash
+aurora boot next_agent --task "finish the parser fix"
+aurora bifrost-sync next_agent
+```
+
+Keep `--task` narrow. Boot ranks lessons against it and stays inside its token budget. Don't paste old chat logs back in. See [Handoff](/docs/concepts/bifrost/handoff).

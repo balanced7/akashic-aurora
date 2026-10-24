@@ -1,0 +1,66 @@
+---
+title: Discover
+description: The command that lists every Aurora command with a one-line purpose, and can ask a model whether a feature already exists.
+---
+
+`discover` lists every Aurora command with one line on what it does. Add a word, and it shows only the commands that match. Add `--semantic`, and it asks a model a plainer question: does Aurora already do this? Think of a lobby directory, plus a front desk you can ask when the sign does not help.
+
+<Callout type="warn" title="Flags are a blind spot">`discover` reads command names and their help lines. A feature shipped as a flag on another command does not show up.</Callout>
+
+## Why it exists
+
+The command list describes itself, so agents need no separate manual. It comes from the CLI's own parser, so it cannot list a command that does not exist.
+
+One problem kept coming back. Agents decided a feature was missing when it existed. A word search for "check whether a test failure is pre-existing" found nothing. The command that does it, `suite-baseline`, sat in that same list. A word search cannot match meaning. So `discover` gained a mode that asks a model. The aim is to make checking cheaper than guessing.
+
+## How it works
+
+- **Plain mode.** With a word, it keeps the commands whose name or help line contains that text. With zero matches, it says it cannot match meaning, and suggests `--semantic`.
+- **Semantic mode.** `--semantic` sends one question to a model. The model reads two files: the command table and `docs/MODULE_INDEX.md`, the map of the code. The help text puts the cost at about 20 seconds and under a cent.
+- **The answer.** It has four parts. EXISTS is yes, partially, no or UNKNOWN. WHAT names the command or module. GAP says what it does not cover. NEAREST MISS names the closest thing that is not it.
+- **Never a false "no".** A failed call, a missing key, a timeout or a reply in the wrong shape all give UNKNOWN. A cut-off reply carries a "not confident" tag. The output labels every answer as a model's read, not a lookup.
+- **The push side.** `discover` only helps when you already suspect a command exists. [Recall at action](/docs/concepts/memory/recall-at-action) reads the flags too. It can push up to two fitting commands to you as you act.
+
+On the CLI, `discover` is a verb. It lives on the CLI door only; MCP has no twin.
+
+## How you use it
+
+```bash
+aurora discover lesson
+aurora discover --semantic "check whether a test failure is pre-existing"
+aurora suite-baseline -h
+```
+
+Plain mode prints a count, then one line per command:
+
+```text
+# agent_cli.py - 13 verb(s) matching 'lesson'   (run `uv run agent_cli.py <verb> -h` for arguments)
+  learn             record a lesson
+  recall            search past lessons (no query = list all)
+  recall-at         recall-at-action: relevant lessons/locks for a path or command
+  graduate          retire a lesson from recall surfacing -- automation now enforces its rule
+  ...
+```
+
+Semantic mode prints the four parts (trimmed example, built from the code's print lines):
+
+```text
+# does this system already do it?  'check whether a test failure is pre-existing'
+  EXISTS: yes
+  WHAT: <the command or module, cited>
+  GAP: <what it does not cover>
+  NEAREST MISS: <the closest thing that is not it, and why>
+  -- a MODEL READ of the verb table + module index (not a lookup) | <model> | <cost>
+```
+
+## Don't confuse it with
+
+- **[Embeddings](/docs/concepts/memory/ranker-and-distiller)** — an optional model that matches text by meaning. `--semantic` asks a language model and uses no embeddings.
+- **[Recall](/docs/concepts/memory/recall)** — searches past lessons. `discover` searches commands.
+- **`-h` on a command** — shows that one command's full arguments. `discover` shows only the one-line purpose.
+
+## How it connects
+
+- **Built on:** [Doors](/docs/concepts/coordination/doors) (the CLI's command table)
+- **Used by:** agents checking for a feature before they build it; [Recall at action](/docs/concepts/memory/recall-at-action) covers its blind spot
+- **Part of:** [House tools](/docs/concepts/tools)

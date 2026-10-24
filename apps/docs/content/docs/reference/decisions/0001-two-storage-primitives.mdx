@@ -1,0 +1,19 @@
+---
+title: "0001: Two storage primitives, Store and Ledger"
+description: Core state and history persist through one of two shapes, chosen by asking whether you store what is or what happened.
+---
+
+**Status:** accepted
+
+The core record goes through two primitives. A [Store](/docs/concepts/foundations/store) holds state by key: what *is* true now. A [Ledger](/docs/concepts/foundations/ledger) holds events in order: what *happened*. We chose two small, named primitives over one general database so each name tells you how to read and write it.
+
+## Considered options
+
+- **One key-value store for everything.** Rejected. Events stored as state lose their order, and readers can't replay them.
+- **A durable class called `Bus`.** Renamed to `Ledger`. Nothing pushed messages, so the old name lied. See [Naming](/docs/concepts/foundations/naming).
+
+## Consequences
+
+Each primitive has the same three backends (Redis, file and hybrid) and one factory. The Store's file tier can also be SQLite. Swapping a backend changes nothing above it.
+
+Not everything uses them. The task ledger keeps its own JSON file, the bus uses Redis streams directly, and large payloads go to blob files. Each of those has its own reason, and its own page.

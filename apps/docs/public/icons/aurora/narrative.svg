@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="n-l" x1="6" y1="10" x2="24" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A65"/><stop offset="1" stop-color="#E03131"/>
+    </linearGradient>
+    <linearGradient id="n-r" x1="24" y1="10" x2="42" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB199"/><stop offset=".6" stop-color="#FF6B6B"/><stop offset="1" stop-color="#C2255C"/>
+    </linearGradient>
+    <linearGradient id="n-mark" x1="30" y1="6" x2="34" y2="22" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD43B"/><stop offset="1" stop-color="#F59F00"/>
+    </linearGradient>
+  </defs>
+  <path d="M24 14.5C19.5 10.5 12.5 9.5 7.5 11c-1 .3-1.5 1.1-1.5 2.1v22.6c0 1.3 1.2 2.2 2.4 1.9 5-1.2 10.8-.3 15.6 3.4V14.5Z" fill="url(#n-l)"/>
+  <path d="M24 14.5c4.5-4 11.5-5 16.5-3.5 1 .3 1.5 1.1 1.5 2.1v22.6c0 1.3-1.2 2.2-2.4 1.9-5-1.2-10.8-.3-15.6 3.4V14.5Z" fill="url(#n-r)"/>
+  <path d="M30 9.4c1.9-.5 3.9-.7 6-.6V22l-3-2.2-3 2.2V9.4Z" fill="url(#n-mark)"/>
+  <path d="M10.5 18c3-.6 6.4-.2 9.5 1.3M10.5 23.5c3-.6 6.4-.2 9.5 1.3M10.5 29c3-.6 6.4-.2 9.5 1.3" stroke="#fff" stroke-opacity=".55" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

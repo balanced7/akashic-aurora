@@ -1,0 +1,17 @@
+{
+  "title": "Foundations",
+  "icon": "foundations",
+  "pages": [
+    "akasha-and-aurora",
+    "store",
+    "ledger",
+    "hybrid-storage",
+    "fail-soft",
+    "append-only-record",
+    "knowledge-layers",
+    "signals",
+    "code-floors",
+    "relationship-types",
+    "naming"
+  ]
+}

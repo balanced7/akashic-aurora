@@ -1,0 +1,45 @@
+---
+title: Manuals shelf
+description: A search store of outside manuals, cut into small labeled passages, so an agent reads a few sections, not a whole book.
+---
+
+The manuals shelf holds manuals from outside the project, like Apple's design guide. It cuts each manual into small passages. Each passage keeps a label: the manual, the chapter, the heading. Ask a question, and you get back a few marked pages, not the whole book. Think of a card index at a reference desk.
+
+## Why it exists
+
+Agents doing design work need vendor rules. A whole manual would flood their context. Someone suggested loading manuals into DuckDB, a database the project did not use. A closer look showed the trick was simpler. DuckDB's own docs were small sections, ranked by BM25, a classic keyword method. The project already had BM25. It came with SQLite's full-text index (FTS5), which [the Eye](/docs/concepts/narrative/the-eye) used. So the shelf kept SQLite. In its WAL mode, SQLite also lets many seats read while one ingests, which a shared DuckDB file would not.
+
+## How it works
+
+- **Convert.** Markdown, plain text, Apple's DocC JSON, HTML and PDF become titled sections.
+- **Chunk.** Each section splits into small passages. Each passage carries its path, such as `Doc › Heading › Subheading`, and its source link.
+- **Store.** Passages go into a SQLite file with a full-text index. A match in a title counts four times as much as one in the text. A match in the path counts twice.
+- **Search.** The `manual search` command mixes two methods by default. One is keyword search. The other matches on meaning with a small local model. The two lists merge by rank. A passage that matches on meaning alone must pass a similarity floor (0.25 on a scale up to 1).
+- **Limits.** An answer holds at most eight passages and 6000 characters, unless you ask for more. If nothing matches, it says what it searched.
+- **Ingest.** Adding a folder again skips the documents that did not change. It drops documents that left the folder. It also fills in any missing meaning data, so re-ingest after you install the model.
+
+The database is `state/manuals/manuals.db` under the data root, which git ignores. It stays out of git, because vendor manuals are under copyright.
+
+<Callout type="info" title="Works without the model">If the optional model is not installed, search falls back to keywords and says so.</Callout>
+
+## How you use it
+
+```bash
+aurora manual ingest apple-hig ./hig-export
+aurora manual search "minimum tap target size" --shelf apple-hig
+aurora manual search "tap target" --mode bm25 --limit 4 --max-chars 3000
+aurora manual list
+```
+
+`--mode bm25` uses keywords only and skips loading the model. Code that calls the shelf directly gets keywords only unless it asks for hybrid.
+
+## Don't confuse it with
+
+- **The [library](/docs/concepts/memory/library)** — house docs, kept as atoms. The manuals shelf holds outside docs.
+- **A library shelf** — in the library, a shelf is the home folder for one doc type. Here, a shelf is one named set of manuals.
+
+## How it connects
+
+- **Built on:** [The Eye](/docs/concepts/narrative/the-eye) (the same SQLite search engine), [Embeddings](/docs/concepts/memory/ranker-and-distiller) (optional)
+- **Used by:** agents doing interface and design work, through either of the [doors](/docs/concepts/coordination/doors): `manual` on the CLI has an MCP twin
+- **Part of:** [House tools](/docs/concepts/tools)
