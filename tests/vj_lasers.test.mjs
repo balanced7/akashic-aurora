@@ -5,9 +5,11 @@
 // rapidness of retrigger? also do we have multiple start locations beyond the 3, i want us to have two banks of laser."
 // The receipts, from the build spec (research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-
 // 2026-10-24.md): A1 variety over 32 hits, A2 gate timing against a beat clock (fake clocks here, plus the page's own
-// BeatClock), A5a flash safety from the lasers' own geometry (the area estimator and an independent raster). Also: the
-// two banks and their modes, the retrigger tiers, Vibrate's decay, the shapes' geometry, the output format, determinism.
-// Every number here is synthetic: nothing reads Daniel's playing.
+// BeatClock), A5a flash safety from the lasers' own geometry (the change estimator, and the verifier's additive raster of
+// the overlay's light model at 960 x 540 and 1920 x 1080 with sliding windows). Also: the two banks and their modes, the
+// retrigger tiers, Vibrate's decay, the shapes' geometry, the output format, determinism. The tests marked "Round-1 fix"
+// are the verifier's must-fix repros: each failed against the round-0 engine and passes now.
+// Every number here is synthetic: nothing reads Daniel's playing. (The raster tests take about two minutes.)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as L from "../arsenal/web/vj-lasers.js";
@@ -72,6 +74,9 @@ function drive(eng, events, { from, to, onFrame = null, clock = null }) {
 }
 const tap = (t, vel, hold = 60) => [{ t, fn: (e, x) => e.hit(x, vel) }, { t: t + hold, fn: (e, x) => e.release(x) }];
 const mulberry = (s) => L.mulberry32(s);
+// the output's line records, decoded by the module's reference decoder (group headers skipped): fn(record, row, head)
+const DEC = {};
+function eachLine(out, fn) { for (let i = 0; i < out.n; i++) { const r = L.decodeSeg(out.seg, i, DEC); if (!r.header) fn(r, i, out.head[i]); } }
 const pulseTimes = (onsets) => onsets.map((o) => o.t);
 
 // ------------------------------------------------------------------------------------------- 1. the two banks --
@@ -118,10 +123,7 @@ function a1Run({ seed = 11, theme = THEMES["night-sea"], variety = 1, vibrate = 
   let hash = 0x811c9dc5 | 0, red = 0, maxW = 0;
   drive(eng, events, { from: 1500, to: t + 3000, onFrame: (out) => {
     for (let k = 0; k < out.n * L.SEG_FLOATS; k++) hash = Math.imul(hash ^ (Math.round(out.seg[k] * 1e5) | 0), 0x01000193);
-    for (let i = 0; i < out.n; i++) {
-      const o = i * L.SEG_FLOATS;
-      if (out.seg[o + L.SEG.I] > 0.002 && L.isSaturatedRed([out.seg[o + 4], out.seg[o + 5], out.seg[o + 6]])) red++;
-    }
+    eachLine(out, (r) => { if (r.I > 0.002 && L.isSaturatedRed([r.r, r.g, r.b])) red++; });
     maxW = Math.max(maxW, out.area.window);
   } });
   const presses = eng.log.filter((x) => x.tier !== "held" && !x.ext);
@@ -492,7 +494,7 @@ function bankRun(bankMode, presses = 3, gate = "triple") {
   const frames = [];
   drive(eng, ev, { from: 1900, to: 2000 + presses * 6 * per + 1000, onFrame: (out, t) => {
     const lit = [];
-    for (let i = 0; i < out.n; i++) { const o = i * L.SEG_FLOATS; if (out.seg[o + L.SEG.I] > 0.3 && out.seg[o + L.SEG.KIND] === 0) lit.push(out.seg[o + L.SEG.HEAD]); }
+    eachLine(out, (r, i, head) => { if (r.I > 0.3 && r.kind === 0) lit.push(head); });
     const pulses = out.events.filter((e) => e.type === "pulse");
     frames.push({ t, heads: [...new Set(lit)], pulses });
   } });
@@ -511,6 +513,19 @@ test("bank modes: A only the truss, B only the floor, alternate switches, both s
   const both = bankRun("both", 2, "triple");
   const banks = new Set(both.log.flatMap((x) => x.heads.map((n) => n[0])));
   assert.ok(banks.has("A") && banks.has("B"), "both: the hit's heads span both banks");
+});
+
+// Round-1 (verifier's note): with dial, order and pattern fixed the anti-repeat loop redeals, and the alternation counter
+// advanced on every attempt, so 6 of 63 consecutive hits repeated a bank.
+test("bank modes: alternate switches banks on every hit even when the deal has to redeal", () => {
+  const clk = steadyClock(150), per = 400;
+  const eng = L.createLaserEngine({ seed: 12, clock: clk, bankMode: "alternate", gateMode: "single", patternMode: "fan", orderMode: "lr", section: "climax" });
+  const ev = [];
+  for (let i = 0; i < 64; i++) ev.push(...tap(2000 + i * 6 * per, 0.7));
+  drive(eng, ev, { from: 1900, to: 2000 + 64 * 6 * per });
+  const banks = eng.log.map((x) => x.bank);
+  const repeats = banks.slice(1).filter((b, i) => b === banks[i]).length;
+  assert.equal(repeats, 0, `consecutive hits on the same bank: ${repeats} of ${banks.length - 1}`);
 });
 
 test("bank modes: call = A fires, B answers half a beat later; mirror = each A head with its B twin", () => {
@@ -577,13 +592,12 @@ test("shapes: a held figure morphs into the next one on each beat", () => {
     const posE = eng.posE, f = posE - Math.floor(posE);
     if (f > 0.3 && f < 0.9 && out.n >= L.SHAPE_SEGS && checked < 3) {      // the morph is over: the figure IS the shape
       const want = L.shapeSegments(H.shapeNow, { pos: posE, R: 0.2 * (0.9 + 0.2 * H.vel) * (H.level >= 2 ? 1.15 : 1) });
-      let worst = 0;
-      for (let i = 0, k = 0; i < out.n && k < L.SHAPE_SEGS; i++) {
-        const o = i * L.SEG_FLOATS;
-        if (out.seg[o + L.SEG.KIND] !== 1) continue;
-        for (let q = 0; q < 4; q++) worst = Math.max(worst, Math.abs(out.seg[o + q] - want[k * 4 + q]));
+      let worst = 0, k = 0;
+      eachLine(out, (r) => {
+        if (r.kind !== 1 || k >= L.SHAPE_SEGS) return;
+        [r.x0, r.y0, r.x1, r.y1].forEach((v, q) => { worst = Math.max(worst, Math.abs(v - want[k * 4 + q])); });
         k++;
-      }
+      });
       assert.ok(worst < 1e-3, `figure = ${H.shapeNow} after the morph (${worst})`);
       checked++;
     }
@@ -614,29 +628,42 @@ test("Vibrate: three standing-wave modes, nodes at both ends, each overtone dyin
   assert.ok(L.vibModes(0.3, amp, 0.3)[0] / L.vibModes(0.3, amp)[0] < 0.02, "Vibrate off damps the ring in 0.3 s");
 });
 
-test("Vibrate: ringing beams are drawn as bent strings with a blur band, and settle straight", () => {
+test("Vibrate: a ringing beam is ONE record bent by its mode coefficients, with a blur band, and it settles straight", () => {
   const clk = steadyClock(150), per = 400;
   const eng = L.createLaserEngine({ seed: 8, clock: clk, vibrate: true, gateMode: "single", patternMode: "hot", bankMode: "A", orderMode: "one" });
-  let maxN = 0, maxBlur = 0, bent = false, lateN = -1;
-  drive(eng, tap(2000, 0.9), { from: 1900, to: 2000 + 1.2 * per, onFrame: (out) => {
+  let maxN = 0, maxBlur = 0, bent = false, ringed = 0, lateRing = null, worstBend = 0;
+  drive(eng, tap(2000, 0.9), { from: 1900, to: 2000 + 1.2 * per, onFrame: (out, t) => {
     maxN = Math.max(maxN, out.n);
-    for (let i = 0; i < out.n; i++) maxBlur = Math.max(maxBlur, out.seg[i * L.SEG_FLOATS + L.SEG.BLUR]);
-    if (out.n > 1) { const o = L.SEG_FLOATS; const a = Math.atan2(out.seg[3] - out.seg[1], out.seg[2] - out.seg[0]), b = Math.atan2(out.seg[o + 3] - out.seg[o + 1], out.seg[o + 2] - out.seg[o]); if (Math.abs(a - b) > 1e-4) bent = true; }
+    eachLine(out, (r, i, head) => {
+      maxBlur = Math.max(maxBlur, r.blur);
+      if (!r.ring) return;
+      ringed++;
+      // still at both ends, displaced in between; the blur band follows sin(pi u)
+      assert.ok(Math.abs(L.ringOffsetPx(r, 0)) < 1e-9 && Math.abs(L.ringOffsetPx(r, 1)) < 1e-9);
+      if ([0.2, 0.5, 0.7].some((u) => Math.abs(L.ringOffsetPx(r, u)) > 0.5)) bent = true;
+      assert.ok(Math.abs(L.blurPx(r, 0.5) - r.blur) < 1e-9 && L.blurPx(r, 0) < 1e-9);
+      // the coefficients are the string's own: the bend is vibDisplacement at this moment (risen through the pluck's
+      // attack), within the 8-bit steps
+      const v = eng.vib[head], age = (t - v.t0) / 1000;
+      for (const u of [0.15, 0.3, 0.5, 0.8]) worstBend = Math.max(worstBend, Math.abs(L.ringOffsetPx(r, u) - L.ringAttack(age) * L.vibDisplacement(u, age, v.amp, v.ph, null)));
+    });
   } });
-  assert.equal(maxN, L.VIB.SUBDIV, "one beam, drawn in VIB.SUBDIV pieces while it rings");
-  assert.ok(bent, "the pieces bend");
+  assert.equal(maxN, 1, "one beam is one record, ringing or not");
+  assert.ok(ringed > 5 && bent, `the record rings and bends (${ringed} frames)`);
+  assert.ok(worstBend < 0.15, `the bend matches the string within ${worstBend.toFixed(3)} px`);
   assert.ok(maxBlur > 1 && maxBlur <= L.VIB.BLUR_MAX_PX, `blur ${maxBlur}`);
-  // without Vibrate the same beam is one straight segment
+  // without Vibrate the same beam is one straight record with no blur
   const plain = L.createLaserEngine({ seed: 8, clock: clk, vibrate: false, gateMode: "single", patternMode: "hot", bankMode: "A", orderMode: "one" });
-  let pN = 0, pBlur = 0;
-  drive(plain, tap(2000, 0.9), { from: 1900, to: 2000 + per, onFrame: (out) => { pN = Math.max(pN, out.n); for (let i = 0; i < out.n; i++) pBlur = Math.max(pBlur, out.seg[i * L.SEG_FLOATS + L.SEG.BLUR]); } });
+  let pN = 0, pBlur = 0, pRing = false;
+  drive(plain, tap(2000, 0.9), { from: 1900, to: 2000 + per, onFrame: (out) => { pN = Math.max(pN, out.n); eachLine(out, (r) => { pBlur = Math.max(pBlur, r.blur); pRing = pRing || r.ring; }); } });
   assert.equal(pN, 1);
   assert.equal(pBlur, 0);
-  // a bar marker (a long tail) with Vibrate switched off mid-ring: the strings settle straight inside the tail
+  assert.equal(pRing, false);
+  // a bar marker (a long tail) with Vibrate switched off mid-ring: the string settles straight inside the tail
   const ring = L.createLaserEngine({ seed: 8, clock: clk, vibrate: true, gateMode: "bar", patternMode: "hot", bankMode: "A", orderMode: "one" });
   drive(ring, [...tap(2000, 1), { t: 2000 + 150, fn: (e, x) => e.setVibrate(false, x) }], { from: 1900, to: 2000 + 2 * per,
-    onFrame: (out, t) => { if (lateN < 0 && t > 2000 + 150 + 300 && out.n > 0) lateN = out.n; } });
-  assert.equal(lateN, 1, "damped: one straight segment again, while the tail still shows");
+    onFrame: (out, t) => { if (lateRing === null && t > 2000 + 150 + 300 && out.n > 0) { lateRing = false; eachLine(out, (r) => { lateRing = lateRing || r.ring; }); } } });
+  assert.equal(lateRing, false, "damped: straight again, while the tail still shows");
 });
 
 test("\"t t tou blur blur flash\": tick, tick, pluck, smear, smear, flash, beat-locked, ringing even with Vibrate off", () => {
@@ -647,7 +674,7 @@ test("\"t t tou blur blur flash\": tick, tick, pluck, smear, smear, flash, beat-
   drive(eng, [{ t: 40 * per - 20, fn: (e, x) => e.phrase(x, 0.9) }], { from: 40 * per - 300, to: 44 * per, onFrame: (out, t) => {
     for (const e of out.events) { if (e.type === "pulse") { acts.push({ act: e.act, t: t + F }); phase = e.act; } if (e.type === "flash") flashes.push(t); }
     let b = 0;
-    for (let i = 0; i < out.n; i++) b = Math.max(b, out.seg[i * L.SEG_FLOATS + L.SEG.BLUR]);
+    eachLine(out, (r) => { b = Math.max(b, r.blur); });
     blurAt[phase] = Math.max(blurAt[phase] || 0, b);
   } });
   assert.deepEqual(acts.map((a) => a.act), ["tick", "tick", "pluck", "smear", "smear", "flash"]);
@@ -661,9 +688,10 @@ test("\"t t tou blur blur flash\": tick, tick, pluck, smear, smear, flash, beat-
 
 // ---------------------------------------------------------------------------- 8. A5a: area and flash safety --
 const SAFETY_GATES = ["single", "onetwo", "triple", "triplet", "bar", "tttou", "roll8", "roll16", "stutter", "military", "pushpull", "revbass", "doubling", "stopshort", "inhale"];
-test("A5a: every pattern x gate x bank at 150 and 180 BPM, Vibrate on and off, stays inside the area budget", () => {
+test("A5a: every pattern x gate x bank at 150 and 180 BPM, Vibrate on and off, keeps its CHANGE inside the budget", () => {
   const worst = { fast: 0, single: 0, frame: 0 };
   const byPattern = {};
+  let overFrames = 0;
   for (const bpm of [150, 180]) for (const pattern of L.PATTERN_IDS) for (const gate of SAFETY_GATES) for (const vibrate of [false, true]) {
     const bank = ["both", "mirror", "A"][(L.PATTERN_IDS.indexOf(pattern) + SAFETY_GATES.indexOf(gate)) % 3];
     const per = 60000 / bpm, clk = steadyClock(bpm);
@@ -671,103 +699,181 @@ test("A5a: every pattern x gate x bank at 150 and 180 BPM, Vibrate on and off, s
     // a hard press, a second press inside the bar (tier 2), and a hold
     const ev = [...tap(2000, 1), ...tap(2000 + 2 * per, 1), ...tap(2000 + 4 * per, 1, 3 * per)];
     drive(eng, ev, { from: 1950, to: 2000 + 9 * per, onFrame: (out) => {
-      const fast = eng.hits.some((h) => h.started && !h.finished && h.fast);
+      const fast = eng.hits.some((h) => h.started && h.fast);
       const w = out.area.window;
       if (fast) worst.fast = Math.max(worst.fast, w); else worst.single = Math.max(worst.single, w);
       worst.frame = Math.max(worst.frame, out.area.frame);
       byPattern[pattern] = Math.max(byPattern[pattern] || 0, w);
-      assert.ok(w <= (fast ? L.BUDGET.fast.window : L.BUDGET.single.window) + 1e-9, `${pattern}/${gate}/${bpm}: window ${w.toFixed(3)}`);
-      assert.ok(out.area.frame <= (fast ? L.BUDGET.fast.frame : L.BUDGET.single.frame) + 1e-9, `${pattern}/${gate}: frame ${out.area.frame.toFixed(3)}`);
-      for (let i = 0; i < out.n; i++) assert.ok(out.seg[i * L.SEG_FLOATS + L.SEG.WIDTH] <= L.CORE_MAX_PX + 1e-6);
-      if (fast) {
-        const heads = new Set();
-        let beams = 0;
-        for (let i = 0; i < out.n; i++) { const o = i * L.SEG_FLOATS; if (out.seg[o + L.SEG.KIND] === 0 && out.seg[o + L.SEG.I] > 0.002) heads.add(out.seg[o + L.SEG.HEAD]); }
-        assert.ok(heads.size <= L.BUDGET.fast.heads, `${pattern}/${gate}: ${heads.size} heads lit in a fast gate`);
-        void beams;
-      }
+      if (out.area.over) overFrames++;
+      assert.ok(w <= (fast ? L.BUDGET.fast.window : L.BUDGET.single.window) + 1e-9, `${pattern}/${gate}/${bank}/${bpm}${vibrate ? "/vib" : ""}: window ${w.toFixed(3)}`);
+      assert.ok(out.area.frame <= L.BUDGET.single.frame + 1e-9, `${pattern}/${gate}: frame ${out.area.frame.toFixed(3)}`);
+      const heads = new Set();
+      eachLine(out, (r, i, head) => {
+        assert.ok(r.width <= L.CORE_MAX_PX + 1e-6);
+        if (r.kind === 0 && r.I > 0.002) heads.add(head);
+      });
+      if (eng.hits.some((h) => h.started && !h.finished && h.fast)) assert.ok(heads.size <= L.BUDGET.fast.heads, `${pattern}/${gate}: ${heads.size} heads lit in a fast gate`);
     } });
   }
-  console.log(`  A5a estimator: worst window ${(100 * worst.fast).toFixed(1)} % in fast gates, ${(100 * worst.single).toFixed(1)} % for single onsets; ` +
-    `worst frame ${(100 * worst.frame).toFixed(1)} %`);
+  console.log(`  A5a estimator (change per frame): worst window ${(100 * worst.fast).toFixed(1)} % with a fast hit, ${(100 * worst.single).toFixed(1)} % without; ` +
+    `worst frame ${(100 * worst.frame).toFixed(1)} %; frames sent over budget: ${overFrames}`);
   console.log(`  by pattern: ${Object.entries(byPattern).map(([p, w]) => `${p} ${(100 * w).toFixed(1)}`).join(", ")}`);
-  assert.ok(worst.fast <= 0.15 && worst.single <= 0.22 && worst.frame <= 0.10);
+  assert.equal(overFrames, 0, "no frame had to go out over its budget");
 });
 
-// An independent check of what the beam layer draws over black (the worst case: the darker state is always below 0.8).
-// Each segment's core is the overlay's aaWire, whitened by its heat as hotCore() does; its halo is the overlay's
-// Lorentzian (16 px at 1080 lines) at the segment's glow; both fade along the beam by its falloff. Relative luminance at
-// 480 x 270. A pixel FLASHES between two consecutive frames when its luminance moves by 0.1 or more (WCAG 2.3.1's
-// general-flash step); a moving beam therefore counts twice (where it was and where it is). Per one-third window (the
-// 25 windows at half-window steps) we take the worst share of pixels that change, and the worst share lit.
-const RW = 480, RH = 270;
-function rasterFrame(out, buf) {
-  buf.fill(0);
-  const seg = out.seg, asp = 16 / 9, sc = RH / 1080, haloPx = 16 * sc, reach = Math.ceil(1.25 * haloPx + 2);
-  for (let i = 0; i < out.n; i++) {
-    const o = i * L.SEG_FLOATS, I = seg[o + 7], glow = seg[o + 9];
-    if (I < 0.002 && glow < 0.002) continue;
-    const r = seg[o + 4], g = seg[o + 5], b = seg[o + 6], Yt = 0.2126 * r + 0.7152 * g + 0.0722 * b, peak = Math.max(r, g, b);
-    const h = seg[o + 11], kw = h * h / (1 + h * h), Yc = (1 - kw) * Yt + kw * peak;
-    const wpx = seg[o + 8] * sc, drawn = Math.max(wpx, 1), fall = seg[o + 14];
-    const ax = (seg[o] / asp + 0.5) * RW, ay = (0.5 - seg[o + 1]) * RH, bx = (seg[o + 2] / asp + 0.5) * RW, by = (0.5 - seg[o + 3]) * RH;
-    const len = Math.hypot(bx - ax, by - ay);
-    if (len < 1e-6) continue;
-    const ux = (bx - ax) / len, uy = (by - ay) / len;
-    const y0 = Math.max(0, Math.floor(Math.min(ay, by) - reach)), y1 = Math.min(RH - 1, Math.ceil(Math.max(ay, by) + reach));
+// An independent check of what the beam layer draws over black: the verifier's ADDITIVE raster of the overlay's light
+// model, reading the output records through the module's reference decoder exactly as a shader would. Each line: its
+// core is the overlay's aaWire, whitened by its heat as hotCore() does, spread over its blur band; its halo is the
+// overlay's Lorentzian (16 px at 1080) at its glow, out to 6 halo radii; both fade along a beam by its falloff; a ringing
+// beam is bent by its coefficients; a figure group takes the nearest of its pieces and adds its light once. Light is
+// SUMMED per channel in linear rgb (additive blending), clamped, then turned into relative luminance. A pixel FLASHES
+// between two frames when its luminance moves by 0.1 or more with the darker state below 0.8 (WCAG 2.3.1). Windows are
+// one third of each side, slid in steps of a quarter window (or finer), so the worst window anywhere is found.
+// Reads the round-1 records; the pre-fix 16-float rows are read too, so this check can be run against the old engine.
+function decodeAny(seg, i, r) {
+  if (L.decodeSeg) return L.decodeSeg(seg, i, r);
+  const o = i * 16;
+  Object.assign(r, { header: false, x0: seg[o], y0: seg[o + 1], x1: seg[o + 2], y1: seg[o + 3], r: seg[o + 4], g: seg[o + 5], b: seg[o + 6],
+    I: seg[o + 7], width: seg[o + 8], glow: seg[o + 9], blur: seg[o + 10], heat: seg[o + 11], kind: seg[o + 12], falloff: seg[o + 14],
+    flags: seg[o + 15], ring: false, run: (seg[o + 15] & 2) !== 0, cont: (seg[o + 15] & 4) !== 0 });
+  return r;
+}
+function makeRaster(RW, RH, aspect = 16 / 9) {
+  const sc = RH / 1080, haloPx = 16 * sc, reach = Math.ceil(6 * haloPx + 4);
+  const R = new Float32Array(RW * RH), G = new Float32Array(RW * RH), B = new Float32Array(RW * RH), Y = new Float32Array(RW * RH);
+  const dmin = new Float32Array(RW * RH).fill(Infinity), dAlong = new Float32Array(RW * RH), dU = new Float32Array(RW * RH), dRec = new Int32Array(RW * RH);
+  const touched = new Int32Array(RW * RH);
+  let nt = 0, bx0 = RW, by0 = RH, bx1 = -1, by1 = -1;          // the dirty box, so a dark frame costs nothing
+  const recs = [];
+  for (let i = 0; i < 512; i++) recs.push({});
+  // the nearest distance (px) from each pixel near line r to it, bent if it rings
+  function visit(r, ri, alongBase) {
+    const dx = r.x1 - r.x0, dy = r.y1 - r.y0, len = Math.hypot(dx, dy);
+    if (!(len > 1e-9)) return 0;
+    const ux = dx / len, uy = dy / len;
+    const ringMax = r.ring ? (Math.abs(r.c1) + Math.abs(r.c2) + Math.abs(r.c3)) * sc : 0;
+    const ext = reach + ringMax + r.blur * sc + 2;
+    const pxA = (r.x0 / aspect + 0.5) * RW, pyA = (0.5 - r.y0) * RH, pxB = (r.x1 / aspect + 0.5) * RW, pyB = (0.5 - r.y1) * RH;
+    const x0 = Math.max(0, Math.floor(Math.min(pxA, pxB) - ext)), x1 = Math.min(RW - 1, Math.ceil(Math.max(pxA, pxB) + ext));
+    const y0 = Math.max(0, Math.floor(Math.min(pyA, pyB) - ext)), y1 = Math.min(RH - 1, Math.ceil(Math.max(pyA, pyB) + ext));
     for (let y = y0; y <= y1; y++) {
-      const py = y + 0.5;
-      let xa = Math.min(ax, bx) - reach, xb = Math.max(ax, bx) + reach;
-      if (Math.abs(uy) > 1e-6) { const xl = ax + (py - ay) * ux / uy, half = reach / Math.abs(uy); xa = Math.max(xa, xl - half); xb = Math.min(xb, xl + half); }
-      const x0 = Math.max(0, Math.floor(xa)), x1 = Math.min(RW - 1, Math.ceil(xb));
-      for (let x = x0; x <= x1; x++) {
-        const px = x + 0.5, t = (px - ax) * ux + (py - ay) * uy;
-        let d;
-        if (t < 0) d = Math.hypot(px - ax, py - ay); else if (t > len) d = Math.hypot(px - bx, py - by); else d = Math.abs((px - ax) * -uy + (py - ay) * ux);
-        if (d > reach) continue;
-        const along = Math.exp(-Math.max(0, Math.min(t, len)) / RH * fall);
-        const core = Math.min(1, Math.max(0, 0.5 * drawn + 0.5 - d)) * (wpx / drawn);
-        const q = d / haloPx, halo = 0.0625 / (0.0625 + q * q);
-        const v = (I * Yc * core + glow * Yt * 0.5 * halo) * along;
+      const cy = 0.5 - (y + 0.5) / RH;
+      // only the pixels of this row within ext of the line's axis
+      let xa = x0, xb = x1;
+      if (Math.abs(uy) > 1e-6) {
+        const xl = r.x0 + (cy - r.y0) * ux / uy, half = (ext / RH) / Math.abs(uy) + 2 / RW * aspect;
+        xa = Math.max(x0, Math.floor(((xl - half) / aspect + 0.5) * RW)); xb = Math.min(x1, Math.ceil(((xl + half) / aspect + 0.5) * RW));
+      }
+      for (let x = xa; x <= xb; x++) {
+        const cx = (x + 0.5) / RW * aspect - aspect / 2, px = cx - r.x0, py = cy - r.y0;
+        const t = px * ux + py * uy;
+        let d, u;
+        if (t <= 0) { d = Math.hypot(px, py); u = 0; } else if (t >= len) { d = Math.hypot(cx - r.x1, cy - r.y1); u = 1; }
+        else { u = t / len; d = Math.abs(-px * uy + py * ux - (r.ring && L.ringOffsetPx ? L.ringOffsetPx(r, u) / 1080 : 0)); }
+        d *= RH;
+        if (d > ext) continue;
         const k = y * RW + x;
-        if (v > buf[k]) buf[k] = v;
+        if (dmin[k] === Infinity) { touched[nt++] = k; if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+        if (d < dmin[k]) { dmin[k] = d; dAlong[k] = alongBase + Math.max(0, Math.min(t, len)); dU[k] = u; dRec[k] = ri; }
       }
     }
+    return len;
   }
-}
-function windowShares(flags, sat) {     // the worst share over the 25 one-third windows, via a summed-area table
-  for (let y = 0; y < RH; y++) { let row = 0; for (let x = 0; x < RW; x++) { row += flags[y * RW + x]; sat[(y + 1) * (RW + 1) + x + 1] = sat[y * (RW + 1) + x + 1] + row; } }
-  const wW = RW / 3, wH = RH / 3;
-  let worst = 0;
-  for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) {
-    const xa = Math.round(i * wW / 2), xb = Math.round(i * wW / 2 + wW), ya = Math.round(j * wH / 2), yb = Math.round(j * wH / 2 + wH);
-    const s = sat[yb * (RW + 1) + xb] - sat[ya * (RW + 1) + xb] - sat[yb * (RW + 1) + xa] + sat[ya * (RW + 1) + xa];
-    worst = Math.max(worst, s / ((xb - xa) * (yb - ya)));
+  function flush() {
+    for (let i = 0; i < nt; i++) {
+      const k = touched[i], r = recs[dRec[k]], d = dmin[k];
+      const fade = Math.exp(-dAlong[k] * r.falloff), peak = Math.max(r.r, r.g, r.b), kw = r.heat * r.heat / (1 + r.heat * r.heat);
+      const wpx = r.width * sc, blur = (L.blurPx ? L.blurPx(r, dU[k]) : r.blur) * sc;
+      const Wd = blur > 0 ? wpx + 2 * blur : wpx, drawn = Math.max(Wd, 1);
+      const core = Math.min(1, Math.max(0, 0.5 * drawn + 0.5 - d)) * (wpx / drawn);
+      const q = d / haloPx, halo = 0.5 * r.glow * 0.0625 / (0.0625 + q * q);
+      const ci = r.I * core * fade, hi = halo * fade;
+      R[k] += (r.r + (peak - r.r) * kw) * ci + r.r * hi; G[k] += (r.g + (peak - r.g) * kw) * ci + r.g * hi; B[k] += (r.b + (peak - r.b) * kw) * ci + r.b * hi;
+      dmin[k] = Infinity;
+    }
+    nt = 0;
   }
-  return worst;
+  let cx0 = RW, cy0 = RH, cx1 = -1, cy1 = -1;               // last frame's dirty box (cleared before drawing)
+  function render(out) {
+    for (let y = Math.max(0, cy0); y <= cy1; y++) { const a = y * RW + cx0, b = y * RW + cx1 + 1; R.fill(0, a, b); G.fill(0, a, b); B.fill(0, a, b); Y.fill(0, a, b); }
+    bx0 = RW; by0 = RH; bx1 = -1; by1 = -1;
+    const seg = out.seg;
+    for (let i = 0; i < out.n; i++) decodeAny(seg, i, recs[i]);
+    let i = 0;
+    while (i < out.n) {
+      const r = recs[i];
+      if (r.header) {                              // a figure group: nearest piece, light once
+        for (let j = i + 1; j <= i + r.count && j < out.n; j++) visit(recs[j], j, 0);
+        flush(); i += r.count + 1; continue;
+      }
+      if (r.I < 0.002 && r.glow < 0.002) { i++; continue; }
+      let along = 0, j = i;
+      for (;;) { along += visit(recs[j], j, along); if (recs[j].run && j + 1 < out.n && recs[j + 1].cont) j++; else break; }
+      flush(); i = j + 1;
+    }
+    cx0 = bx0; cy0 = by0; cx1 = bx1; cy1 = by1;
+    for (let y = Math.max(0, by0); y <= by1; y++) for (let x = bx0; x <= bx1; x++) {
+      const k = y * RW + x;
+      Y[k] = 0.2126 * Math.min(1, R[k]) + 0.7152 * Math.min(1, G[k]) + 0.0722 * Math.min(1, B[k]);
+    }
+    return { Y, box: [bx0, by0, bx1, by1] };
+  }
+  const sat = new Float64Array((RW + 1) * (RH + 1));
+  function worstWindow(flags, stepDiv = 4) {
+    for (let y = 0; y < RH; y++) { let row = 0; for (let x = 0; x < RW; x++) { row += flags[y * RW + x]; sat[(y + 1) * (RW + 1) + x + 1] = sat[y * (RW + 1) + x + 1] + row; } }
+    const wW = Math.round(RW / 3), wH = Math.round(RH / 3), sx = Math.max(1, Math.round(wW / stepDiv)), sy = Math.max(1, Math.round(wH / stepDiv));
+    let worst = 0;
+    for (let ya = 0; ya + wH <= RH; ya += sy) for (let xa = 0; xa + wW <= RW; xa += sx) {
+      const s = sat[(ya + wH) * (RW + 1) + xa + wW] - sat[ya * (RW + 1) + xa + wW] - sat[(ya + wH) * (RW + 1) + xa] + sat[ya * (RW + 1) + xa];
+      if (s > worst) worst = s;
+    }
+    return worst / (wW * wH);
+  }
+  return { RW, RH, render, worstWindow };
 }
-function rasterScript(script, bpm) {
-  const per = 60000 / bpm, clk = steadyClock(bpm);
-  const eng = L.createLaserEngine({ seed: 41, clock: clk, theme: THEMES[script.theme || "laser-green"], ...script.opts });
-  let prev = new Float32Array(RW * RH), cur = new Float32Array(RW * RH);
-  const changed = new Uint8Array(RW * RH), lit = new Uint8Array(RW * RH), sat = new Float64Array((RW + 1) * (RH + 1));
-  const flashTimes = [];
-  let worstChange = 0, worstLit = 0, onsets = 0;
-  drive(eng, script.events(per), { from: 1950, to: 2000 + script.beats * per, onFrame: (out, t) => {
-    rasterFrame(out, cur);
+// Drive an engine through a script and raster every frame. Returns the worst changed and lit share of any window, the
+// worst share of the whole frame that changed, frames at or over 25 % and the most of them in any second.
+function rasterRun(eng, events, { from, to, RW = 960, RH = 540, stepDiv = 4 }) {
+  const rz = makeRaster(RW, RH);
+  let prevY = new Float32Array(RW * RH), prevBox = [RW, RH, -1, -1];
+  const changed = new Uint8Array(RW * RH), lit = new Uint8Array(RW * RH);
+  const over = [];
+  let worstChange = 0, worstLit = 0, worstFrame = 0, worstAt = 0, onsets = 0, est = 0;
+  drive(eng, events, { from, to, onFrame: (out, t) => {
     for (const e of out.events) if (e.type === "pulse") onsets++;
-    for (let k = 0; k < cur.length; k++) { const a = Math.min(1, cur[k]), b = Math.min(1, prev[k]); changed[k] = Math.abs(a - b) >= 0.1 ? 1 : 0; lit[k] = a >= 0.1 ? 1 : 0; }
-    const ch = windowShares(changed, sat), li = windowShares(lit, sat);
-    worstChange = Math.max(worstChange, ch); worstLit = Math.max(worstLit, li);
-    if (ch >= 0.25) flashTimes.push(t);
-    const tmp = prev; prev = cur; cur = tmp;
+    est = Math.max(est, out.area.window);
+    const { Y, box } = rz.render(out);
+    // only the union of this frame's and the last frame's dirty boxes can change
+    const x0 = Math.min(box[0], prevBox[0]), y0 = Math.min(box[1], prevBox[1]), x1 = Math.max(box[2], prevBox[2]), y1 = Math.max(box[3], prevBox[3]);
+    if (x1 < x0) { prevBox = box; return; }
+    let nch = 0;
+    changed.fill(0); lit.fill(0);
+    for (let y = Math.max(0, y0); y <= y1; y++) for (let x = Math.max(0, x0); x <= x1; x++) {
+      const k = y * RW + x, a = Y[k], b = prevY[k];
+      if (Math.abs(a - b) >= 0.1 && Math.min(a, b) < 0.8) { changed[k] = 1; nch++; }
+      if (a >= 0.1) lit[k] = 1;
+      prevY[k] = a;
+    }
+    const ch = nch ? rz.worstWindow(changed, stepDiv) : 0, li = rz.worstWindow(lit, stepDiv);
+    if (ch > worstChange) { worstChange = ch; worstAt = t; }
+    worstLit = Math.max(worstLit, li);
+    worstFrame = Math.max(worstFrame, nch / (RW * RH));
+    if (ch >= 0.25) over.push(t);
+    prevBox = box;
   } });
   let maxPerSecond = 0;
-  for (let i = 0; i < flashTimes.length; i++) { let n = 0; for (let j = i; j < flashTimes.length && flashTimes[j] - flashTimes[i] < 1000; j++) n++; maxPerSecond = Math.max(maxPerSecond, n); }
-  return { worstChange, worstLit, maxPerSecond, onsets };
+  for (let i = 0; i < over.length; i++) { let n = 0; for (let j = i; j < over.length && over[j] - over[i] < 1000; j++) n++; maxPerSecond = Math.max(maxPerSecond, n); }
+  return { worstChange, worstLit, worstFrame, over: over.length, maxPerSecond, worstAt, onsets, est };
+}
+const pct = (x) => (100 * x).toFixed(1);
+const RASTER_THEMES = { ...THEMES, white: { id: "white", L1: "#ffffff", L2: "#ffffff", W: "#ffffff" } };
+function checkRaster(name, r) {
+  assert.ok(r.worstChange < 0.25, `${name}: ${pct(r.worstChange)} % of a window changed in one frame (at ${r.worstAt.toFixed(0)} ms)`);
+  assert.equal(r.over, 0, `${name}: ${r.over} frames over the area threshold`);
+  assert.ok(r.worstFrame <= 0.08 + 1e-9, `${name}: ${pct(r.worstFrame)} % of the frame changed in one frame`);
 }
 
-test("A5a raster: the spec's scripts at 150 and 180 BPM never change a quarter of any one-third window", () => {
+test("A5a raster: the spec's scripts at 150 and 180 BPM change under a quarter of any window and 8 % of the frame", () => {
   const presses = (n, every, opts = {}) => (per) => Array.from({ length: n }, (_, i) => tap(2000 + i * every * per, 1, opts.hold ? opts.hold * per : 60)).flat();
   const scripts = [
     { name: "triple every beat, 2 bars", beats: 9, opts: { gateMode: "triple", patternMode: "fan", bankMode: "both", orderMode: "all" }, events: presses(8, 1) },
@@ -780,30 +886,124 @@ test("A5a raster: the spec's scripts at 150 and 180 BPM never change a quarter o
   ];
   const rows = [];
   for (const bpm of [150, 180]) for (const s of scripts) {
-    const r = rasterScript(s, bpm);
-    rows.push(`  raster ${bpm} BPM, ${s.name}: worst changed ${(100 * r.worstChange).toFixed(1)} %, worst lit ${(100 * r.worstLit).toFixed(1)} % of a window; ${r.onsets} raw onsets`);
-    assert.ok(r.worstChange < 0.25, `${s.name} at ${bpm}: ${(100 * r.worstChange).toFixed(1)} % of a window changed`);
-    assert.equal(r.maxPerSecond, 0, "no flash over the area threshold");
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 41, clock: steadyClock(bpm), theme: THEMES[s.theme || "laser-green"], ...s.opts });
+    const r = rasterRun(eng, s.events(per), { from: 1950, to: 2000 + s.beats * per });
+    rows.push(`  raster ${bpm} BPM, ${s.name}: changed ${pct(r.worstChange)} % of a window, ${pct(r.worstFrame)} % of the frame; lit ${pct(r.worstLit)} %; ${r.onsets} onsets`);
+    checkRaster(`${s.name} at ${bpm}`, r);
   }
   console.log(rows.join("\n"));
 });
 
+// Round-1 fix (verifier, must fix 4): with Vibrate OFF (the default) the flash-area check failed. The builder's own audit
+// recipe reached 31.8 % of a window changing in one frame (Laser Green, 150, scissors/bar/mirror) and 26.9 % in white;
+// moving single onsets (sweep, bloom's snap, zigzag's jumps, wave) reached 27-34 %; single presses every 0.55-0.75 beat
+// 25-27 % and ~10 % of the frame. Root causes: the budget measured LIT area, not change; single onsets swept, drifted and
+// snapped freely; press rate never selected the fast budget; overlapping halos were under-counted. These are the
+// verifier's own cases, through the additive raster at 960 x 540 with sliding windows.
+test("A5a raster, Vibrate off: the verifier's worst cases change under a quarter of any window and 8 % of the frame", () => {
+  const rows = [];
+  const run = (name, theme, bpm, opts, events, beats) => {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: opts.seed ?? 13, clock: steadyClock(bpm), theme: RASTER_THEMES[theme], section: "climax", ...opts });
+    const r = rasterRun(eng, events(per), { from: 1950, to: 2000 + beats * per });
+    rows.push(`  ${name} (${theme} ${bpm}): changed ${pct(r.worstChange)} %, frame ${pct(r.worstFrame)} %, lit ${pct(r.worstLit)} %, frames >= 25 %: ${r.over}`);
+    checkRaster(`${name} (${theme} ${bpm})`, r);
+  };
+  // the builder's audit recipe (a hard press, a second inside the bar, a hold), Vibrate off: the verifier's worst runs
+  const recipe = (per) => [...tap(2000, 1), ...tap(2000 + 2 * per, 1), ...tap(2000 + 4 * per, 1, 3 * per)];
+  for (const [theme, bpm, pattern, gate, bank] of [["laser-green", 150, "scissors", "bar", "mirror"], ["white", 150, "scissors", "single", "A"],
+    ["white", 180, "wave", "single", "mirror"], ["laser-green", 150, "cross", "military", "mirror"], ["laser-green", 180, "fan", "pushpull", "A"],
+    ["white", 150, "bloom", "bar", "A"], ["white", 150, "cone", "single", "both"]]) {
+    run(`audit ${pattern}/${gate}/${bank}`, theme, bpm, { seed: 31, patternMode: pattern, gateMode: gate, bankMode: bank, orderMode: "all" }, recipe, 9);
+  }
+  // moving single onsets: six full-velocity presses, one every 2.13 beats
+  const slow = (per) => Array.from({ length: 6 }, (_, i) => tap(2000 + i * 2.13 * per, 1, 40)).flat();
+  for (const [theme, bpm, pattern, gate, bank] of [["white", 180, "bloom", "bar", "A"], ["white", 150, "zigzag", "bar", "A"], ["white", 180, "zigzag", "single", "A"],
+    ["laser-green", 150, "sweep", "bar", "A"], ["laser-green", 150, "sweep", "single", "call"], ["white", 180, "figure", "bar", "call"]]) {
+    run(`moving ${pattern}/${gate}/${bank}`, theme, bpm, { patternMode: pattern, gateMode: gate, bankMode: bank, orderMode: "all" }, slow, 13);
+  }
+  // single presses faster than 3 a second with the dial on Single or Bar (each one a new single-onset hit before)
+  for (const [theme, bpm, gate, every] of [["laser-green", 150, "single", 0.55], ["white", 180, "single", 0.75], ["laser-green", 150, "bar", 0.55], ["white", 150, "single", 0.55]]) {
+    run(`dial ${gate}, a press every ${every} beat`, theme, bpm, { gateMode: gate, section: "any" }, (per) => Array.from({ length: Math.floor(8 / every) }, (_, i) => tap(2000 + i * every * per, 1, 40)).flat(), 10);
+  }
+  // auto gate, soft presses (velocity 0.44 gives Single), Scanner Sweep on Bank A
+  run("auto soft sweep A", "laser-green", 150, { patternMode: "sweep", bankMode: "A", orderMode: "all" }, (per) => Array.from({ length: 6 }, (_, i) => tap(2000 + i * 5.13 * per, 0.44, 40)).flat(), 31);
+  console.log(rows.join("\n"));
+});
+
+// The verifier's own full-resolution check: an additive raster at 1920 x 1080 with sliding windows, auto gate and soft
+// presses (velocity 0.44 gives Single), Scanner Sweep with every head, Laser Green. Before round 1: 31.4 % of a window
+// changed in one frame at 150 BPM on Bank A (the estimator read 18.6 %), up to 4 frames at 25 % or more in a second.
+test("A5a raster at 1920 x 1080: the soft auto-gate sweep changes under a quarter of any window", () => {
+  for (const [bpm, bank] of [[150, "A"], [180, "both"]]) {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 13, clock: steadyClock(bpm), theme: THEMES["laser-green"], patternMode: "sweep", bankMode: bank, orderMode: "all", section: "climax" });
+    const ev = Array.from({ length: 6 }, (_, i) => tap(2000 + i * 5.13 * per, 0.44, 40)).flat();
+    const r = rasterRun(eng, ev, { from: 1950, to: 2000 + 31 * per, RW: 1920, RH: 1080, stepDiv: 8 });
+    console.log(`  1920x1080 laser-green ${bpm} sweep ${bank}, vel 0.44: changed ${pct(r.worstChange)} % of a window (estimator ${pct(r.est)} %), frame ${pct(r.worstFrame)} %, lit ${pct(r.worstLit)} %, frames >= 25 %: ${r.over}`);
+    checkRaster(`1080p sweep ${bpm} ${bank}`, r);
+  }
+});
+
 // ------------------------------------------------------------------------- 8b. what the contact sheet caught --
-test("a ringing string's pieces are flagged as one run (2 = runs on, 4 = carries on), with matching joints", () => {
-  const clk = steadyClock(150);
-  const eng = L.createLaserEngine({ seed: 8, clock: clk, vibrate: true, gateMode: "single", patternMode: "hot", bankMode: "A", orderMode: "one" });
-  let checked = false;
-  drive(eng, tap(2000, 0.9), { from: 1900, to: 2300, onFrame: (out) => {
-    if (out.n !== L.VIB.SUBDIV || checked) return;
-    for (let i = 0; i < out.n; i++) {
-      const f = out.seg[i * L.SEG_FLOATS + L.SEG.FLAGS];
-      assert.equal(!!(f & 2), i < out.n - 1, `piece ${i}: runs on`);
-      assert.equal(!!(f & 4), i > 0, `piece ${i}: carries on`);
-      if (i > 0) { const o = i * L.SEG_FLOATS, p = o - L.SEG_FLOATS; assert.ok(Math.abs(out.seg[p + 2] - out.seg[o]) < 1e-6 && Math.abs(out.seg[p + 3] - out.seg[o + 1]) < 1e-6); }
+// Round-1 fix (verifier, must fix 5): the output was 4 texels a segment, a ringing beam 8 segments (32 taps) and a figure
+// 96 segments with no way to skip them (384 taps); the halo had no cutoff. Now: 2 texels a record, a ringing beam is ONE
+// record bent by the shader, a figure sits behind a group header a pixel can skip with one fetch, and HALO_CUTOFF_PX.
+test("the output: 2 texels a record, one record per beam, figures behind a skippable group header", () => {
+  assert.equal(L.SEG_TEXELS, 2);
+  assert.equal(L.SEG_FLOATS, 8);
+  assert.ok(L.HALO_CUTOFF_PX > 0 && L.HALO_CUTOFF_PX <= 64);
+  const clk = steadyClock(150), per = 400;
+  // heavy play, Vibrate on, figures included: no record is ever more than one beam, every group is well formed
+  let maxN = 0, groups = 0, rings = 0, maxPieces = 0;
+  for (const opts of [{ vibrate: true }, { vibrate: true, shapeMode: "auto" }, { vibrate: true, patternMode: "cone" }]) {
+    const eng = L.createLaserEngine({ seed: 9, clock: clk, section: "climax", ...opts });
+    const ev = [];
+    for (let i = 0; i < 24; i++) ev.push(...tap(2000 + i * 1.6 * per, VELS[i % VELS.length], i % 5 === 0 ? 2 * per : 60));
+    drive(eng, ev, { from: 1950, to: 2000 + 42 * per, onFrame: (out) => {
+      maxN = Math.max(maxN, out.n);
+      for (let i = 0; i < out.n; i++) {
+        const r = L.decodeSeg(out.seg, i, {});
+        for (let q = 0; q < 8; q++) assert.ok(Number.isFinite(out.seg[i * 8 + q]) && (q < 4 || (out.seg[i * 8 + q] >= 0 && out.seg[i * 8 + q] < 2 ** 24 && Number.isInteger(out.seg[i * 8 + q]))), "texel 1 holds exact 24-bit integers");
+        if (r.header) {
+          groups++;
+          assert.equal(out.head[i], -1);
+          assert.ok(r.count >= 1 && i + r.count < out.n, "a group's pieces follow its header");
+          maxPieces = Math.max(maxPieces, r.count);
+          for (let j = i + 1; j <= i + r.count; j++) {
+            const p = L.decodeSeg(out.seg, j, {});
+            assert.ok(!p.header && p.kind === 1, "a group holds figure pieces only");
+            for (const [x, y] of [[p.x0, p.y0], [p.x1, p.y1]]) assert.ok(Math.hypot(x - r.cx, y - r.cy) <= r.radius + 1e-6, "inside the group's radius");
+          }
+          i += r.count;
+          continue;
+        }
+        if (r.ring) rings++;
+        assert.equal(r.kind, 0, "a line outside a group is a beam");
+      }
+    } });
+  }
+  console.log(`  records: at most ${maxN} rows a frame; ${groups} figure groups (up to ${maxPieces} pieces); ${rings} ringing beams as single records`);
+  assert.ok(rings > 50, "Vibrate rang beams as single records");
+  assert.ok(groups > 50, "figures came behind headers");
+  // the packing round-trips the engine's own records within its quantisation
+  const eng = L.createLaserEngine({ seed: 9, clock: clk, vibrate: true, section: "climax" });
+  let checked = 0;
+  drive(eng, tap(2000, 0.9), { from: 1950, to: 2600, onFrame: (out) => {
+    const d = eng.drawn;
+    for (let i = 0, k = 0; i < out.n; i++) {
+      const r = L.decodeSeg(out.seg, i, {});
+      if (r.header) continue;
+      const o = k * L.W_FLOATS; k++;
+      assert.ok(Math.abs(r.I - d.W[o + L.W.I]) < 1e-3 && Math.abs(r.glow - d.W[o + L.W.GLOW]) < 1e-3);
+      assert.ok(r.width <= d.W[o + L.W.WIDTH] + 1e-9 && d.W[o + L.W.WIDTH] - r.width < 1 / 16 && Math.abs(r.blur - d.W[o + L.W.BLUR]) <= 1 / 8 + 1e-9);
+      assert.ok(Math.abs(r.c1 - d.W[o + L.W.C1]) <= L.RING_Q[0] / 2 + 1e-9);
+      for (const [a, b] of [[r.r, d.W[o + L.W.R]], [r.g, d.W[o + L.W.G]], [r.b, d.W[o + L.W.B]]]) assert.ok(Math.abs(Math.sqrt(a) - Math.sqrt(b)) <= 0.5 / 255 + 1e-6, "colour within its 8-bit step");
+      checked++;
     }
-    checked = true;
   } });
-  assert.ok(checked);
+  assert.ok(checked > 10);
 });
 
 test("a capped step keeps whole mirrored rings: the rig stays symmetric and a two-bank cage really crosses", () => {
@@ -814,9 +1014,10 @@ test("a capped step keeps whole mirrored rings: the rig stays symmetric and a tw
     const step = eng.hits[0].steps[0];
     const us = step.map((h) => L.HEADS[h].u).sort((a, b) => a - b);
     assert.ok(Math.abs(us.reduce((a, b) => a + b, 0)) < 1e-9, `${bank}/${gate}: left and right balance (${step.map((h) => L.HEADS[h].name)})`);
-    const out = eng.frame(2040);
+    let out = null;
+    for (let j = 0; j < 8 && !(out && out.n); j++) out = eng.frame(2040 + j * F);
     const slopes = new Set();
-    for (let i = 0; i < out.n; i++) { const o = i * L.SEG_FLOATS; slopes.add(Math.sign((out.seg[o + 3] - out.seg[o + 1]) * (out.seg[o + 2] - out.seg[o]))); }
+    eachLine(out, (r) => slopes.add(Math.sign((r.y1 - r.y0) * (r.x1 - r.x0))));
     assert.ok(slopes.has(1) && slopes.has(-1), `${bank}/${gate}: two families that cross`);
   }
 });
@@ -827,14 +1028,15 @@ test("a gradient round a closed figure has no seam; across a fan it runs end to 
   eng.frame(1990); eng.hit(2000, 0.8);
   let out = null;
   for (let j = 0; j < 10 && !(out && out.n); j++) out = eng.frame(2000 + j * F);
-  const col = (i) => [4, 5, 6].map((q) => out.seg[i * L.SEG_FLOATS + q]);
-  const first = col(0), last = col(out.n - 1), mid = col(out.n >> 1);
+  const cols = [];
+  eachLine(out, (r) => cols.push([r.r, r.g, r.b]));
+  const first = cols[0], last = cols[cols.length - 1], mid = cols[cols.length >> 1];
   assert.ok(Math.hypot(first[0] - last[0], first[1] - last[1], first[2] - last[2]) < 0.03, "the loop closes on one colour");
   assert.ok(Math.hypot(first[0] - mid[0], first[1] - mid[1], first[2] - mid[2]) > 0.1, "and turns through the second colour");
 });
 
 // ------------------------------------------------------------------------------------- 9. the output format --
-test("the output: the packed segments, head and pad lights, the strip bus, and no red ever", () => {
+test("the output: the records, head and pad lights, the strip bus, and no red ever", () => {
   const clk = steadyClock(150), per = 400;
   for (const theme of [THEMES.limbo, THEMES["red-tribe"], { L1: "#ff0000", L2: "#ee0505" }, THEMES["golden-wings"]]) {
     const eng = L.createLaserEngine({ seed: 5, clock: clk, theme, section: "climax", vibrate: true });
@@ -844,15 +1046,13 @@ test("the output: the packed segments, head and pad lights, the strip bus, and n
     drive(eng, ev, { from: 1950, to: 2000 + 32 * per, onFrame: (out) => {
       assert.ok(out.seg instanceof Float32Array && out.seg.length === L.MAX_SEGMENTS * L.SEG_FLOATS);
       assert.ok(out.n >= 0 && out.n <= L.MAX_SEGMENTS);
-      for (let i = 0; i < out.n; i++) {
-        const o = i * L.SEG_FLOATS;
-        for (let q = 0; q < L.SEG_FLOATS; q++) assert.ok(Number.isFinite(out.seg[o + q]));
-        for (const q of [4, 5, 6]) assert.ok(out.seg[o + q] >= 0 && out.seg[o + q] <= 1);
-        assert.ok([0, 1].includes(out.seg[o + L.SEG.KIND]));
-        const h = out.seg[o + L.SEG.HEAD];
+      for (let i = 0; i < out.n * L.SEG_FLOATS; i++) assert.ok(Number.isFinite(out.seg[i]));
+      eachLine(out, (r, i, h) => {
+        for (const c of [r.r, r.g, r.b]) assert.ok(c >= 0 && c <= 1);
+        assert.ok([0, 1].includes(r.kind));
         assert.ok(h >= 0 && h < L.HEADS.length);
-        if (out.seg[o + L.SEG.I] > 0.002 || out.seg[o + L.SEG.GLOW] > 0.002) assert.ok(!L.isSaturatedRed([out.seg[o + 4], out.seg[o + 5], out.seg[o + 6]]), "never a saturated red");
-      }
+        if (r.I > 0.002 || r.glow > 0.002) assert.ok(!L.isSaturatedRed([r.r, r.g, r.b]), "never a saturated red");
+      });
       assert.equal(out.heads.length, L.HEADS.length);
       assert.equal(out.padGrid.length, 12);
       if (out.solo < 1) sawSolo = true;
