@@ -232,6 +232,61 @@ test("tiers: within a beat = a one-two flicker; an eighth or faster = a strobe r
   }
 });
 
+// Round-1 fix (verifier, must fix 3): the tier edges sat exactly ON the musical divisions, so human taps flipped tiers:
+// eighth-note taps with 10-20 ms of jitter gave 18 flickers / 11 new rolls / 2 extensions (each flicker choked the
+// roll), quarter notes 13 flicker / 13 escalate / 5 hero, one tap a bar 18 burst / 11 escalate / 2 hero.
+test("tiers: jittered human taps keep their tier (8ths one roll, 16ths a 16th roll, beats flicker, bars escalate)", () => {
+  const gaussRng = (seed) => { const r = mulberry(seed); return () => { let u = 0; for (let i = 0; i < 6; i++) u += r(); return (u - 3) / Math.sqrt(0.5); }; };
+  const cases = [
+    ["16ths", 0.25, (t) => t.every((x) => x.tier === "rapid") && t.at(-1).gate === "roll16"],
+    ["8ths", 0.5, (t) => t.every((x) => x.tier === "rapid") && t.filter((x) => !x.ext).length === 1],
+    ["quarters", 1, (t) => t.every((x) => x.tier === "flicker")],
+    ["half notes", 2, (t) => t.every((x) => x.tier === "escalate" || x.tier === "hero")],
+    ["one a bar", 4, (t) => t.every((x) => x.tier === "escalate" || x.tier === "hero")],
+    ["one in 2 bars", 8, (t) => t.every((x) => x.tier === "burst")],
+  ];
+  const rows = [];
+  for (const bpm of [128, 150, 180]) for (const sd of [10, 20]) for (const [name, div, ok] of cases) {
+    const per = 60000 / bpm, g = gaussRng(bpm * 100 + sd);
+    const eng = L.createLaserEngine({ seed: 3, clock: steadyClock(bpm) });
+    const ev = [];
+    for (let i = 0; i < 32; i++) { const t = 2000 + i * div * per + g() * sd; ev.push(...tap(t, 0.8, 50)); }
+    drive(eng, ev, { from: 1990, to: 2000 + 33 * div * per });
+    const t = eng.log.filter((x) => x.tier !== "held").slice(1);
+    const counts = {};
+    for (const x of t) { const k = x.ext ? "rapid+ext" : x.tier; counts[k] = (counts[k] || 0) + 1; }
+    rows.push(`${bpm}/${sd}ms ${name}: ${JSON.stringify(counts)}`);
+    assert.equal(t.length, 31, `${bpm} BPM ${name}: 31 presses after the first`);
+    assert.ok(ok(t), `${bpm} BPM, ${sd} ms jitter, ${name}: ${JSON.stringify(counts)}`);
+  }
+  console.log(`  ${rows.filter((r, i) => i % 6 === 1).join("; ")}`);
+});
+
+// Round-1 fix (verifier, must fix 1): with the dial on a short gate, three presses inside an eighth note threw
+// "Cannot read properties of null (reading 'endP')" from the rapid branch (it assumed the earlier rapid hit had a loop).
+test("rapid presses with the dial on any gate never throw; a short-gate dial fires its own gate on every press", () => {
+  for (const g of L.GATE_IDS) {
+    const eng = L.createLaserEngine({ seed: 7, clock: steadyClock(150), gateMode: g });
+    const infos = [];
+    assert.doesNotThrow(() => {
+      for (const t of [1000, 1150, 1300, 1450, 1520]) { infos.push(eng.hit(t, 0.8)); eng.release(t + 30); eng.frame(t + 40); }
+      for (let t = 1560; t < 4000; t += F) eng.frame(t);
+    }, `dial ${g}`);
+    if (L.GATES[g].kind === "short") assert.ok(infos.every((x) => x.gate === g && !x.ext), `dial ${g}: every press fires ${g} (${infos.map((x) => x.gate)})`);
+    else assert.ok(infos.slice(1).some((x) => x.ext), `dial ${g}: rapid presses extend the running loop`);
+  }
+  // the verifier's repro, verbatim
+  const e = L.createLaserEngine({ clock: steadyClock(150), gateMode: "single" });
+  assert.doesNotThrow(() => { e.hit(1000); e.hit(1150); e.hit(1300); });
+  // the dial turned to a short gate while an auto roll runs; a press with no usable time
+  const m = L.createLaserEngine({ clock: steadyClock(150) });
+  assert.doesNotThrow(() => {
+    m.hit(1000, 0.8); m.hit(1100, 0.8); m.frame(1110); m.set({ gateMode: "triple" }); m.hit(1200, 0.8); m.hit(1300, 0.8); m.frame(1310);
+    m.hit(NaN, 0.5); m.frame(1330);
+  });
+  assert.equal(m.log[m.log.length - 2].gate, "triple", "after the dial turns, rapid presses fire the dial's gate");
+});
+
 test("tiers: held = a continuous gate by section, and it stops when released", () => {
   const cases = [["build", 0.6, "doubling"], ["drop", 0.6, "pushpull"], ["drop", 0.95, "roll16"], ["anti", 0.6, "military"], ["break", 0.6, "roll8"]];
   for (const [section, vel, gate] of cases) {
@@ -292,6 +347,44 @@ test("A2: short gates land on the beat grid, never late and at most one frame ea
   }
   const mean = all.reduce((a, b) => a + b, 0) / all.length;
   console.log(`  A2 early rule: ${all.length} pulses, mean ${mean.toFixed(2)} ms, worst ${Math.min(...all).toFixed(2)} ms (negative = early)`);
+});
+
+// Round-1 fix (verifier, must fix 2): at some press offsets a one-two showed 1 flash, a triple 2 and the phrase 5 (42 of
+// 300 presses at 120 BPM; at 160-180 BPM even presses exactly on the beat). Pulse 1 could only be lit late, pulse 2 fell
+// under the 83 ms step, and the guard discarded it after its index had moved on. Spec 3.3: it moves to the next grid point.
+test("A2: an isolated press at ANY offset in the beat fires every pulse of its gate, on the grid, inside the frame rules", () => {
+  const want = { onetwo: 2, triple: 3, triplet: 3, tttou: 6, single: 1, bar: 1 };
+  let presses = 0;
+  for (const bpm of [120, 128, 150, 180]) {
+    const per = 60000 / bpm;
+    for (const gate of Object.keys(want)) {
+      const g = L.GATES[gate].grid;
+      for (let off = 0; off < per; off += 7) {
+        const clk = steadyClock(bpm);
+        const eng = L.createLaserEngine({ seed: 7, clock: clk, gateMode: gate, patternMode: "fan", bankMode: "A", orderMode: "all" });
+        const press = 20 * per + off, phase = (off * 0.37) % F;
+        const ons = [];
+        let runOn = 0, runOff = 0, lastOn = false, pressed = false;
+        for (let t = press - 3 * F + phase; t < press + 3.5 * per; t += F) {
+          if (!pressed && t >= press) { eng.hit(press, 0.9); eng.release(press + 40); pressed = true; }
+          const out = eng.frame(t);
+          for (const e of out.events) if (e.type === "pulse") ons.push(t + F);
+          const on = eng.hits.some((h) => h.on);
+          if (on) { if (!lastOn && runOff && ons.length > 1) assert.ok(runOff >= 2, `${gate} ${bpm} +${off}: off ${runOff} frames`); runOn++; runOff = 0; }
+          else { if (lastOn) assert.ok(runOn >= 3, `${gate} ${bpm} +${off}: on ${runOn} frames`); runOff++; runOn = 0; }
+          lastOn = on;
+        }
+        presses++;
+        assert.equal(ons.length, want[gate], `${gate} at ${bpm} BPM, press ${off} ms into the beat: ${ons.length} pulses`);
+        for (let k = 1; k < ons.length; k++) {
+          assert.ok(ons[k] - ons[k - 1] >= 5 * F - 0.01, `${gate} ${bpm} +${off}: step ${(ons[k] - ons[k - 1]).toFixed(1)} ms`);
+          const beats = ons[k] / per, gridP = Math.round(beats / g) * g, err = ons[k] - gridP * per;
+          assert.ok(err <= 0.01 && err >= -F - 0.01, `${gate} ${bpm} +${off}: pulse ${k} ${err.toFixed(2)} ms from the grid`);
+        }
+      }
+    }
+  }
+  console.log(`  ${presses} isolated presses at every 7 ms of the beat: every pulse fired, on the grid`);
 });
 
 test("A2: the nearest-frame rule meets the spec's bound (max 8.4 ms, mean 4.5 ms)", () => {

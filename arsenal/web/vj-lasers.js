@@ -25,7 +25,8 @@
 //     = escalate (more heads, a second colour; the third press is a crown from the hero, at most one hero in 6 hits);
 //     within a beat = a one-two flicker; an eighth note or faster = a strobe roll locked to the grid (8ths, then 16ths);
 //     held = a continuous gate (a roll that doubles with the build, push-pull on the drop). Velocity tiers: soft single,
-//     medium one-two, hard triple (a named option inverts them).                                              TIERS
+//     medium one-two, hard triple (a named option inverts them). The edges sit halfway between the musical divisions,
+//     never on them, so a human eighth-note stream stays one roll and quarter notes stay flickers.     TIERS RETRIGGER
 //   - BPM-LOCKED GATES: 15 named gates on beat divisions, including Daniel's phrase "t t tou blur blur flash", scheduled
 //     from the clock and lit in the frame whose picture lands just BEFORE the beat, never after it.            GATES
 //   - VIBRATE: beams ring like plucked strings (three standing-wave modes with decaying envelopes, nodes at both ends),
@@ -318,12 +319,19 @@ const ACT = Object.freeze({ on: { lvl: 1, w: 1, heat: 1 }, tick: { lvl: 0.8, w: 
   smear: { lvl: 0.55, w: 1, heat: 0.6 }, flash: { lvl: 1, w: 1, heat: 1.6 }, ramp: { lvl: 1, w: 1, heat: 1 } });
 const STEP_UP = { single: "onetwo", onetwo: "triple", triple: "triplet", triplet: "triplet", bar: "single" };
 
+// The retrigger edges, in beats since the previous press. Human taps are never exact, so no edge sits ON a musical
+// division: each sits halfway (geometrically) between the divisions either side of it -- 16ths | 8ths at sqrt(1/8),
+// 8ths | beats at sqrt(1/2), beats | half bars at sqrt(2), bars | two bars at sqrt(32). An eighth-note stream tapped with
+// 20 ms of jitter at 180 BPM sits 3.4 standard deviations from its nearest edge. A rapid roll runs on rollHold beats past
+// each press, longer than the rapid edge, so the next press of the stream always finds it running.
+export const RETRIGGER = Object.freeze({ roll16: Math.sqrt(1 / 8), rapid: Math.SQRT1_2, flicker: Math.SQRT2,
+  escalate: Math.sqrt(32), rollHold: 3 / 4 });
 export const TIERS = Object.freeze({
-  burst: "more than a bar since the last press: one varied burst (velocity picks the gate)",
-  escalate: "within a bar: one tier up (more heads, a second colour, the gate steps up)",
+  burst: "more than a bar since the last press (over 5.7 beats): one varied burst (velocity picks the gate)",
+  escalate: "within a bar (1.4 to 5.7 beats): one tier up (more heads, a second colour, the gate steps up)",
   hero: "the third press within a bar: a crown, starburst or bloom from the hero (at most 1 in 6 hits)",
-  flicker: "within a beat: a one-two flicker on alternating heads",
-  rapid: "an eighth note or faster: a strobe roll locked to the grid (8ths, then 16ths)",
+  flicker: "within a beat (0.7 to 1.4 beats): a one-two flicker on alternating heads",
+  rapid: "an eighth note or faster (under 0.7 beats): a strobe roll locked to the grid (8ths; 16ths under 0.35 beats)",
   held: "held for half a beat: a continuous gate until release (doubling roll; push-pull on the drop)",
   phrase: "\"t t tou blur blur flash\": tick, tick, pluck-and-ring, smear, smear, flash",
 });
@@ -798,6 +806,7 @@ export class LaserEngine {
   // Pad 2 pressed at time t (ms) with velocity vel (0..1). Returns the hit's description (JSON-safe).
   hit(t, vel = 0.7, opts = {}) {
     vel = clamp01(Number(vel) || 0);
+    if (!Number.isFinite(t)) t = this.nowT;           // a press with no usable time lands on the newest frame's time
     this.nowT = Math.max(this.nowT, t);
     const per = this.period(t), pH = this.posAt(t);
     const gap = Number.isFinite(this.lastHitT) ? (t - this.lastHitT) / per : Infinity;
@@ -805,20 +814,24 @@ export class LaserEngine {
     const v0 = this.o.variety <= 0;
     let kind;
     if (opts.phrase) kind = "phrase";
-    else if (v0 || gap > 4 + TINY) kind = "burst";
-    else if (gap > 1 + TINY) kind = "escalate";
-    else if (gap > 0.5 + TINY) kind = "flicker";
+    else if (v0 || gap > RETRIGGER.escalate) kind = "burst";
+    else if (gap > RETRIGGER.flicker) kind = "escalate";
+    else if (gap > RETRIGGER.rapid) kind = "flicker";
     else kind = "rapid";
+    const roll16 = gap <= RETRIGGER.roll16;
     this.lastHitT = t;
 
-    // a rapid press extends the running roll (the roll is locked to the grid; each press advances its heads)
-    if (kind === "rapid") {
-      const roll = this.hits.find((h) => h.tier === "rapid" && !h.done && !h.fading);
-      const sub = gap <= 3 / 8 + TINY ? "roll16" : "roll8";
+    // a rapid press extends the running roll (the roll is locked to the grid; each press advances its heads). Only a
+    // LOOP can be extended: with the dial on a short gate (Single ... the phrase) every rapid press fires that gate as a
+    // hit of its own, and a rapid-tier hit left over from such a press has no loop to stretch.
+    const dialLoop = this.o.gateMode === "auto" || !GATES[this.o.gateMode] || GATES[this.o.gateMode].kind === "loop";
+    if (kind === "rapid" && dialLoop) {
+      const roll = this.hits.find((h) => h.tier === "rapid" && h.loop && !h.done && !h.fading);
       if (roll) {
-        roll.loop.endP = Math.max(roll.loop.endP, pH + 1 / 2);
+        // the roll runs on past the press by more than the rapid edge, so the next press of the stream still finds it
+        roll.loop.endP = Math.max(roll.loop.endP, pH + RETRIGGER.rollHold);
         roll.finished = false;
-        if (sub === "roll16") roll.stepOverride = GATES.roll16.step;
+        if (roll16) roll.stepOverride = GATES.roll16.step;
         roll.vel = Math.max(roll.vel * 0.7, vel);
         roll.walk++;
         this.padHit = roll;
@@ -849,7 +862,7 @@ export class LaserEngine {
     else if (tier === "hero") gate = "triple";
     else if (kind === "escalate") gate = this.o.vibrate && rng() < 1 / 3 ? "tttou" : STEP_UP[vg] || vg;
     else if (kind === "flicker") gate = "onetwo";
-    else if (kind === "rapid") gate = gap <= 3 / 8 + TINY ? "roll16" : "roll8";
+    else if (kind === "rapid") gate = roll16 ? "roll16" : "roll8";
     else gate = vg;
     const fast = this._gateFast(gate, per);
 
@@ -1373,9 +1386,20 @@ export class LaserEngine {
       }
     }
     H.pulsesTotal = H.pulses ? H.pulses.length : Infinity;
-    if (newest && H.cur) {          // a jump can reach a pulse right after the last one: never a doubled flash
+    if (newest && H.cur) {          // a pulse too close to the last one (a late first pulse, a jump): never a doubled flash
       const since = this.frameIdx - H.cur.onFrame;
-      if (since - H.cur.N < 1 || since < Math.ceil(FRAME_RULES.minStepMs / F - 1e-6) - 1) newest = null;
+      if (since - H.cur.N < minOff || since < Math.ceil(FRAME_RULES.minStepMs / F - 1e-6)) {
+        if (H.pulses) {
+          // Spec 3.3: a pulse that would start less than a step (83 ms) after the previous one MOVES to the next grid
+          // point, and the rest of the gate moves with it, so the rhythm keeps its shape and no pulse is lost. (The
+          // usual cause: a press so close to the beat that pulse 1 could only be lit late, while pulse 2 is on time.)
+          // A loop simply goes on to its next slot.
+          const idx = H.pulses.indexOf(newest), g = GATES[H.gate].grid || 1 / 4;
+          for (let k = idx; k < H.pulses.length; k++) H.pulses[k] = { ...H.pulses[k], P: H.pulses[k].P + g };
+          H.pi = idx;
+        }
+        newest = null;
+      }
     }
     if (newest && !H.fading) {
       const lead = this.o.onsetRule === "nearest" ? F / 2 : F;
@@ -1384,7 +1408,8 @@ export class LaserEngine {
         let N = Math.max(minOn, Math.round(newest.len * per / F));
         // the next pulse's onset frame: leave at least minOff dark frames before it
         const nextP = H.pulses ? (H.pi < H.pulses.length ? H.pulses[H.pi].P : null) : (H.loop && H.loop.P < H.loop.endP ? H.loop.P : null);
-        if (nextP !== null) { const framesTo = Math.floor((nextP - newest.P) * per / F + 1e-6); N = Math.max(minOn, Math.min(N, framesTo - minOff)); }
+        // (counted from THIS frame, not from the pulse's grid time: a pulse lit late must still leave the full gap)
+        if (nextP !== null) { const framesTo = Math.ceil((nextP - posE) * per / F - 1e-6); N = Math.max(minOn, Math.min(N, framesTo - minOff)); }
         // the halo hold: this pulse's halo was already held lit if the last pulse held it over these same heads
         const prev = H.cur;
         const sameAsPrev = !!(prev && prev.holdHalo && sameHeads(this._litHeads(H, prev.grp, prev), this._litHeads(H, newest.grp, newest)));
