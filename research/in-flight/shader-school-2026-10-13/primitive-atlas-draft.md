@@ -230,8 +230,9 @@ slice also corrects.
 
 ## 2. The family map (one screen)
 
-Thirteen families, 80 categories, 562 primitive rows (a row sometimes holds a small set of sibling functions, such as
-the 2D and 3D versions of one noise). By status: 184 rows P0, 265 P1, 113 P2. Section 18 turns the P0 rows into 65
+Thirteen families, 80 categories, 572 primitive rows (a row sometimes holds a small set of sibling functions, such as
+the 2D and 3D versions of one noise). By status: 184 rows P0, 275 P1, 113 P2. (Ten P1 rows were added on 2026-10-25 by
+Look v2's module lane: the shared haze module `atmos/haze.glsl`, `tmStage` and `glowHotCoreTo`.) Section 18 turns the P0 rows into 65
 module files and about 215 functions.
 
 ```
@@ -874,6 +875,7 @@ The loved shaders' favourite trick (craft secret 2): light that comes from the m
 | `float glowTwoGauss(float d, vec4 coreHalo)` | core Gaussian plus wide halo Gaussian, with widths and weights as parameters: the house's light-line profile, written seven times with different constants across the piano studies | C0 | — (house: Gyre, Wind, Moonwater, flight) | arc-piano-studies | **P0** |
 | `vec3 glowHotCore(vec3 tint, float intensity)` | saturated tint at low intensity, whitening as intensity rises (neon and plasma read as bright, not just coloured) | C0 | Starship (tanh desaturates highlights by itself), Flame (overdrive), Oscillo Donut (phosphor overdrive), Rhodium | LM 12.3 | **P0** |
 | `float glowStepCount(float steps, float maxSteps, float k)` | brightness from how long the ray loitered: walls, silhouettes and folds light themselves | C0 | Flame, Alien Core, Bubble Rings (the budget is the opacity) | study:MdX3zr 6.1 | **P0** |
+| `vec3 glowHotCoreTo(vec3 tint, float intensity, vec3 coreTint)` | glowHotCore whitening toward a chosen colour (a palette's tinted white, true white, or the hue a core turns to as it clips) instead of toward equal channels | C0 | — | LM 12.3; the show-hunt study section 3.11 | P1 |
 | `float glowCompactWire(float d, float width, float k)` | (1 - abs(d)/width)^k on a compact support: a hair-thin glowing tube with a soft core and no tail | C0 | HAL 4000 (^28 lines) | study:MtXczn 6.3 | P1 |
 | `float glowSoftCore(float d, float k)` | tanh(k/max(d,eps)): core capped at 1 with a long 1/d tail; additive glow that never explodes | C0 | — | CP 6.6 | P1 |
 | `float glowPointInscatter(vec3 ro, vec3 rd, vec3 lightPos, float tmax)` | closed-form integral of 1/r² along a ray segment; halos cut off correctly behind a hit | C0 | — | LM 12.2 | P1 |
@@ -979,7 +981,7 @@ Where scattered light turns. House convention: mu = dot(viewRayDir, dirToLight),
 | `float skyMountainSilhouette(vec3 rd, float t, uint seed)` | an azimuth silhouette from 1D noise with a seam taper where the angle wraps | C1 | AURORA | study:ttScDc 5.15 | P2 |
 | the atmosphere LUT family: `Atmos atmosEarth()`, `atmosMedium`, `atmosTransmittance`, `atmosSingleScatter`, `atmosMultiScatterPsi`, `atmosApply`, `vec2 atmosSkyViewUV` | Hillaire's production sky: transmittance LUT, multiple-scattering closed form, sky-view LUT, aerial perspective | C4 | — | VA 4.2-4.6; Hillaire 2020 | P2 |
 
-### G7. Fog and light shafts (`atmos/fog.glsl`)
+### G7. Fog and light shafts (`atmos/fog.glsl`, `atmos/haze.glsl`)
 
 | signature | contract | cost | loved | learn | P |
 |---|---|---|---|---|---|
@@ -990,6 +992,14 @@ Where scattered light turns. House convention: mu = dot(viewRayDir, dirToLight),
 | `vec3 raysRadial(sampler2D occ, vec2 uv, vec2 sunUV, int n, ...)` | Mitchell's screen-space god rays with a jittered first sample (fails off-screen) | C1 +Tn | Humanimation (jittered radial zoom blur) | VA 5.3; Mitchell 2007 | P2 |
 | `float raysPatternShell(vec3 rd, ...)` | any direction-only pattern extruded through a shell is a set of light shafts from the centre | C1 | RM Experiment 23 | study:4lj3Ww 6.3 | P2 |
 | `float fogMipLevel(vec2 uv, float fog)` | fog as "which mip rung to read" instead of a blur pass | C0 +T1 | Heartfelt (blur is free) | study:ltffzl 6.1 | P2 |
+| `float hazeDensity(vec2 p, float floorY, vec4 hz, float t)` / `float hazeDensity3(vec3 p, float floorY, vec4 hz, float t)` | Look v2's shared haze field in 0..1: exp(-max(y - floorY, 0)/hz.y) times (0.55 + 0.45 times two octaves of value noise at hz.x cells per unit, drifting hz.zw units per second); the 3D form in metres with the wind in x and z. Static, never reseeded; it multiplies light and never emits | C0 | — | VA 5.1; Look v2 section 2.2 | P1 |
+| `float hazeFloorBand(vec2 p, float floorY, float thickness, float t)` | a low CO2 or dry-ice band: 1 at and below the floor line, gone by a ragged top 0.7-1.3 thicknesses up, its billows rising slowly | C0 | — | VA 5.1; Look v2 section 2.2 | P1 |
+| `float hazeStreak(vec2 p, vec2 root, vec4 clump, float t)` / `float hazeStreak3(vec3 p, vec3 src, vec4 clump, float t)` | haze clumps stretched along the rays from a light (clump = along length, across angle, contrast, outward drift), indexed by direction and distance from the light: a beam crossing them breaks into dashes that follow the beam, the field stays put in the world when the beam turns | C0 | — | NP 3; the Laser Sky judge, must-fix 2 | P1 |
+| `vec3 hazeBeamCoords(vec2 p, vec2 root, vec2 dir, float reach)` / `float hazePhase(float towardViewer)` | a beam's frame (perpendicular distance, along over reach, angle from its axis); the Henyey-Greenstein lobe at g = 0.6 normalised to 1 side-on, so beams aimed at the crowd read brighter | C0 | — | VA 1.5 | P1 |
+| `vec3 hazeBeam(float dPerpPx, float along, vec3 col, float level, float dens, float widthPx, float phase)` / `vec3 hazeSheet(float angle, float halfAngle, float along, vec3 col, float level, float dens, float phase)` | a thin beam and a sheet of light in haze: soft cross-sections with compact support (exactly 0 beyond them), the core and body in the light's full chroma, the halo times (0.35 + 0.65 density), a white-hot root over the first few per cent, a fall along the length; the haze's texture shows inside | C0 | — | VA 1.5; Look v2 sections 2.2 and 2.4 | P1 |
+| `vec3 hazePoint(vec2 p, vec2 c, float r, vec3 col, float level, float dens)` / `vec3 hazePool(vec2 p, vec2 c, vec2 r, vec3 col, float level)` / `vec3 hazeTint(vec3 light, float dens)` | a bounded glow round a source (Gaussian plus exponential skirt, 0 beyond 3 r, never 1/r squared); the lit pool where a beam lands; dense CO2 reading pinker, the OKLCh hue turned +20 degrees times density | C0; hazeTint C1 (the gamut clip) | — | CP 2.4; Look v2 section 2.2 | P1 |
+| `float hazeConeProfile(vec3 p, vec3 apex, vec3 axis, float halfAngle)` / `vec3 hazeCone(vec3 ro, vec3 rd, float tMax, vec3 apex, vec3 axis, float halfAngle, vec3 col, float level, vec2 air, vec4 hz, vec4 clump, float t, float jitter)` / `vec3 hazeLamp(vec3 ro, vec3 rd, float tMax, vec3 pos, float reach, vec3 col, float level, vec2 air, vec4 hz, float t, float jitter)` | single scattering of a soft spot cone and of a point lamp of finite reach along a view ray in metres: the chord inside the light, 10 and 6 stratified equiangular samples, the haze field and its clumps, HG phase at g = 0.6, transmittance, samples near the lens whitened; exactly 0 for a ray that misses. Usable from a three.js ShaderMaterial unchanged | C1 (10 and 6 samples) | — | VA 1.5, 5.1; Kulla and Fajardo 2012 | P1 |
+| `vec3 hazeSheet3(vec3 ro, vec3 rd, float tMax, vec3 apex, vec3 axis, vec3 normal, float halfAngle, float thickness, vec3 col, float level, vec2 air, vec4 hz, vec4 clump, float t)` | the analytic single scatter of a thin fan sheet of light: one point per ray, radiance falling as 1/r in the fan, an edge-on view a capped bright line | C0 | — | VA 5.1 | P1 |
 
 ### G8. Aurora (`atmos/aurora.glsl`)
 
@@ -1087,6 +1097,7 @@ the Hill ACES fit only for a deliberate cinematic punch. Whatever the choice, ev
 | `vec3 tmPbrNeutral(vec3 x)` | Khronos PBR Neutral: identity below about 0.76, peak-only compression, no hue change. Matches the three.js Neutral tone mapping the piano uses, so GLSL and three.js surfaces can agree | C0 | — | CP 5.7 | **P0** |
 | `vec3 tmRootGain(vec3 x, float gain)` | gain·sqrt(x): makes faint accumulated glow legible without a filmic curve | C0 | Bubble Rings (a stacked curve that collapses to a root gain), Just a Cube (sqrt with glow added last) | study:WdB3Dw 6.10 | **P0** |
 | `vec3 tmSuperlinear(vec3 x, float k)` **(legacy twin)** | the house's superlinear highlight that runs before tanh (shader-craft ceiling: "superlinear highlight, then the tanh shoulder") | C0 | — | house chunk `superlinear-highlight` | **P0** |
+| `vec3 tmStage(vec3 x, float heat, float H)` | Look v2's display stage: a peak toe x p/(p + 0.0015); the identity up to 0.8 H; PBR Neutral's peak compression above it, then a drift to white driven by heat at constant OKLab hue; output in [0, H], H = 1 the SDR curve; hue within 2 degrees on the six primaries at 1-20x | C0 | — | CP 5.7; Look v2 section 1.4 | P1 |
 | `vec3 tmAgx(vec3 x)` / `vec3 tmAgxLook(vec3 x, vec3 slope, vec3 power, float sat)` | AgX base and its look: graceful path to white, no hue skews | C0 | — | CP 5.6; Sobotka | P1 |
 | `vec3 tmAcesHill(vec3 x)` | Hill's fit with input and output matrices: the recognisable cinematic look | C0 | — | CP 5.4 | P1 |
 | `vec3 tmReinhardWhite(vec3 x, float white)` / `vec3 tmReinhardLum(vec3 x, float white)` | extended Reinhard; luminance-only Reinhard (exact hue) | C0 | — | CP 5.2 | P1 |

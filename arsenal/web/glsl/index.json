@@ -10,6 +10,10 @@
       "sha256": "b4f51c029cda615670faf1028ca57ef551323577861ca6dc9cbb1b8dfe98a34b"
     },
     {
+      "path": "atmos/haze.glsl",
+      "sha256": "e9ee07c4682840ba9ae6df359bacb0ed1c012d2670b43ee1045cd634c28fc67d"
+    },
+    {
       "path": "atmos/sky.glsl",
       "sha256": "9a8648e189b6f67a393497d761d585f5a28eff43dbedae31516ceabd4868f099"
     },
@@ -27,7 +31,7 @@
     },
     {
       "path": "colour/tone.glsl",
-      "sha256": "797e25c736dc2c5f9dc97d4c85fa1c671ac46de21e250c5c9c77917482007177"
+      "sha256": "d2ee19e9fea451c894c559e7f7e8eded8f982aaf9860030a6d55e342f6c3d39a"
     },
     {
       "path": "colour/transfer.glsl",
@@ -163,7 +167,7 @@
     },
     {
       "path": "light/glow.glsl",
-      "sha256": "7c49ac415dbf7e75d1b4c324a0e72dd110c321af134498ffcff24bcb6ef0e6a5"
+      "sha256": "34a8d288a9579991217e3d6c30293fb3bfb5e5a40aac9b38982021c852e07daf"
     },
     {
       "path": "light/lights.glsl",
