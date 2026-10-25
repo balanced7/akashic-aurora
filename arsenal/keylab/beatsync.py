@@ -410,9 +410,9 @@ def _seed_for(np_: Optional[dict], offline: bool) -> Optional[float]:
     if not is_playing(np_) or offline:
         return None
     try:
-        from .beatgrid import database_tempo
+        from .beatgrid import database_tempo, tracker_seed
         found = database_tempo(np_.get("artist", ""), np_.get("title", ""))
-        return float(found["bpm"]) if found else None
+        return float(tracker_seed(float(found["bpm"]))) if found else None      # folded into the tracker's 60-200
     except Exception:
         return None
 

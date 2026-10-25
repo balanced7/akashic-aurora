@@ -979,10 +979,10 @@ class BeatClock:
 
     def __init__(self, rate: int, hop: int = HOP, engine: str = "a", seed_bpm: Optional[float] = None,
                  ahead_s: float = AHEAD_S, referee: bool = True, tap_one: bool = False, tap_round: bool = True):
-        from .beatgrid import BeatGrid
+        from .beatgrid import BeatGrid, tracker_seed
         self._Tracker = importlib.import_module(f"{__package__}.beat_{engine}").Tracker
         self.engine = engine
-        self.tracker = self._Tracker(rate, hop, seed_bpm=seed_bpm)
+        self.tracker = self._Tracker(rate, hop, seed_bpm=tracker_seed(seed_bpm))     # folded into 60-200
         self.t0 = 0.0                 # where the tracker's own clock started on the stream's (it moves on a re-seed)
         self.shadow: Optional[tuple] = None       # (tracker, t0, bpm, why): a re-seeded tracker warming up
         self.ref = None
@@ -1011,11 +1011,15 @@ class BeatClock:
         self._take_notes()
 
     def reseed(self, bpm: float, why: str = "the song database") -> bool:
-        """Seed the tracker with bpm; True when a new tracker starts warming up (False: the tracker already agrees)."""
+        """Seed the tracker with bpm, folded into its range (beatgrid.tracker_seed: a 205 BPM uptempo tempo seeds it at
+        102.5, the fastest it can run); True when a new tracker starts warming up (False: the tracker already agrees
+        with that seed)."""
+        from .beatgrid import tracker_seed
+        seed = float(tracker_seed(float(bpm)))
         cur = self._predict()
-        if cur and abs(float(cur[0]["bpm"]) / float(bpm) - 1.0) < 0.04:
+        if cur and abs(float(cur[0]["bpm"]) / seed - 1.0) < 0.04:
             return False
-        self.shadow = (self._Tracker(self.rate, self.hop, seed_bpm=float(bpm)), self.audio_t, float(bpm), why)
+        self.shadow = (self._Tracker(self.rate, self.hop, seed_bpm=seed), self.audio_t, seed, why)
         return True
 
     def _predict(self) -> List[dict]:
@@ -2429,10 +2433,11 @@ class Engine:
         if kind == "track":
             clock.new_track()
         elif kind == "db":
-            clock.grid.set_db(bpm)
+            clock.grid.set_db(bpm)                    # the beat grid keeps the database's tempo as it is (205 is 205)
             if bpm and seed and clock.reseed(bpm):
-                self.status(f"beat_{self.beat_engine}: warming up a tracker seeded at {bpm:g} BPM (the beat keeps "
-                            "going meanwhile)")
+                from .beatgrid import tracker_seed
+                self.status(f"beat_{self.beat_engine}: warming up a tracker seeded at {tracker_seed(bpm):g} BPM (the "
+                            "beat keeps going meanwhile)")
 
     def _track_loop(self) -> None:
         """The track thread: every track_poll_s, Windows' now-playing; on a new track, the song database's tempo

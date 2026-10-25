@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 33867c87. A bound you discover by collision is not awareness -- this sheet
+> Derived at 17e92cef. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (385 numeric constants)
+## Mechanical bounds (386 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -445,6 +445,7 @@ Class: reference
 | `LINE_FULL_MAX` | 70 | arsenal/practice_riff.py | ...or above backing full's top voice, at most A4 + 1 |
 | `LINE_LEN` | 32 | arsenal/keylab/screen.py | every _get_line_bytes(..., 32) call in KL3Display.py |
 | `LINE_LEN_CAP_BEATS` | 2 | arsenal/practice_riff.py | a note's length is capped here (the pedal never stretches it) |
+| `LINE_MIN` | 5 | arsenal/keylab/beatgrid.py | ... at least this many of them on it |
 | `LINE_MIN_NOTE` | 60 | arsenal/practice_riff.py | C4: the top line starts here... |
 | `LINE_MIN_ONSETS` | 3 | arsenal/practice.py | a pedalled treble passage (nothing below middle C) of at least this many single notes... |
 | `LIT_DELTA_MAX` | 12 | arsenal/tiktok.py | (raised to the ring's noise, but never past this) |
