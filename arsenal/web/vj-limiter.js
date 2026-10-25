@@ -54,8 +54,9 @@ vec3 enc3(vec3 l) { return vec3(enc1(l.r), enc1(l.g), enc1(l.b)); }
 // weights come from its centre's place in that cell (the meter and the apply pass share these functions)
 int boundX(int c, int n) { return (c * n) / ${GX}; }
 int boundY(int c, int n) { return (c * n) / ${GY}; }
-int cellX(int p, int n) { int c = 0; for (int k = 1; k < ${GX}; k++) if (p >= boundX(k, n)) c = k; return c; }
-int cellY(int p, int n) { int c = 0; for (int k = 1; k < ${GY}; k++) if (p >= boundY(k, n)) c = k; return c; }
+// (the last c with B_c <= p, in closed form: c = floor((G p + G - 1) / n); one division instead of seven a pixel)
+int cellX(int p, int n) { return min(${GX - 1}, (${GX} * p + ${GX - 1}) / n); }
+int cellY(int p, int n) { return min(${GY - 1}, (${GY} * p + ${GY - 1}) / n); }
 `;
 
 // METER 1: one texel per block; the block grid is SX x SY blocks per cell (uniform u_sub), so every pixel of the frame
