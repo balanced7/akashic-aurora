@@ -244,6 +244,47 @@ def _check_write(data) -> str:
         return ""   # lock layer unavailable -> allow (advisory)
 
 
+# --- GPU pages and the desktop app's browser pane (2026-10-25) ----------------------------
+# The Claude desktop app opens any .html file that Write or Edit touches in its EMBEDDED browser
+# pane ("<file> is now visible in the Browser pane"). A WebGL/WebGPU page there is the known
+# crash trigger on this machine's AMD driver (claude_browser_guard.py, receipt 2026-08-12). The
+# 2026-10-24/25 VJ lanes hit it 18 times across 10 lanes -- harness pages, vj.html, the Virtual
+# Stage -- and survived by luck. This runs BEFORE the repo-scope check: most harness pages live in
+# the session scratchpad. Shell writes are not auto-opened, so the refusal names that route.
+_HTML_EXT = (".html", ".htm")
+_GPU_HTML = re.compile(
+    r"webgl|webgpu|navigator\.gpu|getContext\s*\(|<canvas|three(?:\.module)?(?:\.min)?\.js|\bTHREE\."
+    r"|\.frag\b|\.glsl\b|<script[^>]*\bsrc\s*=\s*[\"'](?!https?:|//)",
+    re.I)
+
+
+def _check_gpu_html(tool: str, data) -> str:
+    """Refuse a Write/Edit of a GPU-shaped .html page (the app would open it in its pane). Fails open."""
+    try:
+        if tool not in ("Write", "Edit"):
+            return ""
+        ti = data.get("tool_input")
+        ti = ti if isinstance(ti, dict) else {}
+        path = str(ti.get("file_path") or "")
+        if not path.lower().endswith(_HTML_EXT):
+            return ""
+        text = str(ti.get("content") or "") if tool == "Write" else str(ti.get("new_string") or "")
+        if tool == "Edit" and os.path.isfile(path):
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                text += fh.read(2_000_000)
+        if not _GPU_HTML.search(text):
+            return ""
+        name = os.path.basename(path)
+        return (f"BLOCKED: {name} looks like a GPU page (WebGL/WebGPU/three.js/canvas, or it loads a local "
+                "script), and the desktop app opens every .html that Write or Edit touches in its EMBEDDED "
+                "browser pane -- the AMD-driver crash trigger (receipt 2026-08-12; 18 near-misses on "
+                "2026-10-24/25). Create or change it through the shell instead, which the app does not "
+                f"auto-open: write {name}.txt with the Write tool and rename it (mv / Move-Item), or edit it "
+                "with a short py script. Then render it only in headless Chrome under the GPU lock.")
+    except Exception:
+        return ""   # a guard must never brick the agent
+
+
 def main() -> int:
     try:
         data = json.load(sys.stdin)
@@ -254,6 +295,10 @@ def main() -> int:
         return 0
     if _dedup_should_skip(data):
         return 0   # K0/C8-3: identical payload already fired within the window -> silent no-op
+    gpu_html = _check_gpu_html(tool, data)
+    if gpu_html:
+        _deny(gpu_html)
+        return 0
     # 2026-09-01: drift is ORTHOGONAL to scope -- a repo-shaped command can be IN scope by its
     # text while its cwd is drifted (py agent_cli.py from E:\ -> file-not-found), or OUT of
     # scope entirely (grep of absent dirs -> false-clean). Both were silent; both now speak.
