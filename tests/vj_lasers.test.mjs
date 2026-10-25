@@ -9,8 +9,9 @@
 // the overlay's light model at 960 x 540 and 1920 x 1080 with sliding windows). Also: the two banks and their modes, the
 // retrigger tiers, Vibrate's decay, the shapes' geometry, the output format, determinism. The tests marked "Round-1 fix"
 // are the verifier's must-fix repros: each failed against the round-0 engine and passes now; "Round-2 fix" likewise
-// against the round-1 engine (A5-style runs across the theme library, figures under loop dials, realistic mashing).
-// Every number here is synthetic: nothing reads Daniel's playing. (The whole file takes about five minutes.)
+// against the round-1 engine (A5-style runs across the theme library, figures under loop dials, realistic mashing);
+// "Round 3" against the round-2 engine (a new hit plays alone; the acceptance runs draw fresh seeds every run).
+// Every number here is synthetic: nothing reads Daniel's playing. (The whole file takes about six minutes.)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -1356,4 +1357,310 @@ test("the output: the records, head and pad lights, the strip bus, and no red ev
   const limbo = L.themeColours(THEMES.limbo);
   assert.ok(!L.isSaturatedRed(limbo.W), "a held red W never reaches a laser");
   assert.deepEqual(L.catalogue().patterns.length, 17);
+});
+
+// ------------------------------------------------------------------------------------------- 10. round 3 --
+// The verifier's round-2 must-fixes. Round 2 fitted each hit alone and drew hits together (two Reverse-Bass loops
+// pressed a beat apart lit the same off-beats twice and went dark in the same frame), and its acceptance held only on
+// the seeds it was tuned on. Each test below fails on the round-2 engine (a9bb0554) and passes now. The acceptance runs
+// draw FRESH seeds: every run of this file takes a new base, printed with the result; replay a failure with
+// LASERS_SEED=<base> node --test tests/vj_lasers.test.mjs.
+const FRESH = Number(process.env.LASERS_SEED) || (Date.now() % 1000000007);
+// hits lit (any light) in a frame
+const litHits = (eng) => eng.hits.filter((h) => h.started && !h.done && h.level01 > 0.002).length;
+
+// Round-3 fix (must fix 1, the verifier's repro): the crown under the Reverse-Bass dial, 8 presses exactly a beat apart
+// at 165 BPM, white, Vibrate on. Each press is a 2-beat loop pulsing on the off-beat, so pressing once a beat left two
+// loops lighting every off-beat: round 2 sent 7 of 222 frames over its own budget (estimate 25.2-26.3 % against 22 %,
+// raster 17.8-18.7 %), seeds 1-3 alike. Now a new loop takes the grid over from its first pulse (the older one fires
+// nothing from there; if it is already lighting that very pulse, the new one starts a step later), so each off-beat
+// shows one crown and one hit is lit at a time.
+test("Round 3: the Reverse-Bass Gate pressed once a beat -- a new loop takes the grid over, one crown per off-beat, never over budget", () => {
+  const bpm = 165, per = 60000 / bpm, rows = [];
+  for (const seed of [1, 2, 3]) {
+    const ev = Array.from({ length: 8 }, (_, i) => tap(2000 + i * per, 0.85, 60)).flat();
+    const res = rasterRun(L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: WHITE, patternMode: "crown", gateMode: "revbass", vibrate: true }), ev, { from: 1950, to: 2000 + 10 * per });
+    rows.push(`seed ${seed}: estimate worst ${pct(res.est)} %, raster ${pct(res.worstChange)} %, frames over budget ${res.flagged}, onsets ${res.onsets}`);
+    checkRaster(`crown/revbass seed ${seed}`, res);
+    assert.equal(res.flagged, 0, `seed ${seed}: ${res.flagged} frames over the engine's own budget`);
+    assert.ok(res.est <= L.BUDGET.single.window + 1e-9, `seed ${seed}: estimate ${pct(res.est)} %`);
+    assert.ok(res.onsets >= 8, `seed ${seed}: every off-beat still pulses (${res.onsets} onsets)`);
+    const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: WHITE, patternMode: "crown", gateMode: "revbass", vibrate: true });
+    let most = 0;
+    drive(eng, ev, { from: 1950, to: 2000 + 10 * per, onFrame: () => { most = Math.max(most, litHits(eng)); } });
+    assert.equal(most, 1, `seed ${seed}: ${most} hits lit in one frame`);
+  }
+  // ... and with Vibrate off, rastered at 1920 x 1080 with windows slid in eighth steps (round 2: 7 frames over budget,
+  // estimate 22.7 %, raster 18.7 %)
+  const ev = Array.from({ length: 8 }, (_, i) => tap(2000 + i * per, 0.85, 60)).flat();
+  const res = rasterRun(L.createLaserEngine({ seed: 1, clock: steadyClock(bpm), theme: WHITE, patternMode: "crown", gateMode: "revbass", vibrate: false }), ev,
+    { from: 1950, to: 2000 + 10 * per, RW: 1920, RH: 1080, stepDiv: 8 });
+  rows.push(`Vibrate off, 1920 x 1080: estimate worst ${pct(res.est)} %, raster ${pct(res.worstChange)} %, frames over budget ${res.flagged}`);
+  checkRaster("crown/revbass, Vibrate off, 1920 x 1080", res);
+  assert.equal(res.flagged, 0, `Vibrate off: ${res.flagged} frames over the engine's own budget`);
+  console.log("  " + rows.join("; "));
+});
+
+// Round-3 fix (must fix 1): every pattern under the Reverse-Bass dial, pressed once a beat (8 presses, velocity 0.85),
+// at 128-174 BPM, Vibrate off and on, in white, Night Sea and Molten. Round 2: 45 runs over budget in the verifier's
+// 5-theme grid, every one of them Reverse-Bass (crown 25, figure 14, tunnel 4, scissors 1, cross 1), worst 27.9 %.
+test("Round 3: the Reverse-Bass dial pressed once a beat, every pattern, in white, Night Sea and Molten (fresh seeds) -- no frame over budget", () => {
+  const r = L.makeRng(FRESH, "revbass-grid");
+  const bad = [];
+  let runs = 0;
+  for (const id of ["white", "night-sea", "molten"]) for (const bpm of [128, 140, 150, 165, 174]) for (const pattern of L.PATTERN_IDS) for (const vibrate of [false, true]) {
+    const per = 60000 / bpm, seed = 1 + Math.floor(r() * 1e6);
+    const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: id === "night-sea" ? THEMES["night-sea"] : themeOf(id), patternMode: pattern, gateMode: "revbass", vibrate });
+    let over = 0;
+    drive(eng, Array.from({ length: 8 }, (_, i) => tap(2000 + i * per, 0.85, 60)).flat(), { from: 1950, to: 2000 + 10 * per, onFrame: (out) => { if (out.area.over) over++; } });
+    runs++;
+    if (over) bad.push(`${id} ${bpm} ${pattern}${vibrate ? "/vib" : ""} seed ${seed}: ${over}`);
+  }
+  console.log(`  base ${FRESH}: ${runs} runs, ${bad.length} over budget`);
+  assert.deepEqual(bad, [], `base ${FRESH}: ${bad.slice(0, 8).join(", ")}`);
+});
+
+// Round-3 fix (must fix 2, the rest of what overlapped): a new hit PLAYS ALONE. Round 2 let a hit start while the hits
+// before it were still lit (a Reverse-Bass loop's second pulse under the hero's starburst; a press's own tail under the
+// loop its hold started), each fitted alone: their changes added up in one frame (22-27 % against 22 %; 15-17 % against
+// the hold's fast 15 %). Now whatever is left of the hits before goes dark once the new first pulse comes due, and the
+// new hit lights the frame after; and a held loop is fitted where it really starts (round 2 fitted it where a plain
+// press would start, then moved it).
+test("Round 3: a new hit plays alone -- the hits before it are dark before its first pulse, a held press hands over to its loop", () => {
+  const rows = [];
+  // the dial on Reverse-Bass, three presses two beats apart: the third is the hero (a crown, starburst or bloom)
+  for (const [bpm, pattern, sec] of [[140, "crown", "drop"], [174, "zigzag", "drop"], [140, "cross", "climax"], [174, "chase", "build"]]) {
+    const per = 60000 / bpm;
+    for (let s = 0; s < 6; s++) {
+      const eng = L.createLaserEngine({ seed: 700 + 31 * s, clock: steadyClock(bpm), theme: themeOf("brass-break"), patternMode: pattern, gateMode: "revbass", vibrate: true, section: sec });
+      const ev = [...tap(2000, 0.8), ...tap(2000 + 2 * per, 0.95), ...tap(2000 + 4 * per, 0.95)];
+      let most = 0, over = 0;
+      drive(eng, ev, { from: 1950, to: 2000 + 8 * per, onFrame: (out) => { most = Math.max(most, litHits(eng)); if (out.area.over) over++; } });
+      assert.equal(most, 1, `${pattern}/revbass ${bpm} seed ${700 + 31 * s}: ${most} hits lit in one frame`);
+      assert.equal(over, 0, `${pattern}/revbass ${bpm} seed ${700 + 31 * s}: ${over} frames over budget`);
+    }
+  }
+  // a press held into its section's loop (the drop's push-pull or 16th roll; the build's doubling roll)
+  for (const [sec, pattern, vel] of [["drop", "bloom", 0.95], ["drop", "fan", 0.6], ["build", "bloom", 0.9], ["climax", "crown", 0.95]]) {
+    const bpm = 128, per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 41, clock: steadyClock(bpm), theme: WHITE, patternMode: pattern, gateMode: "bar", section: sec, vibrate: true });
+    let most = 0, over = 0, held = null;
+    drive(eng, [...tap(2000, 0.7), ...tap(2000 + 2 * per, 0.8), ...tap(2000 + 4 * per, vel, 3 * per)], { from: 1950, to: 2000 + 9 * per, onFrame: (out) => {
+      most = Math.max(most, litHits(eng)); if (out.area.over) over++;
+      held = held || eng.hits.find((h) => h.tier === "held") || null;
+    } });
+    assert.ok(held, `${sec}: the hold spawned its loop`);
+    assert.equal(most, 1, `${sec} ${pattern} held: ${most} hits lit in one frame`);
+    assert.equal(over, 0, `${sec} ${pattern} held: ${over} frames over budget`);
+    rows.push(`${sec} ${pattern} held: loop ${held.gate}`);
+  }
+  console.log("  " + rows.join("; "));
+});
+
+// Round-3 fix (found on the way): a loop released -- or taken over -- in the dark gap between two pulses lit its last
+// picture again at full light as a "tail" (an extra flash off the grid: 8-11 % of a window from dark, in white). Now a
+// loop that runs out while dark simply ends; only a halo held lit through the gap fades from where it is.
+test("Round 3: a loop released in the dark gap between pulses does not light its last picture again", () => {
+  for (const [gate, bpm] of [["revbass", 150], ["pushpull", 150], ["roll8", 100], ["inhale", 120]]) {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 5, clock: steadyClock(bpm), theme: WHITE, patternMode: "fan", gateMode: gate, bankMode: "A", orderMode: "all" });
+    let released = null, relit = 0, wasDark = false;
+    drive(eng, [{ t: 2000, fn: (e, x) => e.hit(x, 0.9) }], { from: 1950, to: 2000 + 8 * per, onFrame: (out, t) => {
+      const H = eng.hits[0];
+      if (released === null && H && H.started && !H.on && t > 2000 + 2.2 * per) { eng.release(t); released = t; wasDark = out.area.litWindow === 0; return; }
+      if (released !== null && t > released && out.area.litWindow > 0.002 && !(H && H.on)) relit++;
+    } });
+    assert.ok(released !== null, `${gate}: released in a gap`);
+    if (wasDark) assert.equal(relit, 0, `${gate}: ${relit} frames lit again after a release in the dark`);
+  }
+});
+
+// Round-3 fix (from the realistic runs): the settings a hit is fitted to stay its own. Vibrate switched on while a hit
+// fitted still ran made it pluck at its next pulse (a 16th roll of figures rang at the full 18 px, 16.8 % against 15 %);
+// a theme picked mid-hit recoloured its lit pulse at once. Now both reach the next hit.
+test("Round 3: Vibrate switched on mid-hit reaches the next hit; a theme picked mid-hit never recolours a lit pulse", () => {
+  const bpm = 150, per = 400;
+  const eng = L.createLaserEngine({ seed: 9, clock: steadyClock(bpm), theme: THEMES["night-sea"], shapeMode: "auto", gateMode: "roll16", vibrate: false, section: "climax" });
+  drive(eng, [...tap(2000, 0.9, 2 * per), { t: 2000 + per, fn: (e, x) => e.setVibrate(true, x) }], { from: 1950, to: 2000 + 2.5 * per });
+  assert.ok(eng.vib.every((v) => v.rings.length === 0), "the roll fitted with Vibrate off never plucked");
+  drive(eng, tap(2000 + 4 * per, 0.9), { from: 2000 + 3 * per, to: 2000 + 6 * per });
+  assert.ok(eng.vib.some((v) => v.rings.length > 0), "the next press rings");
+  const e2 = L.createLaserEngine({ seed: 9, clock: steadyClock(bpm), theme: THEMES["night-sea"], patternMode: "fan", gateMode: "single", colourMode: "mono" });
+  let before = null, recoloured = 0;
+  drive(e2, [...tap(2000, 0.8), { t: 2034, fn: (e) => e.setTheme(THEMES["golden-wings"]) }], { from: 1990, to: 2100, onFrame: (out) => {
+    const H = e2.hits[0];
+    if (!H || !H.on) return;
+    let rgb = null;
+    eachLine(out, (r) => { if (!rgb && r.I > 0.01) rgb = [r.r, r.g, r.b]; });
+    if (!rgb) return;
+    if (before && Math.hypot(rgb[0] - before[0], rgb[1] - before[1], rgb[2] - before[2]) > 0.02) recoloured++;
+    before = rgb;
+  } });
+  assert.equal(recoloured, 0, "the lit pulse kept its colours through the theme switch");
+});
+
+// Round-3 fix (from the crash fuzz): a hit fitted in one window shape kept its fit when the window turned (a resize, a
+// fullscreen toggle): a held crown roll fitted at 21:9 lit 15.2 % of a window at every pulse in portrait (round 2: 26
+// frames over budget across the grid below, the switch frame itself left out). Now a new aspect refits the live hits.
+// (The switch frame itself re-lays every line out, as the page does: it is not counted.)
+test("Round 3: a held roll refits when the window changes shape -- no frame over budget after the switch", () => {
+  const bad = [];
+  for (const [a0, a1] of [[21 / 9, 9 / 16], [16 / 9, 9 / 16], [4 / 3, 21 / 9]]) for (const pattern of ["crown", "fan", "figure", "tunnel", "cross", "rain"]) for (const theme of [WHITE, THEMES["night-sea"]]) {
+    const per = 400, eng = L.createLaserEngine({ seed: 7, clock: steadyClock(150), theme, patternMode: pattern, gateMode: "doubling", section: "build", aspect: a0 });
+    const ev = tap(2000, 0.95, 8 * per).sort((a, b) => a.t - b.t);
+    let ei = 0, over = 0, sw = null;
+    for (let t = 1950; t < 2000 + 9 * per; t += F) {
+      while (ei < ev.length && ev[ei].t <= t) { const e = ev[ei++]; e.fn(eng, e.t); }
+      if (sw === null && t > 2000 + 2 * per) sw = t;
+      const out = eng.frame(t, { aspect: sw === null ? a0 : a1 });
+      if (out.area.over && sw !== null && t > sw + 1) over++;
+    }
+    if (over) bad.push(`${a0.toFixed(2)} > ${a1.toFixed(2)} ${pattern} ${theme.id}: ${over}`);
+  }
+  assert.deepEqual(bad, [], bad.join(", "));
+});
+
+// Round-3 fix (must fix 2): the verifier's A5-style grid with other seeds -- BPMs 120-190, velocities 0.7-1.0, taps up to
+// 20 ms off, random bank, order, colour and section, every pattern and gate, Vibrate on 60 % -- across the 21 library
+// themes and white, on FRESH seeds. Round 2: 110 frames over budget in 72 of 17,600 such runs (every theme affected).
+// What they caught, each fixed at its root: loops stacked on one grid (above); a loop fitted on the heads of one group
+// per position while the walk (rapid presses, skipped pulses) lights any group anywhere; a loop fitted on its first
+// beat's grid and the first pulse of each later beat, while a moving picture (the wave's phase, the sweep) is elsewhere
+// at every step, and a rapid roll runs on the 16th grid its presses switch it to; the cross and the wave, which draw
+// every step's heads at once, had no lever left but light and were left over their aim; and a life simulated only
+// where a short gate's pulse is scheduled, not where spec 3.3 moves it.
+test("Round 3: A5-style runs on fresh seeds across the library and white -- no frame over budget", () => {
+  const ids = [...Object.keys(LIBRARY), "white"], pick = (r, a) => a[Math.floor(r() * a.length)];
+  const bad = [];
+  let runs = 0;
+  for (const id of ids) {
+    const r = L.makeRng(FRESH, "a5-fresh", id);
+    for (let i = 0; i < 90; i++) {
+      const bpm = pick(r, [120, 128, 136, 140, 160, 165, 174, 190]), per = 60000 / bpm;
+      const pattern = pick(r, L.PATTERN_IDS), gate = pick(r, L.GATE_IDS), vibrate = r() < 0.6;
+      const bankMode = r() < 0.3 ? "auto" : pick(r, Object.keys(L.BANK_MODES)), orderMode = r() < 0.4 ? "auto" : r() < 0.5 ? "all" : pick(r, L.ORDER_IDS);
+      const colourMode = r() < 0.5 ? "auto" : pick(r, L.COLOUR_IDS), section = pick(r, ["climax", "drop", "build", "anti", "groove", "break"]);
+      const shapeMode = pattern === "figure" && r() < 0.5 ? (r() < 0.5 ? "auto" : pick(r, L.SHAPES)) : null;
+      const seed = 1 + Math.floor(r() * 1e9), jit = 20 * r(), style = r();
+      const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: themeOf(id), patternMode: pattern, gateMode: gate, bankMode, orderMode, colourMode, vibrate, section, shapeMode });
+      const v = () => 0.7 + 0.3 * r();
+      const ev = style < 0.5 ? [...tap(2000 + gauss(r) * jit, v()), ...tap(2000 + 2 * per + gauss(r) * jit, v()), ...tap(2000 + 4 * per + gauss(r) * jit, v(), 3 * per)]
+        : style < 0.75 ? Array.from({ length: 8 }, (_, k) => tap(2000 + k * per + gauss(r) * jit, v())).flat()
+          : Array.from({ length: 12 }, (_, k) => tap(2000 + k * 0.5 * per + gauss(r) * jit, v(), 30)).flat();
+      let over = 0;
+      drive(eng, ev, { from: 1950, to: 2000 + 10 * per, onFrame: (out) => { if (out.area.over) over++; } });
+      runs++;
+      if (over) bad.push(`${id} #${i} ${bpm} ${pattern}/${gate}/${bankMode}/${orderMode}/${colourMode}/${section}${vibrate ? "/vib" : ""} seed ${seed}: ${over}`);
+    }
+  }
+  console.log(`  base ${FRESH}: ${runs} runs, ${bad.length} with frames over budget`);
+  assert.deepEqual(bad, [], `base ${FRESH}: ${bad.slice(0, 8).join(", ")}`);
+});
+
+// Round-3 fix (must fix 2): the verifier's realistic mashing (20 s a run: 8th and 16th mashing, quarter and dotted
+// presses, holds, the phrase, bar presses; the dial, Vibrate, Shape and bank changed now and then) on FRESH seeds, at a
+// steady 60 fps, with 4 % of frames dropped, and with figures. Round 2 on fresh seeds: 2 frames in 200 steady runs,
+// 4 in 100 with drops, 3 in 100 with figures.
+test("Round 3: realistic mashing on fresh seeds, steady, with dropped frames and with figures -- no frame over budget", () => {
+  const themeIds = [...Object.keys(LIBRARY), "white"], pick = (r, a) => a[Math.floor(r() * a.length)];
+  const bad = [];
+  let runs = 0;
+  for (const [mode, n] of [["steady", 24], ["drops", 12], ["figures", 12]]) for (let k = 0; k < n; k++) {
+    const r = L.makeRng(FRESH, "mash-fresh", mode, k), figs = mode === "figures";
+    const bpm = pick(r, [120, 128, 140, 150, 160, 174, 180]), per = 60000 / bpm, th = pick(r, themeIds);
+    const eng = L.createLaserEngine({ seed: 1 + Math.floor(r() * 1e9), clock: steadyClock(bpm), theme: themeOf(th), section: pick(r, ["climax", "drop", "build", "groove", "anti", "break"]),
+      vibrate: r() < 0.5, shapeMode: r() < 0.25 || figs ? "auto" : null, gateMode: r() < 0.6 ? "auto" : pick(r, L.GATE_IDS),
+      bankMode: r() < 0.5 ? "auto" : pick(r, Object.keys(L.BANK_MODES)) });
+    const ev = [], end = 2000 + 20000;
+    for (let t = 2000; t < end;) {
+      const style = r();
+      if (style < 0.25) {
+        const div = r() < 0.6 ? 0.5 : 0.25, m = 4 + Math.floor(r() * 12);
+        for (let i = 0; i < m; i++) { const tt = t + i * div * per + gauss(r) * 12, v = 0.5 + 0.5 * r(); ev.push({ t: tt, fn: (e, x) => e.hit(x, v) }, { t: tt + 35, fn: (e, x) => e.release(x) }); }
+        t += m * div * per;
+      } else if (style < 0.5) {
+        const div = pick(r, [1, 0.75, 2 / 3, 1.5]), m = 3 + Math.floor(r() * 6);
+        for (let i = 0; i < m; i++) { const tt = t + i * div * per + gauss(r) * 15, v = r(); ev.push({ t: tt, fn: (e, x) => e.hit(x, v) }, { t: tt + 50, fn: (e, x) => e.release(x) }); }
+        t += m * div * per;
+      } else if (style < 0.65) {
+        const hold = (1 + Math.floor(r() * 6)) * per, v = 0.4 + 0.6 * r();
+        ev.push({ t, fn: (e, x) => e.hit(x, v) }, { t: t + hold, fn: (e, x) => e.release(x) });
+        t += hold + per * r();
+      } else if (style < 0.75) {
+        const v = 0.7 + 0.3 * r();
+        ev.push({ t, fn: (e, x) => e.phrase(x, v) });
+        t += per * (1 + Math.floor(r() * 3));
+      } else if (style < 0.85) {
+        const m = 2 + Math.floor(r() * 4);
+        for (let i = 0; i < m; i++) { const tt = t + i * 4 * per + gauss(r) * 20, v = 0.6 + 0.4 * r(); ev.push({ t: tt, fn: (e, x) => e.hit(x, v) }, { t: tt + 60, fn: (e, x) => e.release(x) }); }
+        t += m * 4 * per;
+      } else {
+        const a = r();
+        if (a < 0.3) { const g = r() < 0.4 ? "auto" : pick(r, L.GATE_IDS); ev.push({ t, fn: (e) => e.set({ gateMode: g }) }); }
+        else if (a < 0.55) { const on = r() < 0.5; ev.push({ t, fn: (e, x) => e.setVibrate(on, x) }); }
+        else if (a < 0.75) { const sm = figs ? "auto" : r() < 0.6 ? null : "auto"; ev.push({ t, fn: (e) => e.set({ shapeMode: sm }) }); }
+        else { const b = r() < 0.4 ? "auto" : pick(r, Object.keys(L.BANK_MODES)); ev.push({ t, fn: (e) => e.set({ bankMode: b }) }); }
+        t += per * r() * 2;
+      }
+    }
+    const dr = L.makeRng(FRESH, "mash-drop", k);
+    let over = 0;
+    driveDt(eng, ev, { from: 1950, to: end + 3 * per, dtFn: () => (mode === "drops" && dr() < 0.04 ? 33.33 : F), onFrame: (out) => { if (out.area.over) over++; } });
+    runs++;
+    if (over) bad.push(`${mode} #${k} ${th} ${bpm}: ${over}`);
+  }
+  console.log(`  base ${FRESH}: ${runs} runs of 20 s, ${bad.length} with frames over budget`);
+  assert.deepEqual(bad, [], `base ${FRESH}: ${bad.join(", ")}`);
+});
+
+// Round-3 fix (must fix 2): a rapid roll walked through every group by the presses, and the patterns that draw every
+// step's heads at once. Round 2 fitted a loop on one group per position (a rapid sweep of single heads went dark at
+// 15.1-15.8 % against 15 %, pressed again and again) and left a cross under the call bank with no lever but light (all
+// its levers at their floors, onsets fitted at 15.8-30 % against 13.5 %, held back only by the frame check).
+test("Round 3: a roll walked through every group, and a cross or wave drawing every step's heads, fit their budget (fresh seeds)", () => {
+  const r = L.makeRng(FRESH, "groups");
+  const bad = [];
+  let runs = 0;
+  for (const pattern of ["sweep", "bloom", "fan", "scissors", "hot", "zigzag", "tunnel", "rain"]) for (const id of ["white", "golden-wings", "void-ritual"]) for (let s = 0; s < 3; s++) {
+    const bpm = [128, 160, 190][s], per = 60000 / bpm, seed = 1 + Math.floor(r() * 1e9);
+    const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: themeOf(id), patternMode: pattern, gateMode: "stopshort", orderMode: "rl", bankMode: "auto", vibrate: true, section: "build" });
+    const ev = Array.from({ length: 14 }, (_, i) => tap(2000 + i * 0.5 * per + gauss(r) * 10, 0.75 + 0.25 * r(), 30)).flat();
+    let over = 0;
+    drive(eng, ev, { from: 1950, to: 2000 + 10 * per, onFrame: (out) => { if (out.area.over) over++; } });
+    runs++;
+    if (over) bad.push(`walked ${pattern} ${id} ${bpm} seed ${seed}: ${over}`);
+  }
+  for (const pattern of ["cross", "wave"]) for (const gate of ["stopshort", "onetwo", "pushpull", "tttou", "military"]) for (const bankMode of ["call", "both"]) for (const id of ["laser-green", "white"]) {
+    const bpm = 165, per = 60000 / bpm, seed = 1 + Math.floor(r() * 1e9);
+    const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: id === "laser-green" ? THEMES["laser-green"] : WHITE, patternMode: pattern, gateMode: gate, bankMode, vibrate: true, section: "climax" });
+    let over = 0;
+    drive(eng, [...tap(2000, 0.95), ...tap(2000 + 2 * per, 0.95), ...tap(2000 + 4 * per, 0.95)], { from: 1950, to: 2000 + 8 * per, onFrame: (out) => { if (out.area.over) over++; } });
+    runs++;
+    if (over) bad.push(`${pattern}/${gate}/${bankMode} ${id} seed ${seed}: ${over}`);
+  }
+  console.log(`  base ${FRESH}: ${runs} runs, ${bad.length} over budget`);
+  assert.deepEqual(bad, [], `base ${FRESH}: ${bad.slice(0, 8).join(", ")}`);
+});
+
+// Round-3 fix (must fix 2, the per-frame check): a ringing figure whose pieces at the string's nodes stand still could
+// not give way: round 2 dimmed a hit only when every one of its lines moved, so a figure ringing past its fit went out
+// over budget in the middle of a lit pulse (with the fit switched off: 44 such frames over the grid below, every 4-ring
+// tunnel). Now such a hit dims (the frame keeps the best state it tried). (A pulse going DARK is the fit's to keep:
+// light that goes dark cannot be taken back in that frame.)
+test("Round 3: with the fit off, a ringing figure whose node pieces stand still gives way in the middle of its pulse", () => {
+  let mid = 0, frames = 0;
+  for (const shape of ["tunnel", "circle", "spiral", "cube"]) for (const gate of ["roll8", "roll16", "pushpull"]) for (const bpm of [100, 128, 150]) {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 17, clock: steadyClock(bpm), theme: WHITE, shapeMode: shape, gateMode: gate, vibrate: true, section: "climax" });
+    eng._fitHit = () => {};
+    let wasOn = false;
+    drive(eng, tap(2000, 1, 4 * per), { from: 1950, to: 2000 + 6 * per, onFrame: (out) => {
+      const H = eng.hits.find((h) => h.started && !h.done), on = !!(H && H.on);
+      if (on && wasOn && !out.events.some((e) => e.type === "pulse")) { frames++; if (out.area.over) mid++; }
+      wasOn = on;
+    } });
+  }
+  console.log(`  ${frames} mid-pulse frames, ${mid} over budget`);
+  assert.ok(frames > 500);
+  assert.equal(mid, 0, `${mid} mid-pulse frames over budget with the fit off`);
 });

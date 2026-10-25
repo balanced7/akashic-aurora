@@ -38,16 +38,20 @@
 //     with each line matched to itself in the frame before, so a beam that appears counts its lit band, a beam that moves
 //     counts where it was and where it is, and a core strobing under a held halo counts only the core. Every new hit is
 //     fitted to its budget (fast gates: 15 % of a window, 8 % of the frame; single onsets: 22 % / 8 %) over its whole
-//     life -- its pulses wherever they can land (a loop's whole 16-beat cycle, so every figure it morphs into), its
-//     motion and its tail, by simulating it; a dense figure sharpens or dims on its own, and a ringing hit whose lines
-//     are blur-bound sharpens -- and every frame is checked: the hit whose new or moving beams change the most gives up
-//     its outermost beams (sticky, never given back mid-hit; a static beam is never taken, since taking it would itself
-//     be a change), and a hit whose lines are all new or moving dims; a frame that cannot get under goes out as the best
-//     reduction found. Presses faster than 3 a second count as a fast gate. A fast hit never moves while lit (a rapid
-//     press's velocity waits for the next pulse, and never passes the velocity the roll was fitted at; barswap swaps
-//     on the pulse's own bar line); a new fast hit chokes the old ones, letting a lit pulse finish its 40 ms and starting
-//     only once they are dark. The strings ring on their own clock, which never steps more than 1.2 frames at once, so
-//     a dropped frame cannot double a ringing line's step. Red is never emitted.     estimateChange estimateArea BUDGET
+//     life -- its pulses wherever they can land (a loop's whole cycle on the finest grid it can run on, with every group
+//     of heads it may light, so every position, figure and head it can show), its motion and its tail, by simulating
+//     it; a dense figure sharpens or dims on its own, a ringing hit whose lines are blur-bound sharpens, and a pattern
+//     that draws every step's heads gives way head by head -- and every frame is checked: the hit whose new or moving
+//     beams change the most gives up its outermost beams (sticky, never given back mid-hit; a static beam is never taken,
+//     since taking it would itself be a change), and a hit whose lines are (nearly) all new or moving dims; a frame that
+//     cannot get under goes out as the best reduction found. A new hit PLAYS ALONE, so the fit of each hit alone is the
+//     fit of the frame: a fast one chokes the hits before it, any other takes over from its first pulse (latest takes
+//     precedence; a loop on the same grid hands over its off-beats), and it lights only once they are dark. Presses
+//     faster than 3 a second count as a fast gate. A fast hit never moves while lit (a rapid press's velocity waits for
+//     the next pulse, and never passes the velocity the roll was fitted at; barswap swaps on the pulse's own bar line).
+//     A hit keeps the settings it was fitted to (Vibrate's plucks, the theme's colours) for its whole life. The strings
+//     ring on their own clock, which never steps more than 1.2 frames at once, so a dropped frame cannot double a
+//     ringing line's step. Red is never emitted.                                  estimateChange estimateArea BUDGET
 //
 // Coordinates: centred units, frame height = 1, +y up, x in [-aspect/2, +aspect/2] (the overlay's `p` in vj.js). The
 // hero point is (0, 0.05), 45 % from the top. Widths and blur are pixels at 1080 lines (the shader scales by height/1080,
@@ -301,10 +305,22 @@ const CAGE_TILT = [0.5, 0.74, 0.36, 0.62];
 const STILL_IN_FAST = new Set(["fan", "cross", "crown", "rain", "ladder", "chase"]);
 // patterns whose fans follow the hit's beam count (the others fire one or two beams per head)
 const BEAM_SCALED = new Set(["fan", "sweep", "cone", "bloom", "scissors"]);
+// patterns that draw the same heads whichever step (group) a pulse lights: the hero's own, the rig-wide cross and wave,
+// the towers' ladder
+const GROUP_FREE = new Set(["crown", "star", "figure", "cross", "wave", "ladder"]);
+// patterns that fire a fixed one or two beams per head; the fit's last structural lever takes them to one (beamCap)
+const PAIR_BEAMS = new Set(["cross", "zigzag", "scissors"]);
+// [beats after which a pattern's picture repeats, beats between its changes (0: it moves every step)], as _pattern
+// draws it from the beat position: the fit probes a loop at every such grid point over the cycle. (Patterns missing
+// here hold still from step to step, or turn with the pulse count; the figure is probed beat by beat on its own terms.)
+const PATTERN_CYCLE = Object.freeze({ wave: [4], sweep: [2], tunnel: [4], cone: [2], rain: [4], scissors: [6], cage: [16, 4],
+  crown: [8], star: [8], bloom: [1] });
 // a figure's level and blur band multipliers before the fit lowers them (see _fitHit)
 const SHAPE_MUL_ONE = Object.freeze({ lvl: 1, blur: 1 });
 // the lowest level the per-frame check may dim a hit to (see _giveWay)
 const DIM_FLOOR = 0.03;
+// the lowest light the fit dims a hit to once every structural lever (beams, heads, rungs, crown) is spent
+const PEAK_FLOOR = 0.12;
 
 // =========================================================================================================== orders --
 export const ORDERS = Object.freeze({
@@ -457,9 +473,12 @@ export function themeColours(theme) {
   }
   const list = (roles, fb) => (Array.isArray(roles) && roles.length ? roles.map(res) : fb);
   const strobe = t.strobe || {};
-  return Object.freeze({ id: t.id || "custom", L1, L2, W, triple: list(strobe.triple, [L1, L1, W]),
-    flicker: list(strobe.flicker, [L1, L2]), burst: list(t.burst, [L1, L2, W]), splitOnly: !!t.split_only,
-    hueGap: hueGapDeg(L1, L2) });
+  const triple = list(strobe.triple, [L1, L1, W]), flicker = list(strobe.flicker, [L1, L2]), burst = list(t.burst, [L1, L2, W]);
+  // the brightest of each cycle (by luminance, then by its brightest channel): what the fit draws a loop's pulse in
+  const Y = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] + 1e-3 * Math.max(c[0], c[1], c[2]);
+  const top = (cs) => cs.reduce((a, c) => (Y(c) > Y(a) ? c : a), cs[0]);
+  return Object.freeze({ id: t.id || "custom", L1, L2, W, triple, flicker, burst, splitOnly: !!t.split_only,
+    hueGap: hueGapDeg(L1, L2), top: Object.freeze({ pair: top([L1, L2]), triple: top(triple), flicker: top(flicker), burst: top(burst) }) });
 }
 
 // ========================================================================================================== Vibrate --
@@ -806,6 +825,17 @@ export function recordBuffer() {
     n: 0, map: new Map() };
 }
 function indexKeys(buf) { buf.map.clear(); for (let i = 0; i < buf.n; i++) buf.map.set(buf.keys[i], i); return buf; }
+// A frame's records as a key: two 32-bit FNV-style hashes of every value quantized to 1e-5 (the fit's probes reuse an
+// estimate when they draw the same picture again)
+function recordHash(Wa, n) {
+  let a = 0x811c9dc5 | 0, b = 0x2545f491 | 0;
+  for (let i = 0, m = n * W_FLOATS; i < m; i++) {
+    const v = Math.round(Wa[i] * 1e5) | 0;
+    a = Math.imul(a ^ v, 0x01000193);
+    b = Math.imul(b ^ (v + i), 0x5bd1e995); b ^= b >>> 13;
+  }
+  return `${n}:${a >>> 0}:${b >>> 0}`;
+}
 
 // ========================================================================================================== packing --
 // The output record (THE OUTPUT, above): texel 0 the line, texel 1 four 24-bit integers held exactly in floats.
@@ -889,7 +919,7 @@ const DEFAULTS = Object.freeze({
   section: "any",
   heroGap: 6,                 // a hero needs at least this many hits since the last hero
   antiRepeat: 32,             // a signature never repeats within this many hits
-  maxHits: 4,                 // hits drawn at once (older ones fade out)
+  maxHits: 4,                 // hits drawn at once, older ones fading out (a backstop: a new hit takes over from them)
 });
 
 const TINY = 1e-9;
@@ -1289,24 +1319,12 @@ export class LaserEngine {
       }
       default: steps = [byX];
     }
-    // a step never lights more heads than the cap: it keeps whole mirrored rings (left and right, both banks), evenly
-    // spread from the outside in, so the rig stays symmetric
-    return steps.map((s) => {
-      if (s.length <= maxHeads) return s;
-      const byRing = new Map();
-      for (const h of s) { const r = HEADS[h].ring; if (!byRing.has(r)) byRing.set(r, []); byRing.get(r).push(h); }
-      const rank = (h) => (HEADS[h].bank === "A" ? 0 : HEADS[h].bank === "B" ? 2 : 4) + (HEADS[h].side > 0 ? 1 : 0);
-      const groups = [...byRing.keys()].sort((a, b) => b - a).map((r) => byRing.get(r).sort((a, b) => rank(a) - rank(b)));
-      const size = Math.max(...groups.map((g) => g.length));
-      const nG = Math.max(1, Math.floor(maxHeads / size));
-      const out = [];
-      for (let i = 0; i < nG && i < groups.length; i++) out.push(...groups[Math.round(i * (groups.length - 1) / Math.max(1, nG - 1))]);
-      return [...new Set(out)].slice(0, maxHeads);
-    });
+    // a step never lights more heads than the cap (see capHeads)
+    return steps.map((s) => capHeads(s, maxHeads));
   }
 
   // ------------------------------------------------------------------------------------------------- the spawn --
-  _spawn(deal, { t, pH, per, vel, tier, level, gate, fast, kind, spare = null }) {
+  _spawn(deal, { t, pH, per, vel, tier, level, gate, fast, kind, spare = null, loopSpan = null, loopAfter = -Infinity }) {
     const o = this.o, G = GATES[gate];
     const rng = makeRng(deal.seed, "spawn");
     const cap = fast ? BUDGET.fast : BUDGET.single;
@@ -1332,26 +1350,54 @@ export class LaserEngine {
       fadeT: 0, finished: false, finishFrame: 0, tailTau: 0, peak: 0.6 + 0.5 * vel, stepOverride: 0, smearFrame: -1,
       shapes: null, lastPulseP: pH, call: deal.bank === "call", crownN: 0, holdSpawned: false, started: false, pStart: pH,
       trimPri: Infinity, thin: false, choked: false, waitFor: null, onsetFrame: -1, ringScale: 1, shapeMul: null, blurMul: 1,
+      headCap: Infinity, beamCap: Infinity,
+      // the settings a hit is fitted to stay its own for its whole life: whether it plucks its strings (Vibrate, or the
+      // phrase) and the theme's colours (a theme picked while it runs reaches the next hit, never a lit pulse)
+      plucks: o.vibrate || gate === "tttou", col: this.col,
     };
     H.crownN = deal.pattern === "star" || (deal.pattern === "crown" && tier === "hero") ? (fast ? 12 : 24) : 12;
     if (deal.pattern === "figure") {
       const seq = [deal.shape];
       for (let i = 1; i < 16; i++) seq.push(this.decks.shape.next());
       H.shapes = seq;
-      H.shapeFrom = this.lastShape;
+      // A fast hit steps from the last hit's figure to its own on its first beat (each pulse frozen); a slow onset
+      // would morph from it WHILE LIT, every piece sweeping across the frame in a quarter beat (up to 42 % of a window
+      // in white), and the figure it morphs from is already dark (a new hit plays alone): it starts formed.
+      H.shapeFrom = fast ? this.lastShape : null;
       this.lastShape = deal.shape;
     }
+    const span = loopSpan === null ? G.span : loopSpan;
     if (G.kind === "short") this._anchorShort(H, G, pH, per);
-    else this._startLoop(H, G, pH, per, G.span);
-    this._fitHit(H, per, t);
-    // A fast hit plays alone: when it starts, the hits before it are CHOKED (a lit pulse finishes its minimum on-time,
-    // nothing new starts, then they go dark at once), and so is a running fast hit when any new press starts. The new
-    // hit's first pulse waits until the choked ones are dark, so one hit's "off" and the next one's "on" never land in
-    // one frame. Otherwise only the oldest beyond maxHits fades out.
+    else this._startLoop(H, G, pH, per, span, loopAfter);
+    // A new hit PLAYS ALONE, so that what the fit measured -- each hit by itself -- is what the frame shows. Hits fitted
+    // alone and drawn together added up: two Reverse-Bass loops pressed a beat apart lit the same off-beats twice and
+    // went dark in the same frame; a hero's starburst rang and decayed while the loop before it went dark.
+    //   - A fast hit CHOKES the hits before it (a lit pulse finishes its minimum on-time, nothing new starts, then they
+    //     go dark at once), and so is a running fast hit when any new press starts.
+    //   - Any other new hit TAKES OVER (latest takes precedence, a lighting desk's LTP merge) from its first pulse: the
+    //     hits before it fire nothing from there on (a pulse in progress finishes, its length bounded to leave the frame
+    //     rules' gap before the new first pulse), and what is left of them when that pulse comes due -- a tail, a pulse
+    //     still lit -- goes dark then (a lit pulse after its minimum on-time). If a loop on the same grid is already
+    //     lighting the very pulse a new loop would start on, the new loop starts one step later instead of lighting a
+    //     second copy of it (the Reverse-Bass Gate pressed on its off-beat: one clean pulse per off-beat).
+    // Either way the new hit's first pulse waits until they are dark, so one hit's "off" and the next one's "on" never
+    // land in one frame.
     const live = this.hits.filter((h) => !h.done && h !== spare);
-    const choke = fast ? live : live.filter((h) => h.fast);
+    const choke = [], handover = [];
+    for (const h of live) {
+      if (fast || h.fast || !h.started || h.choked) { choke.push(h); continue; }     // (one choked already is still waited for)
+      if (H.loop && h.loop && h.on && h.cur && Math.abs(h.cur.P - H.pStart) < 1e-6 && this._sameGrid(h, H)) {
+        this._startLoop(H, G, pH, per, span, H.pStart + 1e-6);
+      }
+      handover.push(h);
+    }
+    if (spare) handover.push(spare);
+    for (const h of handover) this._takeOver(h, H.pStart);
+    this._fitHit(H, per, t);
     for (const h of choke) this._choke(h);
-    H.waitFor = choke.length ? choke : null;
+    const wait = choke.concat(handover);
+    H.waitFor = wait.length ? wait : null;
+    H.handover = handover.length ? handover : null;
     if (!fast) { const lit = live.filter((h) => !h.fading && !h.choked); if (lit.length >= o.maxHits) this._fade(lit[0], t); }
     this.hits.push(H);
     H.info = {
@@ -1362,6 +1408,25 @@ export class LaserEngine {
       sig: this._sig(deal),
     };
     return H;
+  }
+  // a running loop h on the same grid as the new loop H: the same step, H's first pulse on one of h's grid points
+  _sameGrid(h, H) {
+    const a = h.loop, b = H.loop;
+    const sa = a.slot ? a.slot.step : a.lastStep;
+    if (!(sa > 0) || Math.abs(sa - b.lastStep) > 1e-6) return false;
+    const d = (b.P - a.P) / sa;
+    return Math.abs(d - Math.round(d)) <= 1e-4;
+  }
+  // a newer hit takes over at beat P: h fires no pulse at or after it, and a pulse it lights before leaves the frame
+  // rules' gap before P (see _evalHit)
+  _takeOver(h, P) {
+    h.takeoverP = Math.min(h.takeoverP ?? Infinity, P);
+    if (h.loop) h.loop.endP = Math.min(h.loop.endP, P);
+    else if (h.pulses) {
+      let n = h.pulses.length;
+      while (n > h.pi && h.pulses[n - 1].P >= P - 1e-9) n--;
+      if (n < h.pulses.length) h.pulses = h.pulses.slice(0, n);
+    }
   }
   _fade(h, t, tau = 40) { if (!h.fading) { h.fading = true; h.fadeT = t; h.fadeTau = tau; } }
   _minOnFrames() { return Math.max(1, Math.ceil(FRAME_RULES.minOnMs / this.F - 1e-6)); }
@@ -1388,48 +1453,72 @@ export class LaserEngine {
     // The strings this hit sets ringing (Vibrate, or the phrase's own pluck): for the probes each is plucked as this hit
     // will pluck it, on top of what still rings from before; all is put back after. A ringing hit's first lever is a
     // softer pluck (ringScale), so it keeps its beams and its brightness.
-    const rings = this.o.vibrate || H.gate === "tttou";
+    // (A string still ringing from before rings this hit's lines too, though it plucks nothing itself: the phrase plucks
+    // even with Vibrate off, and the hero string it rang carries into every figure and crown for seconds after. Round 2
+    // fitted such a hit as still and it moved.)
+    const plucks = H.plucks;
     const vibKeep = this.vib.map((v) => ({ ...v }));
+    const rings = plucks || vibKeep.some((v) => this._ringState(v, t) !== null);
     // A hit that plucks again and again (Vibrate on a gate of several pulses; the phrase's pluck and smears) builds its
     // rings up to its own cap (MAX_PX * ringScale), so it is probed at that cap; a single pluck at its own size.
     const G0 = GATES[H.gate];
     const repluck = H.gate === "tttou" || (this.o.vibrate && (G0.kind === "loop" || G0.pulses.length > 1));
-    const pluckAmp = repluck ? VIB.MAX_PX : VIB.AMP_PX * (0.6 + 0.4 * H.vel);
-    // (risen = the onset probes see the ring through its attack already, so a pulse is measured with the blur band it
-    // will have by its end, the light that goes off with it; the life probes pluck at their start)
+    const pluckAmp = !plucks ? 0 : repluck ? VIB.MAX_PX : VIB.AMP_PX * (0.6 + 0.4 * H.vel);
+    // (risen = the ring is through its attack already: the onset probes, so a pulse is measured with the blur band it
+    // will have by its end, the light that goes off with it; and the lives from a later pulse, whose strings still ring
+    // from the pulses before (rings superpose, and in phase they swing as one ring at the cap). The life from the first
+    // pulse plucks at its start, on top of what still rings from before, which is through its attack: two rings. Round 2
+    // plucked every life from rest, one ring rising from nothing, and a figure ringing from its first pulse moved more
+    // at its second pulse's tail than that life had measured.)
     const setRings = (risen = false) => {
       if (!rings) return;
+      const cap = VIB.MAX_PX * H.ringScale, back = t - 3000 * VIB.ATTACK_S;
       for (let i = 0; i < this.vib.length; i++) {
         const k = vibKeep[i], v = this.vib[i], offS = k.offT === null ? null : Math.max(0, (t - k.offT) / 1000);
         let now = 0;
         for (const r of k.rings) { const age = (t - r.t0) / 1000; if (age >= 0 && age < 6) now += vibModes(age, r.amp, offS)[0] * ringAttack(age); }
-        const amp = Math.max(now, Math.min(VIB.MAX_PX * H.ringScale, now + pluckAmp * H.ringScale));
-        v.rings = [{ t0: risen ? t - 3000 * VIB.ATTACK_S : t, amp }]; v.offT = null;
+        const amp = Math.max(now, Math.min(cap, now + pluckAmp * H.ringScale));
+        v.rings = risen ? [{ t0: back, amp }] : [{ t0: back, amp: now }, { t0: t, amp: amp - now }].filter((r) => r.amp > 0);
+        v.offT = null;
       }
     };
     const fits = (w, f) => w <= cap.window * aim && f <= cap.frame * aim;
     const area = { frame: 0, window: 0 };
     const fig = H.pattern === "figure" && !!H.shapes;
     if (fig && !H.shapeMul) H.shapeMul = {};
+    // A loop's pulses take their colour from how many it has fired (masks skip, rapid presses walk), so any pulse may
+    // show any colour of its mode's cycle: its probes draw each beam in the brightest colour it can take (_colour).
+    this.fitBright = !!H.loop;
+    this.fitBlur = true;               // (each ringing figure piece at its worst blur: see _write)
     // the onsets this hit can show (each where it will be: a fast hit's moving pattern freezes at each pulse's own beat
     // position, which moves the scissors' foci, the zigzag's side, the hot beam's aim, the figure, from pulse to pulse)
+    // (a single slow onset is drawn a little into its own motion; a loop's pulse where it lands)
     const all = this._fitProbes(H);
     for (const pr of all) {
-      pr.at = H.fast || pr.reach ? pr.P : H.pStart + 0.3;
+      pr.at = H.fast || pr.reach || H.loop ? pr.P : H.pStart + 0.3;
       if (fig) pr.shapes = this._figureAt(H, pr.at);
     }
+    // Probes that draw the same records measure the same: each picture is estimated once (a loop's probes repeat many
+    // pictures -- a still pattern at every position, a group whose heads light alike -- and the fit measures again
+    // after each step of giving way, which only the pictures it changed need).
+    const seen = new Map();
     const onset = (pr) => {               // an onset changes all of its lit band
-      const k = H.pattern === "ladder" ? 7 : pr.k;
-      H.cur = { k, grp: pr.grp, merge: pr.merge, act: pr.act === "ramp" ? "on" : pr.act, onFrame: 0, N: 1, P: pr.P, t };
+      // (the ladder stacks a rung per pulse: probed with all its rungs, in the pulse's own colour -- round 2 drew the
+      // rungs by forcing the pulse count to 7, which also turned the colour, and read a white rung as a cyan one)
+      H.cur = { k: pr.k, allRungs: true, grp: pr.grp, merge: pr.merge, act: pr.act === "ramp" ? "on" : pr.act, onFrame: 0, N: 1, P: pr.P, t };
       H.inten = H.peak; H.on = true; H.level01 = H.peak; H.started = true; H.finished = false; H.tailAge = 0;
       H.smearFrame = pr.act === "smear" ? 0 : -1;
       H.pulsesTotal = H.pulses ? H.pulses.length : Infinity;
       this.bn = 0;
       this._geom(H, pr.at, per, t, cap);
       this._write(t, this.probeA);
+      const key = recordHash(this.probeA.W, this.probeA.n), m = seen.get(key);
+      if (m) { pr.w = m.w; pr.f = m.f; pr.blurBound = m.bb; return; }
       estimateArea(this.probeA.W, this.probeA.n, asp, area, 2);
       pr.w = area.window; pr.f = area.frame;
-      if (rings) pr.blurBound = blurBoundShare(this.probeA.W, this.probeA.n);
+      pr.blurBound = rings ? blurBoundShare(this.probeA.W, this.probeA.n) : 0;
+      if (seen.size >= 4096) seen.clear();
+      seen.set(key, { w: pr.w, f: pr.f, bb: pr.blurBound });
     };
     const over = (pr) => Math.max(pr.w / (cap.window * aim), pr.f / (cap.frame * aim));
     // the life: from the first onset (and each act that lights differently), and from the worst onset when that is
@@ -1437,12 +1526,29 @@ export class LaserEngine {
     const measureLife = (worst) => {
       const res = { window: 0, frame: 0 };
       const add = (m) => { res.window = Math.max(res.window, m.window); res.frame = Math.max(res.frame, m.frame); };
-      for (const [idx, tail] of this._lifeProbes(H)) { setRings(); add(this._probeLife(H, per, t, cap, idx, tail)); }
-      if (!H.pulses && worst && worst !== all[0]) for (const tail of this._loopLifeTails(H)) { setRings(); add(this._probeLife(H, per, t, cap, 0, tail, worst)); }
+      const done = new Set();
+      for (const [idx, tail] of this._lifeProbes(H)) {
+        setRings(idx > 0); add(this._probeLife(H, per, t, cap, idx, tail));
+        if (H.pulses) done.add(`${idx}|${H.pulses[idx].P}`);
+        // ... and a later pulse of a short gate also from a grid step on, where spec 3.3 moves it when the pulse before
+        // was lit late (the onsets are probed there too; there a figure has formed, a pattern has stepped on)
+        if (idx > 0 && H.pulses && !(H.fast && STILL_IN_FAST.has(H.pattern))) {   // (a still fast hit draws the same there)
+          const p = H.pulses[idx], P = p.P + (GATES[H.gate].grid || 1 / 4);
+          setRings(true); add(this._probeLife(H, per, t, cap, idx, tail, { k: idx, grp: p.grp, P }));
+          done.add(`${idx}|${P}`);
+        }
+      }
+      // ... and a short gate's worst onset, when it is another pulse than those (a later pulse of an act can light more
+      // than the act's first: another colour of its cycle, another aim)
+      if (H.pulses && worst && !done.has(`${worst.k}|${worst.P}`)) {
+        const last = H.pulses.length - 1;
+        setRings(worst.k > 0); add(this._probeLife(H, per, t, cap, worst.k, worst.k === last || !H.fast, worst));
+      }
+      if (!H.pulses && worst && worst !== all[0]) for (const tail of this._loopLifeTails(H)) { setRings(true); add(this._probeLife(H, per, t, cap, 0, tail, worst)); }
       return res;
     };
     let active = null, life = null, lifeOnset = 1, lifeOnsetF = 1, lives = 0;
-    for (let guard = 0; guard < 64; guard++) {
+    for (let guard = 0; guard < 96; guard++) {
       setRings(true);
       if (!active) {                       // every onset once; then the fit works on the first and the worst three
         for (const pr of all) onset(pr);
@@ -1484,14 +1590,16 @@ export class LaserEngine {
       const worstW = Math.max(oW, mW), worstF = Math.max(oF, mF);
       // The order of giving way: a ringing hit rings softer (when the ringing is what is over); a crown thins to 12; a
       // fan loses outer beams (down to 3); the hit dims to 0.6 (a figure keeps its shape); a crown thins to 8, a fan to
-      // 1 beam; the ladder's rungs; heads; then a crown to 4 and the light down to 0.3. Each step is sized by how far
-      // over the hit is (the change goes roughly with the beam count), so it settles in a few passes.
+      // 1 beam; the ladder's rungs; heads from every step; one beam a head for the cross, zigzag and scissors; fewer
+      // heads a pulse (the cross, the wave, the cone); then a crown to 4 and the light down to 0.3, then to PEAK_FLOOR.
+      // Each step is sized by how far over the hit is (the change goes roughly with the beam count), so it settles in a
+      // few passes.
       const fanLike = BEAM_SCALED.has(H.pattern);
       const crownLike = H.pattern === "crown" || H.pattern === "star";
       const ratio = Math.min(cap.window * aim / Math.max(worstW, 1e-9), cap.frame * aim / Math.max(worstF, 1e-9));
       const fewer = (n, floor) => Math.max(floor, Math.min(n - 1, Math.floor(n * ratio)));
       const fewerEven = (n, floor) => Math.max(floor, Math.min(n - 2, 2 * Math.floor(Math.floor(n * ratio) / 2)));
-      if (rings && H.ringScale > 0.3 && lives < 3 && (mW > oW * 1.05 || mF > oF * 1.05)) {
+      if (plucks && H.ringScale > 0.3 && lives < 3 && (mW > oW * 1.05 || mF > oF * 1.05)) {
         // the excess over the onset is the ringing's: scale the pluck by what would bring that excess under the line,
         // then measure the life again (a softer ring moves less, but its blur band may stay at its cap)
         const exW = Math.max(1e-9, mW - oW), roomW = Math.max(0, cap.window * aim - oW);
@@ -1513,25 +1621,33 @@ export class LaserEngine {
       if (crownLike && H.crownN > 8) { H.crownN = fewerEven(H.crownN, 8); continue; }
       if (fanLike && H.beams > 1) { const b = fewer(H.beams, 1); H.spread *= Math.pow(0.96, H.beams - b); H.beams = b; continue; }
       if (H.pattern === "ladder" && (H.rungCap || 8) > 2) { H.rungCap = (H.rungCap || 8) - 1; continue; }
-      // still over: every step (and push-pull side) drops its last head; then a crown thins to 4; then the light dims
+      // still over: every step (and push-pull side) drops its last head; then the patterns that fire a fixed pair of
+      // beams per head fire one; then the heads a pulse draws are capped (the cross and the wave draw every step's heads
+      // at once, so trimming the steps cannot thin them, and the cone adds its head's twin); then a crown thins to 4; then
+      // the light dims to 0.3, and if it must, further (a hit is never left over its aim while it can still give way)
       const trim = (arr) => (arr.length > 1 ? arr.slice(0, -1) : arr);
       const before = JSON.stringify([H.steps, H.sides]);
       H.steps = H.steps.map(trim);
       if (H.sides) H.sides = H.sides.map(trim);
       if (JSON.stringify([H.steps, H.sides]) !== before) continue;
+      if (PAIR_BEAMS.has(H.pattern) && H.beamCap > 1) { H.beamCap = 1; continue; }
+      const drawn = this._headsDrawn(H);
+      if (drawn > 1) { H.headCap = Math.max(1, Math.min(drawn - 1, Math.floor(drawn * ratio))); continue; }
       if (crownLike && H.crownN > 4) { H.crownN = fewerEven(H.crownN, 4); continue; }
-      if (H.peak > 0.3) { H.peak = Math.max(0.3, H.peak * Math.min(0.85, ratio)); continue; }
+      if (H.peak > 0.3 + 1e-9) { H.peak = Math.max(0.3, H.peak * Math.min(0.85, ratio)); continue; }
+      if (H.peak > PEAK_FLOOR + 1e-9) { H.peak = Math.max(PEAK_FLOOR, H.peak * Math.min(0.85, ratio)); continue; }
       break;
     }
     Object.assign(H, keep);
     for (let i = 0; i < this.vib.length; i++) Object.assign(this.vib[i], vibKeep[i]);
     this.bn = 0;
+    this.fitBright = false; this.fitBlur = false;
     if (H.info) H.info.beams = H.beams;
   }
   // The hit alone, frame by frame from the onset of pulse `idx`, through that pulse's on-time and then either the gap
   // before the next pulse (a fast hit: a held halo may still ring there) or the tail, out to three time constants (a
-  // single onset, a slow loop, a fast hit's last pulse). `at` (a loop's probe from _fitProbes) starts it at that pulse
-  // instead of the first. Returns the worst change between consecutive frames.
+  // single onset, a slow loop, a fast hit's last pulse). `at` (a loop's probe from _fitProbes, or a short gate's pulse
+  // moved a grid step on) starts it at that pulse instead. Returns the worst change between consecutive frames.
   _probeLife(H, per, t, cap, idx = 0, tail = true, at = null) {
     const F = this.F, G = GATES[H.gate];
     let P0 = null, len, stepBeats = null;
@@ -1542,7 +1658,8 @@ export class LaserEngine {
     const gap = !tail && stepBeats ? Math.round(stepBeats * per / F) : 0;
     const L = gap ? Math.min(36, gap) : Math.min(36, onF + Math.ceil(3 * tau / F) + 1);
     const act = P0 && P0.act !== "ramp" ? P0.act : "on", P = at ? at.P : P0 ? P0.P : H.pStart;
-    H.cur = { k: at ? at.k : idx, grp: at ? at.grp : P0 ? P0.grp : (H.sides ? 100 : 0), merge: P0 ? P0.merge : undefined, act,
+    // (the ladder stacks a rung per pulse: its lives, like its onsets, are drawn with all its rungs)
+    H.cur = { k: at ? at.k : idx, allRungs: true, grp: at ? at.grp : P0 ? P0.grp : (H.sides ? 100 : 0), merge: P0 ? P0.merge : undefined, act,
       onFrame: 0, N: onF, P, t, holdHalo: !tail && H.fast && STILL_IN_FAST.has(H.pattern) };
     H.started = true; H.smearFrame = act === "smear" ? 0 : -1;
     H.pulsesTotal = H.pulses ? H.pulses.length : Infinity;
@@ -1591,30 +1708,57 @@ export class LaserEngine {
   // the pulse's own, so a decaying tail can light a wider band than the pulse did.)
   _loopLifeTails(H) { return H.fast ? [false, true] : [true]; }
   // The onsets a new hit can show, for the fit: a short gate's own pulses (with their groups, and each later one also a
-  // grid step on); a loop's first steps (at least four, so that colour modes that turn with the pulse -- burst, trinity,
-  // flip, chase -- show every colour), then the first pulse of each beat over a 16-beat cycle. A loop may run on (held,
-  // or stretched by rapid presses) and its picture keeps changing: a figure shows the next of its 16 figures each beat
-  // (also probed where it has formed: a pulse on the beat still shows the last figure, turned on), the cage turns each
-  // bar, and the foci, sweeps, waves and spins cycle within 16 beats.
+  // grid step on); a loop's first steps and every grid point over its pattern's own cycle (PATTERN_CYCLE) -- each with
+  // every group of heads it may light, on the finest grid it may run on. A loop may run on (held, or stretched by rapid
+  // presses) and its picture keeps changing: the cage turns each bar, the foci, sweeps, waves and spins cycle within 16
+  // beats, and a figure shows the next of its 16 figures each beat (probed at the first pulse of each beat, and where it
+  // has formed: a pulse on the beat still shows the last figure, turned on). (A loop's colours that turn with the pulse
+  // count -- burst, trinity, flip, chase -- are drawn at their brightest: see fitBright.)
   // Each probe: {k, grp, merge, act, P, reach}; reach = a pulse past the first steps (drawn where it lands, fast or not).
   _fitProbes(H) {
     const out = [];
     if (H.pulses) {
-      // (and each later pulse a grid step on: spec 3.3 moves a pulse that would start too soon after the one before to
-      // the next grid point, with the rest of the gate, and there it may show another figure or another position)
+      // (and each later pulse a grid step on, and on again: spec 3.3 moves a pulse that would start too soon after the
+      // one before to the next grid point, with the rest of the gate, and a pulse can be moved by each pulse before it
+      // that was lit late -- a dropped frame -- up to three steps here; there it may show another figure or position.
+      // Round 2 probed one step: a phrase's second smear moved two steps on lit a formed tetrahedron, smeared, at 16 %.)
       const g = GATES[H.gate].grid || 1 / 4;
       H.pulses.forEach((p, i) => {
-        out.push({ k: i, grp: p.grp, merge: p.merge, act: p.act, P: p.P });
-        if (i > 0) out.push({ k: i, grp: p.grp, merge: p.merge, act: p.act, P: p.P + g });
+        for (let m = 0; m <= Math.min(i, 3); m++) out.push({ k: i, grp: p.grp, merge: p.merge, act: p.act, P: p.P + m * g });
       });
       return out;
     }
-    const G = H.loop.G, step = G.stages ? G.stages[0] : G.step, fig = H.pattern === "figure";
+    // (on the finest grid the loop can run on: a doubling roll's last stage, and for a rapid-tier roll the 16th grid a
+    // faster stream of presses switches it to -- round 2 fitted a rapid Reverse-Bass figure on its own 1-beat grid, and
+    // the presses that followed ran it in 16ths through figures and morphs the fit had never drawn)
+    const G = H.loop.G, fig = H.pattern === "figure";
+    let step = G.stages ? Math.min(...G.stages) : G.step;
+    if (H.tier === "rapid") step = Math.min(step, GATES.roll16.step);
+    const per = this.period(H.t0);
+    while (step * per < FRAME_RULES.minStepMs - 1e-6) step *= 2;
     const grpOf = (j) => (H.sides ? 100 + (j % 2) : j % H.steps.length);
+    // Which heads a loop's pulse lights is not tied to its position: the walk moves on with every rapid press and with
+    // every pulse a mask skips, so any group can light at any grid point. Each position is probed with every group (a
+    // pattern that draws the same heads whatever the group, once); a pattern whose picture also turns with the pulse
+    // count (the zigzag's side, the hot beam's aim) with each of its turns.
+    const nG = GROUP_FREE.has(H.pattern) ? 0 : H.sides ? 2 : H.steps.length;
+    const kTurns = H.pattern === "zigzag" ? 2 : H.pattern === "hot" ? HOT_AIMS.length : 1;
+    const push = (j, P, reach) => {
+      for (let g = 0; g < Math.max(1, nG); g++) {
+        const grp = !nG ? grpOf(j) : H.sides ? 100 + ((j + g) % 2) : (j + g) % nG;
+        for (let dk = 0; dk < kTurns; dk++) out.push({ k: j + dk, grp, act: "on", P, reach });
+      }
+    };
     const nLoop = Math.min(8, Math.max(H.sides ? 2 : H.steps.length, 4));
-    for (let j = 0; j < nLoop; j++) out.push({ k: j, grp: grpOf(j), act: "on", P: H.pStart + j * step });
+    for (let j = 0; j < nLoop; j++) push(j, H.pStart + j * step, false);
+    // ... every grid point over the pattern's own cycle (a moving picture is somewhere else at each step: the wave's
+    // phase, the sweep's swing, the foci, the spin; the cage only turns on the bar line), and for a figure the first
+    // pulse of each beat over its 16 figures
+    const [cyc = 0, res = 0] = PATTERN_CYCLE[H.pattern] || [];
+    const every = Math.max(1, Math.round(res / step));
+    for (let j = nLoop; j * step < Math.min(16, cyc) - 1e-9; j++) if (j % every === 0) push(j, H.pStart + j * step, true);
     const b0 = Math.floor(H.pStart + 1e-9);
-    for (let b = fig ? 0 : 1; b < 16; b++) {
+    for (let b = 0; fig && b < 16; b++) {
       const js = [];          // the loop's grid points in beat b
       for (let j = Math.max(0, Math.ceil((b0 + b - H.pStart) / step - 1e-9)); H.pStart + j * step < b0 + b + 1 - 1e-9; j++) js.push(j);
       if (!js.length) continue;
@@ -1623,7 +1767,7 @@ export class LaserEngine {
         const formed = js.find((q) => frac(H.pStart + q * step + 1e-9) >= 0.25 - 1e-6);
         if (formed !== undefined && formed !== js[0]) pick.push(formed);
       }
-      for (const j of pick) out.push({ k: j, grp: grpOf(j), act: "on", P: H.pStart + j * step, reach: true });
+      for (const j of pick) push(j, H.pStart + j * step, true);
     }
     return out;
   }
@@ -1653,7 +1797,7 @@ export class LaserEngine {
     const room = rings ? 0.85 : 1, fitsR = (pr) => fits(pr.w / room, pr.f / room);
     // (the context: the brightest colour the hit's colour mode can emit, not the mode itself, so modes that light alike
     // share what they learned)
-    const C = this.col, Y = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    const C = H.col || this.col, Y = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
     const cols = H.colour === "mono" ? [C.L1] : H.colour === "hotcore" ? [C.L1, C.W] : H.colour === "flip" ? C.flicker
       : H.colour === "trinity" ? C.triple : H.colour === "burst" ? C.burst : [C.L1, C.L2];
     const ctx = `${Math.round(Math.max(...cols.map(Y)) * 20)}|${H.fast ? 1 : 0}|${rings ? 1 : 0}|${Math.round(H.peak * 20)}|${Math.round(H.vel * 16)}|${H.level >= 2 ? 1 : 0}|${Math.round((this.asp || 1) * 100)}`;
@@ -1819,7 +1963,12 @@ export class LaserEngine {
     const pos = this._commitPos(t);
     const posE = this._evalPos(t, pos);
     this.posE = posE;
+    // A new aspect (the window resized, fullscreen toggled) re-lays every line out: a hit fitted at the old one is
+    // fitted again at the new one (its levers only take light away). Round 2 kept the old fit: a held crown roll fitted
+    // in a 21:9 window lit 15.2 % of a window at every pulse once the window turned portrait.
+    const aspChanged = this.asp !== undefined && Math.abs(this.o.aspect - this.asp) > 1e-3;
     this.asp = this.o.aspect;
+    if (aspChanged) for (const H of this.hits) if (!H.done) this._fitHit(H, per, t);
 
     // hold: the pad still down half a beat after the press (200 ms with no clock) -> the section's loop
     const holdMs = this._clockOK(t) ? 0.5 * per : 200;
@@ -1893,12 +2042,15 @@ export class LaserEngine {
     else if (sec === "break" || sec === "piano" || sec === "outro" || sec === "intro") { gate = "roll8"; if (!this.o.shapeMode) pattern = "wave"; }
     if (this.o.gateMode !== "auto" && GATES[this.o.gateMode] && GATES[this.o.gateMode].kind === "loop") gate = this.o.gateMode;
     const deal = { ...src.deal, pattern, gate };
-    const H = this._spawn(deal, { t, pH: this.posAt(t), per, vel: src.vel, tier: "held", level: Math.max(2, src.level), gate,
-      fast: this._gateFast(gate, per), kind: "held", spare: src });
-    // the loop starts after the press's own short gate, on the grid, and runs until release
-    src.fading = false;
+    // The loop starts after the press's own short gate, on the grid, and runs until release. It is anchored there
+    // BEFORE it is fitted (it used to be fitted where a plain press would start it and moved after, so every probe of
+    // a moving pattern or a figure stood at the wrong beat). The press's own hit hands over: when the loop's first
+    // pulse comes due, what is left of it (its tail) goes dark, and the loop lights the frame after, so the press's
+    // light (fitted to the single budget) never goes dark under the loop's fast one.
     const after = src.pulses ? src.pulses[src.pulses.length - 1].P + 1 / 4 : -Infinity;
-    this._startLoop(H, GATES[gate], this.posAt(t), per, Infinity, after);
+    const H = this._spawn(deal, { t, pH: this.posAt(t), per, vel: src.vel, tier: "held", level: Math.max(2, src.level), gate,
+      fast: this._gateFast(gate, per), kind: "held", spare: src, loopSpan: Infinity, loopAfter: after });
+    src.fading = false;
     if (!this.padDown) H.loop.endP = H.loop.P;
     src.info.hold = gate;
     H.info.tier = "held"; H.info.from = src.id;
@@ -1912,7 +2064,11 @@ export class LaserEngine {
     // evaluated after it, so their last lit frame and its first never coincide)
     if (!H.started && H.choked) { H.on = false; H.inten = 0; H.level01 = 0; H.done = true; return; }
     if (!H.started && H.waitFor) {
-      if (H.waitFor.some((h) => !h.done)) { H.on = false; H.inten = 0; H.level01 = 0; return; }
+      if (H.waitFor.some((h) => !h.done)) {
+        // the hits it takes over from (see _spawn) go dark once its first pulse is due
+        if (H.handover && this._firstDue(H, posE, per, t)) for (const h of H.handover) this._choke(h);
+        H.on = false; H.inten = 0; H.level01 = 0; return;
+      }
       H.waitFor = null;
     }
     const F = this.F;
@@ -1955,7 +2111,9 @@ export class LaserEngine {
       if (!H.started || late <= Math.max(newestStep * per / 4, 1.5 * F) + 1e-6) {
         let N = Math.max(minOn, Math.round(newest.len * per / F));
         // the next pulse's onset frame: leave at least minOff dark frames before it
-        const nextP = H.pulses ? (H.pi < H.pulses.length ? H.pulses[H.pi].P : null) : (H.loop && H.loop.P < H.loop.endP ? H.loop.P : null);
+        // (a hit a newer one takes over from leaves the gap before that one's first pulse: takeoverP)
+        const nextP = H.pulses ? (H.pi < H.pulses.length ? H.pulses[H.pi].P : H.takeoverP ?? null)
+          : H.loop ? (H.loop.P < H.loop.endP ? H.loop.P : H.takeoverP ?? null) : null;
         // (counted from THIS frame, not from the pulse's grid time: a pulse lit late must still leave the full gap)
         if (nextP !== null) { const framesTo = Math.ceil((nextP - posE) * per / F - 1e-6); N = Math.max(minOn, Math.min(N, framesTo - minOff)); }
         // the halo hold: this pulse's halo was already held lit if the last pulse held it over these same heads
@@ -1985,6 +2143,11 @@ export class LaserEngine {
     if (H.choked && !on) { H.on = false; H.inten = 0; H.level01 = 0; H.done = true; return; }
     const exhausted = H.pulses ? H.pi >= H.pulses.length : (H.loop && H.loop.P >= H.loop.endP - 1e-9);
     if (exhausted && !on && H.started && !H.finished) {
+      // The tail follows the last pulse. A loop that runs out while it is DARK (released, or handed over, in the gap
+      // between two pulses) has already gone off: it must not light its last picture again as a "tail" (that was an
+      // extra, off-grid flash of the whole picture). Only a halo held lit through the gap fades out from where it is.
+      if (!H.on && !(H.fast && H.cur && H.cur.holdHalo)) { H.on = false; H.inten = 0; H.level01 = 0; H.done = true; return; }
+      H.tailGlowOnly = !H.on;
       H.finished = true; H.finishFrame = this.frameIdx; H.finishT = t;
       H.tailTau = Math.max(20, H.tailBeats * per / 3);
     }
@@ -1994,7 +2157,7 @@ export class LaserEngine {
       const a = ACT[H.cur.act] || ACT.on;
       inten = H.peak * a.lvl;
       if (H.cur.act === "ramp") { const x = (this.frameIdx - H.cur.onFrame + 1) / Math.max(1, H.cur.N); inten *= x * x; }
-    } else if (H.finished) {
+    } else if (H.finished && !H.tailGlowOnly) {
       inten = H.peak * Math.exp(-(t - H.finishT) / H.tailTau);
     }
     let level = H.started ? (H.finished ? H.peak * Math.exp(-(t - H.finishT) / H.tailTau) : H.peak) : 0;
@@ -2005,13 +2168,21 @@ export class LaserEngine {
     H.tailAge = H.finished && !on ? t - H.finishT : 0;
     if (H.started && (H.finished || H.fading) && level < 0.004) H.done = true;
   }
+  // the hit's first pulse is due at the frame judged at posE (it would light now if nothing held it back)
+  _firstDue(H, posE, per, t) {
+    if (H.pulses) return H.pi < H.pulses.length && H.pulses[H.pi].P <= posE;
+    const sl = H.loop ? this._loopSlot(H, per, t) : null;
+    return !!(sl && sl.P <= posE);
+  }
   _onAct(H, p, t) {
     const heads = this._litHeads(H, p.grp);
     // (a hit the fit found too lively for its budget plucks softer: ringScale)
     const plucks = (amp) => { for (const h of (H.pattern === "figure" || H.pattern === "crown" || H.pattern === "star" ? [HERO_HEAD] : heads)) this._pluck(h, t, amp * H.ringScale, VIB.MAX_PX * H.ringScale); };
     if (p.act === "pluck") { plucks(VIB.AMP_PX * (0.6 + 0.4 * H.vel)); this.out.events.push({ type: "pluck", head: heads.length ? HEADS[heads[0]].name : "HERO" }); }
     else if (p.act === "smear") { H.smearFrame = this.frameIdx; plucks(VIB.AMP_PX * 0.4); }
-    else if (this.o.vibrate) plucks(VIB.AMP_PX * (0.5 + 0.5 * H.vel));
+    // (Vibrate switched on while a hit runs reaches it at its next press, not mid-hit: a hit fitted still would ring
+    // past its fit -- a 16th roll fitted with Vibrate off rang at the full 18 px a second later)
+    else if (this.o.vibrate && H.plucks) plucks(VIB.AMP_PX * (0.5 + 0.5 * H.vel));
     if (p.act === "flash") this.out.events.push({ type: "flash", level: H.peak });
   }
   // A pluck adds a ring to the string: the rings already there go on ringing (strings superpose; replacing one ring
@@ -2066,11 +2237,12 @@ export class LaserEngine {
     const grp = H.cur ? H.cur.grp : 0;
     let heads = this._litHeads(H, grp);
     if (H.finished && !H.on && H.cur && H.cur.grp === -1) heads = this._litHeads(H, -1);
+    heads = capHeads(heads, H.headCap);                // (the fit's last structural levers: headCap, beamCap)
     // a fast hit never moves while lit: a still pattern is frozen for the whole hit, a moving one at each pulse's onset
     if (H.fast && H.cur) { if (STILL_IN_FAST.has(H.pattern)) { posE = H.pStart; t = H.t0; } else { posE = H.cur.P; t = H.cur.t; } }
     const ageB = posE - H.pStart, ageS = (t - H.t0) / 1000;
     const nH = Math.max(1, heads.length);
-    const perHead = Math.max(1, Math.min(H.beams, cap.perHead, Math.floor(cap.beams / nH)));
+    const perHead = Math.max(1, Math.min(H.beams, H.beamCap, cap.perHead, Math.floor(cap.beams / nH)));
     this._pattern(H, heads, posE, t, ageB, ageS, k, perHead, cap);
   }
   _pattern(H, heads, posE, t, ageB, ageS, k, perHead, cap) {
@@ -2105,13 +2277,7 @@ export class LaserEngine {
         break;
       }
       case "cross": {
-        const all = [...new Set(H.steps.flat())];
-        const ends = [];
-        for (const bank of ["A", "B"]) {
-          const inBank = all.filter((h) => HEADS[h].bank === bank).sort((a, b) => HEADS[a].sx - HEADS[b].sx);
-          if (inBank.length) { ends.push(inBank[0]); if (inBank.length > 1) ends.push(inBank[inBank.length - 1]); }
-        }
-        for (const h of ends) { const [x, y] = xy(h); this._fan(H, h, x, y, aimHero(x, y), H.level >= 2 ? 2 : 1, 0.025); }
+        for (const h of this._crossEnds(H)) { const [x, y] = xy(h); this._fan(H, h, x, y, aimHero(x, y), Math.min(H.level >= 2 ? 2 : 1, H.beamCap), 0.025); }
         break;
       }
       case "crown": {
@@ -2152,7 +2318,7 @@ export class LaserEngine {
       }
       case "zigzag": {
         const parity = H.pulsesTotal > 1 ? k & 1 : Math.floor(posE * 4) & 1;
-        for (const h of heads) { const [x, y] = xy(h); this._fan(H, h, x, y, aimHero(x, y) + (parity ? 0.32 : -0.32) * d.dir * sideOf(h), H.level >= 2 ? 2 : 1, 0.06); }
+        for (const h of heads) { const [x, y] = xy(h); this._fan(H, h, x, y, aimHero(x, y) + (parity ? 0.32 : -0.32) * d.dir * sideOf(h), Math.min(H.level >= 2 ? 2 : 1, H.beamCap), 0.06); }
         break;
       }
       case "tunnel": {
@@ -2164,7 +2330,7 @@ export class LaserEngine {
         break;
       }
       case "wave": {
-        const all = [...new Set(H.steps.flat())].slice(0, cap.heads);
+        const all = capHeads([...new Set(H.steps.flat())].slice(0, cap.heads), H.headCap);
         all.forEach((h, i) => { const [x, y] = xy(h); this._addRay(H, h, x, y, aimHero(x, y) + 0.5 * Math.sin(TAU * (posE / 4 + i / all.length)), 0, 1, 0); });
         break;
       }
@@ -2186,7 +2352,7 @@ export class LaserEngine {
       }
       case "ladder": {
         const RUNG = [16, 18, 17, 19, 16, 18, 17, 19], ELEV = [-0.04, -0.04, 0.04, 0.04, -0.11, -0.11, 0.11, 0.11];
-        const count = Math.min(H.rungCap || 8, (H.level >= 2 ? 2 : 1) + (H.pulsesTotal > 1 ? k % 8 : 0));
+        const count = Math.min(H.rungCap || 8, H.cur && H.cur.allRungs ? 8 : (H.level >= 2 ? 2 : 1) + (H.pulsesTotal > 1 ? k % 8 : 0));
         for (let r = 0; r < count; r++) {
           const h = RUNG[r], [x, y] = xy(h);
           this._addRay(H, h, x, y, (HEADS[h].side < 0 ? 0 : Math.PI) + ELEV[r] * (HEADS[h].side < 0 ? 1 : -1), r, 8, 8 - r, 0.8);
@@ -2198,7 +2364,7 @@ export class LaserEngine {
         break;
       }
       case "cone": {
-        const origins = H.level >= 2 && heads.length < 2 ? [heads[0], HEADS[heads[0]].twin] : heads.slice(0, 2);
+        const origins = (H.level >= 2 && heads.length < 2 ? [heads[0], HEADS[heads[0]].twin] : heads.slice(0, 2)).slice(0, Math.max(1, H.headCap));
         // (as few as 3 beams when the fit has had to thin it; 6-10 as dealt)
         const n = clamp(perHead, 3, 10), rx = 0.15 * (1 + 0.4 * vel), ry = rx * 0.55, spin = TAU * posE / 2 * d.dir;
         for (const h of origins) {
@@ -2235,6 +2401,26 @@ export class LaserEngine {
       }
     }
   }
+  // the cross's heads: the outermost two of each bank among every step's heads (at most headCap of them)
+  _crossEnds(H) {
+    const all = [...new Set(H.steps.flat())];
+    const ends = [];
+    for (const bank of ["A", "B"]) {
+      const inBank = all.filter((h) => HEADS[h].bank === bank).sort((a, b) => HEADS[a].sx - HEADS[b].sx);
+      if (inBank.length) { ends.push(inBank[0]); if (inBank.length > 1) ends.push(inBank[inBank.length - 1]); }
+    }
+    return capHeads(ends, H.headCap);
+  }
+  // the most heads one pulse of H draws (for the fit's headCap lever)
+  _headsDrawn(H) {
+    if (H.pattern === "cross") return this._crossEnds(H).length;
+    if (H.pattern === "wave") return capHeads([...new Set(H.steps.flat())].slice(0, (H.fast ? BUDGET.fast : BUDGET.single).heads), H.headCap).length;
+    if (H.pattern === "cone") return Math.min(H.headCap, 2);
+    if (GROUP_FREE.has(H.pattern)) return 1;
+    let m = 1;
+    for (const s of H.sides || H.steps) m = Math.max(m, s.length);
+    return Math.min(m, H.headCap);
+  }
   // a figure's own level and blur multipliers in hit H ({lvl, blur}, both 1 until the fit lowers them)
   _shapeMul(H, name) { return (H.shapeMul && H.shapeMul[name]) || SHAPE_MUL_ONE; }
   // a figure's segments, remembered (the spawn-time fit asks for each figure of a loop's cycle several times)
@@ -2259,11 +2445,13 @@ export class LaserEngine {
 
   // ------------------------------------------------------------------------------------------------ the output --
   _colour(H, B, out) {
-    const C = this.col, k = H.cur ? H.cur.k : 0, b = B.b, nb = B.nb, h = B.h;
+    const C = H.col || this.col, k = H.cur ? H.cur.k : 0, b = B.b, nb = B.nb, h = B.h;
     const fig = B.kind === KIND.FIGURE;
     const side = fig ? Math.sign((B.x0 + B.x1) / 2 - HERO.x) : HEADS[h].side;
     const u = fig ? clamp((B.x0 + B.x1) / this.asp, -1, 1) : HEADS[h].u;
     let c;
+    // (the fit of a loop: a colour that turns with the pulse count is drawn in the brightest it can turn to; see _fitHit)
+    const top = this.fitBright ? C.top : null;
     switch (H.colour) {
       case "split": c = b & 1 ? C.L2 : C.L1; break;
       case "gradient": {
@@ -2275,14 +2463,15 @@ export class LaserEngine {
       case "hotcore": c = nb >= 3 && Math.abs(b - (nb - 1) / 2) < 0.6 ? C.W : C.L1; break;
       case "halves": c = side < 0 ? C.L1 : side > 0 ? C.L2 : (b & 1 ? C.L2 : C.L1); break;
       case "chase": {
+        if (top) { c = top.pair; break; }
         const lit = this._litHeads(H, H.cur ? H.cur.grp : 0);
         c = (lit.length > 1 ? h === lit[k % lit.length] : b === k % Math.max(1, nb)) ? C.L2 : C.L1;
         break;
       }
-      case "flip": c = C.flicker[k % C.flicker.length]; break;
-      case "trinity": c = C.triple[k % C.triple.length]; break;
+      case "flip": c = top ? top.flicker : C.flicker[k % C.flicker.length]; break;
+      case "trinity": c = top ? top.triple : C.triple[k % C.triple.length]; break;
       case "headgrad": c = lerpOk(C.L1, C.L2, (u + 1) / 2, out); break;
-      case "burst": c = C.burst[(b + k) % C.burst.length]; break;
+      case "burst": c = top ? top.burst : C.burst[(b + k) % C.burst.length]; break;
       case "barswap": {
         // (on the bar line the PULSE lands on, so a lit pulse never changes colour: the swap comes with the next onset)
         const swap = Math.floor((H.cur ? H.cur.P : this.posE) / 4) & 1, s = side;
@@ -2304,7 +2493,8 @@ export class LaserEngine {
   // figure) dims, for good. A beam that stays put is never taken: taking it would itself be a change. If nothing more
   // can give way and the frame is still over, it goes out as the BEST reduction found (never worse than any state tried,
   // the untouched frame included) and says so (area.over): going dark would be the biggest change of all; the page's
-  // final-frame limiter is the backstop.
+  // final-frame limiter is the backstop. (Light that goes dark cannot be taken back here: that is why a new hit plays
+  // alone -- see _spawn -- and why each hit is fitted over its whole life.)
   _emit(anyFast, t) {
     const out = this.out, asp = this.asp, budget = anyFast ? BUDGET.fast : BUDGET.single;
     const stuck = new Set();
@@ -2370,11 +2560,13 @@ export class LaserEngine {
     let drop;
     if (maxPri > 0) { H.trimPri = Math.min(H.trimPri, maxPri - 1); drop = (B) => B.pri > H.trimPri; }
     else if (nBeam > 1 && !H.thin) { H.thin = true; let s = 0; drop = () => (s++ & 1) === 1; }
-    else if (H.peak > DIM_FLOOR && this._allMoving(H)) {
-      // every line of it is new or moving this frame (an onset, a sweep, a ringing string or figure), so dimming it adds
-      // no change of its own: it dims, for good. (Down to almost nothing if it must: a line's band stays as wide from
-      // about 0.6 down to 0.15 -- its blur band, or its halo -- and then drops under 0.1 at once, so a floor any higher
-      // could leave a dense figure one step short.)
+    else if (H.peak > DIM_FLOOR && this._mostlyMoving(H)) {
+      // (nearly) every line of it is new or moving this frame (an onset, a sweep, a ringing string or figure), so
+      // dimming it adds little change of its own: it dims, for good. (A ringing figure counts though the pieces at its
+      // nodes stand still: round 2 required every piece to move, and a figure ringing past its fit could not give way.
+      // The frame keeps the best state it tried, so a dim that changes more is never sent.) (Down to almost nothing if
+      // it must: a line's band stays as wide from about 0.6 down to 0.15 -- its blur band, or its halo -- and then drops
+      // under 0.1 at once, so a floor any higher could leave a dense figure one step short.)
       const k = Math.max(DIM_FLOOR / H.peak, 0.7);
       H.peak *= k; H.inten *= k; H.level01 *= k;
       return true;
@@ -2389,11 +2581,12 @@ export class LaserEngine {
     this.bn = kept;
     return true;
   }
-  _allMoving(H) {
+  // every line of H is new or moving this frame, but for at most a quarter that stand still (a ringing figure's nodes)
+  _mostlyMoving(H) {
     const buf = this.work;
-    let any = false;
-    for (let i = 0; i < buf.n; i++) if (this.beams[buf.beam[i]].H === H) { if (this.state[i] === 0) return false; any = true; }
-    return any;
+    let n = 0, still = 0;
+    for (let i = 0; i < buf.n; i++) if (this.beams[buf.beam[i]].H === H) { n++; if (this.state[i] === 0) still++; }
+    return n > 0 && still <= 0.25 * n;
   }
   // the output: each record packed into its 2 texels; a figure's pieces behind their group header
   _pack(buf) {
@@ -2464,7 +2657,7 @@ export class LaserEngine {
       const inten = H.inten * B.iMul;
       let glow = inten, held = false;
       if (H.fast) {
-        if (H.finished) held = true;
+        if (H.finished) { held = true; if (H.tailGlowOnly) glow = 0.75 * H.level01 * B.iMul; }
         else if (H.on) { glow = H.level01 * B.iMul; held = !!(H.cur && H.cur.sameAsPrev); }
         else { glow = H.cur && H.cur.holdHalo ? 0.75 * H.level01 * B.iMul : 0; held = true; }
       }
@@ -2508,6 +2701,16 @@ export class LaserEngine {
         const r0 = hyp(x0 - HERO.x, y0 - HERO.y) || 1, r1 = hyp(x1 - HERO.x, y1 - HERO.y) || 1;
         x0 += (x0 - HERO.x) / r0 * d0; y0 += (y0 - HERO.y) / r0 * d0; x1 += (x1 - HERO.x) / r1 * d1; y1 += (y1 - HERO.y) / r1 * d1;
         blur = Math.min(blurCap, VIB.BLUR_GAIN * smear * Math.abs(e));
+        // The fit (fitBlur): a piece's band is widest NOT at its widest blur -- the core spread over width + 2 blur
+        // falls under 0.1 there and lights nothing -- but at the blur where the spread core just reaches 0.1, which the
+        // ring passes through as it rises and decays. Each probe piece takes the blur that lights the most, up to its
+        // ring's (a figure's piece is one level along its length, so this bounds every instant). Round 2 probed the
+        // risen ring only: a ringing tunnel probed at 3.3 % of a window lit 16.9 % as its ring rose.
+        if (this.fitBlur && blur > 0) {
+          const Y = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2], kw = heat * heat / (1 + heat * heat);
+          const Yh = (1 - kw) * Y + kw * Math.max(rgb[0], rgb[1], rgb[2]), q = 0.1 - 0.5 * glow * Y;
+          if (q > 0) blur = Math.min(blur, Math.max(0, 0.98 * (inten * Yh * width / q - width) / 2));
+        }
       } else if (ringing) {              // a string: the three modes' displacements now, nodes at both ends
         const ph = v.ph + B.b * 0.7, coef = (m, a, k) => m[k] * Math.cos(TAU * VIB.F1_HZ * (k + 1) * (1 + VIB.INHARM * (k + 1) * (k + 1)) * a + ph + 1.3 * (k + 1));
         for (const q of rs.terms) { c1 += coef(q.m, q.age, 0); c2 += coef(q.m, q.age, 1); c3 += coef(q.m, q.age, 2); }
@@ -2558,6 +2761,20 @@ function centreOut(r, n) {       // beam index r-th from the centre of an n-beam
     CENTRE_OUT.set(n, a);
   }
   return a[r];
+}
+// At most maxHeads of the heads s: whole mirrored rings (left and right, both banks), evenly spread from the outside in,
+// so the rig stays symmetric
+function capHeads(s, maxHeads) {
+  if (s.length <= maxHeads) return s;
+  const byRing = new Map();
+  for (const h of s) { const r = HEADS[h].ring; if (!byRing.has(r)) byRing.set(r, []); byRing.get(r).push(h); }
+  const rank = (h) => (HEADS[h].bank === "A" ? 0 : HEADS[h].bank === "B" ? 2 : 4) + (HEADS[h].side > 0 ? 1 : 0);
+  const groups = [...byRing.keys()].sort((a, b) => b - a).map((r) => byRing.get(r).sort((a, b) => rank(a) - rank(b)));
+  const size = Math.max(...groups.map((g) => g.length));
+  const nG = Math.max(1, Math.floor(maxHeads / size));
+  const out = [];
+  for (let i = 0; i < nG && i < groups.length; i++) out.push(...groups[Math.round(i * (groups.length - 1) / Math.max(1, nG - 1))]);
+  return [...new Set(out)].slice(0, maxHeads);
 }
 function aimHero(x, y) { return Math.atan2(HERO.y - y, HERO.x - x); }
 function sameHeads(a, b) { if (a.length !== b.length) return false; for (const h of a) if (!b.includes(h)) return false; return true; }
