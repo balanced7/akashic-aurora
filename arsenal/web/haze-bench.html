@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Haze bench</title>
-<!-- Apache-2.0, Akashic Aurora. The bench for the house haze module (glsl/atmos/haze.glsl): three plates that show
-     light in haze (a Berlin sky, Void Star sheets, a 3D hall), rendered from the same module files every scene composes
-     through glsl/modlib.js. Served by the house server at /web/haze-bench.html; it fetches nothing but its own files. -->
+<!-- Apache-2.0, Akashic Aurora. The bench for the house haze module (glsl/atmos/haze.glsl): four plates that show
+     light in haze (a Berlin sky, Void Star sheets, a 3D hall, the Qlimax 2014 ring), rendered from the same module
+     files every scene composes through glsl/modlib.js. Served by the house server at /web/haze-bench.html; it fetches nothing but its own files. -->
 <style>
   :root { --bg: #000; --panel: #0b0c10; --ink: #c9ced8; --dim: #7c8496; --line: #1d2029; --accent: #7fd6ff; }
   * { box-sizing: border-box; }
@@ -33,6 +33,7 @@
       <option value="p1">P1 Berlin sky</option>
       <option value="p2">P2 Void Star sheets</option>
       <option value="p3">P3 Qlimax air (3D)</option>
+      <option value="p4">P4 Source Ring</option>
     </select>
   </label>
   <label>Motion
@@ -51,7 +52,8 @@
   </label>
   <button id="measure" type="button">Measure float frame</button>
   <div id="stats"></div>
-  <div id="note">Haze shows light, never is light: every pixel is a light's in-scatter (P1's blue air is its one sky).
+  <div id="note">Haze shows light, never is light: every pixel is a light's in-scatter (P1's blue air is its one sky;
+    P4's haze is the ring's own light).
     The canvas shows tmStage at H = 1; "Measure" reads the scene-linear float frame before it.</div>
 </div>
 <script type="module" src="./haze-bench.js"></script>

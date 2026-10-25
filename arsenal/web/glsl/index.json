@@ -11,7 +11,7 @@
     },
     {
       "path": "atmos/haze.glsl",
-      "sha256": "e9ee07c4682840ba9ae6df359bacb0ed1c012d2670b43ee1045cd634c28fc67d"
+      "sha256": "db7976a5eec8a89b49c6d95492c6d9831326a577a2ac4a340ca19098b5834926"
     },
     {
       "path": "atmos/sky.glsl",

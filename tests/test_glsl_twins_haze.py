@@ -16,8 +16,19 @@ own formula where one exists:
   * the haze texture is stretched along the beam (and stays put in the world when the beam turns);
   * the 3D equiangular estimator converges to a brute-force integral of the same integrand, and a ray that misses the
     light is exactly zero;
-  * tmStage at H = 1 is the brief's SDR curve, and holds hue within 2 degrees on the six primaries at 1-20x;
+  * tmStage matches Look v2 1.4's written-out curve wherever that curve does not drift (heat 0, or below the knee) and
+    keeps its peak everywhere; its drift to white runs at constant OKLab hue instead of the brief's linear mix (a
+    departure Daniel rules on), and holds hue within 2 degrees on the six primaries at 1-20x;
   * glowHotCoreTo with white is glowHotCore, and whitens toward the colour it is given.
+Round 2 (the round-1 judge's must-change list, research/reviewed/keylab-liberation-2026-10-22/vj-light-in-haze-2026-
+10-25.md) adds, again by independent routes where they exist:
+  * hazeStreak is dash-sized (about 40 per cent clump, dashes about one dash length long) with no seam round the light;
+  * hazeBeamSwept is the shutter average of the still beam (checked against a dense average), zero beyond its support;
+  * the core floor is a parameter, and the sheet body's pale/saturated choice does what it says;
+  * the 3D light is exactly proportional to the haze amount (more haze never dims a beam);
+  * hazeRing's closed form equals a sum over its arc, it lights the inside of a ring more than the outside, and it is
+    exactly zero beyond its reach; hazeRing3's irradiance equals a ring of lamps and its estimator converges;
+  * hazeBlueNoise is a blue-noise permutation of 256 ranks.
 The slow test at the bottom renders a parity card on SwiftShader under the house GPU lock and compares the GLSL with
 the twin pixel for pixel.
 
@@ -52,11 +63,13 @@ HAZE_SIGNATURES = {
     "hazeStreak": ("float", ["vec2", "vec2", "vec4", "float"]),
     "hazeBeamCoords": ("vec3", ["vec2", "vec2", "vec2", "float"]),
     "hazePhase": ("float", ["float"]),
-    "hazeBeam": ("vec3", ["float", "float", "vec3", "float", "float", "float", "float"]),
-    "hazeSheet": ("vec3", ["float", "float", "float", "vec3", "float", "float", "float"]),
+    "hazeBeam": ("vec3", ["float", "float", "vec3", "float", "float", "float", "float", "float"]),
+    "hazeBeamSwept": ("vec3", ["float", "float", "float", "vec3", "float", "float", "float", "float", "float"]),
+    "hazeSheet": ("vec3", ["float", "float", "float", "vec3", "float", "float", "float", "float"]),
     "hazePoint": ("vec3", ["vec2", "vec2", "float", "vec3", "float", "float"]),
     "hazePool": ("vec3", ["vec2", "vec2", "vec2", "vec3", "float"]),
     "hazeTint": ("vec3", ["vec3", "float"]),
+    "hazeRing": ("vec3", ["vec2", "vec2", "vec4", "vec2", "vec3", "float", "float"]),
     "hazeDensity3": ("float", ["vec3", "float", "vec4", "float"]),
     "hazeStreak3": ("float", ["vec3", "vec3", "vec4", "float"]),
     "hazeConeProfile": ("float", ["vec3", "vec3", "vec3", "float"]),
@@ -66,6 +79,9 @@ HAZE_SIGNATURES = {
                             "vec4", "vec4", "float"]),
     "hazeLamp": ("vec3", ["vec3", "vec3", "float", "vec3", "float", "vec3", "float", "vec2", "vec4", "float",
                           "float"]),
+    "hazeRing3": ("vec3", ["vec3", "vec3", "float", "vec3", "vec3", "vec3", "vec3", "float", "vec2", "vec4", "float",
+                           "float"]),
+    "hazeBlueNoise": ("float", ["vec2"]),
 }
 NEW_ELSEWHERE = {"tmStage": ("colour-tone", "vec3", ["vec3", "float", "float"]),
                  "glowHotCoreTo": ("light-glow", "vec3", ["vec3", "float", "vec3"])}
@@ -176,14 +192,14 @@ def test_the_browser_twin_composes_the_same_bytes():
 def test_every_2d_part_is_exactly_zero_where_no_light_reaches():
     w = 10.0
     d = np.linspace(8.0 * w, 40.0 * w, 50)
-    assert np.all(Z.hazeBeam(d, 0.4, GREEN, 3.0, 1.0, w, 5.0) == 0.0)                 # 8 widths out, dense haze
-    assert np.all(Z.hazeBeam(0.0, np.linspace(-1.0, -0.0121, 30), GREEN, 3.0, 1.0, w, 1.0) == 0.0)   # behind root
-    assert np.all(Z.hazeBeam(0.0, np.linspace(1.0, 3.0, 30), GREEN, 3.0, 1.0, w, 1.0) == 0.0)       # past the end
-    assert np.all(Z.hazeSheet(np.linspace(0.44, 3.0, 40), 0.2, 0.5, VIOLET, 1.0, 1.0, 3.0) == 0.0)  # 2.2 half-angles
+    assert np.all(Z.hazeBeam(d, 0.4, GREEN, 3.0, 1.0, w, 5.0, 1.0) == 0.0)                 # 8 widths out, dense haze
+    assert np.all(Z.hazeBeam(0.0, np.linspace(-1.0, -0.0121, 30), GREEN, 3.0, 1.0, w, 1.0, 1.0) == 0.0)   # behind root
+    assert np.all(Z.hazeBeam(0.0, np.linspace(1.0, 3.0, 30), GREEN, 3.0, 1.0, w, 1.0, 1.0) == 0.0)       # past the end
+    assert np.all(Z.hazeSheet(np.linspace(0.44, 3.0, 40), 0.2, 0.5, VIOLET, 1.0, 1.0, 3.0, 1.0) == 0.0)  # 2.2 half-angles
     rr = np.linspace(3.0, 9.0, 40)[:, None] * np.array([1.0, 0.0])
     assert np.all(Z.hazePoint(rr, [0.0, 0.0], 1.0, GREEN, 4.0, 1.0) == 0.0)
     assert np.all(Z.hazePool(rr * np.array([2.0, 1.0]), [0.0, 0.0], [2.0, 0.5], GREEN, 4.0) == 0.0)
-    assert np.all(Z.hazeBeam(np.linspace(0, 20, 9), 0.5, GREEN, 0.0, 1.0, w, 1.0) == 0.0)  # no light, no haze glow
+    assert np.all(Z.hazeBeam(np.linspace(0, 20, 9), 0.5, GREEN, 0.0, 1.0, w, 1.0, 1.0) == 0.0)  # no light, no haze glow
 
 
 def test_the_density_never_lights_anything_by_itself():
@@ -191,7 +207,7 @@ def test_the_density_never_lights_anything_by_itself():
     p = np.random.default_rng(1).uniform(-1, 1, size=(500, 2))
     dens = Z.hazeDensity(p, -1.0, [3.0, 0.5, 0.02, 0.0], 5.0)
     assert np.all((dens >= 0.0) & (dens <= 1.0))
-    assert np.all(Z.hazeBeam(np.full(500, 300.0), 0.5, GREEN, 2.0, dens, 10.0, 1.0) == 0.0)
+    assert np.all(Z.hazeBeam(np.full(500, 300.0), 0.5, GREEN, 2.0, dens, 10.0, 1.0, 0.05) == 0.0)
     assert np.all(Z.hazePoint(p, [5.0, 5.0], 0.3, GREEN, 2.0, dens) == 0.0)
 
 
@@ -214,14 +230,14 @@ def test_the_3d_parts_are_exactly_zero_for_rays_that_miss_the_light():
 def test_the_core_body_and_halo_keep_the_lights_chroma_beyond_the_root():
     d = np.linspace(0.0, 60.0, 121)
     for along in (0.15, 0.4, 0.7):
-        beam = Z.hazeBeam(d, along, GREEN, 2.0, 0.7, 10.0, 1.2)
+        beam = Z.hazeBeam(d, along, GREEN, 2.0, 0.7, 10.0, 1.2, 0.05)
         lit = np.max(beam, axis=-1) > 0
         shape = beam[lit] / np.max(beam[lit], axis=-1, keepdims=True)
         assert np.allclose(shape, GREEN / GREEN.max(), atol=1e-5), along      # the same colour, only its level moves
-    sheet = Z.hazeSheet(np.linspace(-0.3, 0.3, 61), 0.2, 0.5, VIOLET, 0.8, 0.6, 1.0)
+    sheet = Z.hazeSheet(np.linspace(-0.3, 0.3, 61), 0.2, 0.5, VIOLET, 0.8, 0.6, 1.0, 1.0)   # pale 1: as given
     shape = sheet / np.max(sheet, axis=-1, keepdims=True)
     assert np.allclose(shape, VIOLET / VIOLET.max(), atol=2e-6)
-    mid = Z.hazeBeam(0.0, 0.5, GREEN, 2.0, 0.7, 10.0, 1.2)
+    mid = Z.hazeBeam(0.0, 0.5, GREEN, 2.0, 0.7, 10.0, 1.2, 0.05)
     lch_mid, lch_col = (C.oklchFromOklab(C.oklabFromLinear(c / c.max())) for c in (mid, GREEN))
     assert abs(lch_mid[1] - lch_col[1]) < 1e-5 and _hue_gap(lch_mid[2] * 360, lch_col[2] * 360) < 1e-3
 
@@ -231,7 +247,7 @@ def test_a_green_beam_over_blue_air_stays_acid_green_not_mint():
     # Here the beam adds no white, so over the Berlin air the brightest green keeps saturation >= 0.8 and the halo's
     # edge adds no grey to the air.
     d = np.linspace(0.0, 80.0, 161)
-    seen = BLUE_AIR + Z.hazeBeam(d, 0.45, GREEN, 1.2, 0.8, 10.0, 1.0)
+    seen = BLUE_AIR + Z.hazeBeam(d, 0.45, GREEN, 1.2, 0.8, 10.0, 1.0, 0.05)
     enc = C.srgbEncode(np.clip(T.tmStage(seen, 0.3, 1.0), 0.0, 1.0))
     hsv = C.rgbToHsv(enc)
     green = (hsv[..., 0] * 360 >= 85) & (hsv[..., 0] * 360 < 160) & (hsv[..., 1] >= 0.45) & (hsv[..., 2] >= 0.3)
@@ -244,13 +260,13 @@ def test_a_green_beam_over_blue_air_stays_acid_green_not_mint():
 
 # --------------------------------------------------------------------------------------------- the white-hot root
 def test_the_root_runs_hot_and_white_then_the_colour_returns():
-    near = Z.hazeBeam(0.0, 0.006, GREEN, 1.5, 0.6, 10.0, 1.0)
+    near = Z.hazeBeam(0.0, 0.006, GREEN, 1.5, 0.6, 10.0, 1.0, 0.05)
     assert near.max() > 1.0 and near.min() / near.max() > 0.7, near      # above SDR white and nearly white
-    mid = Z.hazeBeam(0.0, 0.06, GREEN, 1.5, 0.6, 10.0, 1.0)
+    mid = Z.hazeBeam(0.0, 0.06, GREEN, 1.5, 0.6, 10.0, 1.0, 0.05)
     assert np.allclose(mid / mid.max(), GREEN / GREEN.max(), atol=0.02)   # 6 per cent along: its own colour again
-    hot = [Z.hazeBeam(0.0, a, GREEN, 1.0, 0.6, 10.0, 1.0).max() for a in (0.006, 0.015, 0.03)]
+    hot = [Z.hazeBeam(0.0, a, GREEN, 1.0, 0.6, 10.0, 1.0, 0.05).max() for a in (0.006, 0.015, 0.03)]
     assert hot[0] > hot[1] > hot[2] and hot[0] > 1.0                    # the first few per cent run above 1
-    sheet_root = Z.hazeSheet(0.0, 0.2, 0.012, VIOLET, 0.6, 0.6, 1.0)
+    sheet_root = Z.hazeSheet(0.0, 0.2, 0.012, VIOLET, 0.6, 0.6, 1.0, 0.0)
     assert sheet_root.max() > 1.0 and sheet_root.min() / sheet_root.max() > 0.7
     shown = C.srgbEncode(np.clip(T.tmStage(sheet_root, 0.5, 1.0), 0.0, 1.0))
     sat = 1.0 - shown.min() / shown.max()
@@ -269,12 +285,12 @@ def _ramp_width(x, y):
 
 def test_no_part_has_a_hard_edge():
     d = np.linspace(0.0, 80.0, 4001)
-    beam = Z.hazeBeam(d, 0.5, GREEN, 1.0, 1.0, 12.0, 1.0)[:, 1]
-    body = Z.hazeBeam(d, 0.5, GREEN, 1.0, 1.0, 12.0, 1.0)[:, 1] - Z.hazeBeam(d, 0.5, GREEN, 1.0, 1.0, 12.0, 0.0)[:, 1]
+    beam = Z.hazeBeam(d, 0.5, GREEN, 1.0, 1.0, 12.0, 1.0, 0.05)[:, 1]
+    body = Z.hazeBeam(d, 0.5, GREEN, 1.0, 1.0, 12.0, 1.0, 0.05)[:, 1] - Z.hazeBeam(d, 0.5, GREEN, 1.0, 1.0, 12.0, 0.0, 0.05)[:, 1]
     assert np.all(np.diff(beam) <= 1e-12)                                   # monotone falling away from the axis
     assert np.max(np.abs(np.diff(beam, 2))) < 2e-3 * beam.max()            # no step and no kink in the profile
     a = np.linspace(0.0, 0.5, 5001)
-    sheet = Z.hazeSheet(a, 0.2, 0.5, VIOLET, 1.0, 1.0, 1.0)[:, 2]
+    sheet = Z.hazeSheet(a, 0.2, 0.5, VIOLET, 1.0, 1.0, 1.0, 0.0)[:, 2]
     assert np.all(np.diff(sheet) <= 1e-12)
     assert _ramp_width(a, sheet) >= 0.5 * 0.2, _ramp_width(a, sheet)        # the edge ramps over half a half-angle
     assert np.max(np.abs(np.diff(sheet))) < 0.01 * sheet.max()               # never a step (Void Star's outlines)
@@ -290,15 +306,16 @@ def _correlation_length(values, step):
     return below * step
 
 
-def test_the_clumps_are_stretched_along_the_rays_from_the_light():
+@pytest.mark.parametrize("clump, least", [([0.03, 0.01, 1.0, 0.0], 3.0),      # dashes 3+ cells long: the design
+                                          ([0.06, 0.03, 1.0, 0.0], 1.5)])     # cells nearly as long as a dash
+def test_the_clumps_are_stretched_along_the_rays_from_the_light(clump, least):
     root = np.array([0.0, -0.5])
-    clump = [0.06, 0.03, 1.0, 0.0]
     ratios = []
     for ang in np.radians([35.0, 60.0, 90.0, 125.0]):
         u = np.array([math.cos(ang), math.sin(ang)])
         n = np.array([-u[1], u[0]])
         lens_along, lens_across = [], []
-        for r0 in (0.4, 0.6, 0.8):
+        for r0 in np.linspace(0.4, 0.8, 9):
             s = np.linspace(-0.2, 0.2, 801)
             step = s[1] - s[0]
             along = Z.hazeStreak(root + np.outer(r0 + s, u), root, clump, 0.0)
@@ -306,7 +323,7 @@ def test_the_clumps_are_stretched_along_the_rays_from_the_light():
             lens_along.append(_correlation_length(along, step))
             lens_across.append(_correlation_length(across, step))
         ratios.append(np.mean(lens_along) / np.mean(lens_across))
-    assert min(ratios) > 1.8, ratios                         # long along every beam direction, short across it
+    assert min(ratios) > least, ratios                       # long along every beam direction, short across it
 
 
 def test_the_field_is_static_in_the_world_and_drifts_outward_at_its_speed():
@@ -329,8 +346,8 @@ def test_a_beam_crossing_the_clumps_breaks_into_dashes_along_itself():
         u = np.array([math.cos(ang), math.sin(ang)])
         s = np.linspace(0.3, 1.5, 2400)
         dens = Z.hazeStreak(root + np.outer(s, u), root, [0.05, 0.03, 1.0, 0.0], 0.0)
-        line = Z.hazeBeam(0.0, s / 2.0, GREEN, 1.0, dens, 10.0, 1.0)[:, 1]
-        trend = Z.hazeBeam(0.0, s / 2.0, GREEN, 1.0, 1.0, 10.0, 1.0)[:, 1]     # the same beam in even haze
+        line = Z.hazeBeam(0.0, s / 2.0, GREEN, 1.0, dens, 10.0, 1.0, 0.05)[:, 1]
+        trend = Z.hazeBeam(0.0, s / 2.0, GREEN, 1.0, 1.0, 10.0, 1.0, 0.05)[:, 1]     # the same beam in even haze
         rel = line / trend
         assert rel.max() > 3.0 * rel.min()                               # bright in a clump, dim between them
         lit = rel > 0.5 * (rel.max() + rel.min())
@@ -353,7 +370,7 @@ def _brute_cone(ro, rd, t_max, apex, axis, hw, col, level, air, hz, clump, t, n=
     d0, d1 = Z.hazeDensity3(ro + rd * t0, air[1], hz, t), Z.hazeDensity3(ro + rd * t1, air[1], hz, t)
     sigma = air[0] * (d0 + (d1 - d0) * (ts - t0) / (t1 - t0)) * Z.hazeStreak3(p, apex, clump, t)
     phase = np.asarray([Z.phaseHG(x, 0.6) for x in np.sum(rd * -v / r[:, None], -1)]) / Z.phaseIso()
-    through = np.exp(-0.035 * air[0] * ts)
+    through = np.exp(-0.035 * ts)                                  # the hall's visibility, not the haze amount
     near = np.exp(-(r / 0.45) ** 2)
     c = col * (1 - near[:, None]) + col.max() * near[:, None]
     return level * np.sum(c * (sigma * prof * phase * through / (r * r))[:, None], 0) * ((t1 - t0) / n)
@@ -417,9 +434,10 @@ def test_the_lamp_and_the_sheet_are_finite_bounded_and_honest():
 
 
 # ----------------------------------------------------------------------------------------------------- the tone stage
-def _brief_curve(x, heat):
-    """The headline brief's SDR curve written out independently: the peak toe, identity to the knee 0.8, PBR
-    Neutral's peak compression, the drift to white by heat along the colour's own hue."""
+def _own_spelling(x, heat):
+    """tmStage at H = 1 spelled out a second time from its own contract (the peak toe, identity to the knee 0.8, PBR
+    Neutral's peak compression, the drift to white at constant OKLab hue). It restates the module, so it pins the twin
+    against a rewrite, not against the brief: _brief_written_out below is the independent statement."""
     x = np.maximum(np.asarray(x, float), 0.0)
     p = x.max()
     x = x * p / (p + 0.0015)
@@ -434,12 +452,48 @@ def _brief_curve(x, heat):
     return back * np_ / back.max()
 
 
-def test_tmstage_at_h1_is_the_briefs_sdr_curve():
+def _brief_written_out(x, heat, H):
+    """Look v2 1.4's tmStage, transcribed line for line from the build spec's pseudocode (its drift to white is the
+    linear mix toward vec3(np)), for one colour x."""
+    x = np.maximum(np.asarray(x, float), 0.0)
+    p = x.max()
+    x = x * p / (p + 0.0015)
+    y = x / H
+    pk, K = y.max(), 0.8
+    if pk > K:
+        d = 1.0 - K
+        np_ = 1.0 - d * d / (pk + d - K)
+        y = y * np_ / pk
+        g = 1.0 - 1.0 / (heat * (pk - np_) + 1.0)
+        y = y * (1.0 - g) + np_ * g
+    return y * H
+
+
+def test_tmstage_matches_the_brief_written_out_except_its_drift():
+    # Independent of the module: the spec's pseudocode. Where the brief's curve does not drift (heat 0, or a colour
+    # below the knee) the two agree exactly; above the knee they share the compressed peak and differ only in how the
+    # colour whitens (constant OKLab hue here, a linear mix in the brief: Daniel's call 1 in the round-1 record).
+    rng = np.random.default_rng(11)
+    for _ in range(400):
+        x = rng.uniform(0.0, 1.0, 3) * rng.choice([0.05, 0.5, 1.0, 3.0, 12.0])
+        H = rng.choice([1.0, 2.0, 4.0])
+        heat = rng.choice([0.15, 0.6, 0.8])
+        # (above the knee tmStage takes its colour through OKLab and back even at heat 0: the house matrices round
+        # trip to about 1e-6 of the peak, which is the tolerance here)
+        assert np.allclose(T.tmStage(x, 0.0, H), _brief_written_out(x, 0.0, H), atol=2e-6 * max(1.0, H))
+        ours, brief = T.tmStage(x, heat, H), _brief_written_out(x, heat, H)
+        if brief.max() <= 0.8 * H + 1e-12:
+            assert np.allclose(ours, brief, atol=1e-9)
+        else:
+            assert abs(ours.max() - brief.max()) < 1e-9
+
+
+def test_tmstage_at_h1_matches_its_own_spelling():
     rng = np.random.default_rng(7)
     for _ in range(300):
         x = rng.uniform(0.0, 1.0, 3) * rng.choice([0.05, 0.5, 1.0, 3.0, 12.0])
         heat = rng.choice([0.0, 0.15, 0.6, 0.8])
-        assert np.allclose(T.tmStage(x, heat, 1.0), _brief_curve(x, heat), atol=1e-9)
+        assert np.allclose(T.tmStage(x, heat, 1.0), _own_spelling(x, heat), atol=1e-9)
     body = np.array([0.05, 0.4, 0.2])
     assert np.allclose(T.tmStage(body, 0.8, 1.0), body * 0.4 / 0.4015, atol=1e-12)   # bodies pass (the toe only)
     peak = 5.0 * 5.0 / 5.0015                                                    # 5 after the peak toe
@@ -488,9 +542,205 @@ def test_glowhotcoreto_with_white_is_glowhotcore_and_whitens_toward_its_target()
     assert 15.0 < turn < 60.0, turn                                          # a ring core turns toward cyan
 
 
+# --------------------------------------------------------------------------------------- round 2: dashes and motion
+def test_the_streak_field_is_dash_sized_with_no_seam():
+    # The round-1 judge: P1 had 5-18 dashes where Daniel's Berlin frames have 305-328. The field is now cut so about
+    # 40 per cent of it is clump and a beam's bright runs are about one dash length long (median), wherever it points.
+    root = np.array([0.0, -0.5])
+    for clump in ([0.014, 0.008, 1.0, 0.0], [0.05, 0.02, 1.0, 0.0]):
+        duty, runs = [], []
+        for ang in np.radians(np.linspace(20.0, 160.0, 36)):
+            u = np.array([math.cos(ang), math.sin(ang)])
+            s = np.linspace(0.3, 0.9, 6000)
+            on = Z.hazeStreak(root + np.outer(s, u), root, clump, 0.0) > 0.5
+            duty.append(on.mean())
+            edges = np.diff(np.r_[0, on.astype(int), 0])
+            runs += list((np.nonzero(edges == -1)[0] - np.nonzero(edges == 1)[0]) * (s[1] - s[0]) / clump[0])
+        assert 0.32 <= np.mean(duty) <= 0.48, np.mean(duty)
+        assert 0.6 <= np.median(runs) <= 1.6, np.median(runs)
+    # whole cells round the light: just either side of the angle where atan wraps, the field is continuous
+    for r in (0.3, 0.6):
+        a = Z.hazeStreak(root + r * np.array([math.cos(math.pi - 1e-7), math.sin(math.pi - 1e-7)]), root,
+                         [0.02, 0.01, 1.0, 0.0], 0.0)
+        b = Z.hazeStreak(root + r * np.array([math.cos(-math.pi + 1e-7), math.sin(-math.pi + 1e-7)]), root,
+                         [0.02, 0.01, 1.0, 0.0], 0.0)
+        assert abs(a - b) < 1e-4, (a, b)
+
+
+def test_the_swept_beam_is_the_still_beam_averaged_over_the_shutter():
+    # independent route: average the still beam over many positions across the sweep
+    for d0, sweep in ((0.0, 6.0), (3.0, 10.0), (-12.0, 4.0), (25.0, 18.0)):
+        xs = d0 + np.linspace(-0.5, 0.5, 4001) * sweep
+        dense = Z.hazeBeam(xs, 0.4, GREEN, 1.0, 0.6, 8.0, 1.0, 0.05).mean(axis=0)
+        swept = Z.hazeBeamSwept(d0, sweep, 0.4, GREEN, 1.0, 0.6, 8.0, 1.0, 0.05)
+        assert np.allclose(swept, dense, rtol=0.01, atol=1e-6), (d0, sweep, swept, dense)
+    d = np.linspace(-30.0, 30.0, 61)
+    assert np.array_equal(Z.hazeBeamSwept(d, 0.0, 0.3, GREEN, 1.0, 0.5, 8.0, 1.0, 0.1),
+                          Z.hazeBeam(d, 0.3, GREEN, 1.0, 0.5, 8.0, 1.0, 0.1))           # no sweep: the still beam
+    far = np.linspace(8.0 * 8.0 + 5.0, 200.0, 40)                                       # 8 widths + half the sweep
+    assert np.all(Z.hazeBeamSwept(far, 10.0, 0.4, GREEN, 3.0, 1.0, 8.0, 2.0, 1.0) == 0.0)
+    # the same light, spread wider: the core's peak falls, its integral across the beam holds
+    x = np.linspace(-60.0, 60.0, 2401)
+    still = Z.hazeBeam(x, 0.4, GREEN, 1.0, 1.0, 8.0, 0.0, 1.0)[:, 1]
+    moved = Z.hazeBeamSwept(x, 12.0, 0.4, GREEN, 1.0, 1.0, 8.0, 0.0, 1.0)[:, 1]
+    assert moved.max() < 0.6 * still.max()
+    assert abs(np.trapezoid(moved, x) / np.trapezoid(still, x) - 1.0) < 0.01
+
+
+def test_the_core_floor_is_how_much_of_the_line_shows_in_clean_air():
+    for floor in (0.05, 0.4, 1.0):
+        clean = Z.hazeBeam(0.0, 0.5, GREEN, 1.0, 0.0, 10.0, 0.0, floor)       # phase 0: the core line alone
+        dense = Z.hazeBeam(0.0, 0.5, GREEN, 1.0, 1.0, 10.0, 0.0, floor)
+        assert clean[1] == pytest.approx(floor * dense[1], rel=1e-9)
+    laser = Z.hazeBeam(0.0, 0.5, GREEN, 1.0, 0.0, 10.0, 1.0, 1.0)
+    haze_only = Z.hazeBeam(0.0, 0.5, GREEN, 1.0, 0.0, 10.0, 1.0, 0.05)
+    assert laser[1] > 10.0 * haze_only[1]                                    # a laser shows where haze would not
+
+
+def test_the_sheet_body_is_saturated_or_pale_and_bright_as_asked():
+    cyan_white = np.array([0.22, 0.84, 1.0])
+    sat = Z.hazeSheet(0.0, 0.1, 0.3, cyan_white, 1.0, 0.5, 1.0, 0.0)
+    pale = Z.hazeSheet(0.0, 0.1, 0.3, cyan_white, 1.0, 0.5, 1.0, 1.0)
+    root = np.exp(-0.3 / 0.03)                                                # the hot root's share here (tiny)
+    assert sat.min() < 1e-3 * sat.max() + root                                # the white part removed: pure hue
+    assert sat.max() == pytest.approx(pale.max() / (1.0 + 3.0 * 0.22), rel=1e-3)   # same peak before the lift
+    assert np.allclose(pale / pale.max(), cyan_white, atol=2e-3)              # pale keeps the colour as given
+    lch_s, lch_p = (C.oklchFromOklab(C.oklabFromLinear(c)) for c in (sat, pale))
+    assert lch_s[1] > lch_p[1] and lch_p[0] > lch_s[0]                       # more chroma, or more light
+    for pale_k in (0.0, 1.0):                                                 # the root stays white-hot either way
+        r = Z.hazeSheet(0.0, 0.2, 0.012, cyan_white, 0.6, 0.6, 1.0, pale_k)
+        assert r.max() > 1.0 and r.min() / r.max() > 0.7
+
+
+# ----------------------------------------------------------------------------- round 2: more haze, never dimmer
+def test_the_3d_light_is_exactly_proportional_to_the_haze_amount():
+    # The round-1 judge: haze 2 was dimmer than haze 1 and haze 0.15 gave half of haze 1's light, because the
+    # transmittance grew with the amount. Now the amount scales only what the air scatters, so every 3D part is linear
+    # in it: more haze is never a dimmer beam.
+    ro = np.array([0.0, 1.7, 0.0])
+    hz, clump = [0.4, 7.0, 0.1, 0.0], [1.5, 0.05, 0.8, 0.2]
+
+    def ray_to(target):
+        rd = np.array(target, float) - ro
+        return rd / np.linalg.norm(rd)
+
+    apex, axis = np.array([1.0, 9.0, -15.0]), np.array([-0.1, -1.0, 0.6])
+    parts = {
+        "cone": lambda a: Z.hazeCone(ro, ray_to(apex + 4.0 * axis / np.linalg.norm(axis)), 60.0, apex, axis, 0.15,
+                                     VIOLET, 120.0, [a, 0.0], hz, clump, 1.0, 0.4),
+        "lamp": lambda a: Z.hazeLamp(ro, ray_to([2.4, 6.3, -14.0]), 60.0, [2.0, 6.0, -14.0], 5.0, VIOLET, 30.0,
+                                     [a, 0.0], hz, 1.0, 0.4),
+        "ring3": lambda a: Z.hazeRing3(ro, ray_to([0.0, 13.5, -20.0]), 60.0, [0.0, 8.0, -20.0], [0.0, 0.0, 1.0],
+                                       [6.0, 0.3, 7.0], VIOLET, 20.0, [a, 0.0], hz, 1.0, 0.4),
+        "sheet3": lambda a: Z.hazeSheet3(ro, ray_to([0.3, 4.0, -12.0]), 60.0, [0.0, 2.0, -12.0], [0.0, 1.0, 0.0],
+                                         [0.0, 0.0, 1.0], 0.6, 0.03, VIOLET, 5.0, [a, 0.0], hz, clump, 1.0),
+    }
+    for name, f in parts.items():
+        one = f(1.0)
+        assert one.max() > 0.0, name
+        for a in (0.15, 0.5, 2.0):
+            assert np.allclose(f(a), a * one, rtol=1e-9, atol=0.0), (name, a)
+
+
+# ------------------------------------------------------------------------------- round 2: the ring lights the room
+def test_the_ring_closed_form_is_the_sum_over_its_arc():
+    ring = np.array([0.4, 0.01, 0.1, 0.3])
+    pts = np.random.default_rng(5).uniform(-0.8, 0.8, size=(8, 2))
+    for arc in ((0.0, 4.0), (1.0, 1.2), (3.0, 2.5), (-2.9, 0.4)):
+        room, _ = Z.hazeRingSpan(pts, [0.0, 0.0], ring, arc)
+        half = min(arc[1], math.pi)
+        phis = np.linspace(arc[0] - half, arc[0] + half, 100001)
+        q = 0.4 * np.stack([np.cos(phis), np.sin(phis)], -1)
+        for p, got in zip(pts, room):
+            inv = 1.0 / (np.sum((q - p) ** 2, -1) + 0.1 ** 2)
+            want = 0.1 * 0.4 * np.trapezoid(inv, phis) / math.pi
+            assert got == pytest.approx(want, rel=1e-4), (arc, p)
+    on_band, _ = Z.hazeRingSpan([[0.4, 0.0]], [0.0, 0.0], ring, (0.0, 4.0))
+    assert on_band[0] == pytest.approx(1.0, rel=0.04)                          # normalised to 1 on a closed band
+
+
+def test_the_ring_glows_more_inside_than_outside_and_is_zero_beyond_its_reach():
+    ring = np.array([0.4, 0.015, 0.1, 0.25])
+    col = np.array([0.065, 0.05, 1.0])
+    for e in (0.05, 0.1, 0.2):
+        inside = Z.hazeRing([0.4 - e, 0.0], [0.0, 0.0], ring, (0.0, 4.0), col, 1.0, 0.7)
+        outside = Z.hazeRing([0.4 + e, 0.0], [0.0, 0.0], ring, (0.0, 4.0), col, 1.0, 0.7)
+        assert inside[2] > outside[2] > 0.0, e
+    ang = np.linspace(0.0, 2.0 * math.pi, 50)
+    for rr in (0.4 + 3 * 0.015 + 0.25 + 1e-6, 0.9, 2.0):                      # 3 half-widths plus the reach out
+        p = rr * np.stack([np.cos(ang), np.sin(ang)], -1)
+        assert np.all(Z.hazeRing(p, [0.0, 0.0], ring, (0.0, 4.0), col, 5.0, 1.0) == 0.0)
+    # no haze, no glow beside the band (only the band's own tight glow, 0 beyond 3 half-widths)
+    assert np.all(Z.hazeRing([[0.4 + 0.05, 0.0], [0.2, 0.0]], [0.0, 0.0], ring, (0.0, 4.0), col, 5.0, 0.0) == 0.0)
+    # the colour is the light's: the haze takes the ring's hue, no white
+    glow = Z.hazeRing([0.3, 0.1], [0.0, 0.0], ring, (0.0, 4.0), col, 1.0, 0.8)
+    assert np.allclose(glow / glow.max(), col / col.max(), atol=1e-12)
+    # an open arc: symmetric about its centre angle, dark at the far side of the gap
+    a = Z.hazeRing([0.3 * math.cos(1.0 + 0.4), 0.3 * math.sin(1.0 + 0.4)], [0.0, 0.0], ring, (1.0, 1.2), col, 1.0, 0.8)
+    b = Z.hazeRing([0.3 * math.cos(1.0 - 0.4), 0.3 * math.sin(1.0 - 0.4)], [0.0, 0.0], ring, (1.0, 1.2), col, 1.0, 0.8)
+    gap = Z.hazeRing([0.4 * math.cos(1.0 + math.pi), 0.4 * math.sin(1.0 + math.pi)], [0.0, 0.0], ring, (1.0, 1.2), col,
+                     1.0, 0.8)
+    assert np.allclose(a, b, rtol=1e-9) and gap[2] < 0.2 * a[2]
+
+
+def test_the_3d_ring_is_a_ring_of_lamps_and_its_estimator_converges():
+    centre, normal, ring = np.array([0.0, 14.0, -46.0]), np.array([0.0, 0.0, 1.0]), np.array([12.0, 0.45, 15.0])
+    pts = centre + np.random.default_rng(9).uniform(-20.0, 20.0, size=(6, 3))
+    irr, _ = Z.hazeRingIrradiance(pts, centre, normal, ring)
+    phis = np.linspace(0.0, 2.0 * math.pi, 100001)[:-1]
+    lamps = centre + 12.0 * np.stack([np.cos(phis), np.sin(phis), 0.0 * phis], -1)
+    for x, got in zip(pts, irr):
+        assert got == pytest.approx(np.mean(1.0 / np.sum((lamps - x) ** 2, -1)), rel=0.01)   # softened by the band
+    far = centre + np.array([0.0, 0.0, 400.0])
+    assert Z.hazeRingIrradiance(far[None], centre, normal, ring)[0][0] == pytest.approx(1.0 / 400.0 ** 2, rel=2e-3)
+    ro = np.array([0.0, 1.7, 12.0])
+    hz = [0.3, 12.0, 0.0, 0.0]
+    for target in ([0.0, 14.0, -46.0], [11.5, 14.0, -46.0], [6.0, 22.0, -40.0]):
+        rd = np.array(target) - ro
+        rd = rd / np.linalg.norm(rd)
+        est = np.mean([Z.hazeRing3(ro, rd, 160.0, centre, normal, ring, VIOLET, 40.0, [1.0, 0.0], hz, 0.0, j)
+                       for j in (np.arange(64) + 0.5) / 64], axis=0)
+        bound = 12.0 + 15.0
+        co = ro - centre
+        mid = -co @ rd
+        chord = math.sqrt(bound * bound - (co @ co - mid * mid))
+        t0, t1 = max(mid - chord, 0.0), mid + chord
+        ts = np.linspace(t0, t1, 100001)[:-1] + 0.5 * (t1 - t0) / 100000
+        xs = ro + np.outer(ts, rd)
+        irr, gap = Z.hazeRingIrradiance(xs, centre, normal, ring)
+        v = xs - centre
+        h = v @ normal
+        in_plane = v - np.outer(h, normal)
+        to_band = v - 12.0 * in_plane / np.linalg.norm(in_plane, axis=-1, keepdims=True)
+        phase = Z.phaseHG(np.sum(rd * -to_band / np.linalg.norm(to_band, axis=-1, keepdims=True), -1), 0.6) / \
+            Z.phaseIso()
+        d0, d1 = Z.hazeDensity3(ro + rd * t0, 0.0, hz, 0.0), Z.hazeDensity3(ro + rd * t1, 0.0, hz, 0.0)
+        sigma = d0 + (d1 - d0) * (ts - t0) / (t1 - t0)
+        window = 1.0 - Z._smoothstep(0.35 * 15.0, 15.0, gap)
+        ref = 40.0 * VIOLET * np.sum(sigma * irr * window * phase * np.exp(-0.035 * ts)) * (t1 - t0) / 100000
+        assert np.allclose(est, ref, rtol=0.01), (target, est, ref)
+    miss = np.array([0.0, -0.3, 1.0]) / np.linalg.norm([0.0, -0.3, 1.0])                 # looking away from the ring
+    assert np.all(Z.hazeRing3(ro, miss, 160.0, centre, normal, ring, VIOLET, 40.0, [2.0, 0.0], hz, 0.0, 0.5) == 0.0)
+
+
+def test_the_blue_noise_is_a_blue_permutation_of_256_ranks():
+    xy = np.stack(np.meshgrid(np.arange(48) + 0.5, np.arange(48) + 0.5), -1)
+    bn = Z.hazeBlueNoise(xy)
+    assert np.all((bn > 0.0) & (bn < 1.0))
+    tile = np.round(bn[:16, :16] * 256.0 - 0.5).astype(int)
+    assert sorted(tile.ravel()) == list(range(256))                            # every threshold once
+    assert np.array_equal(bn[:16, :16], bn[16:32, 32:48])                      # tiled every 16 pixels
+    img = bn[:16, :16] - bn[:16, :16].mean()
+    power = np.abs(np.fft.fft2(img)) ** 2
+    f = np.hypot(*np.meshgrid(np.fft.fftfreq(16), np.fft.fftfreq(16)))
+    assert power[(f > 0) & (f < 0.2)].mean() < 0.1 * power[f > 0].mean()      # little low-frequency energy: blue
+    shifts = (bn[:, 1:] - bn[:, :-1]).ravel()
+    assert np.mean(np.abs(shifts)) > 0.25                                      # neighbours far apart
+
+
 # ------------------------------------------------------------------------------------------- GPU parity (SwiftShader)
-PARITY_CARD = """//! {"card": "parity-haze", "uses": ["atmos-haze", "colour-tone", "light-glow"], "t": [0], "size": [512, 64],
-//!  "note": "test fixture: eight 64x64 panels of numbers the CPU twin recomputes; not a picture for people"}
+PARITY_CARD = """//! {"card": "parity-haze", "uses": ["atmos-haze", "colour-tone", "light-glow"], "t": [0], "size": [768, 64],
+//!  "note": "test fixture: twelve 64x64 panels of numbers the CPU twin recomputes; not a picture for people"}
 // Apache-2.0, Akashic Aurora. A parity fixture: every pixel is a number the numpy twin recomputes.
 vec3 parityShown(vec3 v) { return v / (1.0 + v); }
 const vec3 PARITY_EYE = vec3(0.0, 1.7, 0.0);
@@ -513,11 +763,11 @@ void mainImage(out vec4 color, in vec2 pixel) {
     } else if (panel == 1) {
         float dens = 0.5 + 0.5 * sin(0.3 * local.x + 0.2 * local.y);
         v = parityShown(hazeBeam((local.x - 32.0) * 0.6, local.y / 64.0 * 1.12 - 0.06, vec3(0.05, 1.0, 0.15), 1.5,
-                                 dens, 10.0, 1.3));
+                                 dens, 10.0, 1.3, 0.3));
     } else if (panel == 2) {
         float dens = 0.5 + 0.5 * cos(0.25 * local.x - 0.15 * local.y);
         v = parityShown(hazeSheet((local.x - 32.0) / 32.0 * 0.6, 0.2, local.y / 64.0 * 1.12 - 0.06,
-                                  vec3(0.55, 0.1, 1.0), 0.7, dens, 0.9));
+                                  vec3(0.55, 0.1, 1.0), 0.7, dens, 0.9, 0.5));
     } else if (panel == 3) {
         vec2 p = (local - 32.0) / 16.0;
         float point = hazePoint(p, vec2(0.3, -0.2), 0.7, vec3(1.0, 0.6, 0.2), 2.0, 0.6).r;
@@ -548,7 +798,7 @@ void mainImage(out vec4 color, in vec2 pixel) {
         v = parityShown(hazeCone(vec3(0.0, 1.7, 0.0), rd, tMax, vec3(2.0, 9.0, -15.0), vec3(-0.25, -1.0, 0.5), 0.12,
                                  vec3(0.25, 0.4, 1.0), 120.0, vec2(1.0, 0.0), vec4(0.4, 7.0, 0.2, 0.1),
                                  vec4(1.6, 0.05, 0.8, 0.25), 3.0, 0.37));
-    } else {
+    } else if (panel == 7) {
         vec3 rd = parityRay(local);
         float tMax = rd.y < 0.0 ? min(60.0, -1.7 / rd.y) : 60.0;
         if (local.y < 32.0) {
@@ -559,6 +809,31 @@ void mainImage(out vec4 color, in vec2 pixel) {
             v = parityShown(hazeLamp(vec3(0.0, 1.7, 0.0), rd, tMax, vec3(1.0, 3.0, -8.0), 5.0, vec3(1.0, 0.5, 0.1),
                                      30.0, vec2(1.0, 0.0), vec4(0.4, 7.0, 0.2, 0.1), 3.0, 0.61));
         }
+    } else if (panel == 8) {
+        float dens = 0.5 + 0.5 * sin(0.21 * local.x + 0.1 * local.y);
+        if (local.y < 32.0) {
+            v = parityShown(hazeBeamSwept((local.x - 32.0) * 0.7, 0.6 * local.y, 0.35, vec3(0.05, 1.0, 0.15), 1.4,
+                                          dens, 9.0, 1.2, 0.3));
+        } else {
+            v = parityShown(hazeSheet((local.x - 32.0) / 32.0 * 0.5, 0.2, 0.3, vec3(0.22, 0.84, 1.0), 0.8, dens, 1.0,
+                                      (local.y - 32.0) / 32.0));
+        }
+    } else if (panel == 9) {
+        vec2 p = (local - 32.0) / 32.0 * 0.6;
+        float dens = 0.6 + 0.4 * cos(0.17 * local.x - 0.11 * local.y);
+        vec2 arc = local.y < 32.0 ? vec2(0.0, 3.2) : vec2(1.3, 1.1);
+        v = parityShown(hazeRing(p, vec2(0.05, -0.02), vec4(0.3, 0.02, 0.08, 0.15), arc, vec3(0.3, 0.2, 1.0), 0.8,
+                                 dens));
+    } else if (panel == 10) {
+        vec3 rd = parityRay(local);
+        float tMax = rd.y < 0.0 ? min(60.0, -1.7 / rd.y) : 60.0;
+        v = parityShown(hazeRing3(PARITY_EYE, rd, tMax, vec3(0.5, 4.0, -14.0), vec3(0.1, 0.0, 1.0), vec3(3.0, 0.15, 3.5),
+                                  vec3(0.3, 0.2, 1.0), 25.0, vec2(1.0, 0.0), vec4(0.4, 7.0, 0.2, 0.1), 3.0,
+                                  hazeBlueNoise(pixel)));
+    } else {
+        vec2 p = (local / 64.0 - 0.5) * 2.0;
+        v = vec3(hazeStreak(p, vec2(-0.2, -1.2), vec4(0.05, 0.02, 1.0, 0.03), 2.2), hazeBlueNoise(pixel),
+                 hazeStreak(p, vec2(0.1, 0.05), vec4(0.04, 0.05, 0.8, 0.0), 0.0));
     }
     color = vec4(v, 1.0);
 }
@@ -572,16 +847,16 @@ def _shown(v):
 def _twin_parity_image():
     ys, xs = np.mgrid[0:64, 0:64].astype(np.float64)
     lx, ly = xs + 0.5, ys + 0.5
-    out = np.zeros((64, 512, 3))
+    out = np.zeros((64, 768, 3))
     p = np.stack([(lx / 64.0 - 0.5) * 2.0, (ly / 64.0 - 0.5) * 2.0], -1)
     out[:, 0:64] = np.stack([Z.hazeDensity(p, -0.8, [3.0, 0.5, 0.05, -0.02], 3.7), Z.hazeFloorBand(p, -0.6, 0.5, 2.3),
                              Z.hazeStreak(p, [0.1, -1.1], [0.08, 0.03, 0.9, 0.02], 4.1)], -1)
     dens = 0.5 + 0.5 * np.sin(0.3 * lx + 0.2 * ly)
     out[:, 64:128] = _shown(Z.hazeBeam((lx - 32.0) * 0.6, ly / 64.0 * 1.12 - 0.06, [0.05, 1.0, 0.15], 1.5, dens, 10.0,
-                                       1.3))
+                                       1.3, 0.3))
     dens = 0.5 + 0.5 * np.cos(0.25 * lx - 0.15 * ly)
     out[:, 128:192] = _shown(Z.hazeSheet((lx - 32.0) / 32.0 * 0.6, 0.2, ly / 64.0 * 1.12 - 0.06, [0.55, 0.1, 1.0], 0.7,
-                                         dens, 0.9))
+                                         dens, 0.9, 0.5))
     p = np.stack([(lx - 32.0) / 16.0, (ly - 32.0) / 16.0], -1)
     point = Z.hazePoint(p, [0.3, -0.2], 0.7, [1.0, 0.6, 0.2], 2.0, 0.6)[..., 0]
     pool = Z.hazePool(p, [-0.4, 0.5], [1.2, 0.5], [0.2, 0.5, 1.0], 1.5)[..., 2]
@@ -612,10 +887,27 @@ def _twin_parity_image():
     lamp = _shown(Z.hazeLamp(ro, rd, t_max, [1.0, 3.0, -8.0], 5.0, [1.0, 0.5, 0.1], 30.0, [1.0, 0.0],
                              [0.4, 7.0, 0.2, 0.1], 3.0, 0.61))
     out[:, 448:512] = np.where((ly < 32.0)[..., None], sheet, lamp)
+    dens = 0.5 + 0.5 * np.sin(0.21 * lx + 0.1 * ly)
+    swept = _shown(Z.hazeBeamSwept((lx - 32.0) * 0.7, 0.6 * ly, 0.35, [0.05, 1.0, 0.15], 1.4, dens, 9.0, 1.2, 0.3))
+    paled = _shown(Z.hazeSheet((lx - 32.0) / 32.0 * 0.5, 0.2, 0.3, [0.22, 0.84, 1.0], 0.8, dens, 1.0, (ly - 32.0) / 32.0))
+    out[:, 512:576] = np.where((ly < 32.0)[..., None], swept, paled)
+    p = np.stack([(lx - 32.0) / 32.0 * 0.6, (ly - 32.0) / 32.0 * 0.6], -1)
+    dens = 0.6 + 0.4 * np.cos(0.17 * lx - 0.11 * ly)
+    arc = np.where((ly < 32.0)[..., None], np.array([0.0, 3.2]), np.array([1.3, 1.1]))
+    out[:, 576:640] = _shown(Z.hazeRing(p, [0.05, -0.02], [0.3, 0.02, 0.08, 0.15], arc, [0.3, 0.2, 1.0], 0.8, dens))
+    pixel = np.stack([lx + 640.0, ly], -1)
+    out[:, 640:704] = _shown(Z.hazeRing3(ro, rd, t_max, [0.5, 4.0, -14.0], [0.1, 0.0, 1.0], [3.0, 0.15, 3.5],
+                                         [0.3, 0.2, 1.0], 25.0, [1.0, 0.0], [0.4, 7.0, 0.2, 0.1], 3.0,
+                                         Z.hazeBlueNoise(pixel)))
+    p = np.stack([(lx / 64.0 - 0.5) * 2.0, (ly / 64.0 - 0.5) * 2.0], -1)
+    out[:, 704:768] = np.stack([Z.hazeStreak(p, [-0.2, -1.2], [0.05, 0.02, 1.0, 0.03], 2.2),
+                                Z.hazeBlueNoise(np.stack([lx + 704.0, ly], -1)),
+                                Z.hazeStreak(p, [0.1, 0.05], [0.04, 0.05, 0.8, 0.0], 0.0)], -1)
     return np.round(np.clip(out, 0, 1) * 255.0)[::-1]            # PNG rows run top down
 
 
-PANELS = ("fields", "beam", "sheet", "point-pool-coords", "tint-tone-hotcore", "fields-3d", "cone", "sheet3-lamp")
+PANELS = ("fields", "beam", "sheet", "point-pool-coords", "tint-tone-hotcore", "fields-3d", "cone", "sheet3-lamp",
+          "swept-pale", "ring", "ring3", "streak-bluenoise")
 
 
 @pytest.mark.slow
