@@ -139,6 +139,7 @@ void main() {
   hitLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
+  vec2 p0 = p;                  // the reactor's own place: the feedback field never lurches (2026-10-24)
   // a hit makes the whole reactor lurch toward the side its prominence flares (the hit's seed sets the direction)
   float lurchA = (gHost ? vjAt(12, 2).x : 0.0) * TAU;
   p -= vec2(cos(lurchA), sin(lurchA)) * 0.03 * gHit;
@@ -154,16 +155,15 @@ void main() {
 
   // the feedback: rgb drifts outward a little (radiating trails), alpha holds the shock field as 1 - field
   float expand = 0.012 + 0.02 * u_k6 + 0.01 * bass;
-  vec2 back = p * (1.0 - expand);
+  vec2 back = p0 * (1.0 - expand);
   vec4 prev = texture(u_prev, back / vec2(asp, 1.0) + 0.5);
   float keep = 0.40 + 0.50 * u_k5;
   vec3 trail = max(prev.rgb * keep - 1.5 / 255.0, 0.0);
   float shock = max((1.0 - prev.a) * (0.915 + 0.05 * u_k6) - 1.0 / 255.0, 0.0);
-  // a kick writes a ring just outside the core; the expansion carries it out
+  // a kick writes a ring just outside the core; the expansion carries it out (written where the field lives: p0)
   float ringAt = R0 * 1.35;
-  shock = max(shock, gKick * u_k6 * exp(-pow((r - ringAt) / (0.010 + 0.01 * gKick), 2.0)));
-  // a pad hit's flare throws its own ring in its first 50 ms (the expansion carries it out)
-  shock = max(shock, gHit * (0.6 + 0.4 * gHitVel) * step(gHitAge, 0.05) * exp(-pow((r - ringAt * 1.1) / (0.012 + 0.02 * gHit), 2.0)));
+  float r0 = length(p0);
+  shock = max(shock, gKick * u_k6 * exp(-pow((r0 - ringAt) / (0.010 + 0.01 * gKick), 2.0)));
   shock = min(shock, 1.0);
 
   // the room: lit by the bass, darker at the corners
@@ -215,6 +215,15 @@ void main() {
   float plasma = 0.55 + 0.45 * vnoise(p / max(R0, 1e-3) * 1.8 + vec2(u_time * 0.5, -u_time * 0.35));
   col += hotCore(coreTint, 0.35 + 1.0 * gKick + 0.2 * bass + 2.4 * gHit) * coreBall * (0.25 + 0.6 * limb) * plasma;
   col += coreTint * coreGlow * (0.35 + 0.5 * bass + 0.4 * gKick + 1.1 * gHit);
+  // a pad hit's flare throws a ring of its own: DRAWN, not written into the shock field (written there, it lingered for
+  // ~0.4 s as a dull grey ring offset by the lurch: the 2026-10-24 verifier's "ghost ring"), in the core's colour,
+  // expanding fast and gone in ~0.15 s
+  if (gHit > 0.01 && gHitAge < 0.2) {
+    float rr = ringAt * 1.05 + gHitAge * (0.9 + 0.8 * gHitVel);
+    float wr = 0.006 + 0.010 * gHitVel + px;
+    float xr = (r - rr) / wr;
+    col += hotCore(coreTint, 1.0 + gHit) * exp(-xr * xr) * exp(-gHitAge / 0.06) * gHit * 0.5;
+  }
   // ... and throws a prominence: a tongue of plasma out of the core in the hit's own direction (from its seed), so no two
   // hits flare alike; velocity sets its reach
   if (gHit > 0.01) {

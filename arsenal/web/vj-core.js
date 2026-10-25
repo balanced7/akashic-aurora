@@ -762,18 +762,21 @@ export function hardness(v, from = 0.5) { const x = clamp01((clamp01(v) - from) 
 // Per effect: the most the impact layer may do at full velocity. punch = the frame's zoom kick (a fraction: 0.03 = the
 // frame grows 3 %), shake = its jolt (fraction of the frame height), dip = how far the scene darkens for ~40 ms right at
 // the hit (before the dip's safety limit, dipSafeDepth), glow = the afterglow (how much longer the effect's light trails
-// for ~0.35 s). Strobe and freeze carry none (a strobe that punched would shake the frame at its own rate).
+// for ~0.35 s). Strobe and freeze carry none (a strobe that punched would shake the frame at its own rate). react = how
+// strongly the SET answers the hit (the strip's hit pulse, and u_pulse for a plain Play preset): an effect with a look of
+// its own (the kaleidoscope's mirrors, the frozen frame, Invert, the strobe's bars, the particles) leads, and the set's
+// own flare stays small, so on Reactor every pad no longer opens on the same core flare (2026-10-24 safety pass).
 export const IMPACT = Object.freeze({
-  shockwave: { punch: 0.030, shake: 0.010, dip: 0.55, glow: 0.8 },
-  laser:     { punch: 0.024, shake: 0.007, dip: 0.50, glow: 1.0 },
-  flash:     { punch: 0.020, shake: 0.000, dip: 0.70, glow: 0.3 },
-  glitch:    { punch: 0.020, shake: 0.016, dip: 0.50, glow: 0.6, vary: true, slip: 0.035 },
-  strobe:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0 },
-  particles: { punch: 0.018, shake: 0.004, dip: 0.30, glow: 0.8 },
-  kaleido:   { punch: 0.030, shake: 0.000, dip: 0.30, glow: 0.4 },
-  freeze:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0 },
-  invert:    { punch: 0.020, shake: 0.000, dip: 0.00, glow: 0.0 },
-  zoom:      { punch: 0.000, shake: 0.008, dip: 0.40, glow: 0.7 },   // its punch is the effect itself (zoomDepth)
+  shockwave: { punch: 0.030, shake: 0.010, dip: 0.55, glow: 0.8, react: 1.0 },
+  laser:     { punch: 0.024, shake: 0.007, dip: 0.50, glow: 1.0, react: 1.0 },
+  flash:     { punch: 0.020, shake: 0.000, dip: 0.70, glow: 0.3, react: 0.6 },
+  glitch:    { punch: 0.020, shake: 0.016, dip: 0.50, glow: 0.6, vary: true, slip: 0.035, react: 1.0 },
+  strobe:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.3 },
+  particles: { punch: 0.018, shake: 0.004, dip: 0.30, glow: 0.8, react: 0.7 },
+  kaleido:   { punch: 0.030, shake: 0.000, dip: 0.30, glow: 0.4, react: 0.25 },
+  freeze:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.15 },
+  invert:    { punch: 0.020, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.2 },
+  zoom:      { punch: 0.000, shake: 0.008, dip: 0.40, glow: 0.7, react: 0.8 },   // its punch is the effect itself (zoomDepth)
 });
 export const PUNCH_BACK_S = 0.16;      // the punch eases back over this (+0.12 s at full velocity)
 export const SHAKE_HZ = 23, SHAKE_TAU_S = 0.06;
@@ -804,7 +807,7 @@ export class ImpactLayer {
     this.hits = [];
     for (let i = 0; i < size; i++) this.hits.push({ on: false, t0: 0, vel: 0, k: 0, punch: 0, back: 0.2, shake: 0, sx: 1, sy: 0,
                                                     ph: 0, dip: 0, granted: false, glow: 0, type: "", code: 0, seed: 0, x: 0, y: 0,
-                                                    slip: 0, slx: 1, sly: 0 });
+                                                    slip: 0, slx: 1, sly: 0, react: 1 });
     this.out = { punch: 0, shakeX: 0, shakeY: 0, dip: 0, dipGranted: false, glow: 0, pulse: 0, vel: 0, code: 0, since: 30,
                  seed: 0, x: 0, y: 0 };
     this.last = null;
@@ -821,6 +824,7 @@ export class ImpactLayer {
     const on = opts.punch === false ? 0 : 1;
     const seed = clamp01(opts.seed ?? 0.5);
     slot.on = true; slot.t0 = now; slot.vel = clamp01(vel); slot.k = k; slot.type = type; slot.code = EFFECT_CODES[type] || 0;
+    slot.react = prof.react ?? 1;
     // an effect whose profile says `vary` (the glitch) throws a different punch, shake and dip every hit, from its seed
     // (the same on average): no two glitches land alike
     const v1 = prof.vary ? 0.3 + 1.4 * hash01(seed * 5.1 + 0.3) : 1;
@@ -874,7 +878,7 @@ export class ImpactLayer {
     const L = this.last;
     if (L) {
       const since = Math.max(0, now - L.t0);
-      o.pulse = (0.25 + 0.75 * L.k) * Math.exp(-since / 0.25);
+      o.pulse = (0.25 + 0.75 * L.k) * Math.exp(-since / 0.25) * L.react;
       o.vel = L.vel; o.code = L.code; o.since = Math.min(30, since); o.seed = L.seed; o.x = L.x; o.y = L.y;
     } else { o.pulse = 0; o.vel = 0; o.code = 0; o.since = 30; o.seed = 0; o.x = 0; o.y = 0; }
     return o;

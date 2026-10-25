@@ -33,7 +33,11 @@
 // it has LEDs, and stops at the first refusal until the engine's next hello (vj-core.js EngineLink).
 //
 // URL: ?engine=http://127.0.0.1:8794 (default; "off" for none) ?demo=1 ?demopads=0 ?sets=id,id,... ?hud=0
-// Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader.
+// Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader; and
+// since 2026-10-24 every frame passes gate v2 last (vj-limiter.js on the GPU, its rules and JS twin in vj-gate.js): the
+// picture actually shown, after every layer, measured in 18 windows of a quarter of the screen or more, never makes a
+// fourth flash in any second (nor a red one, nor flashes for more than about five seconds without a rest). The gate
+// still decides which flashes are asked for at all; the limiter only ever takes light away from the rest.
 import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
   starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, serializePadMap, actionLabel,
@@ -44,6 +48,7 @@ import {
   SCENE_ACTION_IDS, zoomDepth, EFFECT_CODES,
 } from "./vj-core.js";
 import { createStage } from "./vj-stage.js";   // wave 2: beat-synced transitions, the post look, the showcase tour
+import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output flash limiter (rules: vj-gate.js)
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
@@ -433,10 +438,15 @@ void main() {
   // shoulder; back to display values
   vec3 lin = pow(max(c, vec3(0.0)), vec3(2.2));
   float meanLin = texelFetch(u_meter, ivec2(0, 0), 0).r;
-  if (u_dip > 0.001) {
+  // the dip (2026-10-24 safety pass): never under Invert (inverted, a dip is a brightening the meter never measured: it
+  // fades out as Invert comes in), and a dip that rides a granted white flash goes only as deep as the flash will show
+  // (the shader blanks a flash that follows the last one too soon: envFlashSafe), the rest held to the safe depth
+  float dipOn = 1.0 - clamp(u_invert, 0.0, 1.0);
+  if (u_dip > 0.001 && dipOn > 0.001) {
     float shown = meanLin * pow(max(u_bright, 0.0), 2.2);
-    float dip = u_dipGranted > 0.5 ? u_dip : min(u_dip, u_dipSafe / max(shown, 1e-4));
-    lin *= 1.0 - clamp(dip, 0.0, 0.9);
+    float safeDip = min(u_dip, u_dipSafe / max(shown, 1e-4));
+    float dip = u_dipGranted > 0.5 ? mix(safeDip, u_dip, envFlashSafe(u_flashGap)) : safeDip;
+    lin *= 1.0 - clamp(dip, 0.0, 0.9) * dipOn;
   }
   lin += texture(u_ov, mirrorUv(uv)).rgb * u_accent;
   float edge = smoothstep(0.30, 0.62, max(abs(p0.x) / max(asp, 1e-3), abs(p0.y)));
@@ -459,12 +469,16 @@ void main() {
   outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
-// The scene meter: the mean relative luminance (linear) of the sets as the composite sees them, measured every frame on
-// the GPU (64 x 36 cells of 16 taps, then one texel), read by the composite in the same frame: the dip's safety limit.
+// The scene meter: the mean relative luminance (linear) of the sets AND the accent overlay as the composite adds them,
+// measured every frame on the GPU (64 x 36 cells of 16 taps, then one texel), read by the composite in the same frame: the
+// dip's safety limit and the snare's pivot. (Since the 2026-10-24 safety pass it includes the overlay, and the final
+// guarantee for every layer is gate v2, vj-limiter.js, on the frame actually shown. A 16 x 9 grid with the same taps was
+// tried and cost ~5 ms a frame on SwiftShader: a pass of 144 heavy fragments runs on one thread there.)
 const METER_FS = `#version 300 es
 precision highp float;
-uniform sampler2D u_a, u_b;
+uniform sampler2D u_a, u_b, u_ov;
 uniform float u_mix;          // already eased, as the composite eases it
+uniform float u_accent;       // the overlay's gain in the composite
 out vec4 outColor;
 void main() {
   vec2 cell = 1.0 / vec2(64.0, 36.0);
@@ -474,18 +488,24 @@ void main() {
     vec2 uv = base + (vec2(float(i), float(j)) + 0.5) * cell * 0.25;
     vec3 c = texture(u_a, uv).rgb;
     if (u_mix > 0.001) c = mix(c, texture(u_b, uv).rgb, u_mix);
-    s += dot(pow(max(c, vec3(0.0)), vec3(2.2)), vec3(0.2126, 0.7152, 0.0722));
+    vec3 lin = pow(max(c, vec3(0.0)), vec3(2.2)) + texture(u_ov, uv).rgb * u_accent;
+    s += dot(lin, vec3(0.2126, 0.7152, 0.0722));
   }
   outColor = vec4(s / 16.0, 0.0, 0.0, 1.0);
 }`;
+// ... reduced in two steps, 64 x 36 -> 8 x 6 -> 1, each fragment averaging an 8 x 6 block (2026-10-24: one fragment
+// summing all 2304 cells ran on a single SwiftShader thread, ~1-2 ms of the impact pass's added frame time)
 const METER2_FS = `#version 300 es
 precision highp float;
+precision highp int;
 uniform sampler2D u_src;
+uniform ivec2 u_block;
 out vec4 outColor;
 void main() {
+  ivec2 o = ivec2(gl_FragCoord.xy) * u_block;
   float s = 0.0;
-  for (int y = 0; y < 36; y++) for (int x = 0; x < 64; x++) s += texelFetch(u_src, ivec2(x, y), 0).r;
-  outColor = vec4(s / 2304.0, 0.0, 0.0, 1.0);
+  for (int y = 0; y < u_block.y; y++) for (int x = 0; x < u_block.x; x++) s += texelFetch(u_src, o + ivec2(x, y), 0).r;
+  outColor = vec4(s / float(u_block.x * u_block.y), 0.0, 0.0, 1.0);
 }`;
 // the composite to the screen when the look is off
 const COPY_FS = `#version 300 es
@@ -581,6 +601,7 @@ const G = { gl: null, lost: false, parallel: null, fbInternal: 0, fbType: 0, fbF
             // the impact pass: the composite's own pair (its previous frame feeds the glitch), the stutter's held frame,
             // the scene meter (64 x 36, then 1 x 1) and their programs
             cmp: null, stut: null, meter1: null, meter2: null, meterProg: null, meterU: null, meter2Prog: null,
+            limiter: null, limiterError: "",
             meter2U: null, copyProg: null, copyU: null };
 const strip = createStrip();
 const audioBytes = new Uint8Array(AUDIO_TEX_W * 2);
@@ -764,11 +785,11 @@ function initGL() {
     gl.useProgram(G.ovProg);
     gl.uniform1i(G.ovU.u_prevOv, 0);
     G.meterProg = linkSync(gl, METER_FS);
-    G.meterU = uniformsOf(gl, G.meterProg, ["u_a", "u_b", "u_mix"]);
+    G.meterU = uniformsOf(gl, G.meterProg, ["u_a", "u_b", "u_ov", "u_mix", "u_accent"]);
     gl.useProgram(G.meterProg);
-    gl.uniform1i(G.meterU.u_a, 0); gl.uniform1i(G.meterU.u_b, 1);
+    gl.uniform1i(G.meterU.u_a, 0); gl.uniform1i(G.meterU.u_b, 1); gl.uniform1i(G.meterU.u_ov, 2);
     G.meter2Prog = linkSync(gl, METER2_FS);
-    G.meter2U = uniformsOf(gl, G.meter2Prog, ["u_src"]);
+    G.meter2U = uniformsOf(gl, G.meter2Prog, ["u_src", "u_block"]);
     gl.useProgram(G.meter2Prog);
     gl.uniform1i(G.meter2U.u_src, 0);
     G.copyProg = linkSync(gl, COPY_FS);
@@ -781,6 +802,18 @@ function initGL() {
     return false;
   }
   if (stage) stage.initGL(gl, { internalFormat: G.fbInternal, type: G.fbType });   // transitions and the look
+  // gate v2, the final-output flash limiter. Without a float target it cannot keep its state: the page then runs in its
+  // safe mode (no punch, shake or dip, no set reactions to pads) and says so.
+  if (G.limiter) { try { G.limiter.dispose(); } catch { /* a lost context took it */ } }
+  G.limiter = null;
+  try {
+    G.limiter = createLimiter(gl, { preInternal: G.fbInternal, preType: G.fbType });
+    G.limiterError = "";
+  } catch (err) {
+    G.limiterError = String(err.message || err);
+    recordError("compile", "vj-limiter", G.limiterError);
+    banner("The flash limiter could not start: the VJ rig runs in its safe mode (no punch, no set reactions to pads).");
+  }
   return true;
 }
 
@@ -846,7 +879,7 @@ function dropAllFbs() {
   G.pool = [];
   deletePair(G.ov); G.ov = null;
   if (G.frz) { deletePair(G.frz); G.frz = null; }
-  for (const k of ["cmp", "stut", "meter1", "meter2"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
+  for (const k of ["cmp", "stut", "meter1", "meterMid", "meter2"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
 }
 function ensureFb(set) {
   if (set.fb && (set.fb.w !== G.width || set.fb.h !== G.height)) { deletePair(set.fb); set.fb = null; }
@@ -870,6 +903,7 @@ function resizeIfNeeded() {
   if (!G.cmp) G.cmp = createPair(G.width, G.height);     // the composite's own pair: its previous frame feeds the glitch
   if (!G.stut) G.stut = createSingle(G.width, G.height); // the frame held at the last glitch (the stutter's slices)
   if (!G.meter1) G.meter1 = createSingle(64, 36, true);  // the scene meter: NEAREST, read with texelFetch
+  if (!G.meterMid) G.meterMid = createSingle(8, 6, true);
   if (!G.meter2) G.meter2 = createSingle(1, 1, true);
 }
 function createSingle(w, h, nearest = false) {
@@ -1225,7 +1259,8 @@ function triggerEffect(type, vel, pad, nowS) {
   // under the flash line by the composite's scene meter: vj-core.js dipSafeDepth)
   if (f) {
     const at = hitOrigin(f);
-    impact.hit(type, vel, nowS, { seed: f.seed, granted: type === "flash" && granted, x: at[0], y: at[1], punch: options.punch });
+    impact.hit(type, vel, nowS, { seed: f.seed, granted: type === "flash" && granted, x: at[0], y: at[1],
+                                 punch: options.punch && limiterLive() });   // the safe mode (no limiter yet): no punch
   }
   return f;
 }
@@ -1559,7 +1594,7 @@ function buildStrip(nowMs, nowS) {
   stripSet(S, 9, 2, n, 0, 0, 0);
   // v2: the shared hit input (vj-core.js STRIP row 2, texels 10-12) -- each set reacts to a pad hit in its own way
   const im = impact.out;
-  stripSet(S, 10, 2, im.pulse * T.accent, im.vel, im.code, im.since);
+  stripSet(S, 10, 2, limiterLive() ? im.pulse * T.accent : 0, im.vel, im.code, im.since);   // the safe mode: no set reactions
   stripSet(S, 11, 2, bands.env.kick, bands.env.snare, bands.env.hat, frame.punch);
   stripSet(S, 12, 2, im.seed, im.x, im.y, 0);
   stripSet(S, 15, 2, STRIP.VERSION, 0, 0, 1);
@@ -1616,7 +1651,7 @@ function renderSet(set, nowS) {
   gl.uniform1f(u.u_has_video, 0);
   // a VJ-aware set hears pad hits through its strip (row 2, texel 10) and reacts in its own way; any other Play preset
   // gets them through its pulse, so every set answers a hit
-  const padPulse = set.vj ? 0 : 0.9 * impact.out.pulse * T.accent;
+  const padPulse = set.vj || !limiterLive() ? 0 : 0.9 * impact.out.pulse * T.accent;
   gl.uniform1f(u.u_pulse, clamp(Math.max(pulseEnv * react, padPulse), 0, 1.5));
   gl.uniform1f(u.u_beat, Math.max(beat.pulse, 0.8 * hit.pulse, 0.9 * bands.env.kick, padPulse));
   gl.uniform1f(u.u_level, energy.level);
@@ -1711,8 +1746,8 @@ function renderOverlay(nowS) {
   ov.read = write;
 }
 
-// The scene meter: the mean relative luminance of what the composite will show of the sets, into a 1x1 texture the
-// composite reads in the same frame (the dip's safety limit). Two tiny passes: 64 x 36 cells, then one texel.
+// The scene meter: the mean relative luminance of what the composite will show of the sets and the overlay, into a 1x1
+// texture the composite reads in the same frame (the dip's safety limit). Tiny passes: 64 x 36 cells, 8 x 6, one texel.
 function meterPass(texA, texB, mixEased) {
   const gl = G.gl;
   gl.useProgram(G.meterProg);
@@ -1720,12 +1755,19 @@ function meterPass(texA, texB, mixEased) {
   gl.viewport(0, 0, 64, 36);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.ov.texs[G.ov.read]);
   gl.uniform1f(G.meterU.u_mix, mixEased);
+  gl.uniform1f(G.meterU.u_accent, 0.25 + 1.0 * T.accent);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   gl.useProgram(G.meter2Prog);
+  gl.uniform2i(G.meter2U.u_block, 8, 6);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, G.meterMid.fbos[0]);
+  gl.viewport(0, 0, 8, 6);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.meter1.texs[0]);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
   gl.bindFramebuffer(gl.FRAMEBUFFER, G.meter2.fbos[0]);
   gl.viewport(0, 0, 1, 1);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.meter1.texs[0]);
+  gl.bindTexture(gl.TEXTURE_2D, G.meterMid.texs[0]);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 // The composite, into the page's composite pair (G.cmp): returns the texture it drew. The look (vj-stage.js) or the copy
@@ -2003,7 +2045,11 @@ function onFrame(rafNow) {
       const mixed = stage && A && A.fb && B && B.fb && B !== A ?
         stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
       const drawn = composite(nowMs, nowS, mixAB, mixed);
-      if (!(stage && stage.post(G.width, G.height, drawn))) copyToScreen(drawn);
+      if (limiterLive()) {
+        // the look draws into the limiter's input; the limiter meters it, decides and puts the frame on the canvas
+        const looked = stage && stage.post(G.width, G.height, drawn, G.limiter.preTarget(G.width, G.height));
+        G.limiter.run(looked ? G.limiter.preTexture() : drawn, G.width, G.height, frameDt);
+      } else if (!(stage && stage.post(G.width, G.height, drawn))) copyToScreen(drawn);
       if (probe.on || probe.waiters.length) runProbe(nowMs);
       noteDrawn(nowMs);
       stats.frames++;
@@ -2018,6 +2064,19 @@ function onFrame(rafNow) {
 }
 let frameErrorRecorded = false;
 let hudAt = 0;
+// gate v2 runs once its programs have linked (they compile in the background); until then, and for good if they fail,
+// the page is in its safe mode: no punch, shake or dip and no set reactions to pads (the light gate v2 exists to limit)
+function limiterLive() {
+  if (!G.limiter) return false;
+  if (G.limiter.ready()) return true;
+  const err = G.limiter.error();
+  if (err && !G.limiterError) {
+    G.limiterError = err;
+    recordError("compile", "vj-limiter", err);
+    banner("The flash limiter could not start: the VJ rig runs in its safe mode (no punch, no set reactions to pads).");
+  }
+  return false;
+}
 let frameDt = 1 / 60;
 // the latency record: the first frame drawn after a pad event, and the effect's level in it
 function noteDrawn(nowMs) {
@@ -2370,7 +2429,7 @@ function wireUi() {
   canvas.addEventListener("webglcontextrestored", () => {
     G.lost = false;
     for (const s of sets) { s.program = null; s.fb = null; }
-    G.pool = []; G.ov = null; G.frz = null; G.cmp = null; G.stut = null; G.meter1 = null; G.meter2 = null;
+    G.pool = []; G.ov = null; G.frz = null; G.cmp = null; G.stut = null; G.meter1 = null; G.meterMid = null; G.meter2 = null; G.limiter = null;
     if (initGL()) for (const s of sets) if (s.source) compileSet(s);
   });
 }
@@ -2446,6 +2505,9 @@ window.__vj = {
     energyEvents: energy.events, energyRate: (() => { const t = performance.now(); let n = 0; for (const s of energy.stamps) if (t - s <= 1000) n++; return n; })(),
     glitch: glitchState.plan ? { serial: glitchState.serial, ...glitchState.plan } : null,
     options: { ...options }, snapQueued: snapQ.length,
+    // gate v2 (no readback here: window.__vj.limiter() reads its state)
+    limiter: { on: limiterLive(), format: G.limiter ? G.limiter.format : null, frames: G.limiter ? G.limiter.frames() : 0,
+               compileMs: G.limiter ? G.limiter.compileMs() : null, parallel: G.limiter ? G.limiter.parallel : null, error: G.limiterError },
     scenes: { browsing: scenes.browsing(), cursor: scenes.cursor, ignored: scenes.ignored, posts: sceneReport.posts,
               log: sceneReport.log.slice(-20), sentKey: sceneReport.sentKey, off: engine.link.sceneOff,
               refused: engine.link.sceneRefused, echo: sceneReport.last },
@@ -2462,6 +2524,28 @@ window.__vj = {
   trace: () => probe.trace.slice(),
   luma: () => new Promise((resolve) => probe.waiters.push(resolve)),
   demo: (on) => { setDemo(!!on); return !!demo; },
+  // gate v2 (receipts: arsenal/lanes/vj_storm.mjs). limiter() reads its state back (a GPU stall: receipts only);
+  // limiterCells(cells, dt) runs the decision alone on given cell sums (the JS twin's input, vj-gate.js); limiterBench(n)
+  // times n runs of the limiter's passes on the last frame, each fenced by readPixels of one pixel (the cost receipt)
+  limiter: () => (limiterLive() ? { on: true, format: G.limiter.format, ...G.limiter.read() } : { on: false, error: G.limiterError || "compiling" }),
+  limiterCells: (cells, dt) => (limiterLive() ? G.limiter.decideCells(new Float32Array(cells), dt) : null),
+  limiterReset: () => { if (limiterLive()) G.limiter.reset(); return limiterLive(); },
+  limiterBench: (n = 20) => {
+    if (!limiterLive() || !G.cmp) return null;
+    const gl = G.gl, px = new Uint8Array(4), src = G.cmp.texs[G.cmp.read];
+    const fence = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    fence();
+    const parts = { meter: 0, decide: 0, apply: 0, blit: 0 };
+    let tm = 0;
+    const mark = (stage) => { fence(); const t = performance.now(); parts[stage] += t - tm; tm = t; };
+    const t0 = performance.now();
+    for (let i = 0; i < n; i++) { tm = performance.now(); G.limiter.run(src, G.width, G.height, 1 / 60, mark); }
+    const t1 = performance.now();
+    for (let i = 0; i < n; i++) { copyToScreen(src); fence(); }
+    const t2 = performance.now();
+    for (const k of Object.keys(parts)) parts[k] = +(parts[k] / n).toFixed(3);
+    return { n, limiter_ms: (t1 - t0) / n, copy_ms: (t2 - t1) / n, parts_ms: parts, width: G.width, height: G.height };
+  },
 };
 
 // ------------------------------------------------------------------------------------------------------ boot --

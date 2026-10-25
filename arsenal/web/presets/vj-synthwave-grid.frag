@@ -202,13 +202,15 @@ void main() {
   vec2 fw = max(fwidth(g), vec2(1e-4));
   if (p.y < yh) {
     vec2 gd = abs(fract(g + 0.5) - 0.5) / fw;
-    float thick = 0.9 + 1.4 * gKick;
+    // the kick thickens and heats the floor (2026-10-24 safety pass: half the response it had; with the fast kick envelope
+    // of the impact pass the floor alone flashed a quarter of the screen 2.5 times a second under the demo's music)
+    float thick = 0.9 + 0.7 * gKick;
     float line = max(1.0 - smoothstep(0.0, thick, gd.x), 1.0 - smoothstep(0.0, thick, gd.y));
     float glowL = max(exp(-gd.x * 0.25), exp(-gd.y * 0.25)) * 0.25;
     float fog = exp(-z * 0.075);
     vec3 gridCol = mix(gPal[0], gPal[1], smoothstep(0.0, 0.6, abs(p.x) / asp));
     col = vec3(0.002, 0.0015, 0.006) + gPal[1] * 0.02 * exp(-below * 6.0);
-    col += hotCore(gridCol, 0.7 + 0.8 * gKick) * (line + glowL) * fog * (0.25 + 0.75 * u_k2);
+    col += hotCore(gridCol, 0.7 + 0.4 * gKick) * (line + glowL) * fog * (0.25 + 0.75 * u_k2);
     // keys light floor tiles: the tile's column picks a pitch class, the row band rolls with the floor
     vec2 tile = floor(g);
     int pc = int(mod(tile.x + 6.0, 12.0));
