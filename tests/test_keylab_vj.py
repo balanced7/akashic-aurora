@@ -161,10 +161,14 @@ def test_sse_stream_delivers_every_event_type_with_the_contract_fields():
 
     beats = sse.of("beat")
     for b in beats:
-        assert set(b) == {"t", "due_ms", "bpm", "conf", "n", "on_beat"}
+        # since 2026-10-24 also src, bar, bar_src, ver, offset_ms and wall_ms (the beat clock: tests/test_keylab_vj_clock.py)
+        assert set(b) == {"t", "due_ms", "bpm", "conf", "n", "on_beat", "src", "bar", "bar_src", "ver", "offset_ms",
+                          "wall_ms"}
         assert 0 <= b["due_ms"] <= 300, b                     # announced ahead, inside the contract's window
         assert 0 <= b["conf"] <= 1
-        assert b["on_beat"] is None or 0 <= b["on_beat"] <= 1
+        assert b["on_beat"] is None or -1 <= b["on_beat"] <= 1   # negative = locked on the off-beat
+        assert b["src"] in ("db", "track", "tap") and b["bar"] in (0, 1, 2, 3, 4)
+        assert abs(b["wall_ms"] / 1000.0 - time.time()) < 60
     assert [b["n"] for b in beats] == list(range(beats[0]["n"], beats[0]["n"] + len(beats))), "one per beat"
     assert abs(beats[-1]["bpm"] - 120.0) < 3.0
     landed = [ts + e["due_ms"] / 1000 for ts, e in sse.events if e["t"] == "beat"]
