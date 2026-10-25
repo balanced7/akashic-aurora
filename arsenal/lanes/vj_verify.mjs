@@ -19,8 +19,9 @@
 // tension (vj --chords sense) show in the HUD, the engine's tension feeds the strip in place of the page's own estimate,
 // a key change accents without a flash, and an engine without them leaves the page as it was; the pedal star finds a note struck over
 // and over while the bass walks under it; the showcase tour follows an engine that plays beats instead of starting
-// the page's demo over it; no page exceptions or console errors. Since the impact pass (2026-10-24): a storm of hard
-// pad hits (punch, shake, a dip each) on the brightest set stays inside the flash gate, measured; the transport and the
+// the page's demo over it; no page exceptions or console errors. Since the impact pass (2026-10-24): pad storms on a
+// 60 fps virtual clock (vj_storm.mjs: Invert held, one-shots at 15 and 5 a second, all 12 pads, the white flash at the
+// gate's edge) stay at three flashes a second or fewer in every quarter-screen window, gate v2 running; the transport and the
 // dial switch scenes (a press, never a release; a held button once; the dial browses and its click goes; a fast spin
 // cannot flood); the page tells the engine its scene (POST /api/scene) and stops asking an older engine that answers 404;
 // ~100 energy events a second reach the page; a pad event is drawn in the next frame at full strength; the beat snap
@@ -36,6 +37,7 @@ import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { LOCK_DIR, acquireGpuLock } from "./gpu_lock.mjs";
 import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { SCENARIOS as STORM_SCENARIOS, VIRTUAL_CLOCK as STORM_VIRTUAL_CLOCK, runStormInPage } from "./vj_storm.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WEB = resolve(REPO, "arsenal", "web");
@@ -83,7 +85,7 @@ const report = {
     "the real GPU: every frame here is drawn by SwiftShader on the CPU, so frame rate and timing say nothing about the live rig",
     "the KeyLab itself and the real keylab-vj engine: a fake engine speaks the event contract instead",
     "how each set looks to a person in motion: the screenshots are single frames for that",
-    "photosensitivity beyond the three-flashes rule: the red-flash rule and area thresholds are reasoned in the code, not measured",
+    "photosensitivity beyond flashes: stripes and patterns are not counted (flashes, red flashes and quarter-screen areas are, in phase D2)",
   ],
 };
 
@@ -288,7 +290,11 @@ try {
   // ------------------------------------------------------------------------------------------- A: the demo --
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?demo=1&demopads=0&hud=0&watchdog=0` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page and its window.__vj hook");
-  report.webgl = await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
+  // gate v2 compiles in the background; the page is in its safe mode (no punch) until it links
+  await waitFor(() => evaluate("(() => { const l = window.__vj.stats().limiter; return l.on || !!l.error; })()"), 120000, "gate v2's programs");
+  report.limiter = await evaluate("window.__vj.stats().limiter");
+  checks.gate_v2_compiled = !!(report.limiter && report.limiter.on);
+  report.webgl =await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
     if (!g) return null; const d = g.getExtension("WEBGL_debug_renderer_info");
     return { renderer: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER), version: g.getParameter(g.VERSION) }; })()`);
   report.renderer_check = judgeRenderer(report.webgl && report.webgl.renderer);
@@ -463,50 +469,45 @@ try {
     report.flash.refused >= 10 - Math.ceil((requestSpanMs + 1) / 333);
   checks.measured_flashes_at_most_three_a_second = trace.length > 5 && maxRises <= 3;
 
-  // ------------------------------------- D2: the impact layer's dips stay inside the gate (2026-10-24) --
-  // A storm of HARD hits on every effect pad (punch, shake and a dip each) on the brightest set of phase A, plus white
-  // flashes asked for on top: the dips never ask the gate (each is held under the flash line by the scene meter), the
-  // flashes still pass it, and the measured relative luminance shows at most three flashes in any second.
+  // ------------------------------- D2: pad storms on a 60 fps virtual clock (the 2026-10-24 safety pass) --
+  // The real-clock storm this phase used to run missed what the adversarial verifier found (SwiftShader's slow frames
+  // stretched the storm, and it counted rises only). Now: a second tab with vj_storm's virtual clock, every storm of
+  // arsenal/lanes/vj_storm.mjs on Reactor for 4 s (the receipt itself runs them 10 s on four sets): Invert held under hard
+  // hits at 10 a second, one-shots (pads 1, 2, 4, 12) at 15 and at 5 a second, pads 1, 2, 4 at 15, all 12 pads, and the
+  // white flash at the gate's own edge and at 2.5 a second. Flashes are counted the verifier's way (pairs of swings of
+  // 0.1 relative luminance) in 18 windows of a quarter of the screen or more, and red flashes too: at most 3 a second.
   {
-    const bright = report.sets.filter((r) => typeof r.luma === "number").sort((a, b) => b.luma - a.luma)[0];
-    await evaluate(`window.__vj.select(${JSON.stringify(bright ? bright.id : "vj-aurora-curtains")})`);
-    await delay(700);
-    const g0 = (await stats()).flash;
-    const hits0 = (await stats()).impact.hits;
-    await evaluate("window.__vj.probe(true)");
-    await evaluate(`new Promise((done) => {
-      const pads = [1, 2, 4, 6, 7, 12, 3, 1, 2, 4, 11, 12];
-      let i = 0;
-      const timer = setInterval(() => {
-        const p = pads[i % pads.length];
-        window.__vj.press(p, 1.0);
-        setTimeout(() => window.__vj.release(p), 70);
-        if (++i >= 26) { clearInterval(timer); setTimeout(() => done(true), 900); }
-      }, 80);
-    })`);
-    const tr = await evaluate("window.__vj.trace()");
-    await evaluate("window.__vj.probe(false)");
-    const g1 = (await stats()).flash;
-    const st2 = await stats();
-    const rises2 = [];
-    let armed2 = true;
-    for (let i = 0; i < tr.length; i++) {
-      let floor = Infinity;
-      for (let j = i - 1; j >= 0 && tr[i].t - tr[j].t <= 300; j--) floor = Math.min(floor, tr[j].luma);
-      if (floor === Infinity) continue;
-      if (armed2 && tr[i].luma - floor >= 0.1) { rises2.push(tr[i].t); armed2 = false; }
-      if (!armed2 && tr[i].luma - floor < 0.05) armed2 = true;
+    const { targetId: t2 } = await browser.send("Target.createTarget", { url: "about:blank" });
+    const { sessionId: s2 } = await browser.send("Target.attachToTarget", { targetId: t2, flatten: true });
+    const S2 = (method, params = {}) => withTimeout(browser.send(method, params, s2), 600000, method);
+    browser.on((msg) => {
+      if (msg.sessionId !== s2 || msg.method !== "Runtime.exceptionThrown") return;
+      const d = msg.params.exceptionDetails;
+      report.exceptions.push({ text: d.text, description: d.exception?.description, line: d.lineNumber, url: d.url, tab: "storm" });
+    });
+    await S2("Runtime.enable"); await S2("Page.enable");
+    await S2("Emulation.setDeviceMetricsOverride", { width: 640, height: 360, deviceScaleFactor: 1, mobile: false });
+    await S2("Page.addScriptToEvaluateOnNewDocument", { source: STORM_VIRTUAL_CLOCK });
+    const ev2 = async (expression) => {
+      const r = await S2("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    const storms = [];
+    for (const scenario of Object.keys(STORM_SCENARIOS)) {
+      await S2("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=off&hud=0&watchdog=0&sets=vj-reactor` });
+      await waitFor(() => ev2("!!(window.__vj && window.__vj.ready) && (() => { const l = window.__vj.stats().limiter; return !l || l.on || !!l.error; })()"), 120000, "the storm tab's VJ page and gate v2");
+      await ev2("(() => { for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()");
+      const r = await runStormInPage(ev2, scenario, 240);
+      storms.push({ ...r, windows: undefined, densest: r.densest.slice(0, 8) });
+      console.log(`[storm] ${scenario}: full ${r.full_max_flashes_in_1s}/s, worst ${r.max_flashes_in_1s}/s (${r.worst_window}), red ${r.red_max_flashes_in_1s}, gate ${r.gate.granted}, limiter ${r.limiter && r.limiter.on ? `leaks ${r.limiter.leaks}` : "off"}`);
     }
-    let max2 = 0;
-    for (let i = 0; i < rises2.length; i++) { let n = 0; for (let j = i; j < rises2.length && rises2[j] - rises2[i] < 1000; j++) n++; max2 = Math.max(max2, n); }
-    report.flash.impact_storm = { set: bright ? bright.id : null, set_luma: bright ? bright.luma : null, presses: 26,
-      impact_hits: st2.impact.hits - hits0, gate_granted: g1.granted - g0.granted, gate_refused: g1.refused - g0.refused,
-      gate_max_in_any_second: g1.maxInAnyWindow, measured_rises: rises2, measured_max_in_any_second: max2, trace_samples: tr.length,
-      trace_min: Math.min(...tr.map((s) => s.luma)), trace_max: Math.max(...tr.map((s) => s.luma)) };
-    console.log(`[impact storm] ${report.flash.impact_storm.impact_hits} hits on ${report.flash.impact_storm.set}: measured max ${max2} in a second, gate max ${g1.maxInAnyWindow}`);
-    checks.impact_dips_stay_inside_the_flash_gate = tr.length > 5 && max2 <= 3 && g1.maxInAnyWindow <= 3 &&
-      report.flash.impact_storm.impact_hits >= 20;
-    await tap("W");
+    await browser.send("Target.closeTarget", { targetId: t2 });
+    report.flash.storms = storms;
+    checks.pad_storms_at_most_three_flashes_a_second_in_every_window = storms.length === Object.keys(STORM_SCENARIOS).length &&
+      storms.every((r) => r.max_flashes_in_1s <= 3 && r.red_max_flashes_in_1s <= 3);
+    checks.gate_v2_limiter_running_without_leaks = storms.every((r) => r.limiter && r.limiter.on && r.limiter.leaks === 0);
+    checks.storms_keep_their_hits = storms.filter((r) => /oneshots|nozoom|all12|invert/.test(r.scenario)).every((r) => r.impact_hits >= 20);
   }
   await tap("H");                        // the HUD, once, for the record
   await delay(300);

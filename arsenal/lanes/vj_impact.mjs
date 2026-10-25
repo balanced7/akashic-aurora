@@ -385,7 +385,9 @@ const MEASURE = String.raw`(() => {
   function slice(key, from, n) { return stash[key].slice(from, from + n); }
   window.__impact = { step, hit, variety, sheet, png, tiles, keptImages, hold, slice,
     load(id, url) { return new Promise((ok) => { const f = document.getElementById(id); f.onload = () => ok(true); f.src = url; }); },
-    ready() { return !!(win("H").__vj && win("H").__vj.ready && win("C").__vj && win("C").__vj.ready); },
+    // both pages ready, gate v2 included (it compiles in the background; until it links a page is in its safe mode)
+    ready() { const lim = (w) => { const l = w.__vj.stats().limiter; return !l || l.on || !!l.error; };
+      return !!(win("H").__vj && win("H").__vj.ready && win("C").__vj && win("C").__vj.ready && lim(win("H")) && lim(win("C"))); },
     padMap() { return win("H").__vj.stats().padMap; },
     choke() { for (const id of ["H", "C"]) { const o = { code: "KeyW", key: "w", bubbles: true }; win(id).dispatchEvent(new KeyboardEvent("keydown", o)); win(id).dispatchEvent(new KeyboardEvent("keyup", o)); } },
     errors() { return { hit: win("H").__vj.errors(), control: win("C").__vj.errors() }; },
