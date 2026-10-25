@@ -47,7 +47,20 @@ lasers into thirds. i think it was once per beat. we could also do top and botto
 
 These drive the Virtual Stage v1 workflow (stage-v1-phrases).
 
-## Still open
+## The rest (answered later the same morning)
 
-Rewind and fast-forward in VJ mode only or always; Laser Sky's blue air as an exception to the black-room rule; the haze
-module's cyan-white (pale and bright, or saturated); when to restart the machine; clearing the finished worktrees.
+6. **Rewind and fast-forward:** step the VJ sets always, or only while the VJ page is open? Daniel: "6, lets try always
+   we can make it an option". Done: the FL script swallows them (SCRUB_TO_FL = False, commit 89c29efd; True gives
+   them back to FL's scrub); the page steps to the previous / next set on the DAW port's CC 25 / 26 press, and
+   ?transport=off hands them back to the control map.
+7. **Laser Sky's blue air** as an exception to the black-room rule (the judge's recommendation, on condition that
+   k7 = 0 really goes black). Daniel: "7. yes"
+8. **The haze module's cyan-white:** pale and blinding bright, or saturated. Daniel: "8. both" -- both become theme
+   choices (the round-2 builder exposes it as a parameter).
+9. **When to restart** (uptime about 78 h; the memory-pressure window is about 82-92 h). Daniel: "9. later, we are
+   fine, risk it for the buiscuit" -- no restart for now; fan-out stays small.
+10. **Clearing the finished worktrees.** Daniel: "10. yes!" Done: 26 finished workflow-lane worktrees removed with
+    every branch kept; their git-ignored local files (receipts, takes; 641 MB) archived first to the main checkout's
+    state/worktree-archive/2026-10-25/. Kept: the running lanes, the preview, three with other uncommitted work, and
+    one belonging to another session. The 51 worktrees under AppData and the one-off checkouts on E:\ are other
+    sessions' and seats', not touched.
