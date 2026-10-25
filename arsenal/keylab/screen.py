@@ -40,8 +40,10 @@ screen stays until the next chord, BPM or scene change. `--reassert SECS` re-sen
 seconds (one packet each time) if that is wanted. The clean answers are FL closed (then `--connect`, which refuses
 while FL runs) or our own FL script with a VJ hand-off mode (design D8).
 
-The scene name: the VJ engine contract has no scene event yet, so `--scene NAME` sets it, and a future
-{"t": "scene", "name": "...", "color": "#rrggbb"} event on the same feed is honoured (a proposed addition).
+The scene name: since 2026-10-24 the VJ page reports the scene it shows (POST /api/scene on the engine) and the engine
+publishes {"t": "scene", "name": "...", "color": "#rrggbb", "browsing": false} on the same feed; line 2 shows it ("128
+BPM | LASER CATHEDRAL"), and while the KeyLab's dial browses the scenes, the one under the dial with a "> " in front
+("128 BPM | > REACTOR": a click of the dial goes there). `--scene NAME` sets a name until the first scene event.
 """
 from __future__ import annotations
 
@@ -548,6 +550,7 @@ class Readout:
         self.locked = False
         self.scene = ascii_clean(scene).strip() if scene else None
         self.scene_color: Optional[Tuple[int, int, int]] = None
+        self.scene_browsing = False
         self.pulse = pulse
         self.beat_n: Optional[int] = None
 
@@ -601,6 +604,7 @@ class Readout:
             name = evt.get("name")
             if name:
                 self.scene = ascii_clean(name).strip()
+            self.scene_browsing = evt.get("browsing") is True      # the dial is browsing: the scene under it
             col = evt.get("color")
             if col:
                 try:
@@ -624,7 +628,7 @@ class Readout:
             k = self.beat_n % 4
             parts.append("".join("*" if i == k else "." for i in range(4)))
         if self.scene:
-            parts.append(self.scene)
+            parts.append(("> " if self.scene_browsing else "") + self.scene)
         c2 = self.scene_color or (WHITE7 if self.locked else DIM7)
         return (line1, c1, " | ".join(parts), c2)
 

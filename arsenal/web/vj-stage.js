@@ -47,11 +47,14 @@ export function createStage(ctx) {
       ctx.recordError("compile", "vj-fx", fxError);
     }
   }
-  // the framebuffer the composite should draw into (the look's input), or null to draw to the screen
+  // the framebuffer the composite should draw into (the look's input), or null to draw to the screen. Since 2026-10-24
+  // the page composites into its own pair and hands the texture to post(); this stays for a page that does not.
   function compositeTarget(w, h) { return fx && look.on && look.amount > 0.001 ? fx.target(w, h) : null; }
-  function post(w, h) {
+  // The look, from `src` (the page's composite texture; the module's own target when omitted) to the screen. False when
+  // the look is off: the page then copies its composite to the screen itself.
+  function post(w, h, src = null) {
     if (!fx || !look.on || look.amount <= 0.001) return false;
-    fx.post(w, h, lookParams(look.amount), ctx.hit());
+    fx.post(w, h, lookParams(look.amount), ctx.hit(), src);
     return true;
   }
 

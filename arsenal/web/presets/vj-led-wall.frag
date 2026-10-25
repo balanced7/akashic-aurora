@@ -38,6 +38,23 @@ float gPhase, gPulse, gCount, gConf;
 
 vec4 vjAt(int x, int y) { return texelFetch(u_video, ivec2(x, y), 0); }
 
+// the shared hit input (STRIP v2, row 2: vj-core.js): the latest pad hit's pulse (through the velocity curve), its velocity,
+// its effect code and age, where it struck; the kick / snare / hat envelopes. 0 in Play and on a v1 host.
+float gHit, gHitVel, gHitCode, gHitAge, gSnare, gHat;
+vec2 gHitAt;
+void hitLoad() {
+  if (gHost && vjAt(15, 2).x >= 2.0) {
+    vec4 h = vjAt(10, 2);
+    gHit = h.x; gHitVel = h.y; gHitCode = h.z; gHitAge = h.w;
+    vec4 b = vjAt(11, 2);
+    gSnare = b.y; gHat = b.z;
+    gHitAt = vjAt(12, 2).yz;
+  } else {
+    gHit = 0.0; gHitVel = 0.0; gHitCode = 0.0; gHitAge = 30.0; gSnare = 0.0; gHat = 0.0; gHitAt = vec2(0.0);
+  }
+}
+
+
 vec3 hueLinear(float turns) {
   vec3 c = clamp(abs(fract(turns + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0);
   return c * c;
@@ -91,6 +108,7 @@ float chase(float nx, float ny, vec2 cell, float mode, float phase, float beatN)
 
 void main() {
   vjLoad();
+  hitLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
   float px = 1.0 / max(u_res.y, 1.0);
@@ -145,6 +163,16 @@ void main() {
     led = max(led, tint * (fill + ring * pv.y * 0.9));
   }
 
+  // any pad hit (the strip's shared hit input, 2026-10-24): a ripple across the whole wall from where the hit struck,
+  // in the palette's accent, one ring racing out over ~0.6 s (a travelling band: the wall never switches on whole)
+  if (gHitAge < 0.8) {
+    vec2 cp = (cell + 0.5) * cs - vec2(cols * cs * 0.5, 0.5);
+    float dist = length(cp - gHitAt);
+    float front = gHitAge * 1.6;
+    float rip = exp(-pow((dist - front) / 0.035, 2.0)) * (1.0 - smoothstep(0.25, 0.8, gHitAge)) * (0.45 + 0.55 * gHitVel);
+    led = max(led, mix(gPal[3], vec3(1.0), 0.25) * rip * 0.75);
+  }
+
   // the pitch-class meters along the bottom: C on the left, the sounding level as height, a strike as a bright cap
   if (gHost) {
     int g = int(floor(nx * 12.0));
@@ -157,7 +185,7 @@ void main() {
   }
 
   // the dot: round, antialiased in pixels, swelling a little with the bass; unlit LEDs stay faintly visible
-  float radius = (0.27 + 0.15 * u_k1) * (1.0 + 0.16 * bass);
+  float radius = (0.27 + 0.15 * u_k1) * (1.0 + 0.16 * bass + 0.18 * gHit);
   float dPx = (length(local) - radius) * cs / px;
   float cover = clamp(0.5 - dPx, 0.0, 1.0);
   float glow = exp(-max(dPx, 0.0) / ((2.0 + 9.0 * u_k6) * rs)) * 0.45 * u_k6;
