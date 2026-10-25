@@ -161,10 +161,14 @@ def test_sse_stream_delivers_every_event_type_with_the_contract_fields():
 
     beats = sse.of("beat")
     for b in beats:
-        assert set(b) == {"t", "due_ms", "bpm", "conf", "n", "on_beat"}
+        # since 2026-10-24 also src, bar, bar_src, ver, offset_ms and wall_ms (the beat clock: tests/test_keylab_vj_clock.py)
+        assert set(b) == {"t", "due_ms", "bpm", "conf", "n", "on_beat", "src", "bar", "bar_src", "ver", "offset_ms",
+                          "wall_ms"}
         assert 0 <= b["due_ms"] <= 300, b                     # announced ahead, inside the contract's window
         assert 0 <= b["conf"] <= 1
-        assert b["on_beat"] is None or 0 <= b["on_beat"] <= 1
+        assert b["on_beat"] is None or -1 <= b["on_beat"] <= 1   # negative = locked on the off-beat
+        assert b["src"] in ("db", "track", "tap") and b["bar"] in (0, 1, 2, 3, 4)
+        assert abs(b["wall_ms"] / 1000.0 - time.time()) < 60
     assert [b["n"] for b in beats] == list(range(beats[0]["n"], beats[0]["n"] + len(beats))), "one per beat"
     assert abs(beats[-1]["bpm"] - 120.0) < 3.0
     landed = [ts + e["due_ms"] / 1000 for ts, e in sse.events if e["t"] == "beat"]
@@ -497,7 +501,9 @@ def test_energy_is_dark_in_silence_and_bass_leads_on_a_bass_note():
     assert all(e["bass"] > e["high"] for e in loud)
     assert all(e[k] == 0.0 for e in quiet for k in ("bass", "mid", "high", "level"))
     rate_hz = len(out) / tt
-    assert 30 <= rate_hz <= 60
+    # one energy event per audio block since 2026-10-24 (ENERGY_HZ 100 caps it; a 512-sample block at 48 kHz is
+    # 10.7 ms, so ~94 a second): the page's band envelopes see every block
+    assert 85 <= rate_hz <= 101, rate_hz
 
 
 class _PausingDevice:
@@ -586,6 +592,112 @@ def test_pads_route_lights_the_daw_bank_and_state_reports_it():
     finally:
         eng.stop()
     assert out.packets[-12:] != [] and all(p[10:13] == b"\x00\x00\x00" for p in out.packets[-12:]), "pads off on stop"
+
+
+def _post_raw(port, path, data: bytes):
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+    c.request("POST", path, body=data, headers={"Content-Type": "text/plain;charset=UTF-8"})
+    r = c.getresponse()
+    body = json.loads(r.read() or b"{}")
+    c.close()
+    return r.status, r, body
+
+
+def test_scene_route_publishes_the_page_scene_validates_and_rate_limits():
+    """POST /api/scene (2026-10-24): the page says which scene shows; the engine publishes a scene event when it changed
+    (never for a repeat), refuses what is not a scene (400), holds a flood to 8 a second (429 with Retry-After), keeps
+    the scene in /api/state and hands it to every page that connects later (the greeting)."""
+    port = _free_port()
+    eng = V.Engine(http_port=port, say=_quiet).start()
+    sse = None
+    try:
+        sse = _SSE(port)
+        assert sse.wait_for(lambda: sse.of("hello"), 5)
+        scene = {"name": "Laser Cathedral", "index": 0, "count": 14, "color": "#FF4FD8", "browsing": False}
+        st, r, body = _post_raw(port, "/api/scene", json.dumps(scene).encode())   # a plain-text body, as the page sends
+        assert st == 202 and body == {"ok": True, "changed": True}
+        assert r.getheader("Access-Control-Allow-Origin") == "*"
+        assert sse.wait_for(lambda: sse.of("scene"), 3)
+        assert sse.of("scene")[0] == {"t": "scene", "name": "Laser Cathedral", "index": 0, "count": 14,
+                                      "color": "#ff4fd8", "browsing": False}
+        assert _post_raw(port, "/api/scene", json.dumps(scene).encode())[2] == {"ok": True, "changed": False}
+        time.sleep(0.15)
+        assert len(sse.of("scene")) == 1, "a repeat publishes nothing"
+        st, _r, body = _post_raw(port, "/api/scene", json.dumps({**scene, "name": "Reactor", "index": 1,
+                                                                 "browsing": True}).encode())
+        assert st == 202 and body["changed"] is True
+        assert sse.wait_for(lambda: len(sse.of("scene")) == 2 and sse.of("scene")[1]["browsing"] is True, 3)
+        for bad in (b"not json", json.dumps({"name": ""}).encode(), json.dumps({"name": "x" * 41}).encode(),
+                    json.dumps({"name": "ok", "color": "red"}).encode(), json.dumps({"name": "ok", "index": "1"}).encode(),
+                    json.dumps({"name": "ok", "browsing": 1}).encode(), json.dumps(["Reactor"]).encode()):
+            assert _post_raw(port, "/api/scene", bad)[0] == 400, bad
+        st, _r, state = _get_json(port, "/api/state")
+        assert state["scene"]["name"] == "Reactor" and state["scene_counts"]["refused"] >= 6
+        late = _SSE(port)
+        try:
+            assert late.wait_for(lambda: late.of("scene"), 3), "a page that connects later is told the scene"
+            assert late.of("scene")[0]["name"] == "Reactor"
+        finally:
+            late.close()
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        c.request("OPTIONS", "/api/scene", headers={"Origin": "http://127.0.0.1:8793", "Access-Control-Request-Method": "POST"})
+        rr = c.getresponse()
+        rr.read()
+        assert rr.status == 204 and "POST" in rr.getheader("Access-Control-Allow-Methods")
+        c.close()
+    finally:
+        eng.stop()
+        if sse is not None:
+            sse.close()
+
+
+def test_scene_route_holds_a_flood_to_eight_a_second():
+    eng = V.Engine(http_port=None, say=_quiet)
+    seen = _collect(eng)
+    codes = [eng.scene_request({"name": f"Scene {i}", "index": i % 14, "count": 14}, now=100.0 + i * 0.01)[0]
+             for i in range(20)]                                # 20 in 0.2 s
+    assert codes[:8] == [202] * 8 and codes.count(429) >= 10
+    assert eng.scene_counts["limited"] == codes.count(429)
+    assert len([e for e in seen if e["t"] == "scene"]) == codes.count(202)
+    assert eng.scene_request({"name": "Later"}, now=102.0)[0] == 202, "the bucket refills"
+    assert V.parse_scene({"name": "A\x07B"})[0]["name"] == "AB"
+
+
+def test_scene_route_answers_with_retry_after_when_flooded():
+    port = _free_port()
+    eng = V.Engine(http_port=port, say=_quiet).start()
+    try:
+        statuses, retry = [], None
+        for i in range(14):
+            st, r, _b = _post_raw(port, "/api/scene", json.dumps({"name": f"S{i}", "index": i}).encode())
+            statuses.append(st)
+            if st == 429:
+                retry = r.getheader("Retry-After")
+        assert 429 in statuses and retry == "1"
+    finally:
+        eng.stop()
+
+
+def test_rewind_fast_forward_and_the_dial_reach_the_page_as_ctl_events():
+    """The transport (DAW mode: Rewind CC25, Fast forward CC26, 127 on press and 0 on release) and the main dial (turn
+    CC116, relative around 64; click CC117) arrive as ctl events the page maps to scenes (vj-core.js DEFAULT_CTL_MAP)."""
+    eng = V.Engine(http_port=None, say=_quiet)
+    seen = _collect(eng)
+    eng.start()
+    try:
+        for d1, d2 in ((25, 127), (25, 0), (26, 127), (26, 0), (116, 65), (116, 63), (117, 127), (117, 0)):
+            eng.feed_midi("daw", CC, d1, d2)
+        assert _wait(lambda: len([e for e in seen if e["t"] == "ctl"]) >= 8, 3)
+    finally:
+        eng.stop()
+    ctl = [e for e in seen if e["t"] == "ctl"]
+    by = [(e["id"], e["kind"], e["value"], e["delta"]) for e in ctl]
+    assert by[0][:3] == ("cc25", "abs", 1.0) and by[1][:3] == ("cc25", "abs", 0.0)
+    assert by[2][:3] == ("cc26", "abs", 1.0) and by[3][:3] == ("cc26", "abs", 0.0)
+    assert by[4][0] == "cc116" and by[4][1] == "rel" and by[4][3] == 1
+    assert by[5][0] == "cc116" and by[5][1] == "rel" and by[5][3] == -1
+    assert by[6][:3] == ("cc117", "abs", 1.0)
+    assert all(e["port"] == "daw" for e in ctl)
 
 
 def test_pads_route_refuses_when_leds_are_off_and_answers_preflight():
@@ -826,6 +938,11 @@ def test_the_audio_loop_reads_every_block_in_real_time_with_chordsense_on(tmp_pa
     sm = a["timing"]["sense_ms"]
     assert sm["blocks"] == want and sm["p99"] < 0.5 * block_ms, sm
     assert any(e["t"] == "chord" for e in seen)
+    # ~100 energy events a second since 2026-10-24 (one per block) and still every block read on time
+    energy = [e for e in seen if e["t"] == "energy"]
+    assert len(energy) / (len(x) / RATE) >= 85, len(energy)
+    pm = a["timing"]["proc_ms"]
+    assert pm["p99"] < 0.5 * block_ms, pm
 
 
 def test_the_keys_name_chords_as_today_and_chordsense_adds_key_roman_and_tension():

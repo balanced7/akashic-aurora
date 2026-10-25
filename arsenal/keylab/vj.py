@@ -12,13 +12,32 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
   GET  http://127.0.0.1:8794/api/state    last chord, bpm, the key, connected inputs, audio health, LED state
   POST http://127.0.0.1:8794/api/pads     {"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads: 202 taken,
                                           409 refused (--no-leds), 503 unavailable (no KeyLab DAW output found)
+  POST http://127.0.0.1:8794/api/scene    {"name": "Laser Cathedral", "index": 0, "count": 14, "color": "#rrggbb",
+                                          "browsing": false} the scene the page shows (or the one under the dial while
+                                          browsing): 202 taken (published as a scene event when it changed), 400 not a
+                                          scene, 429 more than 8 in a second (Retry-After). An engine older than
+                                          2026-10-24 answers 404 and the page stops asking it
   Every route but the stream answers with Connection: close (no kept-alive connection outlives its response), and
   a stopping engine refuses new streams (503).
 
   hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","chords":"sense|basic","pads_mode":"daw|bank|both",
           "leds":true|false,"leds_reason":null|".."}   leds false: do not POST /api/pads, it would be refused
-  beat   {"t":"beat","due_ms":..,"bpm":..,"conf":0..1,"n":..,"on_beat":0..1|null}  sent ~250 ms BEFORE the beat
-  energy {"t":"energy","bass":..,"mid":..,"high":..,"level":..}                      40 Hz, each 0..1, auto-gained
+  beat   {"t":"beat","due_ms":..,"bpm":..,"conf":0..1,"n":..,"on_beat":-1..1|null,"src":"db|track|tap",
+          "bar":0..4,"bar_src":"tap"|null,"ver":int,"offset_ms":..|null,"wall_ms":..}  sent ~250 ms BEFORE the beat.
+          on_beat is the referee's score of the beats the lights show (negative = locked on the off-beat; 0..1 before
+          2026-10-24); offset_ms where the kicks land against them (+ = after). src: where the beat comes from
+          (beatgrid): the song database's tempo (the tracker agrees with it within 4 %), the tracker's own, or the
+          hand's (Tap). bar: 1-4 when known (--tap-one: the first tap of a run is the ONE), else 0. ver: bumped on every
+          hard re-anchor (this beat is off the last one's grid by more than 1/8 beat: re-anchor, do not slew). wall_ms:
+          the send time, time.time() x 1000. The fields after on_beat are new on 2026-10-24; an older page ignores them
+  tap    {"t":"tap","count":k,"mode":"resync|run|lock|release|return","bpm":..|null,"shift":..|null}  the Tap button:
+          resync = an isolated tap (shift: how far the beat moved, in beats; 0 = tap noise), run = taps 2-3, lock = 4 or
+          more (the lights follow the taps at bpm), release = the taps stopped (the hand keeps the beat), return = the
+          beat went back to the tracker (it agreed for 8 beats, a new track, or silence)
+  track  {"t":"track","bpm_db":..|null,"key_db":null}  a new track and the song database's tempo for it (artist and
+          title stay on /api/state and the status line)
+  energy {"t":"energy","bass":..,"mid":..,"high":..,"level":..}  ~100 a second (one per audio block: 94/s at 48 kHz,
+          86/s at 44.1 kHz; 40/s before 2026-10-24), each 0..1, auto-gained
   hit    {"t":"hit","strength":0..1,"band":"kick|snare|hat|full"}                   a heavy transient
   chord  {"t":"chord","src":"keys|audio","name":"Dbmaj7","root":0..11,"quality":"maj7","pcs":[..],"changed":true,
           "bass":0..11,"roman":"Imaj7"|null,"key":"Db major"|null,"conf":0..1}
@@ -31,6 +50,8 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
   pad    {"t":"pad","pad":1..12,"vel":0..1,"on":bool,"src":"daw|bank"}
   ctl    {"t":"ctl","id":"cc105","kind":"abs|rel","value":0..1,"delta":int}
   status {"t":"status","msg":".."}
+  scene  {"t":"scene","name":"..","index":int,"count":int,"color":"#rrggbb"|null,"browsing":bool}  the page's scene
+          (POST /api/scene), for `screen --live`, which puts it on the KeyLab's screen (line 2: "128 BPM | SCENE")
 
 What feeds it:
   KEYS    the 'KeyLab 88 mk3 MIDI' input: notes (any channel but 10) and the sustain pedal (CC 64) -> note, pedal,
@@ -46,7 +67,20 @@ What feeds it:
           the dial (116) are relative around 64 -- all read from Arturia's script, NOT confirmed on the hardware, so
           every CC is learned on touch: an encoder repeats a value (an absolute control only sends on change) and
           stays near 64, a fader wanders far from it. A learned kind is announced as a status
-  AUDIO   WASAPI loopback (whatever is playing), or --replay-audio FILE in real time (--loop repeats it), or
+  TAP     the Tap button (to the right of Record: CC 23 on the DAW port; --tap names other controls, pads too) feeds
+          the beat clock (beatgrid.BeatGrid): one isolated tap on a kick moves the beat there (a tracker locked on the
+          off-beat is fixed by one tap); four or more steady taps take over tempo and beat (snapped to the database's
+          tempo within 4 %, else the tracker's, else rounded to a whole BPM; --tap-exact keeps it exact) until the taps
+          stop; then the hand keeps the beat while the tracker refines the tempo, until the tracker agrees for 8 beats.
+          A press is a rising edge (80 ms debounce), timed when it arrives on the MIDI thread; the audio thread puts it
+          on the stream's clock, so a tap never waits on, or stalls, the audio. Its ctl event is published as before.
+          Our FL script also sends CC 23 to FL's tap tempo (Daniel's call whether it should keep doing so)
+  TRACK   the live loopback only (not --replay-audio; --no-db turns it off): a thread reads Windows' now-playing every
+          2 s and, on a new track, the song database's tempo (beatgrid.database_tempo, cached per track, fail-soft);
+          the audio thread re-seeds the tracker with it (a tracker that already agrees is left alone; otherwise a new
+          one warms up beside it and takes over once it predicts, so the beat never stops). --seed-bpm holds the
+          track playing at start. A status line says when the database tempo arrives and when taps take over
+  AUDIO  WASAPI loopback (whatever is playing), or --replay-audio FILE in real time (--loop repeats it), or
           --replay-audio demo (a made-up groove) -> the beat tracker (beat_<engine>.Tracker, predictions sent ahead, one per beat), the
           referee's on-beat score (beatref), energy bands, a heavy-hit detector, and chords from the AUDIO. --chords
           blend (the default): the older detector NAMES the audio chords (AudioChords: a 12-bin chroma from the
@@ -71,8 +105,8 @@ What feeds it:
           note and chord events offline, on a simulated clock
 
 Threads: the audio loop never sleeps or waits on anything but its own source (the loopback's read is the clock);
-publishing is a non-blocking put per client; HTTP, the MIDI dispatcher, the pad painter and the replay each run on
-their own thread. The audio chordsense runs inline in the audio loop, a bounded step per block (any exception is
+publishing is a non-blocking put per client; HTTP, the MIDI dispatcher, the pad painter, the track lookup and the
+replay each run on their own thread. The audio chordsense runs inline in the audio loop, a bounded step per block (any exception is
 counted and said, never fatal to the beat, the energy or the hits); measured 2026-10-23 on a real-time synthesized
 hardstyle replay at 48 kHz: 2400 of 2400 blocks read, capture timing gap +0.6 ms over 25.6 s, 0 late blocks, the
 whole loop 0.87 ms a block (p99 2.8 ms) of which chordsense 0.28 ms (p99 0.88 ms), against a 10.7 ms block (the basic
@@ -114,13 +148,26 @@ CONTRACT_V = 1
 HOP = 512                     # samples per audio block (the trackers' hop)
 HEARTBEAT_S = 15.0
 AHEAD_S = 0.25                # a beat is announced this long before it lands (the contract's 150-300 ms)
-ENERGY_HZ = 40.0
+ENERGY_HZ = 100.0             # the energy events' rate cap: in practice one per audio block (HOP / rate: ~94 a second at
+                              # 48 kHz). 40 before 2026-10-24; the page's band envelopes want every block (a kick's rise
+                              # lands within a frame). The audio loop still reads every block (tests/test_keylab_vj.py)
 CHORD_SETTLE_S = 0.03         # keys: a chord must hold this long before it is announced (a rolled chord = 1 event)
 CHORD_SETTLE_MAX_S = 0.08     # ... but never wait longer than this from its first note
 PAD_DEDUP_S = 0.04            # the same pad on both inputs within this long is one hit
 SILENT_BEATS_S = 1.5          # no beats are announced after this long of silence
 KEYS_WITNESS_S = 10.0         # the key: audio chords count as evidence only after the keys have been quiet this long
 MAX_PADS_BODY = 4096
+MAX_SCENE_BODY = 1024
+SCENE_RATE = 8.0              # POST /api/scene: at most this many a second (a token bucket, SCENE_BURST at once)
+SCENE_BURST = 8.0
+SCENE_NAME_MAX = 40
+# The Tap button (to the right of Record) sends CC 23 on the DAW port (our FL script's map and Arturia's; not yet seen
+# at the engine from the hardware). --tap names the controls that tap: "[daw:|midi:]ccN", "[daw:|midi:]padN" or "pads"
+# (any pad: pads still fire their effects), comma-separated; "off" = none.
+DEFAULT_TAP = "daw:cc23"
+TAP_DEBOUNCE_S = 0.08         # a tap within this long of the last one is the same press
+TAP_REPRESS_S = 0.25          # a control that sends only presses (no release) counts again after this long
+TRACK_POLL_S = 2.0            # how often the track thread reads Windows' now-playing
 # --chords: blend (default) = the older audio templates NAME the audio chords (they hold up best under a hardstyle kick
 # and sub bass, verified 2026-10-23) while chordsense on both ears gives the key, the roman numerals and the tension;
 # sense = chordsense names the audio chords too; basic = the older templates only, no key or tension events.
@@ -217,6 +264,59 @@ def _quality(sym: Optional[str]) -> str:
 # =====================================================================================================================
 # the hub: fan-out to every page, never blocking the producer
 # =====================================================================================================================
+def parse_tap(spec: Optional[str]) -> List[Tuple[Optional[str], str]]:
+    """--tap -> [(port or None for either, "ccN" | "padN" | "pads")]. Raises ValueError on anything else."""
+    import re
+    if spec is None or spec.strip().lower() in ("", "off", "none"):
+        return []
+    out = []
+    for part in spec.split(","):
+        m = re.fullmatch(r"(?:(daw|midi):)?(cc(\d{1,3})|pad(\d{1,2})|pads)", part.strip().lower())
+        if not m or (m.group(3) and int(m.group(3)) > 127) or (m.group(4) and not 1 <= int(m.group(4)) <= 12):
+            raise ValueError(f"--tap: {part.strip()!r} is not [daw:|midi:]ccN (0-127), padN (1-12) or pads")
+        out.append((m.group(1), m.group(2)))
+    return out
+
+
+def track_key(np_: Optional[dict]) -> Optional[Tuple[str, str]]:
+    """Windows' now-playing (beatsync.now_playing) -> (artist, title) folded for comparing, or None for no track."""
+    if not np_ or not str(np_.get("title") or "").strip():
+        return None
+    return (" ".join(str(np_.get("artist") or "").lower().split()), " ".join(str(np_["title"]).lower().split()))
+
+
+def parse_scene(body) -> Tuple[Optional[dict], Optional[str]]:
+    """A POST /api/scene body -> (the scene event, None) or (None, why not). A printable name of 1-40 characters; index
+    -1..999 and count 0..1000 whole numbers; colour '#rrggbb' or absent; browsing a boolean."""
+    if not isinstance(body, dict):
+        return None, 'want {"name": "..", "index": 0, "count": 14, "color": "#rrggbb", "browsing": false}'
+    name = body.get("name")
+    if not isinstance(name, str):
+        return None, "name must be a string"
+    name = "".join(ch for ch in name if ch.isprintable()).strip()
+    if not 1 <= len(name) <= SCENE_NAME_MAX:
+        return None, f"name must be 1..{SCENE_NAME_MAX} printable characters"
+    out = {"t": "scene", "name": name, "index": -1, "count": 0, "color": None, "browsing": False}
+    for key, lo, hi in (("index", -1, 999), ("count", 0, 1000)):
+        v = body.get(key)
+        if v is None:
+            continue
+        if isinstance(v, bool) or not isinstance(v, int) or not lo <= v <= hi:
+            return None, f"{key} must be a whole number {lo}..{hi}"
+        out[key] = v
+    col = body.get("color")
+    if col not in (None, ""):
+        if (not isinstance(col, str) or len(col) != 7 or col[0] != "#"
+                or any(c not in "0123456789abcdefABCDEF" for c in col[1:])):
+            return None, "color must be '#rrggbb'"
+        out["color"] = col.lower()
+    br = body.get("browsing", False)
+    if not isinstance(br, bool):
+        return None, "browsing must be true or false"
+    out["browsing"] = br
+    return out, None
+
+
 class Hub:
     """Each subscriber gets a bounded queue of ready-made SSE frames. A stalled page loses its OLDEST frames (counted),
     it never stalls the engine. taps are in-process listeners (tests, the console), called on the producer's thread."""
@@ -855,55 +955,117 @@ class Harmony:
                     **self.counts}
 
 
+SHADOW_MAX_S = 10.0           # a re-seeded tracker warms up beside the old one until it predicts, at most this long
+
+
 class BeatClock:
-    """The beat tracker plus the referee, turned into one announcement per beat. feed(block) -> None, or a beat due
-    now: {"lead_s", "bpm", "conf", "n", "on_beat"} where lead_s is how far ahead (audio time) the beat lands.
-    A beat is announced the first time the next predicted beat is within ahead_s; a revised prediction of a beat
-    already announced (closer than half a period to it) is never announced twice."""
+    """The beat tracker plus the referee and the hand, turned into one announcement per beat. feed(block, silent_s) ->
+    None, or a beat due now: {"lead_s", "bpm", "conf", "n", "on_beat", "offset_ms", "src", "ver", "bar", "bar_src"}
+    where lead_s is how far ahead (audio time) the beat lands. A beat is announced the first time the next beat is within
+    ahead_s; a revised prediction of a beat already announced (closer than half a period to it) is never announced
+    twice. Which beat is next is beatgrid.BeatGrid's call: the tracker's, or the hand's while it owns the phase.
+
+    tap(t) hands it a tap of the KeyLab's Tap button (t on the audio clock: seconds of audio fed); reseed(bpm) seeds the
+    tracker with a tempo (the song database's, or the hand's): a tracker that already agrees within 4 % is left alone,
+    otherwise a new one warms up beside it and takes over the moment it predicts, so the beat never stops for a re-seed
+    (the `beat` command restarts its tracker, about 2 s without beats). notes collects status lines and tap events.
+    on_beat is the referee's -1..1 (negative = locked on the off-beat), judged on the beats the lights show."""
 
     def __init__(self, rate: int, hop: int = HOP, engine: str = "a", seed_bpm: Optional[float] = None,
-                 ahead_s: float = AHEAD_S, referee: bool = True):
-        Tracker = importlib.import_module(f"{__package__}.beat_{engine}").Tracker
-        self.tracker = Tracker(rate, hop, seed_bpm=seed_bpm)
+                 ahead_s: float = AHEAD_S, referee: bool = True, tap_one: bool = False, tap_round: bool = True):
+        from .beatgrid import BeatGrid
+        self._Tracker = importlib.import_module(f"{__package__}.beat_{engine}").Tracker
+        self.engine = engine
+        self.tracker = self._Tracker(rate, hop, seed_bpm=seed_bpm)
+        self.t0 = 0.0                 # where the tracker's own clock started on the stream's (it moves on a re-seed)
+        self.shadow: Optional[tuple] = None       # (tracker, t0, bpm, why): a re-seeded tracker warming up
         self.ref = None
         if referee:
             from .beatref import Referee
             self.ref = Referee(rate, hop)
         self.rate, self.hop, self.ahead_s = int(rate), int(hop), ahead_s
+        self.grid = BeatGrid(ahead_s=ahead_s, tap_one=tap_one, round_bpm=tap_round)
+        self._taps: List[float] = []
         self.audio_t = 0.0
-        self.last_sent: Optional[float] = None
         self.n = 0
         self.on_beat: Optional[float] = None
+        self.offset_ms: Optional[float] = None
         self.next_verdict = 2.0
         self.bpm: Optional[float] = None
         self.conf = 0.0
+        self.reseeds = 0
+        self.notes: List[dict] = []
 
-    def feed(self, block: np.ndarray) -> Optional[dict]:
+    def tap(self, t: float) -> None:
+        self._taps.append(float(t))
+
+    def new_track(self) -> None:
+        self.grid.new_track()
+        self._take_notes()
+
+    def reseed(self, bpm: float, why: str = "the song database") -> bool:
+        """Seed the tracker with bpm; True when a new tracker starts warming up (False: the tracker already agrees)."""
+        cur = self._predict()
+        if cur and abs(float(cur[0]["bpm"]) / float(bpm) - 1.0) < 0.04:
+            return False
+        self.shadow = (self._Tracker(self.rate, self.hop, seed_bpm=float(bpm)), self.audio_t, float(bpm), why)
+        return True
+
+    def _predict(self) -> List[dict]:
+        # a re-seeded tracker counts its own time from zero: its predictions are shifted onto the stream's clock
+        return [{**b, "t_beat": float(b["t_beat"]) + self.t0}
+                for b in (self.tracker.predict(self.audio_t - self.t0) or [])]
+
+    def _take_notes(self) -> None:
+        for note in self.grid.notes:
+            if note["t"] == "reseed":
+                was = self.bpm
+                if self.reseed(note["bpm"], "your taps"):
+                    self.notes.append({"t": "status", "msg": f"re-seeding beat_{self.engine} from your taps: "
+                                       f"{note['bpm']:g} BPM" + (f" (it said {was:.1f})" if was else "")})
+            else:
+                self.notes.append(note)
+        self.grid.notes = []
+
+    def feed(self, block: np.ndarray, silent_s: float = 0.0) -> Optional[dict]:
         self.tracker.feed(block)
+        if self.shadow is not None:
+            self.shadow[0].feed(block)
         self.audio_t += len(block) / self.rate
-        ahead = self.tracker.predict(self.audio_t) or []
+        if self.shadow is not None:
+            sh, t0, bpm, why = self.shadow
+            if sh.predict(self.audio_t - t0) or self.audio_t - t0 >= SHADOW_MAX_S:
+                self.tracker, self.t0, self.shadow = sh, t0, None
+                self.reseeds += 1
+                if self.ref is not None:
+                    self.ref.pred.clear()
+                self.notes.append({"t": "status", "msg": f"beat_{self.engine} re-seeded at {bpm:g} BPM from {why}"})
+        ahead = self._predict()
+        taps, self._taps = self._taps, []
+        self.grid.step(self.audio_t, ahead, taps, silent_s)
+        self._take_notes()
+        view = self.grid.view(self.audio_t)
         if self.ref is not None:
-            self.ref.predicted(ahead)
+            self.ref.predicted(view)                  # the referee judges the beats the lights show
             self.ref.feed(block)
             if self.audio_t >= self.next_verdict:
                 self.next_verdict = self.audio_t + 2.0
                 v = self.ref.verdict()
-                self.on_beat = (round(min(1.0, max(0.0, float(v["on_beat"]))), 3)
-                                if v.get("state") == "ok" else None)
-        if not ahead:
+                ok = v.get("state") == "ok"
+                self.on_beat = round(min(1.0, max(-1.0, float(v["on_beat"]))), 3) if ok else None
+                self.offset_ms = round(float(v["offset_ms"]), 1) if ok else None
+        if view:
+            self.bpm, self.conf = float(view[0]["bpm"]), float(view[0].get("confidence") or 0.0)
+        b = self.grid.announce(self.audio_t)
+        self._take_notes()
+        if b is None:
             return None
-        nb = ahead[0]
-        t_beat, bpm = float(nb["t_beat"]), float(nb["bpm"])
-        self.bpm, self.conf = bpm, float(nb.get("confidence") or 0.0)
-        period = 60.0 / bpm
-        lead = t_beat - self.audio_t
-        if lead > self.ahead_s or lead < -0.03:
-            return None
-        if self.last_sent is not None and t_beat - self.last_sent < 0.5 * period:
-            return None
-        self.last_sent = t_beat
-        self.n += 1
-        return {"lead_s": lead, "bpm": bpm, "conf": self.conf, "n": self.n, "on_beat": self.on_beat}
+        self.n = b["n"]
+        return {**b, "on_beat": self.on_beat, "offset_ms": self.offset_ms}
+
+    def snapshot(self) -> dict:
+        return {**self.grid.snapshot(), "reseeds": self.reseeds, "warming": self.shadow is not None,
+                "bpm": None if self.bpm is None else round(self.bpm, 2)}
 
 
 # =====================================================================================================================
@@ -1490,13 +1652,17 @@ class _Handler(BaseHTTPRequestHandler):
         if path in ("/", "/api"):
             return self._json(200, {"src": SRC, "v": CONTRACT_V, "routes": {
                 "GET /api/events": "Server-Sent Events: hello, beat, energy, hit, chord, key, tension, note, pedal, "
-                                   "pad, ctl, status",
+                                   "pad, ctl, scene, status",
                 "GET /api/state": "last chord, bpm, the key, connected inputs, audio health and timing, LED state",
-                "POST /api/pads": '{"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads'}})
+                "POST /api/pads": '{"colors": ["#rrggbb", ... 12]} lights the DAW-bank pads',
+                "POST /api/scene": '{"name": "..", "index": 0, "count": 14, "color": "#rrggbb", "browsing": false} '
+                                   'the scene the page shows, published as a scene event'}})
         return self._json(404, {"error": f"no route {path}"})
 
     def do_POST(self):
         path = urlsplit(self.path).path.rstrip("/")
+        if path == "/api/scene":
+            return self._scene()
         if path != "/api/pads":
             return self._json(404, {"error": f"no route {path}"})
         if self.engine.stopping:
@@ -1513,6 +1679,35 @@ class _Handler(BaseHTTPRequestHandler):
         except (UnicodeDecodeError, ValueError):
             return self._json(400, {"ok": False, "error": "body is not JSON"})
         status, payload = self.engine.pads_request(body)
+        return self._json(status, payload)
+
+    def _scene(self) -> None:
+        """POST /api/scene: the page says which scene shows; the engine publishes it (when it changed) as a scene event."""
+        if self.engine.stopping:
+            return self._json(503, {"ok": False, "error": "the engine is stopping"})
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self._json(400, {"ok": False, "error": "Content-Length is not a number"})
+        if length <= 0 or length > MAX_SCENE_BODY:
+            return self._json(413 if length > 0 else 400, {"ok": False, "error": f"body must be 1..{MAX_SCENE_BODY} bytes"})
+        raw = self.rfile.read(length)
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            return self._json(400, {"ok": False, "error": "body is not JSON"})
+        status, payload = self.engine.scene_request(body)
+        if status == 429:
+            data = json.dumps(payload).encode("utf-8")
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Retry-After", "1")
+            self._cors()
+            self._close_after()
+            self.end_headers()
+            self.wfile.write(data)
+            return None
         return self._json(status, payload)
 
     def _events(self) -> None:
@@ -1601,11 +1796,30 @@ class Engine:
                  rate_limit: bool = False, ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0,
                  seed_bpm: Optional[float] = None, heartbeat_s: float = HEARTBEAT_S, replay: Optional[Replay] = None,
                  replay_delay: float = 1.5, verbose: bool = False, verbose_http: bool = False,
-                 say: Callable[[str], None] = print, chords: str = "blend"):
+                 say: Callable[[str], None] = print, chords: str = "blend", tap: Optional[str] = DEFAULT_TAP,
+                 tap_one: bool = False, tap_round: bool = True,
+                 now_playing: Optional[Callable[[], Optional[dict]]] = None,
+                 db_lookup: Optional[Callable[[str, str], Optional[dict]]] = None,
+                 track_poll_s: float = TRACK_POLL_S):
         if pads_mode not in ("daw", "bank", "both"):
             raise ValueError("pads_mode must be daw, bank or both")
         if chords not in CHORD_MODES:
             raise ValueError(f"chords must be one of {', '.join(CHORD_MODES)}")
+        # the beat clock's inputs besides the audio: the Tap button (taps cross from the MIDI thread to the audio thread
+        # through a deque), and the song database per track (looked up on the track thread; the requests cross the
+        # same way). The audio thread alone touches the clock.
+        self.tap_spec = tap or "off"
+        self._tap_ids = parse_tap(tap)
+        self.tap_one, self.tap_round = tap_one, tap_round
+        self._tap_q: deque = deque()
+        self._clock_q: deque = deque()
+        self._tap_level: Dict[str, Tuple[int, float]] = {}
+        self._tap_last = -1e9
+        self.taps_seen = 0
+        self.now_playing, self.db_lookup, self.track_poll_s = now_playing, db_lookup, track_poll_s
+        self.track: dict = {"title": None, "db_bpm": None, "sources": None, "lookups": 0, "polls": 0}
+        self._db_cache: Dict[Tuple[str, str], Optional[dict]] = {}
+        self._clock: Optional[BeatClock] = None
         self.http_port, self.beat_engine, self.source = http_port, beat_engine, source
         self.chords = chords
         # --chords sense / blend: chordsense on the audio (when there is a source) and on the keys
@@ -1641,9 +1855,14 @@ class Engine:
         self._chord_pending: Optional[tuple] = None  # (deadline, event, first_t)
         self._pad_on: Dict[int, Tuple[float, str]] = {}
         self._pb_last: Dict[str, int] = {}
+        # the scene the page reports (POST /api/scene), and the route's token bucket
+        self.scene: Optional[dict] = None
+        self._scene_lock = threading.Lock()
+        self._scene_tokens, self._scene_t = SCENE_BURST, time.perf_counter()
+        self.scene_counts = {"taken": 0, "published": 0, "refused": 0, "limited": 0}
         # shared state for /api/state
         self.last = {"chord": None, "chord_keys": None, "chord_audio": None}
-        self.beat = {"bpm": None, "conf": None, "n": 0, "on_beat": None}
+        self.beat = {"bpm": None, "conf": None, "n": 0, "on_beat": None, "src": None, "ver": 0, "bar": 0}
         self.audio = {"source": getattr(source, "name", None), "rate": getattr(source, "rate", None),
                       "running": False, "blocks": 0, "behind_s": 0.0, "late_blocks": 0, "proc_ms_avg": 0.0,
                       "proc_ms_max": 0.0, "idle_s": 0.0, "silence_filled_s": 0.0, "dropped_s": 0.0,
@@ -1671,6 +1890,8 @@ class Engine:
         self._spawn(self._midi_loop, "vj-midi")
         if self.source is not None:
             self._spawn(self._audio_loop, "vj-audio")
+            if self.now_playing is not None and self.db_lookup is not None:
+                self._spawn(self._track_loop, "vj-track")
         if self.replay is not None:
             self._spawn(self._replay_loop, "vj-replay")
         self.status(self.summary())
@@ -1745,6 +1966,8 @@ class Engine:
                 out.append(dict(snap_t))
         if self.last["chord"]:
             out.append({**self.last["chord"], "changed": False})
+        if self.scene:
+            out.append(dict(self.scene))
         return out
 
     def summary(self) -> str:
@@ -1807,6 +2030,9 @@ class Engine:
                 "pads_mode": self.pads_mode,
                 "rate_limit": self.rate_limit, "bpm": self.beat["bpm"], "conf": self.beat["conf"],
                 "beat_n": self.beat["n"], "on_beat": self.beat["on_beat"],
+                "clock": {**(self._clock.snapshot() if self._clock is not None else {}), "tap": self.tap_spec,
+                          "taps_seen": self.taps_seen, "track": dict(self.track),
+                          "db_lookup": self.db_lookup is not None and self.now_playing is not None},
                 "chord": self.last["chord"], "chord_keys": self.last["chord_keys"],
                 "chord_audio": self.last["chord_audio"], "key": self.key_name(),
                 "harmony": None if self.harmony is None else {**self.harmony.snapshot(),
@@ -1817,7 +2043,8 @@ class Engine:
                          "refusal_status": None if self.led_out is not None else self.led_refusal_status,
                          **self.led_info,
                          **(self.painter.stats() if self.painter is not None else {})},
-                "replay": self.replay_state, "clients": self.hub.clients, "events": dict(self.hub.counts),
+                "replay": self.replay_state, "scene": self.scene, "scene_counts": dict(self.scene_counts),
+                "clients": self.hub.clients, "events": dict(self.hub.counts),
                 "dropped": self.hub.dropped}
 
     # ----------------------------------------------------------------------------------------------- pads (LEDs)
@@ -1837,6 +2064,33 @@ class Engine:
             return self.led_refusal_status, {"ok": False, "refused": self.led_refusal or "no LED output"}
         coalesced = self.painter.submit(rgb)
         return 202, {"ok": True, "coalesced": coalesced}
+
+    # ----------------------------------------------------------------------------------------------- the scene
+    def scene_request(self, body, now: Optional[float] = None) -> Tuple[int, dict]:
+        """The page's scene. Validated (parse_scene), rate-limited (a token bucket: SCENE_RATE a second, SCENE_BURST at
+        once; beyond it 429), and published as a scene event only when it differs from the last one (name, index or
+        browsing), so a page that repeats itself floods nothing."""
+        now = time.perf_counter() if now is None else now
+        with self._scene_lock:
+            self._scene_tokens = min(SCENE_BURST, self._scene_tokens + max(0.0, now - self._scene_t) * SCENE_RATE)
+            self._scene_t = now
+            if self._scene_tokens < 1.0:
+                self.scene_counts["limited"] += 1
+                return 429, {"ok": False, "error": f"at most {SCENE_RATE:g} scene reports a second",
+                             "retry_ms": int(1000 * (1.0 - self._scene_tokens) / SCENE_RATE) + 1}
+            self._scene_tokens -= 1.0
+        evt, err = parse_scene(body)
+        if evt is None:
+            self.scene_counts["refused"] += 1
+            return 400, {"ok": False, "error": err}
+        self.scene_counts["taken"] += 1
+        prev = self.scene
+        changed = prev is None or any(prev.get(k) != evt.get(k) for k in ("name", "index", "browsing"))
+        self.scene = evt
+        if changed:
+            self.scene_counts["published"] += 1
+            self.publish(dict(evt))
+        return 202, {"ok": True, "changed": changed}
 
     # ----------------------------------------------------------------------------------------------- MIDI
     def feed_midi(self, kind: str, status: int, d1: int, d2: int, t: Optional[float] = None) -> None:
@@ -1941,6 +2195,8 @@ class Engine:
                 if self.harmony is not None and kind == "midi":
                     self._sense_note({"sustain": d2}, t)
                 return
+            if self._tap_ids:
+                self._tap_control(kind, f"cc{d1}", d2, t)
             dec, note = self.cc.feed(f"{kind}:{ch}:cc{d1}", d1, d2, t)
             if note:
                 self.status(f"!{note} ({kind} input, channel {ch})")
@@ -1981,6 +2237,26 @@ class Engine:
         self.publish({"t": "pad", "pad": pad, "vel": round(vel / 127.0, 3) if on else 0.0, "on": on, "src": src})
         if src == "daw" and not on and self.painter is not None:
             self.painter.reassert(0.25)                   # FL's script may repaint a DAW-mode pad on release
+        if self._tap_ids:
+            self._tap_control("daw" if src == "daw" else "midi", f"pad{pad}", vel if on else 0, t)
+
+    # ----------------------------------------------------------------------------------------------- the Tap button
+    def _tap_control(self, port: str, ident: str, value: int, t: float) -> None:
+        """A press of a tap control (--tap) is a tap: a rising edge (value 64 or more after less), or a repeat of a
+        control that sends only presses after TAP_REPRESS_S; within TAP_DEBOUNCE_S of the last tap it is the same
+        press. Timed when it arrived on the MIDI thread (perf_counter, the audio loop's clock); the audio loop puts it
+        on the stream's clock and hands it to the beat clock. Its ctl or pad event is published as before."""
+        if not any((p is None or p == port) and (i == ident or (i == "pads" and ident.startswith("pad")))
+                   for p, i in self._tap_ids):
+            return
+        key = f"{port}:{ident}"
+        prev, prev_t = self._tap_level.get(key, (0, -1e9))
+        self._tap_level[key] = (value, t)
+        if value < 64 or (prev >= 64 and t - prev_t < TAP_REPRESS_S) or t - self._tap_last < TAP_DEBOUNCE_S:
+            return
+        self._tap_last = t
+        self.taps_seen += 1
+        self._tap_q.append(t)
 
     def _keys_changed(self, t: float) -> None:
         sounding = self.voicing.sounding
@@ -2023,10 +2299,12 @@ class Engine:
         src = self.source
         rate = int(src.rate)
         try:
-            clock = BeatClock(rate, HOP, self.beat_engine, self.seed_bpm, self.ahead_s)
+            clock = BeatClock(rate, HOP, self.beat_engine, self.seed_bpm, self.ahead_s, tap_one=self.tap_one,
+                              tap_round=self.tap_round)
         except Exception as exc:
             self.status(f"!beat_{self.beat_engine} would not start: {type(exc).__name__}: {exc}")
             return
+        self._clock = clock
         harmony = self.harmony if (self.harmony is not None and self.harmony.audio is not None) else None
         blend = harmony is not None and self.chords == "blend"   # the templates name, chordsense keys and tensions
         ana = Analyzer(rate, HOP, rate_limit=self.rate_limit, chords=harmony is None or blend)
@@ -2061,12 +2339,26 @@ class Engine:
                     self.status(f"!audio: {behind:.2f} s behind the source so far"
                                 + (f", {lost:.2f} s of it dropped" if lost else "")
                                 + " (the analysis loop fell behind)")
-                b = clock.feed(block)
-                if b is not None and ana.silent_for(audio_t) < SILENT_BEATS_S:
+                while self._clock_q:                      # the track thread: a new track, the database's tempo
+                    self._clock_request(clock, *self._clock_q.popleft())
+                while self._tap_q:                        # the Tap button, onto the stream's clock
+                    clock.tap(audio_t + (self._tap_q.popleft() - t_got))
+                silent = ana.silent_for(audio_t)
+                b = clock.feed(block, silent_s=silent)
+                for note in clock.notes:
+                    if note["t"] == "status":
+                        self.status(note["msg"])
+                    else:
+                        self.publish(note)
+                clock.notes = []
+                if b is not None and silent < SILENT_BEATS_S:
                     due = (b["lead_s"] + self.offset_s - (time.perf_counter() - t_got)) * 1000.0
                     evt = {"t": "beat", "due_ms": round(max(0.0, due), 1), "bpm": round(b["bpm"], 2),
-                           "conf": round(min(1.0, max(0.0, b["conf"])), 3), "n": b["n"], "on_beat": b["on_beat"]}
-                    self.beat.update(bpm=evt["bpm"], conf=evt["conf"], n=evt["n"], on_beat=evt["on_beat"])
+                           "conf": round(min(1.0, max(0.0, b["conf"])), 3), "n": b["n"], "on_beat": b["on_beat"],
+                           "src": b["src"], "bar": b["bar"], "bar_src": b["bar_src"], "ver": b["ver"],
+                           "offset_ms": b["offset_ms"], "wall_ms": round(time.time() * 1000.0, 1)}
+                    self.beat.update(bpm=evt["bpm"], conf=evt["conf"], n=evt["n"], on_beat=evt["on_beat"],
+                                     src=evt["src"], ver=evt["ver"], bar=evt["bar"])
                     self.publish(evt)
                 for evt in ana.feed(block, audio_t):
                     if evt["t"] == "chord":
@@ -2119,6 +2411,67 @@ class Engine:
             self.status(f"!audio loop stopped: {type(exc).__name__}: {exc}")
         finally:
             a["running"] = False
+
+    def _clock_request(self, clock: "BeatClock", kind: str, bpm: Optional[float] = None, seed: bool = True) -> None:
+        """On the audio thread: what the track thread found. "track" = a new track started (the hand lets go, the old
+        database tempo is forgotten); "db" = the database's tempo for it (the tracker is re-seeded unless it already
+        agrees, or --seed-bpm holds the track the engine started on)."""
+        if kind == "track":
+            clock.new_track()
+        elif kind == "db":
+            clock.grid.set_db(bpm)
+            if bpm and seed and clock.reseed(bpm):
+                self.status(f"beat_{self.beat_engine}: warming up a tracker seeded at {bpm:g} BPM (the beat keeps "
+                            "going meanwhile)")
+
+    def _track_loop(self) -> None:
+        """The track thread: every track_poll_s, Windows' now-playing; on a new track, the song database's tempo
+        (database_tempo: network calls, never on the audio thread; cached per track; fail-soft), handed to the audio
+        thread. Says when it arrives, and publishes a track event."""
+        last = None
+        while not self._stop.is_set():
+            try:
+                np_ = self.now_playing()
+            except Exception:
+                np_ = None
+            self.track["polls"] += 1
+            key = track_key(np_)
+            if key is not None and key != last:
+                launch = last is None                     # the track playing when the engine started
+                last = key
+                label = f"{np_.get('artist') or '?'} - {np_.get('title')}"
+                if not launch:
+                    self._clock_q.append(("track",))
+                self.track.update(title=label, db_bpm=None, sources=None)
+                if key in self._db_cache:
+                    found = self._db_cache[key]
+                else:
+                    try:
+                        found = self.db_lookup(np_.get("artist") or "", np_.get("title") or "")
+                    except Exception:
+                        found = None
+                    self.track["lookups"] += 1
+                    self._db_cache[key] = found
+                if self._stop.is_set():
+                    return
+                try:                                      # the track may have moved on while the databases answered
+                    again = track_key(self.now_playing())
+                except Exception:
+                    again = key
+                if again is not None and again != key:
+                    continue                              # poll again now: the next track is the one to look up
+                bpm = float(found["bpm"]) if found and found.get("bpm") else None
+                hold = launch and self.seed_bpm is not None
+                if bpm:
+                    self.track.update(db_bpm=bpm, sources=list(found.get("sources") or []))
+                    self._clock_q.append(("db", bpm, not hold))
+                    srcs = ", ".join(found.get("sources") or [])
+                    self.status(f"database tempo {bpm:g} BPM for {label}" + (f" ({srcs})" if srcs else "")
+                                + (f"; --seed-bpm {self.seed_bpm:g} holds this track" if hold else ""))
+                else:
+                    self.status(f"no database tempo for {label}: the tracker finds the tempo")
+                self.publish({"t": "track", "bpm_db": bpm, "key_db": None})
+            self._stop.wait(self.track_poll_s)
 
     def audio_chord_seen(self, evt: dict, t: float) -> dict:
         """An audio chord is spelled by the key (pitch class 6: Gb in a flat key, else F#), and is evidence for it while
@@ -2186,9 +2539,15 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
         replay_pattern: Optional[int] = None, replay_audio: Optional[str] = None, loop: bool = False,
         audio: bool = True, midi: bool = True, rate_limit: bool = False, pads: str = "both",
         ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0, seed_bpm: Optional[float] = None,
-        secs: Optional[float] = None, quiet: bool = False, chords: str = "blend") -> int:
+        secs: Optional[float] = None, quiet: bool = False, chords: str = "blend", tap: str = DEFAULT_TAP,
+        tap_one: bool = False, tap_round: bool = True, db: bool = True) -> int:
     line_buffered_stdout()
     say = print
+    try:
+        parse_tap(tap)
+    except ValueError as exc:
+        say(str(exc))
+        return 2
     replay = None
     if replay_midi:
         replay = load_replay(replay_midi, bpm=replay_bpm, stretch=replay_stretch, pattern=replay_pattern)
@@ -2229,9 +2588,16 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
         except Exception as exc:
             led_out, refusal, refusal_status = None, f"no KeyLab DAW output ({exc})", 503
 
+    # the song database per track: only for the live loopback (now-playing says nothing about a replayed file)
+    np_fn = lookup_fn = None
+    if db and source is not None and not replay_audio:
+        from .beatgrid import database_tempo
+        from .beatsync import now_playing as np_fn
+        lookup_fn = database_tempo
     eng = Engine(http_port=port, beat_engine=engine, source=source, led_out=led_out, led_refusal=refusal,
                  led_refusal_status=refusal_status, pads_mode=pads, rate_limit=rate_limit, ahead_ms=ahead_ms, offset_ms=offset_ms, seed_bpm=seed_bpm,
-                 replay=replay, verbose=not quiet, say=say, chords=chords)
+                 replay=replay, verbose=not quiet, say=say, chords=chords, tap=tap, tap_one=tap_one,
+                 tap_round=tap_round, now_playing=np_fn, db_lookup=lookup_fn)
     eng.led_info = led_info
     if midi:
         eng.attach_inputs(open_keylab_inputs(eng.feed_midi, say=say))
@@ -2253,6 +2619,9 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
     say(f"VJ engine: {base}/api/events (SSE) | {base}/api/state | POST {base}/api/pads  -- Ctrl-C to stop")
     say("pads: DAW mode arrives on the DAW input; with FL's Arturia script running, DAW-mode pads 1-8 also toggle "
         "FL step-sequencer steps on release -- use the normal pad bank (notes 36-47) then; both are accepted")
+    say(f"beat clock: tap on {eng.tap_spec} (one tap on a kick moves the beat there; four take over tempo and beat"
+        f"{'; the first tap of a run is the ONE' if tap_one else ''}) | song database per track: "
+        + ("on" if lookup_fn is not None else "off"))
     try:
         end = (time.perf_counter() + secs) if secs else None
         while end is None or time.perf_counter() < end:
