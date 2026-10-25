@@ -46,7 +46,10 @@
 //     since taking it would itself be a change), and a hit whose lines are (nearly) all new or moving dims; a frame that
 //     cannot get under goes out as the best reduction found. A new hit PLAYS ALONE, so the fit of each hit alone is the
 //     fit of the frame: a fast one chokes the hits before it, any other takes over from its first pulse (latest takes
-//     precedence; a loop on the same grid hands over its off-beats), and it lights only once they are dark. Presses
+//     precedence; a loop on the same grid hands over its off-beats), and it lights only once they are dark -- put out
+//     AHEAD of time, in the frame before its first pulse, so that pulse still lands on its beat (and when the press
+//     leaves no frame between, put out with it if what is left changes nothing measurable or fits the budget with the
+//     new onset). A held loop starts on a grid point it can still light on time. Presses
 //     faster than 3 a second count as a fast gate. A fast hit never moves while lit (a rapid press's velocity waits for
 //     the next pulse, and never passes the velocity the roll was fitted at; barswap swaps on the pulse's own bar line).
 //     A hit keeps the settings it was fitted to (Vibrate's plucks, the theme's colours) for its whole life. The strings
@@ -980,7 +983,7 @@ export class LaserEngine {
     this.vib = HEADS.map((h, i) => ({ t0: -1e9, amp: 0, ph: TAU * makeRng(seed, "vib", i)(), offT: null, rings: [] }));
     this.sectionIdx = 0;
     this._makeDecks();
-    this.frameIdx = 0; this.F = 1000 / 60; this.tPrev = null; this.ringT = null;
+    this.frameIdx = 0; this.F = 1000 / 60; this.tPrev = null; this.ringT = null; this.inFrame = false;
     this.tRef = null; this.posRef = 0;
     this.lastPeriod = 0;
     this.nowT = 0;
@@ -1375,13 +1378,14 @@ export class LaserEngine {
     //   - A fast hit CHOKES the hits before it (a lit pulse finishes its minimum on-time, nothing new starts, then they
     //     go dark at once), and so is a running fast hit when any new press starts.
     //   - Any other new hit TAKES OVER (latest takes precedence, a lighting desk's LTP merge) from its first pulse: the
-    //     hits before it fire nothing from there on (a pulse in progress finishes, its length bounded to leave the frame
-    //     rules' gap before the new first pulse), and what is left of them when that pulse comes due -- a tail, a pulse
-    //     still lit -- goes dark then (a lit pulse after its minimum on-time). If a loop on the same grid is already
-    //     lighting the very pulse a new loop would start on, the new loop starts one step later instead of lighting a
-    //     second copy of it (the Reverse-Bass Gate pressed on its off-beat: one clean pulse per off-beat).
+    //     hits before it fire nothing from there on (a pulse in progress -- the one lit as the press comes too --
+    //     finishes, its length bounded to leave the frame rules' gap before the new first pulse), and what is left of
+    //     them -- a tail -- goes dark in the frame BEFORE that pulse comes due (see _handOver). If a loop on the same
+    //     grid is already lighting the very pulse a new loop would start on, the new loop starts one step later instead
+    //     of lighting a second copy of it (the Reverse-Bass Gate pressed on its off-beat: one clean pulse per off-beat).
     // Either way the new hit's first pulse waits until they are dark, so one hit's "off" and the next one's "on" never
-    // land in one frame.
+    // land in one frame -- unless that frame's change is measured to stay inside the budget (_cutsClean): a press that
+    // comes within a frame of its beat leaves no frame to go dark in, and round 3's wait made such pulses late.
     const live = this.hits.filter((h) => !h.done && h !== spare);
     const choke = [], handover = [];
     for (const h of live) {
@@ -1417,8 +1421,9 @@ export class LaserEngine {
     const d = (b.P - a.P) / sa;
     return Math.abs(d - Math.round(d)) <= 1e-4;
   }
-  // a newer hit takes over at beat P: h fires no pulse at or after it, and a pulse it lights before leaves the frame
-  // rules' gap before P (see _evalHit)
+  // A newer hit takes over at beat P: h fires no pulse at or after it, and a pulse it lights before leaves the frame
+  // rules' gap before P (see _evalHit) -- the pulse lit right now as well (round 3 bounded only the pulses still to
+  // come, so a pulse lit when the press came ran on into the frame the new first pulse was due, and held it back).
   _takeOver(h, P) {
     h.takeoverP = Math.min(h.takeoverP ?? Infinity, P);
     if (h.loop) h.loop.endP = Math.min(h.loop.endP, P);
@@ -1427,15 +1432,28 @@ export class LaserEngine {
       while (n > h.pi && h.pulses[n - 1].P >= P - 1e-9) n--;
       if (n < h.pulses.length) h.pulses = h.pulses.slice(0, n);
     }
+    if (h.cur && h.on && this.posE !== undefined) {
+      const per = this.period(), f0 = this._nowFrame();
+      const pos0 = this.inFrame ? this.posE : this.posE + this.F / per;       // the position frame f0 is judged at
+      const due = f0 + Math.max(0, Math.ceil((P - pos0) * per / this.F - 1e-6));
+      const minOff = Math.max(1, Math.ceil(FRAME_RULES.minOffMs / this.F - 1e-6));
+      h.cur.N = Math.max(this._minOnFrames(), Math.min(h.cur.N, due - minOff - h.cur.onFrame));
+    }
   }
   _fade(h, t, tau = 40) { if (!h.fading) { h.fading = true; h.fadeT = t; h.fadeTau = tau; } }
   _minOnFrames() { return Math.max(1, Math.ceil(FRAME_RULES.minOnMs / this.F - 1e-6)); }
+  // the frame the next picture is: the one being built (inside frame()), else the one after the last built
+  _nowFrame() { return this.inFrame ? this.frameIdx : this.frameIdx + 1; }
   _choke(h) {
     if (h.choked) return;
     h.choked = true;
-    // a pulse already lit keeps its minimum on-time (40 ms), then goes off; nothing new starts
-    if (h.cur && h.on) h.cur.N = Math.min(h.cur.N, Math.max(this._minOnFrames(), this.frameIdx - h.cur.onFrame + 1));
+    // A pulse already lit keeps its minimum on-time (40 ms), then goes off; nothing new starts. It goes off from the
+    // next picture (_nowFrame): choked between frames, the next frame; choked while a frame is built (the frame before
+    // a newer hit's first pulse, see _handOver), that very frame -- round 3 left it lit one frame more.
+    if (h.cur && h.on) h.cur.N = Math.min(h.cur.N, Math.max(this._minOnFrames(), this._nowFrame() - h.cur.onFrame));
   }
+  // put a hit out in this very frame (what is left of it lights nothing a frame's budget would miss: see _handOver)
+  _cut(h) { h.choked = true; h.cut = true; }
 
   // Shrink a new hit until it fits its CHANGE budget (90 % of it for a fast hit, 80 % for a single onset) over its
   // whole life, measured before it is shown: each pulse's onset (all of its light appears) wherever the hit can be (see
@@ -1638,6 +1656,9 @@ export class LaserEngine {
       if (H.peak > PEAK_FLOOR + 1e-9) { H.peak = Math.max(PEAK_FLOOR, H.peak * Math.min(0.85, ratio)); continue; }
       break;
     }
+    // its first onset as fitted (giving way only takes light away, so the last measure bounds it): the hand-over reads
+    // it when the hits before have to go out in the frame this one comes on in (_cutsClean)
+    H.onsetEst = { window: all[0].w, frame: all[0].f };
     Object.assign(H, keep);
     for (let i = 0; i < this.vib.length; i++) Object.assign(this.vib[i], vibKeep[i]);
     this.bn = 0;
@@ -1959,6 +1980,7 @@ export class LaserEngine {
     this.tPrev = t;
     this.nowT = t;
     this.frameIdx++;
+    this.inFrame = true;              // (until the frame is built: see _nowFrame)
     const per = this.period(t);
     const pos = this._commitPos(t);
     const posE = this._evalPos(t, pos);
@@ -1985,7 +2007,9 @@ export class LaserEngine {
       this._evalHit(H, t, posE, per);
       if (H.done) continue;
       if (!running && H.started) running = H;
-      if (H.started && H.fast) anyFast = true;     // a fast hit keeps the fast caps through its tail: nothing pops in
+      // a fast hit keeps the fast caps through its tail: nothing pops in (but not through the half of a tail going out
+      // under a newer hit's onset: it lights nothing measurable any more, and the newer hit is fitted to its own caps)
+      if (H.started && H.fast && H.halveF !== this.frameIdx) anyFast = true;
       if (H.started && !H.finished && (H.pulsesTotal > 1 || H.loop)) gateRunning = true;
       maxLevel = Math.max(maxLevel, H.tier === "hero" ? 3 : H.level || 1);
     }
@@ -1996,7 +2020,7 @@ export class LaserEngine {
     let beamTotal = 0;
     for (let i = this.hits.length - 1; i >= 0; i--) {
       const H = this.hits[i];
-      if (!H.started || H.level01 <= 0.002) continue;
+      if (!H.started || H.level01 <= 0.002 || H.halveF === this.frameIdx) continue;   // (a halved tail: _writeHalved)
       const before = this.bn;
       let thinSeen = 0;
       this._geom(H, posE, per, t, cap);
@@ -2024,6 +2048,7 @@ export class LaserEngine {
     const c = this.col.L1; out.pad.rgb[0] = c[0]; out.pad.rgb[1] = c[1]; out.pad.rgb[2] = c[2];
     out.gate = running ? running.gate : ""; out.pattern = running ? running.pattern : ""; out.tier = running ? running.tier : "";
     out.bank = running ? running.bank : ""; out.order = running ? running.order : ""; out.colour = running ? running.colour : "";
+    this.inFrame = false;
     return out;
   }
 
@@ -2044,10 +2069,16 @@ export class LaserEngine {
     const deal = { ...src.deal, pattern, gate };
     // The loop starts after the press's own short gate, on the grid, and runs until release. It is anchored there
     // BEFORE it is fitted (it used to be fitted where a plain press would start it and moved after, so every probe of
-    // a moving pattern or a figure stood at the wrong beat). The press's own hit hands over: when the loop's first
-    // pulse comes due, what is left of it (its tail) goes dark, and the loop lights the frame after, so the press's
-    // light (fitted to the single budget) never goes dark under the loop's fast one.
-    const after = src.pulses ? src.pulses[src.pulses.length - 1].P + 1 / 4 : -Infinity;
+    // a moving pattern or a figure stood at the wrong beat). The press's own hit hands over: what is left of it (its
+    // tail) goes dark in the frame before the loop's first pulse, which lights on its beat, so the press's light
+    // (fitted to the single budget) never goes dark under the loop's fast one.
+    // ... and on a grid point it can still light ON TIME: one not yet due in this frame (the hold is the engine's own
+    // timing, not a late hand, so spec 3.3's "or immediately if a grid point passed within 30 ms" has nothing to forgive;
+    // and the frame before the loop's first pulse is the one the press's tail goes out in). The hold is known half a
+    // beat after the press, which can be just after the loop's first grid point (a press on the beat with a one-two:
+    // the push-pull's first point is half a beat on): rounds 1-3 then lit that point 33-45 ms late; now the loop
+    // starts on the next one.
+    const after = Math.max(src.pulses ? src.pulses[src.pulses.length - 1].P + 1 / 4 : -Infinity, this.posE + 1e-6);
     const H = this._spawn(deal, { t, pH: this.posAt(t), per, vel: src.vel, tier: "held", level: Math.max(2, src.level), gate,
       fast: this._gateFast(gate, per), kind: "held", spare: src, loopSpan: Infinity, loopAfter: after });
     src.fading = false;
@@ -2060,15 +2091,13 @@ export class LaserEngine {
 
   // the pulse state of one hit this frame
   _evalHit(H, t, posE, per) {
-    // a hit choked before it ever lit is simply gone; a fast hit waits until the hits it choked are dark (they are
-    // evaluated after it, so their last lit frame and its first never coincide)
-    if (!H.started && H.choked) { H.on = false; H.inten = 0; H.level01 = 0; H.done = true; return; }
+    // a hit put out by a newer one goes dark in this frame (see _handOver); a hit choked before it ever lit is simply
+    // gone; a new hit waits until the hits before it are dark (they are evaluated after it, so their last lit frame and
+    // its first never coincide)
+    if (H.cut || H.halveF < this.frameIdx || (!H.started && H.choked)) { H.on = false; H.inten = 0; H.level01 = 0; H.done = true; return; }
     if (!H.started && H.waitFor) {
-      if (H.waitFor.some((h) => !h.done)) {
-        // the hits it takes over from (see _spawn) go dark once its first pulse is due
-        if (H.handover && this._firstDue(H, posE, per, t)) for (const h of H.handover) this._choke(h);
-        H.on = false; H.inten = 0; H.level01 = 0; return;
-      }
+      const wait = H.waitFor.filter((h) => !h.done);
+      if (wait.length && !this._handOver(H, wait, t, posE, per)) { H.on = false; H.inten = 0; H.level01 = 0; return; }
       H.waitFor = null;
     }
     const F = this.F;
@@ -2139,7 +2168,8 @@ export class LaserEngine {
       }
     }
     const on = !!(H.cur && this.frameIdx - H.cur.onFrame < H.cur.N);
-    // choked: once its lit pulse has had its time, the hit goes dark at once
+    // choked: once its lit pulse has had its time, the hit goes dark at once (a halved tail: the frame after its half)
+    if (H.halveF === this.frameIdx) { H.on = false; H.inten = H.halfInten; H.level01 = H.halfLevel; H.tailAge = t - H.finishT; return; }
     if (H.choked && !on) { H.on = false; H.inten = 0; H.level01 = 0; H.done = true; return; }
     const exhausted = H.pulses ? H.pi >= H.pulses.length : (H.loop && H.loop.P >= H.loop.endP - 1e-9);
     if (exhausted && !on && H.started && !H.finished) {
@@ -2173,6 +2203,91 @@ export class LaserEngine {
     if (H.pulses) return H.pi < H.pulses.length && H.pulses[H.pi].P <= posE;
     const sl = H.loop ? this._loopSlot(H, per, t) : null;
     return !!(sl && sl.P <= posE);
+  }
+  // THE HAND-OVER, AHEAD OF TIME. A new hit H waits for the hits before it (`wait`, those not dark yet) to be dark, so
+  // that one hit's light going off and the next one's coming on never land in one frame unmeasured. Round 3 put them
+  // out only in the frame H's first pulse was due: they went dark there and H lit a frame late (a held press's loop
+  // 40 of 40 times at 150 BPM; Bar Marker taps 1.25 beats apart 360 of 400), breaking spec 3.3 (loops on the grid; a
+  // slightly early hand lands on the beat) and A2's never late. Now:
+  //   - in the frame BEFORE the first pulse is due (judged at the next frame's position, with half a frame to spare for
+  //     a frame that comes late), the hits it takes over from go out, so that frame is the dark one and the beat's frame
+  //     lights on time (a lit pulse keeps its 40 ms first, and _takeOver has already ended it the frame rules' gap
+  //     before the new pulse);
+  //   - when the first pulse is due now and they are not dark yet (the press came too close to its beat to leave a frame
+  //     between), they go out in this very frame and H lights with them gone -- if what is left of them changes nothing
+  //     measurable as it goes (a 1-3 % tail lights no pixel by 0.1), or if it and H's own onset, measured (the fit's
+  //     estimate of it), fit the budget together with a tenth to spare; or, a tail too bright for that but dim enough,
+  //     it goes out in two halves that each change nothing measurable, the first under H's onset (see _cutsClean).
+  //     Otherwise (a pulse still serving its minimum on-time; a bright tail too big to go with H's onset) H waits a
+  //     frame, as before: that frame cannot be both dark and on time.
+  // Returns true when H may light now.
+  _handOver(H, wait, t, posE, per) {
+    if (this._firstDue(H, posE, per, t)) {
+      const how = this._cutsClean(H, wait);
+      if (how === "cut") { for (const h of wait) this._cut(h); return true; }
+      if (how === "halve") {
+        // (each goes to half the light it was drawn with -- a tail, still, so every record halves -- and out the next
+        // frame: _evalHit)
+        for (const h of wait) { h.choked = true; h.halveF = this._nowFrame(); h.halfInten = 0.5 * h.inten; h.halfLevel = 0.5 * h.level01; }
+        return true;
+      }
+      if (H.handover) for (const h of H.handover) this._choke(h);
+      return false;
+    }
+    if (H.handover && this._firstDue(H, this._nextPos(t, posE, per), per, t)) for (const h of H.handover) this._choke(h);
+    return false;
+  }
+  // the position the NEXT frame will be judged at (as _evalPos), from a frame one and a half frames on: a frame that
+  // comes a little late still finds the hits before already dark
+  _nextPos(t, posE, per) {
+    const tN = t + 1.5 * this.F, c = this.clock;
+    if (this._clockOK(t) && typeof c.posAt === "function") {
+      const s = this.o.onsetRule === "nearest" ? this.F / 2 : this.F;
+      const p = c.posAt(tN + this.o.presentLagMs + s - 1e-6);
+      if (Number.isFinite(p)) return Math.max(p, posE);
+    }
+    return posE + 1.5 * this.F / per;
+  }
+  // May the hits in `wait` go out with H's first pulse coming on in this frame? Never mid-way through a pulse's minimum
+  // on-time. "cut" (out in this frame) when their light in the frame last drawn changes nothing measurable as it goes
+  // (no pixel by 0.1), or when that change and H's onset fit H's budget together with a tenth to spare (two lit bands
+  // add at most their sum, in any window and in the frame). "halve" when they are tails dim enough to go out in two
+  // steps that each change nothing measurable: halving every line's level (its core, halo and heat) moves no pixel by
+  // 0.1, and leaves it under 0.1 (core) and its halo under 0.2, so it lights nothing measurable any more under H's onset
+  // and goes out the next frame unmeasured too. Else false: H waits.
+  _cutsClean(H, wait) {
+    const now = this._nowFrame(), minOn = this._minOnFrames();
+    for (const h of wait) if (h.on && h.cur && now - h.cur.onFrame < minOn) return false;
+    const D = this._drawnLight(wait);
+    if (!D || (D.area.window <= 1e-9 && D.area.frame <= 1e-9)) return "cut";
+    const cap = H.fast ? BUDGET.fast : BUDGET.single, e = H.onsetEst;
+    if (e && D.area.window + e.window <= 0.9 * cap.window && D.area.frame + e.frame <= 0.9 * cap.frame) return "cut";
+    if (D.drop < 0.1 && D.half < 0.1 && D.glowY < 0.4) return "halve";
+    return false;
+  }
+  // The light the hits `hs` drew in the frame last drawn: area = what they light (0.1 or more), as estimateArea; glowY =
+  // the brightest halo luminance among their lines; half = the brightest core level once halved, drop = the most a
+  // core's level falls when halved (the white-core luminance moves with the heat, which halves too) -- each at a line's
+  // bright end with its blur band left out (the most a pixel of it can hold), summed over the hits (their lines may
+  // cross). null when they drew nothing.
+  _drawnLight(hs) {
+    const ids = new Map(hs.map((h) => [h.id, { glowY: 0, half: 0, drop: 0 }])), src = this.drawn, dst = this.probeB, Wa = src.W;
+    let n = 0;
+    for (let i = 0; i < src.n; i++) {
+      // (a record's key carries its hit: see _write)
+      const m = ids.get(Math.floor(src.keys[i] / 8192));
+      if (!m) continue;
+      const o = i * W_FLOATS, I = Wa[o + W.I], w = Wa[o + W.WIDTH], gY = Wa[o + W.GLOW] * tintLuma(Wa, o);
+      const h2 = Wa[o + W.HEAT] / 2, kw2 = h2 * h2 / (1 + h2 * h2), mx = Math.max(Wa[o + W.R], Wa[o + W.G], Wa[o + W.B]);
+      const core = coreLevel(I, hotLuma(Wa, o), gY, w, 0), half = coreLevel(I / 2, (1 - kw2) * tintLuma(Wa, o) + kw2 * mx, gY / 2, w, 0);
+      m.glowY = Math.max(m.glowY, gY); m.half = Math.max(m.half, half); m.drop = Math.max(m.drop, core - half);
+      dst.W.set(Wa.subarray(o, o + W_FLOATS), n * W_FLOATS);
+      n++;
+    }
+    if (!n) return null;
+    const D = { area: estimateArea(dst.W, n, this.asp || this.o.aspect, { frame: 0, window: 0 }), glowY: 0, half: 0, drop: 0 };
+    for (const m of ids.values()) { D.glowY += m.glowY; D.half += m.half; D.drop += m.drop; }
+    return D;
   }
   _onAct(H, p, t) {
     const heads = this._litHeads(H, p.grp);
@@ -2501,7 +2616,7 @@ export class LaserEngine {
     let over = false, best = null, bnAll = 0;
     const score = () => Math.max(this.chg.window / budget.window, this.chg.frame / budget.frame);
     for (let guard = 0; ; guard++) {
-      this._write(t, this.work, this.ringT);
+      this._write(t, this.work, this.ringT); this._writeHalved(this.work);
       estimateChange(this.drawn, this.work, asp, this.chg, this.contrib, this.state);
       if (this.chg.window <= budget.window + 1e-9 && this.chg.frame <= budget.frame + 1e-9) break;
       // the best state so far, to go out if nothing gets under budget (giving way only reorders beams within the first
@@ -2520,7 +2635,7 @@ export class LaserEngine {
       for (const [h, tp, th, pk, it, lv] of best.hits) { h.trimPri = tp; h.thin = th; h.peak = pk; h.inten = it; h.level01 = lv; }
       for (let i = 0; i < bnAll; i++) this.beams[i] = best.beams[i];
       this.bn = best.bn;
-      this._write(t, this.work, this.ringT);
+      this._write(t, this.work, this.ringT); this._writeHalved(this.work);
       estimateChange(this.drawn, this.work, asp, this.chg, this.contrib, this.state);
     }
     const buf = this.work, Wa = buf.W;
@@ -2541,11 +2656,29 @@ export class LaserEngine {
     // this frame is the one the next frame's change is measured against
     const s = this.drawn; this.drawn = indexKeys(this.work); this.work = s;
   }
-  // the hit (not yet stuck) whose new or moving beams change the most this frame
+  // A tail going out in two halves under a newer hit's onset (see _handOver) is drawn, in its half frame, as the very
+  // records it was drawn with last frame at half their level (core, halo, heat): nothing of it moves -- not its pattern's
+  // motion, not its strings -- so its change is the level step alone, which moves no pixel by 0.1. (Drawing it afresh
+  // let a moving or ringing tail change a strip along its edges: up to 3.2 % of a window in mashing.)
+  _writeHalved(buf) {
+    let ids = null;
+    for (const H of this.hits) if (H.halveF === this.frameIdx) (ids || (ids = new Set())).add(H.id);
+    if (!ids) return;
+    const src = this.drawn, S = src.W, Wa = buf.W;
+    for (let i = 0; i < src.n && buf.n < MAX_SEGMENTS; i++) {
+      if (!ids.has(Math.floor(src.keys[i] / 8192))) continue;
+      const o = buf.n * W_FLOATS;
+      Wa.set(S.subarray(i * W_FLOATS, (i + 1) * W_FLOATS), o);
+      Wa[o + W.I] *= 0.5; Wa[o + W.GLOW] *= 0.5; Wa[o + W.HEAT] *= 0.5;
+      buf.keys[buf.n] = src.keys[i]; buf.beam[buf.n] = -1;
+      buf.n++;
+    }
+  }
+  // the hit (not yet stuck) whose new or moving beams change the most this frame (a halved tail's records have no beam)
   _worstMover(stuck) {
     const buf = this.work, sum = new Map();
     for (let i = 0; i < buf.n; i++) {
-      if (this.state[i] === 0) continue;
+      if (this.state[i] === 0 || buf.beam[i] < 0) continue;
       const H = this.beams[buf.beam[i]].H;
       if (!stuck.has(H)) sum.set(H, (sum.get(H) || 0) + this.contrib[i]);
     }
@@ -2585,7 +2718,7 @@ export class LaserEngine {
   _mostlyMoving(H) {
     const buf = this.work;
     let n = 0, still = 0;
-    for (let i = 0; i < buf.n; i++) if (this.beams[buf.beam[i]].H === H) { n++; if (this.state[i] === 0) still++; }
+    for (let i = 0; i < buf.n; i++) if (buf.beam[i] >= 0 && this.beams[buf.beam[i]].H === H) { n++; if (this.state[i] === 0) still++; }
     return n > 0 && still <= 0.25 * n;
   }
   // the output: each record packed into its 2 texels; a figure's pieces behind their group header
