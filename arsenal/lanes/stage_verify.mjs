@@ -395,8 +395,9 @@ async function phaseClock({ ev, open, phase, deadline }) {
   const series = [];
   await ev("window.__stage.skipRender = true");      // the clock phase judges the logic, frame by frame; drawing is the other phases'
   phase.drawing = "off (logic only, every 60 fps frame)";
-  // the demo: intro 8 bars, build 8, drop 16 (150 BPM: 96 frames a bar). Run to bar 22: the build, its landing, the drop.
-  const total = 96 * 22 + 120;
+  // the demo: intro 8 bars, build 8, drop 24 (150 BPM: 96 frames a bar). v1: the phrase plays the drop's first 16 bars, so
+  // the run goes on into the classic drop (KICK on every downbeat, the strand's unison pulse) after it.
+  const total = 18 + 24 * (61 + 64 + 24);
   for (let done = 0; done < total && Date.now() < deadline - 25000; done += 240) {
     series.push(...await ev(`${RUN}(${Math.min(240, total - done)})`, 160000));
   }
@@ -838,9 +839,13 @@ const PICTURE_PROBE = String.raw`(() => {
     // the luminance and redness at projected points (3 x 3 px around each)
     points(pts) { const { w, h } = read(); return pts.map(([x, y]) => { let a = 0, r = 0, b = 0, n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X = Math.round(x) + dx, Y = Math.round(y) + dy; if (X < 0 || Y < 0 || X >= w || Y >= h) continue; const i = (Y * w + X) * 4; a += lumAt(X, Y, w); r += LUT[buf[i]]; b += LUT[buf[i + 2]]; n++; } return n ? [a / n, r / n, b / n] : [0, 0, 0]; }); },
     // the whole frame: mean luminance, lit share (luminance >= 0.05) and true-black share (every channel <= 8 of 255)
-    frame() { const { w, h } = read(); let a = 0, lit = 0, black = 0; const n = w * h; for (let i = 0; i < n; i++) { const L = 0.2126 * LUT[buf[i * 4]] + 0.7152 * LUT[buf[i * 4 + 1]] + 0.0722 * LUT[buf[i * 4 + 2]]; a += L; if (L >= 0.05) lit++; if (buf[i * 4] <= 8 && buf[i * 4 + 1] <= 8 && buf[i * 4 + 2] <= 8) black++; } return { mean: a / n, lit: lit / n, black: black / n }; },
+    frame() { const { w, h } = read(); let a = 0, lit = 0, black = 0; const n = w * h, hist = new Uint32Array(256); for (let i = 0; i < n; i++) { const L = 0.2126 * LUT[buf[i * 4]] + 0.7152 * LUT[buf[i * 4 + 1]] + 0.0722 * LUT[buf[i * 4 + 2]]; a += L; if (L >= 0.05) lit++; const mx = Math.max(buf[i * 4], buf[i * 4 + 1], buf[i * 4 + 2]); hist[mx]++; if (mx <= 8) black++; }
+      let acc = 0, med = 0; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n / 2) { med = v; break; } } return { mean: a / n, lit: lit / n, black: black / n, median_max_channel: med }; },
     // a frame kept for a later comparison, and the mean absolute luminance difference against it
     keep(name) { const { w, h } = read(); const L = new Float32Array(w * h); for (let i = 0; i < w * h; i++) L[i] = 0.2126 * LUT[buf[i * 4]] + 0.7152 * LUT[buf[i * 4 + 1]] + 0.0722 * LUT[buf[i * 4 + 2]]; (window.__kept ||= {})[name] = L; return true; },
+    size() { return [canvas.width, canvas.height]; },
+    // the luminance at the exact pixel of each point (no neighbours); reads the frame
+    centres(pts) { const { w, h } = read(); return pts.map(([x, y]) => { const X = Math.round(x), Y = Math.round(y); return X < 0 || Y < 0 || X >= w || Y >= h ? 0 : lumAt(X, Y, w); }); },
     diff(a, b) { const A = window.__kept[a], B = window.__kept[b]; let d = 0, m = 0; for (let i = 0; i < A.length; i++) { d += Math.abs(A[i] - B[i]); m += (A[i] + B[i]) / 2; } return { mean_abs: d / A.length, mean: m / A.length, relative: m > 0 ? d / m : 0 }; },
     project,
   };
@@ -868,99 +873,210 @@ function peakPeriod(xs, ys, lo, hi, step = 0.002) {
   return bestP;
 }
 // the lag (in samples) that best aligns b to a (b later = positive)
-function bestLag(a, b, maxLag) { const ma = a.reduce((s, v) => s + v, 0) / a.length, mb = b.reduce((s, v) => s + v, 0) / b.length; let best = -Infinity, bl = 0; for (let L = -maxLag; L <= maxLag; L++) { let c = 0; for (let i = Math.max(0, -L); i < a.length && i + L < b.length; i++) c += (a[i] - ma) * (b[i + L] - mb); if (c > best) { best = c; bl = L; } } return bl; }
+function bestLag(a, b, maxLag, minLag = -maxLag) { const ma = a.reduce((s, v) => s + v, 0) / a.length, mb = b.reduce((s, v) => s + v, 0) / b.length; let best = -Infinity, bl = 0; for (let L = minLag; L <= maxLag; L++) { let c = 0; for (let i = Math.max(0, -L); i < a.length && i + L < b.length; i++) c += (a[i] - ma) * (b[i + L] - mb); if (c > best) { best = c; bl = L; } } return bl; }
 
-async function levelsPicture({ ev, open, phase, deadline }, variant) {
+// The thirds in the picture, in the show (the limiter's interventions recorded): samples along each third's 16 beams (3, 6
+// and 10 m out from the lens: the lens glare itself clips, the beam's light does not), at HALO_LOCK. The footage's rows at
+// the ring centre +-R/3 do not transfer: our ring leans back 55 degrees and from this lens every lit beam fans out across
+// the picture, so a row across the frame catches all three thirds. daniel: the demo's own step A (repeat 0, 12 beats);
+// rush: the phrase forced to a rush repeat in the build (its home), lengthened to 8 beats of rush for the measure.
+const BEAM_SAMPLES = (ts) => String.raw`(() => { const s = window.__stage, R = s.renderer; return ["halo.top", "halo.mid", "halo.bot"].map((n) => { const out = [];
+  for (const k of s.rig.groups[n].members) { const o = R.headOut[k]; for (const t of ${JSON.stringify(ts)}) { const q = window.__pic.project([o.lens[0] + o.dir[0] * t, o.lens[1] + o.dir[1] * t, o.lens[2] + o.dir[2] * t]);
+    if (q[2] && q[0] >= 2 && q[1] >= 2 && q[0] < window.__pic.size()[0] - 2 && q[1] < window.__pic.size()[1] - 2) out.push([q[0], q[1]]); } } return out; }); })()`;
+async function levelsInShow({ ev, open, phase, deadline }, variant) {
   await open(`demo=1&vt=1&${BASE}`);
   await ev(PICTURE_PROBE);
-  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < ${frameOfBeat(6)}; i++) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
   const rush = variant === "rush";
-  const beats = rush ? 12 : 24, eff = rush ? "levels-rush" : "levels-step";
-  const at = await startTestPhrase(ev, `rx-${variant}`, testPhrase(`rx-${variant}`, [LEVELS_LINE(eff)], beats, "HALO_LOCK"), "HALO_LOCK");
-  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at} - 1) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
-  await ev(`(() => { window.__vt.step(${F}); return true; })()`);
-  // the rows: where each third's emitters sit on the canvas (the centroid of its heads on the ring's rim). Our ring leans
-  // back 55 degrees, so the footage's rows at the ring centre +-R/3 would fall inside the ring, under the top third.
-  const rows = await ev(`(() => { const s = window.__stage; return ["halo.top", "halo.mid", "halo.bot"].map((n) => { const g = s.rig.groups[n]; let y = 0; for (const p of g.world) y += window.__pic.project(p)[1]; return y / g.n; }); })()`);
-  const half = Math.max(2, Math.round(H * 0.012));
-  // a beat of baseline (the halo dark), then the step: every frame for rush, every second frame otherwise
-  const every = rush ? 1 : 2;
+  let at, until, every;
+  if (!rush) {
+    at = DROP_BEAT; until = DROP_BEAT + 10.95; every = 2;          // (the cut to the horizontal step comes on A's beat 12)
+  } else {
+    // the rush repeat at the build's ONE: A1 4 beats at Daniel's speed, then A2 8 beats at the footage's
+    await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < ${frameOfBeat(26)}; i++) window.__vt.step(${F}); return true; })()`, 160000);
+    at = await ev(`(() => { const s = window.__stage; s.show.padRules = [];
+      s.rig.phrases["halo-levels"].vary.variants["rx-rush"] = { steps: { A: { split: [{ beats: 4 }, { beats: 8, swap: { "levels-step": "levels-rush" }, laser_schedule: "levels-rush" }] } } };
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs), at = s.grid.nextBarPos(pos);
+      s.programmer.setOverlay(s.runner.prepareLines("halo-levels"), pos, { positionsOnly: true });
+      s.runner.start("halo-levels", at, { repeats: 1, camera: true, section: "build", source: "pad", variant: "rx-rush" }); return at + 4; })()`);
+    until = at + 6.95; every = 1;                                // (the cut to the horizontal step comes a beat before A2 ends)
+  }
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at} + 0.02) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return true; })()`, 160000);
+  // (the rush is a lift: near the lens its beams clip, so it is read further out, where a beam has spread into the
+  // display's linear range)
+  const along = rush ? [20, 30, 40] : [3, 6, 10];
+  const heads = await ev(BEAM_SAMPLES(along));                   // projected once the step's own camera is up
+  const lim0 = await ev("window.__stage.limiter.stats().interventions");
   const series = [];
-  const until = at + beats;
   while (Date.now() < deadline - 15000) {
-    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 24; i++) { s.skipRender = ${every > 1 ? "true" : "false"}; for (let k = 1; k < ${every}; k++) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F});
-      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs); out.push([pos, ...window.__pic.strips(${JSON.stringify(rows)}, ${half})]); if (pos > ${until}) break; } return out; })()`, 160000);
+    const chunk = await ev(`(() => { const s = window.__stage, out = [], H3 = ${JSON.stringify(heads)}; for (let i = 0; i < 24; i++) { s.skipRender = ${every > 1 ? "true" : "false"}; for (let k = 1; k < ${every}; k++) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F});
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs); out.push([pos, ...H3.map((pts) => { const L = window.__pic.points(pts); return L.reduce((a, q) => a + q[0], 0) / L.length; }), s.director.pose.shot, s.runner.status().step]); if (pos > ${until}) break; } return out; })()`, 160000);
     series.push(...chunk);
     if (chunk.at(-1)[0] > until) break;
   }
-  const base = series.filter((r) => r[0] < at - 0.1);
-  const run = series.filter((r) => r[0] >= at + 0.05 && r[0] < until - 0.05);
-  const b0 = [1, 2, 3].map((k) => base.length ? base.reduce((a, r) => a + r[k], 0) / base.length : 0);
+  const lim1 = await ev("window.__stage.limiter.stats().interventions");
+  const run = series.filter((r) => r[0] >= at + 0.05 && r[0] < until - 0.02);
   const xs = run.map((r) => r[0] - at);
-  const strip = [1, 2, 3].map((k) => run.map((r) => r[k] - b0[k - 1]));
+  const strip = [1, 2, 3].map((k) => run.map((r) => r[k]));
   const want = rush ? 0.75 : 3;
   const P = peakPeriod(xs, strip[0], rush ? 0.4 : 1.5, rush ? 1.5 : 6);
   const stepBeats = rush ? 0.25 : 1, spb = stepBeats / ((every * 150) / 60 / 60);
-  const lagMid = bestLag(strip[0], strip[1], Math.round(spb * 1.5)) / spb, lagBot = bestLag(strip[0], strip[2], Math.round(spb * 2.5)) / spb;
-  // the top strip by the cycle's three steps: the dark step's light against the lit step's (above the baseline)
-  const byStep = [0, 1, 2].map((k) => { const v = run.filter((r, i) => Math.floor(((xs[i] / stepBeats) % 3 + 3) % 3) === k && ((xs[i] / stepBeats) % 1) > 0.2 && ((xs[i] / stepBeats) % 1) < 0.8).map((r) => r[1] - b0[0]); return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length); });
-  const darkShare = Math.max(0, Math.min(...byStep)) / Math.max(1e-9, Math.max(...byStep));
-  const res = { variant, samples: run.length, rows_px: rows.map((r) => +r.toFixed(1)), top_peak_period_beats: +P.toFixed(3), lag_middle_steps: +lagMid.toFixed(2), lag_bottom_steps: +lagBot.toFixed(2),
-                top_by_step: byStep.map((v) => +v.toFixed(5)), dark_over_lit: +darkShare.toFixed(3) };
+  const cyc = Math.round(spb * 3) - 1;                    // lags searched over one cycle forward: 0 .. 3 steps
+  const lagMid = bestLag(strip[0], strip[1], cyc, 0) / spb, lagBot = bestLag(strip[0], strip[2], cyc, 0) / spb;
+  const byStep = [0, 1, 2].map((k) => { const v = run.filter((r, i) => Math.floor(((xs[i] / stepBeats) % 3 + 3) % 3) === k && ((xs[i] / stepBeats) % 1) > 0.2 && ((xs[i] / stepBeats) % 1) < 0.8).map((r) => r[1]); return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length); });
+  const darkRaw = Math.min(...byStep) / Math.max(1e-9, Math.max(...byStep));
+  // in the show other light sits under every sample (the strand, the slats, the lasers): the dark step is measured above
+  // the strip's own floor (its 5th percentile over the step), the raw ratio reported beside it
+  const floorTop = [...strip[0]].sort((a, b) => a - b)[Math.floor(0.05 * (strip[0].length - 1))];
+  const darkShare = Math.max(0, Math.min(...byStep) - floorTop) / Math.max(1e-9, Math.max(...byStep) - floorTop);
+  const res = { variant, in_show: rush ? "the build, the phrase forced to a rush repeat (8 beats of rush)" : "the demo's drop, repeat 0, step A",
+                shots: [...new Set(run.map((r) => r[4]))], samples: run.length, measure: `3 x 3 px patches along each third's 16 beams (${along.join(", ")} m from the lens)`, patches: heads.map((h) => h.length),
+                top_peak_period_beats: +P.toFixed(3), lag_middle_steps: +lagMid.toFixed(2), lag_bottom_steps: +lagBot.toFixed(2), top_by_step: byStep.map((v) => +v.toFixed(5)),
+                dark_over_lit: +darkShare.toFixed(3), dark_over_lit_raw: +darkRaw.toFixed(3), top_floor: +floorTop.toFixed(5), limiter_interventions: lim1 - lim0 };
   phase[`levels_${variant}`] = res;
+  writeFileSync(join(outDir, `levels-${variant}-series.json`), JSON.stringify({ at, xs, strip }));
   const tol = rush ? 0.03 : 0.09;
-  // rush is a lift (the unlit thirds hold 0.72): its dark step is 72 % of its lit one by design, so only the period and
-  // the order are its targets
-  check(`picture: HALO_LOCK rows, ${variant} levels: the top row's period ${want} +- ${tol} beats, middle +1 step, bottom +2 steps (+-0.25)${rush ? "" : ", dark step <= 15 % of the lit step"}`,
-        Math.abs(P - want) <= tol && Math.abs(lagMid - 1) <= 0.25 && Math.abs(lagBot - 2) <= 0.25 && (rush || darkShare <= 0.15), res);
+  // rush is a lift (the unlit thirds hold 0.72): its dark step is most of its lit one by design, so its targets are the
+  // period and the order
+  check(`picture: HALO_LOCK in the show, ${variant} levels along the thirds' beams: the top third's period ${want} +- ${tol} beats, middle +1 step, bottom +2 steps (+-0.25)${rush ? "" : ", dark step <= 15 % of the lit step"}, no limiter intervention`,
+        Math.abs(P - want) <= tol && Math.abs(lagMid - 1) <= 0.25 && Math.abs(lagBot - 2) <= 0.25 && (rush || darkShare <= 0.15) && res.limiter_interventions === 0, res);
 }
-async function phasePicLevels(ctx) { return levelsPicture(ctx, "daniel"); }
-async function phasePicRush(ctx) { return levelsPicture(ctx, "rush"); }
+async function phasePicLevels(ctx) { return levelsInShow(ctx, "daniel"); }
+async function phasePicRush(ctx) { return levelsInShow(ctx, "rush"); }
 
-async function phasePicRing({ ev, open, phase, deadline }) {
-  await open(`demo=1&vt=1&${BASE}`);
-  await ev(PICTURE_PROBE);
-  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < ${frameOfBeat(6)}; i++) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
-  // the chopper on every slat (6 beats), then the colour bump (6 beats) at the front-of-house long lens
-  const def = { name: "rx-ring", bars: 3, steps: [
-    { id: "C", name: "chopper", beats: 6, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.9, Color: "W", Color2: "A" }, effects: ["ring-chopper"] }] },
-    { id: "B", name: "bump", beats: 6, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.35, Color: "bumpA", Color2: "bumpB" }, effects: ["ring-colour-bump"] }] }] };
-  const at = await startTestPhrase(ev, "rx-ring", def, "HALO_LOCK");
-  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return true; })()`, 160000);
-  const pts = await ev(`(() => { const s = window.__stage, g = s.rig.groups["rings.r0.slats"], out = []; for (let m = 0; m < g.n; m += 2) { const p = window.__pic.project(g.world[m]); out.push([p[0], p[1], g.keys.angle[m]]); } return out; })()`);
-  const rec = [];
-  while (Date.now() < deadline - 15000) {
-    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 24; i++) { window.__vt.step(${F}); const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
-      out.push([pos, window.__pic.points(${JSON.stringify(pts.map((p) => [p[0], p[1]]))}), window.__pic.frame().mean]); if (pos > ${at + 12}) break; } return out; })()`, 160000);
-    rec.push(...chunk);
-    if (chunk.at(-1)[0] > at + 12) break;
-  }
-  const ang = pts.map((p) => p[2]);
-  const C = rec.filter((r) => r[0] >= at + 0.1 && r[0] < at + 5.9);
-  const h = C.map((r) => { const L = r[1].map((x) => x[0]); const lo = Math.min(...L); let re = 0, im = 0, w = 0, re1 = 0, im1 = 0; L.forEach((v, k) => { const d = v - lo; re += d * Math.cos(2 * ang[k]); im += d * Math.sin(2 * ang[k]); re1 += d * Math.cos(ang[k]); im1 += d * Math.sin(ang[k]); w += d; }); return { a2: w ? Math.hypot(re, im) / w : 0, a1: w ? Math.hypot(re1, im1) / w : 0, ph: Math.atan2(im, re) }; });
+// The chopper's blade angle from the luminance at a ring's cells: the 2nd circular harmonic (amplitude over a robust
+// baseline, the 20th percentile of the cells), its phase unwrapped and fitted.
+function chopperFit(frames, ang) {
+  const pct = (arr, q) => { const v = [...arr].sort((a, b) => a - b); return v[Math.floor(q * (v.length - 1))]; };
+  // each cell by its own range over the frames: a cell's static gain (the strand or the halo's hardware in front of it,
+  // perspective on the tilted ring, its size on the canvas) is not the blade pattern; cells that never change are left out
+  const nC = frames[0].L.length, lo = new Float64Array(nC).fill(Infinity), hi = new Float64Array(nC).fill(-Infinity);
+  for (const r of frames) for (let k = 0; k < nC; k++) { lo[k] = Math.min(lo[k], r.L[k]); hi[k] = Math.max(hi[k], r.L[k]); }
+  const ranges = Array.from(hi, (v, k) => v - lo[k]), medR = pct(ranges, 0.5);
+  const use = ranges.map((r) => r > 0.1 * medR && r > 1e-4);
+  const h = frames.map((r) => { let re = 0, im = 0, w = 0, re1 = 0, im1 = 0;
+    r.L.forEach((v, k) => { if (!use[k]) return; const d = (v - lo[k]) / ranges[k]; re += d * Math.cos(2 * ang[k]); im += d * Math.sin(2 * ang[k]); re1 += d * Math.cos(ang[k]); im1 += d * Math.sin(ang[k]); w += d; });
+    return { a2: w ? Math.hypot(re, im) / w : 0, a1: w ? Math.hypot(re1, im1) / w : 0, ph: Math.atan2(im, re) }; });
   const a2 = [h[0].ph / 2];
   for (let i = 1; i < h.length; i++) { let d = h[i].ph / 2 - h[i - 1].ph / 2; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI; a2.push(a2.at(-1) + d); }
-  const xs = C.map((r) => r[0]), n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = a2.reduce((a, b) => a + b) / n;
+  const xs = frames.map((r) => r.pos), n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = a2.reduce((a, b) => a + b) / n;
   let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (a2[i] - my); sxx += (xs[i] - mx) ** 2; }
   const turns = sxy / sxx / (2 * Math.PI);
   const within = a2.filter((a, i) => Math.abs(a - (my + (sxy / sxx) * (xs[i] - mx))) <= Math.PI / 6).length / n;
-  const chop = { frames: n, second_harmonic: +(h.reduce((s, x) => s + x.a2, 0) / n).toFixed(3), first_harmonic: +(h.reduce((s, x) => s + x.a1, 0) / n).toFixed(3),
-                 turns_per_beat: +turns.toFixed(3), counter_clockwise: turns > 0, within_30deg: +within.toFixed(3) };
-  phase.chopper = chop;
-  check("picture: the chopper on the rendered rings (front of house): second harmonic >= 0.6, 1 turn a beat +-5 %, counter-clockwise, 90 %+ of frames within 30 degrees of the fit",
-        chop.second_harmonic >= 0.6 && Math.abs(turns - 1) <= 0.05 && turns > 0 && within >= 0.9, chop);
-  const B = rec.filter((r) => r[0] >= at + 6.1 && r[0] < at + 11.9);
-  const red = B.map((r) => { let a = 0, b = 0; for (const p of r[1]) { a += p[1]; b += p[2]; } return a / Math.max(1e-9, a + b); });
-  const P = peakPeriod(B.map((r) => r[0]), red, 0.5, 3);
-  const means = B.map((r) => r[2]), mm = means.reduce((a, b) => a + b, 0) / means.length;
-  const bump = { frames: B.length, period_beats: +P.toFixed(3), frame_mean: +mm.toFixed(4), frame_swing: +((Math.max(...means) - Math.min(...means)) / mm).toFixed(4) };
+  const contrast = frames.map((r) => { const L = r.L; return pct(L, 0.9) / Math.max(1e-6, pct(L, 0.1)); });
+  return { frames: n, cells_used: use.filter(Boolean).length, second_harmonic: +(h.reduce((s, x) => s + x.a2, 0) / n).toFixed(3), first_harmonic: +(h.reduce((s, x) => s + x.a1, 0) / n).toFixed(3),
+           turns_per_beat: +turns.toFixed(3), counter_clockwise: turns > 0, within_30deg: +within.toFixed(3), cell_contrast_p90_p10: +(contrast.reduce((a, b) => a + b, 0) / contrast.length).toFixed(2) };
+}
+// the luminance at the exact pixel of each projected point (no neighbours)
+const CELL_READ = (pts) => `(() => { const P = ${JSON.stringify(pts)}; const L = window.__pic.points(P); const C = window.__pic.centres(P); return { L: L.map((q) => q[0]), C, R: L.map((q) => q[1]), B: L.map((q) => q[2]) }; })()`;
+
+async function phasePicRing({ ev, open, phase, deadline, shot }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PICTURE_PROBE);
+  // 1. the demo's own step E (repeat 0, HALO_ORBIT): the chopper on ring 0's slats
+  const E0 = DROP_BEAT + 28;
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${E0} + 0.05) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return true; })()`, 160000);
+  const ringPts = async () => ev(`(() => { const s = window.__stage, g = s.rig.groups["rings.r0.slats"], out = []; for (let m = 0; m < g.n; m += 2) { const p = window.__pic.project(g.world[m]); out.push([p[0], p[1], g.keys.angle[m]]); } return out; })()`);
+  // HALO_ORBIT moves (a 30 degree arc): the cells are projected again on every frame
+  const E = [];
+  while (Date.now() < deadline - 100000) {
+    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 24; i++) { window.__vt.step(${F}); const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+      const g = s.rig.groups["rings.r0.slats"], g3 = s.rig.groups["rings.r3.slats"], pts = [], p3 = []; for (let m = 0; m < g.n; m += 2) { const p = window.__pic.project(g.world[m]); pts.push([p[0], p[1]]); }
+      for (let m = 0; m < g3.n; m += 2) { const p = window.__pic.project(g3.world[m]); p3.push([p[0], p[1]]); }
+      out.push({ pos, shot: s.director.pose.shot, step: s.runner.status().step, C: window.__pic.centres(pts), L: window.__pic.points(pts).map((q) => q[0]), L3: window.__pic.points(p3).map((q) => q[0]) }); if (pos > ${E0} + 2.9) break; } return out; })()`, 160000);
+    E.push(...chunk);
+    if (chunk.at(-1).pos > E0 + 2.9) break;
+  }
+  const ang = (await ringPts()).map((p) => p[2]);
+  const ang3 = await ev(`(() => { const g = window.__stage.rig.groups["rings.r3.slats"], out = []; for (let m = 0; m < g.n; m += 2) out.push(g.keys.angle[m]); return out; })()`);
+  const inE = E.filter((r) => r.step === "E");
+  const ownCam = { shot: [...new Set(inE.map((r) => r.shot))], patch: chopperFit(inE, ang), centre: chopperFit(inE.map((r) => ({ pos: r.pos, L: r.C })), ang),
+                   inner_ring: chopperFit(inE.map((r) => ({ pos: r.pos, L: r.L3 })), ang3) };
+  phase.chopper_in_show = ownCam;
+  // 2. the isolated front-of-house test: the chopper on every slat (5 beats), then the colour bump (6 beats) at 5 %
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${E0 + 6}) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
+  const def = { name: "rx-ring", bars: 3, steps: [
+    { id: "C", name: "chopper", beats: 6, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.9, Color: "W", Color2: "A" }, effects: ["ring-chopper"] }] },
+    { id: "B", name: "bump", beats: 6, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.05, Color: "bumpA", Color2: "bumpB" }, effects: ["ring-colour-bump"] }] }] };
+  const at = await startTestPhrase(ev, "rx-ring", def, "HALO_LOCK");
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return true; })()`, 160000);
+  const pts = await ringPts();
+  const PTS = JSON.stringify(pts.map((p) => [p[0], p[1]]));
+  const rec = [];
+  while (Date.now() < deadline - 15000) {
+    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 24; i++) {
+      let pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+      if (pos > ${at + 3.1} && pos < ${at + 6}) { s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at + 6}) window.__vt.step(${F}); s.skipRender = false; }
+      if (pos >= ${at + 6}) { s.skipRender = true; window.__vt.step(${F}); s.skipRender = false; }
+      window.__vt.step(${F}); pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+      const L = window.__pic.points(${PTS}); out.push({ pos, L: L.map((q) => q[0]), R: L.map((q) => q[1]), B: L.map((q) => q[2]), C: window.__pic.centres(${PTS}), mean: window.__pic.frame().mean }); if (pos > ${at + 12}) break; } return out; })()`, 160000);
+    rec.push(...chunk);
+    if (chunk.at(-1).pos > at + 12) break;
+  }
+  const Cf = rec.filter((r) => r.pos >= at + 0.1 && r.pos < at + 3.0);
+  phase.chopper_foh = { patch: chopperFit(Cf, ang), centre: chopperFit(Cf.map((r) => ({ pos: r.pos, L: r.C })), ang) };
+  const best = (x) => [x.centre, x.patch, x.inner_ring].filter(Boolean).sort((a, b) => b.second_harmonic - a.second_harmonic)[0];
+  const o = best(ownCam), f = best(phase.chopper_foh);
+  check("picture: the chopper on the rendered rings at front of house (HALO_LOCK): second harmonic >= 0.6, 1 turn a beat +-5 %, counter-clockwise, 90 %+ of frames within 30 degrees of the fit",
+        f.second_harmonic >= 0.6 && Math.abs(f.turns_per_beat - 1) <= 0.05 && f.turns_per_beat > 0 && f.within_30deg >= 0.9, phase.chopper_foh);
+  check("picture: the chopper at its own camera in the show (step E, HALO_ORBIT, repeat 0): 1 turn a beat +-5 %, counter-clockwise, 90 %+ of frames on the fit (its harmonic reported: the corona's heads and beams sit over part of the ring from that angle)",
+        Math.abs(o.turns_per_beat - 1) <= 0.05 && o.turns_per_beat > 0 && o.within_30deg >= 0.9, { own_camera: ownCam, best: o });
+  const B = rec.filter((r) => r.pos >= at + 6.1 && r.pos < at + 11.9);
+  const red = B.map((r) => { let a = 0, b = 0; for (let k = 0; k < r.R.length; k++) { a += r.R[k]; b += r.B[k]; } return a / Math.max(1e-9, a + b); });
+  const P = peakPeriod(B.map((r) => r.pos), red, 0.5, 3);
+  const half = (lo, hi, fn) => { const v = B.filter((r) => { const fr = ((r.pos - at) % 1 + 1) % 1; return fr >= lo && fr < hi; }).map(fn); return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length); };
+  const cells = (r) => r.L.reduce((a, b) => a + b, 0) / r.L.length;
+  const rb = half(0.1, 0.4, cells), rp = half(0.6, 0.9, cells), fb = half(0.1, 0.4, (r) => r.mean), fp = half(0.6, 0.9, (r) => r.mean);
+  const bump = { frames: B.length, period_beats: +P.toFixed(3), dimmer: 0.05, ring_cells_blue: +rb.toFixed(5), ring_cells_pink: +rp.toFixed(5), ring_cells_change: +(Math.abs(rp - rb) / ((rp + rb) / 2)).toFixed(4),
+                 frame_blue: +fb.toFixed(5), frame_pink: +fp.toFixed(5), frame_change: +(Math.abs(fp - fb) / ((fp + fb) / 2)).toFixed(4) };
   phase.bump = bump;
-  check("picture: the colour bump on the rendered rings: its period 1.00 +- 0.05 beat, the frame's brightness moving 3 % or less", Math.abs(P - 1) <= 0.05 && bump.frame_swing <= 0.03, bump);
+  writeFileSync(join(outDir, "ring-series.json"), JSON.stringify({ at, ang, inE: inE.slice(0, 4), foh: Cf.slice(0, 4), bump: B.slice(0, 24).map((r) => [r.pos, cells(r), r.mean]) }));
+  check("picture: the colour bump on the rendered rings: its period 1.00 +- 0.05 beat; blue or pink, the rings' brightness and the frame's change 3 % or less (a hue bump, not a flash)",
+        Math.abs(P - 1) <= 0.05 && bump.ring_cells_change <= 0.03 && bump.frame_change <= 0.03, bump);
+}
+
+// A diagnostic burst (not in the default run): the ring test at HALO_LOCK, a screenshot, the projected points of ring 0's
+// slats and of each third's heads, and the luminance read at them, to check the picture probes against the picture.
+async function phasePicDebug({ ev, open, shot, phase }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PICTURE_PROBE);
+  // 1. step D (repeat 0) at beat 5: which heads are lit, and what the renderer drew
+  const D5 = DROP_BEAT + 25;
+  const r = await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${D5}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F});
+    const P = s.programmer, lit = {};
+    for (const [n, g] of Object.entries(s.rig.groups)) { if (g.kind !== "heads") continue; let mx = 0; for (const k of g.members) mx = Math.max(mx, P.heads[k * 16 + 2]); if (mx > 0.01) lit[n] = +mx.toFixed(3); }
+    const tl = []; for (let i = 0; i < P.nH; i++) if (P.tH[i * 7 + 2] > 0.01) tl.push(i);
+    return { pos: s.grid.posAt(performance.now() + s.grid.presentLagMs), step: s.runner.status(), shot: s.director.pose.shot, lit, targetsLit: tl.length, info: s.renderer.info,
+             ov: { active: P.ov.active, preroll: P.ov.preroll, lines: P.ov.lines.length } }; })()`);
+  phase.debug_d = r;
+  if (sheetDir) await shot(join(sheetDir, "debug-D5.png"));
+  // 2. the bump at 5 %: the rendered ring cells' luminance, blue against pink at four pink gains (the theme's bumpB scaled
+  // in linear light)
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${DROP_BEAT + 36}) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
+  const def = { name: "rx-bump", bars: 6, steps: [{ id: "B", name: "bump", beats: 24, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.05, Color: "bumpA", Color2: "bumpB" }, effects: ["ring-colour-bump"] }] }] };
+  const at = await startTestPhrase(ev, "rx-bump", def, "HALO_LOCK");
+  const gains = [1.0, 1.12, 1.24, 1.36];
+  const out = [];
+  for (const [k, gain] of gains.entries()) {
+    const res = await ev(`(() => { const s = window.__stage, P = s.programmer;
+      const lin = (h) => { const v = parseInt(h.slice(1), 16), f = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return [f((v >> 16) & 255), f((v >> 8) & 255), f(v & 255)]; };
+      const pink = lin(s.rig.themes["source-violet"].bumpB).map((c) => c * ${gain}); P.roleRGB[7] = pink;
+      while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at} + ${4 * k} + 1) { s.skipRender = true; window.__vt.step(${F}); }
+      s.skipRender = false;
+      const g = s.rig.groups["rings.r0.slats"], pts = []; for (let m = 0; m < g.n; m += 2) { const q = window.__pic.project(g.world[m]); pts.push([q[0], q[1]]); }
+      const acc = { blue: [], pink: [] };
+      for (let i = 0; i < 48; i++) { window.__vt.step(${F}); const f = ((s.grid.posAt(performance.now() + s.grid.presentLagMs) - ${at}) % 1 + 1) % 1; const L = window.__pic.points(pts); const m = L.reduce((a, q) => a + q[0], 0) / L.length;
+        if (f > 0.1 && f < 0.4) acc.blue.push(m); else if (f > 0.6 && f < 0.9) acc.pink.push(m); }
+      const mean = (v) => v.reduce((a, b) => a + b, 0) / Math.max(1, v.length);
+      return { gain: ${gain}, blue: mean(acc.blue), pink: mean(acc.pink) }; })()`, 160000);
+    out.push(res);
+  }
+  phase.bump_gains = out;
+  check("pic-debug: ran", true, { d5: r, bump: out.map((o) => ({ gain: o.gain, blue: +o.blue.toFixed(4), pink: +o.pink.toFixed(4), ratio: +(o.pink / o.blue).toFixed(3) })) });
 }
 
 // The hand-off and never-static, in the demo as programmed (its own cameras): D's frames (lit share, true black) and the
 // same phrase position in two repeats.
-async function phasePicHandoff({ ev, open, phase, deadline }) {
+async function phasePicHandoff({ ev, open, phase, deadline, shot }) {
   await open(`demo=1&vt=1&${BASE}`);
   await ev(PICTURE_PROBE);
   const goTo = async (beat) => ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${beat}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return s.grid.posAt(performance.now() + s.grid.presentLagMs); })()`, 160000);
@@ -969,18 +1085,22 @@ async function phasePicHandoff({ ev, open, phase, deadline }) {
   // repeat 0: the same-position frames, then D sampled every 4th frame; repeat 1: the same positions again
   const D = [];
   const rep0 = DROP_BEAT, rep1 = DROP_BEAT + 32;
-  for (const [st, b] of positions.slice(0, 3)) { await goTo(rep0 + stepAt[st] + b); await ev(`window.__pic.keep("r0-${st}")`); }
+  const keepAt = async (beat, name) => ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${beat}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return window.__pic.keep(${JSON.stringify(name)}); })()`, 160000);
+  for (const [st, b] of positions.slice(0, 3)) await keepAt(rep0 + stepAt[st] + b, `r0-${st}`);
   await goTo(rep0 + stepAt.D + 0.05);
+  let shotTaken = false;
   while (Date.now() < deadline - 60000) {
     const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 12; i++) { s.skipRender = true; for (let k = 0; k < 3; k++) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F});
       const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs); out.push({ pos, shot: s.director.pose.shot, ...window.__pic.frame() }); if (pos > ${rep0 + stepAt.E - 0.1}) break; } return out; })()`, 160000);
     D.push(...chunk.filter((r) => r.pos < rep0 + stepAt.E));
+    if (!shotTaken && sheetDir && chunk.at(-1).pos >= rep0 + stepAt.D + 5) { await shot(join(sheetDir, "handoff-D-beat5.png")); shotTaken = true; }
     if (chunk.at(-1).pos > rep0 + stepAt.E - 0.1) break;
   }
-  await goTo(rep0 + stepAt.E + 1.5); await ev(`window.__pic.keep("r0-E")`);
-  for (const [st, b] of positions) { await goTo(rep1 + stepAt[st] + b); await ev(`window.__pic.keep("r1-${st}")`); }
+  await keepAt(rep0 + stepAt.E + 1.5, "r0-E");
+  for (const [st, b] of positions) await keepAt(rep1 + stepAt[st] + b, `r1-${st}`);
   const lit = D.reduce((a, r) => a + r.lit, 0) / D.length, black = D.reduce((a, r) => a + r.black, 0) / D.length;
   phase.handoff = { frames: D.length, shots: [...new Set(D.map((r) => r.shot))], lit_share: +lit.toFixed(4), true_black_share: +black.toFixed(4),
+                    median_max_channel: D.map((r) => r.median_max_channel).sort((a, b) => a - b)[Math.floor(D.length / 2)],
                     definition: "lit: relative luminance >= 0.05; true black: every channel <= 8 of 255" };
   check("picture: the hand-off to the lasers (step D, the demo's own cameras): 15 % or less of the frame lit, 30 % or more true black", D.length >= 20 && lit <= 0.15 && black >= 0.30, phase.handoff);
   const diffs = {};
@@ -991,7 +1111,7 @@ async function phasePicHandoff({ ev, open, phase, deadline }) {
 
 // The three-minute run: the programmed demo (with its phrase in the drop) from one second after load, every frame read
 // back with the crowd on, in chunks: each chunk is its own burst (the lock, a fresh Chrome, under three minutes), fast-
-// forwards the show's logic to its start, renders a warm-up of 1.5 s the limiter judges (so its one-second windows are
+// forwards the show's logic to its start, renders a warm-up of 64 frames the limiter judges (so its 1.01 s windows are
 // full), then the chunk. The verifier's own counter judges the stitched series of all chunks.
 const RUN_START = 60;
 async function flashChunk({ ev, open, phase, deadline }, k, framesPer, warm, runFrames, fw, fh) {
@@ -1027,7 +1147,7 @@ async function flashChunk({ ev, open, phase, deadline }, k, framesPer, warm, run
 }
 async function runFlash3m() {
   const seconds = Number(opt["flash3m-seconds"]) || 180, per = Number(opt["chunk-seconds"]) || 10;
-  const runFrames = Math.round(seconds * 60), framesPer = Math.round(per * 60), warm = 90;
+  const runFrames = Math.round(seconds * 60), framesPer = Math.round(per * 60), warm = 64;
   const scale = Number(opt["flash-scale"]) || 1;
   const fw = Math.round(W * scale), fh = Math.round(H * scale);
   const nChunks = Math.ceil(runFrames / framesPer);
@@ -1088,6 +1208,11 @@ async function phaseSheetPhrase({ ev, open, shot, phase }) {
     }
   }
   check("sheet-phrase: every step of two repeats from the phrase's camera and the tribune", phase.shots.length === plan.length * 2, phase.shots.map((s) => `${s.rep}:${s.label}:${s.step}:${s.variant}:${s.shot}`));
+  // the HUD names the running step (Daniel's view of where the phrase is)
+  const hud = await ev(`(() => { const s = window.__stage; s.clearShot(); document.getElementById("hud").classList.remove("hidden");
+    for (let i = 0; i < 8; i++) window.__vt.step(${F}); const st = s.runner.status(); return { text: document.getElementById("hud-phrase").textContent, step: st.step, stepName: st.stepName, variant: st.variant }; })()`);
+  phase.hud = hud;
+  check("sheet-phrase: the HUD's phrase row names the running step, its variant and its repeat", hud.step && hud.text.includes(`${hud.step} ${hud.stepName}`) && hud.text.includes(hud.variant), hud);
 }
 
 // ------------------------------------------------------------------------------------------------------ main --
@@ -1096,7 +1221,7 @@ try {
   ENGINE_PORT = await listen(engine, ENGINE_PORT);
   report.ports = { web: PORT, engine: ENGINE_PORT };
   const table = { load: phaseLoad, clock: phaseClock, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
-                  phrase: phasePhrase, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase };
+                  phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }

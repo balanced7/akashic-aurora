@@ -12,7 +12,9 @@
 //
 //   phrases.<name> = { name, bars, go: "bar", sections, base: [lines], steps: [step], vary: {deck, first, no_repeat,
 //                      variants, per_repeat} }
-//   step  = { id, name, beats, trigger: "follow" | "go", lines: [line], cues: [{at (beats), lines}], camera }
+//   step  = { id, name, beats, trigger: "follow" | "go", lines: [line], cues: [{at (beats), lines}], camera, ambient? }
+//           ambient: the room's veil and fill light for the step, x the theme's (D, the laser hand-off: 0.1, so the
+//           lasers cut through true black, as the footage's laser sections do)
 //   line  = { group, preset?, values?, effects?: [name | {name, with}], fade? (beats), flash? }   a fixture or cell group
 //         | { group, laser: {shape, gate?, schedule?, follow?, colour?, level?, from_beats?, until_beats?, ...} }  lasers
 //   camera = { shot, alt?, precut_beats?, then?: {beats, shot} }
@@ -148,6 +150,7 @@ export function validatePhrases(rig) {
       if (!(typeof st.beats === "number" && st.beats > 0)) err(`${sw}.beats: a positive number of beats`);
       else beats += st.beats;
       if (st.trigger && !["follow", "go"].includes(st.trigger)) err(`${sw}.trigger: follow or go`);
+      if (st.ambient !== undefined && !(typeof st.ambient === "number" && st.ambient >= 0 && st.ambient <= 1)) err(`${sw}.ambient: 0..1`);
       checkLines(st.lines, sw);
       for (const [j, c] of (st.cues || []).entries()) {
         if (!(typeof c.at === "number" && c.at >= 0 && c.at < st.beats)) err(`${sw}.cues[${j}].at: beats inside the step`);
@@ -186,7 +189,10 @@ export function validatePhrases(rig) {
 //   radial  out from the ring centre in the ring's plane, tipped forward_deg toward the ring's face (the audience).
 export function resolvePreset(rig, group, preset, mods = {}) {
   if (!preset || group.kind !== "heads") return null;
-  const p = subst(preset, mods);
+  // a preset's own "$" parameters are offsets: 0 when the phrase playing it has no such per-repeat value
+  const defaults = {};
+  JSON.stringify(preset).replace(/"\$([a-z_][a-z0-9_]*)"/g, (_, k) => { defaults[k] = 0; return ""; });
+  const p = subst(preset, { ...defaults, ...mods });
   const n = group.n, out = new Float64Array(n * 2);
   for (let m = 0; m < n; m++) {
     const fi = group.memberFixture[m], f = rig.fixtures[fi], el = rig.elements[f.element];
@@ -286,7 +292,8 @@ export function compileRepeat(rig, name, variant = null, mods = {}) {
         if (rig.presets && rig.presets.layers && rig.presets.layers.target) c.laser.layers = rig.presets.layers.target;
       }
       const cues = (st0.cues || []).filter((c) => !op.split || c.at < part.beats).map((c) => ({ at: c.at, lines: c.lines.map((l) => compileLine(rig, l, stepMods, patches, part.id)) }));
-      steps.push({ id: part.id, name: st0.name, beats: part.beats, trigger: st0.trigger || "follow", lines: compiled, cues, camera, mods: stepMods });
+      steps.push({ id: part.id, name: st0.name, beats: part.beats, trigger: st0.trigger || "follow", lines: compiled, cues, camera, mods: stepMods,
+                   ambient: typeof (op.ambient ?? st0.ambient) === "number" ? (op.ambient ?? st0.ambient) : 1 });
     }
   }
   return { phrase: name, variant, mods, steps };
@@ -338,12 +345,14 @@ export class PhraseRunner {
     }
     return this.decks[name];
   }
-  _compileNext(name, section) {
+  _compileNext(name, section, force = null) {
     const ph = this.phrases[name];
     const v = ph.vary || {};
     const deck = this._deck(name);
     const ok = (vn) => { const d = (v.variants || {})[vn] || {}; return !d.sections || d.sections.includes(section); };
-    const variant = v.variants ? deck.next(ok) : null;
+    if (force && !(v.variants && v.variants[force])) throw new Error(`phrase ${name}: no variant ${force}`);
+    const variant = force || (v.variants ? deck.next(ok) : null);
+    if (force) deck.last = force;
     const k = this.repeats[name] = (this.repeats[name] ?? -1) + 1;
     const mods = resolveMods(v.per_repeat || {}, k, hashSeed(this.seed, name));
     const rep = compileRepeat(this.rig, name, variant, mods);
@@ -351,10 +360,11 @@ export class PhraseRunner {
     return rep;
   }
   // Arm a phrase to start exactly at beat position `at` (a bar line). opts: repeats (default: until stopped), camera
-  // (the phrase drives the camera), section (for the variants limited to some sections), source.
-  start(name, at, { repeats = Infinity, camera = true, section = "any", source = "show" } = {}) {
+  // (the phrase drives the camera), section (for the variants limited to some sections), source, variant (the first
+  // repeat's, instead of the deck's deal).
+  start(name, at, { repeats = Infinity, camera = true, section = "any", source = "show", variant = null } = {}) {
     if (!this.phrases[name]) throw new Error(`no phrase ${name}`);
-    this.pending = { name, at, repeats, camera, section, source };
+    this.pending = { name, at, repeats, camera, section, source, variant };
     if (this.state === "idle") this.state = "armed";
     return at;
   }
@@ -382,7 +392,7 @@ export class PhraseRunner {
   stopAtPos(at) { if (this.cur) this.stopAt = at; else if (this.state === "armed") { this.pending = null; this.state = "idle"; } }
   _note(e) { if (this.log.length < 1024) this.log.push(e); }
   _beginRepeat(name, at, opts, keep = null) {
-    const rep = this._compileNext(name, opts.section);
+    const rep = this._compileNext(name, opts.section, keep ? null : opts.variant || null);
     const starts = [];
     let p = at;
     for (const st of rep.steps) { starts.push(p); p += st.beats; }
@@ -401,7 +411,8 @@ export class PhraseRunner {
     for (let j = i; j < c.rep.steps.length; j++) { c.starts[j] = p; p += c.rep.steps[j].beats; }
     c.starts[c.rep.steps.length] = p;
     c.start = at; c.end = at + st.beats; c.cut = false; c.replan = false; c.goPressed = false; c.firedCues = new Set();
-    const plan = c.camera ? cameraPlan(c.rep.steps, c.starts, i) : null;
+    // the whole repeat's plan (past entries end in the past; an entry keeps its p0, so the director does not cut again)
+    const plan = c.camera ? cameraPlan(c.rep.steps, c.starts, 0) : null;
     this.events.push({ type: "step", phrase: c.name, step: st, index: i, id: st.id, start: at, end: c.end, variant: c.rep.variant, repeat: c.rep.repeat,
                        mods: st.mods, camera: plan, last: i === c.rep.steps.length - 1 });
     this._note({ type: "step", phrase: c.name, step: st.id, variant: c.rep.variant, repeat: c.rep.repeat, pos: +at.toFixed(4) });
@@ -414,10 +425,20 @@ export class PhraseRunner {
       const p = this.pending;
       this.pending = null;
       if (this.cur) this._note({ type: "end", phrase: this.cur.name, pos: +p.at.toFixed(4), why: "go" });
-      this.state = "running";
-      this.stopAt = null;
-      ev.push({ type: "start", phrase: p.name, pos: p.at, source: p.source });
-      this._beginRepeat(p.name, p.at, p);
+      const was = this.cur;
+      try {
+        this.state = "running";
+        this.stopAt = null;
+        ev.push({ type: "start", phrase: p.name, pos: p.at, source: p.source });
+        this._beginRepeat(p.name, p.at, p);
+      } catch (e) {
+        // a phrase that cannot compile never leaves the runner half-started: the old one ends, the error is an event
+        ev.length = 0;
+        if (was) ev.push({ type: "end", phrase: was.name, pos: p.at, why: "error" });
+        ev.push({ type: "error", phrase: p.name, pos: p.at, message: e.message });
+        this._note({ type: "error", phrase: p.name, pos: +p.at.toFixed(4), message: e.message });
+        this.cur = null; this.state = "idle";
+      }
     }
     for (let guard = 0; guard < 64 && this.cur; guard++) {
       const c = this.cur;
@@ -434,7 +455,7 @@ export class PhraseRunner {
         let p = c.end;
         for (let j = c.index + 1; j < c.rep.steps.length; j++) { c.starts[j] = p; p += c.rep.steps[j].beats; }
         c.starts[c.index + 1] = c.end; c.starts[c.rep.steps.length] = p;
-        if (c.camera) ev.push({ type: "camera", phrase: c.name, camera: cameraPlan(c.rep.steps, c.starts, c.index), pos });
+        if (c.camera) ev.push({ type: "camera", phrase: c.name, camera: cameraPlan(c.rep.steps, c.starts, 0), pos });
       }
       for (const [j, cue] of (st.cues || []).entries()) {
         const at = c.start + cue.at;
@@ -458,6 +479,14 @@ export class PhraseRunner {
       break;
     }
     return ev;
+  }
+  // The lines the next repeat of a phrase will open with (its base and first step, the deck untouched), for the pre-roll:
+  // heads that are dark move to the phrase's positions before it starts (move in black).
+  prepareLines(name) {
+    const ph = this.phrases[name];
+    if (!ph) return [];
+    const mods = resolveMods((ph.vary && ph.vary.per_repeat) || {}, (this.repeats[name] ?? -1) + 1, hashSeed(this.seed, name));
+    try { return compileRepeat(this.rig, name, null, mods).steps[0].lines; } catch { return []; }
   }
   status() {
     const c = this.cur;

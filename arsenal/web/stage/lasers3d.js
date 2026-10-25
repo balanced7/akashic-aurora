@@ -37,7 +37,12 @@ export const L3 = Object.freeze({ OX: 0, OY: 1, OZ: 2, EX: 3, EY: 4, EZ: 5, PR: 
   FLAGS: 12, HEAD: 13, DIST0: 14, I: 15 });
 const DEG = Math.PI / 180;
 
-function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; v[0] /= l; v[1] /= l; v[2] /= l; return v; }
+function norm(v) {
+  const [x, y, z] = v;
+  const inv = 1 / (Math.hypot(x, y, z) || 1);
+  v[0] *= inv; v[1] *= inv; v[2] *= inv;
+  return v;
+}
 function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
 
 // The projector's frame from its aim: forward f = aim, right r = up x f (horizontal), up u = f x r.

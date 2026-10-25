@@ -378,7 +378,8 @@ export class StageRenderer {
     const cone = new THREE.BufferGeometry();
     const seg = 16, cp = [], ci = [];
     for (const s of [0, 1]) for (let k = 0; k < seg; k++) { const a = (k / seg) * Math.PI * 2; cp.push(Math.cos(a), Math.sin(a), s); }
-    cp.push(0, 0, 0, 0, 0, 1);
+    cp.push(0, 0, 0);                  // the apex
+    cp.push(0, 0, 1);                  // the far cap's centre
     for (let k = 0; k < seg; k++) {
       const k1 = (k + 1) % seg;
       ci.push(k, seg + k1, seg + k, k, k1, seg + k1);   // outward-facing sides: BackSide then draws the far wall

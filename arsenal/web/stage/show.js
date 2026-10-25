@@ -83,6 +83,11 @@ export class Show {
         const at = this.planAt(b2);
         this._speedFor(at);                     // first: a look's new effects are born at the section's speed
         if (!this.section || at.name !== this.section.name) this._enter(at.name, this.planStart + 4 * b2 - 4 * at.bar, at.bars);
+        // v1: a bar before a section that carries a phrase, say so (the stage pre-rolls its heads in black)
+        const nx = this.planAt(b2 + 1);
+        if (nx.bar === 0 && nx.name !== at.name && this.sections[nx.name] && this.sections[nx.name].phrase) {
+          ev.push({ type: "prepare", section: nx.name, phrase: this.sections[nx.name].phrase.name, pos: this.planStart + 4 * (b2 + 1) });
+        }
       } else {
         if (this.dropUntil !== null && barPos >= this.dropUntil - 1e-6) { this.dropUntil = null; this._enter("groove", barPos, 16); }
         if (!this.section) this._enter("groove", barPos, 16);

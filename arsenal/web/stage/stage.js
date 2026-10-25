@@ -109,6 +109,8 @@ function start({ rig, R, renderMod }) {
   const faderMap = show0.faders || {};
   const padMap = show0.pads || {};
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
+  // the room's ambient (the veil and the fill light) x the phrase step's own (a laser step darkens the room)
+  const ambientNow = { scale: 1, target: 1, lastPos: null };
   const kicks = [];
   const state = { section: "", look: "", formation: "", shot: "", fps: 0, frameMs: 0, phraseSteps: [] };
 
@@ -143,6 +145,11 @@ function start({ rig, R, renderMod }) {
       } else if ((runner.cur && runner.cur.source === "show") || (runner.pending && runner.pending.source === "show")) runner.stopAtPos(ev.pos);
     }
   }
+  // the pre-roll: heads that are dark move in black to where a coming phrase needs them
+  function prepare(name) {
+    if (!runner || runner.cur || !rig.phrases[name]) return;
+    programmer.setOverlay(runner.prepareLines(name), grid.posAt(performance.now() + grid.presentLagMs), { positionsOnly: true });
+  }
   function phraseEnded(e) {
     const sec = (show0.sections || {})[state.section];
     if (sec && sec.camera && !manualShot) director.start(sec.camera, e.pos);
@@ -154,8 +161,8 @@ function start({ rig, R, renderMod }) {
     if (action === "kick" && on) { programmer.pad("kick", vel, pos); kicks.push({ pressPos: pos, onset: Math.round(pos) }); }
     else if (action === "flyout" && on) programmer.pad("flyout", vel, pos);
     else if (action === "lasers") { if (on) lasers.hit(tEval, vel); else lasers.release(tEval); }
-    else if (action === "drop" && on) show.dropNow(grid, pos);
-    else if (runner && action === "phrase-go" && on) runner.go(firstPhrase, grid, pos, { section: state.section || "any" });
+    else if (action === "drop" && on) { show.dropNow(grid, pos); const d = (show0.sections || {}).drop; if (d && d.phrase) prepare(d.phrase.name); }
+    else if (runner && action === "phrase-go" && on) { prepare(firstPhrase); runner.go(firstPhrase, grid, pos, { section: state.section || "any" }); }
     else if (runner && action === "phrase-next" && on) runner.next(grid, pos);
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
   }
@@ -202,11 +209,21 @@ function start({ rig, R, renderMod }) {
           if (ev.type === "section") enterSection(ev);
           else if (ev.type === "pad") pad(ev.pad, ev.vel, ev.on, tEval);
           else if (ev.type === "speed") { sectionSpeed = ev.s; applyFaders(tEval); }
+          else if (ev.type === "prepare") prepare(ev.phrase);
         }
       }
       if (runner) {
-        const entered = playPhraseEvents(runner.update(pos), { programmer, lasers, director, onEnd: phraseEnded, manualCamera: () => !!manualShot });
+        const pev = runner.update(pos);
+        for (const e of pev) if (e.type === "error") recordError("phrase", e.message);
+        const entered = playPhraseEvents(pev, { programmer, lasers, director, onEnd: phraseEnded, manualCamera: () => !!manualShot });
         for (const e of entered) { if (state.phraseSteps.length >= 512) state.phraseSteps.shift(); state.phraseSteps.push({ id: e.id, variant: e.variant, repeat: e.repeat, start: e.start, at: pos }); }
+        for (const e of pev) { if (e.type === "step") ambientNow.target = e.step.ambient ?? 1; else if (e.type === "end" || e.type === "error") ambientNow.target = 1; }
+      }
+      {
+        const dp = ambientNow.lastPos === null ? 0 : Math.max(0, pos - ambientNow.lastPos);
+        ambientNow.lastPos = pos;
+        const k = Math.min(1, dp / 0.5);                        // half a beat to the new level
+        ambientNow.scale += (ambientNow.target - ambientNow.scale) * k;
       }
       programmer.tick(grid, tEval, dt);
       strand.update(grid, tEval, dt);
@@ -220,8 +237,9 @@ function start({ rig, R, renderMod }) {
       const Hh = FIXED_H || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().h);
       R.resize(W, Hh);
       const shot = director.shots[pose.shot];
+      const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
-                   pixels: programmer.pixels, lasers: l3, medium, ambient, beatPhase: pos - Math.floor(pos), energy };
+                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       const info = api.skipRender ? state.info : R.render(fs, (cells, t) => limiter.step(cells, t, dt), now / 1000);
       state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2;

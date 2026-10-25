@@ -32,13 +32,13 @@ float hazeDensity(vec3 p) {
   float n1 = texture(uNoise, (p - uWind) * (1.0 / 26.0)).r;
   float n2 = texture(uNoise, (p - uWind * 1.7 + vec3(3.1, 7.7, 1.3)) * (1.0 / 9.0)).r;
   float n = (0.7 * n1 + 0.3 * n2) * 2.0 - 1.0;
-  float s = uSigma0 * max(0.0, 1.0 + uNoiseAmp * 2.0 * n);
-  for (int i = 0; i < 8; i++) {
-    vec3 q = p - uHazer[i].xyz;
-    float r = max(uHazer[i].w, 0.001);
-    s += uHazerSigma[i] * exp(-dot(q, q) / (r * r));
+  float sig = uSigma0 * max(0.0, 1.0 + 2.0 * uNoiseAmp * n);
+  for (int h = 0; h < 8; h++) {
+    vec3 off = p - uHazer[h].xyz;
+    float rr = max(uHazer[h].w, 0.001);
+    sig += uHazerSigma[h] * exp(-dot(off, off) / (rr * rr));
   }
-  return min(s, 0.26);
+  return min(sig, 0.26);
 }
 `;
 
@@ -161,8 +161,7 @@ void main() {
   vec3 v = normalize(cameraPosition - vWorld);
   float facing = abs(dot(normalize(vNormalW), v));
   float glow = 0.55 + 0.45 * (1.0 - facing) + 0.35 * (1.0 - max(a.x, max(a.y, a.z)) * 0.7);
-  vec3 c = fEmit * glow * (1.0 - 0.85 * frame);
-  fragColor = vec4(c, 1.0);
+  fragColor = vec4(fEmit * glow * (1.0 - 0.85 * frame), 1.0);
 }`;
 
 // ------------------------------------------------------------------------------------------------- emitters --
@@ -284,8 +283,11 @@ flat out vec2 fLenN;
 flat out vec3 fCol;
 void main() {
   vec3 w = iAxis;
-  vec3 a = abs(w.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-  vec3 u = normalize(cross(a, w));
+  // a perpendicular to the beam: world up crossed with the axis, written out, or world x crossed with it when the beam
+  // itself is (nearly) vertical
+  vec3 u = vec3(w.z, 0.0, -w.x);
+  if (abs(w.y) >= 0.99) u = vec3(0.0, -w.z, w.y);
+  u = normalize(u);
   vec3 v = cross(w, u);
   float s = position.z;
   float R = (iShape.z + s * iLenN.x * iShape.y * 1.35) * 1.1;
@@ -332,12 +334,14 @@ void main() {
   float dv = dot(rd, fAxis), cv = dot(co, fAxis);
   float qa = dv * dv - cos2, qb = 2.0 * (dv * cv - dot(rd, co) * cos2), qc = cv * cv - dot(co, co) * cos2;
   float tA = 0.0, tB = tMax;
-  float disc = qb * qb - 4.0 * qa * qc;
-  if (disc < 0.0 || abs(qa) < 1e-9) {
+  // the quadratic in its half-b form: roots (-hb -+ sqrt(hb^2 - qa qc)) / qa
+  float hb = 0.5 * qb;
+  float dq = hb * hb - qa * qc;
+  if (dq < 0.0 || abs(qa) < 1e-9) {
     if (!insideCone(co, rd, 0.0, fAxis, cos2)) discard;
   } else {
-    float sq = sqrt(disc);
-    float t1 = (-qb - sq) / (2.0 * qa), t2 = (-qb + sq) / (2.0 * qa);
+    float rt = sqrt(dq);
+    float t1 = (-hb - rt) / qa, t2 = (-hb + rt) / qa;
     if (t1 > t2) { float tt = t1; t1 = t2; t2 = tt; }
     if (insideCone(co, rd, 0.5 * (t1 + t2), fAxis, cos2)) { tA = max(tA, t1); tB = min(tB, t2); }
     else if (insideCone(co, rd, t2 + 1e-3 * (abs(t2) + 1.0), fAxis, cos2)) { tA = max(tA, t2); }
@@ -354,10 +358,10 @@ void main() {
   float delta = dot(L - ro, rd);
   float D = max(length(L - ro - rd * delta), 1e-3);
   float thA = atan((tA - delta) / D), thB = atan((tB - delta) / D);
+  float inscatter = 0.0;
   float jit = dthIgn(gl_FragCoord.xy);
-  float acc = 0.0;
-  for (int i = 0; i < ${samples}; i++) {
-    float th = mix(thA, thB, (float(i) + jit) / ${samples}.0);
+  for (int k = 0; k < ${samples}; k++) {
+    float th = mix(thA, thB, (float(k) + jit) / ${samples}.0);
     float t = delta + D * tan(th);
     vec3 p = ro + rd * t;
     vec3 q = p - fApex;
@@ -368,10 +372,10 @@ void main() {
     float prof = exp2(-pow(rad / (fShape.z + h * fShape.x), fLenN.y));
     float ph = phaseHG(dot(rd, -q * inversesqrt(r2)), uG);
     float T = exp(-uSigmaAvg * (max(t, 0.0) + sqrt(r2)));
-    acc += hazeDensity(p) * prof * ph * T;
+    inscatter += hazeDensity(p) * prof * ph * T;
   }
   // f / pdf: the source's 1 / r^2 cancels against the equiangular pdf, leaving (thB - thA) / D
-  vec3 Lo = fCol * acc * (thB - thA) / (D * ${samples}.0);
+  vec3 Lo = fCol * inscatter * (thB - thA) / (D * ${samples}.0);
   fragColor = vec4(min(Lo, vec3(3.0e4)), 1.0);
 }`;
 
@@ -413,7 +417,7 @@ out vec4 fragColor;
 // bright one, not like a sun, so a fan of lasers glows instead of greying the whole frame
 uniform float uCeil;
 vec3 S(vec2 uv, vec2 o) { return min(texture(uSrc, uv + o * uTexel).rgb, vec3(uCeil)); }
-float kw(vec3 c) { return 1.0 / (1.0 + dot(c, vec3(0.2126, 0.7152, 0.0722))); }
+float kw(vec3 c) { float luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; return 1.0 / (luma + 1.0); }
 void main() {
   vec2 uv = gl_FragCoord.xy / uRes;
   vec3 a = S(uv, vec2(-2, 2)), b = S(uv, vec2(0, 2)), c = S(uv, vec2(2, 2));
@@ -475,32 +479,32 @@ uniform sampler2D uSrc;
 uniform ivec2 uSrcSize;
 out vec4 fragColor;
 void main() {
-  ivec2 o = ivec2(gl_FragCoord.xy) * 4;
-  vec3 acc = vec3(0.0);
-  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) {
-    ivec2 p = o + ivec2(x, y);
+  ivec2 base = ivec2(gl_FragCoord.xy) * 4;
+  vec3 sums = vec3(0.0);
+  for (int k = 0; k < 16; k++) {
+    ivec2 p = base + ivec2(k % 4, k / 4);
     if (p.x >= uSrcSize.x || p.y >= uSrcSize.y) continue;
     vec3 e = texelFetch(uSrc, p, 0).rgb;
     vec3 l = srgbDecode(e);
     float s = e.r + e.g + e.b;
     float red = (s > 0.0 && e.r / s >= 0.8) ? max(0.0, (l.r - l.g - l.b) * 320.0) : 0.0;
-    acc += vec3(dot(l, vec3(0.2126, 0.7152, 0.0722)), red, 1.0);
+    sums += vec3(dot(l, vec3(0.2126, 0.7152, 0.0722)), red, 1.0);
   }
-  fragColor = vec4(acc, 1.0);
+  fragColor = vec4(sums, 1.0);
 }`;
 export const METER2_FRAGMENT = `${HEAD}
 uniform sampler2D uSrc;
 uniform ivec2 uSrcSize;
 out vec4 fragColor;
 void main() {
-  ivec2 o = ivec2(gl_FragCoord.xy) * 4;
-  vec3 acc = vec3(0.0);
-  for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) {
-    ivec2 p = o + ivec2(x, y);
+  ivec2 base = ivec2(gl_FragCoord.xy) * 4;
+  vec3 sums = vec3(0.0);
+  for (int k = 0; k < 16; k++) {
+    ivec2 p = base + ivec2(k % 4, k / 4);
     if (p.x >= uSrcSize.x || p.y >= uSrcSize.y) continue;
-    acc += texelFetch(uSrc, p, 0).rgb;
+    sums += texelFetch(uSrc, p, 0).rgb;
   }
-  fragColor = vec4(acc, 1.0);
+  fragColor = vec4(sums, 1.0);
 }`;
 
 // the limiter's apply pass: identity copies the frame untouched; otherwise, in cell c (the meter's cells: 16-pixel blocks

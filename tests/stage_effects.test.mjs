@@ -21,9 +21,11 @@ test("spread basics: cyclic and one-shot normalisation", () => {
 test("block, repeat, wings and mirror", () => {
   const k = keysOf(8);
   // block 2: neighbours share a value
-  assert.deepEqual(Array.from(spreadValues(k, { from: 0, to: 3, block: 2 }, 8)), [0, 0, 1, 1, 2, 2, 3, 3]);
+  const pairs = Array.from(spreadValues(k, { from: 0, to: 3, block: 2 }, 8));
+  assert.deepEqual(pairs, Array.from({ length: 8 }, (_, i) => i >> 1));
   // repeat 2: the pattern restarts every 2
-  assert.deepEqual(Array.from(spreadValues(k, { from: 0, to: 1, repeat: 2 }, 8)), [0, 1, 0, 1, 0, 1, 0, 1]);
+  const alternating = Array.from(spreadValues(k, { from: 0, to: 1, repeat: 2 }, 8));
+  assert.deepEqual(alternating, Array.from({ length: 8 }, (_, i) => i % 2));
   // wings 2 mirrored: symmetric about the centre
   const w = Array.from(spreadValues(k, { from: 0, to: 3, wings: 2, mirror: true }, 8));
   assert.deepEqual(w, [0, 1, 2, 3, 3, 2, 1, 0]);

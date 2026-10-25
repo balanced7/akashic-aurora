@@ -140,6 +140,17 @@ test("the camera plan: one entry per step, D splits at beat 4, B is cut to one b
   assert.deepEqual(plan.map((e) => [e.shot, e.p0, e.p1]), [["HALO_LOCK", 100, 111], ["WING_LAYERS", 111, 116], ["FOH_WIDE", 116, 120],
     ["CROWD_POV", 120, 124], ["WORM_RING", 124, 128], ["HALO_ORBIT", 128, 132]]);
   assert.equal(plan[1].why, "precut");
+  // a split step: the rush variant's A2 carries A1's shot (the plan is built over the whole repeat)
+  const rush = compileRepeat(RIG, "halo-levels", "rush", resolveMods(SCENE.phrases["halo-levels"].vary.per_repeat, 0, 1));
+  const rb = [0]; for (const s of rush.steps) rb.push(rb.at(-1) + s.beats);
+  const rp = cameraPlan(rush.steps, rb, 0);
+  assert.deepEqual(rp.slice(0, 2).map((e) => [e.shot, e.p0, e.p1]), [["HALO_LOCK", 0, 11], ["WING_LAYERS", 11, 16]]);
+  // the director never shows an entry before its start
+  const dir = new Director(RIG.cameras.shots, RIG.cameras.sequences);
+  dir.start("drop", 0);
+  dir.plan([{ shot: "HALO_ORBIT", p0: 8, p1: 12 }]);
+  assert.notEqual(dir.update(4).shot, "HALO_ORBIT");
+  assert.equal(dir.update(8).shot, "HALO_ORBIT");
   // rebuilt at step B, the entry keeps its p0 (the director sees the same entry: no second cut)
   const fromB = cameraPlan(rep.steps, b.map((x) => x + 100), 1);
   assert.deepEqual([fromB[0].shot, fromB[0].p0], ["WING_LAYERS", 111]);
@@ -312,12 +323,34 @@ test("the runner: Go arms on the next bar line, Next cuts a step to the next bar
   ev = r.update(11.99); assert.ok(!ev.some((e) => e.type === "end"));
   ev = r.update(12); assert.deepEqual(ev.map((e) => e.type), ["end"]); assert.equal(ev[0].pos, 12);
   assert.equal(r.state, "idle");
+  // a start may name its first repeat's variant (the deck deals the rest)
+  const rv = new PhraseRunner(RIG);
+  rv.start("halo-levels", 0, { repeats: 2, section: "build", variant: "rush" });
+  const vs = [];
+  for (let p = 0; p <= 64; p += 0.5) for (const e of rv.update(p)) if (e.type === "repeat") vs.push(e.variant);
+  assert.equal(vs[0], "rush"); assert.notEqual(vs[1], "rush");
+  const r3 = new PhraseRunner(RIG); r3.start("halo-levels", 0, { variant: "nope" });
+  const ev3 = r3.update(0); assert.equal(ev3[0].type, "error"); assert.match(ev3[0].message, /no variant nope/); assert.equal(r3.state, "idle");
   // cues fire at their beat inside the step: E's move-in-black at beat 3
   const r2 = new PhraseRunner(RIG);
   r2.start("halo-levels", 0, { repeats: 1 });
   const cues = [];
   for (let p = 0; p <= 33; p += 0.25) for (const e of r2.update(p)) if (e.type === "cue") cues.push(e.pos);
   assert.deepEqual(cues, [31]);
+});
+
+test("a phrase that cannot compile leaves the runner idle with an error event; a preset's own $ values default to 0", () => {
+  const rig = expandScene(SCENE);
+  rig.phrases.bad = { name: "bad", steps: [{ id: "X", beats: 4, lines: [{ group: "halo", values: { Color: "$nope" } }] }] };
+  rig.phrases.solo = { name: "solo", steps: [{ id: "L", beats: 4, lines: [{ group: "halo", preset: "layers", values: { Dimmer: 0 } }] }] };
+  const r = new PhraseRunner(rig);
+  r.start("bad", 4);
+  const ev = r.update(4);
+  assert.deepEqual(ev.map((e) => e.type), ["error"]);
+  assert.match(ev[0].message, /\$nope/);
+  assert.equal(r.state, "idle"); assert.equal(r.cur, null);
+  r.start("solo", 8);
+  assert.deepEqual(r.update(8).map((e) => e.type), ["start", "repeat", "step"], "the layers preset compiles without a per-repeat layer_shift");
 });
 
 test("the programmer's phrase layer: LTP over the look, dimmers crossfade over a line's fade, clearOverlay hands back to the look", () => {
@@ -357,6 +390,38 @@ test("FLY-OUT bursts the truss and lip only: never the halo or the verticals a p
   }
   assert.ok(trussMax > 0.5, `the truss bursts (${trussMax.toFixed(2)})`);
   assert.equal(haloMax, 0); assert.equal(vertMax, 0);
+});
+
+test("the pre-roll: a bar before the drop the dark halo heads move in black to the layers; nothing lit moves, no dimmer changes", () => {
+  const grid = new BeatGrid({ bpm: 150, t0: 0 });
+  grid.beat({ due_ms: 0, bpm: 150, n: 0, conf: 1, bar: 1, ver: 0 }, 0);
+  const prog = new Programmer(RIG, { theme: THEME });
+  prog.setLook("build", 0, { fade: 0 });
+  for (let f = 0; f < 10; f++) prog.tick(grid, f * F, 1 / FPS);
+  const runner = new PhraseRunner(RIG);
+  const lines = runner.prepareLines("halo-levels");
+  const lipBefore = Array.from(RIG.groups["lip.heads"].members, (k) => prog.tH[k * 7]);
+  const dimBefore = meanDim(prog, RIG.groups.hrow);
+  prog.setOverlay(lines, grid.posAt(10 * F), { positionsOnly: true });
+  for (let f = 10; f < 130; f++) prog.tick(grid, f * F, 1 / FPS);
+  const halo = RIG.groups.halo, want = lines.find((l) => l.group === "halo" && l.positions).positions;
+  for (let m = 0; m < halo.n; m += 7) {
+    const k = halo.members[m];
+    assert.ok(Math.abs(prog.heads[k * HEAD_FLOATS + H.TILT] - want[m * 2 + 1]) < 0.5, `halo head ${m} reached its layer tilt`);
+  }
+  assert.equal(meanDim(prog, halo), 0, "and stayed dark");
+  // the lip is lit by the build: it keeps the look's position and dimmer
+  assert.deepEqual(Array.from(RIG.groups["lip.heads"].members, (k) => prog.tH[k * 7]), lipBefore);
+  assert.ok(Math.abs(meanDim(prog, RIG.groups.hrow) - dimBefore) < 0.35);
+  // the demo's show says "prepare" one bar before the drop
+  const show = new Show(RIG, { demo: true });
+  const g2 = new BeatGrid({ bpm: 150, t0: 0 });
+  g2.beat({ due_ms: 0, bpm: 150, n: 0, conf: 1, bar: 1, ver: 0 }, 0);
+  const preps = [];
+  for (let p = 0; p < 70; p += 0.25) for (const e of show.update(g2, p)) if (e.type === "prepare") preps.push(e);
+  assert.equal(preps.length, 1);
+  assert.equal(preps[0].section, "drop");
+  assert.equal(preps[0].pos, show.planStart + 4 * 16, "the drop's ONE (intro 8 bars + build 8)");
 });
 
 test("the FlashGate: one grant per bar; a refused flash is a lift over an eighth of a beat", () => {

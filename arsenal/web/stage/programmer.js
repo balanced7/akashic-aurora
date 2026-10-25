@@ -154,7 +154,10 @@ export class Programmer {
   // ---------------------------------------------------------------------------------------------- phrase layer --
   // lines: compiled phrase lines (phrases.js compileRepeat): {g, kind, values, positions, effects [{id, def}], fade,
   // flash}. replace: a new step (the previous step's lines go); otherwise a cue inside the step, merged on top.
-  setOverlay(lines, pos, { replace = true } = {}) {
+  // positionsOnly (the pre-roll, before a phrase starts): only the pan and tilt of heads that are dark now, so heads move
+  // in black to where the phrase will need them and nothing lit moves.
+  setOverlay(lines, pos, { replace = true, positionsOnly = false } = {}) {
+    if (positionsOnly) return this._preroll(lines, pos);
     const nH = this.nH, nC = this.nC;
     this.ovFromH.set(this.tH); this.ovFromC.set(this.tC);       // what each member showed in the last frame
     if (replace) {
@@ -208,8 +211,28 @@ export class Programmer {
                                 decay: Math.max(FLASH_MIN_DECAY_BEATS, L.flash.decay_beats ?? FLASH_MIN_DECAY_BEATS), state: "wait" } : null;
       this.ov.lines.push({ g, effects, flash, mask: new Uint8Array(g.n).fill(1) });
     }
-    this.ov.active = true; this.ov.release = null; this.ov.p0 = pos;
+    this.ov.active = true; this.ov.preroll = false; this.ov.release = null; this.ov.p0 = pos;
     this.stats.overlays++;
+  }
+  _preroll(lines, pos) {
+    if (this.ov.active && !this.ov.preroll) return;          // a phrase already owns the rig
+    this.ovSetH.fill(0); this.ovSetC.fill(0); this.ovOnH.fill(0); this.ovOnC.fill(0);
+    this.ov.lines = [];
+    let n = 0;
+    for (const L of lines) {
+      if (!L || L.kind !== "heads" || !L.positions) continue;
+      const g = L.g;
+      for (let m = 0; m < g.n; m++) {
+        const k = g.members[m], b = k * 7;
+        if (this.tH[b + 2] > 0.01) continue;                 // lit now: it stays where the look has it
+        this.ovSetH[b] = 1; this.ovBaseH[b] = L.positions[m * 2];
+        this.ovSetH[b + 1] = 1; this.ovBaseH[b + 1] = L.positions[m * 2 + 1];
+        this.ovOnH[k] = 1; this.ovFadeH[k] = 0; this.ovP0H[k] = pos;
+        n++;
+      }
+    }
+    this.ov.active = n > 0; this.ov.preroll = true; this.ov.release = null; this.ov.p0 = pos;
+    this.stats.prerolls = (this.stats.prerolls || 0) + 1;
   }
   // Hand every overlaid fixture back to the look over `fade` beats from pos.
   clearOverlay(pos, fade = 0) {

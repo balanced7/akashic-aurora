@@ -171,7 +171,8 @@ export class Director {
     const P = this.planEntries;
     if (!P) return null;
     if (pos >= P[P.length - 1].p1 - 1e-6) { this.planEntries = null; return null; }
-    for (const e of P) if (pos < e.p1 - 1e-6) return e;
+    // never an entry before its own start (a plan that begins in the future leaves the sequence playing until then)
+    for (const e of P) if (pos < e.p1 - 1e-6) return pos >= e.p0 - 1e-6 ? e : null;
     return null;
   }
   // the entry playing at beat position pos (sequences loop), with its start and end positions
