@@ -518,7 +518,9 @@ async function main() {
     const entry = { name, size: `${bw}x${bh}`, seconds: null, wait_s: null, error: null };
     report.bursts.push(entry);
     try {
-      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000 });
+      // a 2 s poll: lanes that render in short chunks take the lock straight back after each one, and a 10 s poll rarely
+      // lands in the gap
+      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
       const held = Date.now();   // the burst's time runs from the lock, not from the wait for it
       entry.wait_s = Math.round((held - t0) / 100) / 10;
       chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
