@@ -37,6 +37,9 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
   check("pad", pad.pad === 3 && pad.src === "bank" && pad.on);
   const ctl = P({ t: "ctl", id: "cc105", kind: "rel", value: 0.5, delta: -3 });
   check("ctl rel", ctl.kind === "rel" && ctl.delta === -3);
+  check("ctl keeps the engine's port, and only a known one",
+        P({ t: "ctl", id: "cc25", kind: "abs", value: 1, port: "daw" }).port === "daw" &&
+        P({ t: "ctl", id: "cc25", kind: "abs", value: 1, port: "evil" }).port === undefined && ctl.port === undefined);
   check("ctl with a hostile id refused", P({ t: "ctl", id: "<script>", kind: "abs", value: 1 }) === null);
   check("unknown type refused", P({ t: "nope" }) === null && P(null) === null && P("x") === null);
   const hNo = P({ t: "hello", v: 1, src: "keylab-vj", leds: false, leds_reason: "LEDs are off (--no-leds)" });

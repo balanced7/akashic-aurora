@@ -22,6 +22,7 @@
 // it has LEDs, and stops at the first refusal until the engine's next hello (vj-core.js EngineLink).
 //
 // URL: ?engine=http://127.0.0.1:8794 (default; "off" for none) ?demo=1 ?demopads=0 ?sets=id,id,... ?hud=0
+//      ?transport=off (Rewind / Fast forward stop stepping the sets and go to the control map)
 // Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader.
 import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
@@ -52,6 +53,7 @@ const SET_IDS = (() => {
 })();
 const DPR_CAP = 2;
 const BACKING_SCALE_MIN = 0.5;
+const TRANSPORT_SETS = QS.get("transport") !== "off";   // Rewind / Fast forward step the sets (onCtl)
 const WATCHDOG = QS.get("watchdog") !== "0";   // ?watchdog=0 keeps the full backing size (receipts, recordings)
 const WATCHDOG_STREAK = 20;
 const FRAME_BUDGET_MS = 1000 / 60;
@@ -707,6 +709,13 @@ function nextValid(from) {
   }
   return from;
 }
+function prevValid(from) {
+  for (let s = 1; s <= sets.length; s++) {
+    const i = (from - s + sets.length) % sets.length;
+    if (validSet(i) && i !== from) return i;
+  }
+  return from;
+}
 // Switch to set `to` (the next valid one by default): the stage (vj-stage.js) plans it on the next bar or beat, in the
 // panel's transition style (or `style`), two beats long; 1.2 s from now without a beat.
 function nextSet(to = null, nowMs = performance.now(), style = null) {
@@ -948,6 +957,14 @@ function toggleKill() {
 // ------------------------------------------------------------------------------------------------- controls --
 function onCtl(ev) {
   lastCtl = { id: ev.id, kind: ev.kind, value: ev.value, delta: ev.delta, target: null };
+  // Rewind / Fast forward step the sets, always (Daniel, 2026-10-25: "lets try always we can make it an option"): the
+  // DAW port's CC 25 / 26, on the press. Our FL script swallows them (SCRUB_TO_FL), so FL does not scrub as well.
+  // ?transport=off hands them back to the control map like any other control.
+  if (TRANSPORT_SETS && (ev.id === "cc25" || ev.id === "cc26") && ev.port !== "midi") {
+    lastCtl.target = "sets";
+    if (ev.value >= 0.5) nextSet(ev.id === "cc26" ? nextValid(deck.a) : prevValid(deck.a));
+    return;
+  }
   if (stage && stage.onCtl(ev)) { lastCtl.target = "look"; return; }   // the look's fader (vj-stage.js)
   if (learnTarget) {
     ctlMap = learnBinding(ctlMap, ev.id, learnTarget);

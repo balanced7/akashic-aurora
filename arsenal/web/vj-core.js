@@ -142,7 +142,9 @@ export function parseEvent(obj) {
     case "ctl": {
       if (typeof obj.id !== "string" || !/^[A-Za-z0-9_.:-]{1,32}$/.test(obj.id)) return null;
       const kind = obj.kind === "rel" ? "rel" : "abs";
-      return { t: "ctl", id: obj.id, kind, value: clamp01(num(obj.value, 0)), delta: Math.round(num(obj.delta, 0)) };
+      const ev = { t: "ctl", id: obj.id, kind, value: clamp01(num(obj.value, 0)), delta: Math.round(num(obj.delta, 0)) };
+      if (obj.port === "daw" || obj.port === "midi") ev.port = obj.port;   // which KeyLab input, when the engine says
+      return ev;
     }
     case "status":
       return { t: "status", msg: String(obj.msg || "").slice(0, 200) };

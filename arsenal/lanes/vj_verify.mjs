@@ -473,6 +473,25 @@ try {
   send({ t: "ctl", id: "cc105", kind: "abs", value: 0.2, delta: 0 });
   send({ t: "ctl", id: "cc91", kind: "rel", value: 0, delta: 8 });
   report.engine_contract.controls_taken = await settle((s) => s.lastCtl && s.lastCtl.id === "cc91");
+  // Rewind / Fast forward (the DAW port's CC 25 / 26) step the sets, always (Daniel, 2026-10-25: "lets try always we can
+  // make it an option"); the same numbers from the keys input do not, and a release does nothing
+  {
+    const activeId = async () => (await evaluate("window.__vj.active()"))?.id ?? null;
+    const settleActive = async (pred) => { try { return await waitFor(async () => pred(await activeId()), 12000, "the set change"); } catch { return false; } };
+    const press = (cc, port) => { send({ t: "ctl", id: `cc${cc}`, kind: "abs", value: 1, delta: 0, port });
+                                  send({ t: "ctl", id: `cc${cc}`, kind: "abs", value: 0, delta: 0, port }); };
+    const fromId = await activeId();
+    press(26, "midi");
+    await delay(2500);
+    const keysIgnored = (await activeId()) === fromId;
+    press(26, "daw");
+    const stepped = await settleActive((id) => !!id && id !== fromId);
+    const nextId = await activeId();
+    press(25, "daw");
+    const back = await settleActive((id) => id === fromId);
+    report.engine_contract.transport_sets = { from: fromId, next: nextId, keys_ignored: keysIgnored, stepped, back };
+    checks.rewind_and_fast_forward_step_the_sets = keysIgnored && stepped && !!back && !!nextId && nextId !== fromId;
+  }
   // learn on touch, the way a person does it: open the mapping panel (M), click Learn on Saturation, move a control
   await tap("M");
   await delay(300);
