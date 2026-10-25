@@ -21,7 +21,23 @@ import { setTimeout as delay } from "node:timers/promises";
 import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
-export const LOCK_DIR = join(REPO, "state", "arsenal", "gpu-render.lock");
+
+// The lock lives in the MAIN checkout's state/, never in this file's own checkout: a lane running from a git worktree
+// (.claude/worktrees/...) must wait on the same lock as every other lane. On 2026-10-25 a judge found that worktree lanes
+// had each taken a private lock under their own worktree (3 reaps in 37 minutes) and their Chromes overlapped.
+// keylab_desk_verify.mjs carried this fix locally before it moved here. A copy outside any checkout (a git-archive export
+// a judge runs from scratch) cannot find the main checkout: it sets ARSENAL_GPU_LOCK_DIR, or it falls back to its own tree.
+export function mainCheckout(from = REPO) {
+  try {
+    const r = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: from, encoding: "utf8", windowsHide: true });
+    const common = (r.stdout || "").trim();
+    if (r.status === 0 && common) return dirname(common);
+  } catch { /* not a git checkout */ }
+  return from;
+}
+// (The heartbeat thread re-imports this file; it is handed its directory, so it skips the git call.)
+export const LOCK_DIR = process.env.ARSENAL_GPU_LOCK_DIR ||
+  join(isMainThread ? mainCheckout() : REPO, "state", "arsenal", "gpu-render.lock");
 export const HEARTBEAT_EVERY_MS = 15_000;
 export const HEARTBEAT_STALE_MS = 60_000;
 export const HOLD_CAP_MS = 10 * 60_000;          // longer than the 3-minute burst rule

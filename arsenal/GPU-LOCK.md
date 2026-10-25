@@ -27,6 +27,12 @@ node arsenal/lanes/gpu_lock.mjs run --label "grand burst" -- powershell -File bu
   helper applies this rule (`yieldToJam`, on by default). The two jam lanes pass
   `yieldToJam: false` and share the lock with each other.
 - Never touch port 8793. It is Daniel's server.
+- One lock for the whole machine. The helper puts it in the main checkout's
+  `state/`, found through git's common directory, so a lane running from a
+  worktree (`.claude/worktrees/...`) waits on the same lock as everyone else.
+  A copy outside any checkout (a `git archive` export a judge runs from scratch)
+  must set `ARSENAL_GPU_LOCK_DIR` to the main checkout's lock, or it falls back to
+  a private lock in its own tree and protects nothing.
 
 ## Why the lock carries an owner
 

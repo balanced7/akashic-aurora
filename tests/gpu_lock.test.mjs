@@ -315,6 +315,28 @@ try {
     check("jam: the jam lanes themselves (yieldToJam false) never scan", h3.owner.pid === process.pid);
     h3.release();
   }
+
+  // -------------------------------------------------------------------------------------------------------- home
+  // The default lock lives in the main checkout, so a lane running from a git worktree waits on the same lock (2026-10-25).
+  {
+    const here = new URL("..", import.meta.url);
+    const repo = dirname(spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+      { cwd: here, encoding: "utf8", windowsHide: true }).stdout.trim());
+    const norm = (p) => p.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+    check("home: the main checkout resolves to itself", norm(L.mainCheckout(repo)) === norm(repo), L.mainCheckout(repo));
+    if (!process.env.ARSENAL_GPU_LOCK_DIR) {
+      check("home: the default lock is the main checkout's state/arsenal/gpu-render.lock",
+        norm(L.LOCK_DIR) === norm(join(repo, "state", "arsenal", "gpu-render.lock")), L.LOCK_DIR);
+    }
+    const listed = spawnSync("git", ["worktree", "list", "--porcelain"], { cwd: repo, encoding: "utf8", windowsHide: true }).stdout || "";
+    const wt = listed.split(/\r?\n/).filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9))
+      .find((p) => norm(p) !== norm(repo) && existsSync(p));
+    if (wt) check("home: a worktree resolves to the main checkout", norm(L.mainCheckout(wt)) === norm(repo), `${wt} -> ${L.mainCheckout(wt)}`);
+    else console.log("home: no other worktree on this machine; the worktree case was not exercised");
+    const outside = mkdtempSync(join(tmpdir(), "gpulock-home-"));
+    check("home: a copy outside any checkout falls back to its own tree", norm(L.mainCheckout(outside)) === norm(outside), L.mainCheckout(outside));
+    rmSync(outside, { recursive: true, force: true });
+  }
 } catch (e) {
   check("the suite ran to the end", false, String(e && e.stack));
 } finally {
