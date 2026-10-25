@@ -1,0 +1,65 @@
+//! {"card": "atmos-haze", "uses": ["atmos-haze", "noise-value", "colour-tone", "colour-transfer"], "t": [0, 2], "size": [480, 270],
+//!  "note": "Light in haze, shown through tmStage at heat 0.5 on true black. LEFT HALF, a 2D night: a low deck at the bottom sends a fan of five thin acid-green beams and one cyan-white sheet up through a patchy haze cloud in the middle band. Each green beam is saturated green along its length with a soft body and a narrow halo; only its first few per cent at the deck is white-hot. Inside the cloud the beams break into short dashes that follow each beam's own direction (no round blobs), and the cloud is visible ONLY where a beam crosses it: between the beams the frame is exactly black. The sheet is a soft wedge with no bright outline, white at its apex and violet-cyan above, fading upward, its haze texture streaked along its rays. Two small lens glows sit on the deck and a violet pool lies where the right beam lands on the floor line. A thin CO2 band hugs the bottom edge, lit only near the beams. RIGHT HALF, a 3D hall from the crowd: two moving-head cones (blue and lime) slant down from a truss through haze, each brightest and white at its lens, falling off along its length, with streaky texture inside the cone and a soft pool on the floor where it lands; one warm LED lamp glows in the haze. Between the cones the hall is exactly black. At t = 2 the haze has drifted a little and the beams have swept a few degrees; nothing has reseeded. A grey veil over the black, a mint or pastel beam, round blobs inside the beams, a bright outline on the sheet, or a hard edge at a root is a broken module."}
+// Apache-2.0, Akashic Aurora. The test card of atmos/haze.glsl, written fresh for the house.
+
+vec3 hazeCardFlat(vec2 pixel) {
+    vec2 p = (pixel - vec2(120.0, 135.0)) / 270.0;                 // frame heights, the left half
+    float px = 1.0 / 270.0;
+    float t = iTime;
+    vec4 hz = vec4(2.4, 0.45, 0.03, 0.0);
+    float cloud = smoothstep(0.62, 0.78, 0.5 + 0.5 * noiseValue2(p * 4.0 + vec2(0.0, 0.1 * t), 7u))
+                * smoothstep(-0.12, 0.0, p.y) * (1.0 - smoothstep(0.22, 0.34, p.y));
+    float air = clamp(0.25 * hazeDensity(p, -0.5, hz, t) + 0.9 * cloud, 0.0, 1.0);
+    vec2 deck = vec2(-0.05, -0.44);
+    float streak = hazeStreak(p, deck, vec4(0.05, 0.03, 0.9, 0.01), t);
+    vec3 light = vec3(0.0);
+    for (int beam = 0; beam < 5; ++beam) {
+        float ang = radians(52.0 + 18.0 * float(beam) + 3.0 * sin(0.4 * t));
+        vec2 dir = sin(vec2(ang + 1.5707963, ang));                 // (cos, sin) of the beam's angle
+        vec3 frame = hazeBeamCoords(p, deck, dir, 0.95);
+        light += hazeBeam(frame.x / px, frame.y, vec3(0.006, 1.0, 0.135), 1.4, air * streak, 9.0, hazePhase(0.1));
+    }
+    vec3 sheetFrame = hazeBeamCoords(p, vec2(0.12, -0.44), vec2(0.35, 1.0), 0.9);
+    float sheetStreak = hazeStreak(p, vec2(0.12, -0.44), vec4(0.06, 0.025, 0.8, 0.01), t);
+    light += hazeSheet(sheetFrame.z, 0.09, sheetFrame.y, vec3(0.55, 0.75, 1.0), 0.55, air * sheetStreak, 1.0);
+    light += hazePoint(p, deck, 0.018, vec3(1.0), 6.0, 1.0);
+    light += hazePoint(p, vec2(0.12, -0.44), 0.016, vec3(1.0), 5.0, 1.0);
+    light += hazePool(p, vec2(-0.33, -0.47), vec2(0.07, 0.012), vec3(0.6, 0.2, 1.0), 0.5);
+    float band = hazeFloorBand(p, -0.47, 0.06, t);
+    light += hazePoint(p, deck, 0.12, vec3(0.006, 1.0, 0.135), 0.25, band);
+    return light;
+}
+
+vec3 hazeCardHall(vec2 pixel) {
+    vec2 uv = (pixel - vec2(360.0, 120.0)) / 270.0;
+    vec3 view = vec3(uv * 0.9090909, -1.0);                      // a lens of focal length 1.1 frame heights
+    vec3 rd = normalize(view);
+    vec3 ro = vec3(0.0, 1.7, 0.0);                               // the eye at crowd height
+    float tFloor = rd.y < 0.0 ? -ro.y / rd.y : 80.0;
+    float tMax = min(tFloor, 80.0);
+    float t = iTime;
+    vec2 air = vec2(1.0, 0.0);
+    vec4 hz = vec4(0.35, 8.0, 0.25, 0.0);
+    vec4 clump = vec4(1.8, 0.05, 0.85, 0.3);
+    float jitter = fract(52.9829189 * fract(dot(pixel, vec2(0.06711056, 0.00583715))));
+    vec3 apexA = vec3(-4.0, 10.0, -18.0);
+    vec3 apexB = vec3(4.0, 10.0, -18.0);
+    vec3 axisA = vec3(0.35 + 0.05 * sin(0.3 * t), -1.0, 0.45);
+    vec3 axisB = vec3(-0.4, -1.0, 0.5);
+    vec3 light = hazeCone(ro, rd, tMax, apexA, axisA, 0.07, vec3(0.2, 0.35, 1.0), 260.0, air, hz, clump, t, jitter);
+    light += hazeCone(ro, rd, tMax, apexB, axisB, 0.06, vec3(0.45, 1.0, 0.05), 220.0, air, hz, clump, t, jitter);
+    light += hazeLamp(ro, rd, tMax, vec3(1.5, 2.2, -12.0), 1.2, vec3(1.0, 0.45, 0.1), 2.5, air, hz, t, jitter);
+    if (rd.y < 0.0 && tFloor < 80.0) {
+        vec3 f = ro + rd * tFloor;
+        float poolA = hazeConeProfile(f, apexA, axisA, 0.07) / dot(f - apexA, f - apexA);
+        float poolB = hazeConeProfile(f, apexB, axisB, 0.06) / dot(f - apexB, f - apexB);
+        light += 0.04 * (vec3(0.2, 0.35, 1.0) * 260.0 * poolA + vec3(0.45, 1.0, 0.05) * 220.0 * poolB) * 0.5;
+    }
+    return light;
+}
+
+void mainImage(out vec4 color, in vec2 pixel) {
+    vec3 light = pixel.x < 240.0 ? hazeCardFlat(pixel) : hazeCardHall(pixel);
+    if (abs(pixel.x - 240.0) < 0.5) light = vec3(0.0);
+    color = vec4(srgbEncode(tmStage(light, 0.5, 1.0)), 1.0);
+}

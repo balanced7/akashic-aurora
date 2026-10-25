@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haze bench</title>
+<!-- Apache-2.0, Akashic Aurora. The bench for the house haze module (glsl/atmos/haze.glsl): three plates that show
+     light in haze (a Berlin sky, Void Star sheets, a 3D hall), rendered from the same module files every scene composes
+     through glsl/modlib.js. Served by the house server at /web/haze-bench.html; it fetches nothing but its own files. -->
+<style>
+  :root { --bg: #000; --panel: #0b0c10; --ink: #c9ced8; --dim: #7c8496; --line: #1d2029; --accent: #7fd6ff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, sans-serif; }
+  body.bare { overflow: hidden; }
+  body.bare #panel { display: none; }
+  #stage { display: block; width: 100%; height: auto; background: #000; }
+  #panel { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 10px 16px;
+           background: var(--panel); border-top: 1px solid var(--line); }
+  #panel label { display: inline-flex; gap: 6px; align-items: center; color: var(--dim); }
+  #panel select, #panel input[type=range] { accent-color: var(--accent); }
+  #panel output { color: var(--ink); min-width: 3.2em; display: inline-block; font-variant-numeric: tabular-nums; }
+  #panel button { background: #141722; color: var(--ink); border: 1px solid var(--line); border-radius: 4px;
+                  padding: 4px 10px; cursor: pointer; }
+  #stats { flex-basis: 100%; color: var(--dim); font-variant-numeric: tabular-nums; min-height: 1.4em; }
+  #note { flex-basis: 100%; color: var(--dim); }
+</style>
+</head>
+<body>
+<canvas id="stage" width="1280" height="720"></canvas>
+<div id="panel">
+  <label>Plate
+    <select id="plate">
+      <option value="p1">P1 Berlin sky</option>
+      <option value="p2">P2 Void Star sheets</option>
+      <option value="p3">P3 Qlimax air (3D)</option>
+    </select>
+  </label>
+  <label>Motion
+    <select id="mode">
+      <option value="slow">slow</option>
+      <option value="still">still</option>
+    </select>
+  </label>
+  <label>Haze <input id="haze" type="range" min="0" max="2" step="0.01" value="1"><output id="hazeOut">1.00</output></label>
+  <label>Heat <input id="heat" type="range" min="0" max="1" step="0.01" value="0.4"><output id="heatOut">0.40</output></label>
+  <label>Levels
+    <select id="levels">
+      <option value="sdr">SDR (cores near 1)</option>
+      <option value="hdr">HDR (held cores 2-4, roots 8-12)</option>
+    </select>
+  </label>
+  <button id="measure" type="button">Measure float frame</button>
+  <div id="stats"></div>
+  <div id="note">Haze shows light, never is light: every pixel is a light's in-scatter (P1's blue air is its one sky).
+    The canvas shows tmStage at H = 1; "Measure" reads the scene-linear float frame before it.</div>
+</div>
+<script type="module" src="./haze-bench.js"></script>
+</body>
+</html>
