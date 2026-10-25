@@ -1664,3 +1664,220 @@ test("Round 3: with the fit off, a ringing figure whose node pieces stand still 
   assert.ok(frames > 500);
   assert.equal(mid, 0, `${mid} mid-pulse frames over budget with the fit off`);
 });
+
+// ------------------------------------------------------------------------------------------- 11. round 4 --
+// The verifier's round-3 must-fix: the "plays alone" hand-over put the hits before a new hit out only in the frame the
+// new first pulse was due, so that frame went out dark and the pulse lit a frame or more late -- whenever any light of
+// the hit before was still alive, even a 1-3 % tail that lights nothing a window would count. A held press's loop was
+// late in 40 of 40 holds at 150 BPM (worst 50-62 ms; round 2: 3 of 40, where the hold was known after the loop's first
+// grid point); Bar Marker taps 1.25 beats apart lit 360 of 400 first pulses a frame late (round 2: none). Now the hits
+// before go out in the frame BEFORE the new first pulse; when no frame is left between (a press within a frame of its
+// beat) they go out with it if what is left of them changes nothing measurable, or fits the budget with the new onset,
+// or is a tail dim enough to go out in two unmeasured halves; a pulse lit when the press comes ends the frame rules' gap
+// before the new one; and a held loop starts on a grid point it can still light on time. Each test fails on the round-3
+// engine (df24413e) and passes now. "On time" is spec 3.3's early rule, as A2 measures it: a pulse's picture (one frame
+// after its frame's rAF time) lands at or before its grid point, at most one frame early.
+const photonErr = (t, P, per) => t + F - P * per;
+// The hits that light anything measurable (0.1 or more, by the module's own estimator) in the frame just drawn: each
+// hit's records (a record's key carries its hit id, key = hit * 8192 + ..., see _write). A tail going out in two halves
+// under a new onset is still drawn for that one frame, at a level that lights nothing measurable: litHits counts it,
+// this does not.
+function measurablyLit(eng) {
+  const d = eng.drawn, by = new Map();
+  for (let i = 0; i < d.n; i++) { const id = Math.floor(d.keys[i] / 8192); if (!by.has(id)) by.set(id, []); by.get(id).push(i); }
+  let n = 0;
+  for (const rows of by.values()) {
+    const Wa = new Float64Array(rows.length * L.W_FLOATS);
+    rows.forEach((i, k) => Wa.set(d.W.subarray(i * L.W_FLOATS, (i + 1) * L.W_FLOATS), k * L.W_FLOATS));
+    const a = L.estimateArea(Wa, rows.length, eng.asp || 16 / 9);
+    if (a.window > 1e-9 || a.frame > 1e-9) n++;
+  }
+  return n;
+}
+
+test("Round 4: a held press's loop lights its first pulse on its grid point -- never late, at most a frame early -- with the press dark the frame before", () => {
+  const rows = [], bad = [];
+  // the verifier's repro (one press held 4 beats, 40 seeds, presses on every eighth of the beat), and more tempos and
+  // sections; each run twice, with the frames on the beat grid and 7.3 ms off it
+  const cases = [[150, "drop", "auto", 0.8, false, "night-sea"], [150, "anti", "auto", 0.8, false, "night-sea"], [174, "drop", "auto", 1.0, false, "night-sea"],
+    [140, "drop", "single", 0.6, true, "molten"], [150, "build", "auto", 0.8, false, "night-sea"], [128, "climax", "auto", 0.95, true, "white"],
+    [165, "break", "auto", 0.7, false, "golden-wings"], [160, "groove", "auto", 0.85, true, "laser-green"]];
+  for (const [bpm, section, gateMode, vel, vibrate, th] of cases) {
+    const per = 60000 / bpm, theme = THEMES[th] || themeOf(th);
+    let n = 0, worst = -Infinity, best = Infinity;
+    for (let seed = 1; seed <= 40; seed++) for (const off of [0, 7.3]) {
+      const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme, section, gateMode, vibrate });
+      const tp = 2000 + (seed % 8) * per / 8, tag = `${bpm} ${section} seed ${seed} off ${off}`;
+      let pressLit = false, seen = false;
+      drive(eng, tap(tp, vel, 4 * per), { from: 1950 + off, to: tp + 6 * per, onFrame: (out, t) => {
+        const ev = out.events.find((e) => e.type === "pulse" && e.k === 0 && (eng.hits.find((h) => h.id === e.hit) || {}).tier === "held");
+        if (ev && !seen) {
+          seen = true; n++;
+          const H = eng.hits.find((h) => h.id === ev.hit), G = L.GATES[H.gate], step = G.stages ? G.stages[0] : G.step, q = (H.cur.P - (G.offset || 0)) / step;
+          const err = photonErr(t, H.cur.P, per);
+          worst = Math.max(worst, err); best = Math.min(best, err);
+          if (err > 1e-6 || err <= -F - 1e-6) bad.push(`${tag}: first pulse ${err.toFixed(1)} ms from its grid point`);
+          if (Math.abs(q - Math.round(q)) > 1e-6) bad.push(`${tag}: first pulse off the ${H.gate} grid (P ${H.cur.P})`);
+          if (pressLit) bad.push(`${tag}: the press still lit the frame before its loop's first pulse`);
+          if (litHits(eng) !== 1) bad.push(`${tag}: ${litHits(eng)} hits lit with the loop's first pulse`);
+        }
+        const press = eng.hits.find((h) => h.id === 1);
+        pressLit = !!(press && press.started && press.level01 > 0.002);
+      } });
+    }
+    rows.push(`${bpm} ${section}${vibrate ? "/vib" : ""} ${th}: ${n} holds, first pulse ${best.toFixed(1)} to ${worst.toFixed(1)} ms`);
+    assert.equal(n, 80, `${bpm} ${section}: ${n} of 80 holds lit their loop`);
+  }
+  console.log("  " + rows.join("; "));
+  assert.deepEqual(bad, [], bad.slice(0, 8).join("; "));
+});
+
+// The first frame at or after the press whose picture has reached beat P (spec 3.3's early rule, presentLag one frame).
+function couldLightIn(frames, t0, P, per) {
+  for (const t of frames) if (t >= t0 - 1e-9 && t + 2 * F - 1e-6 >= P * per) return t;
+  return Infinity;
+}
+// presses `gap` beats apart with the dial on `gate` (the verifier's x13 / x7 layout): how many first pulses light a frame
+// (or more) later than the frame they could light in
+function tapDelays(gate, gap, bpm, off, theme = WHITE) {
+  const per = 60000 / bpm, hist = {};
+  let late = 0, n = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme, gateMode: gate, vibrate: false });
+    const presses = Array.from({ length: 10 }, (_, i) => 2000 + (seed % 5) * 37 + i * gap * per);
+    const from = 1950 + off, to = presses[9] + 3 * per, frames = [];
+    for (let j = 0; from + j * F < to; j++) frames.push(from + j * F);
+    drive(eng, presses.flatMap((p) => tap(p, 0.8)), { from, to, onFrame: (out, t) => {
+      for (const e of out.events) if (e.type === "pulse" && e.k === 0) {
+        const H = eng.hits.find((h) => h.id === e.hit);
+        const d = Math.round((t - couldLightIn(frames, H.t0, H.cur.P, per)) / F);
+        n++; hist[d] = (hist[d] || 0) + 1; if (d > 0) late++;
+      }
+    } });
+  }
+  return { late, n, hist };
+}
+
+test("Round 4: taps after a long tail light their first pulse in the frame they could light in (Bar Marker 1.25 beats apart, Inhale and Single a beat apart)", () => {
+  const rows = [];
+  // the verifier's repro (Bar Marker at 140 BPM, white, the frames where its probe ran them; round 3: 360 of 400 a frame
+  // late, round 2: none), and two more with the frames off the beat grid: the Inhale's ramp, lit right up to the beat
+  // the next press takes over (round 3: 360 of 400, mostly 2 frames late: the lit ramp ran on into the new pulse's
+  // frame), and a Single a beat apart (round 3: 51 of 400)
+  for (const [gate, gap, bpm, off] of [["bar", 1.25, 140, 0], ["inhale", 1, 128, 7.1], ["single", 1, 174, 7.1]]) {
+    const r = tapDelays(gate, gap, bpm, off);
+    rows.push(`${gate} ${gap} beats apart at ${bpm}: ${r.late} of ${r.n} late ${JSON.stringify(r.hist)}`);
+    assert.equal(r.n, 400, `${gate}: ${r.n} first pulses`);
+    assert.equal(r.late, 0, `${gate} ${gap} beats apart at ${bpm} BPM: ${r.late} of ${r.n} first pulses lit later than they could ${JSON.stringify(r.hist)}`);
+  }
+  console.log("  " + rows.join("; "));
+});
+
+// When the press leaves no frame between (it came within a frame of its beat, or fires now), the hits before go out in
+// the frame the new pulse comes on in -- and only as the budget allows: what is left of them changes nothing measurable
+// as it goes, or that change plus the new onset fits the budget, or (a tail too bright for that, dim enough for this) it
+// goes out in two halves that each change nothing measurable: in its half frame it is drawn as last frame's very records
+// at half their level (nothing of it moves), then not at all. The verifier's Bar Marker repro needs the halves three
+// times (seeds 6, 21, 22) and a Triple Strobe 1.5 beats apart at 128 six times; each is checked here on the records.
+function subsetOf(buf, ids) {
+  const out = L.recordBuffer();
+  for (let i = 0; i < buf.n; i++) {
+    if (!ids.has(Math.floor(buf.keys[i] / 8192))) continue;
+    out.W.set(buf.W.subarray(i * L.W_FLOATS, (i + 1) * L.W_FLOATS), out.n * L.W_FLOATS);
+    out.keys[out.n] = buf.keys[i]; out.map.set(buf.keys[i], out.n); out.n++;
+  }
+  return out;
+}
+test("Round 4: a hand-over with no frame to spare changes nothing measurable or fits the budget; a dim tail goes out in two unmeasured halves", () => {
+  const n = { cutDark: 0, cutFits: 0, halve: 0, wait: 0 }, bad = [];
+  for (const [gate, gap, bpm] of [["bar", 1.25, 140], ["triple", 1.5, 128]]) {
+    const per = 60000 / bpm;
+    for (let seed = 1; seed <= 40; seed++) {
+      const eng = L.createLaserEngine({ seed, clock: steadyClock(bpm), theme: WHITE, gateMode: gate, vibrate: false });
+      const orig = eng._cutsClean.bind(eng), made = [];
+      eng._cutsClean = (H, wait) => {
+        const D = eng._drawnLight(wait), how = orig(H, wait);
+        const kind = !how ? "wait" : how === "halve" ? "halve" : !D || (D.area.window <= 1e-9 && D.area.frame <= 1e-9) ? "cutDark" : "cutFits";
+        n[kind]++;
+        if (how) made.push({ kind, ids: new Set(wait.map((h) => h.id)), H });
+        return how;
+      };
+      const presses = Array.from({ length: 10 }, (_, i) => 2000 + (seed % 5) * 37 + i * gap * per);
+      let prev = null, watch = [];
+      drive(eng, presses.flatMap((p) => tap(p, 0.8)), { from: 1950, to: presses[9] + 3 * per, onFrame: (out, t) => {
+        const chg = { frame: 0, window: 0 };
+        // the frame after a half: what is left goes out, unmeasured
+        for (const w of watch) {
+          L.estimateChange(subsetOf(prev, w.ids), subsetOf(eng.drawn, w.ids), eng.asp, chg);
+          if (chg.window > 1e-9 || chg.frame > 1e-9) bad.push(`${gate} seed ${seed} at ${t.toFixed(0)}: a halved tail went out changing ${(100 * chg.window).toFixed(2)} % of a window`);
+        }
+        watch = [];
+        for (const m of made) {
+          const own = L.estimateChange(prev && subsetOf(prev, m.ids), subsetOf(eng.drawn, m.ids), eng.asp, { frame: 0, window: 0 });
+          if (m.kind !== "cutFits" && (own.window > 1e-9 || own.frame > 1e-9)) bad.push(`${gate} seed ${seed} at ${t.toFixed(0)}: ${m.kind} changed ${(100 * own.window).toFixed(2)} % of a window`);
+          if (out.area.over) bad.push(`${gate} seed ${seed} at ${t.toFixed(0)}: ${m.kind} frame over budget`);
+          if (!m.H.started || m.H.cur.onFrame !== eng.frameIdx) bad.push(`${gate} seed ${seed}: the new hit did not light in its hand-over frame`);
+          if (m.kind === "halve") watch.push(m);
+        }
+        made.length = 0;
+        prev = L.recordBuffer();
+        prev.W.set(eng.drawn.W.subarray(0, eng.drawn.n * L.W_FLOATS)); prev.keys.set(eng.drawn.keys.subarray(0, eng.drawn.n));
+        prev.n = eng.drawn.n; for (let i = 0; i < prev.n; i++) prev.map.set(prev.keys[i], i);
+      } });
+    }
+  }
+  console.log(`  hand-overs with no frame to spare: ${JSON.stringify(n)}`);
+  assert.ok(n.halve >= 9 && n.cutFits > 0 && n.cutDark > 0, JSON.stringify(n));
+  assert.deepEqual(bad, [], bad.slice(0, 8).join("; "));
+});
+
+// Realistic play on FRESH seeds (taps at many spacings, holds, sparse presses; the dial, Vibrate, Shape and banks
+// drawn per run; the frames at a random offset from the beat grid): every held loop's first pulse on its grid point
+// (the verifier's mashing run: 28 of 35 in round 2, 3 of 35 in round 3), still one hit lit at a time, no frame over
+// budget.
+test("Round 4: realistic play on fresh seeds -- every held loop's first pulse on its grid point, one hit lit at a time, no frame over budget", () => {
+  const themeIds = [...Object.keys(LIBRARY), "white"], pick = (r, a) => a[Math.floor(r() * a.length)];
+  const bad = [];
+  let held = 0, runs = 0, slow = 0, slowLate = 0;
+  for (let k = 0; k < 16; k++) {
+    const r = L.makeRng(FRESH, "play-timing", k);
+    const bpm = pick(r, [120, 128, 140, 150, 160, 174, 180]), per = 60000 / bpm, off = 13 * r();
+    const eng = L.createLaserEngine({ seed: 1 + Math.floor(r() * 1e9), clock: steadyClock(bpm), theme: themeOf(pick(r, themeIds)), section: pick(r, ["climax", "drop", "build", "groove", "anti", "break"]),
+      vibrate: r() < 0.5, shapeMode: r() < 0.25 ? "auto" : null, gateMode: r() < 0.6 ? "auto" : pick(r, L.GATE_IDS), bankMode: r() < 0.5 ? "auto" : pick(r, Object.keys(L.BANK_MODES)) });
+    const ev = [], end = 2000 + 20000;
+    for (let t = 2000; t < end;) {
+      const style = r();
+      if (style < 0.3) {
+        const div = pick(r, [0.5, 1, 0.75, 1.25, 1.5]), m = 3 + Math.floor(r() * 8);
+        for (let i = 0; i < m; i++) ev.push(...tap(t + i * div * per + gauss(r) * 12, 0.4 + 0.6 * r(), 40));
+        t += m * div * per;
+      } else if (style < 0.7) {
+        const hold = (1 + Math.floor(r() * 4)) * per;
+        ev.push(...tap(t + gauss(r) * 10, 0.4 + 0.6 * r(), hold));
+        t += hold + per * (0.5 + r());
+      } else {
+        const m = 2 + Math.floor(r() * 3);
+        for (let i = 0; i < m; i++) ev.push(...tap(t + i * pick(r, [2, 3, 4]) * per + gauss(r) * 20, 0.6 + 0.4 * r(), 60));
+        t += m * 4 * per;
+      }
+    }
+    let most = 0, over = 0;
+    drive(eng, ev, { from: 1950 + off, to: end + 3 * per, onFrame: (out, t) => {
+      most = Math.max(most, measurablyLit(eng)); if (out.area.over) over++;
+      for (const e of out.events) if (e.type === "pulse" && e.k === 0) {
+        const H = eng.hits.find((h) => h.id === e.hit);
+        if (H.tier === "held") {
+          held++;
+          const err = photonErr(t, H.cur.P, per);
+          if (err > 1e-6 || err <= -F - 1e-6) bad.push(`#${k} ${bpm} held ${H.gate} at ${t.toFixed(0)}: ${err.toFixed(1)} ms`);
+        } else if (!H.fast) { slow++; if (t - Math.max(H.t0, H.cur.P * per - 2 * F) >= F - 1e-6) slowLate++; }
+      }
+    } });
+    runs++;
+    if (most > 1) bad.push(`#${k}: ${most} hits measurably lit in one frame`);
+    if (over) bad.push(`#${k}: ${over} frames over budget`);
+  }
+  console.log(`  base ${FRESH}: ${runs} runs of 20 s, ${held} held loops (all on their grid point), ${slow} slow first pulses, ${slowLate} of them a frame or more after they could`);
+  assert.ok(held >= 20, `only ${held} held loops`);
+  assert.deepEqual(bad, [], `base ${FRESH}: ${bad.slice(0, 8).join("; ")}`);
+});
