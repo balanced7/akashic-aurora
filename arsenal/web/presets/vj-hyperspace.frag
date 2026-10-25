@@ -9,6 +9,8 @@ precision highp float;
 // jumping pad's colour runs down the streaks, with a ring of its colour thrown down the tunnel. Bass lights the vanishing
 // point; the chord's palette tints the nebula behind it. The feedback buffer is resampled a little toward the centre every
 // frame, so light drifts outward along the streaks' own direction (a radial motion blur that costs one texture read).
+// Any pad hit (the strip's shared hit input, 2026-10-24) is a warp-jump on top: the streaks stretch at once, the field
+// of view snaps wide, the vanishing point blazes and the trails pull harder, by the hit's velocity.
 
 uniform sampler2D u_video;   // the VJ page: its 16x6 VJ strip (u_has_video stays 0); Play: the video or a 1x1 black texture
 uniform sampler2D u_prev;
@@ -59,6 +61,23 @@ void vjLoad() {
 }
 
 vec3 padColour(int i) { return gHost ? vjAt(i, 3).rgb : gPal[i - 4 * (i / 4)]; }
+
+// the shared hit input (STRIP v2, row 2: vj-core.js): the latest pad hit's pulse (through the velocity curve), its velocity,
+// its effect code and age, where it struck; the kick / snare / hat envelopes. 0 in Play and on a v1 host.
+float gHit, gHitVel, gHitCode, gHitAge, gSnare, gHat;
+vec2 gHitAt;
+void hitLoad() {
+  if (gHost && vjAt(15, 2).x >= 2.0) {
+    vec4 h = vjAt(10, 2);
+    gHit = h.x; gHitVel = h.y; gHitCode = h.z; gHitAge = h.w;
+    vec4 b = vjAt(11, 2);
+    gSnare = b.y; gHat = b.z;
+    gHitAt = vjAt(12, 2).yz;
+  } else {
+    gHit = 0.0; gHitVel = 0.0; gHitCode = 0.0; gHitAge = 30.0; gSnare = 0.0; gHat = 0.0; gHitAt = vec2(0.0);
+  }
+}
+
 
 vec3 padLevel(int i) {          // (envelope, velocity, seconds since press)
   if (gHost) return vjAt(i, 0).xyz;
@@ -119,6 +138,7 @@ vec3 streak(float r, float a, float cell, float cells, float layer, float travel
 
 void main() {
   vjLoad();
+  hitLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
   float px = 1.0 / max(u_res.y, 1.0);
@@ -142,7 +162,8 @@ void main() {
     float d = abs(rr - ringR) / px;
     rings += padColour(i) * punch * (exp(-d * d / 36.0) * 0.6 + 0.15 / (1.0 + d * 0.05)) * smoothstep(0.0, 0.08, lv.z);
   }
-  jump = min(jump, 1.6) * u_k6;
+  jump += gHit * (0.7 + 0.7 * gHitVel);                 // the warp-jump: any pad hit, at once
+  jump = min(jump, 1.9) * u_k6;
 
   // the vanishing point drifts a little and shakes with the bass
   vec2 c = cDrift + 0.004 * bass * vec2(vnoise(vec2(t * 13.0, 1.0)) - 0.5, vnoise(vec2(2.0, t * 11.0)) - 0.5);

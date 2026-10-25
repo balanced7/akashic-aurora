@@ -1,6 +1,6 @@
 // Node tests for the VJ rig's pure logic (arsenal/web/vj-core.js). Zero dependencies:
 //   node tests/vj_core.test.mjs
-// Sections: the event contract; the engine link (when the page may post pad colours); the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
+// Sections: gate v2 (vj-gate.js: the final-output flash limiter and the verifier's flash counter); the event contract; the engine link (when the page may post pad colours); the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
 // the effect bank (velocity, hold and release, dampen, choke, the fixed pool); the beat clock (scheduling, refreshed
 // predictions, the flywheel); the pedal detector (Joy to the World's repeated D-flat over a walking bass, and Daniel's
 // whole real take through it: tests/fixtures/vj/joy_take_events.json); the star layout;
@@ -9,6 +9,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as C from "../arsenal/web/vj-core.js";
+import * as G from "../arsenal/web/vj-gate.js";
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 let pass = 0, fail = 0;
@@ -236,7 +237,11 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
   check("every pad action is known", C.DEFAULT_PAD_MAP.every((a) => C.PAD_ACTIONS.includes(a)));
   check("pads 1-4 one-shots, 5-8 holdable", C.DEFAULT_PAD_MAP.slice(0, 4).every((a) => !C.EFFECTS[a].hold) &&
         C.DEFAULT_PAD_MAP.slice(4, 8).every((a) => C.EFFECTS[a].hold));
-  check("pads 9-12 dampen choke kill next", C.DEFAULT_PAD_MAP.slice(8).join() === "dampen,choke,kill,next");
+  check("pads 9-12 dampen choke invert zoom (2026-10-24)", C.DEFAULT_PAD_MAP.slice(8).join() === "dampen,choke,invert,zoom");
+  check("kill and next left the pads (still pad actions)", !C.DEFAULT_PAD_MAP.includes("kill") && !C.DEFAULT_PAD_MAP.includes("next") &&
+        C.PAD_ACTIONS.includes("kill") && C.PAD_ACTIONS.includes("next"));
+  check("pad 11 holds (invert), pad 12 is a one-shot (zoom)", C.EFFECTS.invert.hold && !C.EFFECTS.zoom.hold);
+  check("every one-shot shows in the first frame (attack 0)", ["shockwave", "laser", "flash", "glitch", "zoom"].every((t) => C.EFFECTS[t].a === 0));
   check("the full-frame effects are marked flash", C.EFFECTS.flash.flash && C.EFFECTS.strobe.flash && C.EFFECTS.invert.flash);
 }
 
@@ -402,6 +407,223 @@ if (!existsSync(JOY_TAKE)) {
   }
 }
 
+// ------------------------------------------------------------------------------- the impact pass (2026-10-24) --
+{
+  // the velocity curve: soft is a nudge, hard is huge
+  check("velCurve ends", C.velCurve(0) === 0 && C.velCurve(1) === 1 && C.velCurve(-1) === 0 && C.velCurve(2) === 1);
+  check("velCurve is steep", C.velCurve(0.3) < 0.08 && near(C.velCurve(0.6), Math.pow(0.6, 2.2)) && C.velCurve(1) / C.velCurve(0.3) > 10);
+  let mono = true;
+  for (let v = 0.01; v <= 1; v += 0.01) if (C.velCurve(v) < C.velCurve(v - 0.01)) mono = false;
+  check("velCurve is monotone", mono);
+  check("hardness: nothing at medium, all at full", C.hardness(0.5) === 0 && C.hardness(0.3) === 0 && C.hardness(1) === 1);
+
+  // the impact layer: punch (fast out, eased back), shake (hard hits only), dip (~40-50 ms), afterglow
+  const L = new C.ImpactLayer();
+  L.hit("laser", 1, 10, { seed: 0.3, x: 0.2, y: -0.5 });
+  let o = L.sample(10);
+  check("a hard hit punches at once", near(o.punch, C.IMPACT.laser.punch) && near(o.dip, C.IMPACT.laser.dip) && o.glow > 0.9);
+  check("a hard hit shakes, within the cap", Math.hypot(o.shakeX, o.shakeY) > 0 && Math.abs(o.shakeX) <= 0.045 && Math.abs(o.shakeY) <= 0.045);
+  check("the strip hears it", o.code === C.EFFECT_CODES.laser && near(o.vel, 1) && near(o.x, 0.2) && near(o.y, -0.5) && o.pulse > 0.99);
+  o = L.sample(10.029);
+  check("the dip holds 30 ms", near(o.dip, C.IMPACT.laser.dip));
+  o = L.sample(10.051);
+  check("the dip is gone by 50 ms", o.dip === 0);
+  const p1 = L.sample(10.05).punch, p2 = L.sample(10.12).punch, p3 = L.sample(10.25).punch;
+  check("the punch eases back", p1 > p2 && p2 > p3 && L.sample(10.29).punch === 0, `${p1} ${p2} ${p3}`);
+  check("the shake dies within ~0.35 s", Math.hypot(L.sample(10.4).shakeX, L.sample(10.4).shakeY) === 0);
+  check("the pulse decays", L.sample(10.25).pulse < 0.4 && L.sample(10.25).pulse > 0.3);
+  const soft = new C.ImpactLayer();
+  soft.hit("laser", 0.3, 0, { seed: 0.5 });
+  o = soft.sample(0);
+  check("a soft hit barely moves the frame: no shake, no dip", o.punch < 0.1 * C.IMPACT.laser.punch && o.shakeX === 0 && o.shakeY === 0 && o.dip === 0);
+  check("but the strip still hears it", o.pulse > 0.25);
+  const off = new C.ImpactLayer();
+  off.hit("glitch", 1, 0, { seed: 0.1, punch: false });
+  o = off.sample(0);
+  check("the impact switch off: no punch, shake, dip or glow; the hit texel still lit", o.punch === 0 && o.shakeX === 0 && o.dip === 0 &&
+        o.glow === 0 && o.pulse > 0.99);
+  const two = new C.ImpactLayer();
+  const sw = two.hit("shockwave", 1, 0, { seed: 0.2 });
+  const swPunch = sw.punch;
+  const gl = two.hit("glitch", 1, 0.01, { seed: 0.7 });
+  check("two hits: the larger punch wins", near(two.sample(0.01).punch, Math.max(gl.punch, swPunch * (1 - 0.01 / 0.28) ** 2)));
+  // the glitch varies its punch, shake and dip by its seed (the same on average); the others do not
+  const pg = [];
+  for (let k = 0; k < 40; k++) { const g = new C.ImpactLayer().hit("glitch", 1, 0, { seed: (k * 0.618034) % 1 }); pg.push(g.punch); }
+  const meanP = pg.reduce((x, y) => x + y, 0) / pg.length;
+  check("the glitch's punch varies hit to hit around its profile", Math.max(...pg) / Math.min(...pg) > 2 && Math.abs(meanP / C.IMPACT.glitch.punch - 1) < 0.2,
+        `${Math.min(...pg)} .. ${Math.max(...pg)} mean ${meanP}`);
+  check("the laser's punch does not", new C.ImpactLayer().hit("laser", 1, 0, { seed: 0.1 }).punch === new C.ImpactLayer().hit("laser", 1, 0, { seed: 0.9 }).punch);
+  check("strobe and freeze carry no impact", C.IMPACT.strobe.punch === 0 && C.IMPACT.freeze.punch === 0 && C.IMPACT.strobe.dip === 0);
+  check("every effect has an impact profile", C.EFFECT_TYPES.every((t) => C.IMPACT[t]));
+  check("zoom depth: 8 % soft .. 30 % hard", near(C.zoomDepth(0), 0.08) && near(C.zoomDepth(1), 0.30) && C.zoomDepth(0.3) < 0.1);
+
+  // the dip's safety limit: never a luminance drop of DIP_SAFE_DELTA or more unless it rides a granted flash
+  let worst = 0;
+  for (let L2 = 0; L2 <= 1; L2 += 0.01) for (let d = 0; d <= 0.9; d += 0.05) worst = Math.max(worst, C.dipSafeDepth(d, L2) * L2);
+  check("a dip alone stays under the flash line (drop < 0.1, and <= the safe delta)", worst <= C.DIP_SAFE_DELTA + 1e-12 && C.DIP_SAFE_DELTA < 0.1, `${worst}`);
+  check("a dark scene dips deep", near(C.dipSafeDepth(0.5, 0.04), 0.5));
+  check("a bright scene dips shallow", near(C.dipSafeDepth(0.5, 0.45), 0.1));
+  check("a dip riding a granted flash keeps its depth", near(C.dipSafeDepth(0.7, 0.8, true), 0.7));
+
+  // the gate still holds with dips: a storm of hard hits (every pad, 20 a second, 5 s) through the page's own rules
+  {
+    const gate = new C.FlashGate(), bank = new C.EffectBank(), lay = new C.ImpactLayer();
+    let dipsAsked = 0, worstDrop = 0;
+    for (let k = 0; k < 100; k++) {
+      const t = k * 0.05, type = C.DEFAULT_PAD_MAP[k % 12];
+      if (!C.EFFECTS[type]) continue;
+      let granted = false;
+      if (type === "flash" || type === "invert") granted = gate.request(t);
+      const f = bank.trigger(type, 1, t, { granted });
+      lay.hit(type, 1, t, { seed: f.seed, granted: type === "flash" && granted });
+      for (let s = 0; s < 3; s++) {          // three frames per hit, on a scene whose brightness wanders 0.02 .. 0.62
+        const o2 = lay.sample(t + s * 0.0167);
+        const meanLum = 0.32 + 0.3 * Math.sin(k * 0.7 + s);
+        if (o2.dip > 0) dipsAsked++;
+        const d = C.dipSafeDepth(o2.dip, meanLum, o2.dipGranted);
+        if (!o2.dipGranted) worstDrop = Math.max(worstDrop, d * meanLum);
+      }
+    }
+    check("the storm asked for dips", dipsAsked > 50);
+    check("no ungranted dip dropped 0.045 or more", worstDrop <= C.DIP_SAFE_DELTA + 1e-12, `${worstDrop}`);
+    check("the gate never granted more than three flashes in a second", gate.maxInAnyWindow() <= 3, `${gate.maxInAnyWindow()}`);
+  }
+
+  // the glitch: a mode or a pair per hit, from the hit's seed; deterministic; every mode turns up
+  const bank = new C.EffectBank();
+  const plans = [];
+  for (let k = 0; k < 60; k++) { const f = bank.trigger("glitch", 1, k); plans.push(C.glitchPlan(f.seed, 1)); }
+  const prim = new Set(plans.map((p) => p.primary));
+  check("all six glitch modes come up as primaries in 60 hits", prim.size === 6 && C.GLITCH_MODES.length === 6, [...prim].join());
+  check("consecutive hits never repeat the primary mode", plans.every((p, i) => i === 0 || p.primary !== plans[i - 1].primary));
+  check("a hard hit stacks a second, different mode", plans.every((p) => p.secondary >= 0 && p.secondary !== p.primary));
+  const pairs = new Set(plans.map((p) => `${p.primary}+${p.secondary}`));
+  check("hard hits draw at least 12 different combinations in 60", pairs.size >= 12, `${pairs.size}`);
+  check("the same seed gives the same plan", JSON.stringify(C.glitchPlan(0.4321, 0.8)) === JSON.stringify(C.glitchPlan(0.4321, 0.8)));
+  check("a soft hit is one mode", C.glitchPlan(0.4321, 0.3).secondary === -1 && C.glitchPlan(0.4321, 0.3).names.length === 1);
+  check("velocity sets intensity and size", C.glitchPlan(0.2, 1).amount > C.glitchPlan(0.2, 0.6).amount &&
+        C.glitchPlan(0.2, 0.6).amount > C.glitchPlan(0.2, 0.3).amount && C.glitchPlan(0.2, 1).size > C.glitchPlan(0.2, 0.3).size);
+
+  // the band envelopes: fast attack, slower release; a sustained level stops pumping
+  const B = new C.BandEnvelopes();
+  for (let t = 0; t < 500; t += 16) B.update(t, 0.016);
+  B.energy({ bass: 0.8, mid: 0.1, high: 0.1, level: 0.5 }, 500);
+  B.update(516, 0.016);
+  check("a bass rise lands within one frame (level)", B.level.bass > 0.85 * 0.8, `${B.level.bass}`);
+  check("and pumps the kick within one frame", B.env.kick > 0.5, `${B.env.kick}`);
+  let t2 = 516;
+  for (; t2 < 1600; t2 += 16) { B.energy({ bass: 0.8, mid: 0.1, high: 0.1, level: 0.5 }, t2); B.update(t2, 0.016); }
+  check("a sustained bass stops pumping", B.env.kick < 0.15, `${B.env.kick}`);
+  const B2 = new C.BandEnvelopes();
+  B2.hit("snare", 0.9);
+  B2.update(0, 0.016);
+  const s0 = B2.env.snare;
+  for (let t = 16; t <= 200; t += 16) B2.update(t, 0.016);
+  check("a snare hit kicks its envelope at once, then lets go", s0 > 0.8 && B2.env.snare < 0.25, `${s0} -> ${B2.env.snare}`);
+  B2.hit("hat", 1);
+  B2.update(216, 0.016);
+  const h0 = B2.env.hat;
+  for (let t = 232; t <= 360; t += 16) B2.update(t, 0.016);
+  check("the hat is the shortest", h0 > 0.8 && B2.env.hat < 0.1);
+  B2.hit("full", 1);
+  B2.update(400, 0.016);
+  check("a full hit kicks kick and snare", B2.env.kick > 0.8 && B2.env.snare > 0.8);
+
+  // the beat snap
+  const clock = new C.BeatClock();
+  clock.schedule(800, { due_ms: 200, bpm: 120, conf: 0.9, n: 0, on_beat: null });
+  clock.update(1000, 0.016);
+  check("snap: just after a 16th fires now", C.snapDelayMs(1010, clock) === 0);
+  check("snap: mid-16th waits for the next", near(C.snapDelayMs(1050, clock), 75));
+  check("snap: the next 16th after a beat", near(C.snapDelayMs(1130 + 50, clock), 70));
+  check("snap: no live beat, no wait", C.snapDelayMs(9000, clock) === 0 && C.snapDelayMs(100, new C.BeatClock()) === 0);
+  check("snap never waits a whole 16th", (() => { for (let t = 1000; t < 2000; t += 3) { const w = C.snapDelayMs(t, clock); if (w < 0 || w > 125 * 0.75 + 1e-9) return false; } return true; })());
+
+  // scenes from the transport and the dial
+  const sc = new C.SceneControl();
+  const btn = (id, v) => ({ t: "ctl", id, kind: "abs", value: v, delta: 0 });
+  const dial = (d) => ({ t: "ctl", id: "cc116", kind: "rel", value: 0.5, delta: d });
+  let r = sc.ctl(btn("cc26", 1), "sceneNext", 1000, 14, 3);
+  check("fast-forward's press: next scene", r && r.do === "next" && r.index === 4);
+  check("its release does nothing", sc.ctl(btn("cc26", 0), "sceneNext", 1080, 14, 4) === null);
+  r = sc.ctl(btn("cc26", 1), "sceneNext", 1100, 14, 4);
+  check("a press inside 160 ms of the last is a bounce", r === null);
+  r = sc.ctl(btn("cc26", 0), "sceneNext", 1150, 14, 4);
+  r = sc.ctl(btn("cc26", 1), "sceneNext", 1300, 14, 4);
+  check("a later press moves again", r && r.index === 5);
+  check("a repeat while held does nothing", sc.ctl(btn("cc26", 1), "sceneNext", 1600, 14, 5) === null);
+  sc.ctl(btn("cc26", 0), "sceneNext", 1700, 14, 5);
+  r = sc.ctl(btn("cc25", 1), "scenePrev", 1800, 14, 0);
+  check("rewind wraps from the first scene to the last", r && r.do === "prev" && r.index === 13);
+  sc.ctl(btn("cc25", 0), "scenePrev", 1850, 14, 13);
+  r = sc.ctl(dial(3), "sceneDial", 2000, 14, 6);
+  check("the dial browses one scene per message (no acceleration)", r && r.do === "browse" && r.index === 7 && sc.browsing());
+  check("a second message inside 60 ms is dropped", sc.ctl(dial(5), "sceneDial", 2030, 14, 6) === null && sc.cursor === 7);
+  r = sc.ctl(dial(-2), "sceneDial", 2100, 14, 6);
+  check("turning back browses back", r && r.index === 6);
+  r = sc.ctl(dial(1), "sceneDial", 2200, 14, 6);
+  r = sc.ctl(btn("cc117", 1), "sceneGo", 2300, 14, 6);
+  check("the dial's click goes to the scene shown", r && r.do === "go" && r.index === 7 && !sc.browsing());
+  sc.ctl(btn("cc117", 0), "sceneGo", 2350, 14, 7);
+  check("a click with nothing shown does nothing", sc.ctl(btn("cc117", 1), "sceneGo", 2600, 14, 7) === null);
+  sc.ctl(btn("cc117", 0), "sceneGo", 2650, 14, 7);
+  sc.ctl(dial(1), "sceneDial", 3000, 14, 7);
+  check("a browse without a click ends after 4 s", sc.tick(5000) === null && sc.tick(7100)?.do === "browse-end" && !sc.browsing());
+  let flood = 0;
+  const sc2 = new C.SceneControl();
+  for (let t = 0; t < 1000; t += 5) if (sc2.ctl(dial(4), "sceneDial", t, 14, 0)) flood++;
+  check("a fast spin cannot flood: at most one step per 60 ms", flood <= 17, `${flood}`);
+  let fires = 0;
+  const sc3 = new C.SceneControl();
+  for (let t = 0; t < 1000; t += 10) if (sc3.ctl(btn("cc26", 1), "sceneNext", t, 14, 0)) fires++;
+  check("a held button fires once", fires === 1);
+
+  // the maps: pads 11-12 reclaimed, old stored maps still normalise, the transport and dial on scenes
+  check("an old stored map of the old defaults takes the new pads 11-12", C.normalizePadMap(C.PAD_MAP_V1_DEFAULT.slice()).join() === C.DEFAULT_PAD_MAP.join());
+  const mine = C.PAD_MAP_V1_DEFAULT.slice(); mine[0] = "glitch"; mine[10] = "flash";
+  const kept = C.normalizePadMap(mine);
+  check("an old stored map keeps every pad Daniel set", kept[0] === "glitch" && kept[10] === "flash" && kept[11] === "zoom");
+  check("a v2 map keeps kill on pad 11 when chosen", C.normalizePadMap({ v: 2, pads: [...C.DEFAULT_PAD_MAP.slice(0, 10), "kill", "next"] }).slice(10).join() === "kill,next");
+  check("serialise writes v2", C.serializePadMap(C.DEFAULT_PAD_MAP).v === 2 && C.serializePadMap(C.DEFAULT_PAD_MAP).pads.join() === C.DEFAULT_PAD_MAP.join());
+  check("junk in a v2 map falls back", C.normalizePadMap({ v: 2, pads: ["nope"] }).join() === C.DEFAULT_PAD_MAP.join() &&
+        C.normalizePadMap("nonsense").join() === C.DEFAULT_PAD_MAP.join());
+  check("rewind, fast-forward and the dial are on scenes by default", C.DEFAULT_CTL_MAP.cc25 === "scenePrev" &&
+        C.DEFAULT_CTL_MAP.cc26 === "sceneNext" && C.DEFAULT_CTL_MAP.cc116 === "sceneDial" && C.DEFAULT_CTL_MAP.cc117 === "sceneGo");
+  const n2 = C.normalizeCtlMap({ cc60: "sceneNext", cc26: null });
+  check("a scene action can be learned and unbound", n2.cc60 === "sceneNext" && !("cc26" in n2));
+  check("learn moves a scene action", (() => { const m = C.learnBinding(C.DEFAULT_CTL_MAP, "cc61", "scenePrev"); return m.cc61 === "scenePrev" && !("cc25" in m); })());
+
+  // the scene event and the scene route's refusals
+  const se = C.parseEvent({ t: "scene", name: "  Laser Cathedral ", index: 0, count: 14, color: "#FF00AA", browsing: true });
+  check("scene event", se && se.name === "Laser Cathedral" && se.color === "#ff00aa" && se.browsing && se.count === 14);
+  check("scene event refuses a bad name", C.parseEvent({ t: "scene", name: "x".repeat(41) }) === null && C.parseEvent({ t: "scene", name: "" }) === null &&
+        C.parseEvent({ t: "scene" }) === null);
+  check("sceneName strips control characters", C.sceneName("A\u0007B") === "AB");
+  const link = new C.EngineLink();
+  link.connected();
+  link.event({ t: "hello", leds: true });
+  check("a fresh engine may be told the scene", link.mayPostScene());
+  check("202 is ok", link.sceneResult(202) === "ok" && link.mayPostScene());
+  check("429 is busy, not a refusal", link.sceneResult(429) === "busy" && link.mayPostScene());
+  const g0 = link.gen;
+  check("an older engine's 404 stops the reports", link.sceneResult(404, g0) === "absent" && !link.mayPostScene() && /older/.test(link.sceneOff));
+  link.event({ t: "hello", leds: true });
+  check("its next hello lifts it", link.mayPostScene());
+  check("a late answer to a post from before that hello is ignored", link.sceneResult(404, g0) === "stale" && link.mayPostScene());
+  check("a refusal stops it too", link.sceneResult(409) === "refused" && !link.mayPostScene());
+  link.disconnected();
+  check("a dropped connection forgets it", link.sceneOff === "" && !link.mayPostScene());
+
+  // the strip's v2 hit texels, and the sets that react to them
+  check("strip version 2", C.STRIP.VERSION === 2);
+  const reacting = ["vj-reactor", "vj-laser-cathedral", "vj-hyperspace", "vj-particle-galaxy", "vj-synthwave-grid", "vj-led-wall"];
+  for (const id of reacting) {
+    const src = readFileSync(here(`../arsenal/web/presets/${id}.frag`), "utf8");
+    check(`${id} reads the shared hit input`, src.includes("vjAt(10, 2)") && /hitLoad\(\);/.test(src) && /gHit/.test(src.split("void main()")[1] || ""));
+  }
+}
+
 // ------------------------------------------------------------------------------------------------- the demo --
 {
   const demo = new C.DemoScript({ bpm: 120, pads: true });
@@ -417,6 +639,139 @@ if (!existsSync(JOY_TAKE)) {
   check("the demo ends on the D-flat pedal", db5.length >= 20, `${db5.length} strikes`);
   const ons = got.filter((e) => e.t === "note" && e.on).length, offs = got.filter((e) => e.t === "note" && !e.on).length;
   check("every demo note is released", ons - offs <= 6, `${ons} on, ${offs} off`);
+}
+
+// ------------------------------------------------------------------------- gate v2: the final-output limiter --
+// arsenal/web/vj-gate.js: the rules the GPU limiter (vj-limiter.js) runs on the frame actually shown, and their JS twin.
+// The counter is the 2026-10-24 verifier's (pairs of swings of 0.1 relative luminance, counted where they end).
+{
+  const N = G.NW;
+  const lumOf = (L) => () => L;
+  // run a picture sequence through the twin; returns per-window shown and wanted series and the limiter
+  const drive = (frames, pic, red = () => () => 0, dt = 1 / 60) => {
+    const lim = new G.FlashLimiter();
+    const shown = Array.from({ length: N }, () => []), want = Array.from({ length: N }, () => []);
+    const redShown = Array.from({ length: N }, () => []);
+    const trace = [];
+    for (let f = 0; f < frames; f++) {
+      const g = lim.step(G.cellSums(pic(f), red(f), 32, 32), dt);
+      for (let w = 0; w < N; w++) { shown[w].push(lim.shown[w * 2]); want[w].push(lim.want[w * 2]); redShown[w].push(lim.shown[w * 2 + 1] * 320); }
+      trace.push({ held: lim.held(), rest: lim.glob[1], beta: g.beta, gainsOne: g.a.every((x) => x === 1) && g.k.every((x) => x === 0), commits: lim.commits,
+                   lift: g.k.some((x) => x > 0.02) });
+    }
+    return { lim, shown, want, redShown, trace };
+  };
+  const worst = (series, opts) => Math.max(...series.map((s) => G.flashReport(s, opts).max_flashes_in_1s));
+
+  // the counter itself: a known series
+  const sq = Array.from({ length: 120 }, (_, f) => (Math.floor(f / 6) % 2 ? 0.5 : 0.05));
+  const rep = G.flashReport(sq);
+  check("gate v2 counter: a 5 Hz square wave is 5 flashes a second (a window may hold one edge more)", rep.max_flashes_in_1s >= 5 && rep.max_flashes_in_1s <= 5.5, JSON.stringify(rep.max_flashes_in_1s));
+  check("gate v2 counter: swings under 0.1 are not flashes", G.flashReport(sq.map((v) => 0.3 + (v - 0.3) * 0.15)).transitions === 0);
+  check("gate v2 counter: a bright pair (darker end at 0.8 or more) is not a flash", G.flashReport(sq.map((v) => (v > 0.1 ? 1 : 0.85))).transitions === 0);
+
+  // the hat model is exact: the window value from the cell sums equals the window mean of the picture as the apply pass
+  // transforms it (a Y + k (1 - Y), corners interpolated by the hats)
+  {
+    let s = 3; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const a = Float32Array.from({ length: 25 }, () => 0.3 + 0.7 * R()), k = Float32Array.from({ length: 25 }, () => 0.4 * R());
+    const pic = (u, v) => 0.5 + 0.4 * Math.sin(u * 9.1) * Math.cos(v * 7.3);
+    const h = new Float64Array(6);
+    const gainAt = (u, v, arr) => { G.hats(u, v, h); let g = 0; for (let j = 0; j < 4; j++) g += h[2 + j] * arr[G.ctrlIndex(h[0], h[1], j)]; return g; };
+    const out = (u, v) => { const l = pic(u, v); return gainAt(u, v, a) * l + gainAt(u, v, k) * (1 - l); };
+    const cellsIn = G.cellSums(pic, () => 0, 64, 64), cellsOut = G.cellSums(out, () => 0, 64, 64);
+    let err = 0;
+    for (let w = 0; w < N; w++) err = Math.max(err, Math.abs(G.windowValue(cellsIn, a, k, w, 0) - G.windowValue(cellsOut, new Float32Array(25).fill(1), new Float32Array(25), w, 0)));
+    check("gate v2: the window value is an exact linear function of the corner gains and lifts", err < 1e-5, err.toExponential(2));
+  }
+
+  // nothing to hold: every gain exactly 1, no lift, no blend (the apply pass copies the frame untouched)
+  {
+    const d = drive(240, (f) => lumOf(0.2 + 0.05 * Math.sin(f / 20)));
+    check("gate v2: a calm picture is never touched", d.trace.every((t) => t.gainsOne && t.beta === 0 && t.held === 0));
+  }
+  // a 10 Hz full-frame square wave: at most 3 flashes a second in every window, and the first second's budget is used
+  {
+    const d = drive(600, (f) => lumOf(Math.floor(f / 3) % 2 ? 0.5 : 0.05));
+    check("gate v2: a 10 Hz full-frame flicker is held to 3 flashes a second in every window", worst(d.shown) <= 3, String(worst(d.shown)));
+    check("gate v2: ... the drawn picture was 10 flashes a second", worst(d.want) >= 10);
+    check("gate v2: ... and the first flashes pass untouched", d.shown[0].slice(0, 12).every((v, i) => Math.abs(v - d.want[0][i]) < 1e-6));
+    check("gate v2: ... no transition ever starts while held", d.lim.leaks === 0);
+    const restAt = d.trace.findIndex((t) => t.rest > 0);
+    check("gate v2: ... flashing for 5 s forces a rest", restAt > 280 && restAt < 360, String(restAt));
+    const during = d.trace.filter((t) => t.rest > 0);
+    check("gate v2: ... and no transition starts during the rest", during.length > 100 && during[during.length - 1].commits === during[0].commits);
+  }
+  // white flashes at two a second (the gate allows three): never held
+  {
+    const d = drive(240, (f) => lumOf(0.05 + 0.5 * Math.exp(-((f % 30) / 60) / 0.15)));
+    // (a window may sit in the PARTIAL watch, one transition kept for a fall, without any gain moving)
+    check("gate v2: two decaying flashes a second pass untouched", d.trace.every((t) => t.gainsOne && t.beta === 0), String(d.trace.filter((t) => !t.gainsOne).length));
+  }
+  // a storm of bright hits (a punch of the whole frame 15 times a second): held by taking light away, not by lifting the
+  // gaps toward white (a flash's last slot is kept for its fall, so a window runs out of budget dark)
+  {
+    const d = drive(600, (f) => { let v = 0.15; for (let h = 0; h <= f; h += 4) v += 0.2 * Math.exp(-((f - h) / 60) / 0.05); return lumOf(Math.min(1, v)); }, undefined);
+    const lifted = d.trace.filter((t) => t.lift).length;
+    check("gate v2: a storm of bright hits is held by darkening, the gaps never lifted toward white", worst(d.shown) <= 3 && lifted <= 6, `${worst(d.shown)}/s, ${lifted} lifted frames`);
+  }
+  // a quarter of the screen flickering: held there, the far corner left alone
+  {
+    const d = drive(300, (f) => (u, v) => (u < 0.5 && v < 0.5 ? (Math.floor(f / 3) % 2 ? 0.6 : 0.05) : 0.1));
+    check("gate v2: a flickering quadrant is held to 3 flashes a second", worst(d.shown) <= 3, String(worst(d.shown)));
+    const g = d.lim.a, k = d.lim.k;
+    check("gate v2: ... and the opposite corner's gains stay at 1", [18, 19, 23, 24].every((i) => g[i] > 0.97 && k[i] < 0.03), `${g[24].toFixed(3)} ${k[24].toFixed(3)}`);
+  }
+  // red: a saturated red centre switching on and off at 7.5 Hz
+  {
+    const d = drive(300, () => lumOf(0.1), (f) => (u, v) => (Math.abs(u - 0.5) < 0.25 && Math.abs(v - 0.5) < 0.25 && Math.floor(f / 4) % 2 ? 0.3 : 0));
+    const wr = Math.max(...d.redShown.map((s) => G.flashReport(s, { hyst: 2, thr: 20 }).max_flashes_in_1s));
+    check("gate v2: a red flicker over a quarter of the screen is held to 3 red flashes a second", wr <= 3, String(wr));
+  }
+  // random storms of bright and dark hits anywhere: every window, also with a second counter's noise of +-0.003
+  {
+    let worstSeen = 0, worstNoisy = 0, leaks = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      let s = seed * 7919; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const hits = [];
+      for (let f = 0; f < 480; f += 2 + Math.floor(R() * 8)) hits.push([f, 0.1 + 0.4 * R(), R() < 0.3 ? -1 : 1, R(), R()]);
+      const d = drive(480, (f) => (u, v) => {
+        let val = 0.2;
+        for (const [hf, amp, sg, cx, cy] of hits) if (hf <= f && f - hf < 30) { const r = Math.hypot(u - cx, v - cy); val += sg * amp * Math.exp(-((f - hf) / 60) / 0.06) * Math.exp(-r * r * 6); }
+        return Math.max(0, Math.min(1, val));
+      });
+      worstSeen = Math.max(worstSeen, worst(d.shown));
+      let n = seed;
+      const noise = () => { n = (n * 1664525 + 1013904223) >>> 0; return (n / 4294967296 - 0.5) * 0.006; };
+      worstNoisy = Math.max(worstNoisy, worst(d.shown.map((sr) => sr.map((v) => v + noise()))));
+      leaks += d.lim.leaks;
+    }
+    check("gate v2: random storms stay at 3 flashes a second in every window", worstSeen <= 3, String(worstSeen));
+    check("gate v2: ... also counted through +-0.003 of another meter's noise", worstNoisy <= 3, String(worstNoisy));
+    check("gate v2: ... without a single transition started while held", leaks === 0, String(leaks));
+  }
+  // the GPU twin's shaders: no word GLSL ES 3.00 reserves for future use as a name (2026-10-24: a `bool active` kept the
+  // limiter from compiling, and the page fell back to its safe mode), and every constant the twin uses is in them
+  {
+    const L = await import("../arsenal/web/vj-limiter.js");
+    const src = L.limiterShaderSources();
+    const RESERVED = ["attribute", "varying", "coherent", "volatile", "restrict", "readonly", "writeonly", "resource", "atomic_uint",
+      "noperspective", "patch", "sample", "subroutine", "common", "partition", "active", "asm", "class", "union", "enum", "typedef",
+      "template", "this", "goto", "inline", "noinline", "public", "static", "extern", "external", "interface", "long", "short",
+      "double", "half", "fixed", "unsigned", "superp", "input", "output", "hvec2", "hvec3", "hvec4", "dvec2", "dvec3", "dvec4",
+      "fvec2", "fvec3", "fvec4", "sampler3DRect", "filter", "sizeof", "cast", "namespace", "using"];
+    const bad = [];
+    for (const [name, s] of Object.entries(src)) {
+      const code = s.replace(/\/\/[^\n]*/g, "");
+      for (const w of RESERVED) if (new RegExp(`\\b${w}\\b`).test(code)) bad.push(`${name}: ${w}`);
+    }
+    check("gate v2: the limiter's shaders use no reserved word", bad.length === 0, bad.join(", "));
+    check("gate v2: the shaders carry the twin's constants", src.solve.includes(`const float NMAX = ${G.LIMIT.N_MAX}.0;`) &&
+          src.state.includes(`const int RING = ${G.LIMIT.RING};`) && src.solve.includes(`ivec4[${G.NW}]`));
+  }
+  // the windows: a quarter of the screen or more each, the whole frame first
+  check("gate v2: 18 windows, each at least a quarter of the screen", G.WINDOWS.length === 18 &&
+        G.WINDOWS.every(([x0, y0, x1, y1]) => (x1 - x0 + 1) * (y1 - y0 + 1) >= 4) && G.WINDOWS[0].join() === "0,0,3,3");
 }
 
 console.log(`vj_core: ${pass} passed, ${fail} failed`);

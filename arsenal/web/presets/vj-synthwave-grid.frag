@@ -8,7 +8,9 @@ precision highp float;
 // two ends. Every beat the grid lurches one quarter of a tile forward with an eased step (64 beats make 16 whole tiles,
 // so the 64-beat counter wrapping never shows); the kick thickens the lines and lifts the horizon glow. Keys light floor
 // tiles in their pitch colour, the column chosen by the pitch class. The pads fire laser fans from the vanishing point, one
-// fan per pad, spread across the sky from left to right; velocity sets the number of beams and their width.
+// fan per pad, spread across the sky from left to right; velocity sets the number of beams and their width. Any pad
+// hit (the strip's shared hit input, 2026-10-24) pulses the horizon: the line blazes and lifts, the sun swells, and a
+// band of light rolls down the floor from the horizon toward you.
 
 uniform sampler2D u_video;   // the VJ page: its 16x6 VJ strip (u_has_video stays 0); Play: the video or a 1x1 black texture
 uniform sampler2D u_prev;
@@ -65,6 +67,23 @@ void vjLoad() {
 
 vec3 padColour(int i) { return gHost ? vjAt(i, 3).rgb : gPal[i - 4 * (i / 4)]; }
 
+// the shared hit input (STRIP v2, row 2: vj-core.js): the latest pad hit's pulse (through the velocity curve), its velocity,
+// its effect code and age, where it struck; the kick / snare / hat envelopes. 0 in Play and on a v1 host.
+float gHit, gHitVel, gHitCode, gHitAge, gSnare, gHat;
+vec2 gHitAt;
+void hitLoad() {
+  if (gHost && vjAt(15, 2).x >= 2.0) {
+    vec4 h = vjAt(10, 2);
+    gHit = h.x; gHitVel = h.y; gHitCode = h.z; gHitAge = h.w;
+    vec4 b = vjAt(11, 2);
+    gSnare = b.y; gHat = b.z;
+    gHitAt = vjAt(12, 2).yz;
+  } else {
+    gHit = 0.0; gHitVel = 0.0; gHitCode = 0.0; gHitAge = 30.0; gSnare = 0.0; gHat = 0.0; gHitAt = vec2(0.0);
+  }
+}
+
+
 vec2 padLevel(int i) {          // (envelope, velocity)
   if (gHost) return vjAt(i, 0).xy;
   float band = i < 4 ? u_high : (i < 8 ? u_mid : u_bass);
@@ -107,13 +126,14 @@ float ridge(float x, float seed) {
 
 void main() {
   vjLoad();
+  hitLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
   float px = 1.0 / max(u_res.y, 1.0);
   float rs = max(u_res.y / 1080.0, 0.35);
   float t = u_time;
   float bass = clamp(0.65 * u_bass + 0.35 * u_pulse, 0.0, 1.5);
-  float yh = -0.06 + 0.004 * gKick;                        // the horizon
+  float yh = -0.06 + 0.004 * gKick + 0.012 * gHit;        // the horizon (a hit lifts it)
 
   // ------------------------------------------------------------------------------------------------ the sky --
   float up = clamp((p.y - yh) / (0.5 - yh), 0.0, 1.0);
@@ -134,7 +154,7 @@ void main() {
 
   // ------------------------------------------------------------------------------------------------ the sun --
   vec2 sunC = vec2(0.0, yh + 0.13 + 0.06 * u_k3);
-  float sunR = (0.12 + 0.10 * u_k3) * (1.0 + 0.025 * gKick + 0.02 * bass);
+  float sunR = (0.12 + 0.10 * u_k3) * (1.0 + 0.025 * gKick + 0.02 * bass + 0.07 * gHit);
   float sd = length(p - sunC);
   float sv = clamp((p.y - (sunC.y - sunR)) / (2.0 * sunR), 0.0, 1.0);   // 0 at the sun's foot, 1 at its crown
   vec3 sunCol = mix(gPal[1] * 1.3, mix(gPal[3], vec3(1.0, 0.85, 0.35), 0.55) * 1.6, sv);
@@ -182,13 +202,15 @@ void main() {
   vec2 fw = max(fwidth(g), vec2(1e-4));
   if (p.y < yh) {
     vec2 gd = abs(fract(g + 0.5) - 0.5) / fw;
-    float thick = 0.9 + 1.4 * gKick;
+    // the kick thickens and heats the floor (2026-10-24 safety pass: half the response it had; with the fast kick envelope
+    // of the impact pass the floor alone flashed a quarter of the screen 2.5 times a second under the demo's music)
+    float thick = 0.9 + 0.7 * gKick;
     float line = max(1.0 - smoothstep(0.0, thick, gd.x), 1.0 - smoothstep(0.0, thick, gd.y));
     float glowL = max(exp(-gd.x * 0.25), exp(-gd.y * 0.25)) * 0.25;
     float fog = exp(-z * 0.075);
     vec3 gridCol = mix(gPal[0], gPal[1], smoothstep(0.0, 0.6, abs(p.x) / asp));
     col = vec3(0.002, 0.0015, 0.006) + gPal[1] * 0.02 * exp(-below * 6.0);
-    col += hotCore(gridCol, 0.7 + 0.8 * gKick) * (line + glowL) * fog * (0.25 + 0.75 * u_k2);
+    col += hotCore(gridCol, 0.7 + 0.4 * gKick) * (line + glowL) * fog * (0.25 + 0.75 * u_k2);
     // keys light floor tiles: the tile's column picks a pitch class, the row band rolls with the floor
     vec2 tile = floor(g);
     int pc = int(mod(tile.x + 6.0, 12.0));
@@ -199,13 +221,16 @@ void main() {
     // the sun's reflection: a shimmering column down the floor
     float shimmer = 0.6 + 0.4 * sin(z * 40.0 - t * 6.0 + p.x * 30.0);
     col += sunCol * 0.06 * exp(-abs(p.x) / (sunR * 0.6)) * exp(-below * 5.0) * shimmer * (0.5 + 0.5 * u_k3);
+    // a pad hit rolls a band of light from the horizon toward you (depth 20 to 0.3 in about 0.4 s)
+    float zb = 20.0 * exp(-gHitAge * 10.0) + 0.25;
+    col += hotCore(mix(gPal[3], gPal[0], 0.4), 1.3) * gHit * (0.5 + 0.5 * gHitVel) * exp(-pow((z - zb) / (0.18 * zb), 2.0)) * 0.6;
     // the bass rolls a band of light down the floor
     col += gPal[2] * 0.05 * bass * exp(-pow(fract(z * 0.08 - t * 0.5) - 0.5, 2.0) * 60.0) * fog;
   }
   // the horizon line, lifted by the kick and by chord changes
   float hd = abs(p.y - yh) / px;
   col += mix(gPal[0], vec3(1.0, 0.8, 0.9), 0.3) * (exp(-hd * hd / (2.0 * rs * rs)) * 0.5 + lorentz(hd, 14.0 * rs) * 0.15) *
-         (0.5 + 0.8 * gKick + 0.8 * gChordPulse);
+         (0.5 + 0.8 * gKick + 0.8 * gChordPulse + 1.8 * gHit);
 
   // --------------------------------------------------------------------- the pads: laser fans from the horizon --
   vec2 vp = vec2(0.0, yh);

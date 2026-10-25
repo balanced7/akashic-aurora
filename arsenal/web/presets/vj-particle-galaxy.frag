@@ -10,7 +10,9 @@ precision highp float;
 // galaxy-wide constellation of its colours. The chord's palette tints the arms and the dust. The pads set off novae in the
 // arms at twelve fixed places on the disc (they orbit with it): a flash in the pad's colour and a shell that expands with
 // time since the hit. Stars live in co-rotating cells; the shear of differential rotation would wind any field into
-// threads, so two copies of the field, half a period apart, fade into each other every 24 seconds.
+// threads, so two copies of the field, half a period apart, fade into each other every 24 seconds. Any pad hit (the
+// strip's shared hit input, 2026-10-24) spins the galaxy up: the arms whirl forward and wind tighter, the trails smear
+// round with them, the core flares and the stars brighten, then it all settles back as the hit decays.
 
 uniform sampler2D u_video;   // the VJ page: its 16x6 VJ strip (u_has_video stays 0); Play: the video or a 1x1 black texture
 uniform sampler2D u_prev;
@@ -68,6 +70,23 @@ void vjLoad() {
 
 vec3 padColour(int i) { return gHost ? vjAt(i, 3).rgb : gPal[i - 4 * (i / 4)]; }
 
+// the shared hit input (STRIP v2, row 2: vj-core.js): the latest pad hit's pulse (through the velocity curve), its velocity,
+// its effect code and age, where it struck; the kick / snare / hat envelopes. 0 in Play and on a v1 host.
+float gHit, gHitVel, gHitCode, gHitAge, gSnare, gHat;
+vec2 gHitAt;
+void hitLoad() {
+  if (gHost && vjAt(15, 2).x >= 2.0) {
+    vec4 h = vjAt(10, 2);
+    gHit = h.x; gHitVel = h.y; gHitCode = h.z; gHitAge = h.w;
+    vec4 b = vjAt(11, 2);
+    gSnare = b.y; gHat = b.z;
+    gHitAt = vjAt(12, 2).yz;
+  } else {
+    gHit = 0.0; gHitVel = 0.0; gHitCode = 0.0; gHitAge = 30.0; gSnare = 0.0; gHat = 0.0; gHitAt = vec2(0.0);
+  }
+}
+
+
 vec3 padLevel(int i) {          // (envelope, velocity, seconds since press)
   if (gHost) return vjAt(i, 0).xyz;
   float slot = floor(u_time / 3.0 + float(i) * 0.29);
@@ -124,6 +143,7 @@ vec3 starField(vec2 d, float r, float tt, float seed, float armD, float disc, fl
 
 void main() {
   vjLoad();
+  hitLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
   float px = 1.0 / max(u_res.y, 1.0);
@@ -141,7 +161,7 @@ void main() {
   // the arms: a log spiral pattern turning slowly and rigidly; the bass winds it tighter
   float arms = floor(2.0 + 3.0 * u_k1 + 0.5);
   float wind = (2.2 + 1.6 * u_k2 * bass) * (1.0 + 0.4 * gKick * u_k2);
-  float pattern = th - t * 0.04 - log(r) * wind;
+  float pattern = th - t * 0.04 - 0.9 * gHit - log(r) * wind * (1.0 + 0.25 * gHit);
   float armD = pow(0.5 + 0.5 * cos(arms * pattern), 3.0) * smoothstep(0.03, 0.12, r) * exp(-r * 2.6);
   // dust lanes on the arms' inner edges, darker in the palette's deep colour
   float lane = pow(0.5 + 0.5 * cos(arms * (pattern + 0.35)), 8.0) * (0.5 + 0.5 * vnoise(d * 18.0 + t * 0.02));
@@ -166,11 +186,11 @@ void main() {
   float armS = clamp(armD * 4.0, 0.0, 1.0);
   float discS = exp(-r * 2.4);
   vec3 stars = starField(d, r, ta, seedA, armS, discS, pxDisc) * wa + starField(d, r, tb, seedB, armS, discS, pxDisc) * wb;
-  col += stars * (0.9 + 0.4 * u_level);
+  col += stars * (0.9 + 0.4 * u_level + 0.8 * gHit);
 
   // the core: a bulge that the kick flares
   float bulge = exp(-r * r / (0.004 + 0.004 * u_k4));
-  col += hotCore(mix(gPal[3], vec3(1.0, 0.9, 0.7), 0.6), 1.0 + 1.2 * gKick) * bulge * (0.25 + 0.5 * u_k4);
+  col += hotCore(mix(gPal[3], vec3(1.0, 0.9, 0.7), 0.6), 1.0 + 1.2 * gKick + 1.8 * gHit) * bulge * (0.25 + 0.5 * u_k4);
   col += mix(gPal[3], gPal[0], 0.3) * 0.02 / (0.02 + r * r * 30.0) * (0.3 + 0.5 * bass) * u_k4;
 
   // novae: pad i at a fixed place in the arms, orbiting with the disc; a flash and an expanding shell
@@ -194,7 +214,7 @@ void main() {
   col = 1.0 - exp(-col * 1.15);
   col = pow(col, vec3(1.0 / 2.2));             // linear light to display values (Play presents a preset as it is)
   // trails: last frame turned with the inner disc, so bright things leave short arcs
-  vec2 back = rot(-0.003 - 0.004 * bass) * p;
+  vec2 back = rot(-0.003 - 0.004 * bass - 0.035 * gHit) * p;
   vec3 prev = texture(u_prev, back / vec2(asp, 1.0) + 0.5).rgb;
   vec3 trail = max(prev * (0.3 + 0.6 * u_k5) - 2.0 / 255.0, 0.0);
   outColor = vec4(clamp(max(col, trail), 0.0, 1.0), 1.0);
