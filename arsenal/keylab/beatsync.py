@@ -69,6 +69,9 @@ def read_timing(audio_path: str) -> Optional[dict]:
         return json.load(f)
 
 
+PLAYING = 4                      # SMTC GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing (5 = Paused)
+
+
 def now_playing() -> Optional[dict]:
     """Best-effort Windows SMTC read -> {title, artist, status} (None if unavailable)."""
     try:
@@ -393,18 +396,23 @@ def fire_time(t_beat: float, audio_t: float, wall_at_audio_t: float, wall_now: f
     return fire_at
 
 
+def is_playing(np_: Optional[dict]) -> bool:
+    """now_playing()'s session is PLAYING (SMTC playback status 4). Windows' current session can be a paused one (a
+    paused browser tab or Spotify while FL plays), and its song is not what the speakers carry."""
+    return bool(np_) and np_.get("status") == PLAYING
+
+
 def _seed_for(np_: Optional[dict], offline: bool) -> Optional[float]:
     """The song's BPM from the database chain in tempo.py (GetSongBPM / MusicBrainz -> AcousticBrainz / Deezer),
-    fused; None when nothing is playing, nothing agrees, or we are offline."""
-    if not np_ or offline:
+    fused, in the octave the databases give (beatgrid.database_tempo: the fusion folds into 70-140 BPM, so a 150 BPM
+    hardstyle track came back as 75 and seeded the tracker at half time until 2026-10-24); None when nothing is
+    playing (a paused session included), nothing agrees, or we are offline."""
+    if not is_playing(np_) or offline:
         return None
     try:
-        from . import tempo as T
-        found = T.lookup(np_.get("artist", ""), np_.get("title", ""))
-        if not found:
-            return None
-        fused = T.fuse_bpm(found)
-        return float(fused.bpm) if fused.bpm and fused.confidence > 0 else None
+        from .beatgrid import database_tempo, tracker_seed
+        found = database_tempo(np_.get("artist", ""), np_.get("title", ""))
+        return float(tracker_seed(float(found["bpm"]))) if found else None      # folded into the tracker's 60-200
     except Exception:
         return None
 

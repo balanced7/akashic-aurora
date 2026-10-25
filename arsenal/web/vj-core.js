@@ -83,6 +83,9 @@ export function stripSet(strip, x, y, r, g, b, a) {
 const clamp01 = (x) => (x > 1 ? 1 : x < 0 ? 0 : x);
 const num = (v, fallback = null) => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
 const BANDS = new Set(["kick", "snare", "hat", "full"]);
+const BEAT_SRC = new Set(["db", "track", "tap", "fly"]);
+const BAR_SRC = new Set(["tap", "drop", "guess"]);
+const TAP_MODES = new Set(["resync", "run", "lock", "release", "return"]);
 const pc12 = (p) => ((p % 12) + 12) % 12;
 // a pitch class that must already be one (a pedal, a bass): 0..11, else -1 = none. Never wrapped: -1 is not B, 99 not Eb
 const pcOrNone = (p) => (Number.isInteger(p) && p >= 0 && p < 12 ? p : -1);
@@ -121,9 +124,32 @@ export function parseEvent(obj) {
     case "beat": {
       const due = num(obj.due_ms), bpm = num(obj.bpm);
       if (due === null || bpm === null || bpm <= 0) return null;
-      const ob = num(obj.on_beat);
+      // since 2026-10-24 (the engine's beat clock, arsenal/keylab/beatgrid.py): on_beat -1..1 (negative = the beats sit on
+      // the off-beat), src (db = the song database's tempo, track = the tracker's, tap = the hand's), bar 1..4 (0 =
+      // unknown) and bar_src, ver (bumped on every hard re-anchor: re-anchor, do not slew), the referee's offset_ms and
+      // the send time wall_ms. An older engine sends none of them: the defaults below.
+      const ob = num(obj.on_beat), bar = num(obj.bar), ver = num(obj.ver), off = num(obj.offset_ms);
       return { t: "beat", due_ms: Math.max(-1000, Math.min(due, 4000)), bpm: Math.max(20, Math.min(bpm, 300)),
-               conf: clamp01(num(obj.conf, 0.5)), n: Math.round(num(obj.n, -1)), on_beat: ob === null ? null : clamp01(ob) };
+               conf: clamp01(num(obj.conf, 0.5)), n: Math.round(num(obj.n, -1)),
+               on_beat: ob === null ? null : Math.max(-1, Math.min(ob, 1)),
+               src: BEAT_SRC.has(obj.src) ? obj.src : "", bar: Number.isInteger(bar) && bar >= 1 && bar <= 4 ? bar : 0,
+               bar_src: BAR_SRC.has(obj.bar_src) ? obj.bar_src : "", ver: ver === null ? -1 : Math.round(ver),
+               offset_ms: off === null ? null : Math.max(-1000, Math.min(off, 1000)), wall_ms: num(obj.wall_ms) };
+    }
+    case "tap": {
+      // the KeyLab's Tap button reaching the engine's beat clock: resync (one isolated tap; shift = how far the beat
+      // moved, in beats), run (taps 2-3), lock (4 or more: the lights follow the taps at bpm), release (the taps stopped:
+      // the hand keeps the beat), return (the beat went back to the tracker)
+      if (!TAP_MODES.has(obj.mode)) return null;
+      const tb = num(obj.bpm), sh = num(obj.shift);
+      return { t: "tap", count: Math.max(0, Math.round(num(obj.count, 0))), mode: obj.mode,
+               bpm: tb === null || tb <= 0 ? null : Math.max(20, Math.min(tb, 300)),
+               shift: sh === null ? null : Math.max(-0.5, Math.min(sh, 0.5)) };
+    }
+    case "track": {
+      // a new track, and the song database's tempo for it (null: none found); key_db is reserved (none is read yet)
+      const db = num(obj.bpm_db);
+      return { t: "track", bpm_db: db === null || db <= 0 ? null : Math.max(20, Math.min(db, 300)), key_db: keyName(obj.key_db) };
     }
     case "energy":
       return { t: "energy", bass: clamp01(num(obj.bass, 0)), mid: clamp01(num(obj.mid, 0)), high: clamp01(num(obj.high, 0)),
