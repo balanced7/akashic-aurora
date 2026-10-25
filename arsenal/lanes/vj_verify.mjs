@@ -19,7 +19,13 @@
 // tension (vj --chords sense) show in the HUD, the engine's tension feeds the strip in place of the page's own estimate,
 // a key change accents without a flash, and an engine without them leaves the page as it was; the pedal star finds a note struck over
 // and over while the bass walks under it; the showcase tour follows an engine that plays beats instead of starting
-// the page's demo over it; no page exceptions or console errors.
+// the page's demo over it; no page exceptions or console errors. Since the impact pass (2026-10-24): pad storms on a
+// 60 fps virtual clock (vj_storm.mjs: Invert held, one-shots at 15 and 5 a second, all 12 pads, the white flash at the
+// gate's edge) stay at three flashes a second or fewer in every quarter-screen window, gate v2 running; the transport and the
+// dial switch scenes (a press, never a release; a held button once; the dial browses and its click goes; a fast spin
+// cannot flood); the page tells the engine its scene (POST /api/scene) and stops asking an older engine that answers 404;
+// ~100 energy events a second reach the page; a pad event is drawn in the next frame at full strength; the beat snap
+// holds a hit to the next 16th; the real engine keeps the page's scene for the KeyLab's screen.
 // Writes state/arsenal/receipts/vj-<stamp>/receipt.json and the screenshots beside it; exits 1 if the verdict fails.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -31,6 +37,7 @@ import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { LOCK_DIR, acquireGpuLock } from "./gpu_lock.mjs";
 import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { SCENARIOS as STORM_SCENARIOS, VIRTUAL_CLOCK as STORM_VIRTUAL_CLOCK, runStormInPage } from "./vj_storm.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WEB = resolve(REPO, "arsenal", "web");
@@ -78,7 +85,7 @@ const report = {
     "the real GPU: every frame here is drawn by SwiftShader on the CPU, so frame rate and timing say nothing about the live rig",
     "the KeyLab itself and the real keylab-vj engine: a fake engine speaks the event contract instead",
     "how each set looks to a person in motion: the screenshots are single frames for that",
-    "photosensitivity beyond the three-flashes rule: the red-flash rule and area thresholds are reasoned in the code, not measured",
+    "photosensitivity beyond flashes: stripes and patterns are not counted (flashes, red flashes and quarter-screen areas are, in phase D2)",
   ],
 };
 
@@ -103,6 +110,10 @@ const padPosts = [];
 // the fake engine's pad LEDs, as the real engine answers POST /api/pads: "on" = 202 taken; "off" = 409, as `vj --no-leds`
 // answers (its hello says leds false); "refuse" = 409 although its hello said leds true (the refusal path)
 let ledsMode = "on";
+// the fake engine's scene route (POST /api/scene, 2026-10-24): "on" = 202 as the real engine answers; "absent" = 404, as
+// an engine older than the route answers (the page must stop asking it until its next hello)
+let sceneMode = "on";
+const scenePosts = [];
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                "Access-Control-Allow-Headers": "Content-Type" };
 const engineServer = createServer((req, res) => {
@@ -113,6 +124,21 @@ const engineServer = createServer((req, res) => {
     res.write(": keylab-vj fake engine\n\n");
     sse.add(res);
     req.on("close", () => sse.delete(res));
+    return;
+  }
+  if (url.pathname === "/api/scene" && req.method === "POST") {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      let parsed = null;
+      try { parsed = JSON.parse(body); } catch { /* counted as unparsed */ }
+      scenePosts.push({ t: Date.now(), body: parsed, raw: body.slice(0, 300), mode: sceneMode });
+      const absent = sceneMode !== "on";
+      res.writeHead(absent ? 404 : 202, { ...CORS, "Content-Type": "application/json", Connection: "close" });
+      res.end(absent ? '{"error":"no route /api/scene"}' : '{"ok":true,"changed":true}');
+      if (!absent && parsed && parsed.name) send({ t: "scene", name: parsed.name, index: parsed.index, count: parsed.count,
+                                                    color: parsed.color || null, browsing: parsed.browsing === true });
+    });
     return;
   }
   if (url.pathname === "/api/pads" && req.method === "POST") {
@@ -264,7 +290,12 @@ try {
   // ------------------------------------------------------------------------------------------- A: the demo --
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?demo=1&demopads=0&hud=0&watchdog=0` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page and its window.__vj hook");
-  report.webgl = await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
+  // gate v2 compiles in the background; the page is in its safe mode (every pad effect refused) until the meter and the
+  // apply pass link, decides on the CPU until the GPU decision links too, then on the GPU
+  await waitFor(() => evaluate("(() => { const l = window.__vj.stats().limiter; return l.mode === 'gpu' || l.fatal; })()"), 120000, "gate v2's programs");
+  report.limiter = await evaluate("window.__vj.stats().limiter");
+  checks.gate_v2_compiled = !!(report.limiter && report.limiter.on && report.limiter.mode === "gpu");
+  report.webgl =await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
     if (!g) return null; const d = g.getExtension("WEBGL_debug_renderer_info");
     return { renderer: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER), version: g.getParameter(g.VERSION) }; })()`);
   report.renderer_check = judgeRenderer(report.webgl && report.webgl.renderer);
@@ -438,6 +469,55 @@ try {
   checks.flash_gate_grants_at_most_three_a_second = firstSecond > 3 && report.flash.granted >= 2 && gateAfter.maxInAnyWindow <= 3 &&
     report.flash.refused >= 10 - Math.ceil((requestSpanMs + 1) / 333);
   checks.measured_flashes_at_most_three_a_second = trace.length > 5 && maxRises <= 3;
+
+  // ------------------------------- D2: pad storms on a 60 fps virtual clock (the 2026-10-24/25 safety passes) --
+  // The real-clock storm this phase used to run missed what the adversarial verifier found (SwiftShader's slow frames
+  // stretched the storm, and it counted rises only). Now: a second tab with vj_storm's virtual clock, the storms of
+  // arsenal/lanes/vj_storm.mjs on Reactor for 4 s (the receipt itself runs them 10 s on three sets, at show sizes, with
+  // adversarial content): Invert held under hard hits at 10 a second, one-shots (pads 1, 2, 4, 12) at 15 and at 5 a
+  // second, pads 1, 2, 4 at 15, all 12 pads, the white flash at the gate's own edge and at 2.5 a second, laser and glitch
+  // alternating, the look at full under every flash-capable pad; then the one-shots again with the limiter deciding on the
+  // CPU (its fallback) and with no limiter at all (the safe mode, which must refuse the pads). Flashes are counted the
+  // verifier's way (pairs of swings of 0.1 relative luminance), transitions and strict pairs, in 4726 quarter-screen
+  // windows at every offset of a 64 x 36 grid (not the limiter's own), and red flashes too: at most 3 a second.
+  {
+    const { targetId: t2 } = await browser.send("Target.createTarget", { url: "about:blank" });
+    const { sessionId: s2 } = await browser.send("Target.attachToTarget", { targetId: t2, flatten: true });
+    const S2 = (method, params = {}) => withTimeout(browser.send(method, params, s2), 600000, method);
+    browser.on((msg) => {
+      if (msg.sessionId !== s2 || msg.method !== "Runtime.exceptionThrown") return;
+      const d = msg.params.exceptionDetails;
+      report.exceptions.push({ text: d.text, description: d.exception?.description, line: d.lineNumber, url: d.url, tab: "storm" });
+    });
+    await S2("Runtime.enable"); await S2("Page.enable");
+    await S2("Emulation.setDeviceMetricsOverride", { width: 640, height: 360, deviceScaleFactor: 1, mobile: false });
+    await S2("Page.addScriptToEvaluateOnNewDocument", { source: STORM_VIRTUAL_CLOCK });
+    const ev2 = async (expression) => {
+      const r = await S2("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    const storms = [];
+    const D2 = [...["invert10", "oneshots15", "oneshots5", "nozoom15", "all12", "flashedge", "flash24", "lasglitch", "lookstorm"].map((s) => [s, "gpu"]),
+                ["oneshots15", "cpu"], ["oneshots15", "off"], ["invert10", "off"]];
+    for (const [scenario, mode] of D2) {
+      const q = mode === "cpu" ? "&limiter=cpu" : mode === "off" ? "&limiter=off" : "";
+      await S2("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=off&hud=0&watchdog=0&sets=vj-reactor${q}` });
+      const want = mode === "off" ? "true" : `l.mode === "${mode}"`;
+      await waitFor(() => ev2(`!!(window.__vj && window.__vj.ready) && (() => { window.__vt.step(1000 / 60); const l = window.__vj.stats().limiter; return !l || ${want} || l.fatal; })()`), 120000, "the storm tab's VJ page and gate v2");
+      await ev2("(() => { for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()");
+      const r = await runStormInPage(ev2, scenario, 240, { mode });
+      storms.push({ ...r, densest: r.densest.slice(0, 8) });
+      console.log(`[storm] ${mode} ${scenario}: worst ${r.max_flashes_in_1s}/s pairs ${r.max_pairs_in_1s} (${r.worst_window}), full ${r.full_max_flashes_in_1s}/s, red ${r.red_max_flashes_in_1s}, gate ${r.gate.granted}, hits ${r.impact_hits}, refused ${r.safe_refused}, limiter ${r.limiter && r.limiter.on ? `${r.limiter.mode} leaks ${r.limiter.leaks}` : "off"}`);
+    }
+    await browser.send("Target.closeTarget", { targetId: t2 });
+    report.flash.storms = storms;
+    checks.pad_storms_at_most_three_flashes_a_second_in_every_window = storms.length === D2.length &&
+      storms.every((r) => r.max_transitions_in_1s <= 6 && r.max_pairs_in_1s <= 3 && r.red_max_transitions_in_1s <= 6 && r.red_max_pairs_in_1s <= 3 && r.longest_run_s <= 6.2);
+    checks.gate_v2_limiter_running_without_leaks = storms.filter((r) => r.mode !== "off").every((r) => r.limiter && r.limiter.on && r.limiter.mode === r.mode && r.limiter.leaks === 0);
+    checks.storms_keep_their_hits = storms.filter((r) => r.mode !== "off" && /oneshots|nozoom|all12|invert/.test(r.scenario)).every((r) => r.impact_hits >= 20);
+    checks.the_safe_mode_refuses_every_pad_effect = storms.filter((r) => r.mode === "off").every((r) => r.mode_ok && r.impact_hits === 0 && r.safe_refused > 20);
+  }
   await tap("H");                        // the HUD, once, for the record
   await delay(300);
   report.hud_screenshot = await shot("hud");
@@ -660,6 +740,150 @@ try {
   checks.a_refused_post_stops_posting_until_the_next_hello = leds.refuse_posts === 1 && leds.refuse_state.refused >= 1 &&
     /refused \(HTTP 409\)/.test(leds.refuse_state.ledsOff) && !!leds.on_cleared && leds.resumed_posts >= 2;
 
+  // ------------------------- E5: scenes from the transport and the dial; the scene told to the engine (2026-10-24) --
+  // The KeyLab's rewind (cc25) and fast-forward (cc26) press 127 and release 0; the dial turns cc116 (relative) and clicks
+  // cc117. The page maps them to scenes (vj-core.js DEFAULT_CTL_MAP, SceneControl): a press moves one scene, a release
+  // or a held button does nothing more, the dial browses (the page tells the engine the scene under it, browsing) and its
+  // click goes there, a fast spin cannot run away. The page reports the scene it shows (POST /api/scene); an engine that
+  // answers 404 (older than the route) is not asked again until its next hello. Energy at ~100 events a second reaches
+  // the page's band envelopes. And pad events from the engine: arrival to the frame that draws them (the latency record).
+  {
+    const sc = {};
+    const ctl = (id, value, kind = "abs", delta = 0) => send({ t: "ctl", id, kind, value, delta });
+    const setOf = async () => (await stats()).setA;
+    const nextAfter = (list, id, k) => { const i = list.indexOf(id); return list[(((i + k) % list.length) + list.length) % list.length]; };
+    const valid = (await evaluate("window.__vj.sets()")).filter((s) => !s.broken).map((s) => s.id);
+    sceneMode = "on";
+    hello(true);
+    sc.reported_on_hello = await settle((s) => s.scenes.sentKey !== "" && scenePosts.some((p) => p.body && p.body.name));
+    const waitSet = async (want) => { try { return await waitFor(async () => { const s = await stats(); return !s.fading && s.setA === want ? s : null; }, 7000, want); } catch { return null; } };
+    const s0 = await setOf();
+    ctl("cc26", 1); await delay(60); ctl("cc26", 0);
+    sc.ff = { from: s0, to: (await waitSet(nextAfter(valid, s0, 1)))?.setA ?? (await setOf()) };
+    await delay(300);
+    sc.release_did_not_move = (await setOf()) === sc.ff.to;
+    ctl("cc25", 1); await delay(60); ctl("cc25", 0);
+    sc.rew = { to: (await waitSet(s0))?.setA ?? (await setOf()) };
+    // a held button (repeating 127) moves once
+    const s1 = await setOf();
+    for (let i = 0; i < 5; i++) { ctl("cc26", 1); await delay(40); }
+    ctl("cc26", 0);
+    sc.held = { from: s1, to: (await waitSet(nextAfter(valid, s1, 1)))?.setA ?? (await setOf()) };
+    await delay(400);
+    sc.held.after = await setOf();
+    // the dial: three detents browse three scenes, the screen is told (browsing), the live set stays until the click
+    const s2 = await setOf();
+    const browsePosts0 = scenePosts.length;
+    for (let i = 0; i < 3; i++) { ctl("cc116", 0.5, "rel", 1); await delay(150); }
+    const br = await settle((s) => (s.scenes.browsing && s.scenes.cursor >= 0 ? s : false));
+    sc.browse = { cursor: br ? br.scenes.cursor : null, live: await setOf(), want: nextAfter(valid, s2, 3) };
+    await delay(400);
+    const browsePosts = scenePosts.slice(browsePosts0).filter((p) => p.body && p.body.browsing === true);
+    sc.browse.posts = browsePosts.map((p) => p.body.name);
+    ctl("cc117", 1); await delay(60); ctl("cc117", 0);
+    sc.go = { to: (await waitSet(sc.browse.want))?.setA ?? (await setOf()) };
+    // a fast spin: 30 messages in ~300 ms move the cursor at most one step per 60 ms
+    const spin0 = (await stats()).scenes.ignored;
+    for (let i = 0; i < 30; i++) { ctl("cc116", 0.5, "rel", 4); await delay(10); }
+    const sp = await settle((s) => (s.scenes.ignored > spin0 ? s : false));
+    sc.spin = { ignored: sp ? sp.scenes.ignored - spin0 : 0 };
+    await delay(4500);                    // the browse lets go without a click
+    sc.spin.browse_ended = !(await stats()).scenes.browsing;
+    sc.spin.live_unchanged = (await setOf()) === sc.go.to;
+    // an older engine: 404 on the route, asked once, then not again until its next hello
+    const old0 = scenePosts.length;
+    sceneMode = "absent";
+    hello(true);
+    await settle((s) => s.scenes.off !== "" || scenePosts.length > old0);
+    await delay(300);
+    ctl("cc26", 1); await delay(60); ctl("cc26", 0);
+    await delay(1500);
+    ctl("cc25", 1); await delay(60); ctl("cc25", 0);
+    await delay(1500);
+    const st5 = await stats();
+    sc.older = { posts: scenePosts.slice(old0).filter((p) => p.mode === "absent").length, off: st5.scenes.off };
+    sceneMode = "on";
+    const res0 = scenePosts.length;
+    hello(true);
+    sc.older.resumed = await settle((s) => (s.scenes.off === "" && scenePosts.length > res0 ? true : false));
+    // energy at ~100 a second
+    const e0 = (await stats()).energyEvents;
+    // one every 10 ms on the clock (a Windows timer may wake late: every event due by then goes out, as the engine's
+    // audio blocks would)
+    const eStart = Date.now();
+    await new Promise((done) => {
+      let k = 0;
+      const timer = setInterval(() => {
+        while (k < 100 && eStart + k * 10 <= Date.now()) {
+          send({ t: "energy", bass: 0.3 + 0.5 * ((k % 50) < 5 ? 1 : 0), mid: 0.3, high: 0.2, level: 0.4 });
+          k++;
+        }
+        if (k >= 100) { clearInterval(timer); done(); }
+      }, 4);
+    });
+    const eSpanMs = Date.now() - eStart;
+    await delay(60);
+    const se = await stats();                 // at once: the page's count of the last second is the rate
+    sc.energy = { sent: 100, over_ms: eSpanMs, received: se.energyEvents - e0, page_rate_last_second: se.energyRate, kick: se.bands.kick };
+    // latency: pad events from the engine, each drawn in the next frame at full strength
+    const latT0 = await evaluate("performance.now()");
+    const latSent = [];
+    for (let i = 0; i < 12; i++) {
+      latSent.push(Date.now());
+      send({ t: "pad", pad: 2, vel: 0.9, on: true, src: "bank" });
+      await delay(50);
+      send({ t: "pad", pad: 2, vel: 0, on: false, src: "bank" });
+      await delay(180 + (i % 4) * 37);
+    }
+    await delay(400);
+    const lat = (await evaluate("window.__vj.latency()")).records.filter((r) => r.src === "bank" && r.arrive >= latT0);
+    // a laser burst at 0.9 starts at full strength (attack 0) and falls (1 - age / D)^2, D = 0.9 s x (0.6 + 0.8 x 0.9):
+    // the frame that draws it must show at least that, so nothing between the event and the frame held it back
+    const D = 0.9 * (0.6 + 0.8 * 0.9);
+    for (const r of lat) r.expected = r.frame === null ? null : +Math.pow(Math.max(0, 1 - (r.frame - r.fired) / 1000 / D), 2).toFixed(3);
+    // the engine's send (this process's wall clock) to the end of the frame that drew it (the page's: the same clock)
+    const sends = latSent.slice(-lat.length);
+    const gaps = lat.map((r, k) => (r.frameWall ? r.frameWall - sends[k] : null)).filter((g) => g !== null).sort((a, b) => a - b);
+    const fps = (await stats()).fps;
+    sc.latency = { records: lat.length, send_to_drawn_ms: { p50: gaps[Math.floor(gaps.length / 2)] ?? null, max: gaps[gaps.length - 1] ?? null },
+                   frame_ms_at_this_rate: fps > 0 ? +(1000 / fps).toFixed(1) : null, env_in_that_frame_min: Math.min(...lat.map((r) => r.env ?? 0)),
+                   env_short_of_full_max: Math.max(...lat.map((r) => (r.expected ?? 1) - (r.env ?? 0))) };
+    // the beat snap (off by default; B or the panel): with the engine's beat live, a pad hit waits for the next 16th
+    let snapN = 0;
+    const snapBeats = setInterval(() => send({ t: "beat", due_ms: 200, bpm: 120, conf: 0.9, n: 1000 + snapN++, on_beat: 0.9 }), 500);
+    await delay(1300);
+    const snapOn = await evaluate("window.__vj.snap(true)");
+    const snapT0 = await evaluate("performance.now()");
+    for (let i = 0; i < 8; i++) {
+      send({ t: "pad", pad: 1, vel: 0.8, on: true, src: "bank" });
+      await delay(40);
+      send({ t: "pad", pad: 1, vel: 0, on: false, src: "bank" });
+      await delay(170 + i * 23);
+    }
+    await delay(500);
+    const snapRecs = (await evaluate("window.__vj.latency()")).records.filter((r) => r.arrive >= snapT0 && r.pad === 1);
+    await evaluate("window.__vj.snap(false)");
+    clearInterval(snapBeats);
+    const onGrid = (r) => { const k = (r.snapAt - r.snapBeat) / r.snapGrid; return Math.abs(k - Math.round(k)) < 0.01; };
+    sc.snap = { on: snapOn, hits: snapRecs.length, waited: snapRecs.filter((r) => r.snapAt !== null).length,
+                waits_ms: snapRecs.filter((r) => r.snapAt !== null).map((r) => +(r.snapAt - r.arrive).toFixed(1)),
+                on_grid: snapRecs.filter((r) => r.snapAt !== null).every(onGrid),
+                drawn_after_its_16th: snapRecs.filter((r) => r.snapAt !== null).every((r) => r.frame !== null && r.frame >= r.snapAt) };
+    report.engine_contract.scenes = { ...sc, posts: scenePosts.length, sample: scenePosts.slice(-3) };
+    console.log(`[scenes] ff ${sc.ff.from} -> ${sc.ff.to}; browse ${sc.browse.posts.join(", ")}; older engine: ${sc.older.posts} post(s); energy ${sc.energy.received} in 1 s; send to drawn p50 ${sc.latency.send_to_drawn_ms.p50} ms at ${sc.latency.frame_ms_at_this_rate} ms a frame`);
+    checks.scene_is_reported_to_the_engine = !!sc.reported_on_hello && scenePosts.filter((p) => p.mode === "on").every((p) => p.body && typeof p.body.name === "string" && p.body.name.length >= 1);
+    checks.fast_forward_and_rewind_switch_scenes = sc.ff.to === nextAfter(valid, s0, 1) && sc.rew.to === s0 && sc.release_did_not_move;
+    checks.a_held_button_switches_once = sc.held.to === nextAfter(valid, s1, 1) && sc.held.after === sc.held.to;
+    checks.the_dial_browses_and_its_click_goes = sc.browse.live === s2 && sc.browse.posts.length >= 1 && sc.go.to === sc.browse.want;
+    checks.a_fast_spin_cannot_flood = sc.spin.ignored >= 10 && sc.spin.browse_ended && sc.spin.live_unchanged;
+    checks.an_older_engine_is_asked_once_until_its_next_hello = sc.older.posts === 1 && /older/.test(sc.older.off) && sc.older.resumed === true;
+    checks.energy_at_100_a_second_reaches_the_page = sc.energy.received === 100 && sc.energy.over_ms <= 1150;
+    checks.beat_snap_holds_a_hit_to_the_next_16th = sc.snap.on === true && sc.snap.hits === 8 && sc.snap.waited >= 3 &&
+      sc.snap.on_grid && sc.snap.drawn_after_its_16th && sc.snap.waits_ms.every((w) => w > 0 && w <= 125 * 0.75 + 1);
+    checks.pad_events_drawn_in_the_next_frame_at_full_strength = sc.latency.records >= 10 && lat.every((r) => r.frame !== null) &&
+      sc.latency.env_short_of_full_max <= 0.02;
+  }
+
   // --------------------------------------------- E3: a dropped engine's status leaves the HUD with it --
   send({ t: "status", msg: "fake engine for vj_verify: about to drop" });
   await settle((s) => s.engine.status === "fake engine for vj_verify: about to drop");
@@ -758,6 +982,11 @@ try {
                           roman: heard.roman, chord: heard.chord, chordSrc: heard.chordSrc, tension: heard.harmony.tension,
                           bad: last.engine.bad, events: last.engine.events } : null;
     try { real.state = await (await fetch(`${real.url}/api/state`)).json(); } catch { real.state = null; }
+    // the page told the real engine which scene shows (POST /api/scene), and the engine keeps it for `screen --live`
+    const liveName = await evaluate("(() => { const s = window.__vj.stats(); const x = window.__vj.sets().find((q) => q.id === s.setA); return x ? x.name : null; })()");
+    real.scene = { page: liveName, engine: real.state ? real.state.scene : null, counts: real.state ? real.state.scene_counts : null };
+    checks.the_real_engine_hears_the_page_scene = !!liveName && !!real.scene.engine && real.scene.engine.name === liveName &&
+      real.scene.counts.taken >= 1;
     report.page_errors = report.page_errors.concat(await evaluate("window.__vj.errors()"));
     console.log(`[real engine] key "${real.hud.key}" | chord "${real.hud.chord}"`);
     const ev = real.state ? real.state.events : {};
@@ -840,8 +1069,12 @@ try {
   report.expected_refusals = report.console.filter(refusal);
   const refusedPosts = padPosts.filter((p) => p.mode !== "on").length;
   checks.refusal_console_lines_match_the_refused_posts = report.expected_refusals.length === refusedPosts;
+  // ... and phase E5's older engine answers 404 to the scene route: exactly one report, then the page stops asking it
+  const sceneAbsent = (c) => /\/api\/scene/.test(c.url || "") && /\b404\b/.test(c.text || "");
+  report.expected_scene_404 = report.console.filter(sceneAbsent);
+  checks.scene_404_console_lines_match_the_older_engine_posts = report.expected_scene_404.length === scenePosts.filter((p) => p.mode !== "on").length;
   checks.no_console_errors = !report.console.some((c) => (c.type === "error" || c.type === "log-error") && !external(c) &&
-    !refusal(c));
+    !refusal(c) && !sceneAbsent(c));
   checks.no_page_recorded_errors = Array.isArray(report.page_errors) && report.page_errors.length === 0;
   checks.no_script_error = !report.error;
   report.verdict = { pass: Object.values(checks).every(Boolean), checks };
@@ -865,7 +1098,8 @@ try {
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);
   for (const e of report.exceptions) console.log("EXC", e.description || e.text);
   for (const c of report.console.filter((c) => c.type === "error" || c.type === "log-error")) {
-    console.log(report.expected_refusals?.includes(c) ? "CONSOLE (expected: the refusal phase E2 provokes)" : "CONSOLE", c.text);
+    console.log(report.expected_refusals?.includes(c) ? "CONSOLE (expected: the refusal phase E2 provokes)" :
+      report.expected_scene_404?.includes(c) ? "CONSOLE (expected: E5's older engine has no scene route)" : "CONSOLE", c.text);
   }
   console.log("verdict:", report.verdict.pass ? "PASS" : "FAIL");
   console.log("receipt:", join(outDir, "receipt.json"));

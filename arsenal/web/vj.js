@@ -13,6 +13,17 @@
 //   2. THE ACCENT OVERLAY: shockwave rings, laser bursts, particles and note glints, with its own feedback for trails.
 //   3. THE COMPOSITE: mixes the sets, bends them (kaleidoscope, glitch, shockwave refraction, freeze), adds the overlay and
 //      applies the full-frame accents (invert, the gated white flash and strobe pulses), saturation and master brightness.
+//      Since 2026-10-24 it draws into its own ping-pong pair, so the previous composited frame is there to read (the
+//      glitch's datamosh and stutter), and the look (vj-stage.js) or a plain copy takes it to the screen.
+//   THE IMPACT PASS (2026-10-24, Daniel: "How do we make the effects feel more impactful and make the vj sets even more
+//   reponsive!"): every pad hit, through the velocity curve (vj-core.js velCurve), punches the whole frame (a zoom kick,
+//   fast out and eased back), shakes it on hard hits, dips the scene for ~40 ms under the accent's light (never deeper
+//   than the measured scene allows: the dip can never be a flash, vj-core.js dipSafeDepth) and lets its light trail longer
+//   (the afterglow); the sets get a shared hit input in the strip (row 2, texels 10-12) and each reacts in its own way;
+//   the music drives fast-attack / slow-release band envelopes (kick: scale pump, snare: a colour and contrast kick, hat:
+//   sparkle); the glitch (pad 4) picks one of six modes, or two, per hit; the beat snap (B, off by default) holds a hit to
+//   the next 16th of a live beat; the transport and the dial switch scenes and the page tells the engine which scene
+//   shows (POST /api/scene) for the KeyLab's screen.
 // The engine (arsenal keylab-vj, GET <engine>/api/events, Server-Sent Events) feeds beats, energy, hits, chords, notes,
 // pads and controls; with chordsense (vj --chords sense) also the key, each chord's roman numeral and the harmony's
 // tension (vj-core.js EngineHarmony: the HUD shows key and numeral, the tension feeds the strip, a key change accents
@@ -23,14 +34,27 @@
 //
 // URL: ?engine=http://127.0.0.1:8794 (default; "off" for none) ?demo=1 ?demopads=0 ?sets=id,id,... ?hud=0
 //      ?transport=off (Rewind / Fast forward stop stepping the sets and go to the control map)
-// Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader.
+// Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader; and
+// since 2026-10-24 every frame passes gate v2 last (vj-limiter.js on the GPU, its rules and JS twin in vj-gate.js): the
+// picture actually shown, after every layer, every pixel metered, in every rectangle of 8 x 8 cells covering a quarter of
+// the screen or more (311 windows, at every offset) and in every cell, never makes a fourth flash in any second (it holds
+// each window to two and a half; nor a red one, nor flashes for more than about five seconds without a rest). The gate
+// still decides which flashes are asked for at all; the limiter only ever takes light away from the rest. Without a
+// running limiter (its programs still compiling, or a GPU that cannot run them) the page is in its SAFE MODE: every pad
+// effect is refused (the set plays on; dampen, choke, kill and the scene keys still work), so nothing on the screen is
+// left to the FlashGate alone. ?limiter=cpu decides on the CPU (the JS twin, a readback a frame); ?limiter=off forces the
+// safe mode (receipts).
 import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
-  starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, actionLabel, TARGETS,
-  DEFAULT_CTL_MAP, normalizeCtlMap, learnBinding, applyCtl, FlashGate, EffectBank, BeatClock, PedalDetector,
+  starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, serializePadMap, actionLabel,
+  TARGETS, DEFAULT_CTL_MAP, normalizeCtlMap, learnBinding, applyCtl, FlashGate, EffectBank, BeatClock, PedalDetector,
   pedalSignature, EngineLink, EngineHarmony, DemoScript,
+  // the impact pass (2026-10-24)
+  velCurve, ImpactLayer, DIP_SAFE_DELTA, glitchPlan, BandEnvelopes, snapDelayMs, SceneControl, SCENE_ACTIONS,
+  SCENE_ACTION_IDS, zoomDepth, EFFECT_CODES,
 } from "./vj-core.js";
 import { createStage } from "./vj-stage.js";   // wave 2: beat-synced transitions, the post look, the showcase tour
+import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output flash limiter (rules: vj-gate.js)
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
@@ -66,6 +90,10 @@ const KEY_ACCENT = 0.5;                // a key change's accent: half a chord ch
 const STORE = { pads: "arsenal.vj.padMap", ctl: "arsenal.vj.ctlMap", values: "arsenal.vj.values", opts: "arsenal.vj.options" };
 const KEY_PADS = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9,
                    Digit0: 10, Minus: 11, Equal: 12 };
+const SCENE_POST_MIN_MS = 120;         // the scene report to the engine: newest wins, at most ~8 a second
+// ?limiter=cpu (the JS twin decides, always), off (the safe mode), late (the twin until two seconds in, then the GPU)
+const LIMITER_MODE = (() => { const m = QS.get("limiter"); return m === "cpu" || m === "off" || m === "late" ? m : "auto"; })();
+const LATENCY_KEEP = 64;
 const NOTE_NAMES = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
 const PLAY_UNIFORMS = [
   "u_video", "u_prev", "u_audio", "u_res", "u_video_res", "u_time", "u_media_time", "u_frame", "u_has_video", "u_pulse",
@@ -92,8 +120,11 @@ uniform sampler2D u_prevOv;
 uniform vec2 u_res;
 uniform float u_keep;
 uniform vec4 u_wave[4];      // centre xy (centred space), radius, energy
-uniform vec4 u_waveB[4];     // width px, velocity, -, -
+uniform vec4 u_waveB[4];     // width px, velocity, age s, velocity through the curve
 uniform vec3 u_waveCol[4];
+uniform float u_sparkle;     // the hat envelope: sparkle amount
+uniform float u_sparkleT;    // its tick (a new constellation of sparks ~30 times a second)
+uniform vec3 u_sparkleCol;
 uniform vec4 u_laser[4];     // origin xy, aim (radians), energy
 uniform vec4 u_laserB[4];    // beams, spread (radians), width px, velocity
 uniform vec3 u_laserCol[4];
@@ -135,6 +166,22 @@ void main() {
     float wd = max(u_waveB[i].x * rs, 1.0);
     fresh += u_waveCol[i] * w.w * (exp(-d * d / (wd * wd)) * 0.9 + 0.35 * lorentz(d, wd * 3.0));
     fresh += vec3(1.0) * w.w * u_waveB[i].y * 0.5 * exp(-d * d / (0.3 * wd * wd));
+    // the strike (2026-10-24): a small hot core at the ring's centre for its first ~80 ms, so the hit shows in the very
+    // next frame while the ring is still small (a few percent of the frame: no flash)
+    float flare = exp(-u_waveB[i].z / 0.05) * (0.35 + 0.65 * u_waveB[i].w);
+    if (flare > 0.002) {
+      float dc = length(p - w.xy) / (0.05 + 0.05 * u_waveB[i].w);
+      fresh += hotCore(u_waveCol[i], 2.5) * 0.4 * flare * exp(-dc * dc * 3.0);
+    }
+  }
+  if (u_sparkle > 0.002) {                            // the hat: a scatter of short-lived sparks
+    for (int i = 0; i < 14; i++) {
+      float fi = float(i);
+      vec2 at = vec2((hash11(fi * 3.17 + u_sparkleT * 1.31) - 0.5) * asp * 0.96, hash11(fi * 7.41 + u_sparkleT * 0.77) - 0.5);
+      float dPx = length(p - at) / px;
+      float s = (1.0 + 1.6 * hash11(fi + u_sparkleT)) * rs;
+      fresh += u_sparkleCol * u_sparkle * (exp(-dPx * dPx / (s * s)) * 1.2 + 0.08 * lorentz(dPx, s * 5.0));
+    }
   }
   for (int i = 0; i < 4; i++) {                       // laser bursts: the nearest beam of a fan
     vec4 l = u_laser[i];
@@ -200,14 +247,17 @@ void main() {
   outColor = vec4(max(trail, fresh), 1.0);
 }`;
 
-// The composite: sets (display values) -> bends -> overlay (linear) -> full-frame accents -> master.
+// The composite: sets (display values) -> punch and shake -> bends (shockwave refraction, glitch, kaleidoscope, freeze)
+// -> the dip -> overlay (linear) -> full-frame accents -> master. It draws into the page's composite pair (G.cmp), so
+// u_hist is the previous composited frame (the glitch's datamosh feeds on it) and u_stut the frame held at the last glitch.
 const COMPOSITE_FS = `#version 300 es
 precision highp float;
-uniform sampler2D u_a, u_b, u_ov, u_frz;
+uniform sampler2D u_a, u_b, u_ov, u_frz, u_hist, u_stut, u_meter;
 uniform vec2 u_res;
 uniform float u_mix;
 uniform float u_kal, u_kalN, u_kalRot;
-uniform float u_glitch, u_glitchT, u_glitchCells;
+uniform float u_glitch, u_glitchT, u_gSize, u_gSeed, u_gAge;
+uniform vec2 u_gMode;        // the glitch's primary and second mode (vj-core.js GLITCH_MODES; -1 = none)
 uniform float u_freeze, u_freezeZoom;
 uniform vec4 u_wave[4];
 uniform vec4 u_waveB[4];
@@ -218,15 +268,23 @@ uniform float u_metro;
 uniform vec3 u_metroCol;
 uniform float u_bloom;
 uniform vec3 u_bloomCol;
+uniform float u_punch;       // the frame's zoom kick (fraction): the hits' punch + the zoom punch + the kick's pump
+uniform float u_blur;        // the zoom punch's radial blur (fraction of the way to the centre)
+uniform vec2 u_shake;        // the frame's jolt (fractions of the frame height)
+uniform float u_dip, u_dipGranted, u_dipSafe;   // the dip: asked depth; 1 = it rides a granted flash; the safe delta
+uniform float u_snare;       // the snare's kick: contrast and colour
 in vec2 v_uv;
 out vec4 outColor;
 const float PI = 3.14159265358979;
 const float TAU = 6.28318530717959;
+const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // motion-envelope envFlashSafe (arsenal/web/glsl/motion/envelope.glsl): 0 until a third of a second after the previous
 // full-field flash, 1 from half a second on -- the shader's own copy of the gate the page keeps (FlashGate, vj-core.js)
 float envFlashSafe(float sinceLastFlash) { return smoothstep(1.0 / 3.0, 0.5, sinceLastFlash); }
 float h12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+vec2 mirrorUv(vec2 uv) { return 1.0 - abs(1.0 - mod(uv, 2.0)); }
 vec3 sets(vec2 uv) {
+  uv = mirrorUv(uv);
   vec3 a = texture(u_a, uv).rgb;
   if (u_mix > 0.001) {
     float m = clamp(u_mix, 0.0, 1.0);
@@ -234,25 +292,124 @@ vec3 sets(vec2 uv) {
   }
   return a;
 }
-vec3 glitched(vec2 uv, float asp) {
-  if (u_glitch < 0.001) return sets(uv);
-  vec2 cells = vec2(u_glitchCells * asp * 0.6, u_glitchCells);
-  vec2 cell = floor(uv * cells);
-  float h = h12(cell + u_glitchT * 13.17);
-  vec2 off = vec2(0.0);
-  if (h < 0.35 * u_glitch) off.x = (h12(cell * 1.7 + u_glitchT) - 0.5) * 0.18 * u_glitch;
-  float row = h12(vec2(floor(uv.y * cells.y * 3.0), u_glitchT));
-  if (row < 0.12 * u_glitch) off.x += (row - 0.06) * 0.5;
-  float split = 0.004 + 0.012 * u_glitch;
-  vec2 q = uv + off;
-  return vec3(sets(q + vec2(split, 0.0)).r, sets(q).g, sets(q - vec2(split, 0.0)).b);
+vec3 scene(vec2 uv) {                                  // the sets, smeared toward the centre while the zoom punch springs
+  if (u_blur < 1e-3) return sets(uv);
+  vec2 d = uv - 0.5;
+  vec3 s = vec3(0.0);
+  for (int i = 0; i < 5; i++) s += sets(0.5 + d * (1.0 - u_blur * float(i) / 4.0));
+  return s * 0.2;
+}
+bool modeOn(float m) { return abs(u_gMode.x - m) < 0.5 || abs(u_gMode.y - m) < 0.5; }
+// the glitch's displacing modes: slices and blocks shoved, rows torn and wobbling, the channels pulled apart
+void glitchUv(inout vec2 q, inout vec2 split, float asp) {
+  float a = u_glitch, sz = u_gSize, sd = u_gSeed, tk = u_glitchT;
+  // the strike: whatever the modes, the first ~120 ms tear the frame into shoved blocks with the channels apart, so every
+  // glitch lands hard in the very next frame and the modes carry it on
+  float burst = max(0.0, 1.0 - u_gAge / 0.12) * a;
+  if (burst > 0.001) {
+    // its own shape every hit, from the seed: the block grid (5 to 22 rows), the shove's direction (across, along or
+    // diagonal) and the channels' split angle
+    float n = mix(5.0, 22.0, fract(sd * 7.13));
+    vec2 cell = floor(q * vec2(n * asp * mix(0.3, 1.2, fract(sd * 3.7)), n));
+    float h = h12(cell * 1.9 + sd * 21.0);
+    float dirA = floor(fract(sd * 5.31) * 3.0);        // 0 across, 1 along, 2 diagonal
+    vec2 dir = dirA < 0.5 ? vec2(1.0, 0.0) : dirA < 1.5 ? vec2(0.0, 1.0) : normalize(vec2(1.0, 0.6));
+    if (h < 0.55) q += dir * (h12(cell * 2.7 + sd * 5.0) - 0.5) * (0.16 + 0.26 * sz) * burst;
+    float ang = sd * 6.2832;
+    split += vec2(cos(ang), sin(ang) * 0.5) * 0.03 * burst;
+  }
+  if (modeOn(0.0)) {                                   // split: horizontal slices shoved sideways
+    float rows = mix(40.0, 7.0, sz);
+    float sl = floor(q.y * rows);
+    float h = h12(vec2(sl, tk + sd * 17.0));
+    if (h < 0.6) q.x += (h12(vec2(sl * 1.7, tk * 0.37 + sd * 3.0)) - 0.5) * 0.18 * a;
+    split += vec2(0.006 + 0.034 * a, 0.006 * a * (h - 0.5));
+  }
+  if (modeOn(1.0)) {                                   // tear: blocks displaced, scanlines torn
+    float n = mix(28.0, 6.0, sz);
+    vec2 cells = vec2(n * asp * 0.6, n);
+    vec2 cell = floor(q * cells);
+    float h = h12(cell + tk * 13.17 + sd * 5.0);
+    if (h < 0.1 + 0.45 * a) q += vec2((h12(cell * 1.7 + tk) - 0.5) * 0.28, (h12(cell * 2.3 - tk) - 0.5) * 0.06) * a;
+    float row = h12(vec2(floor(q.y * 220.0), tk + sd * 11.0));
+    if (row < 0.16 * a) q.x += (row - 0.08 * a) * 2.2 + 0.02 * sin(q.y * 300.0 + tk);
+    split += vec2(0.008 * a, 0.0);
+  }
+  if (modeOn(5.0)) {                                   // VHS: rows wobble, a tracking band rolls through, chroma bleeds
+    float t = u_gAge;
+    q.x += (sin(q.y * 38.0 + t * 11.0) * 0.012 + sin(q.y * 7.0 - t * 4.0) * 0.022) * a;
+    q.x += (h12(vec2(floor(q.y * 300.0), floor(t * 30.0))) - 0.5) * 0.02 * a;
+    float bar = fract(q.y * 0.7 - t * 1.4 - sd);
+    float band = smoothstep(0.0, 0.05, bar) * (1.0 - smoothstep(0.12, 0.2, bar));
+    q.x += band * (0.06 + 0.05 * sin(q.y * 120.0 + t * 40.0)) * a;   // the tracking error: a band torn sideways
+    q.y += band * 0.025 * a;
+    split += vec2(0.022 * a, 0.0);
+  }
+}
+// the glitch's colour modes: a datamosh smear through the previous frame, pixel-sort streaks, a stutter of held slices
+vec3 glitchColour(vec3 c, vec2 q, vec2 uv, float asp) {
+  float a = u_glitch, sz = u_gSize, sd = u_gSeed;
+  float burst = max(0.0, 1.0 - u_gAge / 0.12) * a;
+  if (burst > 0.001) {                                 // the strike: some blocks have their channels turned round
+    float n = mix(5.0, 22.0, fract(sd * 7.13));
+    vec2 cell = floor(uv * vec2(n * asp * mix(0.3, 1.2, fract(sd * 3.7)), n));
+    if (h12(cell * 4.1 + sd * 9.0) < 0.4) c = mix(c, fract(sd * 11.3) < 0.5 ? c.gbr : c.brg, burst);
+  }
+  if (modeOn(2.0)) {                                   // datamosh: blocks drag the previous frame along their own vector
+    float n = mix(18.0, 5.0, sz);
+    vec2 cell = floor(uv * vec2(n * asp, n));
+    vec2 mv = (vec2(h12(cell + sd * 31.0), h12(cell * 1.3 + sd * 7.0)) - 0.5) * 0.09 * (0.4 + a);
+    vec3 prev = texture(u_hist, mirrorUv(uv - mv)).rgb;
+    // it takes over from the strike after ~50 ms: the first frames show the hit, not the frame before it
+    float keep = clamp(0.92 * a * step(0.25, h12(cell * 0.7 + sd)), 0.0, 0.93) * smoothstep(0.03, 0.08, u_gAge);
+    vec3 live = c;
+    c = mix(c, prev, keep);                            // the smear feeds on itself: each frame drags the last one further
+    c += abs(prev - live) * 0.25 * a * keep;           // where the drag tears from the live picture, the seam glows
+  }
+  if (modeOn(3.0)) {                                   // pixel sort: bright pixels pulled into streaks along lanes
+    bool vertical = sd < 0.5;
+    float lane = vertical ? floor(uv.x * u_res.x / mix(2.0, 8.0, sz)) : floor(uv.y * u_res.y / mix(2.0, 8.0, sz));
+    if (h12(vec2(lane, sd * 9.0)) < 0.35 + 0.5 * a) {
+      vec2 dir = vertical ? vec2(0.0, 1.0) : vec2(1.0 / asp, 0.0);
+      float stepL = (0.006 + 0.03 * sz) * a;
+      vec3 best = c;
+      float bl = dot(c, LUMA);
+      for (int i = 1; i <= 10; i++) {
+        vec3 s = scene(q - dir * stepL * float(i));
+        float l = dot(s, LUMA);
+        float w = 1.0 - float(i) / 11.0;
+        if (l * w > bl && l > 0.18) { best = s * (0.55 + 0.45 * w); bl = l * w; }
+      }
+      c = max(c, best);
+    }
+  }
+  if (modeOn(4.0)) {                                   // stutter: bands of the frame held at the hit flicker back in
+    float b = floor(uv.y * mix(14.0, 3.0, sz));
+    float step12 = floor(u_gAge * 12.0);                // each band jumps to a new offset twelve times a second
+    if (h12(vec2(b, sd * 13.0)) < 0.6 && fract(u_gAge * 12.0) < 0.7 && u_gAge > 0.06) {   // after the strike
+      vec2 off = vec2((h12(vec2(b, 3.0 + sd + step12)) - 0.5) * 0.22 * a, (h12(vec2(b * 1.3, step12)) - 0.5) * 0.04 * a);
+      vec3 held = texture(u_stut, mirrorUv(uv + off)).rgb;
+      c = mix(c, held, clamp(0.5 + 0.5 * a, 0.0, 1.0));
+    }
+  }
+  if (modeOn(5.0)) {                                   // VHS: a little washed out, specks along the rows
+    float l = dot(c, LUMA);
+    c = mix(c, vec3(l) * vec3(1.02, 0.98, 1.05), 0.25 * a);
+    float speck = step(0.996, h12(vec2(floor(uv.x * u_res.x * 0.25), floor(uv.y * u_res.y * 0.5) + floor(u_gAge * 30.0))));
+    c += speck * 0.5 * a;
+  }
+  return c;
 }
 void main() {
   float asp = u_res.x / max(u_res.y, 1.0);
-  vec2 uv = v_uv;
-  vec2 p = (uv - 0.5) * vec2(asp, 1.0);
+  vec2 p0 = (v_uv - 0.5) * vec2(asp, 1.0);             // the screen's own place (the metronome and bloom stay put)
   float px = 1.0 / max(u_res.y, 1.0);
-  // shockwaves bend the picture where their rings pass
+  // the whole frame's punch and shake (u_punch 0 and u_shake 0 leave uv exactly v_uv)
+  vec2 uv = 0.5 + (v_uv - 0.5) / (1.0 + max(u_punch, 0.0)) + u_shake * vec2(1.0 / asp, 1.0);
+  vec2 p = (uv - 0.5) * vec2(asp, 1.0);
+  // shockwaves refract the picture behind their rings (a lens: the front gathers light, red bends further than blue)
+  vec2 disp = vec2(0.0);
+  float lens = 0.0;
   for (int i = 0; i < 4; i++) {
     vec4 w = u_wave[i];
     if (w.w < 0.001) continue;
@@ -260,34 +417,59 @@ void main() {
     float r = length(d);
     float width = max(u_waveB[i].x, 1.0) * px * 3.0;
     float ring = (r - w.z) / width;
-    uv += (d / max(r, 1e-4)) * exp(-ring * ring) * ring * 0.010 * w.w * u_accent / vec2(asp, 1.0);
+    float prof = exp(-ring * ring);
+    disp += (d / max(r, 1e-4)) * prof * ring * 0.034 * w.w * u_accent / vec2(asp, 1.0);
+    lens += prof * max(-ring, 0.0) * w.w;
   }
-  vec3 c = glitched(uv, asp);
+  vec2 q = uv + disp;
+  vec2 split = vec2(0.0);
+  if (u_glitch > 0.001) glitchUv(q, split, asp);
+  vec3 c;
+  if (dot(split, split) > 1e-10 || dot(disp, disp) > 1e-12) {
+    c = vec3(scene(q + split + disp * 0.35).r, scene(q).g, scene(q - split - disp * 0.35).b);
+  } else c = scene(q);
+  if (u_glitch > 0.001) c = glitchColour(c, q, uv, asp);
+  c *= 1.0 + 0.6 * min(lens, 1.0);
   if (u_kal > 0.001) {                                 // kaleidoscope: fold the angle into mirrored segments
-    vec2 q = (uv - 0.5) * vec2(asp, 1.0);
+    vec2 kq = (uv - 0.5) * vec2(asp, 1.0);
     float seg = TAU / max(u_kalN, 2.0);
-    float a = mod(atan(q.y, q.x) + u_kalRot, seg);
+    float a = mod(atan(kq.y, kq.x) + u_kalRot, seg);
     a = min(a, seg - a);
-    vec2 k = length(q) * vec2(cos(a), sin(a));
+    vec2 k = length(kq) * vec2(cos(a), sin(a));
     vec2 kuv = k / vec2(asp, 1.0) + 0.5;
-    kuv = abs(mod(kuv - 1.0, 2.0) - 1.0);               // mirror at the edges instead of smearing them
-    c = mix(c, sets(kuv), clamp(u_kal, 0.0, 1.0));
+    c = mix(c, scene(kuv), clamp(u_kal, 0.0, 1.0));
   }
   if (u_freeze > 0.001) {
     vec2 fuv = (uv - 0.5) * (1.0 - u_freezeZoom) + 0.5;
-    c = mix(c, texture(u_frz, fuv).rgb, clamp(u_freeze, 0.0, 1.0));
+    c = mix(c, texture(u_frz, mirrorUv(fuv)).rgb, clamp(u_freeze, 0.0, 1.0));
   }
-  // to linear light, add the accents, a soft shoulder, back to display values
+  // to linear light; the dip (never deeper than the measured scene allows: vj-core.js dipSafeDepth); the accents; a soft
+  // shoulder; back to display values
   vec3 lin = pow(max(c, vec3(0.0)), vec3(2.2));
-  lin += texture(u_ov, v_uv).rgb * u_accent;
-  float edge = smoothstep(0.30, 0.62, max(abs(p.x) / max(asp, 1e-3), abs(p.y)));
+  float meanLin = texelFetch(u_meter, ivec2(0, 0), 0).r;
+  // the dip (2026-10-24 safety pass): never under Invert (inverted, a dip is a brightening the meter never measured: it
+  // fades out as Invert comes in), and a dip that rides a granted white flash goes only as deep as the flash will show
+  // (the shader blanks a flash that follows the last one too soon: envFlashSafe), the rest held to the safe depth
+  float dipOn = 1.0 - clamp(u_invert, 0.0, 1.0);
+  if (u_dip > 0.001 && dipOn > 0.001) {
+    float shown = meanLin * pow(max(u_bright, 0.0), 2.2);
+    float safeDip = min(u_dip, u_dipSafe / max(shown, 1e-4));
+    float dip = u_dipGranted > 0.5 ? mix(safeDip, u_dip, envFlashSafe(u_flashGap)) : safeDip;
+    lin *= 1.0 - clamp(dip, 0.0, 0.9) * dipOn;
+  }
+  lin += texture(u_ov, mirrorUv(uv)).rgb * u_accent;
+  float edge = smoothstep(0.30, 0.62, max(abs(p0.x) / max(asp, 1e-3), abs(p0.y)));
   lin += u_metroCol * u_metro * edge;                  // the metronome: a breath at the frame's edge
-  lin += u_bloomCol * u_bloom * exp(-dot(p, p) * 5.0); // hits: a soft lift at the centre (kept under the flash line)
+  lin += u_bloomCol * u_bloom * exp(-dot(p0, p0) * 5.0); // hits: a soft lift at the centre (kept under the flash line)
   vec3 over = max(lin - 0.8, 0.0);
   lin = min(lin, vec3(0.8)) + 0.2 * tanh(over / 0.2);
   c = pow(lin, vec3(1.0 / 2.2));
-  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  c = mix(vec3(l), c, u_sat);
+  if (u_snare > 0.001) {                               // the snare: contrast around the scene's own mean (its mean holds)
+    float m = pow(max(meanLin, 0.0), 1.0 / 2.2);
+    c = max(m + (c - m) * (1.0 + 0.3 * u_snare), 0.0);
+  }
+  float l = dot(c, LUMA);
+  c = mix(vec3(l), c, u_sat * (1.0 + 0.35 * u_snare));
   c = mix(c, 1.0 - c, clamp(u_invert, 0.0, 1.0));
   c = mix(c, vec3(1.0), clamp(u_flash, 0.0, 1.0) * envFlashSafe(u_flashGap));
   c *= u_bright;
@@ -296,6 +478,52 @@ void main() {
   outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
+// The scene meter: the mean relative luminance (linear) of the sets AND the accent overlay as the composite adds them,
+// measured every frame on the GPU (64 x 36 cells of 16 taps, then one texel), read by the composite in the same frame: the
+// dip's safety limit and the snare's pivot. (Since the 2026-10-24 safety pass it includes the overlay, and the final
+// guarantee for every layer is gate v2, vj-limiter.js, on the frame actually shown. A 16 x 9 grid with the same taps was
+// tried and cost ~5 ms a frame on SwiftShader: a pass of 144 heavy fragments runs on one thread there.)
+const METER_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_a, u_b, u_ov;
+uniform float u_mix;          // already eased, as the composite eases it
+uniform float u_accent;       // the overlay's gain in the composite
+out vec4 outColor;
+void main() {
+  vec2 cell = 1.0 / vec2(64.0, 36.0);
+  vec2 base = floor(gl_FragCoord.xy) * cell;
+  float s = 0.0;
+  for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++) {
+    vec2 uv = base + (vec2(float(i), float(j)) + 0.5) * cell * 0.25;
+    vec3 c = texture(u_a, uv).rgb;
+    if (u_mix > 0.001) c = mix(c, texture(u_b, uv).rgb, u_mix);
+    vec3 lin = pow(max(c, vec3(0.0)), vec3(2.2)) + texture(u_ov, uv).rgb * u_accent;
+    s += dot(lin, vec3(0.2126, 0.7152, 0.0722));
+  }
+  outColor = vec4(s / 16.0, 0.0, 0.0, 1.0);
+}`;
+// ... reduced in two steps, 64 x 36 -> 8 x 6 -> 1, each fragment averaging an 8 x 6 block (2026-10-24: one fragment
+// summing all 2304 cells ran on a single SwiftShader thread, ~1-2 ms of the impact pass's added frame time)
+const METER2_FS = `#version 300 es
+precision highp float;
+precision highp int;
+uniform sampler2D u_src;
+uniform ivec2 u_block;
+out vec4 outColor;
+void main() {
+  ivec2 o = ivec2(gl_FragCoord.xy) * u_block;
+  float s = 0.0;
+  for (int y = 0; y < u_block.y; y++) for (int x = 0; x < u_block.x; x++) s += texelFetch(u_src, o + ivec2(x, y), 0).r;
+  outColor = vec4(s / float(u_block.x * u_block.y), 0.0, 0.0, 1.0);
+}`;
+// the composite to the screen when the look is off
+const COPY_FS = `#version 300 es
+precision highp float;
+uniform sampler2D u_src;
+in vec2 v_uv;
+out vec4 outColor;
+void main() { outColor = vec4(texture(u_src, v_uv).rgb, 1.0); }`;
+
 // ---------------------------------------------------------------------------------------------------- the state --
 const $ = (id) => document.getElementById(id);
 const canvas = $("gl");
@@ -303,7 +531,9 @@ const stageEl = $("stage");
 const errors = [];
 const T = {};
 for (const t of TARGETS) if (t.def !== null) T[t.id] = t.def;
-const options = { hits: true, leds: true };
+// snap: the beat snap (off by default; the panel and the B key): a hit waits for the next 16th of a live beat
+// punch: the impact layer on pad hits (punch, shake, dip, afterglow); a velocity-0 hit still feeds the sets' hit texel
+const options = { hits: true, leds: true, snap: false, punch: true };
 
 const sets = SET_IDS.map((id) => ({
   id, name: id, author: "", tags: [], params: [], knobs: new Float32Array(8), defaults: new Float32Array(8),
@@ -315,6 +545,13 @@ const gate = new FlashGate();
 const fx = new EffectBank();
 const beat = new BeatClock();
 const pedal = new PedalDetector();
+const impact = new ImpactLayer();      // every hit's punch, shake, dip and afterglow (vj-core.js)
+const bands = new BandEnvelopes();     // kick / snare / hat: fast attack, slower release
+const scenes = new SceneControl();     // rewind / fast-forward / the dial -> scenes
+const snapQ = [];                      // pad hits waiting for the beat snap: { pad, vel, src, at, off }
+const glitchState = { serial: -1, plan: null, t0: 0 };
+const latency = { records: [] };       // pad event arrival -> the frame that drew it (window.__vj.latency())
+const sceneReport = { want: null, sentKey: "", inflight: false, lastAt: -1e9, retryAt: 0, posts: 0, log: [], last: null };
 let padMap = DEFAULT_PAD_MAP.slice();
 let ctlMap = { ...DEFAULT_CTL_MAP };
 let learnTarget = null;
@@ -325,9 +562,10 @@ const padT0 = new Float64Array(12).fill(-1e9);
 const padPress = new Float32Array(12);           // a press flash for the control pads' lights
 const keyPadDown = new Uint8Array(13);
 
-// music
-const energy = { bass: 0, mid: 0, high: 0, level: 0, tBass: 0, tMid: 0, tHigh: 0, tLevel: 0, last: -1e9 };
-const hit = { pulse: 0, kick: 0, snare: 0, hat: 0, bloom: 0 };
+// music (the energy levels come from the band envelopes since 2026-10-24: bands.level)
+// stamps: the engine's last 256 energy events (their rate over the last second is in window.__vj.stats())
+const energy = { bass: 0, mid: 0, high: 0, level: 0, last: -1e9, events: 0, stamps: new Float64Array(256).fill(-1e9) };
+const hit = { pulse: 0, bloom: 0 };     // kick / snare / hat: bands.env (vj-core.js BandEnvelopes)
 let pulseEnv = 0;
 const chord = { name: "", root: -1, pcs: [], src: "", t: -1e9, quality: "", roman: "", key: "", bass: -1, conf: null };
 const harm = new EngineHarmony();      // the engine's key and tension (chordsense); the page's own estimate without them
@@ -354,6 +592,10 @@ const kill = { gain: 1, target: 1, pending: null, at: null };
 const flash = { t0: -1e9, peak: 0, decay: 0.15, gap: 1e9 };
 let strobeNext = 0;
 let freezeCapture = false;
+let stutterCapture = false;
+// this frame's impact values (updateImpact): the punch (hits + zoom punch + the kick's pump), the zoom punch's blur, the
+// shake, the dip and whether it rides a granted flash, the afterglow, the snare's kick and the hat's sparkle
+const frame = { punch: 0, zoom: 0, pump: 0, blur: 0, shakeX: 0, shakeY: 0, dip: 0, dipGranted: 0, glow: 0, snare: 0, sparkle: 0 };
 let demo = null;
 
 // engine
@@ -364,7 +606,12 @@ const led = { last: "", lastAt: -1e9, computedAt: -1e9, inflight: false, backoff
 // GL
 const G = { gl: null, lost: false, parallel: null, fbInternal: 0, fbType: 0, fbFormat: "", stripTex: null, audioTex: null,
             blackTex: null, ov: null, frz: null, ovProg: null, ovU: null, compProg: null, compU: null, pool: [],
-            width: 1, height: 1, scale: 1 };
+            width: 1, height: 1, scale: 1,
+            // the impact pass: the composite's own pair (its previous frame feeds the glitch), the stutter's held frame,
+            // the scene meter (64 x 36, then 1 x 1) and their programs
+            cmp: null, stut: null, meter1: null, meter2: null, meterProg: null, meterU: null, meter2Prog: null,
+            limiter: null, limiterError: "",
+            meter2U: null, copyProg: null, copyU: null };
 const strip = createStrip();
 const audioBytes = new Uint8Array(AUDIO_TEX_W * 2);
 const U = {   // uniform scratch (no allocation per frame)
@@ -503,6 +750,7 @@ function uniformsOf(gl, prog, names) {
   return u;
 }
 
+const SAFE_MODE_BANNER = "The flash limiter could not start: the VJ rig runs in its safe mode (the sets play; pad effects are refused).";
 function initGL() {
   const gl = G.gl || canvas.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false,
     premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: "high-performance" });
@@ -534,21 +782,50 @@ function initGL() {
   try {
     G.ovProg = linkSync(gl, OVERLAY_FS);
     G.ovU = uniformsOf(gl, G.ovProg, ["u_prevOv", "u_res", "u_keep", "u_wave", "u_waveB", "u_waveCol", "u_laser", "u_laserB",
-      "u_laserCol", "u_part", "u_partB", "u_partCol", "u_note", "u_noteCol", "u_bars", "u_barsPhase", "u_barsCol"]);
+      "u_laserCol", "u_part", "u_partB", "u_partCol", "u_note", "u_noteCol", "u_bars", "u_barsPhase", "u_barsCol",
+      "u_sparkle", "u_sparkleT", "u_sparkleCol"]);
     G.compProg = linkSync(gl, COMPOSITE_FS);
-    G.compU = uniformsOf(gl, G.compProg, ["u_a", "u_b", "u_ov", "u_frz", "u_res", "u_mix", "u_kal", "u_kalN", "u_kalRot",
-      "u_glitch", "u_glitchT", "u_glitchCells", "u_freeze", "u_freezeZoom", "u_wave", "u_waveB", "u_flash", "u_flashGap",
-      "u_invert", "u_bright", "u_sat", "u_accent", "u_metro", "u_metroCol", "u_bloom", "u_bloomCol"]);
+    G.compU = uniformsOf(gl, G.compProg, ["u_a", "u_b", "u_ov", "u_frz", "u_hist", "u_stut", "u_meter", "u_res", "u_mix",
+      "u_kal", "u_kalN", "u_kalRot", "u_glitch", "u_glitchT", "u_gSize", "u_gSeed", "u_gAge", "u_gMode", "u_freeze",
+      "u_freezeZoom", "u_wave", "u_waveB", "u_flash", "u_flashGap", "u_invert", "u_bright", "u_sat", "u_accent", "u_metro",
+      "u_metroCol", "u_bloom", "u_bloomCol", "u_punch", "u_blur", "u_shake", "u_dip", "u_dipGranted", "u_dipSafe", "u_snare"]);
     gl.useProgram(G.compProg);
     gl.uniform1i(G.compU.u_a, 0); gl.uniform1i(G.compU.u_b, 1); gl.uniform1i(G.compU.u_ov, 2); gl.uniform1i(G.compU.u_frz, 3);
+    gl.uniform1i(G.compU.u_hist, 4); gl.uniform1i(G.compU.u_stut, 5); gl.uniform1i(G.compU.u_meter, 6);
     gl.useProgram(G.ovProg);
     gl.uniform1i(G.ovU.u_prevOv, 0);
+    G.meterProg = linkSync(gl, METER_FS);
+    G.meterU = uniformsOf(gl, G.meterProg, ["u_a", "u_b", "u_ov", "u_mix", "u_accent"]);
+    gl.useProgram(G.meterProg);
+    gl.uniform1i(G.meterU.u_a, 0); gl.uniform1i(G.meterU.u_b, 1); gl.uniform1i(G.meterU.u_ov, 2);
+    G.meter2Prog = linkSync(gl, METER2_FS);
+    G.meter2U = uniformsOf(gl, G.meter2Prog, ["u_src", "u_block"]);
+    gl.useProgram(G.meter2Prog);
+    gl.uniform1i(G.meter2U.u_src, 0);
+    G.copyProg = linkSync(gl, COPY_FS);
+    G.copyU = uniformsOf(gl, G.copyProg, ["u_src"]);
+    gl.useProgram(G.copyProg);
+    gl.uniform1i(G.copyU.u_src, 0);
   } catch (err) {
     recordError("compile", "vj-built-in", err.message || err);
     banner("A built-in VJ shader failed to compile; see the console.");
     return false;
   }
   if (stage) stage.initGL(gl, { internalFormat: G.fbInternal, type: G.fbType });   // transitions and the look
+  // gate v2, the final-output flash limiter. Without a float target it cannot meter: the page then runs in its safe mode
+  // (every pad effect refused) and says so.
+  if (G.limiter) { try { G.limiter.dispose(); } catch { /* a lost context took it */ } }
+  G.limiter = null;
+  try {
+    if (LIMITER_MODE === "off") throw new Error("?limiter=off: the safe mode, asked for");
+    G.limiter = createLimiter(gl, { preInternal: G.fbInternal, preType: G.fbType, decide: LIMITER_MODE === "cpu" ? "cpu" : "auto",
+                                    lateFrames: LIMITER_MODE === "late" ? 120 : 0 });
+    G.limiterError = "";
+  } catch (err) {
+    G.limiterError = String(err.message || err);
+    recordError("compile", "vj-limiter", G.limiterError);
+    banner(SAFE_MODE_BANNER);
+  }
   return true;
 }
 
@@ -614,6 +891,7 @@ function dropAllFbs() {
   G.pool = [];
   deletePair(G.ov); G.ov = null;
   if (G.frz) { deletePair(G.frz); G.frz = null; }
+  for (const k of ["cmp", "stut", "meter1", "meterMid", "meter2"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
 }
 function ensureFb(set) {
   if (set.fb && (set.fb.w !== G.width || set.fb.h !== G.height)) { deletePair(set.fb); set.fb = null; }
@@ -634,10 +912,15 @@ function resizeIfNeeded() {
   G.height = canvas.height;
   if (!G.ov) G.ov = createPair(G.width, G.height);
   if (!G.frz) G.frz = createSingle(G.width, G.height);   // one target is enough for a freeze
+  if (!G.cmp) G.cmp = createPair(G.width, G.height);     // the composite's own pair: its previous frame feeds the glitch
+  if (!G.stut) G.stut = createSingle(G.width, G.height); // the frame held at the last glitch (the stutter's slices)
+  if (!G.meter1) G.meter1 = createSingle(64, 36, true);  // the scene meter: NEAREST, read with texelFetch
+  if (!G.meterMid) G.meterMid = createSingle(8, 6, true);
+  if (!G.meter2) G.meter2 = createSingle(1, 1, true);
 }
-function createSingle(w, h) {
+function createSingle(w, h, nearest = false) {
   const gl = G.gl;
-  const tex = createTexture(gl, gl.LINEAR);
+  const tex = createTexture(gl, nearest ? gl.NEAREST : gl.LINEAR);
   gl.texImage2D(gl.TEXTURE_2D, 0, G.fbInternal, w, h, 0, gl.RGBA, G.fbType, null);
   const fbo = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
@@ -718,7 +1001,18 @@ function prevValid(from) {
 }
 // Switch to set `to` (the next valid one by default): the stage (vj-stage.js) plans it on the next bar or beat, in the
 // panel's transition style (or `style`), two beats long; 1.2 s from now without a beat.
+// THE SAFE MODE's scenes (no limiter running): a switch is a crossfade, at most one a second, never cut short by the next
+// (a switch while a fade runs would land the fade at once: a cut, and a storm of them flashes like pads do)
+const SAFE_SCENE_MIN_MS = 1000;
+let safeSceneAt = -1e9;
+function safeSceneRefused(nowMs) {
+  if (limiterLive()) return false;
+  if (deck.running || nowMs - safeSceneAt < SAFE_SCENE_MIN_MS) { safeRefused++; return true; }
+  safeSceneAt = nowMs;
+  return false;
+}
 function nextSet(to = null, nowMs = performance.now(), style = null) {
+  if (safeSceneRefused(nowMs)) return;
   if (deck.running) finishFade();
   const target = to === null ? nextValid(deck.a) : to;
   if (!validSet(target) || target === deck.a) return;
@@ -746,10 +1040,17 @@ function finishFade() {
   if (old !== sets[deck.a] && old !== sets[deck.b]) releaseFb(old);
   renderSetList();
   renderParams();
+  queueSceneReport(false);        // the KeyLab's screen shows the scene that landed
   if (stage) stage.landed(performance.now());
 }
-function selectSet(i) {           // a cut, for the test hook and a click while nothing plays
+function selectSet(i, boot = false) {   // a cut, for the test hook and a click while nothing plays
   if (!validSet(i)) return false;
+  if (!boot && !limiterLive() && sets[deck.a]) {   // the safe mode: no cuts, a crossfade at most once a second
+    if (i === deck.a) return true;
+    const before = deck.b, running = deck.running;
+    nextSet(i);
+    return deck.running && (!running || deck.b !== before);
+  }
   if (deck.running) finishFade();
   const old = sets[deck.a];
   deck.a = i;
@@ -757,6 +1058,7 @@ function selectSet(i) {           // a cut, for the test hook and a click while 
   if (old !== sets[deck.a] && old !== sets[deck.b]) releaseFb(old);
   renderSetList();
   renderParams();
+  queueSceneReport(false);
   return true;
 }
 function effectiveManualMix() { return deck.pickup ? T.xfade : 0; }
@@ -780,7 +1082,14 @@ function handleEvent(raw, from = "engine") {
   const nowS = nowMs / 1000;
   switch (ev.t) {
     case "hello":
-      if (!fromDemo) { engine.link.event(ev); harm.reset(); }   // a new engine: its key and tension are still to come
+      if (!fromDemo) {
+        engine.link.event(ev); harm.reset();     // a new engine: its key and tension are still to come
+        sceneReport.sentKey = "";                // ... and it has not been told which scene shows
+        queueSceneReport(false);
+      }
+      break;
+    case "scene":                                // the engine's echo of our own report (the screen shows it)
+      if (!fromDemo) sceneReport.last = ev;
       break;
     case "status":
       if (!fromDemo) engine.link.event(ev);
@@ -795,13 +1104,13 @@ function handleEvent(raw, from = "engine") {
       beat.schedule(nowMs, ev);
       break;
     case "energy":
-      energy.tBass = ev.bass; energy.tMid = ev.mid; energy.tHigh = ev.high; energy.tLevel = ev.level; energy.last = nowMs;
+      bands.energy(ev, nowMs);
+      energy.last = nowMs;
+      if (!fromDemo) { energy.stamps[energy.events % 256] = nowMs; energy.events++; }
       break;
     case "hit": {
       hit.pulse = Math.max(hit.pulse, ev.strength);
-      if (ev.band === "kick" || ev.band === "full") hit.kick = Math.max(hit.kick, ev.strength);
-      if (ev.band === "snare" || ev.band === "full") hit.snare = Math.max(hit.snare, ev.strength);
-      if (ev.band === "hat") hit.hat = Math.max(hit.hat, ev.strength);
+      bands.hit(ev.band, ev.strength);
       if (options.hits && ev.band !== "hat") hit.bloom = Math.max(hit.bloom, ev.strength);
       break;
     }
@@ -909,23 +1218,64 @@ function setSustain(on) {
 // ------------------------------------------------------------------------------------------ pads and effects --
 function padOn(pad, vel, src, nowS = performance.now() / 1000) {
   const i = pad - 1;
+  const action = padMap[i];
+  // the beat snap: an effect pad waits for the next 16th of a live beat (controls never wait)
+  if (options.snap && EFFECTS[action]) {
+    const wait = snapDelayMs(nowS * 1000, beat);
+    if (wait > 0) {
+      for (const q of snapQ) if (q.pad === pad) q.off = false;
+      snapQ.push({ pad, vel, src, at: nowS * 1000 + wait, off: false, arrive: nowS * 1000, beatAt: beat.lastBeat, grid: beat.period() / 4 });
+      padHeld[i] = 1;
+      return;
+    }
+  }
+  padFire(pad, vel, src, nowS, nowS * 1000);
+}
+function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
+  const i = pad - 1;
   padHeld[i] = 1;
   padT0[i] = nowS;
   padPress[i] = 1;
   lastPadSrc = src;
   const action = padMap[i];
-  if (EFFECTS[action]) triggerEffect(action, vel, pad, nowS);
-  else if (action === "dampen") fx.dampen(nowS);
+  // THE SAFE MODE (2026-10-25, the round-2 verifier): without a running limiter, the one-shots, the glitch, the zoom
+  // punch and Invert put 5-10 flashes a second on the screen with only the FlashGate in front of them. So until the
+  // limiter runs (and for good if it cannot) every pad effect is refused; the controls still work.
+  if (EFFECTS[action] && !limiterLive()) { safeRefused++; return; }
+  if (EFFECTS[action]) {
+    const f = triggerEffect(action, vel, pad, nowS);
+    if (f) {   // the latency record: this event's arrival; the frame that draws it fills in `frame` and `env`
+      // performance.now() for the page's own gaps; Date.now() (the wall clock the engine shares on this machine) so a
+      // receipt can measure from the moment the engine SENT the event, queueing in the page included
+      latency.records.push({ pad, type: action, arrive: +arriveMs.toFixed(2), fired: +(nowS * 1000).toFixed(2), frame: null,
+                             env: null, serial: f.serial, src, arriveWall: Date.now(), frameWall: null,
+                             snapAt: snap ? +snap.at.toFixed(2) : null, snapBeat: snap ? +snap.beatAt.toFixed(2) : null,
+                             snapGrid: snap ? +snap.grid.toFixed(3) : null });
+      if (latency.records.length > LATENCY_KEEP) latency.records.shift();
+    }
+  } else if (action === "dampen") fx.dampen(nowS);
   else if (action === "choke") choke();
   else if (action === "kill") toggleKill();
   else if (action === "next") nextSet();
 }
 function padOff(pad, nowS = performance.now() / 1000) {
+  for (const q of snapQ) if (q.pad === pad) { q.off = true; return; }   // still waiting for its 16th: let go right after
   padHeld[pad - 1] = 0;
   fx.release(pad, nowS);
 }
+function fireSnapped(nowMs) {
+  for (let k = 0; k < snapQ.length;) {
+    const q = snapQ[k];
+    if (q.at > nowMs) { k++; continue; }
+    snapQ.splice(k, 1);
+    padFire(q.pad, q.vel, q.src, nowMs / 1000, q.arrive, q);
+    if (q.off) { padHeld[q.pad - 1] = 0; fx.release(q.pad, nowMs / 1000 + 0.06); }
+  }
+}
 function choke() {
   fx.choke();
+  impact.clear();
+  snapQ.length = 0;
   flash.peak = 0;
 }
 // Ask the gate for a full-frame flash; granted flashes decay from `peak` over `decay` seconds.
@@ -942,8 +1292,30 @@ function triggerEffect(type, vel, pad, nowS) {
   if (type === "flash") granted = requestFlash(nowS, (0.45 + 0.55 * vel) * T.accent, 0.08 + 0.14 * vel);
   else if (type === "invert") granted = gate.request(nowS);   // its onset spends a slot; refused, it fades in slowly
   else if (type === "strobe") strobeNext = nowS;
-  fx.trigger(type, vel, nowS, { pad, granted });
+  const f = fx.trigger(type, vel, nowS, { pad, granted });
   if (type === "freeze") freezeCapture = true;
+  if (type === "glitch") stutterCapture = true;               // the stutter's slices: the frame as it was at the hit
+  // the impact layer: punch, shake, dip, afterglow (a white flash's dip rides its own granted slot; any other dip is held
+  // under the flash line by the composite's scene meter: vj-core.js dipSafeDepth)
+  if (f) {
+    const at = hitOrigin(f);
+    impact.hit(type, vel, nowS, { seed: f.seed, granted: type === "flash" && granted, x: at[0], y: at[1],
+                                 punch: options.punch && limiterLive() });
+  }
+  return f;
+}
+// Where an effect instance sits in the preset's centred space (the overlay's own placement), for the strip's hit texel.
+const originScratch = [0, 0];
+function hitOrigin(f) {
+  const asp = G.width / Math.max(G.height, 1);
+  if (f.type === "shockwave") { originScratch[0] = (f.seed - 0.5) * 0.3 * asp; originScratch[1] = (((f.seed * 7.31) % 1) - 0.5) * 0.25; }
+  else if (f.type === "laser") {
+    const slot = f.serial % 4;
+    originScratch[0] = slot === 1 ? -0.48 * asp : slot === 2 ? 0.48 * asp : 0;
+    originScratch[1] = slot === 3 ? 0.52 : -0.52;
+  } else if (f.type === "particles") { originScratch[0] = (f.seed - 0.5) * 0.5 * asp; originScratch[1] = (((f.seed * 3.7) % 1) - 0.5) * 0.3; }
+  else { originScratch[0] = 0; originScratch[1] = 0; }
+  return originScratch;
 }
 function toggleKill() {
   const now = performance.now();
@@ -977,9 +1349,76 @@ function onCtl(ev) {
   }
   const target = ctlMap[ev.id];
   lastCtl.target = target || null;
-  if (target) setTarget(target, ev);
+  if (target && SCENE_ACTION_IDS.includes(target)) sceneCtl(ev, target, performance.now());
+  else if (target) setTarget(target, ev);
+}
+// ------------------------------------------------------------------------------- scenes from the transport and dial --
+// vj-core.js SceneControl decides (a press, never a release; one dial step per message at most every 60 ms); the page
+// works on the list of sets that load (a broken set is never a scene to land on).
+function sceneList() { const out = []; for (let i = 0; i < sets.length; i++) if (validSet(i)) out.push(i); return out; }
+function sceneCtl(ev, action, nowMs) {
+  const list = sceneList();
+  const liveSet = deck.running ? deck.b : deck.a;
+  const live = Math.max(0, list.indexOf(liveSet));
+  const r = scenes.ctl(ev, action, nowMs, list.length, live);
+  if (!r) return;
+  sceneAct(r, list, nowMs);
+}
+function sceneAct(r, list, nowMs) {
+  if (r.do === "prev" || r.do === "next" || r.do === "go") {
+    const to = list[r.index];
+    if (to !== undefined && to !== (deck.running ? deck.b : deck.a)) nextSet(to, nowMs);
+    queueSceneReport(false);
+  } else if (r.do === "browse") {
+    const s = sets[list[r.index]];
+    if (s) toast(`▸ ${s.name}  (click the dial to go)`);
+    queueSceneReport(true);
+  } else if (r.do === "browse-end") {
+    queueSceneReport(false);
+  }
+}
+// The scene the page shows (or the one under the dial while browsing), reported to the engine for the KeyLab's screen:
+// newest wins, one POST in flight, at most one every SCENE_POST_MIN_MS; an engine without the route (an older one: 404)
+// or one that refuses is not asked again until its next hello (vj-core.js EngineLink.sceneResult); 429 waits a moment.
+function queueSceneReport(browsing) {
+  const list = sceneList();
+  let idx = deck.running ? deck.b : deck.a;
+  if (browsing && scenes.browsing()) idx = list[scenes.cursor] ?? idx;
+  const s = sets[idx];
+  if (!s) return;
+  sceneReport.want = { name: s.name, index: list.indexOf(idx), count: list.length, browsing: !!(browsing && scenes.browsing()),
+                       color: rgbToHex(palNow[0], palNow[1], palNow[2]), id: s.id };
+}
+function sceneTick(nowMs) {
+  const r = scenes.tick(nowMs);
+  if (r) sceneAct(r, sceneList(), nowMs);
+  const w = sceneReport.want;
+  if (!w || !engine.url || !engine.link.mayPostScene() || sceneReport.inflight) return;
+  if (nowMs - sceneReport.lastAt < SCENE_POST_MIN_MS || nowMs < sceneReport.retryAt) return;
+  const key = `${w.name}|${w.index}|${w.browsing}`;
+  if (key === sceneReport.sentKey) { sceneReport.want = null; return; }
+  const body = JSON.stringify({ name: w.name, index: w.index, count: w.count, browsing: w.browsing, color: w.color });
+  sceneReport.inflight = true;
+  sceneReport.lastAt = nowMs;
+  sceneReport.posts++;
+  sceneReport.log.push({ t: Math.round(nowMs), name: w.name, browsing: w.browsing });
+  if (sceneReport.log.length > 100) sceneReport.log.shift();
+  const gen = engine.link.gen;
+  sceneReport.want = null;
+  // a plain-text body keeps this a simple request (no CORS preflight); the engine reads the JSON either way
+  fetch(`${engine.url}/api/scene`, { method: "POST", body })
+    .then((res) => {
+      const out = engine.link.sceneResult(res.status, gen);
+      if (out === "ok") sceneReport.sentKey = key;
+      else if (out === "busy") { sceneReport.retryAt = performance.now() + 400; if (!sceneReport.want) sceneReport.want = w; }
+      else if (out === "error") sceneReport.retryAt = performance.now() + 2000;
+    })
+    .catch(() => { sceneReport.retryAt = performance.now() + 2000; if (!sceneReport.want) sceneReport.want = w; })
+    .finally(() => { sceneReport.inflight = false; });
 }
 function targetLabel(id) {
+  const act = SCENE_ACTIONS.find((a) => a.id === id);
+  if (act) return act.label;
   if (/^k[1-8]$/.test(id)) {
     const s = sets[deck.a];
     const p = s && s.params.find((q) => q.k === +id[1]);
@@ -1009,6 +1448,7 @@ function persistValues(nowMs) {
   for (const t of TARGETS) if (t.def !== null && t.id !== "xfade") out[t.id] = +T[t.id].toFixed(4);
   safeSet(STORE.values, JSON.stringify(out));
 }
+function savePadMap() { safeSet(STORE.pads, JSON.stringify(serializePadMap(padMap))); }
 function loadStored() {
   try { padMap = normalizePadMap(JSON.parse(safeGet(STORE.pads) || "null")); } catch { padMap = DEFAULT_PAD_MAP.slice(); }
   try { ctlMap = normalizeCtlMap(JSON.parse(safeGet(STORE.ctl) || "null")); } catch { ctlMap = { ...DEFAULT_CTL_MAP }; }
@@ -1020,24 +1460,25 @@ function loadStored() {
   } catch { /* defaults */ }
   try {
     const o = JSON.parse(safeGet(STORE.opts) || "null");
-    if (o && typeof o === "object") { options.hits = o.hits !== false; options.leds = o.leds !== false; }
+    if (o && typeof o === "object") {
+      options.hits = o.hits !== false; options.leds = o.leds !== false;
+      options.snap = o.snap === true; options.punch = o.punch !== false;
+    }
   } catch { /* defaults */ }
 }
 
 // ------------------------------------------------------------------------------------------- the frame update --
 function updateMusic(nowMs, nowS, dt) {
   beat.update(nowMs, dt);
-  // energy: quick to rise, slower to fall; silence after 1.5 s without an energy event
-  if (nowMs - energy.last > 1500) { energy.tBass = energy.tMid = energy.tHigh = energy.tLevel = 0; }
-  energy.bass = easeTo(energy.bass, energy.tBass, dt);
-  energy.mid = easeTo(energy.mid, energy.tMid, dt);
-  energy.high = easeTo(energy.high, energy.tHigh, dt);
-  energy.level = easeTo(energy.level, energy.tLevel, dt);
-  const decay = Math.exp(-dt / 0.18);
-  hit.pulse *= decay; hit.kick *= decay; hit.snare *= decay; hit.hat *= Math.exp(-dt / 0.08);
+  // energy and the band envelopes: a rise lands within a frame, the fall takes its band's time (vj-core.js
+  // BandEnvelopes); silence after 1.5 s without an energy event
+  bands.update(nowMs, dt);
+  energy.bass = bands.level.bass; energy.mid = bands.level.mid; energy.high = bands.level.high; energy.level = bands.level.all;
+  hit.pulse *= Math.exp(-dt / 0.18);
   hit.bloom *= Math.exp(-dt / 0.15);
-  const target = 0.65 * energy.bass + 0.35 * hit.pulse;
-  pulseEnv += (target - pulseEnv) * (1 - Math.exp(-dt / (target > pulseEnv ? 0.012 : 0.18)));
+  // the sets' pulse: the bass level, the kick's onset and the hits (a pad hit pumps the set too, through its strip pulse)
+  const target = Math.max(0.55 * energy.bass + 0.45 * bands.env.kick, 0.35 * hit.pulse + 0.65 * bands.env.kick);
+  pulseEnv += (target - pulseEnv) * (1 - Math.exp(-dt / (target > pulseEnv ? 0.006 : 0.18)));
   chordPulse *= Math.exp(-dt / 0.5);
   harm.update(dt);
   travel = Math.min(1, travel + dt / 0.9);
@@ -1075,7 +1516,6 @@ function updateMusic(nowMs, nowS, dt) {
   }
 }
 const pcLevelTarget = new Float32Array(12), pcRegSum = new Float32Array(12);
-function easeTo(cur, tgt, dt) { return cur + (tgt - cur) * (1 - Math.exp(-dt / (tgt > cur ? 0.03 : 0.12))); }
 
 function updatePalette() {
   // the fader palette: hue A, hue B, the hue between them, and hue A's complement as the accent
@@ -1111,6 +1551,24 @@ function updateKill(nowMs, dt) {
   kill.gain = kill.target < kill.gain ? Math.max(kill.target, kill.gain - rate) : Math.min(kill.target, kill.gain + rate);
 }
 
+// This frame's impact values from the impact layer (vj-core.js ImpactLayer), the zoom punch (an effect: its envelope is
+// the spring back) and the band envelopes. The accent fader scales them all (1 at its default, 0.85).
+function updateImpact(nowS) {
+  const o = impact.sample(nowS);
+  const gain = clamp(T.accent / 0.85, 0, 1.2);
+  const z = fx.strongest("zoom");
+  frame.zoom = z ? zoomDepth(z.vel) * z.env * gain : 0;
+  frame.blur = Math.min(0.12, 0.35 * frame.zoom);
+  frame.pump = options.hits ? bands.env.kick * 0.012 * (0.25 + 1.5 * T.bassReact) : 0;
+  frame.punch = Math.min(0.45, (o.punch + frame.zoom) * gain + frame.pump);
+  frame.shakeX = o.shakeX * gain; frame.shakeY = o.shakeY * gain;
+  frame.dip = Math.min(0.9, o.dip * gain);
+  frame.dipGranted = o.dipGranted ? 1 : 0;
+  frame.glow = o.glow;
+  frame.snare = options.hits ? bands.env.snare * T.accent : 0;
+  frame.sparkle = options.hits ? bands.env.hat * 0.5 * T.accent : 0;
+}
+
 let starCount = 0;
 function buildStrip(nowMs, nowS) {
   const S = strip;
@@ -1131,7 +1589,7 @@ function buildStrip(nowMs, nowS) {
   stripSet(S, 15, 0, chordPulse, chord.root, Math.min(60, nowS - chord.t), c ? c.brightness : 0.5);
   // row 1: pitch classes, hit, energy, pedal
   for (let pc = 0; pc < 12; pc++) stripSet(S, pc, 1, pcLevel[pc], pcStrike[pc], pcReg[pc], pcHeld[pc]);
-  stripSet(S, 12, 1, hit.pulse, hit.kick, hit.snare, hit.hat);
+  stripSet(S, 12, 1, hit.pulse, bands.env.kick, bands.env.snare, bands.env.hat);
   stripSet(S, 13, 1, energy.bass, energy.mid, energy.high, energy.level);
   const pk = pedal.key;
   if (pk >= 0) starPosition(pk, starPos);
@@ -1182,6 +1640,11 @@ function buildStrip(nowMs, nowS) {
     }
   }
   stripSet(S, 9, 2, n, 0, 0, 0);
+  // v2: the shared hit input (vj-core.js STRIP row 2, texels 10-12) -- each set reacts to a pad hit in its own way
+  const im = impact.out;
+  stripSet(S, 10, 2, limiterLive() ? im.pulse * T.accent : 0, im.vel, im.code, im.since);   // the safe mode: no set reactions
+  stripSet(S, 11, 2, bands.env.kick, bands.env.snare, bands.env.hat, frame.punch);
+  stripSet(S, 12, 2, im.seed, im.x, im.y, 0);
   stripSet(S, 15, 2, STRIP.VERSION, 0, 0, 1);
 }
 const padEnvScratch = new Float32Array(12), padVelScratch = new Float32Array(12);
@@ -1234,8 +1697,11 @@ function renderSet(set, nowS) {
   gl.uniform1f(u.u_media_time, 0);
   gl.uniform1f(u.u_frame, set.frame);
   gl.uniform1f(u.u_has_video, 0);
-  gl.uniform1f(u.u_pulse, clamp(pulseEnv * react, 0, 1.5));
-  gl.uniform1f(u.u_beat, Math.max(beat.pulse, 0.8 * hit.pulse));
+  // a VJ-aware set hears pad hits through its strip (row 2, texel 10) and reacts in its own way; any other Play preset
+  // gets them through its pulse, so every set answers a hit
+  const padPulse = set.vj || !limiterLive() ? 0 : 0.9 * impact.out.pulse * T.accent;
+  gl.uniform1f(u.u_pulse, clamp(Math.max(pulseEnv * react, padPulse), 0, 1.5));
+  gl.uniform1f(u.u_beat, Math.max(beat.pulse, 0.8 * hit.pulse, 0.9 * bands.env.kick, padPulse));
   gl.uniform1f(u.u_level, energy.level);
   gl.uniform1f(u.u_bass, clamp(energy.bass * react, 0, 1.5));
   gl.uniform1f(u.u_mid, energy.mid);
@@ -1269,7 +1735,7 @@ function fillOverlayUniforms(nowS) {
       const ox = (f.seed - 0.5) * 0.3 * asp, oy = (((f.seed * 7.31) % 1) - 0.5) * 0.25;
       const speed = 0.45 + 0.7 * f.vel;
       put4(U.wave, w * 4, ox, oy, 0.02 + speed * (1 - Math.exp(-age * 2.6)), f.env * (0.45 + 0.55 * f.vel));
-      put4(U.waveB, w * 4, 4 + 16 * f.vel, f.vel, 0, 0);
+      put4(U.waveB, w * 4, 4 + 16 * f.vel, f.vel, age, velCurve(f.vel));
       putCol(U.waveCol, w * 3, f.pad);
       w++;
     } else if (f.type === "laser" && l < 4) {
@@ -1309,8 +1775,12 @@ function renderOverlay(nowS) {
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, ov.texs[ov.read]);
   const u = G.ovU;
   gl.uniform2f(u.u_res, ov.w, ov.h);
-  // the overlay's trails fade by time, not by frame: the same streak at 30 and at 144 frames a second
-  gl.uniform1f(u.u_keep, Math.exp(-frameDt / (0.03 + 0.17 * T.trails)));
+  // the overlay's trails fade by time, not by frame: the same streak at 30 and at 144 frames a second; a hit's afterglow
+  // (the impact layer) lengthens them for ~0.35 s, so a hard hit's light lingers through the trails
+  gl.uniform1f(u.u_keep, Math.exp(-frameDt / (0.03 + 0.17 * T.trails + 0.22 * frame.glow)));
+  gl.uniform1f(u.u_sparkle, frame.sparkle);
+  gl.uniform1f(u.u_sparkleT, Math.floor(nowS * 30) % 997);
+  gl.uniform3f(u.u_sparkleCol, 0.6 + 0.4 * palNow[9], 0.6 + 0.4 * palNow[10], 0.6 + 0.4 * palNow[11]);
   gl.uniform4fv(u.u_wave, U.wave); gl.uniform4fv(u.u_waveB, U.waveB); gl.uniform3fv(u.u_waveCol, U.waveCol);
   gl.uniform4fv(u.u_laser, U.laser); gl.uniform4fv(u.u_laserB, U.laserB); gl.uniform3fv(u.u_laserCol, U.laserCol);
   gl.uniform4fv(u.u_part, U.part); gl.uniform4fv(u.u_partB, U.partB); gl.uniform3fv(u.u_partCol, U.partCol);
@@ -1324,28 +1794,71 @@ function renderOverlay(nowS) {
   ov.read = write;
 }
 
-function composite(nowMs, nowS, mixAB, mixedTex = null, target = null) {
+// The scene meter: the mean relative luminance of what the composite will show of the sets and the overlay, into a 1x1
+// texture the composite reads in the same frame (the dip's safety limit). Tiny passes: 64 x 36 cells, 8 x 6, one texel.
+function meterPass(texA, texB, mixEased) {
+  const gl = G.gl;
+  gl.useProgram(G.meterProg);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, G.meter1.fbos[0]);
+  gl.viewport(0, 0, 64, 36);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.ov.texs[G.ov.read]);
+  gl.uniform1f(G.meterU.u_mix, mixEased);
+  gl.uniform1f(G.meterU.u_accent, 0.25 + 1.0 * T.accent);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.useProgram(G.meter2Prog);
+  gl.uniform2i(G.meter2U.u_block, 8, 6);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, G.meterMid.fbos[0]);
+  gl.viewport(0, 0, 8, 6);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.meter1.texs[0]);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, G.meter2.fbos[0]);
+  gl.viewport(0, 0, 1, 1);
+  gl.bindTexture(gl.TEXTURE_2D, G.meterMid.texs[0]);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+// The composite, into the page's composite pair (G.cmp): returns the texture it drew. The look (vj-stage.js) or the copy
+// pass takes it to the screen; next frame it is u_hist, the frame the glitch's datamosh drags along.
+function composite(nowMs, nowS, mixAB, mixedTex = null) {
   const gl = G.gl;
   const A = sets[deck.a], B = sets[deck.b];
-  gl.bindFramebuffer(gl.FRAMEBUFFER, target);   // the stage's look target, or the screen
+  const texA = mixedTex || (A && A.fb ? A.fb.texs[A.fb.read] : G.blackTex);
+  const texB = B && B.fb && mixAB > 0.001 && !mixedTex ? B.fb.texs[B.fb.read] : G.blackTex;
+  const mixUsed = A && A.fb && !mixedTex ? mixAB : 0;
+  const m = clamp(mixUsed, 0, 1);
+  meterPass(texA, texB, mixUsed > 0.001 ? m * m * (3 - 2 * m) : 0);
+  if (stutterCapture) { captureStutter(); stutterCapture = false; }
+  const cmp = G.cmp;
+  const write = 1 - cmp.read;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, cmp.fbos[write]);
   gl.viewport(0, 0, G.width, G.height);
   gl.useProgram(G.compProg);
   // a transition in flight (vj-stage.js) arrives already mixed as u_a, with u_mix 0
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, mixedTex || (A && A.fb ? A.fb.texs[A.fb.read] : G.blackTex));
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, B && B.fb && mixAB > 0.001 && !mixedTex ? B.fb.texs[B.fb.read] : G.blackTex);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texB);
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.ov.texs[G.ov.read]);
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, G.frz ? G.frz.texs[0] : G.blackTex);
+  gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, cmp.texs[cmp.read]);
+  gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, G.stut.texs[0]);
+  gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_2D, G.meter2.texs[0]);
   const u = G.compU;
   gl.uniform2f(u.u_res, G.width, G.height);
-  gl.uniform1f(u.u_mix, A && A.fb && !mixedTex ? mixAB : 0);
+  gl.uniform1f(u.u_mix, mixUsed);
   const k = fx.strongest("kaleido");
   gl.uniform1f(u.u_kal, k ? k.env : 0);
   gl.uniform1f(u.u_kalN, k ? 2 * Math.round(2 + 4 * k.vel) : 6);
   gl.uniform1f(u.u_kalRot, k ? (nowS - k.t0) * (0.15 + 0.5 * k.vel) : 0);
+  // the glitch: this hit's plan (vj-core.js glitchPlan: its mode or pair of modes, intensity, size), from its seed
   const g = fx.strongest("glitch");
-  gl.uniform1f(u.u_glitch, g ? g.env * (0.35 + 0.65 * g.vel) : 0);
+  if (g && g.serial !== glitchState.serial) { glitchState.serial = g.serial; glitchState.plan = glitchPlan(g.seed, g.vel); glitchState.t0 = g.t0; }
+  const gp = g ? glitchState.plan : null;
+  gl.uniform1f(u.u_glitch, g ? g.env * gp.amount : 0);
   gl.uniform1f(u.u_glitchT, Math.floor(nowS * 14) % 997);
-  gl.uniform1f(u.u_glitchCells, g ? 6 + 18 * (1 - g.vel) : 12);
+  gl.uniform2f(u.u_gMode, gp ? gp.primary : -1, gp ? gp.secondary : -1);
+  gl.uniform1f(u.u_gSize, gp ? gp.size : 0.5);
+  gl.uniform1f(u.u_gSeed, gp ? gp.seed : 0);
+  gl.uniform1f(u.u_gAge, g ? Math.max(0, nowS - g.t0) : 0);
   const fz = fx.strongest("freeze");
   gl.uniform1f(u.u_freeze, fz ? fz.env * (0.55 + 0.45 * fz.vel) : 0);
   gl.uniform1f(u.u_freezeZoom, fz ? Math.min(0.2, (nowS - fz.t0) * 0.03 * fz.vel) : 0);
@@ -1369,7 +1882,37 @@ function composite(nowMs, nowS, mixAB, mixedTex = null, target = null) {
   gl.uniform3f(u.u_metroCol, palNow[0], palNow[1], palNow[2]);
   gl.uniform1f(u.u_bloom, Math.min(0.06, hit.bloom * 0.07 * T.accent));
   gl.uniform3f(u.u_bloomCol, palNow[9], palNow[10], palNow[11]);
+  // the impact pass: punch, shake, the zoom punch's blur, the dip (its safety limit is applied in the shader, from the
+  // meter), the snare's kick
+  gl.uniform1f(u.u_punch, frame.punch);
+  gl.uniform1f(u.u_blur, frame.blur);
+  gl.uniform2f(u.u_shake, frame.shakeX, frame.shakeY);
+  gl.uniform1f(u.u_dip, frame.dip);
+  gl.uniform1f(u.u_dipGranted, frame.dipGranted);
+  gl.uniform1f(u.u_dipSafe, DIP_SAFE_DELTA);
+  gl.uniform1f(u.u_snare, frame.snare);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
+  cmp.read = write;
+  return cmp.texs[write];
+}
+// The composite to the screen when the look is off.
+function copyToScreen(tex) {
+  const gl = G.gl;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, G.width, G.height);
+  gl.useProgram(G.copyProg);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+// The stutter's held frame: the last composited frame, as it was when the glitch hit.
+function captureStutter() {
+  const gl = G.gl;
+  if (!G.cmp || !G.stut) return;
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, G.cmp.fbos[G.cmp.read]);
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, G.stut.fbos[0]);
+  gl.blitFramebuffer(0, 0, G.cmp.w, G.cmp.h, 0, 0, G.stut.w, G.stut.h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+  gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
 }
 
 function captureFreeze() {
@@ -1510,8 +2053,10 @@ function onFrame(rafNow) {
     demo.tick(nowMs, demoEvent);
     demo.flush(nowMs, demoEvent);
   }
+  if (snapQ.length) fireSnapped(nowMs);   // the beat snap's held hits whose 16th has come
   updateMusic(nowMs, nowS, dt);
   fx.update(nowS);
+  updateImpact(nowS);
   updateKill(nowMs, dt);
   updatePalette();
   // the strobe's full-frame pulses: asked for at the strobe rate, granted at most three times a second
@@ -1526,6 +2071,7 @@ function onFrame(rafNow) {
   buildAudio(nowS);
   padLights(nowMs, dt);
   persistValues(nowMs);
+  sceneTick(nowMs);               // the dial's browse timeout; the scene report to the engine
   if (stage) stage.tick(nowMs);   // the showcase tour and the name card
 
   if (G.gl && !G.lost) {
@@ -1546,10 +2092,14 @@ function onFrame(rafNow) {
       renderOverlay(nowS);
       const mixed = stage && A && A.fb && B && B.fb && B !== A ?
         stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
-      const target = stage ? stage.compositeTarget(G.width, G.height) : null;
-      composite(nowMs, nowS, mixAB, mixed, target);
-      if (target) stage.post(G.width, G.height);
+      const drawn = composite(nowMs, nowS, mixAB, mixed);
+      if (limiterLive()) {
+        // the look draws into the limiter's input; the limiter meters it, decides and puts the frame on the canvas
+        const looked = stage && stage.post(G.width, G.height, drawn, G.limiter.preTarget(G.width, G.height));
+        G.limiter.run(looked ? G.limiter.preTexture() : drawn, G.width, G.height, frameDt);
+      } else if (!(stage && stage.post(G.width, G.height, drawn))) copyToScreen(drawn);
       if (probe.on || probe.waiters.length) runProbe(nowMs);
+      noteDrawn(nowMs);
       stats.frames++;
     } catch (err) {
       if (!frameErrorRecorded) {
@@ -1562,7 +2112,40 @@ function onFrame(rafNow) {
 }
 let frameErrorRecorded = false;
 let hudAt = 0;
+let safeRefused = 0;              // pad effects refused in the safe mode
+// gate v2 runs once its meter and apply programs have linked (they compile in the background; the decision too, and until
+// it has, the JS twin decides on the CPU); until then, and for good if they fail, the page is in its safe mode: every pad
+// effect refused
+function limiterLive() {
+  if (!G.limiter) return false;
+  if (G.limiter.live()) {
+    // the decision could not link: the limiter runs on, deciding on the CPU (said once)
+    const err = G.limiter.error();
+    if (err && !G.limiterError) { G.limiterError = err; recordError("compile", "vj-limiter", err); }
+    return true;
+  }
+  const err = G.limiter.error();
+  if (err && G.limiter.fatal() && G.limiterError !== err) {
+    G.limiterError = err;
+    recordError("compile", "vj-limiter", err);
+    banner(SAFE_MODE_BANNER);
+  }
+  return false;
+}
 let frameDt = 1 / 60;
+// the latency record: the first frame drawn after a pad event, and the effect's level in it
+function noteDrawn(nowMs) {
+  for (let i = latency.records.length - 1; i >= 0; i--) {
+    const r = latency.records[i];
+    if (r.frame !== null) break;
+    if (nowMs < r.fired) continue;
+    r.frame = +nowMs.toFixed(2);
+    r.frameWall = Date.now();
+    let env = 0;
+    for (const f of fx.fx) if (f.active && f.serial === r.serial) env = f.env;
+    r.env = +env.toFixed(3);
+  }
+}
 
 function trackTiming(gap, rafNow) {
   if (!stats.fpsStart) stats.fpsStart = rafNow;
@@ -1605,6 +2188,8 @@ function updateHud(nowMs) {
   else if (mixAB > 0.01) setLine += `  ⇄ ${B.name} ${Math.round(mixAB * 100)}%`;
   else if (B && B !== A) setLine += `  · next: ${B.name}`;
   if (!deck.pickup) setLine += "  (fader 8: pull down to pick up)";
+  if (scenes.browsing()) { const b = sets[sceneList()[scenes.cursor]]; if (b) setLine += `  ▸ dial: ${b.name} (click to go)`; }
+  if (options.snap) setLine += "  · beat snap";
   setText("hud-set", setLine);
   let eng;
   if (demo && !engine.url) eng = "demo (scripted show; ?engine= to use the KeyLab engine)";
@@ -1615,6 +2200,7 @@ function updateHud(nowMs) {
               ` · pads ${h.pads_mode || "?"}` : "connected";
     if (h && h.pads_mode === "daw") eng += " · FL may see pads 1-8";
     if (options.leds && engine.link.ledsOff) eng += ` · pad lights off: ${engine.link.ledsOff}`;
+    if (engine.link.sceneOff) eng += ` · scene not reported: ${engine.link.sceneOff}`;
     if (demo) eng += " · demo playing on top";
   } else eng = `connecting to ${engine.url}… (keyboard pads work meanwhile)`;
   if (engine.link.status) eng += ` · ${engine.link.status}`;    // cleared on disconnect: never a dead engine's last word
@@ -1637,7 +2223,12 @@ function updateHud(nowMs) {
     (pedal.resolvePulse > 0.05 ? `released (${pedal.resolvedCount} strikes)` :
       harm.live && harm.pedalPc >= 0 ? `${NOTE_NAMES[harm.pedalPc]} held under the harmony (engine)` : "—"));
   const parts = [];
-  for (const f of fx.fx) if (f.active) parts.push(`${f.type}${f.tr === null && EFFECTS[f.type].hold ? "●" : ""} ${f.env.toFixed(2)}`);
+  for (const f of fx.fx) {
+    if (!f.active) continue;
+    const modes = f.type === "glitch" && glitchState.serial === f.serial && glitchState.plan ? `(${glitchState.plan.names.join("+")})` : "";
+    parts.push(`${f.type}${modes}${f.tr === null && EFFECTS[f.type].hold ? "●" : ""} ${f.env.toFixed(2)}`);
+  }
+  if (frame.punch > 0.004) parts.push(`punch ${(frame.punch * 100).toFixed(1)}%`);
   if (kill.pending !== null) parts.push(kill.pending === 0 ? "KILL on beat" : "revive on beat");
   else if (kill.target < 0.5) parts.push("KILLED");
   setText("hud-fx", parts.length ? parts.join(" · ") : "—");
@@ -1739,7 +2330,7 @@ function renderPadMap() {
     }
     sel.addEventListener("change", () => {
       padMap[i] = sel.value;
-      safeSet(STORE.pads, JSON.stringify(padMap));
+      savePadMap();
       sel.blur();   // hand the keys back to the pads
     });
     const help = EFFECTS[padMap[i]] ? `velocity: ${EFFECTS[padMap[i]].velocity}` : CONTROLS[padMap[i]] ? CONTROLS[padMap[i]].help : "";
@@ -1778,6 +2369,35 @@ function renderTargets() {
     row.append(label, input, bind, btn);
     host.appendChild(row);
   }
+  // the scene actions (2026-10-24): rewind / fast-forward and the dial by default, any control by learn
+  const head = document.createElement("div");
+  head.className = "target-head";
+  head.textContent = "Scenes (the transport and the dial)";
+  host.appendChild(head);
+  for (const a of SCENE_ACTIONS) {
+    const row = document.createElement("div");
+    row.className = "target scene-action";
+    const label = document.createElement("label");
+    label.textContent = a.label;
+    label.title = a.help;
+    const what = document.createElement("span");
+    what.className = "val";
+    what.textContent = a.id === "sceneDial" ? "turn" : "press";
+    const bind = document.createElement("span");
+    bind.className = "bind";
+    bind.textContent = (boundTo[a.id] || []).join(" ") || "unbound";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn" + (learnTarget === a.id ? " armed" : "");
+    btn.textContent = learnTarget === a.id ? "Move…" : "Learn";
+    btn.addEventListener("click", () => {
+      learnTarget = learnTarget === a.id ? null : a.id;
+      $("learn-status").textContent = learnTarget ? `press or turn a control for ${a.label}` : "";
+      renderTargets();
+    });
+    row.append(label, what, bind, btn);
+    host.appendChild(row);
+  }
   refreshPanelValues();
 }
 function refreshPanelValues() {
@@ -1808,13 +2428,19 @@ function togglePanel(force) {
 function wireUi() {
   buildHudPads();
   $("btn-close-panel").addEventListener("click", () => togglePanel(false));
-  $("btn-reset-pads").addEventListener("click", () => { padMap = DEFAULT_PAD_MAP.slice(); safeSet(STORE.pads, JSON.stringify(padMap)); renderPadMap(); });
+  $("btn-reset-pads").addEventListener("click", () => { padMap = DEFAULT_PAD_MAP.slice(); savePadMap(); renderPadMap(); });
   $("btn-reset-ctl").addEventListener("click", () => { ctlMap = { ...DEFAULT_CTL_MAP }; safeSet(STORE.ctl, JSON.stringify(ctlMap)); renderTargets(); });
-  const hits = $("opt-hits"), leds = $("opt-leds");
+  const hits = $("opt-hits"), leds = $("opt-leds"), snapBox = $("opt-snap"), punchBox = $("opt-punch");
   hits.checked = options.hits; leds.checked = options.leds;
-  const saveOpts = () => { options.hits = hits.checked; options.leds = leds.checked; safeSet(STORE.opts, JSON.stringify(options)); };
-  hits.addEventListener("change", saveOpts);
-  leds.addEventListener("change", saveOpts);
+  if (snapBox) snapBox.checked = options.snap;
+  if (punchBox) punchBox.checked = options.punch;
+  const saveOpts = () => {
+    options.hits = hits.checked; options.leds = leds.checked;
+    if (snapBox) options.snap = snapBox.checked;
+    if (punchBox) options.punch = punchBox.checked;
+    safeSet(STORE.opts, JSON.stringify(options));
+  };
+  for (const box of [hits, leds, snapBox, punchBox]) if (box) box.addEventListener("change", saveOpts);
   const typing = (el) => el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") && el.type !== "range";
   window.addEventListener("keydown", (e) => {
     if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1835,6 +2461,7 @@ function wireUi() {
       case "KeyF": toggleFullscreen(); break;
       case "KeyM": togglePanel(); break;
       case "KeyD": setDemo(!demo); break;
+      case "KeyB": setSnap(!options.snap); break;
       case "Escape": if (learnTarget) { learnTarget = null; renderTargets(); } else togglePanel(false); break;
       default: return;
     }
@@ -1857,9 +2484,16 @@ function wireUi() {
   canvas.addEventListener("webglcontextrestored", () => {
     G.lost = false;
     for (const s of sets) { s.program = null; s.fb = null; }
-    G.pool = []; G.ov = null; G.frz = null;
+    G.pool = []; G.ov = null; G.frz = null; G.cmp = null; G.stut = null; G.meter1 = null; G.meterMid = null; G.meter2 = null; G.limiter = null;
     if (initGL()) for (const s of sets) if (s.source) compileSet(s);
   });
+}
+function setSnap(on) {
+  options.snap = !!on;
+  const box = $("opt-snap");
+  if (box) box.checked = options.snap;
+  safeSet(STORE.opts, JSON.stringify(options));
+  toast(options.snap ? "beat snap on: hits land on the next 16th of the beat" : "beat snap off");
 }
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -1917,7 +2551,28 @@ window.__vj = {
     leds: { posts: led.posts, refused: engine.link.refused, off: engine.link.ledsOff, last: ledColours.slice(),
             log: led.log.slice(-50) },
     values: { ...T }, padMap: padMap.slice(), ctlMap: { ...ctlMap }, lastCtl,
+    // the impact pass
+    impact: { punch: +frame.punch.toFixed(4), zoom: +frame.zoom.toFixed(4), shake: [+frame.shakeX.toFixed(4), +frame.shakeY.toFixed(4)],
+              dip: +frame.dip.toFixed(3), dipGranted: frame.dipGranted, glow: +frame.glow.toFixed(3), hits: impact.count,
+              pulse: +impact.out.pulse.toFixed(3), code: impact.out.code },
+    bands: { kick: +bands.env.kick.toFixed(3), snare: +bands.env.snare.toFixed(3), hat: +bands.env.hat.toFixed(3),
+             bass: +bands.level.bass.toFixed(3) },
+    energyEvents: energy.events, energyRate: (() => { const t = performance.now(); let n = 0; for (const s of energy.stamps) if (t - s <= 1000) n++; return n; })(),
+    glitch: glitchState.plan ? { serial: glitchState.serial, ...glitchState.plan } : null,
+    options: { ...options }, snapQueued: snapQ.length,
+    // gate v2 (no readback here: window.__vj.limiter() reads its state)
+    limiter: { on: limiterLive(), mode: G.limiter ? G.limiter.mode() : "", format: G.limiter ? G.limiter.format : null,
+               frames: G.limiter ? G.limiter.frames() : 0, compileMs: G.limiter ? G.limiter.compileMs() : null,
+               gpuMs: G.limiter ? G.limiter.gpuMs() : null, parallel: G.limiter ? G.limiter.parallel : null,
+               error: G.limiterError, fatal: G.limiter ? G.limiter.fatal() : !!G.limiterError, asked: LIMITER_MODE,
+               safeRefused, grid: G.limiter ? G.limiter.grid() : null },
+    scenes: { browsing: scenes.browsing(), cursor: scenes.cursor, ignored: scenes.ignored, posts: sceneReport.posts,
+              log: sceneReport.log.slice(-20), sentKey: sceneReport.sentKey, off: engine.link.sceneOff,
+              refused: engine.link.sceneRefused, echo: sceneReport.last },
   }),
+  latency: () => ({ records: latency.records.map((r) => ({ ...r })) }),
+  snap: (on) => { setSnap(on); return options.snap; },
+  option: (k, v) => { if (k in options) { options[k] = !!v; } return { ...options }; },
   errors: () => errors.slice(),
   event: (obj) => handleEvent(obj),
   press: (pad, vel = 0.8) => padOn(pad, vel, "test"),
@@ -1927,6 +2582,29 @@ window.__vj = {
   trace: () => probe.trace.slice(),
   luma: () => new Promise((resolve) => probe.waiters.push(resolve)),
   demo: (on) => { setDemo(!!on); return !!demo; },
+  // gate v2 (receipts: arsenal/lanes/vj_storm.mjs). limiter() reads its state back (a GPU stall: receipts only);
+  // limiterCells(cells, dt) runs the decision alone on given cell sums (the JS twin's input, vj-gate.js); limiterBench(n)
+  // times n runs of the limiter's passes on the last frame, each fenced by readPixels of one pixel (the cost receipt)
+  limiter: () => (limiterLive() ? { on: true, format: G.limiter.format, ...G.limiter.read() } : { on: false, error: G.limiterError || "compiling", safeRefused }),
+  limiterCells: (cells, dt) => (limiterLive() ? G.limiter.decideCells(new Float32Array(cells), dt) : null),
+  limiterReset: () => { if (limiterLive()) G.limiter.reset(); return limiterLive(); },
+  limiterBench: (n = 20) => {
+    if (!limiterLive() || !G.cmp) return null;
+    const gl = G.gl, px = new Uint8Array(4), src = G.cmp.texs[G.cmp.read];
+    const fence = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    fence();
+    // (Date.now: the receipts' virtual clock replaces performance.now, and a bench needs the wall clock)
+    const parts = { meter: 0, decide: 0, apply: 0, blit: 0 };
+    let tm = 0;
+    const mark = (stage) => { fence(); const t = Date.now(); parts[stage] += t - tm; tm = t; };
+    const t0 = Date.now();
+    for (let i = 0; i < n; i++) { tm = Date.now(); G.limiter.run(src, G.width, G.height, 1 / 60, mark); }
+    const t1 = Date.now();
+    for (let i = 0; i < n; i++) { copyToScreen(src); fence(); }
+    const t2 = Date.now();
+    for (const k of Object.keys(parts)) parts[k] = +(parts[k] / n).toFixed(3);
+    return { n, limiter_ms: (t1 - t0) / n, copy_ms: (t2 - t1) / n, parts_ms: parts, width: G.width, height: G.height };
+  },
 };
 
 // ------------------------------------------------------------------------------------------------------ boot --
@@ -1954,10 +2632,11 @@ async function boot() {
   deck.b = nextValid(deck.a);
   if (QS.get("showcase") === "1") {   // the tour opens on the first wave-2 set
     const opener = sets.findIndex((s) => s.id === "vj-hyperspace");
-    if (validSet(opener)) selectSet(opener);
+    if (validSet(opener)) selectSet(opener, true);
   }
   renderSetList();
   renderParams();
+  queueSceneReport(false);        // the sets have their names now: tell the engine which one shows
   window.__vj.ready = true;
   toast(sets[deck.a] ? sets[deck.a].name : "no sets");
   stage.boot();

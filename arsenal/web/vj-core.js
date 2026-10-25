@@ -18,6 +18,15 @@
 //   - the default pad and control maps, and their validation for localStorage                     DEFAULT_PAD_MAP, ...
 //   - the VJ strip: the 16x6 float texture a VJ-aware preset reads through u_video                STRIP
 //   - the demo: a scripted show in D-flat that ends on a repeated pedal note                      DemoScript
+//   - the impact pass (2026-10-24): the velocity curve, the hit's punch / shake / dip / afterglow  velCurve, ImpactLayer
+//     the dip's safe depth against the flash line, the glitch's modes per hit, the band envelopes  dipSafeDepth,
+//     (kick / snare / hat), the beat snap, and the scene controls (rewind, fast-forward, dial)     glitchPlan, BandEnvelopes,
+//                                                                                                 BeatSnap, SceneControl
+//
+// Daniel, 2026-10-24: "The VJ thing is so cool!!!!! How do we make the effects feel more impactful and make the vj sets
+// even more reponsive! ... perhaps for vj mode the skip forward and backwards buttons can be repurposed to switch presets
+// so we can reclaim pad 12, pad 11 also did not seem super useful" and "I love the feel of pad 2 the most so far, pad 1 is
+// not bad, pad 4 could have more variety and be more impactful".
 //
 // Nothing here allocates per frame once constructed (fixed pools, preallocated typed arrays), so the page can call it from
 // requestAnimationFrame.
@@ -29,7 +38,7 @@ export const VJ_API = "arsenal.vj/v1";
 // preset can tell the VJ host from Play (where u_video is a 1x1 black texture or a real video): textureSize == 16 x 6.
 // Every preset stays inside Play's uniform list (arsenal/presets.py) and still loads in Play, where it falls back to audio.
 export const STRIP = Object.freeze({
-  W: 16, H: 6, VERSION: 1,
+  W: 16, H: 6, VERSION: 2,
   // row 0: pads 0..11 = (level, velocity, seconds since press, held); 12 beat = (phase, pulse, bar phase, count mod 64);
   //        13 colour = (hue A turns, hue B turns, saturation, brightness); 14 = (trails, bass reactivity, tension, lushness);
   //        15 chord = (change pulse, root pc or -1, seconds since change, harmonic brightness)
@@ -39,7 +48,13 @@ export const STRIP = Object.freeze({
   //        15 = (pedal pc or -1, pedal active, resolve pulse, constellation draw-on progress 0..1)
   ROW_PCS: 1,
   // row 2: 0..3 palette now (linear rgb, 1); 4..7 palette before the last chord change (rgb, 1);
-  //        8 = (palette travel progress 0..1, accent gain, metronome amount, kill gain); 15 = (VERSION, 0, 0, 1)
+  //        8 = (palette travel progress 0..1, accent gain, metronome amount, kill gain); 9 = (star count, 0, 0, 0);
+  //        v2 (2026-10-24), the shared HIT input every set may react to in its own way:
+  //        10 = (hit pulse 0..1: the latest pad hit through the velocity curve, decaying in ~0.25 s; its velocity 0..1;
+  //              its effect code (EFFECT_CODES: 1 shockwave .. 10 zoom); seconds since it, capped at 30)
+  //        11 = (kick envelope, snare envelope, hat envelope, the frame's punch: zoom kick 0..~0.3)
+  //        12 = (the hit's seed 0..1, its x, its y in the preset's centred space, 0)
+  //        15 = (VERSION, 0, 0, 1)
   ROW_PALETTE: 2,
   // row 3: pad colours 0..11 (linear rgb, 1), the same colours the pads' LEDs get
   ROW_PADCOL: 3,
@@ -148,9 +163,25 @@ export function parseEvent(obj) {
     }
     case "status":
       return { t: "status", msg: String(obj.msg || "").slice(0, 200) };
+    case "scene": {
+      // the engine's echo of the scene a page reported (POST /api/scene); the KeyLab's screen shows it on line 2
+      const name = sceneName(obj.name);
+      if (!name) return null;
+      const index = num(obj.index), count = num(obj.count);
+      return { t: "scene", name, index: index === null ? -1 : Math.round(index), count: count === null ? 0 : Math.round(count),
+               color: typeof obj.color === "string" && /^#[0-9a-fA-F]{6}$/.test(obj.color) ? obj.color.toLowerCase() : "",
+               browsing: obj.browsing === true };
+    }
     default:
       return null;
   }
+}
+
+// A scene name as the page sends it and the screen shows it: printable, at most 40 characters, trimmed ("" = invalid).
+export function sceneName(v) {
+  if (typeof v !== "string") return "";
+  const s = v.replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return s.length >= 1 && s.length <= 40 ? s : "";
 }
 
 // ------------------------------------------------------------------------------------------------ the engine link --
@@ -161,6 +192,10 @@ export function parseEvent(obj) {
 // without LEDs was asked again and again for as long as the page ran. A dropped connection forgets the old engine's
 // hello and status (the next engine may be another one), so the HUD never shows a dead engine's last word as current.
 const REFUSALS = new Set([403, 409, 423, 503]);
+// POST /api/scene (2026-10-24): an engine older than the scene route answers 404 (or 405 / 501): the page stops
+// reporting its scene to that engine until its next hello, politely, without a retry loop. A refusal (403 / 409 / 423 /
+// 503) stops it the same way. 429 is the engine's rate limit: transient, the page waits `retryMs` and sends its newest.
+const SCENE_ABSENT = new Set([404, 405, 501]);
 export class EngineLink {
   constructor() {
     this.open = false;
@@ -168,6 +203,8 @@ export class EngineLink {
     this.status = "";         // its last status message
     this.ledsOff = "";        // why pad colours are not posted now ("" = they may be)
     this.refused = 0;         // posts the engine refused
+    this.sceneOff = "";       // why the scene is not reported now ("" = it may be)
+    this.sceneRefused = 0;
     this.gen = 0;             // bumps on every hello and every disconnect: a late answer to an older post is ignored
   }
   connected() { this.open = true; }
@@ -176,6 +213,7 @@ export class EngineLink {
     this.hello = null;
     this.status = "";
     this.ledsOff = "";
+    this.sceneOff = "";
     this.gen++;
   }
   event(ev) {                 // a parsed event (parseEvent); only hello and status matter here
@@ -183,6 +221,7 @@ export class EngineLink {
       this.hello = ev;
       this.gen++;
       this.ledsOff = ev.leds === false ? (ev.leds_reason || "the engine has no pad LEDs") : "";
+      this.sceneOff = "";
     } else if (ev.t === "status") this.status = ev.msg;
   }
   mayPostLeds() { return this.open && !this.ledsOff; }
@@ -192,6 +231,25 @@ export class EngineLink {
     this.refused++;
     this.ledsOff = `refused (HTTP ${status}); waiting for the engine's next hello`;
     return true;
+  }
+  mayPostScene() { return this.open && !this.sceneOff; }
+  // The HTTP status of a POST /api/scene made under `gen`: "ok", "absent" (an older engine), "refused", "busy" (429),
+  // "stale" (an answer from before the latest hello: ignored) or "error".
+  sceneResult(status, gen = this.gen) {
+    if (gen !== this.gen) return "stale";
+    if (status >= 200 && status < 300) return "ok";
+    if (status === 429) return "busy";
+    if (SCENE_ABSENT.has(status)) {
+      this.sceneRefused++;
+      this.sceneOff = `this engine has no scene route (HTTP ${status}: older than 2026-10-24); not asked again until its next hello`;
+      return "absent";
+    }
+    if (REFUSALS.has(status)) {
+      this.sceneRefused++;
+      this.sceneOff = `refused (HTTP ${status}); waiting for the engine's next hello`;
+      return "refused";
+    }
+    return "error";
   }
 }
 
@@ -349,27 +407,36 @@ export function starPosition(midi, out) {
 // Each accent effect has an ADSR envelope (seconds; sustain is a level) and says how velocity shapes it. A one-shot ignores
 // the pad's hold (sustain 0: it plays attack and decay and is gone); a holdable sustains while the pad is held and releases
 // on note-off. `flash` marks an effect that can change the whole frame's brightness: it must pass the FlashGate first.
+// 2026-10-24 (the impact pass): every one-shot starts at full strength in the frame after the hit (attack 0; the
+// shockwave and the laser had 4 and 12 ms ramps), the particles too; the kaleidoscope folds in over 0.12 s instead of
+// 0.25 s; Zoom punch is new (pad 12). Every hit also gets the shared impact layer (ImpactLayer: punch, shake, dip,
+// afterglow) through the velocity curve (velCurve): a soft tap barely moves the frame, a hard hit throws it.
 export const EFFECTS = Object.freeze({
-  shockwave: { label: "Shockwave", hold: false, a: 0.004, d: 1.1, s: 0, r: 0.25, colour: "#7fd8ff",
-               velocity: "ring speed, width and brightness" },
-  laser:     { label: "Laser burst", hold: false, a: 0.012, d: 0.9, s: 0, r: 0.3, colour: "#ff4fd8",
+  shockwave: { label: "Shockwave", hold: false, a: 0.0, d: 1.1, s: 0, r: 0.25, colour: "#7fd8ff",
+               velocity: "ring speed, width, brightness and how hard the ring refracts the picture behind it" },
+  laser:     { label: "Laser burst", hold: false, a: 0.0, d: 0.9, s: 0, r: 0.3, colour: "#ff4fd8",
                velocity: "beam count (3-12), fan spread and brightness" },
   flash:     { label: "White flash", hold: false, a: 0.0, d: 0.22, s: 0, r: 0.12, colour: "#ffffff", flash: true,
                velocity: "flash brightness and length (gated: 3 per second at most)" },
   glitch:    { label: "Glitch", hold: false, a: 0.0, d: 0.5, s: 0, r: 0.2, colour: "#7dff9a",
-               velocity: "block size, displacement and colour split" },
+               velocity: "intensity and size; each hit picks its own mode or pair (split, tear, datamosh, sort, stutter, VHS)" },
   strobe:    { label: "Strobe", hold: true, a: 0.0, d: 0.08, s: 1, r: 0.18, colour: "#f2f2ff", flash: true,
                velocity: "scanner-bar brightness; full-frame pulses go through the flash gate" },
-  particles: { label: "Particles", hold: true, a: 0.015, d: 0.35, s: 0.75, r: 0.9, colour: "#ffb347",
+  particles: { label: "Particles", hold: true, a: 0.0, d: 0.35, s: 0.75, r: 0.9, colour: "#ffb347",
                velocity: "particle count and speed" },
-  kaleido:   { label: "Kaleidoscope", hold: true, a: 0.25, d: 0.2, s: 1, r: 0.6, colour: "#b78cff",
+  kaleido:   { label: "Kaleidoscope", hold: true, a: 0.12, d: 0.2, s: 1, r: 0.6, colour: "#b78cff",
                velocity: "mirror segments (4-12) and spin" },
   freeze:    { label: "Freeze", hold: true, a: 0.06, d: 0.1, s: 1, r: 0.4, colour: "#9ad7ff",
                velocity: "how much of the frozen frame shows, and its drift" },
   invert:    { label: "Invert", hold: true, a: 0.4, d: 0.0, s: 1, r: 0.5, colour: "#ffe066", flash: true,
                velocity: "how far the colours invert (eased in over 0.4 s, gated)" },
+  zoom:      { label: "Zoom punch", hold: false, a: 0.0, d: 0.42, s: 0, r: 0.2, colour: "#5ef0ff",
+               velocity: "zoom depth (8-30 % of the frame) and a radial blur while it springs back" },
 });
 export const EFFECT_TYPES = Object.freeze(Object.keys(EFFECTS));
+// The effect codes the strip carries (row 2, texel 10 z): a set can tell which pad effect hit it.
+export const EFFECT_CODES = Object.freeze({ shockwave: 1, laser: 2, flash: 3, glitch: 4, strobe: 5, particles: 6, kaleido: 7,
+                                            freeze: 8, invert: 9, zoom: 10 });
 
 // The control actions a pad (or Q/W/E/R) can carry instead of an effect.
 export const CONTROLS = Object.freeze({
@@ -382,17 +449,34 @@ export const CONTROLS = Object.freeze({
 
 export const PAD_ACTIONS = Object.freeze([...EFFECT_TYPES, "dampen", "choke", "kill", "next", "none"]);
 
-// Pads 1-4 one-shots, 5-8 holdable, 9 dampen, 10 choke, 11 kill, 12 next set.
+// Pads 1-4 one-shots, 5-8 holdable, 9 dampen, 10 choke, 11 invert (holdable), 12 zoom punch (one-shot). The scenes
+// moved to the transport (rewind / fast-forward) and the main dial (DEFAULT_CTL_MAP); kill stays on the E key.
 export const DEFAULT_PAD_MAP = Object.freeze(["shockwave", "laser", "flash", "glitch", "strobe", "particles", "kaleido",
-                                              "freeze", "dampen", "choke", "kill", "next"]);
+                                              "freeze", "dampen", "choke", "invert", "zoom"]);
+// The map before 2026-10-24 (stored as a bare array): pads 11 and 12 were kill and next set.
+export const PAD_MAP_V1_DEFAULT = Object.freeze(["shockwave", "laser", "flash", "glitch", "strobe", "particles", "kaleido",
+                                                 "freeze", "dampen", "choke", "kill", "next"]);
+export const PAD_MAP_VERSION = 2;
 
+// A stored pad map, as it comes back from localStorage, made safe: an unknown action keeps that pad's default. Two shapes
+// are read: { v: 2, pads: [...] } (written since 2026-10-24) and a bare array (written before). In a bare array, a pad
+// that still holds the OLD default (pad 11 kill, pad 12 next) takes the new one -- it was the default saved along, not a
+// choice -- while every pad Daniel set himself keeps what he set.
 export function normalizePadMap(stored) {
   const out = DEFAULT_PAD_MAP.slice();
-  if (Array.isArray(stored)) {
-    for (let i = 0; i < 12; i++) if (PAD_ACTIONS.includes(stored[i])) out[i] = stored[i];
+  let pads = null, legacy = false;
+  if (Array.isArray(stored)) { pads = stored; legacy = true; }
+  else if (stored && typeof stored === "object" && Array.isArray(stored.pads)) pads = stored.pads;
+  if (pads) {
+    for (let i = 0; i < 12; i++) {
+      if (!PAD_ACTIONS.includes(pads[i])) continue;
+      if (legacy && pads[i] === PAD_MAP_V1_DEFAULT[i] && PAD_MAP_V1_DEFAULT[i] !== DEFAULT_PAD_MAP[i]) continue;
+      out[i] = pads[i];
+    }
   }
   return out;
 }
+export function serializePadMap(map) { return { v: PAD_MAP_VERSION, pads: normalizePadMap({ pads: map }) }; }
 
 export function actionLabel(action) {
   return EFFECTS[action] ? EFFECTS[action].label : CONTROLS[action] ? CONTROLS[action].label : action;
@@ -424,12 +508,29 @@ export const TARGETS = Object.freeze([
 ]);
 export const TARGET_IDS = Object.freeze(TARGETS.map((t) => t.id));
 
+// Scene ACTIONS a control can carry instead of a value (2026-10-24): buttons fire on the press (value rising through
+// 0.5), never on the release; the dial moves a cursor through the scenes (shown on the page and on the KeyLab's screen)
+// and its click jumps to the scene shown. SceneControl decides; learn-on-touch binds them like any target.
+export const SCENE_ACTIONS = Object.freeze([
+  { id: "scenePrev", label: "Previous scene", help: "a press switches to the previous scene (rewind by default)" },
+  { id: "sceneNext", label: "Next scene", help: "a press switches to the next scene (fast-forward by default)" },
+  { id: "sceneDial", label: "Scene dial", help: "turning moves through the scenes; the screen shows the one under the dial" },
+  { id: "sceneGo", label: "Go to the scene shown", help: "a press jumps to the scene the dial shows (the dial's click)" },
+]);
+export const SCENE_ACTION_IDS = Object.freeze(SCENE_ACTIONS.map((a) => a.id));
+const CTL_BINDABLE = new Set([...TARGET_IDS, ...SCENE_ACTION_IDS]);
+
 // Faders 1-9 are CC105-113 (absolute) and the knobs CC91, 92, 94-97, 102-104 (relative around 64), as Arturia's FL script
-// reads them; unconfirmed on the hardware, which is why every binding can be learned.
+// reads them; unconfirmed on the hardware, which is why every binding can be learned. The transport and the dial, from
+// the same script's map (research/reviewed/keylab-liberation-2026-10-22/evidence-control-map-2026-10-22.md and
+// keylab-full-surface-map-2026-10-23.md, T6 / T7 / D1 / D2; INFERRED, not yet confirmed at the device): DAW mode sends
+// Rewind as CC25 and Fast forward as CC26 (127 on press, 0 on release), the main dial's turn as CC116 (relative around
+// 64) and its click as CC117. The engine forwards every CC as a ctl event (cc25, cc26, cc116, cc117).
 export const DEFAULT_CTL_MAP = Object.freeze({
   cc105: "hueA", cc106: "hueB", cc107: "sat", cc108: "bright", cc109: "trails", cc110: "strobeRate", cc111: "accent",
   cc112: "xfade", cc113: "bassReact",
   cc91: "k1", cc92: "k2", cc94: "k3", cc95: "k4", cc96: "k5", cc97: "k6", cc102: "k7", cc103: "k8", cc104: "chordAmt",
+  cc25: "scenePrev", cc26: "sceneNext", cc116: "sceneDial", cc117: "sceneGo",
 });
 
 export function normalizeCtlMap(stored) {
@@ -438,7 +539,7 @@ export function normalizeCtlMap(stored) {
     for (const [id, target] of Object.entries(stored)) {
       if (!/^[A-Za-z0-9_.:-]{1,32}$/.test(id)) continue;
       if (target === null) delete out[id];
-      else if (TARGET_IDS.includes(target)) out[id] = target;
+      else if (CTL_BINDABLE.has(target)) out[id] = target;
     }
   }
   return out;
@@ -648,6 +749,294 @@ export class EffectBank {
     let n = 0;
     for (const f of this.fx) if (f.active) n++;
     return n;
+  }
+}
+
+// ------------------------------------------------------------------------------------------------- the impact pass --
+// The velocity curve every new impact parameter goes through: v^2.2. soft 0.3 -> 0.071, medium 0.6 -> 0.325, hard 1.0
+// -> 1.0: a soft tap is a nudge, a hard hit is fourteen times that. (The laser burst keeps its own linear velocity map --
+// beams 3 + 9 v -- because it is the reference that reads well; it gains the impact layer on top.)
+export const VEL_GAMMA = 2.2;
+export function velCurve(v) { const x = clamp01(v); return x <= 0 ? 0 : Math.pow(x, VEL_GAMMA); }
+// How far above "medium" a hit is, 0 below `from`, 1 at full velocity, eased: shake and dip only come with hard hits.
+export function hardness(v, from = 0.5) { const x = clamp01((clamp01(v) - from) / (1 - from)); return x * x * (3 - 2 * x); }
+
+// Per effect: the most the impact layer may do at full velocity. punch = the frame's zoom kick (a fraction: 0.03 = the
+// frame grows 3 %), shake = its jolt (fraction of the frame height), dip = how far the scene darkens for ~40 ms right at
+// the hit (before the dip's safety limit, dipSafeDepth), glow = the afterglow (how much longer the effect's light trails
+// for ~0.35 s). Strobe and freeze carry none (a strobe that punched would shake the frame at its own rate). react = how
+// strongly the SET answers the hit (the strip's hit pulse, and u_pulse for a plain Play preset): an effect with a look of
+// its own (the kaleidoscope's mirrors, the frozen frame, Invert, the strobe's bars, the particles) leads, and the set's
+// own flare stays small, so on Reactor every pad no longer opens on the same core flare (2026-10-24 safety pass).
+export const IMPACT = Object.freeze({
+  shockwave: { punch: 0.030, shake: 0.010, dip: 0.55, glow: 0.8, react: 1.0 },
+  laser:     { punch: 0.024, shake: 0.007, dip: 0.50, glow: 1.0, react: 1.0 },
+  flash:     { punch: 0.020, shake: 0.000, dip: 0.70, glow: 0.3, react: 0.6 },
+  glitch:    { punch: 0.020, shake: 0.016, dip: 0.50, glow: 0.6, vary: true, slip: 0.035, react: 1.0 },
+  strobe:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.3 },
+  particles: { punch: 0.018, shake: 0.004, dip: 0.30, glow: 0.8, react: 0.7 },
+  kaleido:   { punch: 0.030, shake: 0.000, dip: 0.30, glow: 0.4, react: 0.25 },
+  freeze:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.15 },
+  invert:    { punch: 0.020, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.2 },
+  zoom:      { punch: 0.000, shake: 0.008, dip: 0.40, glow: 0.7, react: 0.8 },   // its punch is the effect itself (zoomDepth)
+});
+export const PUNCH_BACK_S = 0.16;      // the punch eases back over this (+0.12 s at full velocity)
+export const SHAKE_HZ = 23, SHAKE_TAU_S = 0.06;
+export const DIP_HOLD_S = 0.03, DIP_RAMP_S = 0.02;   // the dip: held 30 ms, back in 20 ms (50 ms in all)
+export const GLOW_S = 0.35;
+// The Zoom punch effect: depth 8 % at the softest, 30 % at full velocity, through the curve; its EffectBank envelope
+// (attack 0, a quadratic fall over 0.42 s x velocity's stretch) is the spring back.
+export function zoomDepth(vel) { return 0.08 + 0.22 * velCurve(vel); }
+
+// The dip's safety limit. A dip darkens the SCENE (not the accents) by `depth` for ~40 ms; with the scene's mean relative
+// luminance L (linear, as displayed: the page measures it every frame, vj.js meter), that is a drop of depth x L, and the
+// recovery is the same rise back. A change of 0.1 in relative luminance is where WCAG 2.3.1 starts counting a flash, so a
+// dip that rides no flash of its own is held to DIP_SAFE_DELTA (0.045: under half the line, leaving the effect's own light
+// room above it): it never asks the FlashGate, because it can never be a flash. A dip that comes with a flash the gate
+// GRANTED (the white flash, a strobe pulse) rides that flash's slot at full depth: the pair is one flash, counted once.
+export const DIP_SAFE_DELTA = 0.045;
+export function dipSafeDepth(depth, meanLum, granted = false) {
+  const d = Math.max(0, Math.min(0.9, depth));
+  if (granted) return d;
+  return Math.min(d, DIP_SAFE_DELTA / Math.max(meanLum, 1e-4));
+}
+
+// The impact layer: a small pool of recent hits, each with its punch, shake, dip and afterglow; sample(now) mixes them into
+// one frame's values (punch: the largest; shake: the sum, capped; dip: the largest; glow: the largest; pulse: the strip's
+// hit pulse). No allocation after construction.
+export class ImpactLayer {
+  constructor(size = 8) {
+    this.hits = [];
+    for (let i = 0; i < size; i++) this.hits.push({ on: false, t0: 0, vel: 0, k: 0, punch: 0, back: 0.2, shake: 0, sx: 1, sy: 0,
+                                                    ph: 0, dip: 0, granted: false, glow: 0, type: "", code: 0, seed: 0, x: 0, y: 0,
+                                                    slip: 0, slx: 1, sly: 0, react: 1 });
+    this.out = { punch: 0, shakeX: 0, shakeY: 0, dip: 0, dipGranted: false, glow: 0, pulse: 0, vel: 0, code: 0, since: 30,
+                 seed: 0, x: 0, y: 0 };
+    this.last = null;
+    this.count = 0;
+  }
+  // type: an EFFECTS key; opts: { seed 0..1, granted (the hit's flash was granted), x, y (centred space), punch (false:
+  // the panel's impact switch is off -- no punch, shake, dip or afterglow; the strip's hit texel still hears the hit) }
+  hit(type, vel, now, opts = {}) {
+    const prof = IMPACT[type];
+    if (!prof) return null;
+    let slot = this.hits.find((h) => !h.on);
+    if (!slot) { slot = this.hits[0]; for (const h of this.hits) if (h.t0 < slot.t0) slot = h; }
+    const k = velCurve(vel), hard = hardness(vel);
+    const on = opts.punch === false ? 0 : 1;
+    const seed = clamp01(opts.seed ?? 0.5);
+    slot.on = true; slot.t0 = now; slot.vel = clamp01(vel); slot.k = k; slot.type = type; slot.code = EFFECT_CODES[type] || 0;
+    slot.react = prof.react ?? 1;
+    // an effect whose profile says `vary` (the glitch) throws a different punch, shake and dip every hit, from its seed
+    // (the same on average): no two glitches land alike
+    const v1 = prof.vary ? 0.3 + 1.4 * hash01(seed * 5.1 + 0.3) : 1;
+    const v2 = prof.vary ? 0.4 + 1.2 * hash01(seed * 9.7 + 1.1) : 1;
+    const v3 = prof.vary ? 0.3 + 1.4 * hash01(seed * 2.3 + 2.9) : 1;
+    slot.punch = prof.punch * k * on * v1;
+    slot.back = PUNCH_BACK_S + 0.12 * k;
+    slot.shake = prof.shake * hard * on * v2;
+    const a = seed * 6.283185307179586;
+    slot.sx = Math.cos(a); slot.sy = Math.sin(a); slot.ph = seed * 3.1;
+    slot.dip = Math.min(0.9, prof.dip * hardness(vel, 0.55) * on * v3);
+    // a slip (the glitch): the whole frame jumps sideways in the hit's own direction and eases back with the punch
+    slot.slip = (prof.slip || 0) * k * on;
+    const sa = hash01(seed * 13.7 + 0.1) * 6.283185307179586;
+    slot.slx = Math.cos(sa); slot.sly = Math.sin(sa);
+    slot.granted = opts.granted === true;
+    slot.glow = prof.glow * k * on;
+    slot.seed = seed; slot.x = opts.x || 0; slot.y = opts.y || 0;
+    this.last = slot;
+    this.count++;
+    return slot;
+  }
+  clear() { for (const h of this.hits) h.on = false; this.last = null; }
+  sample(now) {
+    const o = this.out;
+    o.punch = 0; o.shakeX = 0; o.shakeY = 0; o.dip = 0; o.dipGranted = false; o.glow = 0;
+    for (const h of this.hits) {
+      if (!h.on) continue;
+      const t = now - h.t0;
+      if (t < 0) continue;
+      const done = t > Math.max(h.back, 6 * SHAKE_TAU_S, DIP_HOLD_S + DIP_RAMP_S, GLOW_S);
+      if (done) { h.on = false; continue; }
+      if (t < h.back) {                                  // fast out, eased back
+        const e = 1 - t / h.back;
+        o.punch = Math.max(o.punch, h.punch * e * e);
+        if (h.slip > 0) { o.shakeX += h.slip * h.slx * e * e; o.shakeY += h.slip * h.sly * e * e; }
+      }
+      if (h.shake > 0) {
+        const amp = h.shake * Math.exp(-t / SHAKE_TAU_S);
+        const w = 6.283185307179586 * SHAKE_HZ * t + h.ph;
+        o.shakeX += amp * (h.sx * Math.cos(w) - h.sy * 0.5 * Math.sin(1.37 * w));
+        o.shakeY += amp * (h.sy * Math.cos(w) + h.sx * 0.5 * Math.sin(1.37 * w));
+      }
+      const dipE = t < DIP_HOLD_S ? 1 : Math.max(0, 1 - (t - DIP_HOLD_S) / DIP_RAMP_S);
+      if (h.dip * dipE > o.dip) { o.dip = h.dip * dipE; o.dipGranted = h.granted; }
+      if (t < GLOW_S) o.glow = Math.max(o.glow, h.glow * (1 - t / GLOW_S));
+    }
+    const cap = 0.045;
+    o.shakeX = Math.max(-cap, Math.min(cap, o.shakeX));
+    o.shakeY = Math.max(-cap, Math.min(cap, o.shakeY));
+    const L = this.last;
+    if (L) {
+      const since = Math.max(0, now - L.t0);
+      o.pulse = (0.25 + 0.75 * L.k) * Math.exp(-since / 0.25) * L.react;
+      o.vel = L.vel; o.code = L.code; o.since = Math.min(30, since); o.seed = L.seed; o.x = L.x; o.y = L.y;
+    } else { o.pulse = 0; o.vel = 0; o.code = 0; o.since = 30; o.seed = 0; o.x = 0; o.y = 0; }
+    return o;
+  }
+}
+
+// ----------------------------------------------------------------------------------------------- the glitch's modes --
+// Pad 4, rebuilt (2026-10-24: "pad 4 could have more variety and be more impactful"). Six modes, drawn by the composite
+// shader (vj.js COMPOSITE_FS): 0 RGB split with slice offsets, 1 block displacement with scanline tearing, 2 a datamosh
+// smear through the previous frame (the composite's own feedback), 3 pixel-sort streaks, 4 a stutter that repeats slices
+// of the frame held at the hit, 5 a VHS wobble. Each hit picks a primary mode from its seed (the EffectBank's golden-ratio
+// seeds: consecutive hits always land on different modes) and, from medium velocity up, a second mode on top; velocity
+// (through the curve) sets the intensity and the size of slices and blocks. Whatever the modes, the first ~120 ms are a
+// strike shaped by the seed too (its block grid, the shove's direction, the channels' split angle, some blocks with their
+// channels turned round), so every glitch lands hard in the next frame; the datamosh and the stutter take over after it.
+// Its impact profile varies by seed as well (IMPACT.glitch vary: punch, shake and dip; and a slip of the whole frame in the
+// hit's own direction). Deterministic: the same seed and velocity give the same plan, so the receipts can count the
+// variety (8 hard hits on Reactor, 2026-10-24: pairwise difference 0.011 -> 0.065, over the mean 0.84 -> 0.89).
+export const GLITCH_MODES = Object.freeze(["split", "tear", "datamosh", "sort", "stutter", "vhs"]);
+function hash01(x) { const s = Math.sin(x * 127.1 + 311.7) * 43758.5453123; return s - Math.floor(s); }
+export function glitchPlan(seed, vel) {
+  const sd = clamp01(seed);
+  const primary = Math.min(5, Math.floor(sd * 6));
+  let secondary = -1;
+  if (vel >= 0.5) secondary = (primary + 1 + Math.floor(hash01(sd * 7.7 + 1.3) * 5)) % 6;   // never the primary
+  const k = velCurve(vel);
+  return { primary, secondary, amount: 0.35 + 0.65 * k, size: 0.25 + 0.75 * clamp01(vel), seed: hash01(sd * 3.3 + 0.7),
+           names: secondary >= 0 ? [GLITCH_MODES[primary], GLITCH_MODES[secondary]] : [GLITCH_MODES[primary]] };
+}
+
+// ---------------------------------------------------------------------------------------------- the band envelopes --
+// Per band, a fast-attack / slower-release envelope instead of plain smoothing: the level follows a rise within one
+// frame (attack tau ~5 ms) and falls on its own time (kick 0.16 s, snare 0.12 s, hat 0.05 s). Each band has two parts:
+// its LEVEL (the engine's energy band, 100 events a second since 2026-10-24: bass, mid, high) and its ONSET (the rise of
+// that band above its own recent floor, and every hit event of that band as an impulse), which drives the punchy uses:
+// kick -> the frame's scale pump, snare -> a colour and contrast kick, hat -> sparkle.
+export const BAND_ENV = Object.freeze({
+  kick:  { band: "bass", attack: 0.005, release: 0.16, floorTau: 0.25 },
+  snare: { band: "mid",  attack: 0.005, release: 0.12, floorTau: 0.2 },
+  hat:   { band: "high", attack: 0.004, release: 0.05, floorTau: 0.12 },
+});
+export function arStep(cur, target, dt, attack, release) {
+  const tau = target > cur ? attack : release;
+  return cur + (target - cur) * (1 - Math.exp(-Math.max(0, dt) / Math.max(tau, 1e-4)));
+}
+export class BandEnvelopes {
+  constructor() {
+    this.level = { bass: 0, mid: 0, high: 0, all: 0 };
+    this.target = { bass: 0, mid: 0, high: 0, all: 0 };
+    this.floor = { kick: 0, snare: 0, hat: 0 };
+    this.impulse = { kick: 0, snare: 0, hat: 0 };
+    this.env = { kick: 0, snare: 0, hat: 0 };
+    this.last = -1e9;
+  }
+  energy(ev, nowMs) {        // a parsed energy event
+    this.target.bass = ev.bass; this.target.mid = ev.mid; this.target.high = ev.high; this.target.all = ev.level;
+    this.last = nowMs;
+  }
+  hit(band, strength) {      // a parsed hit's band and strength
+    const s = clamp01(strength);
+    if (band === "kick" || band === "full") this.impulse.kick = Math.max(this.impulse.kick, s);
+    if (band === "snare" || band === "full") this.impulse.snare = Math.max(this.impulse.snare, s);
+    if (band === "hat") this.impulse.hat = Math.max(this.impulse.hat, s);
+  }
+  update(nowMs, dt) {
+    if (nowMs - this.last > 1500) { this.target.bass = this.target.mid = this.target.high = this.target.all = 0; }
+    // levels: fast up, a 0.12 s fall (the engine's own release is 0.10 s; this only smooths the steps between events)
+    for (const k of ["bass", "mid", "high", "all"]) this.level[k] = arStep(this.level[k], this.target[k], dt, 0.006, 0.12);
+    for (const [name, def] of Object.entries(BAND_ENV)) {
+      const lv = this.level[def.band];
+      // the band's recent floor rises slowly and drops at once: a sustained level stops pumping, a new rise pumps
+      this.floor[name] = lv < this.floor[name] ? lv : arStep(this.floor[name], lv, dt, def.floorTau, def.floorTau);
+      const onset = Math.min(1, Math.max(0, lv - this.floor[name]) * 2.2);
+      const target = Math.max(onset, this.impulse[name]);
+      this.impulse[name] = 0;
+      this.env[name] = arStep(this.env[name], target, dt, def.attack, def.release);
+    }
+    return this.env;
+  }
+}
+
+// --------------------------------------------------------------------------------------------------- the beat snap --
+// Off by default (the panel's checkbox and the B key): a pad hit waits for the next 16th of the engine's beat while one is
+// live. A hit up to `lateShare` of a 16th after a grid line counts as on it (it fires now: being a hair late is still on
+// the beat); otherwise it waits for the next line. Without a live beat it never waits. Returns the ms to wait (0 = now).
+export function snapDelayMs(nowMs, beatClock, { division = 4, lateShare = 0.25 } = {}) {
+  if (!beatClock || !beatClock.alive(nowMs)) return 0;
+  const p = beatClock.period();
+  if (!(p > 0)) return 0;
+  const grid = p / division;
+  const since = nowMs - beatClock.lastBeat;
+  if (since < 0) return Math.max(0, -since);        // the beat itself is just ahead
+  const into = since % grid;
+  if (into <= lateShare * grid) return 0;
+  return grid - into;
+}
+
+// --------------------------------------------------------------------------------------------------- scene controls --
+// The transport and the dial, turned into scene moves. Buttons (scenePrev, sceneNext, sceneGo) act on the PRESS: a value
+// rising through 0.5; the release (value 0) and any repeat while held (some controllers resend 127) do nothing, and a
+// second press inside `minGapMs` is a bounce. The dial (sceneDial) moves a cursor one scene per message whatever the
+// message's size (no acceleration), at most one step per `stepMs` (a fast spin cannot run away); the cursor is what the
+// page and the KeyLab's screen show while browsing, and sceneGo jumps to it. Without a click the browse ends after
+// `browseMs` and the cursor returns to the live scene. Pure: the page passes its scene count and the live index.
+export class SceneControl {
+  constructor({ minGapMs = 160, stepMs = 60, browseMs = 4000 } = {}) {
+    this.minGapMs = minGapMs; this.stepMs = stepMs; this.browseMs = browseMs;
+    this.down = {};             // control id -> held (value >= 0.5)
+    this.lastFire = {};         // action -> ms
+    this.cursor = -1;           // -1 = not browsing
+    this.lastStep = -1e9;
+    this.lastTouch = -1e9;
+    this.lastAbs = {};          // an absolute dial's last value
+    this.ignored = 0;           // releases, repeats, bounces and over-fast dial messages dropped
+  }
+  browsing() { return this.cursor >= 0; }
+  // ev: a parsed ctl event; action: one of SCENE_ACTION_IDS; n: how many scenes; live: the live scene's index.
+  // -> null, or { do: "prev" | "next" | "browse" | "go" | "browse-end", index }
+  ctl(ev, action, nowMs, n, live) {
+    if (!(n > 0)) return null;
+    if (action === "sceneDial") {
+      let dir = 0;
+      if (ev.kind === "rel") dir = Math.sign(ev.delta);
+      else {
+        const prev = this.lastAbs[ev.id];
+        this.lastAbs[ev.id] = ev.value;
+        if (prev !== undefined) dir = Math.sign(ev.value - prev);
+      }
+      if (!dir) return null;
+      if (nowMs - this.lastStep < this.stepMs) { this.ignored++; this.lastTouch = nowMs; return null; }
+      this.lastStep = nowMs; this.lastTouch = nowMs;
+      const from = this.cursor >= 0 ? this.cursor : live;
+      this.cursor = (((from + dir) % n) + n) % n;
+      return { do: "browse", index: this.cursor };
+    }
+    const pressed = ev.kind === "rel" ? ev.delta > 0 : ev.value >= 0.5;
+    const was = !!this.down[ev.id];
+    this.down[ev.id] = ev.kind === "rel" ? false : pressed;
+    if (!pressed || was) { this.ignored++; return null; }     // a release, or a repeat while held
+    if (nowMs - (this.lastFire[action] ?? -1e9) < this.minGapMs) { this.ignored++; return null; }
+    this.lastFire[action] = nowMs;
+    if (action === "sceneGo") {
+      if (this.cursor < 0) return null;                        // nothing shown under the dial: a click does nothing
+      const index = this.cursor;
+      this.cursor = -1;
+      return { do: "go", index };
+    }
+    this.cursor = -1;                                          // a transport press ends any browse
+    if (action === "scenePrev") return { do: "prev", index: (((live - 1) % n) + n) % n };
+    if (action === "sceneNext") return { do: "next", index: (live + 1) % n };
+    return null;
+  }
+  // Call every frame: ends a browse that waited too long for its click.
+  tick(nowMs) {
+    if (this.cursor >= 0 && nowMs - this.lastTouch > this.browseMs) { this.cursor = -1; return { do: "browse-end", index: -1 }; }
+    return null;
   }
 }
 
@@ -869,9 +1258,10 @@ export class DemoScript {
       emit({ t: "beat", due_ms: due - nowMs, bpm: this.bpm, conf: 0.9, n: i, on_beat: 0.92 });
       this.beatEvents(i, due, nowMs, emit);
     }
-    // energy at ~40 Hz: a kick envelope on every beat, the mids breathing with the bar, a hat shimmer on the off-beats
+    // energy at ~100 Hz (as the engine sends it since 2026-10-24): a kick envelope on every beat, the mids breathing with
+    // the bar, a hat shimmer on the off-beats
     if (nowMs >= this.nextEnergyAt) {
-      this.nextEnergyAt = nowMs + 25;
+      this.nextEnergyAt = nowMs + 10;
       const b = (nowMs - this.t0) / this.beatMs;
       const inBeat = b - Math.floor(b);
       const kick = Math.exp(-inBeat * 5.5);
@@ -922,7 +1312,12 @@ export class DemoScript {
       // a one-shot on the bar's downbeat every other bar, a held pad across beats 2-3 every fourth bar
       if (inBar === 0 && bar % 2 === 0) later(0, { t: "pad", pad: 1 + ((bar / 2) % 4), vel: 0.55 + 0.4 * ((bar * 7) % 5) / 4, on: true, src: "demo", hold: 120 });
       if (inBar === 1 && bar % 4 === 1) later(0, { t: "pad", pad: 5 + (Math.floor(bar / 4) % 4), vel: 0.8, on: true, src: "demo", hold: this.beatMs * 2 });
-      if (beat === loopBeats - 1) later(this.beatMs * 0.5, { t: "pad", pad: 12, vel: 0.9, on: true, src: "demo", hold: 80 });
+      // the loop's last beat: a zoom punch (pad 12), then the fast-forward button (cc26: next scene) half a beat later
+      if (beat === loopBeats - 1) {
+        later(0, { t: "pad", pad: 12, vel: 0.9, on: true, src: "demo", hold: 80 });
+        later(this.beatMs * 0.5, { t: "ctl", id: "cc26", kind: "abs", value: 1, delta: 0 });
+        later(this.beatMs * 0.5 + 90, { t: "ctl", id: "cc26", kind: "abs", value: 0, delta: 0 });
+      }
     }
   }
   // Release the stamped events that are due. Returns nothing; calls emit for each.

@@ -168,12 +168,15 @@ async function waitFor(fn, ms, what) {
 // One burst: the lock, a fresh Chrome, a page; fn(page) does the work; everything is released after.
 async function burst(label, fn) {
   const t0 = Date.now();
-  const entry = { label, started_at: new Date().toISOString(), seconds: null, error: null };
+  // seconds = how long the burst held the GPU lock (the house rule); wait_s = how long it queued for it behind others
+  const entry = { label, started_at: new Date().toISOString(), seconds: null, wait_s: null, error: null };
   report.bursts.push(entry);
   const profile = join(tmpdir(), `arsenal-vj2-${stamp}-${label}`);
-  let gpu = null, chrome = null, browser = null;
+  let gpu = null, chrome = null, browser = null, tHeld = null;
   try {
     gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj2_verify ${label} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000 });
+    tHeld = Date.now();
+    entry.wait_s = Math.round((tHeld - t0) / 100) / 10;
     if (!existsSync(opt.chrome)) throw new Error(`no Chrome at ${opt.chrome}`);
     chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
       `--user-data-dir=${profile}`, `--window-size=${opt.width},${opt.height}`, "--force-device-scale-factor=1", "about:blank"],
@@ -242,8 +245,8 @@ async function burst(label, fn) {
     gpu?.release();
     await delay(300);
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold a file */ }
-    entry.seconds = Math.round((Date.now() - t0) / 100) / 10;
-    console.log(`[burst] ${label}: ${entry.seconds} s${entry.error ? " (error)" : ""}`);
+    entry.seconds = Math.round((Date.now() - (tHeld ?? t0)) / 100) / 10;
+    console.log(`[burst] ${label}: ${entry.seconds} s holding the lock${entry.wait_s ? ` (after ${entry.wait_s} s queued)` : ""}${entry.error ? " (error)" : ""}`);
   }
 }
 
