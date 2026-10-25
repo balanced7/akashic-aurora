@@ -656,7 +656,8 @@ if (!existsSync(JOY_TAKE)) {
     for (let f = 0; f < frames; f++) {
       const g = lim.step(G.cellSums(pic(f), red(f), 32, 32), dt);
       for (let w = 0; w < N; w++) { shown[w].push(lim.shown[w * 2]); want[w].push(lim.want[w * 2]); redShown[w].push(lim.shown[w * 2 + 1] * 320); }
-      trace.push({ held: lim.held(), rest: lim.glob[1], beta: g.beta, gainsOne: g.a.every((x) => x === 1) && g.k.every((x) => x === 0), commits: lim.commits });
+      trace.push({ held: lim.held(), rest: lim.glob[1], beta: g.beta, gainsOne: g.a.every((x) => x === 1) && g.k.every((x) => x === 0), commits: lim.commits,
+                   lift: g.k.some((x) => x > 0.02) });
     }
     return { lim, shown, want, redShown, trace };
   };
@@ -704,7 +705,15 @@ if (!existsSync(JOY_TAKE)) {
   // white flashes at two a second (the gate allows three): never held
   {
     const d = drive(240, (f) => lumOf(0.05 + 0.5 * Math.exp(-((f % 30) / 60) / 0.15)));
-    check("gate v2: two decaying flashes a second pass untouched", d.trace.every((t) => t.held === 0 && t.gainsOne), String(d.trace.filter((t) => t.held).length));
+    // (a window may sit in the PARTIAL watch, one transition kept for a fall, without any gain moving)
+    check("gate v2: two decaying flashes a second pass untouched", d.trace.every((t) => t.gainsOne && t.beta === 0), String(d.trace.filter((t) => !t.gainsOne).length));
+  }
+  // a storm of bright hits (a punch of the whole frame 15 times a second): held by taking light away, not by lifting the
+  // gaps toward white (a flash's last slot is kept for its fall, so a window runs out of budget dark)
+  {
+    const d = drive(600, (f) => { let v = 0.15; for (let h = 0; h <= f; h += 4) v += 0.2 * Math.exp(-((f - h) / 60) / 0.05); return lumOf(Math.min(1, v)); }, undefined);
+    const lifted = d.trace.filter((t) => t.lift).length;
+    check("gate v2: a storm of bright hits is held by darkening, the gaps never lifted toward white", worst(d.shown) <= 3 && lifted <= 6, `${worst(d.shown)}/s, ${lifted} lifted frames`);
   }
   // a quarter of the screen flickering: held there, the far corner left alone
   {

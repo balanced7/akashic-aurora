@@ -11,7 +11,7 @@
 //   STATE   (36 + 1) x 5 fragments: each tracker's five texels after this frame (its counter, its held band, its ring of
 //           transition ends and which of them were full size), and the shared texels (the flashing run, the forced rest,
 //           the frame count, beta; the held and leak counts as they stood)
-//   APPLY   the frame through the gains (linear light: a Y + k (1 - Y), bilinear between the corners, the same hats the
+//   APPLY   the frame through the gains (linear light: a Y + k (1 - Y), smoothstep-bilinear between the corners, the same hats the
 //           meter used) and, when beta > 0, blended toward the previous shown frame, into the SHOWN pair (RGBA8: exactly
 //           what the canvas gets), then blitted to the canvas. With nothing held, every gain is exactly 1 and beta 0: the
 //           pixel is copied untouched.
@@ -72,7 +72,10 @@ void main() {
     // light (stored / 320)
     float red = (sum > 0.0 && d.r >= 0.8 * sum) ? max(0.0, lin.r - lin.g - lin.b) : 0.0;
     float fx = (float(x - bx0) + 0.5) / float(cw), fy = (float(y - by0) + 0.5) / float(ch);
-    vec4 h = vec4((1.0 - fx) * (1.0 - fy), fx * (1.0 - fy), (1.0 - fx) * fy, fx * fy);
+    // the corners' hats: smoothstep-weighted bilinear (a partition of unity, so still linear in the 25 gains, and smooth
+    // across cells: a held region dims as a soft round patch, never a pyramid)
+    float sx = fx * fx * (3.0 - 2.0 * fx), sy = fy * fy * (3.0 - 2.0 * fy);
+    vec4 h = vec4((1.0 - sx) * (1.0 - sy), sx * (1.0 - sy), (1.0 - sx) * sy, sx * sy);
     L += h * l; R += h * red; n += 1.0;
   }
   // this block's share of its cell's mean (each read pixel stands for nx * ny / n of the block's pixels)
@@ -107,7 +110,6 @@ const int RING = ${LIMIT.RING};
 const float NMAX = ${f(LIMIT.N_MAX)};
 const float WINDOW_S = ${f(LIMIT.WINDOW_S)};
 const float EMPTY_AGE = ${f(LIMIT.EMPTY_AGE)};
-const float BASE_TAU = ${f(LIMIT.BASE_TAU)};
 const float RUN_S = ${f(LIMIT.RUN_S)};
 const float REST_S = ${f(LIMIT.REST_S)};
 const int REST_COUNT = ${LIMIT.REST_COUNT};
@@ -119,6 +121,7 @@ const vec2 THV = vec2(${f(LIMIT.TH[0])}, ${f(LIMIT.TH[1])});
 const vec2 HYV = vec2(${f(LIMIT.HYST[0])}, ${f(LIMIT.HYST[1])});
 const vec2 BANDV = vec2(${f(LIMIT.BAND[0])}, ${f(LIMIT.BAND[1])});
 const vec2 DRIFTV = vec2(${f(LIMIT.DRIFT[0])}, ${f(LIMIT.DRIFT[1])});
+const vec2 DRIFTDV = vec2(${f(LIMIT.DRIFT_DOWN[0])}, ${f(LIMIT.DRIFT_DOWN[1])});
 const float BIG = 1.0e9;
 const ivec4 WIN[${WINDOWS.length}] = ivec4[${WINDOWS.length}](${W});
 uniform sampler2D u_cells, u_state;
@@ -162,38 +165,50 @@ float countRing(vec4 r2, vec4 r3) {
   n += r3.z + u_dt < WINDOW_S ? 1.0 : 0.0;
   return n;
 }
-struct Band { float lo; float hi; float hlo; float hhi; float pin; float base; float want; bool held; };
+struct Band { float lo; float hi; float hlo; float hhi; float pin; float level; float want; bool held; };
 Band band(int t) {
   Band b;
   int s = t & 1, w = t >> 1;
   vec4 r0 = texelFetch(u_state, ivec2(t, 0), 0), r1 = texelFetch(u_state, ivec2(t, 1), 0);
   vec4 r2 = texelFetch(u_state, ivec2(t, 2), 0), r3 = texelFetch(u_state, ivec2(t, 3), 0);
-  float th = s == 0 ? THV.x : THV.y, bw = s == 0 ? BANDV.x : BANDV.y, dr = s == 0 ? DRIFTV.x : DRIFTV.y;
+  float th = s == 0 ? THV.x : THV.y, bw = s == 0 ? BANDV.x : BANDV.y;
+  float dr = s == 0 ? DRIFTV.x : DRIFTV.y, drd = s == 0 ? DRIFTDV.x : DRIFTDV.y;
   b.want = winWant(w, s);
-  float dir = r0.x, X = r0.y, C = r0.z, sPrev = r0.w, open = r1.x, held = r1.y;
-  b.base = dir == 0.0 ? b.want : r1.w + (b.want - r1.w) * (1.0 - exp(-u_dt / BASE_TAU));
-  b.held = false; b.pin = r1.z;
+  float dir = r0.x, X = r0.y, C = r0.z, sPrev = r0.w, open = r1.x, level = r1.y;
+  b.held = false; b.level = 0.0; b.pin = r1.z;
   b.lo = -BIG; b.hlo = -BIG; b.hi = BIG; b.hhi = BIG;
   if (dir == 0.0) return b;
   float eps = s == 0 ? 1.0e-4 : 2.0e-5;
   float rest = texelFetch(u_state, ivec2(NT, 0), 0).y;
   float budget = rest > 0.0 ? 0.0 : NMAX;
-  if (countRing(r2, r3) < budget) return b;
+  float n = countRing(r2, r3);
+  if (n + 2.0 <= budget) return b;           // room for a rise and its fall: free
+  bool fallOK = n + 1.0 <= budget;
   float ncLo, ncHi;
   if (dir > 0.0) { ncLo = C - th; ncHi = open >= 0.0 ? BIG : X + th; }
   else { ncLo = open >= 0.0 ? -BIG : X - th; ncHi = C + th; }
-  float pin;
-  if (held > 0.5) {
-    pin = r1.z;
-    float top = pin + bw, st = dr * u_dt;
-    if (b.want > top) pin += min(st, b.want - top);
-    else if (b.want < pin) pin -= min(st, pin - b.want);
-  } else pin = b.base - 0.5 * bw;
-  if (pin < ncLo) pin = ncLo;
+  b.held = true;
+  float lv = fallOK ? 1.0 : 2.0;
+  b.level = lv;
+  float pin = r1.z;
+  if (level < lv - 0.5 || sPrev < pin - 1.0e-5 || sPrev > pin + bw + 1.0e-5) pin = sPrev - 0.5 * bw;
+  float top = pin + bw;
+  if (b.want > top) pin += min(dr * u_dt, b.want - top);
+  else if (b.want < pin) pin -= min(drd * u_dt, pin - b.want);
+  bool runOnDown = dir < 0.0 && open >= 0.0, runOnUp = dir > 0.0 && open >= 0.0;
+  if (fallOK) {                              // PARTIAL: one transition left, kept for a fall
+    if (pin + bw > ncHi) pin = ncHi - bw;
+    b.pin = pin;
+    b.hhi = ncHi - eps;
+    b.hi = runOnUp ? b.hhi : min(pin + bw, b.hhi);
+    return b;
+  }
+  if (pin < ncLo) pin = ncLo;                // FULL: nothing may start; an open committed transition may run on
   if (pin + bw > ncHi) pin = ncHi - bw;
-  b.held = true; b.pin = pin;
+  b.pin = pin;
   b.hlo = ncLo + eps; b.hhi = ncHi - eps;
-  b.lo = max(pin, b.hlo); b.hi = min(pin + bw, b.hhi);
+  b.lo = runOnDown ? b.hlo : max(pin, b.hlo);
+  b.hi = runOnUp ? b.hhi : min(pin + bw, b.hhi);
   if (b.lo > b.hi) { float v = min(max(sPrev, b.hlo), b.hhi); b.lo = v; b.hi = v; }
   return b;
 }
@@ -203,7 +218,7 @@ const SOLVE_GLSL = `
 void project(int t, float lo, float hi) {
   int s = t & 1, w = t >> 1;
   float v = winVal(w, s);
-  if (v <= hi && v >= lo) return;
+  if (v <= hi + 1.0e-6 && v >= lo - 1.0e-6) return;
   bool down = v > hi;
   float margin = min(s == 0 ? 0.002 : 0.0006, 0.1 * (hi - lo));
   float target = down ? hi - margin : lo + margin;
@@ -241,8 +256,8 @@ float solve() {
     if (!BANDS[t].held) continue;
     float v = winVal(t >> 1, t & 1), p = texelFetch(u_state, ivec2(t, 0), 0).w;
     float lo = BANDS[t].hlo, hi = BANDS[t].hhi;
-    if (v > hi && p < v) beta = max(beta, (v - hi) / (v - p));
-    else if (v < lo && p > v) beta = max(beta, (lo - v) / (p - v));
+    if (v > hi + 1.0e-6 && p < v) beta = max(beta, (v - hi) / (v - p));
+    else if (v < lo - 1.0e-6 && p > v) beta = max(beta, (lo - v) / (p - v));
   }
   return min(1.0, beta);
 }
@@ -291,9 +306,9 @@ void main() {
       else { run = flashing ? run + u_dt : max(0.0, run - u_dt); if (run >= RUN_S) { rest = REST_S; run = 0.0; } }
       outColor = vec4(run, rest, g.z + 1.0, texelFetch(u_gain, ivec2(0, 0), 0).z);
     } else if (row == 1) {
-      float held = 0.0, leaks = 0.0;
-      for (int k = 0; k < u_nt; k++) { held += texelFetch(u_state, ivec2(k, 1), 0).y; leaks += texelFetch(u_state, ivec2(k, 3), 0).w; }
-      outColor = vec4(held, leaks, 0.0, 0.0);      // as they stood before this frame (receipts)
+      float held = 0.0, partial = 0.0, leaks = 0.0;
+      for (int k = 0; k < u_nt; k++) { float lvk = texelFetch(u_state, ivec2(k, 1), 0).y; held += lvk > 1.5 ? 1.0 : 0.0; partial += lvk > 0.5 && lvk < 1.5 ? 1.0 : 0.0; leaks += texelFetch(u_state, ivec2(k, 3), 0).w; }
+      outColor = vec4(held, leaks, partial, 0.0);  // as they stood before this frame (receipts): fully held, partial
     } else outColor = vec4(0.0);
     return;
   }
@@ -313,15 +328,15 @@ void main() {
   float v = vf + beta * (r0.w - vf);
   float dir = r0.x, X = r0.y, C = r0.z, open = r1.x;
   float th = s == 0 ? THV.x : THV.y, H = s == 0 ? HYV.x : HYV.y, NEAR = 0.5 * H;
-  bool doCommit = false;
+  bool doCommit = false, rise = false;
   if (dir == 0.0) { dir = 1.0; X = v; C = v; open = -1.0; }
   else if (dir > 0.0) {
-    if (v > C) { C = v; if (open >= 0.0) ring[int(open)] = 0.0; else if (v - X >= th) doCommit = true; }
+    if (v > C) { C = v; if (open >= 0.0) ring[int(open)] = 0.0; else if (v - X >= th) { doCommit = true; rise = true; } }
     else if (C - v >= H) { dir = -1.0; X = C; C = v; open = -1.0; if (X - v >= th) doCommit = true; }
     else if (C - v <= NEAR && open >= 0.0) ring[int(open)] = 0.0;
   } else {
     if (v < C) { C = v; if (open >= 0.0) ring[int(open)] = 0.0; else if (X - v >= th) doCommit = true; }
-    else if (v - C >= H) { dir = 1.0; X = C; C = v; open = -1.0; if (v - X >= th) doCommit = true; }
+    else if (v - C >= H) { dir = 1.0; X = C; C = v; open = -1.0; if (v - X >= th) { doCommit = true; rise = true; } }
     else if (v - C <= NEAR && open >= 0.0) ring[int(open)] = 0.0;
   }
   if (doCommit) {
@@ -330,11 +345,11 @@ void main() {
     ring[idx] = 0.0;
     open = float(idx);
     mask = mask & ~(1 << idx);
-    if (b.held) leaks += 1.0;
+    if (b.level > 1.5 || (b.level > 0.5 && rise)) leaks += 1.0;   // a transition the hold did not allow
   }
   if (open >= 0.0 && abs(C - X) >= (s == 0 ? THREST.x : THREST.y)) mask = mask | (1 << int(open));
   if (row == 0) outColor = vec4(dir, X, C, v);
-  else if (row == 1) outColor = vec4(open, b.held ? 1.0 : 0.0, b.pin, b.base);
+  else if (row == 1) outColor = vec4(open, b.level, b.pin, 0.0);
   else if (row == 2) outColor = vec4(ring[0], ring[1], ring[2], ring[3]);
   else if (row == 3) outColor = vec4(ring[4], ring[5], ring[6], leaks);
   else outColor = vec4(float(mask), 0.0, 0.0, 0.0);
@@ -356,6 +371,7 @@ void main() {
   int cx = px.x >= u_bx.w ? 3 : px.x >= u_bx.z ? 2 : px.x >= u_bx.y ? 1 : 0;
   int cy = px.y >= u_by.w ? 3 : px.y >= u_by.z ? 2 : px.y >= u_by.y ? 1 : 0;
   float fx = (float(px.x - u_bx[cx]) + 0.5) * u_ix[cx], fy = (float(px.y - u_by[cy]) + 0.5) * u_iy[cy];
+  fx = fx * fx * (3.0 - 2.0 * fx); fy = fy * fy * (3.0 - 2.0 * fy);   // the meter's smoothstep hats
   g00 = texelFetch(u_gain, ivec2(cx, cy), 0);
   vec4 g10 = texelFetch(u_gain, ivec2(cx + 1, cy), 0);
   vec4 g01 = texelFetch(u_gain, ivec2(cx, cy + 1), 0), g11 = texelFetch(u_gain, ivec2(cx + 1, cy + 1), 0);
@@ -557,7 +573,7 @@ export function createLimiter(gl, { preInternal = gl.RGBA8, preType = gl.UNSIGNE
       const tracker = (t) => { const o = []; for (let row = 0; row < TRACKER_ROWS; row++) for (let c = 0; c < 4; c++) o.push(st[(row * (NT + 1) + t) * 4 + c]); return o; };
       const trackers = []; for (let t = 0; t < NT; t++) trackers.push(tracker(t));
       const g0 = tracker(NT);
-      return { ready: true, compile_ms: compileMs, trackers, run: g0[0], rest: g0[1], frames: g0[2], beta: g0[3], held: g0[4], leaks: g0[5],
+      return { ready: true, compile_ms: compileMs, trackers, run: g0[0], rest: g0[1], frames: g0[2], beta: g0[3], held: g0[4], leaks: g0[5], partial: g0[6],
                a: Array.from({ length: 25 }, (_, i) => gn[i * 4]), k: Array.from({ length: 25 }, (_, i) => gn[i * 4 + 1]),
                betaNow: gn[2], cells: Array.from(ce) };
     },

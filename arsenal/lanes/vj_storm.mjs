@@ -462,22 +462,38 @@ async function main() {
         const seq = gen();
         await ev("window.__vj.limiterReset()");
         const gpu = await ev(`(() => { const seq = ${JSON.stringify(seq.map((c) => Array.from(c)))}; const out = [];
-          for (const c of seq) { const r = window.__vj.limiterCells(c, 1 / 60); out.push({ a: r.a, k: r.k, beta: r.betaNow, held: r.trackers.map((t) => t[5]), leaks: r.leaks }); }
+          for (const c of seq) { const r = window.__vj.limiterCells(c, 1 / 60); out.push({ a: r.a, k: r.k, beta: r.betaNow, held: r.trackers.map((t) => t[5]), leaks: r.leaks, trk: r.trackers }); }
           window.__vj.limiterReset(); return out; })()`);
         const model = new gate.FlashLimiter();
-        let maxA = 0, maxK = 0, maxB = 0, heldDiff = 0, heldFrames = 0, frames = 0;
+        let maxA = 0, maxK = 0, maxB = 0, heldDiff = 0, heldFrames = 0, frames = 0, first = null;
         for (let f = 0; f < seq.length; f++) {
           const m = model.step(seq[f], 1 / 60);
           const g = gpu[f];
           for (let i = 0; i < 25; i++) { maxA = Math.max(maxA, Math.abs(m.a[i] - g.a[i])); maxK = Math.max(maxK, Math.abs(m.k[i] - g.k[i])); }
           maxB = Math.max(maxB, Math.abs(m.beta - g.beta));
           let d = 0;
-          for (let t = 0; t < g.held.length; t++) { const mh = model.mode[t] === gate.MODE.HELD ? 1 : 0; if (mh !== Math.round(g.held[t])) d++; heldFrames += mh; }
+          // the first frame where any tracker's state differs by more than 1e-4 (an earlier, quieter divergence)
+          if (!first && g.trk) for (let t = 0; t < g.trk.length && !first; t++) for (let q = 0; q < gate.TRACKER_FLOATS && !first; q++) {
+            if (Math.abs(model.state[t * gate.TRACKER_FLOATS + q] - g.trk[t][q]) > 1e-4) first = { frame: f, tracker: t, field: q, kind: "state",
+              model: Array.from(model.state.slice(t * gate.TRACKER_FLOATS, (t + 1) * gate.TRACKER_FLOATS)).map((x) => +x.toFixed(6)),
+              gpu: g.trk[t].map((x) => +x.toFixed(6)), want: +model.want[t].toFixed(6), shown: +model.shown[t].toFixed(6),
+              lo: model.lo[t], hi: model.hi[t], level: model.level ? model.level[t] : null, a: Array.from(m.a).map((x) => +x.toFixed(5)), ga: g.a.map((x) => +x.toFixed(5)) };
+          }
+          for (let t = 0; t < g.held.length; t++) {
+            const mh = model.level ? model.level[t] : (model.mode[t] === gate.MODE.HELD ? 1 : 0);
+            if (mh !== Math.round(g.held[t])) {
+              d++;
+              // the first divergence, for the record: both twins' tracker state after that frame
+              if (!first) first = { frame: f, tracker: t, model: Array.from(model.state.slice(t * gate.TRACKER_FLOATS, (t + 1) * gate.TRACKER_FLOATS)).map((x) => +x.toFixed(5)),
+                                    gpu: g.trk[t].map((x) => +x.toFixed(5)), want: +model.want[t].toFixed(5), shown: +model.shown[t].toFixed(5) };
+            }
+            heldFrames += mh > 0 ? 1 : 0;
+          }
           if (d) heldDiff++;
           frames++;
         }
         const row = { sequence: name, frames, max_abs_gain: +maxA.toFixed(5), max_abs_lift: +maxK.toFixed(5), max_abs_beta: +maxB.toFixed(5),
-                      frames_with_held_mismatch: heldDiff, held_tracker_frames: heldFrames, model_leaks: model.leaks };
+                      frames_with_held_mismatch: heldDiff, held_tracker_frames: heldFrames, model_leaks: model.leaks, first_divergence: first };
         results.push(row);
         console.log(`[parity] ${name}: ${JSON.stringify(row)}`);
       }
