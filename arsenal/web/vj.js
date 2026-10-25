@@ -77,9 +77,9 @@ import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output 
 // Lasers v2 (2026-10-25): the laser engine (pad 2), the colour themes (fader 1, the family tabs, key auto) and the pure
 // hook-up between them and the page (the clock, the beam records, the head bus, the tap pads, the gate dial, Custom)
 import { createLaserEngine, SEG_TEXELS, MAX_SEGMENTS, SEG_FLOATS, HALO_CUTOFF_PX, TIER_LED, catalogue as laserCatalogue } from "./vj-lasers.js";
-import { fetchLibrary, ThemeDirector, themeAtFader, faderCentre, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
+import { fetchLibrary, ThemeDirector, themeAtFader, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
          clockFromBeatClock as themeClockOf, customTurnFromFader } from "./vj-themes.js";
-import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, GateDial, GATE_DIAL, gateLabel,
+import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, GateDial, gateLabel,
          customLaserTheme, standInLed, capHue } from "./vj-hookup.js";
 
 // --------------------------------------------------------------------------------------------------- constants --
@@ -696,6 +696,7 @@ const lasers = {
   packed: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), n: 0, heroOnly: false,
   bus: new Float32Array(24), busOn: false,
   gain: 1, cut: false, dampT: null,          // Choke cuts the beams until the next hit; Dampen fades them
+  pinned: false,                             // P: every hit repeats the last one (vj-lasers.js pin)
   hits: 0, refused: 0, last: null, pad: 0, held: false,
   frames: 0, litFrames: 0, over: 0, maxWindow: 0, maxFrame: 0, pulses: 0, flashes: 0,
   out: null, themeId: "", log: [],
@@ -2682,6 +2683,7 @@ function updateHud(nowMs) {
   if (!options.lasersClassic) {
     if (lo && lo.n) lz += ` · ${lo.tier || "-"} ${lo.gate} · ${lo.pattern} · bank ${lo.bank} · ${lo.order} · ${lo.colour}`;
     if (options.vibrate) lz += " · vibrate";
+    if (lasers.pinned) lz += " · pinned";
     if (lo) lz += ` · change ${(100 * lo.area.window).toFixed(1)} % of a window`;
     if (lasers.heroOnly) lz += " · heads drawn by the scene";
   }
@@ -2983,6 +2985,8 @@ function wireUi() {
         lasers.dial.turn({ id: "key", kind: "rel", value: 0.5, delta: e.code === "BracketRight" ? 1 : -1 }, -1e9);
         laserGate(); toast(`laser gate: ${gateLabel(lasers.dial.gate)}`); break;
       case "Backslash": lasers.dial.auto(); laserGate(); toast("laser gate: AUTO"); break;
+      case "KeyP": lasers.pinned = !lasers.pinned; lasers.eng.pin(lasers.pinned);   // spec 1.8: repeat the last hit exactly
+        toast(lasers.pinned ? "lasers pinned: every hit repeats the last one" : "lasers unpinned"); break;
       case "Escape": if (learnTarget) { learnTarget = null; renderTargets(); } else togglePanel(false); break;
       default: return;
     }
@@ -3126,6 +3130,7 @@ window.__vj = {
     if (typeof o.vibrate === "boolean") setVibrate(o.vibrate);
     if (typeof o.classic === "boolean") setLasersClassic(o.classic);
     if (typeof o.gate === "string") { lasers.dial.set(o.gate); laserGate(); }
+    if (typeof o.bank === "string") lasers.eng.set({ bankMode: o.bank });
     return { gate: lasers.dial.gate, vibrate: options.vibrate, classic: options.lasersClassic };
   },
   // the beam layer as drawn this frame: pixels lit (relative luminance >= 0.02), the brightest, the mean (a GPU readback)

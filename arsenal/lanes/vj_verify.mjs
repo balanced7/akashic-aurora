@@ -578,6 +578,9 @@ try {
       const ctl = (id, value, kind = "abs", delta = 0) => vj.event({ t: "ctl", id, kind, value, delta, port: "daw" });
       const out = { tiers: [], dial: {}, theme: {}, tap: {}, cathedral: {}, leds: {} };
       step(150);                                       // the grid settles: the engine's beats for 2.5 s
+      // one bank for the tier presses: in "call" mode bank B answers every pulse half a beat later (more pulses, off the
+      // gate's own grid by design), which the engine's own tests cover; here each hit's gate is counted and timed alone
+      vj.laser({ bank: "A" });
       // to just before a beat: the next whole beat of the page grid 40 ms (a hand a little early) after the press
       const toBeat = () => { for (let g = 0; g < 60; g++) { const p = st().clock.pos; if (p !== null) { const left = (Math.ceil(p) - p) * per; if (left >= 40 && left < 40 + F) return left; } step(1); } return null; };
       // pad 2 at the three velocity tiers, each a burst (more than a bar after the last press)
@@ -602,6 +605,7 @@ try {
         out.tiers.push({ vel, lead_ms: lead, gate: last.gate, tier: last.tier, pattern: last.pattern, pulses: st().lasers.pulses - p0,
                          pulse_frames: pulses, beam_pixels_lit: maxLit, beam_records: maxBeamRecords });
       }
+      vj.laser({ bank: "auto" });
       // the dial: one detent to Single, two more to Triple; a hard press then fires the dial's gate; the click is AUTO
       step(240);
       ctl("cc116", 0.5, "rel", 1); step(6);
@@ -699,8 +703,11 @@ try {
   send({ t: "chord", src: "keys", name: "Dbmaj7", root: 1, quality: "maj7", pcs: [1, 5, 8, 0], changed: true });
   for (const k of [49, 65, 68, 72]) send({ t: "note", key: k, vel: 0.7, on: true });
   send({ t: "hit", strength: 0.9, band: "kick" });
+  const framesAtSend = (await stats()).frames;
   send({ t: "pad", pad: 2, vel: 0.9, on: true, src: "bank" });
   await delay(150);
+  // the stars are counted when the page draws a frame: at SwiftShader's 5-10 frames a second, wait for two after the send
+  try { await waitFor(async () => (await stats()).frames >= framesAtSend + 2, 5000, "two frames after the events"); } catch { /* judged below */ }
   st = await stats();
   report.engine_contract.after_events = { hello: st.engine.hello, chord: st.chord, stars: st.stars, beats: st.beats, bpm: st.bpm,
                                           effects: st.effects.map((e) => `${e.type}@${e.pad}:${e.vel}`), laser: st.lasers.last };

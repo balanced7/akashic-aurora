@@ -270,3 +270,62 @@ passes. The gate still decides which flashes are asked for at all; gate v2 only 
   limiter, 54.4 / 54.6 ms with only its last pass bypassed (+12 %), 52.6 / 53.5 for the impact pass as merged, 44.9 /
   46.4 for master (the impact pass's own layers are most of the rest). On a GPU it is a few small passes and two
   full-frame ones; not measured here (the house runs no GPU receipts).
+
+## Lasers v2 and the colour themes on the page (2026-10-25)
+
+Daniel: "for the lasers perhaps we can do a triple strobe, or a one two flicker, it could be timed to the bpm of the
+track ... we can also alternate which lasers fire as well as have multi color bursts. I want there to be a lot of variety
+and strong color themes", and on 2026-10-25: "I am really curious to see what we have so far!" The build spec is
+`research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-2026-10-24.md` (slices S2, S4, S5); his
+calls are `daniel-calls-2026-10-25.md`. The laser engine (`arsenal/web/vj-lasers.js`), the themes (`vj-themes.js`) and the
+engine clock (`beatgrid.py`) were built and verified in their own lanes; this is the hook-up (`arsenal/web/vj-hookup.js`,
+pure, `tests/vj_hookup.test.mjs`; `vj.js`; `vj-core.js`).
+
+- **Pad 2 is Lasers v2.** A hit is dealt by the laser engine: pattern, head order, colour split, bank and start head from
+  shuffled decks. The retrigger tiers count beats since the last press: more than a bar, one burst; within a bar, one tier
+  up (the third press a crown, starburst or bloom from the hero, at most one in six); within a beat, a one-two flicker; an
+  eighth or faster, a roll locked to the grid; held, the section's loop. The velocity tiers (Daniel: "4. option 1!"): soft
+  single, medium one-two, hard triple (one in four a triplet triple). Every pulse is computed from the page grid.
+- **The dial picks the gate** (Daniel: "the dial becomes the laser gate picker"): each detent one step through AUTO and the
+  engine's 15 gates (Single, One-Two, Triple, Triplet, Bar Marker, "t t tou blur blur flash", the 1/8 and 1/16 rolls,
+  Stutter, Military, Push-Pull, Reverse-Bass, Doubling, Stop-Short, Inhale), at most one step per 60 ms; its click is AUTO.
+  `[` / `]` and `\` on the keyboard do the same; `P` pins the last hit (every press repeats it). **Vibrate** (the beams ring like plucked strings): `V`, the panel, or any
+  button by learn (the spec names no button for it). **Lasers: classic** (`C`, the panel): pad 2 fires today's burst
+  exactly; the old path is kept whole.
+- **The beam layer** draws the engine's records (two RGBA32F texels each) every frame with the overlay's light model (the
+  aaWire core whitened by its heat, the Lorentzian halo windowed off at 48 px, the fade along a beam, a ringing beam bent
+  by its three coefficients, a figure's light once from its nearest piece) and no feedback, so a gate's gaps are dark. It
+  is added in the composite at the screen's own place (the scene punches and shakes behind it) and only ever scaled down
+  (the accent fader capped at 1, Dampen fades it in ~60 ms, Choke cuts it until the next hit, Kill fades it with
+  everything). Gate v2 judges the frame after it, like every layer.
+- **The Laser Cathedral draws its own heads** (header tag `laser-heads`): the strip's head bus (STRIP v3: row 2 texel 9
+  .yzw = pattern, step phase, solo; row 3 texels 12-14 = the 12 pad-grid heads as colour slot + level; row 2 texels 13-14 =
+  L1 and L2 with the beam count and spread), each head in the colour it drew (L1, L2 or white), its idle beams dipped to
+  the solo level and its trails shortened while a gate runs; the beam layer then draws only the hero head. Converge aims at
+  the centre and Rain straight down; the other patterns keep the Cathedral's scissors.
+- **The page grid** (S2, `vj-core.js` BeatClock, `tests/vj_page_clock.test.mjs`): a continuous beat position. A beat a
+  little off the grid slews (the next beat stretched by at most 10 %, never backward), more than a quarter beat or a new
+  `ver` (the engine's hard re-anchor) re-anchors at that beat and flushes the old version's queued beats, and the engine's
+  bar (with `--tap-one`) puts the ONE on a multiple of 4.
+- **Themes.** Fader 1 is the theme fader (21 themes in colour-wheel order, Custom at the top; a pick lands after 150 ms of
+  rest on the next bar, or the next beat when no bar is known); fader 2 is the hue drift (+-15 degrees inside a theme,
+  centre = as designed). Custom is the palette of before: Hue A and Hue B (in the panel, or learned), turned together by
+  fader 2. The family tabs are F1-F8 on the keyboard (ritual, fire, celestial, night, green, pyro, worship, line) or any
+  buttons by learn (the buttons under the screen are inferred, so none is bound). Key auto (on by default): chordsense's key once it is sure (0.6) and steady
+  for 8 bars, and the song database's key on a new track once the engine's track event carries one (its `key_db` is
+  reserved: no key is read from the database yet); a pick of yours wins until the next track. A theme sets the scene's four palette stops, the kick glow, the lasers' colours (a hit keeps
+  the colours it was fitted to) and the pads; while the audio names the chords the chord colour is a hue nudge of at most
+  15 degrees. A big hue jump (or a theme that asks) dips through black for 240 ms on the change.
+- **The pads get LED stand-ins**, never screen colours: each theme's own (Custom's made from its hues); pad 2 in the
+  lasers' stand-in with the tier as brightness (60 / 80 / 100 %); Choke in #ff3c00; a tap pad white, blinking on the beat
+  and brighter on the ONE. Every posted colour passes `vj-themes.js ledPostedOk`.
+- **Tap is tempo for the visuals only** (Daniel: "only tempo for vfx"). The engine's default launch taps on the Tap button
+  (DAW CC 23) AND pad 12 (`--tap daw:cc23,daw:pad12`), the first tap of a run is the ONE (`--tap-one`, now the default;
+  `--no-tap-one` drops it). The hello names the tap controls (`"tap"`, `"tap_one"`), and the page fires no effect for a pad
+  that taps (the bank's pad 12, and the keyboard's `=`, still fire the Zoom punch).
+- **Rewind / Fast forward** step the sets through one path: the DAW port's CC 25 / 26 go to `SceneControl` (on the press,
+  never the release; a held button repeating 127 moves once; a bounce inside 160 ms is one press). The keys input's same
+  numbers reach the control map like any control, and `?transport=off` hands the DAW port's back to it too, unbound (the
+  control map no longer binds them). The scene dial and its click are learnable actions now.
+- **Stored control maps** carry a version (`{ v: 2, map }`); a map stored before (a bare object) that still holds an old
+  default (Hue A on fader 1, Hue B on fader 2, the scene dial) takes the new one, and every control you learned stays.
