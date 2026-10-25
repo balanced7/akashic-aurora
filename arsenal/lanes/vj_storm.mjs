@@ -1,47 +1,50 @@
 // VJ storm receipt: pad storms on a 60 fps VIRTUAL clock, the frames as the viewer gets them, and flashes counted the way
-// the 2026-10-24 adversarial verifier counted them. In a private headless Chrome forced onto SwiftShader (the CPU: this
-// host's AMD driver has a crash history, so no frame here is ever drawn on the GPU), under the house GPU lock, in bursts
-// under three minutes with the lock released between them.
+// the adversarial verifiers counted them -- in windows the limiter does NOT use. In a private headless Chrome forced onto
+// SwiftShader (the CPU: this host's AMD driver has a crash history, so no frame here is ever drawn on the GPU), under
+// the house GPU lock, in bursts under three minutes with the lock released between them.
 //
-//   node arsenal/lanes/vj_storm.mjs [--web <dir>] [--label L] [--sets id,id] [--scenarios a,b] [--seconds 10]
-//                                   [--phases storm,calm,parity,bench] [--port 8975] [--out <dir>] [--lock-dir <dir>]
+//   node arsenal/lanes/vj_storm.mjs [--web <dir>] [--label L] [--phases storm,safe,cpu,adv,hires,calm,parity,meter,bench]
+//                                   [--sets id,id] [--scenarios a,b] [--seconds 10] [--width 640 --height 360]
+//                                   [--hires 1280x720,1920x1080] [--port 8975] [--out <dir>] [--lock-dir <dir>]
 //
-// WHY. The impact pass (2026-10-24) made every hit throw light that never asks the FlashGate (the punch, the set's own
-// reaction, the overlay, the glitch). The verifier measured pad storms on a virtual clock and found up to about 6.5
-// flashes a second (8.5 in one-shot storms), where the gate alone keeps about 3. The real-clock storm in vj_verify had
-// missed it: SwiftShader's slow frames stretch a storm and it counted rises only. This receipt is the replacement: every
-// frame is one 60 Hz step, so a storm of 15 hits a second is exactly that, and pairs of swings are counted, not rises.
-//
-// HOW. The vj page loads with an init script that replaces performance.now and requestAnimationFrame (vj_impact's
-// virtual clock): a frame is drawn only when the receipt steps the clock by 1000/60 ms. Each frame the receipt reads the
-// canvas (the frame the viewer gets: after every layer and after gate v2) and keeps, per cell of a 4 x 4 grid, the mean
-// relative luminance (sRGB-decoded, WCAG weights) and the mean WCAG red quantity (max(0, R - G - B) x 320 over pixels
-// with R / (R + G + B) >= 0.8). From those it builds 18 windows of a quarter of the screen or more (the whole frame, the
-// nine 2 x 2 blocks -- the four quadrants among them -- the four rows, the four columns) and counts flashes in each with
-// the verifier's counter, kept verbatim below: turning points with a hysteresis of 0.02, a transition is a swing of 0.1 or
-// more between turning points whose darker end is under 0.8, counted at its later turning point; flashes in a second =
-// transitions in that second / 2. Red: hysteresis 2, swing 20 (on the x320 scale), darker end under 0.8.
-// THE SCENARIOS (presses hard, a seeded pick; one-shots held 4 frames, holdables 18-48):
-//   invert10   pad 11 (Invert) held throughout, hard hits at 10 a second on pads 1, 2, 4, 6, 7, 12
-//   oneshots15 pads 1, 2, 4, 12 at 15 a second          oneshots5   the same at 5 a second
-//   nozoom15   pads 1, 2, 4 at 15 a second             all12       all 12 pads, a hit every 3 frames (20 a second)
-//   flashedge  pad 3 (the white flash) every 3 frames: the gate grants it at exactly its own limit, a third of a second
-//              apart, the edge where the shader blanks the flash (envFlashSafe) and the dip used to ride without it
-//   flash24    pad 3 every 24 frames (2.5 a second): granted flashes the shader shows at half strength
-// THE VERDICT: on every set and scenario, at most 3 flashes in any second in every window, at most 3 red flashes, and no
-// flashing run (every trailing second holding a flash) longer than gate v2's rest allows (5 s, plus 1.2 s of counting).
-// THE PARITY PHASE feeds the page's GPU limiter and its JS twin (vj-gate.js FlashLimiter) the same synthetic cell sums
-// frame by frame and compares the gains, the fallback blend and the trackers' held flags.
-// THE CALM PHASE plays each set under the page's own demo music (beats, chords, energy; no pads) for twice --seconds and
-// reads the limiter's state back every 15 frames: under music alone a set should flash at most 3 times a second in every
-// window (the verdict) and gate v2 should not need to hold it at all (reported: samples held, samples resting).
-// THE BENCH PHASE times the limiter's passes on the real clock (each stage fenced by a one-pixel readPixels: meter,
-// decide, apply, blit) against the plain copy to the canvas they replace.
-// Writes state/arsenal/receipts/vj-storm-<label>-<stamp>/receipt.json; exits 1 when the verdict fails. vj_verify runs the
-// same storms (fewer frames) through runStormInPage.
+// WHY. 2026-10-24: the impact pass threw light that never asks the FlashGate; a verifier counted up to 6.5 flashes a
+// second in pad storms. Gate v2 (the final-output limiter) was built, and this receipt certified it with 28 of 28 storms
+// passing. 2026-10-25, the round-2 verifier: the receipt had certified the limiter with the limiter's OWN geometry (the
+// same 18 windows of a 4 x 4 grid it controls), only at 640 x 360, only with the limiter running, and only on the pads'
+// own content. A quarter-screen rectangle off that grid flashed 8.5 times a second; 1-px lines flickered the whole frame
+// at 10 a second at 1280 x 720 (the meter skipped every second column); without its limiter the page put 9 flashes a
+// second on the screen. So now:
+//   WINDOWS   flashes are counted on a 64 x 36 measuring grid of the canvas (exact pixel means), in every rectangle of a
+//             quarter of the screen or more of twelve shapes (16:9, columns, strips, squares, in between) at EVERY offset of
+//             that grid (4726 windows; the limiter's own grid is 8 x 8, so almost none of these is one of its windows),
+//             plus the whole frame. Luminance and the WCAG red quantity, each counted two ways: transitions in any second
+//             (/ 2 = flashes) and strict pairs of opposing transitions.
+//   SIZES     the storms at --width x --height (640 x 360 by default) and, in the hires phase, at show sizes (1280 x 720
+//             and 1920 x 1080 by default).
+//   MODES     the limiter deciding on the GPU (the default), deciding on the CPU (?limiter=cpu: the JS twin on cell sums
+//             read back, the page's fallback when the GPU decision cannot link), handing over from the CPU to the GPU
+//             mid-storm (?limiter=late: as a slow compile on a real GPU would) and absent (?limiter=off: the page's safe
+//             mode, which refuses every pad effect and cuts scenes at most once a second as crossfades).
+//   CONTENT   the pads' own storms (the scenarios below), the look at full under a storm, set cuts, and adversarial
+//             presets this receipt serves itself (never committed as presets): a rectangle of 25.6 % off the grid
+//             flickering at 8 Hz (dim and bright), 1-px lines on odd columns at 10 Hz, a 3 x 3 checkerboard and a 3 x 6
+//             checkerboard off the grid in anti-phase, a red flicker, a red / grey swap.
+// THE COUNTER (the 2026-10-24 verifier's, kept verbatim below): turning points with a hysteresis of 0.02, a transition is
+// a swing of 0.1 or more between turning points whose darker end is under 0.8, counted at its later turning point.
+// Red: hysteresis 2, swing 20 (on the x 320 scale), no darker-end exemption (any change to or from saturated red counts).
+// THE VERDICT, per run: in every window at most 6 transitions in any second (3 flashes) and at most 3 strict pairs, the
+// same for red, no flashing run (every trailing second holding two flashes) longer than gate v2's rest allows (5 s, plus
+// 1.2 s of counting), the limiter in the mode asked for (or, in the safe mode, absent and refusing pads), no page error.
+// THE OTHER PHASES. calm: each set under the page's own demo music, no pads (should never need holding). parity: the
+// page's GPU decision against its JS twin (vj-gate.js FlashLimiter) on the same synthetic cell sums, frame by frame.
+// meter: the limiter's cells against the canvas's own pixels, every pixel, at every size (1-px lines on odd columns: a
+// meter that skips pixels misses them). bench: the limiter's stages, fenced, at every size. frametime: whole frames
+// against other builds (--compare-webs label=dir,...).
+// Writes state/arsenal/receipts/vj-storm-<label>-<stamp>/receipt.json; exits 1 when the verdict fails. vj_verify runs a
+// shorter set of these storms through runStormInPage.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -54,8 +57,8 @@ const REPO = fileURLToPath(new URL("../..", import.meta.url));
 
 // ------------------------------------------------------------------------- the verifier's counter, verbatim --
 // (arsenal/lanes/vj_adv.mjs of the 2026-10-24 verifier: transitions between successive local extremes, hysteresis 0.02,
-// |delta| >= 0.1 and the darker end < 0.8; maxInWindow over the transitions' frame times)
-export function transitions(L, hyst = 0.02, thr = 0.1) {
+// |delta| >= 0.1 and the darker end < 0.8; red with no darker-end exemption, as the round-1 verifier counted it)
+export function transitions(L, hyst = 0.02, thr = 0.1, dark = 0.8) {
   const ext = []; let dir = 0; let hi = { i: 0, v: L[0] }, lo = { i: 0, v: L[0] }, cand = null;
   for (let i = 1; i < L.length; i++) {
     const v = L[i];
@@ -71,82 +74,88 @@ export function transitions(L, hyst = 0.02, thr = 0.1) {
   }
   if (cand) ext.push(cand);
   const tr = [];
-  for (let k = 1; k < ext.length; k++) { const a = ext[k - 1], b = ext[k]; const d = b.v - a.v; if (Math.abs(d) >= thr && Math.min(a.v, b.v) < 0.8) tr.push({ from: a.i, at: b.i, d: +d.toFixed(4) }); }
+  for (let k = 1; k < ext.length; k++) { const a = ext[k - 1], b = ext[k]; const d = b.v - a.v; if (Math.abs(d) >= thr && Math.min(a.v, b.v) < dark) tr.push({ from: a.i, at: b.i, d: +d.toFixed(4) }); }
   return tr;
 }
-export function maxInWindow(times, win) { let best = 0; for (let i = 0; i < times.length; i++) { let n = 0; for (let j = i; j < times.length && times[j] - times[i] < win; j++) n++; best = Math.max(best, n); } return best; }
+// the most transitions (by the frame of their end) inside any second: frames i..j with j - i < 60
+export function maxIn1s(at, win = 60) { let best = 0, bi = -1; for (let i = 0, j = 0; i < at.length; i++) { while (at[i] - at[j] >= win) j++; if (i - j + 1 > best) { best = i - j + 1; bi = at[j]; } } return { n: best, at: bi }; }
+// strict flashes: pairs of OPPOSING transitions, paired greedily in time order, the most inside any second
+export function pairsIn1s(tr, win = 60) { let best = 0; for (let j = 0; j < tr.length; j++) { let pend = 0, n = 0; for (let i = j; i < tr.length && tr[i].at - tr[j].at < win; i++) { const sg = Math.sign(tr[i].d); if (pend === 0) pend = sg; else if (sg !== pend) { n++; pend = 0; } else pend = sg; } best = Math.max(best, n); } return best; }
+// the longest run of frames whose trailing second holds at least k transitions (k = 4: two flashes a second), seconds
+export function longestRun(at, frames, k = 4) { let run = 0, best = 0, j = 0, i = 0; for (let f = 0; f < frames; f++) { while (i < at.length && at[i] <= f) i++; while (j < i && f - at[j] >= 60) j++; run = i - j >= k ? run + 1 : 0; best = Math.max(best, run); } return best / 60; }
 
-// The windows (cell rectangles [x0, y0, x1, y1] of the 4 x 4 grid, inclusive): the same family gate v2 limits, built
-// here on their own so the receipt does not lean on the code it judges.
+// ------------------------------------------------------------------------------------------- the windows --
+// The measuring grid: 64 x 36 cells of the canvas (exact pixel means). The limiter meters 8 x 8 cells; these windows are
+// built here on their own, so the receipt does not lean on the code it judges.
+export const MEAS = Object.freeze({ GX: 64, GY: 36 });
+export const STORM_SHAPES = Object.freeze([[32, 18], [16, 36], [64, 9], [48, 12], [24, 24], [40, 15], [20, 29], [56, 11],
+                                           [28, 21], [36, 16], [18, 32], [44, 14]]);
 export const STORM_WINDOWS = (() => {
-  const w = [{ id: "full", r: [0, 0, 3, 3] }];
-  for (let by = 0; by < 3; by++) for (let bx = 0; bx < 3; bx++) w.push({ id: `block${bx}${by}`, r: [bx, by, bx + 1, by + 1] });
-  for (let r = 0; r < 4; r++) w.push({ id: `row${r}`, r: [0, r, 3, r] });
-  for (let c = 0; c < 4; c++) w.push({ id: `col${c}`, r: [c, 0, c, 3] });
-  return w;
+  const out = [{ id: "full", x: 0, y: 0, w: MEAS.GX, h: MEAS.GY }];
+  for (const [w, h] of STORM_SHAPES) {
+    if (w * h * 4 < MEAS.GX * MEAS.GY) throw new Error(`window shape ${w}x${h} is under a quarter of the screen`);
+    for (let y = 0; y + h <= MEAS.GY; y++) for (let x = 0; x + w <= MEAS.GX; x++) out.push({ id: `${w}x${h}@${x},${y}`, x, y, w, h });
+  }
+  return Object.freeze(out);
 })();
-const QUADRANTS = ["block00", "block20", "block02", "block22"];
-
-// Flashes in one window's series (per frame, 60 fps).
-function countSeries(L, hyst, thr) {
-  const tr = transitions(L, hyst, thr);
-  const t = tr.map((x) => x.at / 60);
-  const maxTr = maxInWindow(t, 1);
-  // the longest flashing run: consecutive frames whose trailing second holds at least two flashes (four transitions),
-  // the flashing that ITU-R BT.1702 warns about past ~5 s and gate v2 rests after
-  let run = 0, best = 0, j = 0;
-  for (let f = 0; f < L.length; f++) {
-    while (j < t.length && t[j] <= f / 60) j++;
-    let n = 0;
-    for (let q = j - 1; q >= 0 && f / 60 - t[q] < 1; q--) n++;
-    run = n >= 4 ? run + 1 / 60 : 0;
-    best = Math.max(best, run);
-  }
-  let bi = 0, bn = 0;
-  for (let i = 0; i < t.length; i++) { let n = 0; for (let k = i; k < t.length && t[k] - t[i] < 1; k++) n++; if (n > bn) { bn = n; bi = i; } }
-  return { transitions: tr.length, max_transitions_in_1s: maxTr, max_flashes_in_1s: maxTr / 2, longest_run_s: +best.toFixed(3),
-           densest: tr.slice(bi, bi + bn) };
-}
-// Judge one storm: cells = { L: [frame][16], R: [frame][16], N: [16] (pixels per cell) }.
+const QUADRANTS = ["32x18@0,0", "32x18@32,0", "32x18@0,18", "32x18@32,18"];
 export const RUN_LIMIT_S = 6.2;           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
-export function judgeStorm(cells) {
-  const frames = cells.L.length;
-  const series = (key, r) => {
-    const out = new Float64Array(frames);
-    let n = 0;
-    for (let cy = r[1]; cy <= r[3]; cy++) for (let cx = r[0]; cx <= r[2]; cx++) n += cells.N[cy * 4 + cx];
-    for (let f = 0; f < frames; f++) {
-      let s = 0;
-      for (let cy = r[1]; cy <= r[3]; cy++) for (let cx = r[0]; cx <= r[2]; cx++) s += cells[key][f][cy * 4 + cx] * cells.N[cy * 4 + cx];
-      out[f] = s / n;
+
+// Judge one run: m = { frames, L: Uint16Array(frames x 2304) (mean luminance x 65535), R: Uint16Array (mean red / 320 x
+// 65535), N: Float64Array(2304) (pixels per cell) }. Window series from per-frame prefix sums of (mean x pixels).
+export function judgeStorm(m) {
+  const { frames, N } = m, GX = MEAS.GX, GY = MEAS.GY, NC = GX * GY, W1 = GX + 1;
+  const PL = new Float64Array(frames * W1 * (GY + 1)), PR = new Float64Array(frames * W1 * (GY + 1)), PN = new Float64Array(W1 * (GY + 1));
+  for (let y = 0; y < GY; y++) { let row = 0; for (let x = 0; x < GX; x++) { row += N[y * GX + x]; PN[(y + 1) * W1 + x + 1] = PN[y * W1 + x + 1] + row; } }
+  for (let f = 0; f < frames; f++) {
+    const o = f * W1 * (GY + 1), c0 = f * NC;
+    for (let y = 0; y < GY; y++) {
+      let rl = 0, rr = 0;
+      for (let x = 0; x < GX; x++) {
+        const c = y * GX + x, n = N[c];
+        rl += (m.L[c0 + c] / 65535) * n; rr += (m.R[c0 + c] / 65535) * 320 * n;
+        PL[o + (y + 1) * W1 + x + 1] = PL[o + y * W1 + x + 1] + rl;
+        PR[o + (y + 1) * W1 + x + 1] = PR[o + y * W1 + x + 1] + rr;
+      }
     }
-    return Array.from(out);
-  };
-  const windows = {};
-  let worst = null, worstRed = null, longest = 0;
-  for (const w of STORM_WINDOWS) {
-    const L = series("L", w.r), R = series("R", w.r);
-    const lum = countSeries(L, 0.02, 0.1), red = countSeries(R, 2, 20);
-    windows[w.id] = { lum: { ...lum, densest: undefined }, red: { transitions: red.transitions, max_flashes_in_1s: red.max_flashes_in_1s },
-                      L_min: +Math.min(...L).toFixed(4), L_max: +Math.max(...L).toFixed(4), red_max: +Math.max(...R).toFixed(3) };
-    if (!worst || lum.max_flashes_in_1s > worst.max_flashes_in_1s) worst = { window: w.id, ...lum };
-    if (!worstRed || red.max_flashes_in_1s > worstRed.max_flashes_in_1s) worstRed = { window: w.id, max_flashes_in_1s: red.max_flashes_in_1s, transitions: red.transitions };
-    longest = Math.max(longest, lum.longest_run_s, red.longest_run_s);
   }
-  const full = windows.full;
+  const rect = (P, o, w) => P[o + (w.y + w.h) * W1 + w.x + w.w] - P[o + w.y * W1 + w.x + w.w] - P[o + (w.y + w.h) * W1 + w.x] + P[o + w.y * W1 + w.x];
+  const L = new Float64Array(frames), R = new Float64Array(frames);
+  let worst = { n: -1 }, worstP = { n: -1 }, worstR = { n: -1 }, worstRP = { n: -1 }, run = { s: -1 };
+  const keep = {};
+  let full = null;
+  for (const w of STORM_WINDOWS) {
+    const n = rect(PN, 0, w);
+    for (let f = 0; f < frames; f++) { const o = f * W1 * (GY + 1); L[f] = rect(PL, o, w) / n; R[f] = rect(PR, o, w) / n; }
+    const tr = transitions(L), trR = transitions(R, 2, 20, Infinity);
+    const at = tr.map((t) => t.at), atR = trR.map((t) => t.at);
+    const mx = maxIn1s(at), mr = maxIn1s(atR), pp = pairsIn1s(tr), pr = pairsIn1s(trR);
+    const rs = Math.max(longestRun(at, frames), longestRun(atR, frames));
+    if (mx.n > worst.n) worst = { n: mx.n, at: mx.at, window: w.id, total: tr.length, densest: tr.filter((t) => t.at >= mx.at && t.at - mx.at < 60) };
+    if (pp > worstP.n) worstP = { n: pp, window: w.id };
+    if (mr.n > worstR.n) worstR = { n: mr.n, at: mr.at, window: w.id, total: trR.length };
+    if (pr > worstRP.n) worstRP = { n: pr, window: w.id };
+    if (rs > run.s) run = { s: rs, window: w.id };
+    if (w.id === "full" || QUADRANTS.includes(w.id)) keep[w.id] = { max_transitions_in_1s: mx.n, transitions: tr.length, pairs: pp, red_max_transitions_in_1s: mr.n };
+    if (w.id === "full") { let lo = Infinity, hi = -Infinity, sum = 0; for (let f = 0; f < frames; f++) { lo = Math.min(lo, L[f]); hi = Math.max(hi, L[f]); sum += L[f]; } full = { L_min: +lo.toFixed(4), L_max: +hi.toFixed(4), L_mean: +(sum / frames).toFixed(4) }; }
+  }
+  const pass = worst.n <= 6 && worstP.n <= 3 && worstR.n <= 6 && worstRP.n <= 3 && run.s <= RUN_LIMIT_S;
   return {
-    frames, full_max_flashes_in_1s: full.lum.max_flashes_in_1s, full_transitions: full.lum.transitions,
-    quadrant_max_flashes_in_1s: QUADRANTS.map((q) => windows[q].lum.max_flashes_in_1s),
-    worst_window: worst.window, max_flashes_in_1s: worst.max_flashes_in_1s, densest: worst.densest,
-    red_worst_window: worstRed.window, red_max_flashes_in_1s: worstRed.max_flashes_in_1s, longest_run_s: +longest.toFixed(3),
-    L_full_min: full.L_min, L_full_max: full.L_max, windows,
-    pass: worst.max_flashes_in_1s <= 3 && worstRed.max_flashes_in_1s <= 3 && longest <= RUN_LIMIT_S,
+    frames, windows: STORM_WINDOWS.length,
+    full_max_flashes_in_1s: keep.full.max_transitions_in_1s / 2, full_transitions: keep.full.transitions,
+    quadrant_max_flashes_in_1s: QUADRANTS.map((q) => keep[q].max_transitions_in_1s / 2),
+    max_transitions_in_1s: worst.n, max_flashes_in_1s: worst.n / 2, worst_window: worst.window, worst_at_frame: worst.at,
+    densest: worst.densest, max_pairs_in_1s: worstP.n, worst_pairs_window: worstP.window,
+    red_max_transitions_in_1s: worstR.n, red_max_flashes_in_1s: worstR.n / 2, red_worst_window: worstR.window,
+    red_max_pairs_in_1s: worstRP.n, longest_run_s: +run.s.toFixed(3), longest_run_window: run.window,
+    ...full, pass,
   };
 }
 
-// ------------------------------------------------------------------------------------------------ the storms --
+// ------------------------------------------------------------------------------------------- the storms --
 function lcg(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 const HOLDABLE = new Set([5, 6, 7, 8, 11]);
+// name: [what it is, how many sets the page needs (cuts), the adversarial preset it plays instead of the set (or null)]
 export const SCENARIOS = Object.freeze({
   invert10: "pad 11 Invert held; hard hits at 10/s on pads 1,2,4,6,7,12",
   oneshots15: "pads 1,2,4,12 hard at 15/s",
@@ -155,7 +164,34 @@ export const SCENARIOS = Object.freeze({
   all12: "all 12 pads hard, a hit every 3 frames (20/s)",
   flashedge: "pad 3 white flash every 3 frames: the gate grants it at its own edge (1/3 s apart)",
   flash24: "pad 3 white flash every 24 frames (2.5/s)",
+  lasglitch: "pads 2 (laser) and 4 (glitch) alternating at 15/s",
+  lookstorm: "the look at full, every flash-capable pad (1-8, 11, 12) every 3 frames",
+  cuts: "a cut to another set every 6 frames, pads 1,2,4,12 between them (the page holds three sets)",
+  calmset: "the set alone on time, no pads (the safe mode's floor)",
 });
+export const ADV = Object.freeze({
+  // id: [GLSL body, what it is]
+  "adv-offgrid12": ["float on = step(0.5, fract(u_time * 8.0)); vec2 p = v_uv; float inR = step(0.122, p.x) * step(p.x, 0.628) * step(0.108, p.y) * step(p.y, 0.614); outColor = vec4(vec3(inR * on * 0.42), 1.0);",
+                    "a rectangle of 25.6 %, off the grid (u 0.122-0.628, v 0.108-0.614), 0 / 0.42 display at 8 Hz (the round-2 verifier's offgrid42)"],
+  "adv-offgrid80": ["float on = step(0.5, fract(u_time * 8.0)); vec2 p = v_uv; float inR = step(0.122, p.x) * step(p.x, 0.628) * step(0.108, p.y) * step(p.y, 0.614); outColor = vec4(vec3(inR * on * 0.80), 1.0);",
+                    "the same rectangle, bright (0 / 0.80 display)"],
+  "adv-stripes": ["int x = int(gl_FragCoord.x); float line = (x % 4 == 1) ? 1.0 : 0.0; float on = step(0.5, fract(u_time * 10.0)); outColor = vec4(vec3(line * on), 1.0);",
+                  "1-px lines on every fourth column (odd), on / off at 10 Hz"],
+  "adv-checker3": ["vec2 c = floor(v_uv * 3.0); float par = mod(c.x + c.y, 2.0); float ph = step(0.5, fract(u_time * 6.0)); float b = abs(par - ph); outColor = vec4(vec3(mix(0.05, 0.85, b)), 1.0);",
+                   "a 3 x 3 checkerboard in anti-phase at 6 Hz"],
+  "adv-offchecker": ["vec2 c = floor(v_uv * vec2(3.0, 6.0) + vec2(0.01, 0.1)); float par = mod(c.x + c.y, 2.0); float ph = step(0.5, fract(u_time * 9.0)); float b = abs(par - ph); outColor = vec4(vec3(mix(0.03, 0.8, b)), 1.0);",
+                     "a 3 x 6 checkerboard off the grid in anti-phase at 9 Hz"],
+  "adv-red": ["float on = step(0.5, fract(u_time * 10.0)); outColor = vec4(on, 0.0, 0.0, 1.0);",
+              "saturated red on / off over the whole frame at 10 Hz"],
+  "adv-redgray": ["float on = step(0.5, fract(u_time * 8.0)); outColor = vec4(mix(vec3(0.4985), vec3(1.0, 0.0, 0.0), on), 1.0);",
+                  "red / grey of equal luminance swapping at 8 Hz (a red flash with no luminance flash)"],
+});
+export function advPreset(id) {
+  const a = ADV[id];
+  if (!a) return null;
+  return `#version 300 es\n//! {"id": "${id}", "name": "ADV ${id}", "author": "vj_storm", "tags": ["test"], "params": []}\n` +
+    `precision highp float;\nuniform vec2 u_res;\nuniform float u_time;\nin vec2 v_uv;\nout vec4 outColor;\nvoid main() { ${a[0]} }\n`;
+}
 export function stormSchedule(name, frames, seed = 7) {
   const R = lcg(seed), out = [];
   const pick = (pads) => pads[Math.floor(R() * pads.length)];
@@ -172,75 +208,107 @@ export function stormSchedule(name, frames, seed = 7) {
   } else if (name === "flashedge" || name === "flash24") {
     const step = name === "flashedge" ? 3 : 24;
     for (let f = 0; f < frames; f += step) out.push({ f, pad: 3, vel: 1, hold: 2 });
-  } else throw new Error(`unknown storm ${name}`);
+  } else if (name === "lasglitch") {
+    let k = 0; for (let f = 0; f < frames; f += 4) out.push({ f, pad: [2, 4][k++ % 2], vel: 1, hold: 3 });
+  } else if (name === "lookstorm") {
+    out.push({ f: 0, act: "look", amount: 1 });
+    for (let f = 2; f < frames; f += 3) { const pad = pick([1, 2, 3, 4, 5, 6, 7, 8, 11, 12]); out.push({ f, pad, vel: 1, hold: HOLDABLE.has(pad) ? 12 + Math.floor(R() * 20) : 3 }); }
+  } else if (name === "cuts") {
+    for (let f = 0; f < frames; f += 6) out.push({ f, act: "select", idsel: Math.floor(f / 6) });
+    for (let f = 3; f < frames; f += 6) out.push({ f, pad: pick([1, 2, 4, 12]), vel: 1, hold: 3 });
+  } else if (name === "calmset" || name.startsWith("adv-")) { /* nothing: the set (or the adversarial preset) alone */ }
+  else throw new Error(`unknown storm ${name}`);
   return out;
 }
 
-// The page's own code (evaluated in the vj page, on the virtual clock): one storm, the canvas read every frame.
+// The page's own code (evaluated in the vj page, on the virtual clock): one run, the canvas read every frame into the
+// 64 x 36 measuring grid (luminance and red, exact pixel means), quantized to 16 bits and kept for the receipt to pull.
 export const STORM_PAGE = String.raw`(() => {
   if (window.__storm) return true;
+  const GX = 64, GY = 36, NC = GX * GY;
   const LUT = new Float32Array(256).map((_, i) => { const s = i / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
   const canvas = document.getElementById("gl");
   const gl = canvas.getContext("webgl2");
-  let buf = null;
-  function cells() {
-    const w = canvas.width, h = canvas.height, n = w * h * 4;
-    if (!buf || buf.length !== n) buf = new Uint8Array(n);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
-    const bx = [0, 1, 2, 3, 4].map((c) => Math.floor(c * w / 4)), by = [0, 1, 2, 3, 4].map((c) => Math.floor(c * h / 4));
-    const L = new Float64Array(16), R = new Float64Array(16), N = new Float64Array(16);
-    for (let y = 0; y < h; y++) {
-      const cy = y >= by[3] ? 3 : y >= by[2] ? 2 : y >= by[1] ? 1 : 0;
-      for (let cx = 0; cx < 4; cx++) {
-        let l = 0, r = 0;
-        for (let x = bx[cx], i = (y * w + bx[cx]) * 4; x < bx[cx + 1]; x++, i += 4) {
-          const R8 = buf[i], G8 = buf[i + 1], B8 = buf[i + 2];
-          const lr = LUT[R8], lg = LUT[G8], lb = LUT[B8];
-          l += 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
-          const s = R8 + G8 + B8;
-          if (s > 0 && R8 / s >= 0.8) r += Math.max(0, (lr - lg - lb) * 320);
-        }
-        const c = cy * 4 + cx;
-        L[c] += l; R[c] += r; N[c] += bx[cx + 1] - bx[cx];
-      }
+  let buf = null, map = null, N = null, mw = 0, mh = 0;
+  const SL = new Float64Array(NC), SR = new Float64Array(NC);
+  function maps(w, h) {
+    if (mw === w && mh === h) return; mw = w; mh = h;
+    map = new Int32Array(w * h); N = new Float64Array(NC);
+    for (let y = 0; y < h; y++) { const cy = Math.floor((h - 1 - y) * GY / h);   // readPixels rows run bottom-up
+      for (let x = 0; x < w; x++) { const c = cy * GX + Math.floor(x * GX / w); map[y * w + x] = c; N[c]++; } }
+  }
+  function measure() {
+    const w = canvas.width, h = canvas.height, n = w * h; maps(w, h);
+    if (!buf || buf.length !== n * 4) buf = new Uint8Array(n * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    SL.fill(0); SR.fill(0);
+    for (let p = 0, i = 0; p < n; p++, i += 4) {
+      const R8 = buf[i], G8 = buf[i + 1], B8 = buf[i + 2];
+      const r = LUT[R8], g = LUT[G8], b = LUT[B8], c = map[p];
+      SL[c] += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      const s = R8 + G8 + B8;
+      if (s > 0 && R8 >= 0.8 * s) { const q = r - g - b; if (q > 0) SR[c] += q; }
     }
-    return { L: Array.from(L, (v, c) => +(v / N[c]).toFixed(5)), R: Array.from(R, (v, c) => +(v / N[c]).toFixed(3)), N: Array.from(N) };
   }
   function run(schedule, frames) {
-    const F = 1000 / 60, rel = [], out = { L: [], R: [], N: null };
-    const st0 = window.__vj.stats();
+    const F = 1000 / 60, vj = window.__vj;
+    const Lq = new Uint16Array(frames * NC), Rq = new Uint16Array(frames * NC);
+    const byF = new Map(); for (const s of schedule) { if (!byF.has(s.f)) byF.set(s.f, []); byF.get(s.f).push(s); }
+    const relByF = new Map();
+    const st0 = vj.stats();
+    const ids = vj.sets().filter((s) => s.status === "ok").map((s) => s.id);
+    const t0 = Date.now();
     for (let f = 0; f < frames; f++) {
-      for (const r of rel) if (r.f === f) window.__vj.release(r.pad);
-      for (const s of schedule) if (s.f === f) { window.__vj.press(s.pad, s.vel); rel.push({ f: f + s.hold, pad: s.pad }); }
+      const rs = relByF.get(f); if (rs) for (const pad of rs) vj.release(pad);
+      const evs = byF.get(f);
+      if (evs) for (const s of evs) {
+        if (s.pad) { vj.press(s.pad, s.vel); const at = f + (s.hold || 3); if (!relByF.has(at)) relByF.set(at, []); relByF.get(at).push(s.pad); }
+        else if (s.act === "select" && ids.length) vj.select(ids[s.idsel % ids.length]);
+        else if (s.act === "next") vj.next();
+        else if (s.act === "look" && window.__vjx) window.__vjx.setLook({ on: true, amount: s.amount });
+      }
       window.__vt.step(F);
-      const c = cells();
-      out.L.push(c.L); out.R.push(c.R); out.N = c.N;
+      measure();
+      for (let k = 0; k < NC; k++) { Lq[f * NC + k] = Math.min(65535, Math.round(SL[k] / N[k] * 65535)); Rq[f * NC + k] = Math.min(65535, Math.round(SR[k] / N[k] * 65535)); }
     }
-    for (const r of rel) if (r.f >= frames) window.__vj.release(r.pad);
-    const st1 = window.__vj.stats();
-    out.gate = { granted: st1.flash.granted - st0.flash.granted, refused: st1.flash.refused - st0.flash.refused, max_in_any_second: st1.flash.maxInAnyWindow };
-    out.impact_hits = st1.impact ? st1.impact.hits - st0.impact.hits : null;
-    out.errors = window.__vj.errors();
-    if (window.__vj.limiter) { const l = window.__vj.limiter(); out.limiter = l.on ? { on: true, format: l.format, leaks: l.leaks, frames: l.frames, rest: l.rest, run: l.run } : { on: false, error: l.error }; }
-    else out.limiter = null;
-    return out;
+    for (const [f, pads] of relByF) if (f >= frames) for (const pad of pads) vj.release(pad);
+    const wall = Date.now() - t0;
+    const b64 = (u16) => { const u8 = new Uint8Array(u16.buffer); let s = ""; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode.apply(null, u8.subarray(i, i + 32768)); return btoa(s); };
+    window.__storm.stash = { L: b64(Lq), R: b64(Rq) };
+    const st1 = vj.stats();
+    let lim = null;
+    try { const l = vj.limiter ? vj.limiter() : null; lim = l ? (l.on ? { on: true, mode: l.mode, format: l.format, leaks: l.leaks, frames: l.frames, rest: l.rest, run: l.run } : { on: false, error: l.error }) : null; } catch (e) { lim = { error: String(e) }; }
+    return { frames, N: Array.from(N), canvas: [canvas.width, canvas.height], wall_ms: wall, ms_per_frame: wall / frames,
+             gate: { granted: st1.flash.granted - st0.flash.granted, refused: st1.flash.refused - st0.flash.refused, max_in_any_second: st1.flash.maxInAnyWindow },
+             impact_hits: st1.impact ? st1.impact.hits - st0.impact.hits : null,
+             safe_refused: st1.limiter && st0.limiter ? (st1.limiter.safeRefused || 0) - (st0.limiter.safeRefused || 0) : null,
+             limiter_stats: st1.limiter || null, limiter: lim, errors: vj.errors(), setA: st1.setA };
   }
-  window.__storm = { run, cells };
+  window.__storm = { run, measure, slice: (key, from, n) => window.__storm.stash[key].slice(from, from + n), len: (key) => window.__storm.stash[key].length };
   return true;
 })()`;
 
-// One storm in a page already loaded on the virtual clock (ev evaluates in it). Returns the judged result.
-export async function runStormInPage(ev, scenario, frames, seed = 7) {
+// One run in a page already loaded on the virtual clock (ev evaluates in it). mode: what the page was asked for ("gpu"
+// default, "cpu", "off"). Returns the judged result.
+export async function runStormInPage(ev, scenario, frames, { seed = 7, mode = "gpu" } = {}) {
   await ev(STORM_PAGE);
   const sch = stormSchedule(scenario, frames, seed);
-  const raw = await ev(`window.__storm.run(${JSON.stringify(sch)}, ${frames})`, 600000);
-  const judged = judgeStorm(raw);
-  // a page that has gate v2 must be running it (a shader that fails to compile leaves the page in its safe mode: that is
-  // not what is being judged)
-  const limiterDown = !!(raw.limiter && raw.limiter.on === false);
-  return { scenario, presses: sch.length, ...judged, pass: judged.pass && !limiterDown, limiter_down: limiterDown,
-           gate: raw.gate, impact_hits: raw.impact_hits, limiter: raw.limiter, page_errors: raw.errors };
+  const raw = await ev(`window.__storm.run(${JSON.stringify(sch)}, ${frames})`, 1800000);
+  const pull = async (key) => { const n = await ev(`window.__storm.len(${JSON.stringify(key)})`); let s = ""; for (let i = 0; i < n; i += 1 << 20) s += await ev(`window.__storm.slice(${JSON.stringify(key)}, ${i}, ${1 << 20})`); return s; };
+  const Lb = Buffer.from(await pull("L"), "base64"), Rb = Buffer.from(await pull("R"), "base64");
+  const L = new Uint16Array(Lb.buffer, Lb.byteOffset, Lb.length / 2), R = new Uint16Array(Rb.buffer, Rb.byteOffset, Rb.length / 2);
+  const judged = judgeStorm({ frames, L, R, N: Float64Array.from(raw.N) });
+  // the limiter must be in the mode asked for (a shader that fails to compile drops the page to the CPU twin or the safe
+  // mode: that is not what is being judged), and the safe mode must be refusing pads
+  const lim = raw.limiter;
+  let modeOk;
+  if (mode === "off") modeOk = !!lim && lim.on === false && (sch.every((s) => !s.pad) || raw.safe_refused > 0);
+  // ("late": the twin decides for the first two seconds and hands its state to the GPU mid-storm)
+  else modeOk = !!lim && lim.on === true && (lim.mode === (mode === "late" ? "gpu" : mode) || (lim.mode === undefined && mode === "gpu"));
+  const errs = (raw.errors || []).filter((e) => !(mode === "off" && e.id === "vj-limiter"));
+  return { scenario, mode, presses: sch.filter((s) => s.pad).length, ...judged, pass: judged.pass && modeOk && errs.length === 0,
+           mode_ok: modeOk, gate: raw.gate, impact_hits: raw.impact_hits, safe_refused: raw.safe_refused, limiter: lim,
+           canvas: raw.canvas, ms_per_frame: +raw.ms_per_frame.toFixed(1), page_errors: errs };
 }
 
 // The virtual clock (vj_impact's), installed in the vj page before its modules run; ?realclock=1 keeps the real one.
@@ -254,23 +322,69 @@ export const VIRTUAL_CLOCK = `(() => {
   window.__vt = { step(ms) { vt += ms; const cbs = q.splice(0, q.length); for (const cb of cbs) cb(vt); return vt; }, now: () => vt };
 })();`;
 
+// The meter check, in the page: the limiter's cells (read back) against the canvas's own pixels with the limiter's cell
+// boundaries and hats (8 x 8 cells, four corner sums each), on a frame the limiter left untouched.
+export const METER_PAGE = String.raw`(() => {
+  window.__vt.step(1000 / 60);           // a frame, read in the same task (the drawing buffer is not preserved)
+  const l = window.__vj.limiter();
+  if (!l || !l.on) return { error: "the limiter is not running" };
+  const canvas = document.getElementById("gl"), gl = canvas.getContext("webgl2");
+  const w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+  const LUT = new Float32Array(256).map((_, i) => { const s = i / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+  const GX = 8, GY = 8, bx = (c) => Math.floor(c * w / GX), by = (c) => Math.floor(c * h / GY);
+  const sums = new Float64Array(GX * GY * 8);
+  for (let y = 0; y < h; y++) {          // GL rows: y = 0 is the bottom row, the meter's row 0 too
+    let cy = 0; for (let k = 1; k < GY; k++) if (y >= by(k)) cy = k;
+    const fy0 = (y - by(cy) + 0.5) / (by(cy + 1) - by(cy)), sy = fy0 * fy0 * (3 - 2 * fy0);
+    for (let x = 0; x < w; x++) {
+      let cx = 0; for (let k = 1; k < GX; k++) if (x >= bx(k)) cx = k;
+      const fx0 = (x - bx(cx) + 0.5) / (bx(cx + 1) - bx(cx)), sx = fx0 * fx0 * (3 - 2 * fx0);
+      const i = (y * w + x) * 4, r = LUT[buf[i]], g = LUT[buf[i + 1]], b = LUT[buf[i + 2]];
+      const L = 0.2126 * r + 0.7152 * g + 0.0722 * b, s = buf[i] + buf[i + 1] + buf[i + 2];
+      const red = s > 0 && buf[i] >= 0.8 * s ? Math.max(0, r - g - b) : 0;
+      const hw = [(1 - sx) * (1 - sy), sx * (1 - sy), (1 - sx) * sy, sx * sy], o = (cy * GX + cx) * 8;
+      for (let j = 0; j < 4; j++) { sums[o + j] += hw[j] * L; sums[o + 4 + j] += hw[j] * red; }
+    }
+  }
+  let maxErr = 0, maxRedErr = 0, cellsMean = 0;
+  for (let cy = 0; cy < GY; cy++) for (let cx = 0; cx < GX; cx++) {
+    const n = (bx(cx + 1) - bx(cx)) * (by(cy + 1) - by(cy)), o = (cy * GX + cx) * 8;
+    for (let j = 0; j < 4; j++) {
+      const gpuL = l.cells[((cy * GX + cx) * 2) * 4 + j], gpuR = l.cells[((cy * GX + cx) * 2 + 1) * 4 + j];
+      maxErr = Math.max(maxErr, Math.abs(gpuL - sums[o + j] / n)); maxRedErr = Math.max(maxRedErr, Math.abs(gpuR - sums[o + 4 + j] / n));
+      cellsMean += sums[o + j] / n / 64;
+    }
+  }
+  return { width: w, height: h, grid: window.__vj.stats().limiter.grid, max_abs_err: maxErr, max_abs_red_err: maxRedErr, mean_lum: cellsMean, mode: l.mode };
+})()`;
+
 // ------------------------------------------------------------------------------------------------- the CLI --
 async function main() {
   const { values: opt } = parseArgs({ options: {
     web: { type: "string", default: resolve(REPO, "arsenal", "web") },
     label: { type: "string", default: "run" },
-    sets: { type: "string", default: "vj-reactor,vj-hyperspace,vj-aurora-curtains,vj-led-wall" },
-    scenarios: { type: "string", default: Object.keys(SCENARIOS).join(",") },
+    phases: { type: "string", default: "storm,safe,cpu,adv,hires,calm,parity,meter,bench" },
+    sets: { type: "string", default: "vj-reactor,vj-hyperspace,vj-led-wall" },
+    scenarios: { type: "string", default: "invert10,oneshots15,oneshots5,nozoom15,all12,flashedge,flash24,lasglitch,lookstorm" },
+    "safe-sets": { type: "string", default: "vj-reactor,vj-led-wall,vj-hyperspace" },
+    "safe-scenarios": { type: "string", default: "oneshots15,invert10,all12,lasglitch,cuts,calmset" },
+    "cpu-scenarios": { type: "string", default: "oneshots15,all12,invert10" },
+    "adv-presets": { type: "string", default: Object.keys(ADV).join(",") },
+    "hires-scenarios": { type: "string", default: "oneshots15,lookstorm,all12" },
+    "hires-adv": { type: "string", default: "adv-stripes,adv-offgrid12,adv-offgrid80" },
+    hires: { type: "string", default: "1280x720,1920x1080" },
+    "hires-seconds": { type: "string", default: "5" },
+    "calm-sets": { type: "string", default: "vj-reactor,vj-hyperspace,vj-led-wall,vj-synthwave-grid,vj-laser-cathedral" },
     seconds: { type: "string", default: "10" },
     seed: { type: "string", default: "7" },
-    phases: { type: "string", default: "storm,calm,parity,bench" },
     port: { type: "string", default: "8975" },
     out: { type: "string", default: join(REPO, "state", "arsenal", "receipts") },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
     width: { type: "string", default: "640" },
     height: { type: "string", default: "360" },
     "lock-dir": { type: "string", default: LOCK_DIR },
-    "gpu-wait-min": { type: "string", default: "6" },
+    "gpu-wait-min": { type: "string", default: "30" },
     "burst-s": { type: "string", default: "150" },
     // the frametime phase: other copies of the page to time against this one, interleaved in one browser (label=dir,...)
     "compare-webs": { type: "string", default: "" },
@@ -283,29 +397,39 @@ async function main() {
   if (PORT0 === 8793 || PORT0 === 8794 || !(PORT0 >= 8900 && PORT0 <= 8999)) { console.log(`ERROR port ${PORT0}: test band 8900-8999 only (8793 and 8794 are Daniel's)`); process.exit(2); }
   const W = Number(opt.width), H = Number(opt.height);
   const FRAMES = Math.round(Number(opt.seconds) * 60);
-  const SETS = opt.sets.split(",").map((s) => s.trim()).filter((s) => /^[a-z0-9][a-z0-9-]{1,40}$/.test(s));
-  const SCN = opt.scenarios.split(",").map((s) => s.trim()).filter((s) => SCENARIOS[s]);
-  const PHASES = opt.phases.split(",").map((s) => s.trim());
+  const list = (s) => s.split(",").map((x) => x.trim()).filter(Boolean);
+  const setIds = (s) => list(s).filter((x) => /^[a-z0-9][a-z0-9-]{1,40}$/.test(x));
+  const SETS = setIds(opt.sets), SAFE_SETS = setIds(opt["safe-sets"]);
+  const SCN = list(opt.scenarios).filter((s) => SCENARIOS[s]);
+  const SAFE_SCN = list(opt["safe-scenarios"]).filter((s) => SCENARIOS[s]);
+  const CPU_SCN = list(opt["cpu-scenarios"]).filter((s) => SCENARIOS[s]);
+  const ADV_IDS = list(opt["adv-presets"]).filter((s) => ADV[s]);
+  const HIRES = list(opt.hires).map((s) => s.split("x").map(Number)).filter(([a, b]) => a >= 64 && b >= 36);
+  const HIRES_SCN = list(opt["hires-scenarios"]).filter((s) => SCENARIOS[s]);
+  const HIRES_ADV = list(opt["hires-adv"]).filter((s) => ADV[s]);
+  const HIRES_FRAMES = Math.round(Number(opt["hires-seconds"]) * 60);
+  const PHASES = list(opt.phases);
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
   const outDir = join(opt.out, `vj-storm-${opt.label}-${stamp}`);
   mkdirSync(outDir, { recursive: true });
   const report = {
-    api: "arsenal.receipt/v0", lane: "vj-storm", label: opt.label, title: "VJ pad storms on a 60 fps virtual clock: flashes in the frames shown",
+    api: "arsenal.receipt/v0", lane: "vj-storm", label: opt.label, title: "VJ storms on a 60 fps virtual clock: flashes in the frames shown, counted in windows the limiter does not use",
     started_at: new Date().toISOString(), web: WEB, viewport: { width: W, height: H }, frames: FRAMES, seed: Number(opt.seed),
     git: null, chrome: null, webgl: null, renderer_check: null,
     method: {
       clock: "virtual: performance.now and requestAnimationFrame replaced; one frame per 1000/60 ms step",
-      measure: "the canvas read every frame (after every layer and gate v2); per 4 x 4 cell: mean relative luminance (sRGB LUT, WCAG weights) and mean WCAG red quantity (R/(R+G+B) >= 0.8 on 8-bit values, max(0, R-G-B) x 320 linear)",
-      windows: STORM_WINDOWS.map((w) => w.id),
-      counter: "the 2026-10-24 verifier's, verbatim: hysteresis 0.02, |delta| >= 0.1, darker end < 0.8, counted at the later turning point; flashes = transitions / 2; red: hysteresis 2, swing 20",
-      verdict: `every window <= 3 flashes in any second, red <= 3, longest flashing run <= ${RUN_LIMIT_S} s`,
+      measure: "the canvas read every frame (after every layer and gate v2); per cell of a 64 x 36 grid: exact mean relative luminance (sRGB LUT, WCAG weights) and mean WCAG red quantity (R/(R+G+B) >= 0.8 on 8-bit values, max(0, R-G-B) x 320 linear)",
+      windows: `${STORM_WINDOWS.length}: the whole frame and every rectangle of shapes ${STORM_SHAPES.map(([w, h]) => `${w}x${h}`).join(", ")} cells (each a quarter of the screen or more) at every offset of the 64 x 36 grid`,
+      counter: "the 2026-10-24 verifier's, verbatim: hysteresis 0.02, |delta| >= 0.1, darker end < 0.8, counted at the later turning point; flashes = transitions / 2; strict = greedy pairs of opposing transitions; red: hysteresis 2, swing 20, no darker-end exemption",
+      verdict: `every window <= 6 transitions and <= 3 strict pairs in any second, red the same, longest flashing run <= ${RUN_LIMIT_S} s, the limiter in the mode asked for, no page error`,
     },
-    scenarios: Object.fromEntries(SCN.map((s) => [s, SCENARIOS[s]])), sets: {}, parity: null, bench: null, bursts: [],
-    console: [], exceptions: [],
+    scenarios: SCENARIOS, adversarial: Object.fromEntries(Object.entries(ADV).map(([k, v]) => [k, v[1]])),
+    runs: [], calm: null, parity: null, meter: null, bench: null, bursts: [], console: [], exceptions: [],
     not_measured: [
       "the real GPU: SwiftShader draws every frame on the CPU; the virtual clock makes the timing exact, not the speed",
-      "a person: the counter is the verifier's (WCAG 2.3.1 / ITU-R BT.1702 shaped); stripes and patterns are not counted",
-      "music: no engine and no demo (the sets run on time alone), so beat-driven light is not in these storms",
+      "a person: the counter is the verifier's (WCAG 2.3.1 / ITU-R BT.1702 shaped); spatial stripe patterns are not judged as patterns",
+      "windows off the 64 x 36 grid (sub-cell offsets) and shapes other than the twelve; the limiter's margin is for those",
+      "music in the storms: no engine and no demo (the sets run on time alone); the calm phase plays the demo's music without pads",
     ],
   };
   try { report.git = spawnSync("git", ["rev-parse", "--short", "HEAD"], { cwd: WEB, encoding: "utf8" }).stdout.trim(); } catch { /* no git */ }
@@ -320,6 +444,9 @@ async function main() {
     const m = /^\/(web|w\d+)\//.exec(url.pathname);
     const root = m ? (m[1] === "web" ? WEB : (OTHER[Number(m[1].slice(1))] || {}).dir) : null;
     if (!root) { res.writeHead(404); res.end(); return; }
+    // the adversarial presets: served by this receipt, never files in the repo
+    const adv = /\/presets\/(adv-[a-z0-9-]+)\.frag$/.exec(url.pathname);
+    if (adv && advPreset(adv[1])) { res.writeHead(200, { "Content-Type": TYPES[".frag"], "Cache-Control": "no-store" }); res.end(advPreset(adv[1])); return; }
     const target = resolve(root, decodeURIComponent(url.pathname.slice(m[0].length)));
     if (!(target + sep).startsWith(root + sep)) { res.writeHead(404); res.end(); return; }
     try { const body = readFileSync(target); res.writeHead(200, { "Content-Type": TYPES[extname(target).toLowerCase()] || "application/octet-stream", "Cache-Control": "no-store" }); res.end(body); }
@@ -345,17 +472,20 @@ async function main() {
   }
   async function waitFor(fn, ms, what) { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { const v = await fn(); if (v) return v; } catch { /* not yet */ } await delay(150); } throw new Error(`timed out: ${what}`); }
 
-  async function burst(name, body) {
+  // One burst: our own Chrome at w x h under the house GPU lock; body({ ev, load, deadline }).
+  async function burst(name, size, body) {
     const t0 = Date.now();
+    const [bw, bh] = size;
     const profile = join(tmpdir(), `arsenal-vj-storm-${stamp}-${name}-${process.pid}`);
     let gpu = null, chrome = null, browser = null;
-    const entry = { name, seconds: null, error: null };
+    const entry = { name, size: `${bw}x${bh}`, seconds: null, wait_s: null, error: null };
     report.bursts.push(entry);
     try {
       gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000 });
       const held = Date.now();   // the burst's time runs from the lock, not from the wait for it
+      entry.wait_s = Math.round((held - t0) / 100) / 10;
       chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
-        `--user-data-dir=${profile}`, `--window-size=${W},${H}`, "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore", windowsHide: true });
+        `--user-data-dir=${profile}`, `--window-size=${bw},${bh}`, "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore", windowsHide: true });
       const [p, w] = await waitFor(() => { try { const [a, b] = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split(/\r?\n/); return a && b ? [a, b] : null; } catch { return null; } }, 30000, "DevToolsActivePort");
       browser = await connect(`ws://127.0.0.1:${p}${w}`);
       report.chrome = (await browser.send("Browser.getVersion")).product;
@@ -369,15 +499,22 @@ async function main() {
         if (msg.method === "Runtime.consoleAPICalled" && (q.type === "error" || q.type === "warning")) report.console.push({ burst: name, text: q.args.map((a) => a.value ?? a.description ?? "").join(" ").slice(0, 300) });
       });
       await S("Runtime.enable"); await S("Page.enable");
-      await S("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+      await S("Emulation.setDeviceMetricsOverride", { width: bw, height: bh, deviceScaleFactor: 1, mobile: false });
       await S("Page.addScriptToEvaluateOnNewDocument", { source: VIRTUAL_CLOCK });
       const ev = async (expression) => { const r = await S("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
         if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
-      const load = async (query, root = "web") => {
-        await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/${root}/vj.html?${query}${opt.query ? `&${opt.query}` : ""}` });
-        await waitFor(() => ev("!!(window.__vj && window.__vj.ready)"), 240000, `the vj page (${query})`);
-        // gate v2 compiles in the background (the page is in its safe mode until it links): wait for it, or its error
-        await waitFor(() => ev("(() => { const l = window.__vj.stats().limiter; return !l || l.on || !!l.error; })()"), 120000, "gate v2's programs");
+      const load = async (query, { root = "web", mode = "gpu", virtual = true } = {}) => {
+        const q = `${query}${mode === "cpu" ? "&limiter=cpu" : mode === "off" ? "&limiter=off" : mode === "late" ? "&limiter=late" : ""}${opt.query ? `&${opt.query}` : ""}`;
+        await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/${root}/vj.html?${q}` });
+        await waitFor(() => ev("!!(window.__vj && window.__vj.ready)"), 240000, `the vj page (${q})`);
+        // every set compiled (the cut storms need them all), then gate v2: its meter and apply link first (the page decides
+        // on the CPU until the GPU decision links too); the GPU mode waits for the GPU decision
+        await waitFor(() => ev(`(() => { const s = window.__vj.sets(); return s.every((x) => x.status === "ok" || x.broken); })()`), 240000, "the sets").catch(() => {});
+        // (an older build reports no mode: its limiter running counts as the GPU one, its error as the safe mode)
+        const want = mode === "gpu" ? `(l.mode === "gpu" || (l.mode === undefined && (l.on || !!l.error)))` : mode === "cpu" || mode === "late" ? `l.mode === "cpu"` : "true";
+        const step = virtual ? "window.__vt && window.__vt.step(1000 / 60);" : "";
+        await waitFor(() => ev(`(() => { ${step} const l = window.__vj.stats().limiter; return !l || ${want} || l.fatal; })()`), 180000, `gate v2 (${mode})`);
+        await ev("(window.__vjx && window.__vjx.cardOff(), true)");   // clean frames: no name cards
         if (!report.webgl) {
           report.webgl = await ev(`(() => { const g = document.getElementById("gl").getContext("webgl2"); const d = g.getExtension("WEBGL_debug_renderer_info"); return d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); })()`);
           report.renderer_check = judgeRenderer(report.webgl);
@@ -387,7 +524,7 @@ async function main() {
       await body({ ev, load, deadline: held + Number(opt["burst-s"]) * 1000 });
     } catch (err) { entry.error = String((err && err.stack) || err); console.log(`ERROR [${name}]`, entry.error); }
     finally {
-      entry.seconds = Math.round((Date.now() - t0) / 100) / 10;
+      entry.seconds = Math.round((Date.now() - t0) / 100) / 10 - (entry.wait_s || 0);
       try { await browser?.send("Browser.close"); } catch { /* gone */ }
       await delay(600);
       if (chrome && chrome.exitCode === null) spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { windowsHide: true, timeout: 15000 });
@@ -398,53 +535,98 @@ async function main() {
     }
   }
 
-  // ---------------------------------------------------------------------------------------------- storms --
-  if (PHASES.includes("storm")) {
-    for (const set of SETS) {
-      report.sets[set] = report.sets[set] || {};
-      let tries = 0;
-      while (SCN.some((s) => !report.sets[set][s]) && tries++ < SCN.length + 2) {
-        await burst(`storm-${set}-${tries}`, async ({ ev, load, deadline }) => {
-          for (const scenario of SCN) {
-            if (report.sets[set][scenario]) continue;
-            if (Date.now() > deadline) { console.log(`[storm] ${set}: burst time is up; the next burst continues`); return; }
-            await load(`engine=off&hud=0&watchdog=0&sets=${set}`);
+  // A queue of runs: { phase, set, scenario, mode, size, frames, sets (page) }. Bursts take runs in order until the
+  // burst's time is up; a run that failed to start in a burst is retried (at most twice).
+  async function runQueue(phase, jobs) {
+    const done = new Set();
+    let tries = 0;
+    const key = (j) => `${j.size.join("x")}|${j.mode}|${j.pageSets}|${j.scenario}`;
+    while (jobs.some((j) => !done.has(key(j))) && tries++ < jobs.length + 3) {
+      const size = jobs.find((j) => !done.has(key(j))).size;
+      await burst(`${phase}-${size.join("x")}-${tries}`, size, async ({ ev, load, deadline }) => {
+        for (const j of jobs) {
+          if (done.has(key(j)) || j.size.join("x") !== size.join("x")) continue;
+          if (Date.now() > deadline) { console.log(`[${phase}] burst time is up; the next burst continues`); return; }
+          done.add(key(j));   // tried (a run that throws is recorded as an error, not retried forever)
+          try {
+            await load(`engine=off&hud=0&watchdog=0&sets=${j.pageSets}`, { mode: j.mode });
             await ev("(() => { for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()");   // half a second in
-            const r = await runStormInPage(ev, scenario, FRAMES, Number(opt.seed));
-            report.sets[set][scenario] = { ...r, windows: undefined, window_detail: r.windows };
-            const lim = r.limiter ? (r.limiter.on ? `limiter leaks ${r.limiter.leaks}` : `limiter OFF (${r.limiter.error})`) : "no limiter";
-            console.log(`[storm] ${set} ${scenario}: full ${r.full_max_flashes_in_1s}/s, worst ${r.max_flashes_in_1s}/s (${r.worst_window}), quadrants ${r.quadrant_max_flashes_in_1s.join(" ")}, red ${r.red_max_flashes_in_1s}, run ${r.longest_run_s}s, L ${r.L_full_min}-${r.L_full_max}, gate ${r.gate.granted}/${r.gate.max_in_any_second}, ${lim}${r.pass ? "" : "  << FAIL"}`);
-            save();
+            const r = await runStormInPage(ev, j.scenario, j.frames, { seed: Number(opt.seed), mode: j.mode });
+            const row = { phase, set: j.set, ...r, size: j.size.join("x") };
+            report.runs.push(row);
+            console.log(`[${phase}] ${row.size} ${j.mode} ${j.set} ${j.scenario}: worst ${r.max_flashes_in_1s}/s pairs ${r.max_pairs_in_1s} (${r.worst_window}), full ${r.full_max_flashes_in_1s}/s, quadrants ${r.quadrant_max_flashes_in_1s.join(" ")}, red ${r.red_max_flashes_in_1s}/s p${r.red_max_pairs_in_1s}, run ${r.longest_run_s}s, L ${r.L_min}-${r.L_max}, gate ${r.gate.granted}, hits ${r.impact_hits}, refused ${r.safe_refused}, limiter ${r.limiter ? (r.limiter.on ? `${r.limiter.mode} leaks ${r.limiter.leaks}` : "off") : "-"}, ${r.ms_per_frame} ms/f${r.pass ? "" : "  << FAIL"}`);
+          } catch (err) {
+            report.runs.push({ phase, set: j.set, scenario: j.scenario, mode: j.mode, size: j.size.join("x"), pass: false, error: String(err && err.message || err) });
+            console.log(`[${phase}] ${j.set} ${j.scenario}: ERROR ${err && err.message}`);
           }
-        });
-      }
+          save();
+        }
+      });
+    }
+  }
+  const SIZE = [W, H];
+  const job = (phase, set, scenario, mode, size = SIZE, frames = FRAMES, pageSets = set) => ({ phase, set, scenario, mode, size, frames, pageSets });
+
+  // ------------------------------------------------------------------------------------------- the storms --
+  if (PHASES.includes("storm")) {
+    const jobs = [];
+    for (const set of SETS) for (const s of SCN) jobs.push(job("storm", set, s, "gpu"));
+    if (SETS.length >= 2) jobs.push(job("storm", SETS.join("+"), "cuts", "gpu", SIZE, FRAMES, SETS.join(",")));
+    await runQueue("storm", jobs);
+  }
+  // the safe mode: the limiter absent (?limiter=off); every pad effect must be refused and the frame stay flash-safe
+  if (PHASES.includes("safe")) {
+    const jobs = [];
+    for (const set of SAFE_SETS) for (const s of SAFE_SCN) {
+      if (s === "cuts") { if (set === SAFE_SETS[0]) jobs.push(job("safe", SAFE_SETS.join("+"), "cuts", "off", SIZE, FRAMES, SAFE_SETS.join(","))); }
+      else jobs.push(job("safe", set, s, "off"));
+    }
+    await runQueue("safe", jobs);
+  }
+  // the CPU decision (?limiter=cpu): the page's fallback when the GPU decision cannot link
+  // ... and the hand-over: the twin decides for the first two seconds, then its state goes to the GPU mid-storm
+  if (PHASES.includes("cpu")) await runQueue("cpu", [...CPU_SCN.map((s) => job("cpu", SETS[0], s, "cpu")), job("cpu", SETS[0], "oneshots15", "late")]);
+  // adversarial content: presets this receipt serves (GPU decision; the off-grid rectangle and the lines also on the CPU)
+  if (PHASES.includes("adv")) {
+    const jobs = ADV_IDS.map((id) => job("adv", id, id, "gpu", SIZE, Math.min(FRAMES, 360)));
+    for (const id of ["adv-offgrid12", "adv-stripes"]) if (ADV_IDS.includes(id)) jobs.push(job("adv", id, id, "cpu", SIZE, Math.min(FRAMES, 360)));
+    await runQueue("adv", jobs);
+  }
+  // show sizes: storms, the look at full and the adversarial presets at 1280 x 720 and 1920 x 1080
+  if (PHASES.includes("hires")) {
+    for (const size of HIRES) {
+      const jobs = [];
+      for (const s of HIRES_SCN) jobs.push(job("hires", SETS[0], s, "gpu", size, HIRES_FRAMES));
+      for (const id of HIRES_ADV) jobs.push(job("hires", id, id, "gpu", size, Math.min(HIRES_FRAMES, 240)));
+      await runQueue("hires", jobs);
     }
   }
 
   // ------------------------------------------------------------------------------------------------ calm --
   // The other side of the limit: a set under the page's own demo music (beats, chords, energy; no pads) should not be held
-  // at all. Every 15 frames the limiter's own state is read back (how many of its 36 trackers held the frame before, the
-  // forced rest), and every frame is counted as in the storms.
+  // at all. Every 15 frames the limiter's own state is read back (how many trackers held the frame before, the rest).
   if (PHASES.includes("calm")) {
-    report.calm = report.calm || {};
-    for (const set of SETS) {
-      await burst(`calm-${set}`, async ({ ev, load }) => {
+    report.calm = {};
+    for (const set of setIds(opt["calm-sets"])) {
+      await burst(`calm-${set}`, SIZE, async ({ ev, load }) => {
         await load(`engine=off&hud=0&watchdog=0&demo=1&demopads=0&sets=${set}`);
         await ev(STORM_PAGE);
-        const has = await ev("!!(window.__vj.limiter)");
-        const on = has ? await ev("window.__vj.limiter().on === true") : null;
-        const r = await ev(`(() => { const out = { L: [], R: [], N: null, held: [], rest: 0 };
-          for (let f = 0; f < ${FRAMES * 2}; f++) {
-            window.__vt.step(1000 / 60);
-            const c = window.__storm.cells(); out.L.push(c.L); out.R.push(c.R); out.N = c.N;
-            if (${has} && f % 15 === 14) { const l = window.__vj.limiter(); out.held.push(l.held); if (l.rest > 0) out.rest++; }
-          }
-          return out; })()`);
-        const j = judgeStorm(r);
-        const heldSamples = r.held.filter((h) => h > 0).length;
-        report.calm[set] = { frames: r.L.length, max_flashes_in_1s: j.max_flashes_in_1s, worst_window: j.worst_window, red: j.red_max_flashes_in_1s,
-                             limiter_on: on, samples: r.held.length, samples_with_a_window_held: heldSamples, samples_resting: r.rest,
-                             mean_held_trackers: r.held.length ? +(r.held.reduce((a, b) => a + b, 0) / r.held.length).toFixed(2) : null };
+        const frames = FRAMES * 2;
+        // the run, with the limiter sampled through a schedule-free loop of our own
+        const r = await ev(`(() => { const out = { held: [], partial: [], rest: 0 };
+          const orig = window.__vt.step; let f = 0;
+          window.__vt.step = (ms) => { const v = orig(ms); if (++f % 15 === 0) { const l = window.__vj.limiter(); out.held.push(l.held || 0); out.partial.push(l.partial || 0); if (l.rest > 0) out.rest++; } return v; };
+          const res = window.__storm.run([], ${frames});
+          window.__vt.step = orig;
+          return { ...res, sampled: out }; })()`);
+        const pull = async (key) => { const n = await ev(`window.__storm.len(${JSON.stringify(key)})`); let s = ""; for (let i = 0; i < n; i += 1 << 20) s += await ev(`window.__storm.slice(${JSON.stringify(key)}, ${i}, ${1 << 20})`); return s; };
+        const Lb = Buffer.from(await pull("L"), "base64"), Rb = Buffer.from(await pull("R"), "base64");
+        const j = judgeStorm({ frames, L: new Uint16Array(Lb.buffer, Lb.byteOffset, Lb.length / 2), R: new Uint16Array(Rb.buffer, Rb.byteOffset, Rb.length / 2), N: Float64Array.from(r.N) });
+        const s = r.sampled;
+        report.calm[set] = { frames, max_flashes_in_1s: j.max_flashes_in_1s, max_pairs_in_1s: j.max_pairs_in_1s, worst_window: j.worst_window, red: j.red_max_flashes_in_1s,
+                             limiter: r.limiter, samples: s.held.length, samples_fully_held: s.held.filter((h) => h > 0).length,
+                             samples_partial: s.partial.filter((h) => h > 0).length, samples_resting: s.rest,
+                             mean_held_trackers: s.held.length ? +(s.held.reduce((a, b) => a + b, 0) / s.held.length).toFixed(2) : null };
         console.log(`[calm] ${set}: ${JSON.stringify(report.calm[set])}`);
       });
     }
@@ -452,84 +634,103 @@ async function main() {
 
   // ---------------------------------------------------------------------------------------------- parity --
   if (PHASES.includes("parity")) {
-    await burst("parity", async ({ ev, load }) => {
+    await burst("parity", SIZE, async ({ ev, load }) => {
       await load("engine=off&hud=0&watchdog=0&sets=vj-reactor");
       const has = await ev("!!(window.__vj.limiterCells)");
       if (!has) { report.parity = { skipped: "this page has no gate v2 (window.__vj.limiterCells)" }; return; }
       const gate = await import(pathToFileURL(join(WEB, "vj-gate.js")).href);
       const results = [];
+      const NCTRL = gate.NCTRL || 25;
       for (const [name, gen] of Object.entries(paritySequences(gate))) {
         const seq = gen();
         await ev("window.__vj.limiterReset()");
         const gpu = await ev(`(() => { const seq = ${JSON.stringify(seq.map((c) => Array.from(c)))}; const out = [];
-          for (const c of seq) { const r = window.__vj.limiterCells(c, 1 / 60); out.push({ a: r.a, k: r.k, beta: r.betaNow, held: r.trackers.map((t) => t[5]), leaks: r.leaks, trk: r.trackers }); }
+          for (let f = 0; f < seq.length; f++) { const r = window.__vj.limiterCells(seq[f], 1 / 60); if (!r) return null; out.push({ a: r.a, k: r.k, beta: r.betaNow, held: r.trackers.map((t) => t[5]), leaks: r.leaks, trk: f % 25 === 24 ? r.trackers : null }); }
           window.__vj.limiterReset(); return out; })()`);
+        if (!gpu) { results.push({ sequence: name, skipped: "the GPU decision is not running" }); continue; }
         const model = new gate.FlashLimiter();
         let maxA = 0, maxK = 0, maxB = 0, heldDiff = 0, heldFrames = 0, frames = 0, first = null;
         for (let f = 0; f < seq.length; f++) {
           const m = model.step(seq[f], 1 / 60);
           const g = gpu[f];
-          for (let i = 0; i < 25; i++) { maxA = Math.max(maxA, Math.abs(m.a[i] - g.a[i])); maxK = Math.max(maxK, Math.abs(m.k[i] - g.k[i])); }
+          for (let i = 0; i < NCTRL; i++) { maxA = Math.max(maxA, Math.abs(m.a[i] - g.a[i])); maxK = Math.max(maxK, Math.abs(m.k[i] - g.k[i])); }
           maxB = Math.max(maxB, Math.abs(m.beta - g.beta));
           let d = 0;
-          // the first frame where any tracker's state differs by more than 1e-4 (an earlier, quieter divergence)
           if (!first && g.trk) for (let t = 0; t < g.trk.length && !first; t++) for (let q = 0; q < gate.TRACKER_FLOATS && !first; q++) {
-            if (Math.abs(model.state[t * gate.TRACKER_FLOATS + q] - g.trk[t][q]) > 1e-4) first = { frame: f, tracker: t, field: q, kind: "state",
+            const mv = model.state[t * gate.TRACKER_FLOATS + q], gv = g.trk[t][q];
+            if (Math.abs(mv - gv) > 1e-4 && !(Math.abs(mv) > 1e8 && Math.abs(gv) > 1e8)) first = { frame: f, tracker: t, field: q,
               model: Array.from(model.state.slice(t * gate.TRACKER_FLOATS, (t + 1) * gate.TRACKER_FLOATS)).map((x) => +x.toFixed(6)),
-              gpu: g.trk[t].map((x) => +x.toFixed(6)), want: +model.want[t].toFixed(6), shown: +model.shown[t].toFixed(6),
-              lo: model.lo[t], hi: model.hi[t], level: model.level ? model.level[t] : null, a: Array.from(m.a).map((x) => +x.toFixed(5)), ga: g.a.map((x) => +x.toFixed(5)) };
+              gpu: g.trk[t].map((x) => +x.toFixed(6)), want: +model.want[t].toFixed(6), shown: +model.shown[t].toFixed(6) };
           }
           for (let t = 0; t < g.held.length; t++) {
-            const mh = model.level ? model.level[t] : (model.mode[t] === gate.MODE.HELD ? 1 : 0);
-            if (mh !== Math.round(g.held[t])) {
-              d++;
-              // the first divergence, for the record: both twins' tracker state after that frame
-              if (!first) first = { frame: f, tracker: t, model: Array.from(model.state.slice(t * gate.TRACKER_FLOATS, (t + 1) * gate.TRACKER_FLOATS)).map((x) => +x.toFixed(5)),
-                                    gpu: g.trk[t].map((x) => +x.toFixed(5)), want: +model.want[t].toFixed(5), shown: +model.shown[t].toFixed(5) };
-            }
+            const mh = model.level[t];
+            if (mh !== Math.round(g.held[t])) d++;
             heldFrames += mh > 0 ? 1 : 0;
           }
           if (d) heldDiff++;
           frames++;
         }
         const row = { sequence: name, frames, max_abs_gain: +maxA.toFixed(5), max_abs_lift: +maxK.toFixed(5), max_abs_beta: +maxB.toFixed(5),
-                      frames_with_held_mismatch: heldDiff, held_tracker_frames: heldFrames, model_leaks: model.leaks, first_divergence: first };
+                      frames_with_held_mismatch: heldDiff, held_tracker_frames: heldFrames, model_leaks: model.leaks, gpu_leaks: gpu[gpu.length - 1].leaks, first_divergence: first };
         results.push(row);
-        console.log(`[parity] ${name}: ${JSON.stringify(row)}`);
+        console.log(`[parity] ${name}: ${JSON.stringify({ ...row, first_divergence: first ? { frame: first.frame, tracker: first.tracker, field: first.field } : null })}`);
       }
-      report.parity = { results, pass: results.every((r) => r.max_abs_gain < 0.02 && r.max_abs_lift < 0.02 && r.max_abs_beta < 0.02 && r.frames_with_held_mismatch <= Math.ceil(0.02 * r.frames)) };
+      const ran = results.filter((r) => !r.skipped);
+      report.parity = { results, pass: ran.length > 0 && ran.every((r) => r.max_abs_gain < 0.02 && r.max_abs_lift < 0.02 && r.max_abs_beta < 0.02 && r.frames_with_held_mismatch <= Math.ceil(0.02 * r.frames)) };
     });
+  }
+
+  // ----------------------------------------------------------------------------------------------- meter --
+  // Every pixel metered, at every size: the limiter's cells against the canvas's own pixels, on 1-px lines on odd columns
+  // (a meter that strides misses them) and on a set, at the storm size and the show sizes.
+  if (PHASES.includes("meter")) {
+    report.meter = { rows: [] };
+    for (const size of [SIZE, ...HIRES]) {
+      await burst(`meter-${size.join("x")}`, size, async ({ ev, load }) => {
+        for (const set of ["adv-stripes", "vj-reactor"]) {
+          await load(`engine=off&hud=0&watchdog=0&sets=${set}`);
+          // a frame the limiter leaves untouched: the lines' "on" half (u_time from the page's clock), checked after
+          let r = null;
+          for (let k = 0; k < 40; k++) {
+            r = await ev(METER_PAGE);
+            const l = await ev("(() => { const l = window.__vj.limiter(); return { betaNow: l.betaNow, a: Math.min(...l.a), k: Math.max(...l.k) }; })()");
+            if (r && !r.error && r.mean_lum > 0.01 && l.betaNow === 0 && l.a >= 1 && l.k <= 0) { r.untouched = true; break; }
+          }
+          const row = { size: size.join("x"), set, ...r, pass: !!r && !r.error && !!r.untouched && r.max_abs_err < 0.004 && r.max_abs_red_err < 0.004 };
+          report.meter.rows.push(row);
+          console.log(`[meter] ${row.size} ${set}: ${JSON.stringify(row)}`);
+        }
+      });
+    }
+    report.meter.pass = report.meter.rows.length > 0 && report.meter.rows.every((r) => r.pass);
   }
 
   // ----------------------------------------------------------------------------------------------- bench --
   if (PHASES.includes("bench")) {
-    await burst("bench", async ({ ev, load }) => {
-      report.bench = {};
-      for (const set of SETS.slice(0, 2)) {
-        await load(`realclock=1&engine=off&hud=0&watchdog=0&sets=${set}`);
-        await delay(2500);
-        const has = await ev("!!(window.__vj.limiterBench)");
-        if (!has) { report.bench[set] = { skipped: "no gate v2" }; continue; }
-        const r = await ev("window.__vj.limiterBench(30)");
-        if (!r) { report.bench[set] = { skipped: "gate v2 is not running" }; report.exceptions.push({ burst: "bench", text: `gate v2 not running on ${set}` }); continue; }
-        // the real-clock frame interval with the page running (rAF), for context
-        const ft = await ev(`new Promise((done) => { const ts = []; const tick = (t) => { ts.push(t); if (ts.length < 61) requestAnimationFrame(tick); else { const g = ts.slice(1).map((v, i) => v - ts[i]).sort((a, b) => a - b); done({ p50: g[30], mean: g.reduce((a, b) => a + b, 0) / g.length }); } }; requestAnimationFrame(tick); })`);
-        report.bench[set] = { ...r, frame_interval_ms: ft };
-        console.log(`[bench] ${set}: limiter ${r.limiter_ms.toFixed(2)} ms vs plain copy ${r.copy_ms.toFixed(2)} ms at ${r.width}x${r.height}; frame interval p50 ${ft.p50.toFixed(1)} ms`);
-      }
-    });
+    report.bench = {};
+    for (const size of [SIZE, ...HIRES]) {
+      await burst(`bench-${size.join("x")}`, size, async ({ ev, load }) => {
+        for (const mode of ["gpu", "cpu"]) {
+          await load(`realclock=1&engine=off&hud=0&watchdog=0&sets=${SETS[0]}`, { mode, virtual: false });
+          await delay(1500);
+          const r = await ev("window.__vj.limiterBench ? window.__vj.limiterBench(20) : null");
+          if (!r) { report.bench[`${size.join("x")} ${mode}`] = { skipped: "gate v2 is not running" }; continue; }
+          report.bench[`${size.join("x")} ${mode}`] = r;
+          console.log(`[bench] ${size.join("x")} ${mode}: limiter ${r.limiter_ms.toFixed(2)} ms vs plain copy ${r.copy_ms.toFixed(2)} ms (${JSON.stringify(r.parts_ms)})`);
+        }
+      });
+    }
   }
 
   // ------------------------------------------------------------------------------------------- frametime --
-  // The whole frame's cost on SwiftShader, for any build (master, the impact pass, this one): the page's own frames run
-  // back to back (requestAnimationFrame taken over after load), each fenced by a one-pixel readPixels, 40 of them.
-  if (PHASES.includes("frametime")) {   // (with --compare-webs the other builds are timed in the same browser, interleaved)
+  // The whole frame's cost on SwiftShader, for any build: the page's own frames run back to back (requestAnimationFrame
+  // taken over after load), each fenced by a one-pixel readPixels, 40 of them; --compare-webs builds interleaved.
+  if (PHASES.includes("frametime")) {
     report.frametime = {};
     const builds = [{ label: opt.label, root: "web" }, ...OTHER.map((o, i) => ({ label: o.label, root: `w${i}` }))];
-    for (let rep = 0; rep < Number(opt.reps); rep++) await burst(`frametime-${rep + 1}`, async ({ ev, load }) => {
-      // the order rotates rep to rep, so no build always runs first (or right after a launch)
+    for (let rep = 0; rep < Number(opt.reps); rep++) await burst(`frametime-${rep + 1}`, SIZE, async ({ ev, load }) => {
       for (const b of builds.map((_, i) => builds[(i + rep) % builds.length])) for (const set of SETS.slice(0, 2)) {
-        await load(`realclock=1&engine=off&hud=0&watchdog=0&sets=${set}`, b.root);
+        await load(`realclock=1&engine=off&hud=0&watchdog=0&sets=${set}`, { root: b.root, virtual: false });
         await delay(2000);
         const r = await ev(`new Promise((done) => {
           const gl = document.getElementById("gl").getContext("webgl2"), px = new Uint8Array(4);
@@ -547,30 +748,37 @@ async function main() {
         console.log(`[frametime] ${b.label} ${set} rep ${rep + 1}: p50 ${r.p50} ms, mean ${r.mean} ms, p90 ${r.p90} ms (back to back, fenced)`);
       }
     });
-    // per build and set: the median of the reps' p50s
     report.frametime_summary = Object.fromEntries(Object.entries(report.frametime).map(([label, sets]) => [label,
       Object.fromEntries(Object.entries(sets).map(([set, runs]) => { const v = runs.map((x) => x.p50).sort((a, b) => a - b); return [set, v[Math.floor(v.length / 2)]]; }))]));
     console.log(`[frametime] median p50 per build: ${JSON.stringify(report.frametime_summary)}`);
   }
 
   // --------------------------------------------------------------------------------------------- verdict --
-  const rows = [];
-  for (const [set, scn] of Object.entries(report.sets)) for (const [name, r] of Object.entries(scn)) rows.push({ set, name, r });
+  const runs = report.runs;
+  const expected = (PHASES.includes("storm") ? SETS.length * SCN.length + (SETS.length >= 2 ? 1 : 0) : 0) +
+    (PHASES.includes("safe") ? SAFE_SETS.length * SAFE_SCN.filter((s) => s !== "cuts").length + (SAFE_SCN.includes("cuts") ? 1 : 0) : 0) +
+    (PHASES.includes("cpu") ? CPU_SCN.length + 1 : 0) +
+    (PHASES.includes("adv") ? ADV_IDS.length + ["adv-offgrid12", "adv-stripes"].filter((x) => ADV_IDS.includes(x)).length : 0) +
+    (PHASES.includes("hires") ? HIRES.length * (HIRES_SCN.length + HIRES_ADV.length) : 0);
+  const byPhase = {};
+  for (const r of runs) { const p = (byPhase[r.phase] = byPhase[r.phase] || { runs: 0, failed: 0, max_flashes_in_1s: 0, max_pairs_in_1s: 0 }); p.runs++; if (!r.pass) p.failed++; p.max_flashes_in_1s = Math.max(p.max_flashes_in_1s, r.max_flashes_in_1s || 0); p.max_pairs_in_1s = Math.max(p.max_pairs_in_1s, r.max_pairs_in_1s || 0); }
   report.verdict = {
-    storms: rows.length, storms_expected: PHASES.includes("storm") ? SETS.length * SCN.length : 0,
-    failed: rows.filter((x) => !x.r.pass).map((x) => `${x.set} ${x.name}: ${x.r.max_flashes_in_1s}/s in ${x.r.worst_window}, red ${x.r.red_max_flashes_in_1s}, run ${x.r.longest_run_s}s`),
-    max_flashes_in_1s: Math.max(0, ...rows.map((x) => x.r.max_flashes_in_1s)),
-    max_full_frame_flashes_in_1s: Math.max(0, ...rows.map((x) => x.r.full_max_flashes_in_1s)),
+    runs: runs.length, runs_expected: expected, by_phase: byPhase,
+    failed: runs.filter((x) => !x.pass).map((x) => `${x.phase} ${x.size} ${x.mode} ${x.set} ${x.scenario}: ${x.error || `${x.max_flashes_in_1s}/s pairs ${x.max_pairs_in_1s} in ${x.worst_window}, red ${x.red_max_flashes_in_1s}, run ${x.longest_run_s}s, mode ok ${x.mode_ok}, errors ${(x.page_errors || []).length}`}`),
+    max_flashes_in_1s: Math.max(0, ...runs.map((x) => x.max_flashes_in_1s || 0)),
+    max_pairs_in_1s: Math.max(0, ...runs.map((x) => x.max_pairs_in_1s || 0)),
+    max_full_frame_flashes_in_1s: Math.max(0, ...runs.map((x) => x.full_max_flashes_in_1s || 0)),
     page_exceptions: report.exceptions.length,
-    calm: report.calm ? Object.fromEntries(Object.entries(report.calm).map(([k, v]) => [k, { max_flashes_in_1s: v.max_flashes_in_1s, held_samples: v.samples_with_a_window_held, rest_samples: v.samples_resting }])) : null,
-    calm_failed: report.calm ? Object.entries(report.calm).filter(([, v]) => v.max_flashes_in_1s > 3 || v.red > 3 || v.limiter_on === false).map(([k]) => k) : [],
+    calm: report.calm ? Object.fromEntries(Object.entries(report.calm).map(([k, v]) => [k, { max_flashes_in_1s: v.max_flashes_in_1s, fully_held_samples: v.samples_fully_held, partial_samples: v.samples_partial, rest_samples: v.samples_resting }])) : null,
+    calm_failed: report.calm ? Object.entries(report.calm).filter(([, v]) => v.max_flashes_in_1s > 3 || v.max_pairs_in_1s > 3 || v.red > 3 || !v.limiter || v.limiter.on !== true).map(([k]) => k) : [],
+    meter: report.meter ? report.meter.pass : null,
   };
-  report.verdict.pass = report.verdict.storms === report.verdict.storms_expected && report.verdict.failed.length === 0 &&
-    report.verdict.calm_failed.length === 0 &&
-    report.exceptions.length === 0 && (!report.parity || report.parity.skipped || report.parity.pass);
+  report.verdict.pass = report.verdict.runs === report.verdict.runs_expected && report.verdict.failed.length === 0 &&
+    report.verdict.calm_failed.length === 0 && report.exceptions.length === 0 &&
+    (!report.parity || report.parity.skipped || report.parity.pass) && (!report.meter || report.meter.pass);
   report.finished_at = new Date().toISOString();
   save();
-  console.log(`\nVJ storm receipt (${opt.label}): ${report.verdict.storms}/${report.verdict.storms_expected} storms, worst ${report.verdict.max_flashes_in_1s} flashes/s (full frame ${report.verdict.max_full_frame_flashes_in_1s}), failed ${report.verdict.failed.length}${report.parity ? `, parity ${report.parity.skipped ? "skipped" : report.parity.pass ? "PASS" : "FAIL"}` : ""} -> ${report.verdict.pass ? "PASS" : "FAIL"}`);
+  console.log(`\nVJ storm receipt (${opt.label}): ${report.verdict.runs}/${report.verdict.runs_expected} runs, worst ${report.verdict.max_flashes_in_1s} flashes/s (strict pairs ${report.verdict.max_pairs_in_1s}, full frame ${report.verdict.max_full_frame_flashes_in_1s}), failed ${report.verdict.failed.length}${report.parity ? `, parity ${report.parity.skipped ? "skipped" : report.parity.pass ? "PASS" : "FAIL"}` : ""}${report.meter ? `, meter ${report.meter.pass ? "PASS" : "FAIL"}` : ""} -> ${report.verdict.pass ? "PASS" : "FAIL"}`);
   for (const f of report.verdict.failed) console.log(`  FAIL ${f}`);
   console.log(`receipt: ${join(outDir, "receipt.json")}`);
   web.close();
@@ -580,11 +788,12 @@ async function main() {
 // Synthetic cell sequences for the parity phase (the JS twin's input layout, vj-gate.js cellIndex).
 function paritySequences(gate) {
   const { cellSums } = gate;
-  const N = 360;
+  const N = 300;
   return {
     square10: () => Array.from({ length: N }, (_, f) => cellSums(() => (Math.floor(f / 3) % 2 ? 0.5 : 0.05), () => 0, 32, 32)),
-    quadrant10: () => Array.from({ length: N }, (_, f) => cellSums((u, v) => (u < 0.5 && v < 0.5 ? (Math.floor(f / 3) % 2 ? 0.6 : 0.05) : 0.1), () => 0, 32, 32)),
+    offgrid8: () => Array.from({ length: N }, (_, f) => cellSums((u, v) => (u > 0.122 && u < 0.628 && v > 0.108 && v < 0.614 ? (Math.floor(f / 4) % 2 ? 0.3 : 0.02) : 0.02), () => 0, 64, 64)),
     redcentre: () => Array.from({ length: N }, (_, f) => cellSums((u, v) => 0.1, (u, v) => (Math.abs(u - 0.5) < 0.25 && Math.abs(v - 0.5) < 0.25 && Math.floor(f / 4) % 2 ? 0.3 : 0), 32, 32)),
+    checker: () => Array.from({ length: N }, (_, f) => cellSums((u, v) => ((Math.floor(u * 3 + 0.01) + Math.floor(v * 6 + 0.1)) % 2 ^ (Math.floor(f / 3) % 2) ? 0.6 : 0.03), () => 0, 48, 48)),
     random: () => {
       const R = lcg(11), hits = [];
       for (let f = 0; f < N; f += 2 + Math.floor(R() * 8)) hits.push([f, 0.1 + 0.4 * R(), R() < 0.3 ? -1 : 1, R(), R()]);
