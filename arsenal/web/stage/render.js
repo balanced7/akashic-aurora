@@ -15,6 +15,11 @@
 //   5. the meter (4 x 4 cell sums of relative luminance and the WCAG red quantity, exact box sums over every pixel), read
 //      back, judged by the stage's FrameLimiter (flash.js), and the apply pass onto the canvas.
 // Units: scene light is in "units" of 30 nits (UNIT_NITS), so a half-float target holds a blinding lens (clamped at 6e4).
+//
+// v1 (2026-10-25): the crowd near the lens is culled (within 4 m) and its raised arms hold still (within 10 m) in the
+// crowd's own vertex shader (shaders.js litVertex), the source of the v0 limiter interventions under TUNNEL_UP; the rig's
+// v1 fixtures (the halo, the pods, the towers, the delay towers, the 24-head lip) draw through the same per-head and
+// per-cell paths, as the scene's data says.
 
 import * as THREE from "three";
 import * as S from "./shaders.js";
@@ -192,16 +197,17 @@ export class StageRenderer {
   _materials() {
     const add = { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
                   blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor };
+    this.crowdNear = { uCullNear: { value: S.CROWD_CULL_NEAR_M }, uFreezeFar: { value: S.CROWD_FREEZE_M } };
     const lit = (albedo, emissive = [0, 0, 0], opts = {}) => this._raw(S.litVertex(opts), S.litFragment(this.preludeMain),
-      { ...this.spot, uAlbedo: { value: new THREE.Vector3(...albedo) }, uEmissive: { value: new THREE.Vector3(...emissive) } },
+      { ...this.spot, ...(opts.nearCull ? this.crowdNear : {}), uAlbedo: { value: new THREE.Vector3(...albedo) }, uEmissive: { value: new THREE.Vector3(...emissive) } },
       { side: THREE.DoubleSide });
     this.mat = {
       floor: lit([0.05, 0.05, 0.055]), stand: lit([0.07, 0.07, 0.08]), roof: lit([0.02, 0.02, 0.025]), drape: lit([0.012, 0.012, 0.014]),
       truss: lit([0.32, 0.32, 0.34], [0, 0, 0], { instanced: true }), trussStatic: lit([0.3, 0.3, 0.32]),
       deck: lit([0.06, 0.06, 0.07]), body: lit([0.05, 0.05, 0.055], [0, 0, 0], { instanced: true }),
-      person: lit([0.035, 0.032, 0.034], [0, 0, 0], { instanced: true }),
+      person: lit([0.035, 0.032, 0.034], [0, 0, 0], { instanced: true, nearCull: true }),
       arms: this._raw(S.litVertex({ instanced: true, crowd: true }), S.litFragment(this.preludeMain),
-        { ...this.spot, uAlbedo: { value: new THREE.Vector3(0.035, 0.032, 0.034) }, uEmissive: { value: new THREE.Vector3() },
+        { ...this.spot, ...this.crowdNear, uAlbedo: { value: new THREE.Vector3(0.035, 0.032, 0.034) }, uEmissive: { value: new THREE.Vector3() },
           uBeatPhase: { value: 0 }, uEnergy: { value: 0.6 } }, { side: THREE.DoubleSide }),
       ring: lit([0.12, 0.12, 0.13]),
       chain: lit([0.18, 0.18, 0.2], [0, 0, 0], { instanced: true }),

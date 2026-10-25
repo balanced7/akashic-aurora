@@ -14,6 +14,11 @@
 // Progress is driven by the BEAT POSITION, not the clock: u = ease((pos - pos0) / (posEnd - pos0)), so a flythrough
 // arrives on the ONE whatever the tempo does. The director plays a sequence of {shot, bars} and cuts only on bar lines;
 // no shot is shorter than 2 beats (the rig lane's cut grammar: never faster than every 2 beats).
+//
+// v1 (2026-10-25): a phrase drives the camera with a PLAN, entries {shot, p0, p1} at absolute beat positions (phrases.js
+// cameraPlan: one entry per step, a step's shot may split, and a step that opens with a flash is cut to one beat early so
+// the cut never lands on the flash frame). An entry rebuilt with the same shot and p0 is the same entry: no second cut.
+// When the plan runs out, the sequence plays on.
 
 export const CAMERA_API = "arsenal.stage-camera/v1";
 export const MIN_SHOT_BEATS = 2;
@@ -144,18 +149,37 @@ export class Director {
     this.index = -1;
     this.cuts = [];              // [{pos, shot}] for receipts (bounded)
     this.manual = null;          // a shot held by hand (v0: the receipts' pose override)
+    this.planEntries = null;     // a phrase's camera plan (v1)
+    this.key = null;             // the playing entry's identity (a sequence entry or a plan entry)
     this.pose = { pos: [0, 0, 0], look: [0, 0, 0], hfov: 50, roll: 0, ev: 0 };
   }
   start(name, pos0) {
     if (!this.sequences[name]) throw new Error(`no camera sequence ${name}`);
     this.seq = this.sequences[name]; this.seqName = name; this.pos0 = pos0; this.index = -1;
+    this.planEntries = null;
+  }
+  // A phrase's plan: [{shot, p0, p1, why?}]; null clears it.
+  plan(entries) {
+    if (!entries || !entries.length) { this.planEntries = null; return; }
+    for (const e of entries) {
+      if (!this.shots[e.shot]) throw new Error(`camera plan: unknown shot ${e.shot}`);
+      if (!(e.p1 - e.p0 >= MIN_SHOT_BEATS - 1e-9)) throw new Error(`camera plan: ${e.shot} is shorter than ${MIN_SHOT_BEATS} beats`);
+    }
+    this.planEntries = entries.map((e) => ({ ...e }));
+  }
+  _planAt(pos) {
+    const P = this.planEntries;
+    if (!P) return null;
+    if (pos >= P[P.length - 1].p1 - 1e-6) { this.planEntries = null; return null; }
+    for (const e of P) if (pos < e.p1 - 1e-6) return e;
+    return null;
   }
   // the entry playing at beat position pos (sequences loop), with its start and end positions
   entryAt(pos) {
     const seq = this.seq;
     const total = seq.reduce((s, e) => s + e.bars * 4, 0);
-    let q = pos - this.pos0;
-    if (q < 0 && q > -1e-6) q = 0;           // the bar line itself, within float error: the first shot, not the last
+    // the bar line itself, within float error (pos 132.9999999 for beat 133): the new shot, on its own frame
+    let q = pos - this.pos0 + 1e-6;
     const loop = Math.floor(q / total);
     q -= loop * total;
     let acc = 0;
@@ -173,16 +197,30 @@ export class Director {
       shot = this.shots[this.manual.shot];
       u = this.manual.u;
     } else {
-      const en = this.entryAt(pos);
-      const key = en.loop * 1000 + en.i;
-      if (key !== this.index) {
-        cut = this.index !== -1 || this.cuts.length === 0;
-        this.index = key;
-        if (this.cuts.length < 512) this.cuts.push({ pos: +en.p0.toFixed(4), at: +pos.toFixed(4), shot: en.e.shot });
+      const pe = this._planAt(pos);
+      if (pe) {
+        const key = `plan:${pe.shot}@${pe.p0.toFixed(4)}`;
+        if (key !== this.key) {
+          cut = this.key !== null || this.cuts.length === 0;
+          this.key = key;
+          if (this.cuts.length < 512) this.cuts.push({ pos: +Math.max(pe.p0, pos - 1e-6).toFixed(4), at: +pos.toFixed(4), shot: pe.shot, why: pe.why || "plan" });
+        }
+        shot = this.shots[pe.shot];
+        u = (pos - pe.p0) / (pe.p1 - pe.p0);
+        this.entry = { e: { shot: pe.shot }, p0: pe.p0, p1: pe.p1, plan: true };
+      } else {
+        const en = this.entryAt(pos);
+        const key = `seq:${this.seqName}@${this.pos0}:${en.loop * 1000 + en.i}`;
+        if (key !== this.key) {
+          cut = this.key !== null || this.cuts.length === 0;
+          this.key = key;
+          this.index = en.loop * 1000 + en.i;
+          if (this.cuts.length < 512) this.cuts.push({ pos: +en.p0.toFixed(4), at: +pos.toFixed(4), shot: en.e.shot, why: "bar" });
+        }
+        shot = this.shots[en.e.shot];
+        u = (pos - en.p0) / (en.p1 - en.p0);
+        this.entry = en;
       }
-      shot = this.shots[en.e.shot];
-      u = (pos - en.p0) / (en.p1 - en.p0);
-      this.entry = en;
     }
     shotPose(shot, u, pos, this.pose);
     this.pose.shot = shot.id; this.pose.u = u; this.pose.cut = cut;

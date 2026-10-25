@@ -18,8 +18,22 @@
 // Safety in 3D (until Lasers v2's area estimator can read the 3D picture): fast gates dip to GATE_FLOOR, never to black;
 // a new fast hit chokes the older fast ones; a press within a quarter beat of the last onset retriggers that hit
 // instead of starting another (a pad storm becomes one held gate, not fifteen onsets a second).
+//
+// v1 (2026-10-25), LASER GROUPS: Daniel wants "the ability to tie groups of lasers together and allow them to play
+// various "animations" and triggers". The scene's laser_groups (rig.js buildLaserGroups: banks A, B, S, H and the halo's
+// R, by level) are addressed by phrase steps; each group line runs a SHAPE (fan, sweep, chase across the bank in x order,
+// scissors, ceiling, lattice, tunnel, fans, rain, bloom: an entry that opens on the ONE, levels: the halo lasers fire
+// with their third on the phrase's level schedule, rim-corona: one spoke per halo laser, lit as the ring's chopper blade
+// passes) through a GATE (none, onetwo: two pulses a beat, triple: three a beat; both dip to GATE_FLOOR, never to black).
+// The output contract does not change: the same 16-float segments, the same picture frame. The 21 Lasers v2 heads keep
+// their indices 0..20; heads past them (the halo lasers) are placed in the picture where the front-of-house camera sees
+// their projectors. A laser on a ring points where the ring holds it, which a flat picture cannot say: out.aim carries a
+// per-head aim override [x, y, z, k] (k: the depth ratio, 0 = none) that lasers3d.js reads, a side channel beside the
+// picture rather than a change to it. While a phrase owns the lasers, the section's look is muted (setLookMute).
 
-export const LASERS_API = "arsenal.stage-lasers/v0";
+import { spreadValues, waveform } from "./effects.js";
+
+export const LASERS_API = "arsenal.stage-lasers/v1";
 export const CONTRACT = "arsenal.vj-lasers/v1";
 export const HERO = Object.freeze({ x: 0, y: 0.05 });
 export const SEG_FLOATS = 16;
@@ -47,6 +61,27 @@ export const BANK_A = Object.freeze(HEADS.filter((h) => h.bank === "A").map((h) 
 export const BANK_B = Object.freeze(HEADS.filter((h) => h.bank === "B").map((h) => h.index));
 export const SIDE = Object.freeze(HEADS.filter((h) => h.bank === "S").map((h) => h.index));
 export const HERO_HEAD = HEADS.length - 1;
+
+// Heads past the 21: from the scene's projectors (index 21 on), placed in the picture by their 3D position (the same
+// linear map that puts Bank A's truss at y 0.47 and Bank B's floor at -0.47: x 17.5 m -> 0.747, y 22 m -> 0.47).
+export const PICTURE = Object.freeze({ sx_per_m: 0.746667 / 17.5, y_per_m: 0.94 / 19.7, y0_m: 22 - 0.47 / (0.94 / 19.7) });
+export function extraHeadsFrom(projectors) {
+  return (projectors || []).slice(HEADS.length).map((p, k) => Object.freeze({
+    name: p.name, bank: p.bank, index: HEADS.length + k, u: 0, sx: p.pos[0] * PICTURE.sx_per_m, y: (p.pos[1] - PICTURE.y0_m) * PICTURE.y_per_m,
+    level: p.level ?? -1, clock: p.clock ?? null, pos: p.pos.slice(), radial: p.radial ? p.radial.slice() : null, normal: p.normal ? p.normal.slice() : null,
+  }));
+}
+export const GROUP_SHAPES = Object.freeze(["fan", "sweep", "chase", "scissors", "ceiling", "lattice", "tunnel", "fans", "rain", "bloom", "levels", "rim-corona"]);
+export const GROUP_GATES = Object.freeze(["none", "onetwo", "triple"]);
+// A group gate's level at `age` beats into its line: the one-two (two pulses a beat) and the triple (three a beat) dip to
+// GATE_FLOOR between pulses, the fast-gate rule.
+export function groupGate(gate, age) {
+  if (!gate || gate === "none") return 1;
+  const x = age - Math.floor(age + 1e-9);
+  if (gate === "onetwo") return x < 0.25 - 1e-9 || (x >= 0.5 - 1e-9 && x < 0.75 - 1e-9) ? 1 : GATE_FLOOR;
+  if (gate === "triple") return x < 0.125 - 1e-9 || (x >= 0.25 - 1e-9 && x < 0.375 - 1e-9) || (x >= 0.5 - 1e-9 && x < 0.625 - 1e-9) ? 1 : GATE_FLOOR;
+  throw new Error(`unknown laser gate ${gate}`);
+}
 
 export const PATTERNS = Object.freeze(["fan", "cross", "scissors", "crown", "cone", "rain", "sweep", "chase"]);
 export const LOOKS = Object.freeze(["off", "lattice", "ceiling", "tunnel", "fans"]);
@@ -92,7 +127,11 @@ function rngOf(seed) {
 }
 
 export class LaserEngine {
-  constructor({ seed = 2014, clock = null, colours = null, fallbackBpm = 150 } = {}) {
+  constructor({ seed = 2014, clock = null, colours = null, fallbackBpm = 150, heads = null } = {}) {
+    this.heads = heads && heads.length ? [...HEADS, ...heads.filter((h) => h.index >= HEADS.length)] : HEADS;
+    this.groupLines = [];
+    this.lookMute = false;
+    this.groupStats = { lines: 0, frames: 0, segments: 0, byGroup: {} };
     this.seed = seed;
     this.clock = clock;
     this.fallbackBpm = fallbackBpm;
@@ -106,8 +145,8 @@ export class LaserEngine {
     this.section = "any";
     this.count = 0;              // onsets (new hits)
     this.presses = 0;            // pad presses (a press within a quarter beat retriggers instead of starting a hit)
-    this.out = { t: 0, pos: 0, seg: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), n: 0, heads: new Float32Array(HEADS.length),
-                 events: [], pattern: "", gate: "", look: "off", reach: 1, hits: 0 };
+    this.out = { t: 0, pos: 0, seg: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), n: 0, heads: new Float32Array(this.heads.length),
+                 aim: new Float32Array(this.heads.length * 4), events: [], pattern: "", gate: "", look: "off", reach: 1, hits: 0, groups: 0 };
   }
   setClock(c) { this.clock = c; }
   setColours(colours) { this.palette = laserPalette(colours); }
@@ -115,6 +154,20 @@ export class LaserEngine {
     this.look = { name: LOOKS.includes(name) ? name : "off", level: clamp01(level), reach: reach > 0 ? reach : 1 };
   }
   setSection(name) { this.section = String(name || "any"); }
+  setLookMute(on) { this.lookMute = !!on; }
+  // Phrase group lines (phrases.js compiled laser lines {group, heads, laser: {shape, gate, ...}}) anchored on pos;
+  // replace: a new step (the previous lines go), otherwise a cue adds to them.
+  setGroupLines(lines, pos, { replace = true } = {}) {
+    if (replace) this.groupLines = [];
+    for (const l of lines || []) {
+      if (!l || l.kind !== "lasers") continue;
+      if (!GROUP_SHAPES.includes(l.laser.shape)) throw new Error(`unknown laser shape ${l.laser.shape}`);
+      groupGate(l.laser.gate, 0);
+      this.groupLines.push({ ...l.laser, heads: l.heads.filter((h) => h < this.heads.length), group: l.group, anchor: pos });
+      this.groupStats.lines++;
+    }
+  }
+  clearGroups() { this.groupLines = []; }
   posAt(t) {
     const c = this.clock;
     if (c && typeof c.posAt === "function") return c.posAt(t);
@@ -189,7 +242,7 @@ export class LaserEngine {
   }
   frame(t) {
     const o = this.out;
-    o.t = t; o.n = 0; o.heads.fill(0); o.events.length = 0;
+    o.t = t; o.n = 0; o.heads.fill(0); o.events.length = 0; o.aim.fill(0); o.groups = 0;
     const pos = this.posAt(t);
     o.pos = pos;
     for (const h of this.hits) {
@@ -199,15 +252,21 @@ export class LaserEngine {
       o.pattern = h.pattern; o.gate = h.gate;
     }
     this.hits = this.hits.filter((h) => !(h.released !== null && pos > h.released + 1) && pos - h.onset < 64 && (h.held || h.gate === "hold" || pos - h.onset < 4));
-    if (this.look.name !== "off" && this.look.level > 0) this._look(pos, this.look.level);
-    o.look = this.look.name; o.reach = this.look.reach; o.hits = this.hits.length;
+    if (this.groupLines.length) {
+      const n0 = o.n;
+      this._groups(pos);
+      o.groups = o.n - n0;
+      if (o.groups) { this.groupStats.frames++; this.groupStats.segments += o.groups; }
+    }
+    if (!this.lookMute && this.look.name !== "off" && this.look.level > 0) this._look(pos, this.look.level);
+    o.look = this.lookMute ? "phrase" : this.look.name; o.reach = this.look.reach; o.hits = this.hits.length;
     return o;
   }
   _emit(head, x1, y1, col, intensity, width = 1.6) {
     const o = this.out;
     if (o.n >= MAX_SEGMENTS || intensity <= 0) return;
-    const h = HEADS[head];
-    const s = o.n * SEG_FLOATS, c = this.palette[col % this.palette.length];
+    const h = this.heads[head];
+    const s = o.n * SEG_FLOATS, c = this.palette[((col % this.palette.length) + this.palette.length) % this.palette.length];
     o.seg[s + SEG.X0] = h.sx; o.seg[s + SEG.Y0] = h.y; o.seg[s + SEG.X1] = x1; o.seg[s + SEG.Y1] = y1;
     o.seg[s + SEG.R] = c[0]; o.seg[s + SEG.G] = c[1]; o.seg[s + SEG.B] = c[2]; o.seg[s + SEG.I] = intensity;
     o.seg[s + SEG.WIDTH] = width; o.seg[s + SEG.GLOW] = intensity; o.seg[s + SEG.BLUR] = 0; o.seg[s + SEG.HEAT] = 0;
@@ -216,14 +275,141 @@ export class LaserEngine {
     o.heads[head] = Math.max(o.heads[head], intensity);
   }
   // a beam from head h at angle a (radians, 0 = +x, pi/2 = up) of length L
-  _ray(head, a, L, col, lv) { const h = HEADS[head]; this._emit(head, h.sx + L * Math.cos(a), h.y + L * Math.sin(a), col, lv); }
+  _ray(head, a, L, col, lv) { const h = this.heads[head]; this._emit(head, h.sx + L * Math.cos(a), h.y + L * Math.sin(a), col, lv); }
+  _toHero(hd) { const h = this.heads[hd]; return Math.atan2(HERO.y - h.y, HERO.x - h.sx); }
+  _dirOf(hd, dir) {
+    if (dir === "up") return Math.PI / 2;
+    if (dir === "down") return -Math.PI / 2;
+    if (dir === "out") return this._toHero(hd) + Math.PI;
+    return this._toHero(hd);
+  }
+  _fan(hd, centre, spread, nB, col, lv, L = 2.2) {
+    if (nB <= 1) { this._ray(hd, centre, L, col, lv); return; }
+    for (let b = 0; b < nB; b++) this._ray(hd, centre + spread * (b / (nB - 1) - 0.5), L, col, lv);
+  }
+  // the phrase's laser group lines
+  _groups(pos) {
+    const DEG = Math.PI / 180;
+    for (const L of this.groupLines) {
+      const age = pos - L.anchor;
+      if (L.from_beats !== undefined && age < L.from_beats - 1e-9) continue;
+      if (L.until_beats !== undefined && age >= L.until_beats - 1e-9) continue;
+      const local = age - (L.from_beats || 0);
+      const lv = clamp01(L.level ?? 0.8) * groupGate(L.gate, local);
+      if (lv <= 0) continue;
+      const col = L.colour ?? 0, col2 = L.colour2 ?? col + 1;
+      const heads = L.heads, n0 = this.out.n;
+      switch (L.shape) {
+        case "fan": for (const hd of heads) this._fan(hd, this._dirOf(hd, L.dir), (L.spread ?? 36) * DEG, L.beams ?? 5, col, lv); break;
+        case "sweep": {
+          const sw = Math.sin((local / (L.measure ?? 4)) * TAU) * (L.swing ?? 30) * DEG;
+          for (const hd of heads) this._fan(hd, this._dirOf(hd, L.dir) + (L.mirror && this.heads[hd].sx < 0 ? -sw : sw), (L.spread ?? 24) * DEG, L.beams ?? 4, col, lv);
+          break;
+        }
+        case "chase": {
+          if (!heads.length) break;
+          const slot = Math.floor(frac(local / (L.measure ?? 2)) * heads.length) % heads.length;
+          this._fan(heads[slot], this._dirOf(heads[slot], L.dir), (L.spread ?? 30) * DEG, L.beams ?? 4, col, lv);
+          break;
+        }
+        case "scissors": {
+          const step = Math.floor(local * 2) % 2 ? 1 : -1;
+          for (const [j, hd] of heads.entries()) this._ray(hd, this._toHero(hd) + step * Math.sign(this.heads[hd].sx || 1) * 0.35, 2.2, j % 2 ? col2 : col, lv);
+          break;
+        }
+        case "ceiling": {
+          const sway = Math.sin((pos / 8) * TAU) * 0.08;
+          for (const hd of heads) for (let b = 0; b < 5; b++) this._ray(hd, Math.PI / 2 + (b / 4 - 0.5) * 1.1 + sway, 0.5, col, lv * 0.7);
+          break;
+        }
+        case "lattice": {
+          const breathe = Math.sin((pos / 16) * TAU) * 0.16;
+          for (const hd of heads) {
+            const up = this.heads[hd].y < 0;
+            for (const sg of [-1, 1]) this._ray(hd, (up ? Math.PI / 2 : -Math.PI / 2) + sg * (0.45 + (up ? breathe : -breathe)), 2.4, sg > 0 ? col : col2, lv * 0.7);
+          }
+          break;
+        }
+        case "tunnel": {
+          const spin = (pos / 8) * TAU;
+          for (const hd of heads) for (let b = 0; b < 12; b++) {
+            const a = spin + (TAU * b) / 12, h = this.heads[hd];
+            this._emit(hd, HERO.x + 0.3 * Math.cos(a) + (h.sx - HERO.x) * 0.0, HERO.y + 0.3 * Math.sin(a), b % 2 ? col2 : col, lv);
+          }
+          break;
+        }
+        case "fans": {
+          const open = 0.5 + 0.5 * Math.sin((pos / 8) * TAU);
+          for (const hd of heads) this._fan(hd, this._toHero(hd), 0.3 + 0.9 * open, 7, col, lv * 0.8, 2.4);
+          break;
+        }
+        case "rain": for (const hd of heads) this._ray(hd, this.heads[hd].y > 0 ? -Math.PI / 2 : Math.PI / 2, 2.2, col, lv); break;
+        case "bloom": {
+          // the entry on the ONE: each head's fan opens from a closed beam to its full spread over open_beats
+          const open = Math.min(1, Math.max(0, local / (L.open_beats ?? 1)));
+          for (const hd of heads) this._fan(hd, this._toHero(hd), (L.spread ?? 64) * DEG * (0.08 + 0.92 * open), L.beams ?? 7, col, lv * (1 - 0.15 * open));
+          break;
+        }
+        case "levels": this._levels(L, local, lv, col); break;
+        case "rim-corona": this._corona(L, local, lv, col); break;
+        default: break;
+      }
+      const made = this.out.n - n0;
+      if (made) this.groupStats.byGroup[L.group] = (this.groupStats.byGroup[L.group] || 0) + made;
+    }
+  }
+  // the halo lasers on the level schedule (the same effect definition the halo heads run, so they fire with their third)
+  _levels(L, age, lv, col) {
+    const def = L.scheduleDef || { form: "square", width: 1 / 3, transition: 0.2, measure: 3, phase: { order: "level", block: "ties", from: 0, to: -360, cyclic: true } };
+    const ph = levelPhases(def);
+    const lay = L.layers || { x_scale: 1.8, y: { 0: 26, 1: 15, 2: 8 }, z: 30 };
+    const measure = Math.max(1e-6, def.measure ?? 3);
+    for (const hd of L.heads) {
+      const h = this.heads[hd];
+      if (!(h.level >= 0) || !h.pos) continue;
+      const u = age / measure + (def.offset ?? 0) + ph[h.level] + 1e-6;
+      if (def.clean && u < 0) continue;                       // a clean start: dark until this third's first onset
+      const v = waveformLite(def, u);
+      const s = (def.floor ?? 0) + (1 - (def.floor ?? 0)) * v;
+      if (s <= 0.02) continue;
+      const ty = (lay.y[h.level] ?? lay.y[String(h.level)] ?? 15) + (L.layerShift || 0);
+      const t = [(lay.x_scale ?? 1.8) * h.pos[0], ty, lay.z ?? 30];
+      const d = [t[0] - h.pos[0], t[1] - h.pos[1], t[2] - h.pos[2]], dl = Math.hypot(d[0], d[1], d[2]) || 1;
+      const o = this.out.aim, b = hd * 4;
+      o[b] = d[0] / dl; o[b + 1] = d[1] / dl; o[b + 2] = d[2] / dl; o[b + 3] = L.k ?? 8;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) this._emit(hd, h.sx + 0.3 * dx, h.y + 0.3 * dy, col, lv * s);
+    }
+  }
+  // one spoke per halo laser, radially out and tipped toward the crowd, lit while the ring's chopper blade covers it
+  _corona(L, age, lv, col) {
+    const def = L.followDef || { form: "square", width: 0.39, transition: 0.6, measure: 0.5, phase: { from: 0, to: -720 } };
+    const DEG = Math.PI / 180, fw = (L.forward_deg ?? 25) * DEG;
+    const measure = Math.max(1e-6, def.measure ?? 0.5);
+    const from = (def.phase && def.phase.from) ?? 0, to = (def.phase && def.phase.to) ?? -720;
+    for (const hd of L.heads) {
+      const h = this.heads[hd];
+      if (h.clock === null || h.clock === undefined || !h.radial || !h.normal) continue;
+      let a = 90 - h.clock;                                   // the polar angle, as the ring's cells rank it
+      a = ((a + 180) % 360 + 360) % 360 - 180;
+      const u = frac((a + 172.5) / 360);
+      const v = waveformLite(def, age / measure + (def.offset ?? 0) + (from + u * (to - from)) / 360 + 1e-6);
+      if (v <= 0.02) continue;
+      const o = this.out.aim, b = hd * 4;
+      const d = [Math.cos(fw) * h.radial[0] + Math.sin(fw) * h.normal[0], Math.cos(fw) * h.radial[1] + Math.sin(fw) * h.normal[1],
+                 Math.cos(fw) * h.radial[2] + Math.sin(fw) * h.normal[2]];
+      const dl = Math.hypot(d[0], d[1], d[2]) || 1;
+      o[b] = d[0] / dl; o[b + 1] = d[1] / dl; o[b + 2] = d[2] / dl; o[b + 3] = L.k ?? 12;
+      const px = h.sx - HERO.x, py = h.y - PICTURE_RING_Y, pl = Math.hypot(px, py) || 1;
+      this._emit(hd, h.sx + 0.3 * px / pl, h.y + 0.3 * py / pl, col, lv * v);
+    }
+  }
   _pattern(hit, pos, lv) {
     const r = rngOf(hit.seed);
     const nB = 3 + Math.floor(r() * 4);              // beams per head in a fan
     const spread = (18 + 30 * r()) * Math.PI / 180;
     const age = pos - hit.onset;
     for (const [j, hd] of hit.heads.entries()) {
-      const h = HEADS[hd];
+      const h = this.heads[hd];
       const toHero = Math.atan2(HERO.y - h.y, HERO.x - h.sx);
       const col = j % 2 ? hit.colour2 : hit.colour;
       switch (hit.pattern) {
@@ -275,9 +461,23 @@ export class LaserEngine {
     } else if (name === "fans") {
       const open = 0.5 + 0.5 * Math.sin((pos / 8) * TAU);
       for (const hd of SIDE) {
-        const h = HEADS[hd], toHero = Math.atan2(HERO.y - h.y, HERO.x - h.sx);
+        const h = this.heads[hd], toHero = Math.atan2(HERO.y - h.y, HERO.x - h.sx);
         for (let b = 0; b < 7; b++) this._ray(hd, toHero + (b / 6 - 0.5) * (0.3 + 0.9 * open), 2.4, 0, lv * 0.8);
       }
     }
   }
 }
+
+// The ring centre in the picture (the rings hang at y 14 m).
+export const PICTURE_RING_Y = (14 - PICTURE.y0_m) * PICTURE.y_per_m;
+// The three levels' phase offsets (turns) under a schedule's spread: the same spread the fixtures' effect uses, on the
+// three level values (level 0, 1, 2; level_mirror 0, 1, 0).
+export function levelPhases(def) {
+  const ph = def.phase || {};
+  const keys = { level: Float64Array.from([0, 1, 2]), level_mirror: Float64Array.from([0, 1, 0]), index: Float64Array.from([0, 1, 2]) };
+  const order = keys[ph.order] ? ph.order : "level";
+  const out = spreadValues(keys, { ...ph, order }, 3);
+  return Array.from(out, (v) => v / 360);
+}
+// The waveform without the effects module's seeded forms (the schedules are squares, pulses and sines).
+function waveformLite(def, x) { return waveform(def.form || "square", x, def); }

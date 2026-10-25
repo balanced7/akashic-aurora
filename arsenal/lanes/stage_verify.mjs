@@ -41,6 +41,7 @@ import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { acquireGpuLock } from "./gpu_lock.mjs";
 import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { expandScene } from "../web/stage/rig.js";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url)).replace(/[\\/]+$/, "");
 const MAIN = REPO.split(/[\\/]\.claude[\\/]worktrees[\\/]/)[0];
@@ -60,8 +61,13 @@ const { values: opt } = parseArgs({
     "flash-scale": { type: "string", default: "1" },
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
     query: { type: "string", default: "" },
+    set: { type: "string", default: "source-v1" },
   },
 });
+if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.set)) { console.log(`ERROR --set ${opt.set}: a set name`); process.exit(2); }
+// the set the page will load, expanded here too: the receipt compares the page's counts with the file's
+const SCENE = JSON.parse(readFileSync(join(REPO, "arsenal", "web", "stage", "sets", `${opt.set}.json`), "utf8"));
+const RIG = expandScene(SCENE);
 const PHASES = opt.phases.split(",").map((s) => s.trim()).filter(Boolean);
 const W = Number(opt.width), H = Number(opt.height);
 let PORT = Number(opt.port), ENGINE_PORT = Number(opt["engine-port"]);
@@ -314,7 +320,7 @@ function judgeFlashes(series) {
 }
 
 // ---------------------------------------------------------------------------------------------------- phases --
-const BASE = `w=${W}&h=${H}&hud=0&quality=receipt${opt.query ? `&${opt.query}` : ""}`;
+const BASE = `w=${W}&h=${H}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
 const F = 1000 / 60;
 
 async function phaseLoad({ ev, open, shot, phase }) {
@@ -330,8 +336,9 @@ async function phaseLoad({ ev, open, shot, phase }) {
   phase.swiftshader_ms_per_frame = +((Date.now() - tRun) / 90).toFixed(1);
   const st = await ev("window.__stage.state()");
   phase.state = st;
-  check("load: the rig's counts", st.counts.heads === 28 && st.counts.rungs === 12 && st.counts.projectors === 21 && st.counts.hazers === 8 && st.counts.cubes === 24,
-        { heads: st.counts.heads, rungs: st.counts.rungs, cubes: st.counts.cubes, ring_cells: st.counts.ring_cells, projectors: st.counts.projectors, hazers: st.counts.hazers });
+  const want = RIG.counts;
+  check(`load: the rig's counts match ${opt.set}.json`, ["heads", "rungs", "projectors", "hazers", "cubes", "cells", "fixtures"].every((k) => st.counts[k] === want[k]),
+        { heads: st.counts.heads, rungs: st.counts.rungs, cubes: st.counts.cubes, ring_cells: st.counts.ring_cells, projectors: st.counts.projectors, hazers: st.counts.hazers, cells: st.counts.cells });
   check("load: the beat grid locked and the first section started", st.grid.locked && st.section === "intro", { locked: st.grid.locked, section: st.section });
   // a drop moment on the hero shot: the beams have fragments, the haze is there, the picture is not black
   await ev(`(() => { window.__stage.setShot("FOH_WIDE", 0.5); for (let i = 0; i < 6; i++) window.__vt.step(${F}); return true; })()`);
@@ -518,7 +525,7 @@ async function phaseStorm(ctx) { return phaseFlash(ctx, true); }
 async function phaseFlash({ ev, open, phase, deadline }, storm = false) {
   const scale = Number(opt["flash-scale"]) || 1;
   const fw = Math.round(W * scale), fh = Math.round(H * scale);
-  await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt${opt.query ? `&${opt.query}` : ""}`);
+  await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`);
   await ev(PAGE_PROBE);
   // fast-forward to two bars before the drop (bar 14), at 6 frames a step (the show's own logic runs every step)
   await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * 14 - 30; i++) window.__vt.step(${F}); s.skipRender = false; for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`, 170000);

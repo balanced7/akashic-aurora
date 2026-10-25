@@ -14,6 +14,11 @@
 // The pads (v0 subset of the design's KeyLab map): 1 KICK, 2 LASERS (press / release = hold is a gate), 6 FLY-OUT,
 // 10 DROP NOW. The faders (absolute, CC105-113 as Arturia's FL script reads them): F1 strand, F4 lasers, F5 haze target,
 // F6 speed (detents 1/4, 1/2, 1, 2, 4), F9 grand master.
+//
+// v1 (2026-10-25): a section may name a PHRASE ({name, repeats, camera}: phrases.js runs it from the section's ONE, and it
+// ends with the section); the pads add 3 PHRASE GO (arm the phrase on the next bar line; pressed while one runs, the next
+// repeat from the next bar line), 4 PHRASE NEXT (the step ends on the next bar line) and 7 PHRASE STOP. A demo pad rule
+// may say from_bar / to_bar (the bars of its section it plays in).
 
 export const SHOW_API = "arsenal.stage-show/v1";
 export const SPEED_DETENTS = Object.freeze([0.25, 0.5, 1, 2, 4]);
@@ -113,6 +118,8 @@ export class Show {
     for (const r of this.padRules) {
       if (r.section !== at.name || r.beat !== beat) continue;
       if (r.bar !== undefined && r.bar !== at.bar) continue;
+      if (r.from_bar !== undefined && at.bar < r.from_bar) continue;
+      if (r.to_bar !== undefined && at.bar >= r.to_bar) continue;
       if (r.every_bars !== undefined && at.bar % r.every_bars !== (r.offset_bars || 0)) continue;
       this.events.push({ type: "pad", pad: r.pad, vel: r.vel ?? 0.85, on: true, pos: beatIdx });
       this.releases.push({ pad: r.pad, at: beatIdx + (r.hold_beats ?? 0.25) });

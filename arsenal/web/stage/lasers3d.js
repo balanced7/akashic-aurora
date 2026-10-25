@@ -25,6 +25,10 @@
 //   head  dist0 (m: how far the origin is from the aperture, after clipping to the camera)  intensity
 // flags: 1 = the ray ends on a surface (draw a dot), 2 = attenuated by the camera exclusion, 4 = clipped at the camera's
 // near plane, 8 = faded for passing close to the camera.
+//
+// v1 (2026-10-25): projectors past the 21 Lasers v2 heads (the halo's twelve on ring 0) come in the brain's own head
+// list (heads: LaserEngine.heads), and a head the brain gives an aim override (frame.aim[h * 4 .. + 3] = [x, y, z, k],
+// k > 0) draws in that frame and depth ratio this frame: a laser riding a ring points where the ring holds it.
 
 import { SEG, SEG_FLOATS, MAX_SEGMENTS, HEADS, isSaturatedRed } from "./lasers.js";
 
@@ -73,10 +77,10 @@ export function roomHit(o, d, venue) {
 }
 
 export class Lasers3D {
-  constructor(projectors, venue = {}, { gamma = 1, exclusionDeg = 2 } = {}) {
-    if (projectors.length !== HEADS.length) throw new Error(`lasers3d: ${projectors.length} projectors for ${HEADS.length} heads`);
+  constructor(projectors, venue = {}, { gamma = 1, exclusionDeg = 2, heads = HEADS } = {}) {
+    if (projectors.length !== heads.length) throw new Error(`lasers3d: ${projectors.length} projectors for ${heads.length} heads`);
     projectors.forEach((p, i) => {
-      if (p.name && p.name !== HEADS[i].name) throw new Error(`lasers3d: projector ${i} is ${p.name}, the brain's head ${i} is ${HEADS[i].name}`);
+      if (p.name && p.name !== heads[i].name) throw new Error(`lasers3d: projector ${i} is ${p.name}, the brain's head ${i} is ${heads[i].name}`);
     });
     this.p = projectors.map((p) => ({ ...p, basis: projectorBasis(p.aim || [0, 0, 1]) }));
     this.venue = venue;
@@ -100,11 +104,13 @@ export class Lasers3D {
       const b = i * SEG_FLOATS;
       const h = s2[b + SEG.HEAD], I = Math.max(0, s2[b + SEG.I]);
       if (I <= 0 || !(sum[h] > 0)) continue;
-      const pr = this.p[h], { r, u, f } = pr.basis;
+      const pr = this.p[h];
+      const ao = frame2d.aim && frame2d.aim[h * 4 + 3] > 0 ? h * 4 : -1;
+      const { r, u, f } = ao >= 0 ? projectorBasis([frame2d.aim[ao], frame2d.aim[ao + 1], frame2d.aim[ao + 2]]) : pr.basis;
       const dx = s2[b + SEG.X1] - s2[b + SEG.X0], dy = s2[b + SEG.Y1] - s2[b + SEG.Y0];
       const len2 = Math.hypot(dx, dy);
       if (len2 < 1e-9) continue;
-      const k = (pr.reach ?? 0.6) * reachScale * (frame2d.reach ?? 1);
+      const k = ao >= 0 ? frame2d.aim[ao + 3] : (pr.reach ?? 0.6) * reachScale * (frame2d.reach ?? 1);
       const d = norm([r[0] * dx + u[0] * dy + f[0] * k * len2, r[1] * dx + u[1] * dy + f[1] * k * len2,
                       r[2] * dx + u[2] * dy + f[2] * k * len2]);
       const origin = pr.pos;

@@ -16,6 +16,14 @@
 // The output is the design's FrameState: heads (16 floats each: pan, tilt, dimmer, r, g, b, zoomDeg, frost, iris, gobo,
 // goboRot, prism, prismRot, shutter, focus, flags) and pixels (4 floats each: r, g, b, a, linear, before each cell kind's
 // luminance scale, which the renderer owns). Gobo, prism and frost are modelled at their home values and drawn in v1.
+//
+// v1 (2026-10-25): the PHRASE LAYER (phrases.js plays it). A phrase step is an overlay over the section's look, merged
+// latest-takes-precedence member by member and attribute by attribute: the attributes a step's lines name (values, a
+// position preset's pan and tilt, the attributes its effects drive) come from the step; everything else stays the look's.
+// Dimmers crossfade from what was showing over a line's fade (beats); the step's effects are anchored on its ONE and
+// ignore the speed fader (a cue counts beats). The FLASHGATE grants at most one horizontal flash per bar: a granted flash
+// rises in one frame and decays over at least half a beat to its hold; a refused one becomes a lift over an eighth of a
+// beat. clearOverlay() hands the fixtures back to the look over a fade.
 
 import { EffectInstance, hashSeed } from "./effects.js";
 import { hexToLinear, isSaturatedRed } from "./lasers.js";
@@ -24,7 +32,21 @@ export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
 export const H = Object.freeze({ PAN: 0, TILT: 1, DIM: 2, R: 3, G: 4, B: 5, ZOOM: 6, FROST: 7, IRIS: 8, GOBO: 9, GOBOROT: 10,
   PRISM: 11, PRISMROT: 12, SHUTTER: 13, FOCUS: 14, FLAGS: 15 });
-const ROLES = ["A", "B", "W", "beamA", "beamB", "warm"];
+const ROLES = ["A", "B", "W", "beamA", "beamB", "warm", "bumpA", "bumpB"];
+export const ROLE_NAMES = ROLES;
+export const FLASH_MIN_DECAY_BEATS = 0.5;
+export const FLASH_LIFT_BEATS = 0.125;
+
+// One flash per bar at most (0.6 a second at 150 BPM): a grant needs minBeats since the last one.
+export class FlashGate {
+  constructor({ minBeats = 4 } = {}) { this.minBeats = minBeats; this.last = -Infinity; this.grants = []; this.refusals = []; }
+  request(pos) {
+    const ok = pos - this.last >= this.minBeats - 1e-6;
+    if (ok) { this.last = pos; if (this.grants.length < 512) this.grants.push(+pos.toFixed(4)); }
+    else if (this.refusals.length < 512) this.refusals.push(+pos.toFixed(4));
+    return ok;
+  }
+}
 
 // ------------------------------------------------------------------------------------------------- physics --
 // A slew-limited follower: velocity at most vmax, acceleration at most amax, braking in whole frames so it stops ON the
@@ -112,7 +134,164 @@ export class Programmer {
       wheel: new Slew(0, 1 / ((t.attrs.Color1 && t.attrs.Color1.slot_time) || 0.12), 1e6),
     }));
     this.wheels = this.headType.map((t) => (t.attrs.Color1 && t.attrs.Color1.colours ? t.attrs.Color1.colours.map(hexToLinear) : null));
-    this.stats = { kicks: [], flyouts: 0, lookChanges: 0 };
+    this.stats = { kicks: [], flyouts: 0, lookChanges: 0, overlays: 0 };
+    // the phrase layer
+    const nH = this.nH, nC = this.nC;
+    this.ov = { active: false, release: null, lines: [], p0: 0 };
+    this.ovSetH = new Uint8Array(nH * 7); this.ovBaseH = new Float64Array(nH * 7); this.ovFromH = new Float64Array(nH * 7);
+    this.ovTH = new Float64Array(nH * 7); this.ovOnH = new Uint8Array(nH); this.ovFadeH = new Float64Array(nH); this.ovP0H = new Float64Array(nH);
+    this.ovSetC = new Uint8Array(nC * 4); this.ovBaseC = new Float64Array(nC * 4); this.ovFromC = new Float64Array(nC * 4);
+    this.ovTC = new Float64Array(nC * 4); this.ovOnC = new Uint8Array(nC); this.ovFadeC = new Float64Array(nC); this.ovP0C = new Float64Array(nC);
+    this.flashGate = new FlashGate();
+  }
+  // ---------------------------------------------------------------------------------------------- phrase layer --
+  // lines: compiled phrase lines (phrases.js compileRepeat): {g, kind, values, positions, effects [{id, def}], fade,
+  // flash}. replace: a new step (the previous step's lines go); otherwise a cue inside the step, merged on top.
+  setOverlay(lines, pos, { replace = true } = {}) {
+    const nH = this.nH, nC = this.nC;
+    this.ovFromH.set(this.tH); this.ovFromC.set(this.tC);       // what each member showed in the last frame
+    if (replace) {
+      this.ovSetH.fill(0); this.ovSetC.fill(0); this.ovOnH.fill(0); this.ovOnC.fill(0);
+      this.ov.lines = [];
+    }
+    const OFF = { Pan: 0, Tilt: 1, Dimmer: 2, Zoom: 3, ColorMix: 4 }, OFFC = { Dimmer: 0, ColorMix: 1 };
+    if (!replace) {
+      // a cue is newer than the step's lines: the members it names leave the older lines' effects (latest takes precedence)
+      const named = { heads: new Set(), cells: new Set() };
+      for (const L of lines) if (L && L.g && L.kind !== "lasers") for (let m = 0; m < L.g.n; m++) named[L.g.kind]?.add(L.g.members[m]);
+      for (const old of this.ov.lines) {
+        const set = named[old.g.kind];
+        if (!set || !set.size) continue;
+        for (let m = 0; m < old.g.n; m++) if (set.has(old.g.members[m])) old.mask[m] = 0;
+      }
+    }
+    for (const L of lines) {
+      if (!L || L.kind === "lasers" || !L.g) continue;
+      const g = L.g, v = L.values || {};
+      const effects = (L.effects || []).map((e) => new EffectInstance(e.id, e.def, g, { seed: hashSeed(this.seed, e.id), pos, anchorPos: pos }));
+      const driven = new Set(effects.flatMap((e) => e.def.attrs || []));
+      for (let m = 0; m < g.n; m++) {
+        const k = g.members[m];
+        if (g.kind === "heads") {
+          const b = k * 7;
+          const set = (j, val) => { this.ovSetH[b + j] = 1; this.ovBaseH[b + j] = val; };
+          // a preset's position, then any explicit Pan / Tilt over it (a line can park a head off the preset in black)
+          if (L.positions) { set(0, L.positions[m * 2]); set(1, L.positions[m * 2 + 1]); }
+          if (v.Pan !== undefined) set(0, v.Pan);
+          if (v.Tilt !== undefined) set(1, v.Tilt);
+          if (v.Dimmer !== undefined) set(2, v.Dimmer);
+          if (v.Zoom !== undefined) set(3, v.Zoom);
+          if (v.ColorMix !== undefined) set(4, v.ColorMix);
+          if (v.Color !== undefined) set(5, Math.max(0, ROLES.indexOf(v.Color)));
+          if (v.Color2 !== undefined) set(6, Math.max(0, ROLES.indexOf(v.Color2)));
+          for (const a of driven) if (OFF[a] !== undefined && !this.ovSetH[b + OFF[a]]) set(OFF[a], this.tH[b + OFF[a]]);
+          this.ovOnH[k] = 1; this.ovFadeH[k] = L.fade || 0; this.ovP0H[k] = pos;
+        } else if (g.kind === "cells") {
+          const b = k * 4;
+          const set = (j, val) => { this.ovSetC[b + j] = 1; this.ovBaseC[b + j] = val; };
+          if (v.Dimmer !== undefined) set(0, v.Dimmer);
+          if (v.ColorMix !== undefined) set(1, v.ColorMix);
+          if (v.Color !== undefined) set(2, Math.max(0, ROLES.indexOf(v.Color)));
+          if (v.Color2 !== undefined) set(3, Math.max(0, ROLES.indexOf(v.Color2)));
+          for (const a of driven) if (OFFC[a] !== undefined && !this.ovSetC[b + OFFC[a]]) set(OFFC[a], this.tC[b + OFFC[a]]);
+          this.ovOnC[k] = 1; this.ovFadeC[k] = L.fade || 0; this.ovP0C[k] = pos;
+        }
+      }
+      const flash = L.flash ? { onset: pos + (L.flash.at || 0), to: L.flash.to ?? 1, base: v.Dimmer ?? 0,
+                                decay: Math.max(FLASH_MIN_DECAY_BEATS, L.flash.decay_beats ?? FLASH_MIN_DECAY_BEATS), state: "wait" } : null;
+      this.ov.lines.push({ g, effects, flash, mask: new Uint8Array(g.n).fill(1) });
+    }
+    this.ov.active = true; this.ov.release = null; this.ov.p0 = pos;
+    this.stats.overlays++;
+  }
+  // Hand every overlaid fixture back to the look over `fade` beats from pos.
+  clearOverlay(pos, fade = 0) {
+    if (!this.ov.active) return;
+    this.ov.release = { p0: pos, len: fade };
+  }
+  _flashLevel(fl, pos) {
+    const age = pos - fl.onset;
+    if (age < -1e-6) return 0;
+    if (fl.state === "wait") fl.state = this.flashGate.request(fl.onset) ? "granted" : "refused";
+    const attack = fl.state === "granted" ? 0 : FLASH_LIFT_BEATS;
+    const a = Math.max(0, age);
+    if (a < attack) return fl.base + (fl.to - fl.base) * (a / attack);
+    const t = a - attack;
+    return t >= fl.decay ? 0 : fl.base + (fl.to - fl.base) * (1 - t / fl.decay);
+  }
+  _overlay(pos, ver) {
+    const nH = this.nH, nC = this.nC, ov = this.ov;
+    let w = 1;
+    if (ov.release) {
+      w = ov.release.len > 0 ? 1 - (pos - ov.release.p0) / ov.release.len : 0;
+      if (w <= 0) { ov.active = false; ov.release = null; ov.lines = []; this.ovOnH.fill(0); this.ovOnC.fill(0); return; }
+    }
+    // 1. the step's base values, dimmers crossfading from what was shown
+    for (let i = 0; i < nH; i++) {
+      if (!this.ovOnH[i]) continue;
+      const b = i * 7, fl = this.ovFadeH[i];
+      const f = fl > 0 ? Math.min(1, Math.max(0, (pos - this.ovP0H[i]) / fl)) : 1;
+      for (let j = 0; j < 7; j++) {
+        if (!this.ovSetH[b + j]) { this.ovTH[b + j] = this.tH[b + j]; continue; }
+        this.ovTH[b + j] = j === 2 ? this.ovFromH[b + j] + (this.ovBaseH[b + j] - this.ovFromH[b + j]) * f : this.ovBaseH[b + j];
+      }
+    }
+    for (let c = 0; c < nC; c++) {
+      if (!this.ovOnC[c]) continue;
+      const b = c * 4, fl = this.ovFadeC[c];
+      const f = fl > 0 ? Math.min(1, Math.max(0, (pos - this.ovP0C[c]) / fl)) : 1;
+      for (let j = 0; j < 4; j++) {
+        if (!this.ovSetC[b + j]) { this.ovTC[b + j] = this.tC[b + j]; continue; }
+        this.ovTC[b + j] = j === 0 ? this.ovFromC[b + j] + (this.ovBaseC[b + j] - this.ovFromC[b + j]) * f : this.ovBaseC[b + j];
+      }
+    }
+    // 2. the step's effects, in line order, on their own members; 3. the flash
+    for (const L of ov.lines) {
+      const g = L.g;
+      for (const inst of L.effects) {
+        inst.tick(pos, ver);
+        const attrs = inst.def.attrs || [];
+        for (let m = 0; m < g.n; m++) {
+          if (!L.mask[m]) continue;
+          const k = g.members[m];
+          for (const a of attrs) {
+            if (g.kind === "heads") {
+              const off = a === "Pan" ? 0 : a === "Tilt" ? 1 : a === "Dimmer" ? 2 : a === "Zoom" ? 3 : a === "ColorMix" ? 4 : -1;
+              if (off >= 0) this.ovTH[k * 7 + off] = inst.apply(a, this.ovTH[k * 7 + off], m);
+            } else if (g.kind === "cells") {
+              const off = a === "Dimmer" ? 0 : a === "ColorMix" ? 1 : -1;
+              if (off >= 0) this.ovTC[k * 4 + off] = inst.apply(a, this.ovTC[k * 4 + off], m);
+            }
+          }
+        }
+      }
+      if (L.flash) {
+        const lv = this._flashLevel(L.flash, pos);
+        if (lv > 0) for (let m = 0; m < g.n; m++) {
+          if (!L.mask[m]) continue;
+          const k = g.members[m];
+          if (g.kind === "heads") this.ovTH[k * 7 + 2] = Math.max(this.ovTH[k * 7 + 2], lv);
+          else if (g.kind === "cells") this.ovTC[k * 4] = Math.max(this.ovTC[k * 4], lv);
+        }
+      }
+    }
+    // 4. merged over the look (roles switch at the half-way point of a release)
+    for (let i = 0; i < nH; i++) {
+      if (!this.ovOnH[i]) continue;
+      const b = i * 7;
+      for (let j = 0; j < 7; j++) {
+        if (!this.ovSetH[b + j]) continue;
+        this.tH[b + j] = j >= 5 ? (w >= 0.5 ? this.ovTH[b + j] : this.tH[b + j]) : this.tH[b + j] + (this.ovTH[b + j] - this.tH[b + j]) * w;
+      }
+    }
+    for (let c = 0; c < nC; c++) {
+      if (!this.ovOnC[c]) continue;
+      const b = c * 4;
+      for (let j = 0; j < 4; j++) {
+        if (!this.ovSetC[b + j]) continue;
+        this.tC[b + j] = j >= 2 ? (w >= 0.5 ? this.ovTC[b + j] : this.tC[b + j]) : this.tC[b + j] + (this.ovTC[b + j] - this.tC[b + j]) * w;
+      }
+    }
   }
   setTheme(theme) {
     this.theme = theme;
@@ -236,6 +415,8 @@ export class Programmer {
       }
     }
     for (const [id, inst] of this.effects) if (inst.dead) this.effects.delete(id);
+    // 2b. the phrase layer (v1), over the look
+    if (this.ov.active) this._overlay(pos, ver);
     // 3. playbacks: KICK (HTP lift on the strand) and FLY-OUT (outward tilt and a pop on the beams)
     const kick = this.kickLevel(pos);
     if (kick > 0) {

@@ -22,6 +22,15 @@
 //     more on the next BAR line; phi stays continuous across it and only its rate changes, so the cycle stays on the grid;
 //   - a tap (grid ver re-anchor) snaps every accumulator back onto the grid: phi = frac(pos * scale / measure + offset).
 //
+// v1 (2026-10-25): the order keys clock (round a ring from the top, clockwise from front of house), level (the ring's
+// altitude thirds: top 0, middle 1, bottom 2), level_mirror (top and bottom share 0, middle 1), column (1, 2, 3 outward by
+// |x|) and depth (by z); block "ties" (members with an equal key share one slot: a whole third, column or depth row lights
+// as one); cue-anchored phase (anchorPos: the cycle starts on the cue's ONE, not wherever the grid's phase happens to be,
+// and the speed fader does not reach a cue's timing); one-shots (shots: the number of cycles to run, then the last value
+// holds; delay: beats before the first cycle); the sparkle form (a seeded random subset of members each cycle); and a
+// clean start (clean: true on an anchored effect: a member stays at the form's zero until its first onset after the
+// anchor, so a chase that starts on a cue's ONE never shows the tail of a cycle that did not happen).
+//
 // Safety rule (design section 3.10, a unison beat pulse is a lift, not a flash): an effect that drives Dimmer with a
 // phase spread under 90 degrees (unison, or nearly) gets floor >= 0.6, so it swings 60 -> 100 %, never 0 -> 100 %.
 // Full-depth pulses are allowed only as chases spread over at least 90 degrees. governEffect() applies it; the engine
@@ -60,15 +69,27 @@ export function rng(seed) {
 
 // ---------------------------------------------------------------------------------------------------- spreads --
 export const ORDERS = Object.freeze(["index", "x", "y", "z", "helix", "along", "angle", "azimuth", "radius", "element",
-                                     "side", "random", "gridX", "gridY", "gridZ"]);
+                                     "side", "random", "gridX", "gridY", "gridZ", "clock", "level", "level_mirror", "column",
+                                     "depth", "spiral"]);
 
 // The rank of each member under `order` (0 .. n-1), stable (ties keep index order). keys: the group's key arrays.
-export function rankBy(keys, order, n, seed = 1) {
+// The key values a spread orders by (spiral: round the ring from the top, one turn spread over the radius).
+export function orderKey(keys, order, n, seed = 1) {
   let k;
   if (order === "random") { const r = rng(hashSeed(seed, "rank")); k = Array.from({ length: n }, () => r()); }
   else if (order === "gridX") k = keys.x; else if (order === "gridY") k = keys.y; else if (order === "gridZ") k = keys.z;
+  else if (order === "spiral" && keys.clock && keys.radius) {
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < n; i++) { lo = Math.min(lo, keys.radius[i]); hi = Math.max(hi, keys.radius[i]); }
+    const span = hi - lo || 1;
+    k = Array.from({ length: n }, (_, i) => frac(keys.clock[i] / 360 + (keys.radius[i] - lo) / span));
+  }
   else k = keys[order];
   if (!k) throw new Error(`unknown spread order ${order}`);
+  return k;
+}
+export function rankBy(keys, order, n, seed = 1) {
+  const k = orderKey(keys, order, n, seed);
   const idx = Array.from({ length: n }, (_, i) => i);
   idx.sort((a, b) => (k[a] - k[b]) || (a - b));
   const rank = new Int32Array(n);
@@ -81,15 +102,26 @@ export function spreadValues(keys, spread, n, seed = 1, out = new Float64Array(n
   const s = { order: "index", block: 1, repeat: 0, wings: 1, mirror: false, wingOffset: 0, shuffle: 0, shift: 0, reverse: false,
               from: 0, to: 0, cyclic: false, ...(spread || {}) };
   if (n === 0) return out;
-  const rank = rankBy(keys, s.order, n, seed);
-  const wings = Math.max(1, Math.min(n, Math.floor(s.wings)));
-  const wingLen = Math.ceil(n / wings);
-  const block = Math.max(1, Math.floor(s.block));
+  let rank, N = n, block;
+  if (s.block === "ties") {
+    // members with an equal key share one slot: the rank of each member's key among the distinct keys (dense rank)
+    const k = orderKey(keys, s.order, n, seed);
+    const distinct = [...new Set(Array.from(k, (v) => +v.toFixed(9)))].sort((a, b) => a - b);
+    const at = new Map(distinct.map((v, i) => [v, i]));
+    rank = Int32Array.from(k, (v) => at.get(+v.toFixed(9)));
+    N = distinct.length;
+    block = 1;
+  } else {
+    rank = rankBy(keys, s.order, n, seed);
+    block = Math.max(1, Math.floor(s.block));
+  }
+  const wings = Math.max(1, Math.min(N, Math.floor(s.wings)));
+  const wingLen = Math.ceil(N / wings);
   for (let i = 0; i < n; i++) {
     let r = rank[i];
     const w = Math.floor(r / wingLen);
     let inW = r - w * wingLen;
-    const lenW = Math.min(wingLen, n - w * wingLen);
+    const lenW = Math.min(wingLen, N - w * wingLen);
     if (s.mirror && (w % 2 === 1)) inW = lenW - 1 - inW;
     let slot = Math.floor(inW / block);
     let slots = Math.ceil(wingLen / block);
@@ -125,7 +157,8 @@ export const fromHog = ({ buddying = 1, segments = 0, wings = 1, ...rest }) => (
 
 // -------------------------------------------------------------------------------------------------- waveforms --
 // Every form returns 0..1 at x in [0, 1); x = 0 is the beat line the cycle starts on, and the forms that pulse peak there.
-export const FORMS = Object.freeze(["sine", "cos", "triangle", "rampUp", "rampDown", "square", "pulse", "step", "random", "const"]);
+export const FORMS = Object.freeze(["sine", "cos", "triangle", "rampUp", "rampDown", "square", "pulse", "step", "random", "const",
+                                    "sparkle"]);
 export function waveform(form, x, p = {}) {
   const xf = frac(x);
   switch (form) {
@@ -158,6 +191,15 @@ export function waveform(form, x, p = {}) {
       return r();
     }
     case "const": return 1;
+    case "sparkle": {                                                // a seeded subset of members each cycle, soft edges
+      const r = rng(hashSeed(p.seed ?? 1, p.member ?? 0, Math.floor(x)));
+      if (r() >= (p.density ?? 0.15)) return 0;
+      const w = p.width ?? 0.5, tr = clamp01(p.transition ?? 0.5) * Math.min(w, 1 - w) * 0.5;
+      if (xf >= w) return 0;
+      if (tr > 0 && xf < tr) return xf / tr;
+      if (tr > 0 && xf > w - tr) return (w - xf) / tr;
+      return 1;
+    }
     default: throw new Error(`unknown waveform ${form}`);
   }
 }
@@ -243,8 +285,11 @@ export class Phasor {
 // --------------------------------------------------------------------------------------------- the effect runner --
 // An effect running on a group: its def (governed), its phasor, the per-member phase offsets (turns) and fan values,
 // and a level (fades in and out over fadeIn / fadeOut beats).
+// Cue options (v1): anchorPos (phase 0 lands on that beat position: a cue's ONE; the effect then ignores the speed fader,
+// because a cue's steps are counted in beats); def.shots (one-shot: run that many cycles from the anchor plus def.delay
+// beats, then hold the last value; before the first cycle hold the first).
 export class EffectInstance {
-  constructor(id, def, group, { seed = 1, speed = 1, pos = 0 } = {}) {
+  constructor(id, def, group, { seed = 1, speed = 1, pos = 0, anchorPos = null } = {}) {
     this.id = id;
     this.def = governEffect(def);
     this.group = group;
@@ -253,7 +298,11 @@ export class EffectInstance {
     if (this.def.phase) spreadValues(group.keys, this.def.phase, n, hashSeed(seed, id, "phase"), this.phase);
     for (let i = 0; i < n; i++) this.phase[i] /= 360;
     this.fan = this.def.fan ? spreadValues(group.keys, { cyclic: false, ...this.def.fan }, n, hashSeed(seed, id, "fan")) : null;
-    this.phasor = new Phasor({ measure: this.def.measure ?? 4, scale: (this.def.scale ?? 1) * speed, offset: this.def.offset ?? 0 });
+    this.anchorPos = anchorPos;
+    const measure = this.def.measure ?? 4, scale = this.def.scale ?? 1;
+    const offset = anchorPos === null ? (this.def.offset ?? 0) : frac((this.def.offset ?? 0) - (anchorPos * scale) / measure);
+    this.phasor = new Phasor({ measure, scale: anchorPos === null ? scale * speed : scale, offset });
+    this.formParams = { ...this.def, seed: this.def.seed ?? hashSeed(seed, id, "form"), member: 0 };
     this.level = this.def.fadeIn ? 0 : 1;
     this.target = 1;
     this.startPos = pos;
@@ -272,7 +321,20 @@ export class EffectInstance {
   }
   // The waveform value 0..1 of member i now.
   value(i) {
-    return waveform(this.def.form || "sine", this.phasor.phi + this.phase[i] + LINE_EPS, this.def);
+    const d = this.def, fp = this.formParams;
+    // by_phase: members that share a phase share the seeded draw (a sparkle or a held segment mask by block, not by cell)
+    fp.member = d.by_phase ? Math.round(this.phase[i] * 1e6) : i;
+    if (d.clean && this.anchorPos !== null) {
+      const u = (this.lastPos - this.anchorPos) * (d.scale ?? 1) / Math.max(1e-6, d.measure ?? 4) + (d.offset ?? 0) + this.phase[i] + LINE_EPS;
+      if (u < 0) return 0;
+    }
+    if (d.shots !== undefined && this.anchorPos !== null) {
+      // a one-shot: the unwrapped cycle count since the anchor (plus the delay), clamped to [0, shots)
+      const u = (this.lastPos - this.anchorPos - (d.delay ?? 0)) * (d.scale ?? 1) / Math.max(1e-6, d.measure ?? 4) + this.phase[i] + LINE_EPS;
+      const end = Math.max(1e-9, d.shots) - 1e-9;
+      return waveform(d.form || "sine", u <= 0 ? 0 : u >= end ? end : u, fp);
+    }
+    return waveform(d.form || "sine", this.phasor.phi + this.phase[i] + LINE_EPS, fp);
   }
   // Apply to an attribute value of member i (relative unless the def says absolute). attr: the attribute name.
   apply(attr, base, i) {

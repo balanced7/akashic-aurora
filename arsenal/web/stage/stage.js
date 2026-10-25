@@ -11,8 +11,12 @@
 //     -> grid (one beat position) -> show (sections, demo pads) -> programmer (looks, effects, pads, physics)
 //     -> kinetics (the strand's hoists) -> lasers (the brain) -> lasers3d (3D projectors) -> camera director
 //     -> atmosphere -> renderer (three.js, house GLSL) -> the final-frame flash limiter -> the canvas.
-// URL: ?demo=1 (the demo show, no engine) ?engine=http://127.0.0.1:8794 (default; "off" for none) ?set=source-v0
-//      ?quality=high|receipt|low ?hud=0 ?w=&h= (a fixed backing size, for receipts)
+// URL: ?demo=1 (the demo show, no engine) ?engine=http://127.0.0.1:8794 (default; "off" for none) ?set=source-v1
+//      (source-v0 still loads) ?quality=high|receipt|low ?hud=0 ?w=&h= (a fixed backing size, for receipts)
+//
+// v1 (2026-10-25): the phrases (phrases.js) sit between the show and the programmer: a section may name one, pads 3, 4
+// and 7 (keys 3, 4, 7) are PHRASE GO, NEXT and STOP, and the HUD shows the phrase's step. Every phrase event lands on the
+// beat position it belongs to.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
@@ -26,7 +30,8 @@ import { Atmosphere } from "./atmos.js";
 import { Director } from "./camera.js";
 import { Show, speedFromFader } from "./show.js";
 import { FrameLimiter } from "./flash.js";
-import { hexToLinear } from "./lasers.js";
+import { hexToLinear, extraHeadsFrom } from "./lasers.js";
+import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -36,7 +41,7 @@ const ENGINE_URL = (() => {
   if (asked && /^https?:\/\/[^\s"'<>]+$/i.test(asked)) return asked.replace(/\/+$/, "");
   return DEMO ? null : "http://127.0.0.1:8794";
 })();
-const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set") : "source-v0";
+const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set") : "source-v1";
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
 const DPR_CAP = 2;
@@ -52,7 +57,7 @@ function recordError(where, err) {
 window.addEventListener("error", (e) => recordError("page", e.error || e.message));
 window.addEventListener("unhandledrejection", (e) => recordError("promise", e.reason));
 
-const api = window.__stage = { ready: false, errors, version: "stage-v0" };
+const api = window.__stage = { ready: false, errors, version: "stage-v1" };
 
 async function boot() {
   // the scene
@@ -62,6 +67,8 @@ async function boot() {
   const problems = validateScene(scene);
   if (problems.length) throw new Error(`the scene ${SET} is not valid:\n${problems.join("\n")}`);
   const rig = expandScene(scene);
+  const phraseProblems = validatePhrases(rig);
+  if (phraseProblems.length) throw new Error(`the scene ${SET}'s phrases are not valid:\n${phraseProblems.join("\n")}`);
   // the house GLSL library and the renderer (three.js from the pinned CDN build, as the piano loads it)
   const lib = await loadLibrary(new URL("../glsl/index.json", import.meta.url).href);
   let renderMod;
@@ -84,8 +91,10 @@ function start({ rig, R, renderMod }) {
   const rungEl = rungs[0];
   const strand = new Strand({ rungs: rungs.length, pickupX: Math.abs(rungEl.pickups[0][0]), mode: rig.mode,
                               home: { y: rungEl.home.y, roll: 0 }, limits: { y: rungEl.limits.y, roll: rungEl.limits.roll } });
-  const lasers = new LaserEngine({ seed: rig.seed, clock: grid.clock(), colours: theme.laser });
-  const lasers3d = new Lasers3D(rig.projectors, rig.venue);
+  const lasers = new LaserEngine({ seed: rig.seed, clock: grid.clock(), colours: theme.laser, heads: extraHeadsFrom(rig.projectors) });
+  const lasers3d = new Lasers3D(rig.projectors, rig.venue, { heads: lasers.heads });
+  const runner = Object.keys(rig.phrases || {}).length ? new PhraseRunner(rig) : null;
+  const firstPhrase = runner ? Object.keys(rig.phrases)[0] : null;
   const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
   const director = new Director(rig.cameras.shots, rig.cameras.sequences);
@@ -101,7 +110,7 @@ function start({ rig, R, renderMod }) {
   const padMap = show0.pads || {};
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
   const kicks = [];
-  const state = { section: "", look: "", formation: "", shot: "", fps: 0, frameMs: 0 };
+  const state = { section: "", look: "", formation: "", shot: "", fps: 0, frameMs: 0, phraseSteps: [] };
 
   function applyFaders(tEval) {
     programmer.masters.grand = faders.grand;
@@ -125,6 +134,16 @@ function start({ rig, R, renderMod }) {
     if (sec.lasers) lasers.setLook(sec.lasers.look, sec.lasers.level ?? 1, sec.lasers.reach ?? 1);
     lasers.setSection(ev.name);
     if (sec.camera && !manualShot) director.start(sec.camera, ev.pos);
+    // the section's phrase starts on its ONE; a phrase the show started ends with its section (a pad's phrase plays on)
+    if (runner) {
+      if (sec.phrase && rig.phrases[sec.phrase.name]) {
+        runner.start(sec.phrase.name, ev.pos, { repeats: sec.phrase.repeats ?? Infinity, camera: sec.phrase.camera !== false, section: ev.name });
+      } else if ((runner.cur && runner.cur.source === "show") || (runner.pending && runner.pending.source === "show")) runner.stopAtPos(ev.pos);
+    }
+  }
+  function phraseEnded(e) {
+    const sec = (show0.sections || {})[state.section];
+    if (sec && sec.camera && !manualShot) director.start(sec.camera, e.pos);
   }
   function pad(n, vel, on, tEval) {
     const action = padMap[String(n)];
@@ -134,6 +153,9 @@ function start({ rig, R, renderMod }) {
     else if (action === "flyout" && on) programmer.pad("flyout", vel, pos);
     else if (action === "lasers") { if (on) lasers.hit(tEval, vel); else lasers.release(tEval); }
     else if (action === "drop" && on) show.dropNow(grid, pos);
+    else if (runner && action === "phrase-go" && on) runner.go(firstPhrase, grid, pos, { section: state.section || "any" });
+    else if (runner && action === "phrase-next" && on) runner.next(grid, pos);
+    else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
   }
   function handle(obj, nowMs) {
     const ev = parseEvent(obj);
@@ -180,6 +202,10 @@ function start({ rig, R, renderMod }) {
           else if (ev.type === "speed") { sectionSpeed = ev.s; applyFaders(tEval); }
         }
       }
+      if (runner) {
+        const entered = playPhraseEvents(runner.update(pos), { programmer, lasers, director, onEnd: phraseEnded, manualCamera: () => !!manualShot });
+        for (const e of entered) { if (state.phraseSteps.length >= 512) state.phraseSteps.shift(); state.phraseSteps.push({ id: e.id, variant: e.variant, repeat: e.repeat, start: e.start, at: pos }); }
+      }
       programmer.tick(grid, tEval, dt);
       strand.update(grid, tEval, dt);
       const pose = director.update(pos);
@@ -221,6 +247,13 @@ function start({ rig, R, renderMod }) {
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
     $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})`;
+    const ph = $("hud-phrase");
+    if (ph) {
+      const st = runner ? runner.status() : null;
+      ph.textContent = !st ? "no phrases in this set" : st.state === "running"
+        ? `${st.name} · ${st.step} ${st.stepName} (${st.index + 1}/${st.steps}) · ${st.variant} · repeat ${st.repeat + 1} · ${Math.max(0, st.end - grid.posAt(tEval)).toFixed(1)} beats left`
+        : st.state === "armed" ? `armed: starts on the next bar line` : "idle (pad 3 / key 3: go)";
+    }
     $("hud-shot").textContent = `${state.shot || "-"} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
     const p0 = strand.poses[0], p11 = strand.poses[strand.poses.length - 1];
     $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""}`;
@@ -244,7 +277,7 @@ function start({ rig, R, renderMod }) {
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
   // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot, H HUD, F fullscreen
-  const KEYPAD = { Digit1: 1, Digit2: 2, Digit6: 6, Digit0: 10 };
+  const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit6: 6, Digit7: 7, Digit0: 10 };
   const held = new Set();
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
@@ -270,13 +303,15 @@ function start({ rig, R, renderMod }) {
 
   // ------------------------------------------------------------------------------------------- the receipts' door --
   Object.assign(api, {
-    ready: true, rig, grid, programmer, strand, lasers, lasers3d, atmos, director, show, limiter, renderer: R, faders,
+    ready: true, rig, grid, programmer, strand, lasers, lasers3d, atmos, director, show, limiter, renderer: R, faders, runner,
     state: () => ({ pos: state.pos, bpm: grid.bpm, bar: grid.barAt(performance.now() + grid.presentLagMs), section: state.section, look: state.look,
                     shot: state.shot, u: state.u, formation: strand.formation.name, info: state.info, counts: rig.counts,
                     limiter: limiter.stats(), grid: { ...grid.stats, ver: grid.ver, locked: grid.locked, barAnchor: grid.barAnchor },
                     haze: { H: atmos.H, target: atmos.target, sigma0: atmos.uniform.sigma0 }, engine: { open: link.open, hello: link.hello },
                     lands: strand.lands.slice(-8), cuts: director.cuts.slice(-16), kicks: kicks.slice(-64), errors: errors.slice(),
-                    quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h } }),
+                    quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h },
+                    phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
+                    flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) } }),
     setShot: (id, u = 0.5) => { manualShot = id; director.manual = { shot: id, u }; },
     clearShot: () => { manualShot = null; director.manual = null; },
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),

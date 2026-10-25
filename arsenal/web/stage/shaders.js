@@ -49,7 +49,15 @@ precision highp sampler3D;
 `;
 
 // ------------------------------------------------------------------------------------------------- lit surfaces --
-export function litVertex({ instanced = false, crowd = false } = {}) {
+// The crowd near the lens (v1, the v0 judge's finding: a beat-swinging slab of crowd arm in front of TUNNEL_UP's lens
+// made the final limiter act during the programmed demo). Fixed where it starts: a figure whose head is within
+// uCullNear metres of the camera is not drawn (a camera crew stands in a gap), and within uFreezeFar the raised arms
+// hold their mean pose instead of swinging with the beat, fading back to the full swing by 1.6 x that distance. Far
+// figures are unchanged.
+export const CROWD_CULL_NEAR_M = 4.0;
+export const CROWD_FREEZE_M = 10.0;
+export function litVertex({ instanced = false, crowd = false, nearCull = false } = {}) {
+  const near = instanced && (crowd || nearCull);
   return `${HEAD}
 uniform mat4 projectionMatrix;
 uniform mat4 viewMatrix;
@@ -58,16 +66,23 @@ in vec3 position;
 in vec3 normal;
 ${instanced ? "in mat4 instanceMatrix;" : ""}
 ${crowd ? "in vec4 iCrowd;\nuniform float uBeatPhase;\nuniform float uEnergy;" : ""}
+${near ? "uniform vec3 cameraPosition;\nuniform float uCullNear;\nuniform float uFreezeFar;" : ""}
 out vec3 vWorld;
 out vec3 vNormal;
 void main() {
   vec3 p = position;
+  ${near ? `
+  vec3 headW = (modelMatrix * instanceMatrix * vec4(0.0, 1.6, 0.0, 1.0)).xyz;
+  float dCam = distance(headW, cameraPosition);
+  if (dCam < uCullNear) { vWorld = headW; vNormal = vec3(0.0, 1.0, 0.0); gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+  float swing = smoothstep(uFreezeFar, uFreezeFar * 1.6, dCam);` : ""}
   ${crowd ? `
-  // arms: vertices above the shoulder (y > 1.45 of a 1.75 m figure) of a raised-arm figure sway with the beat
+  // arms: vertices above the shoulder (y > 1.45 of a 1.75 m figure) of a raised-arm figure sway with the beat (near the
+  // lens they hold the swing's mean pose: lift 0.75, no sideways sway)
   if (iCrowd.y > 0.5 && p.y > 1.42) {
-    float lift = (p.y - 1.42) * (0.6 + 0.4 * uEnergy) * (0.75 + 0.25 * sin(6.2831853 * (uBeatPhase + iCrowd.x)));
+    float lift = (p.y - 1.42) * (0.6 + 0.4 * uEnergy) * (0.75 + 0.25 * swing * sin(6.2831853 * (uBeatPhase + iCrowd.x)));
     p.y = 1.42 + lift * 1.15;
-    p.x += (p.y - 1.42) * 0.25 * sin(6.2831853 * (uBeatPhase * 0.5 + iCrowd.x));
+    p.x += (p.y - 1.42) * 0.25 * swing * sin(6.2831853 * (uBeatPhase * 0.5 + iCrowd.x));
   }` : ""}
   mat4 m = modelMatrix${instanced ? " * instanceMatrix" : ""};
   vec4 wp = m * vec4(p, 1.0);
