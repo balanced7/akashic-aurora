@@ -8,10 +8,12 @@
 // BeatClock), A5a flash safety from the lasers' own geometry (the change estimator, and the verifier's additive raster of
 // the overlay's light model at 960 x 540 and 1920 x 1080 with sliding windows). Also: the two banks and their modes, the
 // retrigger tiers, Vibrate's decay, the shapes' geometry, the output format, determinism. The tests marked "Round-1 fix"
-// are the verifier's must-fix repros: each failed against the round-0 engine and passes now.
-// Every number here is synthetic: nothing reads Daniel's playing. (The raster tests take about two minutes.)
+// are the verifier's must-fix repros: each failed against the round-0 engine and passes now; "Round-2 fix" likewise
+// against the round-1 engine (A5-style runs across the theme library, figures under loop dials, realistic mashing).
+// Every number here is synthetic: nothing reads Daniel's playing. (The whole file takes about five minutes.)
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import * as L from "../arsenal/web/vj-lasers.js";
 import { BeatClock } from "../arsenal/web/vj-core.js";
 
@@ -838,10 +840,11 @@ function rasterRun(eng, events, { from, to, RW = 960, RH = 540, stepDiv = 4 }) {
   let prevY = new Float32Array(RW * RH), prevBox = [RW, RH, -1, -1];
   const changed = new Uint8Array(RW * RH), lit = new Uint8Array(RW * RH);
   const over = [];
-  let worstChange = 0, worstLit = 0, worstFrame = 0, worstAt = 0, onsets = 0, est = 0;
+  let worstChange = 0, worstLit = 0, worstFrame = 0, worstAt = 0, onsets = 0, est = 0, flagged = 0;
   drive(eng, events, { from, to, onFrame: (out, t) => {
     for (const e of out.events) if (e.type === "pulse") onsets++;
     est = Math.max(est, out.area.window);
+    if (out.area.over) flagged++;
     const { Y, box } = rz.render(out);
     // only the union of this frame's and the last frame's dirty boxes can change
     const x0 = Math.min(box[0], prevBox[0]), y0 = Math.min(box[1], prevBox[1]), x1 = Math.max(box[2], prevBox[2]), y1 = Math.max(box[3], prevBox[3]);
@@ -863,7 +866,7 @@ function rasterRun(eng, events, { from, to, RW = 960, RH = 540, stepDiv = 4 }) {
   } });
   let maxPerSecond = 0;
   for (let i = 0; i < over.length; i++) { let n = 0; for (let j = i; j < over.length && over[j] - over[i] < 1000; j++) n++; maxPerSecond = Math.max(maxPerSecond, n); }
-  return { worstChange, worstLit, worstFrame, over: over.length, maxPerSecond, worstAt, onsets, est };
+  return { worstChange, worstLit, worstFrame, over: over.length, maxPerSecond, worstAt, onsets, est, flagged };
 }
 const pct = (x) => (100 * x).toFixed(1);
 const RASTER_THEMES = { ...THEMES, white: { id: "white", L1: "#ffffff", L2: "#ffffff", W: "#ffffff" } };
@@ -944,6 +947,288 @@ test("A5a raster at 1920 x 1080: the soft auto-gate sweep changes under a quarte
     console.log(`  1920x1080 laser-green ${bpm} sweep ${bank}, vel 0.44: changed ${pct(r.worstChange)} % of a window (estimator ${pct(r.est)} %), frame ${pct(r.worstFrame)} %, lit ${pct(r.worstLit)} %, frames >= 25 %: ${r.over}`);
     checkRaster(`1080p sweep ${bpm} ${bank}`, r);
   }
+});
+
+// ------------------------------------------------------------- 8a. round 2: the budget holds in ordinary play --
+// The tests marked "Round-2 fix" are the round-2 verifier's repros; each fails against the round-1 engine (commit
+// 57aa0676) and passes now. Their scenes come from the verifier's probes: jittered human taps (a linear congruential
+// generator and a sum-of-six gaussian, as the probes draw them), the v2 theme library read from the build spec's own
+// JSON, and white set in the Custom slot.
+const LIBRARY = (() => {
+  const md = fs.readFileSync(new URL("../research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-2026-10-24.md", import.meta.url), "utf8");
+  return Object.fromEntries(JSON.parse(/```json\n([\s\S]*?)\n```/.exec(md)[1]).themes.map((t) => [t.id, t]));
+})();
+const WHITE = { id: "white", L1: "#ffffff", L2: "#ffffff", W: "#ffffff" };
+const themeOf = (id) => (id === "white" ? WHITE : LIBRARY[id]);
+const lcg = (seed) => { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; };
+const gauss = (r) => { let u = 0; for (let i = 0; i < 6; i++) u += r(); return (u - 3) / Math.sqrt(0.5); };
+// drive at a frame step from dtFn(j) (ms; dropped frames are a longer step), applying timed events
+function driveDt(eng, events, { from, to, dtFn = () => F, onFrame = null }) {
+  const ev = events.slice().sort((a, b) => a.t - b.t);
+  let ei = 0;
+  for (let j = 0, t = from; t < to; t += dtFn(j), j++) {
+    while (ei < ev.length && ev[ei].t <= t) { const e = ev[ei++]; e.fn(eng, e.t); }
+    const out = eng.frame(t);
+    if (onFrame) onFrame(out, t, j);
+  }
+}
+
+// Round-2 fix (verifier, must fix 4 again): figures (Shape auto) under a loop dial with Vibrate, tapped by hand once a
+// beat. Round 1 fitted a loop on its first beat only (its first four steps), but a figure morphs into the next of its 16
+// figures every beat: a hit fitted on a triangle lit a 4-ring tunnel at full light on beat 2. In white (the Custom slot)
+// 26.2 % of a window changed in one frame (25.9 % at 1920 x 1080), in Temple Light at full velocity 25.4 %, and the
+// engine's own estimate read 29.7 % (area.over). And the per-frame check could only dim a figure, to 0.25 at the least,
+// and when that left it one step short it put the whole frame back intact. Now the fit covers the loop's whole 16-beat
+// cycle, each figure gives way on its own (a dense one sharpens and dims, a sparse one keeps its light), and the
+// per-frame check keeps its best reduction.
+test("A5a raster, round 2: figures under a loop dial with Vibrate, tapped by hand once a beat, in white and Temple Light at 128 BPM", () => {
+  const bpm = 128, per = 60000 / bpm, rows = [];
+  const run = (name, theme, gate, vel, jitter, seed, n, beats, size = {}) => {
+    const r = lcg(seed);
+    const eng = L.createLaserEngine({ seed: 17, clock: steadyClock(bpm), theme, section: "climax", shapeMode: "auto", vibrate: true, gateMode: gate });
+    const ev = Array.from({ length: n }, (_, i) => tap(2000 + i * per + gauss(r) * jitter, vel, 60)).flat();
+    const res = rasterRun(eng, ev, { from: 1950, to: 2000 + beats * per, ...size });
+    rows.push(`  ${name}: changed ${pct(res.worstChange)} % of a window (estimator ${pct(res.est)} %), frame ${pct(res.worstFrame)} %, frames >= 25 %: ${res.over}, frames over budget: ${res.flagged}`);
+    checkRaster(name, res);
+    assert.equal(res.flagged, 0, `${name}: ${res.flagged} frames went out over the engine's own budget`);
+  };
+  for (const gate of ["stutter", "military", "stopshort"]) {
+    run(`white ${gate}, vel 0.9`, WHITE, gate, 0.9, 15, bpm * 7 + 35, 12, 15);
+    run(`Temple Light ${gate}, vel 1.0`, LIBRARY["temple-light"], gate, 1, 12, bpm * 7 + 3 + 17, 14, 16);
+  }
+  run("white stutter, vel 0.9, 1920 x 1080", WHITE, "stutter", 0.9, 15, bpm * 7 + 35, 12, 15, { RW: 1920, RH: 1080, stepDiv: 8 });
+  console.log(rows.join("\n"));
+});
+
+// Round-2 fix (verifier, must fix 4, cause B): the per-frame check alone. With the fit switched off, every pulse onset
+// of a white tunnel under the stutter dial (Vibrate on) goes out inside the fast budget: the check now keeps the best
+// reduction it finds and may dim a hit whose every line is new down to almost nothing (a blurred line's band stays as
+// wide from about 0.6 of full light down to 0.15). Before, onsets went out at 16.3 % and 19.7 %, flagged over. (Light
+// that goes dark cannot be taken back, so the frames after an onset are the fit's to keep.)
+test("the per-frame check alone keeps its best reduction: with the fit off, every onset of a white tunnel fits", () => {
+  const bpm = 128, per = 60000 / bpm;
+  const eng = L.createLaserEngine({ seed: 17, clock: steadyClock(bpm), theme: WHITE, shapeMode: "tunnel", gateMode: "stutter", vibrate: true, section: "climax" });
+  eng._fitHit = () => {};
+  let onsets = 0, worst = 0;
+  drive(eng, tap(2000, 0.9, 60), { from: 1950, to: 2000 + 3 * per, onFrame: (out, t) => {
+    if (!out.events.some((e) => e.type === "pulse")) return;
+    onsets++; worst = Math.max(worst, out.area.window);
+    assert.ok(out.area.window <= L.BUDGET.fast.window + 1e-9 && !out.area.over, `onset at ${t.toFixed(0)} ms: ${pct(out.area.window)} % of a window`);
+  } });
+  assert.ok(onsets >= 4, `${onsets} onsets`);
+  console.log(`  fit off, white tunnel stutter: ${onsets} onsets, the worst ${pct(worst)} % of a window`);
+});
+
+// Round-2 fix (verifier, must fix 2): in ordinary play the engine sent frames over its own budget (area.over): spec 4.1
+// rule 3 caps a gated pulse at 15 % of a window and spec 4.3 expects zero limiter interventions. These are the A5-style
+// runs across the whole theme library and white: in white the A5a grid (every pattern x gate, bank rotated, 150 and 180
+// BPM, Vibrate off and on); in every theme the spec's A5 scripts at 128, 150 and 180 BPM, and figures under each loop
+// dial with jittered quarter-note taps, Vibrate on and off. The round-1 engine sent 1,621 frames over budget in these
+// runs and the rest of each theme's grid (231 in white); none now.
+test("A5, round 2: no frame goes out over its budget across the 21 library themes and white", () => {
+  const GATES = ["single", "onetwo", "triple", "triplet", "bar", "tttou", "roll8", "roll16", "stutter", "military", "pushpull", "revbass", "doubling", "stopshort", "inhale"];
+  const bad = [];
+  let runs = 0, frames = 0;
+  const go = (name, eng, ev, beats, per) => {
+    runs++;
+    let over = 0;
+    drive(eng, ev, { from: 1950, to: 2000 + beats * per, onFrame: (out) => { frames++; if (out.area.over) over++; } });
+    if (over) bad.push(`${name}: ${over}`);
+  };
+  for (const bpm of [150, 180]) for (const pattern of L.PATTERN_IDS) for (const gate of GATES) for (const vibrate of [false, true]) {
+    const bank = ["both", "mirror", "A"][(L.PATTERN_IDS.indexOf(pattern) + GATES.indexOf(gate)) % 3], per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 31, clock: steadyClock(bpm), theme: WHITE, patternMode: pattern, gateMode: gate, bankMode: bank, orderMode: "all", vibrate, section: "climax" });
+    go(`white grid ${bpm} ${pattern}/${gate}/${bank}${vibrate ? "/vib" : ""}`, eng, [...tap(2000, 1), ...tap(2000 + 2 * per, 1), ...tap(2000 + 4 * per, 1, 3 * per)], 9, per);
+  }
+  const presses = (n, every, hold = 60) => (per) => Array.from({ length: n }, (_, i) => tap(2000 + i * every * per, 1, hold === "bars" ? 8 * per : hold)).flat();
+  const scripts = [
+    ["triple every beat", 9, { gateMode: "triple", patternMode: "fan", bankMode: "both", orderMode: "all" }, presses(8, 1)],
+    ["one-two every beat", 9, { gateMode: "onetwo", patternMode: "fan", bankMode: "both", orderMode: "all" }, presses(8, 1)],
+    ["16th roll held", 10, { gateMode: "roll16", patternMode: "fan", bankMode: "mirror", orderMode: "all", section: "build" }, presses(1, 1, "bars")],
+    ["single fans", 13, { gateMode: "single", patternMode: "fan", bankMode: "both", orderMode: "all" }, presses(6, 2)],
+    ["starburst + crown", 10, { section: "drop" }, presses(4, 2)],
+    ["the phrase, Vibrate", 5, { patternMode: "fan", bankMode: "both", orderMode: "all", vibrate: true }, () => [{ t: 2000, fn: (e, x) => e.phrase(x, 1) }]],
+    ["figures held, Vibrate", 6, { shapeMode: "auto", vibrate: true, gateMode: "roll8" }, (per) => tap(2000, 1, 4 * per)],
+  ];
+  for (const id of [...Object.keys(LIBRARY), "white"]) {
+    for (const bpm of [128, 150, 180]) for (const [name, beats, opts, ev] of scripts) {
+      const per = 60000 / bpm;
+      go(`${id} ${name} ${bpm}`, L.createLaserEngine({ seed: 41, clock: steadyClock(bpm), theme: themeOf(id), ...opts }), ev(per), beats, per);
+    }
+    for (const bpm of [128, 150]) for (const gate of ["stutter", "military", "stopshort", "roll16", "roll8", "doubling"]) for (const vib of [true, false]) {
+      const per = 60000 / bpm, r = lcg(bpm * 13 + gate.length * 7 + (vib ? 1 : 0));
+      const eng = L.createLaserEngine({ seed: 17, clock: steadyClock(bpm), theme: themeOf(id), section: "climax", shapeMode: "auto", vibrate: vib, gateMode: gate });
+      go(`${id} figures ${gate} ${bpm}${vib ? " vib" : ""}`, eng, Array.from({ length: 12 }, (_, i) => tap(2000 + i * per + gauss(r) * 15, 0.9, 60)).flat(), 15, per);
+    }
+  }
+  console.log(`  ${runs} runs, ${frames} frames: ${bad.length ? bad.length + " runs went over budget" : "no frame over budget"}`);
+  assert.deepEqual(bad, [], `frames over budget: ${bad.slice(0, 12).join(", ")}`);
+});
+
+// Round-2 fix (verifier, must fix 2): the verifier's realistic play -- a human on pad 2 for 20 s a run (8th and 16th
+// mashing, quarter and dotted presses, holds, the phrase, bar presses; the dial, Vibrate, Shape and bank changed now and
+// then), library themes and white, 120-180 BPM, at a steady 60 fps and with 4 % of frames dropped. The round-1 engine
+// sent frames over budget in each of these runs (26 frames in the steady ones, 15 with drops); none now. What they
+// caught besides the figures: a rapid press changed a roll's velocity mid-pulse (a lit figure's size follows it), a
+// harder rapid press widened a roll past its fit, barswap flipped a lit pulse's colours on the bar line, a ringing beam
+// whose band was set by its blur could not give way, and a dropped frame doubled a ringing figure's step.
+test("realistic mashing (the verifier's 20 s runs), steady and with dropped frames: no frame goes out over its budget", () => {
+  const themeIds = [...Object.keys(LIBRARY), "white"];
+  const pick = (r, a) => a[Math.floor(r() * a.length)];
+  const rows = [];
+  for (const [run, drop] of [[18, false], [19, false], [22, false], [24, false], [27, false], [28, false], [104, true], [108, true], [113, true], [116, true]]) {
+    const r = L.makeRng(run, "mash-r1");
+    const bpm = pick(r, [120, 128, 140, 150, 160, 174, 180]), per = 60000 / bpm, th = pick(r, themeIds);
+    const cfg = { seed: run, clock: steadyClock(bpm), theme: themeOf(th), section: pick(r, ["climax", "drop", "build", "groove", "anti", "break"]),
+      vibrate: r() < 0.5, shapeMode: r() < 0.25 ? "auto" : null, gateMode: r() < 0.6 ? "auto" : pick(r, L.GATE_IDS),
+      bankMode: r() < 0.5 ? "auto" : pick(r, Object.keys(L.BANK_MODES)) };
+    const eng = L.createLaserEngine(cfg);
+    const ev = [], end = 2000 + 20000;
+    for (let t = 2000; t < end;) {
+      const style = r();
+      if (style < 0.25) {
+        const div = r() < 0.6 ? 0.5 : 0.25, n = 4 + Math.floor(r() * 12);
+        for (let i = 0; i < n; i++) { const tt = t + i * div * per + gauss(r) * 12; ev.push({ t: tt, fn: (e, x) => e.hit(x, 0.5 + 0.5 * r()) }, { t: tt + 35, fn: (e, x) => e.release(x) }); }
+        t += n * div * per;
+      } else if (style < 0.5) {
+        const div = pick(r, [1, 0.75, 2 / 3, 1.5]), n = 3 + Math.floor(r() * 6);
+        for (let i = 0; i < n; i++) { const tt = t + i * div * per + gauss(r) * 15; ev.push({ t: tt, fn: (e, x) => e.hit(x, r()) }, { t: tt + 50, fn: (e, x) => e.release(x) }); }
+        t += n * div * per;
+      } else if (style < 0.65) {
+        const hold = (1 + Math.floor(r() * 6)) * per;
+        ev.push({ t, fn: (e, x) => e.hit(x, 0.4 + 0.6 * r()) }, { t: t + hold, fn: (e, x) => e.release(x) });
+        t += hold + per * r();
+      } else if (style < 0.75) {
+        ev.push({ t, fn: (e, x) => e.phrase(x, 0.7 + 0.3 * r()) });
+        t += per * (1 + Math.floor(r() * 3));
+      } else if (style < 0.85) {
+        const n = 2 + Math.floor(r() * 4);
+        for (let i = 0; i < n; i++) { const tt = t + i * 4 * per + gauss(r) * 20; ev.push({ t: tt, fn: (e, x) => e.hit(x, 0.6 + 0.4 * r()) }, { t: tt + 60, fn: (e, x) => e.release(x) }); }
+        t += n * 4 * per;
+      } else {
+        const a = r();
+        if (a < 0.3) ev.push({ t, fn: (e) => e.set({ gateMode: r() < 0.4 ? "auto" : pick(r, L.GATE_IDS) }) });
+        else if (a < 0.55) ev.push({ t, fn: (e, x) => e.setVibrate(r() < 0.5, x) });
+        else if (a < 0.75) ev.push({ t, fn: (e) => e.set({ shapeMode: r() < 0.6 ? null : "auto" }) });
+        else ev.push({ t, fn: (e) => e.set({ bankMode: r() < 0.4 ? "auto" : pick(r, Object.keys(L.BANK_MODES)) }) });
+        t += per * r() * 2;
+      }
+    }
+    const dr = L.makeRng(run, "drop-r1");
+    let over = 0, frames = 0;
+    driveDt(eng, ev, { from: 1950, to: end + 3 * per, dtFn: () => (drop && dr() < 0.04 ? 33.33 : F), onFrame: (out) => { frames++; if (out.area.over) over++; } });
+    rows.push(`run ${run}${drop ? " (drops)" : ""} ${th} ${bpm}: ${over} of ${frames} frames over budget`);
+    assert.equal(over, 0, `mashing run ${run}${drop ? " with dropped frames" : ""} (${th}, ${bpm} BPM): ${over} frames over budget`);
+  }
+  console.log("  " + rows.join("; "));
+});
+
+// Round-2 fix (from the realistic runs): a rapid press reaches a running roll at its NEXT pulse. Its velocity used to
+// land at once, and a lit figure's size (and a lit beam's width) follows the velocity: the whole figure moved in one
+// frame (16.7-18.3 % of a window, over budget). Before: the figure moved within a lit pulse; now never.
+test("a rapid press never moves a lit figure: its velocity reaches the roll at the next pulse", () => {
+  for (const [bpm, gate, v0, v1] of [[128, "roll8", 0.9, 0.4], [150, "roll16", 1, 0.2]]) {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 5, clock: steadyClock(bpm), theme: WHITE, shapeMode: "auto", gateMode: gate, section: "climax" });
+    // a burst, then a roll spawned hard and stretched by softer rapid presses (one every 0.45 beat)
+    const ev = [...tap(2000, v0, 40), ...Array.from({ length: 6 }, (_, i) => tap(2000 + (i + 1) * 0.45 * per, i === 0 ? v0 : v1, 30)).flat()];
+    let prevKey = null, prev = null, moved = 0, lit = 0;
+    drive(eng, ev, { from: 1950, to: 2000 + 5 * per, onFrame: (out) => {
+      const H = eng.hits.find((h) => h.started && !h.done && h.on);
+      const key = H ? `${H.id}:${H.cur.onFrame}` : null, xs = [];
+      eachLine(out, (r) => { if (r.kind === L.KIND.FIGURE) xs.push(r.x0, r.y0, r.x1, r.y1); });
+      if (key && key === prevKey && prev && prev.length === xs.length) {
+        lit++;
+        if (xs.some((x, i) => Math.abs(x - prev[i]) > 1e-6)) moved++;
+      }
+      prevKey = key; prev = xs;
+    } });
+    assert.ok(lit > 10, `${lit} lit frame pairs`);
+    assert.equal(moved, 0, `${gate} at ${bpm}: the lit figure moved in ${moved} frames`);
+  }
+});
+
+// Round-2 fix (from the realistic runs): a harder rapid press never widens a roll past the velocity it was fitted at
+// (it used to take the press's velocity: a roll fitted at 0.6 drew 0.93's wider, hotter beams, and went dark at 15.3 %
+// of a window). Before: cores 2.63 px at the first press, 3.56 px later; now 2.63 px throughout.
+test("a harder rapid press never widens a roll past the press it was fitted for", () => {
+  for (const [bpm, gate] of [[128, "roll8"], [150, "roll16"]]) {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 9, clock: steadyClock(bpm), theme: LIBRARY["laser-green"], patternMode: "zigzag", gateMode: gate, bankMode: "both", orderMode: "oddeven", section: "anti" });
+    const ev = [...tap(2000, 0.6, 30), ...Array.from({ length: 8 }, (_, i) => tap(2000 + (i + 1) * 0.4 * per, i === 0 ? 0.6 : 1, 30)).flat()];
+    let first = 0, widest = 0;
+    drive(eng, ev, { from: 1950, to: 2000 + 5 * per, onFrame: (out, t) => {
+      eachLine(out, (r) => { if (r.I < 0.01) return; if (t < 2000 + 0.4 * per) first = Math.max(first, r.width); widest = Math.max(widest, r.width); });
+    } });
+    assert.ok(first > 0);
+    assert.ok(widest <= first + 1e-9, `${gate} at ${bpm}: cores ${first.toFixed(3)} px at the first press, ${widest.toFixed(3)} px later`);
+  }
+});
+
+// Round-2 fix (from the realistic runs): barswap swaps the sides' colours on the bar line the PULSE lands on, so a lit
+// pulse (or its tail) never changes colour mid-flight. It read the live beat position: a lit figure in Fire and Ice
+// flipped from blue to white as a bar line passed, every line at once (16.8 % of a window, over budget, and nothing could
+// give way: the lines stood still). Before: 144 lit lines jumped colour between frames with no new pulse; now none.
+test("barswap never changes a lit pulse's colour: the swap waits for the next onset", () => {
+  const bpm = 128, per = 60000 / bpm;
+  const eng = L.createLaserEngine({ seed: 3, clock: steadyClock(bpm), theme: LIBRARY["fire-and-ice"], colourMode: "barswap", gateMode: "triple", shapeMode: "auto", section: "climax" });
+  // a triple whose last pulse and tail span a bar line, three times (a burst each: two bars apart)
+  const ev = [3.2, 11.2, 19.2].flatMap((b) => tap(b * per, 0.9, 40));
+  const last = new Map();
+  let jumps = 0, compared = 0;
+  drive(eng, ev, { from: 3 * per, to: 22 * per, onFrame: (out) => {
+    const buf = eng.drawn, now = new Map();
+    for (let i = 0; i < buf.n; i++) { const o = i * L.W_FLOATS; now.set(buf.keys[i], [buf.W[o + L.W.R], buf.W[o + L.W.G], buf.W[o + L.W.B], buf.W[o + L.W.I] + buf.W[o + L.W.GLOW]]); }
+    if (!out.events.some((e) => e.type === "pulse")) {
+      for (const [k, c] of now) {
+        const p = last.get(k);
+        if (!p || p[3] < 0.05 || c[3] < 0.05) continue;
+        compared++;
+        if (Math.max(Math.abs(c[0] - p[0]), Math.abs(c[1] - p[1]), Math.abs(c[2] - p[2])) > 0.5) jumps++;
+      }
+    }
+    last.clear(); for (const [k, c] of now) last.set(k, c);
+  } });
+  assert.ok(compared > 500, `${compared} lit lines compared`);
+  assert.equal(jumps, 0, `${jumps} lit lines jumped colour between frames`);
+});
+
+// Round-2 fix (from the realistic runs): a ringing beam hit whose band is set by its blur band gives way by sharpening.
+// The fit could only dim it, thin it and trim heads, but a blurred line's band stays as wide from about 0.6 of full light
+// down to 0.15: an escalated chase triplet (call bank, Vibrate) ran every lever to its floor (one head a step, light 0.3)
+// and still went dark at 15.2 %. Before: over budget in white, Temple Light and Limbo; now never.
+test("a ringing beam hit whose lines are blur-bound sharpens to fit: an escalated chase triplet with Vibrate", () => {
+  for (const [id, bpm, gate] of [["white", 128, "triplet"], ["white", 150, "triple"], ["temple-light", 128, "triplet"], ["limbo", 128, "triplet"]]) {
+    const per = 60000 / bpm;
+    const eng = L.createLaserEngine({ seed: 24, clock: steadyClock(bpm), theme: themeOf(id), patternMode: "chase", gateMode: gate, bankMode: "call", orderMode: "oddeven", vibrate: true, section: "anti" });
+    let over = 0;
+    drive(eng, [...tap(2000, 0.88, 50), ...tap(2000 + 2 * per, 0.88, 50), ...tap(2000 + 4.1 * per, 0.88, 50)], { from: 1950, to: 2000 + 9 * per, onFrame: (out) => { if (out.area.over) over++; } });
+    assert.equal(over, 0, `${id} ${bpm} chase/${gate}: ${over} frames over budget`);
+  }
+});
+
+// Round-2 fix (from the realistic runs, 4 % of frames dropped): the strings keep their own clock, which follows the
+// frame clock but never steps more than 1.2 frames at once (catching up 0.2 frame a frame), so a dropped frame cannot
+// double a ringing line's step. A figure roll ringing in Golden Wings at 160 BPM with one frame dropped late in a lit
+// pulse: before, 16.7 % of a window (over budget) against 13.5 % with no drop; with the fixes but not this clock, 14.3 %
+// against 11.7 %; now the drop adds nothing.
+test("a dropped frame never doubles a ringing figure's step: the strings keep their own clock", () => {
+  const bpm = 160, per = 60000 / bpm;
+  const worstWith = (drops) => {
+    const eng = L.createLaserEngine({ seed: 104, clock: steadyClock(bpm), theme: LIBRARY["golden-wings"], section: "break", vibrate: true, shapeMode: "auto", bankMode: "A" });
+    const ev = [[2728, 0.79], [2927, 0.67], [3108, 0.94], [3304, 0.59], [3480, 0.68], [3659, 0.81], [3851, 0.74]].flatMap(([t, v]) => tap(t, v, 35));
+    let worst = 0, over = 0;
+    // frames on the 60 fps grid from 1950 ms, skipping the dropped ones
+    const grid = (j) => 1950 + j * F, dropped = (t) => drops.some((d) => Math.abs(t - d) < 1);
+    let j = 0;
+    driveDt(eng, ev, { from: 1950, to: 5000, dtFn: () => { let k = j + 1; while (dropped(grid(k))) k++; const dt = grid(k) - grid(j); j = k; return dt; },
+      onFrame: (out) => { worst = Math.max(worst, out.area.window); if (out.area.over) over++; } });
+    return { worst, over };
+  };
+  const clean = worstWith([]), dropped = worstWith([1950 + 122 * F]);    // the frame at 3983 ms
+  console.log(`  ringing figure roll, Golden Wings 160: worst ${pct(clean.worst)} % with no drop, ${pct(dropped.worst)} % with a frame dropped late in a lit pulse`);
+  assert.equal(dropped.over, 0, "no frame over budget with the drop");
+  assert.ok(dropped.worst <= clean.worst + 0.005, `the dropped frame added change: ${pct(dropped.worst)} % against ${pct(clean.worst)} %`);
 });
 
 // ------------------------------------------------------------------------- 8b. what the contact sheet caught --
