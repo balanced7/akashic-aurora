@@ -162,8 +162,8 @@ TRANSPORT_EXPECT = {   # control number: (calls on press, calls on release)
     22: ([], [("transport.record",)]),
     23: ([], []),          # Tap is tempo for the visuals only (Daniel, 2026-10-25): swallowed, FL's tempo never moves
     24: ([], [("transport.globalTransport", GT["FPT_LoopRecord"], 1)]),
-    25: ([("transport.continuousMove", -2, GT["SS_Start"])], [("transport.continuousMove", -2, GT["SS_Stop"])]),
-    26: ([("transport.continuousMove", 2, GT["SS_Start"])], [("transport.continuousMove", 2, GT["SS_Stop"])]),
+    25: ([], []),          # Rewind / Fast forward step the VJ sets, always (Daniel, 2026-10-25): swallowed, no scrub
+    26: ([], []),
     27: ([], [("transport.globalTransport", GT["FPT_Metronome"], 1)]),
     41: ([("transport.globalTransport", GT["FPT_Save"], 1)], []),
     43: ([("general.undoUp",)], []),
@@ -214,7 +214,25 @@ def test_any_nonzero_value_is_a_press(rig):
     assert rig.calls == [("transport.stop",)]
 
 
+def test_scrub_stays_with_the_sets_unless_given_back_to_fl(rig):
+    # Daniel, 2026-10-25, on Rewind / Fast forward stepping the VJ sets: "lets try always we can make it an option"
+    assert rig.mod.SCRUB_TO_FL is False
+    rig.mod.OnInit()
+    rig.clear()
+    for cc in (25, 26):
+        for value in (127, 0):
+            assert rig.msg(0xB0 | 9, cc, value).handled is True
+    assert rig.fl_calls() == []
+    rig.mod.TAP_TO_FL = False
+    rig.mod.SCRUB_TO_FL = True                                # the switch gives them back to FL's scrub
+    rig.clear()
+    rig.msg(0xB0, 26, 127)
+    rig.msg(0xB0, 26, 0)
+    assert rig.calls == [("transport.continuousMove", 2, GT["SS_Start"]), ("transport.continuousMove", 2, GT["SS_Stop"])]
+
+
 def test_rewind_held_when_the_script_unloads_is_stopped_first(rig):
+    rig.mod.SCRUB_TO_FL = True                                # only FL's scrub can be held
     rig.mod.OnInit()
     rig.msg(0xB0, 25, 127)
     rig.clear()

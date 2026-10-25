@@ -7,9 +7,10 @@ Arturia's "KeyLab mk3". Leave the "KeyLab 88 mk3 MIDI" input on its own script, 
 What it does on the DAW port, and nothing more:
   * on load it arms the KeyLab's DAW mode and asks for the pads on the DAW port, as Arturia's script does (two
     SysEx); on unload it drops DAW mode (one SysEx);
-  * the transport buttons drive FL: play/pause, stop, record, loop recording, metronome,
-    rewind / fast forward while held, save, undo, redo. Tap is swallowed: it is tap tempo for Aurora's visuals only
-    (TAP_TO_FL = True gives it back to FL's tap tempo);
+  * the transport buttons drive FL: play/pause, stop, record, loop recording, metronome, save, undo, redo. Tap is
+    swallowed: it is tap tempo for Aurora's visuals only (TAP_TO_FL = True gives it back to FL's tap tempo). Rewind and
+    Fast forward are swallowed too: they step the VJ page's sets (SCRUB_TO_FL = True gives them back to FL's rewind /
+    fast forward while held);
   * every other message on the DAW port is swallowed, so FL does nothing with it: faders, knobs, their touch
     sensors, the dial, Back, Quantize, the screen buttons and the DAW-bank pads (notes 0-11 on channel 10). Aurora's
     own programs read the same messages from the shared input and bind them to whatever you choose;
@@ -25,7 +26,7 @@ Every FL function this script can call (the list the P23 freeze drill walks, one
   transport.start               Play (on release)
   transport.stop                Stop (on press)
   transport.record              Record (on release)
-  transport.continuousMove      Rewind / Fast forward (press starts, release stops)
+  transport.continuousMove      Rewind / Fast forward (press starts, release stops), only with SCRUB_TO_FL
   transport.globalTransport     Loop (release), Metronome (release), Save (press); Tap (press) only with TAP_TO_FL
   general.undoUp                Undo (on press)
   general.undoDown              Redo (on press)
@@ -91,6 +92,11 @@ SCRUB_SPEED = {"rewind": -2, "forward": 2}
 # tempo never moves, and Aurora's VJ engine reads the same press from the shared input as its tap tempo. True gives
 # the press back to FL's tap tempo.
 TAP_TO_FL = False
+
+# Rewind and Fast forward step the VJ page's sets, always (Daniel, 2026-10-25: "lets try always we can make it an
+# option"): the buttons are swallowed here, so FL does not scrub while the page changes set. True gives them back to
+# FL's rewind / fast forward while held (and ?transport=off on the page stops it listening).
+SCRUB_TO_FL = False
 
 # Plain-MIDI wheels go to FL untouched (set False to swallow them too).
 WHEELS_TO_FL = True
@@ -208,6 +214,8 @@ def _transport_button(control, value):
     action, edge = TRANSPORT_BUTTONS[control]
     down = value != 0
     if action == "tap" and not TAP_TO_FL:
+        return
+    if edge == HELD and not SCRUB_TO_FL:
         return
     if edge == HELD:
         _scrub(control, SCRUB_SPEED[action], down)
