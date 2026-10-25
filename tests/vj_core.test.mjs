@@ -1,6 +1,6 @@
 // Node tests for the VJ rig's pure logic (arsenal/web/vj-core.js). Zero dependencies:
 //   node tests/vj_core.test.mjs
-// Sections: the event contract; the engine link (when the page may post pad colours); the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
+// Sections: gate v2 (vj-gate.js: the final-output flash limiter and the verifier's flash counter); the event contract; the engine link (when the page may post pad colours); the flash gate (three flashes in any second, and the shader twin of envFlashSafe); ADSR and
 // the effect bank (velocity, hold and release, dampen, choke, the fixed pool); the beat clock (scheduling, refreshed
 // predictions, the flywheel); the pedal detector (Joy to the World's repeated D-flat over a walking bass, and Daniel's
 // whole real take through it: tests/fixtures/vj/joy_take_events.json); the star layout;
@@ -9,6 +9,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as C from "../arsenal/web/vj-core.js";
+import * as G from "../arsenal/web/vj-gate.js";
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 let pass = 0, fail = 0;
@@ -638,6 +639,130 @@ if (!existsSync(JOY_TAKE)) {
   check("the demo ends on the D-flat pedal", db5.length >= 20, `${db5.length} strikes`);
   const ons = got.filter((e) => e.t === "note" && e.on).length, offs = got.filter((e) => e.t === "note" && !e.on).length;
   check("every demo note is released", ons - offs <= 6, `${ons} on, ${offs} off`);
+}
+
+// ------------------------------------------------------------------------- gate v2: the final-output limiter --
+// arsenal/web/vj-gate.js: the rules the GPU limiter (vj-limiter.js) runs on the frame actually shown, and their JS twin.
+// The counter is the 2026-10-24 verifier's (pairs of swings of 0.1 relative luminance, counted where they end).
+{
+  const N = G.NW;
+  const lumOf = (L) => () => L;
+  // run a picture sequence through the twin; returns per-window shown and wanted series and the limiter
+  const drive = (frames, pic, red = () => () => 0, dt = 1 / 60) => {
+    const lim = new G.FlashLimiter();
+    const shown = Array.from({ length: N }, () => []), want = Array.from({ length: N }, () => []);
+    const redShown = Array.from({ length: N }, () => []);
+    const trace = [];
+    for (let f = 0; f < frames; f++) {
+      const g = lim.step(G.cellSums(pic(f), red(f), 32, 32), dt);
+      for (let w = 0; w < N; w++) { shown[w].push(lim.shown[w * 2]); want[w].push(lim.want[w * 2]); redShown[w].push(lim.shown[w * 2 + 1] * 320); }
+      trace.push({ held: lim.held(), rest: lim.glob[1], beta: g.beta, gainsOne: g.a.every((x) => x === 1) && g.k.every((x) => x === 0), commits: lim.commits });
+    }
+    return { lim, shown, want, redShown, trace };
+  };
+  const worst = (series, opts) => Math.max(...series.map((s) => G.flashReport(s, opts).max_flashes_in_1s));
+
+  // the counter itself: a known series
+  const sq = Array.from({ length: 120 }, (_, f) => (Math.floor(f / 6) % 2 ? 0.5 : 0.05));
+  const rep = G.flashReport(sq);
+  check("gate v2 counter: a 5 Hz square wave is 5 flashes a second (a window may hold one edge more)", rep.max_flashes_in_1s >= 5 && rep.max_flashes_in_1s <= 5.5, JSON.stringify(rep.max_flashes_in_1s));
+  check("gate v2 counter: swings under 0.1 are not flashes", G.flashReport(sq.map((v) => 0.3 + (v - 0.3) * 0.15)).transitions === 0);
+  check("gate v2 counter: a bright pair (darker end at 0.8 or more) is not a flash", G.flashReport(sq.map((v) => (v > 0.1 ? 1 : 0.85))).transitions === 0);
+
+  // the hat model is exact: the window value from the cell sums equals the window mean of the picture as the apply pass
+  // transforms it (a Y + k (1 - Y), corners interpolated by the hats)
+  {
+    let s = 3; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    const a = Float32Array.from({ length: 25 }, () => 0.3 + 0.7 * R()), k = Float32Array.from({ length: 25 }, () => 0.4 * R());
+    const pic = (u, v) => 0.5 + 0.4 * Math.sin(u * 9.1) * Math.cos(v * 7.3);
+    const h = new Float64Array(6);
+    const gainAt = (u, v, arr) => { G.hats(u, v, h); let g = 0; for (let j = 0; j < 4; j++) g += h[2 + j] * arr[G.ctrlIndex(h[0], h[1], j)]; return g; };
+    const out = (u, v) => { const l = pic(u, v); return gainAt(u, v, a) * l + gainAt(u, v, k) * (1 - l); };
+    const cellsIn = G.cellSums(pic, () => 0, 64, 64), cellsOut = G.cellSums(out, () => 0, 64, 64);
+    let err = 0;
+    for (let w = 0; w < N; w++) err = Math.max(err, Math.abs(G.windowValue(cellsIn, a, k, w, 0) - G.windowValue(cellsOut, new Float32Array(25).fill(1), new Float32Array(25), w, 0)));
+    check("gate v2: the window value is an exact linear function of the corner gains and lifts", err < 1e-5, err.toExponential(2));
+  }
+
+  // nothing to hold: every gain exactly 1, no lift, no blend (the apply pass copies the frame untouched)
+  {
+    const d = drive(240, (f) => lumOf(0.2 + 0.05 * Math.sin(f / 20)));
+    check("gate v2: a calm picture is never touched", d.trace.every((t) => t.gainsOne && t.beta === 0 && t.held === 0));
+  }
+  // a 10 Hz full-frame square wave: at most 3 flashes a second in every window, and the first second's budget is used
+  {
+    const d = drive(600, (f) => lumOf(Math.floor(f / 3) % 2 ? 0.5 : 0.05));
+    check("gate v2: a 10 Hz full-frame flicker is held to 3 flashes a second in every window", worst(d.shown) <= 3, String(worst(d.shown)));
+    check("gate v2: ... the drawn picture was 10 flashes a second", worst(d.want) >= 10);
+    check("gate v2: ... and the first flashes pass untouched", d.shown[0].slice(0, 12).every((v, i) => Math.abs(v - d.want[0][i]) < 1e-6));
+    check("gate v2: ... no transition ever starts while held", d.lim.leaks === 0);
+    const restAt = d.trace.findIndex((t) => t.rest > 0);
+    check("gate v2: ... flashing for 5 s forces a rest", restAt > 280 && restAt < 360, String(restAt));
+    const during = d.trace.filter((t) => t.rest > 0);
+    check("gate v2: ... and no transition starts during the rest", during.length > 100 && during[during.length - 1].commits === during[0].commits);
+  }
+  // white flashes at two a second (the gate allows three): never held
+  {
+    const d = drive(240, (f) => lumOf(0.05 + 0.5 * Math.exp(-((f % 30) / 60) / 0.15)));
+    check("gate v2: two decaying flashes a second pass untouched", d.trace.every((t) => t.held === 0 && t.gainsOne), String(d.trace.filter((t) => t.held).length));
+  }
+  // a quarter of the screen flickering: held there, the far corner left alone
+  {
+    const d = drive(300, (f) => (u, v) => (u < 0.5 && v < 0.5 ? (Math.floor(f / 3) % 2 ? 0.6 : 0.05) : 0.1));
+    check("gate v2: a flickering quadrant is held to 3 flashes a second", worst(d.shown) <= 3, String(worst(d.shown)));
+    const g = d.lim.a, k = d.lim.k;
+    check("gate v2: ... and the opposite corner's gains stay at 1", [18, 19, 23, 24].every((i) => g[i] > 0.97 && k[i] < 0.03), `${g[24].toFixed(3)} ${k[24].toFixed(3)}`);
+  }
+  // red: a saturated red centre switching on and off at 7.5 Hz
+  {
+    const d = drive(300, () => lumOf(0.1), (f) => (u, v) => (Math.abs(u - 0.5) < 0.25 && Math.abs(v - 0.5) < 0.25 && Math.floor(f / 4) % 2 ? 0.3 : 0));
+    const wr = Math.max(...d.redShown.map((s) => G.flashReport(s, { hyst: 2, thr: 20 }).max_flashes_in_1s));
+    check("gate v2: a red flicker over a quarter of the screen is held to 3 red flashes a second", wr <= 3, String(wr));
+  }
+  // random storms of bright and dark hits anywhere: every window, also with a second counter's noise of +-0.003
+  {
+    let worstSeen = 0, worstNoisy = 0, leaks = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      let s = seed * 7919; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const hits = [];
+      for (let f = 0; f < 480; f += 2 + Math.floor(R() * 8)) hits.push([f, 0.1 + 0.4 * R(), R() < 0.3 ? -1 : 1, R(), R()]);
+      const d = drive(480, (f) => (u, v) => {
+        let val = 0.2;
+        for (const [hf, amp, sg, cx, cy] of hits) if (hf <= f && f - hf < 30) { const r = Math.hypot(u - cx, v - cy); val += sg * amp * Math.exp(-((f - hf) / 60) / 0.06) * Math.exp(-r * r * 6); }
+        return Math.max(0, Math.min(1, val));
+      });
+      worstSeen = Math.max(worstSeen, worst(d.shown));
+      let n = seed;
+      const noise = () => { n = (n * 1664525 + 1013904223) >>> 0; return (n / 4294967296 - 0.5) * 0.006; };
+      worstNoisy = Math.max(worstNoisy, worst(d.shown.map((sr) => sr.map((v) => v + noise()))));
+      leaks += d.lim.leaks;
+    }
+    check("gate v2: random storms stay at 3 flashes a second in every window", worstSeen <= 3, String(worstSeen));
+    check("gate v2: ... also counted through +-0.003 of another meter's noise", worstNoisy <= 3, String(worstNoisy));
+    check("gate v2: ... without a single transition started while held", leaks === 0, String(leaks));
+  }
+  // the GPU twin's shaders: no word GLSL ES 3.00 reserves for future use as a name (2026-10-24: a `bool active` kept the
+  // limiter from compiling, and the page fell back to its safe mode), and every constant the twin uses is in them
+  {
+    const L = await import("../arsenal/web/vj-limiter.js");
+    const src = L.limiterShaderSources();
+    const RESERVED = ["attribute", "varying", "coherent", "volatile", "restrict", "readonly", "writeonly", "resource", "atomic_uint",
+      "noperspective", "patch", "sample", "subroutine", "common", "partition", "active", "asm", "class", "union", "enum", "typedef",
+      "template", "this", "goto", "inline", "noinline", "public", "static", "extern", "external", "interface", "long", "short",
+      "double", "half", "fixed", "unsigned", "superp", "input", "output", "hvec2", "hvec3", "hvec4", "dvec2", "dvec3", "dvec4",
+      "fvec2", "fvec3", "fvec4", "sampler3DRect", "filter", "sizeof", "cast", "namespace", "using"];
+    const bad = [];
+    for (const [name, s] of Object.entries(src)) {
+      const code = s.replace(/\/\/[^\n]*/g, "");
+      for (const w of RESERVED) if (new RegExp(`\\b${w}\\b`).test(code)) bad.push(`${name}: ${w}`);
+    }
+    check("gate v2: the limiter's shaders use no reserved word", bad.length === 0, bad.join(", "));
+    check("gate v2: the shaders carry the twin's constants", src.solve.includes(`const float NMAX = ${G.LIMIT.N_MAX}.0;`) &&
+          src.state.includes(`const int RING = ${G.LIMIT.RING};`) && src.solve.includes(`ivec4[${G.NW}]`));
+  }
+  // the windows: a quarter of the screen or more each, the whole frame first
+  check("gate v2: 18 windows, each at least a quarter of the screen", G.WINDOWS.length === 18 &&
+        G.WINDOWS.every(([x0, y0, x1, y1]) => (x1 - x0 + 1) * (y1 - y0 + 1) >= 4) && G.WINDOWS[0].join() === "0,0,3,3");
 }
 
 console.log(`vj_core: ${pass} passed, ${fail} failed`);
