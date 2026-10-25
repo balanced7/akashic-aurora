@@ -69,14 +69,17 @@ What feeds it:
           stays near 64, a fader wanders far from it. A learned kind is announced as a status
   TAP     the Tap button (to the right of Record: CC 23 on the DAW port; --tap names other controls, pads too) feeds
           the beat clock (beatgrid.BeatGrid): one isolated tap on a kick moves the beat there (a tracker locked on the
-          off-beat is fixed by one tap); four or more steady taps take over tempo and beat (snapped to the database's
-          tempo within 4 %, else the tracker's, else rounded to a whole BPM; --tap-exact keeps it exact) until the taps
-          stop; then the hand keeps the beat while the tracker refines the tempo, until the tracker agrees for 8 beats.
+          off-beat is fixed by one tap); four or more steady taps take over tempo and beat (a sloppy tap left out;
+          snapped to the database's tempo within 4 %, else the tracker's, in the faster of the two octaves so taps fix
+          a half-time tracker or database; else rounded to a whole BPM; --tap-exact keeps it exact) until the taps
+          stop; then the hand keeps the beat while a steady tracker refines the tempo (in the hand's octave), until the
+          tracker agrees for 8 beats.
           A press is a rising edge (80 ms debounce), timed when it arrives on the MIDI thread; the audio thread puts it
           on the stream's clock, so a tap never waits on, or stalls, the audio. Its ctl event is published as before.
           Our FL script also sends CC 23 to FL's tap tempo (Daniel's call whether it should keep doing so)
   TRACK   the live loopback only (not --replay-audio; --no-db turns it off): a thread reads Windows' now-playing every
-          2 s and, on a new track, the song database's tempo (beatgrid.database_tempo, cached per track, fail-soft);
+          2 s (a session that is playing; a paused one is not the track) and, on a new track, the song database's tempo
+          (beatgrid.database_tempo, cached per track, fail-soft);
           the audio thread re-seeds the tracker with it (a tracker that already agrees is left alone; otherwise a new
           one warms up beside it and takes over once it predicts, so the beat never stops). --seed-bpm holds the
           track playing at start. A status line says when the database tempo arrives and when taps take over
@@ -279,8 +282,11 @@ def parse_tap(spec: Optional[str]) -> List[Tuple[Optional[str], str]]:
 
 
 def track_key(np_: Optional[dict]) -> Optional[Tuple[str, str]]:
-    """Windows' now-playing (beatsync.now_playing) -> (artist, title) folded for comparing, or None for no track."""
-    if not np_ or not str(np_.get("title") or "").strip():
+    """Windows' now-playing (beatsync.now_playing) -> (artist, title) folded for comparing, or None for no track. Only
+    a session that is PLAYING is the track (beatsync.is_playing: status 4): a paused browser or Spotify session is still
+    Windows' current session, and with Daniel playing FL it would have seeded the tracker with an unrelated song."""
+    from .beatsync import is_playing
+    if not is_playing(np_) or not str(np_.get("title") or "").strip():
         return None
     return (" ".join(str(np_.get("artist") or "").lower().split()), " ".join(str(np_["title"]).lower().split()))
 
@@ -985,6 +991,7 @@ class BeatClock:
             self.ref = Referee(rate, hop)
         self.rate, self.hop, self.ahead_s = int(rate), int(hop), ahead_s
         self.grid = BeatGrid(ahead_s=ahead_s, tap_one=tap_one, round_bpm=tap_round)
+        self._ref_owner = self.grid.owner         # whose beats the referee's prediction window holds
         self._taps: List[float] = []
         self.audio_t = 0.0
         self.n = 0
@@ -1046,6 +1053,9 @@ class BeatClock:
         self._take_notes()
         view = self.grid.view(self.audio_t)
         if self.ref is not None:
+            if self.grid.owner != self._ref_owner:    # the hand took the beat or gave it back (here or in announce):
+                self.ref.pred.clear()                 # one verdict judges one owner's beats, never a mix
+                self._ref_owner = self.grid.owner
             self.ref.predicted(view)                  # the referee judges the beats the lights show
             self.ref.feed(block)
             if self.audio_t >= self.next_verdict:
@@ -2237,8 +2247,8 @@ class Engine:
         self.publish({"t": "pad", "pad": pad, "vel": round(vel / 127.0, 3) if on else 0.0, "on": on, "src": src})
         if src == "daw" and not on and self.painter is not None:
             self.painter.reassert(0.25)                   # FL's script may repaint a DAW-mode pad on release
-        if self._tap_ids:
-            self._tap_control("daw" if src == "daw" else "midi", f"pad{pad}", vel if on else 0, t)
+        if self._tap_ids:                                 # a pad hit is a press however soft (velocity is not a level)
+            self._tap_control("daw" if src == "daw" else "midi", f"pad{pad}", 127 if on else 0, t)
 
     # ----------------------------------------------------------------------------------------------- the Tap button
     def _tap_control(self, port: str, ident: str, value: int, t: float) -> None:
