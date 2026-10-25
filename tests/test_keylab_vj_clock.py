@@ -1190,3 +1190,164 @@ def test_real_tracker_reading_205_as_half_is_fixed_by_six_taps_at_205():
     assert late and all(abs(a["bpm"] / 205.0 - 1.0) < 0.01 for _x, a in late), clk.grid.tap_bpm
     assert len(late) / 15.0 == pytest.approx(205.0 / 60.0, abs=0.15), "every kick, not every other one"
     assert np.median([_kick_err_ms(x, p) for x, _a in late]) < 10.0
+
+
+# --- round 3 fixes: a database a few per cent off the music (2026-10-25) -----------------------------------------
+# Each of these failed on round 2 (fa168a29) and passes after the fix; the verifier's numbers are quoted. A database
+# tempo 5-9 % off the music is ordinary: a pitched YouTube re-upload, a DJ-pitched live version, a title that matches
+# the wrong song.
+
+def _taps_on_kicks(bpm, n, at=10.0):
+    p = 60.0 / bpm
+    k0 = math.ceil(at / p) * p                            # a kick (the groove's kicks fall on k * p)
+    return [k0 + k * p for k in range(n)]
+
+
+def _landed(beats, lo, hi):
+    """The land times of the announced beats between lo and hi s."""
+    return [t for t, _a in beats if lo < t < hi]
+
+
+@pytest.mark.parametrize("bpm,db,n", [(142.0, 150.0, 4), (180.0, 170.0, 6)])
+def test_perfect_taps_on_the_groove_beat_a_database_a_few_percent_off(bpm, db, n):
+    """FIX 1 (the verifier's h14 cells, on the stand-in tracker): perfect taps on a 142 groove with the database at 150
+    (4 taps), and on a 180 groove with the database at 170 (6 taps). Round 2 widened the snap window for every short
+    run (7 % for four taps; the 180 run dropped a good end tap against the database's grid, which widened it to
+    5.6 %), tried the database first, then let the database side with the hand because the hand's period was the
+    snapped one: tap_bpm 150 (170), the hand kept the beat and the lights drifted (the verifier: 107 ms median, 208 ms
+    max for 40 s). Now: the tracker's tempo when one is steady and agrees with the taps (at the groove's tempo or at
+    half: beat_a reads 180 as 90), the taps' own tempo with no tracker, on the kicks either way."""
+    p = 60.0 / bpm
+    taps = _taps_on_kicks(bpm, n)
+    for tracker, want in ((p, "track"), (2 * p, "track"), (None, "tap")):
+        grid = G.BeatGrid()
+        grid.set_db(db)
+        stub = None if tracker is None else (lambda now, pt=tracker: ahead_at(now, 0.0, pt, conf=0.99))
+        d = Drive(grid, tracker=stub)
+        d.until(4.0)
+        d.until(taps[-1] + 40.0, taps=taps)
+        assert grid.tap_how == want and grid.tap_bpm == pytest.approx(bpm, abs=0.05), (tracker, grid.tap_bpm)
+        late = _landed(d.beats, taps[-1] + 20.0, taps[-1] + 40.0)
+        assert abs(60.0 / np.median(np.diff(late)) / bpm - 1.0) < 0.01, (tracker, grid.tap_bpm)
+        assert max(_kick_err_ms(t, p) for t in late) < 5.0, tracker
+
+
+def test_a_database_off_the_music_never_takes_perfect_taps_on_the_virtual_grid():
+    """FIX 1, the verifier's rate (h15): the database 5 or 8 % off either way, PERFECT taps on the kicks (4, 5 or 6),
+    the tracker on the kicks (confidence 0.9) or absent, at 128, 150 and 174 BPM. Round 2: 19 of 54 runs locked to the
+    database's tempo and drifted 80-123 ms off, with or without a tracker (round 1 and the first build: none). Now none:
+    the lights run at the groove's tempo, on the kicks."""
+    for groove in (128.0, 150.0, 174.0):
+        p = 60.0 / groove
+        for d_off in (-0.08, -0.05, 0.05, 0.08):
+            db = round(groove * (1.0 + d_off), 1)
+            for n in (4, 5, 6):
+                for tracker in (True, False):
+                    grid = G.BeatGrid()
+                    grid.set_db(db)
+                    d = Drive(grid, tracker=(lambda now, p=p: ahead_at(now, 0.0, p)) if tracker else None)
+                    d.until(4.0)
+                    taps = _taps_on_kicks(groove, n, at=4.0)
+                    d.until(taps[-1] + 25.0, taps=taps)
+                    late = _landed(d.beats, taps[-1] + 15.0, taps[-1] + 25.0)
+                    lights = 60.0 / np.median(np.diff(late))
+                    case = (groove, db, n, tracker, grid.tap_bpm, grid.tap_how)
+                    assert grid.tap_how != "db" and abs(lights / groove - 1.0) < 0.01, case
+                    assert np.median([_kick_err_ms(t, p) for t in late]) < 5.0, case
+
+
+def test_the_database_sides_with_the_hand_only_when_the_taps_own_slope_agrees_with_it():
+    """FIX 1 (b): after the release, _hold_wide asked whether the database sided with the hand by comparing it with the
+    hand's period, which is the snapped one, so a snap to the database agreed with itself and kept a right tracker out
+    for good. A 142 groove, the database at 150, no tracker while the hand taps; the first tap 0.3 of a beat late (a
+    real outlier, so the three taps left get the wider window and the tempo snaps to 150, as h8's sloppy tap does).
+    The taps' own slope is 142. Then a confident tracker on the kicks at 142 comes in: now the hand takes its tempo and
+    hands the beat back (round 2: the lights stayed at 150, drifting). With the tracker there during the taps, the
+    taps agree with it, not with the database: 142 from the lock on."""
+    bpm, db = 142.0, 150.0
+    p = 60.0 / bpm
+    taps = _taps_on_kicks(bpm, 4)
+    taps[0] += 0.3 * p
+    late_tracker = lambda now: ahead_at(now, 0.0, p) if now > taps[-1] + 1.5 else []      # noqa: E731
+    for tracker, want in ((late_tracker, "db"), (lambda now: ahead_at(now, 0.0, p), "track")):
+        grid = G.BeatGrid()
+        grid.set_db(db)
+        d = Drive(grid, tracker=tracker)
+        d.until(4.0)
+        d.until(taps[-1] + 40.0, taps=taps)
+        assert grid.tap_how == want, (want, grid.tap_bpm)
+        late = _landed(d.beats, taps[-1] + 20.0, taps[-1] + 40.0)
+        assert abs(60.0 / np.median(np.diff(late)) / bpm - 1.0) < 0.01, (want, grid.tap_bpm)
+        assert grid.owner == "track" and max(_kick_err_ms(t, p) for t in late) < 5.0, want
+
+
+def test_messy_taps_on_a_wobbly_tracker_still_snap_to_it():
+    """A guard on FIX 1 (a), not a round-2 repro: only the DATABASE's window went back to the spec's 4 %; the
+    tracker's keeps the wide one (what human jitter puts on the taps left), since its tempo is measured off the music.
+    Four messy taps [+81, +12, +16, -52] ms at 174 (the verifier's h12 C, seed 6) on a wobbly tracker (beats +-15 ms,
+    bpm field +-2 %), no database: they snap to the tracker and the lights end on the kicks. Narrowed to 4 % like the
+    database's, they fell back to their own 197 BPM and, the wobbly line slow to steady, one run in eight held the
+    lights 97 ms off (137 ms on the verifier's h12 C with the tracker's slow wander)."""
+    p = 60.0 / 174.0
+    for seed in range(8):
+        grid = G.BeatGrid()
+        d = Drive(grid, tracker=wobbly_tracker(p, seed))
+        k0 = math.ceil(8.0 / p) * p
+        taps = [k0 + k * p + e for k, e in enumerate((0.081, 0.012, 0.016, -0.052))]
+        d.until(taps[-1] + 40.0, taps=taps)
+        assert grid.tap_how == "track" and abs(grid.tap_bpm / 174.0 - 1.0) < 0.01, (seed, grid.tap_bpm)
+        late = _landed(d.beats, taps[-1] + 10.0, taps[-1] + 40.0)
+        assert grid.owner == "track" and np.median([_kick_err_ms(t, p) for t in late]) < 12.0, seed
+
+
+def test_one_tap_after_a_tap_run_re_phases_the_beat_and_the_next_follow_keeps_it():
+    """Found while fixing round 2: after a tap run, one isolated tap 0.3 of a beat later re-phased the lights for one
+    block, and the hand's next follow of the tracker undid it: _first_offset measured the old run's kept taps against
+    the tracker, since the isolated tap was recent. A tracker on the off-beat (it never takes the beat back), six taps
+    on the kicks, then one tap at +0.3 of a beat 5 s later: round 2 kept the lights on the old run's phase (0.000 of a
+    beat off the kicks); now they stay on the new tap (+0.300), as the first build did."""
+    grid = G.BeatGrid()
+    d = Drive(grid, tracker=lambda now: ahead_at(now, 0.5 * P150, P150))
+    taps = [4.0 + k * P150 for k in range(6)] + [12.0 + 0.3 * P150]
+    d.until(25.0, taps=taps)
+    late = [G.wrap(t / P150) for t, _a in d.after(12.5)]
+    assert grid.owner == "hand" and late and all(abs(w - 0.3) < 0.01 for w in late), late[:4]
+
+
+def _run_clock_reseed(bpm, taps, secs, db, reseed_at=None):
+    """_run_clock with the database set and, at reseed_at s, the engine's re-seed to its tempo (a track change)."""
+    clk = V.BeatClock(RATE, V.HOP, "a")
+    clk.grid.set_db(db)
+    src = _synth(bpm, secs)
+    t, i, got, done = 0.0, 0, [], reseed_at is None
+    while (b := src.read()) is not None:
+        t += BLOCK
+        if not done and t >= reseed_at:
+            clk.reseed(db)
+            done = True
+        while i < len(taps) and taps[i] <= t:
+            clk.tap(taps[i])
+            i += 1
+        a = clk.feed(b)
+        if a:
+            got.append((t + a["lead_s"], a))
+    return clk, got
+
+
+@pytest.mark.parametrize("bpm,db,n", [(142.0, 150.0, 4), (180.0, 170.0, 6)])
+def test_real_tracker_perfect_taps_beat_a_database_a_few_percent_off(bpm, db, n):
+    """FIX 1 with the real tracker (the verifier's h14): beat_a on the groove, the database 5-6 % off, perfect taps on
+    the kicks, with and without the engine's re-seed to the database's tempo. 142 / database 150 / 4 taps: round 2
+    gave tap_bpm 150 (db), the hand for 40 s, 107 ms median and 208 ms max off (the first build: 142.15, back to the
+    tracker, 1-2 ms). 180 / database 170 / 6 taps (beat_a reads 90.7 unseeded; re-seeded at 170 it reads 180.2): round
+    2 locked at 170, 78-98 ms off for 40 s (the first build: 179.91, 1-2 ms). Now the groove's tempo, on the kicks."""
+    p = 60.0 / bpm
+    taps = _taps_on_kicks(bpm, n)
+    for reseed_at in (None, 3.0):
+        clk, got = _run_clock_reseed(bpm, taps, taps[-1] + 40.0, db, reseed_at)
+        late = [(x, a) for x, a in got if taps[-1] + 10.0 < x < taps[-1] + 40.0]
+        errs = [_kick_err_ms(x, p) for x, _a in late]
+        case = (reseed_at, clk.grid.tap_bpm, clk.grid.tap_how, clk.grid.owner)
+        assert clk.grid.tap_how != "db" and abs(clk.grid.tap_bpm / bpm - 1.0) < 0.01, case
+        assert late and all(abs(a["bpm"] / bpm - 1.0) < 0.01 for _x, a in late), case
+        assert np.median(errs) < 15.0 and max(errs) < 30.0, (case, np.median(errs), max(errs))

@@ -70,8 +70,10 @@ What feeds it:
   TAP     the Tap button (to the right of Record: CC 23 on the DAW port; --tap names other controls, pads too) feeds
           the beat clock (beatgrid.BeatGrid): one isolated tap on a kick moves the beat there (a tracker locked on the
           off-beat is fixed by one tap); four or more steady taps take over tempo and beat (a sloppy tap left out;
-          snapped to the database's tempo within 4 %, else the tracker's, in the faster of the two octaves so taps fix
-          a half-time tracker or database; else rounded to a whole BPM; --tap-exact keeps it exact) until the taps
+          snapped within 4 % to the database's tempo or the tracker's, the one the taps agree with when those two
+          disagree (a database a few per cent off the music loses to a tracker on the taps), in the faster of the two
+          octaves so taps fix a half-time tracker or database; else rounded to a whole BPM; --tap-exact keeps it
+          exact) until the taps
           stop; then the hand keeps the beat while a steady tracker refines the tempo (in the hand's octave), until the
           tracker agrees for 8 beats.
           A press is a rising edge (80 ms debounce), timed when it arrives on the MIDI thread; the audio thread puts it

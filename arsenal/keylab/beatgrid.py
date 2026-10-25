@@ -19,15 +19,24 @@ The build spec: research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-
            fixes a tracker locked on the off-beat (hardstyle's reverse bass sits there)
            FOUR or more taps put the lights on the taps (tap-lock): a least-squares line through the run's taps gives
            tempo and phase. A tap that misses the run (a sloppy first tap, say) is dropped before the line is drawn:
-           against the database's or the tracker's tempo, a tap more than 1/8 of a beat off the others; with no
-           tempo to check against, a tap whose miss stands out from what the other taps predict (the lane's first
-           build kept such a tap, so one first tap 60 ms off locked a 150 groove at 157 and the lights drifted for
-           good). The tempo snaps to the database's when the line through the taps kept is within 4 % of it
-           (octave-folded), or within what 25 ms of human jitter can put on the slope of so few taps (2.5 sigma:
-           11 % for the three taps left of four, 7 % for four, 4 % from six), else to the tracker's (same window,
-           confidence 0.5 or more, its tempo read off the lines through its own beats and averaged, not its
-           momentary bpm field), else it is the tapped tempo rounded to a whole BPM (BEYOND's option; round_bpm=False
-           keeps it exact). A
+           against the database's or the tracker's tempo, a tap more than 1/8 of a beat off the others and off the
+           line through them (unless the database and the tracker agree with each other, when the first is
+           enough); with no tempo to check against, a tap whose miss stands out from what the other taps predict (the
+           lane's first build kept such a tap, so one first tap 60 ms off locked a 150 groove at 157 and the lights
+           drifted for good). The references are the database's tempo and a confident tracker's (confidence 0.5 or
+           more, its tempo read off the lines through its own beats and averaged, not its momentary bpm field). The
+           database's is a candidate when the line through the taps kept is within 4 % of it (octave-folded): the
+           spec's window. It is wider, what 25 ms of human jitter can put on the slope of the taps LEFT (2.5 sigma: 11 % for
+           three, 7 % for four), only when a real outlier was dropped (it misses the line through the other taps by
+           over 1/8 of a beat: against a grid a few per cent off, the end taps of a steady run drift off it as well,
+           but they sit on the others' line), or when the tracker agrees with the database (then the two set the
+           tempo and the taps the phase). Round 2 widened it for every short run, so four perfect taps at 142
+           snapped to a database's 150 and drifted. The tracker's always has the wider window: its tempo is measured
+           off the music playing, the database's is metadata. Database and tracker agreeing: the database's (the cleaner
+           number). Disagreeing: the one the taps' own slope misses least, so a steady tracker that agrees with the
+           taps outvotes a database a few per cent off the music (a pitched re-upload, a DJ-pitched live version, a
+           title matched to the wrong song). No candidate: the tapped tempo rounded to a whole BPM (BEYOND's
+           option; round_bpm=False keeps it exact). A
            snap keeps the faster of the two octaves, at any tempo (uptempo runs past the tracker's 200): taps at 150 on
            a database or tracker at 75 (half time: the fusion folds hardstyle to half, and beat_a reads 180 as 90)
            give 150, taps at 205 on beat_a's 102.3 give 205, and half-time taps (every other kick) on a database at 150
@@ -38,8 +47,10 @@ The build spec: research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-
            tracker sat against the taps is measured at the release, tap by tap. While the hand holds it follows the
            tracker's beats with that offset, at the tempo of its LINE (see below) and only while the line is steady,
            in the hand's octave (a half-time tracker is followed at the hand's tempo, and never takes the beat back),
-           within 4 %, or further when it is confident (0.5 or more) and the database does not side with the hand:
-           8 %, 15 % after a run of fewer than 8 taps, any distance when the database sides with the tracker. Taps a
+           within 4 %, or further when it is confident (0.5 or more) and the database does not side with the hand
+           (the database sides with the hand when it agrees with the taps' OWN slope, never the snapped tempo, and
+           not with the tracker): 8 %, 15 % after a run of fewer than 8 taps, any distance when the database sides
+           with the tracker. Taps a
            few per cent off then stop drifting the moment the hand lets go; between follows the hand runs at its
            tempo averaged. A run of 8 or more taps at a tempo the tracker disagrees with (over 4 %, octave-folded)
            asks for a re-seed, at most one per 15 s. A new track, or 3 s of silence (a pause, not a break) with no
@@ -252,6 +263,7 @@ class BeatGrid:
         self._following = False                   # holding: this block the hand's grid followed the tracker
         self._p_hold: Optional[float] = None      # holding: the tempo the hand runs at between follows (seconds)
         self._keep: List[float] = []              # the taps the last lock kept
+        self._own: Optional[float] = None         # ... their own slope (seconds per beat), not the snapped period
         self._hold_line: Optional["TrackerLine"] = None          # the line last folded into _p_hold
         self.db_bpm: Optional[float] = None
         self.tr: Optional[Tuple[float, float, float]] = None     # the tracker's next beat, period, confidence
@@ -291,6 +303,7 @@ class BeatGrid:
         self.last_tap = t
         if isolated:
             self.run.clear()
+            self._keep = []                        # the last lock's taps: a re-phase must not be undone by them
         self.run.add(t)
         k = len(self.run.taps)
         if isolated:
@@ -451,9 +464,12 @@ class BeatGrid:
         near = min((float(b["t_beat"]) for b in self._ahead), key=lambda t: abs(t - t_beat))
         return abs(wrap((near - t_beat) / period)) < AGREE_BEATS
 
-    def _take(self, anchor: float, period: float) -> None:
+    def _take(self, anchor: float, period: float, own: Optional[float] = None) -> None:
+        """The hand takes the beat: its grid at anchor + k * period; own is the taps' own slope (seconds per beat of
+        the line through the taps a lock kept), what the database is asked to agree with (_db_sides_with_hand)."""
         self.owner = "hand"
         self.anchor, self.period = float(anchor), float(period)
+        self._own = None if own is None else float(own)
         self._p_hold, self._hold_line = float(period), None
         self._e0, self._e0_taps = None, None
         self.agree = 0
@@ -468,6 +484,7 @@ class BeatGrid:
         self.owner = "track"
         self.locked = False
         self.anchor = self.period = None
+        self._own = None
         self._e0, self._e0_taps = None, None
         self.agree = 0
         if was:
@@ -484,16 +501,17 @@ class BeatGrid:
             self._note_tap(1, "resync")
             return
         b0, period = grid
+        own = self._own if self.owner == "hand" else None        # a re-phase keeps the tapped run's own slope
         d = wrap((t - b0) / period)                # where the tap fell against the beat shown, in beats
         if abs(d) < NOISE_BEATS:
             shift, beat = 0.0, t - d * period
         elif abs(d) <= SLEW_BEATS:
             shift = d / 2.0
             beat = t - (d - shift) * period
-            self._take(beat, period)
+            self._take(beat, period, own=own)
         else:
             shift, beat = d, t
-            self._take(t, period)
+            self._take(t, period, own=own)
             self._status(f"tap: the beat moved {d:+.2f} of a beat onto your tap")
         if self.tap_one:
             self.bar_ref = (beat, 1)
@@ -622,37 +640,98 @@ class BeatGrid:
     @staticmethod
     def _snap_window(k: np.ndarray, period: float) -> float:
         """How far (a ratio) the slope of a line through taps numbered k (beats of period) may miss a reference's
-        tempo and still be it: 4 %, or SNAP_SIGMAS times the slope error TAP_JITTER_S of human jitter gives so few taps
-        (sigma / (period * sqrt(sum (k - mean k)^2))), whichever is wider. Three taps left after an outlier carry about
-        3.5 % of slope noise at 20 ms (the window is 11 % at 150 BPM), four taps 2.2 % (7 %), six 1.2 % (4 %). With a
-        flat 4 %, the three good taps of [+82, -7, +3, -40] ms at 150 sloped 4.3 % off the database's 150: the run
-        then fell back to its own line, outlier and all, and locked at 165 for good (round 1's verifier: 8 of 80 such
-        runs at 174 BPM, 7 at 150, every one 8-14 % off)."""
+        tempo and still be it, once a real outlier has been dropped (_stands_out; else the window is the spec's 4 %):
+        4 %, or SNAP_SIGMAS times the slope error TAP_JITTER_S of human jitter gives the taps LEFT (sigma / (period *
+        sqrt(sum (k - mean k)^2))), whichever is wider. Three taps left after an outlier carry about 3.5 % of slope
+        noise at 20 ms (the window is 11 % at 150 BPM), four 2.2 % (7 %), six 1.2 % (4 %). With a flat 4 %, the three
+        good taps of [+82, -7, +3, -40] ms at 150 sloped 4.3 % off the database's 150: the run then fell back to its own
+        line, outlier and all, and locked at 165 for good (round 1's verifier: 8 of 80 such runs at 174 BPM, 7 at 150,
+        every one 8-14 % off). Round 2 widened it for EVERY short run, outlier or not, so four perfect taps at 142
+        snapped to a database's 150 (7 % for four taps) and drifted."""
         s = float(np.sum((k - k.mean()) ** 2))
         if s <= 0:
             return SNAP
         return max(SNAP, SNAP_SIGMAS * TAP_JITTER_S / (period * math.sqrt(s)))
 
-    def _fit(self, taps: Sequence[float]) -> Tuple[float, str, float, List[float]]:
-        """(bpm, what it snapped to, the period of the taps' own octave, the taps kept) for a tap run. Each reference
-        in turn: drop the taps that miss its grid, and snap when a line through the rest is within the snap window of
-        it (_snap_window: 4 %, wider for few taps). None agrees: drop the taps that miss the run's own line, and keep
-        its tempo."""
+    @classmethod
+    def _stands_out(cls, taps: Sequence[float], keep: Sequence[float], period: float) -> bool:
+        """Whether the taps _inliers dropped against a reference's grid were real outliers: each misses the line
+        through the taps KEPT (their own slope, numbered on that grid) by more than OUTLIER_BEATS. Against a grid a
+        few per cent off the taps, the end taps of a perfectly steady run drift off it and get dropped too, but they
+        sit on the other taps' own line (round 2 dropped the first of six perfect taps at 180 against a database's 170,
+        which widened the window to 5.6 % and snapped to 170: 5.56 % off). h8's sloppy first tap, [+82, -7, +3, -40]
+        ms, misses the line through the other three by 0.16 of a beat at 150 (0.19 at 174): an outlier."""
+        if len(keep) >= len(taps):
+            return False
+        k, x = cls._line(taps, period)
+        kept = np.isin(x, np.asarray(keep, dtype=float))
+        coef, _r, _h = cls._lsq(k[kept], x[kept])
+        miss = np.abs(x[~kept] - (float(coef[0]) * k[~kept] + float(coef[1]))) / period
+        return bool(np.all(miss > OUTLIER_BEATS))
+
+    def _fit(self, taps: Sequence[float]) -> Tuple[float, str, float, List[float], float]:
+        """(bpm, what it snapped to, the period of the taps' own octave, the taps kept, the taps' own slope: seconds
+        per beat of the line through the taps kept) for a tap run. Each reference: drop the taps that miss its grid,
+        and it is a candidate when the line through the rest is within the snap window of it.
+
+        The database's: the spec's 4 %, wider (_snap_window, what human jitter puts on the slope of the taps left)
+        only when what was dropped was a real outlier (_stands_out), or when a confident, steady tracker agrees with
+        the database (within 4 %): then two sources set the tempo and the taps only the phase. Otherwise a dropped tap
+        is put back: dropping the tap furthest from a reference's grid leans what is left toward that reference (six
+        taps with 15 ms of jitter at 180, one dropped against a database's 170, sloped 3.1 % off it where all six
+        slope 4.8 %). The database is metadata, and a few per cent off the music is ordinary (a pitched re-upload, a
+        DJ-pitched live version, a title matched to the wrong song); round 2 gave it the wide window for every short
+        run, so four perfect taps at 142 snapped to a database's 150.
+
+        The tracker's (confident, its line steady): the wide window, as round 2 had it. Its tempo is measured off the
+        music playing, so sloppy taps on it lean the right way (narrowed to 4 % like the database's, four taps
+        [+81, +12, +16, -52] ms on a wobbly tracker at 174 fell back to their own 196 and held 137 ms off).
+
+        The candidates are chosen by AGREEMENT (_agreeing), not database first. None: drop the taps that miss the
+        run's own line, and keep its tempo."""
         p_free = self._free_period(taps)
         tapped = 60.0 / p_free
-        for ref, how in self._references(p_free):
+        refs = self._references(p_free)
+        both = len(refs) == 2 and folded_ratio(refs[0][0], refs[1][0]) < SNAP_OCT
+        found = []
+        for ref, how in refs:
             bpm = self._octave(ref, tapped)
             period = 60.0 / bpm
             p_line = period * 2.0 ** round(math.log2(p_free / period))    # the taps' own octave (half time is common)
             keep = self._inliers(taps, p_line, fixed=True)
+            trusted = both or how == "track" or self._stands_out(taps, keep, p_line)
+            if not trusted:
+                keep = list(taps)          # a drop that does not stand out may be the grid's own doing: all count
             k, x = self._line(keep, p_line)
-            coef, _r, _h = self._lsq(k, x)
-            if abs(float(coef[0]) / p_line - 1.0) < self._snap_window(k, p_line):
-                return bpm, how, p_line, keep
+            slope = float(self._lsq(k, x)[0][0])
+            miss = abs(slope / p_line - 1.0)
+            if miss < (self._snap_window(k, p_line) if trusted else SNAP):
+                found.append((miss, bpm, how, p_line, keep, slope))
+        pick = self._agreeing(found)
+        if pick is not None:
+            _miss, bpm, how, p_line, keep, slope = pick
+            return bpm, how, p_line, keep, slope
         keep = self._inliers(taps, p_free, fixed=False)
         p_in = self._slope(keep, p_free)
         bpm = float(round(60.0 / p_in)) if self.round_bpm else 60.0 / p_in
-        return bpm, "tap", 60.0 / bpm, keep
+        return bpm, "tap", 60.0 / bpm, keep, p_in
+
+    @staticmethod
+    def _agreeing(found: Sequence[tuple]) -> Optional[tuple]:
+        """Which candidate reference a tap run snaps to ((miss, bpm, how, ...) in reference order: the database's,
+        then the tracker's). While the two agree with each other (within 4 %, octave-folded), the database's (the
+        spec's order: it is the cleaner number). When they DISAGREE, the one the taps' own slope misses least: a
+        confident, steady tracker that agrees with the taps outvotes a database a few per cent off the music (a
+        pitched re-upload, a DJ-pitched live version, a title that matched the wrong song). Round 2 tried the
+        database first, so four perfect taps at 142 snapped to a database's 150 with beat_a reading 142.1 at
+        confidence 1.0."""
+        if not found:
+            return None
+        db = next((c for c in found if c[2] == "db"), None)
+        tr = next((c for c in found if c[2] == "track"), None)
+        if db is not None and tr is not None and folded_ratio(db[1], tr[1]) >= SNAP_OCT:
+            return min((db, tr), key=lambda c: c[0])
+        return found[0]
 
     def _lock(self, t: float) -> None:
         k = len(self.run.taps)
@@ -660,7 +739,7 @@ class BeatGrid:
         if g is None:
             self._note_tap(k, "run")
             return
-        bpm, how, p_line, keep = self._fit(self.run.taps[-12:])
+        bpm, how, p_line, keep, own = self._fit(self.run.taps[-12:])
         period = 60.0 / bpm
         fit = self._phase(keep, p_line)
         if fit[1] > LOCK_RMS:
@@ -669,7 +748,7 @@ class BeatGrid:
         anchor = fit[0]
         anchor += round((self.run.taps[-1] - anchor) / period) * period          # a beat at the latest tap
         first = not self.locked
-        self._take(anchor, period)
+        self._take(anchor, period, own=own)
         self.locked = True
         self._keep = list(keep)
         self._p_tap = p_line
@@ -791,8 +870,17 @@ class BeatGrid:
         return bool(self.db_bpm) and folded_ratio(60.0 / period, self.db_bpm) < SNAP_OCT
 
     def _db_sides_with_hand(self, p_tracker: float) -> bool:
-        """The database agrees with the hand's tempo (within 4 %, octave-folded) and not with the tracker's."""
-        return self._db_agrees(self.period) and not self._db_agrees(p_tracker)
+        """The database agrees with the taps' OWN slope (within 4 %, octave-folded: the line through the taps the lock
+        kept, _own) and not with the tracker's tempo. Never the hand's period: after a snap to the database that is
+        the database's own tempo, so it agreed with itself and kept a right tracker out for good (round 2: a database
+        at 150 on a 142 groove held the lights at 150 for 40 s, 107 ms median off). With no tapped run behind the
+        hand's beat (one isolated tap took it from the tracker) the database has no taps to side with.
+
+        Asking more of the taps (the tracker further from their slope than human jitter can put it) was tried: it
+        sent four jittered taps sloping toward a database 5 % off back to a right tracker more often (89 of 1080
+        drifting runs at 20 ms of jitter down to 10), but let a wrong tracker 5-8 % off pull taps on a right database
+        far more often (four taps: 46 of 240 up to 142), so the plain 4 % stays."""
+        return self._own is not None and self._db_agrees(self._own) and not self._db_agrees(p_tracker)
 
     def _maybe_reseed(self, now: float) -> None:
         if len(self.run.taps) < RESEED_TAPS or not self.tap_bpm or now - self.last_reseed < RESEED_GAP_S:
