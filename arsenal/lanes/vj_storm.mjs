@@ -168,6 +168,9 @@ export const SCENARIOS = Object.freeze({
   lookstorm: "the look at full, every flash-capable pad (1-8, 11, 12) every 3 frames",
   cuts: "a cut to another set every 6 frames, pads 1,2,4,12 between them (the page holds three sets)",
   calmset: "the set alone on time, no pads (the safe mode's floor)",
+  // Lasers v2 (2026-10-25): pad 2 is the laser engine's hit; the beams are drawn by the page's beam layer, before gate v2
+  lasertiers: "pad 2 alone: soft / medium / hard hits (single, one-two, triple) a bar apart, presses within a bar (escalate, the hero), within a beat (one-two), held loops, Vibrate on half way",
+  laserroll: "pad 2 rolls: presses at 8 and 16 a second (the grid-locked rolls), held loops under the stutter, military and push-pull gates from the dial, Vibrate on",
 });
 export const ADV = Object.freeze({
   // id: [GLSL body, what it is]
@@ -216,6 +219,32 @@ export function stormSchedule(name, frames, seed = 7) {
   } else if (name === "cuts") {
     for (let f = 0; f < frames; f += 6) out.push({ f, act: "select", idsel: Math.floor(f / 6) });
     for (let f = 3; f < frames; f += 6) out.push({ f, pad: pick([1, 2, 4, 12]), vel: 1, hold: 3 });
+  } else if (name === "lasertiers") {
+    // 150 BPM with no engine (the laser engine's fallback tempo): a beat is 24 frames
+    const vels = [0.3, 0.6, 0.95];
+    let f = 6, k = 0;
+    while (f < frames - 30) {
+      const v = vels[k % 3];
+      if (k === Math.floor(frames / 200)) out.push({ f: f - 2, act: "laser", vibrate: true });
+      const kind = k % 5;
+      if (kind === 3) { out.push({ f, pad: 2, vel: v, hold: 24 * 3 }); f += 24 * 5; }               // held: the section's loop
+      else if (kind === 4) { for (let j = 0; j < 3; j++) out.push({ f: f + j * 36, pad: 2, vel: v, hold: 4 }); f += 36 * 3 + 60; }   // within a bar
+      else if (kind === 2) { out.push({ f, pad: 2, vel: v, hold: 4 }); out.push({ f: f + 20, pad: 2, vel: v, hold: 4 }); f += 24 * 5; }   // within a beat
+      else { out.push({ f, pad: 2, vel: v, hold: 4 }); f += 24 * 6; }                             // a burst, more than a bar apart
+      k++;
+    }
+  } else if (name === "laserroll") {
+    out.push({ f: 0, act: "laser", vibrate: true });
+    const third = Math.floor(frames / 3);
+    for (let f = 4; f < third; f += 8) out.push({ f, pad: 2, vel: 0.9, hold: 3 });                     // 8 a second
+    for (let f = third; f < 2 * third - 40; f += 4) out.push({ f, pad: 2, vel: 1, hold: 2 });           // 15 a second
+    const gates = ["stutter", "military", "pushpull"];
+    for (let g = 0; g < 3; g++) {
+      const f0 = 2 * third + g * Math.floor(third / 3);
+      out.push({ f: f0, act: "laser", gate: gates[g] });
+      out.push({ f: f0 + 2, pad: 2, vel: 0.95, hold: Math.floor(third / 3) - 8 });
+    }
+    out.push({ f: frames - 2, act: "laser", gate: "auto", vibrate: false });
   } else if (name === "calmset" || name.startsWith("adv-")) { /* nothing: the set (or the adversarial preset) alone */ }
   else throw new Error(`unknown storm ${name}`);
   return out;
@@ -266,6 +295,7 @@ export const STORM_PAGE = String.raw`(() => {
         else if (s.act === "select" && ids.length) vj.select(ids[s.idsel % ids.length]);
         else if (s.act === "next") vj.next();
         else if (s.act === "look" && window.__vjx) window.__vjx.setLook({ on: true, amount: s.amount });
+        else if (s.act === "laser" && vj.laser) vj.laser({ vibrate: s.vibrate, gate: s.gate });
       }
       window.__vt.step(F);
       measure();
@@ -281,6 +311,9 @@ export const STORM_PAGE = String.raw`(() => {
     return { frames, N: Array.from(N), canvas: [canvas.width, canvas.height], wall_ms: wall, ms_per_frame: wall / frames,
              gate: { granted: st1.flash.granted - st0.flash.granted, refused: st1.flash.refused - st0.flash.refused, max_in_any_second: st1.flash.maxInAnyWindow },
              impact_hits: st1.impact ? st1.impact.hits - st0.impact.hits : null,
+             lasers: st1.lasers && st0.lasers ? { hits: st1.lasers.hits - st0.lasers.hits, pulses: st1.lasers.pulses - st0.lasers.pulses,
+                                                  over_frames: st1.lasers.overFrames - st0.lasers.overFrames, lit_frames: st1.lasers.litFrames - st0.lasers.litFrames,
+                                                  max_window: st1.lasers.maxWindow, mode: st1.lasers.mode } : null,
              safe_refused: st1.limiter && st0.limiter ? (st1.limiter.safeRefused || 0) - (st0.limiter.safeRefused || 0) : null,
              limiter_stats: st1.limiter || null, limiter: lim, errors: vj.errors(), setA: st1.setA };
   }
@@ -307,7 +340,7 @@ export async function runStormInPage(ev, scenario, frames, { seed = 7, mode = "g
   else modeOk = !!lim && lim.on === true && (lim.mode === (mode === "late" ? "gpu" : mode) || (lim.mode === undefined && mode === "gpu"));
   const errs = (raw.errors || []).filter((e) => !(mode === "off" && e.id === "vj-limiter"));
   return { scenario, mode, presses: sch.filter((s) => s.pad).length, ...judged, pass: judged.pass && modeOk && errs.length === 0,
-           mode_ok: modeOk, gate: raw.gate, impact_hits: raw.impact_hits, safe_refused: raw.safe_refused, limiter: lim,
+           mode_ok: modeOk, gate: raw.gate, impact_hits: raw.impact_hits, safe_refused: raw.safe_refused, limiter: lim, lasers: raw.lasers,
            canvas: raw.canvas, ms_per_frame: +raw.ms_per_frame.toFixed(1), page_errors: errs };
 }
 
@@ -364,7 +397,7 @@ async function main() {
   const { values: opt } = parseArgs({ options: {
     web: { type: "string", default: resolve(REPO, "arsenal", "web") },
     label: { type: "string", default: "run" },
-    phases: { type: "string", default: "storm,safe,cpu,adv,hires,calm,parity,meter,bench" },
+    phases: { type: "string", default: "storm,laser,safe,cpu,adv,hires,calm,parity,meter,bench" },
     sets: { type: "string", default: "vj-reactor,vj-hyperspace,vj-led-wall" },
     scenarios: { type: "string", default: "invert10,oneshots15,oneshots5,nozoom15,all12,flashedge,flash24,lasglitch,lookstorm" },
     "safe-sets": { type: "string", default: "vj-reactor,vj-led-wall,vj-hyperspace" },
@@ -376,6 +409,10 @@ async function main() {
     hires: { type: "string", default: "1280x720,1920x1080" },
     "hires-seconds": { type: "string", default: "5" },
     "calm-sets": { type: "string", default: "vj-reactor,vj-hyperspace,vj-led-wall,vj-synthwave-grid,vj-laser-cathedral" },
+    // Lasers v2 (2026-10-25): the laser storms on the Cathedral (its heads from the head bus) and on Reactor (every head
+    // from the page's beam layer)
+    "laser-sets": { type: "string", default: "vj-laser-cathedral,vj-reactor" },
+    "laser-scenarios": { type: "string", default: "lasertiers,laserroll" },
     seconds: { type: "string", default: "10" },
     seed: { type: "string", default: "7" },
     port: { type: "string", default: "8975" },
@@ -573,6 +610,12 @@ async function main() {
     for (const set of SETS) for (const s of SCN) jobs.push(job("storm", set, s, "gpu"));
     if (SETS.length >= 2) jobs.push(job("storm", SETS.join("+"), "cuts", "gpu", SIZE, FRAMES, SETS.join(",")));
     await runQueue("storm", jobs);
+  }
+  // Lasers v2: the laser storms, gate v2 deciding on the GPU
+  if (PHASES.includes("laser")) {
+    const jobs = [];
+    for (const set of list(opt["laser-sets"])) for (const s of list(opt["laser-scenarios"]).filter((x) => SCENARIOS[x])) jobs.push(job("laser", set, s, "gpu"));
+    await runQueue("laser", jobs);
   }
   // the safe mode: the limiter absent (?limiter=off); every pad effect must be refused and the frame stay flash-safe
   if (PHASES.includes("safe")) {

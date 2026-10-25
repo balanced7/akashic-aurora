@@ -392,10 +392,12 @@ if (!existsSync(JOY_TAKE)) {
         ["flash", ...C.DEFAULT_PAD_MAP.slice(1)].join());
   const m = C.normalizeCtlMap({ cc120: "sat", cc105: null, "bad id!": "hueA", cc1: "nothing" });
   check("ctl map: learned, removed, refused", m.cc120 === "sat" && !("cc105" in m) && !("bad id!" in m) && !("cc1" in m));
-  const learned = C.learnBinding(C.DEFAULT_CTL_MAP, "cc7", "hueA");
-  check("learn moves a target to the new control", learned.cc7 === "hueA" && !("cc105" in learned));
+  // Lasers v2 (Daniel, 2026-10-25: "3. yes i like that"): fader 1 is the theme fader, fader 2 the hue drift (Hue A and B
+  // moved into Custom), the dial the laser gate picker (tests/vj_hookup.test.mjs pins the rest)
+  const learned = C.learnBinding(C.DEFAULT_CTL_MAP, "cc7", "theme");
+  check("learn moves a target to the new control", learned.cc7 === "theme" && !("cc105" in learned));
   check("faders 1-9 are CC105-113", ["cc105", "cc106", "cc107", "cc108", "cc109", "cc110", "cc111", "cc112", "cc113"]
-        .map((c) => C.DEFAULT_CTL_MAP[c]).join() === "hueA,hueB,sat,bright,trails,strobeRate,accent,xfade,bassReact");
+        .map((c) => C.DEFAULT_CTL_MAP[c]).join() === "theme,hueDrift,sat,bright,trails,strobeRate,accent,xfade,bassReact");
   check("rel nudges, abs sets", near(C.applyCtl(0.5, { kind: "rel", delta: 8 }), 0.625) &&
         near(C.applyCtl(0.5, { kind: "abs", value: 0.2 }), 0.2) && C.applyCtl(0.99, { kind: "rel", delta: 64 }) === 1);
   const s = C.createStrip();
@@ -591,11 +593,13 @@ if (!existsSync(JOY_TAKE)) {
   check("serialise writes v2", C.serializePadMap(C.DEFAULT_PAD_MAP).v === 2 && C.serializePadMap(C.DEFAULT_PAD_MAP).pads.join() === C.DEFAULT_PAD_MAP.join());
   check("junk in a v2 map falls back", C.normalizePadMap({ v: 2, pads: ["nope"] }).join() === C.DEFAULT_PAD_MAP.join() &&
         C.normalizePadMap("nonsense").join() === C.DEFAULT_PAD_MAP.join());
-  check("rewind, fast-forward and the dial are on scenes by default", C.DEFAULT_CTL_MAP.cc25 === "scenePrev" &&
-        C.DEFAULT_CTL_MAP.cc26 === "sceneNext" && C.DEFAULT_CTL_MAP.cc116 === "sceneDial" && C.DEFAULT_CTL_MAP.cc117 === "sceneGo");
+  // since Lasers v2: Rewind / Fast forward step the sets through the page's transport path (not the map), the dial is
+  // the laser gate picker and its click AUTO; the scene actions stay learnable
+  check("rewind and fast-forward are the transport's, the dial the laser gate's", !("cc25" in C.DEFAULT_CTL_MAP) &&
+        !("cc26" in C.DEFAULT_CTL_MAP) && C.DEFAULT_CTL_MAP.cc116 === "laserGate" && C.DEFAULT_CTL_MAP.cc117 === "laserAuto");
   const n2 = C.normalizeCtlMap({ cc60: "sceneNext", cc26: null });
   check("a scene action can be learned and unbound", n2.cc60 === "sceneNext" && !("cc26" in n2));
-  check("learn moves a scene action", (() => { const m = C.learnBinding(C.DEFAULT_CTL_MAP, "cc61", "scenePrev"); return m.cc61 === "scenePrev" && !("cc25" in m); })());
+  check("learn moves a scene action", (() => { const m = C.learnBinding({ ...C.DEFAULT_CTL_MAP, cc25: "scenePrev" }, "cc61", "scenePrev"); return m.cc61 === "scenePrev" && !("cc25" in m); })());
 
   // the scene event and the scene route's refusals
   const se = C.parseEvent({ t: "scene", name: "  Laser Cathedral ", index: 0, count: 14, color: "#FF00AA", browsing: true });
@@ -619,7 +623,7 @@ if (!existsSync(JOY_TAKE)) {
   check("a dropped connection forgets it", link.sceneOff === "" && !link.mayPostScene());
 
   // the strip's v2 hit texels, and the sets that react to them
-  check("strip version 2", C.STRIP.VERSION === 2);
+  check("strip version 3 (v2's hit texels kept; v3 adds the lasers' head bus)", C.STRIP.VERSION === 3);
   const reacting = ["vj-reactor", "vj-laser-cathedral", "vj-hyperspace", "vj-particle-galaxy", "vj-synthwave-grid", "vj-led-wall"];
   for (const id of reacting) {
     const src = readFileSync(here(`../arsenal/web/presets/${id}.frag`), "utf8");

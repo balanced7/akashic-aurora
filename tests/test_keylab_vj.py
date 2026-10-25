@@ -156,7 +156,9 @@ def test_sse_stream_delivers_every_event_type_with_the_contract_fields():
 
     hello = sse.of("hello")[0]
     assert hello == {"t": "hello", "v": 1, "src": "keylab-vj", "beat_engine": "a", "chords": "blend",
-                     "pads_mode": "both", "leds": False, "leds_reason": "LEDs are off (--no-leds)"}
+                     "pads_mode": "both", "leds": False, "leds_reason": "LEDs are off (--no-leds)",
+                     # since 2026-10-25: the tap controls (the Tap button and pad 12), the first tap of a run the ONE
+                     "tap": "daw:cc23,daw:pad12", "tap_one": True}
     assert all(isinstance(s["msg"], str) and s["msg"] for s in sse.of("status"))
 
     beats = sse.of("beat")

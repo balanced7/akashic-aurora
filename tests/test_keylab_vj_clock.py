@@ -447,7 +447,46 @@ def test_engine_taps_on_cc23_take_the_beat_and_the_audio_loop_reads_every_block(
     a = st["audio"]
     want = int(np.ceil(secs * RATE / V.HOP))
     assert a["blocks"] == want and a["late_blocks"] <= 2 and a["timing"]["capture"]["gap"] is False, a
-    assert st["clock"]["taps_seen"] == 6 and st["clock"]["tap"] == "daw:cc23"
+    assert st["clock"]["taps_seen"] == 6 and st["clock"]["tap"] == "daw:cc23,daw:pad12"
+
+
+def test_pad_12_taps_take_the_beat_by_default_and_the_first_tap_is_the_one():
+    """Daniel, 2026-10-25: pad 12 taps the VJ engine's tempo too, by default, and the first tap of a run marks the ONE.
+    Live-paced groove at 120 BPM; DAW-mode pad 12 hit six times a quarter beat after the kicks: the beat moves onto the
+    taps (tap-lock, src tap), the beats then carry the bar with bar 1 on the first tap's beat, and the pad events still
+    go out (the page knows from the hello that pad 12 taps and fires nothing for it)."""
+    secs = 9.0
+    eng = V.Engine(http_port=None, source=_synth(120.0, secs, realtime=True), say=_quiet)
+    assert eng.hello()["tap"] == "daw:cc23,daw:pad12" and eng.hello()["tap_one"] is True
+    seen = _collect(eng)
+    eng.start()
+    try:
+        t0 = time.perf_counter()
+        assert _wait(lambda: any(e["t"] == "beat" for _ts, e in seen), 6.0)
+        first = t0 + math.ceil((time.perf_counter() - t0) / 0.5 + 1) * 0.5 + 0.125
+        taps = [first + k * 0.5 for k in range(6)]
+        for tp in taps:
+            while time.perf_counter() < tp:
+                time.sleep(0.0005)
+            eng.feed_midi("daw", 0x99, 11, 100)          # DAW-mode pad 12
+            time.sleep(0.03)
+            eng.feed_midi("daw", 0x89, 11, 0)
+        assert _wait(lambda: any(e["t"] == "status" and e["msg"] == "audio source ended" for _ts, e in seen), secs + 5)
+        st = eng.state()
+    finally:
+        eng.stop()
+    modes = [e["mode"] for _ts, e in seen if e["t"] == "tap"]
+    assert modes[:4] == ["resync", "run", "run", "lock"], modes
+    assert sum(1 for _ts, e in seen if e["t"] == "pad" and e["pad"] == 12 and e["on"]) == 6, "the pad events still go out"
+    beats = [(ts + e["due_ms"] / 1000.0, e) for ts, e in seen if e["t"] == "beat"]
+    after = [(x, e) for x, e in beats if taps[-1] + 0.1 < x < taps[-1] + 2.0]
+    assert after and all(e["src"] == "tap" for _x, e in after), [e["src"] for _x, e in after]
+    assert all(abs(G.wrap((x - taps[-1]) / 0.5)) * 0.5 < 0.03 for x, _e in after), "the lights land on the taps"
+    # the ONE: the first tap's beat is bar 1, so a beat a whole number of bars after it is bar 1 again
+    for x, e in after:
+        k = round((x - taps[0]) / 0.5)
+        assert e["bar"] == (k % 4) + 1, (k, e["bar"])
+    assert st["clock"]["taps_seen"] == 6
 
 
 class _NowPlaying:
@@ -535,7 +574,7 @@ def test_no_track_thread_without_now_playing_and_a_replay_never_looks_up(monkeyp
     with pytest.raises(SystemExit):
         V.run(port=8901, leds=False, replay_audio="demo", midi=False)
     assert got["now_playing"] is None and got["db_lookup"] is None
-    assert got["tap"] == "daw:cc23" and got["tap_one"] is False and got["tap_round"] is True
+    assert got["tap"] == "daw:cc23,daw:pad12" and got["tap_one"] is True and got["tap_round"] is True
 
 
 def test_the_verb_takes_the_clock_flags(monkeypatch):
@@ -548,7 +587,34 @@ def test_the_verb_takes_the_clock_flags(monkeypatch):
     assert got["db"] is False
     got.clear()
     assert CLI.main(["vj", "--no-leds", "--port", "8901"]) == 0
-    assert got["tap"] == "daw:cc23" and got["tap_one"] is False and got["tap_round"] is True and got["db"] is True
+    assert got["tap"] == "daw:cc23,daw:pad12" and got["tap_one"] is True and got["tap_round"] is True and got["db"] is True
+    got.clear()
+    assert CLI.main(["vj", "--no-leds", "--port", "8901", "--no-tap-one"]) == 0
+    assert got["tap_one"] is False and got["tap"] == "daw:cc23,daw:pad12"
+
+
+def test_the_default_launch_taps_on_the_tap_button_and_pad_12_and_the_first_tap_is_the_one():
+    """Daniel, 2026-10-25: the Tap button (CC 23) and pad 12 both tap the VJ engine's tempo, the first tap of a run marks
+    the ONE, and that is the engine's default launch; the hello names the tap controls so the page fires no effect for
+    pad 12 while it taps."""
+    assert V.DEFAULT_TAP == "daw:cc23,daw:pad12"
+    eng = V.Engine(http_port=None, say=_quiet)
+    assert eng.tap_one is True
+    hello = eng.hello()
+    assert hello["tap"] == "daw:cc23,daw:pad12" and hello["tap_one"] is True
+    t = 10.0
+    seen = []
+    eng.hub.tap(seen.append)
+    eng._handle("daw", 0x99, 11, 100, t)                 # DAW-mode pad 12 (note 11)
+    assert list(eng._tap_q) == [t], "pad 12 on the DAW port taps"
+    assert seen[-1]["t"] == "pad" and seen[-1]["pad"] == 12, "its pad event still goes out (the page knows it taps)"
+    eng._handle("daw", 0x89, 11, 0, t + 0.05)
+    eng._handle("daw", CC, 23, 127, t + 0.5)             # the Tap button
+    assert list(eng._tap_q) == [t, t + 0.5]
+    eng._handle("daw", 0x99, 0, 100, t + 1.0)            # DAW-mode pad 1: not a tap
+    assert list(eng._tap_q) == [t, t + 0.5]
+    off = V.Engine(http_port=None, say=_quiet, tap="off", tap_one=False)
+    assert off.hello()["tap"] == "off" and off.hello()["tap_one"] is False
 
 
 # --- beathand: the math moved into TapLog, Hand keeps it ----------------------------------------------------------

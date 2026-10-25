@@ -897,12 +897,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-db", action="store_true",
                    help="do not look up the song database per track (Windows now-playing + tempo.lookup, on its own "
                         "thread; only for the live loopback)")
-    p.add_argument("--tap", default="daw:cc23", metavar="IDS",
-                   help="the controls that tap the beat, comma-separated: [daw:|midi:]ccN, [daw:|midi:]padN or pads "
-                        "(pads still fire their effects); default daw:cc23 = the Tap button right of Record; off = "
-                        "none. One tap on a kick moves the beat there; four or more take over tempo and beat")
-    p.add_argument("--tap-one", action="store_true",
-                   help="the first tap of a run is beat 1 of the bar (beat events then carry bar 1-4)")
+    p.add_argument("--tap", default="daw:cc23,daw:pad12", metavar="IDS",
+                   help="the controls that tap the beat, comma-separated: [daw:|midi:]ccN, [daw:|midi:]padN or pads; "
+                        "default daw:cc23,daw:pad12 = the Tap button right of Record and pad 12 (the hello names them: "
+                        "the VJ page fires no effect for a pad that taps); off = none. One tap on a kick moves the beat "
+                        "there; four or more take over tempo and beat")
+    p.add_argument("--tap-one", dest="tap_one", action="store_true", default=True,
+                   help="the first tap of a run is beat 1 of the bar (beat events then carry bar 1-4); the default "
+                        "since 2026-10-25")
+    p.add_argument("--no-tap-one", dest="tap_one", action="store_false",
+                   help="taps set tempo and beat only; the bar stays unknown")
     p.add_argument("--tap-exact", action="store_true",
                    help="keep the tapped tempo exact (default: round it to a whole BPM, unless it snaps to the "
                         "database's or the tracker's tempo)")

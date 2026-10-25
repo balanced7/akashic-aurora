@@ -11,6 +11,10 @@
 //      texture of pads, beat, palette, chord, pedal and stars (vj-core.js STRIP) -- bound to u_video while u_has_video
 //      stays 0, so the same files still load in Play. A second set (the cued one) renders while the sets crossfade.
 //   2. THE ACCENT OVERLAY: shockwave rings, laser bursts, particles and note glints, with its own feedback for trails.
+//   2b. THE BEAM LAYER (Lasers v2, 2026-10-25): the laser engine's beams and figures (vj-lasers.js frame(): records of
+//      two RGBA32F texels each), drawn every frame with the overlay's light model (the aaWire core whitened by its heat,
+//      the Lorentzian halo, the fade along a beam, a ringing beam bent by its coefficients) and NO feedback, so a gate's
+//      dark gap is really dark; added in the composite at the screen's own place (never punched, shaken or bent).
 //   3. THE COMPOSITE: mixes the sets, bends them (kaleidoscope, glitch, shockwave refraction, freeze), adds the overlay and
 //      applies the full-frame accents (invert, the gated white flash and strobe pulses), saturation and master brightness.
 //      Since 2026-10-24 it draws into its own ping-pong pair, so the previous composited frame is there to read (the
@@ -24,6 +28,18 @@
 //   sparkle); the glitch (pad 4) picks one of six modes, or two, per hit; the beat snap (B, off by default) holds a hit to
 //   the next 16th of a live beat; the transport and the dial switch scenes and the page tells the engine which scene
 //   shows (POST /api/scene) for the KeyLab's screen.
+//   LASERS V2 AND THE COLOUR THEMES (2026-10-25; the build spec: research/reviewed/keylab-liberation-2026-10-22/
+//   vj-lasers-v2-and-colour-themes-2026-10-24.md, slices S2, S4, S5; Daniel's calls: daniel-calls-2026-10-25.md): pad 2
+//   is the laser engine's hit -- the retrigger tiers (a burst; again within a bar, one tier up and the third press a crown
+//   from the hero; within a beat a one-two flicker; eighths or faster a roll locked to the grid; held, the section's loop),
+//   the velocity tiers (soft single, medium one-two, hard triple) and the gate the dial picks (AUTO, or one of 15 fixed
+//   gates; its click back to AUTO); V (or the learnable Laser vibrate) makes the beams ring; C (or Lasers: classic) brings
+//   back the old burst exactly. The gates run on the page grid, the continuous beat position of the BeatClock (vj-core.js,
+//   S2). A scene tagged `laser-heads` (the Laser Cathedral) draws its own heads from the strip's head bus (v3) and the beam
+//   layer only the hero's. Fader 1 is the THEME fader (21 themes, Custom at the top: Hue A and B, turned by fader 2), the
+//   family tabs (F1-F8, or learned buttons) pick a family, and the song's key picks one too (key auto); a theme lands on
+//   the next bar and sets the scene's palette, the kick glow, the lasers' colours and the pad lights (LED stand-ins). The
+//   engine's hello names its tap controls (the Tap button and pad 12 by default): a pad that taps fires no effect.
 // The engine (arsenal keylab-vj, GET <engine>/api/events, Server-Sent Events) feeds beats, energy, hits, chords, notes,
 // pads and controls; with chordsense (vj --chords sense) also the key, each chord's roman numeral and the harmony's
 // tension (vj-core.js EngineHarmony: the HUD shows key and numeral, the tension feeds the strip, a key change accents
@@ -34,6 +50,7 @@
 //
 // URL: ?engine=http://127.0.0.1:8794 (default; "off" for none) ?demo=1 ?demopads=0 ?sets=id,id,... ?hud=0
 //      ?transport=off (Rewind / Fast forward stop stepping the sets and go to the control map)
+//      ?laserseed=N (the laser engine's deal; a fresh one each load otherwise) ?theme=<id> (the theme at load)
 // Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader; and
 // since 2026-10-24 every frame passes gate v2 last (vj-limiter.js on the GPU, its rules and JS twin in vj-gate.js): the
 // picture actually shown, after every layer, every pixel metered, in every rectangle of 8 x 8 cells covering a quarter of
@@ -52,9 +69,18 @@ import {
   // the impact pass (2026-10-24)
   velCurve, ImpactLayer, DIP_SAFE_DELTA, glitchPlan, BandEnvelopes, snapDelayMs, SceneControl, SCENE_ACTIONS,
   SCENE_ACTION_IDS, zoomDepth, EFFECT_CODES,
+  // Lasers v2 (2026-10-25): the laser and theme actions, the control map's v2 storage, a button's press
+  LASER_ACTIONS, LASER_ACTION_IDS, FAMILY_ACTIONS, FAMILY_ACTION_IDS, PressGate, serializeCtlMap,
 } from "./vj-core.js";
 import { createStage } from "./vj-stage.js";   // wave 2: beat-synced transitions, the post look, the showcase tour
 import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output flash limiter (rules: vj-gate.js)
+// Lasers v2 (2026-10-25): the laser engine (pad 2), the colour themes (fader 1, the family tabs, key auto) and the pure
+// hook-up between them and the page (the clock, the beam records, the head bus, the tap pads, the gate dial, Custom)
+import { createLaserEngine, SEG_TEXELS, MAX_SEGMENTS, SEG_FLOATS, HALO_CUTOFF_PX, TIER_LED, catalogue as laserCatalogue } from "./vj-lasers.js";
+import { fetchLibrary, ThemeDirector, themeAtFader, faderCentre, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
+         clockFromBeatClock as themeClockOf, customTurnFromFader } from "./vj-themes.js";
+import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, GateDial, GATE_DIAL, gateLabel,
+         customLaserTheme, standInLed, capHue } from "./vj-hookup.js";
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
@@ -87,7 +113,13 @@ const XFADE_BEATS = 2;
 const XFADE_FALLBACK_MS = 1200;
 const KILL_OUT_S = 0.3, KILL_IN_S = 0.5;
 const KEY_ACCENT = 0.5;                // a key change's accent: half a chord change's pulse (and no palette move, no flash)
-const STORE = { pads: "arsenal.vj.padMap", ctl: "arsenal.vj.ctlMap", values: "arsenal.vj.values", opts: "arsenal.vj.options" };
+const STORE = { pads: "arsenal.vj.padMap", ctl: "arsenal.vj.ctlMap", values: "arsenal.vj.values", opts: "arsenal.vj.options",
+                theme: "arsenal.vj.theme" };
+// Lasers v2 and the themes
+const LASER_SEED = (() => { const s = Number(QS.get("laserseed")); return Number.isInteger(s) && s > 0 ? s : 1 + Math.floor(Math.random() * 2 ** 30); })();
+const THEME_AT_START = (() => { const t = QS.get("theme"); return t && /^[a-z0-9-]{2,40}$/.test(t) ? t : null; })();
+const FAMILY_KEYS = { F1: 0, F2: 1, F3: 2, F4: 3, F5: 4, F6: 5, F7: 6, F8: 7 };
+const LASER_DAMPEN_TAU_S = 0.06;       // Dampen: the beams fade over ~60 ms (spec 1.8: tails x0.15)
 const KEY_PADS = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9,
                    Digit0: 10, Minus: 11, Equal: 12 };
 const SCENE_POST_MIN_MS = 120;         // the scene report to the engine: newest wins, at most ~8 a second
@@ -247,13 +279,114 @@ void main() {
   outColor = vec4(max(trail, fresh), 1.0);
 }`;
 
+// THE BEAM LAYER (Lasers v2): the laser engine's records (vj-lasers.js THE OUTPUT; decodeSeg is the reference decoder
+// and tests/vj_lasers.test.mjs's raster the reference light, which this pass follows): per pixel, every beam record's
+// light, and each figure group's light once from its nearest piece. Linear light, no feedback (a gate's dark gap is
+// dark); the composite adds it. A record far from the pixel costs one fetch: texel 1 is read only within the cull radius.
+const BEAM_FS = `#version 300 es
+precision highp float;
+precision highp int;
+uniform highp sampler2D u_seg;   // RGBA32F, 2 x MAX_SEGMENTS: record i in row i
+uniform int u_n;                 // records this frame
+uniform vec2 u_res;
+in vec2 v_uv;
+out vec4 outColor;
+const float GROUP_MARK = 1000.0;
+const float LEVEL_MAX = 1.25;
+const float FALLOFF = 0.5;       // a beam fades along itself by exp(-along * FALLOFF), along in frame heights
+const float HALO_CUT = ${HALO_CUTOFF_PX.toFixed(1)};    // px at 1080: the halo is windowed off from half this radius to it
+const float PI = 3.14159265358979;
+// a line's nearest point: x = the signed distance across it (frame heights, + to its left), y = u along 0..1, z = the
+// distance travelled along it (frame heights), w = the plain distance (to an end when the point is past it)
+vec4 lineNear(vec2 at, vec2 from, vec2 to) {
+  vec2 rel = at - from;
+  float len = distance(to, from);
+  if (len < 1e-9) return vec4(0.0, 0.0, 0.0, length(rel));
+  vec2 dir = (to - from) / len;
+  float t = dot(rel, dir);
+  float across = rel.y * dir.x - rel.x * dir.y;
+  if (t <= 0.0) return vec4(across, 0.0, 0.0, length(rel));
+  if (t >= len) return vec4(across, 1.0, len, distance(at, to));
+  return vec4(across, t / len, t, abs(across));
+}
+// a record's light at a pixel, from its texel 1 and its nearest point (nr); sc = frame height / 1080
+vec3 recordLight(vec4 t1, vec4 nr, float sc, float hpx) {
+  float colq = t1.x, lv = t1.y, sh = t1.z, rg = t1.w;
+  vec3 c = vec3(floor(colq / 65536.0), mod(floor(colq / 256.0), 256.0), mod(colq, 256.0)) / 255.0;
+  c *= c;                                                           // square-root encoded
+  float I = floor(lv / 4096.0) / 4095.0 * LEVEL_MAX;
+  float G = mod(lv, 4096.0) / 4095.0 * LEVEL_MAX;
+  float W = mod(sh, 64.0) / 16.0;
+  float s = floor(sh / 64.0);
+  float H = mod(s, 128.0) / 8.0; s = floor(s / 128.0);
+  float B = mod(s, 128.0) / 4.0; s = floor(s / 128.0);
+  float kind = mod(s, 2.0);
+  float flags = floor(s / 2.0);
+  bool ringing = mod(floor(flags / 2.0), 2.0) > 0.5;
+  float u = nr.y;
+  float d = nr.w;
+  float blur = B;
+  if (ringing) {                                                    // one record, bent by the shader: still at both ends
+    float c1 = (mod(rg, 256.0) - 128.0) * 0.15, c2 = (mod(floor(rg / 256.0), 256.0) - 128.0) * 0.075;
+    float c3 = (floor(rg / 65536.0) - 128.0) * 0.04;
+    float off = c1 * sin(PI * u) + c2 * sin(2.0 * PI * u) + c3 * sin(3.0 * PI * u);
+    if (u > 0.0 && u < 1.0) d = abs(nr.x - off / 1080.0);
+    blur = B * sin(PI * u);
+  }
+  float dPx = d * hpx;
+  float wpx = W * sc, bpx = blur * sc;
+  float Wd = bpx > 0.0 ? wpx + 2.0 * bpx : wpx;
+  float drawn = max(Wd, 1.0);
+  float core = clamp(0.5 * drawn + 0.5 - dPx, 0.0, 1.0) * (wpx / drawn);
+  float q = dPx / (16.0 * sc);
+  float halo = 0.5 * G * 0.0625 / (0.0625 + q * q) * (1.0 - smoothstep(0.5 * HALO_CUT * sc, HALO_CUT * sc, dPx));
+  float fade = kind > 0.5 ? 1.0 : exp(-nr.z * FALLOFF);
+  vec2 hi2 = max(c.rg, c.gb);
+  float peak = max(hi2.x, hi2.y);                                  // the brightest channel
+  float kw = H * H / (1.0 + H * H);
+  return ((c + (vec3(peak) - c) * kw) * I * core + c * halo) * fade;
+}
+void main() {
+  float asp = u_res.x / max(u_res.y, 1.0);
+  vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
+  float hpx = u_res.y;
+  float sc = u_res.y / 1080.0;
+  // beyond this a record adds nothing: the halo's cut, the most a ring can bend a beam (~34 px) and its blur band
+  float cull = (HALO_CUT + 40.0) * sc / hpx;
+  vec3 acc = vec3(0.0);
+  int i = 0;
+  for (int guard = 0; guard < ${MAX_SEGMENTS}; guard++) {
+    if (i >= u_n) break;
+    vec4 t0 = texelFetch(u_seg, ivec2(0, i), 0);
+    if (t0.w >= GROUP_MARK - 0.5) {                                 // a figure: its nearest piece, its light once
+      int count = int(t0.w - GROUP_MARK + 0.5);
+      if (length(p - t0.xy) > t0.z + cull) { i += count + 1; continue; }
+      float best = 1e9; int bi = -1; vec4 bnr = vec4(0.0);
+      for (int j = 1; j <= 256; j++) {
+        if (j > count || i + j >= u_n) break;
+        vec4 s0 = texelFetch(u_seg, ivec2(0, i + j), 0);
+        vec4 nr = lineNear(p, s0.xy, s0.zw);
+        if (nr.w < best) { best = nr.w; bi = i + j; bnr = nr; }
+      }
+      if (bi >= 0 && best < cull) acc += recordLight(texelFetch(u_seg, ivec2(1, bi), 0), bnr, sc, hpx);
+      i += count + 1;
+      continue;
+    }
+    vec4 nr = lineNear(p, t0.xy, t0.zw);
+    if (nr.w < cull) acc += recordLight(texelFetch(u_seg, ivec2(1, i), 0), nr, sc, hpx);
+    i++;
+  }
+  outColor = vec4(acc, 1.0);
+}`;
+
 // The composite: sets (display values) -> punch and shake -> bends (shockwave refraction, glitch, kaleidoscope, freeze)
 // -> the dip -> overlay (linear) -> full-frame accents -> master. It draws into the page's composite pair (G.cmp), so
 // u_hist is the previous composited frame (the glitch's datamosh feeds on it) and u_stut the frame held at the last glitch.
 const COMPOSITE_FS = `#version 300 es
 precision highp float;
-uniform sampler2D u_a, u_b, u_ov, u_frz, u_hist, u_stut, u_meter;
+uniform sampler2D u_a, u_b, u_ov, u_frz, u_hist, u_stut, u_meter, u_beam;
 uniform vec2 u_res;
+uniform float u_beamGain;    // the beam layer's gain (Lasers v2): the accent fader capped at 1, Dampen and Choke
 uniform float u_mix;
 uniform float u_kal, u_kalN, u_kalRot;
 uniform float u_glitch, u_glitchT, u_gSize, u_gSeed, u_gAge;
@@ -458,6 +591,9 @@ void main() {
     lin *= 1.0 - clamp(dip, 0.0, 0.9) * dipOn;
   }
   lin += texture(u_ov, mirrorUv(uv)).rgb * u_accent;
+  // the lasers' beams, at the screen's own place: the scene punches, shakes and bends behind them; the engine fitted
+  // their light to its flash budget as drawn, so they are only ever scaled down here
+  if (u_beamGain > 0.0005) lin += texture(u_beam, v_uv).rgb * u_beamGain;
   float edge = smoothstep(0.30, 0.62, max(abs(p0.x) / max(asp, 1e-3), abs(p0.y)));
   lin += u_metroCol * u_metro * edge;                  // the metronome: a breath at the frame's edge
   lin += u_bloomCol * u_bloom * exp(-dot(p0, p0) * 5.0); // hits: a soft lift at the centre (kept under the flash line)
@@ -533,11 +669,12 @@ const T = {};
 for (const t of TARGETS) if (t.def !== null) T[t.id] = t.def;
 // snap: the beat snap (off by default; the panel and the B key): a hit waits for the next 16th of a live beat
 // punch: the impact layer on pad hits (punch, shake, dip, afterglow); a velocity-0 hit still feeds the sets' hit texel
-const options = { hits: true, leds: true, snap: false, punch: true };
+// lasersClassic: pad 2 fires the classic overlay burst exactly (Lasers v2 off); vibrate: the v2 beams ring
+const options = { hits: true, leds: true, snap: false, punch: true, lasersClassic: false, vibrate: false, keyAuto: true };
 
 const sets = SET_IDS.map((id) => ({
   id, name: id, author: "", tags: [], params: [], knobs: new Float32Array(8), defaults: new Float32Array(8),
-  status: "loading", problem: "", program: null, uniforms: null, fb: null, frame: 0, vj: false, source: "", trailsK: -1,
+  status: "loading", problem: "", program: null, uniforms: null, fb: null, frame: 0, vj: false, source: "", trailsK: -1, laserHeads: false,
 }));
 const deck = { a: 0, b: Math.min(1, sets.length - 1), running: false, start: 0, ms: 0, pickup: true, from: 0 };
 
@@ -552,6 +689,24 @@ const snapQ = [];                      // pad hits waiting for the beat snap: { 
 const glitchState = { serial: -1, plan: null, t0: 0 };
 const latency = { records: [] };       // pad event arrival -> the frame that drew it (window.__vj.latency())
 const sceneReport = { want: null, sentKey: "", inflight: false, lastAt: -1e9, retryAt: 0, posts: 0, log: [], last: null };
+// Lasers v2: the engine (pad 2), its last frame's records as uploaded, the head bus, the gate dial, Dampen / Choke
+const lasers = {
+  eng: createLaserEngine({ seed: LASER_SEED, aspect: 16 / 9 }), seed: LASER_SEED,
+  dial: new GateDial(), presses: new PressGate(),
+  packed: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), n: 0, heroOnly: false,
+  bus: new Float32Array(24), busOn: false,
+  gain: 1, cut: false, dampT: null,          // Choke cuts the beams until the next hit; Dampen fades them
+  hits: 0, refused: 0, last: null, pad: 0, held: false,
+  frames: 0, litFrames: 0, over: 0, maxWindow: 0, maxFrame: 0, pulses: 0, flashes: 0,
+  out: null, themeId: "", log: [],
+};
+lasers.eng.setClock(laserClock(beat));
+// the colour themes (vj-themes.js): the library loads at boot; until then (or if it cannot) the page keeps its palette
+const themes = { lib: null, dir: null, look: null, error: "", changes: 0, cuts: 0, dipUntil: 0, dipAt: 0, family: null,
+                 lastChange: null, customTurn: 0, laserKey: "", ledLook: null, faderTouched: false, keyEvents: 0 };
+// the engine's tap pads (its hello's tap list): a pad that taps fires no effect
+let tapPads = [];
+let tapPresses = 0, tapLast = null;
 let padMap = DEFAULT_PAD_MAP.slice();
 let ctlMap = { ...DEFAULT_CTL_MAP };
 let learnTarget = null;
@@ -601,7 +756,7 @@ let demo = null;
 // engine
 // link: open, the engine's hello and status, and whether pad colours may be posted (vj-core.js EngineLink)
 const engine = { url: ENGINE_URL, es: null, link: new EngineLink(), events: 0, bad: 0, demoEvents: 0, lastMsg: -1e9 };
-const led = { last: "", lastAt: -1e9, computedAt: -1e9, inflight: false, backoffUntil: 0, posts: 0, log: [] };
+const led = { last: "", lastAt: -1e9, computedAt: -1e9, inflight: false, backoffUntil: 0, posts: 0, log: [], washed: 0 };
 
 // GL
 const G = { gl: null, lost: false, parallel: null, fbInternal: 0, fbType: 0, fbFormat: "", stripTex: null, audioTex: null,
@@ -776,6 +931,9 @@ function initGL() {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, AUDIO_TEX_W, 2, 0, gl.RED, gl.UNSIGNED_BYTE, audioBytes);
   G.blackTex = createTexture(gl, gl.LINEAR);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+  // the laser engine's records (Lasers v2): RGBA32F, SEG_TEXELS (2) wide, one row per record, read with texelFetch
+  G.segTex = createTexture(gl, gl.NEAREST);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, SEG_TEXELS, MAX_SEGMENTS, 0, gl.RGBA, gl.FLOAT, null);
   G.pool = [];
   G.ov = null;
   G.frz = null;
@@ -788,10 +946,16 @@ function initGL() {
     G.compU = uniformsOf(gl, G.compProg, ["u_a", "u_b", "u_ov", "u_frz", "u_hist", "u_stut", "u_meter", "u_res", "u_mix",
       "u_kal", "u_kalN", "u_kalRot", "u_glitch", "u_glitchT", "u_gSize", "u_gSeed", "u_gAge", "u_gMode", "u_freeze",
       "u_freezeZoom", "u_wave", "u_waveB", "u_flash", "u_flashGap", "u_invert", "u_bright", "u_sat", "u_accent", "u_metro",
-      "u_metroCol", "u_bloom", "u_bloomCol", "u_punch", "u_blur", "u_shake", "u_dip", "u_dipGranted", "u_dipSafe", "u_snare"]);
+      "u_metroCol", "u_bloom", "u_bloomCol", "u_punch", "u_blur", "u_shake", "u_dip", "u_dipGranted", "u_dipSafe", "u_snare",
+      "u_beam", "u_beamGain"]);
     gl.useProgram(G.compProg);
     gl.uniform1i(G.compU.u_a, 0); gl.uniform1i(G.compU.u_b, 1); gl.uniform1i(G.compU.u_ov, 2); gl.uniform1i(G.compU.u_frz, 3);
     gl.uniform1i(G.compU.u_hist, 4); gl.uniform1i(G.compU.u_stut, 5); gl.uniform1i(G.compU.u_meter, 6);
+    gl.uniform1i(G.compU.u_beam, 7);
+    G.beamProg = linkSync(gl, BEAM_FS);
+    G.beamU = uniformsOf(gl, G.beamProg, ["u_seg", "u_n", "u_res"]);
+    gl.useProgram(G.beamProg);
+    gl.uniform1i(G.beamU.u_seg, 0);
     gl.useProgram(G.ovProg);
     gl.uniform1i(G.ovU.u_prevOv, 0);
     G.meterProg = linkSync(gl, METER_FS);
@@ -891,7 +1055,7 @@ function dropAllFbs() {
   G.pool = [];
   deletePair(G.ov); G.ov = null;
   if (G.frz) { deletePair(G.frz); G.frz = null; }
-  for (const k of ["cmp", "stut", "meter1", "meterMid", "meter2"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
+  for (const k of ["cmp", "stut", "meter1", "meterMid", "meter2", "beam"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
 }
 function ensureFb(set) {
   if (set.fb && (set.fb.w !== G.width || set.fb.h !== G.height)) { deletePair(set.fb); set.fb = null; }
@@ -914,6 +1078,7 @@ function resizeIfNeeded() {
   if (!G.frz) G.frz = createSingle(G.width, G.height);   // one target is enough for a freeze
   if (!G.cmp) G.cmp = createPair(G.width, G.height);     // the composite's own pair: its previous frame feeds the glitch
   if (!G.stut) G.stut = createSingle(G.width, G.height); // the frame held at the last glitch (the stutter's slices)
+  if (!G.beam) G.beam = createSingle(G.width, G.height); // the beam layer (Lasers v2): redrawn every frame, no feedback
   if (!G.meter1) G.meter1 = createSingle(64, 36, true);  // the scene meter: NEAREST, read with texelFetch
   if (!G.meterMid) G.meterMid = createSingle(8, 6, true);
   if (!G.meter2) G.meter2 = createSingle(1, 1, true);
@@ -948,6 +1113,7 @@ async function loadSet(set) {
     set.author = header.author || "";
     set.tags = Array.isArray(header.tags) ? header.tags : [];
     set.vj = set.tags.includes("vj");
+    set.laserHeads = set.tags.includes("laser-heads");   // Lasers v2: the scene draws its own laser heads from the head bus
     set.params = (Array.isArray(header.params) ? header.params : []).filter((p) => p && p.k >= 1 && p.k <= 8).slice(0, 8);
     set.defaults.fill(0.5);
     set.trailsK = -1;
@@ -1084,6 +1250,7 @@ function handleEvent(raw, from = "engine") {
     case "hello":
       if (!fromDemo) {
         engine.link.event(ev); harm.reset();     // a new engine: its key and tension are still to come
+        tapPads = tapPadsOf(ev);                 // the pads it taps the tempo with (pad 12 by default): no effects
         sceneReport.sentKey = "";                // ... and it has not been told which scene shows
         queueSceneReport(false);
       }
@@ -1096,6 +1263,16 @@ function handleEvent(raw, from = "engine") {
       break;
     case "key":
       if (harm.event(ev)) keyChange(nowS);
+      if (themes.dir) { themes.keyEvents++; themes.dir.onKey(ev, nowMs, themeClock); }   // key auto (chordsense's key)
+      break;
+    case "tap":                                  // the Tap button / pad 12 reaching the engine's beat clock
+      tapLast = { mode: ev.mode, count: ev.count, bpm: ev.bpm, shift: ev.shift, at: Math.round(nowMs) };
+      break;
+    case "track":                                // a new track: key auto starts over (the song database's key first)
+      if (themes.dir) {
+        themes.dir.newTrack();
+        if (ev.key_db) themes.dir.onKey({ name: ev.key_db, src: "db" }, nowMs, themeClock);
+      }
       break;
     case "tension":
       harm.event(ev);
@@ -1124,7 +1301,7 @@ function handleEvent(raw, from = "engine") {
       setSustain(ev.on);
       break;
     case "pad":
-      if (ev.on && ev.vel > 0) padOn(ev.pad, ev.vel, ev.src, nowS); else padOff(ev.pad, nowS);
+      if (ev.on && ev.vel > 0) padOn(ev.pad, ev.vel, ev.src, nowS); else padOff(ev.pad, nowS, ev.src);
       break;
     case "ctl":
       onCtl(ev);
@@ -1218,6 +1395,9 @@ function setSustain(on) {
 // ------------------------------------------------------------------------------------------ pads and effects --
 function padOn(pad, vel, src, nowS = performance.now() / 1000) {
   const i = pad - 1;
+  // a pad the engine says taps its tempo (its hello's tap list: pad 12 by default since 2026-10-25) is the tap and
+  // nothing else: the engine's beat clock takes the press, the page fires no effect for it
+  if (isTapPad(tapPads, pad, src)) { tapPresses++; padPress[i] = 1; padT0[i] = nowS; lastPadSrc = src; return; }
   const action = padMap[i];
   // the beat snap: an effect pad waits for the next 16th of a live beat (controls never wait)
   if (options.snap && EFFECTS[action]) {
@@ -1241,8 +1421,9 @@ function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
   // THE SAFE MODE (2026-10-25, the round-2 verifier): without a running limiter, the one-shots, the glitch, the zoom
   // punch and Invert put 5-10 flashes a second on the screen with only the FlashGate in front of them. So until the
   // limiter runs (and for good if it cannot) every pad effect is refused; the controls still work.
-  if (EFFECTS[action] && !limiterLive()) { safeRefused++; return; }
-  if (EFFECTS[action]) {
+  if (EFFECTS[action] && !limiterLive()) { safeRefused++; if (action === "laser") lasers.refused++; return; }
+  if (action === "laser" && !options.lasersClassic) laserHit(pad, vel, src, nowS, arriveMs, snap);
+  else if (EFFECTS[action]) {
     const f = triggerEffect(action, vel, pad, nowS);
     if (f) {   // the latency record: this event's arrival; the frame that draws it fills in `frame` and `env`
       // performance.now() for the page's own gaps; Date.now() (the wall clock the engine shares on this machine) so a
@@ -1253,15 +1434,110 @@ function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
                              snapGrid: snap ? +snap.grid.toFixed(3) : null });
       if (latency.records.length > LATENCY_KEEP) latency.records.shift();
     }
-  } else if (action === "dampen") fx.dampen(nowS);
+  } else if (action === "dampen") dampenAll(nowS);
   else if (action === "choke") choke();
   else if (action === "kill") toggleKill();
   else if (action === "next") nextSet();
 }
-function padOff(pad, nowS = performance.now() / 1000) {
+function padOff(pad, nowS = performance.now() / 1000, src = "") {
+  if (src && isTapPad(tapPads, pad, src)) return;                       // the tap's release: nothing to let go of
   for (const q of snapQ) if (q.pad === pad) { q.off = true; return; }   // still waiting for its 16th: let go right after
   padHeld[pad - 1] = 0;
   fx.release(pad, nowS);
+  if (lasers.held && lasers.pad === pad) { lasers.held = false; lasers.eng.release(nowS * 1000); }
+}
+// ------------------------------------------------------------------------------------------------ Lasers v2 --
+// Pad 2 (the pad mapped to the laser) is the laser engine's hit (vj-lasers.js): it deals the pattern, the head order, the
+// colour split and the bank; the retrigger tiers (beats since the last press) and the velocity tiers (soft single,
+// medium one-two, hard triple: Daniel, 2026-10-25, "4. option 1!") or the dial's fixed gate pick the gate; holding it runs
+// the section's loop until release. Its light is the beam layer's; the impact layer still punches the scene behind it.
+function laserHit(pad, vel, src, nowS, arriveMs, snap = null) {
+  const t = nowS * 1000;
+  lasers.cut = false; lasers.gain = 1; lasers.dampT = null;
+  const info = lasers.eng.hit(t, vel);
+  lasers.hits++;
+  lasers.pad = pad; lasers.held = true;
+  lasers.last = { t: +t.toFixed(1), vel: info.vel, tier: info.tier, gate: info.gate, pattern: info.pattern, order: info.order,
+                  colour: info.colour, bank: info.bank, start: info.start, heads: info.heads ? info.heads.length : 0,
+                  beams: info.beams, hero: !!info.hero, fast: !!info.fast, ext: !!info.ext, shape: info.shape || null, src };
+  lasers.log.push(lasers.last);
+  if (lasers.log.length > 64) lasers.log.shift();
+  // the impact layer: the scene punches, shakes and dips behind the beams (never the beams themselves)
+  impact.hit("laser", vel, nowS, { seed: ((info.id || lasers.hits) * 0.6180339887) % 1, granted: false, x: 0, y: 0.05,
+                                   punch: options.punch && limiterLive() });
+  latency.records.push({ pad, type: "laser", v2: true, arrive: +arriveMs.toFixed(2), fired: +t.toFixed(2), frame: null,
+                         env: null, lit: null, serial: -1 - lasers.hits, src, arriveWall: Date.now(), frameWall: null,
+                         gate: info.gate, tier: info.tier, snapAt: snap ? +snap.at.toFixed(2) : null,
+                         snapBeat: snap ? +snap.beatAt.toFixed(2) : null, snapGrid: snap ? +snap.grid.toFixed(3) : null });
+  if (latency.records.length > LATENCY_KEEP) latency.records.shift();
+}
+// The laser engine's frame (before the strip is built: a `laser-heads` scene reads the head bus from it).
+function updateLasers(nowMs, dt) {
+  const eng = lasers.eng;
+  const live = sets[deck.running ? deck.b : deck.a];
+  lasers.heroOnly = !!(live && live.laserHeads);
+  const asp = G.width > 0 && G.height > 0 ? G.width / G.height : 16 / 9;
+  const out = eng.frame(nowMs, { aspect: asp });
+  lasers.out = out;
+  for (const e of out.events) {
+    if (e.type === "pulse") lasers.pulses++;
+    else if (e.type === "flash") {                 // the phrase's last syllable: a white flash, through the FlashGate
+      lasers.flashes++;
+      if (!lasers.cut && limiterLive()) requestFlash(nowMs / 1000, 0.5 * T.accent, 0.1);
+    }
+  }
+  if (lasers.dampT !== null) lasers.gain *= Math.exp(-dt / LASER_DAMPEN_TAU_S);
+  const p = packBeams(out, lasers.heroOnly, lasers.packed);
+  lasers.seg = p.seg; lasers.n = lasers.cut || lasers.gain < 0.002 ? 0 : p.n;
+  lasers.frames++;
+  if (out.n > 0) lasers.litFrames++;
+  if (out.area.over) lasers.over++;
+  lasers.maxWindow = Math.max(lasers.maxWindow, out.area.window);
+  lasers.maxFrame = Math.max(lasers.maxFrame, out.area.frame);
+  // the head bus, for a scene that draws its own heads (the Cathedral): the engine's levels scaled by Dampen / Choke
+  lasers.busOn = lasers.heroOnly && !options.lasersClassic;
+  if (lasers.busOn) {
+    headBus(eng, lasers.bus);
+    const g = lasers.cut ? 0 : Math.min(1, lasers.gain);
+    for (let k = 4; k < 16; k++) {
+      const v = lasers.bus[k], slot = Math.floor(v), lv = (v - slot) * g;
+      lasers.bus[k] = lv > 1e-4 ? slot + lv : 0;
+    }
+    if (lasers.cut) lasers.bus[3] = 1;
+  }
+}
+// the beam layer: the frame's records into the texture, then the pass (cleared once when there is nothing to draw)
+function renderBeams() {
+  const gl = G.gl, b = G.beam;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, b.fbos[0]);
+  gl.viewport(0, 0, b.w, b.h);
+  if (!lasers.n || options.lasersClassic) {
+    if (!G.beamClear) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); G.beamClear = true; }
+    return;
+  }
+  G.beamClear = false;
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, G.segTex);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SEG_TEXELS, lasers.n, gl.RGBA, gl.FLOAT, lasers.seg, 0);
+  gl.useProgram(G.beamProg);
+  gl.uniform1i(G.beamU.u_n, lasers.n);
+  gl.uniform2f(G.beamU.u_res, b.w, b.h);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+function laserGate() { lasers.eng.set({ gateMode: lasers.dial.gate }); }
+function setVibrate(on) {
+  options.vibrate = !!on;
+  lasers.eng.setVibrate(options.vibrate, performance.now());
+  safeSet(STORE.opts, JSON.stringify(options));
+  const box = $("opt-vibrate");
+  if (box) box.checked = options.vibrate;
+}
+function setLasersClassic(on) {
+  options.lasersClassic = !!on;
+  if (lasers.held) { lasers.held = false; lasers.eng.release(performance.now()); }
+  safeSet(STORE.opts, JSON.stringify(options));
+  const box = $("opt-classic");
+  if (box) box.checked = options.lasersClassic;
 }
 function fireSnapped(nowMs) {
   for (let k = 0; k < snapQ.length;) {
@@ -1277,6 +1553,16 @@ function choke() {
   impact.clear();
   snapQ.length = 0;
   flash.peak = 0;
+  // the lasers: every beam cut now (spec 1.8), until the next hit; a held loop let go
+  lasers.cut = true; lasers.held = false;
+  lasers.eng.release(performance.now());
+}
+// Dampen (pad 9, Q): every effect released fast; the lasers' loops end and their light fades in ~60 ms
+function dampenAll(nowS) {
+  fx.dampen(nowS);
+  lasers.held = false;
+  lasers.eng.release(nowS * 1000);
+  if (lasers.n || (lasers.out && lasers.out.n)) lasers.dampT = nowS * 1000;
 }
 // Ask the gate for a full-frame flash; granted flashes decay from `peak` over `decay` seconds.
 function requestFlash(nowS, peak, decay) {
@@ -1330,18 +1616,21 @@ function toggleKill() {
 function onCtl(ev) {
   lastCtl = { id: ev.id, kind: ev.kind, value: ev.value, delta: ev.delta, target: null };
   // Rewind / Fast forward step the sets, always (Daniel, 2026-10-25: "lets try always we can make it an option"): the
-  // DAW port's CC 25 / 26, on the press. Our FL script swallows them (SCRUB_TO_FL), so FL does not scrub as well.
-  // ?transport=off hands them back to the control map like any other control.
+  // DAW port's CC 25 / 26, through the ONE scene path (vj-core.js SceneControl: on the press, never the release; a held
+  // button repeating 127 moves once; a bounce inside 160 ms is one press). Our FL script swallows them (SCRUB_TO_FL), so
+  // FL does not scrub as well. The keys input's same numbers are not the transport (they reach the control map like
+  // any control, where nothing binds them by default), and ?transport=off hands the DAW port's back to the control map
+  // too, unbound and free to learn.
   if (TRANSPORT_SETS && (ev.id === "cc25" || ev.id === "cc26") && ev.port !== "midi") {
     lastCtl.target = "sets";
-    if (ev.value >= 0.5) nextSet(ev.id === "cc26" ? nextValid(deck.a) : prevValid(deck.a));
+    sceneCtl(ev, ev.id === "cc26" ? "sceneNext" : "scenePrev", performance.now());
     return;
   }
   if (stage && stage.onCtl(ev)) { lastCtl.target = "look"; return; }   // the look's fader (vj-stage.js)
   if (learnTarget) {
     ctlMap = learnBinding(ctlMap, ev.id, learnTarget);
     lastCtl.target = learnTarget;
-    safeSet(STORE.ctl, JSON.stringify(ctlMap));
+    saveCtlMap();
     $("learn-status").textContent = `${ev.id} → ${targetLabel(learnTarget)}`;
     learnTarget = null;
     renderTargets();
@@ -1349,8 +1638,39 @@ function onCtl(ev) {
   }
   const target = ctlMap[ev.id];
   lastCtl.target = target || null;
-  if (target && SCENE_ACTION_IDS.includes(target)) sceneCtl(ev, target, performance.now());
-  else if (target) setTarget(target, ev);
+  if (!target) return;
+  const nowMs = performance.now();
+  if (SCENE_ACTION_IDS.includes(target)) sceneCtl(ev, target, nowMs);
+  else if (LASER_ACTION_IDS.includes(target)) laserCtl(ev, target, nowMs);
+  else if (FAMILY_ACTION_IDS.includes(target)) familyCtl(ev, target, nowMs);
+  else setTarget(target, ev);
+}
+function saveCtlMap() { safeSet(STORE.ctl, JSON.stringify(serializeCtlMap(ctlMap))); }
+// the laser actions (vj-core.js LASER_ACTIONS): the dial steps the gate, its click goes back to AUTO, the toggles
+function laserCtl(ev, action, nowMs) {
+  if (action === "laserGate") {
+    if (lasers.dial.turn(ev, nowMs)) { laserGate(); toast(`laser gate: ${gateLabel(lasers.dial.gate)}`); }
+    return;
+  }
+  if (!lasers.presses.press(ev, action, nowMs)) return;
+  if (action === "laserAuto") { lasers.dial.auto(); laserGate(); toast("laser gate: AUTO"); }
+  else if (action === "laserVibrate") { setVibrate(!options.vibrate); toast(options.vibrate ? "lasers vibrate" : "vibrate off"); }
+  else if (action === "laserClassic") { setLasersClassic(!options.lasersClassic); toast(options.lasersClassic ? "lasers: classic burst" : "Lasers v2"); }
+  else if (action === "themeLock" && themes.dir) { themes.dir.setLock(!themes.dir.locked); toast(themes.dir.locked ? "theme locked" : "theme unlocked"); }
+}
+// a family tab: that family's theme for the section, again inside a bar its next theme (vj-themes.js ThemeDirector)
+function familyCtl(ev, action, nowMs) {
+  const a = FAMILY_ACTIONS.find((x) => x.id === action);
+  if (!a || !lasers.presses.press(ev, action, nowMs)) return;
+  pickFamily(a.family, nowMs);
+}
+function pickFamily(family, nowMs = performance.now()) {
+  if (!themes.dir) return false;
+  themes.family = family;
+  const ok = themes.dir.onFamilyTab(family, nowMs, themeClock);
+  const p = themes.dir.state.pending;
+  toast(`family ${family}${p ? ` -> ${themes.lib.byId.get(p.id)?.name || p.id}, on the next bar` : ""}`);
+  return ok;
 }
 // ------------------------------------------------------------------------------- scenes from the transport and dial --
 // vj-core.js SceneControl decides (a press, never a release; one dial step per message at most every 60 ms); the page
@@ -1417,7 +1737,7 @@ function sceneTick(nowMs) {
     .finally(() => { sceneReport.inflight = false; });
 }
 function targetLabel(id) {
-  const act = SCENE_ACTIONS.find((a) => a.id === id);
+  const act = SCENE_ACTIONS.find((a) => a.id === id) || LASER_ACTIONS.find((a) => a.id === id) || FAMILY_ACTIONS.find((a) => a.id === id);
   if (act) return act.label;
   if (/^k[1-8]$/.test(id)) {
     const s = sets[deck.a];
@@ -1428,6 +1748,15 @@ function targetLabel(id) {
   return t ? t.label : id;
 }
 function setTarget(target, ev) {
+  if (target === "theme" || target === "hueDrift") {
+    T[target] = applyCtl(T[target], ev);
+    if (themes.dir) {
+      if (target === "theme") { themes.faderTouched = true; themes.dir.onFader(T.theme, performance.now()); }
+      else themes.dir.onFader2(T.hueDrift);
+    }
+    valuesDirty = true;
+    return;
+  }
   if (/^k[1-8]$/.test(target)) {
     const s = sets[deck.a];
     const k = +target[1] - 1;
@@ -1463,6 +1792,7 @@ function loadStored() {
     if (o && typeof o === "object") {
       options.hits = o.hits !== false; options.leds = o.leds !== false;
       options.snap = o.snap === true; options.punch = o.punch !== false;
+      options.lasersClassic = o.lasersClassic === true; options.vibrate = o.vibrate === true; options.keyAuto = o.keyAuto !== false;
     }
   } catch { /* defaults */ }
 }
@@ -1518,26 +1848,141 @@ function updateMusic(nowMs, nowS, dt) {
 const pcLevelTarget = new Float32Array(12), pcRegSum = new Float32Array(12);
 
 function updatePalette() {
-  // the fader palette: hue A, hue B, the hue between them, and hue A's complement as the accent
-  const a = T.hueA, b = T.hueB;
-  let d = b - a; d -= Math.round(d);
-  const fa = hueColour(a, 0.70), fb = hueColour(b, 0.62), fm = hueColour(a + d * 0.5, 0.78), fc = hueColour(a + 0.5, 0.72);
   const fader = faderStops;
-  fader[0] = fa[0]; fader[1] = fa[1]; fader[2] = fa[2];
-  fader[3] = fb[0]; fader[4] = fb[1]; fader[5] = fb[2];
-  fader[6] = fm[0]; fader[7] = fm[1]; fader[8] = fm[2];
-  fader[9] = fc[0]; fader[10] = fc[1]; fader[11] = fc[2];
+  const look = themes.look;
+  let fa = null, fb = null;
+  if (look) {
+    // a theme (vj-themes.js themeLook): its four stops -- A, B, their midpoint (or A lifted where a blend would grey), W
+    fader.set(look.scene.palette);
+  } else {
+    // Custom (or no theme library): the fader palette of before -- hue A, hue B, the hue between them and hue A's
+    // complement as the accent -- turned together round the wheel by fader 2 in Custom
+    const turn = themes.dir && themes.dir.custom ? customTurnFromFader(T.hueDrift) / 360 : 0;
+    const a = T.hueA + turn, b = T.hueB + turn;
+    let d = b - a; d -= Math.round(d);
+    fa = hueColour(a, 0.70); fb = hueColour(b, 0.62);
+    const fm = hueColour(a + d * 0.5, 0.78), fc = hueColour(a + 0.5, 0.72);
+    fader[0] = fa[0]; fader[1] = fa[1]; fader[2] = fa[2];
+    fader[3] = fb[0]; fader[4] = fb[1]; fader[5] = fb[2];
+    fader[6] = fm[0]; fader[7] = fm[1]; fader[8] = fm[2];
+    fader[9] = fc[0]; fader[10] = fc[1]; fader[11] = fc[2];
+  }
   const amt = T.chordAmt * chordPresence;
-  for (let k = 0; k < 4; k++) oklabMix(fader, k * 3, chordStops, k * 3, amt, palTarget, k * 3);
+  if (look && chord.src === "audio" && amt > 0.001) {
+    // the audio names the chords (hardstyle): a hue nudge of at most 15 degrees, so the theme's two colours stay two
+    // (spec 2.2); the keys (the piano) colour freely, up to the Chord colour knob, as before
+    for (let k = 0; k < 4; k++) {
+      capScratchA[0] = fader[k * 3]; capScratchA[1] = fader[k * 3 + 1]; capScratchA[2] = fader[k * 3 + 2];
+      capScratchB[0] = chordStops[k * 3]; capScratchB[1] = chordStops[k * 3 + 1]; capScratchB[2] = chordStops[k * 3 + 2];
+      capHue(capScratchA, capScratchB, amt, 15, capScratchC);
+      palTarget[k * 3] = capScratchC[0]; palTarget[k * 3 + 1] = capScratchC[1]; palTarget[k * 3 + 2] = capScratchC[2];
+    }
+  } else for (let k = 0; k < 4; k++) oklabMix(fader, k * 3, chordStops, k * 3, amt, palTarget, k * 3);
   const e = smooth(travel);
   for (let k = 0; k < 4; k++) oklabMix(palBefore, k * 3, palTarget, k * 3, e, palNow, k * 3);
-  // pad colours: the palette stops on a diagonal, so neighbouring pads differ; the top row a little lighter
+  // pad colours: the palette stops on a diagonal, so neighbouring pads differ; the top row a little lighter. Under a
+  // theme, its red-safe hit colours (vj-themes.js fx.padHits: a held red hits as the lasers' first colour), lifted in
+  // float (never re-rounded to hex: the verifier's note)
   for (let i = 0; i < 12; i++) {
     const c = i % 4, r = (i / 4) | 0;
     const s = ((c + r) % 4) * 3;
     const lift = 1.12 - 0.08 * r;
-    padCol[i * 3] = palNow[s] * lift; padCol[i * 3 + 1] = palNow[s + 1] * lift; padCol[i * 3 + 2] = palNow[s + 2] * lift;
+    if (look) {
+      const h = look.fx.padHits[i].lin;
+      padCol[i * 3] = h[0] * lift; padCol[i * 3 + 1] = h[1] * lift; padCol[i * 3 + 2] = h[2] * lift;
+    } else {
+      padCol[i * 3] = palNow[s] * lift; padCol[i * 3 + 1] = palNow[s + 1] * lift; padCol[i * 3 + 2] = palNow[s + 2] * lift;
+    }
   }
+  // the lasers take the theme's laser roles (or Custom's two hues); a hit keeps the colours it was fitted to
+  lasersTheme(fa, fb);
+}
+const capScratchA = [0, 0, 0], capScratchB = [0, 0, 0], capScratchC = [0, 0, 0];
+function lasersTheme(fa, fb) {
+  let key, theme;
+  if (themes.look) {
+    const t = themes.lib.byId.get(themes.look.id);
+    theme = { ...t, lasers: themes.look.lasers.roles.slice() };
+    key = `${t.id}|${theme.lasers.join("")}`;
+  } else {
+    if (!fa) { fa = hueColour(T.hueA, 0.70); fb = hueColour(T.hueB, 0.62); }
+    theme = customLaserTheme(fa, fb);
+    key = `custom|${theme.L1}|${theme.L2}`;
+  }
+  if (key === themes.laserKey) return;
+  themes.laserKey = key;
+  lasers.themeId = theme.id;
+  lasers.eng.setTheme(theme);
+}
+
+// -------------------------------------------------------------------------------------- the colour themes --
+// The theme director (vj-themes.js): Daniel's picks (fader 1, the family tabs) land on the next bar, key auto on the song's
+// key, a big hue jump cuts through black on the beat. Its clock: the engine's bar when it sends one (--tap-one: the
+// grid puts the ONE on a multiple of 4, vj-core.js BeatClock), the demo's counted bars, else beats only (a pick then
+// lands on the next beat).
+const themeClockBars = themeClockOf(beat, { bars: true });
+function gridNext(nowMs, every) {
+  const pos = beat.posAt(nowMs);
+  if (pos === null || !beat.alive(nowMs)) return null;
+  const k = Math.ceil(pos / every - 1e-9) * every;
+  return nowMs + (k - pos) * beat.period();
+}
+function barsCounted() { return !!demo || !!(engine.link.hello && engine.link.hello.beat_engine === "demo"); }
+const themeClock = {
+  beatsPerBar: 4, barsPerPhrase: 8,
+  observe: (now) => themeClockBars.observe(now),
+  alive: (now) => beat.alive(now),
+  beatMs: () => beat.period(),
+  nextBeatAt: (now) => beat.nextBeatAt(now),
+  nextBarAt: (now) => (beat.bar > 0 ? gridNext(now, 4) : barsCounted() ? themeClockBars.nextBarAt(now) : null),
+  nextPhraseAt: (now) => (beat.bar > 0 ? gridNext(now, 32) : barsCounted() ? themeClockBars.nextPhraseAt(now) : null),
+};
+async function loadThemes() {
+  try {
+    const lib = await fetchLibrary();
+    themes.lib = lib;
+    let initial = THEME_AT_START && lib.byId.has(THEME_AT_START) ? THEME_AT_START : null, custom = false;
+    if (!initial) {
+      try {
+        const st = JSON.parse(safeGet(STORE.theme) || "null");
+        if (st && typeof st.id === "string" && lib.byId.has(st.id)) { initial = st.id; custom = st.custom === true; }
+      } catch { /* the director's own default */ }
+    }
+    const dir = new ThemeDirector(lib, initial ? { initial, keyAuto: options.keyAuto } : { keyAuto: options.keyAuto });
+    if (custom) { dir.current = "custom"; dir.custom = true; }
+    dir.onFader2(T.hueDrift);
+    themes.dir = dir;
+    themeTick(performance.now());
+    updatePalette();
+    palBefore.set(palNow);
+  } catch (err) {
+    themes.error = String((err && err.message) || err);
+    recordError("load", "vj-themes", themes.error);
+  }
+}
+function themeTick(nowMs) {
+  const d = themes.dir;
+  if (!d) return;
+  d.keyAuto = options.keyAuto;
+  const ch = d.tick(nowMs, themeClock);
+  if (ch) {
+    themes.changes++;
+    themes.lastChange = { id: ch.id, from: ch.from, on: ch.on, reason: ch.reason, cut: !!ch.cut, at: Math.round(nowMs),
+                          atMs: ch.atMs === null ? null : Math.round(ch.atMs) };
+    palBefore.set(palNow);
+    travel = 0;
+    if (ch.cut) { themes.cuts++; themes.dipAt = nowMs; }
+    safeSet(STORE.theme, JSON.stringify({ id: d.base, custom: d.custom }));
+  }
+  const key = `${d.base}|${d.custom}|${d.keyAuto ? d.mode || "" : ""}|${d.fader2 === null ? "" : d.fader2.toFixed(3)}`;
+  if (key !== themes.lookKey) { themes.lookKey = key; themes.look = d.custom ? null : d.look(); }
+}
+// a theme change flagged to cut through black (a hue jump over 100 degrees, or a theme that asks for it): the frame dips
+// to 15 % over 80 ms at the change and comes back over 160 ms -- one dark breath, at most one a bar
+function themeDip(nowMs) {
+  const t = nowMs - themes.dipAt;
+  if (!(t >= 0) || t > 240) return 1;
+  return t < 80 ? 1 - 0.85 * (t / 80) : 0.15 + 0.85 * ((t - 80) / 160);
 }
 const faderStops = new Float32Array(12);
 
@@ -1639,7 +2084,8 @@ function buildStrip(nowMs, nowS) {
       stripSet(S, s, 5, 0, 0, 0, 0);
     }
   }
-  stripSet(S, 9, 2, n, 0, 0, 0);
+  // v3: the head bus for a scene tagged laser-heads (vj-hookup.js; texel 9's .x stays the star count), idle otherwise
+  writeHeadBus(S, lasers.busOn ? lasers.bus : null, n);
   // v2: the shared hit input (vj-core.js STRIP row 2, texels 10-12) -- each set reacts to a pad hit in its own way
   const im = impact.out;
   stripSet(S, 10, 2, limiterLive() ? im.pulse * T.accent : 0, im.vel, im.code, im.since);   // the safe mode: no set reactions
@@ -1875,7 +2321,7 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
     if (!inv.granted) invert *= smooth((nowS - inv.t0) / 1.2);   // refused by the gate: a slow fade is not a flash
   }
   gl.uniform1f(u.u_invert, invert);
-  gl.uniform1f(u.u_bright, T.bright * kill.gain);
+  gl.uniform1f(u.u_bright, T.bright * kill.gain * themeDip(nowMs));
   gl.uniform1f(u.u_sat, 0.15 + 1.0 * T.sat);
   gl.uniform1f(u.u_accent, 0.25 + 1.0 * T.accent);
   gl.uniform1f(u.u_metro, Math.min(0.03, T.metro * 0.03 * beat.pulse));   // linear light: a few percent at most
@@ -1891,6 +2337,9 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
   gl.uniform1f(u.u_dipGranted, frame.dipGranted);
   gl.uniform1f(u.u_dipSafe, DIP_SAFE_DELTA);
   gl.uniform1f(u.u_snare, frame.snare);
+  // the beam layer (Lasers v2): never brighter than the engine fitted it (the accent fader only takes light away here)
+  gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, G.beam ? G.beam.texs[0] : G.blackTex);
+  gl.uniform1f(u.u_beamGain, options.lasersClassic || G.beamClear ? 0 : Math.min(1, (0.25 + T.accent) / 1.1) * (lasers.cut ? 0 : Math.min(1, lasers.gain)));
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   cmp.read = write;
   return cmp.texs[write];
@@ -1956,21 +2405,34 @@ function padLights(nowMs, dt) {
   if (nowMs - led.computedAt < LED_INTERVAL_MS) return;   // colours as text ten times a second, not every frame
   led.computedAt = nowMs;
   const out = ledColours;
+  // the pads get LED STAND-INS, never screen colours (spec 2.2): the pads wash orange to lime and pale colours to white,
+  // so a theme names a stand-in for each of its colours (vj-themes.js padLeds); Custom's are made from its hues
+  // (vj-hookup.js standInLed). The laser pad lights in the lasers' own stand-in, its brightness the tier (60 / 80 / 100 %).
+  const tier = lasers.out && lasers.out.pad.level > 0 ? lasers.out.pad.tier | 0 : 0;
+  const lights = themes.look ? padLeds(themes.look, padMap, { tier }) : null;
   for (let i = 0; i < 12; i++) {
     const action = padMap[i];
-    let r = 0, g = 0, b = 0, v = 0;
-    if (EFFECTS[action]) {
-      r = padCol[i * 3]; g = padCol[i * 3 + 1]; b = padCol[i * 3 + 2];
+    let v = 0, light = null;
+    if (isTapPad(tapPads, i + 1, "daw")) {
+      // the engine's tap pad: white, a blink on every beat, brighter on the ONE
+      const one = beat.barAt(nowMs) === 1;
+      light = TAP_LIGHT;
+      v = Math.max(0.12 + (one ? 0.88 : 0.5) * beat.pulse, padPress[i]);
+    } else if (action === "laser" && !options.lasersClassic) {
+      light = lights ? lights[i] : standInLed(lasers.eng.col.L1);
+      if (!lights) light = { ...light, level: light.level * (tier ? TIER_LED[tier] : 1) };
+      v = 0.12 + 0.88 * Math.max(lasers.out && lasers.out.pad.level > 0 ? 1 : 0, lasers.held ? 0.6 : 0);
+    } else if (EFFECTS[action]) {
+      light = lights ? lights[i] : standInLed([padCol[i * 3], padCol[i * 3 + 1], padCol[i * 3 + 2]]);
       v = 0.10 + 0.9 * Math.max(padEnvScratch[i] / Math.max(T.accent, 0.05), padHeld[i] ? 0.6 : 0);
-    } else if (CONTROL_RGB[action]) {
-      [r, g, b] = CONTROL_RGB[action];
+    } else if (CONTROLS[action]) {
+      light = action === "none" ? null : { hex: action === "choke" ? CHOKE_LED : CONTROLS[action].colour, level: 1 };
       v = 0.10 + 0.9 * padPress[i];
       if (action === "kill") v = kill.target < 0.5 ? 1 : kill.pending !== null ? (beat.pulse > 0.5 ? 1 : 0.4) : 0.12;
       if (action === "next" && deck.running) v = 0.9;
-      if (action === "none") v = 0;
     }
-    v = Math.min(v, 1);
-    out[i] = rgbToHex(r * v, g * v, b * v);
+    out[i] = light ? ledHexAt(light, Math.min(v, 1)) : "#000000";
+    if (!ledPostedOk(out[i])) { led.washed++; out[i] = ledHexAt({ hex: "#ffffff", level: 1 }, Math.min(v, 1)); }
   }
   // an engine whose hello says it has no LEDs, or that refused a post, is not asked again until its next hello
   if (!options.leds || !engine.url || !engine.link.mayPostLeds()) return;
@@ -1994,6 +2456,7 @@ function padLights(nowMs, dt) {
     .finally(() => { led.inflight = false; });
 }
 const ledColours = new Array(12).fill("#000000");
+const TAP_LIGHT = Object.freeze({ hex: "#ffffff", level: 1 });
 
 // ------------------------------------------------------------------------------------------------ the engine --
 // The engine may start after the page (or restart): reconnect with a backoff from 1 s to 10 s, so an absent engine
@@ -2013,6 +2476,7 @@ function connectEngine() {
     es.close();
     if (engine.es !== es) return;
     engine.link.disconnected();          // the old engine's hello and status are no longer the truth
+    tapPads = [];                        // ... nor its tap pads
     harm.reset();                        // ... nor its key and tension: the page's own estimate takes over again
     engine.es = null;
     setTimeout(connectEngine, engineBackoff);
@@ -2058,6 +2522,7 @@ function onFrame(rafNow) {
   fx.update(nowS);
   updateImpact(nowS);
   updateKill(nowMs, dt);
+  themeTick(nowMs);
   updatePalette();
   // the strobe's full-frame pulses: asked for at the strobe rate, granted at most three times a second
   const st = fx.strongest("strobe");
@@ -2067,6 +2532,7 @@ function onFrame(rafNow) {
     strobeNext = nowS + 1 / rate;
   }
   if (deck.running && nowMs - deck.start >= deck.ms) finishFade();
+  updateLasers(nowMs, dt);        // before the strip: a laser-heads scene reads the head bus
   buildStrip(nowMs, nowS);
   buildAudio(nowS);
   padLights(nowMs, dt);
@@ -2090,6 +2556,7 @@ function onFrame(rafNow) {
       if (freezeCapture) { captureFreeze(); freezeCapture = false; }
       fillOverlayUniforms(nowS);
       renderOverlay(nowS);
+      renderBeams();
       const mixed = stage && A && A.fb && B && B.fb && B !== A ?
         stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
       const drawn = composite(nowMs, nowS, mixAB, mixed);
@@ -2178,6 +2645,7 @@ function p95Gap() {
 // ------------------------------------------------------------------------------------------------------- HUD --
 let hudVisible = QS.get("hud") !== null ? QS.get("hud") !== "0" : QS.get("showcase") !== "1";   // the tour opens clean
 function setText(id, text) { const el = $(id); if (el.textContent !== text) el.textContent = text; }
+function setTextIf(id, text) { const el = $(id); if (el && el.textContent !== text) el.textContent = text; }
 function updateHud(nowMs) {
   $("hud").classList.toggle("hidden", !hudVisible);
   $("hud-beatdot").classList.toggle("on", beat.pulse > 0.45);
@@ -2206,7 +2674,32 @@ function updateHud(nowMs) {
   if (engine.link.status) eng += ` · ${engine.link.status}`;    // cleared on disconnect: never a dead engine's last word
   setText("hud-engine", eng);
   const bpm = beat.bpm > 0 && beat.alive(nowMs) ? `${beat.bpm.toFixed(1)} bpm · conf ${beat.conf.toFixed(2)}` : "no beat";
-  setText("hud-beat", bpm + (beat.onBeat !== null && beat.alive(nowMs) ? ` · on-beat ${beat.onBeat.toFixed(2)}` : "") + ` · #${beat.count}`);
+  setText("hud-beat", bpm + (beat.onBeat !== null && beat.alive(nowMs) ? ` · on-beat ${beat.onBeat.toFixed(2)}` : "") + ` · #${beat.count}` +
+    (beat.src && beat.alive(nowMs) ? ` · ${beat.src}` : "") + (beat.bar > 0 && beat.alive(nowMs) ? ` · bar ${beat.barAt(nowMs)}` : ""));
+  // Lasers v2: the gate the dial picked, the newest hit's deal, the area its light changes; the tap pads
+  const lo = lasers.out;
+  let lz = options.lasersClassic ? "classic burst (C: Lasers v2)" : `gate ${gateLabel(lasers.dial.gate)}`;
+  if (!options.lasersClassic) {
+    if (lo && lo.n) lz += ` · ${lo.tier || "-"} ${lo.gate} · ${lo.pattern} · bank ${lo.bank} · ${lo.order} · ${lo.colour}`;
+    if (options.vibrate) lz += " · vibrate";
+    if (lo) lz += ` · change ${(100 * lo.area.window).toFixed(1)} % of a window`;
+    if (lasers.heroOnly) lz += " · heads drawn by the scene";
+  }
+  if (tapPads.length) lz += ` · tap: pad ${[...new Set(tapPads.map((t) => t.pad))].join("/")}` +
+    (tapLast ? ` (${tapLast.mode}${tapLast.bpm ? ` ${tapLast.bpm.toFixed(1)} bpm` : ""})` : "");
+  setTextIf("hud-lasers", lz);
+  const d = themes.dir;
+  let th;
+  if (!d) th = themes.error ? `themes unavailable: ${themes.error}` : "loading themes…";
+  else {
+    const base = themes.lib.byId.get(d.base);
+    th = d.custom ? "Custom (Hue A and B; fader 2 turns them)" : `${base ? base.name : d.base} · ${base ? base.family : ""}`;
+    const pend = d.state.pending;
+    if (pend) th += ` → ${pend.custom ? "Custom" : (themes.lib.byId.get(pend.id)?.name || pend.id)}${pend.on ? ` on the ${pend.on}` : ""}`;
+    if (d.locked) th += " · locked";
+    if (options.keyAuto && d.key) th += ` · key ${d.key}`;
+  }
+  setTextIf("hud-theme", th);
   const c = feelFrame ? feelFrame.colour : null;
   const tension = harm.live ? `tension ${harm.value.toFixed(2)} (engine)` : c ? `tension ${c.tension.toFixed(2)}` : "";
   const colour = [tension, c ? `lush ${c.lushness.toFixed(2)}` : ""].filter(Boolean).join(" · ");
@@ -2241,7 +2734,7 @@ function updateHud(nowMs) {
   for (let i = 0; i < 12; i++) {
     if (!cells[i]) continue;
     cells[i].style.background = ledColours[i];
-    const label = actionLabel(padMap[i]);
+    const label = isTapPad(tapPads, i + 1, "daw") ? "Tap (tempo)" : padMap[i] === "laser" && !options.lasersClassic ? "Lasers v2" : actionLabel(padMap[i]);
     if (cells[i].textContent !== `${i + 1} ${label}`) cells[i].textContent = `${i + 1} ${label}`;
   }
   if (!$("panel").hidden) refreshPanelValues();
@@ -2369,12 +2862,20 @@ function renderTargets() {
     row.append(label, input, bind, btn);
     host.appendChild(row);
   }
-  // the scene actions (2026-10-24): rewind / fast-forward and the dial by default, any control by learn
+  // the action rows: the scenes (rewind / fast-forward step the sets on the DAW port; the scene dial and its click by
+  // learn, since the dial picks the laser gate), the lasers and theme lock, the colour families (F1-F8, or learn the
+  // buttons under the screen)
+  const groups = [
+    ["Scenes (Rewind / Fast forward step the sets; learn a dial to browse)", SCENE_ACTIONS],
+    ["Lasers (the dial picks the gate, its click AUTO)", LASER_ACTIONS],
+    ["Colour families (F1-F8)", FAMILY_ACTIONS],
+  ];
+  for (const [title, list] of groups) {
   const head = document.createElement("div");
   head.className = "target-head";
-  head.textContent = "Scenes (the transport and the dial)";
+  head.textContent = title;
   host.appendChild(head);
-  for (const a of SCENE_ACTIONS) {
+  for (const a of list) {
     const row = document.createElement("div");
     row.className = "target scene-action";
     const label = document.createElement("label");
@@ -2382,7 +2883,7 @@ function renderTargets() {
     label.title = a.help;
     const what = document.createElement("span");
     what.className = "val";
-    what.textContent = a.id === "sceneDial" ? "turn" : "press";
+    what.textContent = a.id === "sceneDial" || a.id === "laserGate" ? "turn" : "press";
     const bind = document.createElement("span");
     bind.className = "bind";
     bind.textContent = (boundTo[a.id] || []).join(" ") || "unbound";
@@ -2397,6 +2898,7 @@ function renderTargets() {
     });
     row.append(label, what, bind, btn);
     host.appendChild(row);
+  }
   }
   refreshPanelValues();
 }
@@ -2429,21 +2931,33 @@ function wireUi() {
   buildHudPads();
   $("btn-close-panel").addEventListener("click", () => togglePanel(false));
   $("btn-reset-pads").addEventListener("click", () => { padMap = DEFAULT_PAD_MAP.slice(); savePadMap(); renderPadMap(); });
-  $("btn-reset-ctl").addEventListener("click", () => { ctlMap = { ...DEFAULT_CTL_MAP }; safeSet(STORE.ctl, JSON.stringify(ctlMap)); renderTargets(); });
+  $("btn-reset-ctl").addEventListener("click", () => { ctlMap = { ...DEFAULT_CTL_MAP }; saveCtlMap(); renderTargets(); });
   const hits = $("opt-hits"), leds = $("opt-leds"), snapBox = $("opt-snap"), punchBox = $("opt-punch");
+  const classicBox = $("opt-classic"), vibrateBox = $("opt-vibrate"), keyAutoBox = $("opt-keyauto");
   hits.checked = options.hits; leds.checked = options.leds;
   if (snapBox) snapBox.checked = options.snap;
   if (punchBox) punchBox.checked = options.punch;
+  if (classicBox) classicBox.checked = options.lasersClassic;
+  if (vibrateBox) vibrateBox.checked = options.vibrate;
+  if (keyAutoBox) keyAutoBox.checked = options.keyAuto;
   const saveOpts = () => {
     options.hits = hits.checked; options.leds = leds.checked;
     if (snapBox) options.snap = snapBox.checked;
     if (punchBox) options.punch = punchBox.checked;
+    if (keyAutoBox) options.keyAuto = keyAutoBox.checked;
     safeSet(STORE.opts, JSON.stringify(options));
   };
-  for (const box of [hits, leds, snapBox, punchBox]) if (box) box.addEventListener("change", saveOpts);
+  for (const box of [hits, leds, snapBox, punchBox, keyAutoBox]) if (box) box.addEventListener("change", saveOpts);
+  if (classicBox) classicBox.addEventListener("change", () => setLasersClassic(classicBox.checked));
+  if (vibrateBox) vibrateBox.addEventListener("change", () => setVibrate(vibrateBox.checked));
   const typing = (el) => el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") && el.type !== "range";
   window.addEventListener("keydown", (e) => {
     if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (FAMILY_KEYS[e.code] !== undefined) {   // F1-F8: the family tabs
+      e.preventDefault();
+      if (!e.repeat) pickFamily(FAMILY_ACTIONS[FAMILY_KEYS[e.code]].family);
+      return;
+    }
     const pad = KEY_PADS[e.code];
     if (pad) {
       e.preventDefault();
@@ -2453,7 +2967,7 @@ function wireUi() {
     if (e.repeat) return;
     const nowS = performance.now() / 1000;
     switch (e.code) {
-      case "KeyQ": fx.dampen(nowS); break;
+      case "KeyQ": dampenAll(nowS); break;
       case "KeyW": choke(); break;
       case "KeyE": toggleKill(); break;
       case "KeyR": nextSet(); break;
@@ -2462,6 +2976,13 @@ function wireUi() {
       case "KeyM": togglePanel(); break;
       case "KeyD": setDemo(!demo); break;
       case "KeyB": setSnap(!options.snap); break;
+      // Lasers v2: Vibrate, the classic burst, the gate (the dial's twin: [ and ], \ for AUTO)
+      case "KeyV": setVibrate(!options.vibrate); toast(options.vibrate ? "lasers vibrate" : "vibrate off"); break;
+      case "KeyC": setLasersClassic(!options.lasersClassic); toast(options.lasersClassic ? "lasers: classic burst" : "Lasers v2"); break;
+      case "BracketLeft": case "BracketRight":
+        lasers.dial.turn({ id: "key", kind: "rel", value: 0.5, delta: e.code === "BracketRight" ? 1 : -1 }, -1e9);
+        laserGate(); toast(`laser gate: ${gateLabel(lasers.dial.gate)}`); break;
+      case "Backslash": lasers.dial.auto(); laserGate(); toast("laser gate: AUTO"); break;
       case "Escape": if (learnTarget) { learnTarget = null; renderTargets(); } else togglePanel(false); break;
       default: return;
     }
@@ -2485,6 +3006,7 @@ function wireUi() {
     G.lost = false;
     for (const s of sets) { s.program = null; s.fb = null; }
     G.pool = []; G.ov = null; G.frz = null; G.cmp = null; G.stut = null; G.meter1 = null; G.meterMid = null; G.meter2 = null; G.limiter = null;
+    G.beam = null;
     if (initGL()) for (const s of sets) if (s.source) compileSet(s);
   });
 }
@@ -2516,7 +3038,7 @@ const stage = createStage({
   learning: () => !!learnTarget,
   unbindCtl: (id) => {
     ctlMap = { ...ctlMap, [id]: null };
-    safeSet(STORE.ctl, JSON.stringify(ctlMap));
+    saveCtlMap();
     if (!$("panel").hidden) renderTargets();
   },
   toast, recordError,
@@ -2569,7 +3091,77 @@ window.__vj = {
     scenes: { browsing: scenes.browsing(), cursor: scenes.cursor, ignored: scenes.ignored, posts: sceneReport.posts,
               log: sceneReport.log.slice(-20), sentKey: sceneReport.sentKey, off: engine.link.sceneOff,
               refused: engine.link.sceneRefused, echo: sceneReport.last },
+    // Lasers v2 (vj-lasers.js through vj-hookup.js)
+    lasers: (() => {
+      const o = lasers.out;
+      return { mode: options.lasersClassic ? "classic" : "v2", gate: lasers.dial.gate, gateIndex: lasers.dial.index,
+               dialSteps: lasers.dial.steps, dialIgnored: lasers.dial.ignored, vibrate: options.vibrate, seed: lasers.seed,
+               hits: lasers.hits, refused: lasers.refused, last: lasers.last, held: lasers.held, cut: lasers.cut,
+               gain: +lasers.gain.toFixed(3), records: o ? o.n : 0, uploaded: lasers.n, heroOnly: lasers.heroOnly,
+               busOn: lasers.busOn, bus: lasers.busOn ? Array.from(lasers.bus, (v) => +v.toFixed(3)) : null,
+               pulses: lasers.pulses, flashes: lasers.flashes, frames: lasers.frames, litFrames: lasers.litFrames,
+               overFrames: lasers.over, maxWindow: +lasers.maxWindow.toFixed(4), maxFrame: +lasers.maxFrame.toFixed(4),
+               area: o ? { ...o.area } : null, tier: o ? o.tier : "", solo: o ? o.solo : 1,
+               pad: o ? { level: +o.pad.level.toFixed(3), tier: o.pad.tier } : null, theme: lasers.themeId,
+               labels: o ? { gate: o.gate, pattern: o.pattern, tier: o.tier, bank: o.bank, order: o.order, colour: o.colour } : null };
+    })(),
+    themes: (() => {
+      const d = themes.dir;
+      return { loaded: !!d, error: themes.error, current: d ? d.current : null, base: d ? d.base : null, custom: d ? d.custom : false,
+               name: themes.look ? themes.look.name : d && d.custom ? "Custom" : null, family: themes.look ? themes.look.family : null,
+               pending: d && d.state.pending ? { id: d.state.pending.id, on: d.state.pending.on, reason: d.state.pending.reason } : null,
+               locked: d ? d.locked : false, key: d ? d.key : null, mode: d ? d.mode : null, keyAuto: options.keyAuto,
+               changes: themes.changes, cuts: themes.cuts, last: themes.lastChange, keyEvents: themes.keyEvents,
+               fader: +T.theme.toFixed(4), faderTheme: themes.lib ? themeAtFader(themes.lib, T.theme) : null,
+               palette: Array.from(palNow, (v) => +v.toFixed(4)) };
+    })(),
+    tap: { pads: tapPads.map((t) => ({ ...t })), presses: tapPresses, last: tapLast },
+    clock: { pos: beat.posAt(performance.now()), bar: beat.bar, barNow: beat.barAt(performance.now()), ver: beat.ver, src: beat.src,
+             reanchors: beat.reanchors, slews: beat.slews, flushed: beat.flushed, lastError: +beat.lastError.toFixed(4) },
+    ledsWashed: led.washed,
   }),
+  // Lasers v2 receipts (arsenal/lanes/vj_verify.mjs): the hits dealt, the laser options, the beam layer's own light
+  laserLog: () => lasers.log.map((h) => ({ ...h })),
+  laser: (o = {}) => {
+    if (typeof o.vibrate === "boolean") setVibrate(o.vibrate);
+    if (typeof o.classic === "boolean") setLasersClassic(o.classic);
+    if (typeof o.gate === "string") { lasers.dial.set(o.gate); laserGate(); }
+    return { gate: lasers.dial.gate, vibrate: options.vibrate, classic: options.lasersClassic };
+  },
+  // the beam layer as drawn this frame: pixels lit (relative luminance >= 0.02), the brightest, the mean (a GPU readback)
+  beams: () => {
+    if (!G.gl || !G.beam) return null;
+    const gl = G.gl, b = G.beam, px = new Float32Array(b.w * b.h * 4);
+    try {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, b.fbos[0]);
+      gl.readPixels(0, 0, b.w, b.h, gl.RGBA, gl.FLOAT, px);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    } catch (err) { return { error: String(err.message || err) }; }
+    let lit = 0, max = 0, sum = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      const y = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+      if (y >= 0.02) lit++;
+      if (y > max) max = y;
+      sum += y;
+    }
+    return { w: b.w, h: b.h, lit, litShare: +(lit / (b.w * b.h)).toFixed(5), max: +max.toFixed(4), mean: +(sum / (b.w * b.h)).toFixed(6),
+             records: lasers.n, clear: !!G.beamClear };
+  },
+  // a theme now (contact sheets, receipts): the director's base theme set at once, no bar to wait for
+  theme: (id) => {
+    const d = themes.dir;
+    if (!d || !(id === "custom" || themes.lib.byId.has(id))) return null;
+    if (id === "custom") { d.current = "custom"; d.custom = true; } else { d.current = id; d.base = id; d.custom = false; }
+    d.pending = null;
+    themes.lookKey = "";
+    themeTick(performance.now());
+    updatePalette();
+    palBefore.set(palNow); travel = 1;
+    return d.current;
+  },
+  catalogue: () => laserCatalogue(),
+  // a pinned pattern (receipts, contact sheets): "auto", a vj-lasers.js PATTERNS id, or "figure" (line art from the shape deck)
+  laserPattern: (p) => { lasers.eng.set({ patternMode: p === "auto" || !p ? "auto" : p, shapeMode: p === "figure" ? "auto" : null }); return p; },
   latency: () => ({ records: latency.records.map((r) => ({ ...r })) }),
   snap: (on) => { setSnap(on); return options.snap; },
   option: (k, v) => { if (k in options) { options[k] = !!v; } return { ...options }; },
@@ -2615,6 +3207,8 @@ async function boot() {
   }
   loadStored();
   wireUi();
+  if (options.vibrate) lasers.eng.setVibrate(true, performance.now());
+  const themesLoaded = loadThemes();     // the colour themes' library (vj-themes.json), alongside the GL and the sets
   updatePalette();
   palBefore.set(palNow);
   if (!initGL()) return;
@@ -2637,6 +3231,7 @@ async function boot() {
   renderSetList();
   renderParams();
   queueSceneReport(false);        // the sets have their names now: tell the engine which one shows
+  await themesLoaded;
   window.__vj.ready = true;
   toast(sets[deck.a] ? sets[deck.a].name : "no sets");
   stage.boot();

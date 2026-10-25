@@ -21,7 +21,9 @@ This is the ENGINE (Python). The page draws; between them there is one contract,
   a stopping engine refuses new streams (503).
 
   hello  {"t":"hello","v":1,"src":"keylab-vj","beat_engine":"a","chords":"sense|basic","pads_mode":"daw|bank|both",
-          "leds":true|false,"leds_reason":null|".."}   leds false: do not POST /api/pads, it would be refused
+          "leds":true|false,"leds_reason":null|"..","tap":"daw:cc23,daw:pad12","tap_one":true}   leds false: do not
+          POST /api/pads, it would be refused; tap: the controls that tap the beat clock (--tap; "off" = none), so the
+          page fires no effect for a pad that taps; tap_one: the first tap of a run is the ONE (since 2026-10-25)
   beat   {"t":"beat","due_ms":..,"bpm":..,"conf":0..1,"n":..,"on_beat":-1..1|null,"src":"db|track|tap",
           "bar":0..4,"bar_src":"tap"|null,"ver":int,"offset_ms":..|null,"wall_ms":..}  sent ~250 ms BEFORE the beat.
           on_beat is the referee's score of the beats the lights show (negative = locked on the off-beat; 0..1 before
@@ -67,7 +69,8 @@ What feeds it:
           the dial (116) are relative around 64 -- all read from Arturia's script, NOT confirmed on the hardware, so
           every CC is learned on touch: an encoder repeats a value (an absolute control only sends on change) and
           stays near 64, a fader wanders far from it. A learned kind is announced as a status
-  TAP     the Tap button (to the right of Record: CC 23 on the DAW port; --tap names other controls, pads too) feeds
+  TAP     the Tap button (to the right of Record: CC 23 on the DAW port) and pad 12 (the DAW port's; Daniel, 2026-10-25:
+          both tap, the first tap of a run is the ONE; --tap names other controls, --no-tap-one drops the ONE) feed
           the beat clock (beatgrid.BeatGrid): one isolated tap on a kick moves the beat there (a tracker locked on the
           off-beat is fixed by one tap); four or more steady taps take over tempo and beat (a sloppy tap left out;
           snapped within 4 % to the database's tempo or the tracker's, the one the taps agree with when those two
@@ -77,8 +80,9 @@ What feeds it:
           stop; then the hand keeps the beat while a steady tracker refines the tempo (in the hand's octave), until the
           tracker agrees for 8 beats.
           A press is a rising edge (80 ms debounce), timed when it arrives on the MIDI thread; the audio thread puts it
-          on the stream's clock, so a tap never waits on, or stalls, the audio. Its ctl event is published as before.
-          Our FL script also sends CC 23 to FL's tap tempo (Daniel's call whether it should keep doing so)
+          on the stream's clock, so a tap never waits on, or stalls, the audio. Its ctl (or pad) event is published as
+          before; the hello names the tap controls, and the VJ page fires no effect for a pad that taps. Tap is tempo
+          for the visuals only (Daniel, 2026-10-25): our FL script swallows CC 23 (TAP_TO_FL = False)
   TRACK   the live loopback only (not --replay-audio; --no-db turns it off): a thread reads Windows' now-playing every
           2 s (a session that is playing; a paused one is not the track) and, on a new track, the song database's tempo
           (beatgrid.database_tempo, cached per track, fail-soft);
@@ -168,8 +172,11 @@ SCENE_BURST = 8.0
 SCENE_NAME_MAX = 40
 # The Tap button (to the right of Record) sends CC 23 on the DAW port (our FL script's map and Arturia's; not yet seen
 # at the engine from the hardware). --tap names the controls that tap: "[daw:|midi:]ccN", "[daw:|midi:]padN" or "pads"
-# (any pad: pads still fire their effects), comma-separated; "off" = none.
-DEFAULT_TAP = "daw:cc23"
+# (any pad), comma-separated; "off" = none. Since Lasers v2 (Daniel, 2026-10-25: "perhaps we can trigger the tempo tap
+# with a drumpad instead ... lets just design an initial version"): the Tap button AND pad 12 (the DAW port's) tap, and
+# the first tap of a run is the ONE (tap_one on by default; --no-tap-one turns it off). The hello names the tap controls,
+# so the VJ page fires no effect for a pad that taps.
+DEFAULT_TAP = "daw:cc23,daw:pad12"
 TAP_DEBOUNCE_S = 0.08         # a tap within this long of the last one is the same press
 TAP_REPRESS_S = 0.25          # a control that sends only presses (no release) counts again after this long
 TRACK_POLL_S = 2.0            # how often the track thread reads Windows' now-playing
@@ -1813,7 +1820,7 @@ class Engine:
                  seed_bpm: Optional[float] = None, heartbeat_s: float = HEARTBEAT_S, replay: Optional[Replay] = None,
                  replay_delay: float = 1.5, verbose: bool = False, verbose_http: bool = False,
                  say: Callable[[str], None] = print, chords: str = "blend", tap: Optional[str] = DEFAULT_TAP,
-                 tap_one: bool = False, tap_round: bool = True,
+                 tap_one: bool = True, tap_round: bool = True,
                  now_playing: Optional[Callable[[], Optional[dict]]] = None,
                  db_lookup: Optional[Callable[[str, str], Optional[dict]]] = None,
                  track_poll_s: float = TRACK_POLL_S):
@@ -1968,7 +1975,8 @@ class Engine:
         on = self.led_out is not None
         return {"t": "hello", "v": CONTRACT_V, "src": SRC, "beat_engine": self.beat_engine, "chords": self.chords,
                 "pads_mode": self.pads_mode, "leds": on,
-                "leds_reason": None if on else (self.led_refusal or "no LED output")}
+                "leds_reason": None if on else (self.led_refusal or "no LED output"),
+                "tap": self.tap_spec, "tap_one": bool(self.tap_one)}
 
     def greeting(self) -> List[dict]:
         """What a page gets the moment it connects: hello, where things stand, the key and tension the page would
@@ -2557,7 +2565,7 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
         audio: bool = True, midi: bool = True, rate_limit: bool = False, pads: str = "both",
         ahead_ms: float = AHEAD_S * 1000, offset_ms: float = 0.0, seed_bpm: Optional[float] = None,
         secs: Optional[float] = None, quiet: bool = False, chords: str = "blend", tap: str = DEFAULT_TAP,
-        tap_one: bool = False, tap_round: bool = True, db: bool = True) -> int:
+        tap_one: bool = True, tap_round: bool = True, db: bool = True) -> int:
     line_buffered_stdout()
     say = print
     try:
