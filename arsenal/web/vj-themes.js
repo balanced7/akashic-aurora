@@ -16,8 +16,9 @@
 //   - when it lands: Daniel's picks on the next bar, automatic ones on a phrase line and at least 8 bars apart, and a
 //     big hue jump (or a flagged theme) cuts through black on the beat              ThemeDirector, landing, needsDip
 //   - what a theme gives: the scene's four palette stops (linear rgb, the strip's row 2 layout), the kick glow, the
-//     lasers' two-colour pair with their strobe and burst colours and legal colour modes, the effects' colours, and
-//     the pad lights (LED stand-ins, never screen colours)                         themeLook, padLeds, familyLed
+//     lasers' two-colour pair with their strobe and burst colours and legal colour modes, the effects' colours (with
+//     twelve red-safe hit colours for the DAW pads' effects), and the pad lights (LED stand-ins, never screen colours)
+//                                                                                  themeLook, padLeds, familyLed
 // The page owns the clock, the GL and the posting: it hands this module a clock adapter and reads plans back. Nothing
 // here schedules a timer; ThemeDirector.tick(now) is called from the frame loop.
 
@@ -426,18 +427,32 @@ export function familyLed(lib, family) {
   return { hex: first.led[role], level: (first.led_level && first.led_level[role]) || 1 };
 }
 
-// The song's key: "Db major" / "F# minor" (chordsense's spelling, and the database's), as a Camelot number. Relative
-// major and minor share a number, so they share a family; neighbouring numbers share 6 of 7 notes.
+// The song's key as a Camelot number. Spellings: chordsense's "Db major" / "F# minor"; a song database's "Am", "F#m",
+// "C" (a bare note is major), "Ebmaj", "Bbmin"; or the Camelot code itself, "8A". Relative major and minor share a
+// number, so they share a family; neighbouring numbers share 6 of 7 notes. name is the key spelled chordsense's way
+// (a Camelot code is spelled with the flats chordsense uses); camelot identifies the key whatever the spelling.
 const NOTE_PC = Object.freeze({ C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 });
-export function parseKey(name) {
-  const m = /^([A-G])([#b]?) (major|minor)$/.exec(typeof name === "string" ? name.trim() : "");
-  if (!m) return null;
-  const pc = (NOTE_PC[m[1]] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + 12) % 12;
-  const mode = m[3];
+const PC_SPELLING = Object.freeze(["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]);
+function keyOf(note, pc, mode) {
   const majorPc = mode === "major" ? pc : (pc + 3) % 12;
   const number = ((((majorPc * 7) % 12) + 7) % 12) + 1;
   const letter = mode === "major" ? "B" : "A";
-  return { pc, mode, number, letter, camelot: `${number}${letter}` };
+  return { pc, mode, number, letter, camelot: `${number}${letter}`, name: `${note} ${mode}` };
+}
+export function parseKey(name) {
+  const s = typeof name === "string" ? name.trim() : "";
+  const cam = /^(1[0-2]|[1-9])([AB])$/.exec(s);
+  if (cam) {
+    const majorPc = ((((Number(cam[1]) - 8) * 7) % 12) + 12) % 12;      // 8B is C major; each step round the wheel a fifth
+    const mode = cam[2] === "B" ? "major" : "minor";
+    const pc = mode === "major" ? majorPc : (majorPc + 9) % 12;
+    return keyOf(PC_SPELLING[pc], pc, mode);
+  }
+  const m = /^([A-G])([#b]?)\s*([Mm]aj(?:or)?|[Mm]in(?:or)?|m)?$/.exec(s);
+  if (!m) return null;
+  const pc = (NOTE_PC[m[1]] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + 12) % 12;
+  const mode = m[3] && /^m(in|$)/i.test(m[3]) ? "minor" : "major";
+  return keyOf(m[1] + m[2], pc, mode);
 }
 export function familyForKey(lib, name) {
   const k = parseKey(name);
@@ -477,44 +492,92 @@ export function sectionSlots(section) {
   const slots = SECTION_SLOTS[kind];
   return slots ? { kind, slots } : null;
 }
-// { slot, id } the family's playbook gives a section (null section = the first slot it has of a quiet start), or null
-export function themeForSection(lib, family, section) {
+// { slot, id } the family's playbook gives a section (null section = the first slot it has of a quiet start), or null.
+// A playbook may borrow a theme from another family (Fire's anti-climax is Void Ritual). ownFamily: only the family's own
+// themes answer (a family tab Daniel pressed shows that family), falling back to its first theme.
+export function themeForSection(lib, family, section, { ownFamily = false } = {}) {
   const book = lib.families[family];
   if (!book) return null;
   const s = section === null || section === undefined ? { slots: NO_SECTION_SLOTS } : sectionSlots(section);
   if (!s || !s.slots.length) return null;
-  for (const slot of s.slots) if (book[slot]) return { slot, id: book[slot] };
-  const first = Object.entries(book)[0];
-  return first ? { slot: first[0], id: first[1] } : null;
+  const fits = (id) => !ownFamily || (lib.byId.has(id) && lib.byId.get(id).family === family);
+  for (const slot of s.slots) if (book[slot] && fits(book[slot])) return { slot, id: book[slot] };
+  const first = Object.entries(book).find(([, id]) => fits(id));
+  if (first) return { slot: first[0], id: first[1] };
+  const own = ownFamily && lib.familyThemes[family] && lib.familyThemes[family][0];
+  return own ? { slot: null, id: own } : null;
 }
 
 // A change between themes whose primaries sit more than 100 degrees apart, or into or out of a theme flagged
 // crossfade_needs_dip (its pair greys out in a blend), cuts through black on the beat instead of crossfading.
-export function needsDip(lib, fromId, toId) {
-  if (fromId === toId) return false;
+// fromHueDeg / toHueDeg: the turn each side is drawn with (Custom's turn of the wheel, or fader 2's drift), so Custom
+// turned half way round and then stepped to a neighbour of its theme, or back to its own theme, dips too.
+export function needsDip(lib, fromId, toId, { fromHueDeg = 0, toHueDeg = 0 } = {}) {
+  const fromTurn = Number.isFinite(fromHueDeg) ? fromHueDeg : 0, toTurn = Number.isFinite(toHueDeg) ? toHueDeg : 0;
+  if (fromId === toId && hueGapDeg(fromTurn, toTurn) < 1e-9) return false;
   const a = lib.byId.get(fromId), b = lib.byId.get(toId);
   if (!a || !b) return false;
-  if (a.crossfade_needs_dip || b.crossfade_needs_dip) return true;
+  if (fromId !== toId && (a.crossfade_needs_dip || b.crossfade_needs_dip)) return true;
   const ha = toOklch(hexToLinear(a.A)), hb = toOklch(hexToLinear(b.A));
   if (ha.C < CHROMA_MIN || hb.C < CHROMA_MIN) return false;
-  return hueGapDeg(ha.h, hb.h) > DIP_HUE_DEG;
+  return hueGapDeg(ha.h + fromTurn, hb.h + toTurn) > DIP_HUE_DEG;
 }
 
 // The long-drop rule: every 16 bars the lasers swap which role they use (themeLook's swap option).
 export const laserSwapDue = (barsIntoDrop) => Math.floor(Math.max(0, barsIntoDrop) / 16) % 2 === 1;
 
 // ----------------------------------------------------------------------------------------------- when it lands --
-// A clock adapter: { alive(now), beatMs(), nextBeatAt(now), nextBarAt(now), nextPhraseAt(now) }, each time in ms or null.
+// A clock adapter: { alive(now), beatMs(), nextBeatAt(now), nextBarAt(now), nextPhraseAt(now) }, each time in ms or null,
+// and optionally beatsPerBar, barsPerPhrase and observe(now) (called by ThemeDirector.tick every frame).
 // This one reads the page's BeatClock (vj-core.js). bars: whether the beat source numbers its bars (n % 4 === 0 is a
 // downbeat: the demo does, today's engine does not say); without bars, a bar or phrase request lands on the next beat.
+//
+// The BeatClock numbers only the beats the engine announces. When the beat drops out it fires unnumbered flywheel beats
+// on the same grid for up to 4 s, while its beat number stays on the last announced beat, so counting bars from it
+// (vj-show.js's nextDownbeatAt, given the BeatClock itself) puts "the next bar" on the wrong beat. The adapter keeps its
+// own count of the last beat's number, flywheel beats included, per BeatClock (a WeakMap, so an adapter built afresh each
+// frame shares it), brought up to date whenever it is asked, and hands nextDownbeatAt the corrected number.
+const BEAT_COUNTS = new WeakMap();
+function countedBeat(bc) {
+  let s = BEAT_COUNTS.get(bc);
+  if (!s) {
+    s = { fired: bc.count, raw: bc.n, n: bc.n, t: bc.lastBeat };
+    BEAT_COUNTS.set(bc, s);
+    return s;
+  }
+  if (bc.count !== s.fired) {
+    if (bc.n !== s.raw) s.n = bc.n;                                  // an announced beat fired: its own number
+    else if (s.n >= 0) {                                             // flywheel beats: whole periods on from the last one
+      const p = bc.period();
+      if (p > 0) s.n += Math.max(1, Math.round((bc.lastBeat - s.t) / p));
+    }
+    s.raw = bc.n;
+    s.t = bc.lastBeat;
+    s.fired = bc.count;
+  }
+  return s;
+}
 export function clockFromBeatClock(bc, { bars = false, beatsPerBar = 4, barsPerPhrase = 8 } = {}) {
+  const counted = () => {
+    const s = countedBeat(bc);
+    return { period: () => bc.period(), alive: (now) => bc.alive(now), n: s.n, lastBeat: s.t, q: bc.q, qn: bc.qn, qlen: bc.qlen };
+  };
   return {
+    beatsPerBar, barsPerPhrase,
+    observe: () => { countedBeat(bc); },
     alive: (now) => bc.alive(now),
     beatMs: () => bc.period(),
     nextBeatAt: (now) => bc.nextBeatAt(now),
-    nextBarAt: (now) => (bars ? nextDownbeatAt(now, bc, beatsPerBar) : null),
-    nextPhraseAt: (now) => (bars ? nextDownbeatAt(now, bc, beatsPerBar * barsPerPhrase) : null),
+    nextBarAt: (now) => (bars ? nextDownbeatAt(now, counted(), beatsPerBar) : null),
+    nextPhraseAt: (now) => (bars ? nextDownbeatAt(now, counted(), beatsPerBar * barsPerPhrase) : null),
   };
+}
+// how long one quantum of the clock is (a beat, a bar or a phrase), or Infinity when the tempo is unknown
+function quantumMs(clock, on) {
+  const beat = clock && typeof clock.beatMs === "function" ? clock.beatMs() : 0;
+  if (!(beat > 0)) return Infinity;
+  const bpb = clock.beatsPerBar > 0 ? clock.beatsPerBar : 4, bpp = clock.barsPerPhrase > 0 ? clock.barsPerPhrase : 8;
+  return beat * (on === "phrase" ? bpb * bpp : on === "bar" ? bpb : 1);
 }
 const NEXT = Object.freeze({ phrase: "nextPhraseAt", bar: "nextBarAt", beat: "nextBeatAt" });
 const CHAIN = Object.freeze({ phrase: ["phrase", "bar", "beat"], bar: ["bar", "beat"], beat: ["beat"], now: [] });
@@ -612,12 +675,23 @@ export function themeLook(lib, id, opts = {}) {
   modes.push("M8");
   if (two) modes.push("M9");
 
-  // the effects; the flash and the kick glow take the theme's flash colour (W, or white where W is a pin)
+  // the effects; the flash and the kick glow take the theme's flash colour (W, or white where W is a pin). The particles
+  // keep the scene's colour (an ember may be a held red); held marks a colour to show steadily, never flashed: the theme's
+  // own colour is a held red, or the colour actually emitted (after the key's nudge, the drift or Custom's turn) is one.
+  const partHex = roleHexOf(t, t.fx.particles), particles = entry(t.fx.particles, scene(partHex));
+  // the pads' hit colours: vj.js colours each DAW pad's effects (the shockwave, the classic laser, the particles, the
+  // strip's row 3 that the preset scenes react to) from the palette stops on a diagonal. These are the same stops made
+  // safe to flash: a held role hits as the lasers' first colour, any other saturated red loses chroma until it passes.
+  const padHits = Array.from({ length: 12 }, (_, i) => {
+    const s = stops[((i % 4) + ((i / 4) | 0)) % 4];
+    if (held.has(s.role)) return Object.freeze({ role: s.role, hex: L1.hex, lin: L1.lin });
+    return isSaturatedRed(s.hex) ? entry(s.role, safeEmit(s.lin)) : s;
+  });
   const fx = Object.freeze({
     shockwave: emit(t.fx.shockwave, roleHexOf(t, t.fx.shockwave)),
-    particles: Object.freeze({ ...entry(t.fx.particles, scene(roleHexOf(t, t.fx.particles))),
-                               held: isSaturatedRed(roleHexOf(t, t.fx.particles)) }),   // steady embers only, never flashed
+    particles: Object.freeze({ ...particles, held: isSaturatedRed(partHex) || isSaturatedRed(particles.hex) }),
     flash: emit(t.fx.flash, roleHexOf(t, t.fx.flash)),
+    padHits: Object.freeze(padHits),
   });
 
   return Object.freeze({
@@ -674,15 +748,20 @@ export function ledHexAt(light, brightness = 1) {
 //   Daniel's picks (manual) land on the next bar (the next phrase line under Theme Lock):
 //     onFader(x)      the theme fader; lands once it rests 150 ms on a detent. Pins the theme until the next track.
 //     onStep(d)       one step along the fader's walk. Pins.
-//     onFamilyTab(f)  a family tab: the family's theme for the current section; pressed again inside a bar, the
+//     onFamilyTab(f)  a family tab: one of the family's own themes (for the current section when the section is
+//                     known: the playbook's, which may borrow from another family); pressed again inside a bar, the
 //                     family's next theme. Daniel's family beats key auto until the next track; sections rotate in it.
-//   Automatic changes land on a phrase line, at least 8 bars after the last automatic one, never while a pin or the
-//   lock holds, and never over a pick of Daniel's still waiting to land:
+//   Automatic changes land on a phrase line, at least 8 bars after the last change of any kind, never while a pin or
+//   the lock holds, and never over a pick of Daniel's still waiting to land:
 //     onKey(ev)       the song's key: the database's at track start ({ src: "db" }) at once; chordsense's once it has
-//                     confidence >= 0.6 and no other key has arrived for 8 bars. The key's family, then the playbook.
+//                     confidence >= 0.6 and no other key (however unsure) has arrived for 8 bars. The key's family,
+//                     then the playbook.
 //     onSection(s)    the section: the family's playbook theme for it; a returning section returns to its theme. A
 //                     section detected late (startedAt within the last bar) lands on the next bar, not the next phrase.
 //   newTrack() clears the pins, Daniel's family, the key and the section memory. setLock(on) is Theme Lock.
+//   onFader2(x)  fader 2 (optional): look() then draws with its drift (or Custom's turn), and the black-dip test sees it.
+//   A waiting change's line is re-read from the clock every frame until it lands, so it follows a tempo that moves, a
+//   tap that re-anchors the grid and the flywheel through a dropout; a line that moves earlier past the frame lands at once.
 export class ThemeDirector {
   constructor(lib, { initial = "celestial-violet", keyAuto = true, rotate = true } = {}) {
     this.lib = lib;
@@ -696,20 +775,23 @@ export class ThemeDirector {
     this.locked = false;
     this.keyAuto = keyAuto;
     this.rotate = rotate;
-    this.key = null;                   // the key in force
-    this.keyCand = null;               // { name, since } a chordsense key waiting out its 8 bars
+    this.key = null;                   // the key in force, spelled chordsense's way ("A minor")
+    this.keyCand = null;               // { name, id, since } a chordsense key waiting out its 8 bars (id: its Camelot code)
     this.mode = null;                  // "major" | "minor": the key's nudge, for themeLook
     this.section = null;               // the section kind last heard
     this.slot = null;                  // the playbook slot it answered to
     this.memory = new Map();           // "family:slot" -> theme id, this track
-    this.lastAutoAt = -Infinity;       // when the last automatic theme landed
+    this.lastLandAt = -Infinity;       // when the last change landed (the 8-bar hold runs from it)
     this.tab = null;                   // { family, atMs } the last family-tab press
+    this.fader2 = null;                // fader 2's position 0..1 when routed here (onFader2), else null
+    this.shownHueDeg = null;           // the hue turn the last look() drew, null until a look is drawn after a change
     this.picker = new FaderPicker(lib);
     this.log = [];
   }
 
   // inputs ------------------------------------------------------------------------------------------------------
   onFader(x, nowMs) { this.picker.move(x, nowMs); }
+  onFader2(x) { this.fader2 = Number.isFinite(x) ? clamp01(x) : null; }
   onStep(delta, nowMs, clock) {
     this.pinned = true;
     return this._request(stepTheme(this.lib, this._targetBase(), delta), { manual: true, reason: "step" }, nowMs, clock);
@@ -726,17 +808,20 @@ export class ThemeDirector {
       id = nextInFamily(this.lib, this._targetBase(), family);
       if (this.slot) this.memory.set(`${family}:${this.slot}`, id);
     } else {
-      id = this._pickFor(family);
+      id = this._pickFor(family, { own: true });
     }
     return this._request(id, { manual: true, reason: again ? "family-next" : "family" }, nowMs, clock);
   }
   onKey(ev, nowMs, clock) {
     const k = ev && parseKey(ev.name);
     if (!k) return false;
-    if (ev.src === "db") { this._acceptKey(ev.name, nowMs, clock, "db-key"); return true; }
-    if (!(typeof ev.conf === "number" && ev.conf >= KEY_CONF)) return false;
-    if (ev.name === this.key) { this.keyCand = null; return false; }
-    if (!this.keyCand || this.keyCand.name !== ev.name) this.keyCand = { name: ev.name, since: nowMs };
+    if (ev.src === "db") { this._acceptKey(k.name, nowMs, clock, "db-key"); return true; }
+    if (!(typeof ev.conf === "number" && ev.conf >= KEY_CONF)) {
+      if (this.keyCand && this.keyCand.id !== k.camelot) this.keyCand.since = nowMs;   // another key heard: not quiet
+      return false;
+    }
+    if (this.key && parseKey(this.key).camelot === k.camelot) { this.keyCand = null; return false; }
+    if (!this.keyCand || this.keyCand.id !== k.camelot) this.keyCand = { name: k.name, id: k.camelot, since: nowMs };
     return true;
   }
   onSection(section, nowMs, clock, { startedAt = null } = {}) {
@@ -763,20 +848,27 @@ export class ThemeDirector {
     this.section = null;
     this.slot = null;
     this.memory.clear();
-    this.lastAutoAt = -Infinity;
+    this.lastLandAt = -Infinity;
     this.tab = null;
     if (this.pending && !this.pending.manual) this.pending = null;
   }
   setLock(on) {
     this.locked = !!on;
-    if (!this.locked || !this.pending) return;
-    if (!this.pending.manual) this.pending = null;        // the lock holds the theme
-    else { this.pending.want = "phrase"; this.pending.atMs = null; }   // Daniel's pick waits for the phrase line
+    const p = this.pending;
+    if (!p) return;
+    if (this.locked) {
+      if (!p.manual) this.pending = null;                 // the lock holds the theme
+      else { p.want = "phrase"; p.atMs = null; }          // Daniel's pick waits for the phrase line
+    } else if (p.manual && p.want === "phrase") {
+      p.want = "bar";                                     // lock off: his pick goes back to the next bar
+      p.atMs = null;
+    }
   }
   unpin() { this.pinned = false; }
 
   // the frame loop ----------------------------------------------------------------------------------------------
   tick(nowMs, clock) {
+    if (clock && typeof clock.observe === "function") clock.observe(nowMs);
     const picked = this.picker.poll(nowMs);
     if (picked) {
       this.pinned = true;
@@ -786,16 +878,16 @@ export class ThemeDirector {
       this._acceptKey(this.keyCand.name, nowMs, clock, "key");
     }
     const p = this.pending;
-    if (!p) return null;
-    if (p.atMs === null) this._schedule(nowMs, clock);
-    if (p.atMs === null || nowMs < p.atMs) return null;
+    if (!p || !this._due(nowMs, clock)) return null;
     const toBase = p.custom ? this.base : p.id;
     const change = Object.freeze({ id: p.id, custom: p.custom, from: this.current, atMs: p.atMs, on: p.on, reason: p.reason,
-                                   cut: needsDip(this.lib, this.base, toBase) });
+                                   cut: needsDip(this.lib, this.base, toBase,
+                                                 { fromHueDeg: this._hueFor(this.custom), toHueDeg: this._hueFor(p.custom) }) });
     this.current = p.id;
     this.custom = p.custom;
     if (!p.custom) this.base = p.id;
-    if (!p.manual) this.lastAutoAt = p.atMs;
+    this.lastLandAt = p.atMs;
+    this.shownHueDeg = null;
     if (p.reason !== "fader") this.picker.forget();        // the fader's detent no longer names the theme in use
     this.pending = null;
     this.log.push(change);
@@ -803,9 +895,18 @@ export class ThemeDirector {
     return change;
   }
 
-  // what the page draws with: the look for the theme in use (opts as themeLook's; the key's mode added when key auto is on)
-  lookOpts(extra = {}) { return { mode: this.keyAuto ? this.mode : null, custom: this.custom, ...extra }; }
-  look(extra = {}) { return themeLook(this.lib, this.base, this.lookOpts(extra)); }
+  // what the page draws with: the look for the theme in use (opts as themeLook's; the key's mode added when key auto is
+  // on, and fader 2's drift or turn when it is routed here and no hueDeg is given)
+  lookOpts(extra = {}) {
+    const o = { mode: this.keyAuto ? this.mode : null, custom: this.custom, ...extra };
+    if (!Number.isFinite(o.hueDeg) && this.fader2 !== null) o.hueDeg = this._hueFor(o.custom);
+    return o;
+  }
+  look(extra = {}) {
+    const o = this.lookOpts(extra);
+    if (!!o.custom === this.custom) this.shownHueDeg = Number.isFinite(o.hueDeg) ? o.hueDeg : 0;
+    return themeLook(this.lib, this.base, o);
+  }
   get state() {
     return {
       current: this.current, base: this.base, custom: this.custom, family: this.family, familySrc: this.familySrc,
@@ -819,10 +920,16 @@ export class ThemeDirector {
     const p = this.pending;
     return p && !p.custom ? p.id : this.base;
   }
-  _pickFor(family) {
+  // the hue turn a look in Custom (custom true) or inside a theme is drawn with: fader 2's when it is routed here, else
+  // the turn last drawn on that side (an unknown turn counts as none)
+  _hueFor(custom) {
+    if (this.fader2 !== null) return custom ? customTurnFromFader(this.fader2) : hueDriftFromFader(this.fader2);
+    return !!custom === this.custom && this.shownHueDeg !== null ? this.shownHueDeg : 0;
+  }
+  _pickFor(family, { own = false } = {}) {
     if (this.section === null) {
       if (this.lib.byId.get(this.base).family === family) return this.base;
-      const first = themeForSection(this.lib, family, null);
+      const first = themeForSection(this.lib, family, null, { ownFamily: own });
       return first ? first.id : this.lib.familyThemes[family][0];
     }
     const pick = themeForSection(this.lib, family, this.section);
@@ -845,14 +952,14 @@ export class ThemeDirector {
   _auto(id, reason, nowMs, clock, startedAt) {
     if (this.pinned || this.locked) return false;
     const bar = barMsOf(clock);
-    const notBefore = Number.isFinite(this.lastAutoAt) ? this.lastAutoAt + HOLD_BARS * bar : -Infinity;
+    const notBefore = Number.isFinite(this.lastLandAt) ? this.lastLandAt + HOLD_BARS * bar : -Infinity;
     const late = typeof startedAt === "number" && nowMs - startedAt <= bar && notBefore <= nowMs;
     return this._request(id, { manual: false, reason, want: late ? "bar" : "phrase", notBefore }, nowMs, clock);
   }
   _request(id, { manual, reason, custom = false, want = null, notBefore = -Infinity }, nowMs, clock) {
     const p = this.pending;
     if (!manual && p && p.manual) return false;
-    if (p && p.id === id && p.custom === custom && p.manual === manual) return false;   // already on its way: keep its time
+    if (p && p.id === id && p.custom === custom && p.manual === manual) return false;   // already on its way
     if (id === this.current && custom === this.custom) {    // already there: a waiting change is called off
       if (p && (manual || !p.manual)) this.pending = null;
       return false;
@@ -862,11 +969,29 @@ export class ThemeDirector {
     this._schedule(nowMs, clock);
     return true;
   }
+  // the first estimate of a waiting change's line (shown in state.pending), once its hold has run out
   _schedule(nowMs, clock) {
     const p = this.pending;
     if (!p || p.atMs !== null || nowMs < p.notBefore) return;
     const l = landing(nowMs, clock, p.want);
     p.atMs = l.atMs;
     p.on = l.on;
+  }
+  // every frame: re-read the waiting change's line from the clock; true when it is due. The line it waits for may have
+  // moved since the last frame: later (a slower tempo, a tap) or earlier. If it moved earlier past this frame (or this
+  // frame is simply past it) the clock now names the line after it, more than half a quantum on from the last estimate:
+  // the line has been reached, and the change lands now (recorded at the line, as the clock now places it).
+  _due(nowMs, clock) {
+    const p = this.pending;
+    if (nowMs < p.notBefore) return false;
+    const l = landing(nowMs, clock, p.want);
+    const q = quantumMs(clock, l.on);
+    if (l.atMs > nowMs && p.atMs !== null && l.on === p.on && l.on !== "now" && l.atMs - p.atMs > q / 2) {
+      p.atMs = Math.min(nowMs, l.atMs - q);
+      return true;
+    }
+    p.atMs = l.atMs;
+    p.on = l.on;
+    return nowMs >= p.atMs;
   }
 }

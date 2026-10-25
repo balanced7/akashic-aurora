@@ -372,7 +372,7 @@ test("automatic changes land on phrase lines, at least 8 bars apart; a section d
   d.onFamilyTab("celestial", 0, clock);         // Daniel's family tab, no section yet: its quiet start, on the bar (0 ms)
   assert.deepEqual(run(d, 0, 100, clock).map((x) => [x.id, x.reason]), [["celestial-violet", "family"]]);
   d.onSection("climax", 3000, clock);
-  assert.equal(d.state.pending.atMs, 16000, "the next phrase line");
+  assert.equal(d.state.pending.atMs, null, "held 8 bars after the tab's pick landed at 0: it lands on the phrase line at 16000");
   let c = run(d, 3000, 16000, clock);
   assert.deepEqual(c.map((x) => [x.id, x.atMs, x.reason]), [["violet-rose", 16000, "section"]]);
   d.onSection("break", 17000, clock);            // inside the 8-bar hold (until 32000)
@@ -422,7 +422,7 @@ test("the key's family: every key on the Camelot wheel, relative major and minor
   assert.equal(T.familyForKey(lib, "A minor"), "night");
   assert.equal(T.familyForKey(lib, "C# minor"), "celestial");
   assert.equal(T.familyForKey(lib, "Bb minor"), T.familyForKey(lib, "A# minor"), "enharmonic spellings agree");
-  for (const bad of ["H major", "C", "c major", "", null, 42]) assert.equal(T.parseKey(bad), null, String(bad));
+  for (const bad of ["H major", "C#x", "c major", "", null, 42]) assert.equal(T.parseKey(bad), null, String(bad));
   const fams = new Set(Object.values(lib.camelot).map((e) => e.family));
   for (const f of fams) assert.ok(lib.families[f], `${f} has a playbook`);
 });
@@ -611,4 +611,251 @@ test("themeLook is pure: the same inputs give the same look", () => {
   assert.throws(() => T.themeLook(lib, "no-such-theme"), /no theme/);
   const d = new T.ThemeDirector(lib, { initial: "uv-euphoria" });
   assert.equal(plain(d.look()), plain(T.themeLook(lib, "uv-euphoria")));
+});
+
+// ------------------------------------------------------------------- round 1 fixes (the verifier's verdict on 087df62d) --
+// The page's BeatClock fed the way the engine feeds it (each beat announced aheadMs early, with its number), 60 Hz frames, a
+// fresh clock adapter every frame (as the page hook-up will build it). press(d, now, clock) is called once at pressAt; the
+// result is the first change that lands, with the frame it landed on.
+function beatSim(beats, { pressAt, press = (d, now, clock) => d.onStep(1, now, clock), lock = false, aheadMs = 250,
+                          initial = "night-sea", endMs = null } = {}) {
+  const bc = new BeatClock(), d = new T.ThemeDirector(lib, { initial });
+  if (lock) d.setLock(true);
+  const dt = 1000 / 60, end = endMs ?? Math.max(beats[beats.length - 1].t, pressAt) + 9000;
+  let ai = 0, pressed = false;
+  for (let now = 0; now < end; now += dt) {
+    while (ai < beats.length && beats[ai].t - (beats[ai].ahead ?? aheadMs) <= now) {
+      const b = beats[ai++];
+      bc.schedule(now, { bpm: b.bpm, conf: 0.9, due_ms: b.t - now, n: b.n });
+    }
+    bc.update(now, dt / 1000);
+    const clock = T.clockFromBeatClock(bc, { bars: true });
+    if (!pressed && now >= pressAt) { pressed = true; press(d, now, clock); }
+    const change = d.tick(now, clock);
+    if (change) return { landed: now, change, d };
+  }
+  return { landed: null, change: null, d };
+}
+const FRAME = 1000 / 60 + 0.01;
+
+test("fix 1 (must fix): particles are held when the colour actually emitted is a saturated red, whatever tinted it", () => {
+  // the verifier's repro: Pink Pyro picked on the fader during a major-key track (key auto is on by default)
+  const clock = grid(400);
+  const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+  d.onKey({ name: "E major", src: "db" }, 0, clock);
+  d.onFader(T.faderCentre(lib, "pink-pyro"), 0);
+  run(d, 0, 40000, clock, 1000 / 60);
+  assert.equal(d.current, "pink-pyro");
+  const p = d.look().fx.particles;
+  assert.equal(p.hex, "#de3d56");
+  assert.ok(T.isSaturatedRed(p.hex), "the emitted particle colour is a saturated red (linear ratio 0.839)");
+  assert.equal(p.held, true, "so it must be held: steady embers, never pulsed");
+  // fader 2's drift with no key at all: +4 and +6 degrees turn Pink Pyro's A red
+  for (const hueDeg of [4, 6]) {
+    const q = new T.ThemeDirector(lib, { initial: "pink-pyro", keyAuto: false }).look({ hueDeg }).fx.particles;
+    assert.ok(T.isSaturatedRed(q.hex) && q.held, `drift +${hueDeg}: ${q.hex} held=${q.held}`);
+  }
+  // the sweep: every theme, both modes and none, drift -15..15 in 0.5 degree steps, and Custom round the wheel in 1 degree
+  // steps; a red particle colour is always flagged held, and a theme whose own particle colour is a held red stays held
+  let reds = 0, n = 0;
+  for (const t of lib.themes) {
+    const ownRed = T.isSaturatedRed(t.fx.particles === "white" ? "#ffffff" : t.fx.particles === "line" ? t.line : t[t.fx.particles]);
+    for (const mode of [null, "major", "minor"]) {
+      const variants = [];
+      for (let h = -15; h <= 15; h += 0.5) variants.push({ mode, hueDeg: h });
+      for (let h = 0; h < 360; h += 1) variants.push({ mode, hueDeg: h, custom: true });
+      for (const opts of variants) {
+        const q = T.themeLook(lib, t.id, opts).fx.particles;
+        n++;
+        if (T.isSaturatedRed(q.hex)) { reds++; assert.equal(q.held, true, `${t.id} ${JSON.stringify(opts)} ${q.hex}`); }
+        if (ownRed) assert.equal(q.held, true, `${t.id} ${JSON.stringify(opts)}: the theme's held ember stays held`);
+      }
+    }
+  }
+  assert.ok(n > 20000 && reds > 800, `${reds} red particle colours among ${n} looks`);
+});
+
+test("fix 2: a waiting change follows the beat grid until it lands (tempo ramp, refinement, re-anchor)", () => {
+  const ramp = [];
+  for (let n = 0, t = 1000; n < 120; n++) {
+    const bpm = n < 40 ? 150 : n < 56 ? 150 + (6 * (n - 40)) / 16 : 156;
+    ramp.push({ n, t, bpm });
+    t += 60000 / bpm;
+  }
+  // Theme Lock: the pick waits for the phrase line n = 64 through a 150 -> 156 ramp (was 240 ms late)
+  let r = beatSim(ramp, { pressAt: ramp[33].t + 30, lock: true });
+  assert.equal(r.change.on, "phrase");
+  assert.ok(r.landed >= ramp[64].t - 0.01 && r.landed - ramp[64].t <= FRAME, `ramp: off by ${(r.landed - ramp[64].t).toFixed(1)} ms`);
+  // the engine refines 150 -> 150.5 BPM after the press (was 40 ms late)
+  const refine = [];
+  for (let n = 0, t = 1000; n < 120; n++) { const bpm = n < 34 ? 150 : 150.5; refine.push({ n, t, bpm }); t += 60000 / bpm; }
+  r = beatSim(refine, { pressAt: refine[33].t + 30, lock: true });
+  assert.ok(r.landed >= refine[64].t - 0.01 && r.landed - refine[64].t <= FRAME, `refine: off by ${(r.landed - refine[64].t).toFixed(1)} ms`);
+  // a tap moves the grid half a beat later between the press and the bar (was 183 ms early)
+  const shifted = [];
+  for (let n = 0; n < 120; n++) shifted.push({ n, t: 1000 + n * 400 + (n >= 42 ? 200 : 0), bpm: 150 });
+  r = beatSim(shifted, { pressAt: shifted[40].t + 20 });
+  assert.equal(r.change.on, "bar");
+  assert.ok(r.landed >= shifted[44].t - 0.01 && r.landed - shifted[44].t <= FRAME, `re-anchor: off by ${(r.landed - shifted[44].t).toFixed(1)} ms`);
+  // and a steady grid at 128, 150 and 180 BPM still lands every press within a frame of its downbeat, never early
+  for (const bpm of [128, 150, 180]) {
+    const steady = Array.from({ length: 80 }, (_, n) => ({ n, t: 1000 + (n * 60000) / bpm, bpm }));
+    for (const k of [9, 22, 37]) {
+      const s = beatSim(steady, { pressAt: steady[k].t + 50 });
+      const down = steady.find((b) => b.n % 4 === 0 && b.t >= steady[k].t + 50);
+      assert.ok(s.landed >= down.t - 0.01 && s.landed - down.t <= FRAME, `${bpm} BPM press after beat ${k}: ${(s.landed - down.t).toFixed(1)} ms`);
+    }
+  }
+});
+
+test("fix 2: a grid that jumps earlier past the waiting line lands at once, not a bar late", () => {
+  // the pick waits for beat 44 at 18600 ms; the engine then announces beat 44 late (5 ms after it sounded, at 18560): the
+  // frame that hears it is past the moved line, and the next bar line is 1600 ms away
+  const beats = [];
+  for (let n = 0; n < 120; n++) {
+    beats.push(n < 44 ? { n, t: 1000 + n * 400, bpm: 150 } : { n, t: 1000 + n * 400 - 40, bpm: 150, ahead: n === 44 ? -5 : 250 });
+  }
+  const r = beatSim(beats, { pressAt: beats[41].t + 20 });
+  assert.ok(r.landed >= 18560 && r.landed - 18560 <= FRAME, `landed ${(r.landed - 18560).toFixed(1)} ms after the moved line`);
+});
+
+test("fix 2 (with the flywheel): a pick pressed while the beat drops out lands on the true downbeat, counting flywheel beats", () => {
+  // numbered beats 0..17, then silence: the BeatClock flywheels on (unnumbered beats) for 4 s after the last message.
+  // Flywheel beat 20 fires at 9000 ms; the press at 9100 waits for beat 24 at 10600 ms
+  const beats = Array.from({ length: 18 }, (_, n) => ({ n, t: 1000 + n * 400, bpm: 150 }));
+  const r = beatSim(beats, { pressAt: 9100, endMs: 14000 });
+  assert.ok(r.landed !== null, "it lands");
+  assert.equal(r.change.on, "bar");
+  assert.ok(r.landed >= 10600 - 0.01 && r.landed - 10600 <= FRAME, `landed at ${r.landed.toFixed(1)} (the downbeat is 10600)`);
+});
+
+test("fix 3: a family tab with no section known picks one of that family's own themes", () => {
+  const clock = grid(400);
+  const first = {};
+  for (const fam of Object.keys(lib.families)) {
+    const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+    d.onFamilyTab(fam, 100, clock);
+    const id = d.state.pending ? d.state.pending.id : d.current;
+    assert.equal(theme(id).family, fam, `tab ${fam} gave ${id} (${theme(id).family})`);
+    first[fam] = id;
+  }
+  assert.deepEqual([first.fire, first.pyro, first.worship], ["molten", "pink-pyro", "sanctuary-gold"]);
+  // presses inside a bar then walk the family from there
+  const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+  const ids = [];
+  for (const t of [100, 600, 1100]) { d.onFamilyTab("fire", t, clock); ids.push(d.state.pending.id); }
+  assert.deepEqual(ids, ["molten", "golden-wings", "fire-and-ice"]);
+  // key auto keeps the family's playbook for a quiet start (Fire's anti-climax is Void Ritual by design)
+  const k = new T.ThemeDirector(lib, { initial: "night-sea" });
+  k.onKey({ name: "F minor", src: "db" }, 0, clock);
+  assert.equal(k.state.pending.id, lib.families.fire.anti);
+});
+
+test("Theme Lock turned off before a pick lands puts it back on the next bar", () => {
+  const clock = grid(500);
+  const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+  d.onStep(1, 100, clock);
+  d.setLock(true);
+  d.setLock(false);
+  const c = run(d, 100, 20000, clock);
+  assert.deepEqual(c.map((x) => [x.atMs, x.on]), [[2000, "bar"]]);
+});
+
+test("Custom's turn of the wheel counts in the black-dip test", () => {
+  const clock = grid(500);
+  // Custom turned half way round (the page draws it with hueDeg 180), then a step to Temple of Light
+  const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+  d.onFader(T.faderCentre(lib, "custom"), 0);
+  run(d, 0, 2000, clock);
+  assert.equal(d.custom, true);
+  d.look({ hueDeg: 180 });
+  d.onStep(1, 2100, clock);
+  let c = run(d, 2100, 4000, clock);
+  assert.deepEqual(c.map((x) => [x.id, x.cut]), [["temple-light", true]]);
+  // fader 2 routed to the director: the same turn, and Custom turned 180 degrees back to its own theme dips too
+  const e = new T.ThemeDirector(lib, { initial: "night-sea" });
+  e.onFader2(0.5);
+  e.onFader(T.faderCentre(lib, "custom"), 0);
+  run(e, 0, 2000, clock);
+  assert.ok(Math.abs(T.toOklch(e.look().scene.stops[0].lin).h - T.toOklch(T.themeLook(lib, "night-sea", { custom: true, hueDeg: 180 }).scene.stops[0].lin).h) < 1e-9);
+  e.onFader2(0.5);
+  e.onFader(T.faderCentre(lib, "night-sea"), 2100);
+  c = run(e, 2100, 6000, clock);
+  assert.deepEqual(c.map((x) => [x.id, x.custom, x.cut]), [["night-sea", false, true]]);
+  // an unturned Custom (fader 2 at 0) stepping to Temple of Light is a short hue move: a crossfade
+  const f = new T.ThemeDirector(lib, { initial: "night-sea" });
+  f.onFader2(0);
+  f.onFader(T.faderCentre(lib, "custom"), 0);
+  run(f, 0, 2000, clock);
+  f.onStep(1, 2100, clock);
+  assert.deepEqual(run(f, 2100, 4000, clock).map((x) => [x.id, x.cut]), [["temple-light", false]]);
+  assert.equal(T.needsDip(lib, "night-sea", "night-sea", { fromHueDeg: 180 }), true);
+  assert.equal(T.needsDip(lib, "night-sea", "night-sea"), false);
+});
+
+test("a different key below confidence 0.6 still breaks a waiting chordsense key's 8 quiet bars", () => {
+  const clock = grid(500);                      // bars of 2000 ms
+  const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+  d.onKey({ name: "Db major", conf: 0.7, src: "audio" }, 0, clock);
+  for (let bar = 1; bar <= 8; bar++) d.onKey({ name: "C major", conf: 0.5, src: "audio" }, bar * 2000, clock);
+  run(d, 0, 17000, clock);
+  assert.equal(d.state.key, null, "C major kept arriving: Db major has not been stable for 8 bars");
+  run(d, 17000, 32000, clock);
+  assert.equal(d.state.key, "Db major", "8 quiet bars after the last other key");
+});
+
+test("an automatic change holds off for 8 bars after a family-tab pick too", () => {
+  const clock = grid(500);                      // bars 2000 ms, phrases 16000 ms
+  const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+  d.onFamilyTab("celestial", 13000, clock);     // lands on the bar at 14000, a bar before the phrase line
+  const c = run(d, 13000, 14450, clock);
+  d.onSection("climax", 14500, clock);
+  c.push(...run(d, 14500, 40000, clock));
+  assert.deepEqual(c.map((x) => [x.id, x.atMs, x.reason]), [["celestial-violet", 14000, "family"], ["violet-rose", 32000, "section"]]);
+});
+
+test("keys spelled the song-database way (Am, F#m, C, 8A) are understood, and spellings of one key agree", () => {
+  assert.equal(T.parseKey("Am").camelot, "8A");
+  assert.equal(T.parseKey("Am").name, "A minor");
+  assert.equal(T.parseKey("F#m").camelot, T.parseKey("F# minor").camelot);
+  assert.equal(T.parseKey("Gbm").camelot, T.parseKey("F#m").camelot);
+  assert.equal(T.parseKey("C").camelot, "8B");
+  assert.equal(T.parseKey("Ebmaj").camelot, T.parseKey("Eb major").camelot);
+  assert.equal(T.parseKey("Bbmin").camelot, T.parseKey("Bb minor").camelot);
+  assert.equal(T.parseKey("D Major").name, "D major");
+  assert.equal(T.parseKey("A Minor").camelot, "8A");
+  assert.equal(T.parseKey("CM"), null, "a capital M alone is ambiguous");
+  assert.equal(T.parseKey("8A").name, "A minor");
+  assert.equal(T.parseKey("12B").camelot, "12B");
+  assert.equal(T.parseKey("5A").camelot, T.parseKey("C minor").camelot);
+  for (const bad of ["H major", "Cm7", "c major", "13A", "0B", "", null]) assert.equal(T.parseKey(bad), null, String(bad));
+  const clock = grid(500);
+  const d = new T.ThemeDirector(lib, { initial: "celestial-violet" });
+  d.onKey({ name: "Am", src: "db" }, 0, clock);
+  assert.equal(d.state.key, "A minor");
+  assert.equal(d.family, "night");
+  // chordsense confirming the same key in another spelling is not a new key
+  d.onKey({ name: "A minor", conf: 0.9, src: "audio" }, 1000, clock);
+  assert.equal(d.state.pending ? d.state.pending.reason : "db-key", "db-key");
+  assert.equal(d.keyCand, null);
+});
+
+test("twelve red-safe hit colours for the pads' effects: today's palette diagonal with saturated reds taken out", () => {
+  const diag = (i) => ((i % 4) + ((i / 4) | 0)) % 4;
+  const variants = [{}, { mode: "major" }, { mode: "minor" }, { hueDeg: 15 }, { hueDeg: -15 }, { swap: true }];
+  for (let h = 0; h < 360; h += 5) variants.push({ custom: true, hueDeg: h }, { custom: true, hueDeg: h, mode: "major" });
+  for (const t of lib.themes) {
+    for (const opts of variants) {
+      const L = T.themeLook(lib, t.id, opts);
+      assert.equal(L.fx.padHits.length, 12);
+      L.fx.padHits.forEach((c, i) => {
+        assert.ok(!T.isSaturatedRed(c.hex), `${t.id} ${JSON.stringify(opts)} pad ${i + 1} ${c.hex}`);
+        const stop = L.scene.stops[diag(i)];
+        if (t.held.includes(stop.role)) assert.equal(c.hex, L.lasers.L1.hex, `${t.id} pad ${i + 1}: a held role hits as the laser colour`);
+        else if (!T.isSaturatedRed(stop.hex)) assert.equal(c.hex, stop.hex, `${t.id} pad ${i + 1} keeps its stop`);
+      });
+    }
+  }
+  assert.deepEqual([0, 7].map((i) => T.themeLook(lib, "molten").fx.padHits[i].hex), ["#f0b225", "#f0b225"], "Molten's ember pads hit gold");
+  assert.equal(T.themeLook(lib, "night-sea").fx.padHits[0].hex, "#0155bc");
 });
