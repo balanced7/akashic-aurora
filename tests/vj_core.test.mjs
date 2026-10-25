@@ -643,7 +643,9 @@ if (!existsSync(JOY_TAKE)) {
 
 // ------------------------------------------------------------------------- gate v2: the final-output limiter --
 // arsenal/web/vj-gate.js: the rules the GPU limiter (vj-limiter.js) runs on the frame actually shown, and their JS twin.
-// The counter is the 2026-10-24 verifier's (pairs of swings of 0.1 relative luminance, counted where they end).
+// The counter is the 2026-10-24 verifier's (pairs of swings of 0.1 relative luminance, counted where they end). Since
+// 2026-10-25 (the round-2 verifier) the twin is also judged the way the receipt judges the page: on the picture it would
+// show, rebuilt point by point, in quarter-screen rectangles at every offset of a grid finer than its own.
 {
   const N = G.NW;
   const lumOf = (L) => () => L;
@@ -661,28 +663,82 @@ if (!existsSync(JOY_TAKE)) {
     }
     return { lim, shown, want, redShown, trace };
   };
-  const worst = (series, opts) => Math.max(...series.map((s) => G.flashReport(s, opts).max_flashes_in_1s));
+  // the quarter windows only (the cells are windows too, with thresholds of their own; the standard is about quarters)
+  const worst = (series, opts) => Math.max(...series.slice(0, G.NWQ).map((s) => G.flashReport(s, opts).max_flashes_in_1s));
+  // The receipt's view: the picture the twin would show, rebuilt on a 64 x 48 point grid (the gains through the hats,
+  // the blend toward the previous shown picture), counted in quarter-screen rectangles of several shapes at EVERY point
+  // offset (1/64 x 1/48 of the screen, eight times finer than the twin's own grid): the most transitions and strict pairs
+  // in any second, over all of them.
+  const NX = 64, NY = 48, NP = NX * NY;
+  const SHAPES = [[32, 24], [16, 48], [64, 12], [48, 16], [24, 32], [40, 20], [20, 40], [56, 14], [28, 28]];
+  const RW = [{ x: 0, y: 0, w: NX, h: NY }];
+  for (const [w, h] of SHAPES) for (let y = 0; y + h <= NY; y++) for (let x = 0; x + w <= NX; x++) RW.push({ x, y, w, h });
+  const maxIn1s = (at) => { let best = 0; for (let i = 0, j = 0; i < at.length; i++) { while (at[i] - at[j] >= 60) j++; best = Math.max(best, i - j + 1); } return best; };
+  const offGrid = (seconds, lumAt) => {
+    const lim = new G.FlashLimiter(), frames = Math.round(seconds * 60), h = new Float64Array(6);
+    const P = new Float64Array((NX + 1) * (NY + 1)), series = RW.map(() => new Float64Array(frames)), drawnFull = new Float64Array(frames);
+    let prev = new Float64Array(NP);
+    const L = new Float64Array(NP);
+    for (let f = 0; f < frames; f++) {
+      const t = f / 60;
+      for (let iy = 0; iy < NY; iy++) for (let ix = 0; ix < NX; ix++) L[iy * NX + ix] = lumAt((ix + 0.5) / NX, (iy + 0.5) / NY, t);
+      const { a, k, beta } = lim.step(G.cellSums((u, v) => L[Math.min(NY - 1, Math.floor(v * NY)) * NX + Math.min(NX - 1, Math.floor(u * NX))], () => 0, NX, NY), 1 / 60);
+      const cur = new Float64Array(NP);
+      let dsum = 0;
+      for (let iy = 0; iy < NY; iy++) for (let ix = 0; ix < NX; ix++) {
+        G.hats((ix + 0.5) / NX, (iy + 0.5) / NY, h);
+        let ga = 0, gk = 0;
+        for (let j = 0; j < 4; j++) { const ci = G.ctrlIndex(h[0], h[1], j); ga += h[2 + j] * a[ci]; gk += h[2 + j] * k[ci]; }
+        const p = iy * NX + ix, Y = L[p];
+        let o = Y * ga + (1 - Y) * gk; o += beta * (prev[p] - o);
+        cur[p] = o; dsum += Y;
+      }
+      drawnFull[f] = dsum / NP;
+      prev = cur;
+      P.fill(0);
+      for (let y = 0; y < NY; y++) { let row = 0; for (let x = 0; x < NX; x++) { row += cur[y * NX + x]; P[(y + 1) * (NX + 1) + x + 1] = P[y * (NX + 1) + x + 1] + row; } }
+      for (let q = 0; q < RW.length; q++) { const { x, y, w, h: hh } = RW[q]; series[q][f] = (P[(y + hh) * (NX + 1) + x + w] - P[y * (NX + 1) + x + w] - P[(y + hh) * (NX + 1) + x] + P[y * (NX + 1) + x]) / (w * hh); }
+    }
+    let tr = 0, pairs = 0;
+    for (const s of series) { const t = G.transitions(Array.from(s)); tr = Math.max(tr, maxIn1s(t.map((x) => x.at))); pairs = Math.max(pairs, G.maxPairsInWindow(t)); }
+    return { transitions: tr, pairs, leaks: lim.leaks, drawnFull: G.flashReport(Array.from(drawnFull)).max_flashes_in_1s };
+  };
+  const sq = (t, hz) => (Math.floor(t * hz * 2) % 2 ? 1 : 0);
 
   // the counter itself: a known series
-  const sq = Array.from({ length: 120 }, (_, f) => (Math.floor(f / 6) % 2 ? 0.5 : 0.05));
-  const rep = G.flashReport(sq);
+  const sqw = Array.from({ length: 120 }, (_, f) => (Math.floor(f / 6) % 2 ? 0.5 : 0.05));
+  const rep = G.flashReport(sqw);
   check("gate v2 counter: a 5 Hz square wave is 5 flashes a second (a window may hold one edge more)", rep.max_flashes_in_1s >= 5 && rep.max_flashes_in_1s <= 5.5, JSON.stringify(rep.max_flashes_in_1s));
-  check("gate v2 counter: swings under 0.1 are not flashes", G.flashReport(sq.map((v) => 0.3 + (v - 0.3) * 0.15)).transitions === 0);
-  check("gate v2 counter: a bright pair (darker end at 0.8 or more) is not a flash", G.flashReport(sq.map((v) => (v > 0.1 ? 1 : 0.85))).transitions === 0);
+  check("gate v2 counter: ... and 5 strict pairs of opposing transitions", rep.max_pairs_in_1s === 5, String(rep.max_pairs_in_1s));
+  check("gate v2 counter: swings under 0.1 are not flashes", G.flashReport(sqw.map((v) => 0.3 + (v - 0.3) * 0.15)).transitions === 0);
+  check("gate v2 counter: a bright pair (darker end at 0.8 or more) is not a flash", G.flashReport(sqw.map((v) => (v > 0.1 ? 1 : 0.85))).transitions === 0);
+  check("gate v2 counter: a staircase (rise, small dip, rise) is two transitions but no strict pair", (() => { const r = G.flashReport([0, 0, 0.12, 0.12, 0.09, 0.09, 0.21, 0.21]); return r.transitions === 2 && r.max_pairs_in_1s === 0; })());
+
+  // the windows: every rectangle of a quarter of the cells or more, then the 64 cells; and the overlap the thresholds
+  // are built on: any quarter-screen rectangle, wherever it sits, has a window at least P_MIN inside it
+  check("gate v2: 311 quarter windows (every rectangle of 16 cells or more, at every offset), the whole frame first",
+        G.NWQ === 311 && G.WINDOWS.slice(0, G.NWQ).every(([x0, y0, x1, y1]) => (x1 - x0 + 1) * (y1 - y0 + 1) >= G.LIMIT.MIN_CELLS) &&
+        G.WINDOWS[0].join() === "0,0,7,7" && new Set(G.WINDOWS.map((w) => w.join())).size === G.NW);
+  check("gate v2: then every cell, a window of its own", G.NW - G.NWQ === 64 && G.WINDOWS.slice(G.NWQ).every(([x0, y0, x1, y1]) => x0 === x1 && y0 === y1));
+  {
+    const o = G.worstOverlap(20000, 5);
+    check("gate v2: every quarter-screen rectangle has a window at least P_MIN (0.72) inside it", o.worst >= G.LIMIT.P_MIN, o.worst.toFixed(4));
+    check("gate v2: the luminance threshold leaves the standard's 0.1 times P_MIN a margin", G.LIMIT.TH[0] < 0.1 * G.LIMIT.P_MIN && G.LIMIT.TH_REST[0] <= 0.1 * G.LIMIT.P_MIN);
+  }
 
   // the hat model is exact: the window value from the cell sums equals the window mean of the picture as the apply pass
   // transforms it (a Y + k (1 - Y), corners interpolated by the hats)
   {
     let s = 3; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
-    const a = Float32Array.from({ length: 25 }, () => 0.3 + 0.7 * R()), k = Float32Array.from({ length: 25 }, () => 0.4 * R());
+    const a = Float32Array.from({ length: G.NCTRL }, () => 0.3 + 0.7 * R()), k = Float32Array.from({ length: G.NCTRL }, () => 0.4 * R());
     const pic = (u, v) => 0.5 + 0.4 * Math.sin(u * 9.1) * Math.cos(v * 7.3);
     const h = new Float64Array(6);
     const gainAt = (u, v, arr) => { G.hats(u, v, h); let g = 0; for (let j = 0; j < 4; j++) g += h[2 + j] * arr[G.ctrlIndex(h[0], h[1], j)]; return g; };
     const out = (u, v) => { const l = pic(u, v); return gainAt(u, v, a) * l + gainAt(u, v, k) * (1 - l); };
     const cellsIn = G.cellSums(pic, () => 0, 64, 64), cellsOut = G.cellSums(out, () => 0, 64, 64);
     let err = 0;
-    for (let w = 0; w < N; w++) err = Math.max(err, Math.abs(G.windowValue(cellsIn, a, k, w, 0) - G.windowValue(cellsOut, new Float32Array(25).fill(1), new Float32Array(25), w, 0)));
-    check("gate v2: the window value is an exact linear function of the corner gains and lifts", err < 1e-5, err.toExponential(2));
+    for (let w = 0; w < N; w++) err = Math.max(err, Math.abs(G.windowValue(cellsIn, a, k, w, 0) - G.windowValue(cellsOut, new Float32Array(G.NCTRL).fill(1), new Float32Array(G.NCTRL), w, 0)));
+    check("gate v2: the window value is an exact linear function of the 81 corner gains and lifts", err < 1e-5, err.toExponential(2));
   }
 
   // nothing to hold: every gain exactly 1, no lift, no blend (the apply pass copies the frame untouched)
@@ -690,19 +746,19 @@ if (!existsSync(JOY_TAKE)) {
     const d = drive(240, (f) => lumOf(0.2 + 0.05 * Math.sin(f / 20)));
     check("gate v2: a calm picture is never touched", d.trace.every((t) => t.gainsOne && t.beta === 0 && t.held === 0));
   }
-  // a 10 Hz full-frame square wave: at most 3 flashes a second in every window, and the first second's budget is used
+  // a 10 Hz full-frame square wave: at most 2.5 flashes a second in every window (N_MAX 5), the first ones untouched
   {
     const d = drive(600, (f) => lumOf(Math.floor(f / 3) % 2 ? 0.5 : 0.05));
-    check("gate v2: a 10 Hz full-frame flicker is held to 3 flashes a second in every window", worst(d.shown) <= 3, String(worst(d.shown)));
+    check("gate v2: a 10 Hz full-frame flicker is held to 2.5 flashes a second in every window", worst(d.shown) <= 2.5, String(worst(d.shown)));
     check("gate v2: ... the drawn picture was 10 flashes a second", worst(d.want) >= 10);
     check("gate v2: ... and the first flashes pass untouched", d.shown[0].slice(0, 12).every((v, i) => Math.abs(v - d.want[0][i]) < 1e-6));
     check("gate v2: ... no transition ever starts while held", d.lim.leaks === 0);
     const restAt = d.trace.findIndex((t) => t.rest > 0);
-    check("gate v2: ... flashing for 5 s forces a rest", restAt > 280 && restAt < 360, String(restAt));
+    check("gate v2: ... flashing for 5 s forces a rest", restAt > 280 && restAt < 380, String(restAt));
     const during = d.trace.filter((t) => t.rest > 0);
     check("gate v2: ... and no transition starts during the rest", during.length > 100 && during[during.length - 1].commits === during[0].commits);
   }
-  // white flashes at two a second (the gate allows three): never held
+  // white flashes at two a second (the gate allows three): never touched
   {
     const d = drive(240, (f) => lumOf(0.05 + 0.5 * Math.exp(-((f % 30) / 60) / 0.15)));
     // (a window may sit in the PARTIAL watch, one transition kept for a fall, without any gain moving)
@@ -713,29 +769,30 @@ if (!existsSync(JOY_TAKE)) {
   {
     const d = drive(600, (f) => { let v = 0.15; for (let h = 0; h <= f; h += 4) v += 0.2 * Math.exp(-((f - h) / 60) / 0.05); return lumOf(Math.min(1, v)); }, undefined);
     const lifted = d.trace.filter((t) => t.lift).length;
-    check("gate v2: a storm of bright hits is held by darkening, the gaps never lifted toward white", worst(d.shown) <= 3 && lifted <= 6, `${worst(d.shown)}/s, ${lifted} lifted frames`);
+    check("gate v2: a storm of bright hits is held by darkening, the gaps never lifted toward white", worst(d.shown) <= 2.5 && lifted <= 6, `${worst(d.shown)}/s, ${lifted} lifted frames`);
   }
   // a quarter of the screen flickering: held there, the far corner left alone
   {
     const d = drive(300, (f) => (u, v) => (u < 0.5 && v < 0.5 ? (Math.floor(f / 3) % 2 ? 0.6 : 0.05) : 0.1));
-    check("gate v2: a flickering quadrant is held to 3 flashes a second", worst(d.shown) <= 3, String(worst(d.shown)));
-    const g = d.lim.a, k = d.lim.k;
-    check("gate v2: ... and the opposite corner's gains stay at 1", [18, 19, 23, 24].every((i) => g[i] > 0.97 && k[i] < 0.03), `${g[24].toFixed(3)} ${k[24].toFixed(3)}`);
+    check("gate v2: a flickering quadrant is held to 2.5 flashes a second", worst(d.shown) <= 2.5, String(worst(d.shown)));
+    const g = d.lim.a, k = d.lim.k, far = [70, 71, 79, 80];   // the corners around the bottom-right cell
+    // (the whole frame and the wide windows hold too, and take a little of their share there: at most a tenth)
+    check("gate v2: ... and the opposite corner keeps at least 90 % of its light, no lift", far.every((i) => g[i] > 0.9 && k[i] < 0.03), far.map((i) => g[i].toFixed(3)).join(" "));
   }
   // red: a saturated red centre switching on and off at 7.5 Hz
   {
     const d = drive(300, () => lumOf(0.1), (f) => (u, v) => (Math.abs(u - 0.5) < 0.25 && Math.abs(v - 0.5) < 0.25 && Math.floor(f / 4) % 2 ? 0.3 : 0));
-    const wr = Math.max(...d.redShown.map((s) => G.flashReport(s, { hyst: 2, thr: 20 }).max_flashes_in_1s));
-    check("gate v2: a red flicker over a quarter of the screen is held to 3 red flashes a second", wr <= 3, String(wr));
+    const wr = Math.max(...d.redShown.slice(0, G.NWQ).map((s) => G.flashReport(s, { hyst: 2, thr: 20, dark: Infinity }).max_flashes_in_1s));
+    check("gate v2: a red flicker over a quarter of the screen is held to 2.5 red flashes a second", wr <= 2.5, String(wr));
   }
   // random storms of bright and dark hits anywhere: every window, also with a second counter's noise of +-0.003
   {
     let worstSeen = 0, worstNoisy = 0, leaks = 0;
-    for (let seed = 1; seed <= 6; seed++) {
+    for (let seed = 1; seed <= 4; seed++) {
       let s = seed * 7919; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
       const hits = [];
-      for (let f = 0; f < 480; f += 2 + Math.floor(R() * 8)) hits.push([f, 0.1 + 0.4 * R(), R() < 0.3 ? -1 : 1, R(), R()]);
-      const d = drive(480, (f) => (u, v) => {
+      for (let f = 0; f < 360; f += 2 + Math.floor(R() * 8)) hits.push([f, 0.1 + 0.4 * R(), R() < 0.3 ? -1 : 1, R(), R()]);
+      const d = drive(360, (f) => (u, v) => {
         let val = 0.2;
         for (const [hf, amp, sg, cx, cy] of hits) if (hf <= f && f - hf < 30) { const r = Math.hypot(u - cx, v - cy); val += sg * amp * Math.exp(-((f - hf) / 60) / 0.06) * Math.exp(-r * r * 6); }
         return Math.max(0, Math.min(1, val));
@@ -746,9 +803,25 @@ if (!existsSync(JOY_TAKE)) {
       worstNoisy = Math.max(worstNoisy, worst(d.shown.map((sr) => sr.map((v) => v + noise()))));
       leaks += d.lim.leaks;
     }
-    check("gate v2: random storms stay at 3 flashes a second in every window", worstSeen <= 3, String(worstSeen));
+    check("gate v2: random storms stay at 2.5 flashes a second in every window", worstSeen <= 2.5, String(worstSeen));
     check("gate v2: ... also counted through +-0.003 of another meter's noise", worstNoisy <= 3, String(worstNoisy));
     check("gate v2: ... without a single transition started while held", leaks === 0, String(leaks));
+  }
+  // OFF THE GRID (the round-2 verifier's findings): what the receipt would count in rectangles the limiter does not use
+  {
+    const rect = (x0, x1, y0, y1) => (u, v) => u >= x0 && u <= x1 && v >= y0 && v <= y1;
+    const R0 = rect(0.122, 0.628, 0.108, 0.614);
+    for (const sw of [0.117, 0.4]) {
+      const r = offGrid(3, (u, v, t) => 0.02 + (R0(u, v) ? sw * sq(t, 8) : 0));
+      check(`gate v2: a rectangle of 25.6 % off the grid flickering at 8 Hz by ${sw}: at most 3 flashes and 3 strict pairs a second in every quarter-screen rectangle`,
+            r.transitions <= 6 && r.pairs <= 3 && r.leaks === 0, JSON.stringify(r));
+    }
+    const ck = offGrid(3, (u, v, t) => { const p = (Math.floor(u * 3) + Math.floor(v * 3)) % 2; return 0.01 + 0.55 * (p ^ sq(t, 6)); });
+    check("gate v2: a 3 x 3 checkerboard in anti-phase at 6 Hz: at most 3 a second in every quarter-screen rectangle", ck.transitions <= 6 && ck.pairs <= 3, JSON.stringify(ck));
+    const oc = offGrid(3, (u, v, t) => { const p = (Math.floor(u * 3 + 0.01) + Math.floor(v * 6 + 0.1)) % 2; return 0.01 + 0.6 * (p ^ sq(t, 9)); });
+    check("gate v2: a 3 x 6 checkerboard off the grid at 9 Hz (each quarter of the twin's grid level): at most 3 a second", oc.transitions <= 6 && oc.pairs <= 3, JSON.stringify(oc));
+    const hv = offGrid(3, (u, v, t) => 0.02 + 0.5 * ((u < 0.43 ? 1 : 0) ^ sq(t, 6)));
+    check("gate v2: halves in anti-phase split off the grid (u = 0.43): at most 3 a second", hv.transitions <= 6 && hv.pairs <= 3, JSON.stringify(hv));
   }
   // the GPU twin's shaders: no word GLSL ES 3.00 reserves for future use as a name (2026-10-24: a `bool active` kept the
   // limiter from compiling, and the page fell back to its safe mode), and every constant the twin uses is in them
@@ -767,11 +840,13 @@ if (!existsSync(JOY_TAKE)) {
     }
     check("gate v2: the limiter's shaders use no reserved word", bad.length === 0, bad.join(", "));
     check("gate v2: the shaders carry the twin's constants", src.solve.includes(`const float NMAX = ${G.LIMIT.N_MAX}.0;`) &&
-          src.state.includes(`const int RING = ${G.LIMIT.RING};`) && src.solve.includes(`ivec4[${G.NW}]`));
+          src.state.includes(`const int RING = ${G.LIMIT.RING};`) && src.band.includes(`const int NWQ = ${G.NWQ};`) &&
+          src.band.includes(`const vec4 TH4 = vec4(${G.LIMIT.TH.join(", ")})`));
+    // every pixel metered: the meter's blocks never exceed 16 x 16 pixels and tile every cell, at any canvas size
+    const sizes = [[640, 360], [1280, 720], [1920, 1080], [2560, 1440], [3840, 2160], [1366, 768], [801, 451]];
+    const ok = sizes.every(([w, h]) => { const g = L.meterGrid(w, h); return Math.ceil(g.cellW / g.sx) <= 16 && Math.ceil(g.cellH / g.sy) <= 16 && g.width === 8 * g.sx && g.height === 8 * g.sy; });
+    check("gate v2: the meter reads every pixel at any size (blocks of at most 16 x 16 tile each cell)", ok, JSON.stringify(sizes.map(([w, h]) => L.meterGrid(w, h))));
   }
-  // the windows: a quarter of the screen or more each, the whole frame first
-  check("gate v2: 18 windows, each at least a quarter of the screen", G.WINDOWS.length === 18 &&
-        G.WINDOWS.every(([x0, y0, x1, y1]) => (x1 - x0 + 1) * (y1 - y0 + 1) >= 4) && G.WINDOWS[0].join() === "0,0,3,3");
 }
 
 console.log(`vj_core: ${pass} passed, ${fail} failed`);

@@ -82,9 +82,10 @@
       <label class="check"><input type="checkbox" id="opt-leds" checked="checked" /> Light the KeyLab pads (through the engine)</label>
       <label class="check"><input type="checkbox" id="opt-punch" checked="checked" /> Punch, shake and dip on pad hits (the impact layer)</label>
       <label class="check"><input type="checkbox" id="opt-snap" /> Beat snap: a pad hit waits for the next 16th of a live beat (<kbd>B</kbd>)</label>
-      <p class="note">Flash safety is always on: every frame passes the flash limiter last (at most three flashes a second over
-        a quarter of the screen, red included, and a short rest after about five seconds of flashing). It only ever takes
-        light away, and only when the picture would flash too often.</p>
+      <p class="note">Flash safety is always on: every frame passes the flash limiter last (fewer than three flashes a second
+        over any quarter of the screen, wherever it sits, red included, and a short rest after about five seconds of
+        flashing). It only ever takes light away, and only when the picture would flash too often. Until the limiter runs
+        (a moment after the page opens), and for good if this GPU cannot run it, pad effects are refused.</p>
     </section>
   </aside>
 </main>

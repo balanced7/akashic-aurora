@@ -35,9 +35,14 @@
 // URL: ?engine=http://127.0.0.1:8794 (default; "off" for none) ?demo=1 ?demopads=0 ?sets=id,id,... ?hud=0
 // Safety: full-frame flashes pass the FlashGate (<= 3 in any second) in JS and envFlashSafe in the composite shader; and
 // since 2026-10-24 every frame passes gate v2 last (vj-limiter.js on the GPU, its rules and JS twin in vj-gate.js): the
-// picture actually shown, after every layer, measured in 18 windows of a quarter of the screen or more, never makes a
-// fourth flash in any second (nor a red one, nor flashes for more than about five seconds without a rest). The gate
-// still decides which flashes are asked for at all; the limiter only ever takes light away from the rest.
+// picture actually shown, after every layer, every pixel metered, in every rectangle of 8 x 8 cells covering a quarter of
+// the screen or more (311 windows, at every offset) and in every cell, never makes a fourth flash in any second (it holds
+// each window to two and a half; nor a red one, nor flashes for more than about five seconds without a rest). The gate
+// still decides which flashes are asked for at all; the limiter only ever takes light away from the rest. Without a
+// running limiter (its programs still compiling, or a GPU that cannot run them) the page is in its SAFE MODE: every pad
+// effect is refused (the set plays on; dampen, choke, kill and the scene keys still work), so nothing on the screen is
+// left to the FlashGate alone. ?limiter=cpu decides on the CPU (the JS twin, a readback a frame); ?limiter=off forces the
+// safe mode (receipts).
 import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
   starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, serializePadMap, actionLabel,
@@ -84,6 +89,8 @@ const STORE = { pads: "arsenal.vj.padMap", ctl: "arsenal.vj.ctlMap", values: "ar
 const KEY_PADS = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9,
                    Digit0: 10, Minus: 11, Equal: 12 };
 const SCENE_POST_MIN_MS = 120;         // the scene report to the engine: newest wins, at most ~8 a second
+// ?limiter=cpu (the JS twin decides, always), off (the safe mode), late (the twin until two seconds in, then the GPU)
+const LIMITER_MODE = (() => { const m = QS.get("limiter"); return m === "cpu" || m === "off" || m === "late" ? m : "auto"; })();
 const LATENCY_KEEP = 64;
 const NOTE_NAMES = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
 const PLAY_UNIFORMS = [
@@ -741,6 +748,7 @@ function uniformsOf(gl, prog, names) {
   return u;
 }
 
+const SAFE_MODE_BANNER = "The flash limiter could not start: the VJ rig runs in its safe mode (the sets play; pad effects are refused).";
 function initGL() {
   const gl = G.gl || canvas.getContext("webgl2", { alpha: false, antialias: false, depth: false, stencil: false,
     premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: "high-performance" });
@@ -802,17 +810,19 @@ function initGL() {
     return false;
   }
   if (stage) stage.initGL(gl, { internalFormat: G.fbInternal, type: G.fbType });   // transitions and the look
-  // gate v2, the final-output flash limiter. Without a float target it cannot keep its state: the page then runs in its
-  // safe mode (no punch, shake or dip, no set reactions to pads) and says so.
+  // gate v2, the final-output flash limiter. Without a float target it cannot meter: the page then runs in its safe mode
+  // (every pad effect refused) and says so.
   if (G.limiter) { try { G.limiter.dispose(); } catch { /* a lost context took it */ } }
   G.limiter = null;
   try {
-    G.limiter = createLimiter(gl, { preInternal: G.fbInternal, preType: G.fbType });
+    if (LIMITER_MODE === "off") throw new Error("?limiter=off: the safe mode, asked for");
+    G.limiter = createLimiter(gl, { preInternal: G.fbInternal, preType: G.fbType, decide: LIMITER_MODE === "cpu" ? "cpu" : "auto",
+                                    lateFrames: LIMITER_MODE === "late" ? 120 : 0 });
     G.limiterError = "";
   } catch (err) {
     G.limiterError = String(err.message || err);
     recordError("compile", "vj-limiter", G.limiterError);
-    banner("The flash limiter could not start: the VJ rig runs in its safe mode (no punch, no set reactions to pads).");
+    banner(SAFE_MODE_BANNER);
   }
   return true;
 }
@@ -982,7 +992,18 @@ function nextValid(from) {
 }
 // Switch to set `to` (the next valid one by default): the stage (vj-stage.js) plans it on the next bar or beat, in the
 // panel's transition style (or `style`), two beats long; 1.2 s from now without a beat.
+// THE SAFE MODE's scenes (no limiter running): a switch is a crossfade, at most one a second, never cut short by the next
+// (a switch while a fade runs would land the fade at once: a cut, and a storm of them flashes like pads do)
+const SAFE_SCENE_MIN_MS = 1000;
+let safeSceneAt = -1e9;
+function safeSceneRefused(nowMs) {
+  if (limiterLive()) return false;
+  if (deck.running || nowMs - safeSceneAt < SAFE_SCENE_MIN_MS) { safeRefused++; return true; }
+  safeSceneAt = nowMs;
+  return false;
+}
 function nextSet(to = null, nowMs = performance.now(), style = null) {
+  if (safeSceneRefused(nowMs)) return;
   if (deck.running) finishFade();
   const target = to === null ? nextValid(deck.a) : to;
   if (!validSet(target) || target === deck.a) return;
@@ -1013,8 +1034,14 @@ function finishFade() {
   queueSceneReport(false);        // the KeyLab's screen shows the scene that landed
   if (stage) stage.landed(performance.now());
 }
-function selectSet(i) {           // a cut, for the test hook and a click while nothing plays
+function selectSet(i, boot = false) {   // a cut, for the test hook and a click while nothing plays
   if (!validSet(i)) return false;
+  if (!boot && !limiterLive() && sets[deck.a]) {   // the safe mode: no cuts, a crossfade at most once a second
+    if (i === deck.a) return true;
+    const before = deck.b, running = deck.running;
+    nextSet(i);
+    return deck.running && (!running || deck.b !== before);
+  }
   if (deck.running) finishFade();
   const old = sets[deck.a];
   deck.a = i;
@@ -1202,6 +1229,10 @@ function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
   padPress[i] = 1;
   lastPadSrc = src;
   const action = padMap[i];
+  // THE SAFE MODE (2026-10-25, the round-2 verifier): without a running limiter, the one-shots, the glitch, the zoom
+  // punch and Invert put 5-10 flashes a second on the screen with only the FlashGate in front of them. So until the
+  // limiter runs (and for good if it cannot) every pad effect is refused; the controls still work.
+  if (EFFECTS[action] && !limiterLive()) { safeRefused++; return; }
   if (EFFECTS[action]) {
     const f = triggerEffect(action, vel, pad, nowS);
     if (f) {   // the latency record: this event's arrival; the frame that draws it fills in `frame` and `env`
@@ -1260,7 +1291,7 @@ function triggerEffect(type, vel, pad, nowS) {
   if (f) {
     const at = hitOrigin(f);
     impact.hit(type, vel, nowS, { seed: f.seed, granted: type === "flash" && granted, x: at[0], y: at[1],
-                                 punch: options.punch && limiterLive() });   // the safe mode (no limiter yet): no punch
+                                 punch: options.punch && limiterLive() });
   }
   return f;
 }
@@ -2064,16 +2095,23 @@ function onFrame(rafNow) {
 }
 let frameErrorRecorded = false;
 let hudAt = 0;
-// gate v2 runs once its programs have linked (they compile in the background); until then, and for good if they fail,
-// the page is in its safe mode: no punch, shake or dip and no set reactions to pads (the light gate v2 exists to limit)
+let safeRefused = 0;              // pad effects refused in the safe mode
+// gate v2 runs once its meter and apply programs have linked (they compile in the background; the decision too, and until
+// it has, the JS twin decides on the CPU); until then, and for good if they fail, the page is in its safe mode: every pad
+// effect refused
 function limiterLive() {
   if (!G.limiter) return false;
-  if (G.limiter.ready()) return true;
+  if (G.limiter.live()) {
+    // the decision could not link: the limiter runs on, deciding on the CPU (said once)
+    const err = G.limiter.error();
+    if (err && !G.limiterError) { G.limiterError = err; recordError("compile", "vj-limiter", err); }
+    return true;
+  }
   const err = G.limiter.error();
-  if (err && !G.limiterError) {
+  if (err && G.limiter.fatal() && G.limiterError !== err) {
     G.limiterError = err;
     recordError("compile", "vj-limiter", err);
-    banner("The flash limiter could not start: the VJ rig runs in its safe mode (no punch, no set reactions to pads).");
+    banner(SAFE_MODE_BANNER);
   }
   return false;
 }
@@ -2506,8 +2544,11 @@ window.__vj = {
     glitch: glitchState.plan ? { serial: glitchState.serial, ...glitchState.plan } : null,
     options: { ...options }, snapQueued: snapQ.length,
     // gate v2 (no readback here: window.__vj.limiter() reads its state)
-    limiter: { on: limiterLive(), format: G.limiter ? G.limiter.format : null, frames: G.limiter ? G.limiter.frames() : 0,
-               compileMs: G.limiter ? G.limiter.compileMs() : null, parallel: G.limiter ? G.limiter.parallel : null, error: G.limiterError },
+    limiter: { on: limiterLive(), mode: G.limiter ? G.limiter.mode() : "", format: G.limiter ? G.limiter.format : null,
+               frames: G.limiter ? G.limiter.frames() : 0, compileMs: G.limiter ? G.limiter.compileMs() : null,
+               gpuMs: G.limiter ? G.limiter.gpuMs() : null, parallel: G.limiter ? G.limiter.parallel : null,
+               error: G.limiterError, fatal: G.limiter ? G.limiter.fatal() : !!G.limiterError, asked: LIMITER_MODE,
+               safeRefused, grid: G.limiter ? G.limiter.grid() : null },
     scenes: { browsing: scenes.browsing(), cursor: scenes.cursor, ignored: scenes.ignored, posts: sceneReport.posts,
               log: sceneReport.log.slice(-20), sentKey: sceneReport.sentKey, off: engine.link.sceneOff,
               refused: engine.link.sceneRefused, echo: sceneReport.last },
@@ -2527,7 +2568,7 @@ window.__vj = {
   // gate v2 (receipts: arsenal/lanes/vj_storm.mjs). limiter() reads its state back (a GPU stall: receipts only);
   // limiterCells(cells, dt) runs the decision alone on given cell sums (the JS twin's input, vj-gate.js); limiterBench(n)
   // times n runs of the limiter's passes on the last frame, each fenced by readPixels of one pixel (the cost receipt)
-  limiter: () => (limiterLive() ? { on: true, format: G.limiter.format, ...G.limiter.read() } : { on: false, error: G.limiterError || "compiling" }),
+  limiter: () => (limiterLive() ? { on: true, format: G.limiter.format, ...G.limiter.read() } : { on: false, error: G.limiterError || "compiling", safeRefused }),
   limiterCells: (cells, dt) => (limiterLive() ? G.limiter.decideCells(new Float32Array(cells), dt) : null),
   limiterReset: () => { if (limiterLive()) G.limiter.reset(); return limiterLive(); },
   limiterBench: (n = 20) => {
@@ -2535,14 +2576,15 @@ window.__vj = {
     const gl = G.gl, px = new Uint8Array(4), src = G.cmp.texs[G.cmp.read];
     const fence = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
     fence();
+    // (Date.now: the receipts' virtual clock replaces performance.now, and a bench needs the wall clock)
     const parts = { meter: 0, decide: 0, apply: 0, blit: 0 };
     let tm = 0;
-    const mark = (stage) => { fence(); const t = performance.now(); parts[stage] += t - tm; tm = t; };
-    const t0 = performance.now();
-    for (let i = 0; i < n; i++) { tm = performance.now(); G.limiter.run(src, G.width, G.height, 1 / 60, mark); }
-    const t1 = performance.now();
+    const mark = (stage) => { fence(); const t = Date.now(); parts[stage] += t - tm; tm = t; };
+    const t0 = Date.now();
+    for (let i = 0; i < n; i++) { tm = Date.now(); G.limiter.run(src, G.width, G.height, 1 / 60, mark); }
+    const t1 = Date.now();
     for (let i = 0; i < n; i++) { copyToScreen(src); fence(); }
-    const t2 = performance.now();
+    const t2 = Date.now();
     for (const k of Object.keys(parts)) parts[k] = +(parts[k] / n).toFixed(3);
     return { n, limiter_ms: (t1 - t0) / n, copy_ms: (t2 - t1) / n, parts_ms: parts, width: G.width, height: G.height };
   },
@@ -2573,7 +2615,7 @@ async function boot() {
   deck.b = nextValid(deck.a);
   if (QS.get("showcase") === "1") {   // the tour opens on the first wave-2 set
     const opener = sets.findIndex((s) => s.id === "vj-hyperspace");
-    if (validSet(opener)) selectSet(opener);
+    if (validSet(opener)) selectSet(opener, true);
   }
   renderSetList();
   renderParams();
