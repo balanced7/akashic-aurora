@@ -236,9 +236,10 @@ let gpu = null, chrome = null, browser = null;
 const checks = {};
 try {
   // one run holds the lock throughout (about 9 min before Lasers v2, 12-14 with its phase and storms): a 25-minute cap so a
-  // waiter never reaps a run still going, and a 2 s poll so a run waiting behind chunked lanes gets its turn
+  // waiter never reaps a run still going, and a 0.5 s poll so a run waiting behind lanes that render in short chunks gets
+  // its turn (at 2 s it waited more than 30 minutes on 2026-10-25)
   gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: "vj_verify (SwiftShader)", maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000,
-                              maxHoldMs: 25 * 60_000, pollMs: 2000 });
+                              maxHoldMs: 25 * 60_000, pollMs: 500 });
   report.gpu_lock = { acquired_at: gpu.owner.acquiredAt, inherited: gpu.inherited };
   PORT = await listenInBand(web, PORT);
   ENGINE_PORT = await listenInBand(engineServer, ENGINE_PORT);
