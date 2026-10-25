@@ -182,7 +182,7 @@ on both ears) · `fl/device_AuroraKeyLab.py` our FL Studio script (transport onl
 Pins: `tests/test_keylab_w0.py` (sustain, grid, burst ceiling, colour wash zone), `tests/test_keylab_screen.py`
 (the screen bytes, the never-send refusals, pacing, the live readout against a fake engine),
 `tests/test_keylab_chordsense.py` (the eight chords under drums, no flicker, Db numerals, the pedal, the speed, Joy
-to the World), `tests/test_keylab_vj.py` (the contract; chordsense in the engine on a synthesized hardstyle replay, `--chords basic`, the real-time capture record, the keys' names and numerals, the scene route, the energy rate, the transport and dial `ctl` events) and `tests/test_keylab_tempo*.py`; the page: `tests/vj_core.test.mjs` and `node arsenal/lanes/vj_verify.mjs` (headless SwiftShader, a fake engine and the real one on test-band ports), and `node arsenal/lanes/vj_impact.mjs` (the impact receipt: every pad effect fired soft / medium / hard on several sets with a control page beside it on a virtual clock; impact, onset, peak, decay, luminance and contrast change, variety over eight hits, event-to-frame latency; `--compare` against a baseline receipt). Licence: `beatsync` and `tempo` import
+to the World), `tests/test_keylab_vj.py` (the contract; chordsense in the engine on a synthesized hardstyle replay, `--chords basic`, the real-time capture record, the keys' names and numerals, the scene route, the energy rate, the transport and dial `ctl` events) and `tests/test_keylab_tempo*.py`; the page: `tests/vj_core.test.mjs` and `node arsenal/lanes/vj_verify.mjs` (headless SwiftShader, a fake engine and the real one on test-band ports), and `node arsenal/lanes/vj_impact.mjs` (the impact receipt: every pad effect fired soft / medium / hard on several sets with a control page beside it on a virtual clock; impact, onset, peak, decay, luminance and contrast change, variety over eight hits, event-to-frame latency; `--compare` against a baseline receipt), and `node arsenal/lanes/vj_storm.mjs` (gate v2's receipt: pad storms on a 60 fps virtual clock, flashes counted in 18 quarter-screen windows of the frames shown; the sets under the demo's music alone; the GPU limiter against its JS twin; its cost; `--web` judges any copy of the page, e.g. an older commit). Licence: `beatsync` and `tempo` import
 aubio (GPLv3+) lazily, only when you run them; it is never vendored or required. A house beat detector replaces it
 before anything is bundled.
 
@@ -199,7 +199,9 @@ reclaim pad 12, pad 11 also did not seem super useful" and "I love the feel of p
   is never deeper than the measured scene allows (the page measures the scene's mean luminance on the GPU every frame and
   holds the drop to 0.045 of relative luminance, under half the 0.1 where WCAG 2.3.1 counts a flash), so it never asks the
   flash gate; a white flash's dip rides the flash's own granted slot. The gate (three flashes a second) is unchanged. A
-  checkbox turns the impact layer off.
+  checkbox turns the impact layer off. Since the safety pass (below): the scene meter includes the accent overlay, the
+  dip fades out as Invert comes in (inverted, a dip is a brightening), and a white flash's dip goes only as deep as the
+  shader will show that flash (it blanks one that follows the last too soon).
 - **The sets react**: the strip (v2) carries the latest hit (pulse, velocity, effect, age, where it struck) and the kick /
   snare / hat envelopes; Reactor's core flares, Laser Cathedral's heads fan out, Hyperspace warp-jumps, Particle Galaxy
   spins up, Synthwave Grid's horizon pulses and rolls a band down the floor, LED Wall ripples from the hit.
@@ -216,3 +218,55 @@ reclaim pad 12, pad 11 also did not seem super useful" and "I love the feel of p
 - **The music**: per band a fast-attack / slow-release envelope (kick: a scale pump, snare: a contrast and colour kick, hat:
   sparkle), fed by ~100 energy events a second.
 - **Beat snap** (off by default; the panel or the B key): a pad hit waits for the next 16th of a live beat.
+
+## Gate v2: the flash limiter on the frame shown (2026-10-24)
+
+The impact pass's adversarial verifier counted up to about 6.5 flashes a second in pad storms on a 60 fps virtual clock,
+where the flash gate alone keeps about 3: most of the light (the punch, the sets' own reactions, the overlay, the glitch,
+the look) never asks the gate. Gate v2 judges the picture the viewer actually gets and is the last thing every frame
+passes. The gate still decides which flashes are asked for at all; gate v2 only ever takes light away.
+
+- **Measured on the GPU, every frame, after every layer** (`arsenal/web/vj-limiter.js`): relative luminance (sRGB
+  decoded, WCAG weights) and the WCAG red quantity, in 4 x 4 cells, each with four sums weighted by its corners' bilinear
+  hats, so any window's shown value is an exact linear function of the 25 corner gains the last pass applies. Nothing is
+  read back to the CPU.
+- **18 windows of a quarter of the screen or more** (the whole frame, the nine 2 x 2 blocks, four rows, four columns),
+  each with a luminance and a red counter that runs the verifier's own flash counter online (turning points with a 0.02
+  hysteresis; a transition counts from the frame its swing reaches 0.07, the standard's 0.1 less a margin for the meter;
+  red 14 of 20). Six transitions in a second is three flashes; a flash is a rise and a fall, so a rise may start only
+  with room left for its fall, and a window that runs out of budget does so in its dark state. Then it is **held**: its
+  value may only move inside a band that starts no new transition, at most 0.05 wide, centred on the shown value and
+  drifting toward the drawn value (0.6 a second down, 0.2 up).
+- **Limited smoothly**: corner gains darken (0..1) or, where the content forces it, lift toward white (exact in linear
+  light), found each frame by projections onto the held windows' bands; the correction spreads over the corners in
+  proportion to their share, and the corners are blended with smoothstep weights, so a held region dims as a soft patch
+  while the picture keeps moving and keeps its colour. When a smooth field cannot meet overlapping windows at once, one
+  blend toward the previous shown frame finishes the job (it always can: the previous frame meets every limit by
+  construction). With nothing held every gain is exactly 1 and the frame is copied untouched.
+- **A forced rest**: when some window has held two flashes a second (four full-size swings, 0.09) for 5 s, every window
+  is held for 2 s (ITU-R BT.1702: even compliant flashing for more than about five seconds may be a risk).
+- **The JS twin** (`arsenal/web/vj-gate.js`, tested in `tests/vj_core.test.mjs`) holds the rules; the GPU passes are a
+  line-by-line port generated from the same constants, and the storm receipt's parity phase feeds both the same cells.
+- **If it cannot run** (no float render target, a shader that fails to compile) the page says so and runs in a safe mode:
+  no punch, shake or dip and no set reactions to pads. Its programs compile in the background, so the page never waits.
+- **Also in this pass**: no dip under Invert; a white flash's dip only as deep as the shader shows that flash; the scene
+  meter includes the overlay (and is reduced in two steps instead of one 2304-texel fragment); how strongly a set answers a
+  pad depends on the effect (the kaleidoscope, freeze, Invert, the strobe and the particles lead with their own look);
+  Reactor's hit ring is drawn, not written into its shock field (it lingered ~0.4 s as a dull grey ring offset by the
+  lurch); Synthwave Grid's floor answers the kick half as hard (under the demo's music alone it flashed a quarter of the
+  screen 2.5 times a second).
+- **Receipt**: `node arsenal/lanes/vj_storm.mjs` (and phase D2 of `vj_verify.mjs`, shorter). On 2026-10-24, 28 storms
+  (7 kinds, 10 s each, on Reactor, Hyperspace, Aurora Curtains and LED Wall) at 640 x 360: the impact pass as it was failed
+  25 of them (up to 14 flashes a second in the centre quarter on one-shot storms, 20.5 when the white-flash pad is
+  hammered, up to 9.5 over the whole frame); with gate v2 all 28 pass (at most 3 a second in every window, at most 2.5 over
+  the whole frame, no red flash, no flashing run past 5 s, no transition ever started while held). Under the demo's music
+  alone no set on the page is held at all (13 sets, at most 2 flashes a second, in Hyperspace's centre). The GPU limiter
+  and its JS twin give the same gains on the same cells. A single hit is never touched: in vj_impact pad 2's laser
+  measures exactly as before on Laser Cathedral and Synthwave Grid and within 3 % on Reactor (whose hit ring changed);
+  the kaleidoscope, freeze and Invert measure less in their first 150 ms because the set's flare no longer covers them.
+- **Cost**: on SwiftShader at 640 x 360 the limiter's passes take ~3.9 ms a frame where the plain copy to the canvas took
+  0.9 (fenced, by stage: meter 0.2, decide 0.2, apply 2.9, the copy to the canvas 0.6). Whole frames, back to back
+  (three rotations on Reactor and Hyperspace, on a machine shared with other renders): median 60.8 / 61.4 ms with the
+  limiter, 54.4 / 54.6 ms with only its last pass bypassed (+12 %), 52.6 / 53.5 for the impact pass as merged, 44.9 /
+  46.4 for master (the impact pass's own layers are most of the rest). On a GPU it is a few small passes and two
+  full-frame ones; not measured here (the house runs no GPU receipts).
