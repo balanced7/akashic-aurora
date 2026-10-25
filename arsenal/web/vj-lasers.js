@@ -2216,8 +2216,8 @@ export class LaserEngine {
   //   - when the first pulse is due now and they are not dark yet (the press came too close to its beat to leave a frame
   //     between), they go out in this very frame and H lights with them gone -- if what is left of them changes nothing
   //     measurable as it goes (a 1-3 % tail lights no pixel by 0.1), or if it and H's own onset, measured (the fit's
-  //     estimate of it), fit the budget together with a tenth to spare; or, a tail too bright for that but dim enough,
-  //     it goes out in two halves that each change nothing measurable, the first under H's onset (see _cutsClean).
+  //     estimate of it), fit the budget together with a tenth to spare; or, too bright for that but dim enough, it
+  //     goes out in two halves that each change nothing measurable, the first under H's onset (see _cutsClean).
   //     Otherwise (a pulse still serving its minimum on-time; a bright tail too big to go with H's onset) H waits a
   //     frame, as before: that frame cannot be both dark and on time.
   // Returns true when H may light now.
@@ -2226,8 +2226,8 @@ export class LaserEngine {
       const how = this._cutsClean(H, wait);
       if (how === "cut") { for (const h of wait) this._cut(h); return true; }
       if (how === "halve") {
-        // (each goes to half the light it was drawn with -- a tail, still, so every record halves -- and out the next
-        // frame: _evalHit)
+        // (each is drawn this frame as last frame's records at half their level -- _writeHalved -- and is gone the next:
+        // _evalHit)
         for (const h of wait) { h.choked = true; h.halveF = this._nowFrame(); h.halfInten = 0.5 * h.inten; h.halfLevel = 0.5 * h.level01; }
         return true;
       }
@@ -2250,17 +2250,19 @@ export class LaserEngine {
   }
   // May the hits in `wait` go out with H's first pulse coming on in this frame? Never mid-way through a pulse's minimum
   // on-time. "cut" (out in this frame) when their light in the frame last drawn changes nothing measurable as it goes
-  // (no pixel by 0.1), or when that change and H's onset fit H's budget together with a tenth to spare (two lit bands
-  // add at most their sum, in any window and in the frame). "halve" when they are tails dim enough to go out in two
-  // steps that each change nothing measurable: halving every line's level (its core, halo and heat) moves no pixel by
-  // 0.1, and leaves it under 0.1 (core) and its halo under 0.2, so it lights nothing measurable any more under H's onset
-  // and goes out the next frame unmeasured too. Else false: H waits.
+  // (no pixel by 0.1), or when that change and H's onset fit the budget (the fast one if H or any of them is fast)
+  // together with a tenth to spare (two lit bands add at most their sum, in any window and in the frame). "halve" when
+  // they are dim enough to go out in two steps that each change nothing measurable: halving every line's level (its
+  // core, halo and heat) moves no pixel by 0.1, and leaves it under 0.1 (core) and its halo under 0.2, so it lights
+  // nothing measurable any more under H's onset and goes out the next frame unmeasured too. Else false: H waits.
   _cutsClean(H, wait) {
     const now = this._nowFrame(), minOn = this._minOnFrames();
     for (const h of wait) if (h.on && h.cur && now - h.cur.onFrame < minOn) return false;
     const D = this._drawnLight(wait);
     if (!D || (D.area.window <= 1e-9 && D.area.frame <= 1e-9)) return "cut";
-    const cap = H.fast ? BUDGET.fast : BUDGET.single, e = H.onsetEst;
+    // (a fast hit's light going dark is a fast gate's change: judged on the fast budget, though the frame it goes out in
+    // has no fast hit left to say so)
+    const cap = H.fast || wait.some((h) => h.fast) ? BUDGET.fast : BUDGET.single, e = H.onsetEst;
     if (e && D.area.window + e.window <= 0.9 * cap.window && D.area.frame + e.frame <= 0.9 * cap.frame) return "cut";
     if (D.drop < 0.1 && D.half < 0.1 && D.glowY < 0.4) return "halve";
     return false;
@@ -2656,7 +2658,7 @@ export class LaserEngine {
     // this frame is the one the next frame's change is measured against
     const s = this.drawn; this.drawn = indexKeys(this.work); this.work = s;
   }
-  // A tail going out in two halves under a newer hit's onset (see _handOver) is drawn, in its half frame, as the very
+  // A hit going out in two halves under a newer hit's onset (see _handOver) is drawn, in its half frame, as the very
   // records it was drawn with last frame at half their level (core, halo, heat): nothing of it moves -- not its pattern's
   // motion, not its strings -- so its change is the level step alone, which moves no pixel by 0.1. (Drawing it afresh
   // let a moving or ringing tail change a strip along its edges: up to 3.2 % of a window in mashing.)
