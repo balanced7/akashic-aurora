@@ -7,8 +7,9 @@ Arturia's "KeyLab mk3". Leave the "KeyLab 88 mk3 MIDI" input on its own script, 
 What it does on the DAW port, and nothing more:
   * on load it arms the KeyLab's DAW mode and asks for the pads on the DAW port, as Arturia's script does (two
     SysEx); on unload it drops DAW mode (one SysEx);
-  * the transport buttons drive FL: play/pause, stop, record, loop recording, metronome, tap tempo,
-    rewind / fast forward while held, save, undo, redo;
+  * the transport buttons drive FL: play/pause, stop, record, loop recording, metronome,
+    rewind / fast forward while held, save, undo, redo. Tap is swallowed: it is tap tempo for Aurora's visuals only
+    (TAP_TO_FL = True gives it back to FL's tap tempo);
   * every other message on the DAW port is swallowed, so FL does nothing with it: faders, knobs, their touch
     sensors, the dial, Back, Quantize, the screen buttons and the DAW-bank pads (notes 0-11 on channel 10). Aurora's
     own programs read the same messages from the shared input and bind them to whatever you choose;
@@ -25,7 +26,7 @@ Every FL function this script can call (the list the P23 freeze drill walks, one
   transport.stop                Stop (on press)
   transport.record              Record (on release)
   transport.continuousMove      Rewind / Fast forward (press starts, release stops)
-  transport.globalTransport     Tap (press), Loop (release), Metronome (release), Save (press)
+  transport.globalTransport     Loop (release), Metronome (release), Save (press); Tap (press) only with TAP_TO_FL
   general.undoUp                Undo (on press)
   general.undoDown              Redo (on press)
   transport.isPlaying           [state LEDs] these four are read only when FL says the LEDs changed
@@ -85,6 +86,11 @@ TRANSPORT_BUTTONS = {
     44: ("redo", PRESS),
 }
 SCRUB_SPEED = {"rewind": -2, "forward": 2}
+
+# Tap is tempo for the visuals only (Daniel, 2026-10-25: "only tempo for vfx"): the button is swallowed here, so FL's
+# tempo never moves, and Aurora's VJ engine reads the same press from the shared input as its tap tempo. True gives
+# the press back to FL's tap tempo.
+TAP_TO_FL = False
 
 # Plain-MIDI wheels go to FL untouched (set False to swallow them too).
 WHEELS_TO_FL = True
@@ -201,6 +207,8 @@ def _do(action):
 def _transport_button(control, value):
     action, edge = TRANSPORT_BUTTONS[control]
     down = value != 0
+    if action == "tap" and not TAP_TO_FL:
+        return
     if edge == HELD:
         _scrub(control, SCRUB_SPEED[action], down)
     elif down == (edge == PRESS):

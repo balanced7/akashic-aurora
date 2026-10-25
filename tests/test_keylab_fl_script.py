@@ -160,7 +160,7 @@ TRANSPORT_EXPECT = {   # control number: (calls on press, calls on release)
     20: ([("transport.stop",)], []),
     21: ([], [("transport.start",)]),
     22: ([], [("transport.record",)]),
-    23: ([("transport.globalTransport", GT["FPT_TapTempo"], 1)], []),
+    23: ([], []),          # Tap is tempo for the visuals only (Daniel, 2026-10-25): swallowed, FL's tempo never moves
     24: ([], [("transport.globalTransport", GT["FPT_LoopRecord"], 1)]),
     25: ([("transport.continuousMove", -2, GT["SS_Start"])], [("transport.continuousMove", -2, GT["SS_Stop"])]),
     26: ([("transport.continuousMove", 2, GT["SS_Start"])], [("transport.continuousMove", 2, GT["SS_Stop"])]),
@@ -193,6 +193,20 @@ def test_each_transport_button_press_and_release(rig, cc, channel):
     ev = rig.msg(0xB0 | channel, cc, 0)
     assert ev.handled is True
     assert rig.calls == on_release
+
+
+def test_tap_stays_with_the_visuals_unless_given_back_to_fl(rig):
+    # Daniel, 2026-10-25, asked whether Tap should keep changing FL's tempo: "only tempo for vfx"
+    assert rig.mod.TAP_TO_FL is False
+    rig.mod.OnInit()
+    rig.clear()
+    for value in (127, 0, 127, 0):
+        assert rig.msg(0xB0 | 9, 23, value).handled is True
+    assert rig.fl_calls() == []
+    rig.mod.TAP_TO_FL = True                                  # the switch gives the press back to FL's tap tempo
+    rig.clear()
+    rig.msg(0xB0 | 9, 23, 127)
+    assert rig.calls == [("transport.globalTransport", GT["FPT_TapTempo"], 1)]
 
 
 def test_any_nonzero_value_is_a_press(rig):
