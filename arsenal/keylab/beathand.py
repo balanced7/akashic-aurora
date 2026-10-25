@@ -12,6 +12,10 @@ just tap the pad at the bpm".
 Everything the hand does is logged with times, so a correction made by ear is also a MEASUREMENT of where the beat
 really is (the answer key the referee and the bench can be checked against). Listens on every KeyLab input
 (the MIDI and the DAW ports), shared with FL under the Windows MIDI Service.
+
+TapLog is the math with no port attached (tap tempo, the tap grid, taps against the lights, the phase of taps at a
+fixed tempo); Hand is a TapLog fed from the ports. The VJ engine's beat clock (beatgrid.BeatGrid) keeps its own TapLog
+of the KeyLab's Tap button (2026-10-24).
 """
 from __future__ import annotations
 
@@ -32,56 +36,24 @@ STEADY = 0.06            # intervals within 6 % of their median count as steady
 RESEED_DIFF = 0.04       # a tap tempo this far (octave-folded) from the tracker's asks for a re-seed
 
 
-class Hand:
-    def __init__(self, verbose: bool = True):
-        from . import protocol as P
-        from . import winmidi as W
-        self._pad_notes = set(P._NOTE_PAD)
-        self.verbose = verbose
-        self.ins = []
-        for name in W.inputs():
-            if "keylab" in name.lower():
-                try:
-                    m = W.MidiIn(port=name)
-                    m.start()
-                    self.ins.append(m)
-                except Exception as exc:                       # an input held exclusively elsewhere
-                    print(f"hand: could not listen on {name!r}: {exc}")
-        self.seen = [0] * len(self.ins)
-        self.cc: Optional[Tuple[int, int]] = None
-        self.nudge_ms = 0.0
-        self.taps: List[float] = []                            # perf_counter times of pad hits
-        self.log: List[tuple] = []                             # (perf_counter, kind, value)
-        print(f"hand: listening on {[m.name for m in self.ins] or 'nothing'} -- tap any pad on the beat; "
-              f"move a fader to grab it as a nudge (centre = none, up = lights later)")
+class TapLog:
+    """The hand's taps as times on one clock, and the math on them, with no port attached (the VJ engine's beat clock
+    feeds it the Tap button; Hand below feeds it pad hits for the `beat` command)."""
 
-    def poll(self) -> None:
-        for i, m in enumerate(self.ins):
-            ev = m.events
-            while self.seen[i] < len(ev):
-                t_rel, data, kind = ev[self.seen[i]]
-                self.seen[i] += 1
-                if kind != "short":
-                    continue
-                t = m._t0 + t_rel                              # back to perf_counter time
-                status, d1, d2 = data[0] & 0xF0, data[1], data[2]
-                # in FL's DAW mode a pad arrives on the DAW port as a note of its own (pad hit = note 11 on
-                # channel 10, seen live 2026-10-23), so ANY note there is a tap; on the MIDI port only pad notes
-                # count, so playing the keys never reads as tapping
-                is_daw = "daw" in m.name.lower()
-                if status == 0x90 and d2 > 0 and (is_daw or d1 in self._pad_notes):
-                    self.taps.append(t)
-                    self.log.append((t, "tap", d1))
-                elif status == 0xB0:
-                    if self.cc is None:
-                        self.cc = (i, d1)
-                        if self.verbose:
-                            print(f"hand: grabbed CC {d1} on {m.name!r} as the nudge fader")
-                    if self.cc == (i, d1):
-                        self.nudge_ms = (d2 - 64) * STEP_MS
-                        self.log.append((t, "nudge", self.nudge_ms))
-        horizon = time.perf_counter() - TAP_WINDOW_S
+    def __init__(self, window_s: float = TAP_WINDOW_S):
+        self.window_s = window_s
+        self.taps: List[float] = []                            # tap times, oldest first
+
+    def add(self, t: float) -> None:
+        self.taps.append(float(t))
+
+    def prune(self, now: float) -> None:
+        """Forget taps older than window_s."""
+        horizon = now - self.window_s
         self.taps = [t for t in self.taps if t >= horizon]
+
+    def clear(self) -> None:
+        self.taps = []
 
     def tap_tempo(self, need: int = MIN_TAPS) -> Optional[float]:
         """Seconds per beat from the recent steady taps, or None."""
@@ -133,6 +105,72 @@ class Hand:
         z = np.exp(2j * math.pi * np.array(ph)).mean()
         return {"taps": len(ph), "offset_ms": round(float(np.angle(z) / (2 * math.pi) * period * 1000), 1),
                 "steady": round(float(abs(z)), 2)}
+
+    def tap_phase(self, period: float, taps: Optional[List[float]] = None) -> Optional[Tuple[float, float]]:
+        """With the period FIXED (a tempo snapped to the database, say): the beat time that best fits the taps (least
+        squares over each tap's whole number of periods from the first) and the RMS residual in periods. None with
+        fewer than two taps."""
+        taps = self.taps[-12:] if taps is None else taps
+        if len(taps) < 2 or not period > 0:
+            return None
+        x = np.asarray(taps, dtype=float)
+        k = np.round((x - x[0]) / period)
+        anchor = float(np.mean(x - k * period))
+        rms = float(np.sqrt(np.mean(((x - (anchor + k * period)) / period) ** 2)))
+        return anchor, rms
+
+
+class Hand(TapLog):
+    """Pad taps and a nudge fader on every KeyLab input (the `beat` command): the taps go into the TapLog it is."""
+
+    def __init__(self, verbose: bool = True):
+        from . import protocol as P
+        from . import winmidi as W
+        super().__init__()
+        self._pad_notes = set(P._NOTE_PAD)
+        self.verbose = verbose
+        self.ins = []
+        for name in W.inputs():
+            if "keylab" in name.lower():
+                try:
+                    m = W.MidiIn(port=name)
+                    m.start()
+                    self.ins.append(m)
+                except Exception as exc:                       # an input held exclusively elsewhere
+                    print(f"hand: could not listen on {name!r}: {exc}")
+        self.seen = [0] * len(self.ins)
+        self.cc: Optional[Tuple[int, int]] = None
+        self.nudge_ms = 0.0
+        self.log: List[tuple] = []                             # (perf_counter, kind, value)
+        print(f"hand: listening on {[m.name for m in self.ins] or 'nothing'} -- tap any pad on the beat; "
+              f"move a fader to grab it as a nudge (centre = none, up = lights later)")
+
+    def poll(self) -> None:
+        for i, m in enumerate(self.ins):
+            ev = m.events
+            while self.seen[i] < len(ev):
+                t_rel, data, kind = ev[self.seen[i]]
+                self.seen[i] += 1
+                if kind != "short":
+                    continue
+                t = m._t0 + t_rel                              # back to perf_counter time
+                status, d1, d2 = data[0] & 0xF0, data[1], data[2]
+                # in FL's DAW mode a pad arrives on the DAW port as a note of its own (pad hit = note 11 on
+                # channel 10, seen live 2026-10-23), so ANY note there is a tap; on the MIDI port only pad notes
+                # count, so playing the keys never reads as tapping
+                is_daw = "daw" in m.name.lower()
+                if status == 0x90 and d2 > 0 and (is_daw or d1 in self._pad_notes):
+                    self.taps.append(t)
+                    self.log.append((t, "tap", d1))
+                elif status == 0xB0:
+                    if self.cc is None:
+                        self.cc = (i, d1)
+                        if self.verbose:
+                            print(f"hand: grabbed CC {d1} on {m.name!r} as the nudge fader")
+                    if self.cc == (i, d1):
+                        self.nudge_ms = (d2 - 64) * STEP_MS
+                        self.log.append((t, "nudge", self.nudge_ms))
+        self.prune(time.perf_counter())                        # self.taps: perf_counter times of pad hits
 
     def close(self) -> None:
         for m in self.ins:

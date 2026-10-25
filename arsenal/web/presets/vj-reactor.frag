@@ -8,7 +8,8 @@ precision highp float;
 // once. Each kick launches a shockwave: the ring is written into the alpha channel of the feedback buffer (stored as
 // 1 - field, so a buffer cleared to alpha 1 starts empty) and the whole field is resampled a little further out every
 // frame, so rings expand and thin on their own. Bass fills the room. The twelve pads are plasma jets at the twelve clock
-// positions (pad 12 at twelve o'clock): velocity sets their reach. Tension makes the core unstable.
+// positions (pad 12 at twelve o'clock): velocity sets their reach. Tension makes the core unstable. Any pad hit (the
+// strip's shared hit input, 2026-10-24) flares the core: it swells and whitens, throws a shock ring and lights the shells.
 
 uniform sampler2D u_video;   // the VJ page: its 16x6 VJ strip (u_has_video stays 0); Play: the video or a 1x1 black texture
 uniform sampler2D u_prev;
@@ -59,6 +60,23 @@ void vjLoad() {
 }
 
 vec3 padColour(int i) { return gHost ? vjAt(i, 3).rgb : gPal[i - 4 * (i / 4)]; }
+
+// the shared hit input (STRIP v2, row 2: vj-core.js): the latest pad hit's pulse (through the velocity curve), its velocity,
+// its effect code and age, where it struck; the kick / snare / hat envelopes. 0 in Play and on a v1 host.
+float gHit, gHitVel, gHitCode, gHitAge, gSnare, gHat;
+vec2 gHitAt;
+void hitLoad() {
+  if (gHost && vjAt(15, 2).x >= 2.0) {
+    vec4 h = vjAt(10, 2);
+    gHit = h.x; gHitVel = h.y; gHitCode = h.z; gHitAge = h.w;
+    vec4 b = vjAt(11, 2);
+    gSnare = b.y; gHat = b.z;
+    gHitAt = vjAt(12, 2).yz;
+  } else {
+    gHit = 0.0; gHitVel = 0.0; gHitCode = 0.0; gHitAge = 30.0; gSnare = 0.0; gHat = 0.0; gHitAt = vec2(0.0);
+  }
+}
+
 
 vec2 padLevel(int i) {          // (envelope, velocity)
   if (gHost) return vjAt(i, 0).xy;
@@ -118,15 +136,19 @@ float gridLines(vec2 p, float R, mat3 m, float lines, float px) {
 
 void main() {
   vjLoad();
+  hitLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
+  // a hit makes the whole reactor lurch toward the side its prominence flares (the hit's seed sets the direction)
+  float lurchA = (gHost ? vjAt(12, 2).x : 0.0) * TAU;
+  p -= vec2(cos(lurchA), sin(lurchA)) * 0.03 * gHit;
   float px = 1.0 / max(u_res.y, 1.0);
   float r = length(p);
   float ang = atan(p.y, p.x);
   float bass = clamp(0.65 * u_bass + 0.35 * u_pulse, 0.0, 1.5);
 
   // the core's radius: size, bass, the kick, and a tremor that grows with harmonic tension
-  float R0 = (0.045 + 0.04 * u_k1) * (1.0 + 0.30 * bass + 0.22 * gKick);
+  float R0 = (0.045 + 0.04 * u_k1) * (1.0 + 0.30 * bass + 0.22 * gKick + 0.40 * gHit);
   float wobble = gTension * 0.22 * (vnoise(vec2(ang * 2.0 + u_time * 0.9, u_time * 1.3)) - 0.5);
   float rc = r / (R0 * (1.0 + wobble));
 
@@ -140,6 +162,8 @@ void main() {
   // a kick writes a ring just outside the core; the expansion carries it out
   float ringAt = R0 * 1.35;
   shock = max(shock, gKick * u_k6 * exp(-pow((r - ringAt) / (0.010 + 0.01 * gKick), 2.0)));
+  // a pad hit's flare throws its own ring in its first 50 ms (the expansion carries it out)
+  shock = max(shock, gHit * (0.6 + 0.4 * gHitVel) * step(gHitAge, 0.05) * exp(-pow((r - ringAt * 1.1) / (0.012 + 0.02 * gHit), 2.0)));
   shock = min(shock, 1.0);
 
   // the room: lit by the bass, darker at the corners
@@ -155,7 +179,7 @@ void main() {
     float w = R * (0.10 + 0.04 * fk);
     float g = shellGlow(r, R, w);
     shellLight += g * (0.35 - 0.08 * fk);
-    col += mix(gPal[0], gPal[2], fk * 0.5) * g * (0.10 + 0.22 * u_k2) * (1.0 + 1.5 * gChordPulse);
+    col += mix(gPal[0], gPal[2], fk * 0.5) * g * (0.10 + 0.22 * u_k2) * (1.0 + 1.5 * gChordPulse + 1.4 * gHit);
   }
   float Rg = R0 * 4.5 * (1.0 + 0.04 * sin(u_time * 0.37 + 4.2));
   col += mix(gPal[2], vec3(0.8), 0.25) * gridLines(p, Rg, m, 12.0, px) * (0.06 + 0.14 * u_k2) * (1.0 + gChordPulse);
@@ -189,8 +213,21 @@ void main() {
   vec3 coreTint = mix(gPal[0], gPal[3], 0.5 * gTension);
   float limb = sqrt(max(1.0 - rc * rc, 0.0));
   float plasma = 0.55 + 0.45 * vnoise(p / max(R0, 1e-3) * 1.8 + vec2(u_time * 0.5, -u_time * 0.35));
-  col += hotCore(coreTint, 0.35 + 1.0 * gKick + 0.2 * bass) * coreBall * (0.25 + 0.6 * limb) * plasma;
-  col += coreTint * coreGlow * (0.35 + 0.5 * bass + 0.4 * gKick);
+  col += hotCore(coreTint, 0.35 + 1.0 * gKick + 0.2 * bass + 2.4 * gHit) * coreBall * (0.25 + 0.6 * limb) * plasma;
+  col += coreTint * coreGlow * (0.35 + 0.5 * bass + 0.4 * gKick + 1.1 * gHit);
+  // ... and throws a prominence: a tongue of plasma out of the core in the hit's own direction (from its seed), so no two
+  // hits flare alike; velocity sets its reach
+  if (gHit > 0.01) {
+    float fa = (gHost ? vjAt(12, 2).x : 0.0) * TAU;
+    vec2 fdir = vec2(cos(fa), sin(fa));
+    float reachF = (0.10 + 0.28 * gHitVel) * (0.4 + 0.6 * gHit);
+    float alongF = dot(p, fdir) - R0 * 0.8;
+    float acrossF = abs(dot(p, vec2(-fdir.y, fdir.x)));
+    float sF = clamp(alongF / max(reachF, 1e-3), 0.0, 1.0);
+    float widthF = (0.008 + 0.03 * gHitVel) * (1.0 - 0.8 * sF) + px;
+    float tongue = exp(-pow(acrossF / widthF, 2.0)) * step(0.0, alongF) * (1.0 - smoothstep(0.75, 1.0, alongF / max(reachF, 1e-3)));
+    col += hotCore(mix(coreTint, gPal[3], 0.4), 1.2 + 1.5 * gHit) * tongue * gHit * (0.6 + 0.4 * vnoise(vec2(sF * 9.0 - u_time * 6.0, fa)));
+  }
 
   col *= mix(0.4, 1.0, u_intensity);
   col = 1.0 - exp(-col * 1.1);
