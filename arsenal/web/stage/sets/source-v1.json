@@ -344,7 +344,7 @@
       "mode": "absolute",
       "form": "square",
       "width": 0.3333,
-      "transition": 0.2,
+      "transition": 0,
       "size": 1,
       "measure": 3,
       "phase": {"order": "level", "block": "ties", "from": 0, "to": -360, "cyclic": true}
@@ -356,7 +356,7 @@
       "mode": "absolute",
       "form": "square",
       "width": 0.5,
-      "transition": 0.2,
+      "transition": 0,
       "size": 1,
       "measure": 2,
       "phase": {"order": "level_mirror", "block": "ties", "from": 0, "to": -360, "cyclic": true}
@@ -389,7 +389,7 @@
       "mode": "absolute",
       "form": "square",
       "width": 0.25,
-      "transition": 0.15,
+      "transition": 0,
       "size": 1,
       "measure": 4,
       "phase": {"order": "column", "block": "ties", "from": 0, "to": -270, "cyclic": true}
@@ -400,7 +400,7 @@
       "mode": "absolute",
       "form": "square",
       "width": 0.25,
-      "transition": 0.15,
+      "transition": 0,
       "size": 1,
       "measure": 4,
       "phase": {"order": "depth", "block": "ties", "from": 0, "to": -270, "cyclic": true}
@@ -410,9 +410,9 @@
       "mode": "absolute",
       "form": "square",
       "width": 0.39,
-      "transition": 0.6,
-      "floor": 0.4,
-      "size": 1,
+      "transition": 1.0,
+      "floor": 0.85,
+      "size": 0.6,
       "measure": 0.5,
       "phase": {"order": "angle", "from": 0, "to": -720, "cyclic": true}
     },
@@ -829,7 +829,7 @@
       "pads": [
         {"section": "drop", "every_bars": 1, "beat": 1, "pad": 1, "vel": 0.85},
         {"section": "drop", "every_bars": 2, "beat": 3, "pad": 2, "vel": 0.9, "from_bar": 16},
-        {"section": "drop", "bar": 0, "beat": 1, "pad": 6, "vel": 1.0},
+        {"section": "drop", "bar": 16, "beat": 1, "pad": 6, "vel": 1.0},
         {"section": "build", "bar": 6, "beat": 1, "pad": 2, "vel": 1.0, "hold_beats": 6},
         {"section": "build", "bar": 7, "beat": 3, "pad": 10, "vel": 1.0},
         {"section": "intro", "every_bars": 4, "offset_bars": 3, "beat": 1, "pad": 2, "vel": 0.6}
@@ -837,7 +837,8 @@
     },
     "pads": {"1": "kick", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop"},
     "faders": {"cc105": "strand", "cc108": "lasers", "cc109": "haze", "cc110": "speed", "cc113": "grand"},
-    "fader_defaults": {"strand": 1, "lasers": 1, "haze": 0.55, "speed": 0.5, "grand": 1}
+    "fader_defaults": {"strand": 1, "lasers": 1, "haze": 0.55, "speed": 0.5, "grand": 1},
+    "flyout_groups": ["truss.heads", "lip.heads"]
   },
   "laser_groups": {
     "lasers.A": {"banks": ["A"]},
@@ -899,7 +900,8 @@
         {"group": "vert", "preset": "vertical", "values": {"Dimmer": 0, "Zoom": 0.8, "Color": "W"}},
         {"group": "vert.delay", "preset": "vertical", "values": {"Dimmer": 0, "Zoom": 0.8, "Color": "W"}},
         {"group": "vert.strips", "values": {"Dimmer": 0, "Color": "W"}},
-        {"group": "truss.heads", "values": {"Dimmer": 0}}
+        {"group": "truss.heads", "values": {"Dimmer": 0}},
+        {"group": "strand.heads", "values": {"Dimmer": 0.3}}
       ],
       "steps": [
         {
@@ -908,12 +910,7 @@
           "beats": 12,
           "trigger": "follow",
           "lines": [
-            {
-              "group": "halo",
-              "preset": "layers",
-              "values": {"Dimmer": 0, "Zoom": 1.2, "Color": "$colour"},
-              "effects": ["levels-step", {"name": "levels-nod", "with": {"size": "$nod"}}]
-            },
+            {"group": "halo", "preset": "layers", "values": {"Dimmer": 0, "Zoom": 1.2, "Color": "$colour"}, "effects": ["levels-step"]},
             {"group": "halo.lasers", "laser": {"shape": "levels", "schedule": "levels-step", "colour": 2, "level": 0.8}},
             {"group": "rings.slats", "values": {"Dimmer": 0.35, "Color": "bumpA", "Color2": "bumpB"}, "effects": ["ring-colour-bump"]},
             {"group": "rings.rims", "values": {"Dimmer": 0.5, "Color": "W"}}
@@ -1024,7 +1021,6 @@
           "hpan_start": {"alternate": [-40, 40]},
           "hpan_reverse": {"alternate": [false, true]},
           "layer_shift": {"seeded": [-2, 2]},
-          "nod": {"seeded": [6, 12]},
           "halo_group": {"cycle": ["halo", "halo.r0", "halo.r1", "halo.r2"]},
           "camera_alt": {"alternate": [false, true]}
         }

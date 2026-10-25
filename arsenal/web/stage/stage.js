@@ -133,7 +133,9 @@ function start({ rig, R, renderMod }) {
     }
     if (sec.lasers) lasers.setLook(sec.lasers.look, sec.lasers.level ?? 1, sec.lasers.reach ?? 1);
     lasers.setSection(ev.name);
-    if (sec.camera && !manualShot) director.start(sec.camera, ev.pos);
+    // a phrase started from the pad keeps the camera through a section change (the section's own phrase replans it)
+    const padPhraseCamera = runner && runner.cur && runner.cur.camera && runner.cur.source !== "show";
+    if (sec.camera && !manualShot && !padPhraseCamera) director.start(sec.camera, ev.pos);
     // the section's phrase starts on its ONE; a phrase the show started ends with its section (a pad's phrase plays on)
     if (runner) {
       if (sec.phrase && rig.phrases[sec.phrase.name]) {

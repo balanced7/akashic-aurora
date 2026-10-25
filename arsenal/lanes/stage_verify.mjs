@@ -30,6 +30,17 @@
 //           own limiter must record zero interventions.
 //   sheet   screenshots of the signature shots for the contact sheets (private, scratch only: Daniel's frames are other
 //           people's footage and never leave the scratchpad).
+// v1 phases (2026-10-25, the phrase; --set source-v1 is the default):
+//   phrase       the real page's logic every frame through the first drop's two repeats: steps on their lines (0-1 frame),
+//                the thirds and the verticals in order, one FlashGate grant per horizontal step, the ring effects, the
+//                laser groups answering each step, the cuts (bar lines; the pre-cut one beat before a flash).
+//   pic-levels   HALO_LOCK, rendered: the rows of the three thirds' emitters: the top row's period (3 beats), the middle
+//   pic-rush     and bottom rows' lags (+1 and +2 steps), the dark step's share; pic-rush the same at the footage's speed.
+//   pic-ring     the chopper on the rendered rings (harmonic, rate, direction) and the colour bump (period, brightness).
+//   pic-handoff  step D's frames (lit and true-black shares) and the same phrase position in two repeats (never static).
+//   flash3m      three minutes of the programmed demo, crowd on, every frame read back, in chunks of --chunk-seconds,
+//                each its own burst; the verifier's counter judges the stitched run (--flash3m-dir resumes a run).
+//   sheet-phrase the phrase's contact sheet: every step from its own camera and from the tribune (scratch only).
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -48,7 +59,12 @@ const MAIN = REPO.split(/[\\/]\.claude[\\/]worktrees[\\/]/)[0];
 const WEB = resolve(REPO, "arsenal", "web");
 const { values: opt } = parseArgs({
   options: {
-    phases: { type: "string", default: "load,clock,engine,cost,flash,storm,sheet" },
+    phases: { type: "string", default: "load,clock,phrase,engine,flash,storm,pic-levels,pic-rush,pic-ring,pic-handoff" },
+    "flash3m-seconds": { type: "string", default: "180" },
+    "chunk-seconds": { type: "string", default: "10" },
+    "chunk-from": { type: "string", default: "0" },
+    "chunk-to": { type: "string", default: "0" },
+    "flash3m-dir": { type: "string", default: "" },
     port: { type: "string", default: "8980" },
     "engine-port": { type: "string", default: "8981" },
     width: { type: "string", default: "1280" },
@@ -368,7 +384,7 @@ async function phaseClock({ ev, open, phase, deadline }) {
       window.__vt.step(1000 / 60);
       const t = performance.now(), tEval = t + s.grid.presentLagMs;
       const pos = s.grid.posAt(tEval);
-      const st = { t, pos, section: s.state().section, shot: s.director.pose.shot, cut: s.director.pose.cut, u: s.director.pose.u,
+      const st = { t, pos, section: s.state().section, shot: s.director.pose.shot, cut: s.director.pose.cut, why: s.director.pose.cut ? s.director.cuts.at(-1).why : null, u: s.director.pose.u,
                    cam: s.director.pose.pos.slice(), ys: s.strand.poses.map((p) => +p.y.toFixed(4)), rolls: s.strand.poses.map((p) => +p.roll.toFixed(3)),
                    form: s.strand.formation.name, move: !!s.strand.move,
                    headDim: s.programmer.heads[2], cube: s.programmer.pixels[s.rig.cells.kind.indexOf(2) * 4 + 3] };
@@ -407,7 +423,9 @@ async function phaseClock({ ev, open, phase, deadline }) {
   const drop = series.filter((s) => s.section === "drop");
   const peaks = [];
   // a peak: a rise of more than 0.02 then a fall (the crossfade between looks makes ripples smaller than that)
-  for (let i = 1; i < drop.length - 1; i++) if (drop[i].headDim > drop[i - 1].headDim + 0.02 && drop[i].headDim >= drop[i + 1].headDim) peaks.push(drop[i].pos);
+  // (a lift: six frames before the peak the light was already at 0.4 or more. In v1 a phrase step blacks the heads, and
+  // an entry from black takes the dimmer motor 2.4 frames: that is the motor, not the clock)
+  for (let i = 6; i < drop.length - 1; i++) if (drop[i].headDim > drop[i - 1].headDim + 0.02 && drop[i].headDim >= drop[i + 1].headDim && drop[i - 6].headDim >= 0.4) peaks.push(drop[i].pos);
   const off = peaks.map((p) => { const d = p - Math.round(p); return Math.abs(d) * 24; });     // in frames
   phase.off_peaks = peaks.map((p, k) => ({ pos: +p.toFixed(3), frames_off: +off[k].toFixed(2) })).filter((x) => x.frames_off > 1).slice(0, 6);
   phase.drop_dimmer = drop.slice(0, 120).map((s) => [+s.pos.toFixed(3), +s.headDim.toFixed(4)]);
@@ -416,11 +434,12 @@ async function phaseClock({ ev, open, phase, deadline }) {
   const kicks = st.kicks;
   check("clock: the KICK lift lands on its beat (onset = the beat the press fell on)", kicks.length >= 4 && kicks.every((k) => k.onset === Math.round(k.pressPos) && Math.abs(k.pressPos - k.onset) <= 1 / 24 + 1e-9), kicks.slice(0, 6));
   // 4. sections and cuts on bar lines; no cut faster than 2 beats
-  const cuts = [];
-  for (let i = 1; i < series.length; i++) if (series[i].cut) cuts.push(series[i].pos);
-  const cutOff = cuts.map((p) => { const q = ((p - g.barAnchor) % 4 + 4) % 4; return Math.min(q, 4 - q) * 24; });
+  const cuts = [], why = [];
+  for (let i = 1; i < series.length; i++) if (series[i].cut) { cuts.push(series[i].pos); why.push(series[i].why); }
+  // a phrase's pre-cut lands one beat before the bar line of the step that opens with a flash (v1); every other cut on a bar line
+  const cutOff = cuts.map((p, k) => { const q = ((p + (why[k] === "precut" ? 1 : 0) - g.barAnchor) % 4 + 4) % 4; return Math.min(q, 4 - q) * 24; });
   const cutGaps = cuts.slice(1).map((c, k) => c - cuts[k]);
-  check("clock: camera cuts fall on bar lines (+-1 frame) and never closer than 2 beats", cuts.length >= 3 && cutOff.every((x) => x <= 1.01) && cutGaps.every((x) => x >= 2 - 0.05), { cuts: cuts.length, worst_frames: +Math.max(0, ...cutOff).toFixed(2), min_gap_beats: cutGaps.length ? +Math.min(...cutGaps).toFixed(3) : null });
+  check("clock: camera cuts fall on bar lines (+-1 frame; a phrase's pre-cut one beat before its flash step's) and never closer than 2 beats", cuts.length >= 3 && cutOff.every((x) => x <= 1.01) && cutGaps.every((x) => x >= 2 - 0.05), { cuts: cuts.length, precuts: why.filter((w) => w === "precut").length, worst_frames: +Math.max(0, ...cutOff).toFixed(2), min_gap_beats: cutGaps.length ? +Math.min(...cutGaps).toFixed(3) : null });
   // 5. the flythrough arrives inside the inner ring on the drop's downbeat
   const lastFly = [...series].reverse().find((s) => s.shot === "STRAND_FLYTHROUGH");
   const firstDrop = series.find((s) => s.section === "drop");
@@ -642,13 +661,444 @@ async function phaseSheet({ ev, open, shot, phase }) {
   check("sheet: ten signature shots captured", phase.shots.length === plan.length, phase.shots.map((s) => `${s.label}:${s.section}`));
 }
 
+// ============================================================================================== v1: the phrase --
+// Daniel, 2026-10-25: "3 levels of light all shooting over the crowd ... top, midle then bottom pan up and down
+// sequentially. or horizontal flash and pan, then vertical 1, 2, 3 then back to lasers, then a cool pattern of lights from
+// the circular halo." The v1 phases prove the phrase in the real page: its steps land on their lines, the thirds and the
+// columns fire in order, the ring effects and the laser groups answer it, and three minutes of the programmed demo with
+// the crowd on, through every camera shot, never make the final limiter act.
+const DROP_BEAT = 61;                                  // the demo's first drop (intro and build: 16 bars from beat -3)
+const frameOfBeat = (b) => Math.round(18 + b * 24);    // virtual clock: the demo's beat b falls on this frame from load
+
+// A page-side recorder: the phrase's state and the FrameState measures, one entry per 60 fps frame.
+const PHRASE_PROBE = String.raw`(() => {
+  if (window.__ph) return true;
+  const s = window.__stage, R = s.rig, P = s.programmer, HF = 16;
+  const G = (n) => R.groups[n];
+  const thirds = ["halo.top", "halo.mid", "halo.bot"].map(G);
+  const vert = G("vert"), depth = G("vert.depth"), hrow = G("hrow"), r0 = G("rings.r0.slats"), slats = G("rings.slats");
+  const idx = (g, key, v) => Array.from({ length: g.n }, (_, m) => m).filter((m) => g.keys[key][m] === v);
+  const cols = [0, 1, 2].map((c) => idx(vert, "column", c)), deps = [0, 1, 2].map((c) => idx(depth, "depth", c));
+  const md = (g, list) => { let a = 0; const L = list || Array.from({ length: g.n }, (_, m) => m); for (const m of L) a += P.heads[g.members[m] * HF + 2]; return a / L.length; };
+  const ang = Array.from(r0.keys.angle);
+  window.__ph = { rec(frames) {
+    const out = [];
+    for (let i = 0; i < frames; i++) {
+      window.__vt.step(1000 / 60);
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+      const st = s.runner.status(), pose = s.director.pose, o = s.lasers.out;
+      const lh = new Set();
+      for (let k = o.groupStart; k < o.groupStart + o.groups; k++) lh.add(o.seg[k * 16 + 13]);
+      let lo = Infinity; for (let m = 0; m < r0.n; m++) lo = Math.min(lo, P.pixels[r0.members[m] * 4 + 3]);
+      let re = 0, im = 0, w = 0;
+      for (let m = 0; m < r0.n; m++) { const d = P.pixels[r0.members[m] * 4 + 3] - lo; re += d * Math.cos(2 * ang[m]); im += d * Math.sin(2 * ang[m]); w += d; }
+      let rs = 0, n = 0;
+      for (let m = 0; m < slats.n; m += 16) { const c = slats.members[m] * 4, t = P.pixels[c] + P.pixels[c + 1] + P.pixels[c + 2]; if (t > 1e-6) { rs += P.pixels[c] / t; n++; } }
+      out.push({ pos: +pos.toFixed(5), st: st.state === "running" ? [st.step, +st.start.toFixed(4), st.variant, st.repeat] : null,
+                 th: thirds.map((g) => +md(g).toFixed(4)), col: cols.map((L) => +md(vert, L).toFixed(4)), dep: deps.map((L) => +md(depth, L).toFixed(4)),
+                 pan: +P.heads[hrow.members[0] * HF].toFixed(2), hd: +md(hrow).toFixed(4), lh: [...lh],
+                 h2: w > 1e-6 ? [+(Math.hypot(re, im) / w).toFixed(4), +Math.atan2(im, re).toFixed(4)] : [0, 0],
+                 bump: n ? +(rs / n).toFixed(4) : 0, cut: pose.cut ? [pose.shot, s.director.cuts.at(-1).why] : null, shot: pose.shot,
+                 section: s.show.section && s.show.section.name });
+    }
+    return out;
+  } };
+  return true;
+})()`;
+
+async function phasePhrase({ ev, open, phase, deadline }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PHRASE_PROBE);
+  await ev("window.__stage.skipRender = true");
+  phase.drawing = "off (logic only, every 60 fps frame of the real page)";
+  const start = frameOfBeat(DROP_BEAT - 2), total = 24 * (64 + 4);
+  await ev(`(() => { for (let i = 0; i < ${start}; i++) window.__vt.step(${F}); return true; })()`, 160000);
+  const rec = [];
+  for (let done = 0; done < total && Date.now() < deadline - 20000; done += 400) rec.push(...await ev(`window.__ph.rec(${Math.min(400, total - done)})`, 160000));
+  phase.frames = rec.length;
+  const st = await ev(`({ log: window.__stage.runner.log.slice(0, 40), grants: window.__stage.programmer.flashGate.grants.slice(), refusals: window.__stage.programmer.flashGate.refusals.slice(),
+                         barAnchor: window.__stage.grid.barAnchor, groups: window.__stage.lasers.groupStats, laserGroups: Object.fromEntries(Object.entries(window.__stage.rig.laserGroups).map(([k, v]) => [k, v.heads])) })`);
+  phase.runner_log = st.log;
+  const FB = 1 / 24;
+  const onBar = (p) => { const q = ((p - st.barAnchor) % 4 + 4) % 4; return Math.min(q, 4 - q) < 1e-6; };
+  // 1. the steps land on their lines (0-1 frame): the first frame of each step
+  const firsts = [];
+  for (let i = 0; i < rec.length; i++) {
+    const a = rec[i].st, b = i ? rec[i - 1].st : null;
+    if (a && (!b || a[0] !== b[0] || a[1] !== b[1])) firsts.push({ step: a[0], start: a[1], variant: a[2], repeat: a[3], pos: rec[i].pos });
+  }
+  phase.steps = firsts;
+  const late = firsts.map((f) => (f.pos - f.start) / FB);
+  check("phrase: every step starts on its bar line, on its first frame (0-1 frame)", firsts.length >= 10 && firsts.every((f) => onBar(f.start)) && late.every((x) => x >= -1e-6 && x <= 1.01),
+        { steps: firsts.length, worst_frames_late: +Math.max(...late).toFixed(3), sequence: firsts.map((f) => `${f.step}@${f.start}`).join(" ") });
+  // 2. the thirds fire in order, one per beat (bottom first when the repeat ascends; top+bottom / middle for pinch)
+  const want = (variant, b) => variant === "ascend" ? [[0, 0, 1], [0, 1, 0], [1, 0, 0]][b % 3] : variant === "pinch" ? (b % 2 ? [0, 1, 0] : [1, 0, 1]) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]][b % 3];
+  const bad = [];
+  let judged = 0;
+  for (const r of rec) {
+    if (!r.st || r.st[0] !== "A") continue;
+    const age = r.pos - r.st[1], b = Math.floor(age + 1e-9), frac = age - b;
+    if (frac < 0.25 || frac > 0.75) continue;                       // mid-beat: away from the edges
+    const lit = r.th.map((v) => (v > 0.5 ? 1 : 0)), w = want(r.st[2], b);
+    judged++;
+    if (lit.join("") !== w.join("")) bad.push({ pos: r.pos, variant: r.st[2], beat: b, lit: lit.join(""), want: w.join("") });
+  }
+  check("phrase: the thirds fire in order one per beat (top, middle, bottom; ascend reverses; pinch: top+bottom, middle)", judged > 100 && bad.length === 0, { judged_frames: judged, wrong: bad.slice(0, 4) });
+  // 3. the verticals fire 1, 2, 3 on beats 1-3, dark on beat 4 (depth: stage, z 30, z 55)
+  const vbad = [];
+  let vj = 0;
+  for (const r of rec) {
+    if (!r.st || r.st[0] !== "C") continue;
+    const age = r.pos - r.st[1], b = Math.floor(age + 1e-9), frac = age - b;
+    if (frac < 0.25 || frac > 0.75) continue;
+    const v = r.st[2] === "depth" ? r.dep : r.col;
+    const lit = v.map((x) => (x > 0.5 ? 1 : 0)).join("");
+    const k = r.st[2] === "ascend" ? 2 - b : b;
+    const w = b === 3 ? "000" : [0, 1, 2].map((c) => (c === k ? 1 : 0)).join("");
+    vj++;
+    if (lit !== w) vbad.push({ pos: r.pos, variant: r.st[2], beat: b, lit, want: w });
+  }
+  check("phrase: verticals 1-2-3 in order on beats 1-3, dark on beat 4 (depth variant: stage, z 30, z 55)", vj > 40 && vbad.length === 0, { judged_frames: vj, wrong: vbad.slice(0, 4) });
+  // 4. the horizontal: one FlashGate grant per B on its ONE; the row holds 0.6 or more after the flash
+  const Bs = firsts.filter((f) => f.step === "B").map((f) => f.start);
+  const hold = rec.filter((r) => r.st && r.st[0] === "B" && r.pos - r.st[1] > 0.75).map((r) => r.hd);
+  check("phrase: exactly one FlashGate grant per horizontal step, on its ONE; the row holds >= 0.6 after it", JSON.stringify(st.grants) === JSON.stringify(Bs) && st.refusals.length === 0 && Math.min(...hold) >= 0.6 - 1e-6,
+        { grants: st.grants, b_steps: Bs, refusals: st.refusals, min_hold: +Math.min(...hold).toFixed(3) });
+  // 5. the ring effects run: the bump swaps once a beat in A; the chopper is two blades at a turn a beat in E, its
+  //    direction alternating repeat to repeat
+  const bumpA = rec.filter((r) => r.st && r.st[0] === "A");
+  let bestP = 0, best = 0;
+  for (let P = 0.5; P <= 3.0001; P += 0.01) { let re = 0, im = 0; for (const r of bumpA) { re += r.bump * Math.cos(2 * Math.PI * r.pos / P); im += r.bump * Math.sin(2 * Math.PI * r.pos / P); } const a = Math.hypot(re, im); if (a > best) { best = a; bestP = P; } }
+  const Es = firsts.filter((f) => f.step === "E");
+  const chop = Es.slice(0, 2).map((e0) => {
+    const E = rec.filter((r) => r.st && r.st[0] === "E" && r.st[1] === e0.start && r.pos - r.st[1] > 0.05 && r.pos - r.st[1] < 2.9);
+    if (E.length < 20) return null;
+    const amp = E.reduce((a, r) => a + r.h2[0], 0) / E.length;
+    const a2 = [E[0].h2[1] / 2];
+    for (let i = 1; i < E.length; i++) { let d = E[i].h2[1] / 2 - E[i - 1].h2[1] / 2; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI; a2.push(a2.at(-1) + d); }
+    const xs = E.map((r) => r.pos), n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = a2.reduce((a, b) => a + b) / n;
+    let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (a2[i] - my); sxx += (xs[i] - mx) ** 2; }
+    const turns = sxy / sxx / (2 * Math.PI);
+    const within = a2.filter((a, i) => Math.abs(a - (my + (sxy / sxx) * (xs[i] - mx))) <= Math.PI / 6).length / n;
+    return { amp: +amp.toFixed(3), turns_per_beat: +turns.toFixed(3), within_30deg: +within.toFixed(3) };
+  });
+  phase.ring = { bump_period_beats: +bestP.toFixed(2), chopper: chop };
+  check("phrase: the ring effects run (the colour bump swaps once a beat in A; the chopper: two blades, 1 turn a beat +-5 %, the direction alternating, 90 %+ of frames on the fit)",
+        Math.abs(bestP - 1) <= 0.05 && chop.length === 2 && chop.every((c) => c && c.amp >= 0.6 && Math.abs(Math.abs(c.turns_per_beat) - 1) <= 0.05 && c.within_30deg >= 0.9) && Math.sign(chop[0].turns_per_beat) !== Math.sign(chop[1].turns_per_beat),
+        phase.ring);
+  // 6. the laser groups answer the phrase: A = the lit third's halo lasers; D = the lasers enter on its ONE from the banks
+  //    it names; E = the rim corona on the halo lasers plus the core
+  const halo = (lv) => st.laserGroups[["halo.lasers.top", "halo.lasers.mid", "halo.lasers.bot"][lv]];
+  let aOk = 0, aN = 0;
+  for (const r of rec) {
+    if (!r.st || r.st[0] !== "A" || !r.lh.length) continue;
+    const age = r.pos - r.st[1], b = Math.floor(age + 1e-9), frac = age - b;
+    if (frac < 0.25 || frac > 0.75 || r.st[2] === "pinch") continue;
+    const k = r.st[2] === "ascend" ? 2 - (b % 3) : b % 3;
+    aN++;
+    if (r.lh.every((h) => halo(k).includes(h)) && r.lh.length === halo(k).length) aOk++;
+  }
+  const dFirst = firsts.filter((f) => f.step === "D").map((f) => { const r = rec.find((x) => x.pos >= f.start - 1e-6 && x.lh.length); return r ? +((r.pos - f.start) / FB).toFixed(2) : null; });
+  const banks = new Set(st.laserGroups.lasers);
+  const dOk = rec.filter((r) => r.st && r.st[0] === "D" && r.lh.length).every((r) => r.lh.every((h) => banks.has(h)));
+  const eHeads = new Set(rec.filter((r) => r.st && r.st[0] === "E").flatMap((r) => r.lh));
+  const eHalo = st.laserGroups["halo.lasers"].filter((h) => eHeads.has(h)).length;
+  phase.lasers = { a_frames: aN, a_matching: aOk, d_first_laser_frames: dFirst, d_from_named_banks: dOk, e_halo_spokes_seen: eHalo, group_stats: st.groups };
+  check("phrase: the laser groups answer the phrase (A: the lit third's halo lasers; D: in on its ONE +-1 frame, from the named banks; E: the halo spokes)",
+        aN > 50 && aOk / aN >= 0.98 && dFirst.length >= 2 && dFirst.every((x) => x !== null && x <= 1.01) && dOk && eHalo === 12, phase.lasers);
+  // 7. the phrase's cuts: on bar lines, except the pre-cut one beat before each horizontal flash
+  const cuts = rec.filter((r) => r.cut && r.st).map((r) => ({ pos: r.pos, shot: r.cut[0], why: r.cut[1] }));
+  const cutBad = cuts.filter((c) => {
+    if (c.why === "precut") return !Bs.some((b) => Math.abs(c.pos - (b - 1)) <= FB * 1.01);
+    const q = ((c.pos - st.barAnchor) % 4 + 4) % 4; return Math.min(q, 4 - q) > FB * 1.01;
+  });
+  phase.cuts = cuts;
+  check("phrase: camera cuts on bar lines (+-1 frame), and the cut into the horizontal step one beat before its flash, never on the flash frame",
+        cuts.length >= 8 && cutBad.length === 0 && !cuts.some((c) => Bs.some((b) => Math.abs(c.pos - b) <= FB * 1.01)), { cuts: cuts.length, wrong: cutBad.slice(0, 4) });
+}
+
+// The picture measures (rendered, read back): a test phrase is injected into the page's runner (the set file is not
+// touched) and played with the demo's pads off and the camera held; frames are read from the canvas.
+const PICTURE_PROBE = String.raw`(() => {
+  if (window.__pic) return true;
+  const s = window.__stage, canvas = document.getElementById("gl"), gl = s.renderer.gl;
+  const LUT = new Float32Array(256).map((_, i) => { const v = i / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  let buf = null;
+  const read = () => { const w = canvas.width, h = canvas.height; if (!buf || buf.length !== w * h * 4) buf = new Uint8Array(w * h * 4); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf); return { w, h }; };
+  const lumAt = (x, y, w) => { const i = (y * w + x) * 4; return 0.2126 * LUT[buf[i]] + 0.7152 * LUT[buf[i + 1]] + 0.0722 * LUT[buf[i + 2]]; };
+  // a world point to canvas pixels (readPixels rows run bottom-up)
+  const project = (p) => { const cam = s.renderer.camera; const v = { x: p[0], y: p[1], z: p[2] };
+    const e = cam.matrixWorldInverse.elements, q = cam.projectionMatrix.elements;
+    const vx = e[0] * v.x + e[4] * v.y + e[8] * v.z + e[12], vy = e[1] * v.x + e[5] * v.y + e[9] * v.z + e[13], vz = e[2] * v.x + e[6] * v.y + e[10] * v.z + e[14];
+    const cx = q[0] * vx + q[4] * vy + q[8] * vz + q[12], cy = q[1] * vx + q[5] * vy + q[9] * vz + q[13], cw = q[3] * vx + q[7] * vy + q[11] * vz + q[15];
+    return [(cx / cw * 0.5 + 0.5) * canvas.width, (cy / cw * 0.5 + 0.5) * canvas.height, cw > 0]; };
+  window.__pic = {
+    // the mean relative luminance of horizontal strips centred on canvas rows (bottom-up), each +-half rows
+    strips(rows, half) { const { w, h } = read(); return rows.map((r) => { let a = 0, n = 0; for (let y = Math.max(0, Math.round(r - half)); y <= Math.min(h - 1, Math.round(r + half)); y++) for (let x = 0; x < w; x += 2) { a += lumAt(x, y, w); n++; } return n ? a / n : 0; }); },
+    // the luminance and redness at projected points (3 x 3 px around each)
+    points(pts) { const { w, h } = read(); return pts.map(([x, y]) => { let a = 0, r = 0, b = 0, n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const X = Math.round(x) + dx, Y = Math.round(y) + dy; if (X < 0 || Y < 0 || X >= w || Y >= h) continue; const i = (Y * w + X) * 4; a += lumAt(X, Y, w); r += LUT[buf[i]]; b += LUT[buf[i + 2]]; n++; } return n ? [a / n, r / n, b / n] : [0, 0, 0]; }); },
+    // the whole frame: mean luminance, lit share (luminance >= 0.05) and true-black share (every channel <= 8 of 255)
+    frame() { const { w, h } = read(); let a = 0, lit = 0, black = 0; const n = w * h; for (let i = 0; i < n; i++) { const L = 0.2126 * LUT[buf[i * 4]] + 0.7152 * LUT[buf[i * 4 + 1]] + 0.0722 * LUT[buf[i * 4 + 2]]; a += L; if (L >= 0.05) lit++; if (buf[i * 4] <= 8 && buf[i * 4 + 1] <= 8 && buf[i * 4 + 2] <= 8) black++; } return { mean: a / n, lit: lit / n, black: black / n }; },
+    // a frame kept for a later comparison, and the mean absolute luminance difference against it
+    keep(name) { const { w, h } = read(); const L = new Float32Array(w * h); for (let i = 0; i < w * h; i++) L[i] = 0.2126 * LUT[buf[i * 4]] + 0.7152 * LUT[buf[i * 4 + 1]] + 0.0722 * LUT[buf[i * 4 + 2]]; (window.__kept ||= {})[name] = L; return true; },
+    diff(a, b) { const A = window.__kept[a], B = window.__kept[b]; let d = 0, m = 0; for (let i = 0; i < A.length; i++) { d += Math.abs(A[i] - B[i]); m += (A[i] + B[i]) / 2; } return { mean_abs: d / A.length, mean: m / A.length, relative: m > 0 ? d / m : 0 }; },
+    project,
+  };
+  return true;
+})()`;
+// A test phrase (one step) for the picture measures: everything dark but what the measure needs.
+const darkLines = [{ group: "heads.all", values: { Dimmer: 0 } }, { group: "leds.all", values: { Dimmer: 0 } }];
+function testPhrase(id, lines, beats, shot) {
+  return { name: id, bars: beats / 4 + 1, steps: [{ id: "Z", name: "dark lead-in", beats: 4, trigger: "follow", lines: darkLines, camera: { shot } },
+                                                  { id: "T", name: id, beats, trigger: "follow", lines: [...darkLines, ...lines] }] };
+}
+const LEVELS_LINE = (eff) => ({ group: "halo", preset: "layers", values: { Dimmer: 0, Zoom: 1.2, Color: "beamA" }, effects: [eff] });
+// Returns the beat the measured step starts on (after the dark lead-in when the phrase has one).
+async function startTestPhrase(ev, id, def, shot) {
+  return ev(`(() => { const s = window.__stage; s.show.padRules = []; s.rig.phrases[${JSON.stringify(id)}] = ${JSON.stringify(def)};
+    const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs); const at = s.grid.nextBarPos(pos);
+    s.runner.start(${JSON.stringify(id)}, at, { repeats: 1, camera: false, section: "groove", source: "pad" }); s.setShot(${JSON.stringify(shot)}, 0.5);
+    return at + (${JSON.stringify(def)}.steps[0].id === "Z" ? 4 : 0); })()`);
+}
+// the strongest period (beats) of a series over [lo, hi], scanned finely
+function peakPeriod(xs, ys, lo, hi, step = 0.002) {
+  const m = ys.reduce((a, b) => a + b, 0) / ys.length;
+  let best = 0, bestP = lo;
+  for (let P = lo; P <= hi + 1e-9; P += step) { let re = 0, im = 0; for (let i = 0; i < xs.length; i++) { re += (ys[i] - m) * Math.cos(2 * Math.PI * xs[i] / P); im += (ys[i] - m) * Math.sin(2 * Math.PI * xs[i] / P); } const a = Math.hypot(re, im); if (a > best) { best = a; bestP = P; } }
+  return bestP;
+}
+// the lag (in samples) that best aligns b to a (b later = positive)
+function bestLag(a, b, maxLag) { const ma = a.reduce((s, v) => s + v, 0) / a.length, mb = b.reduce((s, v) => s + v, 0) / b.length; let best = -Infinity, bl = 0; for (let L = -maxLag; L <= maxLag; L++) { let c = 0; for (let i = Math.max(0, -L); i < a.length && i + L < b.length; i++) c += (a[i] - ma) * (b[i + L] - mb); if (c > best) { best = c; bl = L; } } return bl; }
+
+async function levelsPicture({ ev, open, phase, deadline }, variant) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PICTURE_PROBE);
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < ${frameOfBeat(6)}; i++) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
+  const rush = variant === "rush";
+  const beats = rush ? 12 : 24, eff = rush ? "levels-rush" : "levels-step";
+  const at = await startTestPhrase(ev, `rx-${variant}`, testPhrase(`rx-${variant}`, [LEVELS_LINE(eff)], beats, "HALO_LOCK"), "HALO_LOCK");
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at} - 1) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
+  await ev(`(() => { window.__vt.step(${F}); return true; })()`);
+  // the rows: where each third's emitters sit on the canvas (the centroid of its heads on the ring's rim). Our ring leans
+  // back 55 degrees, so the footage's rows at the ring centre +-R/3 would fall inside the ring, under the top third.
+  const rows = await ev(`(() => { const s = window.__stage; return ["halo.top", "halo.mid", "halo.bot"].map((n) => { const g = s.rig.groups[n]; let y = 0; for (const p of g.world) y += window.__pic.project(p)[1]; return y / g.n; }); })()`);
+  const half = Math.max(2, Math.round(H * 0.012));
+  // a beat of baseline (the halo dark), then the step: every frame for rush, every second frame otherwise
+  const every = rush ? 1 : 2;
+  const series = [];
+  const until = at + beats;
+  while (Date.now() < deadline - 15000) {
+    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 24; i++) { s.skipRender = ${every > 1 ? "true" : "false"}; for (let k = 1; k < ${every}; k++) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F});
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs); out.push([pos, ...window.__pic.strips(${JSON.stringify(rows)}, ${half})]); if (pos > ${until}) break; } return out; })()`, 160000);
+    series.push(...chunk);
+    if (chunk.at(-1)[0] > until) break;
+  }
+  const base = series.filter((r) => r[0] < at - 0.1);
+  const run = series.filter((r) => r[0] >= at + 0.05 && r[0] < until - 0.05);
+  const b0 = [1, 2, 3].map((k) => base.length ? base.reduce((a, r) => a + r[k], 0) / base.length : 0);
+  const xs = run.map((r) => r[0] - at);
+  const strip = [1, 2, 3].map((k) => run.map((r) => r[k] - b0[k - 1]));
+  const want = rush ? 0.75 : 3;
+  const P = peakPeriod(xs, strip[0], rush ? 0.4 : 1.5, rush ? 1.5 : 6);
+  const stepBeats = rush ? 0.25 : 1, spb = stepBeats / ((every * 150) / 60 / 60);
+  const lagMid = bestLag(strip[0], strip[1], Math.round(spb * 1.5)) / spb, lagBot = bestLag(strip[0], strip[2], Math.round(spb * 2.5)) / spb;
+  // the top strip by the cycle's three steps: the dark step's light against the lit step's (above the baseline)
+  const byStep = [0, 1, 2].map((k) => { const v = run.filter((r, i) => Math.floor(((xs[i] / stepBeats) % 3 + 3) % 3) === k && ((xs[i] / stepBeats) % 1) > 0.2 && ((xs[i] / stepBeats) % 1) < 0.8).map((r) => r[1] - b0[0]); return v.reduce((a, b) => a + b, 0) / Math.max(1, v.length); });
+  const darkShare = Math.max(0, Math.min(...byStep)) / Math.max(1e-9, Math.max(...byStep));
+  const res = { variant, samples: run.length, rows_px: rows.map((r) => +r.toFixed(1)), top_peak_period_beats: +P.toFixed(3), lag_middle_steps: +lagMid.toFixed(2), lag_bottom_steps: +lagBot.toFixed(2),
+                top_by_step: byStep.map((v) => +v.toFixed(5)), dark_over_lit: +darkShare.toFixed(3) };
+  phase[`levels_${variant}`] = res;
+  const tol = rush ? 0.03 : 0.09;
+  // rush is a lift (the unlit thirds hold 0.72): its dark step is 72 % of its lit one by design, so only the period and
+  // the order are its targets
+  check(`picture: HALO_LOCK rows, ${variant} levels: the top row's period ${want} +- ${tol} beats, middle +1 step, bottom +2 steps (+-0.25)${rush ? "" : ", dark step <= 15 % of the lit step"}`,
+        Math.abs(P - want) <= tol && Math.abs(lagMid - 1) <= 0.25 && Math.abs(lagBot - 2) <= 0.25 && (rush || darkShare <= 0.15), res);
+}
+async function phasePicLevels(ctx) { return levelsPicture(ctx, "daniel"); }
+async function phasePicRush(ctx) { return levelsPicture(ctx, "rush"); }
+
+async function phasePicRing({ ev, open, phase, deadline }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PICTURE_PROBE);
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < ${frameOfBeat(6)}; i++) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 160000);
+  // the chopper on every slat (6 beats), then the colour bump (6 beats) at the front-of-house long lens
+  const def = { name: "rx-ring", bars: 3, steps: [
+    { id: "C", name: "chopper", beats: 6, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.9, Color: "W", Color2: "A" }, effects: ["ring-chopper"] }] },
+    { id: "B", name: "bump", beats: 6, trigger: "follow", lines: [...darkLines, { group: "rings.slats", values: { Dimmer: 0.35, Color: "bumpA", Color2: "bumpB" }, effects: ["ring-colour-bump"] }] }] };
+  const at = await startTestPhrase(ev, "rx-ring", def, "HALO_LOCK");
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${at}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return true; })()`, 160000);
+  const pts = await ev(`(() => { const s = window.__stage, g = s.rig.groups["rings.r0.slats"], out = []; for (let m = 0; m < g.n; m += 2) { const p = window.__pic.project(g.world[m]); out.push([p[0], p[1], g.keys.angle[m]]); } return out; })()`);
+  const rec = [];
+  while (Date.now() < deadline - 15000) {
+    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 24; i++) { window.__vt.step(${F}); const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+      out.push([pos, window.__pic.points(${JSON.stringify(pts.map((p) => [p[0], p[1]]))}), window.__pic.frame().mean]); if (pos > ${at + 12}) break; } return out; })()`, 160000);
+    rec.push(...chunk);
+    if (chunk.at(-1)[0] > at + 12) break;
+  }
+  const ang = pts.map((p) => p[2]);
+  const C = rec.filter((r) => r[0] >= at + 0.1 && r[0] < at + 5.9);
+  const h = C.map((r) => { const L = r[1].map((x) => x[0]); const lo = Math.min(...L); let re = 0, im = 0, w = 0, re1 = 0, im1 = 0; L.forEach((v, k) => { const d = v - lo; re += d * Math.cos(2 * ang[k]); im += d * Math.sin(2 * ang[k]); re1 += d * Math.cos(ang[k]); im1 += d * Math.sin(ang[k]); w += d; }); return { a2: w ? Math.hypot(re, im) / w : 0, a1: w ? Math.hypot(re1, im1) / w : 0, ph: Math.atan2(im, re) }; });
+  const a2 = [h[0].ph / 2];
+  for (let i = 1; i < h.length; i++) { let d = h[i].ph / 2 - h[i - 1].ph / 2; while (d > Math.PI / 2) d -= Math.PI; while (d < -Math.PI / 2) d += Math.PI; a2.push(a2.at(-1) + d); }
+  const xs = C.map((r) => r[0]), n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = a2.reduce((a, b) => a + b) / n;
+  let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (xs[i] - mx) * (a2[i] - my); sxx += (xs[i] - mx) ** 2; }
+  const turns = sxy / sxx / (2 * Math.PI);
+  const within = a2.filter((a, i) => Math.abs(a - (my + (sxy / sxx) * (xs[i] - mx))) <= Math.PI / 6).length / n;
+  const chop = { frames: n, second_harmonic: +(h.reduce((s, x) => s + x.a2, 0) / n).toFixed(3), first_harmonic: +(h.reduce((s, x) => s + x.a1, 0) / n).toFixed(3),
+                 turns_per_beat: +turns.toFixed(3), counter_clockwise: turns > 0, within_30deg: +within.toFixed(3) };
+  phase.chopper = chop;
+  check("picture: the chopper on the rendered rings (front of house): second harmonic >= 0.6, 1 turn a beat +-5 %, counter-clockwise, 90 %+ of frames within 30 degrees of the fit",
+        chop.second_harmonic >= 0.6 && Math.abs(turns - 1) <= 0.05 && turns > 0 && within >= 0.9, chop);
+  const B = rec.filter((r) => r[0] >= at + 6.1 && r[0] < at + 11.9);
+  const red = B.map((r) => { let a = 0, b = 0; for (const p of r[1]) { a += p[1]; b += p[2]; } return a / Math.max(1e-9, a + b); });
+  const P = peakPeriod(B.map((r) => r[0]), red, 0.5, 3);
+  const means = B.map((r) => r[2]), mm = means.reduce((a, b) => a + b, 0) / means.length;
+  const bump = { frames: B.length, period_beats: +P.toFixed(3), frame_mean: +mm.toFixed(4), frame_swing: +((Math.max(...means) - Math.min(...means)) / mm).toFixed(4) };
+  phase.bump = bump;
+  check("picture: the colour bump on the rendered rings: its period 1.00 +- 0.05 beat, the frame's brightness moving 3 % or less", Math.abs(P - 1) <= 0.05 && bump.frame_swing <= 0.03, bump);
+}
+
+// The hand-off and never-static, in the demo as programmed (its own cameras): D's frames (lit share, true black) and the
+// same phrase position in two repeats.
+async function phasePicHandoff({ ev, open, phase, deadline }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PICTURE_PROBE);
+  const goTo = async (beat) => ev(`(() => { const s = window.__stage; s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${beat}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return s.grid.posAt(performance.now() + s.grid.presentLagMs); })()`, 160000);
+  const positions = [["A", 1.5], ["B", 2.5], ["C", 1.5], ["E", 1.5]];
+  const stepAt = { A: 0, B: 12, C: 16, D: 20, E: 28 };
+  // repeat 0: the same-position frames, then D sampled every 4th frame; repeat 1: the same positions again
+  const D = [];
+  const rep0 = DROP_BEAT, rep1 = DROP_BEAT + 32;
+  for (const [st, b] of positions.slice(0, 3)) { await goTo(rep0 + stepAt[st] + b); await ev(`window.__pic.keep("r0-${st}")`); }
+  await goTo(rep0 + stepAt.D + 0.05);
+  while (Date.now() < deadline - 60000) {
+    const chunk = await ev(`(() => { const s = window.__stage, out = []; for (let i = 0; i < 12; i++) { s.skipRender = true; for (let k = 0; k < 3; k++) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F});
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs); out.push({ pos, shot: s.director.pose.shot, ...window.__pic.frame() }); if (pos > ${rep0 + stepAt.E - 0.1}) break; } return out; })()`, 160000);
+    D.push(...chunk.filter((r) => r.pos < rep0 + stepAt.E));
+    if (chunk.at(-1).pos > rep0 + stepAt.E - 0.1) break;
+  }
+  await goTo(rep0 + stepAt.E + 1.5); await ev(`window.__pic.keep("r0-E")`);
+  for (const [st, b] of positions) { await goTo(rep1 + stepAt[st] + b); await ev(`window.__pic.keep("r1-${st}")`); }
+  const lit = D.reduce((a, r) => a + r.lit, 0) / D.length, black = D.reduce((a, r) => a + r.black, 0) / D.length;
+  phase.handoff = { frames: D.length, shots: [...new Set(D.map((r) => r.shot))], lit_share: +lit.toFixed(4), true_black_share: +black.toFixed(4),
+                    definition: "lit: relative luminance >= 0.05; true black: every channel <= 8 of 255" };
+  check("picture: the hand-off to the lasers (step D, the demo's own cameras): 15 % or less of the frame lit, 30 % or more true black", D.length >= 20 && lit <= 0.15 && black >= 0.30, phase.handoff);
+  const diffs = {};
+  for (const [st] of positions) diffs[st] = await ev(`window.__pic.diff("r0-${st}", "r1-${st}")`);
+  phase.never_static = Object.fromEntries(Object.entries(diffs).map(([k, v]) => [k, { relative: +v.relative.toFixed(3), mean_abs: +v.mean_abs.toFixed(5) }]));
+  check("picture: never static: the same phrase position in two repeats differs by a mean of 4 % or more (A, B, C, E)", Object.values(diffs).every((d) => d.relative >= 0.04), phase.never_static);
+}
+
+// The three-minute run: the programmed demo (with its phrase in the drop) from one second after load, every frame read
+// back with the crowd on, in chunks: each chunk is its own burst (the lock, a fresh Chrome, under three minutes), fast-
+// forwards the show's logic to its start, renders a warm-up of 1.5 s the limiter judges (so its one-second windows are
+// full), then the chunk. The verifier's own counter judges the stitched series of all chunks.
+const RUN_START = 60;
+async function flashChunk({ ev, open, phase, deadline }, k, framesPer, warm, runFrames, fw, fh) {
+  await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`);
+  await ev(PAGE_PROBE);
+  const f0 = RUN_START + k * framesPer, f1 = Math.min(RUN_START + runFrames, f0 + framesPer);
+  const ff = Math.max(0, f0 - warm);
+  const t0 = Date.now();
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < ${ff}; i++) window.__vt.step(${F}); s.skipRender = false; return true; })()`, 170000);
+  phase.fast_forward_s = +((Date.now() - t0) / 1000).toFixed(1);
+  const RUN = String.raw`((n) => { const s = window.__stage, out = []; for (let i = 0; i < n; i++) { window.__vt.step(1000 / 60); const c = window.__probe.cells(); const g = s.renderer.info.gains; const st = s.runner ? s.runner.status() : null;
+    out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0, shot: s.director.pose.shot, section: s.state().section, step: st && st.state === "running" ? st.step + ":" + st.variant : "" }); } return out; })`;
+  const series = [];
+  let frame = ff;
+  const t1 = Date.now();
+  while (frame < f1 && Date.now() < deadline - 12000) {
+    const n = Math.min(30, f1 - frame);
+    const chunk = await ev(`${RUN}(${n})`, 160000);
+    chunk.forEach((c, i) => { c.frame = frame + i + 1; });
+    series.push(...chunk);
+    frame += n;
+  }
+  phase.ms_per_frame = +((Date.now() - t1) / Math.max(1, series.length)).toFixed(0);
+  const lim = await ev("window.__stage.limiter.stats()");
+  const body = series.filter((c) => c.frame > f0);
+  const out = { k, f0, f1, warm, rendered: series.length, frames: body.length, complete: frame >= f1, interventions_in_chunk: body.filter((c) => c.lim).length,
+                interventions_in_warmup: series.filter((c) => c.frame <= f0 && c.lim).length, limiter_rest_frames: lim.rest_frames, size: [fw, fh],
+                ms_per_frame: phase.ms_per_frame, series };
+  writeFileSync(join(outDir, `flash3m-chunk-${String(k).padStart(3, "0")}.json`), JSON.stringify(out));
+  phase.chunk = { k, f0, f1, frames: body.length, complete: out.complete, interventions: out.interventions_in_chunk, ms_per_frame: phase.ms_per_frame,
+                  shots: [...new Set(body.map((c) => c.shot))], sections: [...new Set(body.map((c) => c.section))] };
+  console.log(`flash3m chunk ${k}: frames ${f0}-${f1}, ${body.length} judged, interventions ${out.interventions_in_chunk}, ${phase.ms_per_frame} ms/frame, shots ${phase.chunk.shots.join(",")}`);
+}
+async function runFlash3m() {
+  const seconds = Number(opt["flash3m-seconds"]) || 180, per = Number(opt["chunk-seconds"]) || 10;
+  const runFrames = Math.round(seconds * 60), framesPer = Math.round(per * 60), warm = 90;
+  const scale = Number(opt["flash-scale"]) || 1;
+  const fw = Math.round(W * scale), fh = Math.round(H * scale);
+  const nChunks = Math.ceil(runFrames / framesPer);
+  const from = Number(opt["chunk-from"]) || 0, to = Math.min(nChunks, Number(opt["chunk-to"]) || nChunks);
+  const dir = opt["flash3m-dir"] || outDir;
+  mkdirSync(dir, { recursive: true });
+  for (let k = from; k < to; k++) {
+    const file = join(dir, `flash3m-chunk-${String(k).padStart(3, "0")}.json`);
+    if (existsSync(file)) { try { if (JSON.parse(readFileSync(file, "utf8")).complete) { console.log(`flash3m chunk ${k}: already done`); continue; } } catch { /* redo */ } }
+    await burst(`flash3m-${k}`, (ctx) => flashChunk(ctx, k, framesPer, warm, runFrames, fw, fh));
+    if (dir !== outDir && existsSync(join(outDir, `flash3m-chunk-${String(k).padStart(3, "0")}.json`))) writeFileSync(file, readFileSync(join(outDir, `flash3m-chunk-${String(k).padStart(3, "0")}.json`)));
+  }
+  // stitch every chunk present and judge the whole run
+  const chunks = [];
+  for (let k = 0; k < nChunks; k++) {
+    const file = join(dir, `flash3m-chunk-${String(k).padStart(3, "0")}.json`);
+    if (existsSync(file)) chunks.push(JSON.parse(readFileSync(file, "utf8")));
+  }
+  const series = chunks.flatMap((c) => c.series.filter((s) => s.frame > c.f0 && s.frame <= c.f1));
+  const covered = chunks.filter((c) => c.complete).length === nChunks;
+  const j = judgeFlashes(series);
+  const allShots = Object.keys(RIG.cameras.shots);
+  const seen = [...new Set(series.map((s) => s.shot))];
+  const steps = [...new Set(series.map((s) => s.step).filter(Boolean))];
+  const interventions = chunks.reduce((a, c) => a + c.interventions_in_chunk, 0);
+  const summary = { seconds: +(series.length / 60).toFixed(1), frames: series.length, chunks: chunks.length, all_chunks_complete: covered, size: [fw, fh],
+                    interventions, interventions_in_warmups: chunks.reduce((a, c) => a + c.interventions_in_warmup, 0), rest_frames: Math.max(0, ...chunks.map((c) => c.limiter_rest_frames)),
+                    worst_flashes_per_s: j.worst, worst_window: j.worst_window, worst_red: j.worst_red,
+                    max_transitions_per_window_1s: Object.fromEntries(Object.entries(j.windows).map(([k, v]) => [k, v.flashes_per_s * 2])),
+                    shots_seen: seen, shots_missing: allShots.filter((s) => !seen.includes(s)), phrase_steps_seen: steps,
+                    sections: [...new Set(series.map((s) => s.section))], ms_per_frame: chunks.map((c) => c.ms_per_frame) };
+  report.phases.flash3m = summary;
+  check(`flash3m: ${summary.seconds} s of the programmed demo, crowd on, every camera shot, every frame read back (${fw}x${fh}): zero final-limiter interventions, <= 3 flashes a second in all 18 windows, no red flash, no rest`,
+        covered && series.length >= runFrames - 1 && interventions === 0 && j.worst <= 3 && j.worst_red === 0 && summary.rest_frames === 0 && summary.shots_missing.length === 0,
+        { frames: series.length, interventions, worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, shots_missing: summary.shots_missing, chunks_complete: covered });
+}
+
+// The phrase's contact sheet: each step at its telling moment, from the phrase's own camera (front of house) and from the
+// tribune. Scratch only (the sheets sit beside Daniel's frames, which are other people's footage).
+async function phaseSheetPhrase({ ev, open, shot, phase }) {
+  if (!sheetDir) { phase.skipped = "no --sheet-dir"; return; }
+  await open(`demo=1&vt=1&${BASE}`);
+  const plan = [
+    ["A1-top", "A", 0.5], ["A2-middle", "A", 1.5], ["A3-bottom", "A", 2.5], ["B1-flash", "B", 0.06], ["B2-pan", "B", 2.0],
+    ["C1-v1", "C", 0.5], ["C2-v2", "C", 1.5], ["C3-v3", "C", 2.5], ["D1-bloom", "D", 0.6], ["D2-lasers", "D", 5.0], ["E1-halo", "E", 1.4], ["E2-halo", "E", 2.6],
+  ];
+  const stepAt = { A: 0, B: 12, C: 16, D: 20, E: 28 };
+  phase.shots = [];
+  for (const rep of [0, 1]) {
+    for (const [label, st, b] of plan) {
+      const beat = DROP_BEAT + 32 * rep + stepAt[st] + b;
+      await ev(`(() => { const s = window.__stage; s.clearShot(); s.skipRender = true; while (s.grid.posAt(performance.now() + s.grid.presentLagMs) < ${beat}) window.__vt.step(${F}); s.skipRender = false; window.__vt.step(${F}); return true; })()`, 170000);
+      const info = await ev("(() => { const s = window.__stage; const st = s.runner.status(); return { shot: s.director.pose.shot, step: st.step, variant: st.variant }; })()");
+      const f1 = await shot(join(sheetDir, `r${rep}-${label}-foh.png`));
+      await ev(`(() => { const s = window.__stage; s.setShot("TRIBUNE_34", 0.6); window.__vt.step(${F}); return true; })()`);
+      const f2 = await shot(join(sheetDir, `r${rep}-${label}-tribune.png`));
+      phase.shots.push({ rep, label, ...info, files: [f1, f2] });
+    }
+  }
+  check("sheet-phrase: every step of two repeats from the phrase's camera and the tribune", phase.shots.length === plan.length * 2, phase.shots.map((s) => `${s.rep}:${s.label}:${s.step}:${s.variant}:${s.shot}`));
+}
+
 // ------------------------------------------------------------------------------------------------------ main --
 try {
   PORT = await listen(web, PORT);
   ENGINE_PORT = await listen(engine, ENGINE_PORT);
   report.ports = { web: PORT, engine: ENGINE_PORT };
-  const table = { load: phaseLoad, clock: phaseClock, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag };
+  const table = { load: phaseLoad, clock: phaseClock, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
+                  phrase: phasePhrase, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase };
   for (const p of PHASES) {
+    if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }
     await burst(p, table[p]);
   }

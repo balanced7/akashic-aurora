@@ -201,9 +201,10 @@ export class Director {
       if (pe) {
         const key = `plan:${pe.shot}@${pe.p0.toFixed(4)}`;
         if (key !== this.key) {
-          cut = this.key !== null || this.cuts.length === 0;
+          // a new entry on the same shot is no cut (a plan or sequence restarting the shot that is already up)
+          cut = (this.key !== null && pe.shot !== this.lastShot) || this.cuts.length === 0;
           this.key = key;
-          if (this.cuts.length < 512) this.cuts.push({ pos: +Math.max(pe.p0, pos - 1e-6).toFixed(4), at: +pos.toFixed(4), shot: pe.shot, why: pe.why || "plan" });
+          if (cut && this.cuts.length < 512) this.cuts.push({ pos: +Math.max(pe.p0, pos - 1e-6).toFixed(4), at: +pos.toFixed(4), shot: pe.shot, why: pe.why || "plan" });
         }
         shot = this.shots[pe.shot];
         u = (pos - pe.p0) / (pe.p1 - pe.p0);
@@ -212,10 +213,10 @@ export class Director {
         const en = this.entryAt(pos);
         const key = `seq:${this.seqName}@${this.pos0}:${en.loop * 1000 + en.i}`;
         if (key !== this.key) {
-          cut = this.key !== null || this.cuts.length === 0;
+          cut = (this.key !== null && en.e.shot !== this.lastShot) || this.cuts.length === 0;
           this.key = key;
           this.index = en.loop * 1000 + en.i;
-          if (this.cuts.length < 512) this.cuts.push({ pos: +en.p0.toFixed(4), at: +pos.toFixed(4), shot: en.e.shot, why: "bar" });
+          if (cut && this.cuts.length < 512) this.cuts.push({ pos: +en.p0.toFixed(4), at: +pos.toFixed(4), shot: en.e.shot, why: "bar" });
         }
         shot = this.shots[en.e.shot];
         u = (pos - en.p0) / (en.p1 - en.p0);
@@ -223,6 +224,7 @@ export class Director {
       }
     }
     shotPose(shot, u, pos, this.pose);
+    if (!this.manual) this.lastShot = shot.id;
     this.pose.shot = shot.id; this.pose.u = u; this.pose.cut = cut;
     return this.pose;
   }

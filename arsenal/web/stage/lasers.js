@@ -252,6 +252,7 @@ export class LaserEngine {
       o.pattern = h.pattern; o.gate = h.gate;
     }
     this.hits = this.hits.filter((h) => !(h.released !== null && pos > h.released + 1) && pos - h.onset < 64 && (h.held || h.gate === "hold" || pos - h.onset < 4));
+    o.groupStart = o.n;                                   // the phrase group segments follow the hits
     if (this.groupLines.length) {
       const n0 = o.n;
       this._groups(pos);

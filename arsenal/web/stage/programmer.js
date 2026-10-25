@@ -124,6 +124,13 @@ export class Programmer {
     // the head's type data: attributes, wheel colours
     this.headType = rig.heads.map((fi) => rig.types[rig.fixtures[fi].type]);
     this.strandHead = rig.heads.map((fi) => rig.elements[rig.fixtures[fi].element].id === "rung");
+    // FLY-OUT bursts the truss and lip beams (the show's flyout_groups, if it names them; else every head off the strand,
+    // which in v0 is the same truss and lip): never the halo or the verticals a phrase is placing
+    const fg = (rig.show && rig.show.flyout_groups) || ["truss.heads", "lip.heads"];
+    const named = fg.filter((n) => rig.groups[n] && rig.groups[n].kind === "heads");
+    this.flyoutHead = new Uint8Array(rig.heads.length);
+    if (named.length) { for (const n of named) for (const k of rig.groups[n].members) this.flyoutHead[k] = 1; }
+    else for (let i = 0; i < rig.heads.length; i++) this.flyoutHead[i] = this.strandHead[i] ? 0 : 1;
     this.strandCell = new Uint8Array(this.nC);
     for (let c = 0; c < this.nC; c++) this.strandCell[c] = rig.elements[rig.cells.element[c]].id === "rung" ? 1 : 0;
     this.slews = this.headType.map((t) => ({
@@ -426,7 +433,7 @@ export class Programmer {
     for (const p of this.pads) {
       if (p.kind !== "flyout") continue;
       for (let i = 0; i < nH; i++) {
-        if (this.strandHead[i]) continue;
+        if (!this.flyoutHead[i]) continue;
         const fx = this.rig.fixtures[this.rig.heads[i]];
         const x = this.rig.elements[fx.element].origin[0] + fx.local[0];
         const delay = Math.min(0.5, Math.abs(x) / 40);           // the burst runs outward from the centre over half a beat

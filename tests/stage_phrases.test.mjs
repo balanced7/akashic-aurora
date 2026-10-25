@@ -110,7 +110,7 @@ test("compiling a repeat: base lines under every step, the variant's edits, $val
   const haloLine = A.lines.find((l) => l.group === "halo" && l.effects.length);
   assert.equal(haloLine.values.Color, mods.colour);
   assert.ok(haloLine.positions && haloLine.positions.length === 96, "the layers preset gives every halo head a pan and tilt");
-  assert.equal(haloLine.effects.find((e) => e.name === "levels-nod").def.size, mods.nod);
+  assert.deepEqual(haloLine.effects.map((e) => e.name), ["levels-step"]);
   assert.ok(A.lines.some((l) => l.group === "hrow" && l.positions), "the base line holds the lip row on the horizon in black");
   const las = A.lines.find((l) => l.kind === "lasers");
   assert.equal(las.laser.schedule, "levels-step");
@@ -129,7 +129,6 @@ test("compiling a repeat: base lines under every step, the variant's edits, $val
   const rush = compileRepeat(RIG, "halo-levels", "rush", mods).steps;
   assert.deepEqual(rush.map((s) => `${s.id}:${s.beats}`), ["A1:8", "A2:4", "B:4", "C:4", "D:8", "E:4"]);
   assert.ok(rush[1].lines.some((l) => l.effects && l.effects.some((e) => e.name === "levels-rush")));
-  assert.ok(!rush[1].lines.some((l) => l.effects && l.effects.some((e) => e.name === "levels-nod")));
   const depth = compileRepeat(RIG, "halo-levels", "depth", mods).steps[2];
   assert.ok(depth.lines.some((l) => l.group === "vert.depth") && depth.camera.shot === "SIDE_TRACK_PARALLEL");
 });
@@ -341,6 +340,23 @@ test("the programmer's phrase layer: LTP over the look, dimmers crossfade over a
   prog.clearOverlay(grid.posAt(120 * F), 0);
   for (let f = 120; f < 160; f++) prog.tick(grid, f * F, 1 / FPS);
   assert.ok(meanDim(prog, lip) > 0.3, "handed back to the look");
+});
+
+test("FLY-OUT bursts the truss and lip only: never the halo or the verticals a phrase is placing", () => {
+  const grid = new BeatGrid({ bpm: 150, t0: 0 });
+  grid.beat({ due_ms: 0, bpm: 150, n: 0, conf: 1, bar: 1, ver: 0 }, 0);
+  const prog = new Programmer(RIG, { theme: THEME });
+  prog.setLook("break", 0, { fade: 0 });
+  for (let f = 0; f < 30; f++) prog.tick(grid, f * F, 1 / FPS);
+  prog.pad("flyout", 1, grid.posAt(30 * F));
+  let haloMax = 0, vertMax = 0, trussMax = 0;
+  for (let f = 30; f < 60; f++) {
+    prog.tick(grid, f * F, 1 / FPS);
+    haloMax = Math.max(haloMax, meanDim(prog, RIG.groups.halo)); vertMax = Math.max(vertMax, meanDim(prog, RIG.groups.vert));
+    trussMax = Math.max(trussMax, meanDim(prog, RIG.groups["truss.heads"]));
+  }
+  assert.ok(trussMax > 0.5, `the truss bursts (${trussMax.toFixed(2)})`);
+  assert.equal(haloMax, 0); assert.equal(vertMax, 0);
 });
 
 test("the FlashGate: one grant per bar; a refused flash is a lift over an eighth of a beat", () => {
