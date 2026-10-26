@@ -16,6 +16,7 @@ quoting/`python -c ...` behaviour is unchanged.
 These pins assert the ROUTING CONTRACT directly (the _needs_shell predicate and
 the _shell_command_for shape) -- no process spawn, no ACL, so they run on any OS.
 """
+
 import os
 import sys
 
@@ -55,6 +56,6 @@ def test_shell_command_for_is_a_real_interpreter():
 
 def test_pipe_preserved_verbatim_in_shell_argv():
     # The pipe must reach the interpreter as literal text, never re-tokenized by us.
-    argv = toolbox._shell_command_for("python -c \"print('a\\nb\\nc')\" | find /c \"b\"")
+    argv = toolbox._shell_command_for('python -c "print(\'a\\nb\\nc\')" | find /c "b"')
     assert "|" in argv[-1], argv
     assert argv[-1].startswith("python"), argv

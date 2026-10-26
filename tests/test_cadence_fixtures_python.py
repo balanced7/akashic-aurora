@@ -4,6 +4,7 @@ Every case is SYNTHETIC (an invented progression). Each is built into practice-s
 area id, so area identity is Python `is`, as practice compares it) and judged by practice._cadence itself; the expected
 kind and chain bounds are the ones arsenal/web/piano/cadence-live.js must reproduce (tests/piano_cadence_live.test.mjs).
 """
+
 import json
 from pathlib import Path
 
@@ -23,12 +24,22 @@ def _rows(case):
         area = areas[w["area"]] if w["area"] is not None else None
         name = "-".join(NEUTRAL[p] for p in w["pcs"])
         row = {
-            "i": i, "start_ms": w["start_ms"], "end_ms": w["end_ms"], "at": w["at"],
+            "i": i,
+            "start_ms": w["start_ms"],
+            "end_ms": w["end_ms"],
+            "at": w["at"],
             "seconds": (w["end_ms"] - w["start_ms"]) / 1000,
-            "name": name, "label": None, "analysed_as": None, "number": None,
-            "third": w["third"], "key": area["key"] if area else None,
+            "name": name,
+            "label": None,
+            "analysed_as": None,
+            "number": None,
+            "third": w["third"],
+            "key": area["key"] if area else None,
             "bass": {"note": f"{NEUTRAL[w['bass_pc']]}2" if w["bass_pc"] is not None else None},
-            "_pcs": set(w["pcs"]), "_root_pc": w["root_pc"], "_area": area, "_bass_pc": w["bass_pc"],
+            "_pcs": set(w["pcs"]),
+            "_root_pc": w["root_pc"],
+            "_area": area,
+            "_bass_pc": w["bass_pc"],
             "_low_bass": w["low_bass"],
         }
         if "texture" in w:  # a window without the key exercises w.get("texture", "chord")
@@ -59,4 +70,7 @@ def test_fixture_matches_practice_cadence(case):
     assert got["start_ms"] == ws[expect["first"]]["start_ms"]
     assert got["end_ms"] == ws[expect["last"]]["end_ms"]
     assert got["at"] == ws[expect["first"]]["at"]
-    assert len(got["chords"]) in (2, 3)  # the chain is [a, b], [prev, a, b] or [a, b, nxt]: passing moments are left out
+    assert len(got["chords"]) in (
+        2,
+        3,
+    )  # the chain is [a, b], [prev, a, b] or [a, b, nxt]: passing moments are left out

@@ -285,8 +285,7 @@ def test_the_trigger_parser_accepts_every_spelling_the_corpus_actually_uses():
     for lead in ("When", "Before", "After", "On"):
         got = _parse_trigger(f"{lead} the probe fails, read the branch that runs: do Z")
         assert got == "the probe fails, read the branch that runs", f"{lead!r} -> {got!r}"
-    assert _parse_trigger("Use for any Fable seat in this house: do Z") == \
-        "any Fable seat in this house"
+    assert _parse_trigger("Use for any Fable seat in this house: do Z") == "any Fable seat in this house"
     # A lesson with no trigger convention still reports no trigger -- the parser must not
     # manufacture one out of ordinary prose.
     assert _parse_trigger("The ranker is the bottleneck and nothing triggers here") == ""

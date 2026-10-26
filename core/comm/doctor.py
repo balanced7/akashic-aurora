@@ -1399,15 +1399,19 @@ def _touch_drop_finding():
     """
     try:
         from core.events import touch as _touch
+
         n = _touch.drops()
     except Exception:
         return None
     if not n:
-        return None                       # a clean counter is not news
-    return _f("touch", "touch_drops", "dashboard",
-              f"touch: {n} touch(es) dropped on this machine -- the spine is missing that many "
-              f"records and does not know it",
-              "py -c \"from core.events import touch; print(touch.drops())\"")
+        return None  # a clean counter is not news
+    return _f(
+        "touch",
+        "touch_drops",
+        "dashboard",
+        f"touch: {n} touch(es) dropped on this machine -- the spine is missing that many records and does not know it",
+        'py -c "from core.events import touch; print(touch.drops())"',
+    )
 
 
 def _wire_findings(agent: str):
@@ -1618,7 +1622,7 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
     silent = _watch_finding(watches)
     if silent:
         findings.append(silent)
-    dropped = _touch_drop_finding()         # W0.2: machine-wide, so once per pass, not per agent
+    dropped = _touch_drop_finding()  # W0.2: machine-wide, so once per pass, not per agent
     if dropped:
         findings.append(dropped)
     pages = [f for f in findings if f["grade"] == "page"]

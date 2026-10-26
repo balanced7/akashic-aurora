@@ -17,6 +17,7 @@ These pins assert the helper's CONTRACT directly (no process spawn, no ACL):
 an `argv` list must be a hand-off to the right interpreter, with quotes and pipes
 preserved, and leading invocation flags stripped rather than re-wrapped.
 """
+
 import os
 import sys
 

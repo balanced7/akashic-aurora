@@ -23,6 +23,7 @@ said in". Timing becomes layout, because a reader takes layout in at a glance an
     letters is followed by a note asking for an ear. Five of the seven note names are among them, which makes music
     talk the worst case.
 """
+
 from __future__ import annotations
 
 import json
@@ -91,14 +92,22 @@ def transcribe(audio: str, stem: str, model_size: str = "small", *, vad: bool = 
     the spec's bar for flipping this default, which is Daniel's or Vandor's call; until then it stays.
     arsenal.media.words passes True."""
     from faster_whisper import WhisperModel  # imported here: the render needs no model
+
     model = WhisperModel(model_size, device="cpu", compute_type="int8")
     segments, info = model.transcribe(audio, word_timestamps=True, language="en", vad_filter=vad, beam_size=5)
-    words = [{"start": round(w.start, 2), "end": round(w.end, 2), "word": w.word.strip(), "p": round(w.probability, 2)}
-             for seg in segments for w in (seg.words or [])]
-    meta = {"model": f"faster-whisper {model_size}, int8, cpu" + (", vad" if vad else ""),
-            "duration_s": round(info.duration, 1), "audio": Path(audio).name}
-    Path(stem + ".words.json").write_text(json.dumps({**meta, "words": words}, indent=1, ensure_ascii=False),
-                                          encoding="utf-8", newline="\n")
+    words = [
+        {"start": round(w.start, 2), "end": round(w.end, 2), "word": w.word.strip(), "p": round(w.probability, 2)}
+        for seg in segments
+        for w in (seg.words or [])
+    ]
+    meta = {
+        "model": f"faster-whisper {model_size}, int8, cpu" + (", vad" if vad else ""),
+        "duration_s": round(info.duration, 1),
+        "audio": Path(audio).name,
+    }
+    Path(stem + ".words.json").write_text(
+        json.dumps({**meta, "words": words}, indent=1, ensure_ascii=False), encoding="utf-8", newline="\n"
+    )
     cadence = render(words, info.duration)
     Path(stem + ".cadence.txt").write_text(cadence + "\n", encoding="utf-8", newline="\n")
     return {**meta, "words": len(words), "unsure": sum(w["p"] < UNSURE_P for w in words), "cadence": cadence}

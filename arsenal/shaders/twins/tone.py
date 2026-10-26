@@ -9,15 +9,16 @@ yet encoded) unless the name says otherwise.
 Apache-2.0, Akashic Aurora. Written fresh from the mathematics; credits in colour/tone.glsl's header: Krzysztof
 Narkowicz (the ACES fit, 2016), Khronos (PBR Neutral, Emmett Lalish, 2024), Lawlor and Genetti (hue-safe gamma, 2011).
 """
+
 from __future__ import annotations
 
 import numpy as np
 
-TANH_LIMIT = 10.0       # tanh is 1.0 in float32 past about 9; the GLSL clamps here so no driver overflows exp() to NaN
-ACES_LIMIT = 1000.0     # the ACES fit has already clipped to 1 by v = 7.24; the GLSL clamps here so v * v stays finite
-PBR_F = 0.04            # PBR Neutral: a dielectric's Fresnel reflectance, the toe's floor
+TANH_LIMIT = 10.0  # tanh is 1.0 in float32 past about 9; the GLSL clamps here so no driver overflows exp() to NaN
+ACES_LIMIT = 1000.0  # the ACES fit has already clipped to 1 by v = 7.24; the GLSL clamps here so v * v stays finite
+PBR_F = 0.04  # PBR Neutral: a dielectric's Fresnel reflectance, the toe's floor
 PBR_KNEE = 0.8 - PBR_F  # where peak compression starts (0.76)
-PBR_DESAT = 0.15        # how fast compressed peaks drift toward white
+PBR_DESAT = 0.15  # how fast compressed peaks drift toward white
 
 
 def _v(x):

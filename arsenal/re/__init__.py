@@ -19,8 +19,8 @@ reading side of it.
 API = "arsenal.re/v0"
 
 # Evidence tags — the house's words for the REA observation/inference/unknown split.
-OBSERVED = "observed"    # a tool/person directly saw it; reproducible from the same bytes
-INFERRED = "inferred"    # a detector's guess, with confidence and the observations it rests on
-UNKNOWN = "unknown"      # a question we know we have not answered yet
+OBSERVED = "observed"  # a tool/person directly saw it; reproducible from the same bytes
+INFERRED = "inferred"  # a detector's guess, with confidence and the observations it rests on
+UNKNOWN = "unknown"  # a question we know we have not answered yet
 
 TAGS = (OBSERVED, INFERRED, UNKNOWN)

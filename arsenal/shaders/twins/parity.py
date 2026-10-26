@@ -8,6 +8,7 @@ and the Monte Carlo meaning of XOR on coverages.
 
 Apache-2.0, Akashic Aurora. Written fresh from the mathematics; no corpus code.
 """
+
 from __future__ import annotations
 
 import numpy as np

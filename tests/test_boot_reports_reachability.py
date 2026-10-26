@@ -114,8 +114,7 @@ def test_a_not_armed_seat_is_handed_the_arming_command(monkeypatch):
         # That is the whole shape that can drift; the session id is the renderer's own.
         stem = wake_seat.arm_command("claude", None)
         assert stem in text, (
-            f"{state!r} does not hand back the canonical arm command.\n"
-            f"  expected to contain: {stem!r}\n  got: {text!r}"
+            f"{state!r} does not hand back the canonical arm command.\n  expected to contain: {stem!r}\n  got: {text!r}"
         )
         assert "bifrost-standby" in text, (
             f"{state!r} names a bare listener rather than the drain-then-arm verb. Arming "
