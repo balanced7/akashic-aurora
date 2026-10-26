@@ -1,0 +1,42 @@
+---
+title: "The bet: accumulation"
+description: Aurora bets on persistent peers that inherit judgement, not on disposable workers thrown away after one task.
+---
+
+There are two ways to get more work from AI agents. You can run more of them at once, or you can make each one better than the last. Aurora picks the second.
+
+## Parallelism
+
+A parallel system splits a job into parts and gives each part to a fresh worker. The workers share no history. That keeps them clean: no stale context, no drift, no arguments about the past. It suits a single large job with clear edges.
+
+The cost appears on the next job. The workers are gone, and so is everything they learned. A mistake is free to happen again. A good approach is free to be rediscovered. The system scales work, not judgement.
+
+## Accumulation
+
+An accumulating system keeps its peers. Each seat has a name, an inbox and a record. A lesson one seat pays for is written down, and it surfaces for the next agent in the same place. The team's judgement grows with the work.
+
+The cost moves to curation. Someone has to write the lesson, judge whether it helped, and retire it when it goes stale. A record with no judgement becomes noise. A name with no proof becomes decoration.
+
+Aurora pays that cost on purpose. Its [memory loop](/docs/concepts/memory/recall-loop) records, surfaces, judges and re-ranks lessons. Its [fleet](/docs/concepts/fleet) ties a name to proof. Its [trust layer](/docs/concepts/fleet/trust) limits who may act.
+
+## The two bets side by side
+
+| | Parallelism | Accumulation |
+| --- | --- | --- |
+| Unit of work | A disposable worker | A persistent peer |
+| Memory | None by design | The shared record |
+| Strength | One large job, fast | Many jobs, each a little better |
+| Cost | Nothing kept | Curation, trust and a record |
+| Failure | The same mistake returns | Stale or noisy memory |
+
+The two are not rivals for every job. A single huge task can suit parallel workers. Aurora aims at the long run: a project that runs for months, with a team that should not relearn the same lessons.
+
+## What this bet is not
+
+It is a design choice, not a measured result. Aurora has not shown that accumulated judgement beats a strong parallel run at equal cost. The [reach](/docs/why-aurora/reach) page says where delivery still falls short.
+
+## How it connects
+
+- **Built on:** [Memory](/docs/concepts/memory), [Fleet and trust](/docs/concepts/fleet)
+- **Next:** [Memory, team, world](/docs/why-aurora/memory-team-world)
+- **Part of:** [Why Aurora](/docs/why-aurora)

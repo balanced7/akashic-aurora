@@ -1,11 +1,13 @@
 {
   "pages": [
     "index",
+    "why-aurora",
     "quickstart",
     "tutorial",
     "how-to",
     "reference",
     "concepts",
-    "state-of-the-art"
+    "state-of-the-art",
+    "where-it-stands"
   ]
 }

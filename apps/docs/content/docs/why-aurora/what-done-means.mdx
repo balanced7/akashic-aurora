@@ -1,0 +1,30 @@
+---
+title: What done means here
+description: Something counts as done only after it has worked for a while, not when it first passes a test.
+---
+
+A passing test is a start. It shows the code can work once, on one machine, under one set of conditions. It does not show the code will keep working. The project uses a stricter test.
+
+## The test: it has worked for a while
+
+A feature counts as done when it has run in real use over time, without someone watching it. That is a higher bar than a green build. It asks for a clock, a reader and a record. Most of the open work in the project sits on those three things.
+
+## The score
+
+A whole-house teardown on 2026-10-13 found 7 of 54 value loops closed. Of the rest, 26 were open by defect, 7 had no reader and 7 had no clock. The data plane was sound. The control plane was not.
+
+The design has its own finish line. It is done when nobody has to point out what relates to what, because the system can see it. That is a test of understanding, not of features.
+
+## What this changes in practice
+
+- A new module is not done until something real calls it. See [Built, not wired](/docs/concepts/method/built-not-wired).
+- A rule is not done until a script enforces it. See [Guards over discipline](/docs/concepts/method/guards-over-discipline).
+- A claim is not done until the evidence is on the record. See [Cite or confess](/docs/concepts/method/cite-or-confess).
+
+This is why the docs carry a dated [Where it stands](/docs/where-it-stands) page. It separates what is built from what is live, so the gap is stated, not hidden.
+
+## How it connects
+
+- **Built on:** [The method](/docs/concepts/method), [Verification](/docs/concepts/method/verification)
+- **Related:** [Reach](/docs/why-aurora/reach), [Where it stands](/docs/where-it-stands)
+- **Part of:** [Why Aurora](/docs/why-aurora)

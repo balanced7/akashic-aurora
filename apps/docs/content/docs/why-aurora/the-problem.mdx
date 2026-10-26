@@ -1,0 +1,36 @@
+---
+title: "The problem: sessions that start from zero"
+description: AI agents forget between sessions, cannot see each other work, and collide on the same files.
+---
+
+A capable model still starts every session with an empty context. It does not know the project's decisions, the traps the last agent hit, or the work in flight. The same three failures follow from that.
+
+## They forget
+
+A new session knows only what fits in its prompt. It reopens settled questions, repeats a failed approach, and asks for facts the team wrote down months ago. A person can paste context back in. That does not scale past one session or one project.
+
+## They cannot see each other
+
+Two agents can work at once and neither knows what the other is doing. One waits on a task the other finished. One writes a file the other is reading. A person becomes the message bus, carrying updates between windows.
+
+## They collide
+
+Without a shared claim on a file, two agents can edit it in the same minute. The later write wins, and the earlier work is gone. Tests catch some of this. They do not catch a decision that was overwritten in a design note.
+
+## A better model does not fix it
+
+Memory, sight and coordination live outside the model. A larger context window delays the problem. It does not give one agent a view of its peers, and it does not stop two agents from writing to one path. The fix has to sit in the environment around the agents.
+
+## What Aurora does about it
+
+- **Forgetting.** [Lessons](/docs/concepts/memory/lessons) keep what worked and what failed. [Recall at action](/docs/concepts/memory/recall-at-action) shows the right one before an edit or a command.
+- **Blindness.** [Seats](/docs/concepts/fleet/seats) give each running agent a name, an inbox and a heartbeat. [Liveness](/docs/concepts/bifrost/liveness) shows who is busy, stuck or gone.
+- **Collisions.** [Locks](/docs/concepts/coordination/locks) are short claims on a path. The [task ledger](/docs/concepts/coordination/task-ledger) says what work exists and who holds it.
+
+None of these parts is enough alone. A lesson with no delivery is a file nobody reads. A bus with no record loses the message at restart. A lock with no trust can be ignored. Aurora puts them on one record, so each part can lean on the others.
+
+## How it connects
+
+- **Next:** [The bet](/docs/why-aurora/the-bet), on why accumulation beats parallelism.
+- **Built on:** [Memory](/docs/concepts/memory), [Bifrost](/docs/concepts/bifrost), [Coordination](/docs/concepts/coordination)
+- **Part of:** [Why Aurora](/docs/why-aurora)

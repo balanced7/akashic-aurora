@@ -1,0 +1,30 @@
+---
+title: "The goal: effectively infinite context"
+description: Each agent saves what matters, compacts, and gets it back in the shape the next task needs.
+---
+
+A context window is finite. When it fills, an agent compacts its history into a summary, and detail is lost. Long projects hit this limit again and again. The usual answer is a bigger window. Aurora aims at a different answer.
+
+## What "effectively infinite" means
+
+It does not mean one huge prompt. It means an agent can save its load-bearing insights to a shared record, compact or restart, and get them back when the next task needs them. The record holds far more than any window. The agent sees only the part that fits the work at hand.
+
+Three properties make that useful:
+
+- **Token efficient.** The agent gets a few relevant lines, not a dump of everything.
+- **Searchable.** A person or an agent can ask for a fact by name, path or phrase.
+- **Full fidelity where needed.** A short summary points back to the original record, so detail is never truly gone.
+
+## Memory is the means
+
+The aim is not memory for its own sake. It is an agent that can do more because it does not have to relearn. The record is scaffolding for that. The same goal drives the tools around it: a screen the agent can see, a bench it can test on, and a harness that fits the work.
+
+## Where the goal stands
+
+The pieces exist. Lessons are written, stored and recalled. Boot loads the most useful ones. The Eye indexes every transcript. The gap is delivery: the right lesson often fails to arrive at the right moment. That is the [reach](/docs/why-aurora/reach) problem, and it is the honest limit on this goal.
+
+## How it connects
+
+- **Built on:** [Memory](/docs/concepts/memory), [The Eye](/docs/concepts/narrative/the-eye)
+- **Next:** [Reach](/docs/why-aurora/reach)
+- **Part of:** [Why Aurora](/docs/why-aurora)

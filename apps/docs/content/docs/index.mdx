@@ -1,54 +1,40 @@
 ---
 title: Introduction
-description: What Akashic Aurora is, why it works as collective intelligence for AI agents, and how these docs are organized.
+description: Shared memory, a message bus and a trust layer for a team of AI agents and one human, so what one agent learns reaches the next at the moment it acts.
 ---
 
-Akashic Aurora is a shared memory for AI agents. Agents record what they learn. Later agents get that lesson back at the moment they need it. Aurora also carries the wiring that lets many agents work side by side: mail, locks, a task list and supervision.
+Every agent session starts from zero. It does not know what the last session learned. It cannot see what its peers are doing. Two agents can collide on the same file. These three problems grow with every project that agents run.
+
+Akashic Aurora answers them in one sentence. **It is shared memory, a message bus and a trust layer for a team of AI agents and one human.** What one agent learns reaches the next one at the moment it acts.
 
 <CoreParts />
 
-## Collective intelligence for AI agents
+## The bet: accumulation
 
-With the [bridge](/docs/concepts/bifrost/bridge) set up, we call Aurora the first implementation of collective intelligence for AI agents. Each person runs a fleet: a mix of agents across harnesses such as Claude Code, Codex and Gemini CLI. The bridge links your fleet to the fleets of friends and colleagues. Each person keeps a distinct view. Aurora lets those views meet, test each other and grow sharper. The group then decides better than any one member could.
+Most multi-agent systems bet on parallelism. They split a job into parts, give each part to a fresh worker, and throw the worker away. That works for one big job. It does not build a team that gets better.
 
-[State of the art](/docs/state-of-the-art) shows why we make that claim, and how far our search for rivals reached.
+Aurora bets on accumulation. Its agents are persistent peers. They keep a name, an inbox and a place in the record. A lesson one seat pays for is kept, and it surfaces for the next agent in the same place. Each round adds to what the group knows.
 
-The goal is not one shared answer. It is a group where each member thinks better because the others exist.
+That bet costs something. Parallel workers need no care. Persistent peers need a record, a way to judge what helped, and trust in who may act. Aurora carries all three.
 
-### A mixture of mixtures, compounded
+[Why Aurora](/docs/why-aurora) tells the full story: the problem, the bet, the road from memory to a team to a world, the goal, the open gap, and what done means.
 
-[Mixture of Agents](https://arxiv.org/abs/2406.04692) (MoA) sends one prompt to several models, then merges their answers in layers. A short slogan for Aurora is "MoA to the power of e". It points the right way, but the maths needs two fixes.
+## What the parts do
 
-- **It nests.** Each person's fleet is already a mixture. Aurora mixes those mixtures: `MoA(MoA₁, MoA₂, …, MoAₙ)`, one inner mixture per person.
-- **It compounds.** MoA forgets once it answers. Aurora keeps the lessons that helped and lets stale ones fade. If each round keeps a share `r` of what it learns, what the group knows grows like `e^(r·t)` over time `t`.
+Aurora rests on a record that nobody rewrites. The [Store](/docs/concepts/foundations/store) says what is true now. The [Ledger](/docs/concepts/foundations/ledger) says what happened, in order. Every other part stands on those two.
 
-A closer formula is `MoA(MoA₁, …, MoAₙ) · e^(r·t)`. In words: a mixture of mixtures, compounded by memory. The `e` belongs to time, not to the mixture. Read it as a model to think with. Aurora has not measured it yet.
-
-Mixing alone does not earn the growth. One study found that a single strong model, sampled many times, often beats a mix of weaker ones ([Li et al., 2025](https://arxiv.org/abs/2502.00674)). The gain depends on how the group shares, checks and picks its answers.
-
-### Why the talking matters most
-
-Research on human teams agrees on one point. Diversity helps a group only when its members share and work through what each one knows. Diverse teams gain creativity, but they also risk conflict and lower cohesion ([Stahl et al., 2010](https://doi.org/10.1057/jibs.2009.85)). They win when members work through each other's knowledge, and lose when they split into camps ([van Knippenberg et al., 2004](https://doi.org/10.1037/0021-9010.89.6.1008)). A group's intelligence tracks how evenly members take turns more than the IQ of its best member ([Woolley et al., 2010](https://doi.org/10.1126/science.1193147)). And groups tend to skip the facts that only one member holds ([Stasser and Titus, 1985](https://doi.org/10.1037/0022-3514.48.6.1467)).
-
-Aurora handles that talk for agents, inside a fleet and between fleets:
-
-- **Views form apart first.** In a [fence review](/docs/concepts/method/fence-review), two reviewers answer alone before either sees the other. Seeing others too soon shrinks the range of views ([Lorenz et al., 2011](https://doi.org/10.1073/pnas.1008636108)).
-- **Every distinct finding stays.** [Union, not consensus](/docs/concepts/method/union-not-consensus) keeps the finding only one agent saw, then checks it.
-- **Claims carry proof.** [Cite or confess](/docs/concepts/method/cite-or-confess) makes every claim show its evidence or name the gap.
-- **Agents coordinate through shared marks.** [Stigmergy](/docs/concepts/coordination/stigmergy) replaces noisy chat with tasks, locks and a shared record.
-- **Outside words inform but never command.** The bridge holds remote mail in quarantine, and promoted mail carries no authority.
-
-### Disagreement that climbs
-
-Paul Graham ranks disagreement from name-calling (DH0) up to refuting the central point (DH6) ([How to Disagree](https://paulgraham.com/disagree.html)). Agents fail in their own way: they agree too fast, or they contradict without evidence. Aurora's rules push debate up the ladder. Cite or confess asks for counterargument and refutation with proof. A fence review attacks the central point of a design.
-
-[State of the art](/docs/state-of-the-art) shows where the field stands in October 2026, how Aurora goes further, and the full list of papers.
+- [Memory](/docs/concepts/memory) turns the record into lessons, and pushes the right one to an agent before it acts.
+- [Bifrost](/docs/concepts/bifrost) is the live bus: mail, wake, handoffs and a console.
+- [Fleet and trust](/docs/concepts/fleet) says who the agents are and what each may do.
+- [Coordination](/docs/concepts/coordination) keeps tasks and files apart through shared marks.
+- [The method](/docs/concepts/method) is how work gets checked before anyone calls it done.
 
 ## How these docs are organized
 
-These docs come in five parts. Each answers a different need: get it running, learn by doing, get one task done, look something up, or understand why.
+These docs come in six parts. Each answers one need: understand the idea, get it running, learn by doing, finish one task, look something up, or read the design.
 
 <Cards>
+  <Card title="Why Aurora" href="/docs/why-aurora" description="The problem, the bet, the goal and the open gap, in the project's own voice." />
   <Card title="Quickstart" href="/docs/quickstart" description="Install Aurora and run your first three commands." />
   <Card title="Tutorial" href="/docs/tutorial" description="Learn by doing: the memory loop, the Bifrost bus, locks and handoffs, and the live fleet." />
   <Card title="How-to guides" href="/docs/how-to" description="Short recipes for one task each." />
@@ -58,8 +44,9 @@ These docs come in five parts. Each answers a different need: get it running, le
 
 ## Where to start
 
-- **New here?** Run the [Quickstart](/docs/quickstart), then the [Tutorial](/docs/tutorial).
+- **New here?** Read [Why Aurora](/docs/why-aurora), then run the [Quickstart](/docs/quickstart).
 - **Need one thing done?** Pick a [how-to guide](/docs/how-to).
-- **Want to understand it?** Read [Aurora in five minutes](/docs/concepts).
-- **Want the bigger picture?** Read [State of the art](/docs/state-of-the-art).
+- **Want to understand the parts?** Read [Aurora in five minutes](/docs/concepts).
+- **Want the research?** Read [State of the art](/docs/state-of-the-art).
+- **Want the honest gap?** Read [Where it stands](/docs/where-it-stands).
 - **Met a word you don't know?** Look it up in the [Glossary](/docs/reference/glossary).

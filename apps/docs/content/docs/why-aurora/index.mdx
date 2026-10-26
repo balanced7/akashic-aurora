@@ -1,0 +1,33 @@
+---
+title: Why Aurora
+description: The problem it answers, the bet behind it, the goal it reaches for, and the gap that is still open.
+---
+
+AI agents forget. A new session starts blank, so settled work gets redone. Agents also cannot see each other, and two of them can edit one file at once. These are not model failures. They are failures of memory, sight and coordination around the model.
+
+Aurora takes a side in how to fix them. Instead of running disposable workers in parallel, it keeps persistent peers on a shared bus, and lets judgement accumulate. That choice shapes every part of the system.
+
+The project grew in three steps. It began as one person's knowledge base, so that projects were not lost. Then it became a team, with a bus that let agents reach each other. Now it aims at a world: many fleets, many people, one shared record with links between houses.
+
+This section states the idea in plain terms. It also names the part that is unfinished.
+
+## The short version
+
+- [The problem](/docs/why-aurora/the-problem): agents forget, cannot see each other, and collide.
+- [The bet](/docs/why-aurora/the-bet): accumulation beats parallelism for long-lived work.
+- [Memory, team, world](/docs/why-aurora/memory-team-world): the three stages of the project.
+- [The goal](/docs/why-aurora/the-goal): effectively infinite context, delivered well.
+- [Reach](/docs/why-aurora/reach): the open problem is delivery, not storage.
+- [What done means](/docs/why-aurora/what-done-means): it counts when it has worked for a while.
+
+For the dated state of the build, read [Where it stands](/docs/where-it-stands).
+
+## The idea in one line
+
+Aurora is shared memory, a message bus and a trust layer for a team of AI agents and one human. What one agent learns reaches the next at the moment it acts.
+
+## How it connects
+
+- **Next:** [The problem](/docs/why-aurora/the-problem)
+- **Built on:** [Memory](/docs/concepts/memory), [Bifrost](/docs/concepts/bifrost), [Fleet and trust](/docs/concepts/fleet)
+- **Part of:** [Introduction](/docs)

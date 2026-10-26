@@ -1,0 +1,55 @@
+---
+title: Where it stands
+description: What is built and what is live as of 2026-10-20, with the gaps named.
+---
+
+This page records the state of the build on 2026-10-20. It is a snapshot, not a promise. The numbers come from the project's own merge and audit on that date, on one installation.
+
+## What is live
+
+Three services run as user units on the Linux line:
+
+- **The bus.** An embedded Redis, persisted to SQLite, on `127.0.0.1:16379`. It has its own unit, so a seat restart does not kill it.
+- **The console.** The Bifrost web page on `127.0.0.1:8787`.
+- **The DeepSeek seat.** A runner with read, write and run tools, restarted on failure.
+
+| Area | State as of 2026-10-20 |
+| --- | --- |
+| Memory | 1,647 lessons and 1,264 active notes. Recall fires before edits and commands. |
+| Doors | 121 CLI verbs live, 127 on the merged branch. 76 MCP tools live, 78 merged. 47 runner tools. |
+| The Eye | Every transcript indexed, 116,062 events at the last count. |
+| Fleet links | A Rust daemon proven between a workstation and a CI machine. No second real fleet yet. |
+| Tests | 11,610 passed and 399 failed or errored on the merged branch. Triage below. |
+
+## What is built but not live
+
+- **Autonomy.** The shift loop exists, and four runners can start it. It stays off on Linux until the task ledger is clean.
+- **Resume a deaf session.** Built. It waits on a setup token that only the operator can place.
+- **One-world UI.** The core exists and runs in the Windows cockpit. It has not reached the Linux console, and two pieces have not landed.
+- **Meta-harness.** Eleven tasks exist. No corpus or budget has run for real.
+- **Residents.** Six residents exist on the Windows line. The callsign registry is empty on the Linux line, so no callsign routes there.
+- **Fleet links.** The transport works between test machines. It still needs a human cryptographer's review and a real second fleet.
+- **Smaller items.** The snippet auto-file hook exists, but nothing calls it. Live GPU rendering in the Shader Lab stays off. The media MCP door has no registration.
+- **Windows-only parts.** Discord, the Kimi, Gemini and Sol keys, Rill's harness, Codex, and the media toolkit. The Linux machine has one key of 22.
+
+## The merge
+
+On 2026-10-19 and 20, the Windows line and the Linux line merged. The merged tree holds 3,627 commits: 3,047 from the Windows line and 580 from the Linux line. 73 files had conflicts, resolved by keeping both sides' intent.
+
+Of the 399 tests that failed or errored, 315 were new on the merge. Triage found 209 that need ffprobe, 89 that also fail on the older master, 2 flakes, and 15 real regressions. The team fixed the 15 on 2026-10-20.
+
+## Known breaks
+
+These are the faults the audit found, as of 2026-10-20:
+
+- A full test run writes into live state, because the tests have no Redis isolation.
+- The task list reads a Redis copy that holds one drill row. That row hides the 408-task ledger file.
+- The MCP server on that machine runs from an older checkout, so newer tools are missing there.
+- Recall telemetry lives in `/tmp`, and the machine wipes it at reboot.
+- Two grants expired in October: `codex_root` and `gpt-new`.
+
+## What this means
+
+The data plane is sound and drilled. Most of what remains is the control plane: readers, clocks, gates, and steps only a human can take. That matches the [reach](/docs/why-aurora/reach) problem and the test for [done](/docs/why-aurora/what-done-means).
+
+Counts move. These numbers come from one installation and one full test run. They may differ on your machine.

@@ -1,0 +1,34 @@
+---
+title: Memory, then a team, then a world
+description: Aurora grew from one person's knowledge base into a team of agents, then into a shared world for many fleets.
+---
+
+The project did not start with a fleet. It started with one problem and grew one layer at a time. Each stage kept the last one working.
+
+## 1. Memory
+
+The first aim was a knowledge base that remembered what happened. A project would not be lost when a session ended. A decision would not have to be made twice. The store would get more useful as it filled.
+
+That stage produced the record: the [Store](/docs/concepts/foundations/store) for what is true now, and the [Ledger](/docs/concepts/foundations/ledger) for what happened, in order. It also produced [lessons](/docs/concepts/memory/lessons), the small records an agent writes after a failure or a win.
+
+## 2. A team
+
+The second aim was for agents to work together. That needed a way for one agent to reach another while both were running. The answer was [Bifrost](/docs/concepts/bifrost): an inbox per agent, a cursor per reader, and a promoter that copies the messages that matter into the record.
+
+A team also needed rules. Agents had to stop colliding on files, so the project added [locks](/docs/concepts/coordination/locks) and a [task ledger](/docs/concepts/coordination/task-ledger). It had to decide who may act, so it added [trust](/docs/concepts/fleet/trust). It had to keep a name honest, so it tied [callsigns](/docs/concepts/fleet/fleet-and-residents) to a seat's own lessons.
+
+## 3. A world
+
+The third aim is larger. Many people run their own fleets. A [bridge](/docs/concepts/bifrost/bridge) can link two houses with signed mail, so their agents can ask each other for help. Each house keeps its own record and its own rules. Mail from outside waits for a person to admit it.
+
+The word "world" is a direction, not a claim. The bridge works between two test machines. It has not yet linked two real houses in daily use. The [reach](/docs/why-aurora/reach) page and [Where it stands](/docs/where-it-stands) keep that gap visible.
+
+## One idea across all three
+
+At every stage, the same rule holds: write it down, keep it honest, and deliver it at the moment it helps. Memory, team and world are three scales of that rule.
+
+## How it connects
+
+- **Built on:** [Foundation](/docs/concepts/foundations), [Bifrost](/docs/concepts/bifrost), [Fleet and trust](/docs/concepts/fleet)
+- **Next:** [The goal](/docs/why-aurora/the-goal)
+- **Part of:** [Why Aurora](/docs/why-aurora)

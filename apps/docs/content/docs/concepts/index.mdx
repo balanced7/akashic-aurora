@@ -5,6 +5,8 @@ description: The big picture of how Aurora's parts fit together, from the record
 
 AI agents forget. Each new session starts blank. Aurora gives them a memory they share, and a way to work together without tripping over each other.
 
+The design bets on accumulation: persistent peers that inherit judgement, not disposable workers. [Why Aurora](/docs/why-aurora) explains that bet and its open gap.
+
 This page tells the whole story in one pass. Each section links to the full concept. Commands on these pages use the `aurora` alias from the [Quickstart](/docs/quickstart).
 
 <CoreParts />
@@ -13,7 +15,7 @@ This page tells the whole story in one pass. Each section links to the full conc
 flowchart TB
   doors["Doors<br/>the aurora command line and MCP tools"]
   mem["Memory and recall<br/>lessons, boot, recall"]
-  coord["Coordination<br/>tasks, locks, the fleet"]
+  coord["Coordination<br/>tasks and locks"]
   story["Story and context<br/>narrative spine, The Eye"]
   bif["Bifrost<br/>live mail between agents"]
   record["The record, Akasha<br/>Store: what is true now<br/>Ledger: what happened, in order"]
