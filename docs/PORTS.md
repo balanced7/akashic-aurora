@@ -30,8 +30,10 @@ this repo would ever have found it.
 
 | Port | World | Bound by | What | Owner |
 |------|-------|----------|------|-------|
+| **3080** | prod | app | Rill's DSH harness (dsh_agent seat); the launcher probes it | `core/fleet/seat_launchers.py` |
 | **8787** | prod | app | Bifrost live agent console | `scripts/bifrost_ui.py` |
 | **8788** | prod | app | RESERVED prod-aux -- NOT the console; do not bind | `(reserved)` |
+| **8789** | prod | app | Next.js Bifrost console; proxies the 8787 console for all data | `apps/bifrost` |
 | **8888** | prod | container | the fleet's ONLY web-search door (loopback only) | `akashic-searxng / scripts/local/websearch.py` |
 | **11434** | prod | container | local model lane; core/fleet/caller.py calls /api/generate | `ai-ollama` |
 | **16379** | prod | container | canonical knowledge store + bus (db 0 prod / db 15 test) | `akashic-redis` |
