@@ -186,3 +186,38 @@ export function buildFeed(messages: BusMessage[], peer = ""): FeedItem[] {
   }
   return out;
 }
+
+export type Chapter = { key: string; who: string; ts?: string; text: string };
+
+/** A chapter starts on a speaker change or after an 8-minute gap (the old rail's rule). */
+const CHAPTER_GAP_MS = 8 * 60_000;
+
+/** Feed navigation derived from what was said: nothing is authored, so nothing rots. Newest 14. */
+export function chapters(feed: FeedItem[], limit = 14): Chapter[] {
+  const out: Chapter[] = [];
+  let lastWho = "";
+  let lastT = 0;
+  for (const item of feed) {
+    if (item.type !== "message") continue;
+    const who = item.m.from ?? "?";
+    const t = item.m.ts ? Date.parse(item.m.ts) : 0;
+    if (who !== lastWho || (lastT && t && t - lastT > CHAPTER_GAP_MS)) {
+      out.push({ key: item.key, who, ts: item.m.ts, text: text(item.m).replace(/\s+/g, " ").trim().slice(0, 60) });
+      lastWho = who;
+    }
+    if (t) lastT = t;
+  }
+  return out.slice(-limit);
+}
+
+/** An agent's captured reasoning: its 💭 trace lines, newest first. Empty means unrecorded. */
+export function reasoning(messages: BusMessage[], agent: string, limit = 6): { text: string; ts?: string }[] {
+  const out: { text: string; ts?: string }[] = [];
+  for (let i = messages.length - 1; i >= 0 && out.length < limit; i--) {
+    const m = messages[i]!;
+    if (m.from !== agent || m.kind !== "trace") continue;
+    const t = text(m);
+    if (t.startsWith("\u{1f4ad}")) out.push({ text: t.replace(/^\u{1f4ad}\s*/u, ""), ts: m.ts });
+  }
+  return out;
+}

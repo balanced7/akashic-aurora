@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFeed, isBookkeeping, msgKey } from "./bifrost";
+import { buildFeed, chapters, isBookkeeping, msgKey, reasoning } from "./bifrost";
 import { renderMarkdown } from "./markdown";
 
 describe("feed", () => {
@@ -58,5 +58,24 @@ describe("markdown", () => {
   it("offers Run only on command-shaped code blocks", () => {
     expect(renderMarkdown("```\npytest -q\n```")).toContain('data-act="run"');
     expect(renderMarkdown("```\nrm -rf /\n```")).not.toContain('data-act="run"');
+  });
+});
+
+describe("chapters and reasoning", () => {
+  const at = (min: number) => new Date(Date.UTC(2026, 9, 26, 10, min)).toISOString();
+  const msgs = [
+    { id: "1", from: "claude", kind: "chat", content: "first", ts: at(0) },
+    { id: "2", from: "claude", kind: "chat", content: "same speaker", ts: at(1) },
+    { id: "3", from: "deepseek", kind: "chat", content: "speaker change", ts: at(2) },
+    { id: "4", from: "deepseek", kind: "chat", content: "after a gap", ts: at(20) },
+    { id: "5", from: "claude", kind: "trace", content: "\u{1f4ad} weighing the pool size", ts: at(21) },
+    { id: "6", from: "claude", kind: "trace", content: "🔧 Bash ls", ts: at(22) },
+  ];
+  it("starts a chapter on a speaker change or an 8-minute gap", () => {
+    expect(chapters(buildFeed(msgs)).map((c) => c.text)).toEqual(["first", "speaker change", "after a gap"]);
+  });
+  it("keeps only 💭 traces, newest first, without the glyph", () => {
+    expect(reasoning(msgs, "claude")).toEqual([{ text: "weighing the pool size", ts: at(21) }]);
+    expect(reasoning(msgs, "deepseek")).toEqual([]);
   });
 });

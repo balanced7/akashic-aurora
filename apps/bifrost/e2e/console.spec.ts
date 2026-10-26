@@ -25,12 +25,12 @@ test("a broadcast needs a second Enter, and the send carries text, target and fi
   await expect(page.getByText(/Press Enter again to send/)).toBeVisible();
   expect(sent).toHaveLength(0);
   await box.press("Enter");
-  await expect.poll(() => sent).toEqual([{ text: "hello fleet", to: "all", fidelity: "inform" }]);
+  await expect.poll(() => sent).toEqual([{ text: "hello fleet", to: "all", fidelity: "inform", ns: "bifrost" }]);
   await expect(box).toHaveValue("");
 });
 
 test("steer refuses a broadcast and goes to exactly one picked seat", async ({ page }) => {
-  const sent: { to: string; fidelity: string }[] = [];
+  const sent: { to: string; fidelity: string; ns: string }[] = [];
   await page.route("**/send", async (route) => {
     sent.push(route.request().postDataJSON());
     await route.fulfill({ json: { ok: true, msg: "steered claude" } });
@@ -46,5 +46,5 @@ test("steer refuses a broadcast and goes to exactly one picked seat", async ({ p
   await page.getByRole("menuitemcheckbox", { name: /claude/i }).click();
   await page.keyboard.press("Escape");
   await box.press("Enter");
-  await expect.poll(() => sent).toEqual([{ text: "fold this in", to: "claude", fidelity: "steer" }]);
+  await expect.poll(() => sent).toEqual([{ text: "fold this in", to: "claude", fidelity: "steer", ns: "bifrost" }]);
 });

@@ -2,6 +2,9 @@ import { create } from "zustand";
 
 import { type BusMessage, type Fidelity, type Status, isBookkeeping, msgKey } from "./bifrost";
 
+/** The main conversation's namespace (the backend's BIFROST_NAMESPACE default). */
+export const DEFAULT_ROOM = "bifrost";
+
 /** Session buffer ceiling. The log renders a window over it; this only bounds memory. */
 const MAX_MESSAGES = 5000;
 
@@ -15,6 +18,8 @@ type ConsoleState = {
   recipients: string[]; // ["all"] = broadcast
   fidelity: Fidelity;
   thread: string; // "" = everyone
+  /** The bus namespace on screen; a room is a namespace (/api/channels). */
+  room: string;
 
   ingest: (m: BusMessage) => void;
   setConnected: (v: boolean) => void;
@@ -23,6 +28,7 @@ type ConsoleState = {
   toggleRecipient: (id: string, additive: boolean) => void;
   setFidelity: (f: Fidelity) => void;
   setThread: (peer: string) => void;
+  setRoom: (ns: string) => void;
 };
 
 export const useConsole = create<ConsoleState>((set, get) => ({
@@ -35,6 +41,7 @@ export const useConsole = create<ConsoleState>((set, get) => ({
   recipients: ["all"],
   fidelity: "inform",
   thread: "",
+  room: DEFAULT_ROOM,
 
   ingest: (m) => {
     if (m.kind === "_ready") return set({ ready: true });
@@ -66,6 +73,13 @@ export const useConsole = create<ConsoleState>((set, get) => ({
     }),
   setFidelity: (fidelity) => set({ fidelity }),
   setThread: (thread) => set(thread ? { thread, recipients: [thread] } : { thread }),
+  // A new room is a new conversation: drop the old feed; the stream backfills the new one.
+  setRoom: (room) =>
+    set((s) =>
+      room === s.room
+        ? {}
+        : { room, messages: [], seen: new Set(), bookkeeping: { count: 0, last: "" }, ready: false, thread: "", recipients: ["all"] },
+    ),
 }));
 
 /** Who can be messaged: ACL-registered seats united with whoever is online, minus the operator. */

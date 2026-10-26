@@ -51,7 +51,7 @@ export function Composer() {
     const sendTo = broadcast ? ["all"] : targets;
     try {
       const results = await Promise.all(
-        sendTo.map((to) => postJson<SendResult>("/send", { text: body, to, fidelity })),
+        sendTo.map((to) => postJson<SendResult>("/send", { text: body, to, fidelity, ns: useConsole.getState().room })),
       );
       const failed = results.some((r) => !r.ok);
       const launched = results.flatMap((r) => r.launched ?? []);

@@ -22,6 +22,9 @@ backend's `scripts/aurora-shader.js`), the activity strip, and the Fleet panel (
 engine-room gauges, fence phases, floor, residents) behind the header's health dot, and the
 Agents launcher (launch, revive, two-click kill, auto-revive), episodes (chip, editable close
 draft, advisory suggestion banner), and Settings (narration, traces expanded or collapsed, the
-activity strip, and aurora on/off with drift speed and intensity).
+activity strip, and aurora on/off with drift speed and intensity). On screens at least 1280px
+wide, a right rail shows each seat's state with its reasoning on click, fleet throughput,
+rooms (switching one moves both the stream and your sends to that bus namespace), and chapters
+that jump through the feed.
 
-Not yet ported from the 8787 console: slide deck/viz, voice line, hero avatar, rooms, link panel, report shelf, and the VFX lab.
+Not yet ported from the 8787 console: slide deck/viz, voice line, hero avatar, link panel, report shelf, and the VFX lab.

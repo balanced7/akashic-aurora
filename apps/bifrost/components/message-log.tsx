@@ -69,7 +69,10 @@ export function MessageLog() {
         {!ready && feed.length === 0 && <p className="py-10 text-center text-sm text-faint">Connecting to the bus…</p>}
         {ready && feed.length === 0 && <p className="py-10 text-center text-sm text-faint">No messages yet.</p>}
         {visible.map((item) => (
-          <FeedRow key={item.key} item={item} />
+          // the wrapper is the anchor the rail's chapters scroll to
+          <div key={item.key} data-feed-key={item.key}>
+            <FeedRow item={item} />
+          </div>
         ))}
         {bookkeeping.count > 0 && (
           <p className="text-center text-[11px] text-faint" title={`latest: ${bookkeeping.last}`}>

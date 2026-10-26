@@ -17,15 +17,16 @@ async function getJson<T>(path: string): Promise<T> {
   return (await r.json()) as T;
 }
 
-/** Wire the console to the bus: one SSE stream for messages, polls for fleet state. */
+/** Wire the console to the bus: one SSE stream for the room on screen, polls for fleet state. */
 export function useBus() {
+  const room = useConsole((s) => s.room);
   useEffect(() => {
-    const { ingest, setConnected, setStatus } = useConsole.getState();
-    const fleet = useFleet.getState();
-
-    const es = new EventSource("/events");
+    const { ingest, setConnected } = useConsole.getState();
+    const es = new EventSource(`/events?ns=${encodeURIComponent(room)}`);
     es.onopen = () => setConnected(true);
     es.onmessage = (e) => {
+      // a frame still in flight from the room we just left must not land in the new one
+      if (useConsole.getState().room !== room) return;
       try {
         ingest(JSON.parse(e.data) as BusMessage);
       } catch {
@@ -34,6 +35,12 @@ export function useBus() {
     };
     // EventSource reconnects on its own; this only drives the connection dot.
     es.onerror = () => setConnected(false);
+    return () => es.close();
+  }, [room]);
+
+  useEffect(() => {
+    const { setStatus } = useConsole.getState();
+    const fleet = useFleet.getState();
 
     let alive = true;
     const pollNow = single(async () => {
@@ -67,7 +74,6 @@ export function useBus() {
       alive = false;
       clearInterval(t1);
       clearInterval(t2);
-      es.close();
     };
   }, []);
 }
