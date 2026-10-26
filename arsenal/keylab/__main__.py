@@ -494,7 +494,8 @@ def cmd_vj(args) -> int:
                   audio=not args.no_audio,
                   midi=not args.no_midi, rate_limit=args.rate_limit, pads=args.pads, ahead_ms=args.ahead_ms,
                   offset_ms=args.offset_ms, seed_bpm=args.seed_bpm, secs=args.secs, quiet=args.quiet,
-                  chords=args.chords)
+                  chords=args.chords, tap=args.tap, tap_one=args.tap_one, tap_round=not args.tap_exact,
+                  db=not args.no_db)
 
 
 def chord_line(e: dict) -> str:
@@ -890,7 +891,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--pads", choices=["both", "daw", "bank"], default="both", help="which pad mode to accept")
     p.add_argument("--ahead-ms", type=float, default=250.0, help="announce each beat this long before it lands")
     p.add_argument("--offset-ms", type=float, default=0.0, help="shift every beat's due time (+ = later)")
-    p.add_argument("--seed-bpm", type=float, help="seed the beat tracker with this tempo")
+    p.add_argument("--seed-bpm", type=float,
+                   help="seed the beat tracker with this tempo (it holds the track playing at start; later tracks "
+                        "are seeded from the song database)")
+    p.add_argument("--no-db", action="store_true",
+                   help="do not look up the song database per track (Windows now-playing + tempo.lookup, on its own "
+                        "thread; only for the live loopback)")
+    p.add_argument("--tap", default="daw:cc23,daw:pad12", metavar="IDS",
+                   help="the controls that tap the beat, comma-separated: [daw:|midi:]ccN, [daw:|midi:]padN or pads; "
+                        "default daw:cc23,daw:pad12 = the Tap button right of Record and pad 12 (the hello names them: "
+                        "the VJ page fires no effect for a pad that taps); off = none. One tap on a kick moves the beat "
+                        "there; four or more take over tempo and beat")
+    p.add_argument("--tap-one", dest="tap_one", action="store_true", default=True,
+                   help="the first tap of a run is beat 1 of the bar (beat events then carry bar 1-4); the default "
+                        "since 2026-10-25")
+    p.add_argument("--no-tap-one", dest="tap_one", action="store_false",
+                   help="taps set tempo and beat only; the bar stays unknown")
+    p.add_argument("--tap-exact", action="store_true",
+                   help="keep the tapped tempo exact (default: round it to a whole BPM, unless it snaps to the "
+                        "database's or the tracker's tempo)")
     p.add_argument("--secs", type=float, help="stop after N seconds (default: until Ctrl-C)")
     p.add_argument("--quiet", action="store_true", help="print only warnings")
     p.set_defaults(func=cmd_vj, dry_run=False)

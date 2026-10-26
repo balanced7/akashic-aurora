@@ -19,7 +19,19 @@
 // tension (vj --chords sense) show in the HUD, the engine's tension feeds the strip in place of the page's own estimate,
 // a key change accents without a flash, and an engine without them leaves the page as it was; the pedal star finds a note struck over
 // and over while the bass walks under it; the showcase tour follows an engine that plays beats instead of starting
-// the page's demo over it; no page exceptions or console errors.
+// the page's demo over it; no page exceptions or console errors. Since the impact pass (2026-10-24): pad storms on a
+// 60 fps virtual clock (vj_storm.mjs: Invert held, one-shots at 15 and 5 a second, all 12 pads, the white flash at the
+// gate's edge) stay at three flashes a second or fewer in every quarter-screen window, gate v2 running; the transport and the
+// dial switch scenes (a press, never a release; a held button once; the dial browses and its click goes; a fast spin
+// cannot flood); the page tells the engine its scene (POST /api/scene) and stops asking an older engine that answers 404;
+// ~100 energy events a second reach the page; a pad event is drawn in the next frame at full strength; the beat snap
+// holds a hit to the next 16th; the real engine keeps the page's scene for the KeyLab's screen. Since Lasers v2
+// (2026-10-25), phase L on a 60 fps virtual clock with the engine's beats: pad 2 draws the laser engine's beams (the beam
+// layer, read back) on the beat grid with the three velocity tiers (soft single, medium one-two, hard triple); the dial
+// (cc116) changes the gate and its click (cc117) puts it back on AUTO; fader 1 (cc105) changes the colour theme on the
+// next bar and the lasers take its colours; a hello naming the tap controls makes pad 12 the tap (no effect fires for
+// it, the press is counted); the Laser Cathedral draws its own heads from the head bus while the beam layer draws only
+// the hero's; the pad lights posted are LED stand-ins the pads can show. D2 adds the laser storms (lasertiers, laserroll).
 // Writes state/arsenal/receipts/vj-<stamp>/receipt.json and the screenshots beside it; exits 1 if the verdict fails.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -31,6 +43,7 @@ import { parseArgs } from "node:util";
 import { setTimeout as delay } from "node:timers/promises";
 import { LOCK_DIR, acquireGpuLock } from "./gpu_lock.mjs";
 import { GPU_FENCE_FLAGS, QUIET_FLAGS, SWIFTSHADER_FLAGS, judgeRenderer } from "../shaders/headless.mjs";
+import { SCENARIOS as STORM_SCENARIOS, VIRTUAL_CLOCK as STORM_VIRTUAL_CLOCK, runStormInPage } from "./vj_storm.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 const WEB = resolve(REPO, "arsenal", "web");
@@ -78,7 +91,7 @@ const report = {
     "the real GPU: every frame here is drawn by SwiftShader on the CPU, so frame rate and timing say nothing about the live rig",
     "the KeyLab itself and the real keylab-vj engine: a fake engine speaks the event contract instead",
     "how each set looks to a person in motion: the screenshots are single frames for that",
-    "photosensitivity beyond the three-flashes rule: the red-flash rule and area thresholds are reasoned in the code, not measured",
+    "photosensitivity beyond flashes: stripes and patterns are not counted (flashes, red flashes and quarter-screen areas are, in phase D2)",
   ],
 };
 
@@ -103,6 +116,10 @@ const padPosts = [];
 // the fake engine's pad LEDs, as the real engine answers POST /api/pads: "on" = 202 taken; "off" = 409, as `vj --no-leds`
 // answers (its hello says leds false); "refuse" = 409 although its hello said leds true (the refusal path)
 let ledsMode = "on";
+// the fake engine's scene route (POST /api/scene, 2026-10-24): "on" = 202 as the real engine answers; "absent" = 404, as
+// an engine older than the route answers (the page must stop asking it until its next hello)
+let sceneMode = "on";
+const scenePosts = [];
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                "Access-Control-Allow-Headers": "Content-Type" };
 const engineServer = createServer((req, res) => {
@@ -113,6 +130,21 @@ const engineServer = createServer((req, res) => {
     res.write(": keylab-vj fake engine\n\n");
     sse.add(res);
     req.on("close", () => sse.delete(res));
+    return;
+  }
+  if (url.pathname === "/api/scene" && req.method === "POST") {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      let parsed = null;
+      try { parsed = JSON.parse(body); } catch { /* counted as unparsed */ }
+      scenePosts.push({ t: Date.now(), body: parsed, raw: body.slice(0, 300), mode: sceneMode });
+      const absent = sceneMode !== "on";
+      res.writeHead(absent ? 404 : 202, { ...CORS, "Content-Type": "application/json", Connection: "close" });
+      res.end(absent ? '{"error":"no route /api/scene"}' : '{"ok":true,"changed":true}');
+      if (!absent && parsed && parsed.name) send({ t: "scene", name: parsed.name, index: parsed.index, count: parsed.count,
+                                                    color: parsed.color || null, browsing: parsed.browsing === true });
+    });
     return;
   }
   if (url.pathname === "/api/pads" && req.method === "POST") {
@@ -203,7 +235,11 @@ async function waitFor(fn, ms, what) {
 let gpu = null, chrome = null, browser = null;
 const checks = {};
 try {
-  gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: "vj_verify (SwiftShader)", maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000 });
+  // one run holds the lock throughout (about 9 min before Lasers v2, 12-14 with its phase and storms): a 25-minute cap so a
+  // waiter never reaps a run still going, and a 0.5 s poll so a run waiting behind lanes that render in short chunks gets
+  // its turn (at 2 s it waited more than 30 minutes on 2026-10-25)
+  gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: "vj_verify (SwiftShader)", maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000,
+                              maxHoldMs: 25 * 60_000, pollMs: 500 });
   report.gpu_lock = { acquired_at: gpu.owner.acquiredAt, inherited: gpu.inherited };
   PORT = await listenInBand(web, PORT);
   ENGINE_PORT = await listenInBand(engineServer, ENGINE_PORT);
@@ -264,7 +300,12 @@ try {
   // ------------------------------------------------------------------------------------------- A: the demo --
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?demo=1&demopads=0&hud=0&watchdog=0` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page and its window.__vj hook");
-  report.webgl = await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
+  // gate v2 compiles in the background; the page is in its safe mode (every pad effect refused) until the meter and the
+  // apply pass link, decides on the CPU until the GPU decision links too, then on the GPU
+  await waitFor(() => evaluate("(() => { const l = window.__vj.stats().limiter; return l.mode === 'gpu' || l.fatal; })()"), 120000, "gate v2's programs");
+  report.limiter = await evaluate("window.__vj.stats().limiter");
+  checks.gate_v2_compiled = !!(report.limiter && report.limiter.on && report.limiter.mode === "gpu");
+  report.webgl =await evaluate(`(() => { const c = document.getElementById("gl"); const g = c.getContext("webgl2");
     if (!g) return null; const d = g.getExtension("WEBGL_debug_renderer_info");
     return { renderer: d ? g.getParameter(d.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER), version: g.getParameter(g.VERSION) }; })()`);
   report.renderer_check = judgeRenderer(report.webgl && report.webgl.renderer);
@@ -311,7 +352,7 @@ try {
   await key(2, "keyDown", true);
   await delay(80);
   st = await stats();
-  report.pads.laser_hard = fxOf(st, "laser");
+  report.pads.laser_hard = st.lasers && st.lasers.last ? [st.lasers.last] : [];   // pad 2: the laser engine's hit (Lasers v2)
   await key(2, "keyUp", true);
   await delay(250);
   report.pads.screenshot_burst = await shot("accent-shockwave-laser");
@@ -341,7 +382,8 @@ try {
   report.pads.freeze = fxOf(st, "freeze");
   await key(8, "keyUp");
   checks.pad_soft_velocity_is_0_6 = report.pads.shockwave_soft.length === 1 && Math.abs(report.pads.shockwave_soft[0].vel - 0.6) < 1e-6;
-  checks.shift_is_hard_velocity = report.pads.laser_hard.length === 1 && report.pads.laser_hard[0].vel === 1;
+  checks.shift_is_hard_velocity = report.pads.laser_hard.length === 1 && report.pads.laser_hard[0].vel === 1 &&
+    report.pads.laser_hard[0].src === "key";
   checks.held_pads_sustain = report.pads.held.strobe.length === 1 && report.pads.held.strobe[0].held &&
     report.pads.held.particles.length === 1 && report.pads.held.particles[0].held && report.pads.held.particles[0].env > 0.5;
   checks.release_lets_go = report.pads.after_release.strobe.every((e) => !e.held) &&
@@ -438,10 +480,237 @@ try {
   checks.flash_gate_grants_at_most_three_a_second = firstSecond > 3 && report.flash.granted >= 2 && gateAfter.maxInAnyWindow <= 3 &&
     report.flash.refused >= 10 - Math.ceil((requestSpanMs + 1) / 333);
   checks.measured_flashes_at_most_three_a_second = trace.length > 5 && maxRises <= 3;
+
+  // ------------------------------- D2: pad storms on a 60 fps virtual clock (the 2026-10-24/25 safety passes) --
+  // The real-clock storm this phase used to run missed what the adversarial verifier found (SwiftShader's slow frames
+  // stretched the storm, and it counted rises only). Now: a second tab with vj_storm's virtual clock, the storms of
+  // arsenal/lanes/vj_storm.mjs on Reactor for 4 s (the receipt itself runs them 10 s on three sets, at show sizes, with
+  // adversarial content): Invert held under hard hits at 10 a second, one-shots (pads 1, 2, 4, 12) at 15 and at 5 a
+  // second, pads 1, 2, 4 at 15, all 12 pads, the white flash at the gate's own edge and at 2.5 a second, laser and glitch
+  // alternating, the look at full under every flash-capable pad; then the one-shots again with the limiter deciding on the
+  // CPU (its fallback) and with no limiter at all (the safe mode, which must refuse the pads). Flashes are counted the
+  // verifier's way (pairs of swings of 0.1 relative luminance), transitions and strict pairs, in 4726 quarter-screen
+  // windows at every offset of a 64 x 36 grid (not the limiter's own), and red flashes too: at most 3 a second.
+  {
+    const { targetId: t2 } = await browser.send("Target.createTarget", { url: "about:blank" });
+    const { sessionId: s2 } = await browser.send("Target.attachToTarget", { targetId: t2, flatten: true });
+    const S2 = (method, params = {}) => withTimeout(browser.send(method, params, s2), 600000, method);
+    browser.on((msg) => {
+      if (msg.sessionId !== s2 || msg.method !== "Runtime.exceptionThrown") return;
+      const d = msg.params.exceptionDetails;
+      report.exceptions.push({ text: d.text, description: d.exception?.description, line: d.lineNumber, url: d.url, tab: "storm" });
+    });
+    await S2("Runtime.enable"); await S2("Page.enable");
+    await S2("Emulation.setDeviceMetricsOverride", { width: 640, height: 360, deviceScaleFactor: 1, mobile: false });
+    await S2("Page.addScriptToEvaluateOnNewDocument", { source: STORM_VIRTUAL_CLOCK });
+    const ev2 = async (expression) => {
+      const r = await S2("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    const storms = [];
+    const D2 = [...["invert10", "oneshots15", "oneshots5", "nozoom15", "all12", "flashedge", "flash24", "lasglitch", "lookstorm"].map((s) => [s, "gpu"]),
+                ["oneshots15", "cpu"], ["oneshots15", "off"], ["invert10", "off"],
+                // Lasers v2 (2026-10-25): pad 2's beams through the beam layer, on Reactor and on the Cathedral (head bus)
+                ["lasertiers", "gpu"], ["laserroll", "gpu"], ["lasertiers", "gpu", "vj-laser-cathedral"], ["laserroll", "gpu", "vj-laser-cathedral"]];
+    for (const [scenario, mode, stormSet = "vj-reactor"] of D2) {
+      const q = mode === "cpu" ? "&limiter=cpu" : mode === "off" ? "&limiter=off" : "";
+      await S2("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=off&hud=0&watchdog=0&sets=${stormSet}&laserseed=11${q}` });
+      const want = mode === "off" ? "true" : `l.mode === "${mode}"`;
+      await waitFor(() => ev2(`!!(window.__vj && window.__vj.ready) && (() => { window.__vt.step(1000 / 60); const l = window.__vj.stats().limiter; return !l || ${want} || l.fatal; })()`), 120000, "the storm tab's VJ page and gate v2");
+      await ev2("(() => { for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()");
+      const r = await runStormInPage(ev2, scenario, /^laser/.test(scenario) ? 480 : 240, { mode });
+      storms.push({ ...r, set: stormSet, densest: r.densest.slice(0, 8) });
+      console.log(`[storm] ${mode} ${scenario}: worst ${r.max_flashes_in_1s}/s pairs ${r.max_pairs_in_1s} (${r.worst_window}), full ${r.full_max_flashes_in_1s}/s, red ${r.red_max_flashes_in_1s}, gate ${r.gate.granted}, hits ${r.impact_hits}, refused ${r.safe_refused}, limiter ${r.limiter && r.limiter.on ? `${r.limiter.mode} leaks ${r.limiter.leaks}` : "off"}`);
+    }
+    await browser.send("Target.closeTarget", { targetId: t2 });
+    report.flash.storms = storms;
+    checks.pad_storms_at_most_three_flashes_a_second_in_every_window = storms.length === D2.length &&
+      storms.every((r) => r.max_transitions_in_1s <= 6 && r.max_pairs_in_1s <= 3 && r.red_max_transitions_in_1s <= 6 && r.red_max_pairs_in_1s <= 3 && r.longest_run_s <= 6.2);
+    checks.gate_v2_limiter_running_without_leaks = storms.filter((r) => r.mode !== "off").every((r) => r.limiter && r.limiter.on && r.limiter.mode === r.mode && r.limiter.leaks === 0);
+    checks.storms_keep_their_hits = storms.filter((r) => r.mode !== "off" && /oneshots|nozoom|all12|invert/.test(r.scenario)).every((r) => r.impact_hits >= 20);
+    checks.the_safe_mode_refuses_every_pad_effect = storms.filter((r) => r.mode === "off").every((r) => r.mode_ok && r.impact_hits === 0 && r.safe_refused > 20);
+    // the laser storms really played the lasers (their hits and pulses), and the laser engine never sent a frame over its
+    // own flash budget (its change estimate); gate v2 then judged the final frame like every other storm above
+    const laserStorms = storms.filter((r) => /^laser/.test(r.scenario));
+    report.flash.laser_storms = laserStorms.map((r) => ({ scenario: r.scenario, set: r.set, worst: r.max_flashes_in_1s, pairs: r.max_pairs_in_1s,
+      red: r.red_max_flashes_in_1s, lasers: r.lasers, limiter: r.limiter }));
+    checks.laser_storms_play_the_lasers_within_their_budget = laserStorms.length === 4 && laserStorms.every((r) => r.lasers &&
+      r.lasers.mode === "v2" && r.lasers.hits >= 4 && r.lasers.pulses >= 6 && r.lasers.lit_frames >= 30 && r.lasers.over_frames === 0);
+  }
   await tap("H");                        // the HUD, once, for the record
   await delay(300);
   report.hud_screenshot = await shot("hud");
   await tap("H");
+
+  // ------------------------------------------------- L: Lasers v2 and the colour themes (a 60 fps virtual clock) --
+  // A tab on the storm receipt's virtual clock, fed the engine's beats (120 BPM, 220 ms ahead, bar 1-4 as the engine
+  // sends with --tap-one) through the test hook, so every pulse's frame is exact. Pad 2 at soft / medium / hard (each
+  // pressed 40 ms before a beat, a hand a little early, more than a bar apart): the gate the velocity tier picks, the
+  // pulses it fires, each pulse's picture against the beat grid (the engine lights a pulse in the frame whose picture,
+  // one frame on, lands at or just before its grid point), and the beam layer's own pixels read back. The dial (cc116)
+  // and its click (cc117); fader 1 (cc105); a hello naming the tap controls with pad 12 pressed on the DAW port; the
+  // Laser Cathedral's head bus; the pad lights posted.
+  {
+    const { targetId: t3 } = await browser.send("Target.createTarget", { url: "about:blank" });
+    const { sessionId: s3 } = await browser.send("Target.attachToTarget", { targetId: t3, flatten: true });
+    const S3 = (method, params = {}) => withTimeout(browser.send(method, params, s3), 600000, method);
+    browser.on((msg) => {
+      if (msg.sessionId !== s3 || msg.method !== "Runtime.exceptionThrown") return;
+      const d = msg.params.exceptionDetails;
+      report.exceptions.push({ text: d.text, description: d.exception?.description, line: d.lineNumber, url: d.url, tab: "lasers" });
+    });
+    await S3("Runtime.enable"); await S3("Page.enable");
+    await S3("Emulation.setDeviceMetricsOverride", { width: 640, height: 360, deviceScaleFactor: 1, mobile: false });
+    await S3("Page.addScriptToEvaluateOnNewDocument", { source: STORM_VIRTUAL_CLOCK });
+    const ev3 = async (expression) => {
+      const r = await S3("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    await S3("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=off&hud=0&watchdog=0&sets=vj-reactor,vj-laser-cathedral&laserseed=7&theme=night-sea` });
+    await waitFor(() => ev3(`!!(window.__vj && window.__vj.ready) && (() => { window.__vt.step(1000 / 60); const l = window.__vj.stats().limiter; return l.mode === "gpu" || l.fatal; })()`), 180000, "the lasers tab's VJ page and gate v2");
+    report.lasers = await ev3(String.raw`(() => {
+      const vj = window.__vj, F = 1000 / 60, per = 500;
+      let n = 0, next = performance.now() + 150;
+      const feed = () => { while (performance.now() + 220 >= next) { vj.event({ t: "beat", due_ms: next - performance.now(), bpm: 120, conf: 0.9, n, on_beat: 0.9, src: "track", bar: (n % 4) + 1, ver: 1, wall_ms: 0 }); n++; next += per; } };
+      const step = (k, each) => { for (let i = 0; i < k; i++) { feed(); window.__vt.step(F); if (each) each(i); } };
+      const st = () => vj.stats();
+      const ctl = (id, value, kind = "abs", delta = 0) => vj.event({ t: "ctl", id, kind, value, delta, port: "daw" });
+      const out = { tiers: [], dial: {}, theme: {}, tap: {}, cathedral: {}, leds: {} };
+      step(150);                                       // the grid settles: the engine's beats for 2.5 s
+      // one bank for the tier presses: in "call" mode bank B answers every pulse half a beat later (more pulses, off the
+      // gate's own grid by design), which the engine's own tests cover; here each hit's gate is counted and timed alone
+      vj.laser({ bank: "A" });
+      // to just before a beat: the next whole beat of the page grid 40 ms (a hand a little early) after the press
+      const toBeat = () => { for (let g = 0; g < 60; g++) { const p = st().clock.pos; if (p !== null) { const left = (Math.ceil(p) - p) * per; if (left >= 40 && left < 40 + F) return left; } step(1); } return null; };
+      // pad 2 at the three velocity tiers, each a burst (more than a bar after the last press)
+      for (const vel of [0.3, 0.6, 0.95]) {
+        step(240);
+        const lead = toBeat();
+        const p0 = st().lasers.pulses;
+        vj.press(2, vel);
+        const pulses = [], lit = [];
+        let maxLit = 0, maxBeamRecords = 0;
+        step(36, (i) => {
+          if (i === 2) vj.release(2);                  // a tap (held for half a beat it would run the section's loop)
+          const s = st();
+          if (s.lasers.pulses > p0 + pulses.length) {
+            // this frame lit a pulse: its picture lands one frame on (judged against the gate's grid below)
+            pulses.push({ pos: +s.clock.pos.toFixed(5), present: +(s.clock.pos + F / per).toFixed(5), n: s.lasers.pulses - p0 });
+          }
+          const b = vj.beams();
+          if (b && b.lit > maxLit) { maxLit = b.lit; maxBeamRecords = b.records; }
+        });
+        const last = st().lasers.last;
+        out.tiers.push({ vel, lead_ms: lead, gate: last.gate, tier: last.tier, pattern: last.pattern, pulses: st().lasers.pulses - p0,
+                         pulse_frames: pulses, beam_pixels_lit: maxLit, beam_records: maxBeamRecords });
+      }
+      vj.laser({ bank: "auto" });
+      // the dial: one detent to Single, two more to Triple; a hard press then fires the dial's gate; the click is AUTO
+      step(240);
+      ctl("cc116", 0.5, "rel", 1); step(6);
+      out.dial.after_one = st().lasers.gate;
+      ctl("cc116", 0.5, "rel", 1); step(6); ctl("cc116", 0.5, "rel", 1); step(6);
+      out.dial.after_three = st().lasers.gate;
+      vj.press(2, 0.3); step(4); vj.release(2);
+      out.dial.soft_hit_gate = st().lasers.last.gate;
+      step(240);
+      ctl("cc117", 1); step(2); ctl("cc117", 0); step(4);
+      out.dial.after_click = st().lasers.gate;
+      vj.press(2, 0.3); step(4); vj.release(2);
+      out.dial.soft_hit_after_click = st().lasers.last.gate;
+      // fader 1: a theme from the other side of the wheel; it lands on the next bar, the lasers take its colours
+      step(120);
+      const t0 = st().themes;
+      vj.event({ t: "ctl", id: "cc105", kind: "abs", value: 0.81, delta: 0, port: "daw" });
+      let pend = null, pendFrames = 0;
+      step(200, () => { const p = st().themes.pending; if (p) { pend = pend || p; pendFrames++; } });
+      const t1 = st().themes, l1 = st().lasers;
+      out.theme = { from: t0.current, fader: t1.fader, fader_theme: t1.faderTheme, pending_seen: pend, pending_frames: pendFrames, to: t1.current, changes: t1.changes - t0.changes,
+                    landed_on: t1.last ? t1.last.on : null, lasers_theme: l1.theme, palette_moved: t1.palette.some((v, i) => Math.abs(v - t0.palette[i]) > 0.02) };
+      // the tap: the engine's hello names the Tap button and pad 12; pad 12 pressed on the DAW port fires nothing
+      vj.event({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", chords: "blend", pads_mode: "both", leds: false, leds_reason: "receipt",
+                 tap: "daw:cc23,daw:pad12", tap_one: true });
+      step(2);
+      const before = st();
+      vj.event({ t: "pad", pad: 12, vel: 0.9, on: true, src: "daw" }); step(3);
+      const during = st();
+      vj.event({ t: "pad", pad: 12, vel: 0, on: false, src: "daw" }); step(2);
+      vj.event({ t: "tap", count: 1, mode: "resync", bpm: null, shift: 0.0 }); step(2);
+      const after = st();
+      out.tap = { pads: after.tap.pads, presses: after.tap.presses - before.tap.presses, zoom: during.effects.filter((e) => e.type === "zoom").length,
+                  impact_hits: during.impact.hits - before.impact.hits, last: after.tap.last };
+      vj.event({ t: "pad", pad: 12, vel: 0.9, on: true, src: "bank" }); step(3);
+      out.tap.bank_pad_12_zoom = st().effects.filter((e) => e.type === "zoom").length;
+      vj.event({ t: "pad", pad: 12, vel: 0, on: false, src: "bank" }); step(30);
+      // the Laser Cathedral: its heads from the head bus, the hero's beams from the beam layer
+      vj.select("vj-laser-cathedral"); step(60);
+      vj.laser({ gate: "triple" });
+      vj.press(2, 0.95);
+      let busPeak = 0, heroOnly = false, busOn = false, rec = 0, upl = 0;
+      step(24, () => { const s = st().lasers; heroOnly = heroOnly || s.heroOnly; busOn = busOn || s.busOn;
+        if (s.bus) busPeak = Math.max(busPeak, ...s.bus.slice(4, 16).map((v) => v - Math.floor(v))); rec = Math.max(rec, s.records); upl = Math.max(upl, s.uploaded); });
+      vj.release(2); vj.laser({ gate: "auto" });
+      out.cathedral = { heroOnly, busOn, bus_peak_level: +busPeak.toFixed(3), records_max: rec, uploaded_max: upl };
+      const s9 = st();
+      out.leds = { last: s9.leds.last, washed: s9.ledsWashed };
+      out.errors = vj.errors();
+      out.limiter = s9.limiter.mode;
+      return out;
+    })()`);
+    await S3("Page.captureScreenshot", { format: "png" }).then((r) => { const f = join(outDir, "lasers-cathedral.png"); writeFileSync(f, Buffer.from(r.data, "base64")); report.screenshots.push(f); });
+    await browser.send("Target.closeTarget", { targetId: t3 });
+    const Lr = report.lasers;
+    const pulsesOf = { single: 1, onetwo: 2, triple: 3, triplet: 3 };
+    // Each pulse's PICTURE against its gate's grid (a quarter beat; a third for the Triplet Triple): the engine lights a
+    // pulse in the last frame whose picture lands at or before its grid point, so 0 to one frame early.
+    const gridOf = { single: 1 / 4, onetwo: 1 / 4, triple: 1 / 4, triplet: 1 / 3 };
+    // Snap to the NEAREST grid point and keep the sign, and record which grid point it was. The first version snapped
+    // with Math.ceil(present / g - 1e-6), which can only answer "on the grid" or "a whole grid step early": a pulse that
+    // lands a rounding error PAST its grid point was charged a full step, so the Triplet's third shot -- reading
+    // present 33.66667 against a grid point of 101/3 = 33.666666..., 1.7 microseconds of error -- came back as 166.66 ms
+    // early and failed the round. Nearest-point snapping measures the real error with its sign; the grid INDEX is then
+    // checked separately for consecutiveness, which is what actually catches a skipped or repeated grid step.
+    const snapPulses = (pulses, g, per = 500) => pulses.map((p) => {
+      const k = Math.round(p.present / g);
+      return { ...p, grid_k: k, early_ms: +((k * g - p.present) * per).toFixed(2) };  // > 0 early, < 0 late
+    });
+    // Calibrate the snapper on synthetic pulse sets whose answer is known, so the tolerance below cannot quietly widen
+    // into "anything passes". Runs every time; a throw here means the ruler, not the engine, needs looking at.
+    const snapSelftest = () => {
+      const g = 1 / 3, k0 = 99;
+      const onGrid = [0, 1, 2].map((i) => ({ present: +(k0 + i) / 3 + (i === 2 ? 3.3e-6 : 0) }));  // incl. the rounding case
+      const skipped = [0, 1, 3].map((i) => ({ present: +(k0 + i) / 3 }));
+      const a = snapPulses(onGrid, g), b = snapPulses(skipped, g);
+      const okA = a.every((p) => Math.abs(p.early_ms) < 1) && a.every((p, i) => i === 0 || p.grid_k === a[i - 1].grid_k + 1);
+      const okB = b.every((p) => Math.abs(p.early_ms) < 1) && !b.every((p, i) => i === 0 || p.grid_k === b[i - 1].grid_k + 1);
+      if (!okA || !okB) throw new Error(`grid snap selftest failed: on-grid ${JSON.stringify(a)} skipped ${JSON.stringify(b)}`);
+      return true;
+    };
+    snapSelftest();
+    for (const t of Lr.tiers) {
+      const g = gridOf[t.gate] || 1 / 4;
+      t.pulse_frames = snapPulses(t.pulse_frames, g);
+      t.consecutive = t.pulse_frames.every((p, i) => i === 0 || p.grid_k === t.pulse_frames[i - 1].grid_k + 1);
+    }
+    console.log(`[lasers] tiers ${Lr.tiers.map((t) => `${t.vel}:${t.gate}x${t.pulses} lit ${t.beam_pixels_lit}px early ${t.pulse_frames.map((p) => p.early_ms).join("/")}${t.consecutive ? "" : " NONCONSECUTIVE"}`).join(" | ")}; dial ${Lr.dial.after_one}/${Lr.dial.after_three}/${Lr.dial.after_click}; theme ${Lr.theme.from} -> ${Lr.theme.to} (${Lr.theme.landed_on}); tap ${Lr.tap.presses} press, zoom ${Lr.tap.zoom}; cathedral bus ${Lr.cathedral.bus_peak_level}`);
+    // Half a frame late is allowed by spec 3.3; more than one frame early is not on the grid at all.
+    const onGrid = (t) => t.pulse_frames.length === t.pulses && t.consecutive &&
+      t.pulse_frames.every((p) => p.early_ms >= -1000 / 120 && p.early_ms <= 1000 / 60 + 0.5);
+    checks.pad_2_draws_lasers_v2_beams_on_the_grid_with_the_three_tiers = Lr.tiers.length === 3 &&
+      Lr.tiers[0].gate === "single" && Lr.tiers[1].gate === "onetwo" && ["triple", "triplet"].includes(Lr.tiers[2].gate) &&
+      Lr.tiers.every((t) => t.tier === "burst" && t.pulses === pulsesOf[t.gate] && t.beam_pixels_lit > 50 && onGrid(t));
+    checks.the_dial_changes_the_laser_gate = Lr.dial.after_one === "single" && Lr.dial.after_three === "triple" &&
+      Lr.dial.soft_hit_gate === "triple" && Lr.dial.after_click === "auto" && Lr.dial.soft_hit_after_click === "single";
+    checks.fader_1_changes_the_theme_on_the_bar = Lr.theme.fader_theme === Lr.theme.to && Lr.theme.to !== Lr.theme.from &&
+      Lr.theme.changes === 1 && !!Lr.theme.pending_seen && Lr.theme.landed_on === "bar" && Lr.theme.lasers_theme === Lr.theme.to && Lr.theme.palette_moved;
+    checks.pad_12_is_the_tap_and_fires_no_effect = Lr.tap.pads.length === 1 && Lr.tap.pads[0].pad === 12 && Lr.tap.presses === 1 &&
+      Lr.tap.zoom === 0 && Lr.tap.impact_hits === 0 && Lr.tap.last && Lr.tap.last.mode === "resync" && Lr.tap.bank_pad_12_zoom === 1;
+    checks.the_cathedral_draws_its_heads_from_the_head_bus = Lr.cathedral.heroOnly && Lr.cathedral.busOn && Lr.cathedral.bus_peak_level > 0.05 &&
+      Lr.cathedral.uploaded_max < Lr.cathedral.records_max;
+    report.page_errors = (report.page_errors || []).concat(Lr.errors || []);
+  }
 
   // ------------------------------------------------------------------------- E: the engine contract (fake) --
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=http://127.0.0.1:${ENGINE_PORT}&hud=0&watchdog=0` });
@@ -461,11 +730,14 @@ try {
   send({ t: "chord", src: "keys", name: "Dbmaj7", root: 1, quality: "maj7", pcs: [1, 5, 8, 0], changed: true });
   for (const k of [49, 65, 68, 72]) send({ t: "note", key: k, vel: 0.7, on: true });
   send({ t: "hit", strength: 0.9, band: "kick" });
+  const framesAtSend = (await stats()).frames;
   send({ t: "pad", pad: 2, vel: 0.9, on: true, src: "bank" });
   await delay(150);
+  // the stars are counted when the page draws a frame: at SwiftShader's 5-10 frames a second, wait for two after the send
+  try { await waitFor(async () => (await stats()).frames >= framesAtSend + 2, 5000, "two frames after the events"); } catch { /* judged below */ }
   st = await stats();
   report.engine_contract.after_events = { hello: st.engine.hello, chord: st.chord, stars: st.stars, beats: st.beats, bpm: st.bpm,
-                                          effects: st.effects.map((e) => `${e.type}@${e.pad}:${e.vel}`) };
+                                          effects: st.effects.map((e) => `${e.type}@${e.pad}:${e.vel}`), laser: st.lasers.last };
   send({ t: "pad", pad: 2, vel: 0, on: false, src: "bank" });
   // the page handles queued events between frames, so every step waits until the page has really taken the last one
   // (a learn armed over CDP would otherwise catch a control that was sent before it)
@@ -510,7 +782,7 @@ try {
   await tap("M");
   await delay(1000);
   st = await stats();
-  report.engine_contract.controls = { hueA: st.values.hueA, sat: st.values.sat, cc120: st.ctlMap.cc120, lastCtl: st.lastCtl };
+  report.engine_contract.controls = { hueA: st.values.hueA, theme: st.values.theme, sat: st.values.sat, cc120: st.ctlMap.cc120, lastCtl: st.lastCtl };
   report.engine_contract.screenshot = await shot("engine-dbmaj7-pad2");
   clearInterval(beatTimer);
   const posts = padPosts.slice();
@@ -531,12 +803,20 @@ try {
                                        seconds: (Date.now() - beatT0) / 1000 };
   checks.engine_hello_and_beats = !!(st.engine.hello && st.engine.hello.src === "keylab-vj") && st.beats >= 3 && st.bpm === 120;
   checks.engine_chord_and_stars = report.engine_contract.after_events.chord === "Dbmaj7" && report.engine_contract.after_events.stars === 4;
-  checks.engine_pad_triggers_mapped_effect = report.engine_contract.after_events.effects.some((e) => e.startsWith("laser@2:0.9"));
-  checks.engine_fader_sets_hue = Math.abs(st.values.hueA - 0.2) < 1e-6;
+  // pad 2 from the engine plays the laser engine (Lasers v2); fader 1 (cc105) is the theme fader, Hue A untouched
+  // (Daniel, 2026-10-25: "3. yes i like that")
+  checks.engine_pad_triggers_mapped_effect = !!report.engine_contract.after_events.laser &&
+    report.engine_contract.after_events.laser.vel === 0.9 && report.engine_contract.after_events.laser.src === "bank";
+  checks.engine_fader_1_is_the_theme_fader = Math.abs(st.values.theme - 0.2) < 1e-6 && Math.abs(st.values.hueA - 0.53) < 1e-6;
   checks.learn_on_touch_binds_any_control = report.engine_contract.panel_open && report.engine_contract.learn_clicked &&
     st.ctlMap.cc120 === "sat" && Math.abs(st.values.sat - 0.4) < 1e-6;
   checks.pad_map_is_editable = report.engine_contract.pad_edit === "invert";
   checks.pad_lights_posted_at_most_ten_a_second = bodyOk && posts.length >= 2 && maxPerSecond <= 10;
+  // spec A8: the pads get LED stand-ins (vj-themes.js ledPostedOk: white, or saturated and outside the 15-100 degree wash)
+  const { ledPostedOk } = await import("../web/vj-themes.js");
+  const posted = posts.flatMap((p) => { try { return JSON.parse(p.body).colors; } catch { return []; } });
+  report.engine_contract.pad_colours_checked = posted.length;
+  checks.every_pad_light_posted_is_a_stand_in_the_pads_show = posted.length >= 24 && posted.every((c) => ledPostedOk(c));
 
   // -------------------------------------- E1: chordsense's key, numeral and tension (vj --chords sense) --
   // The engine's hello says which chord engine runs; key {name, conf}, tension {value, pedal_pc} and the chord's roman /
@@ -660,6 +940,162 @@ try {
   checks.a_refused_post_stops_posting_until_the_next_hello = leds.refuse_posts === 1 && leds.refuse_state.refused >= 1 &&
     /refused \(HTTP 409\)/.test(leds.refuse_state.ledsOff) && !!leds.on_cleared && leds.resumed_posts >= 2;
 
+  // ------------------------- E5: scenes from the transport and the dial; the scene told to the engine (2026-10-24) --
+  // The KeyLab's rewind (cc25) and fast-forward (cc26) press 127 and release 0; the dial turns cc116 (relative) and clicks
+  // cc117. The page maps them to scenes (vj-core.js DEFAULT_CTL_MAP, SceneControl): a press moves one scene, a release
+  // or a held button does nothing more, the dial browses (the page tells the engine the scene under it, browsing) and its
+  // click goes there, a fast spin cannot run away. The page reports the scene it shows (POST /api/scene); an engine that
+  // answers 404 (older than the route) is not asked again until its next hello. Energy at ~100 events a second reaches
+  // the page's band envelopes. And pad events from the engine: arrival to the frame that draws them (the latency record).
+  {
+    const sc = {};
+    const ctl = (id, value, kind = "abs", delta = 0) => send({ t: "ctl", id, kind, value, delta });
+    const setOf = async () => (await stats()).setA;
+    const nextAfter = (list, id, k) => { const i = list.indexOf(id); return list[(((i + k) % list.length) + list.length) % list.length]; };
+    const valid = (await evaluate("window.__vj.sets()")).filter((s) => !s.broken).map((s) => s.id);
+    sceneMode = "on";
+    hello(true);
+    sc.reported_on_hello = await settle((s) => s.scenes.sentKey !== "" && scenePosts.some((p) => p.body && p.body.name));
+    const waitSet = async (want) => { try { return await waitFor(async () => { const s = await stats(); return !s.fading && s.setA === want ? s : null; }, 7000, want); } catch { return null; } };
+    const s0 = await setOf();
+    ctl("cc26", 1); await delay(60); ctl("cc26", 0);
+    sc.ff = { from: s0, to: (await waitSet(nextAfter(valid, s0, 1)))?.setA ?? (await setOf()) };
+    await delay(300);
+    sc.release_did_not_move = (await setOf()) === sc.ff.to;
+    ctl("cc25", 1); await delay(60); ctl("cc25", 0);
+    sc.rew = { to: (await waitSet(s0))?.setA ?? (await setOf()) };
+    // a held button (repeating 127) moves once
+    const s1 = await setOf();
+    for (let i = 0; i < 5; i++) { ctl("cc26", 1); await delay(40); }
+    ctl("cc26", 0);
+    sc.held = { from: s1, to: (await waitSet(nextAfter(valid, s1, 1)))?.setA ?? (await setOf()) };
+    await delay(400);
+    sc.held.after = await setOf();
+    // the scene dial (learned: since Lasers v2 the main dial picks the laser gate, Daniel 2026-10-25): three detents
+    // browse three scenes, the screen is told (browsing), the live set stays until the click
+    await evaluate(`window.__vj.learn("sceneDial")`);
+    ctl("cc118", 0.5, "rel", 0);
+    sc.dial_learned = await settle((s) => s.ctlMap.cc118 === "sceneDial");
+    await evaluate(`window.__vj.learn("sceneGo")`);
+    ctl("cc119", 0);
+    sc.click_learned = await settle((s) => s.ctlMap.cc119 === "sceneGo");
+    await delay(200);
+    const s2 = await setOf();
+    const browsePosts0 = scenePosts.length;
+    for (let i = 0; i < 3; i++) { ctl("cc118", 0.5, "rel", 1); await delay(150); }
+    const br = await settle((s) => (s.scenes.browsing && s.scenes.cursor >= 0 ? s : false));
+    sc.browse = { cursor: br ? br.scenes.cursor : null, live: await setOf(), want: nextAfter(valid, s2, 3) };
+    await delay(400);
+    const browsePosts = scenePosts.slice(browsePosts0).filter((p) => p.body && p.body.browsing === true);
+    sc.browse.posts = browsePosts.map((p) => p.body.name);
+    ctl("cc119", 1); await delay(60); ctl("cc119", 0);
+    sc.go = { to: (await waitSet(sc.browse.want))?.setA ?? (await setOf()) };
+    // a fast spin: 30 messages in ~300 ms move the cursor at most one step per 60 ms
+    const spin0 = (await stats()).scenes.ignored;
+    for (let i = 0; i < 30; i++) { ctl("cc118", 0.5, "rel", 4); await delay(10); }
+    const sp = await settle((s) => (s.scenes.ignored > spin0 ? s : false));
+    sc.spin = { ignored: sp ? sp.scenes.ignored - spin0 : 0 };
+    await delay(4500);                    // the browse lets go without a click
+    sc.spin.browse_ended = !(await stats()).scenes.browsing;
+    sc.spin.live_unchanged = (await setOf()) === sc.go.to;
+    // an older engine: 404 on the route, asked once, then not again until its next hello
+    const old0 = scenePosts.length;
+    sceneMode = "absent";
+    hello(true);
+    await settle((s) => s.scenes.off !== "" || scenePosts.length > old0);
+    await delay(300);
+    ctl("cc26", 1); await delay(60); ctl("cc26", 0);
+    await delay(1500);
+    ctl("cc25", 1); await delay(60); ctl("cc25", 0);
+    await delay(1500);
+    const st5 = await stats();
+    sc.older = { posts: scenePosts.slice(old0).filter((p) => p.mode === "absent").length, off: st5.scenes.off };
+    sceneMode = "on";
+    const res0 = scenePosts.length;
+    hello(true);
+    sc.older.resumed = await settle((s) => (s.scenes.off === "" && scenePosts.length > res0 ? true : false));
+    // energy at ~100 a second
+    const e0 = (await stats()).energyEvents;
+    // one every 10 ms on the clock (a Windows timer may wake late: every event due by then goes out, as the engine's
+    // audio blocks would)
+    const eStart = Date.now();
+    await new Promise((done) => {
+      let k = 0;
+      const timer = setInterval(() => {
+        while (k < 100 && eStart + k * 10 <= Date.now()) {
+          send({ t: "energy", bass: 0.3 + 0.5 * ((k % 50) < 5 ? 1 : 0), mid: 0.3, high: 0.2, level: 0.4 });
+          k++;
+        }
+        if (k >= 100) { clearInterval(timer); done(); }
+      }, 4);
+    });
+    const eSpanMs = Date.now() - eStart;
+    await delay(60);
+    const se = await stats();                 // at once: the page's count of the last second is the rate
+    sc.energy = { sent: 100, over_ms: eSpanMs, received: se.energyEvents - e0, page_rate_last_second: se.energyRate, kick: se.bands.kick };
+    // latency: pad events from the engine, each drawn in the next frame at full strength -- measured on the classic burst
+    // (Lasers: classic, kept exactly; Lasers v2's first pulse waits for the beat grid when a press is a little early)
+    await evaluate("window.__vj.laser({ classic: true })");
+    const latT0 = await evaluate("performance.now()");
+    const latSent = [];
+    for (let i = 0; i < 12; i++) {
+      latSent.push(Date.now());
+      send({ t: "pad", pad: 2, vel: 0.9, on: true, src: "bank" });
+      await delay(50);
+      send({ t: "pad", pad: 2, vel: 0, on: false, src: "bank" });
+      await delay(180 + (i % 4) * 37);
+    }
+    await delay(400);
+    await evaluate("window.__vj.laser({ classic: false })");
+    const lat = (await evaluate("window.__vj.latency()")).records.filter((r) => r.src === "bank" && r.arrive >= latT0);
+    // a laser burst at 0.9 starts at full strength (attack 0) and falls (1 - age / D)^2, D = 0.9 s x (0.6 + 0.8 x 0.9):
+    // the frame that draws it must show at least that, so nothing between the event and the frame held it back
+    const D = 0.9 * (0.6 + 0.8 * 0.9);
+    for (const r of lat) r.expected = r.frame === null ? null : +Math.pow(Math.max(0, 1 - (r.frame - r.fired) / 1000 / D), 2).toFixed(3);
+    // the engine's send (this process's wall clock) to the end of the frame that drew it (the page's: the same clock)
+    const sends = latSent.slice(-lat.length);
+    const gaps = lat.map((r, k) => (r.frameWall ? r.frameWall - sends[k] : null)).filter((g) => g !== null).sort((a, b) => a - b);
+    const fps = (await stats()).fps;
+    sc.latency = { records: lat.length, send_to_drawn_ms: { p50: gaps[Math.floor(gaps.length / 2)] ?? null, max: gaps[gaps.length - 1] ?? null },
+                   frame_ms_at_this_rate: fps > 0 ? +(1000 / fps).toFixed(1) : null, env_in_that_frame_min: Math.min(...lat.map((r) => r.env ?? 0)),
+                   env_short_of_full_max: Math.max(...lat.map((r) => (r.expected ?? 1) - (r.env ?? 0))) };
+    // the beat snap (off by default; B or the panel): with the engine's beat live, a pad hit waits for the next 16th
+    let snapN = 0;
+    const snapBeats = setInterval(() => send({ t: "beat", due_ms: 200, bpm: 120, conf: 0.9, n: 1000 + snapN++, on_beat: 0.9 }), 500);
+    await delay(1300);
+    const snapOn = await evaluate("window.__vj.snap(true)");
+    const snapT0 = await evaluate("performance.now()");
+    for (let i = 0; i < 8; i++) {
+      send({ t: "pad", pad: 1, vel: 0.8, on: true, src: "bank" });
+      await delay(40);
+      send({ t: "pad", pad: 1, vel: 0, on: false, src: "bank" });
+      await delay(170 + i * 23);
+    }
+    await delay(500);
+    const snapRecs = (await evaluate("window.__vj.latency()")).records.filter((r) => r.arrive >= snapT0 && r.pad === 1);
+    await evaluate("window.__vj.snap(false)");
+    clearInterval(snapBeats);
+    const onGrid = (r) => { const k = (r.snapAt - r.snapBeat) / r.snapGrid; return Math.abs(k - Math.round(k)) < 0.01; };
+    sc.snap = { on: snapOn, hits: snapRecs.length, waited: snapRecs.filter((r) => r.snapAt !== null).length,
+                waits_ms: snapRecs.filter((r) => r.snapAt !== null).map((r) => +(r.snapAt - r.arrive).toFixed(1)),
+                on_grid: snapRecs.filter((r) => r.snapAt !== null).every(onGrid),
+                drawn_after_its_16th: snapRecs.filter((r) => r.snapAt !== null).every((r) => r.frame !== null && r.frame >= r.snapAt) };
+    report.engine_contract.scenes = { ...sc, posts: scenePosts.length, sample: scenePosts.slice(-3) };
+    console.log(`[scenes] ff ${sc.ff.from} -> ${sc.ff.to}; browse ${sc.browse.posts.join(", ")}; older engine: ${sc.older.posts} post(s); energy ${sc.energy.received} in 1 s; send to drawn p50 ${sc.latency.send_to_drawn_ms.p50} ms at ${sc.latency.frame_ms_at_this_rate} ms a frame`);
+    checks.scene_is_reported_to_the_engine = !!sc.reported_on_hello && scenePosts.filter((p) => p.mode === "on").every((p) => p.body && typeof p.body.name === "string" && p.body.name.length >= 1);
+    checks.fast_forward_and_rewind_switch_scenes = sc.ff.to === nextAfter(valid, s0, 1) && sc.rew.to === s0 && sc.release_did_not_move;
+    checks.a_held_button_switches_once = sc.held.to === nextAfter(valid, s1, 1) && sc.held.after === sc.held.to;
+    checks.the_dial_browses_and_its_click_goes = !!sc.dial_learned && !!sc.click_learned && sc.browse.live === s2 &&
+      sc.browse.posts.length >= 1 && sc.go.to === sc.browse.want;
+    checks.a_fast_spin_cannot_flood = sc.spin.ignored >= 10 && sc.spin.browse_ended && sc.spin.live_unchanged;
+    checks.an_older_engine_is_asked_once_until_its_next_hello = sc.older.posts === 1 && /older/.test(sc.older.off) && sc.older.resumed === true;
+    checks.energy_at_100_a_second_reaches_the_page = sc.energy.received === 100 && sc.energy.over_ms <= 1150;
+    checks.beat_snap_holds_a_hit_to_the_next_16th = sc.snap.on === true && sc.snap.hits === 8 && sc.snap.waited >= 3 &&
+      sc.snap.on_grid && sc.snap.drawn_after_its_16th && sc.snap.waits_ms.every((w) => w > 0 && w <= 125 * 0.75 + 1);
+    checks.pad_events_drawn_in_the_next_frame_at_full_strength = sc.latency.records >= 10 && lat.every((r) => r.frame !== null) &&
+      sc.latency.env_short_of_full_max <= 0.02;
+  }
+
   // --------------------------------------------- E3: a dropped engine's status leaves the HUD with it --
   send({ t: "status", msg: "fake engine for vj_verify: about to drop" });
   await settle((s) => s.engine.status === "fake engine for vj_verify: about to drop");
@@ -758,6 +1194,11 @@ try {
                           roman: heard.roman, chord: heard.chord, chordSrc: heard.chordSrc, tension: heard.harmony.tension,
                           bad: last.engine.bad, events: last.engine.events } : null;
     try { real.state = await (await fetch(`${real.url}/api/state`)).json(); } catch { real.state = null; }
+    // the page told the real engine which scene shows (POST /api/scene), and the engine keeps it for `screen --live`
+    const liveName = await evaluate("(() => { const s = window.__vj.stats(); const x = window.__vj.sets().find((q) => q.id === s.setA); return x ? x.name : null; })()");
+    real.scene = { page: liveName, engine: real.state ? real.state.scene : null, counts: real.state ? real.state.scene_counts : null };
+    checks.the_real_engine_hears_the_page_scene = !!liveName && !!real.scene.engine && real.scene.engine.name === liveName &&
+      real.scene.counts.taken >= 1;
     report.page_errors = report.page_errors.concat(await evaluate("window.__vj.errors()"));
     console.log(`[real engine] key "${real.hud.key}" | chord "${real.hud.chord}"`);
     const ev = real.state ? real.state.events : {};
@@ -840,8 +1281,12 @@ try {
   report.expected_refusals = report.console.filter(refusal);
   const refusedPosts = padPosts.filter((p) => p.mode !== "on").length;
   checks.refusal_console_lines_match_the_refused_posts = report.expected_refusals.length === refusedPosts;
+  // ... and phase E5's older engine answers 404 to the scene route: exactly one report, then the page stops asking it
+  const sceneAbsent = (c) => /\/api\/scene/.test(c.url || "") && /\b404\b/.test(c.text || "");
+  report.expected_scene_404 = report.console.filter(sceneAbsent);
+  checks.scene_404_console_lines_match_the_older_engine_posts = report.expected_scene_404.length === scenePosts.filter((p) => p.mode !== "on").length;
   checks.no_console_errors = !report.console.some((c) => (c.type === "error" || c.type === "log-error") && !external(c) &&
-    !refusal(c));
+    !refusal(c) && !sceneAbsent(c));
   checks.no_page_recorded_errors = Array.isArray(report.page_errors) && report.page_errors.length === 0;
   checks.no_script_error = !report.error;
   report.verdict = { pass: Object.values(checks).every(Boolean), checks };
@@ -865,7 +1310,8 @@ try {
   for (const [k, v] of Object.entries(checks)) console.log(`${v ? "PASS" : "FAIL"} ${k}`);
   for (const e of report.exceptions) console.log("EXC", e.description || e.text);
   for (const c of report.console.filter((c) => c.type === "error" || c.type === "log-error")) {
-    console.log(report.expected_refusals?.includes(c) ? "CONSOLE (expected: the refusal phase E2 provokes)" : "CONSOLE", c.text);
+    console.log(report.expected_refusals?.includes(c) ? "CONSOLE (expected: the refusal phase E2 provokes)" :
+      report.expected_scene_404?.includes(c) ? "CONSOLE (expected: E5's older engine has no scene route)" : "CONSOLE", c.text);
   }
   console.log("verdict:", report.verdict.pass ? "PASS" : "FAIL");
   console.log("receipt:", join(outDir, "receipt.json"));

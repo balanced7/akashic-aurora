@@ -26,13 +26,15 @@
       <div class="hud-row"><dt>chord</dt><dd id="hud-chord">&mdash;</dd></div>
       <div class="hud-row"><dt>key</dt><dd id="hud-key">&mdash;</dd></div>
       <div class="hud-row"><dt>pedal</dt><dd id="hud-pedal">&mdash;</dd></div>
+      <div class="hud-row"><dt>lasers</dt><dd id="hud-lasers">&mdash;</dd></div>
+      <div class="hud-row"><dt>theme</dt><dd id="hud-theme">&mdash;</dd></div>
       <div class="hud-row"><dt>effects</dt><dd id="hud-fx">&mdash;</dd></div>
       <div class="hud-row"><dt>flash gate</dt><dd id="hud-flash">&mdash;</dd></div>
       <div class="hud-row"><dt>last control</dt><dd id="hud-ctl">&mdash;</dd></div>
       <div class="hud-row"><dt>render</dt><dd id="hud-gl">&mdash;</dd></div>
     </dl>
     <div class="hud-pads" id="hud-pads" aria-label="Pad grid"></div>
-    <p class="hud-keys">H HUD &middot; M map &middot; F fullscreen &middot; <kbd>1</kbd>&ndash;<kbd>0</kbd> <kbd>-</kbd> <kbd>=</kbd> pads (Shift hard) &middot; <kbd>Q</kbd> dampen <kbd>W</kbd> choke <kbd>E</kbd> kill <kbd>R</kbd> next &middot; <kbd>D</kbd> demo &middot; <kbd>T</kbd> transition <kbd>L</kbd> look <kbd>S</kbd> showcase</p>
+    <p class="hud-keys">H HUD &middot; M map &middot; F fullscreen &middot; <kbd>1</kbd>&ndash;<kbd>0</kbd> <kbd>-</kbd> <kbd>=</kbd> pads (Shift hard) &middot; <kbd>Q</kbd> dampen <kbd>W</kbd> choke <kbd>E</kbd> kill <kbd>R</kbd> next &middot; <kbd>B</kbd> beat snap &middot; <kbd>D</kbd> demo &middot; <kbd>T</kbd> transition <kbd>L</kbd> look <kbd>S</kbd> showcase &middot; lasers: <kbd>V</kbd> vibrate <kbd>[</kbd> <kbd>]</kbd> gate <kbd>\</kbd> auto <kbd>P</kbd> pin <kbd>C</kbd> classic &middot; <kbd>F1</kbd>&ndash;<kbd>F8</kbd> colour families &middot; KeyLab: &#9194; &#9193; scenes, fader 1 theme, dial laser gate (click: auto), Tap and pad 12 tap the tempo</p>
   </section>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -47,7 +49,7 @@
     <section class="panel-sec" aria-label="Sets">
       <h3>Sets</h3>
       <ol class="set-list" id="set-list"></ol>
-      <p class="note">Click a set to switch to it. <kbd>R</kbd> or pad 12 switches to the next one, on the next bar or beat, in the style chosen under Transitions and look. Fader 8 mixes toward the cued set by hand; after a switch it picks up again once you pull it to the bottom.</p>
+      <p class="note">Click a set to switch to it. On the KeyLab, <strong>rewind</strong> and <strong>fast-forward</strong> switch to the previous and next scene (on the press; our FL script keeps them from FL; <code>?transport=off</code> hands them back to the bindings below); <kbd>R</kbd> is next too. The <strong>main dial</strong> picks the laser gate now (its <strong>click</strong> is AUTO); a scene dial can be learned below. A switch lands on the next bar or beat, in the style chosen under Transitions and look. Fader 8 mixes toward the cued set by hand; after a switch it picks up again once you pull it to the bottom.</p>
     </section>
 
     <section class="panel-sec" aria-label="Set parameters">
@@ -60,7 +62,7 @@
       <h3>Pads</h3>
       <div class="pad-map" id="pad-map"></div>
       <div class="row"><button type="button" class="btn" id="btn-reset-pads">Reset pads</button></div>
-      <p class="note">Velocity shapes each effect; holding a pad sustains the holdable ones until you let go.
+      <p class="note">Velocity shapes each effect, through a steep curve: a soft tap is a nudge, a hard hit punches the whole frame, shakes it and dips the scene for a moment under the accent's light (the dip is held under the flash line by measuring the scene). Holding a pad sustains the holdable ones until you let go. Pad 2 is Lasers v2: soft single, medium one-two, hard triple; again within a bar it answers bigger (the third press a crown from the centre), faster presses roll on the beat grid, holding it runs the section's loop. Pad 11 is Invert (hold), pad 12 the Zoom punch (velocity = depth), unless the engine says pad 12 taps the tempo (the default since 2026-10-25: then it taps, and fires no effect); the glitch (pad 4) picks its own mode, or two, on every hit. Kill stays on <kbd>E</kbd>.
         Both pad sources work: the DAW-mode pads (DAW port, channel 10) and the normal pad bank (MIDI port, channel 10,
         notes 36&ndash;47). <strong>While FL Studio's Arturia script runs, the DAW-mode pads 1&ndash;8 also toggle FL
         step-sequencer steps when released</strong>: switch the KeyLab to its pad bank to keep FL's sequencer untouched.</p>
@@ -80,6 +82,15 @@
       <h3>Options</h3>
       <label class="check"><input type="checkbox" id="opt-hits" checked="checked" /> Hits accent the picture (kept below the flash threshold)</label>
       <label class="check"><input type="checkbox" id="opt-leds" checked="checked" /> Light the KeyLab pads (through the engine)</label>
+      <label class="check"><input type="checkbox" id="opt-punch" checked="checked" /> Punch, shake and dip on pad hits (the impact layer)</label>
+      <label class="check"><input type="checkbox" id="opt-snap" /> Beat snap: a pad hit waits for the next 16th of a live beat (<kbd>B</kbd>)</label>
+      <label class="check"><input type="checkbox" id="opt-vibrate" /> Lasers vibrate: the beams ring like plucked strings (<kbd>V</kbd>)</label>
+      <label class="check"><input type="checkbox" id="opt-classic" /> Lasers: classic (pad 2 fires the old burst instead of Lasers v2; <kbd>C</kbd>)</label>
+      <label class="check"><input type="checkbox" id="opt-keyauto" checked="checked" /> Key auto: the song's key picks the colour family (a theme you pick wins until the next track)</label>
+      <p class="note">Flash safety is always on: every frame passes the flash limiter last (fewer than three flashes a second
+        over any quarter of the screen, wherever it sits, red included, and a short rest after about five seconds of
+        flashing). It only ever takes light away, and only when the picture would flash too often. Until the limiter runs
+        (a moment after the page opens), and for good if this GPU cannot run it, pad effects are refused.</p>
     </section>
   </aside>
 </main>
