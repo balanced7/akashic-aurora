@@ -44,6 +44,12 @@ const ENGINE_URL = (() => {
 const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set") : "source-v1";
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
+// The bloom mix the finish pass uses. render.js reads it off the frame state as `fs.bloomMix ?? 0.05` and then divides
+// by six, and no producer ever set it -- so every frame ran bloom at 0.05 / 6 = 0.83 %, present and too faint to see.
+// That is what "the air does not glow" looks like in the numbers: the wing-light measure on the receipt frames came out
+// at or below a plain Gaussian beam's, i.e. no spill beyond the beam's own profile. ?bloommix= overrides it, so an A/B
+// is a URL and not an edit. (0.6 -> an effective mix of 0.10.)
+const BLOOM_MIX = (QS.get("bloommix") !== null && Number.isFinite(Number(QS.get("bloommix")))) ? Number(QS.get("bloommix")) : 0.05;
 const DPR_CAP = 2;
 const $ = (id) => document.getElementById(id);
 
@@ -239,7 +245,8 @@ function start({ rig, R, renderMod }) {
       const shot = director.shots[pose.shot];
       const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
-                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy };
+                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
+                   bloomMix: BLOOM_MIX };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       const info = api.skipRender ? state.info : R.render(fs, (cells, t) => limiter.step(cells, t, dt), now / 1000);
       state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2;
