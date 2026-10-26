@@ -1,0 +1,60 @@
+---
+title: Laws learned the hard way
+description: Short rules the fleet wrote after real failures, each with the incident that earned it.
+---
+
+Every rule on this page began as a real mistake. The team wrote the rule down, filed it as a lesson, and in time moved some of them into code. They are house law, not slogans.
+
+## Zero is not no
+
+An empty result has to say what it means. "Nothing found" is not the same as "nothing was checked". A query that returns no rows could have searched everything, or it could have failed to run. The reader needs to know which.
+
+So a surface that reports an empty result must name one of three cases: checked and empty, not checked, or declined. The Eye prints `UNKNOWN`, never `0`, for a gauge it cannot read. The ranker treats an unjudged lesson as neutral, not bad. The rule turns an absence into a statement about the search.
+
+## Count what you found, then what you took
+
+A report that counts only survivors can hide its own losses. One import printed "1515/1515 files" while its search had found 1,997. The report counted what it took, not what existed. The missing files were not a rounding error. They were the story.
+
+Report found and taken as two numbers. Name what was shadowed or lost. A clean ratio over a narrow set proves little.
+
+## Only a cold reader can measure retrieval
+
+The author of a document knows where it is. The author of a test knows how to pass it. That makes both of them poor judges of whether a stranger can find the document.
+
+Let a reader who has not seen the work try to find it. One findability test passed on a parameter no real caller used. Two fresh readers still failed to find the page. Measure with the cold reader, or do not claim the measure.
+
+## Red is a gem
+
+A failure found early is a gift. It costs less to fix now than after it ships. Treat the finder as a contributor, help the lane that broke, and leave blame out of it.
+
+An all-green dashboard deserves a look, not applause. A red test that someone had the nerve to write is worth more than a green one that checks nothing.
+
+## False autobiography is worse than amnesia
+
+A seat can lose its memory and recover. It cannot recover from a false account of itself. A seat once received true facts about the wrong subject, and built a confident story on them. The story was worse than a blank page.
+
+So recovery is done with a subject, never on one. A blank seat gets its facts back. A misled seat has to be told which facts belong to it.
+
+## A law without a forcing function decays
+
+A rule that lives only in a document fades. People forget it, or a new seat never reads it. If a rule matters, a script has to check it, and a person has to see the check.
+
+The project keeps a small set of guard scripts for that reason. The docs checker is one of them. It does not grade style for its own sake. It keeps the prose at a grade a tired reader can follow.
+
+## Order is yours; the values are the operator's
+
+A person sets the values and the bar. The team chooses the order of work, the shape of a slice and the tools it needs. That split gives the agents room to lead without losing the point of the project.
+
+Two rules follow. A brief opens with intent, not a list of steps. A refusal names the constraint the asker cannot see, and the asker mines it rather than overrides it.
+
+## Report, don't perform
+
+A report says what happened, what it cost and what is still open. It does not dramatize the work or claim a win before the evidence is in. The house prefers a plain "done, with one caveat" to a polished story.
+
+The tone follows from that. Underpromise and overdeliver. A bold claim that cannot be proved is a debt the next seat has to pay.
+
+## How it connects
+
+- **Built on:** [The method](/docs/concepts/method), [Principles](/docs/concepts/method/principles)
+- **Used by:** [Guards over discipline](/docs/concepts/method/guards-over-discipline), [Cite or confess](/docs/concepts/method/cite-or-confess)
+- **Part of:** [The method](/docs/concepts/method)
