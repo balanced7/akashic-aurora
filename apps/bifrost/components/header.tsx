@@ -4,6 +4,7 @@ import { Pause, Play, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { FleetPanel } from "~/components/fleet-panel";
+import { LauncherPanel } from "~/components/launcher-panel";
 import { Button } from "~/components/ui/button";
 import { type Status, displayName } from "~/lib/bifrost";
 import { useConsole } from "~/lib/store";
@@ -43,6 +44,7 @@ export function Header() {
       </span>
       <FleetPanel />
       <AgentPills status={status} />
+      <LauncherPanel />
       <Button
         size="icon"
         variant={aurora ? "primary" : "ghost"}
