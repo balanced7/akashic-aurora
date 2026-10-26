@@ -1,0 +1,4 @@
+# Standalone app (like apps/docs): its own lockfile, no monorepo root.
+# unrs-resolver ships prebuilt binaries; its postinstall is a no-op check we do not need.
+ignoredBuiltDependencies:
+  - unrs-resolver
