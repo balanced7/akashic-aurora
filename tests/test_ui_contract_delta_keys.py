@@ -14,6 +14,7 @@ P3  A hit that is FIXED (removed) reports as FIXED, not silently.
 P4  Baseline normalization: a legacy count-only baseline still compares, and a
     keyed baseline (new schema) round-trips its keys.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -56,21 +57,24 @@ def test_p1_insert_above_existing_hit_yields_no_new(monkeypatch, tmp_path):
     # Record a baseline for this exact fixture shape.
     counts = {"token law M-L8": len(mod._check_raw_hex(dirty))}
     keys = {"token law M-L8": _hit_keys(mod, dirty)}
-    bl_rec = {"token law M-L8": {"count": counts["token law M-L8"],
-                                 "keys": keys["token law M-L8"]}}
+    bl_rec = {"token law M-L8": {"count": counts["token law M-L8"], "keys": keys["token law M-L8"]}}
     monkeypatch.setattr(mod, "_load_baseline", lambda path: dict(bl_rec))
 
     # Same hit, but a CSS comment line inserted ABOVE it -- the line number shifts,
     # the text does not.
-    shifted = ["<style>", "/* a new comment line inserted above the hit */",
-               ".x{color:#abcdef; background:var(--panel)}", "</style>"]
+    shifted = [
+        "<style>",
+        "/* a new comment line inserted above the hit */",
+        ".x{color:#abcdef; background:var(--panel)}",
+        "</style>",
+    ]
     after = _hit_keys(mod, shifted)
     before = set(bl_rec["token law M-L8"]["keys"])
     # The keyed sets are identical even though line numbers moved.
     assert set(after) == before, (
-        f"keyed identity changed under line insertion:\n  before={before}\n  after={set(after)}")
-    print("[P1] PASS: line insertion above an existing hit leaves its keyed identity "
-          "unchanged -> zero NEW.")
+        f"keyed identity changed under line insertion:\n  before={before}\n  after={set(after)}"
+    )
+    print("[P1] PASS: line insertion above an existing hit leaves its keyed identity unchanged -> zero NEW.")
 
 
 def test_p2_new_hit_is_named_as_new():
@@ -98,10 +102,8 @@ def test_p4_baseline_normalizes_legacy_count_only(monkeypatch, tmp_path):
     still runs without throwing, and a new hit is still detected against it."""
     mod = _load()
     # Legacy schema: {"token law M-L8": 59}  (a bare int, no keys)
-    monkeypatch.setattr(mod, "_load_baseline",
-                        lambda path: {"token law M-L8": {"count": 1, "keys": []}})
+    monkeypatch.setattr(mod, "_load_baseline", lambda path: {"token law M-L8": {"count": 1, "keys": []}})
     norm = mod._load_baseline(Path("x"))
     assert norm["token law M-L8"]["count"] == 1
     assert norm["token law M-L8"]["keys"] == []
-    print("[P4] PASS: baseline normalizes to {count, keys} — legacy count-only "
-          "records still compare.")
+    print("[P4] PASS: baseline normalizes to {count, keys} — legacy count-only records still compare.")

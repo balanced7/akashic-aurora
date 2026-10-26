@@ -9,6 +9,7 @@ it, so each curve is pinned here at the points its contract names. Like checking
 float32 throughout, like the GPU; names match the GLSL names. Apache-2.0, Akashic Aurora. Written fresh from the
 mathematics (Quilez's "Remapping functions" catalogue and The Book of Shaders, chapter 5, taught the family).
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -90,7 +91,7 @@ def shpRemap(v, a, b, c, d):
     return _scalar(c + along * (d - c))
 
 
-INV_POWER_CEILING_LOG2 = F32(64)      # (r/d)^k is held at or below 2^64
+INV_POWER_CEILING_LOG2 = F32(64)  # (r/d)^k is held at or below 2^64
 
 
 def shpInvPower(d, r, k):

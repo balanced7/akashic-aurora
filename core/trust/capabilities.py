@@ -31,11 +31,11 @@ class Cap(str, Enum):
     # must be granted them explicitly -- see tests/test_the_actuator_refuses_before_it_acts.py.
     # The tiers are separable on purpose: a seat may hold OBSERVE+TYPE without LAUNCH or ACT,
     # because "read the screen" and "click the irreversible button" are different trusts.
-    SCREEN_OBSERVE    = "screen.observe"     # peek/refs/delta/read_text -- the shipped half
-    SCREEN_FOCUS      = "screen.focus"       # raise/activate a window (steals the operator's focus)
-    SCREEN_TYPE       = "screen.type"        # dispatch keystrokes into the foreground window
-    SCREEN_ACT        = "screen.act"         # invoke a control (click/submit) -- irreversible
-    SCREEN_LAUNCH     = "screen.launch"      # start a process / open a new session
+    SCREEN_OBSERVE = "screen.observe"  # peek/refs/delta/read_text -- the shipped half
+    SCREEN_FOCUS = "screen.focus"  # raise/activate a window (steals the operator's focus)
+    SCREEN_TYPE = "screen.type"  # dispatch keystrokes into the foreground window
+    SCREEN_ACT = "screen.act"  # invoke a control (click/submit) -- irreversible
+    SCREEN_LAUNCH = "screen.launch"  # start a process / open a new session
     SCREEN_PRIVILEGED = "screen.privileged"  # act on elevated windows (UIPI boundary)
 
 
@@ -44,8 +44,9 @@ ALL_CAPS = frozenset(c for c in Cap)
 #: The tiers that CHANGE the operator's machine, as opposed to observing it. Kept as a named
 #: set so the fail-closed pin and the act() door agree on one definition rather than two lists
 #: drifting apart (the two-surfaces defect: a guard and its guarded path must share a source).
-SCREEN_WRITE_CAPS = frozenset({Cap.SCREEN_FOCUS, Cap.SCREEN_TYPE, Cap.SCREEN_ACT,
-                               Cap.SCREEN_LAUNCH, Cap.SCREEN_PRIVILEGED})
+SCREEN_WRITE_CAPS = frozenset(
+    {Cap.SCREEN_FOCUS, Cap.SCREEN_TYPE, Cap.SCREEN_ACT, Cap.SCREEN_LAUNCH, Cap.SCREEN_PRIVILEGED}
+)
 
 
 def cap(value) -> Cap | None:

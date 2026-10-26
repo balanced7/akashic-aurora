@@ -16,6 +16,7 @@ or `inout` parameter, the twin returns the function's own value first and the wr
 
 Apache-2.0, Akashic Aurora. Written fresh from the mathematics; no corpus code.
 """
+
 from __future__ import annotations
 
 import math
@@ -24,10 +25,10 @@ import numpy as np
 
 F32 = np.float32
 TAU = F32(2.0 * math.pi)
-MARCH_CAP = 256          # every march loop's literal bound in the GLSL
+MARCH_CAP = 256  # every march loop's literal bound in the GLSL
 BISECT_CAP = 16
 REFINE_CAP = 8
-EPS_FLOOR = F32(1e-4)    # rmSphereTrace's and rmRelaxed's smallest hit threshold, in scene units
+EPS_FLOOR = F32(1e-4)  # rmSphereTrace's and rmRelaxed's smallest hit threshold, in scene units
 
 
 def _f(x):
@@ -62,7 +63,7 @@ def ixSphere(ro, rd, centre, r):
     ro, rd, centre = _f(ro), _f(rd), _f(centre)
     fromCentre = ro - centre
     along = F32(np.dot(fromCentre, rd))
-    across = fromCentre - rd * along                     # the centre's perpendicular offset from the ray
+    across = fromCentre - rd * along  # the centre's perpendicular offset from the ray
     room = F32(r) * F32(r) - F32(np.dot(across, across))
     if room < 0:
         return MISS.copy()
@@ -134,13 +135,13 @@ def bvCanSkip(boundDistance, bestSoFar):
 
 def ixSphereAlt(r0, mu0, R):
     r0, mu0, R = F32(r0), F32(mu0), F32(R)
-    half = r0 * mu0                                   # the ray's half-coefficient: t^2 + 2 half t + gap = 0
-    gap = (r0 - R) * (r0 + R)                         # r0^2 - R^2 without subtracting two huge squares
+    half = r0 * mu0  # the ray's half-coefficient: t^2 + 2 half t + gap = 0
+    gap = (r0 - R) * (r0 + R)  # r0^2 - R^2 without subtracting two huge squares
     room = half * half - gap
     if room < 0:
         return MISS.copy()
     root = F32(math.sqrt(float(room)))
-    big = -(half + (root if half >= 0 else -root))    # the root that adds magnitudes, never cancels
+    big = -(half + (root if half >= 0 else -root))  # the root that adds magnitudes, never cancels
     if abs(big) < 1e-30:
         return _v2(0.0, 0.0)
     small = gap / big
@@ -175,8 +176,9 @@ def camOrbit(mouse01, autoYaw, radius, target):
     yaw = F32(autoYaw) if untouched else (m[0] - F32(0.5)) * TAU
     pitch = F32(0.3) if untouched else (m[1] - F32(0.5)) * F32(2.8)
     cp = F32(math.cos(float(pitch)))
-    offset = np.array([cp * F32(math.sin(float(yaw))), F32(math.sin(float(pitch))), cp * F32(math.cos(float(yaw)))],
-                      dtype=F32)
+    offset = np.array(
+        [cp * F32(math.sin(float(yaw))), F32(math.sin(float(pitch))), cp * F32(math.cos(float(yaw)))], dtype=F32
+    )
     return (_f(target) + F32(radius) * offset).astype(F32)
 
 
@@ -228,7 +230,7 @@ def rmSphereTrace(ro, rd, tRange, pixelAngle, omega, maxSteps, mapScene):
             break
         d = F32(mapScene(_at(ro, rd, t)))
         if i == 0 and d < 0:
-            outward = F32(-1)                          # started inside a solid: trace its inner wall
+            outward = F32(-1)  # started inside a solid: trace its inner wall
         d = outward * d
         steps += 1
         ratio = d / max(t, F32(1e-6))
@@ -289,7 +291,7 @@ def rmBacktrack(ro, rd, tRange, pixelAngle, maxSteps, bisectSteps, mapScene):
             outward = F32(-1)
         d = outward * d
         steps += 1
-        if d < 0:                                      # stepped through a surface: it lies between lastT and t
+        if d < 0:  # stepped through a surface: it lies between lastT and t
             outsideT, insideT = lastT, t
             for j in range(BISECT_CAP):
                 if j >= bisectSteps:
@@ -345,7 +347,7 @@ def rmRefine(ro, rd, t, pixelAngle, iters, mapScene):
 # ============================================================================================== ray/normals.glsl
 def _first_tap(h, taps):
     """The loop start the GLSL uses: 0 for any h above -1, -taps below (every tap twice, still symmetric)."""
-    whole = int(min(float(h), 0.0))                   # int() truncates toward zero, like GLSL int()
+    whole = int(min(float(h), 0.0))  # int() truncates toward zero, like GLSL int()
     return taps * min(max(whole, -1), 0)
 
 

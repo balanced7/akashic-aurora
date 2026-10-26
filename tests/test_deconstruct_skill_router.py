@@ -21,6 +21,7 @@ So these pins check what a clone would see:
 Read-only by construction: the only git commands are `ls-files`, `check-ignore` and `show HEAD:<path>`, run with
 --no-optional-locks. Nothing here imports the house (no `core.*`), so the file runs with or without conftest.
 """
+
 from __future__ import annotations
 
 import re
@@ -65,8 +66,13 @@ _LINE_SUFFIX_RE = re.compile(r":\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$")
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "--no-optional-locks", "-C", str(ROOT), *args],
-                          capture_output=True, text=True, encoding="utf-8", errors="replace")
+    return subprocess.run(
+        ["git", "--no-optional-locks", "-C", str(ROOT), *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
 
 
 def _git_ready() -> bool:
@@ -77,8 +83,7 @@ def _git_ready() -> bool:
 
 
 if not _git_ready():
-    pytest.skip("not a git checkout (or git is missing): tracking cannot be checked here",
-                allow_module_level=True)
+    pytest.skip("not a git checkout (or git is missing): tracking cannot be checked here", allow_module_level=True)
 
 _TRACKED = [line for line in _git("ls-files").stdout.splitlines() if line]
 _TOP_LEVEL = {line.split("/", 1)[0] for line in _TRACKED}
@@ -91,7 +96,7 @@ def _skill_markdown() -> list[Path]:
 def _classify(md: Path, token: str):
     """Return ("repo", rel_posix) | ("external", prefix) | ("unknown", token) | None for a backticked token."""
     if not _PATHLIKE_RE.fullmatch(token):
-        return None                                   # prose, a command, a key pattern, a Windows path
+        return None  # prose, a command, a key pattern, a Windows path
     for prefix in EXTERNAL:
         if token.startswith(prefix):
             return ("external", prefix)
@@ -110,8 +115,8 @@ def _classify(md: Path, token: str):
     if first in _TOP_LEVEL:
         return ("repo", path)
     if "/" in path:
-        return ("unknown", token)                     # path-shaped, but neither repo nor declared external
-    return None                                       # a bare word such as a flag value or a file name
+        return ("unknown", token)  # path-shaped, but neither repo nor declared external
+    return None  # a bare word such as a flag value or a file name
 
 
 def _named(kind: str) -> dict[str, list[str]]:
@@ -140,8 +145,10 @@ def test_the_skill_files_exist():
 
 def test_extractor_finds_every_router_route():
     missing = [r for r in ROUTER_ROUTES if r not in NAMED_REPO_PATHS]
-    assert not missing, (f"the router routes {missing} were not found among the paths the skill names; "
-                         "either the router changed (update ROUTER_ROUTES) or the extractor broke")
+    assert not missing, (
+        f"the router routes {missing} were not found among the paths the skill names; "
+        "either the router changed (update ROUTER_ROUTES) or the extractor broke"
+    )
 
 
 @pytest.mark.parametrize("rel", sorted(NAMED_REPO_PATHS), ids=lambda r: r)
@@ -149,15 +156,19 @@ def test_named_path_exists_and_is_tracked(rel):
     where = ", ".join(sorted(set(NAMED_REPO_PATHS[rel])))
     assert (ROOT / rel).exists(), f"{where} names `{rel}`, which does not exist: a dead route or citation"
     if not _is_tracked(rel):
-        pytest.skip(f"UNTRACKED, so not a pass: `{rel}` (named in {where}) exists on this disk but git does "
-                    "not track it, so a fresh clone would not have it. Commit it together with, or before, "
-                    "the deconstruct skill.")
+        pytest.skip(
+            f"UNTRACKED, so not a pass: `{rel}` (named in {where}) exists on this disk but git does "
+            "not track it, so a fresh clone would not have it. Commit it together with, or before, "
+            "the deconstruct skill."
+        )
 
 
 def test_no_undeclared_path_like_tokens():
     unknown = _named("unknown")
-    assert not unknown, ("path-shaped tokens that are neither repo paths nor declared EXTERNAL (a typo, or a "
-                         f"new outside path that needs a reason in EXTERNAL): {unknown}")
+    assert not unknown, (
+        "path-shaped tokens that are neither repo paths nor declared EXTERNAL (a typo, or a "
+        f"new outside path that needs a reason in EXTERNAL): {unknown}"
+    )
 
 
 @pytest.mark.parametrize("plane", PRIVATE_PLANES)
@@ -172,9 +183,11 @@ def test_router_shader_section_exists_and_is_committed():
     assert SHADER_SECTION_RE.search(text), f"`{SHADER_SKILL}` has no 'Dissecting a shader' section"
     head = _git("show", f"HEAD:{SHADER_SKILL}")
     if head.returncode != 0 or not SHADER_SECTION_RE.search(head.stdout):
-        pytest.skip(f"UNCOMMITTED, so not a pass: the 'Dissecting a shader' section of `{SHADER_SKILL}` exists "
-                    "only as a working-tree edit; HEAD does not have it. Commit the shader-craft section "
-                    "together with, or before, the deconstruct skill.")
+        pytest.skip(
+            f"UNCOMMITTED, so not a pass: the 'Dissecting a shader' section of `{SHADER_SKILL}` exists "
+            "only as a working-tree edit; HEAD does not have it. Commit the shader-craft section "
+            "together with, or before, the deconstruct skill."
+        )
 
 
 def test_reverse_engineering_skill_links_back_to_deconstruct():
@@ -182,5 +195,7 @@ def test_reverse_engineering_skill_links_back_to_deconstruct():
     if not p.exists():
         pytest.skip(f"`{RE_SKILL}` is absent; the back-link cannot be checked")
     if "deconstruct" not in p.read_text(encoding="utf-8").lower():
-        pytest.skip(f"ONE-WAY LINK, so not a pass: `{RE_SKILL}` never mentions the deconstruct umbrella. That "
-                    "file belongs to the reverse-engineering workflow; ask it to add a one-line pointer back.")
+        pytest.skip(
+            f"ONE-WAY LINK, so not a pass: `{RE_SKILL}` never mentions the deconstruct umbrella. That "
+            "file belongs to the reverse-engineering workflow; ask it to add a one-line pointer back."
+        )

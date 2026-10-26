@@ -358,10 +358,12 @@ def main() -> int:
     # affordance-layer fence. Must be the FIRST statement in main(), before argument parsing.
     import sys as _sys
     from pathlib import Path as _Path
-    _root = str(_Path(__file__).resolve().parents[2])   # this script does not add the repo root
-    if _root not in _sys.path:                          # to sys.path at module level, and the
-        _sys.path.insert(0, _root)                      # repair lives in core/.
+
+    _root = str(_Path(__file__).resolve().parents[2])  # this script does not add the repo root
+    if _root not in _sys.path:  # to sys.path at module level, and the
+        _sys.path.insert(0, _root)  # repair lives in core/.
     from core.infrastructure.background_stdio import repair_background_stdio
+
     repair_background_stdio("mem-watch")
 
     ap = argparse.ArgumentParser(description="host + per-process memory black box")

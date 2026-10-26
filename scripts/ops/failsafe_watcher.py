@@ -62,6 +62,7 @@ def main() -> int:
     # print() below is silently discarded. Measured 2026-10-06; fixes item 0 of the
     # affordance-layer fence. Must be the FIRST statement in main(), before argument parsing.
     from core.infrastructure.background_stdio import repair_background_stdio
+
     repair_background_stdio("failsafe-deadman")
 
     ap = argparse.ArgumentParser(description="out-of-band deadman for a declared run")

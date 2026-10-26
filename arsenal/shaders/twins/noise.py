@@ -17,6 +17,7 @@ Apache-2.0, Akashic Aurora. Written fresh from the mathematics: Ken Perlin's "Im
 articles on fBm and domain warping, F. Kenton Musgrave's fractal terrain notes, Jorge Jimenez's interleaved gradient
 noise and Martin Roberts' R2 sequence, as taught by research/reviewed/shader-school-2026-10-13/noise-procedural.md.
 """
+
 from __future__ import annotations
 
 import math
@@ -50,19 +51,23 @@ NOISE_TAG_GRAD3 = 0x082EFA98
 FBM_MAX_OCTAVES = 8
 GOLDEN_ANGLE = math.pi * (3.0 - math.sqrt(5.0))
 TURN2_C, TURN2_S = math.cos(GOLDEN_ANGLE), math.sin(GOLDEN_ANGLE)
-TURN3 = np.array([[-0.61327110, -0.29340157, 0.73335808],      # rows; GLSL's mat3 takes the columns
-                  [0.78979268, -0.24097777, 0.56405429],
-                  [0.01122858, 0.92511904, 0.37951111]])
+TURN3 = np.array(
+    [
+        [-0.61327110, -0.29340157, 0.73335808],  # rows; GLSL's mat3 takes the columns
+        [0.78979268, -0.24097777, 0.56405429],
+        [0.01122858, 0.92511904, 0.37951111],
+    ]
+)
 FBM_OFFSET2 = np.array([19.19, -7.31])
 FBM_OFFSET3 = np.array([19.19, -7.31, 11.57])
 
 # Warps: each fBm in a warp hashes with its own stream, derived from the caller's seed by hashU1 and a tag.
-WARP_TAG_X, WARP_TAG_Y, WARP_TAG_FINAL = 0x243F6A88, 0x85A308D3, 0x13198A2E    # pi's first 96 fractional bits
-WARP_OFFSET_Y = np.array([57.3, -21.9])     # "two fBm at far-apart offsets": where the y component is read
+WARP_TAG_X, WARP_TAG_Y, WARP_TAG_FINAL = 0x243F6A88, 0x85A308D3, 0x13198A2E  # pi's first 96 fractional bits
+WARP_OFFSET_Y = np.array([57.3, -21.9])  # "two fBm at far-apart offsets": where the y component is read
 
 # Dither masks.
-IGN_K = (0.06711056, 0.00583715, 52.9829189)                 # Jimenez 2014
-R2_K = (0.7548776662466927, 0.5698402909980532)              # 1/rho and 1/rho^2, rho the plastic number
+IGN_K = (0.06711056, 0.00583715, 52.9829189)  # Jimenez 2014
+R2_K = (0.7548776662466927, 0.5698402909980532)  # 1/rho and 1/rho^2, rho the plastic number
 
 
 def _p(p):
@@ -129,8 +134,10 @@ def noiseValue3(p, seed):
     cells, f = _corner_cells(p)
     s = _lane(seed, f.shape[:-1], NOISE_TAG_VALUE3)
     u = _fade(f)
-    v = {k: _value_corner3(_plus(cells, k), s) for k in
-         ((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 1))}
+    v = {
+        k: _value_corner3(_plus(cells, k), s)
+        for k in ((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 1))
+    }
     near = _lerp(_lerp(v[0, 0, 0], v[1, 0, 0], u[..., 0]), _lerp(v[0, 1, 0], v[1, 1, 0], u[..., 0]), u[..., 1])
     far = _lerp(_lerp(v[0, 0, 1], v[1, 0, 1], u[..., 0]), _lerp(v[0, 1, 1], v[1, 1, 1], u[..., 0]), u[..., 1])
     return _lerp(near, far, u[..., 2])
@@ -181,8 +188,10 @@ def noiseGrad3(p, seed):
     seed ^ NOISE_TAG_GRAD3."""
     cells, f = _corner_cells(p)
     s = _lane(seed, f.shape[:-1], NOISE_TAG_GRAD3)
-    r = {k: noiseGradRamp3(cells, k, s, f) for k in
-         ((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 1))}
+    r = {
+        k: noiseGradRamp3(cells, k, s, f)
+        for k in ((0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0), (0, 0, 1), (1, 0, 1), (0, 1, 1), (1, 1, 1))
+    }
     u = _fade(f)
     near = _lerp(_lerp(r[0, 0, 0], r[1, 0, 0], u[..., 0]), _lerp(r[0, 1, 0], r[1, 1, 0], u[..., 0]), u[..., 1])
     far = _lerp(_lerp(r[0, 0, 1], r[1, 0, 1], u[..., 0]), _lerp(r[0, 1, 1], r[1, 1, 1], u[..., 0]), u[..., 1])
@@ -297,6 +306,6 @@ def dthR2(pixel):
 def dthTriFromUniform(u):
     """The triangle distribution's inverse CDF: a uniform u in [0, 1) becomes a triangular value in [-1, 1) with the
     same RANK, so a blue or low-discrepancy mask keeps its spatial pattern while its histogram becomes a triangle."""
-    u = np.clip(np.asarray(u, dtype=np.float64), 0.0, 1.0)      # as the GLSL clamps: never a NaN under the root
+    u = np.clip(np.asarray(u, dtype=np.float64), 0.0, 1.0)  # as the GLSL clamps: never a NaN under the root
     out = np.where(u < 0.5, np.sqrt(2.0 * u) - 1.0, 1.0 - np.sqrt(2.0 - 2.0 * u))
     return out[()] if out.ndim == 0 else out

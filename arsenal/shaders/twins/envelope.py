@@ -5,6 +5,7 @@ WHY. An envelope is a promise about time (zero outside its act, three flashes a 
 time is easiest to check by stepping a clock on the CPU. tests/test_glsl_twins_finish_io.py pins these to reference
 values and to the contracts in the module's header. Apache-2.0, written fresh from the mathematics.
 """
+
 from __future__ import annotations
 
 import math
@@ -56,10 +57,10 @@ def envBreath(x: float, t: float, rates) -> float:
     """A slow body plus a faster fringe travelling along x (body wavelengths) at rates = (body, fringe) cycles/s."""
     rb, rf = float(rates[0]), float(rates[1])
     tau = 2.0 * math.pi
-    body_wave = (0.6 * math.sin(tau * _fract(x - rb * t))
-                 + 0.4 * math.sin(tau * _fract(2.37 * x + 0.71 - 1.3 * rb * t)))
+    body_wave = 0.6 * math.sin(tau * _fract(x - rb * t)) + 0.4 * math.sin(tau * _fract(2.37 * x + 0.71 - 1.3 * rb * t))
     body = _smoothstep(-0.9, 0.0, body_wave)
-    fringe_wave = (0.6 * math.sin(tau * _fract(3.1 * x - rf * t))
-                   + 0.4 * math.sin(tau * _fract(5.3 * x + 0.29 + 0.7 * rf * t)))
+    fringe_wave = 0.6 * math.sin(tau * _fract(3.1 * x - rf * t)) + 0.4 * math.sin(
+        tau * _fract(5.3 * x + 0.29 + 0.7 * rf * t)
+    )
     fringe = _smoothstep(0.35, 0.9, fringe_wave)
     return (body + 0.5 * fringe) / 1.5

@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _IMPORT_ERROR = None  # so the skipif reason string is safe when the import SUCCEEDS
 try:
     from core.screenspace.foreground import ForegroundTracker  # noqa: F401
+
     _IMPORT_OK = True
 except Exception as exc:  # noqa: BLE001
     _IMPORT_OK = False
@@ -47,7 +48,7 @@ except Exception as exc:  # noqa: BLE001
 pytestmark = pytest.mark.skipif(
     not _IMPORT_OK,
     reason="core.screenspace.foreground.ForegroundTracker not yet built — RED: "
-           f"engine must satisfy this contract (import failed: {_IMPORT_ERROR!r})",
+    f"engine must satisfy this contract (import failed: {_IMPORT_ERROR!r})",
 )
 
 
@@ -122,10 +123,10 @@ def test_d1_none_is_a_legal_delivery_not_a_error():
     seen = []
     t.subscribe(seen.append)
     t.on_foreground_change("chrome.exe")
-    t.on_foreground_change(None)   # foreground lost
+    t.on_foreground_change(None)  # foreground lost
     assert seen == ["chrome.exe", None]
     assert t.focus is None
-    assert t.gen == 2              # the loss was a DELIVERY, not a no-op
+    assert t.gen == 2  # the loss was a DELIVERY, not a no-op
 
 
 def test_d2_pure_seam_does_not_import_uia():

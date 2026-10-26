@@ -9,6 +9,7 @@ scene passed in as a Python function of points (the twin of the mapScene hook), 
 
 Apache-2.0, Akashic Aurora. Written fresh; no corpus code. The constants are the recipe's own.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -18,10 +19,10 @@ from . import noise as N
 from . import palette as PL
 
 MAX_STEPS = 160
-SCENE_REACH = 6.0                  # the scene lives within this many units of the origin
-SKIN_GAIN = 0.08                   # glowEmitStep's k is SKIN_GAIN / sparkWidth
-LOITER_SKINS = 4.0                 # a step within this many spark widths of a surface counts as loitering
-WASH_POWER = 1.5                   # glowStepCount's k
+SCENE_REACH = 6.0  # the scene lives within this many units of the origin
+SKIN_GAIN = 0.08  # glowEmitStep's k is SKIN_GAIN / sparkWidth
+LOITER_SKINS = 4.0  # a step within this many spark widths of a surface counts as loitering
+WASH_POWER = 1.5  # glowStepCount's k
 # palette choice -> (a, b, c, d) cosine coefficients (display values), and the wash colour (linear)
 PALETTES = [
     ((0.55, 0.45, 0.85), (0.40, 0.30, 0.15), (0.7, 0.7, 0.7), (0.497, 0.617, 0.917)),
@@ -74,7 +75,7 @@ def _march(pixel, res, ro, basis, focal, budget, passthrough, density, sparkWidt
         d = np.asarray(scene(ro + rd * t[..., None]), dtype=np.float64)
         stride = _pass_step(d, passthrough, density)
         skin = np.exp(-np.abs(d) / width)
-        emit = (SKIN_GAIN / width) * skin * np.maximum(stride, 0.0)          # glowEmitStep(skin, stride, k)
+        emit = (SKIN_GAIN / width) * skin * np.maximum(stride, 0.0)  # glowEmitStep(skin, stride, k)
         hue = PL.palCosLinear(float(hueSpeed) * (t - centre), a, b, c, dd)
         spark = spark + np.where(live[..., None], hue * emit[..., None], 0.0)
         loiter = loiter + np.where(live & (np.abs(d) < LOITER_SKINS * width), 1.0, 0.0)
@@ -88,16 +89,18 @@ def xraySteps(pixel, res, ro, basis, focal, budget, passthrough, density, scene)
     return _march(pixel, res, ro, basis, focal, budget, passthrough, density, 0.03, 0, 0.0, scene)[2]
 
 
-def glowXray(pixel, res, ro, basis, focal, budget, passthrough, density, sparkWidth, palette, hueSpeed, rim, view,
-             scene):
+def glowXray(
+    pixel, res, ro, basis, focal, budget, passthrough, density, sparkWidth, palette, hueSpeed, rim, view, scene
+):
     """The twin of glowXray, scene-linear, shape (..., 3). `scene(points)` is the host's mapScene over (..., 3) points.
     View 2 (the field slice) reads screen derivatives and has no CPU twin."""
     if int(view) == 2:
         raise ValueError("view 2 (the field slice) reads screen derivatives: it has no CPU twin")
-    spark, loiter, used, steps = _march(pixel, res, ro, basis, focal, budget, passthrough, density, sparkWidth,
-                                        palette, hueSpeed, scene)
+    spark, loiter, used, steps = _march(
+        pixel, res, ro, basis, focal, budget, passthrough, density, sparkWidth, palette, hueSpeed, scene
+    )
     if int(view) == 1:
         return np.asarray(CR.dbgHeatCount(used, float(steps)), np.float64)
     share = np.clip(loiter / max(float(steps), 1.0), 0.0, 1.0)
-    wash = max(float(rim), 0.0) * (1.0 - np.power(1.0 - share, max(WASH_POWER, 1e-3)))     # glowStepCount
+    wash = max(float(rim), 0.0) * (1.0 - np.power(1.0 - share, max(WASH_POWER, 1e-3)))  # glowStepCount
     return spark + wash[..., None] * WASH[_choice(palette)]

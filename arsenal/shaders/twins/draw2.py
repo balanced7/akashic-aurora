@@ -17,6 +17,7 @@ Everything works element-wise on arrays whose last axis holds the vector compone
 
 Apache-2.0, Akashic Aurora. Written fresh from the mathematics; no corpus code.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -81,7 +82,7 @@ def sd2Segment(p, a, b):
     return np.stack([_length(gap), np.broadcast_to(h, gap.shape[:-1])], -1).astype(F32)
 
 
-HEX_MIRROR = np.array([-0.5, 0.8660254037844386], dtype=F32)   # the normal of the mirror at 30 degrees
+HEX_MIRROR = np.array([-0.5, 0.8660254037844386], dtype=F32)  # the normal of the mirror at 30 degrees
 
 
 def sd2Hexagon(p, inradius):
@@ -173,8 +174,8 @@ def domKaleido(p, sectors):
 
 
 # ---------------------------------------------------------------------------------------------- draw2/lattice.glsl
-HEX_ROW = np.array([1.0, SQRT3], dtype=F32)            # one cell of each rectangular grid
-HEX_SHIFT = np.array([0.5, 0.5 * SQRT3], dtype=F32)    # where the second grid's centres sit
+HEX_ROW = np.array([1.0, SQRT3], dtype=F32)  # one cell of each rectangular grid
+HEX_SHIFT = np.array([0.5, 0.5 * SQRT3], dtype=F32)  # where the second grid's centres sit
 
 
 def latHex(p):

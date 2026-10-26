@@ -162,14 +162,18 @@ def main(argv=None) -> int:
     for parser in (pf_list, pf_summary, pf_prune):
         parser.add_argument("--root", help="the sessions directory (default: state/arsenal/performance)")
 
-    sh = sub.add_parser("shader", add_help=False,
-                        help="the shader school: corpus, dissection, runtime renders (py -m arsenal shader --help)")
+    sh = sub.add_parser(
+        "shader",
+        add_help=False,
+        help="the shader school: corpus, dissection, runtime renders (py -m arsenal shader --help)",
+    )
     sh.add_argument("rest", nargs=argparse.REMAINDER)
 
     args = ap.parse_args(argv)
 
     if args.cmd == "shader":
         from .shaders.cli import main as shader_main
+
         return shader_main(args.rest)
 
     if args.cmd == "serve":

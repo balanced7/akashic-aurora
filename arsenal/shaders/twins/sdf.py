@@ -15,6 +15,7 @@ returns (p, cellId). Matrices are numpy 3x3 arrays whose COLUMNS are what the GL
 
 Apache-2.0, Akashic Aurora. Written fresh from the mathematics; no corpus code.
 """
+
 from __future__ import annotations
 
 import math
@@ -116,15 +117,15 @@ def sdRoundConeAB(p, a, b, ra, rb):
     ra, rb = F32(ra), F32(rb)
     axis = b - a
     length = _len(axis)
-    if length <= abs(ra - rb):                       # one ball holds the other: the hull is the bigger ball
+    if length <= abs(ra - rb):  # one ball holds the other: the hull is the bigger ball
         return _s(min(_len(p - a) - ra, _len(p - b) - rb))
     up = axis / length
     rel = p - a
     y = F32(np.dot(rel, up))
     x = _len(rel - up * y)
-    slope = (ra - rb) / length                       # sine of the cone's half-angle
+    slope = (ra - rb) / length  # sine of the cone's half-angle
     lean = F32(math.sqrt(max(1.0 - float(slope) * float(slope), 0.0)))
-    along = -x * slope + y * lean                    # position along the tangent line
+    along = -x * slope + y * lean  # position along the tangent line
     if along < 0:
         return _s(math.hypot(float(x), float(y)) - ra)
     if along > length * lean:
@@ -136,9 +137,9 @@ def sdHexPrismZ(p, apothem, halfDepth):
     p = _f(p)
     a = F32(apothem)
     q = np.abs(p[:2]).astype(F32)
-    mirror = np.array([-math.sqrt(3.0) / 2.0, 0.5], dtype=F32)          # the 60-degree line's normal, facing up-left
+    mirror = np.array([-math.sqrt(3.0) / 2.0, 0.5], dtype=F32)  # the 60-degree line's normal, facing up-left
     below = min(float(np.dot(q, mirror)), 0.0)
-    q = q - F32(2.0 * below) * mirror                                    # q now lies between 60 and 120 degrees
+    q = q - F32(2.0 * below) * mirror  # q now lies between 60 and 120 degrees
     halfEdge = a / F32(math.sqrt(3.0))
     toEdge = np.array([q[0] - min(max(float(q[0]), -float(halfEdge)), float(halfEdge)), q[1] - a], dtype=F32)
     d2 = _len(toEdge) * (F32(1) if toEdge[1] > 0 else F32(-1))
@@ -148,7 +149,7 @@ def sdHexPrismZ(p, apothem, halfDepth):
 def sdOctahedron(p, s):
     q = np.abs(_f(p))
     s = F32(s)
-    over = F32(np.sum(q)) - s                        # how far past the face plane, measured along (1, 1, 1)
+    over = F32(np.sum(q)) - s  # how far past the face plane, measured along (1, 1, 1)
     third = over / F32(3)
     if q[0] < third:
         w = q
@@ -172,8 +173,14 @@ def sbEllipsoid(p, radii):
 
 
 _GROUP_AXES, _GROUP_DIAGONALS, _GROUP_DODECA, _GROUP_ICOSA = 1, 2, 4, 8
-_KIND_GROUPS = (_GROUP_AXES, _GROUP_DIAGONALS, _GROUP_DODECA, _GROUP_DIAGONALS | _GROUP_ICOSA,
-                _GROUP_AXES | _GROUP_DIAGONALS, _GROUP_DIAGONALS | _GROUP_DODECA | _GROUP_ICOSA)
+_KIND_GROUPS = (
+    _GROUP_AXES,
+    _GROUP_DIAGONALS,
+    _GROUP_DODECA,
+    _GROUP_DIAGONALS | _GROUP_ICOSA,
+    _GROUP_AXES | _GROUP_DIAGONALS,
+    _GROUP_DIAGONALS | _GROUP_DODECA | _GROUP_ICOSA,
+)
 
 
 def _face_table():
@@ -193,9 +200,8 @@ def _face_table():
         else:
             member = face - 7 if face < 13 else face - 13
             flip = F32(1) if (member & 1) == 0 else F32(-1)
-            seed = (np.array([0, 1, flip * PHI], dtype=F32) if face < 13
-                    else np.array([0, PHI, flip * tail], dtype=F32))
-            v = np.roll(seed, -(member >> 1))            # .yzx for one shift, .zxy for two
+            seed = np.array([0, 1, flip * PHI], dtype=F32) if face < 13 else np.array([0, PHI, flip * tail], dtype=F32)
+            v = np.roll(seed, -(member >> 1))  # .yzx for one shift, .zxy for two
             bit = _GROUP_DODECA if face < 13 else _GROUP_ICOSA
         out.append(((v / _len(v)).astype(F32), bit))
     return out
@@ -226,9 +232,9 @@ def sbSuperquadric(p, r, n):
     q = np.abs(_f(p) / _f(r))
     n = F32(n)
     biggest = max(float(np.max(q)), 1e-20)
-    scaled = q / F32(biggest)                                            # every part <= 1: no overflow for big n
+    scaled = q / F32(biggest)  # every part <= 1: no overflow for big n
     norm = F32(biggest) * F32(np.sum(np.power(scaled, n), dtype=F32)) ** (F32(1) / n)
-    stretch = F32(3.0) ** F32(max(1.0 / float(n) - 0.5, 0.0))           # how much faster than distance an Lp norm runs
+    stretch = F32(3.0) ** F32(max(1.0 / float(n) - 0.5, 0.0))  # how much faster than distance an Lp norm runs
     return _s((norm - F32(1)) * F32(np.min(_f(r))) / stretch)
 
 
@@ -237,12 +243,17 @@ def udTriangle(p, a, b, c):
     ab, bc, ca = b - a, c - b, a - c
     pa, pb, pc = p - a, p - b, p - c
     normal = np.cross(ab, ca).astype(F32)
-    edgeSides = (np.sign(np.dot(np.cross(ab, normal), pa)) + np.sign(np.dot(np.cross(bc, normal), pb))
-                 + np.sign(np.dot(np.cross(ca, normal), pc)))
+    edgeSides = (
+        np.sign(np.dot(np.cross(ab, normal), pa))
+        + np.sign(np.dot(np.cross(bc, normal), pb))
+        + np.sign(np.dot(np.cross(ca, normal), pc))
+    )
     if edgeSides < 2:
+
         def seg(v, e):
             t = min(max(float(np.dot(v, e)) / max(float(np.dot(e, e)), 1e-20), 0.0), 1.0)
             return float(np.dot(v - e * F32(t), v - e * F32(t)))
+
         return _s(math.sqrt(min(seg(pa, ab), seg(pb, bc), seg(pc, ca))))
     return _s(abs(float(np.dot(normal, pa))) / max(float(_len(normal)), 1e-20))
 
@@ -300,7 +311,7 @@ def opSsubtract(a, b, k):
 
 
 def opSminCircular(a, b, k):
-    radius = max(F32(k), F32(1e-20)) / F32(1.0 - math.sqrt(0.5))       # the fillet's radius
+    radius = max(F32(k), F32(1e-20)) / F32(1.0 - math.sqrt(0.5))  # the fillet's radius
     gap = min(abs(F32(a) - F32(b)) / radius, F32(1))
     lift = F32(1) - F32(0.5) * (gap + F32(math.sqrt(max(2.0 - float(gap) * float(gap), 0.0))))
     return _s(min(F32(a), F32(b)) - radius * lift)
@@ -361,7 +372,7 @@ def domBend(p, rate):
 
 
 def domRepeat(p, period):
-    p, period = _f(p), np.maximum(_f(period), F32(1e-6))          # the period floored per axis, as domRepeat2's
+    p, period = _f(p), np.maximum(_f(period), F32(1e-6))  # the period floored per axis, as domRepeat2's
     cell = np.floor(p / period + F32(0.5)).astype(F32)
     return (p - period * cell).astype(F32), cell
 
@@ -374,12 +385,12 @@ def domRepeatLimited(p, period, idMin, idMax):
 
 def domPolar(p, count):
     p = _f(p)
-    count = max(np.floor(F32(count) + F32(0.5)), F32(1))           # a whole number of sectors, as domKaleido's
+    count = max(np.floor(F32(count) + F32(0.5)), F32(1))  # a whole number of sectors, as domKaleido's
     wedge = F32(2.0 * math.pi) / count
     angle = F32(0) if (p[0] == 0 and p[1] == 0) else F32(math.atan2(float(p[1]), float(p[0])))
     turns = np.floor(angle / wedge + F32(0.5))
     x, y = _turn(p[0], p[1], -turns * wedge)
-    sector = turns - count * np.floor(turns / count)                  # 0 .. count-1
+    sector = turns - count * np.floor(turns / count)  # 0 .. count-1
     return np.array([x, y], dtype=F32), F32(sector)
 
 
