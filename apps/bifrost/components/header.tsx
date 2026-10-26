@@ -3,6 +3,7 @@
 import { Pause, Play, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { FleetPanel } from "~/components/fleet-panel";
 import { Button } from "~/components/ui/button";
 import { type Status, displayName } from "~/lib/bifrost";
 import { useConsole } from "~/lib/store";
@@ -40,6 +41,7 @@ export function Header() {
       >
         <span className="sr-only">{connected ? "connected" : "reconnecting"}</span>
       </span>
+      <FleetPanel />
       <AgentPills status={status} />
       <Button
         size="icon"

@@ -24,6 +24,8 @@ const PROXIED = [
 
 const config: NextConfig = {
   reactStrictMode: true,
+  // Next dev otherwise writes an AGENTS.md into the app; the repo root already has one.
+  agentRules: false,
   // The SSE stream (/events) is proxied by app/events/route.ts, not here: a rewrite may buffer.
   async rewrites() {
     return PROXIED.map((source) => ({ source, destination: `${BACKEND}${source}` }));

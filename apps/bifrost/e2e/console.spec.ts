@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+import { openConsole } from "./ready";
+
 test("streams the live bus and shows who is online", async ({ page }) => {
-  await page.goto("/");
+  await openConsole(page);
   await expect(page.getByRole("status")).toHaveText("connected");
   await expect(page.getByRole("button", { name: /claude/i }).first()).toBeVisible();
   // the backfill lands, then the log renders at least one row
@@ -16,7 +18,7 @@ test("a broadcast needs a second Enter, and the send carries text, target and fi
     sent.push(route.request().postDataJSON());
     await route.fulfill({ json: { ok: true, intent: "inform", to: "all" } });
   });
-  await page.goto("/");
+  await openConsole(page);
   const box = page.getByRole("textbox", { name: "Message" });
   await box.fill("hello fleet");
   await box.press("Enter");
@@ -33,7 +35,7 @@ test("steer refuses a broadcast and goes to exactly one picked seat", async ({ p
     sent.push(route.request().postDataJSON());
     await route.fulfill({ json: { ok: true, msg: "steered claude" } });
   });
-  await page.goto("/");
+  await openConsole(page);
   await page.getByRole("radio", { name: "Steer" }).click();
   const box = page.getByRole("textbox", { name: "Message" });
   await box.fill("fold this in");

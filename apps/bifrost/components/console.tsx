@@ -1,5 +1,6 @@
 "use client";
 
+import { ActivityStrip } from "~/components/activity-strip";
 import { AuroraBackground } from "~/components/aurora";
 import { PauseBanner, ThreadBanner } from "~/components/banners";
 import { Composer } from "~/components/composer";
@@ -20,6 +21,7 @@ export function Console() {
         <ThreadBanner />
         {/* keyed on the thread so switching views resets the history window */}
         <MessageLog key={thread} />
+        <ActivityStrip />
         <Composer />
       </main>
     </>
