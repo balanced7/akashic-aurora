@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import type { BusMessage } from "./bifrost";
 import { type Floor, type Now, type World, useFleet } from "./fleet";
 import { useConsole } from "./store";
+import { single } from "./utils";
 
 /** /api/now is the hot path (presence, pause, vitals); world and floor change slowly. */
 const NOW_POLL_MS = 2000;
@@ -35,7 +36,7 @@ export function useBus() {
     es.onerror = () => setConnected(false);
 
     let alive = true;
-    const pollNow = async () => {
+    const pollNow = single(async () => {
       try {
         const now = await getJson<Now>("/api/now");
         if (!alive) return;
@@ -44,9 +45,9 @@ export function useBus() {
       } catch {
         // backend restarting; the next tick retries
       }
-    };
+    });
     // A failed world/floor poll must look BLIND, never like a stale healthy reading.
-    const pollWorld = async () => {
+    const pollWorld = single(async () => {
       const [world, floor] = await Promise.all([
         getJson<World>("/api/world").catch(
           (): World => ({ ok: false, agents: [], bounds: "roster unavailable (poll failed): cannot say who is online" }),
@@ -56,7 +57,7 @@ export function useBus() {
         ),
       ]);
       if (alive) fleet.set({ world, floor });
-    };
+    });
     void pollNow();
     void pollWorld();
     const t1 = setInterval(pollNow, NOW_POLL_MS);

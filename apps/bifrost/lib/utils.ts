@@ -13,3 +13,20 @@ export async function postJson<T = Record<string, unknown>>(path: string, body: 
   });
   return (await r.json()) as T;
 }
+
+/**
+ * One poll at a time: a tick that lands while the previous call is still out is skipped, so a slow
+ * backend sees a steady trickle instead of a pile of stacked requests.
+ */
+export function single(fn: () => Promise<void>): () => Promise<void> {
+  let busy = false;
+  return async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      await fn();
+    } finally {
+      busy = false;
+    }
+  };
+}
