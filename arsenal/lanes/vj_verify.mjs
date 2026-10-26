@@ -663,15 +663,41 @@ try {
     await browser.send("Target.closeTarget", { targetId: t3 });
     const Lr = report.lasers;
     const pulsesOf = { single: 1, onetwo: 2, triple: 3, triplet: 3 };
-    // each pulse's picture against the next grid point of its gate (a quarter beat; a third for the Triplet Triple): the
-    // engine lights a pulse in the last frame whose picture lands at or before its grid point, so 0 to one frame early
+    // Each pulse's PICTURE against its gate's grid (a quarter beat; a third for the Triplet Triple): the engine lights a
+    // pulse in the last frame whose picture lands at or before its grid point, so 0 to one frame early.
     const gridOf = { single: 1 / 4, onetwo: 1 / 4, triple: 1 / 4, triplet: 1 / 3 };
-    for (const t of Lr.tiers) for (const p of t.pulse_frames) {
-      const g = gridOf[t.gate] || 1 / 4, grid = Math.ceil(p.present / g - 1e-6) * g;
-      p.early_ms = +((grid - p.present) * 500).toFixed(2);
+    // Snap to the NEAREST grid point and keep the sign, and record which grid point it was. The first version snapped
+    // with Math.ceil(present / g - 1e-6), which can only answer "on the grid" or "a whole grid step early": a pulse that
+    // lands a rounding error PAST its grid point was charged a full step, so the Triplet's third shot -- reading
+    // present 33.66667 against a grid point of 101/3 = 33.666666..., 1.7 microseconds of error -- came back as 166.66 ms
+    // early and failed the round. Nearest-point snapping measures the real error with its sign; the grid INDEX is then
+    // checked separately for consecutiveness, which is what actually catches a skipped or repeated grid step.
+    const snapPulses = (pulses, g, per = 500) => pulses.map((p) => {
+      const k = Math.round(p.present / g);
+      return { ...p, grid_k: k, early_ms: +((k * g - p.present) * per).toFixed(2) };  // > 0 early, < 0 late
+    });
+    // Calibrate the snapper on synthetic pulse sets whose answer is known, so the tolerance below cannot quietly widen
+    // into "anything passes". Runs every time; a throw here means the ruler, not the engine, needs looking at.
+    const snapSelftest = () => {
+      const g = 1 / 3, k0 = 99;
+      const onGrid = [0, 1, 2].map((i) => ({ present: +(k0 + i) / 3 + (i === 2 ? 3.3e-6 : 0) }));  // incl. the rounding case
+      const skipped = [0, 1, 3].map((i) => ({ present: +(k0 + i) / 3 }));
+      const a = snapPulses(onGrid, g), b = snapPulses(skipped, g);
+      const okA = a.every((p) => Math.abs(p.early_ms) < 1) && a.every((p, i) => i === 0 || p.grid_k === a[i - 1].grid_k + 1);
+      const okB = b.every((p) => Math.abs(p.early_ms) < 1) && !b.every((p, i) => i === 0 || p.grid_k === b[i - 1].grid_k + 1);
+      if (!okA || !okB) throw new Error(`grid snap selftest failed: on-grid ${JSON.stringify(a)} skipped ${JSON.stringify(b)}`);
+      return true;
+    };
+    snapSelftest();
+    for (const t of Lr.tiers) {
+      const g = gridOf[t.gate] || 1 / 4;
+      t.pulse_frames = snapPulses(t.pulse_frames, g);
+      t.consecutive = t.pulse_frames.every((p, i) => i === 0 || p.grid_k === t.pulse_frames[i - 1].grid_k + 1);
     }
-    console.log(`[lasers] tiers ${Lr.tiers.map((t) => `${t.vel}:${t.gate}x${t.pulses} lit ${t.beam_pixels_lit}px early ${t.pulse_frames.map((p) => p.early_ms).join("/")}`).join(" | ")}; dial ${Lr.dial.after_one}/${Lr.dial.after_three}/${Lr.dial.after_click}; theme ${Lr.theme.from} -> ${Lr.theme.to} (${Lr.theme.landed_on}); tap ${Lr.tap.presses} press, zoom ${Lr.tap.zoom}; cathedral bus ${Lr.cathedral.bus_peak_level}`);
-    const onGrid = (t) => t.pulse_frames.length === t.pulses && t.pulse_frames.every((p) => p.early_ms >= -0.5 && p.early_ms <= 1000 / 60 + 0.5);
+    console.log(`[lasers] tiers ${Lr.tiers.map((t) => `${t.vel}:${t.gate}x${t.pulses} lit ${t.beam_pixels_lit}px early ${t.pulse_frames.map((p) => p.early_ms).join("/")}${t.consecutive ? "" : " NONCONSECUTIVE"}`).join(" | ")}; dial ${Lr.dial.after_one}/${Lr.dial.after_three}/${Lr.dial.after_click}; theme ${Lr.theme.from} -> ${Lr.theme.to} (${Lr.theme.landed_on}); tap ${Lr.tap.presses} press, zoom ${Lr.tap.zoom}; cathedral bus ${Lr.cathedral.bus_peak_level}`);
+    // Half a frame late is allowed by spec 3.3; more than one frame early is not on the grid at all.
+    const onGrid = (t) => t.pulse_frames.length === t.pulses && t.consecutive &&
+      t.pulse_frames.every((p) => p.early_ms >= -1000 / 120 && p.early_ms <= 1000 / 60 + 0.5);
     checks.pad_2_draws_lasers_v2_beams_on_the_grid_with_the_three_tiers = Lr.tiers.length === 3 &&
       Lr.tiers[0].gate === "single" && Lr.tiers[1].gate === "onetwo" && ["triple", "triplet"].includes(Lr.tiers[2].gate) &&
       Lr.tiers.every((t) => t.tier === "burst" && t.pulses === pulsesOf[t.gate] && t.beam_pixels_lit > 50 && onGrid(t));
