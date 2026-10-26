@@ -58,6 +58,7 @@ REDIS_DOCKER_PORT = 16379
 # --- PRODUCTION (878x) -- the one live fleet ---
 PORT_UI = 8787              # Bifrost live agent console (scripts/bifrost_ui.py). CANONICAL.
 PORT_UI_RESERVED = 8788     # RESERVED prod-aux. NOT the console. Do not bind for tests.
+PORT_UI_NEXT = 8789         # Next.js console (apps/bifrost): a face that proxies PORT_UI for data.
 PORT_MCP_HTTP = 18765       # ai_setup_mcp.py optional --http mode (MCP is stdio by default).
 
 # --- BETA (879x) -- E:\AI-Setup-Beta, longer-form integration; prod's waiting room ---
@@ -103,6 +104,9 @@ PORT_REGISTRY = {
     PORT_UI_RESERVED:   {"world": "prod",     "bound_by": "app",
                          "what": "RESERVED prod-aux -- NOT the console; do not bind",
                          "owner": "(reserved)"},
+    PORT_UI_NEXT:       {"world": "prod",     "bound_by": "app",
+                         "what": "Next.js Bifrost console; proxies the 8787 console for all data",
+                         "owner": "apps/bifrost"},
     PORT_MCP_HTTP:      {"world": "prod",     "bound_by": "app",
                          "what": "MCP HTTP mode (stdio is the default, so usually silent)",
                          "owner": "ai_setup_mcp.py"},
@@ -138,6 +142,9 @@ PORT_REGISTRY = {
     5001:               {"world": "external", "bound_by": "container",
                          "what": "voice service (second port)",
                          "owner": "ai-voice"},
+    3080:               {"world": "prod",     "bound_by": "app",
+                         "what": "Rill's DSH harness (dsh_agent seat); the launcher probes it",
+                         "owner": "core/fleet/seat_launchers.py"},
     # Found by check_ports on its FIRST run, and it was live-broken rather than merely
     # undocumented: model_roster's default_host said 11435, nothing listens there, and a real
     # call to an installed model failed with WinError 10061. Registering the port is what
