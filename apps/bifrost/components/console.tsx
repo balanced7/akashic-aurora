@@ -4,6 +4,7 @@ import { ActivityStrip } from "~/components/activity-strip";
 import { AuroraBackground } from "~/components/aurora";
 import { PauseBanner, ThreadBanner } from "~/components/banners";
 import { Composer } from "~/components/composer";
+import { EpisodeBanner, useEpisodePoll } from "~/components/episode";
 import { Header } from "~/components/header";
 import { MessageLog } from "~/components/message-log";
 import { useConsole } from "~/lib/store";
@@ -11,6 +12,7 @@ import { useBus } from "~/lib/use-bus";
 
 export function Console() {
   useBus();
+  useEpisodePoll();
   const thread = useConsole((s) => s.thread);
   return (
     <>
@@ -19,6 +21,7 @@ export function Console() {
         <Header />
         <PauseBanner />
         <ThreadBanner />
+        <EpisodeBanner />
         {/* keyed on the thread so switching views resets the history window */}
         <MessageLog key={thread} />
         <ActivityStrip />

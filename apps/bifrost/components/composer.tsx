@@ -93,7 +93,7 @@ export function Composer() {
 
   return (
     <div
-      className="border-t border-glass-line bg-glass px-5 pt-3 pb-4 backdrop-blur-[26px]"
+      className="mx-3 mb-3 shrink-0 rounded-lg border border-glass-line bg-glass px-5 pt-3 pb-4 backdrop-blur-[26px]"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();

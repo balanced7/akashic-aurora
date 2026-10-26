@@ -3,6 +3,7 @@
 import { Pause, Play, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { EpisodeChip } from "~/components/episode";
 import { FleetPanel } from "~/components/fleet-panel";
 import { LauncherPanel } from "~/components/launcher-panel";
 import { Button } from "~/components/ui/button";
@@ -26,7 +27,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-[62px] items-center gap-3.5 border-b border-glass-line bg-glass px-5 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-[26px] backdrop-saturate-[1.35]">
+    <header className="sticky top-3 z-10 mx-3 flex h-[62px] shrink-0 items-center gap-3.5 rounded-lg border border-glass-line bg-glass px-5 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-[26px] backdrop-saturate-[1.35]">
       <div className="flex shrink-0 items-center gap-2.5 font-[650] tracking-[.2px]">
         <div className="size-[26px] rounded-lg bg-[conic-gradient(from_210deg,#7aa2f7,#9d7cf7,#e0915c,#7aa2f7)] shadow-[0_0_18px_rgba(122,162,247,.45)]" />
         Bifrost
@@ -45,6 +46,7 @@ export function Header() {
       <FleetPanel />
       <AgentPills status={status} />
       <LauncherPanel />
+      <EpisodeChip />
       <Button
         size="icon"
         variant={aurora ? "primary" : "ghost"}
