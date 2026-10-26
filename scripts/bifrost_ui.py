@@ -1218,7 +1218,9 @@ class Handler(BaseHTTPRequestHandler):
                 return {"channels": [], "default": default_ns,
                         "note": "store unreachable -- channel discovery unavailable"}
             scanned = 0
-            for raw in r.scan_iter(match="*:worklive:*", count=200):
+            # count is per-call work, not a result cap: at 200 a 21k-key store took ~108 round
+            # trips (1.4s, starving every other handler of the GIL); 5000 takes ~5 (0.08s).
+            for raw in r.scan_iter(match="*:worklive:*", count=5000):
                 scanned += 1
                 if scanned > 4000:          # hard cap: a census must not become a scan storm
                     break
