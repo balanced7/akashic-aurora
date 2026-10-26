@@ -1,0 +1,59 @@
+/* Virtual Stage (arsenal/web/stage/index.html). The canvas owns the window; the HUD floats over it and never enters the
+   picture's pixels (it is DOM, not drawn into the canvas), so the flash limiter judges the show alone. The look follows
+   the VJ page (vj.css). */
+:root {
+  --bg: #050608;
+  --ink: #e8ecf4;
+  --ink-dim: #9aa3b5;
+  --ink-faint: #5d6577;
+  --glass: rgba(10, 12, 18, 0.72);
+  --line: rgba(160, 175, 210, 0.18);
+  --accent: #9a7cff;
+  --coral: #e0724f;
+  --warn: #ffb347;
+  --ok: #4cc2ba;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --sans: "Archivo", system-ui, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) { --bg: #050608; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+body { font-family: var(--sans); font-size: 14px; }
+.stage { position: fixed; inset: 0; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; background: #000; }
+
+.hud {
+  position: absolute; top: 14px; left: 14px; width: min(420px, calc(100vw - 28px));
+  padding: 10px 12px 8px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--glass); backdrop-filter: blur(6px);
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.45; color: var(--ink);
+  transition: opacity 0.25s ease;
+}
+.hud.hidden { opacity: 0; pointer-events: none; }
+.hud-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.hud-brand { font-family: var(--sans); font-weight: 800; font-stretch: 112%; letter-spacing: 0.06em; color: var(--accent); }
+.hud-set { font-family: var(--sans); font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-dot { width: 9px; height: 9px; border-radius: 50%; background: #333a48; flex: none; }
+.hud-dot.on { background: var(--coral); box-shadow: 0 0 8px var(--coral); }
+.hud-grid { margin: 0; display: grid; gap: 1px; }
+.hud-row { display: grid; grid-template-columns: 70px 1fr; gap: 8px; }
+.hud-row dt { color: var(--ink-faint); }
+.hud-row dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-row dd .warn { color: var(--warn); }
+.hud-row dd .ok { color: var(--ok); }
+.faders { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 8px 0 4px; }
+.fader { display: grid; gap: 2px; font-size: 10px; color: var(--ink-dim); text-align: center; }
+.fader input { width: 100%; accent-color: var(--accent); }
+.hud-keys { margin: 4px 0 0; color: var(--ink-faint); font-size: 10.5px; }
+kbd { font-family: var(--mono); font-size: 10px; padding: 0 3px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink-dim); }
+.banner {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); max-width: min(80vw, 760px);
+  padding: 8px 14px; border-radius: 8px; background: rgba(60, 12, 8, 0.9); border: 1px solid var(--coral);
+  font-family: var(--mono); font-size: 12px; white-space: pre-wrap;
+}
+@media (max-width: 520px) {
+  .hud { left: 16px; right: 16px; width: auto; }
+  .faders { grid-template-columns: repeat(3, 1fr); }
+}

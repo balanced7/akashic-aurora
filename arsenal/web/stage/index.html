@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Virtual Stage — arsenal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="stage.css" />
+<!-- three.js r186, pinned: the same build the piano page loads (piano.html). Vendoring it locally is Daniel's call (design 10, item 7). -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<main class="stage" id="stage" aria-label="Virtual stage">
+  <canvas id="gl" tabindex="0" aria-label="Virtual stage render surface"></canvas>
+
+  <section class="hud" id="hud" aria-label="HUD" aria-live="off">
+    <header class="hud-head">
+      <span class="hud-brand">STAGE</span>
+      <span class="hud-dot" id="hud-beatdot" aria-hidden="true"></span>
+      <span class="hud-set" id="hud-set">loading&hellip;</span>
+    </header>
+    <dl class="hud-grid">
+      <div class="hud-row"><dt>clock</dt><dd id="hud-clock">&mdash;</dd></div>
+      <div class="hud-row"><dt>section</dt><dd id="hud-section">&mdash;</dd></div>
+      <div class="hud-row"><dt>phrase</dt><dd id="hud-phrase">&mdash;</dd></div>
+      <div class="hud-row"><dt>camera</dt><dd id="hud-shot">&mdash;</dd></div>
+      <div class="hud-row"><dt>strand</dt><dd id="hud-strand">&mdash;</dd></div>
+      <div class="hud-row"><dt>lasers</dt><dd id="hud-lasers">&mdash;</dd></div>
+      <div class="hud-row"><dt>haze</dt><dd id="hud-haze">&mdash;</dd></div>
+      <div class="hud-row"><dt>flash</dt><dd id="hud-flash">&mdash;</dd></div>
+      <div class="hud-row"><dt>render</dt><dd id="hud-render">&mdash;</dd></div>
+    </dl>
+    <div class="faders" id="faders" aria-label="Faders"></div>
+    <p class="hud-keys"><kbd>1</kbd> kick &middot; <kbd>2</kbd> lasers (hold = gate) &middot; <kbd>3</kbd> phrase go &middot; <kbd>4</kbd> next step &middot; <kbd>7</kbd> stop phrase &middot; <kbd>6</kbd> fly-out &middot; <kbd>0</kbd> drop now &middot; <kbd>C</kbd> next shot &middot; <kbd>H</kbd> HUD &middot; <kbd>F</kbd> fullscreen</p>
+  </section>
+
+  <div class="banner" id="banner" role="alert" hidden="hidden"></div>
+</main>
+<script type="module" src="stage.js"></script>
+</body>
+</html>
