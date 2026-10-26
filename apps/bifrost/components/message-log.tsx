@@ -15,6 +15,7 @@ import {
   tone,
 } from "~/lib/bifrost";
 import { renderMarkdown } from "~/lib/markdown";
+import { usePrefs } from "~/lib/prefs";
 import { useConsole } from "~/lib/store";
 import { cn, postJson } from "~/lib/utils";
 
@@ -113,7 +114,10 @@ function SystemLine({ m, prefix = "", guard }: { m: BusMessage; prefix?: string;
 
 function TraceCard({ agent, traces }: { agent: string; traces: BusMessage[] }) {
   const residents = useConsole((s) => s.status?.residents);
-  const [open, setOpen] = useState(false);
+  // null follows the Traces setting; a click pins this card open or shut
+  const [pinned, setOpen] = useState<boolean | null>(null);
+  const expanded = usePrefs((s) => s.tracesExpanded);
+  const open = pinned ?? expanded;
   const last = text(traces[traces.length - 1] ?? {});
   return (
     <div className="ml-11 rounded-lg border border-border/70 bg-panel/40 text-[12.5px]">

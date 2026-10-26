@@ -2,6 +2,7 @@
 
 import { displayName, tone } from "~/lib/bifrost";
 import { elapsed } from "~/lib/fleet";
+import { usePrefs } from "~/lib/prefs";
 import { useConsole } from "~/lib/store";
 import { useNow } from "~/lib/use-now";
 import { cn } from "~/lib/utils";
@@ -27,10 +28,11 @@ export function ActivityStrip() {
   const activities = useConsole((s) => s.status?.activities);
   const residents = useConsole((s) => s.status?.residents);
   const now = useNow();
+  const shown = usePrefs((s) => s.activityStrip);
   const rows = Object.entries(activities ?? {})
     .filter(([, a]) => a?.state)
     .sort(([x, a], [y, b]) => (ORDER[a.state!] ?? 0) - (ORDER[b.state!] ?? 0) || x.localeCompare(y));
-  if (!rows.length) return null;
+  if (!shown || !rows.length) return null;
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 px-5 pt-1.5 pb-1 text-xs" aria-live="polite">
       {rows.map(([id, a]) => {

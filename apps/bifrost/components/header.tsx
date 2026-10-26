@@ -1,11 +1,12 @@
 "use client";
 
-import { Pause, Play, Sparkles } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 
 import { EpisodeChip } from "~/components/episode";
 import { FleetPanel } from "~/components/fleet-panel";
 import { LauncherPanel } from "~/components/launcher-panel";
+import { SettingsPanel } from "~/components/settings-panel";
 import { Button } from "~/components/ui/button";
 import { type Status, displayName } from "~/lib/bifrost";
 import { useConsole } from "~/lib/store";
@@ -14,8 +15,6 @@ import { cn, postJson } from "~/lib/utils";
 export function Header() {
   const status = useConsole((s) => s.status);
   const connected = useConsole((s) => s.connected);
-  const aurora = useConsole((s) => s.aurora);
-  const setAurora = useConsole((s) => s.setAurora);
   const paused = !!status?.paused;
 
   async function togglePause() {
@@ -47,16 +46,7 @@ export function Header() {
       <AgentPills status={status} />
       <LauncherPanel />
       <EpisodeChip />
-      <Button
-        size="icon"
-        variant={aurora ? "primary" : "ghost"}
-        onClick={() => setAurora(!aurora)}
-        title="Toggle the animated aurora background (WebGL2)"
-        aria-pressed={aurora}
-      >
-        <Sparkles />
-        <span className="sr-only">Aurora background</span>
-      </Button>
+      <SettingsPanel />
       <Button variant={paused ? "warn" : "default"} onClick={togglePause} disabled={!status}>
         {paused ? <Play /> : <Pause />}
         {paused ? "Resume" : "Pause"}

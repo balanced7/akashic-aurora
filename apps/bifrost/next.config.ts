@@ -16,6 +16,7 @@ const PROXIED = [
   "/resume",
   "/upload",
   "/negotiate",
+  "/narration",
   "/lib/run",
   "/launcher/:path*",
   "/episode/:path*",

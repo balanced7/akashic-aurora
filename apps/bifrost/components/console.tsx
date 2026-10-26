@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { ActivityStrip } from "~/components/activity-strip";
 import { AuroraBackground } from "~/components/aurora";
 import { PauseBanner, ThreadBanner } from "~/components/banners";
@@ -7,11 +9,13 @@ import { Composer } from "~/components/composer";
 import { EpisodeBanner, useEpisodePoll } from "~/components/episode";
 import { Header } from "~/components/header";
 import { MessageLog } from "~/components/message-log";
+import { usePrefs } from "~/lib/prefs";
 import { useConsole } from "~/lib/store";
 import { useBus } from "~/lib/use-bus";
 
 export function Console() {
   useBus();
+  useEffect(() => void usePrefs.persist.rehydrate(), []);
   useEpisodePoll();
   const thread = useConsole((s) => s.thread);
   return (

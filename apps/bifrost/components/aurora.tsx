@@ -3,16 +3,22 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
+import { usePrefs } from "~/lib/prefs";
 import { useConsole } from "~/lib/store";
 
-type Shader = { start(): void; destroy(): void; setState(s: 0 | 1 | 2): void; setMotionBlur?(b: number): void };
+type Shader = {
+  start(): void;
+  destroy(): void;
+  setState(s: 0 | 1 | 2): void;
+  setMotionBlur?(b: number): void;
+  setSpeed?(v: number): void;
+  setIntensity?(v: number): void;
+};
 declare global {
   interface Window {
     AuroraGlass?: { AuroraShader: new (c: HTMLCanvasElement) => Shader; isSupported(): boolean };
   }
 }
-
-const FLAG = "bifrost.aurora";
 
 /** Load scripts/aurora-shader.js once, through the backend proxy (one source for both consoles). */
 let loading: Promise<void> | null = null;
@@ -38,18 +44,15 @@ function loadShader(): Promise<void> {
 export function AuroraBackground() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const shader = useRef<Shader | null>(null);
-  const on = useConsole((s) => s.aurora);
-  const setAurora = useConsole((s) => s.setAurora);
+  const on = usePrefs((s) => s.aurora);
+  const speed = usePrefs((s) => s.auroraSpeed);
+  const intensity = usePrefs((s) => s.auroraIntensity);
   const paused = useConsole((s) => !!s.status?.paused);
   const halted = useConsole((s) => Object.keys(s.status?.halted ?? {}).length > 0);
 
   useEffect(() => {
-    if (localStorage.getItem(FLAG) === "1") setAurora(true);
-  }, [setAurora]);
-
-  useEffect(() => {
-    localStorage.setItem(FLAG, on ? "1" : "0");
     if (!on) return;
+    const setAurora = (aurora: boolean) => usePrefs.getState().set({ aurora });
     let cancelled = false;
     loadShader()
       .then(() => {
@@ -61,6 +64,9 @@ export function AuroraBackground() {
         }
         const s = new window.AuroraGlass.AuroraShader(canvas.current);
         s.setMotionBlur?.(0.22);
+        const p = usePrefs.getState();
+        s.setSpeed?.(p.auroraSpeed);
+        s.setIntensity?.(p.auroraIntensity);
         s.start();
         shader.current = s;
       })
@@ -73,11 +79,16 @@ export function AuroraBackground() {
       shader.current?.destroy();
       shader.current = null;
     };
-  }, [on, setAurora]);
+  }, [on]);
 
   useEffect(() => {
     shader.current?.setState(halted ? 2 : paused ? 1 : 0);
   }, [paused, halted, on]);
+
+  useEffect(() => {
+    shader.current?.setSpeed?.(speed);
+    shader.current?.setIntensity?.(intensity);
+  }, [speed, intensity]);
 
   return <canvas ref={canvas} aria-hidden className="pointer-events-none fixed inset-0 -z-20 size-full" hidden={!on} />;
 }
