@@ -3,8 +3,9 @@ import { cn } from '@/lib/cn';
 // One icon per concept section. The key is the section's folder under content/docs/concepts.
 export const auroraIcons = {
   foundations: 'Foundations',
-  memory: 'Memory and recall',
   bifrost: 'Bifrost',
+  memory: 'Memory and recall',
+  fleet: 'Fleet and trust',
   coordination: 'Coordination',
   narrative: 'Story and context',
   method: 'The method',

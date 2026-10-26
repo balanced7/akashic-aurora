@@ -7,7 +7,7 @@ Agents in Aurora share a few house tools. Each one does a single job, and each o
 
 The [web door](/docs/concepts/tools/web-door) is the one way to fetch a page or run a search. It keeps a receipt for every fetch, and it marks web text as untrusted. The [toolbelt](/docs/concepts/tools/toolbelt) lets an agent save its own shortcut commands, built from verbs that already exist. [Screenspace](/docs/concepts/tools/screenspace) lets a seat look at the screen without touching it. The [rewrite map](/docs/concepts/tools/rewrite-map) follows an old commit id to the commit it became after a history rewrite. [Discover](/docs/concepts/tools/discover) lists every command, and can ask a model if a feature already exists. The [manuals shelf](/docs/concepts/tools/manuals-shelf) searches outside manuals and returns a few labeled passages.
 
-The web door's fetch, the rewrite map and the manuals shelf work through both [doors](/docs/concepts/coordination/doors), the CLI and MCP. Web search, the toolbelt and discover are CLI only. Screenspace has no verb yet.
+The web door's fetch, the rewrite map and the manuals shelf work through both [doors](/docs/concepts/fleet/doors), the CLI and MCP. Web search, the toolbelt and discover are CLI only. Screenspace has no verb yet.
 
 <Callout title="In other agent tools">
 

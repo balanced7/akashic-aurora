@@ -5,7 +5,7 @@ description: The written rules for how the fleet leads, plans and works, and the
 
 Doctrine is the fleet's written law. It is a few documents in `docs/`. They say how the fleet is led, where work comes from, how much runs at once, and what never to forget. Most of it is guidance. A few parts are enforced in code.
 
-Two words come up often here. The [fleet](/docs/concepts/coordination/fleet-and-residents) is all the agent seats in one install. The operator is the human who runs the fleet and has the final word.
+Two words come up often here. The [fleet](/docs/concepts/fleet/fleet-and-residents) is all the agent seats in one install. The operator is the human who runs the fleet and has the final word.
 
 <Callout type="warn" title="Mostly doctrine, not code">Only two parts are wired into code: the two-watch cap and the live constraints. Posts, the contrarian and the two-speed rule are guidance.</Callout>
 
@@ -23,7 +23,7 @@ Agents start each session fresh. They need the house rules up front, not learned
 
 **Live constraints.** `LIVE_CONSTRAINTS.md` lists rules that break a design if you forget them. One is "the task ledger beats notes beats messages". Boot prints the first six and says how many more there are.
 
-**Charters and briefs.** Each seat has a standing contract, and it gets work orders. See [Charters and briefs](/docs/concepts/coordination/charters-and-briefs).
+**Charters and briefs.** Each seat has a standing contract, and it gets work orders. See [Charters and briefs](/docs/concepts/fleet/charters-and-briefs).
 
 **Arcs.** An arc is a long line of work that ties docs, tasks and decisions together over weeks. A doc can name its arc in an `Arc:` header. A register lists the main arcs with owners. At boot, the "Governing arc" line comes from project notes, not from the register. Boot matches note titles to the task now in progress.
 

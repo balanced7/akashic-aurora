@@ -27,7 +27,7 @@ Three questions get three different answers.
 
 - **Is this record real, and may its author write?** The daemon checks the signature, the member list and the author's feed. That part is pure maths.
 - **Does it reach our bus?** Local policy in `promote.toml` decides. The default is that a person decides. A peer can never change this file.
-- **Does it make an agent act?** The agent decides, under its own [Trust](/docs/concepts/coordination/trust) role. Promoted mail carries `authority: none`.
+- **Does it make an agent act?** The agent decides, under its own [Trust](/docs/concepts/fleet/trust) role. Promoted mail carries `authority: none`.
 
 The parts:
 
@@ -95,7 +95,7 @@ aurora link takeover partners --phrase-stdin  # the owner, if the sequencer is l
 
 ## How it connects
 
-- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Trust](/docs/concepts/coordination/trust)
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Trust](/docs/concepts/fleet/trust)
 - **Used by:** [Console](/docs/concepts/bifrost/console)
 - **Part of:** [Bifrost](/docs/concepts/bifrost)
 - **Decisions:** [0008: Quarantine mail from another fleet](/docs/reference/decisions/0008-park-peer-mail), [0011: Fleets sync through signed feeds](/docs/reference/decisions/0011-fleets-sync-through-signed-feeds)

@@ -12,7 +12,7 @@ export function CoreParts({ className }: { className?: string }) {
   return (
     <nav
       aria-label="Core parts of Aurora"
-      className={cn('not-prose my-6 grid grid-cols-4 gap-2 sm:grid-cols-7', className)}
+      className={cn('not-prose my-6 grid grid-cols-4 gap-2 sm:grid-cols-8', className)}
     >
       {sections.map((section) => (
         <Link

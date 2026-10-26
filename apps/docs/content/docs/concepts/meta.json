@@ -2,8 +2,9 @@
   "title": "Conceptual guide",
   "pages": [
     "foundations",
-    "memory",
     "bifrost",
+    "memory",
+    "fleet",
     "coordination",
     "narrative",
     "method",

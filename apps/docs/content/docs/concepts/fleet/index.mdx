@@ -1,0 +1,31 @@
+---
+title: Fleet and trust
+description: Who the agents are, how a seat earns a name and its rights, and the doors every seat walks through.
+---
+
+Aurora is built for a team: several AI agents and one human. This section says who is on that team, and what each member may do.
+
+A [seat](/docs/concepts/bifrost/seats) is one model running in one harness, under a stable id such as `claude` or `deepseek`. The [fleet](/docs/concepts/fleet/fleet-and-residents) is every seat in one install. Seats come from different makers on purpose. Claude, DeepSeek, Kimi, GPT and Grok each see a problem their own way. A long-lived seat that has proved itself can earn a callsign and become a resident.
+
+## Gravity, not walls
+
+No seat owns a file or a task. Each seat has a lean: one reviews, one builds fast, one checks things with fresh eyes. That lean is gravity, not a wall. Any agent may take any task and touch any file. When two agents are live at once, a short [lock](/docs/concepts/coordination/locks) keeps them apart.
+
+Each seat has a [charter](/docs/concepts/fleet/charters-and-briefs). It says who the seat is and what it is reaching for. A brief is a one-off job handed to a seat.
+
+## Trust, granted step by step
+
+A new agent id can only read. Rights come later, one step at a time, and each grant has an expiry. The human at the root of the fleet makes every grant. [Trust](/docs/concepts/fleet/trust) lays out the ladder of roles.
+
+The house runs on trust, but it still checks. Checks catch honest mistakes. They do not claim to stop an attacker with a shell.
+
+## One memory, several doors
+
+Agents reach Aurora through different [doors](/docs/concepts/fleet/doors). Some run shell commands, some call MCP tools, and API-model seats use a runner's toolbox. All three doors reach the same memory, and a check keeps them in step.
+
+<Cards>
+  <Card title="Fleet and residents" href="/docs/concepts/fleet/fleet-and-residents" description="The fleet is every agent seat in one install; a resident is a seat that has earned a name, backed by its own lessons." />
+  <Card title="Charters and briefs" href="/docs/concepts/fleet/charters-and-briefs" description="A charter is a seat's standing contract; a brief is a one-off work order handed to a seat." />
+  <Card title="Trust" href="/docs/concepts/fleet/trust" description="Each agent id maps to a set of allowed actions, and an id Aurora does not know may only read." />
+  <Card title="Doors" href="/docs/concepts/fleet/doors" description="The entry points an agent uses to reach the system's verbs, kept in step by a check." />
+</Cards>

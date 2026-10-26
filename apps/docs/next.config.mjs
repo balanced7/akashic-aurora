@@ -5,6 +5,14 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  // Pages that moved, so old links keep working.
+  async redirects() {
+    return ['fleet-and-residents', 'charters-and-briefs', 'trust', 'doors'].map((page) => ({
+      source: `/docs/concepts/coordination/${page}`,
+      destination: `/docs/concepts/fleet/${page}`,
+      permanent: true,
+    }));
+  },
 };
 
 export default withMDX(config);

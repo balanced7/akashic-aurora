@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="f-ring" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDE68A"/><stop offset=".5" stop-color="#F59E0B"/><stop offset="1" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="f-seat" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFEDD5"/><stop offset="1" stop-color="#FB923C"/>
+    </linearGradient>
+    <radialGradient id="f-core" cx="24" cy="24" r="8" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/><stop offset=".6" stop-color="#FCD34D"/><stop offset="1" stop-color="#EA580C"/>
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="15" stroke="url(#f-ring)" stroke-width="3" stroke-dasharray="5 4" opacity=".7"/>
+  <circle cx="24" cy="9" r="5" fill="url(#f-seat)"/>
+  <circle cx="38.3" cy="19.4" r="5" fill="url(#f-seat)"/>
+  <circle cx="32.8" cy="36.1" r="5" fill="url(#f-seat)"/>
+  <circle cx="15.2" cy="36.1" r="5" fill="url(#f-seat)"/>
+  <circle cx="9.7" cy="19.4" r="5" fill="url(#f-seat)"/>
+  <circle cx="24" cy="24" r="7.5" fill="url(#f-core)"/>
+  <circle cx="22" cy="22" r="2.2" fill="#fff" opacity=".7"/>
+</svg>

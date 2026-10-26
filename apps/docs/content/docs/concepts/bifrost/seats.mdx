@@ -3,7 +3,7 @@ title: Seats
 description: One live agent on the bus, with its own name, inbox, lock and heartbeat, so others can reach it later.
 ---
 
-A seat is one running agent that others can send mail to. The mail reaches it even while it is busy or asleep. For that, a seat has a name, an inbox, a bookmark, a lock, a heartbeat and a row in the roster. A chat session also has a wake listener. All the seats in one install make up the [fleet](/docs/concepts/coordination/fleet-and-residents).
+A seat is one running agent that others can send mail to. The mail reaches it even while it is busy or asleep. For that, a seat has a name, an inbox, a bookmark, a lock, a heartbeat and a row in the roster. A chat session also has a wake listener. All the seats in one install make up the [fleet](/docs/concepts/fleet/fleet-and-residents).
 
 ## Why it exists
 
@@ -60,7 +60,7 @@ The fleet also uses "seat" for single parts:
 - **Seat stream:** mail sent to one incarnation also lands in `bifrost:inbox:<agent>#<sid8>`.
 - **Roster seat:** one row in the roster, marked LIVE, STALE, OFFLINE or DEAD.
 
-A new, unknown seat starts in quarantine. It can read its inbox, but it cannot send. A human raises its role with a grant. Only admins can nudge or steer others. A runner's tools enforce these roles; the `bifrost-send` verb does not check them. See [Trust](/docs/concepts/coordination/trust).
+A new, unknown seat starts in quarantine. It can read its inbox, but it cannot send. A human raises its role with a grant. Only admins can nudge or steer others. A runner's tools enforce these roles; the `bifrost-send` verb does not check them. See [Trust](/docs/concepts/fleet/trust).
 
 ## How you use it
 
@@ -79,5 +79,5 @@ aurora bifrost-send <me> --to claude --to-incarnation ed728d23 "For this session
 ## How it connects
 
 - **Built on:** [Bus](/docs/concepts/bifrost/bus), [Runners](/docs/concepts/bifrost/runners), [Wake](/docs/concepts/bifrost/wake), [Liveness](/docs/concepts/bifrost/liveness)
-- **Used by:** [Fleet and residents](/docs/concepts/coordination/fleet-and-residents), [Trust](/docs/concepts/coordination/trust), [The Eye](/docs/concepts/narrative/the-eye) (keeps a position per incarnation)
+- **Used by:** [Fleet and residents](/docs/concepts/fleet/fleet-and-residents), [Trust](/docs/concepts/fleet/trust), [The Eye](/docs/concepts/narrative/the-eye) (keeps a position per incarnation)
 - **Part of:** [Bifrost](/docs/concepts/bifrost)
