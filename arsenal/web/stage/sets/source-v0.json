@@ -1,0 +1,234 @@
+{
+  "format": "arsenal.arena/v1",
+  "name": "Source v0",
+  "about": "Our own hall and rig in the spirit of Qlimax 2014 'The Source Code of Creation' (GelreDome, 22 Nov 2014); no Q-dance logo, star prop or figure replica. The v0 slice of the 2026-10-24 design: the hall, a dozen-plus real-parameter beam heads in haze, one strand of 12 rungs with cubes, dot strips and pixel bars moving in a beat-locked wave, both laser banks, the four-ring spiral, eight hazers, and the camera flypaths.",
+  "units": { "length": "m", "angle": "deg", "time": "beats" },
+  "frame": "origin floor at stage-lip centre; +x house right, +y up, +z over the crowd",
+  "seed": 2014,
+  "venue": {
+    "floor": { "x": [-38, 38], "z": [-24, 96] }, "roof_y": 38, "grid_y": 33, "crowd_y": 1.9, "deck_y": 2.0, "deck_z": [-16, 0],
+    "stands": { "rake_deg": 30, "top_y": 30, "depth": 40 },
+    "crowd": { "floor": 18000, "stands": 12000, "drawn_floor": 7000 },
+    "deck": { "x": [-24, 24], "z": [-16, 0], "y": 2.0 },
+    "dj": { "pos": [0, 2.0, -4], "size": [3.0, 1.2, 1.4] }
+  },
+  "types": {
+    "beam-7r": {
+      "class": "head", "label": "narrow beam head (Sharpy class), generic personality",
+      "geometry": { "kind": "Body", "children": [ { "kind": "Yoke", "axis": "Pan", "children": [
+        { "kind": "Head", "axis": "Tilt", "offset": [0, 0.32, 0], "children": [ { "kind": "Beam", "radius": 0.07 } ] } ] } ] },
+      "beam": { "type": "Spot", "angle": [0.5, 4.0], "field_over_beam": 1.15, "flux_lm": 10000, "lens_radius": 0.07,
+                "prisms": [ { "facets": 8, "layout": "circular", "spread_deg": 12 } ] },
+      "attrs": {
+        "Pan":    { "min": -270, "max": 270, "home": 0, "unit": "deg", "real_fade": 2.2, "real_accel": 0.2 },
+        "Tilt":   { "min": -135, "max": 135, "home": 0, "unit": "deg", "real_fade": 1.4, "real_accel": 0.2 },
+        "Dimmer": { "min": 0, "max": 1, "unit": "level", "bits": 16, "merge": "HTP", "real_fade": 0.04, "real_accel": 0.01 },
+        "Zoom":   { "min": 0.5, "max": 4.0, "home": 2.0, "unit": "deg", "real_fade": 0.6, "real_accel": 0.1 },
+        "Shutter1Strobe": { "min": 0.5, "max": 20, "unit": "Hz", "flash_risk": "local" },
+        "Color1": { "wheel": 14, "modes": ["snap", "half"], "slot_time": 0.12,
+                    "colours": ["#ffffff", "#ff2a10", "#ff8a1a", "#ffd21a", "#a8ff2a", "#19ff4a", "#19f0ff", "#4aa8ff",
+                                "#2a3cff", "#9a66ff", "#ff2ad6", "#ff7ab8", "#ffd8a0", "#6a1aff"] },
+        "Gobo1":  { "wheel": 17, "snap": true }, "Prism1": { "slots": 2, "snap": true },
+        "Prism1PosRotate": { "min": -1, "max": 1, "unit": "rev/s" }, "Frost1": { "min": 0, "max": 1 }, "Focus1": { "min": 0, "max": 1 }
+      },
+      "estimate": "generic class personality written from published class specifications; travel times estimated"
+    },
+    "cube-6":     { "class": "pixel", "layout": "cube", "cells": 6, "size": 1.1, "cell_kind": "cube", "cell_size": 0.55, "nits": 160 },
+    "px-dots-12": { "class": "pixel", "cells": 12, "length": 1.5, "cell_kind": "dot", "cell_size": 0.045, "nits": 60000 },
+    "px-bar-32":  { "class": "pixel", "cells": 32, "length": 1.6, "cell_kind": "bar", "cell_size": 0.03, "nits": 30000 },
+    "slat-8":     { "class": "pixel", "layout": "radial", "cells": 8, "cell_kind": "slat", "cell_size": 0.05, "nits": 30000 },
+    "rim-strip":  { "class": "pixel", "cells": 1, "pitch": 0.25, "cell_kind": "rim", "cell_size": 0.04, "nits": 25000 },
+    "laser-10w":  { "class": "laser", "scan_deg": 30, "kpps": 40, "power_w": [2, 3, 3], "divergence_mrad": 0.6, "aperture_mm": 3 },
+    "hazer":      { "class": "atmos", "warmup_s": 480, "tau_s": 30 },
+    "hoist":      { "class": "axis", "vmax": 0.5, "amax": 0.4, "jerk": 2.0, "estimate": "Kinesys-class variable speed; est." }
+  },
+  "objects": [
+    { "id": "rung", "kind": "element", "repeat": { "count": 12, "z": { "from": 4.0, "step": 3.6 } }, "at": [0, 20, 0],
+      "pickups": [[-4.3, 0, 0], [4.3, 0, 0]], "dof": ["y", "roll"], "axis_type": "hoist",
+      "home": { "y": 20, "roll": 0 }, "limits": { "y": [8, 22], "roll": [-50, 50] }, "mesh": "procedural:rung-v1",
+      "children": [
+        { "type": "cube-6",     "at": [[-4.5, 0, 0], [4.5, 0, 0]], "tags": ["backbone"] },
+        { "type": "px-dots-12", "at": [[-3.55, 0.12, 0], [3.55, 0.12, 0]] },
+        { "type": "px-bar-32",  "at": [[-2.15, 0, 0.18], [2.15, 0, 0.18]] },
+        { "type": "beam-7r",    "at": [[0, -0.6, 0]], "rot": [180, 0, 0] }
+      ] },
+    { "id": "truss-us", "kind": "structure", "at": [0, 26, -5], "mesh": "procedural:truss-v1",
+      "children": [ { "type": "beam-7r", "repeat": { "count": 8, "x": { "from": -17.5, "step": 5 } }, "at": [[0, -0.5, 0]], "rot": [180, 0, 0] } ] },
+    { "id": "lip", "kind": "structure", "at": [0, 2.0, 0.6], "mesh": "procedural:lip-v1",
+      "children": [ { "type": "beam-7r", "at": [[-20, 0.2, 0], [-15, 0.2, 0], [-10, 0.2, 0], [-5, 0.2, 0], [5, 0.2, 0], [10, 0.2, 0], [15, 0.2, 0], [20, 0.2, 0]] } ] },
+    { "id": "ring", "kind": "element", "at": [0, 14, -11], "dof": ["tilt"], "axis_type": "tilt", "mesh": "procedural:ring-v1",
+      "repeat": { "count": 4, "values": { "diameter": [28, 20, 13, 6], "depth": [2.5, 2.2, 2.0, 1.5], "tilt": [55, 40, 25, 10] } },
+      "limits": { "tilt": [0, 90] },
+      "children": [
+        { "type": "slat-8", "repeat": { "count": 48, "polar": { "radius": "inner", "step_deg": 7.5 } }, "span": "depth" },
+        { "type": "rim-strip", "ring": { "radius": "outer" } },
+        { "type": "rim-strip", "ring": { "radius": "inner" } }
+      ] }
+  ],
+  "groups": {
+    "strand.heads": { "select": "rung.*/beam-7r" },
+    "strand.cubes": { "select": "rung.*/cube-6" },
+    "strand.dots":  { "select": "rung.*/px-dots-12" },
+    "strand.bars":  { "select": "rung.*/px-bar-32" },
+    "truss.heads":  { "select": "truss-us/beam-7r" },
+    "lip.heads":    { "select": "lip/beam-7r" },
+    "rings.slats":  { "select": "ring.*/slat-8" },
+    "rings.rims":   { "select": "ring.*/rim-strip" }
+  },
+  "focus": { "dj": [0, 3.2, -4], "ring-hub": [0, 14, -11], "crowd-centre": [0, 1.8, 30], "pit": [0, 1.8, 6], "roof": [0, 33, 30], "foh": [0, 4.5, 50] },
+  "effects": {
+    "cube-wave":   { "attrs": ["Dimmer"], "form": "sine", "size": 0.35, "measure": 8, "phase": { "order": "helix", "from": 0, "to": 360, "cyclic": true, "wings": 2, "wingOffset": 0.5 } },
+    "cube-colour": { "attrs": ["ColorMix"], "form": "sine", "size": 1, "measure": 16, "phase": { "order": "helix", "from": 0, "to": 360, "cyclic": true, "wings": 2, "wingOffset": 0.5 } },
+    "dot-chase":   { "attrs": ["Dimmer"], "form": "pulse", "width": 0.45, "size": 1, "measure": 2, "phase": { "order": "along", "from": 0, "to": 360, "cyclic": true, "block": 2 } },
+    "dot-helix":   { "attrs": ["Dimmer"], "form": "pulse", "width": 0.5, "size": 0.85, "measure": 4, "phase": { "order": "helix", "from": 0, "to": 720, "cyclic": true, "wings": 2, "wingOffset": 0.5 } },
+    "bar-chase":   { "attrs": ["Dimmer"], "form": "square", "width": 0.3, "transition": 0.6, "size": 1, "measure": 4, "phase": { "order": "helix", "from": 0, "to": 720, "cyclic": true } },
+    "strand-tilt": { "attrs": ["Tilt"], "form": "sine", "size": 14, "measure": 16, "phase": { "order": "element", "from": 0, "to": 360, "cyclic": true } },
+    "strand-pulse":{ "attrs": ["Dimmer"], "form": "pulse", "width": 0.6, "size": 1, "measure": 1, "phase": { "order": "index", "from": 0, "to": 0 } },
+    "truss-fan":   { "attrs": ["Tilt"], "form": "sine", "size": 1, "measure": 8, "fan": { "order": "x", "from": -38, "to": 38 }, "phase": { "order": "index", "from": 0, "to": 0 } },
+    "truss-saw":   { "attrs": ["Tilt"], "form": "rampUp", "size": 12, "measure": 2, "phase": { "order": "x", "from": 0, "to": 180, "wings": 2, "mirror": true } },
+    "truss-chase": { "attrs": ["Dimmer"], "form": "pulse", "width": 0.5, "size": 1, "measure": 2, "phase": { "order": "x", "from": 0, "to": 360, "cyclic": true } },
+    "lip-fan":     { "attrs": ["Tilt"], "form": "sine", "size": 1, "measure": 16, "fan": { "order": "x", "from": -58, "to": 58 }, "phase": { "order": "index", "from": 0, "to": 0 } },
+    "lip-wave":    { "attrs": ["Dimmer"], "form": "sine", "size": 0.8, "measure": 4, "phase": { "order": "x", "from": 0, "to": 360, "cyclic": true, "wings": 2, "mirror": true } },
+    "ring-polar":  { "attrs": ["Dimmer"], "form": "pulse", "width": 0.35, "size": 0.9, "measure": 4, "phase": { "order": "angle", "from": 0, "to": 720, "cyclic": true } },
+    "ring-step":   { "attrs": ["Dimmer"], "form": "square", "width": 0.5, "transition": 0.4, "size": 0.8, "measure": 2, "phase": { "order": "element", "from": 0, "to": 360, "cyclic": true } },
+    "ring-colour": { "attrs": ["ColorMix"], "form": "triangle", "size": 1, "measure": 8, "phase": { "order": "angle", "from": 0, "to": 360, "cyclic": true } }
+  },
+  "formations": {
+    "high-wave": { "name": "wave", "params": { "centre": 17.0, "size": 0.9, "roll": 16, "measure": 32 } },
+    "low-wave":  { "name": "wave", "params": { "centre": 14.5, "size": 0.9, "roll": 16, "measure": 32 } }
+  },
+  "looks": {
+    "intro": { "fade": 4, "lines": [
+      { "group": "strand.heads", "values": { "Dimmer": 0.55, "Pan": 90, "Tilt": 0, "Zoom": 2.2, "Color": "W" }, "effects": ["strand-tilt"] },
+      { "group": "strand.cubes", "values": { "Dimmer": 0.85, "Color": "A", "Color2": "warm" }, "effects": ["cube-wave", "cube-colour"] },
+      { "group": "strand.dots",  "values": { "Dimmer": 0.9, "Color": "warm" }, "effects": ["dot-chase"] },
+      { "group": "strand.bars",  "values": { "Dimmer": 0.6, "Color": "B" }, "effects": ["bar-chase"] },
+      { "group": "truss.heads",  "values": { "Dimmer": 0.0, "Pan": 90, "Tilt": 0, "Zoom": 3, "Color": "beamB" } },
+      { "group": "lip.heads",    "values": { "Dimmer": 0.6, "Pan": 90, "Tilt": 0, "Zoom": 1.6, "Color": "beamB" }, "effects": ["lip-fan"] },
+      { "group": "rings.slats",  "values": { "Dimmer": 0.8, "Color": "warm", "Color2": "A" }, "effects": ["ring-polar", "ring-colour"] },
+      { "group": "rings.rims",   "values": { "Dimmer": 0.55, "Color": "A" } }
+    ] },
+    "build": { "fade": 2, "lines": [
+      { "group": "strand.heads", "values": { "Dimmer": 0.75, "Pan": 90, "Tilt": 0, "Zoom": 1.2, "Color": "W" }, "effects": ["strand-tilt"] },
+      { "group": "strand.cubes", "values": { "Dimmer": 0.9, "Color": "B", "Color2": "W" }, "effects": ["cube-wave", "cube-colour"] },
+      { "group": "strand.dots",  "values": { "Dimmer": 1.0, "Color": "W" }, "effects": ["dot-helix"] },
+      { "group": "strand.bars",  "values": { "Dimmer": 0.8, "Color": "W" }, "effects": ["bar-chase"] },
+      { "group": "truss.heads",  "values": { "Dimmer": 0.7, "Pan": 90, "Tilt": 0, "Zoom": 1.0, "Color": "W" }, "effects": ["truss-chase", "truss-saw"] },
+      { "group": "lip.heads",    "values": { "Dimmer": 0.5, "Pan": 90, "Tilt": 0, "Zoom": 1.0, "Color": "beamA" }, "effects": ["lip-wave"] },
+      { "group": "rings.slats",  "values": { "Dimmer": 0.9, "Color": "W", "Color2": "B" }, "effects": ["ring-step"] },
+      { "group": "rings.rims",   "values": { "Dimmer": 0.8, "Color": "W" } }
+    ] },
+    "drop": { "fade": 0.25, "lines": [
+      { "group": "strand.heads", "values": { "Dimmer": 1.0, "Pan": 90, "Tilt": 0, "Zoom": 1.6, "Color": "W" }, "effects": ["strand-pulse"] },
+      { "group": "strand.cubes", "values": { "Dimmer": 1.0, "Color": "A", "Color2": "B" }, "effects": ["cube-colour"] },
+      { "group": "strand.dots",  "values": { "Dimmer": 1.0, "Color": "warm" }, "effects": ["dot-chase"] },
+      { "group": "strand.bars",  "values": { "Dimmer": 1.0, "Color": "A" }, "effects": ["bar-chase"] },
+      { "group": "truss.heads",  "values": { "Dimmer": 1.0, "Pan": 90, "Tilt": 0, "Zoom": 1.8, "Color": "beamA" }, "effects": ["truss-fan", "truss-chase"] },
+      { "group": "lip.heads",    "values": { "Dimmer": 1.0, "Pan": 90, "Tilt": 0, "Zoom": 1.4, "Color": "beamA" }, "effects": ["lip-fan"] },
+      { "group": "rings.slats",  "values": { "Dimmer": 1.0, "Color": "A", "Color2": "B" }, "effects": ["ring-polar", "ring-colour"] },
+      { "group": "rings.rims",   "values": { "Dimmer": 0.9, "Color": "B" } }
+    ] },
+    "break": { "fade": 4, "lines": [
+      { "group": "strand.heads", "values": { "Dimmer": 0.45, "Pan": 90, "Tilt": 0, "Zoom": 3.0, "Color": "beamB" }, "effects": ["strand-tilt"] },
+      { "group": "strand.cubes", "values": { "Dimmer": 0.8, "Color": "B", "Color2": "A" }, "effects": ["cube-wave", "cube-colour"] },
+      { "group": "strand.dots",  "values": { "Dimmer": 0.7, "Color": "warm" }, "effects": ["dot-helix"] },
+      { "group": "strand.bars",  "values": { "Dimmer": 0.4, "Color": "B" } },
+      { "group": "lip.heads",    "values": { "Dimmer": 0.4, "Pan": 90, "Tilt": 0, "Zoom": 2.5, "Color": "beamB" }, "effects": ["lip-fan"] },
+      { "group": "rings.slats",  "values": { "Dimmer": 0.75, "Color": "B", "Color2": "W" }, "effects": ["ring-polar", "ring-colour"] },
+      { "group": "rings.rims",   "values": { "Dimmer": 0.5, "Color": "A" } }
+    ] },
+    "groove": { "fade": 2, "lines": [
+      { "group": "strand.heads", "values": { "Dimmer": 0.7, "Pan": 90, "Tilt": 0, "Zoom": 1.8, "Color": "W" }, "effects": ["strand-tilt"] },
+      { "group": "strand.cubes", "values": { "Dimmer": 0.9, "Color": "A", "Color2": "B" }, "effects": ["cube-wave", "cube-colour"] },
+      { "group": "strand.dots",  "values": { "Dimmer": 0.9, "Color": "warm" }, "effects": ["dot-chase"] },
+      { "group": "strand.bars",  "values": { "Dimmer": 0.7, "Color": "B" }, "effects": ["bar-chase"] },
+      { "group": "truss.heads",  "values": { "Dimmer": 0.6, "Pan": 90, "Tilt": 0, "Zoom": 2.0, "Color": "beamB" }, "effects": ["truss-fan"] },
+      { "group": "lip.heads",    "values": { "Dimmer": 0.6, "Pan": 90, "Tilt": 0, "Zoom": 1.6, "Color": "beamB" }, "effects": ["lip-fan"] },
+      { "group": "rings.slats",  "values": { "Dimmer": 0.85, "Color": "A", "Color2": "W" }, "effects": ["ring-polar", "ring-colour"] },
+      { "group": "rings.rims",   "values": { "Dimmer": 0.6, "Color": "A" } }
+    ] }
+  },
+  "lasers": {
+    "reach": { "A": 0.9, "B": 0.6, "S": 0.4, "H": 1.0 },
+    "projectors": [
+      { "name": "A1", "bank": "A", "type": "laser-10w", "pos": [-17.5, 22, -2] }, { "name": "A2", "bank": "A", "type": "laser-10w", "pos": [-12.5, 22, -2] },
+      { "name": "A3", "bank": "A", "type": "laser-10w", "pos": [-7.5, 22, -2] },  { "name": "A4", "bank": "A", "type": "laser-10w", "pos": [-2.5, 22, -2] },
+      { "name": "A5", "bank": "A", "type": "laser-10w", "pos": [2.5, 22, -2] },   { "name": "A6", "bank": "A", "type": "laser-10w", "pos": [7.5, 22, -2] },
+      { "name": "A7", "bank": "A", "type": "laser-10w", "pos": [12.5, 22, -2] },  { "name": "A8", "bank": "A", "type": "laser-10w", "pos": [17.5, 22, -2] },
+      { "name": "B1", "bank": "B", "type": "laser-10w", "pos": [-17.5, 2.3, 0.3] }, { "name": "B2", "bank": "B", "type": "laser-10w", "pos": [-12.5, 2.3, 0.3] },
+      { "name": "B3", "bank": "B", "type": "laser-10w", "pos": [-7.5, 2.3, 0.3] },  { "name": "B4", "bank": "B", "type": "laser-10w", "pos": [-2.5, 2.3, 0.3] },
+      { "name": "B5", "bank": "B", "type": "laser-10w", "pos": [2.5, 2.3, 0.3] },   { "name": "B6", "bank": "B", "type": "laser-10w", "pos": [7.5, 2.3, 0.3] },
+      { "name": "B7", "bank": "B", "type": "laser-10w", "pos": [12.5, 2.3, 0.3] },  { "name": "B8", "bank": "B", "type": "laser-10w", "pos": [17.5, 2.3, 0.3] },
+      { "name": "SL1", "bank": "S", "type": "laser-10w", "pos": [-22, 6, -2] }, { "name": "SL2", "bank": "S", "type": "laser-10w", "pos": [-22, 14, -2] },
+      { "name": "SR1", "bank": "S", "type": "laser-10w", "pos": [22, 6, -2] },  { "name": "SR2", "bank": "S", "type": "laser-10w", "pos": [22, 14, -2] },
+      { "name": "HERO", "bank": "H", "type": "laser-10w", "pos": [0, 20, -8] }
+    ]
+  },
+  "atmos": {
+    "tau_s": 30, "pre_haze": 0.12, "wind": [0.25, 0, -0.1], "noise_amp": 0.6,
+    "hazers": [
+      { "id": "hz-sl", "pos": [-21, 2.5, -6] }, { "id": "hz-sr", "pos": [21, 2.5, -6] },
+      { "id": "hz-roof-1", "pos": [-10, 33, 20] }, { "id": "hz-roof-2", "pos": [10, 33, 42] },
+      { "id": "hz-foh-l", "pos": [-6, 2, 50] }, { "id": "hz-foh-r", "pos": [6, 2, 50] },
+      { "id": "hz-delay-l", "pos": [-14, 8, 30] }, { "id": "hz-delay-r", "pos": [14, 8, 58] }
+    ]
+  },
+  "themes": {
+    "source-violet": { "name": "Source Violet", "A": "#7a3cff", "B": "#ff38d8", "W": "#f0eaff", "beamA": "#ffffff", "beamB": "#9a66ff", "warm": "#ffb86a",
+                       "laser": ["#19ff4a", "#4a5bff", "#e6ffe9"], "ambient": "#3a1a8a" },
+    "molten":        { "name": "Molten", "A": "#ff7a1a", "B": "#ffcf3a", "W": "#fff2dc", "beamA": "#a8ff2a", "beamB": "#ffd21a", "warm": "#ffb86a",
+                       "laser": ["#19ff4a", "#e6ffe9", "#a8ff2a"], "ambient": "#8a2a0a" }
+  },
+  "cameras": {
+    "shots": {
+      "FOH_HOLD_ZOOM":     { "kind": "static", "pos": [0, 4.5, 50], "look": [0, 13, -6], "hfov": [52, 38], "ev": 0, "source": "footage: front-of-house lock-off, slow zoom" },
+      "FOH_WIDE":          { "kind": "static", "pos": [0, 5.0, 56], "look": [0, 13, -4], "hfov": 62, "ev": 0, "source": "footage: the drop's hero wide" },
+      "CRANE_RISE_REVEAL": { "kind": "path", "pos_path": [[-6, 2.2, 48], [-4, 9, 50], [-1, 19, 53], [0, 26, 56]], "look_path": [[0, 12, 0], [0, 13, -2], [0, 13, -5]], "hfov": 58, "ev": 0.3, "source": "ours: crowd height to 26 m" },
+      "STRAND_FLYTHROUGH": { "kind": "path", "pos_path": [[2.6, 11.2, 66], [3.0, 10.6, 46], [2.2, 10.4, 26], [2.6, 10.6, 8], [1.8, 11.0, 1.2], [0.6, 12.9, -4.5], [0, 14.0, -10.5]],
+                             "look_path": [[1.2, 13.5, 40], [1.0, 14, 20], [0.6, 14.5, 0], [0, 14, -12], [0, 14, -22], [0, 14, -30]], "hfov": 74, "ease": "linear", "ev": 0.4,
+                             "source": "ours: down the strand under the rungs, beside its beams, rising into the inner ring on the downbeat" },
+      "TUNNEL_UP":         { "kind": "static", "pos": [1.5, 1.9, 34], "look": [0, 17, 6], "hfov": 80, "ev": 0.5, "source": "footage (Daniel's ref-19): up the strand" },
+      "HEAD_ORBIT":        { "kind": "orbit", "orbit": { "centre": [0, 14, -11], "radius": 30, "height": 7, "from_deg": -55, "to_deg": 55, "rise": 3 }, "look": [0, 14, -9], "hfov": 62, "ev": 0.2, "source": "ours: a 110-degree arc round the rings, under the strand" },
+      "HEAD_ORBIT_SLOW":   { "kind": "orbit", "orbit": { "centre": [0, 14, -11], "radius": 34, "height": 27, "from_deg": 70, "to_deg": -40, "rise": -3 }, "look": [0, 13, -6], "hfov": 64, "ev": 0.2, "source": "ours: the breakdown glide, above the strand" },
+      "CROWD_POV":         { "kind": "static", "pos": [7, 2.1, 26], "look": [0, 11, -6], "hfov": 58, "handheld": true, "ev": 0.4, "source": "footage: in the crowd" },
+      "TOPDOWN_GODVIEW":   { "kind": "orbit", "orbit": { "centre": [0, 0, 26], "radius": 0.01, "height": 31, "from_deg": 0, "to_deg": 30 }, "look": [0, 0, 26.01], "hfov": 70, "ev": 0.5, "roll": 0, "source": "ours: straight down on the strand" },
+      "TRIBUNE_34":        { "kind": "path", "pos_path": [[-30, 18, 42], [-31, 18.5, 40]], "look_path": [[0, 15, 40], [0, 14, 0]], "hfov": 44, "ev": 0.5, "source": "footage (Daniel's ref-22): the tribune three-quarter view" },
+      "DJ_OTS":            { "kind": "static", "pos": [1.2, 4.0, -7], "look": [0, 6, 40], "hfov": 80, "handheld": true, "ev": 0.3, "source": "footage: over the DJ's shoulder" },
+      "WORM_RING":         { "kind": "static", "pos": [0, 4, 20], "look": [0, 16, -10], "hfov": 64, "ev": 0.3, "source": "the rings and the lasers (Daniel's ref-20)" }
+    },
+    "sequences": {
+      "intro": [ { "shot": "FOH_HOLD_ZOOM", "bars": 4 }, { "shot": "CRANE_RISE_REVEAL", "bars": 4 } ],
+      "build": [ { "shot": "STRAND_FLYTHROUGH", "bars": 8 } ],
+      "drop":  [ { "shot": "FOH_WIDE", "bars": 2 }, { "shot": "TUNNEL_UP", "bars": 2 }, { "shot": "HEAD_ORBIT", "bars": 4 }, { "shot": "CROWD_POV", "bars": 2 },
+                 { "shot": "TOPDOWN_GODVIEW", "bars": 2 }, { "shot": "TRIBUNE_34", "bars": 2 }, { "shot": "WORM_RING", "bars": 2 } ],
+      "break": [ { "shot": "HEAD_ORBIT_SLOW", "bars": 8 } ],
+      "groove": [ { "shot": "FOH_HOLD_ZOOM", "bars": 4 }, { "shot": "TRIBUNE_34", "bars": 4 }, { "shot": "HEAD_ORBIT", "bars": 4 }, { "shot": "TUNNEL_UP", "bars": 4 } ]
+    }
+  },
+  "show": {
+    "mode": "real",
+    "theme": "source-violet",
+    "sections": {
+      "intro":  { "look": "intro", "formation": "high-wave", "lasers": { "look": "lattice", "level": 0.55 }, "camera": "intro", "speed_by_bar": [1] },
+      "build":  { "look": "build", "formation": "low-wave", "lasers": { "look": "tunnel", "level": 0.6 }, "camera": "build", "speed_by_bar": [1, 1, 1, 1, 2, 2, 2, 2] },
+      "drop":   { "look": "drop", "formation": "low-wave", "lasers": { "look": "ceiling", "level": 0.75, "reach": 8 }, "camera": "drop", "speed_by_bar": [1], "bars": 16 },
+      "break":  { "look": "break", "formation": "high-wave", "lasers": { "look": "fans", "level": 0.5 }, "camera": "break", "speed_by_bar": [0.5] },
+      "groove": { "look": "groove", "formation": "high-wave", "lasers": { "look": "lattice", "level": 0.6 }, "camera": "groove", "speed_by_bar": [1] }
+    },
+    "demo": {
+      "bpm": 150,
+      "plan": [ { "section": "intro", "bars": 8 }, { "section": "build", "bars": 8 }, { "section": "drop", "bars": 16 }, { "section": "break", "bars": 8 } ],
+      "pads": [
+        { "section": "drop", "every_bars": 1, "beat": 1, "pad": 1, "vel": 0.85 },
+        { "section": "drop", "every_bars": 2, "beat": 3, "pad": 2, "vel": 0.9 },
+        { "section": "drop", "bar": 0, "beat": 1, "pad": 6, "vel": 1.0 },
+        { "section": "build", "bar": 6, "beat": 1, "pad": 2, "vel": 1.0, "hold_beats": 6 },
+        { "section": "build", "bar": 7, "beat": 3, "pad": 10, "vel": 1.0 },
+        { "section": "intro", "every_bars": 4, "offset_bars": 3, "beat": 1, "pad": 2, "vel": 0.6 }
+      ]
+    },
+    "pads": { "1": "kick", "2": "lasers", "6": "flyout", "10": "drop" },
+    "faders": { "cc105": "strand", "cc108": "lasers", "cc109": "haze", "cc110": "speed", "cc113": "grand" },
+    "fader_defaults": { "strand": 1, "lasers": 1, "haze": 0.55, "speed": 0.5, "grand": 1 }
+  }
+}

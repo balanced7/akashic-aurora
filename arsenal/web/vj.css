@@ -97,6 +97,8 @@ kbd { font-family: var(--mono); font-size: 10px; padding: 0 3px; border: 1px sol
 .param label, .target label { color: var(--ink-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .param .val, .target .val { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: right; }
 .target .bind { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.target-head { margin-top: 8px; color: var(--ink-dim); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+.target.scene-action .val { text-align: left; }
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 .pad-map { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .pad-cell { display: grid; gap: 3px; padding: 6px; border-radius: 6px; border: 1px solid var(--line); background: #0d1017; }

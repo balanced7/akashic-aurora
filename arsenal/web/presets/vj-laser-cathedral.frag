@@ -1,5 +1,5 @@
 #version 300 es
-//! {"id": "vj-laser-cathedral", "name": "VJ Laser Cathedral", "author": "Vandor", "tags": ["vj", "generative", "laser", "beat", "pads"], "params": [{"k": 1, "name": "sweep", "default": 0.55}, {"k": 2, "name": "haze", "default": 0.55}, {"k": 3, "name": "beam width", "default": 0.4}, {"k": 4, "name": "fan spread", "default": 0.55}, {"k": 5, "name": "trails", "default": 0.45}, {"k": 6, "name": "arches", "default": 0.45}]}
+//! {"id": "vj-laser-cathedral", "name": "VJ Laser Cathedral", "author": "Vandor", "tags": ["vj", "generative", "laser", "beat", "pads", "laser-heads"], "params": [{"k": 1, "name": "sweep", "default": 0.55}, {"k": 2, "name": "haze", "default": 0.55}, {"k": 3, "name": "beam width", "default": 0.4}, {"k": 4, "name": "fan spread", "default": 0.55}, {"k": 5, "name": "trails", "default": 0.45}, {"k": 6, "name": "arches", "default": 0.45}]}
 precision highp float;
 
 // Laser Cathedral (arsenal/web/vj.html, Play-loadable). A rig of twelve laser heads laid out like the KeyLab's pads, three
@@ -9,7 +9,15 @@ precision highp float;
 // (3-12) and how wide the fan opens. The beams are neon lines (arsenal/web/glsl/groups/neon-line.glsl, reduced here): a
 // pixel-wide hot core that whitens with energy inside a Lorentzian halo, and the halo is dimmed and lit by a slow haze, so
 // the light looks like it is in smoke. Trails come from u_prev (max, never add: crossings stay crisp). In Play the bands
-// stand in for the pads: the top row listens to the highs, the middle to the mids, the bottom to the bass.
+// stand in for the pads: the top row listens to the highs, the middle to the mids, the bottom to the bass. Any pad hit
+// (the strip's shared hit input, 2026-10-24) fans every idle beam out: each head's single beam opens into a fan of
+// three to six that folds back as the hit decays, brighter for a harder hit.
+// Lasers v2 (2026-10-25, the header tag "laser-heads"): the page's laser engine plays its heads through the strip's head
+// bus (STRIP v3): each head fans as bright as max(its pad, its bus level), in the bus's colour slot (the lasers' first
+// colour, their second, or white) with the bus's beam count and spread; while a laser gate runs the idle beams dip to
+// the bus's solo level (a laser desk's Flash-Solo) and the trails shorten, so a gate's dark gaps stay dark here too.
+// Converge aims every head at the centre and Rain straight down; every other pattern keeps the scissor aim. The page
+// draws only the hero head itself. Play (no bus) and an older page (strip v2) see the Cathedral as before.
 
 uniform sampler2D u_video;   // the VJ page: its 16x6 VJ strip (u_has_video stays 0); Play: the video or a 1x1 black texture
 uniform sampler2D u_prev;
@@ -58,6 +66,43 @@ void vjLoad() {
 }
 
 vec3 padColour(int i) { return gHost ? vjAt(i, 3).rgb : gPal[i - 4 * (i / 4)]; }
+
+// the shared hit input (STRIP v2, row 2: vj-core.js): the latest pad hit's pulse (through the velocity curve), its velocity,
+// its effect code and age, where it struck; the kick / snare / hat envelopes. 0 in Play and on a v1 host.
+float gHit, gHitVel, gHitCode, gHitAge, gSnare, gHat;
+vec2 gHitAt;
+void hitLoad() {
+  if (gHost && vjAt(15, 2).x >= 2.0) {
+    vec4 h = vjAt(10, 2);
+    gHit = h.x; gHitVel = h.y; gHitCode = h.z; gHitAge = h.w;
+    vec4 b = vjAt(11, 2);
+    gSnare = b.y; gHat = b.z;
+    gHitAt = vjAt(12, 2).yz;
+  } else {
+    gHit = 0.0; gHitVel = 0.0; gHitCode = 0.0; gHitAge = 30.0; gSnare = 0.0; gHat = 0.0; gHitAt = vec2(0.0);
+  }
+}
+
+
+// the head bus (STRIP v3: vj-core.js, vj-hookup.js headBus): the lasers' pattern, solo, colours, fan size and heads
+float gBusOn, gSolo, gBusPattern, gBusBeams, gBusSpread;
+vec3 gL1, gL2;
+void busLoad() {
+  gBusOn = 0.0; gSolo = 1.0; gBusPattern = 0.0; gBusBeams = 0.0; gBusSpread = 0.0; gL1 = vec3(1.0); gL2 = vec3(1.0);
+  if (!gHost || vjAt(15, 2).x < 3.0) return;
+  vec4 h = vjAt(9, 2);
+  gBusPattern = h.y; gSolo = h.w > 0.0 ? clamp(h.w, 0.0, 1.0) : 1.0;
+  vec4 a = vjAt(13, 2), b = vjAt(14, 2);
+  gL1 = a.rgb; gBusBeams = a.w; gL2 = b.rgb; gBusSpread = b.w;
+  gBusOn = 1.0;
+}
+// head i's bus value: the colour slot (0 L1, 1 L2, 2 white) plus the level (0..0.999); 0 = dark
+float busHead(int i) {
+  if (gBusOn < 0.5) return 0.0;
+  vec4 t = vjAt(12 + i / 4, 3);
+  int c = i - 4 * (i / 4);
+  return c == 0 ? t.x : c == 1 ? t.y : c == 2 ? t.z : t.w;
+}
 
 vec2 padLevel(int i) {          // (envelope, velocity)
   if (gHost) return vjAt(i, 0).xy;
@@ -125,6 +170,8 @@ float archDist(vec2 p, float cx, float w, float y0) {
 
 void main() {
   vjLoad();
+  hitLoad();
+  busLoad();
   float asp = u_res.x / max(u_res.y, 1.0);
   vec2 p = (v_uv - 0.5) * vec2(asp, 1.0);
   float px = 1.0 / max(u_res.y, 1.0);
@@ -132,7 +179,7 @@ void main() {
 
   // trails: the previous frame fades by a multiplier and a floor step (an 8-bit buffer must reach black)
   vec3 prev = texture(u_prev, v_uv).rgb;
-  float keep = 0.45 + 0.47 * u_k5;
+  float keep = (0.45 + 0.47 * u_k5) * mix(0.35, 1.0, smoothstep(0.3, 0.95, gSolo));   // a laser gate: short trails
   vec3 trail = max(prev * keep - 1.5 / 255.0, 0.0);
 
   // the nave: near black, a little lift toward the floor where the haze collects
@@ -166,18 +213,29 @@ void main() {
     float aim = atan(toF.y, toF.x);
     if (tremble > 2e-4) aim += tremble * (vnoise(vec2(u_time * 1.7, float(i) * 3.1)) - 0.5) * 6.0;   // tension shivers
     // the idle beam: dim, always there
-    vec2 bd = fanDistance(p, o, aim, 1.0, 0.0, px);
-    float idleE = (0.20 + 0.22 * bassLift + 0.25 * gPulse) * exp(-max(bd.y, 0.0) * 0.55);
+    float hitN = gHit > 0.02 ? floor(3.0 + 3.0 * gHitVel) : 1.0;
+    vec2 bd = fanDistance(p, o, aim, hitN, 0.55 * gHit * (0.6 + 0.4 * gHitVel), px);
+    float idleE = (0.20 + 0.22 * bassLift + 0.25 * gPulse + 0.55 * gHit) * exp(-max(bd.y, 0.0) * 0.55) * gSolo;
     beams += neonCore(bd.x, tint, idleE, widthPx * 0.8, 1.2);
     hazeLight += idleE * halo(bd.x, haloPx);
     vec3 tintH = tint * idleE * halo(bd.x, haloPx);
-    // the fan: the pad's envelope opens it, velocity sets how many beams and how wide
+    // the fan: the pad's envelope opens it, velocity sets how many beams and how wide; or the laser engine's head bus
     vec2 lv = padLevel(i);
+    float bh = busHead(i);
+    float bSlot = floor(bh), bLevel = bh - bSlot;
+    bool fromBus = bLevel > lv.x && bLevel > 0.002;
+    if (fromBus) {
+      tint = bSlot < 0.5 ? gL1 : bSlot < 1.5 ? gL2 : vec3(1.0);
+      lv = vec2(bLevel, 0.85);
+    }
     if (lv.x > 0.002) {
-      float n = floor(3.0 + 9.0 * lv.y);
-      float spread = (0.25 + 1.1 * u_k4 * (0.4 + 0.6 * lv.y)) * (0.35 + 0.65 * lv.x);
-      float spin = 0.35 * sin(u_time * 0.8 + float(i));
-      vec2 fd = fanDistance(p, o, aim + spin * lv.x, n, spread, px);
+      float n = fromBus && gBusBeams >= 1.0 ? clamp(gBusBeams, 1.0, 12.0) : floor(3.0 + 9.0 * lv.y);
+      float spread = fromBus && gBusSpread > 0.0 ? gBusSpread : (0.25 + 1.1 * u_k4 * (0.4 + 0.6 * lv.y)) * (0.35 + 0.65 * lv.x);
+      float spin = fromBus ? 0.0 : 0.35 * sin(u_time * 0.8 + float(i));
+      float fanAim = aim;
+      if (fromBus && abs(gBusPattern - 7.0) < 0.5) fanAim = atan(-o.y, -o.x);           // Converge: at the centre
+      if (fromBus && abs(gBusPattern - 12.0) < 0.5) fanAim = o.y > 0.0 ? -1.5708 : 1.5708;   // Rain: straight down (up from the floor)
+      vec2 fd = fanDistance(p, o, fanAim + spin * lv.x, n, spread, px);
       float fanE = lv.x * (0.7 + 0.6 * lv.y) * exp(-max(fd.y, 0.0) * 0.35);
       beams += neonCore(fd.x, tint, fanE, widthPx * (1.0 + 0.6 * lv.y), 2.0);
       float fh = fanE * halo(fd.x, haloPx * (1.0 + lv.y));

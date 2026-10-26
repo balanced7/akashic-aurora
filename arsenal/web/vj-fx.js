@@ -283,13 +283,15 @@ export function createVjFx(gl, { internalFormat, type }) {
     },
     // The framebuffer the composite should draw into while the look is on.
     target(w, h) { ensure(w, h); return T.comp.fbo; },
-    // The look: from the composite target to the screen. p = vj-show.js lookParams(amount); hit 0..1.
-    post(w, h, p, hit) {
+    // The look: from the composite (`src`, or this module's composite target) to the screen, or into the framebuffer
+    // `dst` (the flash limiter's input). p = vj-show.js lookParams(amount); hit 0..1.
+    post(w, h, p, hit, src = null, dst = null) {
       ensure(w, h);
+      const srcTex = src || T.comp.tex;
       frame = (frame + 1) % 65536;
       // the bright pass and the two glow levels
       gl.useProgram(pre.prog);
-      bind(0, T.comp.tex);
+      bind(0, srcTex);
       gl.uniform1i(pre.u.u_src, 0);
       gl.uniform2f(pre.u.u_srcTexel, 1 / w, 1 / h);
       draw(T.b1);
@@ -309,7 +311,7 @@ export function createVjFx(gl, { internalFormat, type }) {
       gl.generateMipmap(gl.TEXTURE_2D);
       // the final pass, to the screen
       gl.useProgram(post.prog);
-      bind(0, T.comp.tex); bind(1, T.b1.tex); bind(2, T.b2m.tex);
+      bind(0, srcTex); bind(1, T.b1.tex); bind(2, T.b2m.tex);
       gl.uniform1i(post.u.u_src, 0); gl.uniform1i(post.u.u_b1, 1); gl.uniform1i(post.u.u_b2, 2);
       gl.uniform2f(post.u.u_res, w, h);
       gl.uniform1f(post.u.u_bloom, p.bloom);
@@ -318,7 +320,7 @@ export function createVjFx(gl, { internalFormat, type }) {
       gl.uniform1f(post.u.u_grain, p.grain);
       gl.uniform1f(post.u.u_ca, p.aberration * Math.min(1, Math.max(0, hit)));
       gl.uniform1f(post.u.u_seed, (frame * 7.13) % 1024);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, dst);
       gl.viewport(0, 0, w, h);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.activeTexture(gl.TEXTURE0);
