@@ -52,6 +52,14 @@ def _variant_item(incumbent: Dict[str, Any], new_recommendation: str) -> Dict[st
     v = dict(incumbent)
     v["text"] = str(new_recommendation)
     v["trigger"] = _parse_trigger(new_recommendation)
+    # `match_text` is what the relevance fn actually scores (at_action, 2026-10-05):
+    # recommendation + actual + what_tried. Swap ONLY the recommendation part, or the variant
+    # is scored on the incumbent's wording and every edit looks identical to the incumbent.
+    mt = str(incumbent.get("match_text") or "")
+    if mt:
+        old = str(incumbent.get("text") or "")
+        rest = mt[len(old) :] if incumbent.get("field") == "recommendation" and mt.startswith(old) else " " + mt
+        v["match_text"] = (str(new_recommendation) + rest).strip()
     return v
 
 
