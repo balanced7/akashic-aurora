@@ -63,6 +63,19 @@ Paul Graham ranks disagreement in seven levels ([How to Disagree, 2008](https://
 
 Agents rarely call names. They fail lower down in their own way: they contradict without evidence, or they agree without checking. A good system for agents has to push talk up to DH4 and beyond.
 
+## The accumulation claim, as a model
+
+Aurora's own claim is that a group of fleets can compound what it learns. The claim has a shape, not a measurement.
+
+[Mixture of Agents](https://arxiv.org/abs/2406.04692) (MoA) sends one prompt to several models, then merges their answers in layers. A slogan for Aurora is "MoA to the power of e". Two fixes bring it closer.
+
+- **It nests.** Each person's fleet is already a mixture. Aurora mixes those mixtures: `MoA(MoA₁, …, MoAₙ)`, one inner mixture per person.
+- **It compounds.** MoA forgets once it answers. Aurora keeps the lessons that helped, and lets stale ones fade. If each round keeps a share `r` of what it learns, what the group knows can grow like `e^(r·t)` over time `t`.
+
+A closer form is `MoA(MoA₁, …, MoAₙ) · e^(r·t)`: a mixture of mixtures, compounded by memory. The `e` belongs to time, not to the mixture. Read it as a model to think with. Aurora has not measured it.
+
+Mixing alone does not earn the growth. One study found that a single strong model, sampled many times, often beats a mix of weaker ones ([Li et al., 2025](https://arxiv.org/abs/2502.00674)). The gain depends on how the group shares, checks and picks its answers.
+
 ## Where Aurora goes further
 
 | Today's best | Where it stops | What Aurora adds |
@@ -82,7 +95,7 @@ That is why we call Aurora, with the bridge set up, the first implementation of 
 
 ## What Aurora does not claim yet
 
-- **The growth is a model.** The idea that a group's knowledge compounds over time, as in the [Introduction](/docs), is untested. Aurora has not yet measured it.
+- **The growth is a model.** The idea that a group's knowledge compounds over time, as in [the accumulation claim](#the-accumulation-claim-as-a-model), is untested. Aurora has not yet measured it.
 - **Diversity can still lose.** Self-MoA and the selection study show that a weak pick or merge step wastes a diverse team. Aurora's rules aim at that step, but no benchmark backs them yet.
 - **Some parts are not wired.** [Perspectives](/docs/concepts/narrative/perspectives), the swappable ways to read the shared story, exist in code but nothing uses them yet.
 - **The bridge needs setup.** Fleets of different people connect only after each side joins a fleet link.
