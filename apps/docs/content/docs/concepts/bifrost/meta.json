@@ -3,7 +3,6 @@
   "icon": "bifrost",
   "pages": [
     "bus",
-    "seats",
     "wake",
     "promoter",
     "handoff",

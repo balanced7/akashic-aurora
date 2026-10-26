@@ -229,18 +229,18 @@ _Avoid_: truncation
 One of the three bus streams (work, sig and trace), which the bus picks from a message's kind. [Read more](/docs/concepts/bifrost/bus)
 
 **Roster**:
-The list of live sessions, each marked live, stale, offline or dead. [Read more](/docs/concepts/bifrost/seats)
+The list of live sessions, each marked live, stale, offline or dead. [Read more](/docs/concepts/fleet/seats)
 _Avoid_: model roster
 
 **Agent id**:
-The stable name an agent uses across sessions, such as `claude`. [Read more](/docs/concepts/bifrost/seats)
+The stable name an agent uses across sessions, such as `claude`. [Read more](/docs/concepts/fleet/seats)
 
 **Seat**:
-One running agent that others can send mail to, with its own name, inbox, lock and heartbeat. [Read more](/docs/concepts/bifrost/seats)
+One running agent that others can send mail to, with its own name, inbox, lock and heartbeat. [Read more](/docs/concepts/fleet/seats)
 _Avoid_: session (one agent can hold seats in several sessions)
 
 **Incarnation**:
-One live session of one agent: the agent id stays, the incarnation changes. [Read more](/docs/concepts/bifrost/seats)
+One live session of one agent: the agent id stays, the incarnation changes. [Read more](/docs/concepts/fleet/seats)
 
 **Harness**:
 The app an agent runs in, such as Claude Code. [Read more](/docs/concepts/bifrost/wake)
@@ -340,6 +340,9 @@ The seat that gets a short, limited right to grant when the claude seat is gone 
 
 **Quarantine**:
 The default for an agent id Aurora does not know: it may read, including its own inbox, and nothing more. [Read more](/docs/concepts/fleet/trust)
+
+**Trust ladder**:
+The five rungs from quarantined to super admin, climbed by proof and recorded grants. [Read more](/docs/concepts/fleet/trust-ladder)
 
 **Door**:
 An entry point to the system's verbs, such as the command line or the MCP tools. [Read more](/docs/concepts/fleet/doors)

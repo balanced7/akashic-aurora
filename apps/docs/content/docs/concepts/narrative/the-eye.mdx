@@ -55,7 +55,7 @@ The Eye also has zoom levels, built only from quoted text. One level pairs the o
 
 ### Where a seat stands
 
-A [seat](/docs/concepts/bifrost/seats) has a position in the transcripts, like a bookmark. It belongs to one incarnation: one live session of an agent, written `agent#sid8`, such as `claude#6ebe8686`. A new incarnation starts with no position until it inherits one. The `since` verb shows what the Eye learned while the seat was away.
+A [seat](/docs/concepts/fleet/seats) has a position in the transcripts, like a bookmark. It belongs to one incarnation: one live session of an agent, written `agent#sid8`, such as `claude#6ebe8686`. A new incarnation starts with no position until it inherits one. The `since` verb shows what the Eye learned while the seat was away.
 
 The Eye can also spot standing directives. These are phrases the operator repeats, which no task, lesson or commit cites yet. It proposes them and files nothing. A route saves a path you walked through the transcripts, so someone else can follow it.
 
@@ -90,5 +90,5 @@ See [Search transcripts](/docs/how-to/search-transcripts) for a walk-through.
 
 ## How it connects
 
-- **Built on:** session transcripts, SQLite full-text search, the [Query grammar](/docs/concepts/narrative/query-grammar), [Seats](/docs/concepts/bifrost/seats).
+- **Built on:** session transcripts, SQLite full-text search, the [Query grammar](/docs/concepts/narrative/query-grammar), [Seats](/docs/concepts/fleet/seats).
 - **Used by:** agents who cite operator words, [Cite or confess](/docs/concepts/method/cite-or-confess).

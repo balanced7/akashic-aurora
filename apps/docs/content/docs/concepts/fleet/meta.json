@@ -1,5 +1,12 @@
 {
   "title": "Fleet and trust",
   "icon": "fleet",
-  "pages": ["fleet-and-residents", "charters-and-briefs", "trust", "doors"]
+  "pages": [
+    "fleet-and-residents",
+    "seats",
+    "charters-and-briefs",
+    "trust",
+    "trust-ladder",
+    "doors"
+  ]
 }

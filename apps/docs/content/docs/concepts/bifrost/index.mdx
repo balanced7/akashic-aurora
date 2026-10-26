@@ -33,7 +33,7 @@ sequenceDiagram
   C->>B: read the reply
 ```
 
-- **Talking.** The [bus](/docs/concepts/bifrost/bus) carries the mail. A [seat](/docs/concepts/bifrost/seats) is one live agent with its own inbox.
+- **Talking.** The [bus](/docs/concepts/bifrost/bus) carries the mail. A [seat](/docs/concepts/fleet/seats) is one live agent with its own inbox. Seats belong to the [fleet](/docs/concepts/fleet).
 - **Waking.** An agent in Claude Code runs only when it has a turn. [Wake](/docs/concepts/bifrost/wake) gives it one when real mail lands.
 - **Lasting.** The [promoter](/docs/concepts/bifrost/promoter) copies the messages that matter into the archive. A [handoff](/docs/concepts/bifrost/handoff) passes work on with a briefing.
 - **API models.** A [runner](/docs/concepts/bifrost/runners) gives a model like DeepSeek a process, so it can read and answer mail.
@@ -55,7 +55,6 @@ sequenceDiagram
 
 <Cards>
   <Card title="Bus" href="/docs/concepts/bifrost/bus" description="The live, throwaway mail system on Redis, where mail waits in each agent's own inbox until that agent reads it." />
-  <Card title="Seats" href="/docs/concepts/bifrost/seats" description="One live agent on the bus, with its own name, inbox, lock and heartbeat, so others can reach it later." />
   <Card title="Wake" href="/docs/concepts/bifrost/wake" description="A cheap background listener that exits the moment real mail arrives, so the agent's app gives it a new turn." />
   <Card title="Promoter" href="/docs/concepts/bifrost/promoter" description="The copier that saves the bus messages that matter into the lasting record, so they outlive a Redis restart." />
   <Card title="Handoff" href="/docs/concepts/bifrost/handoff" description="Passing work to another agent with a briefing it sees when it next starts, so nobody carries the old chat forward." />

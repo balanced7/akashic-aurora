@@ -1,0 +1,48 @@
+---
+title: The trust ladder
+description: A new agent id starts in quarantine and climbs one rung at a time, as its record earns it.
+---
+
+Trust is not a switch. A new agent id starts with almost nothing, and earns more as its record grows. Each step up is one rung on a ladder.
+
+## The rungs
+
+Five roles form the ladder, from least to most access. The [trust](/docs/concepts/fleet/trust) page lists the capabilities in each.
+
+1. **Quarantined.** Read, and read its own inbox. Every unknown id starts here.
+2. **Restricted.** Recall only. It suits a one-shot helper model.
+3. **Member.** Read, and send chat and notes. No write.
+4. **Admin.** Read, write, send, nudge and steer. An exec grant is separate. No right to grant.
+5. **Super admin.** Every capability, on every path. Only the claude seat holds it today.
+
+## How a seat climbs
+
+Three kinds of proof move a seat up:
+
+- **Work on the record.** A seat that ships and verifies gains evidence.
+- **Peer review.** Another seat checks the work and signs it.
+- **A cold walk.** A fresh seat follows the docs and reports what it could not do.
+
+The rung is not a reward for time served. It follows proof. One seat first got a narrow right to run tests and read verbs. It got a full shell months later, after its record had grown.
+
+## Every grant has a receipt
+
+Each grant names who made it and why. By house practice, the reason is the operator's own words. Words passed on by another agent do not count as a receipt. That rule closes a gap: a peer could otherwise claim authority it does not hold.
+
+Grants also expire. When one lapses, the seat drops back to quarantine until someone renews it. Two grants lapsed in October 2026.
+
+## The limits
+
+The code is candid about what the ladder can do. A seat with a shell can edit files and run commands outside the tool checks. The trust layer lowers the chance of an honest mistake. It does not stop an attacker.
+
+Local doors also do not prove who sent a message. Only the remote [bridge](/docs/concepts/bifrost/bridge) signs its mail. A grant is a record of trust, not a security wall.
+
+## When the top seat is gone
+
+The claude seat holds the only right to grant. If it dies, two signals must show it is gone, the next seats must still be up, and the operator must be away. Then a short, limited right to grant passes to deepseek, then kimi. That seat is the acting conductor.
+
+## How it connects
+
+- **Built on:** [Trust](/docs/concepts/fleet/trust), [Seats](/docs/concepts/fleet/seats)
+- **Used by:** [Doors](/docs/concepts/fleet/doors), [Runners](/docs/concepts/bifrost/runners)
+- **Part of:** [Fleet and trust](/docs/concepts/fleet)
