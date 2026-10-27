@@ -13,6 +13,7 @@
 //     -> atmosphere -> renderer (three.js, house GLSL) -> the final-frame flash limiter -> the canvas.
 // URL: ?demo=1 (the demo show, no engine) ?engine=http://127.0.0.1:8794 (default; "off" for none) ?set=source-v1
 //      (source-v0 still loads) ?quality=high|receipt|low ?hud=0 ?w=&h= (a fixed backing size, for receipts)
+//      ?theme=dreaming-city (one of the set's themes) ?phrase=pillars (the phrase pad 3 starts)
 //
 // v1 (2026-10-25): the phrases (phrases.js) sit between the show and the programmer: a section may name one, pads 3, 4
 // and 7 (keys 3, 4, 7) are PHRASE GO, NEXT and STOP, and the HUD shows the phrase's step. Every phrase event lands on the
@@ -42,6 +43,10 @@ const ENGINE_URL = (() => {
   return DEMO ? null : "http://127.0.0.1:8794";
 })();
 const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set") : "source-v1";
+// ?theme= one of the set's themes (else the show's own) and ?phrase= the phrase pad 3 starts (else the set's first): the
+// looks wave-1 themes and phrases (Dreaming City, Single Thread, Pillars...) are reached by name
+const asName = (v) => (/^[a-z0-9][a-z0-9-]{0,40}$/.test(v || "") ? v : null);
+const THEME_ASKED = asName(QS.get("theme")), PHRASE_ASKED = asName(QS.get("phrase"));
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
 // The bloom mix the finish pass uses. render.js reads it off the frame state as `fs.bloomMix ?? 0.05` and then divides
@@ -87,7 +92,7 @@ async function boot() {
 
 function start({ rig, R, renderMod }) {
   const show0 = rig.show;
-  const themeName = show0.theme || Object.keys(rig.themes)[0];
+  const themeName = THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : show0.theme || Object.keys(rig.themes)[0];
   const theme = { name: themeName, ...rig.themes[themeName] };
   const demoBpm = (show0.demo && show0.demo.bpm) || 150;
   const now0 = performance.now();
@@ -100,7 +105,7 @@ function start({ rig, R, renderMod }) {
   const lasers = new LaserEngine({ seed: rig.seed, clock: grid.clock(), colours: theme.laser, heads: extraHeadsFrom(rig.projectors) });
   const lasers3d = new Lasers3D(rig.projectors, rig.venue, { heads: lasers.heads });
   const runner = Object.keys(rig.phrases || {}).length ? new PhraseRunner(rig) : null;
-  const firstPhrase = runner ? Object.keys(rig.phrases)[0] : null;
+  const firstPhrase = runner ? (PHRASE_ASKED && rig.phrases[PHRASE_ASKED] ? PHRASE_ASKED : Object.keys(rig.phrases)[0]) : null;
   const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
   // v2: the director knows the strand (it never deals a shot within 1.5 m of a rung) and each formation's hero views

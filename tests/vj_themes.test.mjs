@@ -16,6 +16,12 @@ const lib = T.loadLibrary(RAW);
 const clone = () => JSON.parse(JSON.stringify(RAW));
 const theme = (id) => lib.byId.get(id);
 const SPEC = here("../research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-2026-10-24.md");
+// looks wave 1 (VJ V2 build spec section F): the themes appended after the spec's 21, and the three that take fader detents
+const WAVE1 = ["dreaming-city", "vex-network", "armillary-brass", "pillars-sho", "sodium-sun", "event-horizon", "amber-noir",
+               "aurora", "starfield", "ice-co2", "genesis-indigo", "liquid-sky", "vex-conflux", "black-garden",
+               "timelost-white", "anti-sun"];
+const WAVE1_ON_FADER = ["pillars-sho", "vex-network", "dreaming-city"];
+const onFader = (t) => t.fader !== false;
 
 // a steady grid: beats every beatMs from 0, bars of 4 beats, phrases of 8 bars (a ThemeClock, as the page will hand in)
 function grid(beatMs = 500) {
@@ -39,7 +45,7 @@ const strobing = (L) => [L.lasers.L1, L.lasers.L2, ...L.lasers.triple, ...L.lase
                          L.fx.flash, L.fx.shockwave, L.scene.kickGlow];
 
 // ------------------------------------------------------------------------------------------------ the library --
-test("the library file is the spec's validated v2 library, word for word (only a source line added)", () => {
+test("the spec's validated v2 library is in the file word for word: its 21 themes first, the wave-1 themes after them", () => {
   const md = readFileSync(SPEC, "utf8");
   const i = md.indexOf("## The theme library (v2, validated: 0 errors)");
   assert.ok(i > 0, "the spec's library section");
@@ -47,27 +53,129 @@ test("the library file is the spec's validated v2 library, word for word (only a
   const spec = JSON.parse(md.slice(j, md.indexOf("```", j)));
   const ours = clone();
   assert.match(ours.source, /vj-lasers-v2-and-colour-themes-2026-10-24\.md/);
+  assert.match(ours.source, /vj-v2-research-2026-10-27\/looks\.research\.md/);
   delete ours.source;
-  assert.deepEqual(ours, spec);
+  assert.deepEqual(ours.themes.slice(0, spec.themes.length), spec.themes, "the spec's themes, untouched and first");
+  assert.deepEqual(ours.themes.slice(spec.themes.length).map((t) => t.id), WAVE1, "then wave 1, in its own order");
+  const added = new Set(WAVE1);
+  assert.deepEqual(ours.fader_order.filter((id) => !added.has(id)), spec.fader_order, "the spec's walk, with detents inserted");
+  ours.themes = spec.themes;
+  ours.fader_order = spec.fader_order;
+  delete ours.special_modes;                    // wave 1's own key (tested below)
+  assert.deepEqual(ours, spec, "every other key as the spec wrote it");
 });
 
-test("the library validates with no errors and no warnings: 21 themes in 8 families, as the spec's table", () => {
+test("the library validates with no errors and no warnings: 37 themes in the spec's 8 families", () => {
   const v = T.validateLibrary(RAW);
   assert.deepEqual(v.errors, []);
   assert.deepEqual(v.warnings, []);
-  assert.equal(lib.themes.length, 21);
+  assert.equal(lib.themes.length, 21 + WAVE1.length);
   assert.deepEqual(lib.familyThemes, {
-    ritual: ["void-ritual", "red-tribe", "red-blades"],
-    fire: ["molten", "golden-wings", "fire-and-ice"],
-    celestial: ["celestial-violet", "violet-rose", "uv-euphoria"],
-    night: ["night-sea", "temple-light", "blue-raw", "limbo"],
-    green: ["laser-green", "acid-screech"],
+    ritual: ["void-ritual", "red-tribe", "red-blades", "black-garden"],
+    fire: ["molten", "golden-wings", "fire-and-ice", "pillars-sho", "sodium-sun", "event-horizon", "amber-noir"],
+    celestial: ["celestial-violet", "violet-rose", "uv-euphoria", "dreaming-city", "vex-network", "armillary-brass"],
+    night: ["night-sea", "temple-light", "blue-raw", "limbo", "starfield", "ice-co2", "genesis-indigo", "liquid-sky"],
+    green: ["laser-green", "acid-screech", "aurora"],
     pyro: ["pink-pyro", "magenta-classics"],
-    worship: ["cathedral-jewel", "brass-break", "sanctuary-gold"],
-    line: ["bone-line"],
+    worship: ["cathedral-jewel", "brass-break", "sanctuary-gold", "timelost-white"],
+    line: ["bone-line", "vex-conflux", "anti-sun"],
   });
   assert.equal(Object.keys(lib.families).length, 8);
   assert.ok(Object.isFrozen(lib.themes) && Object.isFrozen(theme("molten").led), "a loaded library cannot be edited");
+});
+
+test("wave 1: each new theme names its source, three take fader detents, the rest are marked off the fader", () => {
+  for (const id of WAVE1) {
+    const t = theme(id);
+    assert.ok(t, id);
+    assert.ok(typeof t.from === "string" && t.from.length > 10, `${id} names its source`);
+    assert.equal(onFader(t), WAVE1_ON_FADER.includes(id), `${id} fader`);
+    assert.equal(lib.faderOrder.includes(id), onFader(t), `${id} is on the fader exactly when it is not marked off it`);
+  }
+  // the fader is full: 24 themes and Custom, each detent keeping at least 5 of the 128 positions
+  assert.equal(lib.faderOrder.length, T.FADER_MAX_DETENTS);
+  assert.equal(T.FADER_MAX_DETENTS, 25);
+  // every theme off the fader is reached by its family tab: pressed again inside a bar, the family walks on to it
+  const clock = grid(500);
+  for (const id of WAVE1.filter((x) => !WAVE1_ON_FADER.includes(x))) {
+    const fam = theme(id).family;
+    const d = new T.ThemeDirector(lib, { initial: "night-sea" });
+    const seen = [];
+    for (let k = 0; k < lib.familyThemes[fam].length; k++) {
+      d.onFamilyTab(fam, 100 + k * 300, clock);
+      seen.push(d.state.pending ? d.state.pending.id : d.current);
+    }
+    assert.ok(seen.includes(id), `${id}: the ${fam} tab walks ${seen.join(", ")}`);
+  }
+});
+
+test("the special modes break the two-colour rule only under their rarity: Spectral Fan once a set, Shimmer once in 64 bars", () => {
+  const sm = lib.specialModes;
+  assert.deepEqual(Object.keys(sm), ["spectral-fan", "shimmer"]);
+  for (const id of Object.keys(sm)) {
+    assert.ok(!lib.byId.has(id) && !lib.faderOrder.includes(id), `${id} is no theme and has no detent`);
+    assert.ok(Object.isFrozen(sm[id]));
+  }
+  // the fan: twelve hues round the wheel at one lightness, none in the red band, for at most the library's 2 beats
+  const fan = sm["spectral-fan"], o = (hex) => T.toOklch(T.hexToLinear(hex));
+  assert.equal(fan.hues.length, 12);
+  const hs = fan.hues.map(o);
+  assert.ok(hs.every((c) => c.h >= 55 - 0.5 && c.h <= 330 + 0.5), "55..330 degrees: red skipped");
+  assert.ok(hs.every((c, i) => i === 0 || c.h > hs[i - 1].h), "a prism, in order");
+  assert.ok(Math.max(...hs.map((c) => c.L)) - Math.min(...hs.map((c) => c.L)) <= 0.005, "one lightness");
+  assert.ok(fan.hues.every((h) => !T.isSaturatedRed(h)));
+  assert.match(lib.rules.burst.secret, /one full-spectrum fan per set.*<= 2 beats/);
+  assert.deepEqual([fan.rarity, fan.max_beats], [{ per: "set", times: 1 }, 2], "the library's own rule");
+  // the shimmer: four low-chroma edge hues at one lightness on at most 5 % of the frame, 8 bars at most
+  const sh = sm.shimmer;
+  assert.ok(sh.edges.map(o).every((c) => c.C <= 0.13 && Math.abs(c.L - 0.8) < 0.005));
+  assert.ok(sh.edge_share_max <= 0.05);
+  assert.deepEqual([sh.rarity, sh.max_beats], [{ every_bars: 64 }, 32]);
+  // the gate: the fan once a set, the shimmer once every 64 bars, an unknown mode never
+  const g = new T.SpecialModes(lib);
+  assert.equal(g.take("spectral-fan", 40).ok, true);
+  const again = g.take("spectral-fan", 300);
+  assert.equal(again.ok, false);
+  assert.match(again.reason, /1 a set, used/);
+  assert.equal(g.check("spectral-fan", 300).ok, false, "a refusal is not a use");
+  assert.equal(g.take("shimmer", 8).ok, true);
+  assert.equal(g.take("shimmer", 71).ok, false, "63 bars later");
+  assert.match(g.check("shimmer", 71).reason, /next at bar 72/);
+  assert.deepEqual([g.take("shimmer", 72).ok, g.take("shimmer", 100).ok], [true, false]);
+  assert.equal(g.take("rainbow", 0).ok, false);
+  g.newSet();
+  assert.equal(g.take("spectral-fan", 0).maxBeats, 2, "a new set may spend it again, for 2 beats");
+  // the validator refuses a mode that would weaken the rules
+  const fault = (edit, pattern) => {
+    const raw = clone();
+    edit(raw.special_modes);
+    const v = T.validateLibrary(raw);
+    assert.ok(v.errors.some((e) => pattern.test(e)), `${pattern} not in ${JSON.stringify(v.errors)}`);
+  };
+  fault((s) => { delete s.shimmer.rarity; }, /shimmer: rarity must be .* never unlimited/);
+  fault((s) => { s["spectral-fan"].rarity = { every_bars: 2 }; }, /spectral-fan: rarity must be/);
+  fault((s) => { s["spectral-fan"].hues[0] = "#ff3a2a"; }, /hues\[0\] #ff3a2a is saturated red/);
+  fault((s) => { s["spectral-fan"].hues.unshift("#ff8f6a"); }, /hue 3\d\b|in the red band/);
+  fault((s) => { s["spectral-fan"].hues[5] = "#00ffcc"; }, /hues spread .* in lightness/);
+  fault((s) => { s["spectral-fan"].hues.reverse(); }, /in order \(a prism\)/);
+  fault((s) => { s.shimmer.edge_share_max = 0.2; }, /edge_share_max must be in \(0, 0\.05\]/);
+  fault((s) => { s.molten = { ...s.shimmer, name: "Molten" }; }, /special_modes\.molten: a special mode is never a theme/);
+});
+
+test("Dreaming City: the hues measured from Daniel's stills, lifted to stage chroma", () => {
+  const t = theme("dreaming-city"), o = (hex) => T.toOklch(T.hexToLinear(hex));
+  const core = o(t.A), haze = o(t.B), glyph = o(t.W), amber = o(t.line), air = o(t.ground);
+  // measured (take 2 frames and key stills, HUD and gun masked): core violet h 310-315, haze h 325-330, glyph whites
+  // h 203-234 at C <= 0.03, window amber h 59-75, deep air h 320 at L 0.26
+  assert.ok(core.h > 300 && core.h < 320 && core.C > 0.18, `core violet ${JSON.stringify(core)}`);
+  assert.ok(haze.h > 320 && haze.h < 345 && haze.C > 0.1 && haze.L > core.L, `pink-violet haze ${JSON.stringify(haze)}`);
+  assert.ok(glyph.h > 195 && glyph.h < 240 && glyph.C < 0.06 && glyph.L > 0.9, `cyan-white glyph lines ${JSON.stringify(glyph)}`);
+  assert.ok(amber.h > 55 && amber.h < 80 && amber.C > 0.08, `window amber ${JSON.stringify(amber)}`);
+  assert.ok(air.h > 300 && air.h < 335 && air.L < 0.3, `deep violet air ${JSON.stringify(air)}`);
+  const L = T.themeLook(lib, "dreaming-city");
+  assert.equal(L.lasers.L1.hex, t.beam.W, "the lasers draw the glyph lines");
+  assert.equal(L.lasers.L2.hex, t.beam.A, "and the core's violet");
+  assert.equal(L.fx.particles.hex, t.line, "the amber is the accent: the motes");
 });
 
 test("the validator catches each fault the spec's four corrections fixed, and broken references", () => {
@@ -98,12 +206,16 @@ test("the validator catches each fault the spec's four corrections fixed, and br
   fault((r) => { at(r, "night-sea").led_level = { A: 0.5 }; }, /led_level\.A dims a stand-in that is not white/);
   fault((r) => { at(r, "uv-euphoria").led.A = "#ffb000"; }, /led\.A #ffb000: hue 41 washes to white/);
   fault((r) => { r.themes.push({ ...at(r, "limbo") }); }, /duplicate id/);
+  // the fader: a theme marked off it may not sit on it, a flag is a boolean, and a 26th detent leaves a detent too thin
+  fault((r) => { at(r, "limbo").fader = false; }, /limbo appears 1 times \(expected none: it is marked off the fader\)/);
+  fault((r) => { at(r, "aurora").fader = "no"; }, /aurora: fader must be true or false/);
+  fault((r) => { delete at(r, "aurora").fader; r.fader_order.splice(0, 0, "aurora"); }, /26 detents leave a fader detent under 5/);
 });
 
 test("fetchLibrary loads through an injected fetch and rejects an unsound library", async () => {
   const text = readFileSync(here("../arsenal/web/vj-themes.json"), "utf8");
   const ok = await T.fetchLibrary("vj-themes.json", async () => ({ ok: true, status: 200, text: async () => text }));
-  assert.equal(ok.themes.length, 21);
+  assert.equal(ok.themes.length, 37);
   const broken = clone();
   broken.themes[0].led.A = "#888888";
   await assert.rejects(T.fetchLibrary("x", async () => ({ ok: true, status: 200, text: async () => JSON.stringify(broken) })), /problem/);
@@ -153,7 +265,7 @@ test("pad lights for every theme, laser tier and brightness pass the rule: stand
       assert.equal(lights[9].hex, T.CHOKE_LED);
     }
   }
-  assert.ok(posted >= 21 * 4 * 12 * 4);
+  assert.ok(posted >= lib.themes.length * 4 * 12 * 4);
   // a white stand-in at its level is the colour lane's grey, as a level rather than a washing colour
   assert.equal(T.ledHexAt({ hex: "#ffffff", level: 0.76 }), "#c2c2c2");
   assert.equal(T.themeLook(lib, "pink-pyro").pads.laser.hex, "#ff004e", "pad 2 takes the laser role's stand-in");
@@ -173,13 +285,16 @@ test("each family tab lights in a stand-in of its own family, eight different co
 });
 
 // ----------------------------------------------------------------------------------------------- the red rule --
-test("six distinct saturated reds among the screen colours, every one held, none in a laser list", () => {
+test("eight distinct saturated reds among the screen colours (the spec's six and wave 1's two pins), every one held, none in a laser list", () => {
   const reds = new Set();
   for (const t of lib.themes) {
     for (const r of T.ROLES) if (T.isSaturatedRed(t[r])) { reds.add(t[r]); assert.ok(t.held.includes(r), `${t.id} ${r}`); }
     for (const r of [...t.lasers, ...t.strobe.triple, ...t.strobe.flicker, ...t.burst]) assert.ok(!t.held.includes(r), `${t.id} emits held ${r}`);
   }
-  assert.deepEqual([...reds].sort(), ["#85063f", "#ab0a1c", "#d63b09", "#db0001", "#ea7720", "#ff1a3c"]);
+  // wave 1's two: Vex Conflux's optic and Black Garden's asphodel points, held pins as Limbo's is
+  assert.deepEqual([...reds].sort(), ["#85063f", "#ab0a1c", "#d0142a", "#d63b09", "#db0001", "#ea7720", "#ff1a3c", "#ff2a1a"]);
+  assert.deepEqual(["vex-conflux", "black-garden"].map((id) => [theme(id).held, T.themeLook(lib, id).fx.flash.hex]),
+                   [[["W"], "#ffffff"], [["W"], "#ffffff"]], "the pin is W, held; the flash is white");
   // the encoded test alone catches two; the linear test catches the other four (why both are applied)
   const encodedOnly = [...reds].filter((h) => T.redRatios(h).encoded >= 0.8).sort();
   assert.deepEqual(encodedOnly, ["#ab0a1c", "#db0001"]);
@@ -225,7 +340,7 @@ test("the held colours stay on the scene; an ember effect may use one and says s
 });
 
 // ------------------------------------------------------------------------------------------ choosing a theme --
-test("the fader walk covers every theme once in colour-wheel order, Custom at the top, each detent at least 5 positions", () => {
+test("the fader walk covers every theme on the fader once in colour-wheel order, Custom at the top, each detent at least 5 positions", () => {
   const seq = [];
   const width = new Map();
   for (let cc = 0; cc <= 127; cc++) {
@@ -234,8 +349,12 @@ test("the fader walk covers every theme once in colour-wheel order, Custom at th
     width.set(id, (width.get(id) || 0) + 1);
   }
   assert.deepEqual(seq, [...lib.faderOrder], "monotone: each detent visited once, in order");
-  assert.equal(seq.length, 22);
-  assert.deepEqual(new Set(seq.filter((id) => id !== "custom")), new Set(lib.ids));
+  assert.equal(seq.length, 25);
+  assert.deepEqual(new Set(seq.filter((id) => id !== "custom")), new Set(lib.themes.filter(onFader).map((t) => t.id)));
+  // the wave-1 detents sit by their hue: gold-and-teal after the golds, the Vex cyan after the cyans, Dreaming City's
+  // violet after Celestial Violet
+  const at = (id) => lib.faderOrder.indexOf(id);
+  assert.deepEqual(WAVE1_ON_FADER.map((id) => lib.faderOrder[at(id) - 1]), ["sanctuary-gold", "blue-raw", "celestial-violet"]);
   assert.equal(seq[seq.length - 1], "custom");
   for (const [id, n] of width) assert.ok(n >= 5, `${id} has ${n} positions`);
   for (const id of lib.faderOrder) assert.equal(T.themeAtFader(lib, T.faderCentre(lib, id)), id);
@@ -287,9 +406,10 @@ test("a step walks the fader's order and wraps; Custom is not a step", () => {
   let id = order[0];
   const seen = new Set();
   for (let k = 0; k < order.length; k++) { seen.add(id); id = T.stepTheme(lib, id, 1); }
-  assert.equal(seen.size, 21);
+  assert.equal(seen.size, 24);
   assert.equal(T.nextInFamily(lib, "night-sea", "night"), "temple-light");
-  assert.equal(T.nextInFamily(lib, "limbo", "night"), "night-sea");
+  assert.equal(T.nextInFamily(lib, "limbo", "night"), "starfield", "the spec's night themes, then wave 1's");
+  assert.equal(T.nextInFamily(lib, "liquid-sky", "night"), "night-sea");
   assert.equal(T.nextInFamily(lib, "molten", "night"), "night-sea");
 });
 

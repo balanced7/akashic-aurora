@@ -62,9 +62,12 @@ def test_no_saturated_red_in_a_strobing_role(theme):
     assert not _saturated_red(flash), f"{theme['id']} flash {flash}"
 
 
-def test_six_distinct_saturated_reds_and_a_fader_detent_for_every_theme():
+def test_eight_distinct_saturated_reds_and_a_fader_detent_for_every_theme_on_the_fader():
+    # the spec's six, plus looks wave 1's two held pins (Vex Conflux's optic, Black Garden's asphodel points)
     reds = {theme[r] for theme in THEMES for r in ROLES if _saturated_red(theme[r])}
-    assert sorted(reds) == ["#85063f", "#ab0a1c", "#d63b09", "#db0001", "#ea7720", "#ff1a3c"]
+    assert sorted(reds) == ["#85063f", "#ab0a1c", "#d0142a", "#d63b09", "#db0001", "#ea7720", "#ff1a3c", "#ff2a1a"]
+    # the fader holds every theme not marked "fader": false, plus Custom, in at most 25 detents (5 of 128 positions each)
     order = LIBRARY["fader_order"]
-    assert sorted(order) == sorted([t["id"] for t in THEMES] + ["custom"])
-    assert len(THEMES) == 21 and len({t["family"] for t in THEMES}) == 8
+    assert sorted(order) == sorted([t["id"] for t in THEMES if t.get("fader", True)] + ["custom"])
+    assert len(order) <= 128 // 5
+    assert len(THEMES) == 37 and len({t["family"] for t in THEMES}) == 8
