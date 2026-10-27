@@ -819,8 +819,19 @@ try {
       let backIn = null;
       step(40, (i) => { if (st().pads.black.gain > 0.95) { backIn = i; return true; } });
       out.safety = { effects_before: before9, effects_after_tap: afterTap, black_min: +blackMin.toFixed(3), back_in_frames: backIn };
-      // pad 3, CO2: plumes of the page's own; with a haze fluid attached the jets go to it instead
+      // pad 3, CO2, into the page's own haze fluid (lane C, running by default): the press asks the flash gate once and
+      // every jet of its row takes that answer (the gate is not asked again per jet), and no plume of the page's own
       step(40);
+      const a0 = vj.air(), gr0 = st().flash.granted;
+      vj.press(3, 1); step(3); vj.release(3);
+      let plumesReal = 0;
+      step(24, () => { plumesReal = Math.max(plumesReal, st().pads.plumes); });
+      const a1 = vj.air();
+      const real = { on: !!a1.on, mode: a1.mode, error: a1.error || null, gate_granted: st().flash.granted - gr0, plumes: plumesReal,
+                     jets: (a1.co2 || 0) - (a0.co2 || 0), jets_granted: (a1.granted || 0) - (a0.granted || 0), jets_refused: (a1.refused || 0) - (a0.refused || 0) };
+      step(110);
+      // without a fluid (detached for the receipt): plumes of the page's own
+      vj.attachAir(null);
       const g0 = st().flash.granted;
       vj.press(3, 1); step(3); vj.release(3);
       let plumes = 0;
@@ -828,7 +839,7 @@ try {
       const granted = st().flash.granted - g0;
       step(110);
       const calls = [];
-      vj.attachAir({ co2: (x, y, s) => calls.push([+x.toFixed(3), y, +s.toFixed(3)]), fogPush: (l) => calls.push(["fog", +l.toFixed(3)]), fogRelease: () => calls.push(["fogRelease"]) });
+      vj.attachAir({ co2: (x, y, s, g) => calls.push([+x.toFixed(3), y, +s.toFixed(3), g]), fogPush: (l) => calls.push(["fog", +l.toFixed(3)]), fogRelease: () => calls.push(["fogRelease"]) });
       vj.press(3, 1); step(3); vj.release(3);
       let plumesWithAir = 0;
       step(24, () => { plumesWithAir = Math.max(plumesWithAir, st().pads.plumes); });
@@ -836,7 +847,9 @@ try {
       const air = st().pads.air;
       vj.attachAir(null);
       out.co2 = { plumes, granted, plumes_with_air: plumesWithAir, air_calls: calls.length, co2_calls: calls.filter((c) => typeof c[0] === "number").length,
-                  fog_calls: calls.filter((c) => c[0] === "fog").length, fog_release: calls.filter((c) => c[0] === "fogRelease").length, air };
+                  fog_calls: calls.filter((c) => c[0] === "fog").length, fog_release: calls.filter((c) => c[0] === "fogRelease").length, air,
+                  // the fake fluid hears the press's answer as co2's fourth argument
+                  answers: calls.filter((c) => typeof c[0] === "number").map((c) => c[3]), real };
       out.leds = st().leds.last;
       out.errors = vj.errors();
       out.limiter = st().limiter.mode;
@@ -846,7 +859,7 @@ try {
     await browser.send("Target.closeTarget", { targetId: t4 });
     const P = report.pads_v2;
     const onLine = (p, g) => p !== null && Math.abs(p / g - Math.round(p / g)) * g <= 1 / 30 + 0.01;   // within a frame of the line
-    console.log(`[pads] next ${JSON.stringify(P.next.roles_from)} -> ${JSON.stringify(P.next.roles_to)} landed ${P.next.landed_at}; same ${JSON.stringify(P.same.engine)}; ring esc ${P.ring.esc} spots ${P.ring.spots} ends ${P.ring.ends}; hero ${P.hero.booked} fired ${P.hero.fired_at}; drop ${P.build.drop_at_asked} at ${P.build.dropped_at}; black ${P.safety.black_min}; co2 plumes ${P.co2.plumes} air ${P.co2.co2_calls}`);
+    console.log(`[pads] next ${JSON.stringify(P.next.roles_from)} -> ${JSON.stringify(P.next.roles_to)} landed ${P.next.landed_at}; same ${JSON.stringify(P.same.engine)}; ring esc ${P.ring.esc} spots ${P.ring.spots} ends ${P.ring.ends}; hero ${P.hero.booked} fired ${P.hero.fired_at}; drop ${P.build.drop_at_asked} at ${P.build.dropped_at}; black ${P.safety.black_min}; co2 plumes ${P.co2.plumes} air ${P.co2.co2_calls}; into the running fluid ${P.co2.real.jets} jets, ${P.co2.real.jets_granted} on the press's grant`);
     checks.colour_next_waits_for_the_beat_then_the_lasers_lead_with_the_next_colour = P.next.pending === 1 && onLine(P.next.landed_at, 1) &&
       P.next.landed_at > P.next.pressed_at && P.next.landed_at - P.next.pressed_at <= 1 + 1 / 30 && P.next.step === 1 &&
       P.next.roles_to[0] === P.next.sequence[1] && P.next.L1_to !== P.next.L1_from && P.next.preview_lead === P.next.roles_to[0];
@@ -865,14 +878,22 @@ try {
     checks.safety_dampens_on_a_tap_and_holds_black = P.safety.effects_before > 0 && P.safety.effects_after_tap === 0 &&
       P.safety.black_min < 0.05 && P.safety.back_in_frames !== null;
     checks.co2_plumes_or_the_haze_fluid = P.co2.plumes >= 2 && P.co2.granted >= 1 && P.co2.plumes_with_air === 0 && P.co2.co2_calls >= 2 &&
-      P.co2.fog_calls === 1 && P.co2.fog_release === 1 && !!P.co2.air && !P.co2.air.broken;
+      P.co2.fog_calls === 1 && P.co2.fog_release === 1 && !!P.co2.air && !P.co2.air.broken &&
+      P.co2.answers.length === P.co2.co2_calls && P.co2.answers.every((a) => typeof a === "boolean");
+    // VJ V2 integration: pad 3 reaches the running haze fluid, and one press is one ask of the gate for its whole row
+    const R3 = P.co2.real;
+    checks.co2_pours_into_the_running_haze_fluid_on_one_gate_answer = R3.on && R3.plumes === 0 && R3.gate_granted >= 1 && R3.jets >= 2 &&
+      R3.jets_granted === R3.jets && R3.jets_refused === 0;
     const { ledPostedOk: standInOk } = await import("../web/vj-themes.js");
     checks.pads_v2_lights_are_stand_ins_the_pads_show = P.leds.length === 12 && P.leds.every((c) => standInOk(c));
     report.page_errors = (report.page_errors || []).concat(P.errors || []);
   }
 
   // ------------------------------------------------------------------------- E: the engine contract (fake) --
-  await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=http://127.0.0.1:${ENGINE_PORT}&hud=0&watchdog=0` });
+  // air=off: this phase times real-clock messages (dial detents 150 ms apart, energy at 100 a second) and the haze fluid
+  // costs SwiftShader a frame of ~150 ms here (a few tenths of a ms on the real GPU), so two detents shared one gap and the
+  // dial's rate limit dropped one (VJ V2 integration); the air has its own receipts (phase P here, vj_storm's airedge)
+  await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=http://127.0.0.1:${ENGINE_PORT}&hud=0&watchdog=0&air=off` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page (engine run)");
   await waitFor(() => sse.size > 0, 15000, "the page's EventSource");
   const hello = (leds) => send({ t: "hello", v: 1, src: "keylab-vj", beat_engine: "a", pads_mode: "both", leds,

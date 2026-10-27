@@ -817,7 +817,10 @@ async function main() {
     for (const size of [SIZE, ...HIRES]) {
       await burst(`meter-${size.join("x")}`, size, async ({ ev, load }) => {
         for (const set of ["adv-stripes", "vj-reactor"]) {
-          await load(`engine=off&hud=0&watchdog=0&sets=${set}`);
+          // a set plays the page's own demo music (no pads), as in the calm phase: silent, Reactor now idles at a mean
+          // luminance of 0.0067 (0.0169 in an Oct 25 receipt), under the 0.01 a frame needs here to be a real test of the
+          // meter, so no frame was untouched-and-lit and the row failed on master fb32e0ce4 too (VJ V2 lanes C and F)
+          await load(`engine=off&hud=0&watchdog=0${set.startsWith("adv-") ? "" : "&demo=1&demopads=0"}&sets=${set}`);
           // a frame the limiter leaves untouched: the lines' "on" half (u_time from the page's clock), checked after
           let r = null;
           for (let k = 0; k < 40; k++) {
