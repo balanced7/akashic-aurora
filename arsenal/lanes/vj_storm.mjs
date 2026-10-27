@@ -800,7 +800,10 @@ async function main() {
 
   // --------------------------------------------------------------------------------------------- verdict --
   const runs = report.runs;
+  // (the laser phase counts too: since Lasers v2 it ran its storms without a term here, so any run that included it --
+  // the default -- reported more runs than it expected and failed with every storm inside its limits)
   const expected = (PHASES.includes("storm") ? SETS.length * SCN.length + (SETS.length >= 2 ? 1 : 0) : 0) +
+    (PHASES.includes("laser") ? list(opt["laser-sets"]).length * list(opt["laser-scenarios"]).filter((x) => SCENARIOS[x]).length : 0) +
     (PHASES.includes("safe") ? SAFE_SETS.length * SAFE_SCN.filter((s) => s !== "cuts").length + (SAFE_SCN.includes("cuts") ? 1 : 0) : 0) +
     (PHASES.includes("cpu") ? CPU_SCN.length + 1 : 0) +
     (PHASES.includes("adv") ? ADV_IDS.length + ["adv-offgrid12", "adv-stripes"].filter((x) => ADV_IDS.includes(x)).length : 0) +
