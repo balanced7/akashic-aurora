@@ -1,6 +1,7 @@
 import { AuroraBackdrop } from "~/modules/marketing/ui/aurora-backdrop";
 import { HudBadge, HudFrame } from "~/modules/marketing/ui/hud";
 import { ButtonLink } from "~/modules/marketing/ui/primitives";
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
 
 import type { ReactNode } from "react";
 
@@ -24,9 +25,14 @@ export const SignalLost = ({
 }: SignalLostProps) => (
   <section
     data-testid="signal-lost"
-    className="relative flex min-h-[86vh] items-center overflow-hidden pt-32 pb-20"
+    className="relative isolate flex min-h-[86vh] items-center overflow-hidden pt-32 pb-20"
   >
-    <AuroraBackdrop intensity={0.4} />
+    <AuroraBackdrop intensity={0.4} className="-z-10" />
+    <ShaderBackground
+      preset="curtains"
+      intensity={0.7}
+      className="mix-blend-screen"
+    />
     <div className="mk-container relative grid items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
       <div className="flex flex-col items-start gap-6">
         <HudBadge>{code}</HudBadge>

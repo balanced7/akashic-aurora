@@ -6,8 +6,8 @@ import { links, routes } from "~/modules/marketing/content/site";
 import { FleetConsole } from "~/modules/marketing/home/fleet-console";
 import { HeroSetup } from "~/modules/marketing/home/hero-setup";
 import { AuroraBackdrop } from "~/modules/marketing/ui/aurora-backdrop";
-import { AuroraShader } from "~/modules/marketing/ui/aurora-shader";
 import { ButtonLink, Container } from "~/modules/marketing/ui/primitives";
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
 
 import type { CSSProperties, ReactNode } from "react";
 
@@ -68,10 +68,15 @@ const stats = [
 export const Hero = () => (
   <section
     data-testid="hero"
-    className="relative overflow-hidden pt-32 pb-20 sm:pt-40 lg:pb-28"
+    className="relative isolate overflow-hidden pt-32 pb-20 sm:pt-40 lg:pb-28"
   >
-    <AuroraBackdrop intensity={0.45} />
-    <AuroraShader className="h-[90%]" intensity={0.9} />
+    <AuroraBackdrop intensity={0.45} className="-z-10" />
+    <ShaderBackground
+      preset="aurora"
+      intensity={0.9}
+      fade="bottom"
+      className="h-[90%] opacity-50 mix-blend-screen md:opacity-90"
+    />
     <Container className="relative">
       <Rise delay={0}>
         <Link

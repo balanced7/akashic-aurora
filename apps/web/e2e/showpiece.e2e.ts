@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("showpiece features", () => {
-  test("hero aurora shader starts a WebGL scene", async ({ page }) => {
+  test("hero aurora shader draws a live frame", async ({ page }) => {
     await page.goto("/");
-    const shader = page.getByTestId("hero").getByTestId("aurora-shader");
-    await expect(shader).toHaveAttribute("data-ready", "true");
-    const size = await shader.evaluate(
-      (canvas: HTMLCanvasElement) => canvas.width * canvas.height,
+    const canvas = page
+      .getByTestId("hero")
+      .locator("[data-preset=aurora] canvas");
+    await expect(canvas).toHaveAttribute("data-state", "live");
+    const size = await canvas.evaluate(
+      (element: HTMLCanvasElement) => element.width * element.height,
     );
     expect(size).toBeGreaterThan(1000);
   });

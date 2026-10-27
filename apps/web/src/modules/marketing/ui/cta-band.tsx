@@ -1,10 +1,10 @@
 import { Github } from "lucide-react";
 
 import { links } from "~/modules/marketing/content/site";
-import { AuroraBackdrop } from "~/modules/marketing/ui/aurora-backdrop";
 import { AuroraMark } from "~/modules/marketing/ui/brand";
 import { HudDivider } from "~/modules/marketing/ui/hud";
 import { ButtonLink, Container } from "~/modules/marketing/ui/primitives";
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
 
 interface CtaBandProps {
   readonly title?: string;
@@ -17,9 +17,9 @@ export const CtaBand = ({
 }: CtaBandProps) => (
   <section
     data-testid="cta-band"
-    className="relative overflow-hidden py-28 sm:py-36"
+    className="relative isolate overflow-hidden py-28 sm:py-36"
   >
-    <AuroraBackdrop intensity={0.8} />
+    <ShaderBackground preset="curtains" intensity={0.55} />
     <Container className="relative flex flex-col items-center text-center">
       <AuroraMark className="size-14" />
       <h2 className="mk-display mt-8 max-w-3xl text-4xl sm:text-6xl">

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { cn } from "@akashic-labs/ui";
 
 import { AuroraBackdrop } from "~/modules/marketing/ui/aurora-backdrop";
-import { AuroraShader } from "~/modules/marketing/ui/aurora-shader";
 import { Container, Eyebrow } from "~/modules/marketing/ui/primitives";
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
 
 import type { CSSProperties, ReactNode } from "react";
+import type { ShaderPresetName } from "~/modules/marketing/ui/shader/presets";
 
 const rise = (delay: number) =>
   ({ "--rise-delay": `${delay}ms` }) as CSSProperties;
@@ -19,7 +20,8 @@ interface PageHeroProps {
   readonly actions?: ReactNode;
   readonly crumbs?: readonly { label: string; href: string }[];
   readonly aside?: ReactNode;
-  readonly backdrop?: boolean;
+  /** The shader behind the hero, or false for none. */
+  readonly backdrop?: ShaderPresetName | false;
   readonly className?: string;
   readonly children?: ReactNode;
 }
@@ -31,18 +33,33 @@ export const PageHero = ({
   actions,
   crumbs,
   aside,
-  backdrop = true,
+  backdrop = "aurora",
   className,
   children,
 }: PageHeroProps) => (
   <section
     className={cn(
-      "relative overflow-hidden pt-32 pb-14 sm:pt-40 sm:pb-20",
+      "relative isolate overflow-hidden pt-32 pb-14 sm:pt-40 sm:pb-20",
       className,
     )}
   >
-    {backdrop && <AuroraBackdrop intensity={0.35} />}
-    {backdrop && <AuroraShader className="h-[640px]" intensity={0.6} />}
+    {backdrop && <AuroraBackdrop intensity={0.35} className="-z-10" />}
+    {backdrop === "aurora" && (
+      <ShaderBackground
+        preset="aurora"
+        intensity={0.6}
+        fade="bottom"
+        className="h-[640px] opacity-50 mix-blend-screen md:opacity-90"
+      />
+    )}
+    {backdrop && backdrop !== "aurora" && (
+      <ShaderBackground
+        preset={backdrop}
+        intensity={0.7}
+        fade="bottom"
+        className="mix-blend-screen"
+      />
+    )}
     <Container className="relative">
       {crumbs && crumbs.length > 0 && (
         <nav aria-label="Breadcrumb" className="mb-8">
