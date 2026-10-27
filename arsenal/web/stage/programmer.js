@@ -24,9 +24,14 @@
 // ignore the speed fader (a cue counts beats). The FLASHGATE grants at most one horizontal flash per bar: a granted flash
 // rises in one frame and decays over at least half a beat to its hold; a refused one becomes a lift over an eighth of a
 // beat. clearOverlay() hands the fixtures back to the look over a fade.
+//
+// v2 (2026-10-27): a ring formation's light (formations.js) is one more layer after the phrase layer (setLayer), and
+// while a ring is off its home pose the phrase layer's position presets are re-aimed on the live rig (setLiveElements).
+// Both go through the same physics: a re-aimed head still turns no faster than its motor.
 
 import { EffectInstance, hashSeed } from "./effects.js";
 import { hexToLinear, isSaturatedRed } from "./lasers.js";
+import { aimPreset } from "./phrases.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
@@ -209,7 +214,10 @@ export class Programmer {
       }
       const flash = L.flash ? { onset: pos + (L.flash.at || 0), to: L.flash.to ?? 1, base: v.Dimmer ?? 0,
                                 decay: Math.max(FLASH_MIN_DECAY_BEATS, L.flash.decay_beats ?? FLASH_MIN_DECAY_BEATS), state: "wait" } : null;
-      this.ov.lines.push({ g, effects, flash, mask: new Uint8Array(g.n).fill(1) });
+      // a position preset (no explicit Pan/Tilt over it) is re-aimed each frame while the rig is live (setLiveElements)
+      const aim = L.prepared && L.prepared.kind !== "values" && g.kind === "heads" && v.Pan === undefined && v.Tilt === undefined
+        ? { prepared: L.prepared, buf: new Float64Array(g.n * 2), hints: L.positions ? Float64Array.from(L.positions) : null } : null;
+      this.ov.lines.push({ g, effects, flash, mask: new Uint8Array(g.n).fill(1), aim });
     }
     this.ov.active = true; this.ov.preroll = false; this.ov.release = null; this.ov.p0 = pos;
     this.stats.overlays++;
@@ -249,6 +257,26 @@ export class Programmer {
     const t = a - attack;
     return t >= fl.decay ? 0 : fl.base + (fl.to - fl.base) * (1 - t / fl.decay);
   }
+  // v2: the live rig. emOf(elementIndex) -> that element's live matrix while some element (a ring) is off its home pose,
+  // or null when the rig is home: the phrase layer's position presets are then re-aimed each frame (a world-locked aim
+  // stays locked on the world while the ring under it tilts or turns), and the formation layer runs after the phrases.
+  setLiveElements(emOf) { this.emOf = emOf || null; }
+  // layer: {apply(tH, tC, pos)} -- the ring formations' light (formations.js), over the look and the phrase layer
+  setLayer(layer) { this.layer = layer || null; }
+  _reaim() {
+    for (const L of this.ov.lines) {
+      if (!L.aim) continue;
+      aimPreset(this.rig, L.g, L.aim.prepared, this.emOf, L.aim.buf, { hints: L.aim.hints });
+      L.aim.hints = L.aim.hints || new Float64Array(L.g.n * 2);
+      L.aim.hints.set(L.aim.buf);
+      for (let m = 0; m < L.g.n; m++) {
+        if (!L.mask[m]) continue;
+        const b = L.g.members[m] * 7;
+        if (this.ovSetH[b]) this.ovBaseH[b] = L.aim.buf[m * 2];
+        if (this.ovSetH[b + 1]) this.ovBaseH[b + 1] = L.aim.buf[m * 2 + 1];
+      }
+    }
+  }
   _overlay(pos, ver) {
     const nH = this.nH, nC = this.nC, ov = this.ov;
     let w = 1;
@@ -256,6 +284,7 @@ export class Programmer {
       w = ov.release.len > 0 ? 1 - (pos - ov.release.p0) / ov.release.len : 0;
       if (w <= 0) { ov.active = false; ov.release = null; ov.lines = []; this.ovOnH.fill(0); this.ovOnC.fill(0); return; }
     }
+    if (this.emOf) this._reaim();
     // 1. the step's base values, dimmers crossfading from what was shown
     for (let i = 0; i < nH; i++) {
       if (!this.ovOnH[i]) continue;
@@ -445,8 +474,9 @@ export class Programmer {
       }
     }
     for (const [id, inst] of this.effects) if (inst.dead) this.effects.delete(id);
-    // 2b. the phrase layer (v1), over the look
+    // 2b. the phrase layer (v1), over the look; 2c. the ring formations' light (v2), over both
     if (this.ov.active) this._overlay(pos, ver);
+    if (this.layer) this.layer.apply(this.tH, this.tC, pos);
     // 3. playbacks: KICK (HTP lift on the strand) and FLY-OUT (outward tilt and a pop on the beams)
     const kick = this.kickLevel(pos);
     if (kick > 0) {

@@ -263,6 +263,32 @@ export class LaserEngine {
     o.look = this.lookMute ? "phrase" : this.look.name; o.reach = this.look.reach; o.hits = this.hits.length;
     return o;
   }
+  // v2, the ring formations' lasers (formations.js): a head they own leaves this frame's picture (the look's and the hits'
+  // segments for it are dropped), then draws beams in its aimed frame: aimed(head, dir, ...) points the head's frame
+  // along dir (a world direction) and draws `ring` beams on a cone of half angle coneDeg round it (one beam when 0).
+  dropHeads(owned) {
+    const o = this.out;
+    let w = 0;
+    for (let i = 0; i < o.n; i++) {
+      const h = o.seg[i * SEG_FLOATS + SEG.HEAD];
+      if (owned[h]) continue;
+      if (w !== i) o.seg.copyWithin(w * SEG_FLOATS, i * SEG_FLOATS, (i + 1) * SEG_FLOATS);
+      w++;
+    }
+    o.n = w;
+    for (let h = 0; h < owned.length; h++) if (owned[h]) { o.heads[h] = 0; o.aim[h * 4 + 3] = 0; }
+  }
+  aimed(head, dir, { col = 0, level = 1, coneDeg = 0, ring = 1, spin = 0 } = {}) {
+    const o = this.out.aim, b = head * 4, l = Math.hypot(dir[0], dir[1], dir[2]) || 1;
+    // the picture's (dx, dy) of length e give an off-axis angle atan(1 / k): k = 1 / tan(cone) puts every beam on the cone
+    const k = coneDeg > 0 ? 1 / Math.tan(coneDeg * Math.PI / 180) : 1e4;
+    o[b] = dir[0] / l; o[b + 1] = dir[1] / l; o[b + 2] = dir[2] / l; o[b + 3] = k;
+    const h = this.heads[head], e = 0.05, n = coneDeg > 0 ? Math.max(1, ring) : 1;
+    for (let j = 0; j < n; j++) {
+      const a = spin + (TAU * j) / n;
+      this._emit(head, h.sx + e * Math.cos(a), h.y + e * Math.sin(a), col, level);
+    }
+  }
   _emit(head, x1, y1, col, intensity, width = 1.6) {
     const o = this.out;
     if (o.n >= MAX_SEGMENTS || intensity <= 0) return;

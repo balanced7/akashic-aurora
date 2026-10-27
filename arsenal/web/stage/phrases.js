@@ -187,35 +187,102 @@ export function validatePhrases(rig) {
 //   values  the same Pan / Tilt for every head;
 //   world   world-locked: each head aims at a world point; by level: [x_scale * x, y[level] + shift_y, z];
 //   radial  out from the ring centre in the ring's plane, tipped forward_deg toward the ring's face (the audience).
-export function resolvePreset(rig, group, preset, mods = {}) {
-  if (!preset || group.kind !== "heads") return null;
+// v2 (2026-10-27, kinetics wave A; the beam surfaces of the kinetic-geometry lane):
+//   twist   the head at ring angle a aims at the point at angle a + offset_deg on a circle {centre, normal, radius}:
+//           centre a world point or {along_normal_m: d} on the ring's axis, normal "ring" or a vector, radius in metres
+//           or radius_scale x the head's own radius. Heads on a circle aimed this way draw a hyperboloid of straight beams
+//           (waist radius a cos(offset / 2) for equal circles: the cylinder, the hourglass, the knot at 180).
+//   axis    at the axis line p0 -> p1 (world points, or {along_normal_m} on the ring's axis), the foot of the head's
+//           perpendicular moved lean_deg along the axis: rays feeding an axial beam.
+//   node    at a world point (point) or at points[m mod n]: spokes into a core, threads between nodes.
+//   radial-from-point   straight out from a world point through the head: a starburst from inside a cage.
+// The work is split for a live rig (the check's correction): preparePreset substitutes the "$" values once per cue;
+// aimPreset aims every member each frame against LIVE element matrices into a buffer the caller keeps.
+export const PRESET_KINDS = Object.freeze(["values", "world", "radial", "twist", "axis", "node", "radial-from-point"]);
+export function preparePreset(preset, mods = {}) {
+  if (!preset) return null;
   // a preset's own "$" parameters are offsets: 0 when the phrase playing it has no such per-repeat value
   const defaults = {};
   JSON.stringify(preset).replace(/"\$([a-z_][a-z0-9_]*)"/g, (_, k) => { defaults[k] = 0; return ""; });
   const p = subst(preset, { ...defaults, ...mods });
-  const n = group.n, out = new Float64Array(n * 2);
-  for (let m = 0; m < n; m++) {
-    const fi = group.memberFixture[m], f = rig.fixtures[fi], el = rig.elements[f.element];
-    const em = elementMatrix(el);
+  if (!PRESET_KINDS.includes(p.kind)) throw new Error(`preset kind ${p.kind}: one of ${PRESET_KINDS.join(", ")}`);
+  return p;
+}
+// The world point member m of a head group aims at under a prepared preset, with its element's live matrix em; live
+// overrides the preset's numbers this frame (a formation swinging a twist's offset_deg). Writes out[0..2].
+const _base = [0, 0, 0], _dir = [0, 0, 0];
+export function presetTarget(rig, group, p, m, em, out, live = null) {
+  const f = rig.fixtures[group.memberFixture[m]];
+  const P = live ? { ...p, ...live } : p;
+  transformPoint(em, f.local, _base);
+  const ringPoint = (c) => (Array.isArray(c) ? c : [em[9] + em[2] * (c.along_normal_m || 0), em[10] + em[5] * (c.along_normal_m || 0), em[11] + em[8] * (c.along_normal_m || 0)]);
+  if (P.kind === "world") {
+    const lv = group.keys.level[m], t = P.target || {};
+    const y = (t.y && (t.y[String(lv)] ?? t.y[lv])) ?? 15;
+    out[0] = (t.x_scale ?? 1) * group.keys.x[m]; out[1] = y + (Number(P.shift_y) || 0); out[2] = t.z ?? 30;
+  } else if (P.kind === "radial") {
+    const a = f.angle ?? Math.atan2(f.local[1], f.local[0]);
+    const fw = (P.forward_deg ?? 25) * DEG;
+    const dx = Math.cos(fw) * Math.cos(a), dy = Math.cos(fw) * Math.sin(a), dz = Math.sin(fw);
+    out[0] = _base[0] + 60 * (em[0] * dx + em[1] * dy + em[2] * dz);
+    out[1] = _base[1] + 60 * (em[3] * dx + em[4] * dy + em[5] * dz);
+    out[2] = _base[2] + 60 * (em[6] * dx + em[7] * dy + em[8] * dz);
+  } else if (P.kind === "twist") {
+    const C = P.circle || {}, c = ringPoint(C.centre || { along_normal_m: 20 });
+    const n = C.normal && C.normal !== "ring" ? normalised(C.normal) : [em[2], em[5], em[8]];
+    // the target circle's frame: the ring's own x axis projected into the target plane, so angle a maps across
+    let ux = em[0], uy = em[3], uz = em[6];
+    const dn = ux * n[0] + uy * n[1] + uz * n[2];
+    ux -= dn * n[0]; uy -= dn * n[1]; uz -= dn * n[2];
+    const ul = Math.hypot(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+    const vx = n[1] * uz - n[2] * uy, vy = n[2] * ux - n[0] * uz, vz = n[0] * uy - n[1] * ux;
+    const a = (f.angle ?? Math.atan2(f.local[1], f.local[0])) + (Number(P.offset_deg) || 0) * DEG;
+    const own = Math.hypot(f.local[0], f.local[1]);
+    const r = C.radius ?? (C.radius_scale ?? 1) * own;
+    out[0] = c[0] + r * (Math.cos(a) * ux + Math.sin(a) * vx);
+    out[1] = c[1] + r * (Math.cos(a) * uy + Math.sin(a) * vy);
+    out[2] = c[2] + r * (Math.cos(a) * uz + Math.sin(a) * vz);
+  } else if (P.kind === "axis") {
+    const p0 = ringPoint(P.p0 || { along_normal_m: 0 }), p1 = ringPoint(P.p1 || { along_normal_m: 30 });
+    let ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+    const L = Math.hypot(ax, ay, az) || 1; ax /= L; ay /= L; az /= L;
+    const s = (_base[0] - p0[0]) * ax + (_base[1] - p0[1]) * ay + (_base[2] - p0[2]) * az;
+    const fx = p0[0] + ax * s, fy = p0[1] + ay * s, fz = p0[2] + az * s;
+    const lean = Math.tan((Number(P.lean_deg) || 0) * DEG) * Math.hypot(_base[0] - fx, _base[1] - fy, _base[2] - fz);
+    const step = (P.spread_m || 0) * (m - (group.n - 1) / 2);      // a spine: members fanned along the axis
+    out[0] = fx + ax * (lean + step); out[1] = fy + ay * (lean + step); out[2] = fz + az * (lean + step);
+  } else if (P.kind === "node") {
+    const q = P.point || (P.points && P.points[m % P.points.length]) || [0, 14, -11];
+    out[0] = q[0]; out[1] = q[1]; out[2] = q[2];
+  } else if (P.kind === "radial-from-point") {
+    const q = P.point || [0, 14, -11];
+    _dir[0] = _base[0] - q[0]; _dir[1] = _base[1] - q[1]; _dir[2] = _base[2] - q[2];
+    normalised(_dir, _dir);
+    out[0] = _base[0] + 60 * _dir[0]; out[1] = _base[1] + 60 * _dir[1]; out[2] = _base[2] + 60 * _dir[2];
+  } else throw new Error(`preset kind ${P.kind}: one of ${PRESET_KINDS.join(", ")}`);
+  return out;
+}
+function normalised(v, out = [0, 0, 0]) { const l = Math.hypot(v[0], v[1], v[2]) || 1; out[0] = v[0] / l; out[1] = v[1] / l; out[2] = v[2] / l; return out; }
+// Every member's pan and tilt under a prepared preset: emOf(elementIndex) -> its live matrix (12 floats); out
+// Float64Array(n * 2), kept by the caller; hints (the last frame's pans) keep a moving head from flipping its yoke.
+const _tgt = [0, 0, 0];
+export function aimPreset(rig, group, p, emOf, out, { live = null, hints = null } = {}) {
+  if (!p || group.kind !== "heads") return null;
+  for (let m = 0; m < group.n; m++) {
     if (p.kind === "values") { out[m * 2] = p.values.Pan ?? 0; out[m * 2 + 1] = p.values.Tilt ?? 0; continue; }
-    let target;
-    if (p.kind === "world") {
-      const lv = group.keys.level[m], t = p.target || {};
-      const y = (t.y && (t.y[String(lv)] ?? t.y[lv])) ?? 15;
-      target = [(t.x_scale ?? 1) * group.keys.x[m], y + (Number(p.shift_y) || 0), t.z ?? 30];
-    } else if (p.kind === "radial") {
-      const a = f.angle ?? Math.atan2(f.local[1], f.local[0]);
-      const fw = (p.forward_deg ?? 25) * DEG;
-      const dirE = [Math.cos(fw) * Math.cos(a), Math.cos(fw) * Math.sin(a), Math.sin(fw)];
-      const d = [em[0] * dirE[0] + em[1] * dirE[1] + em[2] * dirE[2], em[3] * dirE[0] + em[4] * dirE[1] + em[5] * dirE[2],
-                 em[6] * dirE[0] + em[7] * dirE[1] + em[8] * dirE[2]];
-      const base = transformPoint(em, f.local);
-      target = [base[0] + 60 * d[0], base[1] + 60 * d[1], base[2] + 60 * d[2]];
-    } else throw new Error(`preset kind ${p.kind}: values, world or radial`);
-    const r = aimAt(em, f, target, { panHint: 0 });
+    const f = rig.fixtures[group.memberFixture[m]], em = emOf(f.element);
+    presetTarget(rig, group, p, m, em, _tgt, live);
+    const r = aimAt(em, f, _tgt, { panHint: hints ? hints[m * 2] : 0 });
     out[m * 2] = r.pan; out[m * 2 + 1] = r.tilt;
   }
   return out;
+}
+export function resolvePreset(rig, group, preset, mods = {}) {
+  if (!preset || group.kind !== "heads") return null;
+  const p = preparePreset(preset, mods);
+  const home = new Map();
+  const emOf = (e) => { if (!home.has(e)) home.set(e, elementMatrix(rig.elements[e])); return home.get(e); };
+  return aimPreset(rig, group, p, emOf, new Float64Array(group.n * 2));
 }
 
 // ------------------------------------------------------------------------------------------------- compiling --
@@ -239,8 +306,10 @@ function compileLine(rig, raw, mods, patches, stepId) {
   });
   const presetDef = l.preset ? rig.presets[l.preset] : null;
   if (l.preset && !presetDef) throw new Error(`phrase step ${stepId}: no preset ${l.preset}`);
+  // the prepared preset rides along: on a live rig (a ring off its home pose) the programmer re-aims it each frame
+  const prepared = presetDef && g.kind === "heads" ? preparePreset(presetDef, mods) : null;
   return { group: l.group, kind: g.kind, g, values: l.values || {}, preset: l.preset || null, positions: resolvePreset(rig, g, presetDef, mods),
-           effects, fade: l.fade ?? 0, flash: l.flash || null };
+           prepared, effects, fade: l.fade ?? 0, flash: l.flash || null };
 }
 
 // The steps of one repeat: the variant's edits applied, "$key" values filled in, every line compiled. Returns
