@@ -1,0 +1,198 @@
+{
+  "create": {
+    "title": "Create organization",
+    "description": "Create a new organization to manage your team and projects.",
+    "cta": "Create organization",
+    "info": "Your organization name should be unique and descriptive."
+  },
+  "join": {
+    "title": "Join organization",
+    "description": "Join an organization to collaborate with your team, manage projects efficiently, and access shared resources."
+  },
+  "settings": {
+    "title": "Settings",
+    "header": {
+      "title": "Organization settings",
+      "description": "Manage your organization settings and preferences."
+    }
+  },
+  "invitations": {
+    "title": "Invitations",
+    "disclaimer": {
+      "title": "You have been invited to join an organization",
+      "description": "Sign in or create an account to accept the invitation and join the organization."
+    },
+    "resend": {
+      "success": "Invitation resent successfully!"
+    },
+    "cancel": {
+      "success": "Invitation canceled successfully!"
+    },
+    "accept": {
+      "success": "You're now a member of {{organization}}!"
+    },
+    "reject": {
+      "success": "You have rejected to join {{organization}}."
+    },
+    "expired": {
+      "title": "Invitation not found or expired",
+      "description": "The invitation you are looking for is either expired or does not exist. Please contact the organization owner to renew the invite.",
+      "cta": "Back to dashboard"
+    },
+    "emailMismatch": {
+      "title": "You're currently logged in with a different account",
+      "description": "The email you are trying to use does not match the invitation email. Please sign in as <bold>{{email}}</bold> or contact the organization owner to update the invitation.",
+      "cta": "Sign in as {{email}}",
+      "skip": "Skip to dashboard"
+    },
+    "invitation": {
+      "title": "Join {{organizationName}}",
+      "description": "<bold>{{inviterEmail}}</bold> has invited you to join <bold>{{organizationName}}</bold> on Akashic Labs.",
+      "skip": "Skip to dashboard"
+    },
+    "user": {
+      "banner": {
+        "title_one": "You have pending invitation",
+        "title_other": "You have {{count}} pending invitations",
+        "description": "Click to review the details and accept or reject the invitation."
+      },
+      "list": {
+        "title": "Pending invitations",
+        "description": "View and manage your pending invitations."
+      }
+    }
+  },
+  "members": {
+    "title": "Members",
+    "header": {
+      "title": "Organization members",
+      "description": "Manage your organization members, invitations and roles."
+    },
+    "invite": {
+      "title": "Invite member",
+      "description": "To add a new member to your organization, send them an invitation.",
+      "info": "You can invite multiple members at once.",
+      "missingPermission": "You need additional permissions to invite members to this organization.",
+      "success_one": "Member invited successfully!",
+      "success_other": "Members invited successfully!",
+      "email": {
+        "subject": "You have been invited to join an organization",
+        "preview": "Join {{inviter}} on Akashic Labs",
+        "body": "<bold>{{inviter}}</bold> has invited you to join <bold>{{organization}}</bold> on Akashic Labs.",
+        "or": "Or, copy and paste this link into your browser:",
+        "cta": "Join {{organization}}",
+        "disclaimer": "If you were not expecting this invitation, there's nothing to worry about, you can safely ignore this email."
+      }
+    },
+    "update": {
+      "role": {
+        "title": "Update {{name}}'s role",
+        "description": "Change the role of the selected member by selecting it from the dropdown menu.",
+        "info": "The role determines the permissions of the member.",
+        "success": "Member's role updated successfully!"
+      }
+    },
+    "remove": {
+      "success": "Member removed successfully!"
+    }
+  },
+  "name": {
+    "edit": {
+      "description": "Please enter your organization name, or a display name you are comfortable with.",
+      "success": "Organization name updated successfully!",
+      "info": "Please use 32 characters at maximum.",
+      "missingPermission": "You need additional permissions to manage your organization's name."
+    }
+  },
+  "logo": {
+    "description": "This is your organization logo.\nClick on the logo to upload a custom one from your files.",
+    "info": "While not required, adding a logo is highly recommended.",
+    "missingPermission": "You need additional permissions to manage your organization's logo.",
+    "update": {
+      "success": "Organization logo updated successfully!"
+    },
+    "remove": {
+      "success": "Organization logo removed successfully!"
+    }
+  },
+  "leave": {
+    "title": "Leave organization",
+    "description": "Revoke your access to this organization. Any resources you've added to the organization will remain.",
+    "cta": "Leave organization",
+    "disclaimer": "Are you sure you want to leave this organization?\n\nYou will no longer have access to its resources and will need to be invited again to join.\n\nDo you want to continue?",
+    "success": "You have left the organization successfully!",
+    "cannotLeaveAsOnlyOwner": "To leave this organization, ensure at least one more member has the Owner role."
+  },
+  "delete": {
+    "title": "Delete organization",
+    "description": "Permanently remove this organization and all of its contents from the Akashic Labs platform. This action is not reversible, so please continue with caution.",
+    "cta": "Delete organization",
+    "disclaimer": "You are about to delete this organization. \n\nAfter deleting it, all organization data (including members and teams) will be permanently deleted and cannot be recovered. \n\nDo you want to continue?",
+    "success": "Organization deleted successfully!",
+    "missingPermission": "You need additional permissions to delete this organization."
+  },
+  "error": {
+    "slugAlreadyTaken": "The slug is already taken.",
+    "cannotCreateNew": "You cannot create a new organization.",
+    "maximumNumberOfOrganizations": "You have reached the maximum number of organizations.",
+    "alreadyExists": "An organization with this name already exists.",
+    "notFound": "We couldn't find the organization.",
+    "userNotMember": "You are not a member of this organization.",
+    "cannotUpdate": "You cannot update this organization.",
+    "cannotDelete": "You cannot delete this organization.",
+    "noActive": "No active organization found.",
+    "userAlreadyMember": "You are already a member of this organization.",
+    "memberNotFound": "We couldn't find the member.",
+    "roleNotFound": "We couldn't find the role.",
+    "cannotLeaveAsOnlyOwner": "You cannot leave the organization as the only owner.",
+    "cannotLeaveWithoutOwner": "You cannot leave the organization without an owner.",
+    "cannotDeleteMember": "You cannot delete this member.",
+    "cannotUpdateMember": "You cannot update this member.",
+    "membershipLimitReached": "You have reached the membership limit for this organization.",
+    "cannotAccess": "You cannot access this organization.",
+    "slugNotAvailable": "The slug is not available.",
+    "team": {
+      "cannotCreateNew": "You cannot create a new team.",
+      "alreadyExists": "A team with this name already exists.",
+      "notFound": "We couldn't find the team.",
+      "maximumNumberOfTeams": "You have reached the maximum number of teams.",
+      "unableToRemoveLastTeam": "You cannot remove the last team.",
+      "cannotCreate": "You cannot create a team in this organization.",
+      "cannotDelete": "You cannot delete a team in this organization.",
+      "cannotUpdate": "You cannot update a team in this organization.",
+      "cannotAccessMembers": "You cannot access the members of this team.",
+      "memberLimitReached": "You have reached the member limit for this team.",
+      "userNotMember": "You are not a member of this team.",
+      "noActive": "No active team found.",
+      "cannotCreateNewMember": "You cannot create a new member.",
+      "cannotRemoveMember": "You cannot remove this member.",
+      "cannotAccess": "You cannot access this organization."
+    },
+    "invitation": {
+      "cannotInviteUsers": "You cannot invite users to this organization.",
+      "userAlreadyInvited": "This user is already invited to this organization.",
+      "notFound": "We couldn't find the invitation.",
+      "notRecipient": "You are not the recipient of this invitation.",
+      "cannotCancel": "You cannot cancel this invitation.",
+      "inviterNoLongerMember": "The inviter is no longer a member of the organization.",
+      "cannotInviteUserWithRole": "You cannot invite a user with this role.",
+      "emailVerificationRequired": "Email verification is required before accepting or rejecting an invitation.",
+      "failedToRetrieve": "We couldn't retrieve the invitation.",
+      "limitReached": "You have reached the invitation limit for this organization."
+    },
+    "ac": {
+      "missingAcInstance": "Missing AC instance.",
+      "mustBeInOrganizationToCreateRole": "You must be in an organization to create a role.",
+      "cannotCreateRole": "You cannot create a role.",
+      "cannotUpdateRole": "You cannot update a role.",
+      "cannotDeleteRole": "You cannot delete a role.",
+      "cannotReadRole": "You cannot read a role.",
+      "cannotListRole": "You cannot list roles.",
+      "cannotGetRole": "You cannot get a role.",
+      "tooManyRoles": "You have reached the maximum number of roles.",
+      "invalidResource": "The resource is invalid.",
+      "cannotDeletePreDefinedRole": "You cannot delete a pre-defined role.",
+      "roleNameAlreadyTaken": "The role name is already taken."
+    }
+  }
+}

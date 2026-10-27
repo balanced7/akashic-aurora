@@ -1,0 +1,173 @@
+{
+  "error": {
+    "default": "Neveljavna vhodna vrednost",
+    "type": "Pričakovano {{expected}}, prejeto {{received}}",
+    "type_with_path": "{{path}} mora biti {{expected}}, prejeto {{received}}",
+    "undefined": "{{path}} je obvezno",
+    "date": "Neveljavna oblika datuma",
+    "custom": "Neveljavna vhodna vrednost",
+    "notMultipleOf": "Število mora biti večkratnik števila {{multipleOf}}",
+    "invalidKey": "Neveljaven ključ",
+    "invalidElement": "Neveljaven element: {{- origin}}",
+    "invalidValue_one": "Neveljavna vrednost: {{- values}}, pričakovano {{expected}}",
+    "invalidValue_other": "Neveljavne vrednosti: {{- values}}, pričakovano {{expected}}",
+    "string": {
+      "generic": "Neveljavna oblika - {{format}}",
+      "email": "Vnesite veljaven e-poštni naslov",
+      "url": "Vnesite veljaven naslov URL",
+      "uuid": "Vnesite veljaven UUID",
+      "cuid": "Vnesite veljaven CUID",
+      "regex": "Neveljavna oblika - {{validation}}",
+      "datetime": "Neveljavna oblika - {{validation}}",
+      "startsWith": "Mora se začeti z {{startsWith}}",
+      "endsWith": "Mora se končati z {{endsWith}}"
+    },
+    "file": {
+      "type": "Sprejete so samo datoteke vrste {{type}}.",
+      "maxCount_one": "Naložite lahko samo {{count}} datoteko.",
+      "maxCount_other": "Naložite lahko največ {{count}} datotek.",
+      "maxCount_two": "Naložite lahko največ {{count}} datoteki.",
+      "maxCount_few": "Naložite lahko največ {{count}} datoteke."
+    },
+    "tooSmall": {
+      "array": {
+        "inclusive": "Vsebovati mora vsaj {{minimum}} elementov",
+        "inclusive_one": "Vsebovati mora vsaj {{minimum}} element",
+        "inclusive_other": "Vsebovati mora vsaj {{minimum}} elementov",
+        "notInclusive": "Vsebovati mora več kot {{minimum}} elementov",
+        "notInclusive_one": "Vsebovati mora več kot {{minimum}} element",
+        "notInclusive_other": "Vsebovati mora več kot {{minimum}} elementov",
+        "inclusive_two": "Vsebovati mora vsaj {{minimum}} elementa",
+        "inclusive_few": "Vsebovati mora vsaj {{minimum}} elemente",
+        "notInclusive_two": "Vsebovati mora več kot {{minimum}} elementa",
+        "notInclusive_few": "Vsebovati mora več kot {{minimum}} elemente"
+      },
+      "string": {
+        "inclusive": "Vsebovati mora vsaj {{minimum}} znakov",
+        "inclusive_one": "Vsebovati mora vsaj {{minimum}} znak",
+        "inclusive_other": "Vsebovati mora vsaj {{minimum}} znakov",
+        "inclusive_with_path": "{{path}} mora vsebovati vsaj {{minimum}} znakov",
+        "inclusive_with_path_one": "{{path}} mora vsebovati vsaj {{minimum}} znak",
+        "inclusive_with_path_other": "{{path}} mora vsebovati vsaj {{minimum}} znakov",
+        "notInclusive": "Vsebovati mora več kot {{minimum}} znakov",
+        "notInclusive_one": "Vsebovati mora več kot {{minimum}} znak",
+        "notInclusive_other": "Vsebovati mora več kot {{minimum}} znakov",
+        "notInclusive_with_path": "{{path}} mora vsebovati več kot {{minimum}} znakov",
+        "notInclusive_with_path_one": "{{path}} mora vsebovati več kot {{minimum}} znak",
+        "notInclusive_with_path_other": "{{path}} mora vsebovati več kot {{minimum}} znakov",
+        "inclusive_two": "Vsebovati mora vsaj {{minimum}} znaka",
+        "inclusive_few": "Vsebovati mora vsaj {{minimum}} znake",
+        "inclusive_with_path_two": "{{path}} mora vsebovati vsaj {{minimum}} znaka",
+        "inclusive_with_path_few": "{{path}} mora vsebovati vsaj {{minimum}} znake",
+        "notInclusive_two": "Vsebovati mora več kot {{minimum}} znaka",
+        "notInclusive_few": "Vsebovati mora več kot {{minimum}} znake",
+        "notInclusive_with_path_two": "{{path}} mora vsebovati več kot {{minimum}} znaka",
+        "notInclusive_with_path_few": "{{path}} mora vsebovati več kot {{minimum}} znake"
+      },
+      "number": {
+        "inclusive": "Mora biti večje ali enako {{minimum}}",
+        "inclusive_with_path": "{{path}} mora biti večje ali enako {{minimum}}",
+        "notInclusive": "Mora biti večje od {{minimum}}",
+        "notInclusive_with_path": "{{path}} mora biti večje od {{minimum}}"
+      },
+      "set": {
+        "inclusive": "Neveljavna vhodna vrednost",
+        "notInclusive": "Neveljavna vhodna vrednost"
+      },
+      "date": {
+        "inclusive": "Datum mora biti {{- minimum, datetime}} ali pozneje",
+        "notInclusive": "Datum mora biti po {{- minimum, datetime}}"
+      },
+      "file": {
+        "inclusive": "Velikost datoteke mora biti večja ali enaka {{minimum}} MB",
+        "notInclusive": "Velikost datoteke mora biti večja od {{minimum}} MB"
+      }
+    },
+    "tooBig": {
+      "array": {
+        "inclusive": "Vsebovati mora največ {{maximum}} elementov",
+        "inclusive_one": "Vsebovati mora največ {{maximum}} element",
+        "inclusive_other": "Vsebovati mora največ {{maximum}} elementov",
+        "notInclusive": "Vsebovati mora manj kot {{maximum}} elementov",
+        "notInclusive_one": "Vsebovati mora manj kot {{maximum}} element",
+        "notInclusive_other": "Vsebovati mora manj kot {{maximum}} elementov",
+        "inclusive_two": "Vsebovati sme največ {{maximum}} elementa",
+        "inclusive_few": "Vsebovati sme največ {{maximum}} elemente",
+        "notInclusive_two": "Vsebovati mora manj kot {{maximum}} elementa",
+        "notInclusive_few": "Vsebovati mora manj kot {{maximum}} elemente"
+      },
+      "string": {
+        "inclusive": "Vsebovati mora največ {{maximum}} znakov",
+        "inclusive_one": "Vsebovati mora največ {{maximum}} znak",
+        "inclusive_other": "Vsebovati mora največ {{maximum}} znakov",
+        "inclusive_with_path": "{{path}} ne sme presegati {{maximum}} znakov",
+        "inclusive_with_path_one": "{{path}} ne sme presegati {{maximum}} znaka",
+        "inclusive_with_path_other": "{{path}} ne sme presegati {{maximum}} znakov",
+        "notInclusive": "Vsebovati mora manj kot {{maximum}} znakov",
+        "notInclusive_one": "Vsebovati mora manj kot {{maximum}} znak",
+        "notInclusive_other": "Vsebovati mora manj kot {{maximum}} znakov",
+        "notInclusive_with_path": "{{path}} mora vsebovati manj kot {{maximum}} znakov",
+        "notInclusive_with_path_one": "{{path}} mora vsebovati manj kot {{maximum}} znak",
+        "notInclusive_with_path_other": "{{path}} mora vsebovati manj kot {{maximum}} znakov",
+        "inclusive_two": "Vsebovati sme največ {{maximum}} znaka",
+        "inclusive_few": "Vsebovati sme največ {{maximum}} znake",
+        "inclusive_with_path_two": "{{path}} ne sme presegati {{maximum}} znakov",
+        "inclusive_with_path_few": "{{path}} ne sme presegati {{maximum}} znakov",
+        "notInclusive_two": "Vsebovati mora manj kot {{maximum}} znaka",
+        "notInclusive_few": "Vsebovati mora manj kot {{maximum}} znake",
+        "notInclusive_with_path_two": "{{path}} mora vsebovati manj kot {{maximum}} znaka",
+        "notInclusive_with_path_few": "{{path}} mora vsebovati manj kot {{maximum}} znake"
+      },
+      "number": {
+        "inclusive": "Mora biti manjše ali enako {{maximum}}",
+        "inclusive_with_path": "{{path}} mora biti manjše ali enako {{maximum}}",
+        "notInclusive": "Mora biti manjše od {{maximum}}",
+        "notInclusive_with_path": "{{path}} mora biti manjše od {{maximum}}"
+      },
+      "set": {
+        "inclusive": "Neveljavna vhodna vrednost",
+        "notInclusive": "Neveljavna vhodna vrednost"
+      },
+      "date": {
+        "inclusive": "Datum mora biti {{- maximum, datetime}} ali prej",
+        "notInclusive": "Datum mora biti pred {{- maximum, datetime}}"
+      },
+      "file": {
+        "inclusive": "Velikost datoteke mora biti manjša ali enaka {{maximum}} MB",
+        "notInclusive": "Velikost datoteke mora biti manjša od {{maximum}} MB"
+      }
+    },
+    "invalidValue_two": "Neveljavni vrednosti: {{- values}}, pričakovano {{expected}}",
+    "invalidValue_few": "Neveljavne vrednosti: {{- values}}, pričakovano {{expected}}"
+  },
+  "validation": {
+    "email": "e-poštni naslov",
+    "url": "naslov URL",
+    "uuid": "uuid",
+    "cuid": "cuid",
+    "regex": "regularni izraz",
+    "datetime": "datum in čas"
+  },
+  "type": {
+    "function": "funkcija",
+    "number": "število",
+    "string": "niz",
+    "nan": "nan",
+    "integer": "celo število",
+    "float": "decimalno število",
+    "boolean": "logična vrednost",
+    "date": "datum",
+    "bigint": "bigint",
+    "undefined": "nedefinirano",
+    "symbol": "simbol",
+    "null": "null",
+    "array": "polje",
+    "object": "objekt",
+    "unknown": "neznano",
+    "promise": "obljuba",
+    "void": "void",
+    "never": "never",
+    "map": "map",
+    "set": "set"
+  }
+}

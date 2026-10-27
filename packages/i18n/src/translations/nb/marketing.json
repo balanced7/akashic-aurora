@@ -1,0 +1,242 @@
+{
+  "product": {
+    "title": "Dette kan bli din egen millionbedrift",
+    "description": "En fullt tilpassbar Akashic Labs-applikasjon. Bytt inn ditt eget innhold og lanser produktet raskere enn noen gang.",
+    "mobile": {
+      "ios": {
+        "title": "iOS-app",
+        "description": "Native opplevelse på iPhone og iPad"
+      },
+      "android": {
+        "title": "Android-app",
+        "description": "Optimalisert for Android-telefoner"
+      }
+    },
+    "extension": {
+      "chrome": {
+        "title": "Chrome-utvidelse",
+        "description": "Integrasjon med Chrome-nettleseren"
+      },
+      "firefox": {
+        "title": "Firefox-tillegg",
+        "description": "Bedre nettlesing for Firefox-brukere"
+      },
+      "edge": {
+        "title": "Edge-tillegg",
+        "description": "Kraftige verktøy for Microsoft Edge"
+      }
+    }
+  },
+  "announcement": "Her kunngjør du den nye funksjonen din",
+  "shippedWith": "Levert med produksjonsklare verktøy",
+  "cta": {
+    "question": "Klar til å starte?",
+    "button": "Start gratis",
+    "buy": {
+      "question": "Klar til å starte?",
+      "description": "Kjøp for å låse opp full tilgang til kodebasen, og begynn å bygge produktet ditt i dag. På alle plattformer.",
+      "button": "Få tilgang",
+      "join": {
+        "description": "Bli med andre gründere som tilpasser Akashic Labs, del lanseringstips og hold deg oppdatert på nyheter.",
+        "button": "Bli med i fellesskapet"
+      }
+    }
+  },
+  "editToReload": "Rediger <code>{{file}}</code> og lagre for å laste inn på nytt.",
+  "workInProgress": {
+    "title": "Vi jobber med saken!",
+    "description": "{{feature}} er ikke tilgjengelig ennå. Vi jobber med det, og det kommer snart."
+  },
+  "features": {
+    "label": "Funksjoner",
+    "title": "Gjør besøkende til kunder",
+    "description": "Alt du trenger for å bygge, lansere og skalere applikasjonene dine med trygghet.",
+    "feature": {
+      "core": {
+        "title": "Solid grunnmur",
+        "description": "Autentisering, database og API er allerede koblet sammen, så du kan fokusere på verdien for kundene."
+      },
+      "ai": {
+        "title": "Muligheter drevet av KI",
+        "description": "Smarte funksjoner med anbefalinger og automatiserte arbeidsflyter drevet av kunstig intelligens."
+      },
+      "mobile": {
+        "title": "Native mobilopplevelse",
+        "description": "En komplett mobilapp med sømløs synkronisering på tvers av alle enhetene dine."
+      },
+      "extension": {
+        "title": "Nettleserutvidelse",
+        "description": "Hold brukerne engasjert i nettleseren med tilpassbare snarveier til produktet ditt."
+      }
+    }
+  },
+  "testimonials": {
+    "label": "Kundehistorier",
+    "title": "Team leverer raskere med oss",
+    "description": "Hør fra gründere og utviklere som tilpasset malen for å lansere raskere og konvertere bedre.",
+    "rating": "{{rating}} fra over {{count}} anmeldelser",
+    "reviews": {
+      "jack": {
+        "name": "Jack",
+        "position": "Fullstackutvikler",
+        "body": "Malen fritok teamet vårt fra rutinearbeid. Vi byttet inn vår egen tekst i løpet av en helg og kunne fokusere på funksjoner kundene faktisk ville ha."
+      },
+      "jill": {
+        "name": "Jill",
+        "position": "Gründer",
+        "body": "Vi lanserte MVP-en på to uker. Alt fra markedsføringssider til pålogging var klart - vi skrev bare om teksten for målgruppen vår."
+      },
+      "john": {
+        "name": "John",
+        "position": "Seniorutvikler",
+        "body": "Utvikleropplevelsen er uten sidestykke. Stacken fungerer rett ut av boksen og er fleksibel nok til å formes rundt produktfortellingen vår."
+      },
+      "sarah": {
+        "name": "Sarah",
+        "position": "Produktsjef",
+        "body": "Vi skalerte fra prototype til tusenvis av brukere uten dramatikk. Analyse, fakturering og markedsføringsflyter var klare til å tilpasses."
+      },
+      "mike": {
+        "name": "Mike",
+        "position": "Utviklingsleder",
+        "body": "Fellesskapet er fantastisk. Raske svar, tilbakemeldinger ved lansering og stadige forbedringer holder teamet vårt i bevegelse."
+      }
+    }
+  },
+  "faq": {
+    "label": "Ofte stilte spørsmål",
+    "title": "Har du et spørsmål? Vi har svar",
+    "description": "Finn svar på ofte stilte spørsmål om funksjoner, priser, implementering og hvordan du kommer i gang med plattformen vår.",
+    "cta": "Kontakt oss",
+    "question": {
+      "whatDoesOurPlatformDo": {
+        "question": "Hva gjør plattformen vår?",
+        "answer": "Akashic Labs gir deg et komplett SaaS-fundament - markedsføringsside, nettapp, mobilapper og utvidelser - slik at du kan fokusere på din egen kundeopplevelse."
+      },
+      "howWillThisBenefitMyBusiness": {
+        "question": "Hvordan vil dette hjelpe bedriften min?",
+        "answer": "Du lanserer raskere, leverer funksjoner tidligere og konverterer flere kundeemner, fordi kjerneproduktet, analysen og faktureringen allerede er på plass."
+      },
+      "isMyDataSafe": {
+        "question": "Er dataene mine trygge?",
+        "answer": "Ja. Vi følger sikkerhetspraksis på bedriftsnivå og gir rammer slik at du kan tilpasse retningslinjene til kravene i din bransje."
+      },
+      "whatKindOfIntegrationsAreAvailable": {
+        "question": "Hvilke integrasjoner er tilgjengelige?",
+        "answer": "Akashic Labs leveres med populære SaaS-integrasjoner rett ut av boksen, og den modulære arkitekturen gjør det enkelt å legge til din egen stack."
+      },
+      "howEasyIsItToOnboardMyTeam": {
+        "question": "Hvor enkelt er det å få teamet mitt i gang?",
+        "answer": "Teamet ditt kommer raskt i gang med tydelig dokumentasjon, TypeScript-første mønstre og eksempler som viser nøyaktig hvor du skal tilpasse."
+      },
+      "whatTypesOfBusinessesCanUseThis": {
+        "question": "Hvilke typer bedrifter kan bruke dette?",
+        "answer": "Fra solo-gründere til innovasjonsteam i store selskaper - Akashic Labs tilpasser seg ethvert SaaS-behov som trenger et forsprang."
+      },
+      "canICustomizeThisToFitMyBusinessNeeds": {
+        "question": "Kan jeg tilpasse dette til bedriftens behov?",
+        "answer": "Absolutt. Hver modul er laget for rask tilpasning - oppdater tekst, bytt ut komponenter og utvid logikken uten å kjempe mot rammeverket."
+      }
+    }
+  },
+  "contact": {
+    "label": "Kontakt",
+    "title": "Ta kontakt med oss i dag for hjelp",
+    "cta": "Snakk med salg",
+    "description": "Ta kontakt for hjelp eller tilbakemeldinger",
+    "form": {
+      "name": {
+        "placeholder": "Ola Nordmann"
+      },
+      "email": {
+        "placeholder": "din@epost.no"
+      },
+      "message": {
+        "placeholder": "Hvordan kan vi hjelpe deg?"
+      },
+      "submit": "Send melding",
+      "success": {
+        "title": "Meldingen er sendt!",
+        "description": "Takk for meldingen. Vi kommer tilbake til deg snart."
+      }
+    },
+    "email": {
+      "subject": "Du har mottatt en ny henvendelse fra kontaktskjemaet",
+      "body": "Ny henvendelse fra kontaktskjemaet"
+    }
+  },
+  "blog": {
+    "label": "Blogg",
+    "title": "Nyheter og oppdateringer om plattformen",
+    "description": "Hold deg oppdatert på de siste nyhetene, innsiktene og oppdateringene fra plattformen vår. Oppdag nye funksjoner, beste praksis og bransjetrender.",
+    "timeToRead": "{{time}} min lesetid",
+    "tag": {
+      "learning": "læring",
+      "skills": "ferdigheter",
+      "progress": "fremgang",
+      "product": "produkt",
+      "development": "utvikling",
+      "prototype": "prototype",
+      "launch": "lansering"
+    }
+  },
+  "api": {
+    "title": "API-referanse",
+    "description": "Bygg integrasjoner med API-et vårt"
+  },
+  "roadmap": {
+    "title": "Veikart",
+    "description": "Se hva som kommer neste gang"
+  },
+  "docs": {
+    "title": "Dokumentasjon",
+    "description": "Lær hvordan du bruker Akashic Labs"
+  },
+  "ai": {
+    "description": "Frigjør produktivitet og innovasjon med Akashic Labs' KI-assistent. Få svar umiddelbart, automatiser oppgaver og forbedre arbeidsflyten din med avansert kunstig intelligens - sikkert, pålitelig og laget for moderne team.",
+    "prompt": {
+      "history": "Fortell internetts historie",
+      "capitals": "Test meg i verdens hovedsteder",
+      "quantum": "Forklar kvantedatabehandling",
+      "realWorld": "Beskriv et virkelig eksempel på bruk av KI"
+    },
+    "placeholder": "Still et spørsmål ...",
+    "cta": "Send"
+  },
+  "setup": {
+    "steps": {
+      "step": {
+        "start": {
+          "title": "Dette er et enkelt steg",
+          "description": "Trykk på Fortsett for å gå videre til neste steg"
+        },
+        "required": {
+          "title": "Dette er et obligatorisk steg",
+          "description": "Du må fylle ut alle obligatoriske felt for å gå videre til neste steg",
+          "fields": {
+            "data": "Jeg forstår at dataene mine er private og krypterte",
+            "privacy": "Jeg har lest og godtar <a>personvernerklæringen</a>"
+          }
+        },
+        "skip": {
+          "title": "Dette steget kan hoppes over",
+          "description": "Du kan hoppe over dette steget og gå videre til neste"
+        },
+        "final": {
+          "title": "Dette er det siste steget",
+          "description": "Du har fullført alle stegene - kos deg med den nye appen din!"
+        }
+      }
+    }
+  },
+  "update": {
+    "available": {
+      "title": "Ny oppdatering tilgjengelig!",
+      "description": "En ny oppdatering er klar til å installeres. Klikk nedenfor for å installere den, eller avvis den til senere."
+    },
+    "installing": {
+      "title": "Installerer oppdatering ...",
+      "description": "Oppdateringen installeres. Vent et øyeblikk."
+    }
+  }
+}

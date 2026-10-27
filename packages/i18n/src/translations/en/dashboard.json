@@ -1,0 +1,26 @@
+{
+  "user": {
+    "home": {
+      "title": "Dashboard",
+      "description": "An overview of your personal account's activity across all your projects."
+    }
+  },
+  "organization": {
+    "home": {
+      "title": "Organization dashboard",
+      "description": "An overview of your organization's activity and performance across all projects."
+    }
+  },
+  "chart": {
+    "showing": "Showing total visitors for the last period",
+    "trending": "Trending by up to 5.2% this month",
+    "period": "January - June 2024",
+    "bar": "Bar Chart",
+    "pie": "Pie Chart",
+    "area": "Area Chart",
+    "line": "Line Chart",
+    "shape": "Shape Chart",
+    "radial": "Radial Chart",
+    "radar": "Radar Chart"
+  }
+}
