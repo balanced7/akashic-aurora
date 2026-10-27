@@ -595,6 +595,13 @@ test("shapes: a held figure morphs into the next one on each beat", () => {
     const posE = eng.posE, f = posE - Math.floor(posE);
     if (f > 0.3 && f < 0.9 && out.n >= L.SHAPE_SEGS && checked < 3) {      // the morph is over: the figure IS the shape
       const want = L.shapeSegments(H.shapeNow, { pos: posE, R: 0.2 * (0.9 + 0.2 * H.vel) * (H.level >= 2 ? 1.15 : 1) });
+      // (VJ V2: the hit's standing motion turns and sizes the figure about the hero -- vj-motions.js -- so the morph is
+      // checked through that turn and scale, exactly)
+      const mo = H.mo, mc = mo ? Math.cos(mo.rot) * mo.scale : 1, ms = mo ? Math.sin(mo.rot) * mo.scale : 0;
+      for (let i = 0; i < want.length; i += 2) {
+        const x = want[i] - L.HERO.x, y = want[i + 1] - L.HERO.y;
+        want[i] = L.HERO.x + x * mc - y * ms; want[i + 1] = L.HERO.y + x * ms + y * mc;
+      }
       let worst = 0, k = 0;
       eachLine(out, (r) => {
         if (r.kind !== 1 || k >= L.SHAPE_SEGS) return;
