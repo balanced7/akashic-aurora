@@ -98,6 +98,16 @@ node in the world — the player's motivation is curiosity, never a quest marker
 - `arsenal/web/glider/physics.js` (commit `90a1cb91`): point-mass glide, wind-relative thermals, 16
   pins green. This is the **movement substrate** every ladder rung sits on. (The first draft's
   glide-feel prototype is not discarded — it becomes the first rung: *wings*.)
+- `arsenal/web/glider/index.html` + `glider.js` + `glider.css` (2026-10-26, Rill): the playable
+  glide — one island, one wing, one thermal, third-person chase camera, dusk palette, a fading
+  flight trail, and an end-of-run feel report. The pinned physics run untouched in a vertical
+  plane that follows the heading; bank is control-feel, the line physics.js drew. Served by the
+  arsenal server at `/glider/`.
+- `arsenal/web/glider/flightlog.js` + `tests/glider_flightlog.test.mjs` (2026-10-26): the six
+  pre-registered feel proxies computed from a recorded flight — 14 pins green (30 with the
+  physics suite). The page prints these numbers beside the verdict.
+- **Visual review owed:** the render itself is unverified until it is played — the pre-registered
+  bar is still Daniel's thirty-second feel verdict.
 
 ## The FIRST prototype slice: the integration moment
 

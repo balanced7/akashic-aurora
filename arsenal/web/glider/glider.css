@@ -1,0 +1,170 @@
+/* arsenal/web/glider/glider.css — the glide HUD: dusk palette, calm, out of the picture's way. */
+
+:root {
+  --sky: #0d1330;
+  --ink: #e8d5b0;
+  --ink-dim: #9a8fb8;
+  --warm: #ffc98a;
+  --thermal: #ffe9c8;
+  --danger: #ff7a5c;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sky);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- HUD ---- */
+#hud {
+  position: fixed;
+  top: 18px;
+  left: 20px;
+  display: grid;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.hud-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.hud-label {
+  color: var(--ink-dim);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  min-width: 110px;
+}
+
+.hud-row span:nth-child(2) {
+  font-size: 20px;
+  color: var(--ink);
+  min-width: 56px;
+  text-align: right;
+}
+
+.hud-unit {
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+
+.hud-state {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.hud-state.thermal { color: var(--thermal); }
+.hud-state.stall { color: var(--danger); animation: blink 0.6s steps(2) infinite; }
+
+@keyframes blink { 50% { opacity: 0.35; } }
+
+/* ---- key help ---- */
+#help {
+  position: fixed;
+  left: 20px;
+  bottom: 16px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+}
+
+#help .key {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 6px;
+  margin: 0 1px;
+  border: 1px solid rgba(232, 213, 176, 0.25);
+  border-radius: 4px;
+  text-align: center;
+  color: var(--ink);
+}
+
+.help-note {
+  margin-top: 6px;
+  color: rgba(154, 143, 184, 0.75);
+  font-style: italic;
+}
+
+/* ---- flight report ---- */
+#report {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  background: rgba(9, 12, 28, 0.72);
+  backdrop-filter: blur(6px);
+  text-align: center;
+}
+
+#report h2 {
+  margin: 0 0 18px;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--warm);
+  font-size: 20px;
+}
+
+#report-body {
+  display: grid;
+  gap: 8px;
+  min-width: 380px;
+  margin: 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+.report-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 7px 14px;
+  border-bottom: 1px solid rgba(232, 213, 176, 0.12);
+}
+
+.report-line .mark { color: var(--warm); width: 18px; }
+.report-line .mark.no { color: rgba(154, 143, 184, 0.6); }
+
+.report-note {
+  margin-top: 16px;
+  color: var(--ink-dim);
+  font-style: italic;
+  font-size: 13px;
+}
+
+#report-again {
+  margin: 20px auto 0;
+  padding: 10px 26px;
+  background: none;
+  border: 1px solid rgba(255, 201, 138, 0.5);
+  border-radius: 999px;
+  color: var(--warm);
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+#report-again:hover {
+  background: rgba(255, 201, 138, 0.12);
+}

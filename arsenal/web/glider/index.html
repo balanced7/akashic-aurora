@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>glide — the first thirty seconds</title>
+  <link rel="stylesheet" href="./glider.css" />
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js"}}</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="hud">
+    <div class="hud-row"><span class="hud-label">speed</span><span id="hud-speed">—</span><span class="hud-unit">m/s</span></div>
+    <div class="hud-row"><span class="hud-label">altitude</span><span id="hud-alt">—</span><span class="hud-unit">m</span></div>
+    <div class="hud-row"><span class="hud-label">angle of attack</span><span id="hud-aoa">—</span><span class="hud-unit">°</span></div>
+    <div class="hud-row"><span class="hud-label">glide ratio</span><span id="hud-ratio">—</span></div>
+    <div id="hud-state" class="hud-state">—</div>
+  </div>
+
+  <div id="help">
+    <span class="key">↑</span><span class="key">↓</span> pitch &nbsp;·&nbsp;
+    <span class="key">←</span><span class="key">→</span> bank &nbsp;·&nbsp;
+    <span class="key">R</span> restart
+    <div class="help-note">find the thermal column — ride it up — dive to feel the speed</div>
+  </div>
+
+  <div id="report" hidden>
+    <h2>flight report</h2>
+    <div id="report-body"></div>
+    <div class="report-note">the numbers are proxies — the real bar is the feel</div>
+    <button id="report-again">fly again</button>
+  </div>
+
+  <script type="module" src="./glider.js"></script>
+</body>
+</html>
