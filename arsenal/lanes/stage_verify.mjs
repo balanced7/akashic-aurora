@@ -62,7 +62,7 @@ const MAIN = REPO.split(/[\\/]\.claude[\\/]worktrees[\\/]/)[0];
 const WEB = resolve(REPO, "arsenal", "web");
 const { values: opt } = parseArgs({
   options: {
-    phases: { type: "string", default: "load,clock,camera,phrase,engine,flash,storm,pic-levels,pic-rush,pic-ring,pic-handoff" },
+    phases: { type: "string", default: "load,clock,camera,phrase,engine,flash,storm,pic-levels,pic-rush,pic-ring,pic-handoff,orrery,spiral" },
     "flash3m-seconds": { type: "string", default: "180" },
     "chunk-seconds": { type: "string", default: "10" },
     "chunk-from": { type: "string", default: "0" },
@@ -523,6 +523,123 @@ async function phaseCamera({ ev, open, phase, deadline }) {
         { frames: hand.length, closest_m: handWorst && +handWorst.toFixed(3), height_span_m: +span.toFixed(2), lowest_m: hand.length ? +Math.min(...hand.map((r) => r.y)).toFixed(2) : null });
   const errs = phase.exceptions.length + (await ev("window.__stage.errors.length"));
   check("camera: no exceptions", errs === 0, { exceptions: phase.exceptions.slice(0, 3), page: await ev("window.__stage.errors.slice(0, 3)") });
+}
+
+// v2 (2026-10-27, kinetics wave A + the orrery): the ring formations on the page. Each phase holds the show's sections (the
+// formation is judged alone, in the Dreaming City theme it was drawn for), measures the rings' motion on the 60 fps
+// virtual clock, shoots a frame from each hero view for the contact sheet, and reads every frame through the near view
+// (the holographic shimmer awake) and the HERO's discharge on its ONE, judged by the verifier's own flash counter.
+const RING_RUN = String.raw`((frames, pressAt) => { const s = window.__stage, out = [];
+  for (let i = 0; i < frames; i++) {
+    if (i === pressAt) s.press(9, 1);
+    window.__vt.step(1000 / 60);
+    const c = window.__probe.cells(), g = s.renderer.info.gains;
+    out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, pos: s.grid.posAt(performance.now() + s.grid.presentLagMs),
+               hl: s.rings.hl || 0, lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0 });
+  }
+  return out; })`;
+async function ringHeroSeries({ ev, phase, tag, shotId, frames, deadline }) {
+  await ev(`window.__stage.setShot(${JSON.stringify(shotId)}, 0.95)`);
+  const series = [];
+  // the discharge is pressed after a second; it lands on the next bar line
+  for (let done = 0; done < frames && Date.now() < deadline - 15000; done += 60) series.push(...await ev(`${RING_RUN}(${Math.min(60, frames - done)}, ${done === 60 ? 0 : -1})`, 160000));
+  const j = judgeFlashes(series);
+  const fired = await ev("window.__stage.state().rings.hero.fired.slice(-1)[0] || null");
+  const first = series.find((x) => x.hl > 0);
+  phase[`${tag}_judged`] = { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, frames: series.length, limited: series.filter((x) => x.lim).length };
+  check(`${tag}: HERO's discharge lands on its ONE (+-1 frame) through the FlashGate`, fired && fired.granted && first && Math.abs(first.pos - fired.at) * 24 <= 1.01,
+        { fired, first_lit_pos: first && +first.pos.toFixed(4) });
+  check(`${tag}: at most 3 flashes a second in every window, red at most 3, through the discharge (${series.length} frames on ${shotId})`,
+        series.length >= 180 && j.worst <= 3 && j.worst_red <= 3, phase[`${tag}_judged`]);
+}
+
+async function phaseOrrery({ ev, open, shot, phase, deadline }) {
+  await open(`demo=1&vt=1&ring=orrery&theme=dreaming-city&${BASE}`);
+  await ev(PAGE_PROBE);
+  await ev(`(() => { const s = window.__stage; s.show.update = () => []; for (let i = 0; i < 20; i++) window.__vt.step(${F}); return true; })()`);
+  // the gimbals turn at their own prime rates: ten beats, logic only
+  const m = await ev(`(() => { const s = window.__stage; s.skipRender = true;
+    const a = s.rings.rr.poses.map((p) => ({ ...p })), p0 = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    for (let i = 0; i < 240; i++) window.__vt.step(${F});
+    const b = s.rings.rr.poses.map((p) => ({ ...p })), p1 = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    s.skipRender = false; return { a, b, beats: p1 - p0 }; })()`);
+  const rate = (k, d) => (m.b[k][d] - m.a[k][d]) / m.beats;
+  const want = [["spin", 0, 360 / 113], ["yaw", 1, 360 / 89], ["yaw", 2, -360 / 67], ["yaw", 3, 360 / 37]];
+  phase.rates = want.map(([d, k, w]) => ({ ring: k, dof: d, measured: +rate(k, d).toFixed(4), want: +w.toFixed(4) }));
+  check("orrery: the gimbals stand at 55 / 80 / 60 / 30 and turn at their own prime rates (R0 spins 360/113, R1 360/89, R2 -360/67, R3 360/37 degrees a beat)",
+        m.b.map((p) => Math.round(p.tilt)).join() === "55,80,60,30" && want.every(([d, k, w]) => Math.abs(rate(k, d) - w) <= Math.abs(w) * 0.03), phase.rates);
+  // the scenery: the core mesh and the formation's emitters, from each hero view (the contact sheet)
+  for (const id of ["ORRERY_UNDER", "ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"]) {
+    await ev(`(() => { window.__stage.setShot(${JSON.stringify(id)}, 0.6); for (let i = 0; i < 3; i++) window.__vt.step(${F}); return true; })()`);
+    await shot(join(outDir, `orrery-${id.toLowerCase()}.png`));
+  }
+  const sc = await ev("({ core: window.__stage.renderer.orbMesh.visible, emit: window.__stage.rings.emit.n, info: window.__stage.state().info })");
+  phase.scenery = sc;
+  check("orrery: the core is drawn, with its bands, planets and star motes (the formation's emitters)", sc.core && sc.emit > 1500 && sc.info.emitters > 4000, sc);
+  await ringHeroSeries({ ev, phase, tag: "orrery", shotId: "ORRERY_NEAR", frames: 240, deadline });
+  const errs = phase.exceptions.length + (await ev("window.__stage.errors.length"));
+  check("orrery: no exceptions", errs === 0, { exceptions: phase.exceptions.slice(0, 3), page: await ev("window.__stage.errors.slice(0, 3)") });
+}
+
+async function phaseSpiral({ ev, open, shot, phase, deadline }) {
+  await open(`demo=1&vt=1&theme=dreaming-city&${BASE}`);
+  await ev(PAGE_PROBE);
+  // MORPH from home: pad 8 deals the orrery, the deck's next; then the spiral lands through the same door, logic only,
+  // with the camera's landing grammar watched every frame (the glide, the cut ON the landing bar line to the hero view)
+  // (the show's first section sets the strand's formation first: a ring formation lands from it, as on the page)
+  const setup = await ev(`(async () => { const s = window.__stage; s.skipRender = true;
+    for (let i = 0; i < 120; i++) window.__vt.step(${F});
+    s.show.update = () => [];
+    s.press(8, 1); const morphed = s.rings.key;
+    s.ringSet("home");
+    const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    s.director.start("groove", s.grid.nextBarPos(pos) - 8);
+    for (let i = 0; i < 6; i++) window.__vt.step(${F});
+    const r = s.ring("spiral");
+    const C = await import("/web/stage/camera.js");
+    window.__cam = { C, model: C.cameraModel(s.rig) };
+    return { morphed, start: r.start, posLand: r.posLand, barAnchor: s.grid.barAnchor }; })()`);
+  phase.setup = setup;
+  check("spiral: MORPH (pad 8) steps home to the deck's next formation, the orrery", setup.morphed === "orrery", setup);
+  const RUN = String.raw`((frames) => { const s = window.__stage, out = [], C = window.__cam.C, m = window.__cam.model;
+    for (let i = 0; i < frames; i++) {
+      window.__vt.step(1000 / 60);
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs), p = s.director.pose, rings = s.rings.liveAnnuli() || m.rings;
+      out.push({ pos, shot: p.shot, cut: p.cut, why: p.cut ? s.director.cuts.at(-1).why : null,
+                 clear: Math.min(C.clearanceToStrand(p.pos, s.strand.poses, m.z), C.clearanceToRings(p.pos, rings)) });
+    }
+    return out; })`;
+  const series = [];
+  while (Date.now() < deadline - 90000) {
+    const chunk = await ev(`${RUN}(240)`, 160000);
+    series.push(...chunk);
+    if (chunk.at(-1).pos > setup.posLand + 6) break;
+  }
+  const cuts = series.filter((r) => r.cut).map((r) => ({ pos: +r.pos.toFixed(4), shot: r.shot, why: r.why }));
+  const hero = cuts.find((c) => c.why === "landing-hero"), glide = cuts.find((c) => c.why === "landing-glide");
+  const guards = await ev("window.__stage.director.clear.guards");
+  const poses = await ev("window.__stage.state().rings.poses");
+  phase.landing = { cuts, guards, poses };
+  check("spiral: the rings land on the bar line their last ring makes, coplanar at 55 and stepped 3 m up their axis",
+        Math.abs((((setup.posLand - setup.barAnchor) % 4) + 4) % 4) < 1e-6 && poses.every((p, k) => Math.abs(p.tilt - 55) < 0.05 && Math.abs(p.axial - 3 * k) < 0.02),
+        { posLand: setup.posLand, poses });
+  check("spiral: the camera glides from a bar line while the rings move, then cuts ON the landing bar line (+-1 frame) to the spiral's hero view",
+        glide && hero && hero.shot === "SPIRAL_HERO" && Math.abs(hero.pos - setup.posLand) * 24 <= 1.01, { glide, hero, posLand: setup.posLand });
+  const worst = series.length ? Math.min(...series.map((r) => r.clear)) : null;
+  check("spiral: on no frame was the lens within 1.5 m of the live rings or the strand, and the guard never acted",
+        series.length > 300 && worst >= 1.5 && guards === 0, { frames: series.length, closest_m: worst && +worst.toFixed(3), guards });
+  // drawn: the well from below and from above, the energy column among the beams
+  await ev("window.__stage.skipRender = false");
+  for (const id of ["SPIRAL_HERO", "SPIRAL_SIDE"]) {
+    await ev(`(() => { window.__stage.setShot(${JSON.stringify(id)}, 0.5); for (let i = 0; i < 3; i++) window.__vt.step(${F}); return true; })()`);
+    await shot(join(outDir, `spiral-${id.toLowerCase()}.png`));
+  }
+  const info = await ev("window.__stage.state().info");
+  phase.info = info;
+  check("spiral: the energy column draws as a beam beside the halo's", info.beams >= 1 && (await ev("window.__stage.rings.beams.length")) === 1, info);
+  await ringHeroSeries({ ev, phase, tag: "spiral", shotId: "SPIRAL_HERO", frames: 240, deadline });
+  const errs = phase.exceptions.length + (await ev("window.__stage.errors.length"));
+  check("spiral: no exceptions", errs === 0, { exceptions: phase.exceptions.slice(0, 3), page: await ev("window.__stage.errors.slice(0, 3)") });
 }
 
 async function phaseEngine({ ev, open, phase }) {
@@ -1299,7 +1416,8 @@ try {
   ENGINE_PORT = await listen(engine, ENGINE_PORT);
   report.ports = { web: PORT, engine: ENGINE_PORT };
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
-                  phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase };
+                  phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
+                  orrery: phaseOrrery, spiral: phaseSpiral };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }

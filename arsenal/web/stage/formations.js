@@ -362,7 +362,8 @@ export class RingFormations {
           this.headOwn[j] = 1;
           const b = H.h * 7;
           if (wh < 0.5) { tH[b + 2] *= 1 - 2 * wh; continue; }
-          aimInto(this.ringM[H.k], H, this.headTgt[j], tH[b], this.headOut[j]);
+          // the last frame's pan as the hint: a turning ring never flips a yoke between the two solutions
+          aimInto(this.ringM[H.k], H, this.headTgt[j], this.headOut[j][0], this.headOut[j]);
           tH[b] = this.headOut[j][0]; tH[b + 1] = this.headOut[j][1];
           const lit = Math.max(this.headDim[j], hl > 0 && own.heroHeads ? hl : 0);
           tH[b + 2] = lit * (2 * wh - 1); tH[b + 3] = this.headZoom[j]; tH[b + 4] = 0; tH[b + 5] = this.headRole[j]; tH[b + 6] = this.headRole[j];
@@ -423,6 +424,8 @@ export class RingFormations {
     for (const L of list) lasers.aimed(L.i, L.dir, { col: L.col, level: clamp01(L.level) * (L.i === this.T.hero ? 1 : w), coneDeg: L.coneDeg || 0, ring: L.ring || 1, spin: L.spin || 0 });
     return list.length;
   }
+  // a ring laser's aperture on its ring's live pose
+  _laserPos(r) { return mountPose(this.ringM[r.k], r.mount, this.mp).pos; }
   _axisPoint(s, out = [0, 0, 0]) { const A = this.axis; out[0] = A.C[0] + A.n[0] * s; out[1] = A.C[1] + A.n[1] * s; out[2] = A.C[2] + A.n[2] * s; return out; }
 
   // The renderer's share: ring matrices, the core, the extra emitters and the energy column. roles: linear RGB per role.
@@ -448,7 +451,7 @@ export class RingFormations {
       this.beams.push({ apex: A.from.slice(), axis: A.n.slice(), beamDeg: C.beam_deg ?? 0.6, flux: (C.flux_lm ?? 12000) * lv, len: A.toLen + Math.hypot(A.C[0] - A.from[0], A.C[1] - A.from[1], A.C[2] - A.from[2]), col });
     }
     return { mats: this.ringM, els: this.T.ringEls, core: this.core, emit: this.emit, beams: this.beams,
-             hitOpts: this.core.on && this.core.r > 0 ? { orb: { c: this.core.c, r: this.core.r } } : null };
+             hitOpts: this.core.on && this.core.r > 0 ? { orb: { c: this.core.c, r: this.core.r } } : null, liftRims: keys.length > 0 };
   }
   _emit(p, rgb, k, size) {
     const e = this.emit, n = e.n;
@@ -467,7 +470,7 @@ export class RingFormations {
       const z = 2 * r() - 1, ph = TAU * r(), s = Math.sqrt(1 - z * z);
       const p = [C[0] + d * s * Math.cos(ph), C[1] + d * z, C[2] + d * s * Math.sin(ph)];
       if (p[1] < 3 || p[1] > 36 || p[2] > 26 || p[2] < -23) continue;
-      out.push({ p, f: 0.1 + 0.5 * r(), ph: r(), b: 0.3 + 0.7 * r() ** 2, s: 0.025 + 0.035 * r() });
+      out.push({ p, f: 0.1 + 0.5 * r(), ph: r(), b: 0.25 + 0.75 * r() ** 3, s: 0.01 + 0.02 * r() });
     }
     return out;
   }
@@ -642,7 +645,7 @@ const LASERS = {
     const w = ramp(rv.lasers || [24, 25], since);
     if (w <= 0) return;
     for (const r of this.T.lasers) {
-      const p = this.rig.projectors[r.i].pos;
+      const p = this._laserPos(r);
       list.push({ i: r.i, dir: [C[0] - p[0], C[1] - p[1], C[2] - p[2]], col: L.colour ?? 0, level: (L.level ?? 0.22) * w });
     }
   },
@@ -655,7 +658,7 @@ const LASERS = {
     const tau = ((360 * pos) / ((d.light && d.light.gap_beats) ?? 16)) * DEG * (1 - (this.hl || 0));
     const Q = this._axisPoint(L.cage_at_m ?? 22, [0, 0, 0]), rad = L.cage_radius_m ?? 1.0;
     for (const r of this.T.lasers) {
-      const p = this.rig.projectors[r.i].pos, a = r.angle + tau;
+      const p = this._laserPos(r), a = r.angle + tau;
       const t = [Q[0] + rad * (Math.cos(a) * B.u[0] + Math.sin(a) * B.v[0]), Q[1] + rad * (Math.cos(a) * B.u[1] + Math.sin(a) * B.v[1]), Q[2] + rad * (Math.cos(a) * B.u[2] + Math.sin(a) * B.v[2])];
       list.push({ i: r.i, dir: [t[0] - p[0], t[1] - p[1], t[2] - p[2]], col: L.colour ?? 1, level: (L.level ?? 0.3) * w });
     }
@@ -684,6 +687,7 @@ const SCENERY = {
     core.hot = (Cd.hot ?? 0.35) + hl * (Cd.hero_hot ?? 1.2);
     core.col = roles[ROLE[Cd.role || "A"]]; core.hotCol = roles[ROLE[Cd.hot_role || "W"]];
     core.spin = (360 * pos) / (Cd.swirl_beats ?? 23);
+    core.nits = Cd.nits ?? 180;
     const U = 1 / 30;
     // the dotted equator and the port lights, on the core's surface (turning with its swirl)
     const R = core.r * 1.02, eq = Cd.equator_dots ?? 48, sp = core.spin * DEG;
@@ -731,8 +735,8 @@ const SCENERY = {
         const at = (rr) => [m[0] * rr * ca + m[1] * rr * sa + m[9], m[3] * rr * ca + m[4] * rr * sa + m[10], m[6] * rr * ca + m[7] * rr * sa + m[11]];
         for (let s = 1; s <= 3; s++) this._emit(at(rOut + (arm * s) / 4), lav, 4000 * U * plW, 0.02);
         const pp = at(rOut + arm);
-        this._emit(pp, roles[ROLE[P.role || "W"]], (P.nits ?? 1600) * U * plW, P.size ?? 0.28);
-        this._emit(pp, lav, 60 * U * plW, (P.size ?? 0.28) * 3);
+        this._emit(pp, roles[ROLE[P.role || "W"]], (P.nits ?? 700) * U * plW, P.size ?? 0.28);
+        this._emit(pp, lav, (P.halo_nits ?? 25) * U * plW, (P.size ?? 0.28) * 3);
       }
     }
     // star motes in the haze: sparse, uncorrelated twinkles (each its own frequency and phase: the sum stays steady)
@@ -783,7 +787,8 @@ export function beamEnds(rig, key, pos = 0) {
     headPose(R.ringM[H.k], f, tH[H.h * 7], tH[H.h * 7 + 1], hp);
     out.push({ kind: "head", index: H.h, ring: H.k, ...verdict(hp.lens, hp.dir) });
   }
-  const fake = { dropHeads() {}, aimed: (i, dir) => out.push({ kind: "laser", index: i, ...verdict(rig.projectors[i].pos, norm3(dir)) }) };
+  const origin = (i) => { const L = R.T.lasers.find((x) => x.i === i); return L ? mountPose(R.ringM[L.k], L.mount).pos : rig.projectors[i].pos; };
+  const fake = { dropHeads() {}, aimed: (i, dir) => out.push({ kind: "laser", index: i, ...verdict(origin(i), norm3(dir)) }) };
   R.hl = 1;                                         // with the hero's tube too
   R.drawLasers(fake, pos);
   if (fr.beams.length) for (const b of fr.beams) out.push({ kind: "column", index: -1, ...verdict(b.apex, b.axis) });

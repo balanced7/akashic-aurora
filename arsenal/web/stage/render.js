@@ -653,13 +653,19 @@ export class StageRenderer {
     // the LED cells
     const cells = rig.cells;
     let pixPower = [0, 0, 0];
+    // (a ring's rim cells sit on the centre line of its tube; while a formation lights them they are drawn 0.13 m
+    // toward the lens, out of the tube that otherwise hides them)
+    const lift = RF && RF.liftRims ? 0.13 : 0;
     for (let j = 0; j < this.nEmitCells; j++) {
       const cI = this.emitCells[j];
       const em = this.elM[cells.element[cI]];
       const lx = cells.pos[cI * 3], ly = cells.pos[cI * 3 + 1], lz = cells.pos[cI * 3 + 2];
-      this.ePos[j * 3] = em[0] * lx + em[1] * ly + em[2] * lz + em[9];
-      this.ePos[j * 3 + 1] = em[3] * lx + em[4] * ly + em[5] * lz + em[10];
-      this.ePos[j * 3 + 2] = em[6] * lx + em[7] * ly + em[8] * lz + em[11];
+      let wx = em[0] * lx + em[1] * ly + em[2] * lz + em[9], wy = em[3] * lx + em[4] * ly + em[5] * lz + em[10], wz = em[6] * lx + em[7] * ly + em[8] * lz + em[11];
+      if (lift && cells.kind[cI] === CELL_KIND.rim) {
+        const tx = c.pos[0] - wx, ty = c.pos[1] - wy, tz = c.pos[2] - wz, tl = Math.hypot(tx, ty, tz) || 1;
+        wx += (tx / tl) * lift; wy += (ty / tl) * lift; wz += (tz / tl) * lift;
+      }
+      this.ePos[j * 3] = wx; this.ePos[j * 3 + 1] = wy; this.ePos[j * 3 + 2] = wz;
       const k = this.cellNits[cI];
       const r = fs.pixels[cI * 4], g = fs.pixels[cI * 4 + 1], b = fs.pixels[cI * 4 + 2];
       this.eCol[j * 3] = r * k; this.eCol[j * 3 + 1] = g * k; this.eCol[j * 3 + 2] = b * k;

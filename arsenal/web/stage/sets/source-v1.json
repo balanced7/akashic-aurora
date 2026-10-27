@@ -552,7 +552,7 @@
       "rings": [{"tilt": 55, "spin_beats": 113}, {"tilt": 80, "yaw_beats": 89}, {"tilt": 60, "yaw_beats": -67}, {"tilt": 30, "yaw_beats": 37}],
       "reveal": {"order": [3, 2, 1, 0], "stagger_beats": 4,
                  "light": {"core": [0, 4], "bands": [2, 10], "rings": [[12, 20], [8, 16], [4, 12], [0, 8]], "planets": [16, 24], "heads": [16, 24], "lasers": [24, 25], "motes": [24, 32]}},
-      "core": {"radius": 0.85, "role": "A", "hot_role": "W", "level": 1, "hot": 0.35, "hero_hot": 1.2, "swirl_beats": 23, "equator_dots": 48, "dot_nits": 9000, "port_nits": 30000, "glow_nits": 70, "glow_m": 2.4,
+      "core": {"radius": 0.85, "role": "A", "hot_role": "W", "level": 1, "nits": 180, "hot": 0.25, "hero_hot": 1.2, "swirl_beats": 23, "equator_dots": 48, "dot_nits": 9000, "port_nits": 30000, "glow_nits": 70, "glow_m": 2.4,
                "bands": [
                  {"r": 0.98, "tilt_deg": -12, "axis_deg": 0, "beats": 7, "dots": 160, "texture": "line", "role": "W", "nits": 7000},
                  {"r": 1.08, "tilt_deg": 6, "axis_deg": 70, "beats": -11, "dots": 120, "texture": "lancet", "role": "bumpA", "nits": 9000},
@@ -561,10 +561,10 @@
                  {"r": 1.42, "tilt_deg": -8, "axis_deg": 290, "beats": 19, "dots": 140, "texture": "line", "role": "W", "nits": 6000}
                ]},
       "planets": [{"ring": 0, "count": 3, "beats": 61, "size": 0.32}, {"ring": 1, "count": 2, "beats": -43}, {"ring": 2, "count": 2, "beats": 31}, {"ring": 3, "count": 1, "beats": -13, "size": 0.22}],
-      "motes": {"count": 1600, "radius": 30, "scale": 6, "nits": 6000},
+      "motes": {"count": 1100, "radius": 30, "scale": 6, "nits": 2600},
       "shimmer": {"near_m": 4, "far_m": 15, "depth": 0.45, "hz": 18},
-      "heads": {"level": [0.32, 0.22, 0.2], "role": "W", "zoom": 1.0},
-      "lasers": {"level": 0.22, "colour": 0},
+      "heads": {"level": [0.13, 0.08, 0.07], "role": "W", "zoom": 0.6},
+      "lasers": {"level": 0.18, "colour": 0},
       "light": {"sweep_beats": [31, 29, 23, 19]}
     },
     "spiral": {
@@ -573,7 +573,7 @@
       "reveal": {"order": [2, 1, 3, 0], "stagger_beats": 2, "light": {"cells": [8, 16], "heads": [12, 16], "lasers": [16, 18]}},
       "column": {"level": 0.35},
       "light": {"gap_beats": 16, "gap_step_deg": 40, "gap_deg": 60, "arc_beats": [-53, 41, -29, 19], "bead_beats": 11},
-      "heads": {"spine_m": [[16, 26], [20, 28], [24, 30]], "level": [0.28, 0.2, 0.2], "role": "beamB", "zoom": 1.2},
+      "heads": {"spine_m": [[16, 26], [20, 28], [24, 30]], "level": [0.2, 0.14, 0.14], "role": "beamB", "zoom": 1.0},
       "lasers": {"cage_at_m": 22, "cage_radius_m": 1.0, "level": 0.3, "colour": 1, "tube_at_m": 26, "tube_level": 0.35, "tube_colour": 0}
     },
     "vortex": {
@@ -1099,7 +1099,7 @@
         "bars": 8,
         "source": "ours (v2): rising from house left while the rings tilt apart, never crossing the strand's corridor (16.75 m or more from the hub: clear of every gimbal at any pose)"
       },
-      "ORRERY_HERO": {"kind": "static", "pos": [-15, 9, 21], "look": [0, 14.5, -11], "hfov": 46, "ev": 0.3, "bars": 8, "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
+      "ORRERY_HERO": {"kind": "static", "pos": [-15, 17, 21], "look": [0, 14.5, -11], "hfov": 46, "ev": 0.3, "bars": 8, "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
       "ORRERY_UNDER": {"kind": "static", "pos": [3, 3.5, 2], "look": [0, 14, -11], "hfov": 74, "ev": 0.3, "bars": 8, "source": "ours (v2), Daniel's 'looking up at the core': from the pit at the lip, under the dial, up into the turning gimbals (17 m from the hub)"},
       "ORRERY_HIGH": {
         "kind": "orbit",
@@ -1112,15 +1112,15 @@
       },
       "ORRERY_NEAR": {
         "kind": "path",
-        "pos_path": [[10, 17, 16], [7.5, 16, 5.5]],
+        "pos_path": [[10, 17, 16], [9, 19.5, 6]],
         "look": [0, 14, -11],
         "hfov": [44, 58],
         "ev": 0.3,
         "bars": 4,
         "source": "ours (v2): the push in toward the gimbals; it ends 18 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
       },
-      "SPIRAL_HERO": {"kind": "static", "pos": [1.8, 2.5, -19], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 1.8 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"},
-      "SPIRAL_DOWN": {"kind": "static", "pos": [3.5, 31.5, 6.5], "look": [0, 18.9, -7.6], "hfov": 60, "ev": 0.4, "bars": 8, "source": "ours (v2): from under the roof over the front of the crowd, down the well toward the beam's foot (off the axis, out of the lasers' camera cone)"}
+      "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"},
+      "SPIRAL_SIDE": {"kind": "static", "pos": [16, 26, 10], "look": [0, 18, -7], "hfov": 58, "ev": 0.4, "bars": 8, "source": "ours (v2): high from house right, the well in profile: the rings stepped up their axis, the beam rising through every centre"}
     },
     "sequences": {
       "intro": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "CRANE_RISE_REVEAL", "bars": 4}],
@@ -1164,7 +1164,7 @@
     "formation_views": {
       "_about": "v2: the move shows the motion, the cut reveals the arrival. When a formation lands (the set's formation key, a ring formation's key, else its kinetics name), the director plays one glide from the next bar line (between half and twice the glide's own bars) and cuts ON the landing bar line to a hero view; each landing deals the next shot of each list, and a shot that would come within 1.5 m of the strand (or of the rings a ring formation sweeps) is skipped. The ring formations (formations.js): orrery, spiral, vortex, crown, portal.",
       "orrery": {"glide": ["ORRERY_REVEAL"], "hero": ["ORRERY_UNDER", "ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"], "hero_bars": 8},
-      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "SPIRAL_DOWN", "HALO_LOCK"], "hero_bars": 8},
+      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "SPIRAL_SIDE", "HALO_LOCK"], "hero_bars": 8},
       "vortex": {"glide": ["VERTIGO_TUNNEL"], "hero": ["HALO_LOCK", "TRIBUNE_HIGH_R", "FOH_WIDE"], "hero_bars": 8},
       "crown": {"glide": ["CRANE_RISE_REVEAL"], "hero": ["TRIBUNE_34", "ROOF_ESTABLISH", "FOH_WIDE"], "hero_bars": 8},
       "portal": {"glide": ["FOH_HOLD_ZOOM"], "hero": ["HALO_LOCK", "STAGE_CORNER_REVERSE", "FOH_WIDE"], "hero_bars": 8},

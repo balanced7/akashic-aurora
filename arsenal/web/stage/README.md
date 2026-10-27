@@ -26,6 +26,11 @@ Open it from the Arsenal server:
   (a beam tunnel with the rings' spiral, one way per repeat). `?theme=<name>` picks one of the set's themes:
   `dreaming-city` (the VJ library's colours measured from Daniel's stills), `genesis-indigo`, `vex-conflux`, `anti-sun`.
   For example `index.html?demo=1&theme=dreaming-city&phrase=pillars`, then pad 3.
+- Kinetics wave A and the orrery (2026-10-27): `?ring=orrery` (or `spiral`, `vortex`, `crown`, `portal`) opens with the
+  rings in that formation; pad 8 (key `8`) MORPHs to the next one on the next bar line and pad 9 (key `9`) fires the
+  energy beam's discharge. Drawn for the Dreaming City palette: `index.html?demo=1&theme=dreaming-city&ring=orrery`.
+  `?strand=arch` (or `valley`, `ramp`, `stairs`, `helix-sine`) lands a strand shape on the S-curve instead of the sections'
+  waves.
 
 | Control | What it does |
 |---|---|
@@ -36,6 +41,8 @@ Open it from the Arsenal server:
 | Pad 7 / key `7` | PHRASE STOP: the phrase ends on the next bar line and hands the rig back to the section's look over a beat. |
 | Pad 6 / key `6` | FLY-OUT: the truss and lip beams burst outward from the centre. |
 | Pad 10 / key `0` | DROP NOW: the drop starts on the next downbeat (and with it the drop's phrase). |
+| Pad 8 / key `8` | MORPH: the rings move to the next formation of the deck (home, orrery, spiral, vortex, crown, portal), starting on the next bar line and landing on the bar line their slowest ring can make; the camera glides while they move and cuts on the landing to the formation's hero view. Dream formations (orrery, spiral) turn their rings; the rest are real-capable. |
+| Pad 9 / key `9` | HERO: the energy beam's discharge up the rings' axis through the core, on the next ONE, once per eight bars (a press while it recharges does nothing; the HUD shows the charge). Its flash goes through the FlashGate. |
 | F1, F4, F5, F6, F9 | Strand master, lasers, haze target (it moves over minutes), speed (detents 1/4 to 4; a phrase's own timing is in beats and ignores it), grand master. The sliders in the HUD do the same. |
 | `C` / `Esc` | Play the next camera shot in motion, looping over its own bars (v2; every shot in the set, the held RING_THREAD included) / give the camera back to the director (or the phrase). |
 | `H`, `F` | Hide the HUD, go full screen. The HUD's phrase row names the step, the variant, the repeat and the beats left. |
@@ -57,6 +64,41 @@ middle, top+bottom, Daniel's second pattern; ascend: the cascade and the vertica
 verticals step out over the crowd on the delay towers; rush: the footage's speed, a third every sixteenth, for builds
 and breaks only), and every repeat changes the halo's colour role, the chopper's start angle and direction, the pan's
 direction, the layers' height (+-2 m), the nod size and which rings carry the halo pattern.
+
+## The ring formations (v2, `formations.js`, `sets/source-v1.json` → `ring_formations`)
+
+Daniel, before sleep on 2026-10-26: "we could have the light rings morph possibly and re-arrange into other patterns ...
+or they form some sort of spiral with an energy beam inside, or perhaps an array that looks similar to the [Destiny
+place]". The place is the Dreaming City's orrery; his words about it are the brief: "really complex motion that you could
+stare at for a long time", "how it flickers when you get close to it", "wireframe elements", "the effect on a spinning
+ring", "beautiful no matter where you look at it from", "the way it gets revealed, but it has depth".
+
+- **The orrery** (dream): the rings tilt apart into nested gimbals (55 / 80 / 60 / 30) round a glowing violet core (a
+  swirling LED sphere with a meridian line, a dotted equator, port lights and a glow in the haze) and turn at prime beats
+  per turn (R0 spins in 113, R1 precesses in 89, R2 the other way in 67, R3 in 37): each is beat-locked, the set repeats
+  after about 25 million beats. Five thin wireframe bands hug the core at their own rates; eight planets ride the rings
+  on short arms; 1,600 star motes hang in the haze, densest near the core; the line-work shimmers as the camera comes near
+  (per cell, so the frame's sum holds still); the halo heads and the ring lasers draw spokes into the core, which stops
+  them. It reveals in depth order: the core, the bands, ring 3, 2, 1, the dial's ticks written on clockwise, the planets,
+  the heads, the lasers' lock-on, the motes.
+- **The spiral tunnel** (dream, the Well of Rings): the rings coplanar at 55 and stepped 3 m apart up their shared axis (a
+  true funnel), each lit on a 300-degree arc whose gap steps 40 degrees ring by ring into a turning spiral staircase; a
+  ladder chase falls down the well each beat; a bead rides ring 1; the energy beam (a narrow column from the floor upstage
+  of the deck, through every ring's centre, to the roof) wrapped in a twisted cage of the ring lasers that the discharge
+  straightens.
+- **08 Vortex Cone** (real): every halo head aims at a circle round the axis turned by an offset that swings +-60 degrees
+  over two bars; the HERO laser draws a tube up the axis.
+- **09 Hyperboloid Crown** (real): rings 1 and 2 tilt flat; their heads aim up at circles on the roof turned +D and -D,
+  D breathing 0 -> 180 -> 0 over 16 bars: cylinder, hourglass, every beam through one knot, and back.
+- **10 Portal Membrane** (real, after the lift): the cluster lifts 4.5 m before ring 0 stands upright; its heads converge
+  on a point 10 m behind it (the beams cross and end on the back wall).
+
+The real numbers (`ring_rig`, the one source): each ring is 3-point hung at its outer rim on 0.5 m/s hoists, so its tilt
+rate is the hoist speed over its radius: R0 2.0 degrees a second (a 35-degree tilt takes about 17 s), R3 9.5. A ring lifts
+before it tilts and lowers after; every tilt is clamped into the ring's legal window at its height (ring 0 at its 14 m hang
+clears the deck and the back wall only between 47.5 and 63 degrees). Every beam a formation owns ends on the roof, the
+deck, the floor upstage of it, the back wall or the core, never on the crowd or the audience stands (the hit check now
+models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is still and the looks own its light.
 
 ## The rig additions (v1)
 
@@ -81,15 +123,18 @@ direction, the layers' height (+-2 m), the nod size and which rings carry the ha
 | `grid.js` | The one beat position for everything, plus the demo clock. |
 | `effects.js` | Spreads (MA, ChamSys and Hog in one object), waveforms, beat-locked phase accumulators, the unison floor rule; v1: block "ties", cue-anchored phase, one-shots, clean starts, sparkle. |
 | `programmer.js` | Looks, effects, pads (HTP), masters, theme colours, the colour wheel, motor physics; v1: the phrase layer (LTP over the look) and the FlashGate. |
-| `kinetics.js` | The hoists (jerk-limited), the formations, and time-priority landing on bar lines. |
+| `kinetics.js` | The hoists (jerk-limited), the formations, and time-priority landing on bar lines; v2: the S-curve with cruise, the strand shapes (arch, valley, ramp, stairs), and the RingRig (lift and tilt on the rim hoists, lift before tilt, the dream rotators). |
+| `formations.js` | v2: the ring formations (home, orrery, spiral, vortex, crown, portal): MORPH, HERO, the reveal, the light layer, the scenery (core, bands, planets, motes), the energy column, the camera's annuli, and the safety check of every beam's end. |
 | `lasers.js`, `lasers3d.js` | A minimal laser brain on the Lasers v2 contract (v1: laser group lines with shapes and gates, heads past the 21, an aim side channel), mapped onto 33 projectors in 3D with physical power sharing. |
 | `atmos.js` | The haze medium: the hazers, the lag, the cap, and our own tileable noise. |
-| `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan; v2: the strand frame (shots round the live centre line, the under-ride), the formation-validity filter and the guard (never a shot within 1.5 m of a rung), roll curves, the easings arrive_fast, snap and arrive_u, the dolly zoom, and the landing grammar: one glide while the hoists move, the cut ON the landing bar line to the formation's hero view (`cameras.formation_views`; `orrery` and `spiral` are slots for the new ring formations). |
+| `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan; v2: the strand frame (shots round the live centre line, the under-ride), the formation-validity filter and the guard (never a shot within 1.5 m of a rung), roll curves, the easings arrive_fast, snap and arrive_u, the dolly zoom, and the landing grammar: one glide while the hoists move, the cut ON the landing bar line to the formation's hero view (`cameras.formation_views`, the ring formations' among them). |
 | `show.js` | Sections (v1: a section may name a phrase), the demo plan, and DROP NOW. |
 | `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. |
 | `render.js`, `shaders.js` | The three.js r186 renderer and our own GLSL, composed with the house library; v1: the crowd near the lens is not drawn (4 m) and its arms hold still (10 m). |
 
 Tests: `node --test tests/stage_*.test.mjs`. The browser receipt: `node arsenal/lanes/stage_verify.mjs` (default phases
-load, clock, camera, phrase, engine, flash, storm and the picture measures; `--phases flash3m --flash-scale 0.75` runs the
+load, clock, camera, phrase, engine, flash, storm, the picture measures, and v2's orrery and spiral: the gimbals' prime
+rates, the core and its scenery drawn, the spiral's landing with the camera's cut on its bar line, the HERO discharge on
+its ONE through the FlashGate, and every frame through the near view and the discharge judged by the flash counter; `--phases flash3m --flash-scale 0.75` runs the
 three-minute crowd-on run in ten-second bursts; `--phases sheet-phrase --sheet-dir <scratch>` the phrase's sheet). It
 runs headless SwiftShader only, under the house GPU lock, on the test band.
