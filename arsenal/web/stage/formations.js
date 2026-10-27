@@ -185,9 +185,8 @@ export class RingFormations {
     this.emOf = (e) => (T.ringOf[e] >= 0 ? this.ringM[T.ringOf[e]] : this.homeM[e]);
     this.key = "home"; this.from = null;          // the formation the rings are in (or moving to), the one they left
     this.move = null;                              // {key, from, start, posLand} of the running morph
-    this.deckAt = 0;
     this.seed = seed ?? rig.seed ?? 2014;
-    this.heroState = { last: -Infinity, at: null, granted: null, fired: [], refused: [] };
+    this.heroState = { last: -Infinity, at: null, on: null, granted: null, fired: [], refused: [] };
     this.camera = [0, 8, 60];
     // the light layer's working state, preallocated
     this.cellDim = new Float32Array(T.cells.length); this.cellRole = new Uint8Array(T.cells.length);
@@ -199,9 +198,9 @@ export class RingFormations {
     // the renderer's extra emitters and beams (filled each frame)
     this.emit = { n: 0, pos: new Float32Array(MAX_FORMATION_EMIT * 3), col: new Float32Array(MAX_FORMATION_EMIT * 3), size: new Float32Array(MAX_FORMATION_EMIT) };
     this.beams = [];
-    this.core = { on: false, c: this.axis.C.slice(), r: 0.85, level: 0, hot: 0, col: [0.5, 0.2, 1], hotCol: [1, 0.9, 1], spin: 0, t: 0 };
+    this.core = { on: false, c: this.axis.C.slice(), r: 0.85, level: 0, hot: 0, col: [0.5, 0.2, 1], hotCol: [1, 0.9, 1], spin: 0, nits: 180 };
     this.motes = this._motes();
-    this.state = { pos: 0, w: 0, wFrom: 0, lightKey: "home" };
+    this.state = { pos: 0, start: -64 };          // the frame's beat position; the morph's first bar line (the reveal's clock)
     this.mp = { pos: [0, 0, 0], radial: [0, 0, 0], normal: [0, 0, 0] };
     this.roles = null;                             // linear RGB per role (the theme), set by the stage
   }
@@ -262,7 +261,7 @@ export class RingFormations {
       S.granted = flashGate ? flashGate.request(S.at) : true;
       S.last = S.at; if (S.fired.length < 64) S.fired.push({ at: S.at, granted: S.granted }); S.at = null; S.on = S.last;
     }
-    if (S.on === undefined || S.on === null) return 0;
+    if (S.on === null) return 0;
     const age = pos - S.on, len = Math.max(0.5, H.beats ?? 4), attack = S.granted ? 0 : 0.125;
     if (age < 0 || age > len + attack) return 0;
     if (age < attack) return age / attack;
@@ -611,8 +610,8 @@ const LOOKS = {
     }
     return { cells: [1, 2], heads: [1, 2], cellsIn: [0, 4], headsIn: [0, 4], ripple: 0, heroHeads: false };
   },
-  portal(d, pos, since) {
-    const T = this.T, L = d.light || {};
+  portal(d, pos) {
+    const T = this.T;
     for (let j = 0; j < T.cells.length; j++) {
       const x = T.cells[j];
       if (x.k !== 0) continue;
@@ -632,7 +631,6 @@ const LOOKS = {
       this.headTgt[j][2] = cz + r * (m[6] * Math.cos(a) + m[7] * Math.sin(a));
       this.headDim[j] = H.level ?? 0.75; this.headRole[j] = ROLE[H.role || "beamA"]; this.headZoom[j] = H.zoom ?? 1.0;
     }
-    void L;
     return { cells: [0], heads: [0], cellsIn: [0, 4], headsIn: [0, 4], ripple: 0.3, heroHeads: false };
   },
 };

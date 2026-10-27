@@ -213,8 +213,8 @@ function start({ rig, R, renderMod }) {
     else if (runner && action === "phrase-go" && on) { prepare(firstPhrase); runner.go(firstPhrase, grid, pos, { section: state.section || "any" }); }
     else if (runner && action === "phrase-next" && on) runner.next(grid, pos);
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
-    else if (action === "morph" && on) state.ring = rings.morph(grid, tEval);
-    else if (action === "hero" && on) state.hero = rings.hero(grid, tEval);
+    else if (action === "morph" && on) rings.morph(grid, tEval);
+    else if (action === "hero" && on) rings.hero(grid, tEval);
   }
   function handle(obj, nowMs) {
     const ev = parseEvent(obj);
