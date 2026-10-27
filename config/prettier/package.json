@@ -1,0 +1,23 @@
+{
+  "name": "@akashic-labs/prettier-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo node_modules",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "typecheck": "tsc --noEmit"
+  },
+  "prettier": "@akashic-labs/prettier-config",
+  "dependencies": {
+    "prettier": "catalog:",
+    "prettier-plugin-tailwindcss": "^0.7.2"
+  },
+  "devDependencies": {
+    "@akashic-labs/tsconfig": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

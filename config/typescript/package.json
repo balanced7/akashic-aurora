@@ -1,0 +1,11 @@
+{
+  "name": "@akashic-labs/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "*.json"
+  ],
+  "devDependencies": {
+    "@total-typescript/ts-reset": "0.6.1"
+  }
+}
