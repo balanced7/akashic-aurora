@@ -45,7 +45,7 @@ RANK = {"P0": 0, "P1": 1, "P2": 2}
 # After the judge's rulings on the S0 review: six struct parts added (ruling a), three parts promoted to P0 (ruling b).
 # After the batch-A review (defect 3): three P0 parts for the six helpers the library built and the draft never planned.
 # After the batch-B review (the judge's ruling c): six P0 recipe parts, one per group recipe module.
-COUNTS_AFTER_RULINGS = {"parts": 581, "by_status": {"P0": 199, "P1": 265, "P2": 117}}
+COUNTS_AFTER_RULINGS = {"parts": 592, "by_status": {"P0": 199, "P1": 276, "P2": 117}}
 
 # Signatures the build settled where the draft wrote '...' or a parameter short, or that the build corrected (batch-A
 # review, defect 3; batch-B review, defect 3 and the judge's ruling c): each is a ruling, so the atlas reads as the
@@ -176,16 +176,18 @@ def test_every_family_has_a_category_so_every_part_has_a_bin(data):
 
 
 def test_row_counts_match_what_the_draft_declares(data):
-    # Atlas draft section 2: "562 primitive rows ... By status: 184 rows P0, 265 P1, 113 P2". The draft's count covers
+    # Atlas draft section 2: "573 primitive rows ... By status: 184 rows P0, 276 P1, 113 P2" (562 and 265 until Look v2's
+    # module lane added ten P1 rows on 2026-10-25: atmos/haze.glsl, tmStage, glowHotCoreTo; its round 2 added the
+    # hazeRing row the same day). The draft's count covers
     # the rows that open with a signature; four more rows open with prose (host-level supersampling, P1; the atmosphere
     # LUT family, the ocean set and the TAA set, P2). They are parts too, and they are exactly the difference. These are
     # the DRAFT's statuses: a part a ruling promoted keeps the draft's status in `status_draft`.
     drafted = [p for p in data["parts"] if p["form"] != "ruling"]
     sig = Counter(p.get("status_draft", p["status"]) for p in drafted if p["form"] == "signature")
-    assert (sum(sig.values()), sig["P0"], sig["P1"], sig["P2"]) == (562, 184, 265, 113)
+    assert (sum(sig.values()), sig["P0"], sig["P1"], sig["P2"]) == (573, 184, 276, 113)
     prose = sorted((p["status"], p["kind"]) for p in drafted if p["form"] == "prose")
     assert prose == [("P1", "idiom"), ("P2", "set"), ("P2", "set"), ("P2", "set")]
-    assert len(drafted) == 566
+    assert len(drafted) == 577
 
 
 def test_counts_after_the_rulings(data):

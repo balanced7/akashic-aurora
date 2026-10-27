@@ -420,3 +420,24 @@ break); a tap of a hold pad plays its own short version; a release lands on the 
   pair, escalation and spots, landed lives, a standing hold, the hero on the ONE, a build's drop on its bar line, Safety's
   black, CO2's plumes and a fake haze fluid); `node arsenal/lanes/vj_storm.mjs` (the Invert storm puts Invert back on pad
   11 for its run).
+
+## The air: haze, CO2 and fog on the page (VJ V2, 2026-10-27)
+
+Daniel: "stunning laser effects through as best of a volumetric fog as we can manage", and CO2 "combine it into one physics
+system". The build spec is `research/in-flight/vj-v2-build-spec-2026-10-27.md` section C (P1); the research is
+`vj-v2-research-2026-10-27/fog-fluid.research.md` and its check. `arsenal/web/vj-fluid.js` (pure parts and a CPU twin in
+`tests/vj_fluid.test.mjs`) runs a 2D fluid under the page and the composite adds its light after the beams.
+
+- **The air glows where the beams are.** A hazer keeps the room at a drifting, textured level; the beams' light scatters in
+  it (coloured air, white-hot where many beams meet) and the beams' own motion stirs it. With no beams the haze shows
+  nothing (black stays black). `?haze=0..1` sets the room's level (0.5); `?air=low` runs a quarter of the cells, `?air=off`
+  none.
+- **CO2** (lane B's pad 3, through `vjAir.co2(x, y, strength)`): a white column shoots up from the deck, blooms into a cold
+  cloud, slumps onto the deck and burns off in about two seconds; the lasers light it where they cross it and it veils what
+  is behind it. **FOG** (lane B's pad 6, `vjAir.fogPush(level)` / `fogRelease()`): the machines at the deck's two ends push
+  while held, and the fog hangs and drifts after the release, decaying by itself.
+- **Safety.** The air is a flash source: every CO2 burst and fog push asks the FlashGate at its onset, like punch and
+  Invert (refused, a smaller burst opens slowly); its light never rises faster than the gate's edge; the fog body stays
+  under the flash line at any density; gate v2 judges the frame after it all. Receipts: `vj_storm.mjs` storms `airedge`
+  (CO2 at the gate's own edge with fog pushes) and `airstir` (the air stirred with no beams lit), and its opt-in
+  `--phases airsheet` contact sheet.

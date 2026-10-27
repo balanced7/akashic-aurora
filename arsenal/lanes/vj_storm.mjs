@@ -99,8 +99,8 @@ export const STORM_WINDOWS = (() => {
   return Object.freeze(out);
 })();
 const QUADRANTS = ["32x18@0,0", "32x18@32,0", "32x18@0,18", "32x18@32,18"];
-export const RUN_LIMIT_S = 6.2;
-const BURST_YIELD_MS = 2500;             // a burst let go: the lock's waiters (polling every 0.5-2 s) take it first           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
+export const RUN_LIMIT_S = 6.2;           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
+const BURST_YIELD_MS = 2500;             // a burst let go: the lock's waiters (polling every 0.5-2 s) take it first
 
 // Judge one run: m = { frames, L: Uint16Array(frames x 2304) (mean luminance x 65535), R: Uint16Array (mean red / 320 x
 // 65535), N: Float64Array(2304) (pixels per cell) }. Window series from per-frame prefix sums of (mean x pixels).
@@ -172,6 +172,9 @@ export const SCENARIOS = Object.freeze({
   // Lasers v2 (2026-10-25): pad 2 is the laser engine's hit; the beams are drawn by the page's beam layer, before gate v2
   lasertiers: "pad 2 alone: soft / medium / hard hits (single, one-two, triple) a bar apart, presses within a bar (escalate, the hero), within a beat (one-two), held loops, Vibrate on half way",
   laserroll: "pad 2 rolls: presses at 8 and 16 a second (the grid-locked rolls), held loops under the stutter, military and push-pull gates from the dial, Vibrate on",
+  // VJ V2 air (2026-10-27, build spec amendment 7: the air is a flash source), through window.__vj.air (vj-fluid.js)
+  airedge: "the air at the gate's edge: a CO2 burst asked every 3 frames on three nozzles (granted 1/3 s apart), a fog push held for the first half, then pushed and released every 12 frames",
+  airstir: "the air alone, NO beams lit: one CO2 burst and a second of fog, then the beams' motion as stirs every frame (two fans sweeping at 3 Hz) -- the shimmer check",
 });
 export const ADV = Object.freeze({
   // id: [GLSL body, what it is]
@@ -247,6 +250,28 @@ export function stormSchedule(name, frames, seed = 7) {
       out.push({ f: f0 + 2, pad: 2, vel: 0.95, hold: Math.floor(third / 3) - 8 });
     }
     out.push({ f: frames - 2, act: "laser", gate: "auto", vibrate: false });
+  } else if (name === "airedge") {
+    const nozzles = [0.2, 0.5, 0.8];
+    out.push({ f: 0, act: "air", o: { fog: 1 } });
+    for (let f = 0; f < frames; f += 3) out.push({ f, act: "air", o: { co2: [nozzles[(f / 3) % 3], 0.02, 1] } });
+    for (let f = Math.floor(frames / 2), k = 0; f < frames; f += 12, k++) out.push({ f, act: "air", o: { fog: k % 2 ? 1 : 0 } });
+  } else if (name === "airstir") {
+    out.push({ f: 0, act: "air", o: { co2: [0.5, 0.02, 1], fog: 1 } });
+    out.push({ f: 60, act: "air", o: { fog: 0 } });
+    // two fans of beams from the deck sweeping +-0.8 rad at 3 Hz, their motion as stirs at three points along each, none
+    // of them lit; the push is capped as the page caps the beams' own (vj-fluid.js STIR: 1.2 fh/s x 0.35)
+    const CAP = 1.2 * 0.35;
+    for (let f = 0; f < frames; f++) {
+      const t = f / 60, a = 0.8 * Math.sin(2 * Math.PI * 3 * t), da = 0.8 * 2 * Math.PI * 3 * Math.cos(2 * Math.PI * 3 * t);
+      const stir = [];
+      for (const [x0, sgn] of [[0.25, 1], [0.75, -1]]) for (const u of [0.3, 0.6, 0.9]) {
+        const len = 0.9 * u, ang = sgn * a;
+        let vx = Math.cos(ang) * len * sgn * da, vy = -Math.sin(ang) * len * sgn * da;
+        const k = Math.min(1, CAP / Math.max(Math.hypot(vx, vy), 1e-9)) * u;
+        stir.push({ x: x0 + Math.sin(ang) * len * 9 / 16, y: Math.cos(ang) * len, vx: vx * k, vy: vy * k, r: 0.05 });
+      }
+      out.push({ f, act: "air", o: { stir } });
+    }
   } else if (name === "calmset" || name.startsWith("adv-")) { /* nothing: the set (or the adversarial preset) alone */ }
   else throw new Error(`unknown storm ${name}`);
   return out;
@@ -299,6 +324,7 @@ export const STORM_PAGE = String.raw`(() => {
         else if (s.act === "next") vj.next();
         else if (s.act === "look" && window.__vjx) window.__vjx.setLook({ on: true, amount: s.amount });
         else if (s.act === "laser" && vj.laser) vj.laser({ vibrate: s.vibrate, gate: s.gate });
+        else if (s.act === "air" && vj.air) vj.air(s.o);
       }
       window.__vt.step(F);
       measure();
@@ -318,7 +344,7 @@ export const STORM_PAGE = String.raw`(() => {
                                                   over_frames: st1.lasers.overFrames - st0.lasers.overFrames, lit_frames: st1.lasers.litFrames - st0.lasers.litFrames,
                                                   max_window: st1.lasers.maxWindow, mode: st1.lasers.mode } : null,
              safe_refused: st1.limiter && st0.limiter ? (st1.limiter.safeRefused || 0) - (st0.limiter.safeRefused || 0) : null,
-             limiter_stats: st1.limiter || null, limiter: lim, errors: vj.errors(), setA: st1.setA };
+             limiter_stats: st1.limiter || null, limiter: lim, errors: vj.errors(), setA: st1.setA, air: vj.air ? vj.air() : null };
   }
   window.__storm = { run, measure, slice: (key, from, n) => window.__storm.stash[key].slice(from, from + n), len: (key) => window.__storm.stash[key].length };
   return true;
@@ -344,8 +370,45 @@ export async function runStormInPage(ev, scenario, frames, { seed = 7, mode = "g
   const errs = (raw.errors || []).filter((e) => !(mode === "off" && e.id === "vj-limiter"));
   return { scenario, mode, presses: sch.filter((s) => s.pad).length, ...judged, pass: judged.pass && modeOk && errs.length === 0,
            mode_ok: modeOk, gate: raw.gate, impact_hits: raw.impact_hits, safe_refused: raw.safe_refused, limiter: lim, lasers: raw.lasers,
-           canvas: raw.canvas, ms_per_frame: +raw.ms_per_frame.toFixed(1), page_errors: errs };
+           canvas: raw.canvas, ms_per_frame: +raw.ms_per_frame.toFixed(1), page_errors: errs, air: raw.air };
 }
+
+// The air sheet (VJ V2 lane C): what the air looks like, frame by frame on the virtual clock. Each row plays a moment
+// (vj.air drives the fluid; pad 2 fires the lasers) and grabs the canvas in the same task as the step that drew it (the
+// drawing buffer is not preserved). Returns a contact sheet as PNG base64, handed over in slices like the storms' data.
+export const AIR_SHEET_ROWS = Object.freeze([
+  { label: "haze: pad 2 lasers", at: [8, 20, 44], act: (vj) => vj.press(2, 1), after: (vj) => vj.release(2) },
+  { label: "CO2 burst (centre)", at: [10, 25, 50, 90, 150], act: (vj) => vj.air({ co2: [0.5, 0.02, 1] }) },
+  { label: "fog push 1.5 s", at: [30, 90, 150, 300], act: (vj) => vj.air({ fog: 1 }), at90: (vj) => vj.air({ fog: 0 }) },
+  { label: "lasers in CO2 + fog", at: [12, 30, 60, 100], act: (vj) => { vj.air({ fog: 1 }); vj.air({ co2: [0.3, 0.02, 1] }); vj.press(2, 1); },
+    at90: (vj) => { vj.release(2); vj.air({ fog: 0 }); } },
+]);
+export const AIR_SHEET_PAGE = String.raw`(() => {
+  const vj = window.__vj, gl = document.getElementById("gl"), F = 1000 / 60, TW = 384, TH = 216, PAD = 18, LW = 150;
+  const rows = window.__airRows, tiles = [];
+  for (const r of rows) {
+    const act = new Function("vj", "return (" + r.act + ")(vj)"), after = r.after ? new Function("vj", "return (" + r.after + ")(vj)") : null,
+          at90 = r.at90 ? new Function("vj", "return (" + r.at90 + ")(vj)") : null;
+    act(vj);
+    let f = 0; const row = [];
+    for (const t of r.at) {
+      while (f < t) { window.__vt.step(F); f++; if (f === 90 && at90) at90(vj); }
+      const c = document.createElement("canvas"); c.width = TW; c.height = TH;
+      c.getContext("2d").drawImage(gl, 0, 0, TW, TH);
+      row.push({ c, label: "+" + Math.round(t * F) + " ms" });
+    }
+    if (after) after(vj);
+    for (let i = 0; i < 150; i++) window.__vt.step(F);          // 2.5 s for the air to settle before the next row
+    tiles.push({ label: r.label, row });
+  }
+  const cols = Math.max(...tiles.map((t) => t.row.length));
+  const s = document.createElement("canvas"); s.width = LW + cols * TW; s.height = tiles.length * (TH + PAD);
+  const g = s.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, s.width, s.height); g.fillStyle = "#ddd"; g.font = "13px monospace";
+  tiles.forEach((t, i) => { g.fillText(t.label, 4, i * (TH + PAD) + PAD + TH / 2);
+    t.row.forEach((x, k) => { g.drawImage(x.c, LW + k * TW, i * (TH + PAD) + PAD); g.fillText(x.label, LW + k * TW + 4, i * (TH + PAD) + 13); }); });
+  window.__airSheet = s.toDataURL("image/png").slice(22);
+  return { length: window.__airSheet.length, air: vj.air() };
+})()`;
 
 // The virtual clock (vj_impact's), installed in the vj page before its modules run; ?realclock=1 keeps the real one.
 export const VIRTUAL_CLOCK = `(() => {
@@ -402,7 +465,7 @@ async function main() {
     label: { type: "string", default: "run" },
     phases: { type: "string", default: "storm,laser,safe,cpu,adv,hires,calm,parity,meter,bench" },
     sets: { type: "string", default: "vj-reactor,vj-hyperspace,vj-led-wall" },
-    scenarios: { type: "string", default: "invert10,oneshots15,oneshots5,nozoom15,all12,flashedge,flash24,lasglitch,lookstorm" },
+    scenarios: { type: "string", default: "invert10,oneshots15,oneshots5,nozoom15,all12,flashedge,flash24,lasglitch,lookstorm,airedge,airstir" },
     "safe-sets": { type: "string", default: "vj-reactor,vj-led-wall,vj-hyperspace" },
     "safe-scenarios": { type: "string", default: "oneshots15,invert10,all12,lasglitch,cuts,calmset" },
     "cpu-scenarios": { type: "string", default: "oneshots15,all12,invert10" },
@@ -651,6 +714,21 @@ async function main() {
       for (const id of HIRES_ADV) jobs.push(job("hires", id, id, "gpu", size, Math.min(HIRES_FRAMES, 240)));
       await runQueue("hires", jobs);
     }
+  }
+
+  // the air sheet (opt-in: --phases airsheet): a contact sheet of the air's moments on the first set, PNG beside the receipt
+  if (PHASES.includes("airsheet")) {
+    await burst("airsheet", SIZE, async ({ ev, load }) => {
+      await load(`engine=off&hud=0&watchdog=0&sets=${SETS[0]}`);
+      await ev("(() => { for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()");
+      await ev(`(window.__airRows = ${JSON.stringify(AIR_SHEET_ROWS.map((r) => ({ label: r.label, at: r.at, act: String(r.act), after: r.after ? String(r.after) : null, at90: r.at90 ? String(r.at90) : null })))}, true)`);
+      const r = await ev(AIR_SHEET_PAGE);
+      let b64 = "";
+      for (let i = 0; i < r.length; i += 1 << 20) b64 += await ev(`window.__airSheet.slice(${i}, ${i + (1 << 20)})`);
+      writeFileSync(join(outDir, `air-sheet-${SETS[0]}.png`), Buffer.from(b64, "base64"));
+      report.air_sheet = { set: SETS[0], file: `air-sheet-${SETS[0]}.png`, rows: AIR_SHEET_ROWS.map((x) => x.label), air: r.air };
+      console.log(`[airsheet] ${SETS[0]}: air-sheet-${SETS[0]}.png (${Math.round(b64.length * 0.75 / 1024)} KB), air ${JSON.stringify(r.air)}`);
+    });
   }
 
   // ------------------------------------------------------------------------------------------------ calm --

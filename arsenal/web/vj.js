@@ -94,6 +94,7 @@ import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, Gate
 // one-shots land on the grid, repeats move, holds become motions -- the hero's charge, build then drop, Safety
 import { PadPlay, HeroCharge, BuildDrop, safetyAct, verbOf, SPOTS, co2Jets, lineAfter, escalateGlitch } from "./vj-pads.js";
 import { valueAt as motionValueAt } from "./vj-motions.js";
+import { attachFluid } from "./vj-fluid.js";   // VJ V2 air (lane C): the haze fluid, CO2 and fog (the AIR block below)
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
@@ -447,6 +448,8 @@ precision highp float;
 uniform sampler2D u_a, u_b, u_ov, u_frz, u_hist, u_stut, u_meter, u_beam;
 uniform vec2 u_res;
 uniform float u_beamGain;    // the beam layer's gain (Lasers v2): the accent fader capped at 1, Dampen and Choke
+uniform sampler2D u_air;     // the air (vj-fluid.js, the AIR block): its light in rgb, what its bodies leave of the frame in a
+uniform float u_airGain;
 uniform float u_mix;
 uniform float u_kal, u_kalN, u_kalRot;
 uniform float u_glitch, u_glitchT, u_gSize, u_gSeed, u_gAge;
@@ -655,6 +658,8 @@ void main() {
   // the lasers' beams, at the screen's own place: the scene punches, shakes and bends behind them; the engine fitted
   // their light to its flash budget as drawn, so they are only ever scaled down here
   if (u_beamGain > 0.0005) lin += texture(u_beam, v_uv).rgb * u_beamGain;
+  // the air the beams light (vj-fluid.js): haze, fog and CO2 glowing, their dense bodies veiling what is behind them
+  if (u_airGain > 0.0005) { vec4 air = texture(u_air, v_uv); lin = lin * mix(1.0, air.a, u_airGain) + air.rgb * u_airGain; }
   float edge = smoothstep(0.30, 0.62, max(abs(p0.x) / max(asp, 1e-3), abs(p0.y)));
   lin += u_metroCol * u_metro * edge;                  // the metronome: a breath at the frame's edge
   lin += u_bloomCol * u_bloom * exp(-dot(p0, p0) * 5.0); // hits: a soft lift at the centre (kept under the flash line)
@@ -1604,7 +1609,7 @@ function co2Press(pad, vel, nowS, h, ctx) {
   let jets = co2Jets(h);
   if (!granted) { const mid = (jets.length - 1) / 2; jets = jets.filter((_, i) => Math.abs(i - mid) <= 0.5).map((j) => ({ ...j, strength: j.strength / 3 })); }
   const nowMs = nowS * 1000;
-  for (const j of jets) pads.co2Q.push({ atMs: nowMs + j.delay * ctx.perMs, x01: j.x01, strength: j.strength, pad, serial: f.serial });
+  for (const j of jets) pads.co2Q.push({ atMs: nowMs + j.delay * ctx.perMs, x01: j.x01, strength: j.strength, pad, serial: f.serial, granted });
   const at = spotXY(h);
   impact.hit("co2", vel, nowS, { seed: f.seed, granted, x: at ? at[0] : 0, y: -0.45, punch: options.punch && limiterLive() });
   return f;
@@ -1619,7 +1624,7 @@ function co2Fire(nowMs, dt) {
     const q = pads.co2Q[k];
     if (q.atMs > nowMs) { k++; continue; }
     pads.co2Q.splice(k, 1);
-    if (air.api && air.api.has.co2 && air.api.co2(q.x01, 0, q.strength)) continue;
+    if (air.api && air.api.has.co2 && air.api.co2(q.x01, 0, q.strength, q.granted)) continue;   // the press's answer: one onset, one ask
     const plume = { x01: q.x01, t0: nowMs / 1000, strength: q.strength, pad: q.pad, serial: q.serial, env: 0 };
     if (pads.plumes.length < PLUMES_MAX) pads.plumes.push(plume);
     else { let w = 0; for (let j = 1; j < pads.plumes.length; j++) if (pads.plumes[j].env < pads.plumes[w].env) w = j; pads.plumes[w] = plume; }
@@ -1718,7 +1723,11 @@ function padsTick(nowMs, dt) {
     if (action === "co2" && pads.play.isHeld(pad) && air.api && air.api.has.co2) {
       // held CO2 keeps pouring into the haze: the row of jets again every quarter beat (the bloom was the press's)
       const q = Math.floor(ctx.pos * 4);
-      if (q !== pads.co2Pour) { pads.co2Pour = q; for (const j of co2Jets(pads.hits[i])) air.api.co2(j.x01, 0, 0.6 * j.strength); }
+      if (q !== pads.co2Pour) {   // one ask for the row (the gate's 1/3 s gap would refuse every jet after the first)
+        pads.co2Pour = q;
+        const granted = gate.request(nowS);
+        for (const j of co2Jets(pads.hits[i])) air.api.co2(j.x01, 0, 0.6 * j.strength, granted);
+      }
     }
   }
   heroTick(ctx);
@@ -2728,6 +2737,7 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
   // the beam layer (Lasers v2): never brighter than the engine fitted it (the accent fader only takes light away here)
   gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_2D, G.beam ? G.beam.texs[0] : G.blackTex);
   gl.uniform1f(u.u_beamGain, options.lasersClassic || G.beamClear ? 0 : Math.min(1, (0.25 + T.accent) / 1.1) * (lasers.cut ? 0 : Math.min(1, lasers.gain)));
+  airBind(gl);                    // the air (the AIR block)
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   cmp.read = write;
   return cmp.texs[write];
@@ -2975,6 +2985,7 @@ function onFrame(rafNow) {
       fillOverlayUniforms(nowS);
       renderOverlay(nowS);
       renderBeams();
+      airFrame(frameDt);              // the air the beams light (the AIR block)
       const mixed = stage && A && A.fb && B && B.fb && B !== A ?
         stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
       const drawn = composite(nowMs, nowS, mixAB, mixed);
@@ -3659,6 +3670,58 @@ window.__vj = {
     for (const k of Object.keys(parts)) parts[k] = +(parts[k] / n).toFixed(3);
     return { n, limiter_ms: (t1 - t0) / n, copy_ms: (t2 - t1) / n, parts_ms: parts, width: G.width, height: G.height };
   },
+};
+
+// ------------------------------------------------------------------------------------------------- the AIR --
+// VJ V2 lane C (2026-10-27, build spec research/in-flight/vj-v2-build-spec-2026-10-27.md section C, P1): the air the beams
+// light. vj-fluid.js runs a 2D haze fluid under the page (haze that drifts and is stirred by the beams' motion, CO2 jets,
+// a fog push) and the composite adds its light after the beams, at the screen's own place. All of it is this block plus
+// four marked lines: the import, the composite's u_air uniforms and its one line, onFrame's airFrame, composite's airBind.
+// The pads (lane B: pad 3 CO2, pad 6 FOG) reach the running fluid as air.fluid (vj-hookup.js airOf, padsTick); each
+// onset asks the FlashGate once (vj-fluid.js, SAFETY): a pad press for its whole row of CO2 jets, else the fluid itself.
+// URL: ?air=off (none) or low (a quarter of the cells, slow GPUs); ?haze=0..1 (the room's level, 0.5 by default).
+const AIR_MODE = (() => { const a = QS.get("air"); return a === "off" || a === "low" ? a : "high"; })();
+const AIR_HAZE = (() => { const h = Number(QS.get("haze")); return QS.get("haze") !== null && Number.isFinite(h) ? clamp(h, 0, 1) : 0.5; })();
+const airSim = { fx: null, error: "", prog: null, loc: null };
+// the fluid came or went: the pads get it too, unless a receipt handed them its own (window.__vj.attachAir)
+function airHand(fx) { if (air.fluid === null || air.fluid === airSim.fx) air.fluid = fx; airSim.fx = fx; }
+function airFrame(dt) {
+  if (AIR_MODE === "off" || airSim.error || !G.beam) return;
+  try {
+    if (!airSim.fx) airHand(attachFluid({ gl: G.gl, gate, live: limiterLive, now: () => performance.now() / 1000, quality: AIR_MODE, haze: AIR_HAZE }));
+    // the beams light the air at the gain the composite gives them (its u_beamGain)
+    const lit = !(options.lasersClassic || G.beamClear || lasers.cut);
+    airSim.fx.inscatter(G.beam.texs[0], lit ? Math.min(1, (0.25 + T.accent) / 1.1) * Math.min(1, lasers.gain) : 0);
+    airSim.fx.stirFromBeams(lasers.seg, lit ? lasers.n : 0, G.width / Math.max(G.height, 1), dt);
+    airSim.fx.tint(palNow[0], palNow[1], palNow[2]);
+    airSim.fx.step(dt);
+  } catch (err) {   // the page plays on without air, and says why
+    airSim.error = String(err.message || err);
+    recordError("compile", "vj-fluid", airSim.error);
+    if (airSim.fx) { try { airSim.fx.dispose(); } catch { /* a lost context took it */ } airHand(null); }
+  }
+}
+function airBind(gl) {
+  if (airSim.prog !== G.compProg) { airSim.prog = G.compProg; airSim.loc = { tex: gl.getUniformLocation(G.compProg, "u_air"), gain: gl.getUniformLocation(G.compProg, "u_airGain") }; }
+  gl.activeTexture(gl.TEXTURE8); gl.bindTexture(gl.TEXTURE_2D, airSim.fx ? airSim.fx.texture() : G.blackTex);
+  gl.uniform1i(airSim.loc.tex, 8);
+  gl.uniform1f(airSim.loc.gain, airSim.fx ? 1 : 0);
+}
+// the receipts' door to the fluid (window.__vj.air below): the gate's answer ({ granted }), or null (no air, or the safe mode)
+const vjAir = {
+  co2: (x01, y01, strength01) => (airSim.fx ? airSim.fx.co2(x01, y01, strength01) : null),
+  fogPush: (level01) => (airSim.fx ? airSim.fx.fogPush(level01) : null),
+  fogRelease: () => { if (airSim.fx) airSim.fx.fogRelease(); },
+};
+canvas.addEventListener("webglcontextrestored", () => { airHand(null); airSim.prog = null; airSim.error = ""; });   // its targets died with the context
+// receipts (vj_storm.mjs airedge, airstir): { co2: [x01, y01, strength], fog: level (0 releases), stir: [{ x, y, vx, vy,
+// r }], haze } -> the air's state
+window.__vj.air = (o = {}) => {
+  if (o.co2) vjAir.co2(...o.co2);
+  if (typeof o.fog === "number") { if (o.fog > 0) vjAir.fogPush(o.fog); else vjAir.fogRelease(); }
+  if (o.stir && airSim.fx) airSim.fx.stir(o.stir);
+  if (typeof o.haze === "number" && airSim.fx) airSim.fx.haze(o.haze);
+  return airSim.fx ? { on: true, mode: AIR_MODE, ...airSim.fx.stats() } : { on: false, mode: AIR_MODE, error: airSim.error };
 };
 
 // ------------------------------------------------------------------------------------------------------ boot --
