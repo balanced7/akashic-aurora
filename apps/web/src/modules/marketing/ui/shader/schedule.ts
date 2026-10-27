@@ -21,16 +21,30 @@ export const qualityFor = ({
     ? { dpr: 1.5, scale: 0.75, fps: 30 }
     : { dpr: 1.5, scale: 1, fps: 60 };
 
-/** After this many timed frames the renderer judges whether the device keeps up. */
-export const PROBE_FRAMES = 90;
+/** The renderer judges the device over windows this long, so a slow device is judged as fast as a quick one. */
+export const PROBE_MS = 1500;
 /** A frame gap above this is slow: 60 fps leaves 16.7ms. */
 export const SLOW_FRAME_MS = 22;
+/** Below this render scale a field stops moving: one still frame, as under reduced motion. */
+const MIN_SCALE = 0.3;
 
-/** Halve the work once if more than half the probed frames were slow. */
-export const degrade = (quality: Quality, slowFrames: number): Quality =>
-  slowFrames > PROBE_FRAMES / 2
-    ? { ...quality, scale: quality.scale * 0.6, fps: Math.min(quality.fps, 30) }
-    : quality;
+/**
+ * Cut the work if more than half of a window's frames were slow: fewer pixels and 30 fps, and once
+ * that is not enough either, a still frame (fps 0). Returns the same object when no cut is needed.
+ */
+export const degrade = (
+  quality: Quality,
+  frames: number,
+  slowFrames: number,
+): Quality => {
+  if (slowFrames <= frames / 2) return quality;
+  if (quality.scale * 0.6 < MIN_SCALE) return { ...quality, fps: 0 };
+  return {
+    ...quality,
+    scale: quality.scale * 0.6,
+    fps: Math.min(quality.fps, 30),
+  };
+};
 
 export interface Slot {
   /** On screen, or close enough to be about to be. */
@@ -51,12 +65,13 @@ export interface Conditions {
 
 /**
  * Whether a background draws this frame. Nothing draws in a hidden tab or off screen. Under reduced
- * motion a background draws exactly once, a still frame, and again only after a resize.
+ * motion, or on a device too slow to animate, a background draws exactly once, a still frame, and
+ * again only after a resize.
  */
 export const isDue = (slot: Slot, now: number, conditions: Conditions) => {
   if (conditions.hidden || !slot.visible) return false;
   if (!slot.drawn) return true;
-  if (conditions.reduced) return false;
+  if (conditions.reduced || conditions.quality.fps === 0) return false;
   const fps = Math.min(slot.fps, conditions.quality.fps);
   // A little slack so a 30 fps field does not skip to 20 on a jittery 60 Hz clock.
   return now - slot.last >= 1000 / fps - 4;
@@ -66,7 +81,8 @@ export const isDue = (slot: Slot, now: number, conditions: Conditions) => {
 export const needsLoop = (slots: Iterable<Slot>, conditions: Conditions) => {
   if (conditions.hidden) return false;
   for (const slot of slots) {
-    if (slot.visible && (!conditions.reduced || !slot.drawn)) return true;
+    const still = conditions.reduced || conditions.quality.fps === 0;
+    if (slot.visible && (!still || !slot.drawn)) return true;
   }
   return false;
 };

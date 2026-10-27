@@ -2,7 +2,7 @@ import {
   degrade,
   isDue,
   needsLoop,
-  PROBE_FRAMES,
+  PROBE_MS,
   qualityFor,
   renderSize,
   SLOW_FRAME_MS,
@@ -70,7 +70,7 @@ class Renderer {
   private quality: Quality;
   private frame = 0;
   private lost = false;
-  private probe = { frames: 0, slow: 0, last: 0 };
+  private probe = { frames: 0, slow: 0, start: 0, last: 0, done: false };
   private intersection: IntersectionObserver;
   private resize: ResizeObserver;
 
@@ -292,21 +292,34 @@ class Renderer {
     setState(background.canvas, "live");
   }
 
-  /** Judge the device once: if it cannot keep up, render fewer pixels and frames from then on. */
+  /**
+   * Judge the device over a window of frames. If it cannot keep up, render fewer pixels and frames
+   * and judge again, down to a still frame; once it keeps up, stop judging.
+   */
   private measure(now: number) {
     const probe = this.probe;
-    if (probe.frames >= PROBE_FRAMES) return;
+    if (probe.done) return;
     if (probe.last) {
       probe.frames += 1;
       if (now - probe.last > SLOW_FRAME_MS) probe.slow += 1;
-      if (probe.frames === PROBE_FRAMES) {
-        const quality = degrade(this.quality, probe.slow);
+      if (now - probe.start >= PROBE_MS) {
+        const quality = degrade(this.quality, probe.frames, probe.slow);
+        if (quality === this.quality || quality.fps === 0) probe.done = true;
         if (quality !== this.quality) {
           this.quality = quality;
-          for (const background of this.backgrounds.values())
+          for (const background of this.backgrounds.values()) {
+            background.drawn = false;
             this.fit(background);
+          }
         }
+        probe.frames = 0;
+        probe.slow = 0;
+        probe.start = now;
       }
+    } else {
+      probe.frames = 0;
+      probe.slow = 0;
+      probe.start = now;
     }
     probe.last = now;
   }
@@ -317,11 +330,12 @@ class Renderer {
     if (!gl || this.lost) return;
     const conditions = this.conditions();
     if (!conditions.reduced) this.measure(now);
+    const still = conditions.reduced || conditions.quality.fps === 0;
     this.pointer.x += (this.pointer.tx - this.pointer.x) * 0.04;
     this.pointer.y += (this.pointer.ty - this.pointer.y) * 0.04;
     for (const background of this.backgrounds.values()) {
       if (isDue(background, now, conditions))
-        this.draw(gl, background, now, conditions.reduced);
+        this.draw(gl, background, now, still);
     }
     this.wake();
   };

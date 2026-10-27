@@ -1,14 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { shaderPresets } from "./presets";
-import {
-  degrade,
-  isDue,
-  needsLoop,
-  PROBE_FRAMES,
-  qualityFor,
-  renderSize,
-} from "./schedule";
+import { degrade, isDue, needsLoop, qualityFor, renderSize } from "./schedule";
 
 import type { Conditions, Slot } from "./schedule";
 
@@ -35,11 +28,23 @@ describe("qualityFor", () => {
 });
 
 describe("degrade", () => {
-  it("halves the work once most probed frames were slow", () => {
-    expect(degrade(desktop, PROBE_FRAMES / 2)).toBe(desktop);
-    const slow = degrade(desktop, PROBE_FRAMES / 2 + 1);
+  it("cuts the work once most of a window's frames were slow", () => {
+    expect(degrade(desktop, 90, 45)).toBe(desktop);
+    const slow = degrade(desktop, 90, 46);
     expect(slow.scale).toBeCloseTo(0.6);
     expect(slow.fps).toBe(30);
+  });
+
+  it("ends in a still frame when cutting pixels is not enough", () => {
+    const slowest = degrade(degrade(desktop, 10, 10), 10, 10);
+    expect(slowest.scale).toBeCloseTo(0.36);
+    const still = degrade(slowest, 10, 10);
+    expect(still.fps).toBe(0);
+    const background = slot({ drawn: false });
+    const conditions = { ...running, quality: still };
+    expect(isDue(background, 1000, conditions)).toBe(true);
+    expect(isDue(slot(), 99_999, conditions)).toBe(false);
+    expect(needsLoop([slot()], conditions)).toBe(false);
   });
 });
 
