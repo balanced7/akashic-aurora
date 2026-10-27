@@ -20,6 +20,12 @@
 // crowd's own vertex shader (shaders.js litVertex), the source of the v0 limiter interventions under TUNNEL_UP; the rig's
 // v1 fixtures (the halo, the pods, the towers, the delay towers, the 24-head lip) draw through the same per-head and
 // per-cell paths, as the scene's data says.
+//
+// v2 (2026-10-27, the ring formations): the rings move (fs.rings.mats: each ring's live matrix sets its mesh and the
+// element matrix its cells and heads ride, as the rungs have since v0); the orrery's core is drawn (an emissive sphere,
+// shaders.js ORB_*); the formations' extra emitters (the core's dots and glow, the wireframe bands, the planets, the star
+// motes) follow the LED cells; the energy column is one more beam proxy, drawn exactly as a head's beam; and a head's
+// beam ends on the core when the core stands in its way (roomHit with fs.rings.hitOpts).
 
 import * as THREE from "three";
 import * as S from "./shaders.js";
@@ -28,6 +34,7 @@ import { roomHit, L3, L3_FLOATS } from "./lasers3d.js";
 import { H, HEAD_FLOATS } from "./programmer.js";
 import { hazeNoise3D } from "./atmos.js";
 import { vfovOf } from "./camera.js";
+import { MAX_FORMATION_EMIT, MAX_FORMATION_BEAMS } from "./formations.js";
 
 export const UNIT_NITS = 30;
 const U = 1 / UNIT_NITS;
@@ -212,6 +219,8 @@ export class StageRenderer {
       ring: lit([0.12, 0.12, 0.13]),
       chain: lit([0.18, 0.18, 0.2], [0, 0, 0], { instanced: true }),
       cube: this._raw(S.CUBE_VERTEX, S.CUBE_FRAGMENT(this.preludeMain), {}),
+      orb: this._raw(S.ORB_VERTEX, S.ORB_FRAGMENT, { uCol: { value: new THREE.Vector3(0.3, 0.05, 1) }, uHot: { value: new THREE.Vector3(1, 0.9, 1) },
+        uScale: { value: 0 }, uHotK: { value: 0.35 }, uTime: { value: 0 }, uSpin: { value: new THREE.Matrix3() } }),
       emit: this._raw(S.EMIT_VERTEX, S.EMIT_FRAGMENT, { ...this.view }, add),
       laser: this._raw(S.LASER_VERTEX, S.LASER_FRAGMENT(this.preludeMain),
         { ...this.view, ...this.haze, uLumPerWatt: { value: new THREE.Vector3(LUM_PER_WATT[0] * U, LUM_PER_WATT[1] * U, LUM_PER_WATT[2] * U) } },
@@ -317,8 +326,9 @@ export class StageRenderer {
     const chainGeo = new THREE.BoxGeometry(0.035, 1, 0.035); chainGeo.translate(0, 0.5, 0);
     this.chainMesh = new THREE.InstancedMesh(chainGeo, this.mat.chain, this.rungEls.length * 2);
     this.chainMesh.frustumCulled = false; this.chainMesh.userData.group = "strand"; world.add(this.chainMesh);
-    // the rings' frames (static pose in v0)
+    // the rings' frames (posed every frame from v2: a ring formation moves them)
     this.ringMeshes = [];
+    this.ringMeshOf = new Map();
     for (let i = 0; i < rig.elements.length; i++) {
       const e = rig.elements[i];
       if (e.id !== "ring") continue;
@@ -329,7 +339,12 @@ export class StageRenderer {
       mesh.userData.group = "rings"; mesh.frustumCulled = false;
       world.add(mesh);
       this.ringMeshes.push(mesh);
+      this.ringMeshOf.set(i, mesh);
     }
+    // the orrery's core (shown while a formation lights it)
+    this.orbMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), this.mat.orb);
+    this.orbMesh.matrixAutoUpdate = false; this.orbMesh.frustumCulled = false; this.orbMesh.visible = false;
+    this.orbMesh.userData.group = "rings"; world.add(this.orbMesh);
     // the fixtures' bodies: a base, and a head that follows pan and tilt
     const nH = rig.heads.length;
     this.baseMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.16, 0.42), this.mat.body, nH);
@@ -341,7 +356,7 @@ export class StageRenderer {
     this.emitCells = [];
     for (let c = 0; c < cells.n; c++) if (cells.kind[c] !== CELL_KIND.cube) this.emitCells.push(c);
     this.nEmitCells = this.emitCells.length;
-    this.maxEmit = this.nEmitCells + nH + 512 + 32;
+    this.maxEmit = this.nEmitCells + nH + 512 + 32 + MAX_FORMATION_EMIT;
     const quad = new THREE.BufferGeometry();
     quad.setAttribute("position", new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
     quad.setIndex([0, 1, 2, 0, 2, 3]);
@@ -389,8 +404,9 @@ export class StageRenderer {
     cone.setIndex(ci);
     const bg = new THREE.InstancedBufferGeometry();
     bg.index = cone.index; bg.setAttribute("position", cone.attributes.position);
-    this.bApex = new Float32Array(nH * 3); this.bAxis = new Float32Array(nH * 3); this.bShape = new Float32Array(nH * 3);
-    this.bLenN = new Float32Array(nH * 2); this.bCol = new Float32Array(nH * 3);
+    const nB = nH + MAX_FORMATION_BEAMS;
+    this.bApex = new Float32Array(nB * 3); this.bAxis = new Float32Array(nB * 3); this.bShape = new Float32Array(nB * 3);
+    this.bLenN = new Float32Array(nB * 2); this.bCol = new Float32Array(nB * 3);
     bg.setAttribute("iApex", new THREE.InstancedBufferAttribute(this.bApex, 3)); bg.setAttribute("iAxis", new THREE.InstancedBufferAttribute(this.bAxis, 3));
     bg.setAttribute("iShape", new THREE.InstancedBufferAttribute(this.bShape, 3)); bg.setAttribute("iLenN", new THREE.InstancedBufferAttribute(this.bLenN, 2));
     bg.setAttribute("iCol", new THREE.InstancedBufferAttribute(this.bCol, 3));
@@ -489,6 +505,8 @@ export class StageRenderer {
     cam.lookAt(c.look[0], c.look[1], c.look[2]);
     if (c.roll) cam.rotateZ(c.roll * DEG);
     cam.fov = vfovOf(c.hfov, w / h);
+    // a shot may ask for a tighter crowd cull (an FPV skim over the hands: 0.8 m, or the hands under the lens vanish)
+    this.crowdNear.uCullNear.value = c.crowdCull ?? S.CROWD_CULL_NEAR_M;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
     const pixAngle = (2 * Math.tan((cam.fov * DEG) / 2)) / h;
@@ -500,7 +518,25 @@ export class StageRenderer {
     this.haze.uSigma0.value = md.sigma0; this.haze.uSigmaAvg.value = md.sigma0; this.haze.uNoiseAmp.value = md.noiseAmp;
     this.haze.uWind.value.set(md.wind[0], md.wind[1], md.wind[2]); this.haze.uG.value = md.g;
     this.haze.uHazer.value.set(md.hazers); this.haze.uHazerSigma.value.set(md.hazerSigma);
-    // element matrices: the rungs move, the rest is static
+    // element matrices: the rungs move, and (v2) the rings in a formation; the rest is static
+    const RF = fs.rings || null;
+    if (RF) {
+      for (let k = 0; k < RF.els.length; k++) {
+        const ei = RF.els[k], em = RF.mats[k];
+        this.elM[ei].set(em);
+        const mesh = this.ringMeshOf.get(ei);
+        if (mesh) mesh.matrix.set(em[0], em[1], em[2], em[9], em[3], em[4], em[5], em[10], em[6], em[7], em[8], em[11], 0, 0, 0, 1);
+      }
+      const co = RF.core;
+      this.orbMesh.visible = !!(co && co.on && co.level > 0.002);
+      if (this.orbMesh.visible) {
+        const r = co.r, u = this.mat.orb.uniforms, a = (co.spin || 0) * DEG;
+        this.orbMesh.matrix.set(r, 0, 0, co.c[0], 0, r, 0, co.c[1], 0, 0, r, co.c[2], 0, 0, 0, 1);
+        u.uCol.value.set(co.col[0], co.col[1], co.col[2]); u.uHot.value.set(co.hotCol[0], co.hotCol[1], co.hotCol[2]);
+        u.uScale.value = (co.nits ?? 420) * U * co.level; u.uHotK.value = co.hot; u.uTime.value = tSec || 0;
+        u.uSpin.value.set(Math.cos(a), 0, Math.sin(a), 0, 1, 0, -Math.sin(a), 0, Math.cos(a));
+      }
+    } else this.orbMesh.visible = false;
     for (let k = 0; k < this.rungEls.length; k++) {
       const ei = this.rungEls[k], p = fs.poses[k];
       elementMatrix(rig.elements[ei], p, this.elM[ei]);
@@ -562,8 +598,8 @@ export class StageRenderer {
       this.eCol[ePtr * 3] = cr * lensL; this.eCol[ePtr * 3 + 1] = cg * lensL; this.eCol[ePtr * 3 + 2] = cb * lensL;
       this.eSize[ePtr] = hc.lens; ePtr++;
       if (dim <= 1e-4) continue;
-      // the beam's length: to the first surface of the room
-      const hit = roomHit(ho.lens, ho.dir, rig.venue);
+      // the beam's length: to the first surface of the room (or the core, when a formation lights one)
+      const hit = roomHit(ho.lens, ho.dir, rig.venue, RF && RF.hitOpts);
       const len = Math.min(Number.isFinite(hit.t) ? hit.t : 150, 150);
       // the camera inside the cone, or within 2 m of its edge: fade the beam to 15 % (a camera crew never shoots from inside
       // a beam; in 3D a flythrough would otherwise wipe the frame white each time it crossed one)
@@ -590,6 +626,26 @@ export class StageRenderer {
         ns++;
       }
     }
+    // the formations' extra beams (the energy column): a narrow beam proxy each, lit and faded as a head's beam
+    if (RF) for (const B of RF.beams) {
+      if (nb >= this.bLenN.length / 2) break;
+      const tanB = Math.tan((B.beamDeg / 2) * DEG), tanF = tanB * 1.15, nexp = Math.log(Math.log(0.1) / Math.log(0.5)) / Math.log(1.15);
+      const I0 = B.flux / (Math.PI * tanB * tanB);
+      const ah = (c.pos[0] - B.apex[0]) * B.axis[0] + (c.pos[1] - B.apex[1]) * B.axis[1] + (c.pos[2] - B.apex[2]) * B.axis[2];
+      let inBeam = 1;
+      if (ah > 0 && ah < B.len) {
+        const ax = c.pos[0] - B.apex[0] - B.axis[0] * ah, ay = c.pos[1] - B.apex[1] - B.axis[1] * ah, az = c.pos[2] - B.apex[2] - B.axis[2] * ah;
+        inBeam = Math.min(1, Math.max(0.15, 0.15 + 0.85 * ((Math.hypot(ax, ay, az) - (0.08 + ah * tanF * 1.35)) / 2)));
+      }
+      const Ic = I0 * U * inBeam;
+      this.bApex.set(B.apex, nb * 3); this.bAxis.set(B.axis, nb * 3);
+      this.bShape[nb * 3] = tanB; this.bShape[nb * 3 + 1] = tanF; this.bShape[nb * 3 + 2] = 0.08;
+      this.bLenN[nb * 2] = B.len; this.bLenN[nb * 2 + 1] = nexp;
+      this.bCol[nb * 3] = B.col[0] * Ic; this.bCol[nb * 3 + 1] = B.col[1] * Ic; this.bCol[nb * 3 + 2] = B.col[2] * Ic;
+      nb++;
+      beamPower += B.flux;
+      veil[0] += B.col[0] * B.flux; veil[1] += B.col[1] * B.flux; veil[2] += B.col[2] * B.flux;
+    }
     sp.uNSpot.value = ns;
     this.beamGeo.instanceCount = F.beams ? nb : 0;
     for (const k of ["iApex", "iAxis", "iShape", "iLenN", "iCol"]) this.beamGeo.attributes[k].needsUpdate = true;
@@ -597,13 +653,19 @@ export class StageRenderer {
     // the LED cells
     const cells = rig.cells;
     let pixPower = [0, 0, 0];
+    // (a ring's rim cells sit on the centre line of its tube; while a formation lights them they are drawn 0.13 m
+    // toward the lens, out of the tube that otherwise hides them)
+    const lift = RF && RF.liftRims ? 0.13 : 0;
     for (let j = 0; j < this.nEmitCells; j++) {
       const cI = this.emitCells[j];
       const em = this.elM[cells.element[cI]];
       const lx = cells.pos[cI * 3], ly = cells.pos[cI * 3 + 1], lz = cells.pos[cI * 3 + 2];
-      this.ePos[j * 3] = em[0] * lx + em[1] * ly + em[2] * lz + em[9];
-      this.ePos[j * 3 + 1] = em[3] * lx + em[4] * ly + em[5] * lz + em[10];
-      this.ePos[j * 3 + 2] = em[6] * lx + em[7] * ly + em[8] * lz + em[11];
+      let wx = em[0] * lx + em[1] * ly + em[2] * lz + em[9], wy = em[3] * lx + em[4] * ly + em[5] * lz + em[10], wz = em[6] * lx + em[7] * ly + em[8] * lz + em[11];
+      if (lift && cells.kind[cI] === CELL_KIND.rim) {
+        const tx = c.pos[0] - wx, ty = c.pos[1] - wy, tz = c.pos[2] - wz, tl = Math.hypot(tx, ty, tz) || 1;
+        wx += (tx / tl) * lift; wy += (ty / tl) * lift; wz += (tz / tl) * lift;
+      }
+      this.ePos[j * 3] = wx; this.ePos[j * 3 + 1] = wy; this.ePos[j * 3 + 2] = wz;
       const k = this.cellNits[cI];
       const r = fs.pixels[cI * 4], g = fs.pixels[cI * 4 + 1], b = fs.pixels[cI * 4 + 2];
       this.eCol[j * 3] = r * k; this.eCol[j * 3 + 1] = g * k; this.eCol[j * 3 + 2] = b * k;
@@ -632,6 +694,13 @@ export class StageRenderer {
           this.eSize[ePtr] = rad; ePtr++;
         }
       }
+    }
+    // the formations' emitters: the core's dots and glow, the wireframe bands, the planets, the motes
+    if (RF && RF.emit && RF.emit.n) {
+      const E = RF.emit, n = Math.min(E.n, this.maxEmit - ePtr);
+      this.ePos.set(E.pos.subarray(0, n * 3), ePtr * 3); this.eCol.set(E.col.subarray(0, n * 3), ePtr * 3); this.eSize.set(E.size.subarray(0, n), ePtr);
+      for (let j = 0; j < n; j++) { pixPower[0] += E.col[j * 3] * 0.002; pixPower[1] += E.col[j * 3 + 1] * 0.002; pixPower[2] += E.col[j * 3 + 2] * 0.002; }
+      ePtr += n;
     }
     this.laserGeo.instanceCount = nl;
     for (const k of ["iA", "iB", "iPow", "iMisc"]) this.laserGeo.attributes[k].needsUpdate = true;

@@ -59,7 +59,13 @@ export function projectorBasis(aim) {
 
 // The room's surfaces, as the axis-aligned box the hall fits in plus the crowd plane (heads at 1.9 m, over the floor in
 // front of the stage) and the deck (2 m, upstage of the lip). Returns the distance along d to the first one, and which.
-export function roomHit(o, d, venue) {
+//
+// v2 (2026-10-27, the orrery report's safety gap): opts.stands models the raked AUDIENCE STANDS (venue.stands: the
+// rake rising outward from the floor's two sides and its back edge to top_y) as their own surface, "stands", where the
+// legacy box called them "wall"; the upstage wall is then "backwall". opts.orb {c, r}: a solid core (a beam aimed into
+// it ends on it). The renderer keeps the legacy box for its beam lengths; the formation safety check (formations.js
+// beamEnd) uses the stands, and no formation beam may end on the crowd or the stands.
+export function roomHit(o, d, venue, opts = null) {
   const fx = venue.floor && venue.floor.x || [-38, 38], fz = venue.floor && venue.floor.z || [-24, 96];
   const roof = venue.roof_y ?? 38, crowdY = venue.crowd_y ?? 1.9, deckY = venue.deck_y ?? 2, deckZ = venue.deck_z ?? [-16, 0];
   let best = Infinity, what = "none";
@@ -72,12 +78,36 @@ export function roomHit(o, d, venue) {
     if (test && !test(p)) return;
     best = t; what = name;
   };
-  plane(0, fx[0], "wall"); plane(0, fx[1], "wall");
-  plane(2, fz[0], "wall"); plane(2, fz[1], "wall");
+  const st = opts && opts.stands && venue.stands ? venue.stands : null;
+  if (!st) { plane(0, fx[0], "wall"); plane(0, fx[1], "wall"); plane(2, fz[0], "wall"); plane(2, fz[1], "wall"); }
+  else {
+    const k = Math.tan((st.rake_deg ?? 30) * DEG), top = st.top_y ?? 30, run = top / k;
+    plane(2, fz[0], "backwall");
+    // a raked plane through the edge line, rising outward: (edge - x) k - y = 0 (left), (x - edge) k - y = 0 (right),
+    // (z - edge) k - y = 0 (back), each over its run; beyond the top row, the hall's outer walls
+    const rake = (a, sgn, edge, name) => {
+      const den = sgn * k * d[a] - d[1];
+      if (Math.abs(den) < 1e-12) return;
+      const t = -(sgn * k * (o[a] - edge) - o[1]) / den;
+      if (t <= 1e-4 || t >= best) return;
+      const q = o[a] + d[a] * t, y = o[1] + d[1] * t;
+      if (sgn * (q - edge) < 0 || sgn * (q - edge) > run || y < 0 || y > top) return;
+      best = t; what = name;
+    };
+    rake(0, -1, fx[0], "stands"); rake(0, 1, fx[1], "stands"); rake(2, 1, fz[1], "stands");
+    plane(0, fx[0] - run, "wall"); plane(0, fx[1] + run, "wall"); plane(2, fz[1] + run, "wall");
+  }
   plane(1, roof, "roof");
-  plane(1, 0, "floor");
+  plane(1, 0, "floor", st ? (p) => p[0] >= fx[0] && p[0] <= fx[1] && p[2] <= fz[1] : null);
   plane(1, crowdY, "crowd", (p) => p[2] > 1 && o[1] > crowdY);
   plane(1, deckY, "deck", (p) => p[2] >= deckZ[0] && p[2] <= deckZ[1] && o[1] > deckY);
+  const orb = opts && opts.orb;
+  if (orb) {
+    // the first crossing of the sphere |o + t d - c| = r (a ray starting inside it is not stopped)
+    const ox = o[0] - orb.c[0], oy = o[1] - orb.c[1], oz = o[2] - orb.c[2];
+    const b = ox * d[0] + oy * d[1] + oz * d[2], c = ox * ox + oy * oy + oz * oz - orb.r * orb.r, disc = b * b - c;
+    if (c > 0 && disc >= 0) { const t = -b - Math.sqrt(disc); if (t > 1e-4 && t < best) { best = t; what = "orb"; } }
+  }
   return { t: best, what };
 }
 
@@ -87,14 +117,17 @@ export class Lasers3D {
     projectors.forEach((p, i) => {
       if (p.name && p.name !== heads[i].name) throw new Error(`lasers3d: projector ${i} is ${p.name}, the brain's head ${i} is ${heads[i].name}`);
     });
-    this.p = projectors.map((p) => ({ ...p, basis: projectorBasis(p.aim || [0, 0, 1]) }));
+    this.p = projectors.map((p) => ({ ...p, pos: p.pos.slice(), basis: projectorBasis(p.aim || [0, 0, 1]) }));
     this.venue = venue;
+    this.hitOpts = null;         // v2: {orb} while a formation's core stands in the beams' way
     this.gamma = gamma;
     this.exclusionCos = Math.cos(exclusionDeg * DEG);
     this.out = { seg: new Float32Array(MAX_SEGMENTS * L3_FLOATS), n: 0, power: new Float32Array(projectors.length * 3),
                  excluded: 0, dots: 0, clipped: 0 };
     this.share = new Float32Array(MAX_SEGMENTS);
   }
+  // v2: a ring-mounted projector rides its ring: the aperture moves with the ring's live pose (rig.js mountPose)
+  setOrigin(h, p) { const q = this.p[h].pos; q[0] = p[0]; q[1] = p[1]; q[2] = p[2]; }
   // frame2d: the brain's frame() output. opts: reachScale (K7 and the look), master (F4, 0..1), camera {pos, fwd, near}
   map(frame2d, { reachScale = 1, master = 1, camera = null } = {}) {
     const o = this.out, s2 = frame2d.seg, n2 = frame2d.n;
@@ -119,7 +152,7 @@ export class Lasers3D {
       const d = norm([r[0] * dx + u[0] * dy + f[0] * k * len2, r[1] * dx + u[1] * dy + f[1] * k * len2,
                       r[2] * dx + u[2] * dy + f[2] * k * len2]);
       const origin = pr.pos;
-      const hit = roomHit(origin, d, this.venue);
+      const hit = roomHit(origin, d, this.venue, this.hitOpts);
       const tEnd = Number.isFinite(hit.t) ? hit.t : 200;
       // colour: never a saturated red
       let cr = s2[b + SEG.R], cg = s2[b + SEG.G], cb = s2[b + SEG.B];
