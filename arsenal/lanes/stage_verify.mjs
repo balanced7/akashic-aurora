@@ -630,7 +630,7 @@ async function phaseSpiral({ ev, open, shot, phase, deadline }) {
         series.length > 300 && worst >= 1.5 && guards === 0, { frames: series.length, closest_m: worst && +worst.toFixed(3), guards });
   // drawn: the well from below and from above, the energy column among the beams
   await ev("window.__stage.skipRender = false");
-  for (const id of ["SPIRAL_HERO", "SPIRAL_SIDE"]) {
+  for (const id of ["SPIRAL_HERO", "HALO_LOCK"]) {
     await ev(`(() => { window.__stage.setShot(${JSON.stringify(id)}, 0.5); for (let i = 0; i < 3; i++) window.__vt.step(${F}); return true; })()`);
     await shot(join(outDir, `spiral-${id.toLowerCase()}.png`));
   }

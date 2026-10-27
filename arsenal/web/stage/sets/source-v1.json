@@ -1119,8 +1119,7 @@
         "bars": 4,
         "source": "ours (v2): the push in toward the gimbals; it ends 18 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
       },
-      "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"},
-      "SPIRAL_SIDE": {"kind": "static", "pos": [18, 12, 6], "look": [0, 18.5, -7], "hfov": 60, "ev": 0.4, "bars": 8, "source": "ours (v2): from house right at mid-height, under the trusses, the well in profile: the rings stepped up their axis, the beam rising through every centre"}
+      "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"}
     },
     "sequences": {
       "intro": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "CRANE_RISE_REVEAL", "bars": 4}],
@@ -1164,7 +1163,7 @@
     "formation_views": {
       "_about": "v2: the move shows the motion, the cut reveals the arrival. When a formation lands (the set's formation key, a ring formation's key, else its kinetics name), the director plays one glide from the next bar line (between half and twice the glide's own bars) and cuts ON the landing bar line to a hero view; each landing deals the next shot of each list, and a shot that would come within 1.5 m of the strand (or of the rings a ring formation sweeps) is skipped. The ring formations (formations.js): orrery, spiral, vortex, crown, portal.",
       "orrery": {"glide": ["ORRERY_REVEAL"], "hero": ["ORRERY_UNDER", "ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"], "hero_bars": 8},
-      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "SPIRAL_SIDE", "HALO_LOCK"], "hero_bars": 8},
+      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "HALO_LOCK"], "hero_bars": 8},
       "vortex": {"glide": ["VERTIGO_TUNNEL"], "hero": ["HALO_LOCK", "TRIBUNE_HIGH_R", "FOH_WIDE"], "hero_bars": 8},
       "crown": {"glide": ["CRANE_RISE_REVEAL"], "hero": ["TRIBUNE_34", "ROOF_ESTABLISH", "FOH_WIDE"], "hero_bars": 8},
       "portal": {"glide": ["FOH_HOLD_ZOOM"], "hero": ["HALO_LOCK", "STAGE_CORNER_REVERSE", "FOH_WIDE"], "hero_bars": 8},
