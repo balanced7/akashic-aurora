@@ -12,6 +12,7 @@
     "dev": "content-collections watch",
     "format": "prettier --check . --ignore-path ../../.gitignore",
     "lint": "eslint",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "prettier": "@akashic-labs/prettier-config",
@@ -24,6 +25,7 @@
     "@akashic-labs/eslint-config": "workspace:*",
     "@akashic-labs/prettier-config": "workspace:*",
     "@akashic-labs/tsconfig": "workspace:*",
+    "@akashic-labs/vitest-config": "workspace:*",
     "@content-collections/cli": "0.1.8",
     "@content-collections/mdx": "0.2.2",
     "@shikijs/rehype": "3.20.0",
@@ -31,6 +33,7 @@
     "eslint": "catalog:",
     "prettier": "catalog:",
     "remark-gfm": "4.0.1",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
