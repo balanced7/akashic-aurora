@@ -7,7 +7,7 @@
     "build": "next build",
     "clean": "git clean -xdf .cache .next .turbo node_modules",
     "dev": "next dev --port 3090",
-    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "format": "prettier --check . --ignore-path ../../.gitignore --ignore-path .gitignore",
     "lint": "eslint",
     "start": "next start",
     "test": "vitest run",
