@@ -46,5 +46,7 @@
   <div class="banner" id="banner" role="alert" hidden="hidden"></div>
 </main>
 <script type="module" src="stage.js"></script>
+<!-- the phone pad bar (lib/touchbar.js): its pads press this page's own keys; touch screens only, ?pads=0|1 -->
+<script type="module">import { mountTouchBar, STAGE_PADS, STAGE_STRIPS } from "../lib/touchbar.js"; mountTouchBar({ id: "stage", pads: STAGE_PADS, strips: STAGE_STRIPS });</script>
 </body>
 </html>
