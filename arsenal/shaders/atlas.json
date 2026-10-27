@@ -3,7 +3,7 @@
  "generated_by": "arsenal/shaders/atlas_build.py",
  "source": {
   "draft": "research/in-flight/shader-school-2026-10-13/primitive-atlas-draft.md",
-  "draft_sha256": "3d62c0d540a443dfa10f7bf7b6c5e084a1f139b8d1fd10d10af96521cba85b27",
+  "draft_sha256": "31bfd013b92efc8d3518d60fd79fb8b8050d4b908b8795ac277957cc6a00e8e7",
   "rulings": "research/in-flight/shader-school-2026-10-13/build-spec-reconciled.md"
  },
  "note": "The primitive atlas as data: families, categories, planned parts, groups, the collision ledger and the dissector's tag map. Generated from the draft; do not edit by hand. Our own words only: loved shaders appear as ids and short names, never as code. Where the data departs from the draft, a ruling in `rulings` says why.",
@@ -16,13 +16,13 @@
  "counts": {
   "families": 13,
   "categories": 81,
-  "parts": 581,
+  "parts": 592,
   "by_status": {
    "P0": 199,
-   "P1": 265,
+   "P1": 276,
    "P2": 117
   },
-  "functions": 753,
+  "functions": 775,
   "groups": 25,
   "collisions": 24,
   "rulings": 30
@@ -400,7 +400,7 @@
    "names": [
     "glowXray"
    ],
-   "part": "F9.12",
+   "part": "F9.13",
    "module": "groups/glow-xray.glsl",
    "group": "glow-xray",
    "category": "F9",
@@ -437,7 +437,7 @@
     "neonPathStep",
     "neonLine"
    ],
-   "part": "F9.13",
+   "part": "F9.14",
    "module": "groups/neon-line.glsl",
    "group": "neon-line",
    "category": "F9",
@@ -1267,10 +1267,12 @@
    "name": "Fog and light shafts",
    "family": "G",
    "heading_modules": [
-    "atmos/fog.glsl"
+    "atmos/fog.glsl",
+    "atmos/haze.glsl"
    ],
    "modules": [
-    "atmos/fog.glsl"
+    "atmos/fog.glsl",
+    "atmos/haze.glsl"
    ],
    "module": "atmos/fog.glsl"
   },
@@ -1678,7 +1680,7 @@
    "sources": [],
    "module": "core/const.glsl",
    "module_basis": "manifest",
-   "line": 268,
+   "line": 270,
    "types": []
   },
   {
@@ -1706,7 +1708,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 269,
+   "line": 271,
    "types": []
   },
   {
@@ -1734,7 +1736,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 270,
+   "line": 272,
    "types": []
   },
   {
@@ -1762,7 +1764,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 271,
+   "line": 273,
    "types": []
   },
   {
@@ -1793,7 +1795,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 272,
+   "line": 274,
    "types": []
   },
   {
@@ -1821,7 +1823,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 273,
+   "line": 275,
    "types": []
   },
   {
@@ -1849,7 +1851,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 274,
+   "line": 276,
    "types": []
   },
   {
@@ -1877,7 +1879,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "rule",
-   "line": 275,
+   "line": 277,
    "types": []
   },
   {
@@ -1910,7 +1912,7 @@
    "sources": [],
    "module": "core/safe.glsl",
    "module_basis": "manifest",
-   "line": 276,
+   "line": 278,
    "types": []
   },
   {
@@ -1944,7 +1946,7 @@
    "sources": [],
    "module": "core/rotate.glsl",
    "module_basis": "manifest",
-   "line": 277,
+   "line": 279,
    "types": []
   },
   {
@@ -1974,7 +1976,7 @@
    "sources": [],
    "module": "core/rotate.glsl",
    "module_basis": "rule",
-   "line": 278,
+   "line": 280,
    "types": []
   },
   {
@@ -2004,7 +2006,7 @@
    "sources": [],
    "module": "core/rotate.glsl",
    "module_basis": "rule",
-   "line": 279,
+   "line": 281,
    "types": []
   },
   {
@@ -2035,7 +2037,7 @@
    "sources": [],
    "module": "core/rotate.glsl",
    "module_basis": "rule",
-   "line": 280,
+   "line": 282,
    "types": []
   },
   {
@@ -2065,7 +2067,7 @@
    "sources": [],
    "module": "core/int.glsl",
    "module_basis": "manifest",
-   "line": 286,
+   "line": 288,
    "types": []
   },
   {
@@ -2093,7 +2095,7 @@
    "sources": [],
    "module": "core/int.glsl",
    "module_basis": "manifest",
-   "line": 287,
+   "line": 289,
    "types": []
   },
   {
@@ -2121,7 +2123,7 @@
    "sources": [],
    "module": "core/int.glsl",
    "module_basis": "rule",
-   "line": 288,
+   "line": 290,
    "types": []
   },
   {
@@ -2149,7 +2151,7 @@
    "sources": [],
    "module": "core/int.glsl",
    "module_basis": "rule",
-   "line": 289,
+   "line": 291,
    "types": []
   },
   {
@@ -2177,7 +2179,7 @@
    "sources": [],
    "module": "core/int.glsl",
    "module_basis": "rule",
-   "line": 290,
+   "line": 292,
    "types": []
   },
   {
@@ -2208,7 +2210,7 @@
    "sources": [],
    "module": "core/compile.glsl",
    "module_basis": "manifest",
-   "line": 291,
+   "line": 293,
    "types": []
   },
   {
@@ -2237,7 +2239,7 @@
    "sources": [],
    "module": "core/int.glsl",
    "module_basis": "rule",
-   "line": 292,
+   "line": 294,
    "types": []
   },
   {
@@ -2265,7 +2267,7 @@
    "sources": [],
    "module": "core/clock.glsl",
    "module_basis": "manifest",
-   "line": 301,
+   "line": 303,
    "types": []
   },
   {
@@ -2293,7 +2295,7 @@
    "sources": [],
    "module": "core/clock.glsl",
    "module_basis": "heading",
-   "line": 302,
+   "line": 304,
    "types": []
   },
   {
@@ -2326,7 +2328,7 @@
    "sources": [],
    "module": "core/clock.glsl",
    "module_basis": "manifest",
-   "line": 303,
+   "line": 305,
    "types": []
   },
   {
@@ -2354,7 +2356,7 @@
    "sources": [],
    "module": "core/clock.glsl",
    "module_basis": "manifest",
-   "line": 304,
+   "line": 306,
    "types": []
   },
   {
@@ -2385,7 +2387,7 @@
    "sources": [],
    "module": "core/clock.glsl",
    "module_basis": "heading",
-   "line": 305,
+   "line": 307,
    "types": []
   },
   {
@@ -2413,7 +2415,7 @@
    "sources": [],
    "module": "core/clock.glsl",
    "module_basis": "heading",
-   "line": 306,
+   "line": 308,
    "types": []
   },
   {
@@ -2441,7 +2443,7 @@
    "sources": [],
    "module": "core/frame.glsl",
    "module_basis": "manifest",
-   "line": 312,
+   "line": 314,
    "types": []
   },
   {
@@ -2472,7 +2474,7 @@
    "sources": [],
    "module": "core/frame.glsl",
    "module_basis": "manifest",
-   "line": 313,
+   "line": 315,
    "types": []
   },
   {
@@ -2503,7 +2505,7 @@
    "sources": [],
    "module": "core/frame.glsl",
    "module_basis": "manifest",
-   "line": 314,
+   "line": 316,
    "types": []
   },
   {
@@ -2529,7 +2531,7 @@
    "sources": [],
    "module": "core/frame.glsl",
    "module_basis": "heading",
-   "line": 315,
+   "line": 317,
    "types": []
   },
   {
@@ -2560,7 +2562,7 @@
    "sources": [],
    "module": "core/frame.glsl",
    "module_basis": "heading",
-   "line": 316,
+   "line": 318,
    "types": []
   },
   {
@@ -2588,7 +2590,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 325,
+   "line": 327,
    "types": []
   },
   {
@@ -2618,7 +2620,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 326,
+   "line": 328,
    "types": []
   },
   {
@@ -2648,7 +2650,7 @@
    ],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 327,
+   "line": 329,
    "types": []
   },
   {
@@ -2676,7 +2678,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 328,
+   "line": 330,
    "types": []
   },
   {
@@ -2704,7 +2706,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 329,
+   "line": 331,
    "types": []
   },
   {
@@ -2734,7 +2736,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 330,
+   "line": 332,
    "types": []
   },
   {
@@ -2762,7 +2764,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "heading",
-   "line": 331,
+   "line": 333,
    "types": []
   },
   {
@@ -2790,7 +2792,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "heading",
-   "line": 332,
+   "line": 334,
    "types": []
   },
   {
@@ -2821,7 +2823,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 333,
+   "line": 335,
    "types": []
   },
   {
@@ -2854,7 +2856,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 334,
+   "line": 336,
    "types": []
   },
   {
@@ -2884,7 +2886,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 335,
+   "line": 337,
    "types": []
   },
   {
@@ -2916,7 +2918,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "manifest",
-   "line": 336,
+   "line": 338,
    "types": []
   },
   {
@@ -2946,7 +2948,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "heading",
-   "line": 337,
+   "line": 339,
    "types": []
   },
   {
@@ -2976,7 +2978,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "heading",
-   "line": 338,
+   "line": 340,
    "types": []
   },
   {
@@ -3006,7 +3008,7 @@
    "sources": [],
    "module": "core/shaping.glsl",
    "module_basis": "heading",
-   "line": 339,
+   "line": 341,
    "types": []
   },
   {
@@ -3038,7 +3040,7 @@
    ],
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
-   "line": 349,
+   "line": 351,
    "types": []
   },
   {
@@ -3068,7 +3070,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
-   "line": 350,
+   "line": 352,
    "types": []
   },
   {
@@ -3098,7 +3100,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
-   "line": 351,
+   "line": 353,
    "types": []
   },
   {
@@ -3126,7 +3128,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "rule",
-   "line": 352,
+   "line": 354,
    "types": []
   },
   {
@@ -3154,7 +3156,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
-   "line": 353,
+   "line": 355,
    "types": []
   },
   {
@@ -3183,7 +3185,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
-   "line": 354,
+   "line": 356,
    "types": [],
    "signature_draft": "uvec3 cellU3(vec3 p) (+cellU2)",
    "rulings": [
@@ -3218,7 +3220,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "manifest",
-   "line": 355,
+   "line": 357,
    "types": []
   },
   {
@@ -3248,7 +3250,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "rule",
-   "line": 356,
+   "line": 358,
    "types": []
   },
   {
@@ -3277,7 +3279,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "rule",
-   "line": 357,
+   "line": 359,
    "types": []
   },
   {
@@ -3307,7 +3309,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "rule",
-   "line": 358,
+   "line": 360,
    "types": []
   },
   {
@@ -3335,7 +3337,7 @@
    "sources": [],
    "module": "hash/pcg.glsl",
    "module_basis": "rule",
-   "line": 359,
+   "line": 361,
    "types": []
   },
   {
@@ -3372,7 +3374,7 @@
    "sources": [],
    "module": "legacy/hash-sine.glsl",
    "module_basis": "manifest",
-   "line": 360,
+   "line": 362,
    "types": []
   },
   {
@@ -3405,7 +3407,7 @@
    "sources": [],
    "module": "legacy/hash-hoskins.glsl",
    "module_basis": "rule",
-   "line": 361,
+   "line": 363,
    "types": []
   },
   {
@@ -3433,7 +3435,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "manifest",
-   "line": 372,
+   "line": 374,
    "types": []
   },
   {
@@ -3462,7 +3464,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "manifest",
-   "line": 373,
+   "line": 375,
    "types": []
   },
   {
@@ -3492,7 +3494,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "manifest",
-   "line": 374,
+   "line": 376,
    "types": []
   },
   {
@@ -3520,7 +3522,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "manifest",
-   "line": 375,
+   "line": 377,
    "types": []
   },
   {
@@ -3548,7 +3550,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "manifest",
-   "line": 376,
+   "line": 378,
    "types": []
   },
   {
@@ -3579,7 +3581,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "manifest",
-   "line": 377,
+   "line": 379,
    "types": []
   },
   {
@@ -3607,7 +3609,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "rule",
-   "line": 378,
+   "line": 380,
    "types": []
   },
   {
@@ -3635,7 +3637,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "rule",
-   "line": 379,
+   "line": 381,
    "types": []
   },
   {
@@ -3663,7 +3665,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "rule",
-   "line": 380,
+   "line": 382,
    "types": []
   },
   {
@@ -3691,7 +3693,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "rule",
-   "line": 381,
+   "line": 383,
    "types": []
   },
   {
@@ -3720,7 +3722,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "rule",
-   "line": 382,
+   "line": 384,
    "types": []
   },
   {
@@ -3749,7 +3751,7 @@
    "sources": [],
    "module": "debug/testcards.glsl",
    "module_basis": "rule",
-   "line": 383,
+   "line": 385,
    "types": []
   },
   {
@@ -3780,7 +3782,7 @@
    "sources": [],
    "module": "debug/views.glsl",
    "module_basis": "rule",
-   "line": 384,
+   "line": 386,
    "types": []
   },
   {
@@ -3816,7 +3818,7 @@
    "sources": [],
    "module": "noise/value.glsl",
    "module_basis": "manifest",
-   "line": 396,
+   "line": 398,
    "types": []
   },
   {
@@ -3847,7 +3849,7 @@
    ],
    "module": "noise/value.glsl",
    "module_basis": "rule",
-   "line": 397,
+   "line": 399,
    "types": []
   },
   {
@@ -3880,7 +3882,7 @@
    ],
    "module": "noise/gradient.glsl",
    "module_basis": "manifest",
-   "line": 398,
+   "line": 400,
    "types": []
   },
   {
@@ -3909,7 +3911,7 @@
    "sources": [],
    "module": "noise/gradient.glsl",
    "module_basis": "rule",
-   "line": 399,
+   "line": 401,
    "types": []
   },
   {
@@ -3940,7 +3942,7 @@
    "sources": [],
    "module": "noise/gradient.glsl",
    "module_basis": "rule",
-   "line": 400,
+   "line": 402,
    "types": []
   },
   {
@@ -3973,7 +3975,7 @@
    ],
    "module": "noise/simplex.glsl",
    "module_basis": "rule",
-   "line": 401,
+   "line": 403,
    "types": []
   },
   {
@@ -4002,7 +4004,7 @@
    "sources": [],
    "module": "noise/simplex.glsl",
    "module_basis": "rule",
-   "line": 402,
+   "line": 404,
    "types": []
   },
   {
@@ -4037,7 +4039,7 @@
    "sources": [],
    "module": "noise/texture.glsl",
    "module_basis": "rule",
-   "line": 403,
+   "line": 405,
    "types": []
   },
   {
@@ -4069,7 +4071,7 @@
    "sources": [],
    "module": "noise/triangle.glsl",
    "module_basis": "manifest",
-   "line": 404,
+   "line": 406,
    "types": []
   },
   {
@@ -4101,7 +4103,7 @@
    "sources": [],
    "module": "noise/triangle.glsl",
    "module_basis": "rule",
-   "line": 405,
+   "line": 407,
    "types": []
   },
   {
@@ -4163,7 +4165,7 @@
    ],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 411,
+   "line": 413,
    "types": []
   },
   {
@@ -4191,7 +4193,7 @@
    "sources": [],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 412,
+   "line": 414,
    "types": []
   },
   {
@@ -4221,7 +4223,7 @@
    ],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 413,
+   "line": 415,
    "types": []
   },
   {
@@ -4249,7 +4251,7 @@
    "sources": [],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 414,
+   "line": 416,
    "types": []
   },
   {
@@ -4277,7 +4279,7 @@
    "sources": [],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 415,
+   "line": 417,
    "types": []
   },
   {
@@ -4305,7 +4307,7 @@
    "sources": [],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 416,
+   "line": 418,
    "types": []
   },
   {
@@ -4333,7 +4335,7 @@
    "sources": [],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 417,
+   "line": 419,
    "types": []
   },
   {
@@ -4363,7 +4365,7 @@
    ],
    "module": "noise/cellular.glsl",
    "module_basis": "heading",
-   "line": 418,
+   "line": 420,
    "types": []
   },
   {
@@ -4391,7 +4393,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "manifest",
-   "line": 424,
+   "line": 426,
    "types": []
   },
   {
@@ -4430,7 +4432,7 @@
    ],
    "module": "noise/fbm.glsl",
    "module_basis": "manifest",
-   "line": 425,
+   "line": 427,
    "types": [],
    "renamed_from": {
     "fbmGrad2": "fbm2",
@@ -4467,7 +4469,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 426,
+   "line": 428,
    "types": [],
    "renamed_from": {
     "fbmGrad2Deriv": "fbm2Deriv"
@@ -4504,7 +4506,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 427,
+   "line": 429,
    "types": []
   },
   {
@@ -4532,7 +4534,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 428,
+   "line": 430,
    "types": []
   },
   {
@@ -4562,7 +4564,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 429,
+   "line": 431,
    "types": []
   },
   {
@@ -4590,7 +4592,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 430,
+   "line": 432,
    "types": []
   },
   {
@@ -4621,7 +4623,7 @@
    "sources": [],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 431,
+   "line": 433,
    "types": []
   },
   {
@@ -4653,7 +4655,7 @@
    ],
    "module": "noise/fbm.glsl",
    "module_basis": "heading",
-   "line": 432,
+   "line": 434,
    "types": []
   },
   {
@@ -4684,7 +4686,7 @@
    "sources": [],
    "module": "noise/warp.glsl",
    "module_basis": "manifest",
-   "line": 440,
+   "line": 442,
    "types": []
   },
   {
@@ -4717,7 +4719,7 @@
    ],
    "module": "noise/warp.glsl",
    "module_basis": "manifest",
-   "line": 441,
+   "line": 443,
    "types": []
   },
   {
@@ -4749,7 +4751,7 @@
    ],
    "module": "noise/warp.glsl",
    "module_basis": "manifest",
-   "line": 442,
+   "line": 444,
    "types": []
   },
   {
@@ -4779,7 +4781,7 @@
    "sources": [],
    "module": "noise/warp.glsl",
    "module_basis": "heading",
-   "line": 443,
+   "line": 445,
    "types": []
   },
   {
@@ -4810,7 +4812,7 @@
    "sources": [],
    "module": "noise/warp.glsl",
    "module_basis": "heading",
-   "line": 444,
+   "line": 446,
    "types": []
   },
   {
@@ -4840,7 +4842,7 @@
    "sources": [],
    "module": "noise/warp.glsl",
    "module_basis": "heading",
-   "line": 445,
+   "line": 447,
    "types": []
   },
   {
@@ -4870,7 +4872,7 @@
    "sources": [],
    "module": "noise/warp.glsl",
    "module_basis": "heading",
-   "line": 446,
+   "line": 448,
    "types": []
   },
   {
@@ -4900,7 +4902,7 @@
    ],
    "module": "noise/flow.glsl",
    "module_basis": "heading",
-   "line": 452,
+   "line": 454,
    "types": []
   },
   {
@@ -4928,7 +4930,7 @@
    "sources": [],
    "module": "noise/flow.glsl",
    "module_basis": "heading",
-   "line": 453,
+   "line": 455,
    "types": []
   },
   {
@@ -4956,7 +4958,7 @@
    "sources": [],
    "module": "noise/flow.glsl",
    "module_basis": "heading",
-   "line": 454,
+   "line": 456,
    "types": []
   },
   {
@@ -4984,7 +4986,7 @@
    "sources": [],
    "module": "noise/flow.glsl",
    "module_basis": "heading",
-   "line": 455,
+   "line": 457,
    "types": []
   },
   {
@@ -5013,7 +5015,7 @@
    "sources": [],
    "module": "noise/flow.glsl",
    "module_basis": "heading",
-   "line": 456,
+   "line": 458,
    "types": []
   },
   {
@@ -5043,7 +5045,7 @@
    ],
    "module": "noise/flow.glsl",
    "module_basis": "heading",
-   "line": 457,
+   "line": 459,
    "types": []
   },
   {
@@ -5071,7 +5073,7 @@
    "sources": [],
    "module": "noise/periodic.glsl",
    "module_basis": "heading",
-   "line": 463,
+   "line": 465,
    "types": []
   },
   {
@@ -5099,7 +5101,7 @@
    "sources": [],
    "module": "noise/periodic.glsl",
    "module_basis": "heading",
-   "line": 464,
+   "line": 466,
    "types": []
   },
   {
@@ -5130,7 +5132,7 @@
    "sources": [],
    "module": "noise/periodic.glsl",
    "module_basis": "heading",
-   "line": 465,
+   "line": 467,
    "types": []
   },
   {
@@ -5160,7 +5162,7 @@
    "sources": [],
    "module": "noise/periodic.glsl",
    "module_basis": "heading",
-   "line": 466,
+   "line": 468,
    "types": []
   },
   {
@@ -5188,7 +5190,7 @@
    "sources": [],
    "module": "noise/periodic.glsl",
    "module_basis": "heading",
-   "line": 467,
+   "line": 469,
    "types": []
   },
   {
@@ -5220,7 +5222,7 @@
    ],
    "module": "noise/dither-masks.glsl",
    "module_basis": "manifest",
-   "line": 477,
+   "line": 479,
    "types": []
   },
   {
@@ -5250,7 +5252,7 @@
    ],
    "module": "noise/dither-masks.glsl",
    "module_basis": "manifest",
-   "line": 478,
+   "line": 480,
    "types": []
   },
   {
@@ -5278,7 +5280,7 @@
    "sources": [],
    "module": "noise/dither-masks.glsl",
    "module_basis": "manifest",
-   "line": 479,
+   "line": 481,
    "types": []
   },
   {
@@ -5309,7 +5311,7 @@
    "sources": [],
    "module": "noise/dither-masks.glsl",
    "module_basis": "heading",
-   "line": 480,
+   "line": 482,
    "types": []
   },
   {
@@ -5342,7 +5344,7 @@
    ],
    "module": "noise/dither-masks.glsl",
    "module_basis": "heading",
-   "line": 481,
+   "line": 483,
    "types": []
   },
   {
@@ -5372,7 +5374,7 @@
    "sources": [],
    "module": "noise/dither-masks.glsl",
    "module_basis": "heading",
-   "line": 482,
+   "line": 484,
    "types": []
   },
   {
@@ -5403,7 +5405,7 @@
    "sources": [],
    "module": "noise/dither-masks.glsl",
    "module_basis": "heading",
-   "line": 483,
+   "line": 485,
    "types": []
   },
   {
@@ -5436,7 +5438,7 @@
    ],
    "module": "draw2/sdf2.glsl",
    "module_basis": "manifest",
-   "line": 496,
+   "line": 498,
    "types": []
   },
   {
@@ -5467,7 +5469,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "manifest",
-   "line": 497,
+   "line": 499,
    "types": []
   },
   {
@@ -5495,7 +5497,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "manifest",
-   "line": 498,
+   "line": 500,
    "types": []
   },
   {
@@ -5526,7 +5528,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "manifest",
-   "line": 499,
+   "line": 501,
    "types": []
   },
   {
@@ -5557,7 +5559,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "manifest",
-   "line": 500,
+   "line": 502,
    "types": []
   },
   {
@@ -5587,7 +5589,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 501,
+   "line": 503,
    "types": []
   },
   {
@@ -5615,7 +5617,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 502,
+   "line": 504,
    "types": []
   },
   {
@@ -5646,7 +5648,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 503,
+   "line": 505,
    "types": []
   },
   {
@@ -5676,7 +5678,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 504,
+   "line": 506,
    "types": []
   },
   {
@@ -5706,7 +5708,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 505,
+   "line": 507,
    "types": []
   },
   {
@@ -5736,7 +5738,7 @@
    "sources": [],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 506,
+   "line": 508,
    "types": []
   },
   {
@@ -5766,7 +5768,7 @@
    ],
    "module": "draw2/sdf2.glsl",
    "module_basis": "heading",
-   "line": 507,
+   "line": 509,
    "types": []
   },
   {
@@ -5796,7 +5798,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "manifest",
-   "line": 516,
+   "line": 518,
    "types": []
   },
   {
@@ -5827,7 +5829,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "manifest",
-   "line": 517,
+   "line": 519,
    "types": []
   },
   {
@@ -5857,7 +5859,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "manifest",
-   "line": 518,
+   "line": 520,
    "types": []
   },
   {
@@ -5887,7 +5889,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "manifest",
-   "line": 519,
+   "line": 521,
    "types": []
   },
   {
@@ -5917,7 +5919,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 520,
+   "line": 522,
    "types": []
   },
   {
@@ -5945,7 +5947,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 521,
+   "line": 523,
    "types": []
   },
   {
@@ -5977,7 +5979,7 @@
    ],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 522,
+   "line": 524,
    "types": []
   },
   {
@@ -6005,7 +6007,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 523,
+   "line": 525,
    "types": []
   },
   {
@@ -6037,7 +6039,7 @@
    ],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 524,
+   "line": 526,
    "types": []
   },
   {
@@ -6068,7 +6070,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 525,
+   "line": 527,
    "types": []
   },
   {
@@ -6096,7 +6098,7 @@
    "sources": [],
    "module": "draw2/aa.glsl",
    "module_basis": "heading",
-   "line": 526,
+   "line": 528,
    "types": []
   },
   {
@@ -6128,7 +6130,7 @@
    "sources": [],
    "module": "draw2/iso.glsl",
    "module_basis": "heading",
-   "line": 532,
+   "line": 534,
    "types": []
   },
   {
@@ -6156,7 +6158,7 @@
    "sources": [],
    "module": "draw2/iso.glsl",
    "module_basis": "heading",
-   "line": 533,
+   "line": 535,
    "types": []
   },
   {
@@ -6186,7 +6188,7 @@
    "sources": [],
    "module": "draw2/iso.glsl",
    "module_basis": "heading",
-   "line": 534,
+   "line": 536,
    "types": []
   },
   {
@@ -6216,7 +6218,7 @@
    "sources": [],
    "module": "draw2/iso.glsl",
    "module_basis": "heading",
-   "line": 535,
+   "line": 537,
    "types": []
   },
   {
@@ -6249,7 +6251,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "manifest",
-   "line": 541,
+   "line": 543,
    "types": []
   },
   {
@@ -6281,7 +6283,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "manifest",
-   "line": 542,
+   "line": 544,
    "types": []
   },
   {
@@ -6312,7 +6314,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "manifest",
-   "line": 543,
+   "line": 545,
    "types": []
   },
   {
@@ -6342,7 +6344,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 544,
+   "line": 546,
    "types": []
   },
   {
@@ -6370,7 +6372,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 545,
+   "line": 547,
    "types": []
   },
   {
@@ -6398,7 +6400,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 546,
+   "line": 548,
    "types": []
   },
   {
@@ -6426,7 +6428,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 547,
+   "line": 549,
    "types": []
   },
   {
@@ -6454,7 +6456,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 548,
+   "line": 550,
    "types": []
   },
   {
@@ -6482,7 +6484,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 549,
+   "line": 551,
    "types": []
   },
   {
@@ -6513,7 +6515,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 550,
+   "line": 552,
    "types": []
   },
   {
@@ -6543,7 +6545,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 551,
+   "line": 553,
    "types": []
   },
   {
@@ -6571,7 +6573,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 552,
+   "line": 554,
    "types": []
   },
   {
@@ -6600,7 +6602,7 @@
    "sources": [],
    "module": "draw2/domain2.glsl",
    "module_basis": "heading",
-   "line": 553,
+   "line": 555,
    "types": []
   },
   {
@@ -6634,7 +6636,7 @@
    ],
    "module": "draw2/lattice.glsl",
    "module_basis": "manifest",
-   "line": 559,
+   "line": 561,
    "types": []
   },
   {
@@ -6664,7 +6666,7 @@
    "sources": [],
    "module": "draw2/lattice.glsl",
    "module_basis": "manifest",
-   "line": 560,
+   "line": 562,
    "types": []
   },
   {
@@ -6695,7 +6697,7 @@
    "sources": [],
    "module": "draw2/lattice.glsl",
    "module_basis": "heading",
-   "line": 561,
+   "line": 563,
    "types": []
   },
   {
@@ -6725,7 +6727,7 @@
    "sources": [],
    "module": "draw2/lattice.glsl",
    "module_basis": "heading",
-   "line": 562,
+   "line": 564,
    "types": []
   },
   {
@@ -6756,7 +6758,7 @@
    "sources": [],
    "module": "draw2/lattice.glsl",
    "module_basis": "heading",
-   "line": 563,
+   "line": 565,
    "types": []
   },
   {
@@ -6787,7 +6789,7 @@
    "sources": [],
    "module": "draw2/lattice.glsl",
    "module_basis": "heading",
-   "line": 564,
+   "line": 566,
    "types": []
   },
   {
@@ -6858,7 +6860,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 570,
+   "line": 572,
    "types": []
   },
   {
@@ -6889,7 +6891,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 571,
+   "line": 573,
    "types": [],
    "status_draft": "P1",
    "rulings": [
@@ -6923,7 +6925,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 572,
+   "line": 574,
    "types": []
   },
   {
@@ -6955,7 +6957,7 @@
    ],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 573,
+   "line": 575,
    "types": []
   },
   {
@@ -6986,7 +6988,7 @@
    ],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 574,
+   "line": 576,
    "types": []
   },
   {
@@ -7014,7 +7016,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 575,
+   "line": 577,
    "types": []
   },
   {
@@ -7042,7 +7044,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 576,
+   "line": 578,
    "types": []
   },
   {
@@ -7072,7 +7074,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 577,
+   "line": 579,
    "types": []
   },
   {
@@ -7103,7 +7105,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 578,
+   "line": 580,
    "types": []
   },
   {
@@ -7133,7 +7135,7 @@
    "sources": [],
    "module": "draw2/pattern.glsl",
    "module_basis": "heading",
-   "line": 579,
+   "line": 581,
    "types": []
   },
   {
@@ -7166,7 +7168,7 @@
    "sources": [],
    "module": "draw2/complex.glsl",
    "module_basis": "rule",
-   "line": 585,
+   "line": 587,
    "types": []
   },
   {
@@ -7196,7 +7198,7 @@
    "sources": [],
    "module": "draw2/fractal2.glsl",
    "module_basis": "rule",
-   "line": 586,
+   "line": 588,
    "types": []
   },
   {
@@ -7226,7 +7228,7 @@
    "sources": [],
    "module": "draw2/fractal2.glsl",
    "module_basis": "rule",
-   "line": 587,
+   "line": 589,
    "types": []
   },
   {
@@ -7255,7 +7257,7 @@
    "sources": [],
    "module": "draw2/fractal2.glsl",
    "module_basis": "rule",
-   "line": 588,
+   "line": 590,
    "types": []
   },
   {
@@ -7287,7 +7289,7 @@
    "sources": [],
    "module": "draw2/fractal2.glsl",
    "module_basis": "rule",
-   "line": 589,
+   "line": 591,
    "types": []
   },
   {
@@ -7317,7 +7319,7 @@
    "sources": [],
    "module": "draw2/text.glsl",
    "module_basis": "heading",
-   "line": 595,
+   "line": 597,
    "types": []
   },
   {
@@ -7350,7 +7352,7 @@
    ],
    "module": "draw2/text.glsl",
    "module_basis": "heading",
-   "line": 596,
+   "line": 598,
    "types": []
   },
   {
@@ -7380,7 +7382,7 @@
    ],
    "module": "draw2/text.glsl",
    "module_basis": "heading",
-   "line": 597,
+   "line": 599,
    "types": []
   },
   {
@@ -7408,7 +7410,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "manifest",
-   "line": 610,
+   "line": 612,
    "types": []
   },
   {
@@ -7440,7 +7442,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "manifest",
-   "line": 611,
+   "line": 613,
    "types": []
   },
   {
@@ -7470,7 +7472,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "manifest",
-   "line": 612,
+   "line": 614,
    "types": []
   },
   {
@@ -7501,7 +7503,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "manifest",
-   "line": 613,
+   "line": 615,
    "types": []
   },
   {
@@ -7529,7 +7531,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "manifest",
-   "line": 614,
+   "line": 616,
    "types": []
   },
   {
@@ -7560,7 +7562,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "manifest",
-   "line": 615,
+   "line": 617,
    "types": []
   },
   {
@@ -7590,7 +7592,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 616,
+   "line": 618,
    "types": []
   },
   {
@@ -7620,7 +7622,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 617,
+   "line": 619,
    "types": []
   },
   {
@@ -7648,7 +7650,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 618,
+   "line": 620,
    "types": []
   },
   {
@@ -7678,7 +7680,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 619,
+   "line": 621,
    "types": []
   },
   {
@@ -7706,7 +7708,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 620,
+   "line": 622,
    "types": []
   },
   {
@@ -7736,7 +7738,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 621,
+   "line": 623,
    "types": []
   },
   {
@@ -7769,7 +7771,7 @@
    ],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 622,
+   "line": 624,
    "types": []
   },
   {
@@ -7801,7 +7803,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 623,
+   "line": 625,
    "types": []
   },
   {
@@ -7832,7 +7834,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 624,
+   "line": 626,
    "types": []
   },
   {
@@ -7860,7 +7862,7 @@
    "sources": [],
    "module": "sdf/shapes.glsl",
    "module_basis": "heading",
-   "line": 625,
+   "line": 627,
    "types": []
   },
   {
@@ -7890,7 +7892,7 @@
    "sources": [],
    "module": "sdf/lift.glsl",
    "module_basis": "heading",
-   "line": 631,
+   "line": 633,
    "types": []
   },
   {
@@ -7920,7 +7922,7 @@
    "sources": [],
    "module": "sdf/lift.glsl",
    "module_basis": "heading",
-   "line": 632,
+   "line": 634,
    "types": []
   },
   {
@@ -7948,7 +7950,7 @@
    "sources": [],
    "module": "sdf/lift.glsl",
    "module_basis": "heading",
-   "line": 633,
+   "line": 635,
    "types": []
   },
   {
@@ -7976,7 +7978,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 641,
+   "line": 643,
    "types": []
   },
   {
@@ -8007,7 +8009,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 642,
+   "line": 644,
    "types": []
   },
   {
@@ -8038,7 +8040,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 643,
+   "line": 645,
    "types": []
   },
   {
@@ -8069,7 +8071,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 644,
+   "line": 646,
    "types": []
   },
   {
@@ -8103,7 +8105,7 @@
    ],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 645,
+   "line": 647,
    "types": []
   },
   {
@@ -8133,7 +8135,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 646,
+   "line": 648,
    "types": []
   },
   {
@@ -8164,7 +8166,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 647,
+   "line": 649,
    "types": []
   },
   {
@@ -8192,7 +8194,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 648,
+   "line": 650,
    "types": []
   },
   {
@@ -8223,7 +8225,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 649,
+   "line": 651,
    "types": []
   },
   {
@@ -8254,7 +8256,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "manifest",
-   "line": 650,
+   "line": 652,
    "types": []
   },
   {
@@ -8284,7 +8286,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "heading",
-   "line": 651,
+   "line": 653,
    "types": []
   },
   {
@@ -8312,7 +8314,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "heading",
-   "line": 652,
+   "line": 654,
    "types": []
   },
   {
@@ -8342,7 +8344,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "heading",
-   "line": 653,
+   "line": 655,
    "types": []
   },
   {
@@ -8370,7 +8372,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "heading",
-   "line": 654,
+   "line": 656,
    "types": []
   },
   {
@@ -8403,7 +8405,7 @@
    "sources": [],
    "module": "sdf/combine.glsl",
    "module_basis": "heading",
-   "line": 655,
+   "line": 657,
    "types": []
   },
   {
@@ -8436,7 +8438,7 @@
    ],
    "module": "sdf/combine.glsl",
    "module_basis": "heading",
-   "line": 656,
+   "line": 658,
    "types": []
   },
   {
@@ -8464,7 +8466,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "manifest",
-   "line": 662,
+   "line": 664,
    "types": []
   },
   {
@@ -8495,7 +8497,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 663,
+   "line": 665,
    "types": []
   },
   {
@@ -8529,7 +8531,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 664,
+   "line": 666,
    "types": []
   },
   {
@@ -8560,7 +8562,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 665,
+   "line": 667,
    "types": [],
    "signature_draft": "vec3 domRepeat(inout vec3 p, vec3 period) / domRepeatLimited",
    "rulings": [
@@ -8595,7 +8597,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 666,
+   "line": 668,
    "types": []
   },
   {
@@ -8623,7 +8625,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 667,
+   "line": 669,
    "types": []
   },
   {
@@ -8654,7 +8656,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 668,
+   "line": 670,
    "types": []
   },
   {
@@ -8684,7 +8686,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 669,
+   "line": 671,
    "types": []
   },
   {
@@ -8714,7 +8716,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 670,
+   "line": 672,
    "types": []
   },
   {
@@ -8742,7 +8744,7 @@
    "sources": [],
    "module": "sdf/domain3.glsl",
    "module_basis": "heading",
-   "line": 671,
+   "line": 673,
    "types": []
   },
   {
@@ -8772,7 +8774,7 @@
    "sources": [],
    "module": "sdf/fractal3.glsl",
    "module_basis": "heading",
-   "line": 677,
+   "line": 679,
    "types": []
   },
   {
@@ -8802,7 +8804,7 @@
    "sources": [],
    "module": "sdf/fractal3.glsl",
    "module_basis": "heading",
-   "line": 678,
+   "line": 680,
    "types": []
   },
   {
@@ -8836,7 +8838,7 @@
    "sources": [],
    "module": "sdf/fractal3.glsl",
    "module_basis": "heading",
-   "line": 679,
+   "line": 681,
    "types": []
   },
   {
@@ -8867,7 +8869,7 @@
    "sources": [],
    "module": "sdf/detail.glsl",
    "module_basis": "heading",
-   "line": 685,
+   "line": 687,
    "types": []
   },
   {
@@ -8895,7 +8897,7 @@
    "sources": [],
    "module": "sdf/detail.glsl",
    "module_basis": "heading",
-   "line": 686,
+   "line": 688,
    "types": []
   },
   {
@@ -8925,7 +8927,7 @@
    "sources": [],
    "module": "sdf/detail.glsl",
    "module_basis": "heading",
-   "line": 687,
+   "line": 689,
    "types": []
   },
   {
@@ -8963,7 +8965,7 @@
    ],
    "module": "ray/intersect.glsl",
    "module_basis": "manifest",
-   "line": 700,
+   "line": 702,
    "types": []
   },
   {
@@ -8996,7 +8998,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "manifest",
-   "line": 701,
+   "line": 703,
    "types": []
   },
   {
@@ -9028,7 +9030,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "manifest",
-   "line": 702,
+   "line": 704,
    "types": []
   },
   {
@@ -9059,7 +9061,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "manifest",
-   "line": 703,
+   "line": 705,
    "types": []
   },
   {
@@ -9087,7 +9089,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "heading",
-   "line": 704,
+   "line": 706,
    "types": []
   },
   {
@@ -9118,7 +9120,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "heading",
-   "line": 705,
+   "line": 707,
    "types": []
   },
   {
@@ -9148,7 +9150,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "heading",
-   "line": 706,
+   "line": 708,
    "types": []
   },
   {
@@ -9176,7 +9178,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "heading",
-   "line": 707,
+   "line": 709,
    "types": []
   },
   {
@@ -9206,7 +9208,7 @@
    "sources": [],
    "module": "ray/intersect.glsl",
    "module_basis": "heading",
-   "line": 708,
+   "line": 710,
    "types": []
   },
   {
@@ -9234,7 +9236,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "manifest",
-   "line": 714,
+   "line": 716,
    "types": []
   },
   {
@@ -9267,7 +9269,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "manifest",
-   "line": 715,
+   "line": 717,
    "types": []
   },
   {
@@ -9297,7 +9299,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "manifest",
-   "line": 716,
+   "line": 718,
    "types": []
   },
   {
@@ -9332,7 +9334,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 717,
+   "line": 719,
    "types": [],
    "signature_draft": "vec3 camOrbit(vec2 mouse01, float t, float radius, vec3 target)",
    "rulings": [
@@ -9366,7 +9368,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 718,
+   "line": 720,
    "types": [],
    "signature_draft": "vec3 camOrthoRay(vec2 p, mat3 basis, float scale, out vec3 ro)",
    "rulings": [
@@ -9401,7 +9403,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 719,
+   "line": 721,
    "types": []
   },
   {
@@ -9432,7 +9434,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 720,
+   "line": 722,
    "types": []
   },
   {
@@ -9463,7 +9465,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 721,
+   "line": 723,
    "types": []
   },
   {
@@ -9491,7 +9493,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 722,
+   "line": 724,
    "types": []
   },
   {
@@ -9521,7 +9523,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 723,
+   "line": 725,
    "types": []
   },
   {
@@ -9551,7 +9553,7 @@
    "sources": [],
    "module": "ray/camera.glsl",
    "module_basis": "heading",
-   "line": 724,
+   "line": 726,
    "types": []
   },
   {
@@ -9579,7 +9581,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "manifest",
-   "line": 733,
+   "line": 735,
    "types": []
   },
   {
@@ -9617,7 +9619,7 @@
    ],
    "module": "ray/march.glsl",
    "module_basis": "manifest",
-   "line": 734,
+   "line": 736,
    "types": []
   },
   {
@@ -9648,7 +9650,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "manifest",
-   "line": 735,
+   "line": 737,
    "types": []
   },
   {
@@ -9678,7 +9680,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "manifest",
-   "line": 736,
+   "line": 738,
    "types": []
   },
   {
@@ -9711,7 +9713,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "manifest",
-   "line": 737,
+   "line": 739,
    "types": []
   },
   {
@@ -9743,7 +9745,7 @@
    ],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 738,
+   "line": 740,
    "types": [],
    "signature_draft": "vec4 rmRelaxed(...)",
    "rulings": [
@@ -9777,7 +9779,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 739,
+   "line": 741,
    "types": [],
    "signature_draft": "vec4 rmBacktrack(...)",
    "rulings": [
@@ -9811,7 +9813,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 740,
+   "line": 742,
    "types": []
   },
   {
@@ -9843,7 +9845,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 741,
+   "line": 743,
    "types": []
   },
   {
@@ -9873,7 +9875,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 742,
+   "line": 744,
    "types": []
   },
   {
@@ -9903,7 +9905,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 743,
+   "line": 745,
    "types": []
   },
   {
@@ -9931,7 +9933,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 744,
+   "line": 746,
    "types": []
   },
   {
@@ -9959,7 +9961,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 745,
+   "line": 747,
    "types": []
   },
   {
@@ -9987,7 +9989,7 @@
    "sources": [],
    "module": "ray/march.glsl",
    "module_basis": "heading",
-   "line": 746,
+   "line": 748,
    "types": []
   },
   {
@@ -10021,7 +10023,7 @@
    ],
    "module": "ray/normals.glsl",
    "module_basis": "manifest",
-   "line": 752,
+   "line": 754,
    "types": []
   },
   {
@@ -10052,7 +10054,7 @@
    "sources": [],
    "module": "ray/normals.glsl",
    "module_basis": "manifest",
-   "line": 753,
+   "line": 755,
    "types": []
   },
   {
@@ -10085,7 +10087,7 @@
    "sources": [],
    "module": "ray/normals.glsl",
    "module_basis": "heading",
-   "line": 754,
+   "line": 756,
    "types": []
   },
   {
@@ -10115,7 +10117,7 @@
    "sources": [],
    "module": "ray/normals.glsl",
    "module_basis": "heading",
-   "line": 755,
+   "line": 757,
    "types": []
   },
   {
@@ -10147,7 +10149,7 @@
    "sources": [],
    "module": "ray/normals.glsl",
    "module_basis": "heading",
-   "line": 756,
+   "line": 758,
    "types": []
   },
   {
@@ -10177,7 +10179,7 @@
    "sources": [],
    "module": "ray/normals.glsl",
    "module_basis": "heading",
-   "line": 757,
+   "line": 759,
    "types": []
   },
   {
@@ -10207,7 +10209,7 @@
    ],
    "module": "ray/aa3.glsl",
    "module_basis": "manifest",
-   "line": 763,
+   "line": 765,
    "types": []
   },
   {
@@ -10238,7 +10240,7 @@
    "sources": [],
    "module": "ray/aa3.glsl",
    "module_basis": "heading",
-   "line": 764,
+   "line": 766,
    "types": []
   },
   {
@@ -10266,7 +10268,7 @@
    "sources": [],
    "module": "ray/aa3.glsl",
    "module_basis": "heading",
-   "line": 765,
+   "line": 767,
    "types": []
   },
   {
@@ -10296,7 +10298,7 @@
    "sources": [],
    "module": "ray/aa3.glsl",
    "module_basis": "heading",
-   "line": 766,
+   "line": 768,
    "types": []
   },
   {
@@ -10324,7 +10326,7 @@
    "sources": [],
    "module": "light/diffuse.glsl",
    "module_basis": "manifest",
-   "line": 779,
+   "line": 781,
    "types": []
   },
   {
@@ -10354,7 +10356,7 @@
    "sources": [],
    "module": "light/diffuse.glsl",
    "module_basis": "manifest",
-   "line": 780,
+   "line": 782,
    "types": []
   },
   {
@@ -10385,7 +10387,7 @@
    "sources": [],
    "module": "light/diffuse.glsl",
    "module_basis": "manifest",
-   "line": 781,
+   "line": 783,
    "types": []
   },
   {
@@ -10417,7 +10419,7 @@
    "sources": [],
    "module": "light/diffuse.glsl",
    "module_basis": "manifest",
-   "line": 782,
+   "line": 784,
    "types": []
   },
   {
@@ -10447,7 +10449,7 @@
    "sources": [],
    "module": "light/diffuse.glsl",
    "module_basis": "heading",
-   "line": 783,
+   "line": 785,
    "types": []
   },
   {
@@ -10475,7 +10477,7 @@
    "sources": [],
    "module": "light/diffuse.glsl",
    "module_basis": "heading",
-   "line": 784,
+   "line": 786,
    "types": []
   },
   {
@@ -10505,7 +10507,7 @@
    ],
    "module": "light/diffuse.glsl",
    "module_basis": "heading",
-   "line": 785,
+   "line": 787,
    "types": []
   },
   {
@@ -10537,7 +10539,7 @@
    "sources": [],
    "module": "light/specular.glsl",
    "module_basis": "manifest",
-   "line": 791,
+   "line": 793,
    "types": []
   },
   {
@@ -10565,7 +10567,7 @@
    "sources": [],
    "module": "light/specular.glsl",
    "module_basis": "heading",
-   "line": 792,
+   "line": 794,
    "types": []
   },
   {
@@ -10599,7 +10601,7 @@
    ],
    "module": "light/specular.glsl",
    "module_basis": "heading",
-   "line": 793,
+   "line": 795,
    "types": []
   },
   {
@@ -10627,7 +10629,7 @@
    "sources": [],
    "module": "light/specular.glsl",
    "module_basis": "heading",
-   "line": 794,
+   "line": 796,
    "types": []
   },
   {
@@ -10655,7 +10657,7 @@
    "sources": [],
    "module": "light/specular.glsl",
    "module_basis": "heading",
-   "line": 795,
+   "line": 797,
    "types": []
   },
   {
@@ -10683,7 +10685,7 @@
    "sources": [],
    "module": "light/specular.glsl",
    "module_basis": "heading",
-   "line": 796,
+   "line": 798,
    "types": []
   },
   {
@@ -10717,7 +10719,7 @@
    "sources": [],
    "module": "light/fresnel.glsl",
    "module_basis": "manifest",
-   "line": 802,
+   "line": 804,
    "types": []
   },
   {
@@ -10745,7 +10747,7 @@
    "sources": [],
    "module": "light/fresnel.glsl",
    "module_basis": "manifest",
-   "line": 803,
+   "line": 805,
    "types": []
   },
   {
@@ -10777,7 +10779,7 @@
    "sources": [],
    "module": "light/fresnel.glsl",
    "module_basis": "manifest",
-   "line": 804,
+   "line": 806,
    "types": []
   },
   {
@@ -10805,7 +10807,7 @@
    "sources": [],
    "module": "light/fresnel.glsl",
    "module_basis": "heading",
-   "line": 805,
+   "line": 807,
    "types": []
   },
   {
@@ -10834,7 +10836,7 @@
    "sources": [],
    "module": "light/fresnel.glsl",
    "module_basis": "heading",
-   "line": 806,
+   "line": 808,
    "types": []
   },
   {
@@ -10866,7 +10868,7 @@
    "sources": [],
    "module": "light/lights.glsl",
    "module_basis": "manifest",
-   "line": 812,
+   "line": 814,
    "types": []
   },
   {
@@ -10896,7 +10898,7 @@
    "sources": [],
    "module": "light/lights.glsl",
    "module_basis": "heading",
-   "line": 813,
+   "line": 815,
    "types": []
   },
   {
@@ -10926,7 +10928,7 @@
    "sources": [],
    "module": "light/lights.glsl",
    "module_basis": "heading",
-   "line": 814,
+   "line": 816,
    "types": []
   },
   {
@@ -10957,7 +10959,7 @@
    ],
    "module": "light/lights.glsl",
    "module_basis": "heading",
-   "line": 815,
+   "line": 817,
    "types": []
   },
   {
@@ -10987,7 +10989,7 @@
    "sources": [],
    "module": "light/lights.glsl",
    "module_basis": "heading",
-   "line": 816,
+   "line": 818,
    "types": []
   },
   {
@@ -11023,7 +11025,7 @@
    ],
    "module": "light/visibility.glsl",
    "module_basis": "manifest",
-   "line": 822,
+   "line": 824,
    "types": []
   },
   {
@@ -11057,7 +11059,7 @@
    ],
    "module": "light/visibility.glsl",
    "module_basis": "manifest",
-   "line": 823,
+   "line": 825,
    "types": []
   },
   {
@@ -11085,7 +11087,7 @@
    "sources": [],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 824,
+   "line": 826,
    "types": []
   },
   {
@@ -11115,7 +11117,7 @@
    "sources": [],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 825,
+   "line": 827,
    "types": []
   },
   {
@@ -11145,7 +11147,7 @@
    ],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 826,
+   "line": 828,
    "types": []
   },
   {
@@ -11178,7 +11180,7 @@
    ],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 827,
+   "line": 829,
    "types": []
   },
   {
@@ -11208,7 +11210,7 @@
    "sources": [],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 828,
+   "line": 830,
    "types": []
   },
   {
@@ -11238,7 +11240,7 @@
    "sources": [],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 829,
+   "line": 831,
    "types": []
   },
   {
@@ -11266,7 +11268,7 @@
    "sources": [],
    "module": "light/visibility.glsl",
    "module_basis": "heading",
-   "line": 830,
+   "line": 832,
    "types": []
   },
   {
@@ -11298,7 +11300,7 @@
    "sources": [],
    "module": "light/env.glsl",
    "module_basis": "manifest",
-   "line": 836,
+   "line": 838,
    "types": [
     "StudioParams"
    ]
@@ -11331,7 +11333,7 @@
    "sources": [],
    "module": "light/env.glsl",
    "module_basis": "manifest",
-   "line": 837,
+   "line": 839,
    "types": []
   },
   {
@@ -11362,7 +11364,7 @@
    "sources": [],
    "module": "light/env.glsl",
    "module_basis": "heading",
-   "line": 838,
+   "line": 840,
    "types": []
   },
   {
@@ -11392,7 +11394,7 @@
    ],
    "module": "light/env.glsl",
    "module_basis": "heading",
-   "line": 839,
+   "line": 841,
    "types": []
   },
   {
@@ -11424,7 +11426,7 @@
    ],
    "module": "light/env.glsl",
    "module_basis": "heading",
-   "line": 840,
+   "line": 842,
    "types": []
   },
   {
@@ -11487,7 +11489,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "manifest",
-   "line": 846,
+   "line": 848,
    "types": []
   },
   {
@@ -11517,7 +11519,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "manifest",
-   "line": 847,
+   "line": 849,
    "types": []
   },
   {
@@ -11548,7 +11550,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 848,
+   "line": 850,
    "types": []
   },
   {
@@ -11578,7 +11580,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 849,
+   "line": 851,
    "types": []
   },
   {
@@ -11608,7 +11610,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 850,
+   "line": 852,
    "types": []
   },
   {
@@ -11639,7 +11641,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 851,
+   "line": 853,
    "types": []
   },
   {
@@ -11669,7 +11671,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 852,
+   "line": 854,
    "types": []
   },
   {
@@ -11699,7 +11701,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 853,
+   "line": 855,
    "types": []
   },
   {
@@ -11730,7 +11732,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 854,
+   "line": 856,
    "types": []
   },
   {
@@ -11758,7 +11760,7 @@
    "sources": [],
    "module": "light/glass.glsl",
    "module_basis": "heading",
-   "line": 855,
+   "line": 857,
    "types": []
   },
   {
@@ -11789,7 +11791,7 @@
    "sources": [],
    "module": "light/thinfilm.glsl",
    "module_basis": "heading",
-   "line": 861,
+   "line": 863,
    "types": []
   },
   {
@@ -11819,7 +11821,7 @@
    ],
    "module": "light/thinfilm.glsl",
    "module_basis": "heading",
-   "line": 862,
+   "line": 864,
    "types": []
   },
   {
@@ -11851,7 +11853,7 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 870,
+   "line": 872,
    "types": []
   },
   {
@@ -11881,7 +11883,7 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 871,
+   "line": 873,
    "types": []
   },
   {
@@ -11912,7 +11914,7 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 872,
+   "line": 874,
    "types": []
   },
   {
@@ -11942,7 +11944,7 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 873,
+   "line": 875,
    "types": []
   },
   {
@@ -11970,7 +11972,7 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 874,
+   "line": 876,
    "types": []
   },
   {
@@ -12003,7 +12005,7 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 875,
+   "line": 877,
    "types": []
   },
   {
@@ -12035,11 +12037,41 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "manifest",
-   "line": 876,
+   "line": 878,
    "types": []
   },
   {
    "id": "F9.08",
+   "category": "F9",
+   "family": "F",
+   "signature": "vec3 glowHotCoreTo(vec3 tint, float intensity, vec3 coreTint)",
+   "functions": [
+    "glowHotCoreTo"
+   ],
+   "contract": "glowHotCore whitening toward a chosen colour (a palette's tinted white, true white, or the hue a core turns to as it clips) instead of toward equal channels",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "LM 12.3"
+   ],
+   "sources": [
+    "the show-hunt study section 3.11"
+   ],
+   "module": "light/glow.glsl",
+   "module_basis": "heading",
+   "line": 879,
+   "types": []
+  },
+  {
+   "id": "F9.09",
    "category": "F9",
    "family": "F",
    "signature": "float glowCompactWire(float d, float width, float k)",
@@ -12065,11 +12097,11 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "heading",
-   "line": 877,
+   "line": 880,
    "types": []
   },
   {
-   "id": "F9.09",
+   "id": "F9.10",
    "category": "F9",
    "family": "F",
    "signature": "float glowSoftCore(float d, float k)",
@@ -12093,11 +12125,11 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "heading",
-   "line": 878,
+   "line": 881,
    "types": []
   },
   {
-   "id": "F9.10",
+   "id": "F9.11",
    "category": "F9",
    "family": "F",
    "signature": "float glowPointInscatter(vec3 ro, vec3 rd, vec3 lightPos, float tmax)",
@@ -12121,11 +12153,11 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "heading",
-   "line": 879,
+   "line": 882,
    "types": []
   },
   {
-   "id": "F9.11",
+   "id": "F9.12",
    "category": "F9",
    "family": "F",
    "signature": "float glowComet(vec2 p, vec2 dir, float stretch)",
@@ -12151,11 +12183,11 @@
    "sources": [],
    "module": "light/glow.glsl",
    "module_basis": "heading",
-   "line": 880,
+   "line": 883,
    "types": []
   },
   {
-   "id": "F9.12",
+   "id": "F9.13",
    "category": "F9",
    "family": "F",
    "signature": "vec3 glowXray(vec2 pixel, vec2 res, vec3 ro, mat3 basis, float focal, int budget, float passthrough, float density, float sparkWidth, int palette, float hueSpeed, float rim, int view)",
@@ -12189,7 +12221,7 @@
    "ruling": "built-recipe-glow-xray"
   },
   {
-   "id": "F9.13",
+   "id": "F9.14",
    "category": "F9",
    "family": "F",
    "signature": "float neonProfile(float dPx, float haloPx, int profile) / vec2 neonPathStep(vec2 p, vec2 a, vec2 b, vec2 s, vec2 best) / vec3 neonLine(vec3 acc, float d, float px, vec3 tint, float energy, float depth, float widthPx, float haloPx, int profile, float coreHeat, int combine, float defocus, int view)",
@@ -12256,7 +12288,7 @@
    "sources": [],
    "module": "light/rigs.glsl",
    "module_basis": "manifest",
-   "line": 886,
+   "line": 889,
    "types": [
     "LitSurface",
     "StudioParams"
@@ -12289,7 +12321,7 @@
    ],
    "module": "light/rigs.glsl",
    "module_basis": "heading",
-   "line": 887,
+   "line": 890,
    "types": [
     "LitSurface",
     "OutdoorRig"
@@ -12323,7 +12355,7 @@
    "sources": [],
    "module": "light/rigs.glsl",
    "module_basis": "heading",
-   "line": 888,
+   "line": 891,
    "types": []
   },
   {
@@ -12458,7 +12490,7 @@
    "sources": [],
    "module": "light/material.glsl",
    "module_basis": "heading",
-   "line": 894,
+   "line": 897,
    "types": [
     "LitSurface"
    ],
@@ -12491,7 +12523,7 @@
    "sources": [],
    "module": "light/material.glsl",
    "module_basis": "heading",
-   "line": 895,
+   "line": 898,
    "types": [
     "LitSurface"
    ]
@@ -12521,7 +12553,7 @@
    "sources": [],
    "module": "light/material.glsl",
    "module_basis": "heading",
-   "line": 896,
+   "line": 899,
    "types": [
     "LitSurface"
    ]
@@ -12553,7 +12585,7 @@
    "sources": [],
    "module": "light/material.glsl",
    "module_basis": "heading",
-   "line": 897,
+   "line": 900,
    "types": []
   },
   {
@@ -12583,7 +12615,7 @@
    "sources": [],
    "module": "light/material.glsl",
    "module_basis": "heading",
-   "line": 898,
+   "line": 901,
    "types": []
   },
   {
@@ -12617,7 +12649,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 915,
+   "line": 918,
    "types": []
   },
   {
@@ -12645,7 +12677,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 916,
+   "line": 919,
    "types": []
   },
   {
@@ -12678,7 +12710,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 917,
+   "line": 920,
    "types": []
   },
   {
@@ -12710,7 +12742,7 @@
    ],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 918,
+   "line": 921,
    "types": [
     "VolAccum"
    ]
@@ -12742,7 +12774,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 919,
+   "line": 922,
    "types": [
     "VolAccum"
    ]
@@ -12774,7 +12806,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 920,
+   "line": 923,
    "types": [
     "VolAccum"
    ]
@@ -12806,7 +12838,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "manifest",
-   "line": 921,
+   "line": 924,
    "types": [
     "VolAccum"
    ]
@@ -12836,7 +12868,7 @@
    "sources": [],
    "module": "volume/integrate.glsl",
    "module_basis": "heading",
-   "line": 922,
+   "line": 925,
    "types": []
   },
   {
@@ -12864,7 +12896,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "manifest",
-   "line": 930,
+   "line": 933,
    "types": []
   },
   {
@@ -12892,7 +12924,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "manifest",
-   "line": 931,
+   "line": 934,
    "types": []
   },
   {
@@ -12920,7 +12952,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 932,
+   "line": 935,
    "types": []
   },
   {
@@ -12948,7 +12980,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 933,
+   "line": 936,
    "types": []
   },
   {
@@ -12976,7 +13008,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 934,
+   "line": 937,
    "types": []
   },
   {
@@ -13004,7 +13036,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 935,
+   "line": 938,
    "types": []
   },
   {
@@ -13036,7 +13068,7 @@
    ],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 936,
+   "line": 939,
    "types": []
   },
   {
@@ -13065,7 +13097,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 937,
+   "line": 940,
    "types": []
   },
   {
@@ -13095,7 +13127,7 @@
    "sources": [],
    "module": "volume/phase.glsl",
    "module_basis": "heading",
-   "line": 938,
+   "line": 941,
    "types": []
   },
   {
@@ -13125,7 +13157,7 @@
    ],
    "module": "volume/cloud-light.glsl",
    "module_basis": "heading",
-   "line": 944,
+   "line": 947,
    "types": []
   },
   {
@@ -13155,7 +13187,7 @@
    ],
    "module": "volume/cloud-light.glsl",
    "module_basis": "heading",
-   "line": 945,
+   "line": 948,
    "types": []
   },
   {
@@ -13185,7 +13217,7 @@
    "sources": [],
    "module": "volume/cloud-light.glsl",
    "module_basis": "heading",
-   "line": 946,
+   "line": 949,
    "types": []
   },
   {
@@ -13215,7 +13247,7 @@
    "sources": [],
    "module": "volume/cloud-light.glsl",
    "module_basis": "heading",
-   "line": 947,
+   "line": 950,
    "types": []
   },
   {
@@ -13245,7 +13277,7 @@
    "sources": [],
    "module": "volume/density.glsl",
    "module_basis": "manifest",
-   "line": 953,
+   "line": 956,
    "types": []
   },
   {
@@ -13273,7 +13305,7 @@
    "sources": [],
    "module": "volume/density.glsl",
    "module_basis": "heading",
-   "line": 954,
+   "line": 957,
    "types": []
   },
   {
@@ -13303,7 +13335,7 @@
    "sources": [],
    "module": "volume/density.glsl",
    "module_basis": "heading",
-   "line": 955,
+   "line": 958,
    "types": []
   },
   {
@@ -13335,7 +13367,7 @@
    ],
    "module": "volume/density.glsl",
    "module_basis": "heading",
-   "line": 956,
+   "line": 959,
    "types": []
   },
   {
@@ -13365,7 +13397,7 @@
    "sources": [],
    "module": "volume/density.glsl",
    "module_basis": "heading",
-   "line": 957,
+   "line": 960,
    "types": []
   },
   {
@@ -13395,7 +13427,7 @@
    "sources": [],
    "module": "volume/density.glsl",
    "module_basis": "heading",
-   "line": 958,
+   "line": 961,
    "types": []
   },
   {
@@ -13425,7 +13457,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "manifest",
-   "line": 964,
+   "line": 967,
    "types": []
   },
   {
@@ -13455,7 +13487,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "manifest",
-   "line": 965,
+   "line": 968,
    "types": []
   },
   {
@@ -13486,7 +13518,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "heading",
-   "line": 966,
+   "line": 969,
    "types": []
   },
   {
@@ -13517,7 +13549,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "heading",
-   "line": 967,
+   "line": 970,
    "types": []
   },
   {
@@ -13548,7 +13580,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "heading",
-   "line": 968,
+   "line": 971,
    "types": []
   },
   {
@@ -13578,7 +13610,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "heading",
-   "line": 969,
+   "line": 972,
    "types": []
   },
   {
@@ -13608,7 +13640,7 @@
    "sources": [],
    "module": "volume/march.glsl",
    "module_basis": "heading",
-   "line": 970,
+   "line": 973,
    "types": []
   },
   {
@@ -13639,7 +13671,7 @@
    "sources": [],
    "module": "atmos/sky.glsl",
    "module_basis": "rule",
-   "line": 976,
+   "line": 979,
    "types": [],
    "status_draft": "P1",
    "rulings": [
@@ -13671,7 +13703,7 @@
    "sources": [],
    "module": "atmos/sky.glsl",
    "module_basis": "rule",
-   "line": 977,
+   "line": 980,
    "types": []
   },
   {
@@ -13706,7 +13738,7 @@
    "sources": [],
    "module": "atmos/stars.glsl",
    "module_basis": "rule",
-   "line": 978,
+   "line": 981,
    "types": []
   },
   {
@@ -13736,7 +13768,7 @@
    "sources": [],
    "module": "atmos/sky.glsl",
    "module_basis": "rule",
-   "line": 979,
+   "line": 982,
    "types": []
   },
   {
@@ -13772,7 +13804,7 @@
    ],
    "module": "atmos/sky.glsl",
    "module_basis": "rule",
-   "line": 980,
+   "line": 983,
    "types": [
     "Atmos"
    ]
@@ -13836,7 +13868,7 @@
    "sources": [],
    "module": "atmos/fog.glsl",
    "module_basis": "manifest",
-   "line": 986,
+   "line": 989,
    "types": []
   },
   {
@@ -13866,8 +13898,8 @@
    ],
    "sources": [],
    "module": "atmos/fog.glsl",
-   "module_basis": "heading",
-   "line": 987,
+   "module_basis": "rule",
+   "line": 990,
    "types": []
   },
   {
@@ -13896,8 +13928,8 @@
     "Quilez, better fog"
    ],
    "module": "atmos/fog.glsl",
-   "module_basis": "heading",
-   "line": 988,
+   "module_basis": "rule",
+   "line": 991,
    "types": []
   },
   {
@@ -13927,8 +13959,8 @@
    ],
    "sources": [],
    "module": "atmos/fog.glsl",
-   "module_basis": "heading",
-   "line": 989,
+   "module_basis": "rule",
+   "line": 992,
    "types": []
   },
   {
@@ -13959,8 +13991,8 @@
     "Mitchell 2007"
    ],
    "module": "atmos/fog.glsl",
-   "module_basis": "heading",
-   "line": 990,
+   "module_basis": "rule",
+   "line": 993,
    "types": []
   },
   {
@@ -13989,8 +14021,8 @@
    ],
    "sources": [],
    "module": "atmos/fog.glsl",
-   "module_basis": "heading",
-   "line": 991,
+   "module_basis": "rule",
+   "line": 994,
    "types": []
   },
   {
@@ -14019,8 +14051,288 @@
    ],
    "sources": [],
    "module": "atmos/fog.glsl",
-   "module_basis": "heading",
-   "line": 992,
+   "module_basis": "rule",
+   "line": 995,
+   "types": []
+  },
+  {
+   "id": "G7.08",
+   "category": "G7",
+   "family": "G",
+   "signature": "float hazeDensity(vec2 p, float floorY, vec4 hz, float t) / float hazeDensity3(vec3 p, float floorY, vec4 hz, float t)",
+   "functions": [
+    "hazeDensity",
+    "hazeDensity3"
+   ],
+   "contract": "Look v2's shared haze field in 0..1: exp(-max(y - floorY, 0)/hz.y) times (0.55 + 0.45 times two octaves of value noise at hz.x cells per unit, drifting hz.zw units per second); the 3D form in metres with the wind in x and z. Static, never reseeded; it multiplies light and never emits",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "VA 5.1"
+   ],
+   "sources": [
+    "Look v2 section 2.2"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 996,
+   "types": []
+  },
+  {
+   "id": "G7.09",
+   "category": "G7",
+   "family": "G",
+   "signature": "float hazeFloorBand(vec2 p, float floorY, float thickness, float t)",
+   "functions": [
+    "hazeFloorBand"
+   ],
+   "contract": "a low CO2 or dry-ice band: 1 at and below the floor line, gone by a ragged top 0.7-1.3 thicknesses up, its billows rising slowly",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "VA 5.1"
+   ],
+   "sources": [
+    "Look v2 section 2.2"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 997,
+   "types": []
+  },
+  {
+   "id": "G7.10",
+   "category": "G7",
+   "family": "G",
+   "signature": "float hazeStreak(vec2 p, vec2 root, vec4 clump, float t) / float hazeStreak3(vec3 p, vec3 src, vec4 clump, float t)",
+   "functions": [
+    "hazeStreak",
+    "hazeStreak3"
+   ],
+   "contract": "dash-sized haze clumps stretched along the rays from a light (clump = dash length, across angle, contrast, outward drift), indexed by the angle round the light (whole cells, no seam) and the distance from it, about 40 per cent clump: a beam crossing them breaks into short dashes that follow the beam, neighbouring lines of a fan break in step, the field stays put in the world when the beam turns",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "NP 3"
+   ],
+   "sources": [
+    "the Laser Sky judge, must-fix 2",
+    "the haze judge, must-change 1"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 998,
+   "types": []
+  },
+  {
+   "id": "G7.11",
+   "category": "G7",
+   "family": "G",
+   "signature": "vec3 hazeBeamCoords(vec2 p, vec2 root, vec2 dir, float reach) / float hazePhase(float towardViewer)",
+   "functions": [
+    "hazeBeamCoords",
+    "hazePhase"
+   ],
+   "contract": "a beam's frame (perpendicular distance, along over reach, angle from its axis); the Henyey-Greenstein lobe at g = 0.6 normalised to 1 side-on, so beams aimed at the crowd read brighter",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "VA 1.5"
+   ],
+   "sources": [],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 999,
+   "types": []
+  },
+  {
+   "id": "G7.12",
+   "category": "G7",
+   "family": "G",
+   "signature": "vec3 hazeBeam(float dPerpPx, float along, vec3 col, float level, float dens, float widthPx, float phase, float coreFloor) / vec3 hazeBeamSwept(float dPerpPx, float sweepPx, float along, vec3 col, float level, float dens, float widthPx, float phase, float coreFloor) / vec3 hazeSheet(float angle, float halfAngle, float along, vec3 col, float level, float dens, float phase, float pale)",
+   "functions": [
+    "hazeBeam",
+    "hazeBeamSwept",
+    "hazeSheet"
+   ],
+   "contract": "a thin beam and a sheet of light in haze: soft cross-sections with compact support (exactly 0 beyond them), the core and body in the light's full chroma, the halo times (0.35 + 0.65 density), the core line times (coreFloor + (1 - coreFloor) density) so a beam shows only in haze or, for a laser, always; a white-hot root over the first few per cent, a fall along the length; the haze's texture shows inside. The swept beam is the still one averaged over a shutter (core and body box-filtered in closed form); the sheet body is saturated (pale 0) or pale and lifted so it reads as light (pale 1)",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "VA 1.5"
+   ],
+   "sources": [
+    "Look v2 sections 2.2 and 2.4",
+    "the haze judge, must-change 1, 2 and 5"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 1000,
+   "types": []
+  },
+  {
+   "id": "G7.13",
+   "category": "G7",
+   "family": "G",
+   "signature": "vec3 hazePoint(vec2 p, vec2 c, float r, vec3 col, float level, float dens) / vec3 hazePool(vec2 p, vec2 c, vec2 r, vec3 col, float level) / vec3 hazeTint(vec3 light, float dens)",
+   "functions": [
+    "hazePoint",
+    "hazePool",
+    "hazeTint"
+   ],
+   "contract": "a bounded glow round a source (Gaussian plus exponential skirt, 0 beyond 3 r, never 1/r squared); the lit pool where a beam lands; dense CO2 reading pinker, the OKLCh hue turned +20 degrees times density",
+   "cost": "C1",
+   "cost_text": "C0; hazeTint C1 (the gamut clip)",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "CP 2.4"
+   ],
+   "sources": [
+    "Look v2 section 2.2"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 1001,
+   "types": []
+  },
+  {
+   "id": "G7.14",
+   "category": "G7",
+   "family": "G",
+   "signature": "vec3 hazeRing(vec2 p, vec2 c, vec4 ring, vec2 arc, vec3 col, float level, float dens) / vec3 hazeRing3(vec3 ro, vec3 rd, float tMax, vec3 centre, vec3 normal, vec3 ring, vec3 col, float level, vec2 air, vec4 hz, float t, float jitter)",
+   "functions": [
+    "hazeRing",
+    "hazeRing3"
+   ],
+   "contract": "an LED ring or band as an area light in haze: the closed-form integral of 1/distance squared over a circle or an open arc of it (softened by the haze depth in 2D, by the band in 3D), so the inside of a ring glows more than the outside; in 2D normalised to 1 on a closed band, in 3D a lamp of that level far away; a window to exactly 0 at the reach from the band; the 3D form takes 12 samples (half about the ring's plane by an asinh map, half uniform, the balance heuristic)",
+   "cost": "C1",
+   "cost_text": "C1 (12 samples in 3D)",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [],
+   "sources": [
+    "the Qlimax 2014 study sections 1.5 and 3.3",
+    "PBR 4th ed. 2.4"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 1002,
+   "types": []
+  },
+  {
+   "id": "G7.15",
+   "category": "G7",
+   "family": "G",
+   "signature": "float hazeConeProfile(vec3 p, vec3 apex, vec3 axis, float halfAngle) / float hazeBlueNoise(vec2 pixel) / vec3 hazeCone(vec3 ro, vec3 rd, float tMax, vec3 apex, vec3 axis, float halfAngle, vec3 col, float level, vec2 air, vec4 hz, vec4 clump, float t, float jitter) / vec3 hazeLamp(vec3 ro, vec3 rd, float tMax, vec3 pos, float reach, vec3 col, float level, vec2 air, vec4 hz, float t, float jitter)",
+   "functions": [
+    "hazeConeProfile",
+    "hazeBlueNoise",
+    "hazeCone",
+    "hazeLamp"
+   ],
+   "contract": "single scattering of a soft spot cone and of a point lamp of finite reach along a view ray in metres: the chord inside the light, 12 and 8 stratified equiangular samples, the haze field and its clumps, HG phase at g = 0.6, a transmittance that does not grow with the haze amount (so more haze never dims a beam), samples near the lens whitened; exactly 0 for a ray that misses. Usable from a three.js ShaderMaterial unchanged. float hazeBlueNoise(vec2 pixel) is their per-pixel jitter: a 16 x 16 void-and-cluster blue-noise table, so the samples' error is fine grain with no crosshatch",
+   "cost": "C1",
+   "cost_text": "C1 (12 and 8 samples)",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "VA 1.5",
+    "VA 5.1"
+   ],
+   "sources": [
+    "Kulla and Fajardo 2012",
+    "Ulichney 1993"
+   ],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 1003,
+   "types": []
+  },
+  {
+   "id": "G7.16",
+   "category": "G7",
+   "family": "G",
+   "signature": "vec3 hazeSheet3(vec3 ro, vec3 rd, float tMax, vec3 apex, vec3 axis, vec3 normal, float halfAngle, float thickness, vec3 col, float level, vec2 air, vec4 hz, vec4 clump, float t)",
+   "functions": [
+    "hazeSheet3"
+   ],
+   "contract": "the analytic single scatter of a thin fan sheet of light: one point per ray, radiance falling as 1/r in the fan, an edge-on view a capped bright line",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "VA 5.1"
+   ],
+   "sources": [],
+   "module": "atmos/haze.glsl",
+   "module_basis": "rule",
+   "line": 1004,
    "types": []
   },
   {
@@ -14051,7 +14363,7 @@
    "sources": [],
    "module": "atmos/aurora.glsl",
    "module_basis": "manifest",
-   "line": 1002,
+   "line": 1014,
    "types": []
   },
   {
@@ -14082,7 +14394,7 @@
    "sources": [],
    "module": "atmos/aurora.glsl",
    "module_basis": "manifest",
-   "line": 1003,
+   "line": 1015,
    "types": []
   },
   {
@@ -14113,7 +14425,7 @@
    "sources": [],
    "module": "atmos/aurora.glsl",
    "module_basis": "manifest",
-   "line": 1004,
+   "line": 1016,
    "types": []
   },
   {
@@ -14143,7 +14455,7 @@
    ],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1005,
+   "line": 1017,
    "types": []
   },
   {
@@ -14171,7 +14483,7 @@
    "sources": [],
    "module": "atmos/aurora.glsl",
    "module_basis": "heading",
-   "line": 1006,
+   "line": 1018,
    "types": []
   },
   {
@@ -14201,7 +14513,7 @@
    "sources": [],
    "module": "atmos/aurora.glsl",
    "module_basis": "heading",
-   "line": 1007,
+   "line": 1019,
    "types": []
   },
   {
@@ -14229,7 +14541,7 @@
    "sources": [],
    "module": "atmos/aurora.glsl",
    "module_basis": "heading",
-   "line": 1008,
+   "line": 1020,
    "types": []
   },
   {
@@ -14329,7 +14641,7 @@
    "sources": [],
    "module": "atmos/nebula.glsl",
    "module_basis": "heading",
-   "line": 1014,
+   "line": 1026,
    "types": [
     "VolAccum"
    ]
@@ -14361,7 +14673,7 @@
    "sources": [],
    "module": "colour/transfer.glsl",
    "module_basis": "manifest",
-   "line": 1030,
+   "line": 1042,
    "types": []
   },
   {
@@ -14389,7 +14701,7 @@
    "sources": [],
    "module": "colour/transfer.glsl",
    "module_basis": "manifest",
-   "line": 1031,
+   "line": 1043,
    "types": []
   },
   {
@@ -14417,7 +14729,7 @@
    "sources": [],
    "module": "colour/transfer.glsl",
    "module_basis": "manifest",
-   "line": 1032,
+   "line": 1044,
    "types": []
   },
   {
@@ -14445,7 +14757,7 @@
    "sources": [],
    "module": "colour/transfer.glsl",
    "module_basis": "manifest",
-   "line": 1033,
+   "line": 1045,
    "types": []
   },
   {
@@ -14481,7 +14793,7 @@
    "sources": [],
    "module": "colour/transfer.glsl",
    "module_basis": "heading",
-   "line": 1034,
+   "line": 1046,
    "types": []
   },
   {
@@ -14510,7 +14822,7 @@
    "sources": [],
    "module": "colour/transfer.glsl",
    "module_basis": "heading",
-   "line": 1035,
+   "line": 1047,
    "types": []
   },
   {
@@ -14541,7 +14853,7 @@
    ],
    "module": "colour/oklab.glsl",
    "module_basis": "manifest",
-   "line": 1044,
+   "line": 1056,
    "types": []
   },
   {
@@ -14570,7 +14882,7 @@
    "sources": [],
    "module": "colour/oklab.glsl",
    "module_basis": "manifest",
-   "line": 1045,
+   "line": 1057,
    "types": []
   },
   {
@@ -14599,7 +14911,7 @@
    "sources": [],
    "module": "colour/oklab.glsl",
    "module_basis": "manifest",
-   "line": 1046,
+   "line": 1058,
    "types": []
   },
   {
@@ -14627,7 +14939,7 @@
    "sources": [],
    "module": "colour/oklab.glsl",
    "module_basis": "manifest",
-   "line": 1047,
+   "line": 1059,
    "types": []
   },
   {
@@ -14656,7 +14968,7 @@
    "sources": [],
    "module": "colour/oklab.glsl",
    "module_basis": "manifest",
-   "line": 1048,
+   "line": 1060,
    "types": []
   },
   {
@@ -14684,7 +14996,7 @@
    "sources": [],
    "module": "colour/oklab.glsl",
    "module_basis": "manifest",
-   "line": 1049,
+   "line": 1061,
    "types": []
   },
   {
@@ -14712,7 +15024,7 @@
    "sources": [],
    "module": "colour/oklab.glsl",
    "module_basis": "heading",
-   "line": 1050,
+   "line": 1062,
    "types": []
   },
   {
@@ -14774,7 +15086,7 @@
    "sources": [],
    "module": "legacy/hsv.glsl",
    "module_basis": "manifest",
-   "line": 1056,
+   "line": 1068,
    "types": []
   },
   {
@@ -14802,7 +15114,7 @@
    "sources": [],
    "module": "legacy/hsv.glsl",
    "module_basis": "heading",
-   "line": 1057,
+   "line": 1069,
    "types": []
   },
   {
@@ -14839,7 +15151,7 @@
    ],
    "module": "colour/palette.glsl",
    "module_basis": "manifest",
-   "line": 1063,
+   "line": 1075,
    "types": []
   },
   {
@@ -14867,7 +15179,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "manifest",
-   "line": 1064,
+   "line": 1076,
    "types": []
   },
   {
@@ -14895,7 +15207,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "manifest",
-   "line": 1065,
+   "line": 1077,
    "types": []
   },
   {
@@ -14926,7 +15238,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "manifest",
-   "line": 1066,
+   "line": 1078,
    "types": []
   },
   {
@@ -14960,7 +15272,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "manifest",
-   "line": 1067,
+   "line": 1079,
    "types": []
   },
   {
@@ -14989,7 +15301,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "manifest",
-   "line": 1068,
+   "line": 1080,
    "types": [
     "PitchPalette"
    ]
@@ -15021,7 +15333,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "heading",
-   "line": 1069,
+   "line": 1081,
    "types": []
   },
   {
@@ -15052,7 +15364,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "heading",
-   "line": 1070,
+   "line": 1082,
    "types": []
   },
   {
@@ -15082,7 +15394,7 @@
    "sources": [],
    "module": "colour/palette.glsl",
    "module_basis": "heading",
-   "line": 1071,
+   "line": 1083,
    "types": []
   },
   {
@@ -15175,7 +15487,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1082,
+   "line": 1094,
    "types": []
   },
   {
@@ -15207,7 +15519,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1083,
+   "line": 1095,
    "types": []
   },
   {
@@ -15237,7 +15549,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1084,
+   "line": 1096,
    "types": []
   },
   {
@@ -15265,7 +15577,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1085,
+   "line": 1097,
    "types": []
   },
   {
@@ -15299,7 +15611,7 @@
    ],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1086,
+   "line": 1098,
    "types": []
   },
   {
@@ -15327,7 +15639,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1087,
+   "line": 1099,
    "types": []
   },
   {
@@ -15358,7 +15670,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "manifest",
-   "line": 1088,
+   "line": 1100,
    "types": []
   },
   {
@@ -15386,11 +15698,41 @@
    "sources": [],
    "module": "legacy/tone-superlinear.glsl",
    "module_basis": "manifest",
-   "line": 1089,
+   "line": 1101,
    "types": []
   },
   {
    "id": "H5.09",
+   "category": "H5",
+   "family": "H",
+   "signature": "vec3 tmStage(vec3 x, float heat, float H)",
+   "functions": [
+    "tmStage"
+   ],
+   "contract": "Look v2's display stage: a peak toe x p/(p + 0.0015); the identity up to 0.8 H; PBR Neutral's peak compression above it, then a drift to white driven by heat at constant OKLab hue; output in [0, H], H = 1 the SDR curve; hue within 2 degrees on the six primaries at 1-20x",
+   "cost": "C0",
+   "cost_text": "C0",
+   "tex": null,
+   "hook": false,
+   "status": "P1",
+   "legacy": false,
+   "kind": "function",
+   "form": "signature",
+   "exemplars": [],
+   "loved_text": "—",
+   "learn": [
+    "CP 5.7"
+   ],
+   "sources": [
+    "Look v2 section 1.4"
+   ],
+   "module": "colour/tone.glsl",
+   "module_basis": "heading",
+   "line": 1102,
+   "types": []
+  },
+  {
+   "id": "H5.10",
    "category": "H5",
    "family": "H",
    "signature": "vec3 tmAgx(vec3 x) / vec3 tmAgxLook(vec3 x, vec3 slope, vec3 power, float sat)",
@@ -15417,11 +15759,11 @@
    ],
    "module": "colour/tone.glsl",
    "module_basis": "heading",
-   "line": 1090,
+   "line": 1103,
    "types": []
   },
   {
-   "id": "H5.10",
+   "id": "H5.11",
    "category": "H5",
    "family": "H",
    "signature": "vec3 tmAcesHill(vec3 x)",
@@ -15445,11 +15787,11 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "heading",
-   "line": 1091,
+   "line": 1104,
    "types": []
   },
   {
-   "id": "H5.11",
+   "id": "H5.12",
    "category": "H5",
    "family": "H",
    "signature": "vec3 tmReinhardWhite(vec3 x, float white) / vec3 tmReinhardLum(vec3 x, float white)",
@@ -15474,11 +15816,11 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "heading",
-   "line": 1092,
+   "line": 1105,
    "types": []
   },
   {
-   "id": "H5.12",
+   "id": "H5.13",
    "category": "H5",
    "family": "H",
    "signature": "vec3 glowToneBloom(vec3 x, vec3 exps, vec3 weights)",
@@ -15504,11 +15846,11 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "heading",
-   "line": 1093,
+   "line": 1106,
    "types": []
   },
   {
-   "id": "H5.13",
+   "id": "H5.14",
    "category": "H5",
    "family": "H",
    "signature": "vec3 tmHable(vec3 x, float white), tmUchimura(...), vec2 tmLottesSolve(...) + tmLottes(...), tmMaxRgb(...), tmHejlEnc(...)",
@@ -15537,7 +15879,7 @@
    "sources": [],
    "module": "colour/tone.glsl",
    "module_basis": "heading",
-   "line": 1094,
+   "line": 1107,
    "types": []
   },
   {
@@ -15565,7 +15907,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "manifest",
-   "line": 1100,
+   "line": 1113,
    "types": []
   },
   {
@@ -15598,7 +15940,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "manifest",
-   "line": 1101,
+   "line": 1114,
    "types": []
   },
   {
@@ -15631,7 +15973,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "manifest",
-   "line": 1102,
+   "line": 1115,
    "types": []
   },
   {
@@ -15659,7 +16001,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "heading",
-   "line": 1103,
+   "line": 1116,
    "types": []
   },
   {
@@ -15687,7 +16029,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "heading",
-   "line": 1104,
+   "line": 1117,
    "types": []
   },
   {
@@ -15717,7 +16059,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "heading",
-   "line": 1105,
+   "line": 1118,
    "types": []
   },
   {
@@ -15747,7 +16089,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "heading",
-   "line": 1106,
+   "line": 1119,
    "types": []
   },
   {
@@ -15777,7 +16119,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "heading",
-   "line": 1107,
+   "line": 1120,
    "types": []
   },
   {
@@ -15810,7 +16152,7 @@
    "sources": [],
    "module": "colour/grade.glsl",
    "module_basis": "heading",
-   "line": 1108,
+   "line": 1121,
    "types": []
   },
   {
@@ -15840,7 +16182,7 @@
    "sources": [],
    "module": "post/vignette.glsl",
    "module_basis": "manifest",
-   "line": 1114,
+   "line": 1127,
    "types": []
   },
   {
@@ -15871,7 +16213,7 @@
    "sources": [],
    "module": "post/vignette.glsl",
    "module_basis": "rule",
-   "line": 1115,
+   "line": 1128,
    "types": []
   },
   {
@@ -15899,7 +16241,7 @@
    "sources": [],
    "module": "post/vignette.glsl",
    "module_basis": "rule",
-   "line": 1116,
+   "line": 1129,
    "types": []
   },
   {
@@ -15927,7 +16269,7 @@
    "sources": [],
    "module": "post/lens.glsl",
    "module_basis": "rule",
-   "line": 1117,
+   "line": 1130,
    "types": []
   },
   {
@@ -15958,7 +16300,7 @@
    "sources": [],
    "module": "post/lens.glsl",
    "module_basis": "rule",
-   "line": 1118,
+   "line": 1131,
    "types": []
   },
   {
@@ -15988,7 +16330,7 @@
    "sources": [],
    "module": "post/bloom.glsl",
    "module_basis": "rule",
-   "line": 1119,
+   "line": 1132,
    "types": []
   },
   {
@@ -16027,7 +16369,7 @@
    "sources": [],
    "module": "post/bloom.glsl",
    "module_basis": "rule",
-   "line": 1120,
+   "line": 1133,
    "types": []
   },
   {
@@ -16057,7 +16399,7 @@
    "sources": [],
    "module": "post/lens.glsl",
    "module_basis": "rule",
-   "line": 1121,
+   "line": 1134,
    "types": []
   },
   {
@@ -16087,7 +16429,7 @@
    "sources": [],
    "module": "post/lens.glsl",
    "module_basis": "rule",
-   "line": 1122,
+   "line": 1135,
    "types": []
   },
   {
@@ -16120,7 +16462,7 @@
    "sources": [],
    "module": "post/dither.glsl",
    "module_basis": "manifest",
-   "line": 1128,
+   "line": 1141,
    "types": []
   },
   {
@@ -16148,7 +16490,7 @@
    "sources": [],
    "module": "post/dither.glsl",
    "module_basis": "heading",
-   "line": 1129,
+   "line": 1142,
    "types": []
   },
   {
@@ -16178,7 +16520,7 @@
    "sources": [],
    "module": "post/dither.glsl",
    "module_basis": "heading",
-   "line": 1130,
+   "line": 1143,
    "types": []
   },
   {
@@ -16212,7 +16554,7 @@
    "sources": [],
    "module": "post/display-out.glsl",
    "module_basis": "manifest",
-   "line": 1136,
+   "line": 1149,
    "types": [],
    "signature_draft": "vec3 displayOut(vec3 sceneLin, vec2 pixel, float ev, int curve, float saturation, float vignette, float sCurve, float ditherLevels)",
    "rulings": [
@@ -16247,7 +16589,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "manifest",
-   "line": 1149,
+   "line": 1162,
    "types": []
   },
   {
@@ -16278,7 +16620,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "manifest",
-   "line": 1150,
+   "line": 1163,
    "types": []
   },
   {
@@ -16310,7 +16652,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "manifest",
-   "line": 1151,
+   "line": 1164,
    "types": []
   },
   {
@@ -16338,7 +16680,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "manifest",
-   "line": 1152,
+   "line": 1165,
    "types": []
   },
   {
@@ -16366,7 +16708,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "heading",
-   "line": 1153,
+   "line": 1166,
    "types": [
     "LightParams"
    ]
@@ -16398,7 +16740,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "heading",
-   "line": 1154,
+   "line": 1167,
    "types": []
   },
   {
@@ -16429,7 +16771,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "heading",
-   "line": 1155,
+   "line": 1168,
    "types": [],
    "status_draft": "P1",
    "rulings": [
@@ -16463,7 +16805,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "heading",
-   "line": 1156,
+   "line": 1169,
    "types": []
   },
   {
@@ -16493,7 +16835,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "heading",
-   "line": 1157,
+   "line": 1170,
    "types": []
   },
   {
@@ -16523,7 +16865,7 @@
    "sources": [],
    "module": "motion/envelope.glsl",
    "module_basis": "heading",
-   "line": 1158,
+   "line": 1171,
    "types": []
   },
   {
@@ -16584,7 +16926,7 @@
    "sources": [],
    "module": "motion/flicker.glsl",
    "module_basis": "heading",
-   "line": 1164,
+   "line": 1177,
    "types": []
   },
   {
@@ -16614,7 +16956,7 @@
    "sources": [],
    "module": "motion/flicker.glsl",
    "module_basis": "heading",
-   "line": 1165,
+   "line": 1178,
    "types": []
   },
   {
@@ -16644,7 +16986,7 @@
    "sources": [],
    "module": "motion/flicker.glsl",
    "module_basis": "heading",
-   "line": 1166,
+   "line": 1179,
    "types": []
   },
   {
@@ -16674,7 +17016,7 @@
    "sources": [],
    "module": "motion/flicker.glsl",
    "module_basis": "heading",
-   "line": 1167,
+   "line": 1180,
    "types": []
   },
   {
@@ -16704,7 +17046,7 @@
    "sources": [],
    "module": "motion/flicker.glsl",
    "module_basis": "heading",
-   "line": 1168,
+   "line": 1181,
    "types": []
   },
   {
@@ -16734,7 +17076,7 @@
    "sources": [],
    "module": "motion/wave.glsl",
    "module_basis": "heading",
-   "line": 1174,
+   "line": 1187,
    "types": []
   },
   {
@@ -16764,7 +17106,7 @@
    "sources": [],
    "module": "motion/wave.glsl",
    "module_basis": "heading",
-   "line": 1175,
+   "line": 1188,
    "types": []
   },
   {
@@ -16794,7 +17136,7 @@
    "sources": [],
    "module": "motion/wave.glsl",
    "module_basis": "heading",
-   "line": 1176,
+   "line": 1189,
    "types": []
   },
   {
@@ -16824,7 +17166,7 @@
    "sources": [],
    "module": "motion/path.glsl",
    "module_basis": "heading",
-   "line": 1184,
+   "line": 1197,
    "types": []
   },
   {
@@ -16852,7 +17194,7 @@
    "sources": [],
    "module": "motion/path.glsl",
    "module_basis": "heading",
-   "line": 1185,
+   "line": 1198,
    "types": []
   },
   {
@@ -16884,7 +17226,7 @@
    "sources": [],
    "module": "motion/history.glsl",
    "module_basis": "heading",
-   "line": 1193,
+   "line": 1206,
    "types": []
   },
   {
@@ -16914,7 +17256,7 @@
    "sources": [],
    "module": "motion/history.glsl",
    "module_basis": "heading",
-   "line": 1194,
+   "line": 1207,
    "types": []
   },
   {
@@ -16944,7 +17286,7 @@
    "sources": [],
    "module": "motion/mech.glsl",
    "module_basis": "rule",
-   "line": 1200,
+   "line": 1213,
    "types": []
   },
   {
@@ -16976,7 +17318,7 @@
    "sources": [],
    "module": "motion/sequence.glsl",
    "module_basis": "rule",
-   "line": 1201,
+   "line": 1214,
    "types": []
   },
   {
@@ -17006,7 +17348,7 @@
    "sources": [],
    "module": "motion/sequence.glsl",
    "module_basis": "rule",
-   "line": 1202,
+   "line": 1215,
    "types": []
   },
   {
@@ -17036,7 +17378,7 @@
    "sources": [],
    "module": "motion/mech.glsl",
    "module_basis": "rule",
-   "line": 1203,
+   "line": 1216,
    "types": []
   },
   {
@@ -17066,7 +17408,7 @@
    "sources": [],
    "module": "motion/sequence.glsl",
    "module_basis": "rule",
-   "line": 1204,
+   "line": 1217,
    "types": []
   },
   {
@@ -17097,7 +17439,7 @@
    "sources": [],
    "module": "sim/feedback.glsl",
    "module_basis": "manifest",
-   "line": 1219,
+   "line": 1232,
    "types": []
   },
   {
@@ -17127,7 +17469,7 @@
    "sources": [],
    "module": "sim/io.glsl",
    "module_basis": "heading",
-   "line": 1220,
+   "line": 1233,
    "types": []
   },
   {
@@ -17157,7 +17499,7 @@
    "sources": [],
    "module": "sim/io.glsl",
    "module_basis": "heading",
-   "line": 1221,
+   "line": 1234,
    "types": []
   },
   {
@@ -17186,7 +17528,7 @@
    "sources": [],
    "module": "sim/io.glsl",
    "module_basis": "heading",
-   "line": 1222,
+   "line": 1235,
    "types": []
   },
   {
@@ -17217,7 +17559,7 @@
    "sources": [],
    "module": "sim/io.glsl",
    "module_basis": "heading",
-   "line": 1223,
+   "line": 1236,
    "types": []
   },
   {
@@ -17245,7 +17587,7 @@
    "sources": [],
    "module": "sim/io.glsl",
    "module_basis": "heading",
-   "line": 1224,
+   "line": 1237,
    "types": []
   },
   {
@@ -17273,7 +17615,7 @@
    "sources": [],
    "module": "sim/stencil.glsl",
    "module_basis": "heading",
-   "line": 1230,
+   "line": 1243,
    "types": []
   },
   {
@@ -17303,7 +17645,7 @@
    "sources": [],
    "module": "sim/stencil.glsl",
    "module_basis": "heading",
-   "line": 1231,
+   "line": 1244,
    "types": []
   },
   {
@@ -17331,7 +17673,7 @@
    "sources": [],
    "module": "sim/stencil.glsl",
    "module_basis": "heading",
-   "line": 1232,
+   "line": 1245,
    "types": []
   },
   {
@@ -17359,7 +17701,7 @@
    "sources": [],
    "module": "sim/stencil.glsl",
    "module_basis": "heading",
-   "line": 1233,
+   "line": 1246,
    "types": []
   },
   {
@@ -17387,7 +17729,7 @@
    "sources": [],
    "module": "sim/stencil.glsl",
    "module_basis": "heading",
-   "line": 1234,
+   "line": 1247,
    "types": []
   },
   {
@@ -17415,7 +17757,7 @@
    "sources": [],
    "module": "sim/stencil.glsl",
    "module_basis": "heading",
-   "line": 1235,
+   "line": 1248,
    "types": []
   },
   {
@@ -17448,7 +17790,7 @@
    ],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1241,
+   "line": 1254,
    "types": []
   },
   {
@@ -17478,7 +17820,7 @@
    "sources": [],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1242,
+   "line": 1255,
    "types": []
   },
   {
@@ -17508,7 +17850,7 @@
    "sources": [],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1243,
+   "line": 1256,
    "types": []
   },
   {
@@ -17541,7 +17883,7 @@
    ],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1244,
+   "line": 1257,
    "types": []
   },
   {
@@ -17571,7 +17913,7 @@
    "sources": [],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1245,
+   "line": 1258,
    "types": []
   },
   {
@@ -17601,7 +17943,7 @@
    "sources": [],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1246,
+   "line": 1259,
    "types": []
   },
   {
@@ -17634,7 +17976,7 @@
    "sources": [],
    "module": "sim/fluid.glsl",
    "module_basis": "heading",
-   "line": 1247,
+   "line": 1260,
    "types": []
   },
   {
@@ -17664,7 +18006,7 @@
    ],
    "module": "sim/wave.glsl",
    "module_basis": "rule",
-   "line": 1253,
+   "line": 1266,
    "types": []
   },
   {
@@ -17694,7 +18036,7 @@
    "sources": [],
    "module": "sim/wave.glsl",
    "module_basis": "rule",
-   "line": 1254,
+   "line": 1267,
    "types": []
   },
   {
@@ -17722,7 +18064,7 @@
    "sources": [],
    "module": "sim/wave.glsl",
    "module_basis": "rule",
-   "line": 1255,
+   "line": 1268,
    "types": []
   },
   {
@@ -17763,7 +18105,7 @@
    ],
    "module": "sim/ocean.glsl",
    "module_basis": "rule",
-   "line": 1256,
+   "line": 1269,
    "types": []
   },
   {
@@ -17792,7 +18134,7 @@
    "sources": [],
    "module": "sim/particle.glsl",
    "module_basis": "rule",
-   "line": 1262,
+   "line": 1275,
    "types": []
   },
   {
@@ -17820,7 +18162,7 @@
    "sources": [],
    "module": "sim/particle.glsl",
    "module_basis": "rule",
-   "line": 1263,
+   "line": 1276,
    "types": []
   },
   {
@@ -17848,7 +18190,7 @@
    "sources": [],
    "module": "sim/particle.glsl",
    "module_basis": "rule",
-   "line": 1264,
+   "line": 1277,
    "types": []
   },
   {
@@ -17880,7 +18222,7 @@
    ],
    "module": "sim/particle.glsl",
    "module_basis": "rule",
-   "line": 1265,
+   "line": 1278,
    "types": []
   },
   {
@@ -17916,7 +18258,7 @@
    ],
    "module": "sim/pattern.glsl",
    "module_basis": "rule",
-   "line": 1266,
+   "line": 1279,
    "types": []
   },
   {
@@ -17944,7 +18286,7 @@
    "sources": [],
    "module": "sim/pattern.glsl",
    "module_basis": "heading",
-   "line": 1267,
+   "line": 1280,
    "types": []
   },
   {
@@ -17977,7 +18319,7 @@
    ],
    "module": "sim/feedback.glsl",
    "module_basis": "manifest",
-   "line": 1273,
+   "line": 1286,
    "types": []
   },
   {
@@ -18007,7 +18349,7 @@
    "sources": [],
    "module": "sim/feedback.glsl",
    "module_basis": "heading",
-   "line": 1274,
+   "line": 1287,
    "types": []
   },
   {
@@ -18037,7 +18379,7 @@
    "sources": [],
    "module": "sim/feedback.glsl",
    "module_basis": "heading",
-   "line": 1275,
+   "line": 1288,
    "types": []
   },
   {
@@ -18067,7 +18409,7 @@
    "sources": [],
    "module": "sim/feedback.glsl",
    "module_basis": "heading",
-   "line": 1276,
+   "line": 1289,
    "types": []
   },
   {
@@ -18096,7 +18438,7 @@
    "sources": [],
    "module": "sim/feedback.glsl",
    "module_basis": "heading",
-   "line": 1277,
+   "line": 1290,
    "types": []
   },
   {
@@ -18124,7 +18466,7 @@
    "sources": [],
    "module": "sim/feedback.glsl",
    "module_basis": "heading",
-   "line": 1278,
+   "line": 1291,
    "types": []
   },
   {
@@ -18163,7 +18505,7 @@
    ],
    "module": "sim/feedback.glsl",
    "module_basis": "heading",
-   "line": 1279,
+   "line": 1292,
    "types": []
   },
   {
@@ -18194,7 +18536,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1293,
+   "line": 1306,
    "types": []
   },
   {
@@ -18224,7 +18566,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1294,
+   "line": 1307,
    "types": []
   },
   {
@@ -18254,7 +18596,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1295,
+   "line": 1308,
    "types": []
   },
   {
@@ -18284,7 +18626,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1296,
+   "line": 1309,
    "types": []
   },
   {
@@ -18314,7 +18656,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1297,
+   "line": 1310,
    "types": []
   },
   {
@@ -18344,7 +18686,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1298,
+   "line": 1311,
    "types": []
   },
   {
@@ -18374,7 +18716,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1299,
+   "line": 1312,
    "types": []
   },
   {
@@ -18404,7 +18746,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1300,
+   "line": 1313,
    "types": []
   },
   {
@@ -18434,7 +18776,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1301,
+   "line": 1314,
    "types": []
   },
   {
@@ -18464,7 +18806,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1302,
+   "line": 1315,
    "types": []
   },
   {
@@ -18494,7 +18836,7 @@
    "sources": [],
    "module": "glitch/address.glsl",
    "module_basis": "heading",
-   "line": 1303,
+   "line": 1316,
    "types": []
   },
   {
@@ -18524,7 +18866,7 @@
    "sources": [],
    "module": "glitch/crt.glsl",
    "module_basis": "heading",
-   "line": 1309,
+   "line": 1322,
    "types": []
   },
   {
@@ -18554,7 +18896,7 @@
    "sources": [],
    "module": "glitch/crt.glsl",
    "module_basis": "heading",
-   "line": 1310,
+   "line": 1323,
    "types": []
   },
   {
@@ -18584,7 +18926,7 @@
    "sources": [],
    "module": "glitch/crt.glsl",
    "module_basis": "heading",
-   "line": 1311,
+   "line": 1324,
    "types": []
   },
   {
@@ -18615,7 +18957,7 @@
    "sources": [],
    "module": "composite/parity.glsl",
    "module_basis": "heading",
-   "line": 1317,
+   "line": 1330,
    "types": []
   },
   {
@@ -18647,7 +18989,7 @@
    "sources": [],
    "module": "input/mouse.glsl",
    "module_basis": "manifest",
-   "line": 1330,
+   "line": 1343,
    "types": []
   },
   {
@@ -18681,7 +19023,7 @@
    "sources": [],
    "module": "input/mouse.glsl",
    "module_basis": "manifest",
-   "line": 1331,
+   "line": 1344,
    "types": []
   },
   {
@@ -18711,7 +19053,7 @@
    "sources": [],
    "module": "input/keyboard.glsl",
    "module_basis": "rule",
-   "line": 1332,
+   "line": 1345,
    "types": []
   },
   {
@@ -18742,7 +19084,7 @@
    "sources": [],
    "module": "input/mouse.glsl",
    "module_basis": "rule",
-   "line": 1333,
+   "line": 1346,
    "types": []
   },
   {
@@ -18772,7 +19114,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "manifest",
-   "line": 1343,
+   "line": 1356,
    "types": []
   },
   {
@@ -18800,7 +19142,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "manifest",
-   "line": 1344,
+   "line": 1357,
    "types": []
   },
   {
@@ -18830,7 +19172,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "manifest",
-   "line": 1345,
+   "line": 1358,
    "types": []
   },
   {
@@ -18858,7 +19200,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "heading",
-   "line": 1346,
+   "line": 1359,
    "types": []
   },
   {
@@ -18888,7 +19230,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "heading",
-   "line": 1347,
+   "line": 1360,
    "types": [],
    "signature_draft": "float audWave(sampler2D a, float u) / float audByteToDb(...) / float audByteToAmp(...)",
    "rulings": [
@@ -18922,7 +19264,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "heading",
-   "line": 1348,
+   "line": 1361,
    "types": []
   },
   {
@@ -18951,7 +19293,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "heading",
-   "line": 1349,
+   "line": 1362,
    "types": []
   },
   {
@@ -18981,7 +19323,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "heading",
-   "line": 1350,
+   "line": 1363,
    "types": []
   },
   {
@@ -19011,7 +19353,7 @@
    "sources": [],
    "module": "input/audio.glsl",
    "module_basis": "heading",
-   "line": 1351,
+   "line": 1364,
    "types": []
   },
   {
@@ -19039,7 +19381,7 @@
    "sources": [],
    "module": "input/music.glsl",
    "module_basis": "heading",
-   "line": 1360,
+   "line": 1373,
    "types": []
   },
   {
@@ -19067,7 +19409,7 @@
    "sources": [],
    "module": "input/music.glsl",
    "module_basis": "heading",
-   "line": 1361,
+   "line": 1374,
    "types": [
     "LightParams"
    ]
@@ -19097,7 +19439,7 @@
    "sources": [],
    "module": "input/music.glsl",
    "module_basis": "heading",
-   "line": 1362,
+   "line": 1375,
    "types": []
   },
   {
@@ -19125,7 +19467,7 @@
    "sources": [],
    "module": "input/music.glsl",
    "module_basis": "heading",
-   "line": 1363,
+   "line": 1376,
    "types": []
   },
   {
@@ -19157,7 +19499,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "manifest",
-   "line": 1371,
+   "line": 1384,
    "types": []
   },
   {
@@ -19187,7 +19529,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "manifest",
-   "line": 1372,
+   "line": 1385,
    "types": []
   },
   {
@@ -19220,7 +19562,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "manifest",
-   "line": 1373,
+   "line": 1386,
    "types": []
   },
   {
@@ -19251,7 +19593,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "manifest",
-   "line": 1374,
+   "line": 1387,
    "types": []
   },
   {
@@ -19281,7 +19623,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "heading",
-   "line": 1375,
+   "line": 1388,
    "types": []
   },
   {
@@ -19312,7 +19654,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "heading",
-   "line": 1376,
+   "line": 1389,
    "types": []
   },
   {
@@ -19342,7 +19684,7 @@
    "sources": [],
    "module": "composite/blend.glsl",
    "module_basis": "heading",
-   "line": 1377,
+   "line": 1390,
    "types": []
   }
  ],

@@ -294,6 +294,7 @@ MODULE_RULES: Dict[str, List[Tuple[str, str]]] = {
            (r"^noise(Triangle|SineSum)", "noise/triangle.glsl")],
     "C7": [(r"^cx", "draw2/complex.glsl"), (r"^frac", "draw2/fractal2.glsl")],
     "G6": [(r"^stars", "atmos/stars.glsl"), (r".", "atmos/sky.glsl")],
+    "G7": [(r"^haze", "atmos/haze.glsl"), (r".", "atmos/fog.glsl")],     # Look v2's shared haze module (2026-10-25)
     "H7": [(r"^vig", "post/vignette.glsl"), (r"^(bloom|blur|streak|karis)", "post/bloom.glsl"),
            (r".", "post/lens.glsl")],
     "I6": [(r"^seq", "motion/sequence.glsl"), (r".", "motion/mech.glsl")],

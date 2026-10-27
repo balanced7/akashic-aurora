@@ -184,6 +184,27 @@ def glowHotCore(tint, intensity):
     return i * (tint + (peak - tint) * white)
 
 
+def glowHotCoreTo(tint, intensity, coreTint):
+    """i * mix(tint, coreTint scaled to the tint's peak, i^2 / (1 + i^2)): glowHotCore whitening toward a chosen colour
+    (a palette's tinted white, true white, or a hue the core turns to) instead of toward equal channels. A black
+    coreTint reads as white."""
+    return glowHotCoreTo3(tint, intensity, coreTint)
+
+
+def glowHotCoreTo3(tint, intensity, coreTint):
+    """The vectorised glowHotCoreTo: tint and coreTint on the last axis, intensity per pixel (broadcast)."""
+    hue = np.maximum(_v(tint), 0.0)
+    heat = np.maximum(_v(intensity), 0.0)
+    peak = np.max(hue, axis=-1)
+    toward = np.maximum(_v(coreTint), 0.0)
+    toward_peak = np.max(toward, axis=-1)
+    safe = np.where(toward_peak > 0.0, toward_peak, 1.0)
+    target = np.where(np.asarray(toward_peak > 0.0)[..., None], toward * np.asarray(peak / safe)[..., None],
+                      np.asarray(peak)[..., None] * np.ones(3))
+    whiten = heat * heat / (1.0 + heat * heat)
+    return np.asarray(heat)[..., None] * (hue + (target - hue) * np.asarray(whiten)[..., None])
+
+
 def glowStepCount(steps, maxSteps, k):
     """1 - (1 - s)^k with s = clamp(steps / max(maxSteps, 1), 0, 1) and k floored at 1e-3: marcher effort as light."""
     used = min(max(float(steps) / max(float(maxSteps), 1.0), 0.0), 1.0)
