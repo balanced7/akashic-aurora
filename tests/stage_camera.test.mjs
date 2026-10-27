@@ -382,6 +382,24 @@ test("a formation that changes under a playing shot swaps it on the next bar lin
   assert.equal(g.clear.guards, 1);
 });
 
+test("a ring formation's rings join the filter: with R0 laid flat, the shot from behind the rings is not dealt, and the guard sees live rings", () => {
+  // lane D's orrery tilts the rings apart; ringsOf hands the director their annuli (a flat R0: the gimbal's horizontal)
+  const flatR0 = [ringAnnulus([0, 14, -11], 14, 2.5, 90), ...MODEL.rings.slice(1)];
+  const ringsOf = (key) => (key === "flat" ? [flatR0] : null);
+  const d = new Director(CAM.shots, CAM.sequences, { model: MODEL, formations: { flat: {} }, safe: CAM.safe, ringsOf, posesOf: () => [CATALOGUE.ceiling[0]] });
+  const ok = d.validFor("flat");
+  assert.equal(ok.has("HALO_REVERSE"), false, "HALO_REVERSE sits inside a flat R0's sweep");
+  assert.ok(ok.has("FOH_WIDE") && ok.has("ORRERY_HERO"));
+  // an annulus may take any normal (a gimbal tilted about z as well as x)
+  const g = ringAnnulus([0, 14, -11], 10, 2, 0, [1, 0, 0]);
+  close(clearanceToRings([5, 23, -11], [g]), 5 - 0.15, 1e-9, "5 m off the band of a ring that faces house right");
+  // the guard reads the live rings the scene hands it
+  d.start("break", 0);
+  for (let k = 0; k < 24; k++) d.update(k / 24, { formation: "flat", poses: CATALOGUE.ceiling[0], rings: flatR0, dt: 1 / 60 });
+  close(d.clear.now, Math.min(clearanceToStrand(d.pose.pos, CATALOGUE.ceiling[0], ZS), clearanceToRings(d.pose.pos, flatR0)), 1e-9);
+  assert.ok(d.clear.now >= CLEARANCE_M, `${d.pose.shot} keeps the rule round the flat ring`);
+});
+
 test("held shots are never dealt; the data lists narrow a shot to its formations; C plays a shot in motion over its own bars", () => {
   const d = new Director(CAM.shots, CAM.sequences, { model: MODEL, safe: CAM.safe });
   assert.equal(d.deal("RING_THREAD", []), "FOH_WIDE");

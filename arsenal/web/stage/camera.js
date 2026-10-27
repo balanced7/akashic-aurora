@@ -357,10 +357,11 @@ export function clearanceToStrand(p, poses, zs) {
   return best;
 }
 // A ring as an annulus: centre, unit normal, inner and outer radius and half thickness. The slats span inner..outer; the
-// beam heads stand 0.45 m off the outer rim. tilt leans it back about x (rig.js elementMatrix: normal (0, sin t, cos t)).
-export function ringAnnulus(centre, outer, depth, tiltDeg) {
-  const t = tiltDeg * DEG;
-  return { centre: centre.slice(), normal: [0, Math.sin(t), Math.cos(t)], inner: outer - depth - 0.1, outer: outer + 0.45, half: 0.15 };
+// beam heads stand 0.45 m off the outer rim. tilt leans it back about x (rig.js elementMatrix: normal (0, sin t, cos t));
+// a gimbal tilted any other way passes its own normal. A ring spinning about its normal keeps its annulus.
+export function ringAnnulus(centre, outer, depth, tiltDeg, normal = null) {
+  const t = tiltDeg * DEG, n = normal || [0, Math.sin(t), Math.cos(t)], l = Math.hypot(n[0], n[1], n[2]) || 1;
+  return { centre: centre.slice(), normal: [n[0] / l, n[1] / l, n[2] / l], inner: outer - depth - 0.1, outer: outer + 0.45, half: 0.15 };
 }
 export function clearanceToRings(p, rings) {
   let best = Infinity;
@@ -419,6 +420,17 @@ export function shotClearance(shot, poseSets, zs, samples = 96) {
   }
   return best;
 }
+// The nearest a shot comes to a ring formation's rings (sets of annuli: the phases of a formation whose gimbals move).
+export function shotRingClearance(shot, ringSets, samples = 96) {
+  const s = shot._ease ? shot : prepareShot(shot);
+  const tmp = { pos: [0, 0, 0], look: [0, 0, 0], hfov: 50, roll: 0, ev: 0 };
+  let best = Infinity;
+  for (let k = 0; k <= samples; k++) {
+    shotPose(s, k / samples, 0, tmp);
+    for (const rings of ringSets) { const c = clearanceToRings(tmp.pos, rings); if (c < best) best = c; }
+  }
+  return best;
+}
 // The under-ride's height follower: a jerk-limited axis (6 m/s, 4 m/s^2: an FPV drone's climb, quick enough to duck under
 // a valley met at 8 m/s), so a rung entering the window eases the lens down instead of stepping it.
 export const UNDER_LIMITS = Object.freeze({ vmax: 6, amax: 4, jmax: 16, omega: 5 });
@@ -451,7 +463,8 @@ export function listAllows(shot, key, kin) {
 // strand's formation), posLand (the landing bar line while a formation lands), poses ([{y, roll}] live), rings (live
 // annuli, else the model's home rings), dt (seconds)}. opts: {model (cameraModel), formations (the set's), views
 // (cameras.formation_views), safe (a shot id), glides, posesOf ((key, def) -> rung pose sets or null: a formation the
-// kinetics module cannot compute, e.g. one a ring rig carries the strand in)}.
+// kinetics module cannot compute), ringsOf ((key, def) -> sets of ring annuli or null: a ring formation that moves the
+// rings off their home pose, so its shots are judged against the rings it makes)}.
 const SAFE_SHOTS = ["FOH_WIDE", "HALO_LOCK", "FOH_HOLD_ZOOM", "ROOF_ESTABLISH"];
 const DEFAULT_GLIDES = ["STRAND_ORBIT_FULL", "PROFILE_GRAPH", "TRIBUNE_HIGH_R", "SPIRAL_ASCENT"];
 const LINE_LIMITS = Object.freeze({ vmax: 3, amax: 2, jmax: 8, omega: 4 });   // the low-passed centre line
@@ -477,6 +490,7 @@ export class Director {
     this.model = opts.model || null;
     this.formations = opts.formations || {};
     this.posesOf = opts.posesOf || ((key, def) => formationPoseSets(def, this.model.z.length));
+    this.ringsOf = opts.ringsOf || (() => null);
     this.safe = [opts.safe, ...SAFE_SHOTS].filter((id, i, a) => id && this.shots[id] && !this.shots[id].held && a.indexOf(id) === i);
     this.glides = (opts.glides || DEFAULT_GLIDES).filter((id) => this.shots[id]);
     this.validity = new Map();   // formation key -> Set of the shots clear of the strand there (null: not knowable)
@@ -552,15 +566,19 @@ export class Director {
   }
 
   // ------------------------------------------------------------------------------ what may be dealt, and where --
-  // The shots clear of the strand in formation `key` (computed once per formation and cached); null = not knowable.
+  // The shots clear of the strand (and of a ring formation's rings) in formation `key`, computed once per formation and
+  // cached; null = not knowable.
   validFor(key, def = null) {
     if (!key || !this.model) return null;
     if (this.validity.has(key)) return this.validity.get(key);
-    const sets = this.posesOf(key, def || this.formations[key]);
+    const d = def || this.formations[key], sets = this.posesOf(key, d), rings = this.ringsOf(key, d);
     let ok = null;
-    if (sets) {
+    if (sets || rings) {
       ok = new Set();
-      for (const [id, s] of Object.entries(this.shots)) if (!s.held && shotClearance(s, sets, this.model.z) >= CLEARANCE_M) ok.add(id);
+      for (const [id, s] of Object.entries(this.shots)) {
+        if (s.held || (sets && shotClearance(s, sets, this.model.z) < CLEARANCE_M) || (rings && shotRingClearance(s, rings) < CLEARANCE_M)) continue;
+        ok.add(id);
+      }
     }
     this.validity.set(key, ok);
     return ok;

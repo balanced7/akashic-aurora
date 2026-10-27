@@ -108,7 +108,8 @@ function start({ rig, R, renderMod }) {
                                 { model: cameraModel(rig), formations: rig.formations, views: rig.cameras.formation_views, safe: rig.cameras.safe });
   director.start(Object.keys(rig.cameras.sequences)[0], 0);      // until the first section starts its own sequence
   // what the camera reads of the rig each frame: the formation key (a change with a landing gets the glide and the hero
-  // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too.
+  // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too,
+  // and rings (live annuli, camera.js ringAnnulus) while the rings are off their home pose, so the guard sees them.
   const camScene = { formation: "", def: null, posLand: null, poses: strand.poses, rings: null, dt: 0 };
   const show = new Show(rig, { demo: DEMO || !ENGINE_URL });
   const limiter = new FrameLimiter();
