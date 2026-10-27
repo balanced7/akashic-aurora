@@ -20,6 +20,16 @@ bun run --filter web dev              # http://localhost:3090
 enough for the marketing pages. Auth, billing, email and the dashboard need real values, and
 those also need Postgres at `DATABASE_URL`.
 
+## Forest Walks
+
+The long reads at `/walks` are MDX files in
+`../../packages/cms/src/collections/walk/content/<slug>/en.mdx`; the slug is the folder name. To
+add a walk, copy an existing folder and set its frontmatter (`title`, `description`, `walk` number,
+optional `edition`, `publishedAt`, `status: published`). A `## References` heading followed by a
+numbered list turns every `[N]` in the prose into a link to reference N. Every `##` heading goes
+in the walk's table of contents. Rebuild the content with `bun run --filter @akashic-labs/cms build`
+(the dev server does not watch it), then add the walk's path to `e2e/routes.ts`.
+
 ## Check and build
 
 ```bash
