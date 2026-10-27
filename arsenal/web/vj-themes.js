@@ -4,7 +4,10 @@
 // Daniel, 2026-10-24: "I want there to be a lot of variety and strong color themes". The build spec is slice S5 of
 // research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-2026-10-24.md (sections 2.1-2.3 and 4.1):
 // 21 themes in 8 families, built from the measured Q-dance palettes. Two colours per section, white is the peak, and a
-// saturated red is held (shown steadily on the scene), never strobed.
+// saturated red is held (shown steadily on the scene), never strobed. Looks wave 1 (2026-10-27, VJ V2 build spec section
+// F; research/reviewed/keylab-liberation-2026-10-22/vj-v2-research-2026-10-27/looks.research.md) adds 16 themes to the
+// same families under the same rules, among them Dreaming City, measured from Daniel's stills. Three of them take fader
+// detents; the fader is full at 25, so the rest are marked "fader": false and reached by their family tab.
 //
 // This module decides, without a browser:
 //   - whether a library is sound: every pad stand-in readable on the KeyLab pads, no saturated red that a laser, a
@@ -39,6 +42,11 @@ export const RED_RATIO = 0.8;
 export const CHOKE_LED = "#ff3c00";        // Choke's own #ff9a1f (hue 36) washes to white on the pads (spec 2.2)
 export const LASER_TIER_LEVEL = Object.freeze([1, 0.6, 0.8, 1]);   // pad 2's light by laser tier: none, 1, 2, 3 (spec 1.8)
 export const FADER_REST_MS = 150;          // a fader pick lands once the fader has rested this long on one detent
+// The theme fader is a 0..127 MIDI fader: each detent keeps at least five of its 128 positions, so it holds at most 25
+// detents (Custom included). A theme marked "fader": false is left off it and is reached by its family tab instead.
+export const FADER_POSITIONS = 128;
+export const FADER_MIN_POSITIONS = 5;
+export const FADER_MAX_DETENTS = Math.floor(FADER_POSITIONS / FADER_MIN_POSITIONS);
 export const HOLD_BARS = 8;                // an automatic theme holds at least one 8-bar phrase
 export const KEY_CONF = 0.6;               // chordsense's key takes over at this confidence...
 export const KEY_STABLE_BARS = 8;          // ...once no other key has arrived for this long
@@ -180,7 +188,7 @@ export function validateLibrary(raw) {
     bad("themes", "missing or empty");
     return { ok: false, errors, warnings };
   }
-  const ids = new Set(), families = new Set();
+  const ids = new Set(), families = new Set(), offFader = new Set();
   const isRole = (r) => ROLES.includes(r);
   const roleList = (at, name, v, len) => {
     if (!Array.isArray(v) || v.length === 0 || (len && v.length !== len) || !v.every(isRole)) {
@@ -249,6 +257,8 @@ export function validateLibrary(raw) {
     for (const k of ["split_only", "one_family", "crossfade_needs_dip"]) {
       if (typeof t[k] !== "boolean") bad(at, `${k} must be true or false`);
     }
+    if ("fader" in t && typeof t.fader !== "boolean") bad(at, "fader must be true or false");
+    else if (t.fader === false && typeof t.id === "string") offFader.add(t.id);
     if (!Array.isArray(t.sections) || !t.sections.every((s) => typeof s === "string")) bad(at, "sections must be a list of names");
     if (typeof t.hero !== "string") warnings.push(`${at}: no hero description`);
     if (!coloursOk) return;
@@ -270,12 +280,18 @@ export function validateLibrary(raw) {
       if (isSaturatedRed(roleHexOf(t, t.fx[k]))) bad(at, `fx.${k} ${roleHexOf(t, t.fx[k])} is saturated red`);
     }
   });
-  // the theme fader: every theme exactly once, plus Custom
+  // the theme fader: every theme exactly once (none for a theme marked off it), plus Custom, within the fader's detents
   if (!Array.isArray(raw.fader_order)) bad("fader_order", "missing");
   else {
     const seen = new Map();
     for (const id of raw.fader_order) seen.set(id, (seen.get(id) || 0) + 1);
-    for (const id of ids) if (seen.get(id) !== 1) bad("fader_order", `${id} appears ${seen.get(id) || 0} times (expected once)`);
+    for (const id of ids) {
+      const want = offFader.has(id) ? 0 : 1, n = seen.get(id) || 0;
+      if (n !== want) bad("fader_order", `${id} appears ${n} times (expected ${want ? "once" : "none: it is marked off the fader"})`);
+    }
+    if (raw.fader_order.length > FADER_MAX_DETENTS) {
+      bad("fader_order", `${raw.fader_order.length} detents leave a fader detent under ${FADER_MIN_POSITIONS} of its ${FADER_POSITIONS} positions (at most ${FADER_MAX_DETENTS})`);
+    }
     for (const id of seen.keys()) if (id !== "custom" && !ids.has(id)) bad("fader_order", `unknown theme ${id}`);
     if (seen.get("custom") !== 1) bad("fader_order", "Custom must appear exactly once");
     else if (raw.fader_order[raw.fader_order.length - 1] !== "custom") warnings.push("fader_order: Custom is not at the top");
@@ -344,8 +360,8 @@ export async function fetchLibrary(url = new URL("./vj-themes.json", import.meta
 }
 
 // ------------------------------------------------------------------------------------------ choosing a theme --
-// The theme fader: one detent per entry of fader_order (21 themes in colour-wheel order, Custom at the top), equal widths
-// so a 0..127 fader gives every detent at least five positions.
+// The theme fader: one detent per entry of fader_order (the themes on the fader in colour-wheel order, Custom at the top),
+// equal widths so a 0..127 fader gives every detent at least five positions.
 export function faderIndex(lib, x) {
   const n = lib.faderOrder.length;
   return Math.min(n - 1, Math.max(0, Math.floor(clamp01(Number.isFinite(x) ? x : 0) * n)));
