@@ -26,6 +26,11 @@
 // per eight bars, on the next ONE (through the FlashGate). ?ring=orrery (or spiral, vortex, crown, portal) starts in one.
 // The camera sees a landing formation (the glide, then the cut on the landing bar line to its hero view) and the live
 // rings (its guard); the phrase layer's presets re-aim on the live rings; the ring lasers ride ring 0.
+//
+// KICK v2 (2026-10-27, kick.js): two kick pads, pad 1 / key 1 KICK WHITE and pad 5 / key 5 KICK COLOUR (Shift: velocity
+// 1). Each press deals its own row of the set's deck; a held pad keeps its row lit (the kick is a gate) at a live level
+// that padLevel() moves while it is held. The page-level pad door for touch and velocity sources: the window events
+// "arsenal:pad" {pad, vel, on} and "arsenal:padlevel" {pad, vel}; window.__padDoor = 1 says the page listens.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
@@ -42,6 +47,7 @@ import { Show, speedFromFader } from "./show.js";
 import { FrameLimiter } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
+import { validateKick } from "./kick.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -92,6 +98,8 @@ async function boot() {
   if (phraseProblems.length) throw new Error(`the scene ${SET}'s phrases are not valid:\n${phraseProblems.join("\n")}`);
   const ringProblems = validateRingFormations(rig);
   if (ringProblems.length) throw new Error(`the scene ${SET}'s ring formations are not valid:\n${ringProblems.join("\n")}`);
+  const kickProblems = validateKick(rig);
+  if (kickProblems.length) throw new Error(`the scene ${SET}'s kick block is not valid:\n${kickProblems.join("\n")}`);
   // the house GLSL library and the renderer (three.js from the pinned CDN build, as the piano loads it)
   const lib = await loadLibrary(new URL("../glsl/index.json", import.meta.url).href);
   let renderMod;
@@ -202,11 +210,19 @@ function start({ rig, R, renderMod }) {
     const sec = (show0.sections || {})[state.section];
     if (sec && sec.camera && !manualShot) director.start(sec.camera, e.pos);
   }
+  // KICK v2: the kicks are gates (held until the pad lets go) and take a live level while held (padLevel)
+  const KICK_ACTIONS = new Set(["kick", "kick-white", "kick-colour"]);
   function pad(n, vel, on, tEval) {
     const action = padMap[String(n)];
     const pos = grid.posAt(tEval);
     if (!action) return;
-    if (action === "kick" && on) { programmer.pad("kick", vel, pos); kicks.push({ pressPos: pos, onset: Math.round(pos) }); }
+    if (KICK_ACTIONS.has(action)) {
+      if (on) {
+        const k = programmer.pad(action, vel, pos, { hold: true });
+        if (kicks.length >= 256) kicks.shift();
+        kicks.push({ pressPos: pos, onset: Math.round(pos), kind: k ? k.kind : action, row: k ? k.card.name : null, band: k ? k.band : null });
+      } else programmer.padRelease(action, pos);
+    }
     else if (action === "flyout" && on) programmer.pad("flyout", vel, pos);
     else if (action === "lasers") { if (on) lasers.hit(tEval, vel); else lasers.release(tEval); }
     else if (action === "drop" && on) { show.dropNow(grid, pos); const d = (show0.sections || {}).drop; if (d && d.phrase) prepare(d.phrase.name); }
@@ -215,6 +231,11 @@ function start({ rig, R, renderMod }) {
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
     else if (action === "morph" && on) rings.morph(grid, tEval);
     else if (action === "hero" && on) rings.hero(grid, tEval);
+  }
+  // a held pad's live level (0..1: the phone pad's finger height; later the KeyLab's aftertouch): the held kick's brightness
+  function padLevel(n, vel) {
+    const action = padMap[String(n)];
+    if (KICK_ACTIONS.has(action) && Number.isFinite(vel)) programmer.padLevel(action, Math.max(0, Math.min(1, vel)));
   }
   function handle(obj, nowMs) {
     const ev = parseEvent(obj);
@@ -329,7 +350,8 @@ function start({ rig, R, renderMod }) {
     $("hud-beatdot").classList.toggle("on", grid.phaseAt(tEval) < 0.2);
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
-    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})`;
+    const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind === "kick-colour" ? "colour" : "white"} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
+    $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
     const ph = $("hud-phrase");
     if (ph) {
       const st = runner ? runner.status() : null;
@@ -364,7 +386,7 @@ function start({ rig, R, renderMod }) {
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
   // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,
   // F fullscreen, Esc back to the director
-  const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
+  const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
   const held = new Set();
   window.addEventListener("keydown", (e) => {
     if (e.repeat) return;
@@ -384,6 +406,22 @@ function start({ rig, R, renderMod }) {
     const n = KEYPAD[e.code];
     if (n && held.has(e.code)) { held.delete(e.code); pad(n, 0, false, performance.now() + grid.presentLagMs); }
   });
+  // the page-level pad door, for touch and velocity sources (the phone's tall pads: a key carries no velocity):
+  //   window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad, vel, on } }))       a press (on) or a let-go
+  //   window.dispatchEvent(new CustomEvent("arsenal:padlevel", { detail: { pad, vel } }))      a held pad's live level
+  // window.__padDoor = 1 once both listen, so a client can tell the page has them. Keys and MIDI are unchanged.
+  const padNo = (d) => { const n = Number(d && d.pad); return Number.isInteger(n) && n >= 1 && n <= 16 ? n : null; };
+  const vel01 = (v, dflt) => { const x = Number(v); return Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : dflt; };
+  window.addEventListener("arsenal:pad", (e) => {
+    const d = e.detail || {}, n = padNo(d);
+    if (n === null) return;
+    pad(n, vel01(d.vel, 0.8), d.on !== false, performance.now() + grid.presentLagMs);
+  });
+  window.addEventListener("arsenal:padlevel", (e) => {
+    const d = e.detail || {}, n = padNo(d), v = vel01(d.vel, null);
+    if (n !== null && v !== null) padLevel(n, v);
+  });
+  window.__padDoor = 1;
   function canvasCss() { const r = canvas.getBoundingClientRect(); return { w: Math.max(1, r.width), h: Math.max(1, r.height) }; }
   const canvas = $("gl");
   canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); banner("The WebGL context was lost (the GPU reset). Reload the page."); });
@@ -399,6 +437,7 @@ function start({ rig, R, renderMod }) {
                     quality: R.qualityName, renderer: { three: renderMod.QUALITY ? "r186" : "", w: R.w, h: R.h },
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
                     flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) },
+                    kick: programmer.kick.status(),
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
                              poses: rings.rr.poses.map((p) => ({ ...p })), lands: rings.rr.lands.slice(-8), clamped: rings.rr.clamped.slice(-8),
                              hero: { fired: rings.heroState.fired.slice(-8), refused: rings.heroState.refused.slice(-8), armed: rings.heroState.at } } }),
@@ -418,6 +457,7 @@ function start({ rig, R, renderMod }) {
     clearShot: () => { manualShot = null; director.manual = null; },
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
     release: (n) => pad(n, 0, false, performance.now() + grid.presentLagMs),
+    level: (n, v) => padLevel(n, v),
     fader: (id, v) => { faders[id] = v; applyFaders(performance.now() + grid.presentLagMs); syncFaderUI(); },
     inject: (obj) => handle(obj, performance.now()),
     features: (f) => Object.assign(R.features, f),

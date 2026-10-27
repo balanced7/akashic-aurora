@@ -355,6 +355,7 @@ export function expandScene(scene) {
   rig.ringFormations = scene.ring_formations || {};
   rig.strandShapes = scene.strand_shapes || {};
   rig.ringRig = scene.ring_rig || null;
+  rig.kick = scene.kick || null;            // KICK v2's block (kick.js; none: the v0 strand lift)
   rig.counts = countRig(rig);
   return rig;
 }

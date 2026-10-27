@@ -93,6 +93,26 @@ test("KICK lands on the beat: a press up to half a beat early waits for the line
   assert.equal(p.stats.kicks.length, 64);
 });
 
+test("KICK pressed late: a press up to half a beat after its line lifts at once, at full, and still counts for that beat", () => {
+  const g = locked();
+  const p = new Programmer(RIG, { theme: THEME });
+  p.setLook("break", 0);
+  const cubeCell = RIG.cells.kind.indexOf(2);
+  for (const late of [0.1, 0.25, 0.45]) {
+    const at = 20 + late;
+    let pressF = -1, best = 0;
+    for (let f = 0; f < FPS * 12; f++) {
+      const t = f * (1000 / FPS), pos = g.posAt(t);
+      if (pressF < 0 && pos >= at) { p.pad("kick", 1, pos); pressF = f; }
+      p.tick(g, t, DT);
+      if (pressF >= 0 && f <= pressF + 2) best = Math.max(best, p.pixels[cubeCell * 4 + 3]);
+      if (pressF >= 0 && f > pressF + 2) break;
+    }
+    assert.ok(best > 0.99, `a press ${late} beat late lifted to ${best} within two frames`);
+    assert.equal(p.stats.kicks[p.stats.kicks.length - 1], 20, `a press ${late} beat late counts for beat 20`);
+  }
+});
+
 test("the show: sections change on bar lines in the demo plan, and DROP NOW drops on the next downbeat", () => {
   const demo = new DemoBeats({ bpm: 150, startMs: 0 });
   const g = new BeatGrid({ bpm: 150, t0: 0 });

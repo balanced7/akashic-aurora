@@ -34,7 +34,9 @@ Open it from the Arsenal server:
 
 | Control | What it does |
 |---|---|
-| Pad 1 / key `1` | KICK: the strand's cubes and heads lift on the beat. An early press waits for the line. |
+| Pad 1 / key `1` | KICK WHITE (v2, `kick.js`): the next row of the set's kick deck (the truss, the lip, a third of the halo, a ring's slats, the towers, the delay towers, the strand...) comes on in the theme's white, chosen so the hit always shows in the look that is running (a row with no headroom for it is passed over). Held, the row stays lit; let go, it fades over a third of a beat; a tap is a quick hit. An early press waits for its beat line, a late one lights at once. Velocity picks the animation: under 0.45 a peak, from 0.45 a sweep (heads tilt through a V2 motion, LED rows chase it), from 0.85 the sweep with twice the throw (within the tilt motor). |
+| Pad 5 / key `5` | KICK COLOUR: the same, in the theme's colour (a lit LED keeps its own look colour when that is already a colour). Held together with KICK WHITE, the two light two different rows. Moving heads never have their colour wheel turned by a kick: the white kick takes a head row only while it shows white, the colour kick only while it shows a colour. |
+| Kick level | While a kick is held its brightness follows its live level: the press's velocity, then the page-level pad door's `arsenal:padlevel` events (the phone's tall pads: the finger's height), slewed so it never zippers. At a level of 0.95 or more the row strobes, on one bar-locked strobe clock shared by every kick, at 1.9 flashes a second at most (2 beats a flash at 150 BPM): under the flash gate by itself; the final limiter stays the backstop. Shift with a key presses at velocity 1. |
 | Pad 2 / key `2` | LASERS: a hit. The tier depends on how soon it follows the last one. Holding it gates the lasers on quarter notes. |
 | Pad 3 / key `3` | PHRASE GO: Daniel's phrase starts on the next bar line (a press just after a line lands on it). Pressed while it runs, the next repeat (a new variant) starts on the next bar line. |
 | Pad 4 / key `4` | PHRASE NEXT: the current step ends on the next bar line; the rest follow from there (the camera plan moves with them). |
@@ -116,13 +118,14 @@ models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is st
 
 | File | Holds |
 |---|---|
-| `sets/source-v1.json` | The v1 rig and show as data (`arsenal.arena/v1`): v0's types, objects, groups, effects, looks, lasers, atmosphere, themes and cameras, plus the halo, the verticals, laser groups, presets, the ring-effect library and the phrases. |
+| `sets/source-v1.json` | The v1 rig and show as data (`arsenal.arena/v1`): v0's types, objects, groups, effects, looks, lasers, atmosphere, themes and cameras, plus the halo, the verticals, laser groups, presets, the ring-effect library, the phrases and (KICK v2) the kick block: the deck of rows, the velocity bands, the level, the strobe. |
 | `sets/source-v0.json` | The v0 rig, unchanged. |
 | `rig.js` | Validates the scene and expands it deterministically. Polar repeats by ring parameter, clock angles and levels, `where`/`union` groups, ring-mounted projectors, `aimAt` (world-locked aiming). Also the MVR bridge and the head geometry. |
 | `phrases.js` | The cue sequencer: phrases as data, variants and per-repeat values, the camera plan, the runner (Go, Next, Stop, loop), and the glue that plays its events. |
 | `grid.js` | The one beat position for everything, plus the demo clock. |
 | `effects.js` | Spreads (MA, ChamSys and Hog in one object), waveforms, beat-locked phase accumulators, the unison floor rule; v1: block "ties", cue-anchored phase, one-shots, clean starts, sparkle. |
 | `programmer.js` | Looks, effects, pads (HTP), masters, theme colours, the colour wheel, motor physics; v1: the phrase layer (LTP over the look) and the FlashGate. |
+| `kick.js` | KICK v2: the set's kick deck (a seeded shuffle-bag that only deals a row the hit will show on), the two buttons, hold = gate, the live level, velocity's animation (peak, or a V2 motion as a sweep or a chase, sized to the tilt motor), the one bar-locked strobe clock under the flash gate. Without a `kick` block (source-v0) it is v0's strand lift exactly. |
 | `kinetics.js` | The hoists (jerk-limited), the formations, and time-priority landing on bar lines; v2: the S-curve with cruise, the strand shapes (arch, valley, ramp, stairs), and the RingRig (lift and tilt on the rim hoists, lift before tilt, the dream rotators). |
 | `formations.js` | v2: the ring formations (home, orrery, spiral, vortex, crown, portal): MORPH, HERO, the reveal, the light layer, the scenery (core, bands, planets, motes), the energy column, the camera's annuli, and the safety check of every beam's end. |
 | `lasers.js`, `lasers3d.js` | A minimal laser brain on the Lasers v2 contract (v1: laser group lines with shapes and gates, heads past the 21, an aim side channel), mapped onto 33 projectors in 3D with physical power sharing. |

@@ -1210,10 +1210,46 @@
         {"section": "intro", "every_bars": 4, "offset_bars": 3, "beat": 1, "pad": 2, "vel": 0.6}
       ]
     },
-    "pads": {"1": "kick", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop", "8": "morph", "9": "hero"},
+    "pads": {"1": "kick-white", "5": "kick-colour", "2": "lasers", "6": "flyout", "10": "drop", "3": "phrase-go", "4": "phrase-next", "7": "phrase-stop", "8": "morph", "9": "hero"},
     "faders": {"cc105": "strand", "cc108": "lasers", "cc109": "haze", "cc110": "speed", "cc113": "grand"},
     "fader_defaults": {"strand": 1, "lasers": 1, "haze": 0.55, "speed": 0.5, "grand": 1},
     "flyout_groups": ["truss.heads", "lip.heads"]
+  },
+  "kick": {
+    "about": "KICK v2 (2026-10-27, kick.js). Two buttons: pad 1 kick-white (the row in the theme's white) and pad 5 kick-colour (the row in the theme's colour). Each press deals the next row of this deck that will show the hit now (a seeded shuffle-bag: every row once a round, never a row a live kick is showing, the next zone of the stage when it can); held, it stays lit at the live level (the pad's velocity, then padLevel); velocity picks the animation by these bands; the strobe runs only while the live level is at or above strobe.from_level, at or under 1.9 flashes a second (the code's cap). The rows share no fixture, so two kicks never light one twice.",
+    "seed": 1027,
+    "deck": [
+      {"row": "truss.heads", "zone": "truss", "pan": 90},
+      {"row": "rings.r0.slats", "zone": "rings", "order": "clock"},
+      {"row": "lip.heads", "zone": "lip", "pan": 90},
+      {"row": "halo.top", "zone": "halo", "order": "clock"},
+      {"row": "delay.30", "zone": "crowd", "pan": 90},
+      {"row": "strand.cubes", "zone": "strand", "order": "element"},
+      {"row": "rings.r2.slats", "zone": "rings", "order": "clock"},
+      {"row": "vert.towers", "zone": "towers", "pan": 90},
+      {"row": "halo.bot", "zone": "halo", "order": "clock"},
+      {"row": "vert.strips", "zone": "towers", "order": "y"},
+      {"row": "rings.r1.slats", "zone": "rings", "order": "clock"},
+      {"row": "delay.55", "zone": "crowd", "pan": 90},
+      {"row": "strand.heads", "zone": "strand", "order": "element"},
+      {"row": "halo.mid", "zone": "halo", "order": "clock"},
+      {"row": "rings.r3.slats", "zone": "rings", "order": "clock"},
+      {"row": "strand.bars", "zone": "strand", "order": "element"},
+      {"row": "rings.rims", "zone": "rings", "order": "clock"}
+    ],
+    "bands": [
+      {"name": "peak", "from": 0},
+      {"name": "sweep", "from": 0.45, "sweep": {"class": "M1", "deg": 25}},
+      {"name": "drive", "from": 0.85, "sweep": {"class": "M1", "deg": 50}}
+    ],
+    "level": {"from_velocity": [0, 1], "slew_s": 0.06},
+    "release_beats": 0.3,
+    "tap_hold_beats": 0.125,
+    "max_hold_beats": 64,
+    "chase": {"floor": 0.6, "lag": 0.6},
+    "strobe": {"from_level": 0.95, "max_hz": 1.9, "beats": [0.5, 1, 2, 4], "on": 0.35, "floor": 0},
+    "white": {"role": "W"},
+    "colour": {"cells": ["A", "B", "bumpA"], "keep_lit_colour": true}
   },
   "laser_groups": {
     "lasers.A": {"banks": ["A"]},

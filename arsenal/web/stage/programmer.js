@@ -29,9 +29,16 @@
 // while a ring is off its home pose the phrase layer's position presets are re-aimed on the live rig (setLiveElements).
 // Both go through the same physics: a re-aimed head still turns no faster than its motor.
 
+//
+// KICK v2 (2026-10-27): the kicks are their own module (kick.js) and this file's step 3 runs them: two buttons
+// (kick-white, kick-colour), each dealing a row of the set's deck that will show the hit now, lit at a live level while
+// held, with velocity's animation (a peak, or a sweep from the V2 motion library) and a strobe in the level's top band.
+// Without a kick block in the set it is v0's strand lift, number for number.
+
 import { EffectInstance, hashSeed } from "./effects.js";
 import { hexToLinear, isSaturatedRed } from "./lasers.js";
 import { aimPreset } from "./phrases.js";
+import { Kicks } from "./kick.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
@@ -155,6 +162,9 @@ export class Programmer {
     this.ovSetC = new Uint8Array(nC * 4); this.ovBaseC = new Float64Array(nC * 4); this.ovFromC = new Float64Array(nC * 4);
     this.ovTC = new Float64Array(nC * 4); this.ovOnC = new Uint8Array(nC); this.ovFadeC = new Float64Array(nC); this.ovP0C = new Float64Array(nC);
     this.flashGate = new FlashGate();
+    // KICK v2 (kick.js): reads the beat's length and the bar line the last tick saw
+    this.perMs = 400; this.barAnchor = 0;
+    this.kick = new Kicks(this);
   }
   // ---------------------------------------------------------------------------------------------- phrase layer --
   // lines: compiled phrase lines (phrases.js compileRepeat): {g, kind, values, positions, effects [{id, def}], fade,
@@ -417,34 +427,38 @@ export class Programmer {
     for (const [id, inst] of this.effects) if (!wanted.has(id)) inst.stop();
     this.fade = { p0: pos, len: fade ?? look.fade ?? 2 };
   }
-  // A pad playback at beat position pos. kick: onset on the nearest beat (a press within half a beat of a line lands on
-  // it). flyout: onset now.
-  pad(kind, vel, pos) {
-    if (kind === "kick") {
-      const onset = Math.round(pos);
-      this.pads.push({ kind, onset, vel });
-      this.stats.kicks.push(onset);
+  // A pad playback at beat position pos. kick (kick-white, kick-colour; "kick" is the white one): onset on the nearest
+  // beat (a press within half a beat of a line lands on it); its light starts at the later of its beat and the press: an
+  // early press waits for its line, a late one (Daniel 2026-10-27, on the phone bar: "sometimes had an impact at other
+  // times nothing changed") still belongs to the beat it fell after (onset, the stats, the receipts) but lights now --
+  // before, it began its decay on the beat already gone and showed nothing once it was a sixth of a beat late.
+  // {hold: true}: the kick stays lit until padRelease (the page's pads are gates); without it, a tap. Returns the kick's
+  // record (kick.js). flyout: onset now.
+  pad(kind, vel, pos, { hold = false } = {}) {
+    const kk = this.kick.kindOf(kind);
+    if (kk) {
+      const rec = this.kick.press(kk, vel, pos, { hold });
+      this.stats.kicks.push(Math.round(pos));
       if (this.stats.kicks.length > 256) this.stats.kicks.shift();
-    } else if (kind === "flyout") {
+      return rec;
+    }
+    if (kind === "flyout") {
       this.pads.push({ kind, onset: pos, vel });
       this.stats.flyouts++;
     }
     while (this.pads.length > 16) this.pads.shift();
+    return null;
   }
-  kickLevel(pos) {
-    let lv = 0;
-    for (const p of this.pads) {
-      if (p.kind !== "kick") continue;
-      const age = pos - p.onset;
-      if (age < -1e-6 || age > 2) continue;                      // within float error of its line it is on it
-      lv = Math.max(lv, (0.6 + 0.4 * p.vel) * Math.exp(-Math.max(0, age) / 0.3));
-    }
-    return lv;
-  }
+  // a held pad let go (the kicks fade from here); the live level of a held kick (0..1: the finger's height on the pad)
+  padRelease(kind, pos) { if (this.kick.kindOf(kind)) this.kick.release(kind, pos); }
+  padLevel(kind, level) { if (this.kick.kindOf(kind)) this.kick.setLevel(kind, level); }
+  // the brightest kick now (v0's name for it)
+  kickLevel(pos) { return this.kick.levelNow(pos); }
   tick(grid, tEval, dt) {
     const pos = grid.posAt(tEval);
     const ver = grid.ver;
     const nH = this.nH, nC = this.nC;
+    this.perMs = grid.period || this.perMs; this.barAnchor = grid.barAnchor ?? 0;
     // 1. the look's base, crossfading dimmers from the previous look
     const f = this.fade.len > 0 ? Math.min(1, Math.max(0, (pos - this.fade.p0) / this.fade.len)) : 1;
     for (let i = 0; i < nH * 7; i++) {
@@ -477,12 +491,9 @@ export class Programmer {
     // 2b. the phrase layer (v1), over the look; 2c. the ring formations' light (v2), over both
     if (this.ov.active) this._overlay(pos, ver);
     if (this.layer) this.layer.apply(this.tH, this.tC, pos);
-    // 3. playbacks: KICK (HTP lift on the strand) and FLY-OUT (outward tilt and a pop on the beams)
-    const kick = this.kickLevel(pos);
-    if (kick > 0) {
-      for (let i = 0; i < nH; i++) if (this.strandHead[i]) this.tH[i * 7 + 2] = Math.max(this.tH[i * 7 + 2], kick);
-      for (let c = 0; c < nC; c++) if (this.strandCell[c] && this.rig.cells.kind[c] === 2) this.tC[c * 4] = Math.max(this.tC[c * 4], kick);
-    }
+    // 3. playbacks: KICK v2 (kick.js: the dealt rows, HTP on the level, the button's colour, the sweep, the strobe) and
+    // FLY-OUT (outward tilt and a pop on the beams)
+    this.kick.apply(pos, tEval / 1000, dt);
     for (const p of this.pads) {
       if (p.kind !== "flyout") continue;
       for (let i = 0; i < nH; i++) {
