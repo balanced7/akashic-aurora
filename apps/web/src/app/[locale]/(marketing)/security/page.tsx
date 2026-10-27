@@ -127,6 +127,7 @@ export default function SecurityPage() {
   return (
     <>
       <PageHero
+        backdrop="lattice"
         eyebrow="Security"
         title={
           <>
@@ -198,7 +199,7 @@ export default function SecurityPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
           <div className="flex flex-col gap-6">
             <SectionIntro

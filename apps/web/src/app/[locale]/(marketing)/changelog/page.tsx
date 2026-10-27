@@ -65,6 +65,7 @@ export default async function ChangelogPage(props: {
   return (
     <>
       <PageHero
+        backdrop="network"
         eyebrow="Changelog"
         title={
           <>

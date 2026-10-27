@@ -32,7 +32,7 @@ const steps = [
 ];
 
 export const GetStarted = () => (
-  <Section id="get-started">
+  <Section id="get-started" backdrop="caustics">
     <Container>
       <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
         <div className="flex min-w-0 flex-col gap-8">

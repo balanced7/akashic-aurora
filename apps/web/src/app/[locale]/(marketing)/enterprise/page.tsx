@@ -98,6 +98,7 @@ export default function EnterprisePage() {
   return (
     <>
       <PageHero
+        backdrop="lattice"
         eyebrow="For teams"
         title={
           <>
@@ -155,7 +156,7 @@ export default function EnterprisePage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container>
           <SectionIntro
             eyebrow="Controls"

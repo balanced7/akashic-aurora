@@ -3,17 +3,28 @@ import Link from "next/link";
 
 import { cn } from "@akashic-labs/ui";
 
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
+
 import type { ComponentProps, ReactNode } from "react";
+import type { ShaderPresetName } from "~/modules/marketing/ui/shader/presets";
 
 export const Container = ({ className, ...props }: ComponentProps<"div">) => (
   <div {...props} className={cn("mk-container", className)} />
 );
 
-export const Section = ({ className, ...props }: ComponentProps<"section">) => (
+export const Section = ({
+  className,
+  backdrop,
+  children,
+  ...props
+}: ComponentProps<"section"> & { backdrop?: ShaderPresetName }) => (
   <section
     {...props}
-    className={cn("relative py-16 sm:py-20 lg:py-24", className)}
-  />
+    className={cn("relative isolate py-16 sm:py-20 lg:py-24", className)}
+  >
+    {backdrop && <ShaderBackground preset={backdrop} />}
+    {children}
+  </section>
 );
 
 const isExternal = (href: string) =>

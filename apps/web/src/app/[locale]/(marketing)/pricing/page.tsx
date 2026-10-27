@@ -67,6 +67,7 @@ export default function PricingPage() {
   return (
     <>
       <PageHero
+        backdrop="caustics"
         eyebrow="Pricing"
         title={
           <>
@@ -212,7 +213,7 @@ export default function PricingPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
           <SectionIntro eyebrow="FAQ" title="Money questions" />
           <FaqList items={faq} />

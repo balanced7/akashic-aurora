@@ -100,6 +100,7 @@ export default function EvidencePage() {
   return (
     <>
       <PageHero
+        backdrop="lattice"
         eyebrow="Evidence"
         title={
           <>
@@ -197,7 +198,7 @@ export default function EvidencePage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
           <SectionIntro
             eyebrow="A real review"
@@ -221,7 +222,7 @@ export default function EvidencePage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="network">
         <Container>
           <SectionIntro
             eyebrow="Small results"

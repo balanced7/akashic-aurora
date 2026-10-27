@@ -71,6 +71,7 @@ export default async function IntegrationPage(props: {
   return (
     <>
       <PageHero
+        backdrop="network"
         crumbs={[
           { label: "Integrations", href: routes.integrations },
           {
@@ -178,7 +179,7 @@ export default async function IntegrationPage(props: {
       </Section>
 
       {integration.translationKey && (
-        <Section id="translations">
+        <Section backdrop="nebula" id="translations">
           <Container>
             <SectionIntro
               eyebrow={`${integration.name} terms`}

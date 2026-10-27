@@ -110,7 +110,7 @@ export default async function UseCasePage(props: {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <SectionIntro
             eyebrow="An example run"
@@ -175,7 +175,7 @@ export default async function UseCasePage(props: {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="caustics">
         <Container className="flex flex-col gap-10">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {useCase.docs.map((doc) => (

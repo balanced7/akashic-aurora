@@ -33,7 +33,7 @@ const gravity = [
 
 /** The fleet as residents with callsigns, plus the house law: gravity, not walls. */
 export const FleetSection = () => (
-  <Section>
+  <Section backdrop="network">
     <Container>
       <SectionIntro
         eyebrow="The residents"

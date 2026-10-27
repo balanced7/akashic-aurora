@@ -217,7 +217,7 @@ export default function ComparePage() {
         </Container>
       </Section>
 
-      <Section id="rules-files">
+      <Section backdrop="nebula" id="rules-files">
         <Container>
           <SectionIntro
             eyebrow="Aurora vs rules files"
@@ -296,7 +296,7 @@ export default function ComparePage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="caustics">
         <Container>
           <SectionIntro
             eyebrow="The trade"

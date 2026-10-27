@@ -53,6 +53,7 @@ export default function AboutPage() {
   return (
     <>
       <PageHero
+        backdrop="curtains"
         eyebrow="About"
         title={
           <>
@@ -135,7 +136,7 @@ export default function AboutPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container>
           <SectionIntro
             eyebrow="The story so far"
@@ -163,7 +164,7 @@ export default function AboutPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="network">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <SectionIntro
             eyebrow="How we work"

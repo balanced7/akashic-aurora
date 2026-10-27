@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
 
 /** Framer "full platform" bento: hairline grid, each cell a small live-looking product shot. */
 export const PillarBento = () => (
-  <Section>
+  <Section backdrop="nebula">
     <Container>
       <SectionIntro
         eyebrow="The platform"

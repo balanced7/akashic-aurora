@@ -27,6 +27,7 @@ export default function GlossaryPage() {
   return (
     <>
       <PageHero
+        backdrop="nebula"
         eyebrow="Glossary"
         title={
           <>

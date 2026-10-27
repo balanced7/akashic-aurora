@@ -15,7 +15,7 @@ import { Reveal } from "~/modules/marketing/ui/reveal";
 
 /** The trust ladder from security/acl.json and core/trust/capabilities.py. */
 export const TrustLadder = () => (
-  <Section>
+  <Section backdrop="lattice">
     <Container>
       <SectionIntro
         eyebrow="Trust"

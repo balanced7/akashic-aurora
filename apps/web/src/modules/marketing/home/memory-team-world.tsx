@@ -54,7 +54,7 @@ const beats = [
 
 /** The three beats from the vision: memory, then a team, then a world. */
 export const MemoryTeamWorld = () => (
-  <Section>
+  <Section backdrop="nebula">
     <Container>
       <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-end">
         <SectionIntro

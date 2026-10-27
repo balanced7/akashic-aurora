@@ -43,6 +43,7 @@ export default async function DocsPage(props: {
   return (
     <>
       <PageHero
+        backdrop="nebula"
         eyebrow="Docs"
         title={
           <>

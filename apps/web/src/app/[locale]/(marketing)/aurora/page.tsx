@@ -94,7 +94,7 @@ export default function AuroraPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="lattice">
         <Container>
           <SectionIntro
             eyebrow="Seven layers and a contract"
@@ -125,7 +125,7 @@ export default function AuroraPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="network">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
           <SectionIntro
             eyebrow="Architecture"

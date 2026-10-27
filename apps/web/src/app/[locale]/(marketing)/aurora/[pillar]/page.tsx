@@ -99,7 +99,7 @@ export default async function PillarPage(props: {
         </div>
       </PageHero>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container>
           <SectionIntro
             eyebrow="Concepts"

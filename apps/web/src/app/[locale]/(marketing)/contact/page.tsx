@@ -42,6 +42,7 @@ const reasons = [
 const ContactPage = () => (
   <>
     <PageHero
+      backdrop="curtains"
       eyebrow="Contact"
       title={
         <>

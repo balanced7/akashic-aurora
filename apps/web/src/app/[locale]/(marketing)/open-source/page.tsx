@@ -68,6 +68,7 @@ export default async function OpenSourcePage() {
   return (
     <>
       <PageHero
+        backdrop="network"
         eyebrow="Open source"
         title={
           <>
@@ -148,7 +149,7 @@ export default async function OpenSourcePage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="caustics">
         <Container className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
           <div className="flex flex-col gap-8">
             <SectionIntro

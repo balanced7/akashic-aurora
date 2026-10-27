@@ -40,6 +40,7 @@ export default async function IntegrationsPage(props: {
   return (
     <>
       <PageHero
+        backdrop="network"
         eyebrow="Integrations"
         title={
           <>
@@ -96,7 +97,7 @@ export default async function IntegrationsPage(props: {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container>
           <SectionIntro
             eyebrow="Harnesses"
@@ -135,7 +136,7 @@ export default async function IntegrationsPage(props: {
         </Container>
       </Section>
 
-      <Section id="translations">
+      <Section backdrop="caustics" id="translations">
         <Container>
           <SectionIntro
             eyebrow="Speak their language"

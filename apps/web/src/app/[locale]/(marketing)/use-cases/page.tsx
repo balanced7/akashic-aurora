@@ -92,7 +92,7 @@ export default function UseCasesPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="network">
         <Container>
           <SectionIntro
             eyebrow="Where it pays off"
@@ -130,7 +130,7 @@ export default function UseCasesPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="caustics">
         <Container>
           <SectionIntro
             eyebrow="Is it for you?"

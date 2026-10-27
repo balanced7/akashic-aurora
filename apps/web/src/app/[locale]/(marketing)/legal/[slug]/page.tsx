@@ -9,6 +9,7 @@ import {
 import { getMetadata } from "~/lib/metadata";
 import { ArticleBody } from "~/modules/marketing/ui/article-body";
 import { Container, Eyebrow } from "~/modules/marketing/ui/primitives";
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
 
 interface PageParams {
   params: Promise<{ slug: string; locale: string }>;
@@ -24,7 +25,13 @@ export default async function LegalPage({ params }: PageParams) {
   if (!item) notFound();
 
   return (
-    <article className="pt-32 pb-24 sm:pt-40">
+    <article className="relative isolate pt-32 pb-24 sm:pt-40">
+      <ShaderBackground
+        preset="nebula"
+        intensity={0.7}
+        fade="bottom"
+        className="h-[480px]"
+      />
       <Container className="max-w-3xl">
         <header className="flex flex-col gap-4 border-b border-white/[0.07] pb-10">
           <Eyebrow>Legal</Eyebrow>

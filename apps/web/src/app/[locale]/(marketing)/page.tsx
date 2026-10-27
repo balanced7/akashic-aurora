@@ -41,7 +41,7 @@ const HomePage = () => {
       <MemoryTeamWorld />
       <Constellation />
 
-      <Section>
+      <Section backdrop="network">
         <Container>
           <SectionIntro
             eyebrow="Watch the loop close"
@@ -54,7 +54,7 @@ const HomePage = () => {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="caustics">
         <Container className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14">
           <div className="flex flex-col gap-6">
             <SectionIntro
@@ -103,7 +103,7 @@ const HomePage = () => {
       <GetStarted />
       <PrinciplesMarquee />
 
-      <Section>
+      <Section backdrop="nebula">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
           <div className="flex flex-col gap-5">
             <Eyebrow>FAQ</Eyebrow>

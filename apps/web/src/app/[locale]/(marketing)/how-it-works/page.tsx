@@ -82,6 +82,7 @@ export default function HowItWorksPage() {
   return (
     <>
       <PageHero
+        backdrop="network"
         eyebrow="How it works"
         title={
           <>
@@ -116,7 +117,7 @@ export default function HowItWorksPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container>
           <SectionIntro
             eyebrow="Inside recall at action"
@@ -159,7 +160,7 @@ export default function HowItWorksPage() {
 
       <RecallScoreboard />
 
-      <Section>
+      <Section backdrop="caustics">
         <Container className="grid gap-10 lg:grid-cols-2 lg:items-start">
           <div className="flex flex-col gap-6">
             <SectionIntro
@@ -238,7 +239,7 @@ export default function HowItWorksPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="lattice">
         <Container className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
           <SectionIntro
             eyebrow="Under the loop"

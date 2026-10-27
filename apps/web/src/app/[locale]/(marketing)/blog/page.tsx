@@ -44,6 +44,7 @@ export default async function BlogPage({
   return (
     <>
       <PageHero
+        backdrop="nebula"
         eyebrow="Blog"
         title={
           <>

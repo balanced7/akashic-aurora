@@ -19,6 +19,7 @@ import { CtaBand } from "~/modules/marketing/ui/cta-band";
 import { HudLabel } from "~/modules/marketing/ui/hud";
 import { Container } from "~/modules/marketing/ui/primitives";
 import { ReadingProgress } from "~/modules/marketing/ui/reading-progress";
+import { ShaderBackground } from "~/modules/marketing/ui/shader-background";
 
 dayjs.extend(duration);
 
@@ -46,7 +47,8 @@ export default async function BlogPostPage({
   return (
     <>
       <ReadingProgress />
-      <article className="pt-32 pb-16 sm:pt-40">
+      <article className="relative isolate pt-32 pb-16 sm:pt-40">
+        <ShaderBackground preset="nebula" fade="bottom" className="h-[560px]" />
         <Container className="max-w-3xl">
           <nav
             aria-label="Breadcrumb"

@@ -42,6 +42,7 @@ export default function PrinciplesPage() {
   return (
     <>
       <PageHero
+        backdrop="lattice"
         eyebrow="Principles"
         title={
           <>
@@ -76,7 +77,7 @@ export default function PrinciplesPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="nebula">
         <Container>
           <SectionIntro
             eyebrow="Laws"
@@ -109,7 +110,7 @@ export default function PrinciplesPage() {
         </Container>
       </Section>
 
-      <Section>
+      <Section backdrop="network">
         <Container>
           <SectionIntro
             eyebrow="Decision records"
