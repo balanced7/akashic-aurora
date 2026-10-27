@@ -61,6 +61,7 @@ test("the spec's validated v2 library is in the file word for word: its 21 theme
   assert.deepEqual(ours.fader_order.filter((id) => !added.has(id)), spec.fader_order, "the spec's walk, with detents inserted");
   ours.themes = spec.themes;
   ours.fader_order = spec.fader_order;
+  delete ours.special_modes;                    // wave 1's own key (tested below)
   assert.deepEqual(ours, spec, "every other key as the spec wrote it");
 });
 
@@ -106,6 +107,59 @@ test("wave 1: each new theme names its source, three take fader detents, the res
     }
     assert.ok(seen.includes(id), `${id}: the ${fam} tab walks ${seen.join(", ")}`);
   }
+});
+
+test("the special modes break the two-colour rule only under their rarity: Spectral Fan once a set, Shimmer once in 64 bars", () => {
+  const sm = lib.specialModes;
+  assert.deepEqual(Object.keys(sm), ["spectral-fan", "shimmer"]);
+  for (const id of Object.keys(sm)) {
+    assert.ok(!lib.byId.has(id) && !lib.faderOrder.includes(id), `${id} is no theme and has no detent`);
+    assert.ok(Object.isFrozen(sm[id]));
+  }
+  // the fan: twelve hues round the wheel at one lightness, none in the red band, for at most the library's 2 beats
+  const fan = sm["spectral-fan"], o = (hex) => T.toOklch(T.hexToLinear(hex));
+  assert.equal(fan.hues.length, 12);
+  const hs = fan.hues.map(o);
+  assert.ok(hs.every((c) => c.h >= 55 - 0.5 && c.h <= 330 + 0.5), "55..330 degrees: red skipped");
+  assert.ok(hs.every((c, i) => i === 0 || c.h > hs[i - 1].h), "a prism, in order");
+  assert.ok(Math.max(...hs.map((c) => c.L)) - Math.min(...hs.map((c) => c.L)) <= 0.005, "one lightness");
+  assert.ok(fan.hues.every((h) => !T.isSaturatedRed(h)));
+  assert.match(lib.rules.burst.secret, /one full-spectrum fan per set.*<= 2 beats/);
+  assert.deepEqual([fan.rarity, fan.max_beats], [{ per: "set", times: 1 }, 2], "the library's own rule");
+  // the shimmer: four low-chroma edge hues at one lightness on at most 5 % of the frame, 8 bars at most
+  const sh = sm.shimmer;
+  assert.ok(sh.edges.map(o).every((c) => c.C <= 0.13 && Math.abs(c.L - 0.8) < 0.005));
+  assert.ok(sh.edge_share_max <= 0.05);
+  assert.deepEqual([sh.rarity, sh.max_beats], [{ every_bars: 64 }, 32]);
+  // the gate: the fan once a set, the shimmer once every 64 bars, an unknown mode never
+  const g = new T.SpecialModes(lib);
+  assert.equal(g.take("spectral-fan", 40).ok, true);
+  const again = g.take("spectral-fan", 300);
+  assert.equal(again.ok, false);
+  assert.match(again.reason, /1 a set, used/);
+  assert.equal(g.check("spectral-fan", 300).ok, false, "a refusal is not a use");
+  assert.equal(g.take("shimmer", 8).ok, true);
+  assert.equal(g.take("shimmer", 71).ok, false, "63 bars later");
+  assert.match(g.check("shimmer", 71).reason, /next at bar 72/);
+  assert.deepEqual([g.take("shimmer", 72).ok, g.take("shimmer", 100).ok], [true, false]);
+  assert.equal(g.take("rainbow", 0).ok, false);
+  g.newSet();
+  assert.equal(g.take("spectral-fan", 0).maxBeats, 2, "a new set may spend it again, for 2 beats");
+  // the validator refuses a mode that would weaken the rules
+  const fault = (edit, pattern) => {
+    const raw = clone();
+    edit(raw.special_modes);
+    const v = T.validateLibrary(raw);
+    assert.ok(v.errors.some((e) => pattern.test(e)), `${pattern} not in ${JSON.stringify(v.errors)}`);
+  };
+  fault((s) => { delete s.shimmer.rarity; }, /shimmer: rarity must be .* never unlimited/);
+  fault((s) => { s["spectral-fan"].rarity = { every_bars: 2 }; }, /spectral-fan: rarity must be/);
+  fault((s) => { s["spectral-fan"].hues[0] = "#ff3a2a"; }, /hues\[0\] #ff3a2a is saturated red/);
+  fault((s) => { s["spectral-fan"].hues.unshift("#ff8f6a"); }, /hue 3\d\b|in the red band/);
+  fault((s) => { s["spectral-fan"].hues[5] = "#00ffcc"; }, /hues spread .* in lightness/);
+  fault((s) => { s["spectral-fan"].hues.reverse(); }, /in order \(a prism\)/);
+  fault((s) => { s.shimmer.edge_share_max = 0.2; }, /edge_share_max must be in \(0, 0\.05\]/);
+  fault((s) => { s.molten = { ...s.shimmer, name: "Molten" }; }, /special_modes\.molten: a special mode is never a theme/);
 });
 
 test("Dreaming City: the hues measured from Daniel's stills, lifted to stage chroma", () => {
