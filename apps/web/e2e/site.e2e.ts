@@ -44,7 +44,7 @@ for (const route of marketingRoutes) {
 }
 
 test("nothing spills past the viewport at phone width", async ({
-  page,
+  context,
 }, testInfo) => {
   test.skip(
     testInfo.project.name !== "mobile",
@@ -52,6 +52,9 @@ test("nothing spills past the viewport at phone width", async ({
   );
   test.setTimeout(240_000);
   for (const route of marketingRoutes) {
+    // A fresh page per route: one page hopping through every route makes next dev fail its chunk
+    // loads with ERR_INSUFFICIENT_RESOURCES a few routes in.
+    const page = await context.newPage();
     await page.goto(route);
     // The marketing root clips overflow, so measure elements instead of the document width.
     const spills = await page.evaluate(() => {
@@ -82,6 +85,7 @@ test("nothing spills past the viewport at phone width", async ({
     expect(spills, `elements spilling past the viewport on ${route}`).toEqual(
       [],
     );
+    await page.close();
   }
 });
 

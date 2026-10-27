@@ -123,14 +123,19 @@ test("pages advertise their own social card, and it renders", async ({
   expect(card.headers()["content-type"]).toContain("image/png");
 });
 
-test("public pages never ask the auth API for a session", async ({ page }) => {
+test("public pages never ask the auth API for a session", async ({
+  context,
+}) => {
   // A session fetch on every page view burns the auth rate limit for anonymous visitors.
   const authCalls: string[] = [];
-  page.on("request", (request) => {
+  context.on("request", (request) => {
     if (request.url().includes("/api/auth/")) authCalls.push(request.url());
   });
+  // A fresh page per route, as in site.e2e.ts: one page hopping routes trips next dev.
   for (const route of ["/", "/pricing", "/blog"]) {
+    const page = await context.newPage();
     await page.goto(route, { waitUntil: "networkidle" });
+    await page.close();
   }
   expect(authCalls).toEqual([]);
 });
