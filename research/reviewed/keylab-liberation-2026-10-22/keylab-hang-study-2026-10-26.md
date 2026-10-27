@@ -49,6 +49,19 @@ cycle cleared it, and the very first single write afterwards landed (pad 1 blue)
    after `06 02` (a capture detail to check: a healthy reply should carry Arturia's ID `00 20 6B`); and the boot-time yellow-to-red
    pad gradient (the device's own resting state after power-up, not a write).
 
+## After recovery: drawing alongside FL (2026-10-27, 00:36-00:37)
+
+With FL open (started 23:31, its script holding DAW mode) and no DAW connect from us (`--no-connect` on every call):
+- **Liveness:** the KeyLab answered the Device Inquiry on both ports.
+- **Pads:** a 12-colour grid on ids 82-93 landed exactly. Daniel: "red green blue white, pink, light blue, yellow, orange then a
+  gradiant of white". Yellow and orange read as distinct colours this time (the 2026-10-22 note said warm colours came out
+  near-white).
+- **Screen:** a full-screen two-line message landed and stayed. Daniel: "screen says hellow message".
+- **So:** with FL open, draw onto the session FL's script opened, through the toolkit's CLI with `--no-connect`; never send a DAW
+  connect or disconnect while FL runs. Daniel's other answers: the KeyLab runs on USB power from the PC (so a cable replug equals a
+  power cycle); firmware 1.5.0; he thinks the keys made sound in FL between 21:25 and 21:50 (which would make the hang one-sided:
+  the keys port alive while the DAW port was stuck).
+
 ## Corrections (2026-10-27, from keylab-dev-guidance-and-hang-guide-2026-10-27.md)
 
 - **The onset was earlier.** The hang began before about 21:18 on 2026-10-26: Rill's 21:18 note already says pad SysEx does not
