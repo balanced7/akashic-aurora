@@ -29,7 +29,8 @@ export interface SearchEntry {
     | "Concepts"
     | "Docs"
     | "Glossary"
-    | "Blog";
+    | "Blog"
+    | "Forest Walks";
   readonly keywords?: string;
 }
 
@@ -131,14 +132,32 @@ export const buildSearchIndex = (locale: string): SearchEntry[] => {
     group: "Blog",
   }));
 
+  const walks: SearchEntry[] = getContentItems({
+    collection: CollectionType.WALK,
+    status: ContentStatus.PUBLISHED,
+    sortBy: "walk",
+    locale,
+  }).items.map((walk) => ({
+    title: walk.title,
+    description: walk.description,
+    href: routes.walk(walk.slug),
+    group: "Forest Walks",
+  }));
+
   // De-duplicate by href + title (nav groups repeat a few pages).
   const seen = new Set<string>();
-  return [...pages, ...aurora, ...concepts, ...docs, ...terms, ...posts].filter(
-    (entry) => {
-      const key = `${entry.href}|${entry.title}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    },
-  );
+  return [
+    ...pages,
+    ...aurora,
+    ...concepts,
+    ...docs,
+    ...terms,
+    ...posts,
+    ...walks,
+  ].filter((entry) => {
+    const key = `${entry.href}|${entry.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };

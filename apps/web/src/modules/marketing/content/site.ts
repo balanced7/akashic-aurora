@@ -44,6 +44,8 @@ export const routes = {
   about: "/about",
   blog: "/blog",
   blogPost: (slug: string) => `/blog/${slug}`,
+  walks: "/walks",
+  walk: (slug: string) => `/walks/${slug}`,
   contact: "/contact",
   legal: (slug: string) => `/legal/${slug}`,
 } as const;
@@ -86,7 +88,8 @@ export type NavIcon =
   | "building"
   | "github"
   | "sparkles"
-  | "library";
+  | "library"
+  | "trees";
 
 export const navGroups: readonly NavGroup[] = [
   {
@@ -211,6 +214,12 @@ export const navGroups: readonly NavGroup[] = [
         href: routes.blog,
         icon: "message",
       },
+      {
+        title: "Forest Walks",
+        description: "Long reads on how machines really work.",
+        href: routes.walks,
+        icon: "trees",
+      },
     ],
   },
 ];
@@ -274,6 +283,7 @@ export const footerColumns: readonly FooterColumn[] = [
       { label: "Changelog", href: routes.changelog },
       { label: "Glossary", href: routes.glossary },
       { label: "Blog", href: routes.blog },
+      { label: "Forest Walks", href: routes.walks },
     ],
   },
   {

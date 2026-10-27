@@ -31,6 +31,7 @@ const GROUP_ORDER: SearchEntry["group"][] = [
   "Docs",
   "Glossary",
   "Blog",
+  "Forest Walks",
 ];
 const MAX_RESULTS = 40;
 

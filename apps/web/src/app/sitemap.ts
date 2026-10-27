@@ -99,6 +99,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     })),
+    {
+      ...getEntry(routes.walks),
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    ...getContentItems({
+      collection: CollectionType.WALK,
+      locale: appConfig.locale,
+    }).items.map<MetadataRoute.Sitemap[number]>((walk) => ({
+      ...getEntry(routes.walk(walk.slug)),
+      lastModified: new Date(walk.lastModifiedAt),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    })),
     ...getContentItems({
       collection: CollectionType.LEGAL,
       locale: appConfig.locale,

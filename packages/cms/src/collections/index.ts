@@ -1,6 +1,10 @@
 import { SortOrder } from "@akashic-labs/shared/constants";
 
-import { allBlogs, allLegals } from "../../.content-collections/generated";
+import {
+  allBlogs,
+  allLegals,
+  allWalks,
+} from "../../.content-collections/generated";
 import { ContentStatus } from "../types";
 
 import type {
@@ -12,6 +16,7 @@ import type {
 export const CollectionType = {
   LEGAL: "legal",
   BLOG: "blog",
+  WALK: "walk",
 } as const;
 
 export type CollectionType =
@@ -20,6 +25,7 @@ export type CollectionType =
 export const content = {
   [CollectionType.LEGAL]: allLegals,
   [CollectionType.BLOG]: allBlogs,
+  [CollectionType.WALK]: allWalks,
 } as const;
 
 export type ContentCollection = typeof content;

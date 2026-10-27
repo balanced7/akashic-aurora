@@ -17,6 +17,7 @@ import {
   ScrollText,
   ShieldCheck,
   Sparkles,
+  Trees,
   Workflow,
   Wrench,
 } from "lucide-react";
@@ -163,6 +164,7 @@ const navIcons: Record<NavIcon, LucideIcon> = {
   github: Github,
   sparkles: Sparkles,
   library: Library,
+  trees: Trees,
 };
 
 export const NavIconGlyph = ({
