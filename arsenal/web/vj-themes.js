@@ -764,14 +764,13 @@ function stepRole(seq, r, k) {
 // means nothing on the new one. step / same / preview feed themeLook (colourStep, colourSame); preview is the step the
 // next hit will show, a waiting step included, for the pads' lights.
 export class ColourStepper {
-  constructor() { this.step = 0; this.same = false; this.pending = 0; this.atMs = null; this.held = false; this.lands = 0; this.presses = 0; }
+  constructor() { this.step = 0; this.same = false; this.pending = 0; this.atMs = null; this.held = false; this.lands = 0; }
   next(nowMs, clock) {
-    this.pending++; this.presses++;
+    this.pending++;
     if (this.atMs === null) this.atMs = landing(nowMs, clock, "beat").atMs;
     return { pending: this.pending, atMs: this.atMs };
   }
   toggleSame() { this.same = !this.same; return this.same; }
-  setSame(on) { this.same = !!on; return this.same; }
   tick(nowMs) { return this.pending > 0 && nowMs >= this.atMs ? this._land() : false; }
   onHit() { return this.pending > 0 && this.held ? this._land() : false; }
   themeChanged() { this.step = 0; this.pending = 0; this.atMs = null; }

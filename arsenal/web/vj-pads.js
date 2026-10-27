@@ -44,7 +44,9 @@ export const ESC_MAX = 3;
 export const SIZE_MAX = 1.6;               // the most a hit grows (hard, on the phrase's ONE, escalated): vj-motions AMP_MAX
 export const ESC_GROWTH = 0.25;            // each escalation level adds this much size
 export const RAPID_SIZE = 0.7;             // a press faster than 3 a second plays this much smaller
-export const ESC_LED = Object.freeze([0.6, 0.8, 1.0]);   // a pad's light by the level its next press reaches (TIER_LED's)
+// a hit pad's light at rest by the level its next press would reach: brighter while a press would escalate (its own
+// envelope lights it fully when it fires)
+export const ESC_LED = Object.freeze([0.10, 0.22, 0.34]);
 export const GRACE_BEATS = 1 / 16;         // a press this late after a line still lands on it (the hero, the drop)
 
 // The first grid line at or after pos + minAhead (beats). grid 4 = a bar line, 1 = a beat, 1/2 = an eighth.
@@ -257,6 +259,19 @@ export function co2Jets(hit) {
   };
   const strength = Math.min(1, 0.45 + 0.4 * size + 0.1 * (esc - 1));
   return xs.map((x01, i) => Object.freeze({ x01, delay: rank(i) * CO2_STEP_BEATS, strength }));
+}
+
+// ---------------------------------------------------------------------------------------------------- GLITCH LIFT --
+// The glitch pressed again within a bar (vj-core.js glitchPlan decides its modes from the seed and velocity): a second
+// mode at any velocity (one apart from the first), and at the third level harder and in bigger blocks. names: the mode
+// names (vj-core.js GLITCH_MODES). Returns a new plan; the first level is the plan as it was.
+export function escalateGlitch(plan, esc, names) {
+  if (!(esc >= 2) || !plan) return plan;
+  const n = names.length;
+  const secondary = plan.secondary >= 0 ? plan.secondary : (plan.primary + Math.floor(n / 2)) % n;
+  const amount = esc >= 3 ? Math.min(1, plan.amount * 1.25) : plan.amount;
+  const size = esc >= 3 ? Math.max(plan.size, 0.85) : plan.size;
+  return { ...plan, secondary, amount, size, names: [names[plan.primary], names[secondary]] };
 }
 
 // ---------------------------------------------------------------------------------------------------------- HERO --

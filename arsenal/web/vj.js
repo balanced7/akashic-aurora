@@ -75,7 +75,7 @@ import {
   pedalSignature, EngineLink, EngineHarmony, DemoScript,
   // the impact pass (2026-10-24)
   velCurve, ImpactLayer, DIP_SAFE_DELTA, glitchPlan, BandEnvelopes, snapDelayMs, SceneControl, SCENE_ACTIONS,
-  SCENE_ACTION_IDS, zoomDepth, EFFECT_CODES,
+  SCENE_ACTION_IDS, zoomDepth, EFFECT_CODES, GLITCH_MODES,
   // Lasers v2 (2026-10-25): the laser and theme actions, the control map's v2 storage, a button's press
   LASER_ACTIONS, LASER_ACTION_IDS, FAMILY_ACTIONS, FAMILY_ACTION_IDS, PressGate, serializeCtlMap,
   // pads v2 (VJ V2, 2026-10-27): the colour pair's actions
@@ -92,7 +92,7 @@ import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, Gate
          customLaserTheme, standInLed, capHue, airOf } from "./vj-hookup.js";
 // Pads v2 (VJ V2, 2026-10-27): the grammar every pad speaks -- velocity is size, a second press within a bar escalates,
 // one-shots land on the grid, repeats move, holds become motions -- the hero's charge, build then drop, Safety
-import { PadPlay, HeroCharge, BuildDrop, safetyAct, verbOf, SPOTS, co2Jets, lineAfter } from "./vj-pads.js";
+import { PadPlay, HeroCharge, BuildDrop, safetyAct, verbOf, SPOTS, co2Jets, lineAfter, escalateGlitch } from "./vj-pads.js";
 import { valueAt as motionValueAt } from "./vj-motions.js";
 
 // --------------------------------------------------------------------------------------------------- constants --
@@ -298,10 +298,10 @@ void main() {
       o = vec2(o.x * cos(tr) - o.y * sin(tr), o.x * sin(tr) + o.y * cos(tr));
       vec2 pos = em.xy + o * R + vec2(0.0, 0.1 * rel * rel);
       float near = 0.5 + 0.5 * sin(a);                // the near half of an orbit: bigger and brighter
-      float size = (0.9 + 1.6 * h2) * (0.7 + 0.6 * near) * rs;
+      float size = (1.4 + 2.6 * h2) * (0.75 + 0.5 * near) * rs;   // a star mote: a few pixels, its halo wider
       float dPx = length(p - pos) / px;
       vec3 col = h1 > 0.78 ? vec3(1.0) : u_partCol[e];   // one mote in five burns white-hot (two colours, never three)
-      fresh += col * em.w * born * (0.55 + 0.45 * near) * (exp(-dPx * dPx / (size * size)) * 1.3 + 0.1 * lorentz(dPx, size * 4.0));
+      fresh += col * em.w * born * (0.55 + 0.45 * near) * (exp(-dPx * dPx / (size * size)) * 1.5 + 0.16 * lorentz(dPx, size * 4.0));
     }
   }
   for (int i = 0; i < 8; i++) {                       // note glints: a rising spark per struck key
@@ -1639,7 +1639,7 @@ function co2Fire(nowMs, dt) {
 function heroPress(pad, vel, nowS, ctx) {
   pads.heroPad = pad;
   const r = pads.hero.press(ctx.pos);
-  if (r) { toast(r.at <= ctx.pos ? "HERO" : `HERO on the ONE (bar line ${r.at})`); heroTick(ctx); return; }
+  if (r) { toast(r.at <= ctx.pos ? "HERO" : "HERO on the next ONE"); heroTick(ctx); return; }
   triggerEffect("shockwave", 0.35 * vel, pad, nowS, { size: 0.5, esc: 1, spot: 0, motion: null, endPos: null }, ctx);
 }
 function heroTick(ctx) {
@@ -1668,11 +1668,11 @@ function buildPress(pad, vel, nowS, ctx) {
   const r = pads.build.press(ctx.pos, vel);
   pads.play.press(pad, "build", { ...ctx, vel, nowMs: nowS * 1000 });
   setPadSection("build");
-  toast(r.act === "build" ? `BUILD ${r.bars} bars: the drop on bar line ${r.at}` : `DROP on the next downbeat (${r.at})`);
+  toast(r.act === "build" ? `BUILD ${r.bars} bars, then the drop` : "DROP on the next downbeat");
 }
 function buildRelease(ctx) {
   const r = pads.build.release(ctx.pos);
-  if (r) toast(`DROP on the next downbeat (${r.at})`);
+  if (r) toast("DROP on the next downbeat");
 }
 function buildTick(ctx, nowS) {
   if (pads.build.tick(ctx.pos) === "drop") { pads.drops++; setPadSection("drop"); payoff(pads.buildPad, "drop", nowS); }
@@ -2550,7 +2550,7 @@ function fillOverlayUniforms(nowS) {
       const emitEnd = f.tr === null ? 1e4 : Math.max(0, f.tr - f.t0);
       const big = 0.6 + 0.4 * f.size, mv = motionNow(f, pos), m = f.motion ? f.motion.m : null;
       put4(U.part, pa * 4, ox, oy, age, f.env);
-      put4(U.partB, pa * 4, 12 + Math.round(36 * Math.min(1, f.vel * big)), (0.1 + 0.12 * f.vel) * big, f.seed * 10 + 1, emitEnd);
+      put4(U.partB, pa * 4, 12 + Math.round(36 * Math.min(1, f.vel * big)), (0.12 + 0.14 * f.vel) * big, f.seed * 10 + 1, emitEnd);
       put4(U.partC, pa * 4, m ? (m.rot || 0.4) * mv : 0, m ? clamp(2 * (m.spread || 0.3) * mv, -1, 1) : 0, f.esc, 0);
       putCol(U.partCol, pa * 3, f.pad);
       pa++;
@@ -2681,7 +2681,7 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
   gl.uniform1f(u.u_kalRot, k ? (nowS - k.t0) * (0.05 + 0.15 * k.vel) + (k.motion ? (k.motion.m.rot || 0.6) * motionNow(k, pos) : 0) : 0);
   // the glitch: this hit's plan (vj-core.js glitchPlan: its mode or pair of modes, intensity, size), from its seed
   const g = fx.strongest("glitch");
-  if (g && g.serial !== glitchState.serial) { glitchState.serial = g.serial; glitchState.plan = glitchPlan(g.seed, g.vel); glitchState.t0 = g.t0; }
+  if (g && g.serial !== glitchState.serial) { glitchState.serial = g.serial; glitchState.plan = escalateGlitch(glitchPlan(g.seed, g.vel), g.esc, GLITCH_MODES); glitchState.t0 = g.t0; }
   const gp = g ? glitchState.plan : null;
   gl.uniform1f(u.u_glitch, g ? g.env * gp.amount : 0);
   gl.uniform1f(u.u_glitchT, Math.floor(nowS * 14) % 997);
@@ -2827,7 +2827,7 @@ function padLights(nowMs, dt) {
       v = pads.build.phase === "build" ? Math.max(0.15 + 0.85 * k, k > 0.75 ? beat.pulse : 0) : pads.build.phase === "drop" ? 0.6 : 0.12;
     } else if (EFFECTS[action]) {
       light = lights ? lights[i] : standInLed([padCol[i * 3], padCol[i * 3 + 1], padCol[i * 3 + 2]]);
-      const idle = 0.10 + 0.12 * (pads.play.nextEsc(i + 1, pos) - 1);    // its next press would escalate: a little brighter
+      const idle = pads.play.ledLevel(i + 1, pos);                        // its next press would escalate: a little brighter
       v = Math.max(blink, idle + (1 - idle) * Math.max(padEnvScratch[i] / Math.max(T.accent, 0.05), padHeld[i] ? 0.6 : 0));
     } else if (CONTROLS[action]) {
       light = action === "none" ? null : { hex: action === "choke" ? CHOKE_LED : CONTROLS[action].colour, level: 1 };
@@ -3150,7 +3150,7 @@ function updateHud(nowMs) {
   const charge = pads.hero.charge(pp);
   if (pads.hero.pendingAt !== null) parts.push("HERO on the ONE");
   else if (charge < 1) parts.push(`hero charging ${Math.round(100 * charge)}%`);
-  if (pads.build.phase === "build") parts.push(`BUILD ${Math.round(100 * pads.build.progress(pp))}%${pads.build.dropAt !== null ? ` → drop at ${pads.build.dropAt}` : " (riser)"}`);
+  if (pads.build.phase === "build") parts.push(`BUILD ${Math.round(100 * pads.build.progress(pp))}%${pads.build.dropAt !== null ? ` → drop in ${Math.max(0, Math.ceil((pads.build.dropAt - pp) / 4))} bar(s)` : " (riser)"}`);
   else if (pads.build.phase === "drop") parts.push("DROP");
   if (pads.black.on) parts.push("BLACK");
   if (frame.punch > 0.004) parts.push(`punch ${(frame.punch * 100).toFixed(1)}%`);

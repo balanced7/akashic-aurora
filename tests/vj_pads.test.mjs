@@ -5,7 +5,7 @@
 //   node --test tests/vj_pads.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_PAD_MAP, PAD_ACTIONS } from "../arsenal/web/vj-core.js";
+import { DEFAULT_PAD_MAP, PAD_ACTIONS, glitchPlan, GLITCH_MODES } from "../arsenal/web/vj-core.js";
 import { CLASSES } from "../arsenal/web/vj-motions.js";
 import * as P from "../arsenal/web/vj-pads.js";
 
@@ -63,6 +63,7 @@ test("a second press within a bar escalates (to three); a press more than ~a bar
   press(q, 1, 3);
   assert.equal(q.ledLevel(1, 4), P.ESC_LED[2]);
   assert.equal(q.ledLevel(1, 20), P.ESC_LED[0]);
+  assert.ok(P.ESC_LED[0] < P.ESC_LED[1] && P.ESC_LED[1] < P.ESC_LED[2], "brighter the higher the next press reaches");
 });
 
 test("a one-shot's life lands on its grid: never shorter than three quarters of its stretched length", () => {
@@ -243,6 +244,21 @@ test("CO2: a row of 2 to 8 jets centred on the spot, 1/16 beat apart in a dealt 
   const orders = new Set();
   for (let spot = 0; spot < 8; spot++) for (const esc of [1, 2, 3]) orders.add(P.co2Jets(hit(1, esc, spot)).map((j) => j.delay).join());
   assert.ok(orders.size >= 4, "the order changes with the spot and the level");
+});
+
+test("the Glitch Lift pressed again within a bar: a second mode at any velocity, then harder and in bigger blocks", () => {
+  for (let k = 0; k < 40; k++) {
+    const seed = (k * 0.618034) % 1;
+    for (const vel of [0.3, 0.9]) {
+      const plan = glitchPlan(seed, vel);
+      assert.deepEqual(P.escalateGlitch(plan, 1, GLITCH_MODES), plan, "the first press is the plan as it was");
+      const two = P.escalateGlitch(plan, 2, GLITCH_MODES), three = P.escalateGlitch(plan, 3, GLITCH_MODES);
+      assert.ok(two.secondary >= 0 && two.secondary !== two.primary && two.names.length === 2, `seed ${seed} vel ${vel}`);
+      assert.equal(two.amount, plan.amount);
+      assert.ok(three.amount >= plan.amount && three.amount <= 1 && three.size >= 0.85);
+      assert.equal(three.primary, plan.primary, "the same strike, made bigger");
+    }
+  }
 });
 
 test("a clock that changes under the pads (the beat comes or goes) never sticks them", () => {
