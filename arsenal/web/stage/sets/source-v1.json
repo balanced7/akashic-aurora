@@ -544,26 +544,30 @@
     "centre": [0, 14, -11],
     "deck": ["home", "orrery", "spiral", "vortex", "crown", "portal"],
     "hero": {"charge_bars": 8, "beats": 4, "out_beats": 2, "hand_beats": 2, "tube_at_m": 26, "tube_deg": 0.5, "laser_colour": 0},
-    "column": {"role": "W", "beam_deg": 0.6, "flux_lm": 12000,
-               "about": "the energy beam: a narrow column from the floor upstage of the deck (where the rings' axis meets it, about (0, 0, -20.8)) up through the core to the roof"},
+    "column": {"role": "W", "beam_deg": 0.6, "flux_lm": 12000, "hero_beam_deg": 3.5, "hero_flux_lm": 180000, "sheath_deg": 10, "sheath_flux_lm": 140000,
+               "about": "the energy beam: a narrow column from the floor upstage of the deck (where the rings' axis meets it, about (0, 0, -20.8)) up through the core to the roof. The HERO's discharge swells the needle to hero_beam_deg at hero_flux_lm (15 x its full idle) inside a 10-degree sheath that dies first, and it narrows back as the discharge decays: the charged payoff, once per eight bars, through the FlashGate"},
     "home": {"name": "Qlimax home", "dream": false, "rings": [{"tilt": 55}, {"tilt": 40}, {"tilt": 25}, {"tilt": 10}]},
     "orrery": {
       "name": "The Orrery", "dream": true, "look": "orrery",
       "rings": [{"tilt": 55, "spin_beats": 113}, {"tilt": 80, "yaw_beats": 89}, {"tilt": 60, "yaw_beats": -67}, {"tilt": 30, "yaw_beats": 37}],
       "reveal": {"order": [3, 2, 1, 0], "stagger_beats": 4,
                  "light": {"core": [0, 4], "bands": [2, 10], "rings": [[12, 20], [8, 16], [4, 12], [0, 8]], "planets": [16, 24], "heads": [16, 24], "lasers": [24, 25], "motes": [24, 32]}},
-      "core": {"radius": 0.85, "role": "A", "hot_role": "W", "level": 1, "nits": 180, "hot": 0.25, "hero_hot": 1.2, "swirl_beats": 23, "equator_dots": 48, "dot_nits": 9000, "port_nits": 30000, "glow_nits": 70, "glow_m": 2.4,
+      "core": {"radius": 1.2, "role": "A", "hot_role": "W", "level": 1, "nits": 180, "hot": 0.25, "hero_hot": 1.2, "swirl_beats": 23, "equator_dots": 48, "dot_nits": 9000, "port_nits": 30000, "glow_nits": 90, "glow_m": 3.4,
+               "about": "the orrery report's core: 1.2 m (it clears ring 3's 1.5 m inner radius), its bands at 1.15-1.67 x the core (the measured inner halo, 1.05-1.8 x)",
+               "sight": {"hero_m": 3, "dealt_hidden": 0.25,
+                         "about": "camera.js shotSight: the hero views keep the heart (the core, its bands and ring 3, 3 m) clear of the PA hangs and trusses on every frame; any shot dealt while the orrery stands hides at most a quarter of the core on average"},
                "bands": [
-                 {"r": 0.98, "tilt_deg": -12, "axis_deg": 0, "beats": 7, "dots": 160, "texture": "line", "role": "W", "nits": 7000},
-                 {"r": 1.08, "tilt_deg": 6, "axis_deg": 70, "beats": -11, "dots": 120, "texture": "lancet", "role": "bumpA", "nits": 9000},
-                 {"r": 1.18, "tilt_deg": -4, "axis_deg": 140, "beats": 13, "dots": 72, "texture": "ticks", "role": "W", "nits": 10000},
-                 {"r": 1.3, "tilt_deg": 10, "axis_deg": 210, "beats": -17, "dots": 96, "texture": "dots", "role": "bumpA", "nits": 10000},
-                 {"r": 1.42, "tilt_deg": -8, "axis_deg": 290, "beats": 19, "dots": 140, "texture": "line", "role": "W", "nits": 6000}
+                 {"r": 1.38, "tilt_deg": -12, "axis_deg": 0, "beats": 7, "dots": 200, "texture": "line", "role": "W", "nits": 7000},
+                 {"r": 1.53, "tilt_deg": 6, "axis_deg": 70, "beats": -11, "dots": 160, "texture": "lancet", "role": "bumpA", "nits": 9000},
+                 {"r": 1.67, "tilt_deg": -4, "axis_deg": 140, "beats": 13, "dots": 96, "texture": "ticks", "role": "W", "nits": 10000},
+                 {"r": 1.84, "tilt_deg": 10, "axis_deg": 210, "beats": -17, "dots": 128, "texture": "dots", "role": "bumpA", "nits": 10000},
+                 {"r": 2.0, "tilt_deg": -8, "axis_deg": 290, "beats": 19, "dots": 180, "texture": "line", "role": "W", "nits": 6000}
                ]},
       "planets": [{"ring": 0, "count": 3, "beats": 61, "size": 0.32}, {"ring": 1, "count": 2, "beats": -43}, {"ring": 2, "count": 2, "beats": 31}, {"ring": 3, "count": 1, "beats": -13, "size": 0.22}],
       "motes": {"count": 1100, "radius": 30, "scale": 6, "nits": 2600},
       "shimmer": {"near_m": 4, "far_m": 15, "depth": 0.45, "hz": 18},
-      "heads": {"level": [0.13, 0.08, 0.07], "role": "W", "zoom": 0.6},
+      "heads": {"level": [0.15, 0.06, 0.05], "role": "beamB", "zoom": [4, 1, 1],
+                "about": "violet spokes into the core: ring 0's 24 at the widest zoom and 15 % (the report's violet haze wash: the air takes the core's colour), rings 1 and 2 thin and low (fix round 1: 48 cyan-white spokes had buried the core in a white sunburst)"},
       "lasers": {"level": 0.18, "colour": 0},
       "light": {"sweep_beats": [31, 29, 23, 19]}
     },
@@ -1092,32 +1096,32 @@
       },
       "ORRERY_REVEAL": {
         "kind": "path",
-        "pos_path": [[-24, 4, 20], [-20, 10, 14], [-14, 16, 10]],
+        "pos_path": [[30, 4.5, -17], [24.5, 11, -14], [19.5, 18, -11]],
         "look_path": [[0, 13, -11], [0, 14, -11], [0, 14, -11]],
         "hfov": [56, 46],
         "ev": 0.3,
         "bars": 8,
-        "source": "ours (v2): rising from house left while the rings tilt apart, never crossing the strand's corridor (16.75 m or more from the hub: clear of every gimbal at any pose)"
+        "source": "ours (v2; fix round 1): rising from the house-right wing while the rings tilt apart, beside the orrery rather than through the PA: the core whole on every frame, the hall's structure under 5 % of the frame (camera.js shotSight, shotStructure; pinned); 19.9 m or more from the hub"
       },
-      "ORRERY_HERO": {"kind": "static", "pos": [-15, 21, 21], "look": [0, 15, -11], "hfov": 46, "ev": 0.3, "bars": 8, "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
+      "ORRERY_HERO": {"kind": "static", "pos": [-27, 15, -14], "look": [0, 14, -11], "hfov": 52, "ev": 0.3, "bars": 8, "source": "ours (v2; fix round 1): the gimbals in profile from the house-left wing, level with the core and 27 m off it, the PA hangs behind the cluster instead of in front of it (the first ORRERY_HERO, at (-15, 21, 21), had the x = -5 hang over the core's lower half and 13 % of its frame black slab)"},
       "ORRERY_UNDER": {"kind": "static", "pos": [3, 3.5, 2], "look": [0, 14, -11], "hfov": 74, "ev": 0.3, "bars": 8, "source": "ours (v2), Daniel's 'looking up at the core': from the pit at the lip, under the dial, up into the turning gimbals (17 m from the hub)"},
       "ORRERY_HIGH": {
         "kind": "orbit",
-        "orbit": {"centre": [0, 14, -11], "radius": 26, "height": 28, "from_deg": 20, "to_deg": 60},
+        "orbit": {"centre": [0, 14, -11], "radius": 22, "height": 26, "from_deg": -110, "to_deg": -70},
         "look": [0, 14, -11],
         "hfov": 50,
         "ev": 0.3,
         "bars": 8,
-        "source": "ours (v2): a slow high arc -- the orrery beautiful from wherever you look"
+        "source": "ours (v2; fix round 1): a slow high arc over the house-left wing, 12 m above the core -- the orrery beautiful from wherever you look; the old arc in front crossed Bank A's truss over the core"
       },
       "ORRERY_NEAR": {
         "kind": "path",
-        "pos_path": [[10, 17, 16], [9, 19.5, 6]],
+        "pos_path": [[-28.2, 22.3, 1.6], [-16.3, 18.8, -3.7]],
         "look": [0, 14, -11],
         "hfov": [44, 58],
         "ev": 0.3,
         "bars": 4,
-        "source": "ours (v2): the push in toward the gimbals; it ends 18 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
+        "source": "ours (v2; fix round 1): the push in toward the gimbals from high house left, straight down a sightline clear of the PA hangs; it ends 18.5 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
       },
       "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"}
     },

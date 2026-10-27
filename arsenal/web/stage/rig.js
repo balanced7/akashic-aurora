@@ -516,6 +516,27 @@ export function annulusGap(a, b, samples = 120) {
   }
   return best;
 }
+// The hall's fixed structure as axis-aligned boxes {c (centre), s (size), what}: solid (the deck, the DJ booth, the six PA
+// hangs) and truss (Bank A's and the beam truss, the tower and delay legs, the FOH riser). One list for the renderer,
+// which draws it, and for the camera's sightline check (camera.js shotSight), which must see what the audience sees:
+// a PA hang at x = +-5 stands between the front of house and the rings (fix round 1: the orrery's views hid its core).
+export function hallStructure(venue) {
+  const deck = venue.deck || { x: [-24, 24], z: [-16, 0], y: 2 };
+  const solid = [
+    { c: [0, deck.y / 2, (deck.z[0] + deck.z[1]) / 2], s: [deck.x[1] - deck.x[0], deck.y, deck.z[1] - deck.z[0]], what: "deck" },
+    { c: [0, deck.y + 0.6, -4], s: [3.0, 1.2, 1.4], what: "dj" },
+  ];
+  for (const x of [-22, -13, -5, 5, 13, 22]) solid.push({ c: [x, 12, Math.abs(x) > 6 ? -1 : -2], s: [1.3, 6, 1.4], what: "pa" });
+  const truss = [
+    { c: [0, 22.4, -2], s: [40, 0.45, 0.45], what: "bank-a" },
+    { c: [0, 26.5, -5], s: [40, 0.5, 0.5], what: "beam-truss" },
+    { c: [-22, 8, -2], s: [0.6, 16, 0.6], what: "tower" }, { c: [22, 8, -2], s: [0.6, 16, 0.6], what: "tower" },
+    { c: [0, 1.2, 50], s: [8, 2.4, 5], what: "foh" },
+    { c: [-12, 5, 30], s: [0.6, 10, 0.6], what: "delay" }, { c: [12, 5, 30], s: [0.6, 10, 0.6], what: "delay" },
+    { c: [-12, 5, 55], s: [0.6, 10, 0.6], what: "delay" }, { c: [12, 5, 55], s: [0.6, 10, 0.6], what: "delay" },
+  ];
+  return { solid, truss };
+}
 export function transformPoint(m12, p, out = [0, 0, 0]) {
   const x = p[0], y = p[1], z = p[2];
   out[0] = m12[0] * x + m12[1] * y + m12[2] * z + m12[9];

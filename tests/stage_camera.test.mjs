@@ -9,10 +9,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { catmullRom, arcTable, atArc, minJerk, prepareShot, shotPose, Director, clearanceToRungs, vfovOf, MIN_SHOT_BEATS,
          CLEARANCE_M, GUARD_M, EASES, snapEase, easeOf, keyframes, dollyHfov, isJumpCut, strandPoint, lowestRungY, pendulumLatch,
-         clearanceToStrand, clearanceToRings, ringAnnulus, cameraModel, shotClearance, formationPoseSets, listAllows, HOME_LINE }
+         clearanceToStrand, clearanceToRings, ringAnnulus, cameraModel, shotClearance, formationPoseSets, listAllows, HOME_LINE,
+         segmentHitsBox, viewBlocked, shotSight, structureInFrame }
   from "../arsenal/web/stage/camera.js";
 import { formationTarget } from "../arsenal/web/stage/kinetics.js";
-import { expandScene } from "../arsenal/web/stage/rig.js";
+import { expandScene, hallStructure } from "../arsenal/web/stage/rig.js";
 
 const SCENE = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v0.json", import.meta.url), "utf8"));
 const close = (a, b, eps, msg = "") => assert.ok(Math.abs(a - b) <= eps, `${msg} ${a} != ${b}`);
@@ -493,4 +494,31 @@ test("the orrery's placeholder views keep 16.75 m from the ring hub (R0's radius
     for (const p of sample(prepareShot(CAM.shots[id]))) assert.ok(Math.hypot(p[0] - hub[0], p[1] - hub[1], p[2] - hub[2]) >= R0, `${id} comes within ${R0} m of the hub`);
   }
   for (const [k, v] of Object.entries(CAM.formation_views)) if (!k.startsWith("_")) for (const id of [...v.glide, ...v.hero]) assert.ok(CAM.shots[id] && !CAM.shots[id].held, `${k}: ${id}`);
+});
+
+test("sight: the hall's structure between a lens and its target (the slab test), as shares of a disc facing the lens", () => {
+  const box = { c: [0, 0, 5], s: [2, 2, 1] };
+  assert.equal(segmentHitsBox([0, 0, 0], [0, 0, 10], box), true);
+  assert.equal(segmentHitsBox([3, 0, 0], [3, 0, 10], box), false, "beside it");
+  assert.equal(segmentHitsBox([0, 0, 0], [0, 0, 4], box), false, "short of it");
+  assert.equal(segmentHitsBox([0, 5, 0], [0, 5, 10], box), false, "a ray parallel to a face, outside the slab");
+  assert.equal(viewBlocked([0, 0, 0], [0, 0, 10], 0.5, [box]), 1, "a small target wholly behind it");
+  assert.equal(viewBlocked([0, 0, 0], [0, 0, 10], 4, [box]), 1 / 9, "a wide one: only the centre ray of nine");
+  assert.equal(viewBlocked([0, 0, 0], [0, 0, 10], 3, [box]), 5 / 9, "the diagonals graze its front face (0.95 m off the axis at 4.5 m)");
+  assert.equal(viewBlocked([0, 0, 0], [0, 0, 10], 3, []), 0);
+  // a shot's mean and worst over its move: a static shot hides the same share on every frame
+  const s = shotSight({ kind: "static", pos: [0, 0, 0], look: [0, 0, 10] }, { target: [0, 0, 10], r: 0.5, boxes: [box] });
+  assert.deepEqual(s, { mean: 1, worst: 1 });
+  // the hall: six PA hangs 6 m tall at x = +-5, +-13, +-22 (the renderer draws these same boxes), and the FOH wide sees
+  // the ring hub between the inner pair
+  const hall = hallStructure(expandScene(SCENE).venue), pa = hall.solid.filter((b) => b.what === "pa");
+  assert.deepEqual(pa.map((b) => b.c[0]), [-22, -13, -5, 5, 13, 22]);
+  assert.ok(pa.every((b) => b.s[1] === 6 && b.c[1] === 12));
+  assert.equal(viewBlocked([0, 5, 56], [0, 14, -11], 3, [...hall.solid, ...hall.truss]), 0);
+  // the share of a frame structure fills in front of the target: a wall across the view, half of it, none behind the target
+  const wall = { c: [0, 0, 5], s: [100, 100, 1] }, half = { c: [50, 0, 5], s: [100, 100, 1] };
+  assert.equal(structureInFrame([0, 0, 0], [0, 0, 10], 50, [wall]), 1);
+  assert.equal(structureInFrame([0, 0, 0], [0, 0, 10], 50, [half]), 0.5);
+  assert.equal(structureInFrame([0, 0, 0], [0, 0, 4], 50, [wall]), 0, "behind the target it is background");
+  assert.equal(structureInFrame([0, 0, 0], [0, 0, 10], 50, [{ ...wall, what: "deck" }]), 0, "the deck is the floor, not clutter");
 });

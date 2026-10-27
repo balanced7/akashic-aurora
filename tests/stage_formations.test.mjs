@@ -14,7 +14,7 @@ import { Programmer, FlashGate, H, HEAD_FLOATS } from "../arsenal/web/stage/prog
 import { LaserEngine, extraHeadsFrom } from "../arsenal/web/stage/lasers.js";
 import { Lasers3D } from "../arsenal/web/stage/lasers3d.js";
 import { BeatGrid } from "../arsenal/web/stage/grid.js";
-import { Director, cameraModel, formationPoseSets, shotRingClearance, CLEARANCE_M } from "../arsenal/web/stage/camera.js";
+import { Director, cameraModel, formationPoseSets, shotRingClearance, shotSight, shotStructure, CLEARANCE_M } from "../arsenal/web/stage/camera.js";
 import { formationTarget } from "../arsenal/web/stage/kinetics.js";
 
 const SCENE = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
@@ -151,10 +151,17 @@ test("HERO fires once per charge (8 bars), lands on the next ONE, through the Fl
   const before = S.step(Math.round(((a.at - 0.05) * 400) / (1000 / FPS)) - 10);
   assert.ok(!(S.rings.hl > 0) && before.pos < a.at);
   let on = null;
-  for (let i = 0; i < 20 && !on; i++) { const st = S.step(1); if (S.rings.hl > 0) on = { pos: st.pos, hl: S.rings.hl, col: st.rf.beams[0] }; }
+  for (let i = 0; i < 20 && !on; i++) { const st = S.step(1); if (S.rings.hl > 0) on = { pos: st.pos, hl: S.rings.hl, col: st.rf.beams[0], sheath: st.rf.beams[1] }; }
   assert.ok(on && on.pos - a.at < 1 / 24 + 1e-9 && on.hl > 0.95, JSON.stringify(on));
   assert.ok(S.programmer.flashGate.grants.includes(a.at), "the FlashGate granted it");
-  assert.ok(on.col && on.col.flux > 11000, "the energy column at full");
+  // the payoff: the needle swells to hero_beam_deg at hero_flux_lm (fix round 1: it had been the needle at 2.9 x its own
+  // idle), then narrows back to the needle as the discharge decays
+  const Col = SCENE.ring_formations.column, idle = Col.flux_lm * SCENE.ring_formations.spiral.column.level;
+  assert.ok(on.col && on.col.flux > 10 * idle && Math.abs(on.col.beamDeg - Col.hero_beam_deg) < 0.2, JSON.stringify(on.col));
+  assert.ok(on.sheath && on.sheath.beamDeg === Col.sheath_deg && on.sheath.flux > 0.85 * Col.sheath_flux_lm, "inside its sheath");
+  let tail = null;
+  for (let i = 0; i < 60 * 3 && !tail; i++) { const st = S.step(1); if (!(S.rings.hl > 0)) tail = st.rf.beams; }
+  assert.ok(tail && tail.length === 1 && Math.abs(tail[0].beamDeg - Col.beam_deg) < 1e-9 && Math.abs(tail[0].flux - idle) < 1e-6, `back to the idle needle: ${JSON.stringify(tail)}`);
   // recharging: a press within eight bars is refused
   S.step(60);
   const b = S.rings.hero(S.grid, S.now());
@@ -206,9 +213,13 @@ test("the holographic shimmer wakes as the camera nears and sleeps far away; per
 test("the orrery's scenery: the core, five wireframe bands, eight planets, star motes, inside the renderer's room", () => {
   const S = makeStage({ key: "orrery" });
   const st = S.step(5);
-  assert.ok(st.rf.core.on && st.rf.core.level > 0.9 && st.rf.core.r === 0.85);
+  // the orrery report's 1.2 m core (fix round 1: 0.85 m read as a speck inside a 28 m dial), inside ring 3's 1.5 m hole
+  assert.ok(st.rf.core.on && st.rf.core.level > 0.9 && st.rf.core.r === 1.2);
+  const r3 = RIG.elements.filter((e) => e.id === "ring")[3].params, bands = SCENE.ring_formations.orrery.core.bands.map((b) => b.r);
+  assert.ok(st.rf.core.r < r3.diameter / 2 - r3.depth, "the core fits inside ring 3");
+  assert.ok(Math.min(...bands) / 1.2 >= 1.05 && Math.max(...bands) / 1.2 <= 1.8, `the bands at ${bands} hug the core at 1.05-1.8 x`);
   assert.ok(st.rf.emit.n > 1500 && st.rf.emit.n <= MAX_FORMATION_EMIT, `${st.rf.emit.n} emitters`);
-  assert.equal(st.rf.hitOpts.orb.r, 0.85);
+  assert.equal(st.rf.hitOpts.orb.r, 1.2);
   // the motes are densest near the core: more within 6 m than between 18 and 24 m (a shell five times the volume)
   let inner = 0, outer = 0;
   for (const m of S.rings.motes) { const d = Math.hypot(m.p[0] - C[0], m.p[1] - C[1], m.p[2] - C[2]); if (d < 6) inner++; else if (d > 18 && d < 24) outer++; }
@@ -280,7 +291,8 @@ test("the camera's views of every formation resolve and are clear before anythin
   const strandSets = [].concat(...Object.values(RIG.formations).map((f) => formationPoseSets(f, model.z.length) || []));
   const d = new Director(SCENE.cameras.shots, SCENE.cameras.sequences, {
     model, formations: { ...RIG.formations, ...Object.fromEntries(ringKeys.map((k) => [k, R.def(k)])) }, views: V, safe: SCENE.cameras.safe,
-    posesOf: (key, def) => (ringKeys.includes(key) ? strandSets : formationPoseSets(def, model.z.length)), ringsOf: (key) => (ringKeys.includes(key) ? R.annuliSets(key) : null) });
+    posesOf: (key, def) => (ringKeys.includes(key) ? strandSets : formationPoseSets(def, model.z.length)), ringsOf: (key) => (ringKeys.includes(key) ? R.annuliSets(key) : null),
+    sightOf: (key) => (ringKeys.includes(key) ? R.sight(key) : null) });
   for (const k of ringKeys) {
     const ok = d.validFor(k);
     assert.ok(ok, `${k} is judged`);
@@ -292,4 +304,31 @@ test("the camera's views of every formation resolve and are clear before anythin
   // the spiral's hero looks up the well: its rings, stepped up the axis, all in front of the lens
   const sets = R.annuliSets("spiral");
   assert.ok(shotRingClearance(SCENE.cameras.shots.SPIRAL_HERO, sets) >= CLEARANCE_M);
+});
+
+test("the orrery is never shot through the rig: its views see the heart whole, and the director keeps the blocked views off it", () => {
+  // fix round 1: the PA hang at x = -5 covered the lower half of the core in ORRERY_HERO, two hangs flanked it in the
+  // landing glide, Bank A's truss crossed it in the high arc; HEAD_ORBIT (a drop and groove shot) put two slabs over it
+  const R = new RingFormations(RIG), V = SCENE.cameras.formation_views.orrery, hero = R.sight("orrery", { hero: true });
+  assert.ok(hero && hero.r === 3 && hero.boxes.some((b) => b.what === "pa") && hero.boxes.some((b) => b.what === "bank-a"));
+  // ... and the composition: no more of the frame given to hangs and trusses than the front-of-house wide gives (6.3 %)
+  for (const id of [...V.glide, ...V.hero]) {
+    const s = shotSight(SCENE.cameras.shots[id], hero), f = shotStructure(SCENE.cameras.shots[id], hero.boxes);
+    assert.equal(s.worst, 0, `${id}: ${(s.worst * 100).toFixed(0)} % of the heart behind the hall's structure on its worst frame`);
+    assert.ok(f <= 0.07, `${id}: the hall's structure fills ${(f * 100).toFixed(1)} % of its frame`);
+  }
+  // the first ORRERY_HERO, for the record: the hang over the heart on every frame, 13 % of the frame black slab
+  const old = { kind: "static", pos: [-15, 21, 21], look: [0, 15, -11], hfov: 46 };
+  assert.ok(shotSight(old, hero).worst > 0 && shotStructure(old, hero.boxes) > 0.12);
+  // the director, while the orrery stands: HEAD_ORBIT hides close to half the core on average, so it is not dealt; the
+  // front-of-house wides see it whole
+  const d = new Director(SCENE.cameras.shots, SCENE.cameras.sequences, { model: cameraModel(RIG), formations: { orrery: R.def("orrery") },
+    safe: SCENE.cameras.safe, posesOf: () => null, ringsOf: () => null, sightOf: (key) => R.sight(key) });
+  const ok = d.validFor("orrery");
+  assert.ok(shotSight(SCENE.cameras.shots.HEAD_ORBIT, R.sight("orrery")).mean > 0.25);
+  assert.equal(ok.has("HEAD_ORBIT"), false);
+  for (const id of ["FOH_WIDE", "HALO_LOCK", ...V.glide, ...V.hero]) assert.ok(ok.has(id), id);
+  assert.equal(d.deal("HEAD_ORBIT", ["orrery"]) !== "HEAD_ORBIT", true, "HEAD_ORBIT is swapped for a stand-in");
+  // a formation without a core asks nothing of the sightlines
+  assert.equal(R.sight("spiral"), null);
 });

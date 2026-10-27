@@ -29,7 +29,7 @@
 
 import * as THREE from "three";
 import * as S from "./shaders.js";
-import { elementMatrix, headPose, transformPoint, CELL_KIND } from "./rig.js";
+import { elementMatrix, headPose, transformPoint, hallStructure, CELL_KIND } from "./rig.js";
 import { roomHit, L3, L3_FLOATS } from "./lasers3d.js";
 import { H, HEAD_FLOATS } from "./programmer.js";
 import { hazeNoise3D } from "./atmos.js";
@@ -274,23 +274,11 @@ export class StageRenderer {
     for (let x = -36; x <= 36; x += 6) grid.push({ geom: BOX, matrix: M4(x, gy, (fz[0] + fz[1]) / 2, 0, 0, 0, 0.35, 0.5, fz[1] - fz[0]) });
     for (let z = fz[0]; z <= fz[1]; z += 8) grid.push({ geom: BOX, matrix: M4(0, gy + 0.6, z, 0, 0, 0, fx[1] - fx[0], 0.35, 0.3) });
     add(mergeGeoms(grid), this.mat.trussStatic, "grid");
-    // the deck, the DJ booth, the PA hangs, the laser and beam trusses, the side towers, FOH
-    const deck = V.deck || { x: [-24, 24], z: [-16, 0], y: 2 };
-    const statics = [
-      { geom: BOX, matrix: M4(0, deck.y / 2, (deck.z[0] + deck.z[1]) / 2, 0, 0, 0, deck.x[1] - deck.x[0], deck.y, deck.z[1] - deck.z[0]) },
-      { geom: BOX, matrix: M4(0, deck.y + 0.6, -4, 0, 0, 0, 3.0, 1.2, 1.4) },
-    ];
-    for (const x of [-22, -13, -5, 5, 13, 22]) statics.push({ geom: BOX, matrix: M4(x, 12, Math.abs(x) > 6 ? -1 : -2, 0, 0, 0, 1.3, 6, 1.4) });
-    add(mergeGeoms(statics), this.mat.deck, "deck");
-    const truss = [
-      { geom: BOX, matrix: M4(0, 22.4, -2, 0, 0, 0, 40, 0.45, 0.45) },          // Bank A's truss
-      { geom: BOX, matrix: M4(0, 26.5, -5, 0, 0, 0, 40, 0.5, 0.5) },            // the beam truss
-      { geom: BOX, matrix: M4(-22, 8, -2, 0, 0, 0, 0.6, 16, 0.6) }, { geom: BOX, matrix: M4(22, 8, -2, 0, 0, 0, 0.6, 16, 0.6) },
-      { geom: BOX, matrix: M4(0, 1.2, 50, 0, 0, 0, 8, 2.4, 5) },                // FOH riser
-      { geom: BOX, matrix: M4(-12, 5, 30, 0, 0, 0, 0.6, 10, 0.6) }, { geom: BOX, matrix: M4(12, 5, 30, 0, 0, 0, 0.6, 10, 0.6) },
-      { geom: BOX, matrix: M4(-12, 5, 55, 0, 0, 0, 0.6, 10, 0.6) }, { geom: BOX, matrix: M4(12, 5, 55, 0, 0, 0, 0.6, 10, 0.6) },
-    ];
-    add(mergeGeoms(truss), this.mat.trussStatic, "trusses");
+    // the deck, the DJ booth, the PA hangs, the laser and beam trusses, the side towers, FOH (rig.js hallStructure: the
+    // camera's sightline check reads the same boxes)
+    const hall = hallStructure(V), box = (b) => ({ geom: BOX, matrix: M4(b.c[0], b.c[1], b.c[2], 0, 0, 0, b.s[0], b.s[1], b.s[2]) });
+    add(mergeGeoms(hall.solid.map(box)), this.mat.deck, "deck");
+    add(mergeGeoms(hall.truss.map(box)), this.mat.trussStatic, "trusses");
     // the crowd: silhouettes on the floor (instanced), a third of them with raised arms that move with the beat
     const nCrowd = Math.round((V.crowd && V.crowd.drawn_floor || 6000) * this.q.crowd);
     const rnd = rngOf(this.rig.seed * 31 + 7);

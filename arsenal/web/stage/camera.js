@@ -431,6 +431,79 @@ export function shotRingClearance(shot, ringSets, samples = 96) {
   }
   return best;
 }
+// Sight (fix round 1): the hall's structure (rig.js hallStructure boxes) between a lens and what a view is FOR. The PA
+// hangs at x = +-5 stand between the front of house and the rings, so a view of the orrery's core can show a black slab
+// where the core should be; a shot is judged by its worst frame.
+// Does the segment p -> q pass through the axis-aligned box b {c, s}? (the slab test, end points included)
+export function segmentHitsBox(p, q, b) {
+  let t0 = 0, t1 = 1;
+  for (let i = 0; i < 3; i++) {
+    const lo = b.c[i] - b.s[i] / 2, hi = b.c[i] + b.s[i] / 2, d = q[i] - p[i];
+    if (Math.abs(d) < 1e-12) { if (p[i] < lo || p[i] > hi) return false; continue; }
+    let a = (lo - p[i]) / d, c = (hi - p[i]) / d;
+    if (a > c) { const t = a; a = c; c = t; }
+    if (a > t0) t0 = a;
+    if (c < t1) t1 = c;
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+// The share of a target hidden from the eye: rays to its centre and to `ring` points on a disc of radius r facing the
+// lens (the core and what hugs it), each blocked by any box. 0 = all of it in sight.
+export function viewBlocked(eye, target, r, boxes, ring = 8) {
+  let dx = target[0] - eye[0], dy = target[1] - eye[1], dz = target[2] - eye[2];
+  const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l;
+  const a = Math.abs(dy) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let ux = a[1] * dz - a[2] * dy, uy = a[2] * dx - a[0] * dz, uz = a[0] * dy - a[1] * dx;
+  const ul = Math.hypot(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+  const vx = dy * uz - dz * uy, vy = dz * ux - dx * uz, vz = dx * uy - dy * ux;
+  const q = [0, 0, 0];
+  let hidden = 0;
+  for (let k = 0; k <= ring; k++) {
+    const t = (2 * Math.PI * k) / ring, rr = k === ring ? 0 : r, cu = Math.cos(t) * rr, sv = Math.sin(t) * rr;
+    q[0] = target[0] + cu * ux + sv * vx; q[1] = target[1] + cu * uy + sv * vy; q[2] = target[2] + cu * uz + sv * vz;
+    for (const b of boxes) if (segmentHitsBox(eye, q, b)) { hidden++; break; }
+  }
+  return hidden / (ring + 1);
+}
+// How much of a target a shot hides over its samples: {mean, worst} shares. sight: {target, r, boxes}. A moving shot
+// may pass behind a hang for a moment (the parallax is the move); a static one with a slab over the core never helps.
+export function shotSight(shot, sight, samples = 48) {
+  const s = shot._ease ? shot : prepareShot(shot);
+  const tmp = { pos: [0, 0, 0], look: [0, 0, 0], hfov: 50, roll: 0, ev: 0 };
+  let worst = 0, sum = 0;
+  for (let k = 0; k <= samples; k++) {
+    shotPose(s, k / samples, 0, tmp);
+    const b = viewBlocked(tmp.pos, sight.target, sight.r, sight.boxes);
+    sum += b; if (b > worst) worst = b;
+  }
+  return { mean: sum / (samples + 1), worst };
+}
+// The share of the frame the hall's structure fills in front of the target (the deck excepted: the floor the show stands
+// on): a 32 x 18 grid of rays over the lens's view (hfov, 16:9, no roll), each as long as the distance to the target. A
+// view can keep its core in sight and still have a 6 m PA hang filling its lower third: this is that number.
+export function structureInFrame(pos, look, hfov, boxes, aspect = 16 / 9) {
+  let fx = look[0] - pos[0], fy = look[1] - pos[1], fz = look[2] - pos[2];
+  const l = Math.hypot(fx, fy, fz) || 1; fx /= l; fy /= l; fz /= l;
+  const rl = Math.hypot(fx, fz) || 1, rx = -fz / rl, rz = fx / rl;             // right, level
+  const ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy;                   // up = right x forward
+  const th = Math.tan((hfov * DEG) / 2), tv = th / aspect, q = [0, 0, 0];
+  let hit = 0;
+  for (let i = 0; i < 32; i++) for (let j = 0; j < 18; j++) {
+    const sx = (((i + 0.5) / 32) * 2 - 1) * th, sy = (((j + 0.5) / 18) * 2 - 1) * tv;
+    q[0] = pos[0] + (fx + rx * sx + ux * sy) * l; q[1] = pos[1] + (fy + uy * sy) * l; q[2] = pos[2] + (fz + rz * sx + uz * sy) * l;
+    for (const b of boxes) if (b.what !== "deck" && segmentHitsBox(pos, q, b)) { hit++; break; }
+  }
+  return hit / (32 * 18);
+}
+// The most of its frame a shot ever gives to the hall's structure, over its move.
+export function shotStructure(shot, boxes, samples = 12) {
+  const s = shot._ease ? shot : prepareShot(shot);
+  const tmp = { pos: [0, 0, 0], look: [0, 0, 0], hfov: 50, roll: 0, ev: 0 };
+  let worst = 0;
+  for (let k = 0; k <= samples; k++) { shotPose(s, k / samples, 0, tmp); worst = Math.max(worst, structureInFrame(tmp.pos, tmp.look, tmp.hfov, boxes)); }
+  return worst;
+}
 // The under-ride's height follower: a jerk-limited axis (6 m/s, 4 m/s^2: an FPV drone's climb, quick enough to duck under
 // a valley met at 8 m/s), so a rung entering the window eases the lens down instead of stepping it.
 export const UNDER_LIMITS = Object.freeze({ vmax: 6, amax: 4, jmax: 16, omega: 5 });
@@ -464,7 +537,9 @@ export function listAllows(shot, key, kin) {
 // annuli, else the model's home rings), dt (seconds)}. opts: {model (cameraModel), formations (the set's), views
 // (cameras.formation_views), safe (a shot id), glides, posesOf ((key, def) -> rung pose sets or null: a formation the
 // kinetics module cannot compute), ringsOf ((key, def) -> sets of ring annuli or null: a ring formation that moves the
-// rings off their home pose, so its shots are judged against the rings it makes)}.
+// rings off their home pose, so its shots are judged against the rings it makes), sightOf ((key, def) -> {target, r,
+// boxes, max} or null: what a formation's views are for, the orrery's core; a shot that hides more than max of it on
+// average behind the hall's structure is not dealt there)}.
 const SAFE_SHOTS = ["FOH_WIDE", "HALO_LOCK", "FOH_HOLD_ZOOM", "ROOF_ESTABLISH"];
 const DEFAULT_GLIDES = ["STRAND_ORBIT_FULL", "PROFILE_GRAPH", "TRIBUNE_HIGH_R", "SPIRAL_ASCENT"];
 const LINE_LIMITS = Object.freeze({ vmax: 3, amax: 2, jmax: 8, omega: 4 });   // the low-passed centre line
@@ -491,7 +566,8 @@ export class Director {
     this.formations = opts.formations || {};
     this.posesOf = opts.posesOf || ((key, def) => formationPoseSets(def, this.model.z.length));
     this.ringsOf = opts.ringsOf || (() => null);
-    this.safe = [opts.safe, ...SAFE_SHOTS].filter((id, i, a) => id && this.shots[id] && !this.shots[id].held && a.indexOf(id) === i);
+    this.sightOf = opts.sightOf || (() => null);
+    this.safe =[opts.safe, ...SAFE_SHOTS].filter((id, i, a) => id && this.shots[id] && !this.shots[id].held && a.indexOf(id) === i);
     this.glides = (opts.glides || DEFAULT_GLIDES).filter((id) => this.shots[id]);
     this.validity = new Map();   // formation key -> Set of the shots clear of the strand there (null: not knowable)
     this.seq = null; this.seqName = ""; this.pos0 = 0;
@@ -571,12 +647,13 @@ export class Director {
   validFor(key, def = null) {
     if (!key || !this.model) return null;
     if (this.validity.has(key)) return this.validity.get(key);
-    const d = def || this.formations[key], sets = this.posesOf(key, d), rings = this.ringsOf(key, d);
+    const d = def || this.formations[key], sets = this.posesOf(key, d), rings = this.ringsOf(key, d), sight = this.sightOf(key, d);
     let ok = null;
-    if (sets || rings) {
+    if (sets || rings || sight) {
       ok = new Set();
       for (const [id, s] of Object.entries(this.shots)) {
         if (s.held || (sets && shotClearance(s, sets, this.model.z) < CLEARANCE_M) || (rings && shotRingClearance(s, rings) < CLEARANCE_M)) continue;
+        if (sight && shotSight(s, sight).mean > (sight.max ?? 0)) continue;
         ok.add(id);
       }
     }

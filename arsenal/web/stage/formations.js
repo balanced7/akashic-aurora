@@ -36,7 +36,7 @@
 // writes TARGETS (programmer.setLayer): the heads still turn no faster than their motors. Inspiration only: nothing of
 // Bungie's is copied; the geometry and the numbers are our own design, informed by the orrery report's measurements.
 
-import { elementMatrix, mountPose, ringTiltWindow, ringEnvelope, annulusOf, annulusGap, headPose, eulerToMat3 } from "./rig.js";
+import { elementMatrix, mountPose, ringTiltWindow, ringEnvelope, annulusOf, annulusGap, headPose, eulerToMat3, hallStructure } from "./rig.js";
 import { RingRig } from "./kinetics.js";
 import { presetTarget, preparePreset } from "./phrases.js";
 import { roomHit } from "./lasers3d.js";
@@ -300,6 +300,16 @@ export class RingFormations {
     }
   }
 
+  // What a formation's views are for, as the camera's sightline check reads it (camera.js shotSight): the core against
+  // the hall's structure (rig.js hallStructure). hero: the heart its hero views keep whole on every frame (core.sight.
+  // hero_m: the core, its bands and the innermost gimbal); else the core itself, of which a shot dealt while the
+  // formation stands may hide at most core.sight.dealt_hidden on average. null: a formation without a core.
+  sight(key, { hero = false } = {}) {
+    const d = this.def(key), S = d && d.core && d.core.sight;
+    if (!S) return null;
+    if (!this._hall) { const h = hallStructure(this.rig.venue); this._hall = [...h.solid, ...h.truss]; }
+    return { target: this.axis.C, r: hero ? S.hero_m ?? 3 : d.core.radius ?? 0.85, boxes: this._hall, max: hero ? 0 : S.dealt_hidden ?? 0.25 };
+  }
   // The camera's view of the rings: live annuli (camera.js ringAnnulus shape), or null at home.
   liveAnnuli() {
     if (!this.live) return null;
@@ -441,13 +451,20 @@ export class RingFormations {
       const d = this.def(key), f = SCENERY[d.look || key];
       if (f) f.call(this, d, pos, leaving ? 1e9 : this._since(pos), w, roles);
     }
-    // the energy column (the hero's beam through the core), idle at the formation's level, full on the discharge
+    // the energy column (the hero's beam through the core): a needle idling at the formation's level; the discharge swells
+    // it to hero_beam_deg at hero_flux_lm and it narrows back to the needle as the discharge decays, inside a soft sheath
+    // (sheath_deg, sheath_flux_lm) that dies faster (hl squared): soft to crisp, a burst and then the needle lingering
+    // (fix round 1: the payoff had been the needle at full, 2.9 x the spiral's own idle, 5-27 % on the frame)
     const idle = keys.reduce((m, [key, w]) => Math.max(m, ((this.def(key).column || {}).level ?? 0) * w), 0);
-    const lv = Math.max(idle, this.hl || 0);
-    if (lv > 0.002) {
+    const hl = this.hl || 0;
+    if (idle > 0.002 || hl > 0.002) {
       const C = this.F.column || {}, A = this.axis;
       const col = roles[ROLE[C.role || "W"]] || [1, 1, 1];
-      this.beams.push({ apex: A.from.slice(), axis: A.n.slice(), beamDeg: C.beam_deg ?? 0.6, flux: (C.flux_lm ?? 12000) * lv, len: A.toLen + Math.hypot(A.C[0] - A.from[0], A.C[1] - A.from[1], A.C[2] - A.from[2]), col });
+      const deg0 = C.beam_deg ?? 0.6, flux0 = C.flux_lm ?? 12000;
+      const len = A.toLen + Math.hypot(A.C[0] - A.from[0], A.C[1] - A.from[1], A.C[2] - A.from[2]);
+      this.beams.push({ apex: A.from.slice(), axis: A.n.slice(), beamDeg: deg0 + ((C.hero_beam_deg ?? deg0) - deg0) * hl,
+                        flux: flux0 * idle + (C.hero_flux_lm ?? flux0) * hl, len, col });
+      if (hl > 0.002 && C.sheath_deg) this.beams.push({ apex: A.from.slice(), axis: A.n.slice(), beamDeg: C.sheath_deg, flux: (C.sheath_flux_lm ?? 0) * hl * hl, len, col });
     }
     return { mats: this.ringM, els: this.T.ringEls, core: this.core, emit: this.emit, beams: this.beams,
              hitOpts: this.core.on && this.core.r > 0 ? { orb: { c: this.core.c, r: this.core.r } } : null, liftRims: keys.length > 0 };
@@ -519,12 +536,14 @@ const LOOKS = {
       const band = 0.72 + 0.28 * Math.cos(x.angle - (TAU * pos) / sweep[x.k] * (x.k % 2 ? -1 : 1));
       this.cellDim[j] = v * band * wo; this.cellRole[j] = role;
     }
-    // the halo heads: spokes from every ring into the core (they sweep with the turning gimbals); lenses read as planets
+    // the halo heads: spokes from every ring into the core (they sweep with the turning gimbals); lenses read as planets.
+    // zoom per ring: ring 0's wide and low, the report's violet haze wash, so the air takes the core's colour
     const H = d.heads || {}, C = this.axis.C;
     for (let j = 0; j < T.heads.length; j++) {
-      const h = T.heads[j];
+      const h = T.heads[j], zm = H.zoom ?? 1.0;
       this.headTgt[j][0] = C[0]; this.headTgt[j][1] = C[1]; this.headTgt[j][2] = C[2];
-      this.headDim[j] = (H.level || [0.32, 0.22, 0.2, 0])[h.k] ?? 0.2; this.headRole[j] = ROLE[H.role || "W"]; this.headZoom[j] = H.zoom ?? 1.0;
+      this.headDim[j] = (H.level || [0.32, 0.22, 0.2, 0])[h.k] ?? 0.2; this.headRole[j] = ROLE[H.role || "W"];
+      this.headZoom[j] = Array.isArray(zm) ? zm[h.k] ?? 1.0 : zm;
     }
     return { cells: true, heads: [0, 1, 2], cellsIn: [0, 4], headsIn: rv.heads || [16, 24], ripple: 0.5, heroHeads: true };
   },

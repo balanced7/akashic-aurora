@@ -126,7 +126,8 @@ function start({ rig, R, renderMod }) {
   programmer.setLayer(rings);
   if (RING_ASKED && rings.def(RING_ASKED)) rings.set(RING_ASKED, 0, demoBpm);
   // v2: the director knows the strand (it never deals a shot within 1.5 m of a rung) and each formation's hero views; a
-  // ring formation's shots are judged against the rings it sweeps and against every strand formation of the set
+  // ring formation's shots are judged against the rings it sweeps and against every strand formation of the set, and
+  // a formation with a core (the orrery) against the PA hangs and trusses that would hide it (formations.js sight)
   const camModel = cameraModel(rig);
   const ringKeys = rings.formations.filter((k) => k !== "home");
   const strandSets = [].concat(...Object.values(rig.formations).map((f) => formationPoseSets(f, camModel.z.length) || []));
@@ -134,7 +135,8 @@ function start({ rig, R, renderMod }) {
                                 { model: camModel, formations: { ...rig.formations, ...Object.fromEntries(ringKeys.map((k) => [k, rings.def(k)])) },
                                   views: rig.cameras.formation_views, safe: rig.cameras.safe,
                                   posesOf: (key, def) => (ringKeys.includes(key) ? strandSets : formationPoseSets(def, camModel.z.length)),
-                                  ringsOf: (key) => (ringKeys.includes(key) ? rings.annuliSets(key) : null) });
+                                  ringsOf: (key) => (ringKeys.includes(key) ? rings.annuliSets(key) : null),
+                                  sightOf: (key) => (ringKeys.includes(key) ? rings.sight(key) : null) });
   director.start(Object.keys(rig.cameras.sequences)[0], 0);      // until the first section starts its own sequence
   // what the camera reads of the rig each frame: the formation key (a change with a landing gets the glide and the hero
   // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too,
