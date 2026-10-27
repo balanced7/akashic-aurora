@@ -24,6 +24,8 @@
 //     lasers' two-colour pair with their strobe and burst colours and legal colour modes, the effects' colours (with
 //     twelve red-safe hit colours for the DAW pads' effects), and the pad lights (LED stand-ins, never screen colours)
 //                                                                                  themeLook, padLeds, familyLed
+//   - the colour pair (VJ V2): Colour Next steps the hits along the theme's sequence on the next beat, Colour Same holds
+//     the current colour for the hits to come                                  colourSequence, ColourStepper, themeLook
 // The page owns the clock, the GL and the posting: it hands this module a clock adapter and reads plans back. Nothing
 // here schedules a timer; ThemeDirector.tick(now) is called from the frame loop.
 
@@ -728,11 +730,65 @@ function entry(role, lin) {
 const ledOf = (t, role) => Object.freeze({ role, hex: t.led[role], level: (t.led_level && t.led_level[role]) || 1 });
 const DIAGONAL_ROLES = Object.freeze(["A", "B", "A", "W"]);   // palette stops 0-3 as LED roles (stop 2 has no stand-in)
 
+// ------------------------------------------------------------------------------------- the colour pair (VJ V2) --
+// Daniel, 2026-10-27: "one flip to the next color in the sequence and the other stay the same for easy changes and
+// repeats". His literal version, two controls (build spec section B; the pads lane had read it as an A/B leapfrog -- the
+// ambiguity is logged for his morning): COLOUR NEXT steps the hits to the next colour of the theme's sequence, on the
+// next beat; COLOUR SAME holds the current colour for the next hits, so the variety moves to pattern, heads and motion.
+// Only the HITS take them (the lasers and every pad's hit colour); the scene keeps the theme's palette.
+//
+// The theme's sequence: the colours a laser of the theme may emit -- its laser roles in its own order, then the rest of
+// A, B and W -- never a held role (held colours are shown steadily, never flashed) and never a role whose laser colour is
+// a saturated red (a laser shows those as white); a role that would draw the same colour as one before it is left out.
+export function colourSequence(lib, id) {
+  const t = lib.byId.get(id);
+  if (!t) return [];
+  const held = new Set(t.held), out = [], seen = new Set();
+  for (const r of [...t.lasers, ...ROLES]) {
+    if (!ROLES.includes(r) || held.has(r) || out.includes(r)) continue;
+    const hex = String(laserHexOf(t, r)).toLowerCase();
+    if (isSaturatedRed(hex) || seen.has(hex)) continue;
+    seen.add(hex); out.push(r);
+  }
+  return Object.freeze(out);
+}
+// A role moved k steps along the sequence (white stays the strobes' peak; a role off the sequence stays as it is).
+function stepRole(seq, r, k) {
+  const i = r === "W" ? -1 : seq.indexOf(r);
+  return i < 0 || !k ? r : seq[(i + k) % seq.length];
+}
+
+// The pair's state. next() books one step on the next beat (presses before it lands add up); a pad hit while the Next
+// control is still held lands it with that hit (onHit); toggleSame() turns the hold on or off at once (it only shapes
+// the hits to come). A new theme starts from its own colours (themeChanged): a step counted on the old theme's sequence
+// means nothing on the new one. step / same / preview feed themeLook (colourStep, colourSame); preview is the step the
+// next hit will show, a waiting step included, for the pads' lights.
+export class ColourStepper {
+  constructor() { this.step = 0; this.same = false; this.pending = 0; this.atMs = null; this.held = false; this.lands = 0; this.presses = 0; }
+  next(nowMs, clock) {
+    this.pending++; this.presses++;
+    if (this.atMs === null) this.atMs = landing(nowMs, clock, "beat").atMs;
+    return { pending: this.pending, atMs: this.atMs };
+  }
+  toggleSame() { this.same = !this.same; return this.same; }
+  setSame(on) { this.same = !!on; return this.same; }
+  tick(nowMs) { return this.pending > 0 && nowMs >= this.atMs ? this._land() : false; }
+  onHit() { return this.pending > 0 && this.held ? this._land() : false; }
+  themeChanged() { this.step = 0; this.pending = 0; this.atMs = null; }
+  get preview() { return this.step + this.pending; }
+  _land() { this.step += this.pending; this.pending = 0; this.atMs = null; this.lands++; return true; }
+}
+
 // Everything a theme gives, for one moment. opts:
 //   mode: "major" | "minor" | null  the key's nudge (major: lighter, more chroma, toward yellow; minor the opposite)
 //   hueDeg: the hue drift (fader 2), capped with the key's nudge at +-15 degrees inside a theme; free in Custom
 //   custom: true in Custom (the theme's pair turned round the wheel by hueDeg)
 //   swap: the long-drop swap of the lasers' role (A <-> B, never onto a held role)
+//   colourStep: Colour Next's step k: the lasers' pair is the sequence's colours k and k + 1 (k a whole turn: the theme's
+//     own pair), the strobe and burst roles turn k steps along it, and the pads' hit colours turn k steps round their
+//     diagonal
+//   colourSame: Colour Same: every colour a hit draws is the pair's first (the lasers, their strobes and bursts, every
+//     pad's hit colour and light)
 // The stand-ins for the pads are never tinted: they are calibrated to the device.
 export function themeLook(lib, id, opts = {}) {
   const t = lib.byId.get(id);
@@ -742,6 +798,10 @@ export function themeLook(lib, id, opts = {}) {
   const scene = (hex) => tint(hexToLinear(hex), tn);
   const emit = (role, hex) => entry(role, safeEmit(scene(hex)));
   const laser = (role) => emit(role, laserHexOf(t, role));
+  const seq = colourSequence(lib, id);
+  const n = seq.length;
+  const k = n >= 2 && Number.isFinite(opts.colourStep) ? ((Math.trunc(opts.colourStep) % n) + n) % n : 0;
+  const same = !!opts.colourSame;
 
   // the scene: stops A, B, their OKLCH midpoint, W -- linear rgb, the strip's row 2 layout (palNow / palTarget in vj.js).
   // Where a blend of the pair would grey (split_only, crossfade_needs_dip), stop 2 is A lifted by up to 0.1 L: as far as
@@ -760,8 +820,14 @@ export function themeLook(lib, id, opts = {}) {
   // burst colours; the colour modes this pair allows
   let roles = [...t.lasers];
   if (opts.swap) roles = roles.map((r) => (r === "A" && !held.has("B") ? "B" : r === "B" && !held.has("A") ? "A" : r));
-  const L1 = laser(roles[0]), L2 = roles[1] ? laser(roles[1]) : held.has("W") ? emit("white", "#ffffff") : laser("W");
-  const triple = t.strobe.triple.map(laser), flicker = t.strobe.flicker.map(laser), burst = t.burst.map(laser);
+  if (k) roles = [seq[k], seq[(k + 1) % n]];
+  const lead = roles[0];
+  // the roles the engine's gates draw: turned k steps along the sequence, or under Colour Same all the lead
+  const hitRole = (r) => (same ? lead : stepRole(seq, r, k));
+  const triRoles = t.strobe.triple.map(hitRole), flRoles = t.strobe.flicker.map(hitRole), buRoles = t.burst.map(hitRole);
+  const L1 = laser(lead);
+  const L2 = same ? L1 : roles[1] ? laser(roles[1]) : held.has("W") ? emit("white", "#ffffff") : laser("W");
+  const triple = triRoles.map(laser), flicker = flRoles.map(laser), burst = buRoles.map(laser);
   const c1 = toOklch(L1.lin), c2 = toOklch(L2.lin);
   const two = L1.hex !== L2.hex;
   const gap = c1.C >= CHROMA_MIN && c2.C >= CHROMA_MIN ? hueGapDeg(c1.h, c2.h) : null;
@@ -782,8 +848,11 @@ export function themeLook(lib, id, opts = {}) {
   // the pads' hit colours: vj.js colours each DAW pad's effects (the shockwave, the classic laser, the particles, the
   // strip's row 3 that the preset scenes react to) from the palette stops on a diagonal. These are the same stops made
   // safe to flash: a held role hits as the lasers' first colour, any other saturated red loses chroma until it passes.
+  // Colour Next turns the diagonal k stops round; Colour Same gives every pad the lasers' first colour.
+  const diag = (i) => ((i % 4) + ((i / 4) | 0) + k) % 4;
   const padHits = Array.from({ length: 12 }, (_, i) => {
-    const s = stops[((i % 4) + ((i / 4) | 0)) % 4];
+    if (same) return Object.freeze({ role: lead, hex: L1.hex, lin: L1.lin });
+    const s = stops[diag(i)];
     if (held.has(s.role)) return Object.freeze({ role: s.role, hex: L1.hex, lin: L1.lin });
     return isSaturatedRed(s.hex) ? entry(s.role, safeEmit(s.lin)) : s;
   });
@@ -809,13 +878,20 @@ export function themeLook(lib, id, opts = {}) {
       burst: Object.freeze(burst), splitOnly: t.split_only, hueGapDeg: gap, gradientOk,
       modes: Object.freeze(modes), burstModes: Object.freeze(modes.filter((m) => ["M2", "M3", "M5", "M8"].includes(m))),
       tailTo: L1,                                          // a burst's tail settles into L1 within 200 ms
+      // the theme as the laser engine reads it (vj-lasers.js themeColours): the roles above, the pair (k) or the lead
+      // twice (Colour Same) as its laser list
+      engine: Object.freeze({ ...t, lasers: Object.freeze(same ? [lead, lead] : roles),
+                              strobe: Object.freeze({ triple: Object.freeze(triRoles), flicker: Object.freeze(flRoles) }),
+                              burst: Object.freeze(buRoles) }),
     }),
     fx,
     pads: Object.freeze({
       A: ledOf(t, "A"), B: ledOf(t, "B"), W: ledOf(t, "W"),
-      laser: ledOf(t, roles[0]),                           // pad 2: the lasers' own stand-in
-      diagonal: Object.freeze(Array.from({ length: 12 }, (_, i) => ledOf(t, DIAGONAL_ROLES[((i % 4) + ((i / 4) | 0)) % 4]))),
+      laser: ledOf(t, lead),                               // pad 2: the lasers' own stand-in
+      diagonal: Object.freeze(Array.from({ length: 12 }, (_, i) => ledOf(t, same ? lead : DIAGONAL_ROLES[diag(i)]))),
     }),
+    // the colour pair as drawn: the sequence, the step (k), Colour Same, the colour the hits lead with and the next one
+    colour: Object.freeze({ sequence: seq, step: k, same, lead, next: n >= 2 ? seq[(k + 1) % n] : lead }),
   });
 }
 

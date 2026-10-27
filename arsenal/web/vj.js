@@ -71,6 +71,8 @@ import {
   SCENE_ACTION_IDS, zoomDepth, EFFECT_CODES,
   // Lasers v2 (2026-10-25): the laser and theme actions, the control map's v2 storage, a button's press
   LASER_ACTIONS, LASER_ACTION_IDS, FAMILY_ACTIONS, FAMILY_ACTION_IDS, PressGate, serializeCtlMap,
+  // pads v2 (VJ V2, 2026-10-27): the colour pair's actions
+  COLOUR_ACTIONS, COLOUR_ACTION_IDS,
 } from "./vj-core.js";
 import { createStage } from "./vj-stage.js";   // wave 2: beat-synced transitions, the post look, the showcase tour
 import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output flash limiter (rules: vj-gate.js)
@@ -78,9 +80,13 @@ import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output 
 // hook-up between them and the page (the clock, the beam records, the head bus, the tap pads, the gate dial, Custom)
 import { createLaserEngine, SEG_TEXELS, MAX_SEGMENTS, SEG_FLOATS, HALO_CUTOFF_PX, TIER_LED, catalogue as laserCatalogue } from "./vj-lasers.js";
 import { fetchLibrary, ThemeDirector, themeAtFader, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
-         clockFromBeatClock as themeClockOf, customTurnFromFader } from "./vj-themes.js";
+         clockFromBeatClock as themeClockOf, customTurnFromFader, ColourStepper } from "./vj-themes.js";
 import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, GateDial, gateLabel,
-         customLaserTheme, standInLed, capHue } from "./vj-hookup.js";
+         customLaserTheme, standInLed, capHue, airOf } from "./vj-hookup.js";
+// Pads v2 (VJ V2, 2026-10-27): the grammar every pad speaks -- velocity is size, a second press within a bar escalates,
+// one-shots land on the grid, repeats move, holds become motions -- the hero's charge, build then drop, Safety
+import { PadPlay, HeroCharge, BuildDrop, safetyAct, verbOf, SPOTS, co2Jets, lineAfter } from "./vj-pads.js";
+import { valueAt as motionValueAt } from "./vj-motions.js";
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
@@ -153,21 +159,28 @@ uniform vec2 u_res;
 uniform float u_keep;
 uniform vec4 u_wave[4];      // centre xy (centred space), radius, energy
 uniform vec4 u_waveB[4];     // width px, velocity, age s, velocity through the curve
+uniform vec4 u_waveC[4];     // pads v2: rings (1-3, the escalation), their spacing, squash (y over x), tilt (radians)
 uniform vec3 u_waveCol[4];
+uniform vec4 u_co2[8];       // pads v2, CO2's plumes (no haze fluid): x (centred), age s, strength x envelope, height
+uniform vec3 u_co2Col;
 uniform float u_sparkle;     // the hat envelope: sparkle amount
 uniform float u_sparkleT;    // its tick (a new constellation of sparks ~30 times a second)
 uniform vec3 u_sparkleCol;
 uniform vec4 u_laser[4];     // origin xy, aim (radians), energy
 uniform vec4 u_laserB[4];    // beams, spread (radians), width px, velocity
 uniform vec3 u_laserCol[4];
-uniform vec4 u_part[4];      // emitter xy, age s, energy
-uniform vec4 u_partB[4];     // count, speed, seed, emission end (age s)
+uniform vec4 u_part[4];      // the swarm's centre xy, age s, energy
+uniform vec4 u_partB[4];     // motes, orbit radius, seed, release (age s; far ahead while held)
+uniform vec4 u_partC[4];     // the motion: spin (radians), breath (-1..1), escalation (rings), -
 uniform vec3 u_partCol[4];
 uniform vec4 u_note[8];      // x, -, age s, velocity (velocity 0 = empty)
 uniform vec3 u_noteCol[8];
-uniform float u_bars;        // strobe scanner bars: amount
-uniform float u_barsPhase;   // 0..1 through the strobe cycle
+uniform float u_bars;        // the Shutters' rows: amount
+uniform float u_barsPhase;   // 0..1 through the division (beat-locked on a live beat)
 uniform vec3 u_barsCol;
+uniform float u_barsN;       // rows (3-9)
+uniform float u_barsOff;     // the rows' travel (the motion), in frame heights
+uniform float u_barsMode;    // the escalation: 1 together, 2 odd and even in anti-phase, 3 columns across them too
 in vec2 v_uv;
 out vec4 outColor;
 const float PI = 3.14159265358979;
@@ -191,13 +204,23 @@ void main() {
   vec3 prev = texture(u_prevOv, v_uv).rgb;
   vec3 trail = max(prev * u_keep - 1.5 / 255.0, 0.0);
   vec3 fresh = vec3(0.0);
-  for (int i = 0; i < 4; i++) {                       // shockwave rings
+  for (int i = 0; i < 4; i++) {                       // shockwave rings (pads v2: the Ring -- a double, a triple)
     vec4 w = u_wave[i];
     if (w.w < 0.001) continue;
-    float d = abs(length(p - w.xy) - w.z) / px;
+    vec4 wc = u_waveC[i];
+    vec2 q = p - w.xy;                                  // the ring's own frame: tilted, squashed (its motion)
+    float ct = cos(wc.w), sn = sin(wc.w);
+    q = vec2(ct * q.x + sn * q.y, -sn * q.x + ct * q.y);
+    q.y /= max(wc.z, 0.5);
+    float rr = length(q);
     float wd = max(u_waveB[i].x * rs, 1.0);
-    fresh += u_waveCol[i] * w.w * (exp(-d * d / (wd * wd)) * 0.9 + 0.35 * lorentz(d, wd * 3.0));
-    fresh += vec3(1.0) * w.w * u_waveB[i].y * 0.5 * exp(-d * d / (0.3 * wd * wd));
+    for (int k = 0; k < 3; k++) {
+      if (float(k) >= wc.x) break;
+      float d = abs(rr - w.z * (1.0 - wc.y * float(k))) / px;
+      float ek = w.w * (1.0 - 0.28 * float(k));       // the inner rings trail, a little dimmer
+      fresh += u_waveCol[i] * ek * (exp(-d * d / (wd * wd)) * 0.9 + 0.35 * lorentz(d, wd * 3.0));
+      fresh += vec3(1.0) * ek * u_waveB[i].y * 0.5 * exp(-d * d / (0.3 * wd * wd));
+    }
     // the strike (2026-10-24): a small hot core at the ring's centre for its first ~80 ms, so the hit shows in the very
     // next frame while the ring is still small (a few percent of the frame: no flash)
     float flare = exp(-u_waveB[i].z / 0.05) * (0.35 + 0.65 * u_waveB[i].w);
@@ -231,30 +254,47 @@ void main() {
     float heat = (1.0 + 2.0 * u_laserB[i].w) * e;
     fresh += (heat > 1e-4 ? hotCore(tint, heat) / heat : tint) * e * aaWire(dPx, u_laserB[i].z * rs) + tint * e * 0.5 * lorentz(dPx, 16.0 * rs);
   }
-  for (int e = 0; e < 4; e++) {                       // particles: analytic, each one born, flung, slowed, fallen
+  for (int i = 0; i < 8; i++) {                       // CO2's plumes (pads v2, no haze fluid): white jets from the floor
+    vec4 c = u_co2[i];
+    if (c.z < 0.002) continue;
+    float y = p.y + 0.5;                              // height above the floor
+    float h = c.w * (1.0 - exp(-c.y / 0.12));         // the jet's front shoots up and slows
+    if (y > h + 0.12) continue;
+    float u = y / max(h, 1e-3);                       // 0 at the nozzle, 1 at the front
+    float wid = 0.012 + 0.11 * u + 0.05 * c.y;        // a cone that widens as it rises and spreads as it ages
+    float dx = (p.x - c.x - 0.015 * u * sin(y * 23.0 + c.y * 5.0 + float(i) * 1.7)) / wid;
+    float front = 1.0 - smoothstep(0.85, 1.12, u);
+    float billow = 0.75 + 0.25 * sin(y * 41.0 - c.y * 9.0 + float(i));
+    fresh += u_co2Col * c.z * exp(-dx * dx * 1.6) * front * (1.0 - 0.45 * u) * billow * 0.85;   // white-hot at the root
+  }
+  for (int e = 0; e < 4; e++) {                       // the swarm (pads v2): motes on tilted orbits round a dealt place
     vec4 em = u_part[e];
     if (em.w < 0.001) continue;
-    float speed = u_partB[e].y;
-    if (length(p - em.xy) > speed * 0.62 + 0.25) continue;
-    float count = u_partB[e].x, seed = u_partB[e].z, emitEnd = u_partB[e].w;
+    float R0 = u_partB[e].y;
+    float rel = max(0.0, em.z - u_partB[e].w);       // seconds since the release (0 while held)
+    float spread = 1.0 + 1.4 * rel;                   // let go, the swarm opens and drifts up
+    if (length(p - em.xy) > R0 * 1.9 * spread + 0.15 + 0.1 * rel * rel) continue;
+    float count = u_partB[e].x, seed = u_partB[e].z;
+    vec4 pc = u_partC[e];
     for (int j = 0; j < 48; j++) {
       if (float(j) >= count) break;
       float fj = float(j);
       float h1 = hash11(seed * 97.0 + fj * 1.13), h2 = hash11(seed * 31.0 + fj * 2.71), h3 = hash11(seed * 13.0 + fj * 5.37);
-      float life = 0.9 + 0.7 * h3;
-      float a0 = em.z - h3 * 0.6;                     // births spread over 0.6 s, then every life while held
-      if (a0 < 0.0) continue;
-      float cyc = floor(a0 / life);
-      if (cyc * life + h3 * 0.6 > emitEnd) continue;  // born after the pad let go: never shown
-      float a = a0 - cyc * life;
-      float ang = TAU * h1;
-      float spd = speed * (0.35 + 0.65 * h2);
-      vec2 pos = em.xy + vec2(cos(ang), sin(ang)) * spd * (1.0 - exp(-2.4 * a)) / 2.4 + vec2(0.0, -0.09 * a * a);
-      float fade = 1.0 - a / life;
-      fade *= fade;
-      float size = (1.0 + 2.2 * h2) * rs;
+      float born = clamp((em.z - 0.35 * h3) / 0.25, 0.0, 1.0);   // the motes wink in over the first ~0.6 s
+      if (born <= 0.0) continue;
+      float ring = pc.z >= 2.5 ? mod(fj, 3.0) : pc.z >= 1.5 ? mod(fj, 2.0) : 0.0;   // escalated: a second, a third orbit
+      float dir = abs(ring - 1.0) < 0.5 ? -1.0 : 1.0;                               // the second turns against the first
+      float R = R0 * (0.35 + 0.65 * h1) * (1.0 + 0.3 * ring) * (1.0 + 0.25 * pc.y) * spread;
+      float a = TAU * h3 + em.z * (0.35 + 0.8 * h2) * dir / (0.6 + R / R0) + pc.x * dir;   // inner motes run faster
+      vec2 o = vec2(cos(a), sin(a) * (0.42 - 0.12 * ring));
+      float tr = 0.5 * ring + seed;                   // each orbit's plane turned its own way
+      o = vec2(o.x * cos(tr) - o.y * sin(tr), o.x * sin(tr) + o.y * cos(tr));
+      vec2 pos = em.xy + o * R + vec2(0.0, 0.1 * rel * rel);
+      float near = 0.5 + 0.5 * sin(a);                // the near half of an orbit: bigger and brighter
+      float size = (0.9 + 1.6 * h2) * (0.7 + 0.6 * near) * rs;
       float dPx = length(p - pos) / px;
-      fresh += u_partCol[e] * em.w * fade * (exp(-dPx * dPx / (size * size)) * 1.3 + 0.12 * lorentz(dPx, size * 4.0));
+      vec3 col = h1 > 0.78 ? vec3(1.0) : u_partCol[e];   // one mote in five burns white-hot (two colours, never three)
+      fresh += col * em.w * born * (0.55 + 0.45 * near) * (exp(-dPx * dPx / (size * size)) * 1.3 + 0.1 * lorentz(dPx, size * 4.0));
     }
   }
   for (int i = 0; i < 8; i++) {                       // note glints: a rising spark per struck key
@@ -268,12 +308,25 @@ void main() {
     float streak = exp(-abs(d.x) / (1.0 * rs)) * exp(-max(-d.y, 0.0) / (40.0 * rs)) * step(d.y, 0.0);
     fresh += u_noteCol[i] * f * (dot2 * 1.4 + streak * 0.35);
   }
-  if (u_bars > 0.001) {                               // strobe scanner bars: thin, a few percent of the frame
+  if (u_bars > 0.001) {                               // the Shutters: thin rows, a few percent of the frame
     float on = 1.0 - smoothstep(0.22, 0.32, u_barsPhase);
-    for (int b = 0; b < 3; b++) {
-      float y = -0.3 + 0.3 * float(b);
+    float alt = 1.0 - smoothstep(0.22, 0.32, fract(u_barsPhase + 0.5));   // the other rows, half a division on
+    float n = max(u_barsN, 1.0);
+    for (int b = 0; b < 9; b++) {
+      if (float(b) >= n) break;
+      float y = -0.42 + 0.84 * (float(b) + 0.5) / n + u_barsOff;
+      y -= floor(y + 0.5);                            // travelling with the motion, wrapped into the frame
+      float lit = u_barsMode >= 1.5 && mod(float(b), 2.0) > 0.5 ? alt : on;
       float dy = abs(p.y - y) / px;
-      fresh += u_barsCol * u_bars * on * exp(-dy * dy / (16.0 * rs * rs));
+      fresh += u_barsCol * u_bars * lit * exp(-dy * dy / (16.0 * rs * rs));
+    }
+    if (u_barsMode >= 2.5) {                          // the third level: columns cross the rows, in anti-phase
+      for (int b = 0; b < 5; b++) {
+        float x = (-0.4 + 0.8 * (float(b) + 0.5) / 5.0 - u_barsOff) * asp;
+        x -= asp * floor(x / asp + 0.5);
+        float dx = abs(p.x - x) / px;
+        fresh += u_barsCol * u_bars * alt * 0.8 * exp(-dx * dx / (16.0 * rs * rs));
+      }
     }
   }
   outColor = vec4(max(trail, fresh), 1.0);
@@ -392,6 +445,7 @@ uniform float u_kal, u_kalN, u_kalRot;
 uniform float u_glitch, u_glitchT, u_gSize, u_gSeed, u_gAge;
 uniform vec2 u_gMode;        // the glitch's primary and second mode (vj-core.js GLITCH_MODES; -1 = none)
 uniform float u_freeze, u_freezeZoom;
+uniform vec2 u_freezeShift;  // pads v2, Lower: where the frozen frame has sunk to (its standing motion), uv
 uniform vec4 u_wave[4];
 uniform vec4 u_waveB[4];
 uniform float u_flash, u_flashGap;
@@ -573,7 +627,7 @@ void main() {
     c = mix(c, scene(kuv), clamp(u_kal, 0.0, 1.0));
   }
   if (u_freeze > 0.001) {
-    vec2 fuv = (uv - 0.5) * (1.0 - u_freezeZoom) + 0.5;
+    vec2 fuv = (uv - 0.5) * (1.0 - u_freezeZoom) + 0.5 + u_freezeShift;
     c = mix(c, texture(u_frz, mirrorUv(fuv)).rgb, clamp(u_freeze, 0.0, 1.0));
   }
   // to linear light; the dip (never deeper than the measured scene allows: vj-core.js dipSafeDepth); the accents; a soft
@@ -705,6 +759,20 @@ lasers.eng.setClock(laserClock(beat));
 // the colour themes (vj-themes.js): the library loads at boot; until then (or if it cannot) the page keeps its palette
 const themes = { lib: null, dir: null, look: null, error: "", changes: 0, cuts: 0, dipUntil: 0, dipAt: 0, family: null,
                  lastChange: null, customTurn: 0, laserKey: "", ledLook: null, faderTouched: false, keyEvents: 0 };
+// Pads v2 (VJ V2, 2026-10-27; vj-pads.js): the grammar's state, the hero's charge, build then drop, Safety's black, each
+// pad's last hit (the HUD, the receipts), the CO2 jets waiting for their 1/16 and the page's own plumes (the 2D stand-in
+// when no haze fluid runs), the section the pads set (a build, then the drop's 16 bars)
+const pads = {
+  play: new PadPlay({ seed: LASER_SEED }), hero: new HeroCharge(), build: new BuildDrop(),
+  hits: new Array(12).fill(null), vel: new Float32Array(12), black: { on: false, gain: 1, back: 0.06 }, section: "any",
+  co2Q: [], plumes: [], co2Pour: -1, heroes: 0, drops: 0, heroPad: 10, buildPad: 11, log: [],
+};
+const PLUMES_MAX = 8;
+// the colour pair (vj-themes.js ColourStepper): Colour Next ([ or a learned button), Colour Same (] or a learned button)
+const colour = new ColourStepper();
+// the air: lane C's haze fluid (vj-fluid.js attachFluid) when the page has one -- its inject point sets air.fluid, and
+// the pads reach it through vj-hookup.js airOf, feature by feature (window.__vj.attachAir does the same for a receipt)
+const air = { fluid: null, api: null, seen: null };
 // the engine's tap pads (its hello's tap list): a pad that taps fires no effect
 let tapPads = [];
 let tapPresses = 0, tapLast = null;
@@ -746,7 +814,7 @@ const PC_RGB = pitchColours();
 // kill, flash, strobe, freeze
 const kill = { gain: 1, target: 1, pending: null, at: null };
 const flash = { t0: -1e9, peak: 0, decay: 0.15, gap: 1e9 };
-let strobeNext = 0;
+let strobeNext = 0, strobeBar = -Infinity;
 let freezeCapture = false;
 let stutterCapture = false;
 // this frame's impact values (updateImpact): the punch (hits + zoom punch + the kick's pump), the zoom punch's blur, the
@@ -771,7 +839,8 @@ const G = { gl: null, lost: false, parallel: null, fbInternal: 0, fbType: 0, fbF
 const strip = createStrip();
 const audioBytes = new Uint8Array(AUDIO_TEX_W * 2);
 const U = {   // uniform scratch (no allocation per frame)
-  wave: new Float32Array(16), waveB: new Float32Array(16), waveCol: new Float32Array(12),
+  wave: new Float32Array(16), waveB: new Float32Array(16), waveC: new Float32Array(16), waveCol: new Float32Array(12),
+  co2: new Float32Array(32), partC: new Float32Array(16),
   laser: new Float32Array(16), laserB: new Float32Array(16), laserCol: new Float32Array(12),
   part: new Float32Array(16), partB: new Float32Array(16), partCol: new Float32Array(12),
   note: new Float32Array(32), noteCol: new Float32Array(24),
@@ -942,13 +1011,15 @@ function initGL() {
     G.ovProg = linkSync(gl, OVERLAY_FS);
     G.ovU = uniformsOf(gl, G.ovProg, ["u_prevOv", "u_res", "u_keep", "u_wave", "u_waveB", "u_waveCol", "u_laser", "u_laserB",
       "u_laserCol", "u_part", "u_partB", "u_partCol", "u_note", "u_noteCol", "u_bars", "u_barsPhase", "u_barsCol",
-      "u_sparkle", "u_sparkleT", "u_sparkleCol"]);
+      "u_sparkle", "u_sparkleT", "u_sparkleCol",
+      // pads v2
+      "u_waveC", "u_co2", "u_co2Col", "u_partC", "u_barsN", "u_barsOff", "u_barsMode"]);
     G.compProg = linkSync(gl, COMPOSITE_FS);
     G.compU = uniformsOf(gl, G.compProg, ["u_a", "u_b", "u_ov", "u_frz", "u_hist", "u_stut", "u_meter", "u_res", "u_mix",
       "u_kal", "u_kalN", "u_kalRot", "u_glitch", "u_glitchT", "u_gSize", "u_gSeed", "u_gAge", "u_gMode", "u_freeze",
       "u_freezeZoom", "u_wave", "u_waveB", "u_flash", "u_flashGap", "u_invert", "u_bright", "u_sat", "u_accent", "u_metro",
       "u_metroCol", "u_bloom", "u_bloomCol", "u_punch", "u_blur", "u_shake", "u_dip", "u_dipGranted", "u_dipSafe", "u_snare",
-      "u_beam", "u_beamGain"]);
+      "u_beam", "u_beamGain", "u_freezeShift"]);
     gl.useProgram(G.compProg);
     gl.uniform1i(G.compU.u_a, 0); gl.uniform1i(G.compU.u_b, 1); gl.uniform1i(G.compU.u_ov, 2); gl.uniform1i(G.compU.u_frz, 3);
     gl.uniform1i(G.compU.u_hist, 4); gl.uniform1i(G.compU.u_stut, 5); gl.uniform1i(G.compU.u_meter, 6);
@@ -1423,9 +1494,19 @@ function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
   // punch and Invert put 5-10 flashes a second on the screen with only the FlashGate in front of them. So until the
   // limiter runs (and for good if it cannot) every pad effect is refused; the controls still work.
   if (EFFECTS[action] && !limiterLive()) { safeRefused++; if (action === "laser") lasers.refused++; return; }
+  // Colour Next held while a pad is hit: its step lands with this hit, so the hit already shows the new colour
+  if (colour.onHit()) colourChanged();
+  const ctx = padCtx(nowS * 1000);
   if (action === "laser" && !options.lasersClassic) laserHit(pad, vel, src, nowS, arriveMs, snap);
+  else if (action === "hero") heroPress(pad, vel, nowS, ctx);
+  else if (action === "build") buildPress(pad, vel, nowS, ctx);
   else if (EFFECTS[action]) {
-    const f = triggerEffect(action, vel, pad, nowS);
+    // pads v2: every other effect pad speaks the grammar (vj-pads.js): size, escalation, a landed life, a spot, a motion
+    const h = action === "laser" ? null : pads.play.press(pad, action, { ...ctx, vel, nowMs: nowS * 1000 });
+    if (h) { padLog(h, nowS * 1000); pads.vel[i] = vel; }
+    const f = action === "co2" ? co2Press(pad, vel, nowS, h, ctx) : triggerEffect(action, vel, pad, nowS, h, ctx);
+    // the fog push (pad 6) into the haze fluid when it runs: as hard as the press; it decays by itself after the release
+    if (action === "particles" && f && air.api && air.api.has.fog) air.api.fogPush(Math.min(1, 0.25 + (h ? h.size : 1) / 1.6));
     if (f) {   // the latency record: this event's arrival; the frame that draws it fills in `frame` and `env`
       // performance.now() for the page's own gaps; Date.now() (the wall clock the engine shares on this machine) so a
       // receipt can measure from the moment the engine SENT the event, queueing in the page included
@@ -1435,7 +1516,8 @@ function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
                              snapGrid: snap ? +snap.grid.toFixed(3) : null });
       if (latency.records.length > LATENCY_KEEP) latency.records.shift();
     }
-  } else if (action === "dampen") dampenAll(nowS);
+  } else if (action === "safety") safetyPress(pad, vel, nowS, ctx);
+  else if (action === "dampen") dampenAll(nowS);
   else if (action === "choke") choke();
   else if (action === "kill") toggleKill();
   else if (action === "next") nextSet();
@@ -1444,20 +1526,207 @@ function padOff(pad, nowS = performance.now() / 1000, src = "") {
   if (src && isTapPad(tapPads, pad, src)) return;                       // the tap's release: nothing to let go of
   for (const q of snapQ) if (q.pad === pad) { q.off = true; return; }   // still waiting for its 16th: let go right after
   padHeld[pad - 1] = 0;
-  fx.release(pad, nowS);
+  const action = padMap[pad - 1], ctx = padCtx(nowS * 1000);
+  // pads v2: a hold pad's release lands on the grid (a tap of it plays its short version to its own line); Safety's
+  // black and the build's riser end here; the fog push lets the haze decay by itself
+  const r = pads.play.release(pad, ctx);
+  const endS = r && r.endPos !== null ? nowS + Math.max(0, r.endPos - ctx.pos) * ctx.perMs / 1000 : nowS;
+  fx.release(pad, endS);
+  if (action === "safety") blackOff(nowS);
+  else if (action === "build") buildRelease(ctx);
+  else if (action === "particles" && air.api) air.api.fogRelease();
   if (lasers.held && lasers.pad === pad) { lasers.held = false; lasers.eng.release(nowS * 1000); }
+}
+
+// ------------------------------------------------------------------------------------------------- pads v2 --
+// VJ V2 (2026-10-27; the build spec's section B, the pads lane's map where it fits the page): the grammar is vj-pads.js;
+// here is what each pad does on the page. Row 1 HITS: 1 Ring (an 8-spot deck, a double then a triple ring within a bar,
+// ripples on every beat while held), 2 Lasers, 3 CO2 (jets into the haze fluid when it runs, else white plumes from the
+// floor; the bloom spends a flash-gate slot), 4 Glitch Lift (the frame jumps up on the kick, the glitch lands on the
+// grid; held, it strikes again on every beat). Row 2 HOLDS (held: a standing motion; a tap: a short version): 5 Shutters
+// (beat-locked rows travelling with a motion), 6 Fog + Swarm (motes on tilted orbits round a dealt place; the fog push),
+// 7 Morph (the kaleidoscope turning in landed steps), 8 Lower (the frozen frame sinks; a tap is a hit-stop). Row 3
+// MOVES: 9 Safety, 10 Hero, 11 Build / Drop, 12 the Zoom punch (the tap in DAW mode).
+const FALLBACK_BEAT_MS = 400;   // 150 BPM: the pads' grid with no live beat (the laser engine's fallback tempo)
+// The pads' clock: the page grid's position when a beat is live, else a count at the fallback tempo (no bar to accent).
+function padCtx(nowMs) {
+  const live = beat.alive(nowMs), p = live ? beat.posAt(nowMs) : null;
+  const ok = p !== null && Number.isFinite(p);
+  return { pos: ok ? p : nowMs / FALLBACK_BEAT_MS, perMs: ok ? beat.period() : FALLBACK_BEAT_MS, live: ok, section: pads.section };
+}
+function padLog(h, nowMs) {
+  pads.hits[h.pad - 1] = h;
+  pads.log.push({ t: Math.round(nowMs), pad: h.pad, action: h.action, esc: h.esc, size: +h.size.toFixed(3), spot: h.spot,
+                  motion: h.motion ? h.motion.id : null, cls: h.motion ? h.motion.cls : null, endPos: h.endPos, accent: h.accent });
+  if (pads.log.length > 64) pads.log.shift();
+}
+// the pads' state for the HUD's receipts (window.__vj.pads() and stats().pads)
+function padsState() {
+  const pos = padCtx(performance.now()).pos, b = pads.build;
+  return {
+    pos: +pos.toFixed(4), section: pads.section, heroes: pads.heroes, drops: pads.drops,
+    hero: { charge: +pads.hero.charge(pos).toFixed(3), pendingAt: pads.hero.pendingAt, fired: pads.hero.fired },
+    build: { phase: b.phase, dropAt: b.dropAt, riser: b.riser, progress: +b.progress(pos).toFixed(3), drops: b.drops },
+    black: { on: pads.black.on, gain: +pads.black.gain.toFixed(3) },
+    nextEsc: Array.from({ length: 12 }, (_, i) => pads.play.nextEsc(i + 1, pos)),
+    plumes: pads.plumes.length, co2Queued: pads.co2Q.length,
+    air: air.api ? { co2: air.api.has.co2, fog: air.api.has.fog, calls: air.api.calls, broken: air.api.broken } : null,
+    log: pads.log.slice(-32),
+  };
+}
+// A hit's place in the overlay's centred space (vj-pads.js SPOTS: x in half-widths, y in frame heights)
+function spotXY(h) {
+  if (!h || h.spot === null) return null;
+  const s = SPOTS[h.spot], asp = G.width / Math.max(G.height, 1);
+  return [s[0] * 0.5 * asp, s[1]];
+}
+// The motion value of an effect instance now (vj-motions.js valueAt) times its amplitude, 0 without a motion
+function motionNow(f, pos) {
+  const m = f && f.motion;
+  return m && Number.isFinite(pos) ? motionValueAt(m, pos) * m.amp : 0;
+}
+
+// CO2 (pad 3): the jets fire 1/16 beat apart in a dealt order (vj-pads.js co2Jets). The bloom is a flash source (build
+// spec amendment 7): it asks the flash gate at the press; refused, only a thin wisp of the two middle jets goes up at a
+// third of the strength. Into the haze fluid when the page has one (vj-fluid.js co2: cold, dense, white, then it sinks and
+// burns off), else the page's own plumes in the overlay.
+function co2Press(pad, vel, nowS, h, ctx) {
+  const granted = gate.request(nowS);
+  const f = fx.trigger("co2", vel, nowS, { pad, granted, size: h ? h.size : 1, esc: h ? h.esc : 1, motion: h ? h.motion : null });
+  if (!f) return null;
+  let jets = co2Jets(h);
+  if (!granted) { const mid = (jets.length - 1) / 2; jets = jets.filter((_, i) => Math.abs(i - mid) <= 0.5).map((j) => ({ ...j, strength: j.strength / 3 })); }
+  const nowMs = nowS * 1000;
+  for (const j of jets) pads.co2Q.push({ atMs: nowMs + j.delay * ctx.perMs, x01: j.x01, strength: j.strength, pad, serial: f.serial });
+  const at = spotXY(h);
+  impact.hit("co2", vel, nowS, { seed: f.seed, granted, x: at ? at[0] : 0, y: -0.45, punch: options.punch && limiterLive() });
+  return f;
+}
+// the jets whose time has come: into the fluid, or a plume of the page's own (the oldest plume gives way)
+function co2Fire(nowMs) {
+  for (let k = 0; k < pads.co2Q.length;) {
+    const q = pads.co2Q[k];
+    if (q.atMs > nowMs) { k++; continue; }
+    pads.co2Q.splice(k, 1);
+    if (air.api && air.api.has.co2 && air.api.co2(q.x01, 0, q.strength)) continue;
+    if (pads.plumes.length >= PLUMES_MAX) pads.plumes.shift();
+    pads.plumes.push({ x01: q.x01, t0: nowMs / 1000, strength: q.strength, pad: q.pad, serial: q.serial });
+  }
+  // a plume lives while its CO2 instance does (held: the jets keep pouring; let go: they burn off)
+  for (let k = 0; k < pads.plumes.length;) {
+    const p = pads.plumes[k];
+    if (fx.fx.some((f) => f.active && f.type === "co2" && f.serial === p.serial)) k++; else pads.plumes.splice(k, 1);
+  }
+}
+
+// HERO (pad 10): charged (one charge per 8 bars), the payoff lands on the next ONE -- the lasers' own phrase ("t t tou
+// blur blur flash", Daniel's), a triple ring from the hero point and the drop's punch. Charging, a press only stirs a soft
+// ring there (the pad's light shows the charge: dim while it fills, blinking on the beat once full).
+function heroPress(pad, vel, nowS, ctx) {
+  pads.heroPad = pad;
+  const r = pads.hero.press(ctx.pos);
+  if (r) { toast(r.at <= ctx.pos ? "HERO" : `HERO on the ONE (bar line ${r.at})`); heroTick(ctx); return; }
+  triggerEffect("shockwave", 0.35 * vel, pad, nowS, { size: 0.5, esc: 1, spot: 0, motion: null, endPos: null }, ctx);
+}
+function heroTick(ctx) {
+  const at = pads.hero.due(ctx.pos);
+  if (at === null) return;
+  pads.heroes++;
+  payoff(pads.heroPad, "hero", performance.now() / 1000, { phrase: true });
+}
+// The payoff a hero or a drop lands: the lasers (the phrase for the hero, a full hit for the drop), a triple ring from
+// the hero point, the white flash through the gate (the drop's), the hero's impact.
+function payoff(pad, kind, nowS, { phrase = false } = {}) {
+  if (!options.lasersClassic) laserHit(pad, 1, kind, nowS, nowS * 1000, null, { phrase, noHold: true });
+  triggerEffect("shockwave", 1, pad, nowS, { size: 1.6, esc: 3, spot: 0, motion: null, endPos: null }, padCtx(nowS * 1000));
+  if (kind === "drop") requestFlash(nowS, 0.6 * T.accent, 0.12);
+  impact.hit("hero", 1, nowS, { seed: 0.5, granted: false, x: 0, y: 0.05, punch: options.punch && limiterLive() });
+  pads.log.push({ t: Math.round(nowS * 1000), pad, action: kind, pos: +padCtx(nowS * 1000).pos.toFixed(3) });
+  if (pads.log.length > 64) pads.log.shift();
+}
+
+// BUILD then DROP (pad 11): a tap builds 4, 8 or 16 bars by velocity, a second tap drops on the next downbeat, held a beat
+// it is a riser that drops on the release. While it builds the Shutters' rows rise through a quarter, an eighth and a
+// sixteenth and the scene pulls back a little; the drop lands the payoff on its bar line and the drop's section (the
+// lasers' decks and the held motions' budget) for 16 bars.
+function buildPress(pad, vel, nowS, ctx) {
+  pads.buildPad = pad;
+  const r = pads.build.press(ctx.pos, vel);
+  pads.play.press(pad, "build", { ...ctx, vel, nowMs: nowS * 1000 });
+  setPadSection("build");
+  toast(r.act === "build" ? `BUILD ${r.bars} bars: the drop on bar line ${r.at}` : `DROP on the next downbeat (${r.at})`);
+}
+function buildRelease(ctx) {
+  const r = pads.build.release(ctx.pos);
+  if (r) toast(`DROP on the next downbeat (${r.at})`);
+}
+function buildTick(ctx, nowS) {
+  if (pads.build.tick(ctx.pos) === "drop") { pads.drops++; setPadSection("drop"); payoff(pads.buildPad, "drop", nowS); }
+  else if (pads.build.phase === "idle" && pads.section !== "any") setPadSection("any");
+}
+function setPadSection(s) {
+  if (pads.section === s) return;
+  pads.section = s;
+  lasers.eng.setSection(s);
+}
+
+// SAFETY (pad 9): a tap dampens, a tap harder than 0.8 chokes; held half a beat, black until the release. Coming back is a
+// full-frame rise, so it asks the flash gate: granted, it is back in 60 ms; refused, it fades back over 0.4 s.
+function safetyPress(pad, vel, nowS, ctx) {
+  if (safetyAct(vel) === "choke") choke(); else dampenAll(nowS);
+  pads.play.press(pad, "safety", { ...ctx, vel, nowMs: nowS * 1000 });
+}
+function blackOff(nowS) {
+  if (!pads.black.on) return;
+  pads.black.on = false;
+  pads.black.back = gate.request(nowS) ? 0.06 : 0.4;
+}
+// every frame: the holds (a standing motion, Safety's black, the riser, CO2's 3 s), the held hit pads' strikes on the
+// beat, the hero's booked payoff, the build's drop, the CO2 jets, the colour step, Safety's black
+function padsTick(nowMs, dt) {
+  const nowS = nowMs / 1000, ctx = padCtx(nowMs);
+  if (air.fluid !== air.seen) { air.seen = air.fluid; air.api = airOf(air.fluid); }   // lane C's fluid came (or went)
+  for (let i = 0; i < 12; i++) {
+    if (!padHeld[i] || !pads.play.isDown(i + 1)) continue;
+    const pad = i + 1, action = padMap[i];
+    const h = pads.play.hold(pad, { ...ctx, nowMs });
+    if (h && h.held) {
+      if (action === "safety") pads.black.on = true;
+      const f = fx.strongest(action);
+      if (f && f.pad === pad && h.standing) f.motion = h.standing;          // the hold becomes its standing motion
+    } else if (h && h.expire) fx.release(pad, nowS);                          // CO2 held 3 s: it lets go by itself
+    if (action === "build") pads.build.hold(ctx.pos);
+    if (pads.play.repeats(pad, ctx.pos)) {                                    // held: the ring ripples, the glitch strikes
+      const last = pads.hits[i];
+      if (last && limiterLive()) triggerEffect(action, 0.85 * pads.vel[i], pad, nowS,
+        { ...last, size: last.size * 0.85, motion: pads.play.standing(pad) || last.motion, endPos: null }, ctx);
+    }
+    if (action === "co2" && pads.play.isHeld(pad) && air.api && air.api.has.co2) {
+      // held CO2 keeps pouring into the haze: the row of jets again every quarter beat (the bloom was the press's)
+      const q = Math.floor(ctx.pos * 4);
+      if (q !== pads.co2Pour) { pads.co2Pour = q; for (const j of co2Jets(pads.hits[i])) air.api.co2(j.x01, 0, 0.6 * j.strength); }
+    }
+  }
+  heroTick(ctx);
+  buildTick(ctx, nowS);
+  co2Fire(nowMs);
+  if (colour.tick(nowMs)) colourChanged();
+  const b = pads.black;
+  b.gain = b.on ? Math.max(0, b.gain - dt / 0.08) : Math.min(1, b.gain + dt / b.back);
 }
 // ------------------------------------------------------------------------------------------------ Lasers v2 --
 // Pad 2 (the pad mapped to the laser) is the laser engine's hit (vj-lasers.js): it deals the pattern, the head order, the
 // colour split and the bank; the retrigger tiers (beats since the last press) and the velocity tiers (soft single,
 // medium one-two, hard triple: Daniel, 2026-10-25, "4. option 1!") or the dial's fixed gate pick the gate; holding it runs
 // the section's loop until release. Its light is the beam layer's; the impact layer still punches the scene behind it.
-function laserHit(pad, vel, src, nowS, arriveMs, snap = null) {
+// (pads v2: a hero or a drop fires the lasers too -- the hero Daniel's phrase, the drop a full hit -- never held by a pad)
+function laserHit(pad, vel, src, nowS, arriveMs, snap = null, { phrase = false, noHold = false } = {}) {
   const t = nowS * 1000;
   lasers.cut = false; lasers.gain = 1; lasers.dampT = null;
-  const info = lasers.eng.hit(t, vel);
+  const info = phrase ? lasers.eng.phrase(t, vel) : lasers.eng.hit(t, vel, noHold ? { noHold: true } : {});
   lasers.hits++;
-  lasers.pad = pad; lasers.held = true;
+  if (phrase || noHold) { if (lasers.pad === pad) lasers.held = false; }
+  else { lasers.pad = pad; lasers.held = true; }
   lasers.last = { t: +t.toFixed(1), vel: info.vel, tier: info.tier, gate: info.gate, pattern: info.pattern, order: info.order,
                   colour: info.colour, bank: info.bank, start: info.start, heads: info.heads ? info.heads.length : 0,
                   beams: info.beams, hero: !!info.hero, fast: !!info.fast, ext: !!info.ext, shape: info.shape || null, src };
@@ -1546,7 +1815,7 @@ function fireSnapped(nowMs) {
     if (q.at > nowMs) { k++; continue; }
     snapQ.splice(k, 1);
     padFire(q.pad, q.vel, q.src, nowMs / 1000, q.arrive, q);
-    if (q.off) { padHeld[q.pad - 1] = 0; fx.release(q.pad, nowMs / 1000 + 0.06); }
+    if (q.off) padOff(q.pad, nowMs / 1000 + 0.06);   // let go while it waited: a release just after (it lands as any does)
   }
 }
 function choke() {
@@ -1554,6 +1823,11 @@ function choke() {
   impact.clear();
   snapQ.length = 0;
   flash.peak = 0;
+  // pads v2: every pad's ladder starts over, the CO2 still to come and the plumes go, a build and a booked hero are
+  // called off (Safety's black is the held pad's own: its release ends it)
+  pads.play.reset();
+  pads.co2Q.length = 0; pads.plumes.length = 0;
+  pads.build.reset(); pads.hero.reset(); setPadSection("any");
   // the lasers: every beam cut now (spec 1.8), until the next hit; a held loop let go
   lasers.cut = true; lasers.held = false;
   lasers.eng.release(performance.now());
@@ -1561,6 +1835,7 @@ function choke() {
 // Dampen (pad 9, Q): every effect released fast; the lasers' loops end and their light fades in ~60 ms
 function dampenAll(nowS) {
   fx.dampen(nowS);
+  pads.co2Q.length = 0;          // (pads v2: no more CO2 jets from a press already made)
   lasers.held = false;
   lasers.eng.release(nowS * 1000);
   if (lasers.n || (lasers.out && lasers.out.n)) lasers.dampT = nowS * 1000;
@@ -1574,28 +1849,49 @@ function requestFlash(nowS, peak, decay) {
   flash.gap = gate.prevGap;
   return true;
 }
-function triggerEffect(type, vel, pad, nowS) {
+// h: the pad's hit (vj-pads.js PadPlay.press) when it came from the pads' grammar: its size, escalation, motion and spot
+// ride the instance, and a one-shot's life lands on its grid (ctx: the pads' clock at the press)
+function triggerEffect(type, vel, pad, nowS, h = null, ctx = null) {
   let granted = true;
   if (type === "flash") granted = requestFlash(nowS, (0.45 + 0.55 * vel) * T.accent, 0.08 + 0.14 * vel);
   else if (type === "invert") granted = gate.request(nowS);   // its onset spends a slot; refused, it fades in slowly
   else if (type === "strobe") strobeNext = nowS;
-  const f = fx.trigger(type, vel, nowS, { pad, granted });
+  const opts = { pad, granted };
+  if (h) {
+    opts.size = h.size; opts.esc = h.esc; opts.motion = h.motion;
+    const at = spotXY(h);
+    if (at) { opts.x = at[0]; opts.y = at[1]; }
+    const lifeS = landedLifeS(type, vel, h, ctx);
+    if (lifeS !== null) opts.lifeS = lifeS;
+  }
+  const f = fx.trigger(type, vel, nowS, opts);
   if (type === "freeze") freezeCapture = true;
   if (type === "glitch") stutterCapture = true;               // the stutter's slices: the frame as it was at the hit
   // the impact layer: punch, shake, dip, afterglow (a white flash's dip rides its own granted slot; any other dip is held
-  // under the flash line by the composite's scene meter: vj-core.js dipSafeDepth)
+  // under the flash line by the composite's scene meter: vj-core.js dipSafeDepth). The Glitch Lift throws the frame up.
   if (f) {
     const at = hitOrigin(f);
     impact.hit(type, vel, nowS, { seed: f.seed, granted: type === "flash" && granted, x: at[0], y: at[1],
-                                 punch: options.punch && limiterLive() });
+                                 punch: options.punch && limiterLive(), slipDir: type === "glitch" ? LIFT_DIR : null });
   }
   return f;
+}
+const LIFT_DIR = Object.freeze([0, -1]);   // the Glitch Lift: the composite samples lower, so the picture jumps up
+// A one-shot's life in seconds, landed on its grid (vj-pads.js): the hit's own landing, or -- a ring's ripple or the
+// glitch's repeat while held, struck on a line -- its verb's, from the strike
+function landedLifeS(type, vel, h, ctx) {
+  if (!ctx) return null;
+  if (Number.isFinite(h.endPos)) return Math.max(0, h.endPos - ctx.pos) * ctx.perMs / 1000;
+  const v = verbOf(type);
+  if (!v || !v.life || v.hold) return null;
+  return (lineAfter(ctx.pos, v.grid, 0.75 * v.life * (0.6 + 0.8 * vel)) - ctx.pos) * ctx.perMs / 1000;
 }
 // Where an effect instance sits in the preset's centred space (the overlay's own placement), for the strip's hit texel.
 const originScratch = [0, 0];
 function hitOrigin(f) {
   const asp = G.width / Math.max(G.height, 1);
-  if (f.type === "shockwave") { originScratch[0] = (f.seed - 0.5) * 0.3 * asp; originScratch[1] = (((f.seed * 7.31) % 1) - 0.5) * 0.25; }
+  if (f.placed) { originScratch[0] = f.x; originScratch[1] = f.y; }
+  else if (f.type === "shockwave") { originScratch[0] = (f.seed - 0.5) * 0.3 * asp; originScratch[1] = (((f.seed * 7.31) % 1) - 0.5) * 0.25; }
   else if (f.type === "laser") {
     const slot = f.serial % 4;
     originScratch[0] = slot === 1 ? -0.48 * asp : slot === 2 ? 0.48 * asp : 0;
@@ -1644,6 +1940,7 @@ function onCtl(ev) {
   if (SCENE_ACTION_IDS.includes(target)) sceneCtl(ev, target, nowMs);
   else if (LASER_ACTION_IDS.includes(target)) laserCtl(ev, target, nowMs);
   else if (FAMILY_ACTION_IDS.includes(target)) familyCtl(ev, target, nowMs);
+  else if (COLOUR_ACTION_IDS.includes(target)) colourCtl(ev, target, nowMs);
   else setTarget(target, ev);
 }
 function saveCtlMap() { safeSet(STORE.ctl, JSON.stringify(serializeCtlMap(ctlMap))); }
@@ -1738,7 +2035,8 @@ function sceneTick(nowMs) {
     .finally(() => { sceneReport.inflight = false; });
 }
 function targetLabel(id) {
-  const act = SCENE_ACTIONS.find((a) => a.id === id) || LASER_ACTIONS.find((a) => a.id === id) || FAMILY_ACTIONS.find((a) => a.id === id);
+  const act = SCENE_ACTIONS.find((a) => a.id === id) || LASER_ACTIONS.find((a) => a.id === id) || FAMILY_ACTIONS.find((a) => a.id === id) ||
+    COLOUR_ACTIONS.find((a) => a.id === id);
   if (act) return act.label;
   if (/^k[1-8]$/.test(id)) {
     const s = sets[deck.a];
@@ -1902,12 +2200,14 @@ const capScratchA = [0, 0, 0], capScratchB = [0, 0, 0], capScratchC = [0, 0, 0];
 function lasersTheme(fa, fb) {
   let key, theme;
   if (themes.look) {
-    const t = themes.lib.byId.get(themes.look.id);
-    theme = { ...t, lasers: themes.look.lasers.roles.slice() };
-    key = `${t.id}|${theme.lasers.join("")}`;
+    // the theme as the engine reads it: its laser roles, turned by Colour Next or held to one by Colour Same (vj-themes.js)
+    theme = themes.look.lasers.engine;
+    key = `${theme.id}|${theme.lasers.join("")}|${theme.strobe.triple.join("")}${theme.strobe.flicker.join("")}|${theme.burst.join("")}`;
   } else {
     if (!fa) { fa = hueColour(T.hueA, 0.70); fb = hueColour(T.hueB, 0.62); }
-    theme = customLaserTheme(fa, fb);
+    // Custom's pair is Hue A and B: Colour Next swaps them, Colour Same draws the lead twice
+    const swap = (colour.step & 1) === 1, lead = swap ? fb : fa;
+    theme = customLaserTheme(lead, colour.same ? lead : swap ? fa : fb);
     key = `custom|${theme.L1}|${theme.L2}`;
   }
   if (key === themes.laserKey) return;
@@ -1974,9 +2274,40 @@ function themeTick(nowMs) {
     travel = 0;
     if (ch.cut) { themes.cuts++; themes.dipAt = nowMs; }
     safeSet(STORE.theme, JSON.stringify({ id: d.base, custom: d.custom }));
+    colour.themeChanged();        // a new theme starts from its own colours (Colour Same stays as it was)
   }
-  const key = `${d.base}|${d.custom}|${d.keyAuto ? d.mode || "" : ""}|${d.fader2 === null ? "" : d.fader2.toFixed(3)}`;
-  if (key !== themes.lookKey) { themes.lookKey = key; themes.look = d.custom ? null : d.look(); }
+  const key = `${d.base}|${d.custom}|${d.keyAuto ? d.mode || "" : ""}|${d.fader2 === null ? "" : d.fader2.toFixed(3)}|${colour.step}|${colour.same}`;
+  if (key !== themes.lookKey) {
+    themes.lookKey = key;
+    themes.look = d.custom ? null : d.look({ colourStep: colour.step, colourSame: colour.same });
+  }
+}
+// The colour pair changed (a step landed, Colour Same turned on or off): the look is drawn again with it, so the lasers
+// and every pad's hit colour take it from the next hit on (a hit keeps the colours it was fitted to); the dealer stops
+// swapping the lasers' colours while Same holds them.
+function colourChanged() {
+  themes.lookKey = "";
+  lasers.eng.set({ colourSame: colour.same });
+  themeTick(performance.now());
+  updatePalette();               // now, so a hit that lands the step (Next held) already fires in the new colour
+}
+// Colour Next (a press: one step, on the next beat) and Colour Same (a press: on, again: off)
+function colourPress(action, nowMs = performance.now()) {
+  if (action === "colourNext") {
+    colour.next(nowMs, themeClock);
+    const n = themes.look ? themes.look.colour.sequence.length : 2;
+    toast(`Colour Next: colour ${(colour.preview % n) + 1} of ${n}, on the next beat`);
+  } else if (action === "colourSame") {
+    colour.toggleSame();
+    colourChanged();
+    toast(colour.same ? "Colour Same: the hits keep this colour" : "Colour Same off: the hits vary their colours again");
+  }
+}
+// a learned button: Colour Next stays "held" until the button is let go (a pad hit meanwhile lands the step with it)
+function colourCtl(ev, action, nowMs) {
+  if (action === "colourNext" && ev.kind !== "rel") colour.held = ev.value >= 0.5;
+  if (!lasers.presses.press(ev, action, nowMs)) return;
+  colourPress(action, nowMs);
 }
 // a theme change flagged to cut through black (a hue jump over 100 degrees, or a theme that asks for it): the frame dips
 // to 15 % over 80 ms at the change and comes back over 160 ms -- one dark breath, at most one a bar
@@ -2172,17 +2503,22 @@ function putCol(a, o, pad) {      // the colour of pad 1..12, or the palette's t
 }
 function fillOverlayUniforms(nowS) {
   const asp = G.width / Math.max(G.height, 1);
-  U.wave.fill(0); U.laser.fill(0); U.part.fill(0); U.note.fill(0);
+  U.wave.fill(0); U.waveC.fill(0); U.laser.fill(0); U.part.fill(0); U.partC.fill(0); U.note.fill(0); U.co2.fill(0);
+  const pos = padCtx(nowS * 1000).pos;
   let w = 0, l = 0, pa = 0;
   for (let i = 0; i < fx.fx.length; i++) {
     const f = fx.fx[i];
     if (!f.active) continue;
     const age = nowS - f.t0;
     if (f.type === "shockwave" && w < 4) {
-      const ox = (f.seed - 0.5) * 0.3 * asp, oy = (((f.seed * 7.31) % 1) - 0.5) * 0.25;
-      const speed = 0.45 + 0.7 * f.vel;
+      // pads v2: the Ring stands where its spot was dealt, grows with its size, rings two or three deep when escalated
+      // and squashes and tilts with its motion; an unplaced ring (a learned map's) keeps today's place by its seed
+      const ox = f.placed ? f.x : (f.seed - 0.5) * 0.3 * asp, oy = f.placed ? f.y : (((f.seed * 7.31) % 1) - 0.5) * 0.25;
+      const big = 0.55 + 0.45 * f.size, mv = motionNow(f, pos);
+      const speed = (0.45 + 0.7 * f.vel) * big;
       put4(U.wave, w * 4, ox, oy, 0.02 + speed * (1 - Math.exp(-age * 2.6)), f.env * (0.45 + 0.55 * f.vel));
-      put4(U.waveB, w * 4, 4 + 16 * f.vel, f.vel, age, velCurve(f.vel));
+      put4(U.waveB, w * 4, (4 + 16 * f.vel) * Math.min(1.3, big), f.vel, age, velCurve(f.vel));
+      put4(U.waveC, w * 4, f.esc, 0.24, clamp(1 + 0.18 * mv, 0.7, 1.3), f.motion ? 0.35 * (f.motion.m.rot || 0) * mv : 0);
       putCol(U.waveCol, w * 3, f.pad);
       w++;
     } else if (f.type === "laser" && l < 4) {
@@ -2195,13 +2531,23 @@ function fillOverlayUniforms(nowS) {
       putCol(U.laserCol, l * 3, f.pad);
       l++;
     } else if (f.type === "particles" && pa < 4) {
-      const ox = (f.seed - 0.5) * 0.5 * asp, oy = (((f.seed * 3.7) % 1) - 0.5) * 0.3;
+      // pads v2, the swarm: motes on tilted orbits round its spot; its motion spins them and breathes the orbits
+      const ox = f.placed ? f.x : (f.seed - 0.5) * 0.5 * asp, oy = f.placed ? f.y : (((f.seed * 3.7) % 1) - 0.5) * 0.3;
       const emitEnd = f.tr === null ? 1e4 : Math.max(0, f.tr - f.t0);
+      const big = 0.6 + 0.4 * f.size, mv = motionNow(f, pos), m = f.motion ? f.motion.m : null;
       put4(U.part, pa * 4, ox, oy, age, f.env);
-      put4(U.partB, pa * 4, 12 + Math.round(36 * f.vel), 0.25 + 0.55 * f.vel, f.seed * 10 + 1, emitEnd);
+      put4(U.partB, pa * 4, 12 + Math.round(36 * Math.min(1, f.vel * big)), (0.1 + 0.12 * f.vel) * big, f.seed * 10 + 1, emitEnd);
+      put4(U.partC, pa * 4, m ? (m.rot || 0.4) * mv : 0, m ? clamp(2 * (m.spread || 0.3) * mv, -1, 1) : 0, f.esc, 0);
       putCol(U.partCol, pa * 3, f.pad);
       pa++;
     }
+  }
+  // CO2's plumes (the 2D stand-in: none while the haze fluid takes the jets), each as strong as its CO2 still is
+  for (let i = 0; i < pads.plumes.length && i < PLUMES_MAX; i++) {
+    const q = pads.plumes[i];
+    let env = 0;
+    for (const f of fx.fx) if (f.active && f.type === "co2" && f.serial === q.serial) env = f.env;
+    put4(U.co2, i * 4, (q.x01 - 0.5) * asp, nowS - q.t0, q.strength * env * Math.min(1, T.accent / 0.85), 0.32 + 0.45 * q.strength);
   }
   for (let i = 0; i < glints.length; i++) {
     const gl8 = glints[i];
@@ -2232,13 +2578,36 @@ function renderOverlay(nowS) {
   gl.uniform4fv(u.u_laser, U.laser); gl.uniform4fv(u.u_laserB, U.laserB); gl.uniform3fv(u.u_laserCol, U.laserCol);
   gl.uniform4fv(u.u_part, U.part); gl.uniform4fv(u.u_partB, U.partB); gl.uniform3fv(u.u_partCol, U.partCol);
   gl.uniform4fv(u.u_note, U.note); gl.uniform3fv(u.u_noteCol, U.noteCol);
-  const st = fx.strongest("strobe");
-  const rate = 2 + 10 * T.strobeRate;
-  gl.uniform1f(u.u_bars, st ? st.env * (0.35 + 0.65 * st.vel) : 0);
-  gl.uniform1f(u.u_barsPhase, st ? ((nowS - st.t0) * rate) % 1 : 0);
+  const sh = shutters(nowS);
+  gl.uniform1f(u.u_bars, sh.amount);
+  gl.uniform1f(u.u_barsPhase, sh.phase);
   gl.uniform3f(u.u_barsCol, 0.9, 0.92, 1.0);
+  gl.uniform1f(u.u_barsN, sh.rows); gl.uniform1f(u.u_barsOff, sh.off); gl.uniform1f(u.u_barsMode, sh.mode);
+  gl.uniform4fv(u.u_waveC, U.waveC); gl.uniform4fv(u.u_partC, U.partC); gl.uniform4fv(u.u_co2, U.co2);
+  gl.uniform3f(u.u_co2Col, 0.86 + 0.14 * palNow[9], 0.9 + 0.1 * palNow[10], 0.94 + 0.06 * palNow[11]);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   ov.read = write;
+}
+// The Shutters (pad 5) and the build's riser, one set of rows: on a live beat they strobe on its division (fader 6 picks
+// a quarter, an eighth or a sixteenth; a build its own, tightening as it rises), else 2-12 Hz as before; more rows with
+// velocity and escalation, travelling with the hit's motion; escalated, odd and even rows in anti-phase, then columns too.
+const SHUTTER_DIVS = Object.freeze([1, 1 / 2, 1 / 4]);
+const shutterOut = { amount: 0, phase: 0, rows: 3, off: 0, mode: 1 };
+function shutters(nowS) {
+  const o = shutterOut, ctx = padCtx(nowS * 1000);
+  const st = fx.strongest("strobe"), rise = pads.build.progress(ctx.pos);
+  const own = st ? st.env * (0.35 + 0.65 * st.vel) : 0, riser = rise > 0 ? 0.15 + 0.5 * rise : 0;
+  o.amount = Math.max(own, riser);
+  if (!(o.amount > 0)) { o.amount = 0; o.phase = 0; return o; }
+  const build = riser > own;
+  if (ctx.live) {
+    const div = build ? pads.build.division(ctx.pos) : SHUTTER_DIVS[Math.min(2, Math.floor(T.strobeRate * 3))];
+    o.phase = (((ctx.pos / div) % 1) + 1) % 1;
+  } else o.phase = build ? (nowS * (2 + 6 * rise)) % 1 : ((nowS - st.t0) * (2 + 10 * T.strobeRate)) % 1;
+  o.rows = build ? 3 + Math.round(6 * rise) : Math.min(9, 3 + Math.round(4 * st.vel * Math.min(1, st.size)) + 2 * (st.esc - 1));
+  o.off = build ? 0 : 0.12 * motionNow(st, ctx.pos);
+  o.mode = build ? (rise > 0.75 ? 2 : 1) : st.esc;
+  return o;
 }
 
 // The scene meter: the mean relative luminance of what the composite will show of the sets and the overlay, into a 1x1
@@ -2292,10 +2661,12 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
   const u = G.compU;
   gl.uniform2f(u.u_res, G.width, G.height);
   gl.uniform1f(u.u_mix, mixUsed);
-  const k = fx.strongest("kaleido");
+  // pads v2, Morph: the mirrors turn in the hit's motion (landing on the grid) over a slow drift; pressed again within a
+  // bar, twice the mirrors
+  const k = fx.strongest("kaleido"), pos = padCtx(nowMs).pos;
   gl.uniform1f(u.u_kal, k ? k.env : 0);
-  gl.uniform1f(u.u_kalN, k ? 2 * Math.round(2 + 4 * k.vel) : 6);
-  gl.uniform1f(u.u_kalRot, k ? (nowS - k.t0) * (0.15 + 0.5 * k.vel) : 0);
+  gl.uniform1f(u.u_kalN, k ? 2 * Math.round(2 + 4 * k.vel) * (k.esc >= 2 ? 2 : 1) : 6);
+  gl.uniform1f(u.u_kalRot, k ? (nowS - k.t0) * (0.05 + 0.15 * k.vel) + (k.motion ? (k.motion.m.rot || 0.6) * motionNow(k, pos) : 0) : 0);
   // the glitch: this hit's plan (vj-core.js glitchPlan: its mode or pair of modes, intensity, size), from its seed
   const g = fx.strongest("glitch");
   if (g && g.serial !== glitchState.serial) { glitchState.serial = g.serial; glitchState.plan = glitchPlan(g.seed, g.vel); glitchState.t0 = g.t0; }
@@ -2309,6 +2680,8 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
   const fz = fx.strongest("freeze");
   gl.uniform1f(u.u_freeze, fz ? fz.env * (0.55 + 0.45 * fz.vel) : 0);
   gl.uniform1f(u.u_freezeZoom, fz ? Math.min(0.2, (nowS - fz.t0) * 0.03 * fz.vel) : 0);
+  // pads v2, Lower: the frozen frame sinks with its standing motion (sampled higher, it shows lower)
+  gl.uniform2f(u.u_freezeShift, 0, fz ? 0.05 * Math.min(1, Math.abs(motionNow(fz, pos))) : 0);
   gl.uniform4fv(u.u_wave, U.wave);
   gl.uniform4fv(u.u_waveB, U.waveB);
   // the full-frame flash: granted by the gate in JS; envFlashSafe in the shader checks the gap again
@@ -2322,7 +2695,9 @@ function composite(nowMs, nowS, mixAB, mixedTex = null) {
     if (!inv.granted) invert *= smooth((nowS - inv.t0) / 1.2);   // refused by the gate: a slow fade is not a flash
   }
   gl.uniform1f(u.u_invert, invert);
-  gl.uniform1f(u.u_bright, T.bright * kill.gain * themeDip(nowMs));
+  // pads v2: Safety's black while held; a build pulls the scene back a little as it rises (the drop's contrast)
+  const rise = pads.build.progress(pos);
+  gl.uniform1f(u.u_bright, T.bright * kill.gain * themeDip(nowMs) * pads.black.gain * (1 - 0.22 * rise * rise));
   gl.uniform1f(u.u_sat, 0.15 + 1.0 * T.sat);
   gl.uniform1f(u.u_accent, 0.25 + 1.0 * T.accent);
   gl.uniform1f(u.u_metro, Math.min(0.03, T.metro * 0.03 * beat.pulse));   // linear light: a few percent at most
@@ -2409,8 +2784,13 @@ function padLights(nowMs, dt) {
   // the pads get LED STAND-INS, never screen colours (spec 2.2): the pads wash orange to lime and pale colours to white,
   // so a theme names a stand-in for each of its colours (vj-themes.js padLeds); Custom's are made from its hues
   // (vj-hookup.js standInLed). The laser pad lights in the lasers' own stand-in, its brightness the tier (60 / 80 / 100 %).
+  // pads v2: the lights PREVIEW what a press will do -- a waiting Colour Next shows its colour already (blinking on the
+  // beat until it lands); a hit pad glows brighter while its next press would escalate; the hero's charge, the build's rise
   const tier = lasers.out && lasers.out.pad.level > 0 ? lasers.out.pad.tier | 0 : 0;
-  const lights = themes.look ? padLeds(themes.look, padMap, { tier }) : null;
+  const preview = previewLook();
+  const lookNow = preview || themes.look;
+  const lights = lookNow ? padLeds(lookNow, padMap, { tier }) : null;
+  const pos = padCtx(nowMs).pos, blink = preview ? 0.3 + 0.6 * beat.pulse : 0;
   for (let i = 0; i < 12; i++) {
     const action = padMap[i];
     let v = 0, light = null;
@@ -2422,13 +2802,24 @@ function padLights(nowMs, dt) {
     } else if (action === "laser" && !options.lasersClassic) {
       light = lights ? lights[i] : standInLed(lasers.eng.col.L1);
       if (!lights) light = { ...light, level: light.level * (tier ? TIER_LED[tier] : 1) };
-      v = 0.12 + 0.88 * Math.max(lasers.out && lasers.out.pad.level > 0 ? 1 : 0, lasers.held ? 0.6 : 0);
+      v = Math.max(blink, 0.12 + 0.88 * Math.max(lasers.out && lasers.out.pad.level > 0 ? 1 : 0, lasers.held ? 0.6 : 0));
+    } else if (action === "hero") {
+      // dim while the charge fills, blinking on the beat once full, bright while its payoff waits for the ONE
+      light = lights ? lights[i] : TAP_LIGHT;
+      const ch = pads.hero.charge(pos);
+      v = pads.hero.pendingAt !== null ? 0.4 + 0.6 * beat.pulse : ch >= 1 ? 0.25 + 0.75 * beat.pulse : 0.04 + 0.26 * ch;
+    } else if (action === "build") {
+      // as high as the build has risen, blinking on the beat through its last quarter; lit while its drop runs
+      light = lights ? lights[i] : TAP_LIGHT;
+      const k = pads.build.progress(pos);
+      v = pads.build.phase === "build" ? Math.max(0.15 + 0.85 * k, k > 0.75 ? beat.pulse : 0) : pads.build.phase === "drop" ? 0.6 : 0.12;
     } else if (EFFECTS[action]) {
       light = lights ? lights[i] : standInLed([padCol[i * 3], padCol[i * 3 + 1], padCol[i * 3 + 2]]);
-      v = 0.10 + 0.9 * Math.max(padEnvScratch[i] / Math.max(T.accent, 0.05), padHeld[i] ? 0.6 : 0);
+      const idle = 0.10 + 0.12 * (pads.play.nextEsc(i + 1, pos) - 1);    // its next press would escalate: a little brighter
+      v = Math.max(blink, idle + (1 - idle) * Math.max(padEnvScratch[i] / Math.max(T.accent, 0.05), padHeld[i] ? 0.6 : 0));
     } else if (CONTROLS[action]) {
       light = action === "none" ? null : { hex: action === "choke" ? CHOKE_LED : CONTROLS[action].colour, level: 1 };
-      v = 0.10 + 0.9 * padPress[i];
+      v = action === "safety" && pads.black.on ? 1 : 0.10 + 0.9 * padPress[i];
       if (action === "kill") v = kill.target < 0.5 ? 1 : kill.pending !== null ? (beat.pulse > 0.5 ? 1 : 0.4) : 0.12;
       if (action === "next" && deck.running) v = 0.9;
     }
@@ -2457,6 +2848,13 @@ function padLights(nowMs, dt) {
     .finally(() => { led.inflight = false; });
 }
 const ledColours = new Array(12).fill("#000000");
+// the look a waiting Colour Next will draw (the pads show it before it lands), or null
+function previewLook() {
+  if (!(colour.pending > 0) || !themes.dir || themes.dir.custom || !themes.look) return null;
+  const key = `${themes.lookKey}|${colour.preview}`;
+  if (key !== themes.previewKey) { themes.previewKey = key; themes.preview = themes.dir.look({ colourStep: colour.preview, colourSame: colour.same }); }
+  return themes.preview;
+}
 const TAP_LIGHT = Object.freeze({ hex: "#ffffff", level: 1 });
 
 // ------------------------------------------------------------------------------------------------ the engine --
@@ -2521,16 +2919,23 @@ function onFrame(rafNow) {
   if (snapQ.length) fireSnapped(nowMs);   // the beat snap's held hits whose 16th has come
   updateMusic(nowMs, nowS, dt);
   fx.update(nowS);
+  padsTick(nowMs, dt);            // pads v2: holds, strikes on the beat, the hero, the drop, the CO2 jets, the colour step
   updateImpact(nowS);
   updateKill(nowMs, dt);
   themeTick(nowMs);
   updatePalette();
-  // the strobe's full-frame pulses: asked for at the strobe rate, granted at most three times a second
+  // the Shutters' full-frame pulse: on a live beat, once a bar on its ONE (the rows carry the rhythm: pads v2); with no
+  // beat, asked for at the strobe rate as before; granted at most three times a second either way
   const st = fx.strongest("strobe");
-  if (st && st.env > 0.05 && nowS >= strobeNext) {
-    const rate = Math.min(2 + 10 * T.strobeRate, 3);
-    requestFlash(nowS, (0.22 + 0.33 * st.vel) * T.accent, 0.06);
-    strobeNext = nowS + 1 / rate;
+  if (st && st.env > 0.05) {
+    const c = padCtx(nowMs), bar = Math.floor(c.pos / 4 + 1e-6);
+    if (c.live) {
+      if (bar !== strobeBar && c.pos - 4 * bar < 0.25) { strobeBar = bar; requestFlash(nowS, (0.22 + 0.33 * st.vel) * T.accent, 0.06); }
+    } else if (nowS >= strobeNext) {
+      const rate = Math.min(2 + 10 * T.strobeRate, 3);
+      requestFlash(nowS, (0.22 + 0.33 * st.vel) * T.accent, 0.06);
+      strobeNext = nowS + 1 / rate;
+    }
   }
   if (deck.running && nowMs - deck.start >= deck.ms) finishFade();
   updateLasers(nowMs, dt);        // before the strip: a laser-heads scene reads the head bus
@@ -2700,16 +3105,21 @@ function updateHud(nowMs) {
     if (pend) th += ` → ${pend.custom ? "Custom" : (themes.lib.byId.get(pend.id)?.name || pend.id)}${pend.on ? ` on the ${pend.on}` : ""}`;
     if (d.locked) th += " · locked";
     if (options.keyAuto && d.key) th += ` · key ${d.key}`;
+    // pads v2, the colour pair: which colour of the sequence the hits lead with, Same, a step on its way
+    if (themes.look) {
+      const cp = themes.look.colour;
+      th += ` · colour ${cp.step + 1}/${cp.sequence.length}${cp.same ? " SAME" : ""}${colour.pending ? " → next on the beat" : ""}`;
+    }
   }
   setTextIf("hud-theme", th);
   const c = feelFrame ? feelFrame.colour : null;
   const tension = harm.live ? `tension ${harm.value.toFixed(2)} (engine)` : c ? `tension ${c.tension.toFixed(2)}` : "";
-  const colour = [tension, c ? `lush ${c.lushness.toFixed(2)}` : ""].filter(Boolean).join(" · ");
+  const feelLine = [tension, c ? `lush ${c.lushness.toFixed(2)}` : ""].filter(Boolean).join(" · ");
   const none = chord.name === "N" && chord.root < 0;
   // the confidence only for a chord heard in the audio (a played chord is read exactly: always 1)
   const conf = chord.src === "audio" && chord.conf !== null && !none ? ` ${chord.conf.toFixed(2)}` : "";
   setText("hud-chord", chord.name ? `${none ? "no chord" : chord.name}${chord.roman ? `  ${chord.roman}` : ""} (${chord.src}` +
-    `${conf})${colour ? ` · ${colour}` : ""}` : "—");
+    `${conf})${feelLine ? ` · ${feelLine}` : ""}` : "—");
   // the key: the engine's key event, else the key the last chord's numeral was read in
   const keyNow = harm.key || chord.key;
   setText("hud-key", keyNow ? `${keyNow}${harm.key ? ` · conf ${harm.keyConf.toFixed(2)}${harm.keySrc ? ` (${harm.keySrc})` : ""}` : ""}` +
@@ -2721,8 +3131,14 @@ function updateHud(nowMs) {
   for (const f of fx.fx) {
     if (!f.active) continue;
     const modes = f.type === "glitch" && glitchState.serial === f.serial && glitchState.plan ? `(${glitchState.plan.names.join("+")})` : "";
-    parts.push(`${f.type}${modes}${f.tr === null && EFFECTS[f.type].hold ? "●" : ""} ${f.env.toFixed(2)}`);
+    parts.push(`${f.type}${f.esc > 1 ? `×${f.esc}` : ""}${modes}${f.tr === null && EFFECTS[f.type].hold ? "●" : ""} ${f.env.toFixed(2)}${f.motion ? ` ${f.motion.id}` : ""}`);
   }
+  // pads v2: the hero's charge, the build, Safety's black
+  const pp = padCtx(nowMs).pos;
+  if (padMap.includes("hero")) parts.push(pads.hero.pendingAt !== null ? "HERO on the ONE" : `hero ${Math.round(100 * pads.hero.charge(pp))}%`);
+  if (pads.build.phase === "build") parts.push(`BUILD ${Math.round(100 * pads.build.progress(pp))}%${pads.build.dropAt !== null ? ` → drop at ${pads.build.dropAt}` : " (riser)"}`);
+  else if (pads.build.phase === "drop") parts.push("DROP");
+  if (pads.black.on) parts.push("BLACK");
   if (frame.punch > 0.004) parts.push(`punch ${(frame.punch * 100).toFixed(1)}%`);
   if (kill.pending !== null) parts.push(kill.pending === 0 ? "KILL on beat" : "revive on beat");
   else if (kill.target < 0.5) parts.push("KILLED");
@@ -2871,6 +3287,7 @@ function renderTargets() {
     ["Scenes (Rewind / Fast forward step the sets; learn a dial to browse)", SCENE_ACTIONS],
     ["Lasers (the dial picks the gate, its click AUTO)", LASER_ACTIONS],
     ["Colour families (F1-F8)", FAMILY_ACTIONS],
+    ["The colour pair ([ and ]; learn two buttons under the screen)", COLOUR_ACTIONS],
   ];
   for (const [title, list] of groups) {
   const head = document.createElement("div");
@@ -2978,12 +3395,17 @@ function wireUi() {
       case "KeyM": togglePanel(); break;
       case "KeyD": setDemo(!demo); break;
       case "KeyB": setSnap(!options.snap); break;
-      // Lasers v2: Vibrate, the classic burst, the gate (the dial's twin: [ and ], \ for AUTO)
+      // Lasers v2: Vibrate, the classic burst, the gate (the dial's twin: , and . since VJ V2 gave [ and ] to the colour
+      // pair; \ for AUTO)
       case "KeyV": setVibrate(!options.vibrate); toast(options.vibrate ? "lasers vibrate" : "vibrate off"); break;
       case "KeyC": setLasersClassic(!options.lasersClassic); toast(options.lasersClassic ? "lasers: classic burst" : "Lasers v2"); break;
-      case "BracketLeft": case "BracketRight":
-        lasers.dial.turn({ id: "key", kind: "rel", value: 0.5, delta: e.code === "BracketRight" ? 1 : -1 }, -1e9);
+      case "Comma": case "Period":
+        lasers.dial.turn({ id: "key", kind: "rel", value: 0.5, delta: e.code === "Period" ? 1 : -1 }, -1e9);
         laserGate(); toast(`laser gate: ${gateLabel(lasers.dial.gate)}`); break;
+      // pads v2, the colour pair (Daniel: "one flip to the next color in the sequence and the other stay the same"):
+      // [ Colour Next (held while a pad is hit, the step lands with that hit), ] Colour Same
+      case "BracketLeft": colour.held = true; colourPress("colourNext"); break;
+      case "BracketRight": colourPress("colourSame"); break;
       case "Backslash": lasers.dial.auto(); laserGate(); toast("laser gate: AUTO"); break;
       case "KeyP": lasers.pinned = !lasers.pinned; lasers.eng.pin(lasers.pinned);   // spec 1.8: repeat the last hit exactly
         toast(lasers.pinned ? "lasers pinned: every hit repeats the last one" : "lasers unpinned"); break;
@@ -2995,9 +3417,11 @@ function wireUi() {
   window.addEventListener("keyup", (e) => {
     const pad = KEY_PADS[e.code];
     if (pad && keyPadDown[pad]) { keyPadDown[pad] = 0; padOff(pad); }
+    if (e.code === "BracketLeft") colour.held = false;
   });
   window.addEventListener("blur", () => {
     for (let p = 1; p <= 12; p++) if (keyPadDown[p]) { keyPadDown[p] = 0; padOff(p); }
+    colour.held = false;
   });
   let cursorTimer = 0;
   stageEl.addEventListener("mousemove", () => {
@@ -3071,7 +3495,8 @@ window.__vj = {
     pedal: { key: pedal.key, strikes: pedal.strikes(), tension: +pedal.tension().toFixed(3), resolved: pedal.resolvedCount },
     tension: feelFrame ? +feelFrame.colour.tension.toFixed(3) : null,
     effects: fx.fx.filter((f) => f.active).map((f) => ({ type: f.type, pad: f.pad, env: +f.env.toFixed(3), vel: f.vel,
-      held: f.tr === null, granted: f.granted })),
+      held: f.tr === null, granted: f.granted, esc: f.esc, size: +f.size.toFixed(3), placed: f.placed, x: +f.x.toFixed(4), y: +f.y.toFixed(4),
+      motion: f.motion ? f.motion.id : null, end: +(f.t0 + EFFECTS[f.type].a + EFFECTS[f.type].d * f.dScale).toFixed(4), t0: +f.t0.toFixed(4) })),
     flash: { granted: gate.granted, refused: gate.refused, maxInAnyWindow: gate.maxInAnyWindow(), log: gate.log().map((t) => +t.toFixed(3)) },
     kill: { gain: +kill.gain.toFixed(3), target: kill.target, pending: kill.pending },
     leds: { posts: led.posts, refused: engine.link.refused, off: engine.link.ledsOff, last: ledColours.slice(),
@@ -3123,9 +3548,27 @@ window.__vj = {
     clock: { pos: beat.posAt(performance.now()), bar: beat.bar, barNow: beat.barAt(performance.now()), ver: beat.ver, src: beat.src,
              reanchors: beat.reanchors, slews: beat.slews, flushed: beat.flushed, lastError: +beat.lastError.toFixed(4) },
     ledsWashed: led.washed,
+    // pads v2 (vj-pads.js) and the colour pair (vj-themes.js ColourStepper)
+    pads: padsState(),
+    colour: { step: colour.step, pending: colour.pending, preview: colour.preview, same: colour.same, held: colour.held, lands: colour.lands,
+              previewLead: previewLook() ? previewLook().colour.lead : null,
+              look: themes.look ? { ...themes.look.colour, sequence: themes.look.colour.sequence.slice(), roles: themes.look.lasers.roles.slice(),
+                                    engine: themes.look.lasers.engine.lasers.slice(), L1: themes.look.lasers.L1.hex, L2: themes.look.lasers.L2.hex } : null },
   }),
   // Lasers v2 receipts (arsenal/lanes/vj_verify.mjs): the hits dealt, the laser options, the beam layer's own light
   laserLog: () => lasers.log.map((h) => ({ ...h })),
+  // pads v2 receipts: the pads' state and log; the colour pair by its own path (the keys [ and ] and learned buttons go
+  // through colourPress too); a haze fluid handed in as lane C's inject point would (vj-hookup.js airOf)
+  pads: () => padsState(),
+  colour: (o = {}) => {
+    if (typeof o.held === "boolean") colour.held = o.held;
+    if (o.next) colourPress("colourNext");
+    if (typeof o.same === "boolean" && o.same !== colour.same) colourPress("colourSame");
+    return { step: colour.step, pending: colour.pending, same: colour.same };
+  },
+  // one pad's action for a receipt (not stored): vj_storm's Invert storm puts Invert back on pad 11, where v2 had it
+  setPad: (pad, action) => { if (pad >= 1 && pad <= 12 && PAD_ACTIONS.includes(action)) padMap[pad - 1] = action; return padMap.slice(); },
+  attachAir: (fluid) => { air.fluid = fluid || null; air.seen = air.fluid; air.api = airOf(air.fluid); return !!air.api; },
   laser: (o = {}) => {
     if (typeof o.vibrate === "boolean") setVibrate(o.vibrate);
     if (typeof o.classic === "boolean") setLasersClassic(o.classic);

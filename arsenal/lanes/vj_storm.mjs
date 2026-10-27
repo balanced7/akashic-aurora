@@ -157,7 +157,7 @@ function lcg(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 10139
 const HOLDABLE = new Set([5, 6, 7, 8, 11]);
 // name: [what it is, how many sets the page needs (cuts), the adversarial preset it plays instead of the set (or null)]
 export const SCENARIOS = Object.freeze({
-  invert10: "pad 11 Invert held; hard hits at 10/s on pads 1,2,4,6,7,12",
+  invert10: "Invert held on pad 11 (put there for the storm: pads v2 moved it off the default map); hard hits at 10/s on pads 1,2,4,6,7,12",
   oneshots15: "pads 1,2,4,12 hard at 15/s",
   oneshots5: "pads 1,2,4,12 hard at 5/s",
   nozoom15: "pads 1,2,4 hard at 15/s",
@@ -199,6 +199,7 @@ export function stormSchedule(name, frames, seed = 7) {
   const R = lcg(seed), out = [];
   const pick = (pads) => pads[Math.floor(R() * pads.length)];
   if (name === "invert10") {
+    out.push({ f: 0, act: "pad", pad: 11, action: "invert" });   // (a page before pads v2 has it there already)
     out.push({ f: 0, pad: 11, vel: 1, hold: frames + 5 });
     for (let f = 30; f < frames; f += 6) out.push({ f, pad: pick([1, 2, 4, 6, 7, 12]), vel: 0.9 + 0.1 * R(), hold: 4 });
   } else if (name === "oneshots15" || name === "oneshots5" || name === "nozoom15") {
@@ -291,7 +292,8 @@ export const STORM_PAGE = String.raw`(() => {
       const rs = relByF.get(f); if (rs) for (const pad of rs) vj.release(pad);
       const evs = byF.get(f);
       if (evs) for (const s of evs) {
-        if (s.pad) { vj.press(s.pad, s.vel); const at = f + (s.hold || 3); if (!relByF.has(at)) relByF.set(at, []); relByF.get(at).push(s.pad); }
+        if (s.act === "pad") { if (vj.setPad) vj.setPad(s.pad, s.action); }
+        else if (s.pad) { vj.press(s.pad, s.vel); const at = f + (s.hold || 3); if (!relByF.has(at)) relByF.set(at, []); relByF.get(at).push(s.pad); }
         else if (s.act === "select" && ids.length) vj.select(ids[s.idsel % ids.length]);
         else if (s.act === "next") vj.next();
         else if (s.act === "look" && window.__vjx) window.__vjx.setLook({ on: true, amount: s.amount });

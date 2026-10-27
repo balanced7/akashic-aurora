@@ -238,14 +238,17 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
   for (let i = 0; i < 40; i++) bank.trigger("shockwave", 0.5, 40 + i * 0.001, { pad: 1 });
   check("the pool never grows", bank.fx.length === C.MAX_FX && bank.activeCount() === C.MAX_FX);
   check("every pad action is known", C.DEFAULT_PAD_MAP.every((a) => C.PAD_ACTIONS.includes(a)));
-  check("pads 1-4 one-shots, 5-8 holdable", C.DEFAULT_PAD_MAP.slice(0, 4).every((a) => !C.EFFECTS[a].hold) &&
-        C.DEFAULT_PAD_MAP.slice(4, 8).every((a) => C.EFFECTS[a].hold));
-  check("pads 9-12 dampen choke invert zoom (2026-10-24)", C.DEFAULT_PAD_MAP.slice(8).join() === "dampen,choke,invert,zoom");
-  check("kill and next left the pads (still pad actions)", !C.DEFAULT_PAD_MAP.includes("kill") && !C.DEFAULT_PAD_MAP.includes("next") &&
-        C.PAD_ACTIONS.includes("kill") && C.PAD_ACTIONS.includes("next"));
-  check("pad 11 holds (invert), pad 12 is a one-shot (zoom)", C.EFFECTS.invert.hold && !C.EFFECTS.zoom.hold);
-  check("every one-shot shows in the first frame (attack 0)", ["shockwave", "laser", "flash", "glitch", "zoom"].every((t) => C.EFFECTS[t].a === 0));
-  check("the full-frame effects are marked flash", C.EFFECTS.flash.flash && C.EFFECTS.strobe.flash && C.EFFECTS.invert.flash);
+  // pads v2 (map v3, VJ V2 2026-10-27): row 1 HITS (pad 3 CO2 holds up to 3 s), row 2 HOLDS, row 3 MOVES
+  check("pads 1, 2, 4 one-shots, CO2 on 3, 5-8 holdable", ["shockwave", "laser", "glitch"].every((a) => !C.EFFECTS[a].hold) &&
+        C.DEFAULT_PAD_MAP.slice(0, 4).join() === "shockwave,laser,co2,glitch" && C.DEFAULT_PAD_MAP.slice(4, 8).every((a) => C.EFFECTS[a].hold));
+  check("pads 9-12 safety hero build zoom (VJ V2)", C.DEFAULT_PAD_MAP.slice(8).join() === "safety,hero,build,zoom");
+  check("kill, next, the white flash, invert, dampen and choke left the pads (still pad actions)",
+        ["kill", "next", "flash", "invert", "dampen", "choke"].every((a) => !C.DEFAULT_PAD_MAP.includes(a) && C.PAD_ACTIONS.includes(a)));
+  check("Invert still holds, pad 12 is a one-shot (zoom)", C.EFFECTS.invert.hold && !C.EFFECTS.zoom.hold);
+  check("every one-shot shows in the first frame (attack 0)", ["shockwave", "laser", "flash", "glitch", "zoom", "hero"].every((t) => C.EFFECTS[t].a === 0));
+  check("the full-frame effects are marked flash", C.EFFECTS.flash.flash && C.EFFECTS.strobe.flash && C.EFFECTS.invert.flash &&
+        C.EFFECTS.co2.flash && C.EFFECTS.hero.flash && C.EFFECTS.build.flash);
+  check("Safety is a control (it works in the safe mode)", !!C.CONTROLS.safety && !C.EFFECTS.safety);
 }
 
 // ---------------------------------------------------------------------------------------------- the beat clock --
@@ -590,7 +593,13 @@ if (!existsSync(JOY_TAKE)) {
   const kept = C.normalizePadMap(mine);
   check("an old stored map keeps every pad Daniel set", kept[0] === "glitch" && kept[10] === "flash" && kept[11] === "zoom");
   check("a v2 map keeps kill on pad 11 when chosen", C.normalizePadMap({ v: 2, pads: [...C.DEFAULT_PAD_MAP.slice(0, 10), "kill", "next"] }).slice(10).join() === "kill,next");
-  check("serialise writes v2", C.serializePadMap(C.DEFAULT_PAD_MAP).v === 2 && C.serializePadMap(C.DEFAULT_PAD_MAP).pads.join() === C.DEFAULT_PAD_MAP.join());
+  // pads v2: a map stored as v2 that still holds the v2 defaults takes v3's; a v2 map Daniel set keeps his pads
+  check("a v2 map of the v2 defaults takes the v3 pads", C.normalizePadMap({ v: 2, pads: C.PAD_MAP_V2_DEFAULT.slice() }).join() === C.DEFAULT_PAD_MAP.join());
+  const mine2 = C.PAD_MAP_V2_DEFAULT.slice(); mine2[2] = "glitch"; mine2[8] = "kill";
+  const kept2 = C.normalizePadMap({ v: 2, pads: mine2 });
+  check("a v2 map keeps every pad Daniel set", kept2[2] === "glitch" && kept2[8] === "kill" && kept2[9] === "hero" && kept2[10] === "build");
+  check("a v3 map keeps the white flash on pad 3 when chosen", C.normalizePadMap({ v: 3, pads: C.PAD_MAP_V2_DEFAULT.slice() })[2] === "flash");
+  check("serialise writes v3", C.serializePadMap(C.DEFAULT_PAD_MAP).v === 3 && C.serializePadMap(C.DEFAULT_PAD_MAP).pads.join() === C.DEFAULT_PAD_MAP.join());
   check("junk in a v2 map falls back", C.normalizePadMap({ v: 2, pads: ["nope"] }).join() === C.DEFAULT_PAD_MAP.join() &&
         C.normalizePadMap("nonsense").join() === C.DEFAULT_PAD_MAP.join());
   // since Lasers v2: Rewind / Fast forward step the sets through the page's transport path (not the map), the dial is
@@ -854,6 +863,34 @@ if (!existsSync(JOY_TAKE)) {
     const ok = sizes.every(([w, h]) => { const g = L.meterGrid(w, h); return Math.ceil(g.cellW / g.sx) <= 16 && Math.ceil(g.cellH / g.sy) <= 16 && g.width === 8 * g.sx && g.height === 8 * g.sy; });
     check("gate v2: the meter reads every pixel at any size (blocks of at most 16 x 16 tile each cell)", ok, JSON.stringify(sizes.map(([w, h]) => L.meterGrid(w, h))));
   }
+}
+
+// ------------------------------------------------------------------------- pads v2 (VJ V2, 2026-10-27) --
+// The effect bank's new options (vj-pads.js decides them): a one-shot's life landed on the grid, size, escalation,
+// motion and a spot; the impact layer's slip direction (the Glitch Lift throws the frame up); the colour actions.
+{
+  const bank = new C.EffectBank();
+  const landed = bank.trigger("shockwave", 1, 0, { pad: 1, lifeS: 1.65, size: 1.3, esc: 2, motion: { id: "swing" }, x: 0.2, y: -0.1 });
+  check("a landed life sets the decay (1.65 s of the ring's 1.1 s: x1.5)", near(landed.dScale, 1.5));
+  check("size, escalation, motion and the spot ride the instance", landed.size === 1.3 && landed.esc === 2 &&
+        landed.motion.id === "swing" && landed.placed && landed.x === 0.2 && landed.y === -0.1);
+  bank.update(1.6); check("the landed ring still shows just before its line", landed.active && landed.env > 0);
+  bank.update(1.7); check("and is gone after it", !landed.active);
+  const tiny = bank.trigger("shockwave", 1, 10, { lifeS: 0.05 });
+  const huge = bank.trigger("glitch", 1, 10, { lifeS: 30 });
+  check("a landed life is held to x0.5 .. x2 of the effect's own decay", near(tiny.dScale, 0.5) && near(huge.dScale, 2));
+  const plain = bank.trigger("shockwave", 0.5, 20, {});
+  check("without a landed life velocity stretches as before; no spot given, not placed", near(plain.dScale, 1.0) && !plain.placed &&
+        plain.size === 1 && plain.esc === 1 && plain.motion === null);
+  const imp = new C.ImpactLayer();
+  const up = imp.hit("glitch", 1, 0, { seed: 0.3, slipDir: [0, -1] });
+  check("a slip direction overrides the seed's", up.slx === 0 && up.sly === -1 && up.slip > 0);
+  const free = imp.hit("glitch", 1, 1, { seed: 0.3 });
+  check("without one the seed picks it", Math.abs(Math.hypot(free.slx, free.sly) - 1) < 1e-9 && free.sly !== -1);
+  check("the colour actions are bindable by learn", C.COLOUR_ACTION_IDS.join() === "colourNext,colourSame" &&
+        C.normalizeCtlMap({ v: 2, map: { cc45: "colourNext", cc46: "colourSame" } }).cc45 === "colourNext" &&
+        C.learnBinding(C.DEFAULT_CTL_MAP, "cc47", "colourSame").cc47 === "colourSame");
+  check("the new effects carry codes for the strip", C.EFFECT_CODES.co2 === 11 && C.EFFECT_CODES.hero === 12 && C.EFFECT_CODES.build === 13);
 }
 
 console.log(`vj_core: ${pass} passed, ${fail} failed`);

@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { BeatClock, CONTROLS, DEFAULT_PAD_MAP } from "../arsenal/web/vj-core.js";
+import { BeatClock, CONTROLS, DEFAULT_PAD_MAP, PAD_MAP_V2_DEFAULT } from "../arsenal/web/vj-core.js";
 import * as T from "../arsenal/web/vj-themes.js";
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
@@ -262,7 +262,8 @@ test("pad lights for every theme, laser tier and brightness pass the rule: stand
       });
       assert.equal(lights[1].kind, "laser");
       assert.equal(lights[1].level, look.pads.laser.level * T.LASER_TIER_LEVEL[tier]);
-      assert.equal(lights[9].hex, T.CHOKE_LED);
+      // Choke left the default pads (VJ V2: Safety on pad 9 hard-taps it), and still lights out of the wash zone where mapped
+      assert.equal(T.padLeds(look, PAD_MAP_V2_DEFAULT, { tier })[9].hex, T.CHOKE_LED);
     }
   }
   assert.ok(posted >= lib.themes.length * 4 * 12 * 4);
@@ -978,4 +979,97 @@ test("twelve red-safe hit colours for the pads' effects: today's palette diagona
   }
   assert.deepEqual([0, 7].map((i) => T.themeLook(lib, "molten").fx.padHits[i].hex), ["#f0b225", "#f0b225"], "Molten's ember pads hit gold");
   assert.equal(T.themeLook(lib, "night-sea").fx.padHits[0].hex, "#0155bc");
+});
+
+// ------------------------------------------------------------------------------------- the colour pair (VJ V2) --
+// Daniel, 2026-10-27: "one flip to the next color in the sequence and the other stay the same for easy changes and
+// repeats". Colour Next steps the hits along the theme's sequence; Colour Same holds the current colour for the hits.
+test("the colour sequence: the theme's laser roles first, then the rest of A, B, W; never a held role or a laser red", () => {
+  assert.deepEqual([...T.colourSequence(lib, "night-sea")], ["B", "A", "W"]);
+  assert.deepEqual([...T.colourSequence(lib, "void-ritual")], ["B", "W"], "A is a held red");
+  assert.deepEqual([...T.colourSequence(lib, "limbo")], ["A", "B"], "W is a held pin");
+  assert.deepEqual([...T.colourSequence(lib, "dreaming-city")], ["W", "A", "B"]);
+  assert.deepEqual([...T.colourSequence(lib, "nope")], []);
+  for (const t of lib.themes) {
+    const seq = T.colourSequence(lib, t.id);
+    assert.ok(seq.length >= 2, `${t.id}: a sequence to step through (${seq})`);
+    assert.equal(seq[0], t.lasers[0], `${t.id}: the sequence starts on the lasers' own first colour`);
+    assert.ok(seq.every((r) => !t.held.includes(r)), `${t.id}: no held role`);
+    assert.equal(new Set(seq).size, seq.length, `${t.id}: no role twice`);
+  }
+});
+
+test("Colour Next: step 0 is the theme as designed; each step turns the pair one colour on; a whole turn comes home", () => {
+  for (const t of lib.themes) {
+    const base = T.themeLook(lib, t.id), zero = T.themeLook(lib, t.id, { colourStep: 0, colourSame: false });
+    assert.deepEqual(zero.lasers.roles, base.lasers.roles, `${t.id}: step 0 changes nothing`);
+    assert.equal(zero.lasers.L1.hex, base.lasers.L1.hex);
+    assert.deepEqual(zero.fx.padHits.map((h) => h.hex), base.fx.padHits.map((h) => h.hex));
+    assert.deepEqual([...zero.lasers.engine.lasers], [...t.lasers], `${t.id}: the engine reads the theme's own lasers`);
+    const seq = T.colourSequence(lib, t.id), n = seq.length;
+    for (let k = 1; k < n; k++) {
+      const L = T.themeLook(lib, t.id, { colourStep: k });
+      assert.deepEqual([...L.lasers.roles], [seq[k], seq[(k + 1) % n]], `${t.id} step ${k}`);
+      assert.equal(L.colour.lead, seq[k]);
+      assert.equal(L.pads.laser.hex, t.led[seq[k]], `${t.id} step ${k}: pad 2 previews the new lead`);
+      assert.notEqual(L.lasers.L1.hex, base.lasers.L1.hex, `${t.id} step ${k}: the hits change colour`);
+      assert.deepEqual(L.scene.palette, base.scene.palette, `${t.id} step ${k}: the scene keeps the theme's palette`);
+    }
+    assert.deepEqual(T.themeLook(lib, t.id, { colourStep: n }).lasers.roles, base.lasers.roles, `${t.id}: a whole turn is home`);
+    assert.deepEqual(T.themeLook(lib, t.id, { colourStep: -1 }).lasers.roles, T.themeLook(lib, t.id, { colourStep: n - 1 }).lasers.roles);
+  }
+  // Night Sea: B (cyan) leads; Next -> A (deep blue) and white; Next -> white and B
+  assert.deepEqual([...T.themeLook(lib, "night-sea", { colourStep: 1 }).lasers.roles], ["A", "W"]);
+  assert.deepEqual([...T.themeLook(lib, "night-sea", { colourStep: 2 }).lasers.roles], ["W", "B"]);
+});
+
+test("Colour Same: every colour a hit draws is the lead; the pads all preview it", () => {
+  for (const t of lib.themes) for (const k of [0, 1]) {
+    const L = T.themeLook(lib, t.id, { colourStep: k, colourSame: true });
+    const lead = L.lasers.L1.hex;
+    assert.equal(L.lasers.L2.hex, lead, `${t.id}: one colour`);
+    for (const c of [...L.lasers.triple, ...L.lasers.flicker, ...L.lasers.burst]) assert.equal(c.hex, lead, `${t.id}: strobes and bursts too`);
+    assert.ok(L.fx.padHits.every((h) => h.hex === lead), `${t.id}: every pad hits in the lead`);
+    assert.ok(L.pads.diagonal.every((p) => p.hex === L.pads.laser.hex), `${t.id}: every pad lights the lead's stand-in`);
+    assert.deepEqual([...L.lasers.engine.lasers], [L.colour.lead, L.colour.lead]);
+    assert.ok(L.colour.same);
+  }
+});
+
+test("no step and no hold ever lets a laser red out, and every pad light still passes the pad rule", () => {
+  for (const t of lib.themes) for (const k of [0, 1, 2, 3]) for (const same of [false, true]) for (const mode of [null, "major", "minor"]) {
+    const L = T.themeLook(lib, t.id, { colourStep: k, colourSame: same, mode, hueDeg: 15 });
+    for (const c of [L.lasers.L1, L.lasers.L2, ...L.lasers.triple, ...L.lasers.flicker, ...L.lasers.burst, ...L.fx.padHits])
+      assert.ok(!T.isSaturatedRed(c.hex), `${t.id} k${k} same=${same} ${mode}: ${c.role} ${c.hex}`);
+    for (const light of T.padLeds(L, DEFAULT_PAD_MAP, { tier: 2 })) assert.ok(T.ledPostedOk(T.ledHexAt(light, 0.6)), `${t.id} k${k}: ${light.hex}`);
+  }
+});
+
+test("ColourStepper: Next lands on the next beat (presses before it add up), with a hit while held, and a new theme starts home", () => {
+  const clock = grid(500);
+  const s = new T.ColourStepper();
+  assert.deepEqual(s.next(1120, clock), { pending: 1, atMs: 1500 });
+  assert.equal(s.preview, 1, "the pads preview the step before it lands");
+  assert.equal(s.tick(1499), false);
+  assert.equal(s.step, 0);
+  s.next(1300, clock);
+  assert.equal(s.tick(1500), true, "two presses, one landing");
+  assert.equal(s.step, 2);
+  assert.equal(s.tick(1600), false);
+  s.held = true;
+  s.next(1700, clock);
+  assert.equal(s.onHit(), true, "a pad hit while Next is held lands it with the hit");
+  assert.equal(s.step, 3);
+  s.held = false;
+  s.next(1800, clock);
+  assert.equal(s.onHit(), false, "let go, the hit waits for the beat");
+  assert.equal(s.toggleSame(), true);
+  assert.equal(s.toggleSame(), false);
+  s.themeChanged();
+  assert.equal(s.step, 0); assert.equal(s.pending, 0); assert.equal(s.preview, 0);
+  // no clock: at once
+  const free = new T.ColourStepper();
+  free.next(500, null);
+  assert.equal(free.tick(500), true);
+  assert.equal(free.step, 1);
 });
