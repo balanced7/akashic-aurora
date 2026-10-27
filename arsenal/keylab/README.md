@@ -413,12 +413,13 @@ break); a tap of a hold pad plays its own short version; a release lands on the 
   words as an A / B leapfrog (each key steps its own slot); this is his literal version. Which buttons host the pair is
   his to pick (the 8 buttons under the screen are unbound; learn binds them).
 - **The haze fluid** (VJ V2 lane C, `vj-fluid.js`) is reached through `vj-hookup.js` `airOf`, feature by feature: CO2 calls
-  `co2(x01, 0, strength)` per jet (x01 0 = left, y01 0 = the floor), pad 6 `fogPush(level)` on the press and
-  `fogRelease()` on the release. The page holds it in `air.fluid` (the inject point sets it; `window.__vj.attachAir`
-  does the same for a receipt); without it, or once it throws, the pads keep their own stand-ins.
+  `co2(x01, 0, strength, granted)` per jet (x01 0 = left, y01 0 = the floor; granted is the press's one answer from the
+  flash gate, shared by the whole row of jets), pad 6 `fogPush(level)` on the press and
+  `fogRelease()` on the release. The page holds it in `air.fluid` (the AIR block hands over the running fluid; `window.__vj.attachAir`
+  sets a receipt's own); without it, or once it throws, the pads keep their own stand-ins.
 - **Receipt:** phase P of `node arsenal/lanes/vj_verify.mjs` (a 60 fps virtual clock with the engine's beats: the colour
   pair, escalation and spots, landed lives, a standing hold, the hero on the ONE, a build's drop on its bar line, Safety's
-  black, CO2's plumes and a fake haze fluid); `node arsenal/lanes/vj_storm.mjs` (the Invert storm puts Invert back on pad
+  black, CO2 into the running haze fluid on one gate answer, CO2's plumes without it, and a fake haze fluid); `node arsenal/lanes/vj_storm.mjs` (the Invert storm puts Invert back on pad
   11 for its run).
 
 ## The air: haze, CO2 and fog on the page (VJ V2, 2026-10-27)
@@ -432,12 +433,12 @@ system". The build spec is `research/in-flight/vj-v2-build-spec-2026-10-27.md` s
   it (coloured air, white-hot where many beams meet) and the beams' own motion stirs it. With no beams the haze shows
   nothing (black stays black). `?haze=0..1` sets the room's level (0.5); `?air=low` runs a quarter of the cells, `?air=off`
   none.
-- **CO2** (lane B's pad 3, through `vjAir.co2(x, y, strength)`): a white column shoots up from the deck, blooms into a cold
+- **CO2** (pad 3; receipts reach it through `window.__vj.air`): a white column shoots up from the deck, blooms into a cold
   cloud, slumps onto the deck and burns off in about two seconds; the lasers light it where they cross it and it veils what
-  is behind it. **FOG** (lane B's pad 6, `vjAir.fogPush(level)` / `fogRelease()`): the machines at the deck's two ends push
+  is behind it. **FOG** (pad 6: `fogPush(level)` on the press, `fogRelease()` on the release): the machines at the deck's two ends push
   while held, and the fog hangs and drifts after the release, decaying by itself.
 - **Safety.** The air is a flash source: every CO2 burst and fog push asks the FlashGate at its onset, like punch and
-  Invert (refused, a smaller burst opens slowly); its light never rises faster than the gate's edge; the fog body stays
+  Invert -- once per onset: a pad-3 press asks for its whole row of jets (refused, a smaller burst opens slowly); its light never rises faster than the gate's edge; the fog body stays
   under the flash line at any density; gate v2 judges the frame after it all. Receipts: `vj_storm.mjs` storms `airedge`
   (CO2 at the gate's own edge with fog pushes) and `airstir` (the air stirred with no beams lit), and its opt-in
   `--phases airsheet` contact sheet.
