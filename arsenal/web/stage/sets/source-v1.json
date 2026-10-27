@@ -1099,7 +1099,7 @@
         "bars": 8,
         "source": "ours (v2): rising from house left while the rings tilt apart, never crossing the strand's corridor (16.75 m or more from the hub: clear of every gimbal at any pose)"
       },
-      "ORRERY_HERO": {"kind": "static", "pos": [-15, 17, 21], "look": [0, 14.5, -11], "hfov": 46, "ev": 0.3, "bars": 8, "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
+      "ORRERY_HERO": {"kind": "static", "pos": [-15, 21, 21], "look": [0, 15, -11], "hfov": 46, "ev": 0.3, "bars": 8, "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
       "ORRERY_UNDER": {"kind": "static", "pos": [3, 3.5, 2], "look": [0, 14, -11], "hfov": 74, "ev": 0.3, "bars": 8, "source": "ours (v2), Daniel's 'looking up at the core': from the pit at the lip, under the dial, up into the turning gimbals (17 m from the hub)"},
       "ORRERY_HIGH": {
         "kind": "orbit",
@@ -1120,7 +1120,7 @@
         "source": "ours (v2): the push in toward the gimbals; it ends 18 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
       },
       "SPIRAL_HERO": {"kind": "static", "pos": [4.2, 2.2, -20.2], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 4 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"},
-      "SPIRAL_SIDE": {"kind": "static", "pos": [16, 26, 10], "look": [0, 18, -7], "hfov": 58, "ev": 0.4, "bars": 8, "source": "ours (v2): high from house right, the well in profile: the rings stepped up their axis, the beam rising through every centre"}
+      "SPIRAL_SIDE": {"kind": "static", "pos": [18, 12, 6], "look": [0, 18.5, -7], "hfov": 60, "ev": 0.4, "bars": 8, "source": "ours (v2): from house right at mid-height, under the trusses, the well in profile: the rings stepped up their axis, the beam rising through every centre"}
     },
     "sequences": {
       "intro": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "CRANE_RISE_REVEAL", "bars": 4}],
