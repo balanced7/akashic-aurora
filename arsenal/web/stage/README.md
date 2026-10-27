@@ -31,7 +31,7 @@ Open it from the Arsenal server:
 | Pad 6 / key `6` | FLY-OUT: the truss and lip beams burst outward from the centre. |
 | Pad 10 / key `0` | DROP NOW: the drop starts on the next downbeat (and with it the drop's phrase). |
 | F1, F4, F5, F6, F9 | Strand master, lasers, haze target (it moves over minutes), speed (detents 1/4 to 4; a phrase's own timing is in beats and ignores it), grand master. The sliders in the HUD do the same. |
-| `C` / `Esc` | Hold the next camera shot / give the camera back to the director (or the phrase). |
+| `C` / `Esc` | Play the next camera shot in motion, looping over its own bars (v2; every shot in the set, the held RING_THREAD included) / give the camera back to the director (or the phrase). |
 | `H`, `F` | Hide the HUD, go full screen. The HUD's phrase row names the step, the variant, the repeat and the beats left. |
 
 ## Daniel's phrase ("Halo Levels", `sets/source-v1.json` → `phrases.halo-levels`)
@@ -78,12 +78,12 @@ direction, the layers' height (+-2 m), the nod size and which rings carry the ha
 | `kinetics.js` | The hoists (jerk-limited), the formations, and time-priority landing on bar lines. |
 | `lasers.js`, `lasers3d.js` | A minimal laser brain on the Lasers v2 contract (v1: laser group lines with shapes and gates, heads past the 21, an aim side channel), mapped onto 33 projectors in 3D with physical power sharing. |
 | `atmos.js` | The haze medium: the hazers, the lag, the cap, and our own tileable noise. |
-| `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan. |
+| `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan; v2: the strand frame (shots round the live centre line, the under-ride), the formation-validity filter and the guard (never a shot within 1.5 m of a rung), roll curves, the easings arrive_fast, snap and arrive_u, the dolly zoom, and the landing grammar: one glide while the hoists move, the cut ON the landing bar line to the formation's hero view (`cameras.formation_views`; `orrery` and `spiral` are slots for the new ring formations). |
 | `show.js` | Sections (v1: a section may name a phrase), the demo plan, and DROP NOW. |
 | `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. |
 | `render.js`, `shaders.js` | The three.js r186 renderer and our own GLSL, composed with the house library; v1: the crowd near the lens is not drawn (4 m) and its arms hold still (10 m). |
 
 Tests: `node --test tests/stage_*.test.mjs`. The browser receipt: `node arsenal/lanes/stage_verify.mjs` (default phases
-load, clock, phrase, engine, flash, storm and the picture measures; `--phases flash3m --flash-scale 0.75` runs the
+load, clock, camera, phrase, engine, flash, storm and the picture measures; `--phases flash3m --flash-scale 0.75` runs the
 three-minute crowd-on run in ten-second bursts; `--phases sheet-phrase --sheet-dir <scratch>` the phrase's sheet). It
 runs headless SwiftShader only, under the house GPU lock, on the test band.

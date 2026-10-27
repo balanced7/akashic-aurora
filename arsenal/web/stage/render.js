@@ -489,6 +489,8 @@ export class StageRenderer {
     cam.lookAt(c.look[0], c.look[1], c.look[2]);
     if (c.roll) cam.rotateZ(c.roll * DEG);
     cam.fov = vfovOf(c.hfov, w / h);
+    // a shot may ask for a tighter crowd cull (an FPV skim over the hands: 0.8 m, or the hands under the lens vanish)
+    this.crowdNear.uCullNear.value = c.crowdCull ?? S.CROWD_CULL_NEAR_M;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
     const pixAngle = (2 * Math.tan((cam.fov * DEG) / 2)) / h;

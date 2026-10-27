@@ -19,6 +19,9 @@
 //           the strand moves (every rung's height changes, and follows the wave formation within 2 cm); the effects follow
 //           the clock (the strand heads' unison pulse peaks on beat frames +-1; the KICK lift lands on its beat frame +-1);
 //           sections change on bar lines and the camera cuts only on bar lines; the flythrough arrives on the downbeat.
+//   camera  (v2) a formation landed through the page's door: one glide, the cut ON the landing bar line to its hero view
+//           with the strand already there, the lens 1.5 m from the live strand and rings on every frame; the
+//           strand-frame corkscrew played by hand round the low strand.
 //   engine  real clock, the fake engine: hello, beats at 140 BPM with bar and ver, a tap (ver bump), pads 1 and 2 -> the
 //           page's grid follows the engine's tempo, re-anchors on the ver, and the pads reach the programmer and lasers.
 //   cost    per-pass SwiftShader timings (gl.finish fences) on three shots, the frame time with each feature switched off,
@@ -59,7 +62,7 @@ const MAIN = REPO.split(/[\\/]\.claude[\\/]worktrees[\\/]/)[0];
 const WEB = resolve(REPO, "arsenal", "web");
 const { values: opt } = parseArgs({
   options: {
-    phases: { type: "string", default: "load,clock,phrase,engine,flash,storm,pic-levels,pic-rush,pic-ring,pic-handoff" },
+    phases: { type: "string", default: "load,clock,camera,phrase,engine,flash,storm,pic-levels,pic-rush,pic-ring,pic-handoff" },
     "flash3m-seconds": { type: "string", default: "180" },
     "chunk-seconds": { type: "string", default: "10" },
     "chunk-from": { type: "string", default: "0" },
@@ -450,6 +453,76 @@ async function phaseClock({ ev, open, phase, deadline }) {
         { last_fly_u: lastFly && +lastFly.u.toFixed(4), metres_from_ring_centre: dist && +dist.toFixed(3), drop_starts_at_pos: firstDrop && +firstDrop.pos.toFixed(4) });
   phase.section_log = [...new Set(series.map((s) => s.section))];
   phase.limiter = st.limiter;
+}
+
+// v2 (2026-10-27): the camera knows the strand. The receipt holds the show's sections still, plays the groove, and lands
+// a low formation through the page's own door (what a MORPH does): one glide from the next bar line while the hoists
+// move, the cut ON the landing bar line to the formation's hero view with the strand already there, and on no frame the
+// lens within 1.5 m of the live strand or rings (the guard idle). Then the strand-frame corkscrew, played by hand (C),
+// round the landed low strand: over the top as a pendulum, clear on every frame. Logic only, every 60 fps frame.
+async function phaseCamera({ ev, open, phase, deadline }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev("window.__stage.skipRender = true");
+  await ev(`(() => { for (let i = 0; i < 120; i++) window.__vt.step(${F}); return true; })()`);
+  const LOW_Y = 11;
+  const setup = await ev(`(async () => { const s = window.__stage;
+    s.show.update = () => [];
+    s.rig.formations["receipt-low"] = { name: "low", params: { y: ${LOW_Y} } };
+    s.director.views["receipt-low"] = { glide: ["PROFILE_GRAPH"], hero: ["REAR_TELE_ZIGGURAT"], hero_bars: 4 };
+    const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    s.director.start("groove", s.grid.nextBarPos(pos) - 8);
+    for (let i = 0; i < 30; i++) window.__vt.step(${F});
+    const r = s.land("receipt-low");
+    const C = await import("/web/stage/camera.js");
+    window.__cam = { C, model: C.cameraModel(s.rig) };
+    return { pos: s.grid.posAt(performance.now() + s.grid.presentLagMs), posLand: r.posLand, barAnchor: s.grid.barAnchor }; })()`);
+  phase.setup = setup;
+  const RUN = String.raw`((frames) => { const s = window.__stage, out = [], C = window.__cam.C, m = window.__cam.model;
+    for (let i = 0; i < frames; i++) {
+      window.__vt.step(1000 / 60);
+      const pos = s.grid.posAt(performance.now() + s.grid.presentLagMs), p = s.director.pose;
+      out.push({ pos, shot: p.shot, cut: p.cut, why: p.cut ? s.director.cuts.at(-1).why : null, manual: !!s.director.manual,
+                 clear: Math.min(C.clearanceToStrand(p.pos, s.strand.poses, m.z), C.clearanceToRings(p.pos, m.rings)),
+                 y: p.pos[1], ys: s.strand.poses.map((q) => q.y) });
+    }
+    return out; })`;
+  const series = [];
+  const until = setup.posLand + 4 * 4 + 2;
+  while (Date.now() < deadline - 30000) {
+    const chunk = await ev(`${RUN}(240)`, 160000);
+    series.push(...chunk);
+    if (chunk.at(-1).pos > until) break;
+  }
+  const landing = await ev("window.__stage.director.landings.at(-1) || null");
+  const guards = await ev("window.__stage.director.clear.guards");
+  // the corkscrew by hand, eight bars round the landed strand
+  await ev(`(() => { window.__stage.playShot("HELIX_CORKSCREW"); return true; })()`);
+  const hand = [];
+  for (let k = 0; k < 4 && Date.now() < deadline - 20000; k++) hand.push(...await ev(`${RUN}(192)`, 160000));
+  phase.frames = series.length + hand.length;
+  const inLanding = series.filter((r) => r.pos >= setup.pos && r.pos < setup.posLand + 16);
+  const cuts = inLanding.filter((r) => r.cut).map((r) => ({ pos: +r.pos.toFixed(4), shot: r.shot, why: r.why }));
+  const glide = cuts.find((c) => c.why === "landing-glide"), hero = cuts.find((c) => c.why === "landing-hero");
+  const offBar = (p) => { const q = ((p - setup.barAnchor) % 4 + 4) % 4; return Math.min(q, 4 - q) * 24; };
+  phase.landing = { landing, cuts, guards };
+  check("camera: a formation landing gets ONE glide from a bar line while the hoists move, then the cut ON the landing bar line to its hero view (+-1 frame)",
+        landing && landing.formation === "receipt-low" && glide && hero && offBar(glide.pos) <= 1.01 && hero.shot === "REAR_TELE_ZIGGURAT"
+        && Math.abs(hero.pos - setup.posLand) * 24 <= 1.01 && cuts.filter((c) => c.pos > glide.pos && c.pos < hero.pos).length === 0,
+        { posLand: setup.posLand, glide, hero, cuts_between: cuts.filter((c) => glide && hero && c.pos > glide.pos && c.pos < hero.pos).length });
+  const heroFrame = hero && series.find((r) => r.pos >= hero.pos - 1e-6);
+  const err = heroFrame ? Math.max(...heroFrame.ys.map((y) => Math.abs(y - LOW_Y))) : null;
+  check("camera: the cut reveals the arrival -- every rung is at its new height on the hero view's first frame (within 5 cm)",
+        err !== null && err <= 0.05, { worst_m: err && +err.toFixed(4), strand_moved_m: series.length ? +(Math.max(...series[0].ys) - LOW_Y).toFixed(2) : null });
+  const worst = Math.min(...series.map((r) => r.clear));
+  check("camera: on no frame was the lens within 1.5 m of the live strand or the rings, and the guard never had to act",
+        series.length > 500 && worst >= 1.5 && guards === 0, { frames: series.length, closest_m: +worst.toFixed(3), guards, shots: [...new Set(series.map((r) => r.shot))] });
+  const handWorst = hand.length ? Math.min(...hand.map((r) => r.clear)) : null;
+  const span = hand.length ? Math.max(...hand.map((r) => r.y)) - Math.min(...hand.map((r) => r.y)) : 0;
+  check("camera: the strand-frame corkscrew by hand (C) round the low strand swings over it as a pendulum and keeps 1.5 m on every frame",
+        hand.length >= 700 && hand.every((r) => r.shot === "HELIX_CORKSCREW" && r.manual) && handWorst >= 1.5 && span > 3 && Math.min(...hand.map((r) => r.y)) > LOW_Y - 8 * Math.cos(70 * Math.PI / 180) - 0.3,
+        { frames: hand.length, closest_m: handWorst && +handWorst.toFixed(3), height_span_m: +span.toFixed(2), lowest_m: hand.length ? +Math.min(...hand.map((r) => r.y)).toFixed(2) : null });
+  const errs = phase.exceptions.length + (await ev("window.__stage.errors.length"));
+  check("camera: no exceptions", errs === 0, { exceptions: phase.exceptions.slice(0, 3), page: await ev("window.__stage.errors.slice(0, 3)") });
 }
 
 async function phaseEngine({ ev, open, phase }) {
@@ -1169,7 +1242,12 @@ async function runFlash3m() {
   const series = chunks.flatMap((c) => c.series.filter((s) => s.frame > c.f0 && s.frame <= c.f1));
   const covered = chunks.filter((c) => c.complete).length === nChunks;
   const j = judgeFlashes(series);
-  const allShots = Object.keys(RIG.cameras.shots);
+  // every shot the demo programs (its sections' sequences, its phrases' steps, alternates and variants): since v2 the
+  // set's library holds shots the demo never plays (formation hero views, the groove's, the new sequences')
+  const programmed = new Set();
+  for (const p of (RIG.show.demo && RIG.show.demo.plan) || []) for (const e of RIG.cameras.sequences[RIG.show.sections[p.section].camera] || []) programmed.add(e.shot);
+  for (const m of JSON.stringify(RIG.phrases || {}).matchAll(/"(?:shot|alt)":"([A-Z0-9_]+)"/g)) programmed.add(m[1]);
+  const allShots = [...programmed];
   const seen = [...new Set(series.map((s) => s.shot))];
   const steps = [...new Set(series.map((s) => s.step).filter(Boolean))];
   const interventions = chunks.reduce((a, c) => a + c.interventions_in_chunk, 0);
@@ -1180,7 +1258,7 @@ async function runFlash3m() {
                     shots_seen: seen, shots_missing: allShots.filter((s) => !seen.includes(s)), phrase_steps_seen: steps,
                     sections: [...new Set(series.map((s) => s.section))], ms_per_frame: chunks.map((c) => c.ms_per_frame) };
   report.phases.flash3m = summary;
-  check(`flash3m: ${summary.seconds} s of the programmed demo, crowd on, every camera shot, every frame read back (${fw}x${fh}): zero final-limiter interventions, <= 3 flashes a second in all 18 windows, no red flash, no rest`,
+  check(`flash3m: ${summary.seconds} s of the programmed demo, crowd on, every shot the demo programs, every frame read back (${fw}x${fh}): zero final-limiter interventions, <= 3 flashes a second in all 18 windows, no red flash, no rest`,
         covered && series.length >= runFrames - 1 && interventions === 0 && j.worst <= 3 && j.worst_red === 0 && summary.rest_frames === 0 && summary.shots_missing.length === 0,
         { frames: series.length, interventions, worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, shots_missing: summary.shots_missing, chunks_complete: covered });
 }
@@ -1220,7 +1298,7 @@ try {
   PORT = await listen(web, PORT);
   ENGINE_PORT = await listen(engine, ENGINE_PORT);
   report.ports = { web: PORT, engine: ENGINE_PORT };
-  const table = { load: phaseLoad, clock: phaseClock, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
+  const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }

@@ -27,7 +27,7 @@ import { Strand } from "./kinetics.js";
 import { LaserEngine } from "./lasers.js";
 import { Lasers3D } from "./lasers3d.js";
 import { Atmosphere } from "./atmos.js";
-import { Director } from "./camera.js";
+import { Director, cameraModel } from "./camera.js";
 import { Show, speedFromFader } from "./show.js";
 import { FrameLimiter } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
@@ -103,8 +103,13 @@ function start({ rig, R, renderMod }) {
   const firstPhrase = runner ? Object.keys(rig.phrases)[0] : null;
   const atmos = new Atmosphere({ hazers: rig.hazers, tau: rig.atmos.tau_s ?? 30, preHaze: rig.atmos.pre_haze ?? 0.12,
                                  wind: rig.atmos.wind || [0.25, 0, -0.1], noiseAmp: rig.atmos.noise_amp ?? 0.6 });
-  const director = new Director(rig.cameras.shots, rig.cameras.sequences);
+  // v2: the director knows the strand (it never deals a shot within 1.5 m of a rung) and each formation's hero views
+  const director = new Director(rig.cameras.shots, rig.cameras.sequences,
+                                { model: cameraModel(rig), formations: rig.formations, views: rig.cameras.formation_views, safe: rig.cameras.safe });
   director.start(Object.keys(rig.cameras.sequences)[0], 0);      // until the first section starts its own sequence
+  // what the camera reads of the rig each frame: the formation key (a change with a landing gets the glide and the hero
+  // view), its landing bar line, the live rung poses. A ring formation that lands elsewhere sets formation and posLand too.
+  const camScene = { formation: "", def: null, posLand: null, poses: strand.poses, rings: null, dt: 0 };
   const show = new Show(rig, { demo: DEMO || !ENGINE_URL });
   const limiter = new FrameLimiter();
   const link = new EngineLink();
@@ -233,7 +238,8 @@ function start({ rig, R, renderMod }) {
       }
       programmer.tick(grid, tEval, dt);
       strand.update(grid, tEval, dt);
-      const pose = director.update(pos);
+      camScene.formation = state.formation; camScene.def = strand.formation; camScene.posLand = strand.move ? strand.move.posLand : null; camScene.dt = dt;
+      const pose = director.update(pos, camScene);
       const pl = Math.hypot(pose.look[0] - pose.pos[0], pose.look[1] - pose.pos[1], pose.look[2] - pose.pos[2]) || 1;
       fwd[0] = (pose.look[0] - pose.pos[0]) / pl; fwd[1] = (pose.look[1] - pose.pos[1]) / pl; fwd[2] = (pose.look[2] - pose.pos[2]) / pl;
       const l2 = lasers.frame(tEval);
@@ -281,7 +287,8 @@ function start({ rig, R, renderMod }) {
         ? `${st.name} · ${st.step} ${st.stepName} (${st.index + 1}/${st.steps}) · ${st.variant} · repeat ${st.repeat + 1} · ${Math.max(0, st.end - grid.posAt(tEval)).toFixed(1)} beats left`
         : st.state === "armed" ? `armed: starts on the next bar line` : "idle (pad 3 / key 3: go)";
     }
-    $("hud-shot").textContent = `${state.shot || "-"} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
+    const forShot = director.pose.forShot ? ` (for ${director.pose.forShot})` : "";
+    $("hud-shot").textContent = `${state.shot || "-"}${forShot} ${state.u !== undefined ? `${Math.round(Math.min(1, state.u) * 100)} %` : ""}`;
     const p0 = strand.poses[0], p11 = strand.poses[strand.poses.length - 1];
     $("hud-strand").textContent = `${strand.formation.name} · rung 1 ${p0.y.toFixed(2)} m ${p0.roll.toFixed(0)}° · rung ${strand.n} ${p11.y.toFixed(2)} m${strand.move ? " · landing" : ""}`;
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
@@ -303,7 +310,8 @@ function start({ rig, R, renderMod }) {
     fwrap.append(d);
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
-  // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot, H HUD, F fullscreen
+  // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,
+  // F fullscreen, Esc back to the director
   const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit6: 6, Digit7: 7, Digit0: 10 };
   const held = new Set();
   window.addEventListener("keydown", (e) => {
@@ -317,7 +325,7 @@ function start({ rig, R, renderMod }) {
       const ids = Object.keys(director.shots);
       const cur = ids.indexOf(manualShot ? manualShot : state.shot);
       manualShot = ids[(cur + 1) % ids.length];
-      director.manual = { shot: manualShot, u: 0.5 };
+      director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
     } else if (e.code === "Escape") { manualShot = null; director.manual = null; }
   });
   window.addEventListener("keyup", (e) => {
@@ -340,6 +348,15 @@ function start({ rig, R, renderMod }) {
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
                     flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) } }),
     setShot: (id, u = 0.5) => { manualShot = id; director.manual = { shot: id, u }; },
+    playShot: (id) => { manualShot = id; director.manual = { shot: id, p0: grid.posAt(performance.now() + grid.presentLagMs), beats: (director.shots[id].bars ?? 4) * 4 }; },
+    // land one of the set's formations on the next bar line it can make (what a MORPH does); the camera sees the change
+    land: (key) => {
+      const f = rig.formations[key];
+      if (!f) return null;
+      const r = strand.land(f.name, f.params, grid, performance.now(), { land: "bar" });
+      state.formation = key;
+      return r;
+    },
     clearShot: () => { manualShot = null; director.manual = null; },
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
     release: (n) => pad(n, 0, false, performance.now() + grid.presentLagMs),
