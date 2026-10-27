@@ -331,7 +331,7 @@ test("a landing: one glide from the next bar line while the hoists move, the cut
   const ceil = { formation: "ceiling", poses: CATALOGUE.ceiling[0], dt: 1 / 60 };
   run(0, 13, () => ceil);
   // at beat 13.25 MORPH asks for the stairs; the hoists land them on beat 96 (a real-mode 20-bar move)
-  const stairs = (pos) => ({ formation: "stairs", posLand: 96, poses: CATALOGUE.stairs_to_ring[0], dt: 1 / 60 });
+  const stairs = () => ({ formation: "stairs", posLand: 96, poses: CATALOGUE.stairs_to_ring[0], dt: 1 / 60 });
   const cuts = run(13.25, 140, stairs);
   const L = d.landings.at(-1);
   assert.deepEqual([L.glide, L.hero, L.posLand], ["PROFILE_GRAPH", "REAR_TELE_ZIGGURAT", 96]);
