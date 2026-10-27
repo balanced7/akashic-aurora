@@ -4,7 +4,12 @@
 // Daniel, 2026-10-24: "I want there to be a lot of variety and strong color themes". The build spec is slice S5 of
 // research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-2026-10-24.md (sections 2.1-2.3 and 4.1):
 // 21 themes in 8 families, built from the measured Q-dance palettes. Two colours per section, white is the peak, and a
-// saturated red is held (shown steadily on the scene), never strobed.
+// saturated red is held (shown steadily on the scene), never strobed. Looks wave 1 (2026-10-27, VJ V2 build spec section
+// F; research/reviewed/keylab-liberation-2026-10-22/vj-v2-research-2026-10-27/looks.research.md) adds 16 themes to the
+// same families under the same rules, among them Dreaming City, measured from Daniel's stills. Three of them take fader
+// detents; the fader is full at 25, so the rest are marked "fader": false and reached by their family tab. The two
+// exceptions to the two-colour rule (Spectral Fan, Shimmer) are special modes, never themes, rarity-limited by
+// SpecialModes (module part: the laser engine's per-beam colours that draw them are not wired yet).
 //
 // This module decides, without a browser:
 //   - whether a library is sound: every pad stand-in readable on the KeyLab pads, no saturated red that a laser, a
@@ -39,6 +44,18 @@ export const RED_RATIO = 0.8;
 export const CHOKE_LED = "#ff3c00";        // Choke's own #ff9a1f (hue 36) washes to white on the pads (spec 2.2)
 export const LASER_TIER_LEVEL = Object.freeze([1, 0.6, 0.8, 1]);   // pad 2's light by laser tier: none, 1, 2, 3 (spec 1.8)
 export const FADER_REST_MS = 150;          // a fader pick lands once the fader has rested this long on one detent
+// The theme fader is a 0..127 MIDI fader: each detent keeps at least five of its 128 positions, so it holds at most 25
+// detents (Custom included). A theme marked "fader": false is left off it and is reached by its family tab instead.
+export const FADER_POSITIONS = 128;
+export const FADER_MIN_POSITIONS = 5;
+export const FADER_MAX_DETENTS = Math.floor(FADER_POSITIONS / FADER_MIN_POSITIONS);
+// The special modes (special_modes: Spectral Fan, Shimmer) break the two-colour rule, so they are held to more: no hue in
+// the red band, one lightness for every hue (the change is in colour, never in brightness), edges a small share of the
+// frame, and a rarity the engine enforces (SpecialModes)
+export const SPECIAL_RED_BAND = Object.freeze([330, 55]);     // OKLCh hues strictly inside 330..360..55 are refused
+export const SPECIAL_L_SPREAD = 0.03;
+export const SPECIAL_EDGE_SHARE_MAX = 0.05;
+export const SPECIAL_MIN_EVERY_BARS = 8;
 export const HOLD_BARS = 8;                // an automatic theme holds at least one 8-bar phrase
 export const KEY_CONF = 0.6;               // chordsense's key takes over at this confidence...
 export const KEY_STABLE_BARS = 8;          // ...once no other key has arrived for this long
@@ -180,7 +197,7 @@ export function validateLibrary(raw) {
     bad("themes", "missing or empty");
     return { ok: false, errors, warnings };
   }
-  const ids = new Set(), families = new Set();
+  const ids = new Set(), families = new Set(), offFader = new Set();
   const isRole = (r) => ROLES.includes(r);
   const roleList = (at, name, v, len) => {
     if (!Array.isArray(v) || v.length === 0 || (len && v.length !== len) || !v.every(isRole)) {
@@ -249,6 +266,8 @@ export function validateLibrary(raw) {
     for (const k of ["split_only", "one_family", "crossfade_needs_dip"]) {
       if (typeof t[k] !== "boolean") bad(at, `${k} must be true or false`);
     }
+    if ("fader" in t && typeof t.fader !== "boolean") bad(at, "fader must be true or false");
+    else if (t.fader === false && typeof t.id === "string") offFader.add(t.id);
     if (!Array.isArray(t.sections) || !t.sections.every((s) => typeof s === "string")) bad(at, "sections must be a list of names");
     if (typeof t.hero !== "string") warnings.push(`${at}: no hero description`);
     if (!coloursOk) return;
@@ -270,12 +289,18 @@ export function validateLibrary(raw) {
       if (isSaturatedRed(roleHexOf(t, t.fx[k]))) bad(at, `fx.${k} ${roleHexOf(t, t.fx[k])} is saturated red`);
     }
   });
-  // the theme fader: every theme exactly once, plus Custom
+  // the theme fader: every theme exactly once (none for a theme marked off it), plus Custom, within the fader's detents
   if (!Array.isArray(raw.fader_order)) bad("fader_order", "missing");
   else {
     const seen = new Map();
     for (const id of raw.fader_order) seen.set(id, (seen.get(id) || 0) + 1);
-    for (const id of ids) if (seen.get(id) !== 1) bad("fader_order", `${id} appears ${seen.get(id) || 0} times (expected once)`);
+    for (const id of ids) {
+      const want = offFader.has(id) ? 0 : 1, n = seen.get(id) || 0;
+      if (n !== want) bad("fader_order", `${id} appears ${n} times (expected ${want ? "once" : "none: it is marked off the fader"})`);
+    }
+    if (raw.fader_order.length > FADER_MAX_DETENTS) {
+      bad("fader_order", `${raw.fader_order.length} detents leave a fader detent under ${FADER_MIN_POSITIONS} of its ${FADER_POSITIONS} positions (at most ${FADER_MAX_DETENTS})`);
+    }
     for (const id of seen.keys()) if (id !== "custom" && !ids.has(id)) bad("fader_order", `unknown theme ${id}`);
     if (seen.get("custom") !== 1) bad("fader_order", "Custom must appear exactly once");
     else if (raw.fader_order[raw.fader_order.length - 1] !== "custom") warnings.push("fader_order: Custom is not at the top");
@@ -308,7 +333,53 @@ export function validateLibrary(raw) {
     }
     if (!(typeof mode.cap_deg === "number" && mode.cap_deg >= 0)) bad("mode.cap_deg", "must be a number of degrees");
   }
+  if (raw.special_modes !== undefined) validateSpecialModes(raw.special_modes, ids, bad);
   return { ok: errors.length === 0, errors, warnings };
+}
+
+// special_modes: { about?, <id>: { name, from, rarity: {per: "set", times} | {every_bars}, max_beats, hues? | edges? } }
+function validateSpecialModes(sm, themeIds, bad) {
+  if (!sm || typeof sm !== "object" || Array.isArray(sm)) { bad("special_modes", "must be an object"); return; }
+  // half a degree of slack: a colour made on the band's edge moves that much when it is rounded to #rrggbb
+  const inRedBand = (h) => h > SPECIAL_RED_BAND[0] + 0.5 || h < SPECIAL_RED_BAND[1] - 0.5;
+  // a list of colours shown at one lightness: hex, never saturated red, the lightness spread within SPECIAL_L_SPREAD
+  const level = (at, name, list, min) => {
+    if (!Array.isArray(list) || list.length < min || !list.every(isHex)) { bad(at, `${name} must be at least ${min} #rrggbb colours`); return null; }
+    const c = list.map((hex) => toOklch(hexToLinear(hex)));
+    list.forEach((hex, i) => { if (isSaturatedRed(hex)) bad(at, `${name}[${i}] ${hex} is saturated red`); });
+    const Ls = c.map((x) => x.L), spread = Math.max(...Ls) - Math.min(...Ls);
+    if (spread > SPECIAL_L_SPREAD) bad(at, `${name} spread ${spread.toFixed(3)} in lightness (at most ${SPECIAL_L_SPREAD}: the change is colour, not brightness)`);
+    return c;
+  };
+  for (const [id, m] of Object.entries(sm)) {
+    if (id === "about") continue;
+    const at = `special_modes.${id}`;
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) bad(at, "id must be lower-case words joined by hyphens");
+    if (themeIds.has(id)) bad(at, "a special mode is never a theme (the id is a theme's)");
+    if (!m || typeof m !== "object") { bad(at, "not an object"); continue; }
+    if (typeof m.name !== "string" || !m.name) bad(at, "no name");
+    if (typeof m.from !== "string" || !m.from) bad(at, "no source (from)");
+    const r = m.rarity;
+    const perSet = r && r.per === "set" && Number.isInteger(r.times) && r.times >= 1;
+    const every = r && Number.isInteger(r.every_bars) && r.every_bars >= SPECIAL_MIN_EVERY_BARS;
+    if (!perSet && !every) bad(at, `rarity must be {per: "set", times >= 1} or {every_bars >= ${SPECIAL_MIN_EVERY_BARS}}: a special mode is never unlimited`);
+    if (!(typeof m.max_beats === "number" && m.max_beats > 0)) bad(at, "max_beats must be a positive number of beats");
+    if (m.hues === undefined && m.edges === undefined) bad(at, "names no colours (hues or edges)");
+    if (m.hues !== undefined) {
+      const c = level(at, "hues", m.hues, 3);
+      if (c) {
+        c.forEach((x, i) => { if (inRedBand(x.h)) bad(at, `hues[${i}] ${m.hues[i]} (hue ${x.h.toFixed(0)}) is in the red band`); });
+        if (!c.every((x, i) => i === 0 || x.h > c[i - 1].h)) bad(at, "hues must run round the wheel in order (a prism)");
+      }
+    }
+    if (m.edges !== undefined) {
+      level(at, "edges", m.edges, 2);
+      if (!(typeof m.edge_share_max === "number" && m.edge_share_max > 0 && m.edge_share_max <= SPECIAL_EDGE_SHARE_MAX)) {
+        bad(at, `edge_share_max must be in (0, ${SPECIAL_EDGE_SHARE_MAX}] of the frame`);
+      }
+    }
+    for (const k of ["white", "base", "ground"]) if (k in m && !isHex(m[k])) bad(at, `${k} is not a #rrggbb colour`);
+  }
 }
 
 // Validates and indexes a library (the parsed JSON, or its text). Throws, listing every problem, when it is unsound.
@@ -332,8 +403,37 @@ export function loadLibrary(raw) {
     camelot: deepFreeze(data.camelot),
     mode: deepFreeze(data.mode),
     rules: deepFreeze(data.rules || {}),
+    specialModes: deepFreeze(Object.fromEntries(Object.entries(data.special_modes || {}).filter(([k]) => k !== "about"))),
     warnings: Object.freeze(v.warnings),
   });
+}
+
+// The special modes' rarity, enforced: a mode the library limits to once a set, or to once every N bars, is refused
+// until its rarity allows it again. The page asks with the bar it would land on, draws the mode only when the answer is
+// ok (for at most max_beats), and otherwise draws the theme as usual; newSet() starts a set's count again.
+export class SpecialModes {
+  constructor(lib) {
+    this.modes = lib.specialModes || {};
+    this.used = new Map();             // id -> { count, lastBar }
+  }
+  newSet() { this.used.clear(); }
+  // { ok, id, reason, maxBeats, mode } for the bar the mode would land on
+  check(id, bar) {
+    const m = this.modes[id];
+    if (!m) return { ok: false, id, reason: "no such special mode" };
+    const u = this.used.get(id), r = m.rarity;
+    if (u && r.per === "set" && u.count >= r.times) return { ok: false, id, reason: `${m.name}: ${r.times} a set, used` };
+    if (u && r.every_bars && bar - u.lastBar < r.every_bars) {
+      return { ok: false, id, reason: `${m.name}: once every ${r.every_bars} bars, next at bar ${u.lastBar + r.every_bars}` };
+    }
+    return { ok: true, id, reason: null, maxBeats: m.max_beats, mode: m };
+  }
+  // check() and, when ok, count the use
+  take(id, bar) {
+    const res = this.check(id, bar);
+    if (res.ok) { const u = this.used.get(id); this.used.set(id, { count: (u ? u.count : 0) + 1, lastBar: bar }); }
+    return res;
+  }
 }
 
 // The page's loader: fetch, validate, index. A library that fails validation rejects (the page keeps its fader palette).
@@ -344,8 +444,8 @@ export async function fetchLibrary(url = new URL("./vj-themes.json", import.meta
 }
 
 // ------------------------------------------------------------------------------------------ choosing a theme --
-// The theme fader: one detent per entry of fader_order (21 themes in colour-wheel order, Custom at the top), equal widths
-// so a 0..127 fader gives every detent at least five positions.
+// The theme fader: one detent per entry of fader_order (the themes on the fader in colour-wheel order, Custom at the top),
+// equal widths so a 0..127 fader gives every detent at least five positions.
 export function faderIndex(lib, x) {
   const n = lib.faderOrder.length;
   return Math.min(n - 1, Math.max(0, Math.floor(clamp01(Number.isFinite(x) ? x : 0) * n)));

@@ -20,6 +20,12 @@ Open it from the Arsenal server:
 - `http://127.0.0.1:8793/web/stage/index.html` listens to the VJ engine on 8794. Its beats drive the clock, and the
   KeyLab's pads and faders play the stage. The engine is only read from: the page never posts to it.
 - `?set=source-v0` still loads the v0 rig.
+- Looks wave 1 (2026-10-27): `?phrase=<name>` makes pad 3 start that phrase instead of Daniel's: `single-thread`
+  (one hero beam in a dark room), `pillars` (the delay towers' square columns straight up), `drumroll-iris` (the rings'
+  chop halving every 2 bars into a black last beat), `scissor-gates` (the towers' X on the push-pull), `tunnel-spokes`
+  (a beam tunnel with the rings' spiral, one way per repeat). `?theme=<name>` picks one of the set's themes:
+  `dreaming-city` (the VJ library's colours measured from Daniel's stills), `genesis-indigo`, `vex-conflux`, `anti-sun`.
+  For example `index.html?demo=1&theme=dreaming-city&phrase=pillars`, then pad 3.
 
 | Control | What it does |
 |---|---|

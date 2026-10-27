@@ -310,11 +310,16 @@ pure, `tests/vj_hookup.test.mjs`; `vj.js`; `vj-core.js`).
   little off the grid slews (the next beat stretched by at most 10 %, never backward), more than a quarter beat or a new
   `ver` (the engine's hard re-anchor) re-anchors at that beat and flushes the old version's queued beats, and the engine's
   bar (with `--tap-one`) puts the ONE on a multiple of 4.
-- **Themes.** Fader 1 is the theme fader (21 themes in colour-wheel order, Custom at the top; a pick lands after 150 ms of
+- **Themes.** 37 themes in 8 families: the spec's 21 and looks wave 1's 16 (2026-10-27: Dreaming City, measured from
+  Daniel's stills, Vex Network, Pillars of Creation, Sodium Sun, Aurora, Anti-Sun and more; `?theme=<id>` opens on any).
+  Fader 1 is the theme fader (24 of them in colour-wheel order, Custom at the top: a 0..127 fader holds 25 detents of at
+  least 5 positions; a pick lands after 150 ms of
   rest on the next bar, or the next beat when no bar is known); fader 2 is the hue drift (+-15 degrees inside a theme,
   centre = as designed). Custom is the palette of before: Hue A and Hue B (in the panel, or learned), turned together by
   fader 2. The family tabs are F1-F8 on the keyboard (ritual, fire, celestial, night, green, pyro, worship, line) or any
-  buttons by learn (the buttons under the screen are inferred, so none is bound). Key auto (on by default): chordsense's key once it is sure (0.6) and steady
+  buttons by learn (the buttons under the screen are inferred, so none is bound); a tab pressed again inside a bar walks
+  on through its family, which is how the 13 themes off the fader are reached. Spectral Fan and Shimmer are special modes,
+  not themes, rarity-limited (once a set; once in 64 bars). Key auto (on by default): chordsense's key once it is sure (0.6) and steady
   for 8 bars, and the song database's key on a new track once the engine's track event carries one (its `key_db` is
   reserved: no key is read from the database yet); a pick of yours wins until the next track. A theme sets the scene's four palette stops, the kick glow, the lasers' colours (a hit keeps
   the colours it was fitted to) and the pads; while the audio names the chords the chord colour is a hue nudge of at most

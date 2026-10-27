@@ -675,6 +675,62 @@
       "ambient": "#8a2a0a",
       "bumpA": "#ff8a3a",
       "bumpB": "#e0b030"
+    },
+    "dreaming-city": {
+      "name": "Dreaming City",
+      "about": "Looks wave 1: the VJ library's Dreaming City (arsenal/web/vj-themes.json), measured from Daniel's stills: A the violet core, B the pink-violet haze, W and the first laser the cyan-white glyph lines, warm the window amber (the accent), the air the haze's deep violet. ?theme=dreaming-city",
+      "A": "#8f2fc4",
+      "B": "#a864a2",
+      "W": "#d1f6fe",
+      "beamA": "#d1f6fe",
+      "beamB": "#a760f8",
+      "warm": "#f1af64",
+      "laser": ["#aceaf6", "#a760f8", "#e9fbff"],
+      "ambient": "#4d224c",
+      "bumpA": "#b88fe6",
+      "bumpB": "#e39ecc"
+    },
+    "genesis-indigo": {
+      "name": "Genesis Indigo",
+      "about": "Looks wave 1 (L01 Genesis, L02 Single Thread): one indigo hue in three values, white cores. ?theme=genesis-indigo",
+      "A": "#6a6cff",
+      "B": "#2a2c8f",
+      "W": "#f2f2ff",
+      "beamA": "#f2f2ff",
+      "beamB": "#8a93fa",
+      "warm": "#b3b9f1",
+      "laser": ["#6f7bff", "#eaf2ff", "#8a93fa"],
+      "ambient": "#0a0b24",
+      "bumpA": "#8a93fa",
+      "bumpB": "#6a6cff"
+    },
+    "vex-conflux": {
+      "name": "Vex Conflux",
+      "about": "Looks wave 1 (L38; inspiration only): glyph cyan and milk white, brass for the warm role. The optic's red pin stays on the VJ page, where it is held; the Stage refuses red roles. ?theme=vex-conflux",
+      "A": "#5fe3e6",
+      "B": "#f3efe6",
+      "W": "#ffffff",
+      "beamA": "#f3efe6",
+      "beamB": "#5fe3e6",
+      "warm": "#c9a46a",
+      "laser": ["#5fe3e6", "#f3efe6", "#9deff0"],
+      "ambient": "#081418",
+      "bumpA": "#9deff0",
+      "bumpB": "#c9a46a"
+    },
+    "anti-sun": {
+      "name": "Anti-Sun",
+      "about": "Looks wave 1 (L34): zero chroma, white on black; with Single Thread or Pillars it is the anti-climax register. ?theme=anti-sun",
+      "A": "#e6e6e6",
+      "B": "#9a9a9a",
+      "W": "#ffffff",
+      "beamA": "#ffffff",
+      "beamB": "#d0d0d0",
+      "warm": "#e0e0e0",
+      "laser": ["#ffffff", "#d8d8d8", "#ffffff"],
+      "ambient": "#141414",
+      "bumpA": "#ffffff",
+      "bumpB": "#9a9a9a"
     }
   },
   "cameras": {
@@ -1035,6 +1091,325 @@
           "vert_colour": {"cycle": ["W", "beamB", "A"]},
           "laser_colour": {"cycle": [0, 2, 1]},
           "laser_colour2": {"cycle": [1, 0, 2]}
+        }
+      }
+    },
+    "single-thread": {
+      "name": "Single Thread",
+      "about": "Looks wave 1, L02 (research/reviewed/keylab-liberation-2026-10-22/vj-v2-research-2026-10-27/looks.research.md): one beam from the hero at monumental length in a dark room. Scale comes from length and darkness, not fixture count (Henke's three white lasers, Tribute in Light), and the reset lets the next look land brighter without spending a flash. A reset after an anti-climax or the last breath before a final build; no beat lock. ?phrase=single-thread, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["break", "build", "anti-climax", "intro"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}, "fade": 1},
+        {"group": "leds.all", "values": {"Dimmer": 0}, "fade": 2}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "the thread",
+          "beats": 32,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "lasers.hero", "laser": {"shape": "sweep", "dir": "$thread_dir", "beams": 1, "spread": 0, "swing": "$drift_deg", "measure": 32, "colour": "$thread_colour", "level": 0.9}}
+          ],
+          "camera": {"shot": "FOH_WIDE", "then": {"beats": 16, "shot": "WORM_RING"}}
+        }
+      ],
+      "vary": {
+        "deck": ["front", "under"],
+        "first": "front",
+        "no_repeat": true,
+        "variants": {
+          "front": {},
+          "under": {"steps": {"A": {"camera": {"shot": "TRIBUNE_34", "then": {"beats": 16, "shot": "FOH_HOLD_ZOOM"}}}}}
+        },
+        "per_repeat": {
+          "thread_dir": {"alternate": ["down", "up"]},
+          "drift_deg": {"alternate": [0, 2]},
+          "thread_colour": {"cycle": [2, 1, 0]}
+        }
+      }
+    },
+    "pillars": {
+      "name": "Pillars",
+      "about": "Looks wave 1, L04 (Twin Pillars; the looks lane asks the UI to say Pillars): the delay towers' square clusters straight up, two columns 24 m apart over the crowd, still, everything else dark. Verticality, stillness and parallel symmetry make a monument inside a show that is otherwise always moving; the side towers join for the second half. Once per set, at a break's peak, released with a 2-beat fade. Pre-roll the haze (F5) two phrases ahead so the columns read to the roof. ?phrase=pillars, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["break"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "leds.all", "values": {"Dimmer": 0.02}, "fade": 2},
+        {"group": "delay.30", "preset": "vertical", "values": {"Dimmer": 0, "Zoom": 0.7, "Color": "W"}},
+        {"group": "vert.towers", "preset": "vertical", "values": {"Dimmer": 0, "Zoom": 0.7, "Color": "W"}}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "the columns rise",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "delay.30", "preset": "vertical", "values": {"Dimmer": 1, "Zoom": "$zoom", "Color": "$pillar_colour"}, "fade": 4}
+          ],
+          "camera": {"shot": "FOH_WIDE"}
+        },
+        {
+          "id": "B",
+          "name": "the monument",
+          "beats": 20,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "delay.30", "preset": "vertical", "values": {"Dimmer": 1, "Zoom": "$zoom", "Color": "$pillar_colour"}},
+            {"group": "vert.towers", "preset": "vertical", "values": {"Dimmer": 0.6, "Zoom": "$zoom", "Color": "$pillar_colour"}, "fade": 4}
+          ],
+          "camera": {"shot": "WORM_RING", "then": {"beats": 10, "shot": "TRIBUNE_34"}}
+        },
+        {
+          "id": "C",
+          "name": "release",
+          "beats": 4,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "delay.30", "values": {"Dimmer": 0}, "fade": 2},
+            {"group": "vert.towers", "values": {"Dimmer": 0}, "fade": 2}
+          ]
+        }
+      ],
+      "vary": {
+        "deck": ["front", "crowd"],
+        "first": "front",
+        "no_repeat": true,
+        "variants": {
+          "front": {},
+          "crowd": {"steps": {"A": {"camera": {"shot": "SIDE_TRACK_PARALLEL"}}, "B": {"camera": {"shot": "CROWD_POV", "then": {"beats": 10, "shot": "TOPDOWN_GODVIEW"}}}}}
+        },
+        "per_repeat": {
+          "zoom": {"alternate": [0.7, 1.1]},
+          "pillar_colour": {"cycle": ["W", "beamB"]}
+        }
+      }
+    },
+    "scissor-gates": {
+      "name": "Scissor Gates",
+      "about": "Looks wave 1, L24: the measured Qlimax push-pull as a mechanical gesture. The tower lasers and Bank A cross into an X that flips every half beat, two colours swapping sides, so the room breathes with the reverse bass; then the gates open into fans for a bar. Lasers only, heads dark, the room at 0.1. ?phrase=scissor-gates, then pad 3.",
+      "bars": 4,
+      "go": "bar",
+      "sections": ["drop", "groove"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "leds.all", "values": {"Dimmer": 0.03}, "fade": 1}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "the X",
+          "beats": 12,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "lasers.towers", "laser": {"shape": "scissors", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+            {"group": "lasers.A", "laser": {"shape": "scissors", "colour": "$colour2", "colour2": "$colour", "level": 0.6}}
+          ],
+          "camera": {"shot": "FOH_WIDE", "alt": "CROWD_POV"}
+        },
+        {
+          "id": "B",
+          "name": "the gates open",
+          "beats": 4,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "lasers.AS", "laser": {"shape": "fans", "colour": "$colour", "level": 0.7}},
+            {"group": "rings.rims", "values": {"Dimmer": 0.5, "Color": "W"}, "fade": 0.5}
+          ],
+          "camera": {"shot": "WORM_RING"}
+        }
+      ],
+      "vary": {
+        "deck": ["towers", "floor"],
+        "first": "towers",
+        "no_repeat": true,
+        "variants": {
+          "towers": {},
+          "floor": {
+            "steps": {
+              "A": {
+                "lines": [
+                  {"group": "lasers.towers", "laser": {"shape": "scissors", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+                  {"group": "lasers.B", "laser": {"shape": "scissors", "colour": "$colour2", "colour2": "$colour", "level": 0.6}}
+                ],
+                "camera": {"shot": "SIDE_TRACK_PARALLEL"}
+              }
+            }
+          }
+        },
+        "per_repeat": {
+          "colour": {"cycle": [0, 1, 2]},
+          "colour2": {"cycle": [1, 2, 0]},
+          "camera_alt": {"alternate": [false, true]}
+        }
+      }
+    },
+    "tunnel-spokes": {
+      "name": "Tunnel Spokes",
+      "about": "Looks wave 1, L26: a tunnel of beams turning round the hero while the rings' spiral turns the same way, one direction per repeat; the direction changes only through the black beat that ends each repeat. Radial symmetry, rotation and depth are hypnotic. ?phrase=tunnel-spokes, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["drop", "groove", "build"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "strand.heads", "values": {"Dimmer": 0.15}}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "tunnel",
+          "beats": 16,
+          "trigger": "follow",
+          "ambient": 0.2,
+          "lines": [
+            {"group": "lasers.hero", "laser": {"shape": "tunnel", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+            {"group": "rings.slats", "values": {"Dimmer": 0.8, "Color": "A", "Color2": "W"}, "effects": [{"name": "ring-spiral", "with": {"phase": {"to": "$spin"}}}]},
+            {"group": "rings.rims", "values": {"Dimmer": 0.4, "Color": "W"}}
+          ],
+          "camera": {"shot": "TUNNEL_UP", "alt": "WORM_RING"}
+        },
+        {
+          "id": "B",
+          "name": "spokes",
+          "beats": 15,
+          "trigger": "follow",
+          "ambient": 0.2,
+          "lines": [
+            {"group": "lasers.hero", "laser": {"shape": "tunnel", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+            {"group": "halo.lasers", "laser": {"shape": "fans", "colour": "$colour2", "level": 0.6}},
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"phase": {"to": "$spin"}}}]},
+            {"group": "rings.rims", "values": {"Dimmer": 0.5, "Color": "W"}}
+          ],
+          "camera": {"shot": "HALO_ORBIT"}
+        },
+        {
+          "id": "C",
+          "name": "black beat",
+          "beats": 1,
+          "trigger": "follow",
+          "ambient": 0.1,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0}},
+            {"group": "rings.rims", "values": {"Dimmer": 0}},
+            {"group": "strand.heads", "values": {"Dimmer": 0}}
+          ]
+        }
+      ],
+      "vary": {
+        "deck": ["hero", "halo"],
+        "first": "hero",
+        "no_repeat": true,
+        "variants": {
+          "hero": {},
+          "halo": {
+            "steps": {
+              "A": {
+                "lines": [
+                  {"group": "lasers.hero", "laser": {"shape": "tunnel", "colour": "$colour", "colour2": "$colour2", "level": 0.85}},
+                  {"group": "halo.lasers", "laser": {"shape": "fans", "colour": "$colour2", "level": 0.45}},
+                  {"group": "rings.slats", "values": {"Dimmer": 0.8, "Color": "A", "Color2": "W"}, "effects": [{"name": "ring-spiral", "with": {"phase": {"to": "$spin"}}}]},
+                  {"group": "rings.rims", "values": {"Dimmer": 0.4, "Color": "W"}}
+                ]
+              }
+            }
+          }
+        },
+        "per_repeat": {
+          "spin": {"alternate": [-720, 720]},
+          "colour": {"cycle": [0, 2, 1]},
+          "colour2": {"cycle": [1, 0, 2]},
+          "camera_alt": {"alternate": [false, true]}
+        }
+      }
+    },
+    "drumroll-iris": {
+      "name": "Drumroll Iris",
+      "about": "Looks wave 1, L13: the last 8 bars of a build. The rings' chop halves its period every 2 bars (a bar, half a bar, a beat, half a beat: Solberg's drum roll, acceleration without a tempo change) while its lit arc narrows -- less light, more tension -- and the last beat is black, so the drop reopens all 360 degrees at once. One direction per repeat. ?phrase=drumroll-iris, then pad 3.",
+      "bars": 8,
+      "go": "bar",
+      "sections": ["build"],
+      "base": [
+        {"group": "heads.all", "values": {"Dimmer": 0}},
+        {"group": "rings.rims", "values": {"Dimmer": 0.3, "Color": "W"}}
+      ],
+      "steps": [
+        {
+          "id": "A",
+          "name": "a turn a bar",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.4,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 4, "width": 0.39, "phase": {"to": "$turn"}}}]}
+          ],
+          "camera": {"shot": "HALO_LOCK"}
+        },
+        {
+          "id": "B",
+          "name": "half a bar",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.35,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 2, "width": 0.3, "phase": {"to": "$turn"}}}]}
+          ]
+        },
+        {
+          "id": "C",
+          "name": "a beat",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.3,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 1, "width": 0.22, "phase": {"to": "$turn"}}}]}
+          ],
+          "camera": {"shot": "TUNNEL_UP"}
+        },
+        {
+          "id": "D",
+          "name": "half a beat, then black",
+          "beats": 8,
+          "trigger": "follow",
+          "ambient": 0.25,
+          "lines": [
+            {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 0.5, "width": 0.15, "phase": {"to": "$turn"}}}]}
+          ],
+          "cues": [
+            {"at": 7, "lines": [{"group": "rings.slats", "values": {"Dimmer": 0}}, {"group": "rings.rims", "values": {"Dimmer": 0}}]}
+          ]
+        }
+      ],
+      "vary": {
+        "deck": ["rings", "rings-and-strand"],
+        "first": "rings",
+        "no_repeat": true,
+        "variants": {
+          "rings": {},
+          "rings-and-strand": {
+            "steps": {
+              "C": {
+                "lines": [
+                  {"group": "rings.slats", "values": {"Dimmer": 0.9, "Color": "W", "Color2": "A"}, "effects": [{"name": "ring-chopper", "with": {"measure": 1, "width": 0.22, "phase": {"to": "$turn"}}}]},
+                  {"group": "strand.dots", "values": {"Dimmer": 0.6, "Color": "W"}, "effects": ["dot-chase"]}
+                ],
+                "camera": {"shot": "WORM_RING"}
+              }
+            }
+          }
+        },
+        "per_repeat": {
+          "turn": {"alternate": [-720, 720]}
         }
       }
     }
