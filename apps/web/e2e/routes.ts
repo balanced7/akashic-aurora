@@ -37,6 +37,10 @@ export const marketingRoutes: readonly string[] = [
   "/blog",
   "/blog/silence-beats-a-weak-hint",
   "/blog/what-aurora-is-and-why",
+  "/walks",
+  "/walks/walk-01-the-machine-refuses-to-wait",
+  "/walks/walk-02-the-hostage-negotiations",
+  "/walks/walk-03-the-rogues-gallery",
   "/contact",
   "/legal/privacy-policy",
 ];
