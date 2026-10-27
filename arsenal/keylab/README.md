@@ -332,3 +332,32 @@ pure, `tests/vj_hookup.test.mjs`; `vj.js`; `vj-core.js`).
   control map no longer binds them). The scene dial and its click are learnable actions now.
 - **Stored control maps** carry a version (`{ v: 2, map }`); a map stored before (a bare object) that still holds an old
   default (Hue A on fader 1, Hue B on fader 2, the scene dial) takes the new one, and every control you learned stays.
+
+## Motions on the lasers (VJ V2, 2026-10-27)
+
+Daniel: "a library of epic satisfying motions that all fit various time budgets ... 16 variant (or however many are
+appropriate) for each of the feels, 1/32, 1/16, 1/8 etc". The build spec is `research/in-flight/vj-v2-build-spec-2026-10-27.md`
+section A (Heimdall's design with Vandor's amendment). The library is `arsenal/web/vj-motions.js` (pure,
+`tests/vj_motions.test.mjs`); the laser engine deals from it on every hit.
+
+- **The gate owns the pulses; the motion owns where they point.** Every pad-2 hit is dealt a motion: the beams turn, the
+  fans open or gather, a figure, crown or cone turns round the hero -- winding up, acting and landing exactly on the grid
+  (a beat, a bar line). A press's motion is sized to its gate's light; a **held pad is a standing motion** (a bar in a
+  drop, two bars in a break) that its gate's pulses sample, so a hold keeps changing for as long as you hold it.
+- **The budgets:** M8 (1/8), M4 (1/4), M2 (1/2), M1 (a bar), M2b (two bars), M4b (four bars), 16 named variants each for M8
+  to M2b and 8 for M4b, each played through one of 8 symmetry cards (mirrored, banks swapped, reversed, the order wave
+  rotated, the two colours swapped). **M32 (1/32) and M16 (1/16) are textures only**: a shimmer of a few pixels on beams the
+  gate already strobes, never a whole-frame motion -- at dance tempos a whole look moving every 1/16 is a strobe.
+- **Repeats never look the same:** a shuffled deck per budget (never either of the last two), the press's place in the bar
+  (a downbeat moves bigger than an off-beat), phrase memory (a motion dealt again grows; the first beat of a phrase rhymes
+  with the last phrase's opening, mirrored), and call-and-response (bank B answers bank A's motion, mirrored, on its
+  timing). Velocity is size: soft plays a small version, hard the full one.
+- **Pressing again grows the picture; it grows the motion's length only when your presses leave room** -- a press's motion
+  lands before your next likely press (the median of your last three intervals), so faster playing tightens motions and
+  sparse playing lets them stretch (1/8 to 1/4 to 1/2 to a bar).
+- **Flash safety is unchanged.** A motion whose actions would come more than 3 a second is refused when it is dealt (a
+  slower budget, a texture, or none -- never shown dimmer); a fast gate's beams still never move while lit (the motion steps
+  in the dark between pulses), and the laser fit and gate v2 judge every frame as before.
+- Engine options (for the pads and a LEVELS page): `motion` ("auto", "off", or a motion id to pin), `motionClass` ("auto"
+  or a budget), `colourSame` (no colour-swap card while the colour is held). A hit's info carries `motion`,
+  `motionClass`, `motionXf`, `motionAmp`; `frame().motion` names the running one; `catalogue().motions` lists them.
