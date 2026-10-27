@@ -17,9 +17,12 @@
 //   - nothing temporal on beams or lasers (Lasers v2 rule 4): the jitter is spatial only, and the exposure is fixed per shot.
 // Units: scene-linear light in nits (cd/m^2); the finish divides by the exposure reference before display-out.
 
+import { HAZE_CAP } from "./atmos.js";
+
 export const MAX_SPOTS = 32;
 
-// The shared medium: the CPU twin is atmos.js densityAt.
+// The shared medium, its haze channel (the plume channel waits for the 3D fluid: atmos.js): the CPU twin is atmos.js
+// densityAt.
 export const HAZE = `
 uniform highp sampler3D uNoise;
 uniform float uSigma0;
@@ -38,7 +41,7 @@ float hazeDensity(vec3 p) {
     float rr = max(uHazer[h].w, 0.001);
     sig += uHazerSigma[h] * exp(-dot(off, off) / (rr * rr));
   }
-  return min(sig, 0.26);
+  return min(sig, ${HAZE_CAP.toFixed(2)});
 }
 `;
 

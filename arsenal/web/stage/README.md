@@ -77,7 +77,7 @@ direction, the layers' height (+-2 m), the nod size and which rings carry the ha
 | `programmer.js` | Looks, effects, pads (HTP), masters, theme colours, the colour wheel, motor physics; v1: the phrase layer (LTP over the look) and the FlashGate. |
 | `kinetics.js` | The hoists (jerk-limited), the formations, and time-priority landing on bar lines. |
 | `lasers.js`, `lasers3d.js` | A minimal laser brain on the Lasers v2 contract (v1: laser group lines with shapes and gates, heads past the 21, an aim side channel), mapped onto 33 projectors in 3D with physical power sharing. |
-| `atmos.js` | The haze medium: the hazers, the lag, the cap, and our own tileable noise. |
+| `atmos.js` | The haze medium: the hazers, the lag, our own tileable noise, and two caps since VJ V2 (haze and fog 0.26 /m, CO2 and smoke plumes 15 /m: opaque white CO2 is possible; the white-out guard is flash.js and the FlashGate, receipts in tests/stage_atmos.test.mjs). |
 | `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan. |
 | `show.js` | Sections (v1: a section may name a phrase), the demo plan, and DROP NOW. |
 | `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. |
