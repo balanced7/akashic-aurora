@@ -17,7 +17,8 @@ lockfile.
 
 ```bash
 bun install                      # once, from the repo root
-bun run --filter web dev         # the website on http://localhost:3090 (apps/web/README.md)
+cp apps/web/.env.example apps/web/.env.local  # once: the env schema needs it
+bun run dev:web                  # the website on http://localhost:3090 (apps/web/README.md)
 bun run format                   # prettier check (also: lint, typecheck, test, build)
 ```
 

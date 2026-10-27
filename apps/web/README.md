@@ -13,7 +13,7 @@ maintained.
 ```bash
 bun install                           # from the repo root
 cp apps/web/.env.example apps/web/.env.local
-bun run --filter web dev              # http://localhost:3090
+bun run dev:web                       # http://localhost:3090; builds the workspace packages first
 ```
 
 `.env.example` lists every variable the env schema (`env.config.ts`) reads. Its placeholders are
