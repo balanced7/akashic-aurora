@@ -418,11 +418,14 @@ export class Programmer {
     this.fade = { p0: pos, len: fade ?? look.fade ?? 2 };
   }
   // A pad playback at beat position pos. kick: onset on the nearest beat (a press within half a beat of a line lands on
-  // it). flyout: onset now.
+  // it). flyout: onset now. A kick's light starts at the later of its beat and the press: an early press waits for its
+  // line, a late one (Daniel 2026-10-27, on the phone bar: "sometimes had an impact at other times nothing changed")
+  // still belongs to the beat it fell after (onset, the stats, the receipts) but lifts now, at full -- before, it began
+  // its decay on the beat already gone and showed nothing once it was a sixth of a beat late.
   pad(kind, vel, pos) {
     if (kind === "kick") {
       const onset = Math.round(pos);
-      this.pads.push({ kind, onset, vel });
+      this.pads.push({ kind, onset, from: Math.max(onset, pos), vel });
       this.stats.kicks.push(onset);
       if (this.stats.kicks.length > 256) this.stats.kicks.shift();
     } else if (kind === "flyout") {
@@ -435,7 +438,7 @@ export class Programmer {
     let lv = 0;
     for (const p of this.pads) {
       if (p.kind !== "kick") continue;
-      const age = pos - p.onset;
+      const age = pos - p.from;
       if (age < -1e-6 || age > 2) continue;                      // within float error of its line it is on it
       lv = Math.max(lv, (0.6 + 0.4 * p.vel) * Math.exp(-Math.max(0, age) / 0.3));
     }
