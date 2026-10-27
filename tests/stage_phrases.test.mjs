@@ -9,12 +9,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { expandScene } from "../arsenal/web/stage/rig.js";
+import { expandScene, elementMatrix, headPose } from "../arsenal/web/stage/rig.js";
 import { BeatGrid, DemoBeats } from "../arsenal/web/stage/grid.js";
 import { Programmer, H, HEAD_FLOATS, FlashGate } from "../arsenal/web/stage/programmer.js";
 import { Show } from "../arsenal/web/stage/show.js";
-import { PhraseRunner, playPhraseEvents, validatePhrases, compileRepeat, resolveMods, Deck, deepMerge, subst, cameraPlan, goLine }
-  from "../arsenal/web/stage/phrases.js";
+import { PhraseRunner, playPhraseEvents, validatePhrases, compileRepeat, resolveMods, Deck, deepMerge, subst, cameraPlan, goLine,
+         preparePreset, aimPreset, resolvePreset } from "../arsenal/web/stage/phrases.js";
 import { LaserEngine, extraHeadsFrom, SEG, SEG_FLOATS } from "../arsenal/web/stage/lasers.js";
 import { Lasers3D } from "../arsenal/web/stage/lasers3d.js";
 import { Director } from "../arsenal/web/stage/camera.js";
@@ -439,4 +439,86 @@ test("the FlashGate: one grant per bar; a refused flash is a lift over an eighth
   for (let f = 0; f <= 12; f++) { prog.tick(grid, f * F, 1 / FPS); lv.push(prog.tH[hrow.members[0] * 7 + 2]); }
   assert.equal(prog.flashGate.refusals.length, 1);
   assert.ok(lv[0] < 0.65 && lv[1] > lv[0] && lv[3] >= 0.95, `a lift: ${lv.slice(0, 5).map((x) => x.toFixed(2))}`);
+});
+
+// ------------------------------------------------------------------------------------- v2: kinetics wave A --
+// the world direction of member m's beam under positions (pan, tilt) on its element's matrix em
+function beamOf(g, positions, m, em) {
+  const f = RIG.fixtures[g.memberFixture[m]], out = { lens: [0, 0, 0], dir: [0, 0, 0] };
+  headPose(em, f, positions[m * 2], positions[m * 2 + 1], out);
+  return out;
+}
+// the nearest a line (p + t d) comes to the line (q + s e)
+function lineGap(p, d, q, e) {
+  const w = [p[0] - q[0], p[1] - q[1], p[2] - q[2]], n = [d[1] * e[2] - d[2] * e[1], d[2] * e[0] - d[0] * e[2], d[0] * e[1] - d[1] * e[0]];
+  const nl = Math.hypot(...n);
+  return Math.abs(w[0] * n[0] + w[1] * n[1] + w[2] * n[2]) / nl;
+}
+
+test("the twist preset draws a hyperboloid of straight beams: the waist radius is a cos(offset / 2), the knot at 180", () => {
+  const g = RIG.groups["halo.r1"];                  // R1's 16 heads; laid flat (tilt 90) their circle is horizontal
+  const em = elementMatrix(RIG.elements[RIG.fixtures[g.memberFixture[0]].element], { tilt: 90 });
+  const a = Math.hypot(...RIG.fixtures[g.memberFixture[0]].local.slice(0, 2));
+  const axisP = [em[9], em[10], em[11]], axisD = [0, 1, 0];
+  for (const D of [0, 60, 120, 180]) {
+    const p = preparePreset({ kind: "twist", circle: { centre: [em[9], 38, em[11]], normal: [0, 1, 0], radius_scale: 1 }, offset_deg: D });
+    const pos = aimPreset(RIG, g, p, () => em, new Float64Array(g.n * 2));
+    for (let m = 0; m < g.n; m++) {
+      const b = beamOf(g, pos, m, em);
+      const gap = D === 0 ? Math.hypot(b.lens[0] - axisP[0], b.lens[2] - axisP[2]) : lineGap(b.lens, b.dir, axisP, axisD);
+      // the beam starts at the lens (0.48 m up the head, off the rim): the waist of its line is the hyperboloid's
+      assert.ok(Math.abs(gap - a * Math.cos((D * Math.PI) / 360)) < 0.25, `offset ${D}: head ${m} passes ${gap.toFixed(2)} m from the axis (a cos(D/2) = ${(a * Math.cos(D * Math.PI / 360)).toFixed(2)})`);
+      assert.ok(b.dir[1] > 0.3, "every beam rises to the roof");
+    }
+  }
+});
+
+test("the axis, node and radial-from-point presets: rays feeding an axial beam, spokes into a point, a starburst out of one", () => {
+  const g = RIG.groups["halo.r0"], el = RIG.elements[RIG.fixtures[g.memberFixture[0]].element], em = elementMatrix(el);
+  const C = [em[9], em[10], em[11]], n = [em[2], em[5], em[8]];
+  const axis = aimPreset(RIG, g, preparePreset({ kind: "axis", p0: { along_normal_m: 14 }, p1: { along_normal_m: 30 }, lean_deg: 0 }), () => em, new Float64Array(g.n * 2));
+  for (let m = 0; m < g.n; m++) { const b = beamOf(g, axis, m, em); assert.ok(lineGap(b.lens, b.dir, C, n) < 0.2, `head ${m} misses the axis`); }
+  const node = aimPreset(RIG, g, preparePreset({ kind: "node", point: C }), () => em, new Float64Array(g.n * 2));
+  for (let m = 0; m < g.n; m++) {
+    const b = beamOf(g, node, m, em), to = [C[0] - b.lens[0], C[1] - b.lens[1], C[2] - b.lens[2]], l = Math.hypot(...to);
+    assert.ok((to[0] * b.dir[0] + to[1] * b.dir[1] + to[2] * b.dir[2]) / l > 0.9995, `head ${m} is off the node`);
+  }
+  const out = aimPreset(RIG, g, preparePreset({ kind: "radial-from-point", point: C }), () => em, new Float64Array(g.n * 2));
+  for (let m = 0; m < g.n; m++) {
+    const b = beamOf(g, out, m, em), from = [b.lens[0] - C[0], b.lens[1] - C[1], b.lens[2] - C[2]], l = Math.hypot(...from);
+    assert.ok((from[0] * b.dir[0] + from[1] * b.dir[1] + from[2] * b.dir[2]) / l > 0.99, `head ${m} does not point away from the centre`);
+  }
+  assert.throws(() => preparePreset({ kind: "lissajous" }), /preset kind lissajous/);
+  // the v1 presets resolve exactly as before (the split is a refactor): world and radial through resolvePreset
+  const p1 = resolvePreset(RIG, RIG.groups.halo, RIG.presets.layers, { layer_shift: 0 });
+  const p2 = aimPreset(RIG, RIG.groups.halo, preparePreset(RIG.presets.layers, { layer_shift: 0 }), (e) => elementMatrix(RIG.elements[e]), new Float64Array(RIG.groups.halo.n * 2));
+  assert.deepEqual(Array.from(p1), Array.from(p2));
+});
+
+test("on a live rig the phrase layer re-aims its world-locked presets: the halo's layers stay on the crowd while R0 turns", () => {
+  const grid = new BeatGrid({ bpm: 150, t0: 0 });
+  const prog = new Programmer(RIG, { theme: THEME });
+  const rep = compileRepeat(RIG, "halo-levels", null, resolveMods(RIG.phrases["halo-levels"].vary.per_repeat || {}, 0, 1));
+  prog.setOverlay(rep.steps[0].lines, 0);
+  const line = rep.steps[0].lines.find((l) => l.preset === "layers" && l.kind === "heads");
+  assert.ok(line && line.prepared, "the compiled line carries its prepared preset");
+  // R0 yawed 20 degrees (a dream turn): its elements' live matrices
+  const live = RIG.elements.map((e) => elementMatrix(e, e.id === "ring" ? { tilt: e.home.tilt, yaw: 20 } : null));
+  prog.setLiveElements((e) => live[e]);
+  for (let f = 0; f < 600; f++) prog.tick(grid, f * F, 1 / FPS);         // ten seconds: the heads slew there
+  const g = line.g, want = line.positions;
+  let moved = 0, onTarget = 0;
+  for (let m = 0; m < g.n; m++) {
+    const b = g.members[m] * HEAD_FLOATS;
+    const pos = [prog.heads[b + H.PAN], prog.heads[b + H.TILT]];
+    if (Math.abs(pos[0] - want[m * 2]) > 1 || Math.abs(pos[1] - want[m * 2 + 1]) > 1) moved++;
+    const f = RIG.fixtures[g.memberFixture[m]], out = { lens: [0, 0, 0], dir: [0, 0, 0] };
+    headPose(live[f.element], f, pos[0], pos[1], out);
+    const t30 = (30 - out.lens[2]) / out.dir[2], lv = g.keys.level[m];
+    const y30 = out.lens[1] + out.dir[1] * t30, x30 = out.lens[0] + out.dir[0] * t30;
+    const tgt = RIG.presets.layers.target, shift = Number(line.prepared.shift_y) || 0;
+    if (Math.abs(y30 - tgt.y[lv] - shift) < 0.1 && Math.abs(x30 - tgt.x_scale * g.keys.x[m]) < 0.1) onTarget++;
+  }
+  assert.ok(moved > g.n / 2, `${moved} of ${g.n} heads turned their yokes to hold the world target`);
+  assert.equal(onTarget, g.n, `every head still crosses z = 30 m at its layer (${onTarget} of ${g.n})`);
 });

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { SCENE_FORMAT, MVR_TO_STAGE, det3, mvrToStage, stageToMvr, validateScene, expandScene, headPose, elementMatrix,
-         eulerToMat3, mat3MulVec } from "../arsenal/web/stage/rig.js";
+         eulerToMat3, mat3MulVec, ringTiltWindow, ringEnvelope, annulusOf, annulusGap, mountPose } from "../arsenal/web/stage/rig.js";
+import { roomHit } from "../arsenal/web/stage/lasers3d.js";
 
 const SCENE = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v0.json", import.meta.url), "utf8"));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -121,4 +122,77 @@ test("euler matrices are rotations (columns orthonormal, det +1)", () => {
     const v = mat3MulVec(m, [0, 1, 0]);
     close(Math.hypot(...v), 1, 1e-12);
   }
+});
+
+// ------------------------------------------------------------------------------------- v2: kinetics wave A --
+const V1 = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
+const RIG1 = expandScene(V1);
+const RINGS1 = RIG1.elements.filter((e) => e.id === "ring");
+
+test("elementMatrix v2: yaw, spin and axial travel; at zero the v1 matrix, number for number", () => {
+  const el = RINGS1[0];
+  const a = elementMatrix(el, { tilt: 55 }), b = elementMatrix(el, { tilt: 55, yaw: 0, spin: 0, axial: 0 });
+  assert.deepEqual(Array.from(a), Array.from(b));
+  // spin turns the ring about its own normal: the normal stays, a point on the rim moves round it
+  const s = elementMatrix(el, { tilt: 55, spin: 90 });
+  for (const k of [2, 5, 8]) close(s[k], a[k], 1e-12);
+  for (const k of [0, 3, 6]) close(s[k], a[k + 1], 1e-12, "a quarter spin: local +x now lies where local +y was");
+  // yaw turns the tilted ring about the world vertical through its centre: the normal's height stays
+  const y = elementMatrix(el, { tilt: 55, yaw: 90 });
+  close(y[5], a[5], 1e-12); close(Math.hypot(y[2], y[8]), Math.hypot(a[2], a[8]), 1e-12); close(y[8], 0, 1e-12);
+  // axial: the centre moves along the face normal
+  const t = elementMatrix(el, { tilt: 55, axial: 3 });
+  close(t[9] - a[9], 3 * a[2], 1e-12); close(t[10] - a[10], 3 * a[5], 1e-12); close(t[11] - a[11], 3 * a[8], 1e-12);
+  for (const m of [s, y, t]) close(det3([[m[0], m[1], m[2]], [m[3], m[4], m[5]], [m[6], m[7], m[8]]]), 1, 1e-12);
+});
+
+test("the rings' legal tilt windows at their hang (the orrery report): R0 only 47.5..63, R1 from 18; lifted 4.5 m R0 stands upright", () => {
+  assert.deepEqual(ringTiltWindow(RINGS1[0], 14, RIG1.venue), [47.5, 63]);
+  const w1 = ringTiltWindow(RINGS1[1], 14, RIG1.venue);
+  assert.ok(w1[0] >= 18 && w1[0] <= 18.5 && w1[1] === 90, JSON.stringify(w1));
+  assert.deepEqual(ringTiltWindow(RINGS1[2], 14, RIG1.venue), [0, 90]);
+  assert.equal(ringTiltWindow(RINGS1[0], 18.5, RIG1.venue)[0], 0);
+  // home is legal with a metre to the back wall; tilt 0 at the hang puts R0's rim through the deck
+  const home = ringEnvelope(RINGS1[0], { tilt: 55 }, RIG1.venue);
+  assert.ok(home.ok && home.why === "back wall" && home.margin > 1 && home.margin < 1.1);
+  const flat = ringEnvelope(RINGS1[0], { tilt: 0 }, RIG1.venue);
+  assert.ok(!flat.ok && flat.why === "deck", JSON.stringify(flat));
+});
+
+test("nested rings: concentric shells never touch at any tilt; stepped up a shared axis they keep their spacing", () => {
+  const ann = (k, pose) => annulusOf(RINGS1[k], pose);
+  for (const [t0, t1] of [[55, 40], [55, 90], [10, 80], [30, 0]]) {
+    const g = annulusGap(ann(0, { tilt: t0, yaw: 37 }), ann(1, { tilt: t1, spin: 12 }));
+    assert.ok(g >= 1.0, `R0 at ${t0}, R1 at ${t1}: ${g.toFixed(2)} m`);
+  }
+  const g2 = annulusGap(ann(1, { tilt: 55, axial: 3 }), ann(2, { tilt: 55, axial: 6 }));
+  assert.ok(g2 > 2.5 && g2 < 3, `${g2}`);
+  // and the check sees a collision: two rings of one radius on one centre at different tilts cross each other
+  assert.ok(annulusGap(ann(1, { tilt: 55 }), ann(1, { tilt: 0 })) < 1e-9);
+});
+
+test("a ring-mounted laser keeps its mount in the ring's frame: at home its pose is v1's, on a live ring it rides along", () => {
+  const p = RIG1.projectors.find((x) => x.mount);
+  const el = RIG1.elements[p.element];
+  const home = mountPose(elementMatrix(el), p.mount);
+  for (let k = 0; k < 3; k++) { close(home.pos[k], p.pos[k], 1e-12); close(home.radial[k], p.radial[k], 1e-12); close(home.normal[k], p.normal[k], 1e-12); }
+  const spun = mountPose(elementMatrix(el, { tilt: 55, spin: 180 }), p.mount);
+  const c = [el.origin[0], el.home.y, el.origin[2]];
+  for (let k = 0; k < 3; k++) close(spun.pos[k] - c[k], -(home.pos[k] - c[k]), 1e-9, "half a turn puts it opposite");
+});
+
+test("the hit check knows the audience stands: a side or back hit below their top row is 'stands', never a wall", () => {
+  const v = RIG1.venue;
+  assert.equal(roomHit([0, 10, 0], [1, 0, 0], v).what, "wall", "the legacy box (the renderer's beam lengths) is unchanged");
+  const s = roomHit([0, 10, 0], [1, 0, 0], v, { stands: true });
+  assert.equal(s.what, "stands");
+  close(s.t, 38 + 10 / Math.tan(30 * Math.PI / 180), 1e-9, "the raked seats 17.3 m out from the floor's edge at 10 m up");
+  assert.equal(roomHit([0, 10, 50], [0, 0, 1], v, { stands: true }).what, "stands", "the back stand");
+  assert.equal(roomHit([0, 20, -8], [0, 0, -1], v, { stands: true }).what, "backwall");
+  assert.equal(roomHit([0, 20, 0], [0.05, 1, 0.1], v, { stands: true }).what, "roof");
+  assert.equal(roomHit([0, 20, 0], [0, -1, 0.2], v, { stands: true }).what, "crowd");
+  // the core stops a beam aimed into it (a ray from inside does not stop)
+  const o = roomHit([0, 22, -22], [0, -8 / Math.hypot(8, 11), 11 / Math.hypot(8, 11)], v, { orb: { c: [0, 14, -11], r: 0.85 } });
+  assert.equal(o.what, "orb"); close(o.t, Math.hypot(8, 11) - 0.85, 1e-9);
+  assert.notEqual(roomHit([0, 14, -11], [0, 1, 0], v, { orb: { c: [0, 14, -11], r: 0.85 } }).what, "orb");
 });

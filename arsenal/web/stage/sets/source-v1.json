@@ -523,7 +523,10 @@
   },
   "formations": {
     "high-wave": {"name": "wave", "params": {"centre": 17.0, "size": 0.9, "roll": 16, "measure": 32}},
-    "low-wave": {"name": "wave", "params": {"centre": 14.5, "size": 0.9, "roll": 16, "measure": 32}},
+    "low-wave": {"name": "wave", "params": {"centre": 14.5, "size": 0.9, "roll": 16, "measure": 32}}
+  },
+  "strand_shapes": {
+    "_about": "kinetics wave A (2026-10-27): the strand's new shapes, outside the show's formations (the demo plays as it did). Real-mode honest, landed on the S-curve with cruise (a 12 m height change: 16 bars, the quintic's 28). ?strand=arch (or valley, ramp, stairs, helix-sine) lands one; the camera's views are keyed by their kinetics names.",
     "arch": {"name": "arch", "params": {"base": 9, "rise": 12, "curve": "scurve"}},
     "valley": {"name": "valley", "params": {"low": 10, "depth": 10, "curve": "scurve"}},
     "ramp": {"name": "ramp", "params": {"top": 21, "step": 1.1, "curve": "scurve"}},
@@ -1094,10 +1097,10 @@
         "hfov": [56, 46],
         "ev": 0.3,
         "bars": 8,
-        "placeholder": "lane D: the orrery's glide -- retune to its centre and size; keep it 16.75 m or more from the hub (R0's radius, its heads and the 1.5 m rule: clear at any ring pose)",
-        "source": "ours (v2): rising from house left while the rings tilt apart, never crossing the strand's corridor"
+        "source": "ours (v2): rising from house left while the rings tilt apart, never crossing the strand's corridor (16.75 m or more from the hub: clear of every gimbal at any pose)"
       },
-      "ORRERY_HERO": {"kind": "static", "pos": [-15, 9, 21], "look": [0, 14.5, -11], "hfov": 46, "ev": 0.3, "bars": 8, "placeholder": "lane D: the orrery's hero view", "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
+      "ORRERY_HERO": {"kind": "static", "pos": [-15, 9, 21], "look": [0, 14.5, -11], "hfov": 46, "ev": 0.3, "bars": 8, "source": "ours (v2): a low three-quarter view clear of the strand, the gimbals in depth"},
+      "ORRERY_UNDER": {"kind": "static", "pos": [3, 3.5, 2], "look": [0, 14, -11], "hfov": 74, "ev": 0.3, "bars": 8, "source": "ours (v2), Daniel's 'looking up at the core': from the pit at the lip, under the dial, up into the turning gimbals (17 m from the hub)"},
       "ORRERY_HIGH": {
         "kind": "orbit",
         "orbit": {"centre": [0, 14, -11], "radius": 26, "height": 28, "from_deg": 20, "to_deg": 60},
@@ -1105,7 +1108,6 @@
         "hfov": 50,
         "ev": 0.3,
         "bars": 8,
-        "placeholder": "lane D: the orrery from above",
         "source": "ours (v2): a slow high arc -- the orrery beautiful from wherever you look"
       },
       "ORRERY_NEAR": {
@@ -1115,10 +1117,10 @@
         "hfov": [44, 58],
         "ev": 0.3,
         "bars": 4,
-        "placeholder": "lane D: the close push that wakes the holographic shimmer (it ends 18 m from the hub)",
-        "source": "ours (v2): the push in toward the gimbals"
+        "source": "ours (v2): the push in toward the gimbals; it ends 18 m from the hub, a few metres off the dial's rim, where the holographic shimmer wakes"
       },
-      "SPIRAL_HERO": {"kind": "static", "pos": [2.5, 8.5, 34], "look": [0, 14.5, -11], "hfov": 40, "ev": 0.4, "bars": 8, "placeholder": "lane D: the spiral tunnel's hero -- looking up its axis into the nested rings, under the energy beam (outside the lasers' 2-degree camera cone)", "source": "ours (v2): up the axis into the spiral"}
+      "SPIRAL_HERO": {"kind": "static", "pos": [1.8, 2.5, -19], "look": [0, 22.2, -5.3], "hfov": 84, "ev": 0.4, "bars": 8, "source": "ours (v2), take 2 at 0:52: from behind the deck, 1.8 m off the axis beside the energy beam's foot, looking straight up the well: the nested rings stepping away up the axis (14, 17, 20, 23 m), the beam rising through them"},
+      "SPIRAL_DOWN": {"kind": "static", "pos": [3.5, 31.5, 6.5], "look": [0, 18.9, -7.6], "hfov": 60, "ev": 0.4, "bars": 8, "source": "ours (v2): from under the roof over the front of the crowd, down the well toward the beam's foot (off the axis, out of the lasers' camera cone)"}
     },
     "sequences": {
       "intro": [{"shot": "FOH_HOLD_ZOOM", "bars": 4}, {"shot": "CRANE_RISE_REVEAL", "bars": 4}],
@@ -1160,9 +1162,12 @@
     },
     "safe": "FOH_WIDE",
     "formation_views": {
-      "_about": "v2: the move shows the motion, the cut reveals the arrival. When a formation lands (the set's formation key, else its kinetics name), the director plays one glide from the next bar line (between half and twice the glide's own bars) and cuts ON the landing bar line to a hero view; each landing deals the next shot of each list, and a shot that would come within 1.5 m of the strand is skipped. orrery and spiral are slots for the night's new ring formations (lane D: name the formations so, or rename these keys; retune the placeholder shots).",
-      "orrery": {"glide": ["ORRERY_REVEAL"], "hero": ["ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"], "hero_bars": 8, "placeholder": "lane D fills: the shots' centre is today's ring hub (0, 14, -11)"},
-      "spiral": {"glide": ["VERTIGO_TUNNEL", "TUBE_RIDE"], "hero": ["SPIRAL_HERO", "HALO_LOCK"], "hero_bars": 8, "placeholder": "lane D fills: the spiral with the axial energy beam"},
+      "_about": "v2: the move shows the motion, the cut reveals the arrival. When a formation lands (the set's formation key, a ring formation's key, else its kinetics name), the director plays one glide from the next bar line (between half and twice the glide's own bars) and cuts ON the landing bar line to a hero view; each landing deals the next shot of each list, and a shot that would come within 1.5 m of the strand (or of the rings a ring formation sweeps) is skipped. The ring formations (formations.js): orrery, spiral, vortex, crown, portal.",
+      "orrery": {"glide": ["ORRERY_REVEAL"], "hero": ["ORRERY_UNDER", "ORRERY_HERO", "ORRERY_HIGH", "ORRERY_NEAR"], "hero_bars": 8},
+      "spiral": {"glide": ["VERTIGO_TUNNEL"], "hero": ["SPIRAL_HERO", "SPIRAL_DOWN", "HALO_LOCK"], "hero_bars": 8},
+      "vortex": {"glide": ["VERTIGO_TUNNEL"], "hero": ["HALO_LOCK", "TRIBUNE_HIGH_R", "FOH_WIDE"], "hero_bars": 8},
+      "crown": {"glide": ["CRANE_RISE_REVEAL"], "hero": ["TRIBUNE_34", "ROOF_ESTABLISH", "FOH_WIDE"], "hero_bars": 8},
+      "portal": {"glide": ["FOH_HOLD_ZOOM"], "hero": ["HALO_LOCK", "STAGE_CORNER_REVERSE", "FOH_WIDE"], "hero_bars": 8},
       "ramp": {"glide": ["VARINI_RESOLVE", "PROFILE_GRAPH"], "hero": ["REAR_TELE_ZIGGURAT"]},
       "stairs": {"glide": ["PROFILE_GRAPH", "STRAND_ORBIT_FULL"], "hero": ["REAR_TELE_ZIGGURAT", "TRUSS_REVERSE"]},
       "valley": {"glide": ["STRAND_ORBIT_FULL", "PROFILE_GRAPH"], "hero": ["TRIBUNE_HIGH_R", "CROWD_POPUP"]},

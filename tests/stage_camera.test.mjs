@@ -323,9 +323,13 @@ test("the demo is unchanged: in the set's own formations every shot its sections
 
 test("a landing: one glide from the next bar line while the hoists move, the cut ON the landing bar line to the hero view", () => {
   // stairs: the lane's stairs-to-ring; spiral: a ring formation (lane D's) while the strand hangs at curtain height
+  // (lane D retuned the spiral's hero to look up the well from behind the deck, clear of any strand; the skip below keeps
+  // its first view's old place under the strand as a test-local shot, so the rule is still exercised)
   const formations = { ceiling: { name: "ceiling", params: { y: 20 } }, stairs: {}, spiral: {} };
   const posesOf = (key, def) => (key === "stairs" ? CATALOGUE.stairs_to_ring : key === "spiral" ? CATALOGUE.curtain_low : formationPoseSets(def, N));
-  const d = new Director(CAM.shots, CAM.sequences, { model: MODEL, formations, views: CAM.formation_views, safe: CAM.safe, posesOf });
+  const shots = { ...CAM.shots, UNDER_THE_STRAND: { kind: "static", pos: [2.5, 8.5, 34], look: [0, 14.5, -11], hfov: 40, bars: 8 } };
+  const views = { ...CAM.formation_views, spiral: { glide: CAM.formation_views.spiral.glide, hero: ["UNDER_THE_STRAND", "HALO_LOCK"], hero_bars: 8 } };
+  const d = new Director(shots, CAM.sequences, { model: MODEL, formations, views, safe: CAM.safe, posesOf });
   d.start("groove", 0);
   const run = (from, to, sc) => { const cuts = []; for (let k = Math.round(from * 24); k <= Math.round(to * 24); k++) { const p = d.update(k / 24, sc(k / 24)); if (p.cut) cuts.push([k / 24, p.shot, d.cuts.at(-1).why]); } return cuts; };
   const ceil = { formation: "ceiling", poses: CATALOGUE.ceiling[0], dt: 1 / 60 };
@@ -354,8 +358,8 @@ test("a landing: one glide from the next bar line while the hoists move, the cut
   d.plan([{ shot: "HALO_LOCK", p0: 264, p1: 296 }]);
   d.update(262.5, { formation: "stairs", posLand: 320, poses: CATALOGUE.stairs_to_ring[0], dt: 1 / 60 });
   assert.equal(d.landings.at(-1).posLand, 260, "no landing plan over the phrase's");
-  // the orrery and spiral slots exist with heroes and glides; a hero of the orrery is a placeholder lane D retunes
-  for (const k of ["orrery", "spiral"]) { const v = CAM.formation_views[k]; assert.ok(v.hero.length && v.glide.length && v.placeholder, k); }
+  // the orrery and spiral slots exist with heroes and glides, retuned by lane D (no placeholder left)
+  for (const k of ["orrery", "spiral"]) { const v = CAM.formation_views[k]; assert.ok(v.hero.length && v.glide.length && !v.placeholder, k); }
 });
 
 test("a formation that changes under a playing shot swaps it on the next bar line; the guard cuts away on a 2-beat line", () => {

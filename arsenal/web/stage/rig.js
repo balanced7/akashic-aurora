@@ -353,6 +353,7 @@ export function expandScene(scene) {
   rig.phrases = scene.phrases || {};
   rig.presets = scene.presets || {};
   rig.ringFormations = scene.ring_formations || {};
+  rig.strandShapes = scene.strand_shapes || {};
   rig.ringRig = scene.ring_rig || null;
   rig.counts = countRig(rig);
   return rig;

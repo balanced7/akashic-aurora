@@ -97,9 +97,15 @@ export function ringTables(rig) {
   // the radius rank: R0 outer = 0 ... the innermost = 1 (by the ring's nesting, then the radius inside the ring)
   for (const x of cells) {
     const el = rings[x.k], outer = el.params.diameter / 2, inner = outer - el.params.depth;
-    x.rank = (x.k + (outer - x.r) / Math.max(1e-6, outer - inner)) / (rings.length + 0.0001);
+    x.rank = clamp01((x.k + (outer - x.r) / Math.max(1e-6, outer - inner)) / (rings.length + 0.0001));
     x.clock = ((90 - x.angle / DEG) % 360 + 360) % 360;
   }
+  // ladder: a pulse falling through the rank lights every rank band with the same total light (the rims crowd their
+  // band, the slats spread thin), so the cluster's sum holds still while the pulse moves: the band's mean count over its own
+  const BINS = 64, hist = new Float64Array(BINS);
+  for (const x of cells) hist[Math.min(BINS - 1, Math.floor(x.rank * BINS))]++;
+  const mean = cells.length / BINS;
+  for (const x of cells) x.ladder = Math.min(1, mean / hist[Math.min(BINS - 1, Math.floor(x.rank * BINS))]);
   const heads = [];
   rig.heads.forEach((fi, h) => {
     const f = rig.fixtures[fi], k = ringOf[f.element];
@@ -538,7 +544,7 @@ const LOOKS = {
       else if (x.along === 4) { v = 0.25 * arc; role = ROLE.bumpA; }   // a dotted circle in each ring
       else if (x.slat % 2 === 0) v = 0.1;                       // the web of straight lines
       // the ladder: a pulse falls down the well once a beat (outer to inner), over the steady rings
-      v += 0.28 * Math.max(0, 1 - Math.abs(x.rank - ph) / 0.1) * (x.kind === 0 ? 0.5 : 1);
+      v += 0.5 * x.ladder * Math.max(0, 1 - Math.abs(x.rank - ph) / 0.1);
       // the bead riding ring 1's outer rim
       if (x.k === 1 && x.kind === 1) { const db = Math.abs((((x.clock - bead) % 360) + 540) % 360 - 180); if (db < 3) v = Math.max(v, 1); }
       this.cellDim[j] = clamp01(v); this.cellRole[j] = role;
