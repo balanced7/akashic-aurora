@@ -40,6 +40,13 @@
 //   family tabs (F1-F8, or learned buttons) pick a family, and the song's key picks one too (key auto); a theme lands on
 //   the next bar and sets the scene's palette, the kick glow, the lasers' colours and the pad lights (LED stand-ins). The
 //   engine's hello names its tap controls (the Tap button and pad 12 by default): a pad that taps fires no effect.
+//   PADS V2 AND THE COLOUR PAIR (VJ V2, 2026-10-27; research/in-flight/vj-v2-build-spec-2026-10-27.md section B): every
+//   pad speaks one grammar (vj-pads.js: velocity is size, a second press within a bar escalates, one-shots land on the
+//   grid, a spot and a motion dealt per press, holds become standing motions) over map v3 -- 1 Ring, 2 Lasers, 3 CO2,
+//   4 Glitch Lift / 5 Shutters, 6 Fog + Swarm, 7 Morph, 8 Lower / 9 Safety, 10 Hero, 11 Build / Drop, 12 the Zoom punch
+//   (the tap) -- and the colour pair, Daniel's "one flip to the next color in the sequence and the other stay the same":
+//   [ Colour Next, ] Colour Same (vj-themes.js ColourStepper; any button by learn). The laser gate's keys are , and .
+//   now. Lane C's haze fluid (vj-fluid.js), when the page has one, takes CO2's jets and the fog push (air, airOf).
 // The engine (arsenal keylab-vj, GET <engine>/api/events, Server-Sent Events) feeds beats, energy, hits, chords, notes,
 // pads and controls; with chordsense (vj --chords sense) also the key, each chord's roman numeral and the harmony's
 // tension (vj-core.js EngineHarmony: the HUD shows key and numeral, the tension feeds the strip, a key change accents
@@ -1602,20 +1609,27 @@ function co2Press(pad, vel, nowS, h, ctx) {
   impact.hit("co2", vel, nowS, { seed: f.seed, granted, x: at ? at[0] : 0, y: -0.45, punch: options.punch && limiterLive() });
   return f;
 }
-// the jets whose time has come: into the fluid, or a plume of the page's own (the oldest plume gives way)
-function co2Fire(nowMs) {
+// The jets whose time has come: into the fluid, or a plume of the page's own. A plume follows its CO2 instance's
+// envelope (held: it keeps pouring; let go: it burns off) through its own smoothing, so a plume whose instance is gone --
+// let go, or its slot taken in a storm of presses -- fades over a quarter second and never vanishes in one frame; with
+// all eight standing, a new jet takes the faintest one's place.
+const PLUME_RISE_S = 0.03, PLUME_FALL_S = 0.25;
+function co2Fire(nowMs, dt) {
   for (let k = 0; k < pads.co2Q.length;) {
     const q = pads.co2Q[k];
     if (q.atMs > nowMs) { k++; continue; }
     pads.co2Q.splice(k, 1);
     if (air.api && air.api.has.co2 && air.api.co2(q.x01, 0, q.strength)) continue;
-    if (pads.plumes.length >= PLUMES_MAX) pads.plumes.shift();
-    pads.plumes.push({ x01: q.x01, t0: nowMs / 1000, strength: q.strength, pad: q.pad, serial: q.serial });
+    const plume = { x01: q.x01, t0: nowMs / 1000, strength: q.strength, pad: q.pad, serial: q.serial, env: 0 };
+    if (pads.plumes.length < PLUMES_MAX) pads.plumes.push(plume);
+    else { let w = 0; for (let j = 1; j < pads.plumes.length; j++) if (pads.plumes[j].env < pads.plumes[w].env) w = j; pads.plumes[w] = plume; }
   }
-  // a plume lives while its CO2 instance does (held: the jets keep pouring; let go: they burn off)
   for (let k = 0; k < pads.plumes.length;) {
     const p = pads.plumes[k];
-    if (fx.fx.some((f) => f.active && f.type === "co2" && f.serial === p.serial)) k++; else pads.plumes.splice(k, 1);
+    let target = 0;
+    for (const f of fx.fx) if (f.active && f.type === "co2" && f.serial === p.serial) target = f.env;
+    p.env += (target - p.env) * (1 - Math.exp(-dt / (target > p.env ? PLUME_RISE_S : PLUME_FALL_S)));
+    if (target === 0 && p.env < 0.01) pads.plumes.splice(k, 1); else k++;
   }
 }
 
@@ -1709,7 +1723,7 @@ function padsTick(nowMs, dt) {
   }
   heroTick(ctx);
   buildTick(ctx, nowS);
-  co2Fire(nowMs);
+  co2Fire(nowMs, dt);
   if (colour.tick(nowMs)) colourChanged();
   const b = pads.black;
   b.gain = b.on ? Math.max(0, b.gain - dt / 0.08) : Math.min(1, b.gain + dt / b.back);
@@ -2545,9 +2559,7 @@ function fillOverlayUniforms(nowS) {
   // CO2's plumes (the 2D stand-in: none while the haze fluid takes the jets), each as strong as its CO2 still is
   for (let i = 0; i < pads.plumes.length && i < PLUMES_MAX; i++) {
     const q = pads.plumes[i];
-    let env = 0;
-    for (const f of fx.fx) if (f.active && f.type === "co2" && f.serial === q.serial) env = f.env;
-    put4(U.co2, i * 4, (q.x01 - 0.5) * asp, nowS - q.t0, q.strength * env * Math.min(1, T.accent / 0.85), 0.32 + 0.45 * q.strength);
+    put4(U.co2, i * 4, (q.x01 - 0.5) * asp, nowS - q.t0, q.strength * q.env * Math.min(1, T.accent / 0.85), 0.32 + 0.45 * q.strength);
   }
   for (let i = 0; i < glints.length; i++) {
     const gl8 = glints[i];
@@ -3135,7 +3147,9 @@ function updateHud(nowMs) {
   }
   // pads v2: the hero's charge, the build, Safety's black
   const pp = padCtx(nowMs).pos;
-  if (padMap.includes("hero")) parts.push(pads.hero.pendingAt !== null ? "HERO on the ONE" : `hero ${Math.round(100 * pads.hero.charge(pp))}%`);
+  const charge = pads.hero.charge(pp);
+  if (pads.hero.pendingAt !== null) parts.push("HERO on the ONE");
+  else if (charge < 1) parts.push(`hero charging ${Math.round(100 * charge)}%`);
   if (pads.build.phase === "build") parts.push(`BUILD ${Math.round(100 * pads.build.progress(pp))}%${pads.build.dropAt !== null ? ` → drop at ${pads.build.dropAt}` : " (riser)"}`);
   else if (pads.build.phase === "drop") parts.push("DROP");
   if (pads.black.on) parts.push("BLACK");

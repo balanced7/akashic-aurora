@@ -292,7 +292,7 @@ pure, `tests/vj_hookup.test.mjs`; `vj.js`; `vj-core.js`).
 - **The dial picks the gate** (Daniel: "the dial becomes the laser gate picker"): each detent one step through AUTO and the
   engine's 15 gates (Single, One-Two, Triple, Triplet, Bar Marker, "t t tou blur blur flash", the 1/8 and 1/16 rolls,
   Stutter, Military, Push-Pull, Reverse-Bass, Doubling, Stop-Short, Inhale), at most one step per 60 ms; its click is AUTO.
-  `[` / `]` and `\` on the keyboard do the same; `P` pins the last hit (every press repeats it). **Vibrate** (the beams ring like plucked strings): `V`, the panel, or any
+  `,` / `.` and `\` on the keyboard do the same (they were `[` / `]` until VJ V2 gave those to the colour pair); `P` pins the last hit (every press repeats it). **Vibrate** (the beams ring like plucked strings): `V`, the panel, or any
   button by learn (the spec names no button for it). **Lasers: classic** (`C`, the panel): pad 2 fires today's burst
   exactly; the old path is kept whole.
 - **The beam layer** draws the engine's records (two RGBA32F texels each) every frame with the overlay's light model (the
@@ -366,3 +366,57 @@ section A (Heimdall's design with Vandor's amendment). The library is `arsenal/w
 - Engine options (for the pads and a LEVELS page): `motion` ("auto", "off", or a motion id to pin), `motionClass` ("auto"
   or a budget), `colourSame` (no colour-swap card while the colour is held). A hit's info carries `motion`,
   `motionClass`, `motionXf`, `motionAmp`; `frame().motion` names the running one; `catalogue().motions` lists them.
+
+## Pads v2 and the colour pair (VJ V2, 2026-10-27)
+
+Daniel: "visual spectacle increase as well as driveable in a dynamic way ergonomically from the pads where each button
+does something worth doing visually", and for colour, "one flip to the next color in the sequence and the other stay the
+same for easy changes and repeats". The build spec is `research/in-flight/vj-v2-build-spec-2026-10-27.md` section B,
+after the pads lane (`research/reviewed/keylab-liberation-2026-10-22/vj-v2-research-2026-10-27/pads.research.md`). The
+grammar is `arsenal/web/vj-pads.js` (pure, `tests/vj_pads.test.mjs`); the page is `vj.js`.
+
+**One grammar for every pad.** Velocity is size (a soft press plays a small version, a hard one the full one, and a press
+on the ONE plays bigger than one on an off-beat). A second press within a bar escalates, to three levels (presses faster
+than 3 a second never grow: they play smaller). A one-shot's life ends on the beat grid (the start is the press, never
+delayed; the end is the first grid line at least three quarters of its length on). Each press deals its own motion
+from the motion library and its own place from an 8-spot deck (never one of the last two), so repeats never land in the
+same place. Held half a beat, a pad becomes a standing motion of its section's budget (a bar in a drop, two bars in a
+break); a tap of a hold pad plays its own short version; a release lands on the grid too.
+
+| Pad | Row | What it does | Velocity | Again within a bar | Held |
+|---|---|---|---|---|---|
+| 1 Ring | hits | a shockwave ring from a dealt spot, squashing and tilting with its motion, refracting the scene | size, speed, width | a double ring, then a triple | ripples again on every beat |
+| 2 Lasers | hits | Lasers v2 with motions (unchanged) | soft single, medium one-two, hard triple | one tier up; the third press a crown | the section's loop as a standing motion |
+| 3 CO2 | hits | a row of 2-8 jets from the floor, 1/16 beat apart in a dealt order (centre-out, a chase, alternating, all at once); into the haze fluid when the page has one, else white plumes of the page's own. The bloom asks the flash gate; refused, only a thin wisp | jets, height, strength | more jets, harder | keeps pouring, lets go by itself after 3 s |
+| 4 Glitch Lift | hits | the glitch's modes, landing on the grid, and the frame jumps UP on the hit (the kick lift) | intensity, block size, lift | two modes, then three | strikes again on every beat (a beat repeat) |
+| 5 Shutters | holds | thin rows strobing on the beat's division (fader 6: a quarter, an eighth, a sixteenth), travelling with a motion; one full-frame pulse on each bar's ONE | rows (3-9), brightness | odd and even rows in anti-phase, then columns across them | a standing motion; a tap plays a bar |
+| 6 Fog + Swarm | holds | motes on tilted orbits round a dealt place (inner ones faster, one in five white-hot), the fog push into the haze fluid when it runs; let go, the swarm opens and drifts up and the haze decays by itself | motes (12-48), orbit size | a second orbit turning the other way, then a third | a standing motion; a tap plays a bar |
+| 7 Morph | holds | the kaleidoscope, its mirrors turning in landed steps | mirrors (4-12) | twice the mirrors | a standing motion; a tap plays a bar |
+| 8 Lower | holds | the frozen frame, sinking with its motion | how much shows | | a standing motion; a tap is a hit-stop (to the next quarter beat) |
+| 9 Safety | moves | a tap dampens, a tap harder than 0.8 chokes | | | black until you let go (coming back asks the flash gate: 60 ms, else 0.4 s) |
+| 10 Hero | moves | the payoff, landing on the next ONE: the lasers' own phrase ("t t tou blur blur flash"), a triple ring from the centre; one charge per 8 bars (the light dim while it fills, blinking on the beat once full); charging, a press only stirs a soft ring | | | |
+| 11 Build / Drop | moves | a tap builds 4, 8 or 16 bars (soft, medium, hard) and drops on the bar line; a second tap drops on the next downbeat. While it builds, the Shutters' rows rise through a quarter, an eighth and a sixteenth and the scene pulls back a little; the drop lands a full laser hit, a triple ring and the white flash (gated), and the drop's section for 16 bars | build length | drops on the next downbeat | a riser; the release drops on the next downbeat |
+| 12 Zoom punch | moves | as before; in DAW mode it is the tap (Daniel's ruling) | depth | | |
+
+- **Kept, off the default map:** the white flash, Invert, Dampen and Choke (Q and W), Kill (E) and Next set stay actions
+  any pad can learn. A stored map (v1 bare array or v2) that still holds an old default takes the new one; every pad you
+  set keeps yours (`PAD_MAP_VERSION` 3).
+- **The pads' lights preview what a press will do:** a hit pad glows a little brighter while its next press would
+  escalate; the Hero's charge; the build's rise; a Colour Next waiting for its beat already shows its colour, blinking.
+- **The colour pair** (`vj-themes.js` `colourSequence`, `ColourStepper`; `themeLook` options `colourStep` and
+  `colourSame`). **Colour Next** (`[`, or any button by learn) steps the hits one colour along the theme's sequence on the
+  next beat (held while a pad is hit, the step lands with that hit); **Colour Same** (`]`, or a button) holds the
+  current colour for every hit -- the lasers, their strobes and bursts, every pad's hit colour -- until pressed again, and
+  the variety moves to pattern, heads and motion. Only the hits change; the scene keeps the theme's palette, and a new
+  theme starts from its own colours. The sequence is the theme's laser roles first, then the rest of A, B and W, never a
+  held colour or a laser red (Night Sea: cyan, deep blue, white). Daniel's call for the morning: the pads lane read his
+  words as an A / B leapfrog (each key steps its own slot); this is his literal version. Which buttons host the pair is
+  his to pick (the 8 buttons under the screen are unbound; learn binds them).
+- **The haze fluid** (VJ V2 lane C, `vj-fluid.js`) is reached through `vj-hookup.js` `airOf`, feature by feature: CO2 calls
+  `co2(x01, 0, strength)` per jet (x01 0 = left, y01 0 = the floor), pad 6 `fogPush(level)` on the press and
+  `fogRelease()` on the release. The page holds it in `air.fluid` (the inject point sets it; `window.__vj.attachAir`
+  does the same for a receipt); without it, or once it throws, the pads keep their own stand-ins.
+- **Receipt:** phase P of `node arsenal/lanes/vj_verify.mjs` (a 60 fps virtual clock with the engine's beats: the colour
+  pair, escalation and spots, landed lives, a standing hold, the hero on the ONE, a build's drop on its bar line, Safety's
+  black, CO2's plumes and a fake haze fluid); `node arsenal/lanes/vj_storm.mjs` (the Invert storm puts Invert back on pad
+  11 for its run).
