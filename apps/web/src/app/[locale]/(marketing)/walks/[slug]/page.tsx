@@ -17,6 +17,7 @@ import { CtaBand } from "~/modules/marketing/ui/cta-band";
 import { Container } from "~/modules/marketing/ui/primitives";
 import { ReadingProgress } from "~/modules/marketing/ui/reading-progress";
 import { minutesToRead, walkLabel } from "~/modules/marketing/walks/meta";
+import { MetaLine } from "~/modules/marketing/walks/meta-line";
 import { getToc } from "~/modules/marketing/walks/toc";
 import { WalkBody } from "~/modules/marketing/walks/walk-body";
 import { WalkToc } from "~/modules/marketing/walks/walk-toc";
@@ -69,25 +70,20 @@ export default async function WalkPage({
           </nav>
 
           <header className="flex max-w-4xl flex-col gap-5">
-            <span className="text-mk-faint flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
-              <span className="text-hud-gold font-medium">
-                {walkLabel(walk.walk)}
-              </span>
-              {walk.edition && (
-                <>
-                  <span aria-hidden>·</span>
-                  <span>{walk.edition}</span>
-                </>
-              )}
-              <span aria-hidden>·</span>
-              <time dateTime={walk.publishedAt.toISOString()}>
-                {dayjs(walk.publishedAt).format("MMMM D, YYYY")}
-              </time>
-              <span aria-hidden>·</span>
-              <span data-testid="walk-reading-time">
-                {minutesToRead(walk.timeToRead)} min read
-              </span>
-            </span>
+            <MetaLine
+              items={[
+                <span key="walk" className="text-hud-gold font-medium">
+                  {walkLabel(walk.walk)}
+                </span>,
+                ...(walk.edition ? [walk.edition] : []),
+                <time key="date" dateTime={walk.publishedAt.toISOString()}>
+                  {dayjs(walk.publishedAt).format("MMMM D, YYYY")}
+                </time>,
+                <span key="time" data-testid="walk-reading-time">
+                  {minutesToRead(walk.timeToRead)} min read
+                </span>,
+              ]}
+            />
             <h1
               data-testid="page-title"
               className="mk-display text-[2.4rem] text-balance sm:text-6xl"
