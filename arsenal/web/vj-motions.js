@@ -507,9 +507,12 @@ export class MotionDealer {
       if (m.sampled && !c.gaps) return false;
       return !refused(m, span(cls), c.perMs, { looping: c.looping, intervalBeats: interval });
     };
+    // a motion carried over (an answer, a kept motion) swaps the colours only while that is still allowed
+    const colOk = c.twoColours && !c.colourSame;
+    const carry = (r, my = r.my) => ({ mx: r.mx, my, rev: r.rev, rot: r.rot, col: colOk ? r.col : 0 });
     // the classes to try, best first
     let classes;
-    if (c.pin && MOTIONS[c.pin]) classes = [c.pinClass && CLASSES[c.pinClass] ? c.pinClass : MOTIONS[c.pin].cls];
+    if (c.pin) classes = [c.pinClass && CLASSES[c.pinClass] ? c.pinClass : MOTIONS[c.pin].cls];
     else if (c.pinClass && CLASSES[c.pinClass]) classes = [c.pinClass];
     else if (c.tier === "rapid") classes = c.stillFast ? [] : [c.fine ? "M32" : "M16"];
     else if (c.looping) {
@@ -537,11 +540,11 @@ export class MotionDealer {
       } else if (!v0 && last && !last.response && last.cls === cls && pressGap <= RESPOND_BEATS + 1e-9
         && ((last.bank === "A" && c.bank === "B") || (last.bank === "B" && c.bank === "A")) && legal(last.id)) {
         // the answering bank plays the asking bank's motion, mirrored top for bottom, on the same timing
-        response = true; id = last.id; flags = { mx: last.mx, my: 1 - last.my, rev: last.rev, rot: last.rot, col: last.col };
+        response = true; id = last.id; flags = carry(last, 1 - last.my);
       } else if (v0) {
         id = CLASS_MOTIONS[cls].find(legal) || null; flags = { ...TRANSFORMS.I };
       } else if (c.variety < 1 && last && last.cls === cls && legal(last.id) && this.rng() >= c.variety) {
-        id = last.id; flags = { mx: last.mx, my: last.my, rev: last.rev, rot: last.rot, col: last.col };
+        id = last.id; flags = carry(last);
       } else {
         const recent = this.recent;
         id = this._bag(cls).next(legal, (k) => (recent.length ? Math.min(...recent.map((f) => distance(featureOf(MOTIONS[k]), f))) : 1)
@@ -558,10 +561,10 @@ export class MotionDealer {
   // wave; and the signature (motion, class, transform) differs from the last on at least two axes (a pinned motion only
   // has the transform left to vary)
   _dealTransform(m, id, cls, c) {
-    const last = this.last;
+    const last = this.last, colOk = c.twoColours && !c.colourSame;
     const legal = (x) => {
       const t = TRANSFORMS[x];
-      if (t.col && (c.colourSame || !c.twoColours)) return false;
+      if (t.col && !colOk) return false;
       if (t.rot && !(m.lag > 0)) return false;
       if (!last || c.variety <= 0 || c.pin) return true;
       return (id !== last.id) + (cls !== last.cls) + (x !== last.xf) >= 2;

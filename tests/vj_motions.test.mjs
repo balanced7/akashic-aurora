@@ -259,6 +259,16 @@ test("call and response: the answering bank plays the asking bank's motion mirro
   assert.equal(b.my, 1 - a.my); assert.equal(b.mx, a.mx); assert.equal(b.rev, a.rev);
   assert.ok(b.amp > a.amp * 1.05, "the answer is louder");
   assert.ok(!c.response, "an answer is not asked back");
+  // an answer carries the ask's colour swap only while swapping is allowed: Colour Same switched on in between holds it
+  for (let seed = 1; seed < 400; seed++) {
+    const d3 = new M.MotionDealer({ seed });
+    d3.press(1.5); const ask = d3.deal({ pos: 1.5, bank: "A", lifeBeats: 1.125 });
+    if (!ask.col) continue;
+    d3.press(4); const ans = d3.deal({ pos: 4, bank: "B", lifeBeats: 1.125, colourSame: true });
+    assert.ok(ans.response && ans.col === 0, `seed ${seed}: the answer under Colour Same swaps no colours`);
+    return;
+  }
+  assert.fail("no ask dealt the colour-swap card in 400 seeds");
 });
 
 test("phrase memory: the first beat of a phrase rhymes with the last phrase's opening motion through the next card", () => {
