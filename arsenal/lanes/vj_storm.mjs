@@ -99,7 +99,8 @@ export const STORM_WINDOWS = (() => {
   return Object.freeze(out);
 })();
 const QUADRANTS = ["32x18@0,0", "32x18@32,0", "32x18@0,18", "32x18@32,18"];
-export const RUN_LIMIT_S = 6.2;           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
+export const RUN_LIMIT_S = 6.2;
+const BURST_YIELD_MS = 2500;             // a burst let go: the lock's waiters (polling every 0.5-2 s) take it first           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
 
 // Judge one run: m = { frames, L: Uint16Array(frames x 2304) (mean luminance x 65535), R: Uint16Array (mean red / 320 x
 // 65535), N: Float64Array(2304) (pixels per cell) }. Window series from per-frame prefix sums of (mean x pixels).
@@ -513,6 +514,9 @@ async function main() {
 
   // One burst: our own Chrome at w x h under the house GPU lock; body({ ev, load, deadline }).
   async function burst(name, size, body) {
+    // after a burst, a yield longer than any waiter's poll: the lock just let go goes to whoever waited for it, not
+    // straight back to this run (two storm runs at once used to leave the second waiting out all of the first)
+    if (report.bursts.length) await delay(BURST_YIELD_MS);
     const t0 = Date.now();
     const [bw, bh] = size;
     const profile = join(tmpdir(), `arsenal-vj-storm-${stamp}-${name}-${process.pid}`);
@@ -520,9 +524,9 @@ async function main() {
     const entry = { name, size: `${bw}x${bh}`, seconds: null, wait_s: null, error: null };
     report.bursts.push(entry);
     try {
-      // a 2 s poll: lanes that render in short chunks take the lock straight back after each one, and a 10 s poll rarely
-      // lands in the gap
-      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
+      // a 0.5 s poll (vj_verify's): lanes that render in short chunks take the lock straight back after each one, and a
+      // slower poll rarely lands in the gap (2026-10-27: at 2 s, a run waited out every burst of another storm run)
+      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 500 });
       const held = Date.now();   // the burst's time runs from the lock, not from the wait for it
       entry.wait_s = Math.round((held - t0) / 100) / 10;
       chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
