@@ -49,6 +49,19 @@ cycle cleared it, and the very first single write afterwards landed (pad 1 blue)
    after `06 02` (a capture detail to check: a healthy reply should carry Arturia's ID `00 20 6B`); and the boot-time yellow-to-red
    pad gradient (the device's own resting state after power-up, not a write).
 
+## Corrections (2026-10-27, from keylab-dev-guidance-and-hang-guide-2026-10-27.md)
+
+- **The onset was earlier.** The hang began before about 21:18 on 2026-10-26: Rill's 21:18 note already says pad SysEx does not
+  land, and the screen showed the same frozen "Dbadd9" frame at about 21:20. So every probe that evening, Rill's and ours, ran on a
+  device that was already hung; none of them caused it. The trigger lies earlier: FL had been open without a break from 2026-10-24
+  10:05 to about 21:05 on 10-26 while the screen service re-sent frames, and the KeyLab had run about 4 days 15 hours since power-on.
+- **Switching programs was tried during the hang** (Prog to Arturia and back to DAW): the pads went to their resting white and the
+  hang stayed.
+- **The zeros in the identity reply were our capture code's**, not the device's: `winmidi.MIDIHDR.lpData` is a `c_char_p`, which
+  stops at the first `00` byte, and Arturia's maker ID begins with `00`. The replies were 17 bytes long, the standard length.
+- **The burst governor is per process, not per port** (each `MidiOut` makes its own), so the README's "shared by every producer on
+  the port" overstates it.
+
 ## Next
 
 - A `keylab doctor` verb: ports, the Windows MIDI service, the Device Inquiry liveness check, the device's recent input, and the
