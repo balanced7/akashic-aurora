@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at e660d6175. A bound you discover by collision is not awareness -- this sheet
+> Derived at 54767d92d. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -298,7 +298,7 @@ Class: reference
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (387 numeric constants)
+## Mechanical bounds (390 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -665,6 +665,8 @@ Class: reference
 | `_DONE_CAP` | 8,192 | core/comm/packet_spec.py |  |
 | `_FAILURE_WINDOW_S` | 120 | core/comm/operator_reply.py |  |
 | `_JOB_OBJECT_EXTENDED_LIMIT_INFORMATION` | 9 | scripts/run_job.py |  |
+| `_KEEP_MAX` | 64 | arsenal/keylab/governor.py |  |
+| `_LIMIT_MAX` | 128 | arsenal/keylab/governor.py | the most slot times one bucket file holds with room to spare |
 | `_MAX` | 4,000 | agent_cli.py | clamp absurdly long fields an agent might paste |
 | `_MAX_BLOB` | 3,000,000 | scripts/checkers/check_secrets.py |  |
 | `_MAX_DETAIL_CHARS` | 8,000 | core/events/event_log.py | raw is rich, but a single payload is still bounded |
@@ -684,6 +686,7 @@ Class: reference
 | `_SCORE_CAP` | 6 | arsenal/keylab/vj.py |  |
 | `_SHA_LEN` | 24 | core/comm/blobs.py | 96 bits of sha256 -- ample for a single-user blob store |
 | `_STALE_DAYS` | 7 | agent/harness/context.py | W5: note-derived lines gain [STALE] at this age |
+| `_STATE_BYTES` | 16,384 | arsenal/keylab/governor.py | the bucket file's fixed size: JSON padded with spaces, mapped and rewritten in place |
 | `_SWITCH_MIN_BEATS` | 2 | core/narrative/episode_suggester.py | ...and needs >=2 of them, unanimous, on a non-episode track |
 | `_SWITCH_WINDOW` | 3 | core/narrative/episode_suggester.py | switch looks at the last N routed beats... |
 | `_TEXT_PREVIEW_CHARS` | 240 | core/coord/intent_shadow.py |  |

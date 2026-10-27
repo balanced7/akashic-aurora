@@ -121,7 +121,7 @@ hardstyle replay at 48 kHz: 2400 of 2400 blocks read, capture timing gap +0.6 ms
 whole loop 0.87 ms a block (p99 2.8 ms) of which chordsense 0.28 ms (p99 0.88 ms), against a 10.7 ms block (the basic
 chords: 0.67 ms, p99 2.4 ms). GET /api/state carries the same record live: audio.timing.capture (beatsync.capture_timing
 of the blocks read) and audio.timing.proc_ms / sense_ms. LEDs: one LED-writing process only (do not run `beat`, `chordview` or `show` at the same time);
-guest mode (no DAW connect) unless --connect and FL is not running; every packet passes the BurstGovernor.
+guest mode (no DAW connect) unless --connect and FL is not running; every packet passes the port's governor.
 The verb's stdout is line-buffered (core.foundation.streams), so a piped engine's console arrives as it happens.
 """
 from __future__ import annotations
@@ -1520,7 +1520,7 @@ def fl_running() -> Optional[bool]:
 class PadPainter:
     """Paints the page's pad colours on its OWN thread (never the audio loop): the newest frame wins (frames that
     arrive while one is painting are coalesced), at most one frame per MIN_GAP, only changed pads are sent
-    (ledframe.PadRenderer) and every packet passes the output's BurstGovernor. reassert() repaints every pad a moment
+    (ledframe.PadRenderer) and every packet passes the output's port governor. reassert() repaints every pad a moment
     later -- used after a DAW-mode pad press, when FL's script may have repainted that pad itself."""
 
     MIN_GAP = 0.04
@@ -2600,7 +2600,7 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
     if leds:
         try:
             from . import winmidi as W
-            led_out = W.MidiOut(prefer="daw")             # BurstGovernor on by default
+            led_out = W.MidiOut(prefer="daw")             # the port's governor on by default
             led_info = {"port": led_out.name, "guest": True, "fl_running": fl}
             if connect:
                 if fl:
@@ -2611,6 +2611,11 @@ def run(port: int = DEFAULT_PORT, engine: str = "a", leds: bool = True, connect:
             elif fl is False:
                 say("FL Studio is not running: if the pads stay dark, rerun with --connect")
         except Exception as exc:
+            if led_out is not None:                       # opened, then the connect failed: give the port back
+                try:
+                    led_out.close()
+                except Exception:
+                    pass
             led_out, refusal, refusal_status = None, f"no KeyLab DAW output ({exc})", 503
 
     # the song database per track: only for the live loopback (now-playing says nothing about a replayed file)

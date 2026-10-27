@@ -1094,6 +1094,23 @@ def test_run_refuses_with_503_and_says_so_in_hello_when_the_daw_output_will_not_
     assert eng.hello()["leds"] is False and "no KeyLab DAW output" in eng.hello()["leds_reason"]
 
 
+def test_run_closes_the_daw_output_when_the_connect_send_fails(monkeypatch, tmp_path):
+    # It used to drop the open output (`led_out = None`) without close(): the port handle stayed open and a header
+    # the driver still owned went with it. Fake winmm: the driver takes the connect SysEx and never hands it back.
+    import keylab_fake_winmm as F
+    from arsenal.keylab import winmidi as W
+    fake = F.FakeWinMM(out_done_on_send=False)
+    monkeypatch.setattr(W, "_winmm", lambda: fake)
+    monkeypatch.setattr(W.MidiOut, "DONE_TIMEOUT_S", 0.02)
+    monkeypatch.setenv("AKASHIC_KEYLAB_GOVERNOR_DIR", str(tmp_path / "governor"))
+    monkeypatch.setattr(V, "fl_running", lambda: False)
+    monkeypatch.setattr(V, "line_buffered_stdout", lambda: None)
+    assert V.run(port=_free_port(), leds=True, connect=True, audio=False, midi=False, secs=0.2, quiet=True) == 0
+    assert len(fake.long_msgs) == 1, "the connect SysEx reached the driver"
+    assert not fake.out_open, "the output was closed, not dropped"
+    assert fake.refused_unprepares == [] and len(fake.out_unprepared) == 1, "its header came back after the reset"
+
+
 # 3. the zombie stream: a stopped engine serves nothing, not even on a kept-alive connection
 
 def test_a_stopped_engine_serves_no_stream_on_a_kept_alive_connection():
