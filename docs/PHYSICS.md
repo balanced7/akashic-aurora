@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at fe9f64af5. A bound you discover by collision is not awareness -- this sheet
+> Derived at fb32e0ce4. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -294,11 +294,11 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
-| `TEMP` | `"."` | arsenal/keylab/fl/device_AuroraKeyLab.py, core/recall/precision_audit.py, scripts/hooks/snippet_autofile.py +1 |
+| `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/hooks/snippet_autofile.py, scripts/ops/archive_transcripts.py |
 | `TMP` | `` | scripts/hooks/snippet_autofile.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (390 numeric constants)
+## Mechanical bounds (389 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -656,7 +656,6 @@ Class: reference
 | `WINDOW_PENALTY_MS` | 600 | arsenal/practice.py | the cost of one more window, in pitch-class-milliseconds |
 | `WINDOW_TICKS` | 2,048 | arsenal/analysis.py |  |
 | `_ANSWERED_KEY_CAP` | 20,000 | core/comm/mailbox.py |  |
-| `_BOUNDED_READ_CAP` | 8,000,000 | core/comm/toolbox.py | bytes per stream read back into memory |
 | `_CAP_MAX` | 200 | agent/harness/capture.py |  |
 | `_CAP_STR` | 400 | agent/harness/capture.py |  |
 | `_CMDLINE_MAX` | 32,000 | arsenal/media/audio.py |  |

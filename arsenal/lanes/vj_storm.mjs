@@ -99,7 +99,8 @@ export const STORM_WINDOWS = (() => {
   return Object.freeze(out);
 })();
 const QUADRANTS = ["32x18@0,0", "32x18@32,0", "32x18@0,18", "32x18@32,18"];
-export const RUN_LIMIT_S = 6.2;           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
+export const RUN_LIMIT_S = 6.2;
+const BURST_YIELD_MS = 2500;             // a burst let go: the lock's waiters (polling every 0.5-2 s) take it first           // gate v2 rests after 5 s of flashing; 1.2 s of counting on top
 
 // Judge one run: m = { frames, L: Uint16Array(frames x 2304) (mean luminance x 65535), R: Uint16Array (mean red / 320 x
 // 65535), N: Float64Array(2304) (pixels per cell) }. Window series from per-frame prefix sums of (mean x pixels).
@@ -157,7 +158,7 @@ function lcg(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 10139
 const HOLDABLE = new Set([5, 6, 7, 8, 11]);
 // name: [what it is, how many sets the page needs (cuts), the adversarial preset it plays instead of the set (or null)]
 export const SCENARIOS = Object.freeze({
-  invert10: "pad 11 Invert held; hard hits at 10/s on pads 1,2,4,6,7,12",
+  invert10: "Invert held on pad 11 (put there for the storm: pads v2 moved it off the default map); hard hits at 10/s on pads 1,2,4,6,7,12",
   oneshots15: "pads 1,2,4,12 hard at 15/s",
   oneshots5: "pads 1,2,4,12 hard at 5/s",
   nozoom15: "pads 1,2,4 hard at 15/s",
@@ -199,6 +200,7 @@ export function stormSchedule(name, frames, seed = 7) {
   const R = lcg(seed), out = [];
   const pick = (pads) => pads[Math.floor(R() * pads.length)];
   if (name === "invert10") {
+    out.push({ f: 0, act: "pad", pad: 11, action: "invert" });   // (a page before pads v2 has it there already)
     out.push({ f: 0, pad: 11, vel: 1, hold: frames + 5 });
     for (let f = 30; f < frames; f += 6) out.push({ f, pad: pick([1, 2, 4, 6, 7, 12]), vel: 0.9 + 0.1 * R(), hold: 4 });
   } else if (name === "oneshots15" || name === "oneshots5" || name === "nozoom15") {
@@ -291,7 +293,8 @@ export const STORM_PAGE = String.raw`(() => {
       const rs = relByF.get(f); if (rs) for (const pad of rs) vj.release(pad);
       const evs = byF.get(f);
       if (evs) for (const s of evs) {
-        if (s.pad) { vj.press(s.pad, s.vel); const at = f + (s.hold || 3); if (!relByF.has(at)) relByF.set(at, []); relByF.get(at).push(s.pad); }
+        if (s.act === "pad") { if (vj.setPad) vj.setPad(s.pad, s.action); }
+        else if (s.pad) { vj.press(s.pad, s.vel); const at = f + (s.hold || 3); if (!relByF.has(at)) relByF.set(at, []); relByF.get(at).push(s.pad); }
         else if (s.act === "select" && ids.length) vj.select(ids[s.idsel % ids.length]);
         else if (s.act === "next") vj.next();
         else if (s.act === "look" && window.__vjx) window.__vjx.setLook({ on: true, amount: s.amount });
@@ -511,6 +514,9 @@ async function main() {
 
   // One burst: our own Chrome at w x h under the house GPU lock; body({ ev, load, deadline }).
   async function burst(name, size, body) {
+    // after a burst, a yield longer than any waiter's poll: the lock just let go goes to whoever waited for it, not
+    // straight back to this run (two storm runs at once used to leave the second waiting out all of the first)
+    if (report.bursts.length) await delay(BURST_YIELD_MS);
     const t0 = Date.now();
     const [bw, bh] = size;
     const profile = join(tmpdir(), `arsenal-vj-storm-${stamp}-${name}-${process.pid}`);
@@ -518,9 +524,9 @@ async function main() {
     const entry = { name, size: `${bw}x${bh}`, seconds: null, wait_s: null, error: null };
     report.bursts.push(entry);
     try {
-      // a 2 s poll: lanes that render in short chunks take the lock straight back after each one, and a 10 s poll rarely
-      // lands in the gap
-      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 2000 });
+      // a 0.5 s poll (vj_verify's): lanes that render in short chunks take the lock straight back after each one, and a
+      // slower poll rarely lands in the gap (2026-10-27: at 2 s, a run waited out every burst of another storm run)
+      gpu = await acquireGpuLock({ dir: opt["lock-dir"], label: `vj_storm ${name} (SwiftShader)`, maxWaitMs: Number(opt["gpu-wait-min"]) * 60_000, pollMs: 500 });
       const held = Date.now();   // the burst's time runs from the lock, not from the wait for it
       entry.wait_s = Math.round((held - t0) / 100) / 10;
       chrome = spawn(opt.chrome, [...SWIFTSHADER_FLAGS, ...GPU_FENCE_FLAGS, ...QUIET_FLAGS, "--remote-debugging-port=0",
@@ -800,7 +806,10 @@ async function main() {
 
   // --------------------------------------------------------------------------------------------- verdict --
   const runs = report.runs;
+  // (the laser phase counts too: since Lasers v2 it ran its storms without a term here, so any run that included it --
+  // the default -- reported more runs than it expected and failed with every storm inside its limits)
   const expected = (PHASES.includes("storm") ? SETS.length * SCN.length + (SETS.length >= 2 ? 1 : 0) : 0) +
+    (PHASES.includes("laser") ? list(opt["laser-sets"]).length * list(opt["laser-scenarios"]).filter((x) => SCENARIOS[x]).length : 0) +
     (PHASES.includes("safe") ? SAFE_SETS.length * SAFE_SCN.filter((s) => s !== "cuts").length + (SAFE_SCN.includes("cuts") ? 1 : 0) : 0) +
     (PHASES.includes("cpu") ? CPU_SCN.length + 1 : 0) +
     (PHASES.includes("adv") ? ADV_IDS.length + ["adv-offgrid12", "adv-stripes"].filter((x) => ADV_IDS.includes(x)).length : 0) +

@@ -4,7 +4,12 @@
 // Daniel, 2026-10-24: "I want there to be a lot of variety and strong color themes". The build spec is slice S5 of
 // research/reviewed/keylab-liberation-2026-10-22/vj-lasers-v2-and-colour-themes-2026-10-24.md (sections 2.1-2.3 and 4.1):
 // 21 themes in 8 families, built from the measured Q-dance palettes. Two colours per section, white is the peak, and a
-// saturated red is held (shown steadily on the scene), never strobed.
+// saturated red is held (shown steadily on the scene), never strobed. Looks wave 1 (2026-10-27, VJ V2 build spec section
+// F; research/reviewed/keylab-liberation-2026-10-22/vj-v2-research-2026-10-27/looks.research.md) adds 16 themes to the
+// same families under the same rules, among them Dreaming City, measured from Daniel's stills. Three of them take fader
+// detents; the fader is full at 25, so the rest are marked "fader": false and reached by their family tab. The two
+// exceptions to the two-colour rule (Spectral Fan, Shimmer) are special modes, never themes, rarity-limited by
+// SpecialModes (module part: the laser engine's per-beam colours that draw them are not wired yet).
 //
 // This module decides, without a browser:
 //   - whether a library is sound: every pad stand-in readable on the KeyLab pads, no saturated red that a laser, a
@@ -19,6 +24,8 @@
 //     lasers' two-colour pair with their strobe and burst colours and legal colour modes, the effects' colours (with
 //     twelve red-safe hit colours for the DAW pads' effects), and the pad lights (LED stand-ins, never screen colours)
 //                                                                                  themeLook, padLeds, familyLed
+//   - the colour pair (VJ V2): Colour Next steps the hits along the theme's sequence on the next beat, Colour Same holds
+//     the current colour for the hits to come                                  colourSequence, ColourStepper, themeLook
 // The page owns the clock, the GL and the posting: it hands this module a clock adapter and reads plans back. Nothing
 // here schedules a timer; ThemeDirector.tick(now) is called from the frame loop.
 
@@ -39,6 +46,18 @@ export const RED_RATIO = 0.8;
 export const CHOKE_LED = "#ff3c00";        // Choke's own #ff9a1f (hue 36) washes to white on the pads (spec 2.2)
 export const LASER_TIER_LEVEL = Object.freeze([1, 0.6, 0.8, 1]);   // pad 2's light by laser tier: none, 1, 2, 3 (spec 1.8)
 export const FADER_REST_MS = 150;          // a fader pick lands once the fader has rested this long on one detent
+// The theme fader is a 0..127 MIDI fader: each detent keeps at least five of its 128 positions, so it holds at most 25
+// detents (Custom included). A theme marked "fader": false is left off it and is reached by its family tab instead.
+export const FADER_POSITIONS = 128;
+export const FADER_MIN_POSITIONS = 5;
+export const FADER_MAX_DETENTS = Math.floor(FADER_POSITIONS / FADER_MIN_POSITIONS);
+// The special modes (special_modes: Spectral Fan, Shimmer) break the two-colour rule, so they are held to more: no hue in
+// the red band, one lightness for every hue (the change is in colour, never in brightness), edges a small share of the
+// frame, and a rarity the engine enforces (SpecialModes)
+export const SPECIAL_RED_BAND = Object.freeze([330, 55]);     // OKLCh hues strictly inside 330..360..55 are refused
+export const SPECIAL_L_SPREAD = 0.03;
+export const SPECIAL_EDGE_SHARE_MAX = 0.05;
+export const SPECIAL_MIN_EVERY_BARS = 8;
 export const HOLD_BARS = 8;                // an automatic theme holds at least one 8-bar phrase
 export const KEY_CONF = 0.6;               // chordsense's key takes over at this confidence...
 export const KEY_STABLE_BARS = 8;          // ...once no other key has arrived for this long
@@ -180,7 +199,7 @@ export function validateLibrary(raw) {
     bad("themes", "missing or empty");
     return { ok: false, errors, warnings };
   }
-  const ids = new Set(), families = new Set();
+  const ids = new Set(), families = new Set(), offFader = new Set();
   const isRole = (r) => ROLES.includes(r);
   const roleList = (at, name, v, len) => {
     if (!Array.isArray(v) || v.length === 0 || (len && v.length !== len) || !v.every(isRole)) {
@@ -249,6 +268,8 @@ export function validateLibrary(raw) {
     for (const k of ["split_only", "one_family", "crossfade_needs_dip"]) {
       if (typeof t[k] !== "boolean") bad(at, `${k} must be true or false`);
     }
+    if ("fader" in t && typeof t.fader !== "boolean") bad(at, "fader must be true or false");
+    else if (t.fader === false && typeof t.id === "string") offFader.add(t.id);
     if (!Array.isArray(t.sections) || !t.sections.every((s) => typeof s === "string")) bad(at, "sections must be a list of names");
     if (typeof t.hero !== "string") warnings.push(`${at}: no hero description`);
     if (!coloursOk) return;
@@ -270,12 +291,18 @@ export function validateLibrary(raw) {
       if (isSaturatedRed(roleHexOf(t, t.fx[k]))) bad(at, `fx.${k} ${roleHexOf(t, t.fx[k])} is saturated red`);
     }
   });
-  // the theme fader: every theme exactly once, plus Custom
+  // the theme fader: every theme exactly once (none for a theme marked off it), plus Custom, within the fader's detents
   if (!Array.isArray(raw.fader_order)) bad("fader_order", "missing");
   else {
     const seen = new Map();
     for (const id of raw.fader_order) seen.set(id, (seen.get(id) || 0) + 1);
-    for (const id of ids) if (seen.get(id) !== 1) bad("fader_order", `${id} appears ${seen.get(id) || 0} times (expected once)`);
+    for (const id of ids) {
+      const want = offFader.has(id) ? 0 : 1, n = seen.get(id) || 0;
+      if (n !== want) bad("fader_order", `${id} appears ${n} times (expected ${want ? "once" : "none: it is marked off the fader"})`);
+    }
+    if (raw.fader_order.length > FADER_MAX_DETENTS) {
+      bad("fader_order", `${raw.fader_order.length} detents leave a fader detent under ${FADER_MIN_POSITIONS} of its ${FADER_POSITIONS} positions (at most ${FADER_MAX_DETENTS})`);
+    }
     for (const id of seen.keys()) if (id !== "custom" && !ids.has(id)) bad("fader_order", `unknown theme ${id}`);
     if (seen.get("custom") !== 1) bad("fader_order", "Custom must appear exactly once");
     else if (raw.fader_order[raw.fader_order.length - 1] !== "custom") warnings.push("fader_order: Custom is not at the top");
@@ -308,7 +335,53 @@ export function validateLibrary(raw) {
     }
     if (!(typeof mode.cap_deg === "number" && mode.cap_deg >= 0)) bad("mode.cap_deg", "must be a number of degrees");
   }
+  if (raw.special_modes !== undefined) validateSpecialModes(raw.special_modes, ids, bad);
   return { ok: errors.length === 0, errors, warnings };
+}
+
+// special_modes: { about?, <id>: { name, from, rarity: {per: "set", times} | {every_bars}, max_beats, hues? | edges? } }
+function validateSpecialModes(sm, themeIds, bad) {
+  if (!sm || typeof sm !== "object" || Array.isArray(sm)) { bad("special_modes", "must be an object"); return; }
+  // half a degree of slack: a colour made on the band's edge moves that much when it is rounded to #rrggbb
+  const inRedBand = (h) => h > SPECIAL_RED_BAND[0] + 0.5 || h < SPECIAL_RED_BAND[1] - 0.5;
+  // a list of colours shown at one lightness: hex, never saturated red, the lightness spread within SPECIAL_L_SPREAD
+  const level = (at, name, list, min) => {
+    if (!Array.isArray(list) || list.length < min || !list.every(isHex)) { bad(at, `${name} must be at least ${min} #rrggbb colours`); return null; }
+    const c = list.map((hex) => toOklch(hexToLinear(hex)));
+    list.forEach((hex, i) => { if (isSaturatedRed(hex)) bad(at, `${name}[${i}] ${hex} is saturated red`); });
+    const Ls = c.map((x) => x.L), spread = Math.max(...Ls) - Math.min(...Ls);
+    if (spread > SPECIAL_L_SPREAD) bad(at, `${name} spread ${spread.toFixed(3)} in lightness (at most ${SPECIAL_L_SPREAD}: the change is colour, not brightness)`);
+    return c;
+  };
+  for (const [id, m] of Object.entries(sm)) {
+    if (id === "about") continue;
+    const at = `special_modes.${id}`;
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) bad(at, "id must be lower-case words joined by hyphens");
+    if (themeIds.has(id)) bad(at, "a special mode is never a theme (the id is a theme's)");
+    if (!m || typeof m !== "object") { bad(at, "not an object"); continue; }
+    if (typeof m.name !== "string" || !m.name) bad(at, "no name");
+    if (typeof m.from !== "string" || !m.from) bad(at, "no source (from)");
+    const r = m.rarity;
+    const perSet = r && r.per === "set" && Number.isInteger(r.times) && r.times >= 1;
+    const every = r && Number.isInteger(r.every_bars) && r.every_bars >= SPECIAL_MIN_EVERY_BARS;
+    if (!perSet && !every) bad(at, `rarity must be {per: "set", times >= 1} or {every_bars >= ${SPECIAL_MIN_EVERY_BARS}}: a special mode is never unlimited`);
+    if (!(typeof m.max_beats === "number" && m.max_beats > 0)) bad(at, "max_beats must be a positive number of beats");
+    if (m.hues === undefined && m.edges === undefined) bad(at, "names no colours (hues or edges)");
+    if (m.hues !== undefined) {
+      const c = level(at, "hues", m.hues, 3);
+      if (c) {
+        c.forEach((x, i) => { if (inRedBand(x.h)) bad(at, `hues[${i}] ${m.hues[i]} (hue ${x.h.toFixed(0)}) is in the red band`); });
+        if (!c.every((x, i) => i === 0 || x.h > c[i - 1].h)) bad(at, "hues must run round the wheel in order (a prism)");
+      }
+    }
+    if (m.edges !== undefined) {
+      level(at, "edges", m.edges, 2);
+      if (!(typeof m.edge_share_max === "number" && m.edge_share_max > 0 && m.edge_share_max <= SPECIAL_EDGE_SHARE_MAX)) {
+        bad(at, `edge_share_max must be in (0, ${SPECIAL_EDGE_SHARE_MAX}] of the frame`);
+      }
+    }
+    for (const k of ["white", "base", "ground"]) if (k in m && !isHex(m[k])) bad(at, `${k} is not a #rrggbb colour`);
+  }
 }
 
 // Validates and indexes a library (the parsed JSON, or its text). Throws, listing every problem, when it is unsound.
@@ -332,8 +405,37 @@ export function loadLibrary(raw) {
     camelot: deepFreeze(data.camelot),
     mode: deepFreeze(data.mode),
     rules: deepFreeze(data.rules || {}),
+    specialModes: deepFreeze(Object.fromEntries(Object.entries(data.special_modes || {}).filter(([k]) => k !== "about"))),
     warnings: Object.freeze(v.warnings),
   });
+}
+
+// The special modes' rarity, enforced: a mode the library limits to once a set, or to once every N bars, is refused
+// until its rarity allows it again. The page asks with the bar it would land on, draws the mode only when the answer is
+// ok (for at most max_beats), and otherwise draws the theme as usual; newSet() starts a set's count again.
+export class SpecialModes {
+  constructor(lib) {
+    this.modes = lib.specialModes || {};
+    this.used = new Map();             // id -> { count, lastBar }
+  }
+  newSet() { this.used.clear(); }
+  // { ok, id, reason, maxBeats, mode } for the bar the mode would land on
+  check(id, bar) {
+    const m = this.modes[id];
+    if (!m) return { ok: false, id, reason: "no such special mode" };
+    const u = this.used.get(id), r = m.rarity;
+    if (u && r.per === "set" && u.count >= r.times) return { ok: false, id, reason: `${m.name}: ${r.times} a set, used` };
+    if (u && r.every_bars && bar - u.lastBar < r.every_bars) {
+      return { ok: false, id, reason: `${m.name}: once every ${r.every_bars} bars, next at bar ${u.lastBar + r.every_bars}` };
+    }
+    return { ok: true, id, reason: null, maxBeats: m.max_beats, mode: m };
+  }
+  // check() and, when ok, count the use
+  take(id, bar) {
+    const res = this.check(id, bar);
+    if (res.ok) { const u = this.used.get(id); this.used.set(id, { count: (u ? u.count : 0) + 1, lastBar: bar }); }
+    return res;
+  }
 }
 
 // The page's loader: fetch, validate, index. A library that fails validation rejects (the page keeps its fader palette).
@@ -344,8 +446,8 @@ export async function fetchLibrary(url = new URL("./vj-themes.json", import.meta
 }
 
 // ------------------------------------------------------------------------------------------ choosing a theme --
-// The theme fader: one detent per entry of fader_order (21 themes in colour-wheel order, Custom at the top), equal widths
-// so a 0..127 fader gives every detent at least five positions.
+// The theme fader: one detent per entry of fader_order (the themes on the fader in colour-wheel order, Custom at the top),
+// equal widths so a 0..127 fader gives every detent at least five positions.
 export function faderIndex(lib, x) {
   const n = lib.faderOrder.length;
   return Math.min(n - 1, Math.max(0, Math.floor(clamp01(Number.isFinite(x) ? x : 0) * n)));
@@ -628,11 +730,64 @@ function entry(role, lin) {
 const ledOf = (t, role) => Object.freeze({ role, hex: t.led[role], level: (t.led_level && t.led_level[role]) || 1 });
 const DIAGONAL_ROLES = Object.freeze(["A", "B", "A", "W"]);   // palette stops 0-3 as LED roles (stop 2 has no stand-in)
 
+// ------------------------------------------------------------------------------------- the colour pair (VJ V2) --
+// Daniel, 2026-10-27: "one flip to the next color in the sequence and the other stay the same for easy changes and
+// repeats". His literal version, two controls (build spec section B; the pads lane had read it as an A/B leapfrog -- the
+// ambiguity is logged for his morning): COLOUR NEXT steps the hits to the next colour of the theme's sequence, on the
+// next beat; COLOUR SAME holds the current colour for the next hits, so the variety moves to pattern, heads and motion.
+// Only the HITS take them (the lasers and every pad's hit colour); the scene keeps the theme's palette.
+//
+// The theme's sequence: the colours a laser of the theme may emit -- its laser roles in its own order, then the rest of
+// A, B and W -- never a held role (held colours are shown steadily, never flashed) and never a role whose laser colour is
+// a saturated red (a laser shows those as white); a role that would draw the same colour as one before it is left out.
+export function colourSequence(lib, id) {
+  const t = lib.byId.get(id);
+  if (!t) return [];
+  const held = new Set(t.held), out = [], seen = new Set();
+  for (const r of [...t.lasers, ...ROLES]) {
+    if (!ROLES.includes(r) || held.has(r) || out.includes(r)) continue;
+    const hex = String(laserHexOf(t, r)).toLowerCase();
+    if (isSaturatedRed(hex) || seen.has(hex)) continue;
+    seen.add(hex); out.push(r);
+  }
+  return Object.freeze(out);
+}
+// A role moved k steps along the sequence (white stays the strobes' peak; a role off the sequence stays as it is).
+function stepRole(seq, r, k) {
+  const i = r === "W" ? -1 : seq.indexOf(r);
+  return i < 0 || !k ? r : seq[(i + k) % seq.length];
+}
+
+// The pair's state. next() books one step on the next beat (presses before it lands add up); a pad hit while the Next
+// control is still held lands it with that hit (onHit); toggleSame() turns the hold on or off at once (it only shapes
+// the hits to come). A new theme starts from its own colours (themeChanged): a step counted on the old theme's sequence
+// means nothing on the new one. step / same / preview feed themeLook (colourStep, colourSame); preview is the step the
+// next hit will show, a waiting step included, for the pads' lights.
+export class ColourStepper {
+  constructor() { this.step = 0; this.same = false; this.pending = 0; this.atMs = null; this.held = false; this.lands = 0; }
+  next(nowMs, clock) {
+    this.pending++;
+    if (this.atMs === null) this.atMs = landing(nowMs, clock, "beat").atMs;
+    return { pending: this.pending, atMs: this.atMs };
+  }
+  toggleSame() { this.same = !this.same; return this.same; }
+  tick(nowMs) { return this.pending > 0 && nowMs >= this.atMs ? this._land() : false; }
+  onHit() { return this.pending > 0 && this.held ? this._land() : false; }
+  themeChanged() { this.step = 0; this.pending = 0; this.atMs = null; }
+  get preview() { return this.step + this.pending; }
+  _land() { this.step += this.pending; this.pending = 0; this.atMs = null; this.lands++; return true; }
+}
+
 // Everything a theme gives, for one moment. opts:
 //   mode: "major" | "minor" | null  the key's nudge (major: lighter, more chroma, toward yellow; minor the opposite)
 //   hueDeg: the hue drift (fader 2), capped with the key's nudge at +-15 degrees inside a theme; free in Custom
 //   custom: true in Custom (the theme's pair turned round the wheel by hueDeg)
 //   swap: the long-drop swap of the lasers' role (A <-> B, never onto a held role)
+//   colourStep: Colour Next's step k: the lasers' pair is the sequence's colours k and k + 1 (k a whole turn: the theme's
+//     own pair), the strobe and burst roles turn k steps along it, and the pads' hit colours turn k steps round their
+//     diagonal
+//   colourSame: Colour Same: every colour a hit draws is the pair's first (the lasers, their strobes and bursts, every
+//     pad's hit colour and light)
 // The stand-ins for the pads are never tinted: they are calibrated to the device.
 export function themeLook(lib, id, opts = {}) {
   const t = lib.byId.get(id);
@@ -642,6 +797,10 @@ export function themeLook(lib, id, opts = {}) {
   const scene = (hex) => tint(hexToLinear(hex), tn);
   const emit = (role, hex) => entry(role, safeEmit(scene(hex)));
   const laser = (role) => emit(role, laserHexOf(t, role));
+  const seq = colourSequence(lib, id);
+  const n = seq.length;
+  const k = n >= 2 && Number.isFinite(opts.colourStep) ? ((Math.trunc(opts.colourStep) % n) + n) % n : 0;
+  const same = !!opts.colourSame;
 
   // the scene: stops A, B, their OKLCH midpoint, W -- linear rgb, the strip's row 2 layout (palNow / palTarget in vj.js).
   // Where a blend of the pair would grey (split_only, crossfade_needs_dip), stop 2 is A lifted by up to 0.1 L: as far as
@@ -660,8 +819,14 @@ export function themeLook(lib, id, opts = {}) {
   // burst colours; the colour modes this pair allows
   let roles = [...t.lasers];
   if (opts.swap) roles = roles.map((r) => (r === "A" && !held.has("B") ? "B" : r === "B" && !held.has("A") ? "A" : r));
-  const L1 = laser(roles[0]), L2 = roles[1] ? laser(roles[1]) : held.has("W") ? emit("white", "#ffffff") : laser("W");
-  const triple = t.strobe.triple.map(laser), flicker = t.strobe.flicker.map(laser), burst = t.burst.map(laser);
+  if (k) roles = [seq[k], seq[(k + 1) % n]];
+  const lead = roles[0];
+  // the roles the engine's gates draw: turned k steps along the sequence, or under Colour Same all the lead
+  const hitRole = (r) => (same ? lead : stepRole(seq, r, k));
+  const triRoles = t.strobe.triple.map(hitRole), flRoles = t.strobe.flicker.map(hitRole), buRoles = t.burst.map(hitRole);
+  const L1 = laser(lead);
+  const L2 = same ? L1 : roles[1] ? laser(roles[1]) : held.has("W") ? emit("white", "#ffffff") : laser("W");
+  const triple = triRoles.map(laser), flicker = flRoles.map(laser), burst = buRoles.map(laser);
   const c1 = toOklch(L1.lin), c2 = toOklch(L2.lin);
   const two = L1.hex !== L2.hex;
   const gap = c1.C >= CHROMA_MIN && c2.C >= CHROMA_MIN ? hueGapDeg(c1.h, c2.h) : null;
@@ -682,8 +847,11 @@ export function themeLook(lib, id, opts = {}) {
   // the pads' hit colours: vj.js colours each DAW pad's effects (the shockwave, the classic laser, the particles, the
   // strip's row 3 that the preset scenes react to) from the palette stops on a diagonal. These are the same stops made
   // safe to flash: a held role hits as the lasers' first colour, any other saturated red loses chroma until it passes.
+  // Colour Next turns the diagonal k stops round; Colour Same gives every pad the lasers' first colour.
+  const diag = (i) => ((i % 4) + ((i / 4) | 0) + k) % 4;
   const padHits = Array.from({ length: 12 }, (_, i) => {
-    const s = stops[((i % 4) + ((i / 4) | 0)) % 4];
+    if (same) return Object.freeze({ role: lead, hex: L1.hex, lin: L1.lin });
+    const s = stops[diag(i)];
     if (held.has(s.role)) return Object.freeze({ role: s.role, hex: L1.hex, lin: L1.lin });
     return isSaturatedRed(s.hex) ? entry(s.role, safeEmit(s.lin)) : s;
   });
@@ -709,13 +877,20 @@ export function themeLook(lib, id, opts = {}) {
       burst: Object.freeze(burst), splitOnly: t.split_only, hueGapDeg: gap, gradientOk,
       modes: Object.freeze(modes), burstModes: Object.freeze(modes.filter((m) => ["M2", "M3", "M5", "M8"].includes(m))),
       tailTo: L1,                                          // a burst's tail settles into L1 within 200 ms
+      // the theme as the laser engine reads it (vj-lasers.js themeColours): the roles above, the pair (k) or the lead
+      // twice (Colour Same) as its laser list
+      engine: Object.freeze({ ...t, lasers: Object.freeze(same ? [lead, lead] : roles),
+                              strobe: Object.freeze({ triple: Object.freeze(triRoles), flicker: Object.freeze(flRoles) }),
+                              burst: Object.freeze(buRoles) }),
     }),
     fx,
     pads: Object.freeze({
       A: ledOf(t, "A"), B: ledOf(t, "B"), W: ledOf(t, "W"),
-      laser: ledOf(t, roles[0]),                           // pad 2: the lasers' own stand-in
-      diagonal: Object.freeze(Array.from({ length: 12 }, (_, i) => ledOf(t, DIAGONAL_ROLES[((i % 4) + ((i / 4) | 0)) % 4]))),
+      laser: ledOf(t, lead),                               // pad 2: the lasers' own stand-in
+      diagonal: Object.freeze(Array.from({ length: 12 }, (_, i) => ledOf(t, same ? lead : DIAGONAL_ROLES[diag(i)]))),
     }),
+    // the colour pair as drawn: the sequence, the step (k), Colour Same, the colour the hits lead with and the next one
+    colour: Object.freeze({ sequence: seq, step: k, same, lead, next: n >= 2 ? seq[(k + 1) % n] : lead }),
   });
 }
 

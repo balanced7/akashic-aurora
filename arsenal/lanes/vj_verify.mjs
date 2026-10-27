@@ -712,6 +712,165 @@ try {
     report.page_errors = (report.page_errors || []).concat(Lr.errors || []);
   }
 
+  // ------------------------------------------- P: pads v2 and the colour pair (VJ V2; a 60 fps virtual clock) --
+  // The build spec's section B on the page, with the engine's beats at 120 BPM as phase L feeds them: [ (Colour Next)
+  // waits for the next beat while the pads preview it, then the lasers lead with the theme's next colour; ] (Colour Same)
+  // draws every hit in that one colour; pad 1 pressed three times within a bar escalates (a double, a triple ring), never
+  // in the same place, each ring's life ending on a beat line; pad 5 held becomes a standing motion and its release lands
+  // on the grid; a tap of pad 7 plays its short version; pad 10 (Hero) lands on the next ONE and then charges; pad 11
+  // (Build / Drop) tapped soft drops on its bar line four bars on; pad 9 (Safety) dampens on a tap and holds black; pad 3
+  // (CO2) sends up plumes, or hands its jets to a haze fluid when one is attached (lane C's API, faked here).
+  {
+    const { targetId: t4 } = await browser.send("Target.createTarget", { url: "about:blank" });
+    const { sessionId: s4 } = await browser.send("Target.attachToTarget", { targetId: t4, flatten: true });
+    const S4 = (method, params = {}) => withTimeout(browser.send(method, params, s4), 600000, method);
+    browser.on((msg) => {
+      if (msg.sessionId !== s4 || msg.method !== "Runtime.exceptionThrown") return;
+      const d = msg.params.exceptionDetails;
+      report.exceptions.push({ text: d.text, description: d.exception?.description, line: d.lineNumber, url: d.url, tab: "pads" });
+    });
+    await S4("Runtime.enable"); await S4("Page.enable");
+    await S4("Emulation.setDeviceMetricsOverride", { width: 640, height: 360, deviceScaleFactor: 1, mobile: false });
+    await S4("Page.addScriptToEvaluateOnNewDocument", { source: STORM_VIRTUAL_CLOCK });
+    const ev4 = async (expression) => {
+      const r = await S4("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
+      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+      return r.result.value;
+    };
+    await S4("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=off&hud=0&watchdog=0&sets=vj-reactor&laserseed=7&theme=night-sea` });
+    await waitFor(() => ev4(`!!(window.__vj && window.__vj.ready) && (() => { window.__vt.step(1000 / 60); const l = window.__vj.stats().limiter; return l.mode === "gpu" || l.fatal; })()`), 180000, "the pads tab's VJ page and gate v2");
+    report.pads_v2 = await ev4(String.raw`(() => {
+      const vj = window.__vj, F = 1000 / 60, per = 500;
+      let n = 0, next = performance.now() + 150;
+      const feed = () => { while (performance.now() + 220 >= next) { vj.event({ t: "beat", due_ms: next - performance.now(), bpm: 120, conf: 0.9, n, on_beat: 0.9, src: "track", bar: (n % 4) + 1, ver: 1, wall_ms: 0 }); n++; next += per; } };
+      const step = (k, each) => { for (let i = 0; i < k; i++) { feed(); window.__vt.step(F); if (each && each(i) === true) return i; } return k; };
+      const st = () => vj.stats();
+      const key = (code, k) => { const o = { code, key: k, bubbles: true }; window.dispatchEvent(new KeyboardEvent("keydown", o)); window.dispatchEvent(new KeyboardEvent("keyup", o)); };
+      const pos = () => st().clock.pos;
+      const out = {};
+      step(150);
+      // the colour pair: [ then ]
+      step(10, () => { const p = pos(); return p - Math.floor(p) > 0.3 && p - Math.floor(p) < 0.5; });
+      const c0 = st().colour.look, pressedAt = pos();
+      key("BracketLeft", "[");
+      const waiting = st().colour;
+      let landedAt = null;
+      step(60, () => { if (st().colour.lands > waiting.lands) { landedAt = pos(); return true; } });
+      const c1 = st().colour.look;
+      out.next = { pressed_at: +pressedAt.toFixed(3), pending: waiting.pending, preview: waiting.preview, landed_at: landedAt === null ? null : +landedAt.toFixed(3),
+                   roles_from: c0.roles, roles_to: c1.roles, L1_from: c0.L1, L1_to: c1.L1, sequence: c1.sequence, step: st().colour.step,
+                   preview_lead: waiting.previewLead };
+      key("BracketRight", "]");
+      step(4);
+      const c2 = st().colour.look;
+      out.same = { on: st().colour.same, engine: c2.engine, L1: c2.L1, L2: c2.L2, lead: c2.lead };
+      key("BracketRight", "]");
+      step(4);
+      out.same.off_again = !st().colour.same;
+      // pad 1 three times within a bar: escalation, spots, landed lives
+      step(120);
+      for (let k = 0; k < 3; k++) { vj.press(1, 0.9); step(3); vj.release(1); step(27); }
+      const rings = st().pads.log.filter((l) => l.pad === 1).slice(-3);
+      out.ring = { esc: rings.map((r) => r.esc), spots: rings.map((r) => r.spot), ends: rings.map((r) => r.endPos), motions: rings.map((r) => r.motion),
+                   sizes: rings.map((r) => r.size), instances: st().effects.filter((e) => e.type === "shockwave").map((e) => ({ esc: e.esc, placed: e.placed })) };
+      // pad 5 held a beat and a half: a standing motion; let go, it lands; pad 7 tapped: its short version
+      step(60);
+      vj.press(5, 0.8); step(45);
+      const held5 = st().effects.filter((e) => e.type === "strobe");
+      vj.release(5); step(2);
+      const after5 = st().effects.filter((e) => e.type === "strobe");
+      step(60);
+      out.shutters = { held: held5.map((e) => ({ motion: e.motion, held: e.held })), just_released: after5.map((e) => ({ held: e.held, env: e.env })),
+                       gone: st().effects.filter((e) => e.type === "strobe").length };
+      vj.press(7, 0.8); step(3); vj.release(7); step(30);
+      out.morph_tap = st().effects.filter((e) => e.type === "kaleido").map((e) => ({ env: e.env, held: e.held }));
+      step(90);
+      // pad 10, the hero: pressed mid-bar it lands on the next ONE; pressed again at once, it is charging
+      step(60, () => { const p = pos() % 4; return p > 1.4 && p < 1.6; });
+      const heroAsked = pos(), h0 = st().pads.heroes, gates0 = st().lasers.last ? st().lasers.hits : 0;
+      vj.press(10, 0.9); step(2); vj.release(10);
+      const booked = st().pads.hero.pendingAt;
+      let heroAt = null;
+      step(200, () => { if (st().pads.heroes > h0) { heroAt = pos(); return true; } });
+      const lastLaser = st().lasers.last;
+      step(4);
+      vj.press(10, 0.9); step(2); vj.release(10);
+      out.hero = { asked_at: +heroAsked.toFixed(3), booked, fired_at: heroAt === null ? null : +heroAt.toFixed(3), laser_gate: lastLaser ? lastLaser.gate : null,
+                   laser_src: lastLaser ? lastLaser.src : null, laser_hits: st().lasers.hits - gates0, charge_after: st().pads.hero.charge, rebooked: st().pads.hero.pendingAt };
+      // pad 11, build then drop: a soft tap builds four bars and drops on a bar line
+      step(30);
+      const d0 = st().pads.drops;
+      vj.press(11, 0.3); step(2); vj.release(11);
+      const b = st().pads.build;
+      let dropAt = null, rose = 0;
+      step(640, () => { const s = st().pads; rose = Math.max(rose, s.build.progress); if (s.drops > d0) { dropAt = pos(); return true; } });
+      out.build = { phase_after_tap: b.phase, drop_at_asked: b.dropAt, dropped_at: dropAt === null ? null : +dropAt.toFixed(3), rose: +rose.toFixed(3),
+                    section_after: st().pads.section };
+      // pad 9, Safety: a soft tap dampens what plays; held, the frame goes black; let go, it comes back
+      step(60);
+      vj.press(1, 0.9); step(2); vj.release(1); step(4);
+      const before9 = st().effects.length;
+      vj.press(9, 0.5); step(2); vj.release(9); step(24);
+      const afterTap = st().effects.length;
+      vj.press(9, 0.5);
+      let blackMin = 1;
+      step(30, () => { blackMin = Math.min(blackMin, st().pads.black.gain); });
+      vj.release(9);
+      let backIn = null;
+      step(40, (i) => { if (st().pads.black.gain > 0.95) { backIn = i; return true; } });
+      out.safety = { effects_before: before9, effects_after_tap: afterTap, black_min: +blackMin.toFixed(3), back_in_frames: backIn };
+      // pad 3, CO2: plumes of the page's own; with a haze fluid attached the jets go to it instead
+      step(40);
+      const g0 = st().flash.granted;
+      vj.press(3, 1); step(3); vj.release(3);
+      let plumes = 0;
+      step(24, () => { plumes = Math.max(plumes, st().pads.plumes); });
+      const granted = st().flash.granted - g0;
+      step(110);
+      const calls = [];
+      vj.attachAir({ co2: (x, y, s) => calls.push([+x.toFixed(3), y, +s.toFixed(3)]), fogPush: (l) => calls.push(["fog", +l.toFixed(3)]), fogRelease: () => calls.push(["fogRelease"]) });
+      vj.press(3, 1); step(3); vj.release(3);
+      let plumesWithAir = 0;
+      step(24, () => { plumesWithAir = Math.max(plumesWithAir, st().pads.plumes); });
+      vj.press(6, 0.8); step(20); vj.release(6); step(4);
+      const air = st().pads.air;
+      vj.attachAir(null);
+      out.co2 = { plumes, granted, plumes_with_air: plumesWithAir, air_calls: calls.length, co2_calls: calls.filter((c) => typeof c[0] === "number").length,
+                  fog_calls: calls.filter((c) => c[0] === "fog").length, fog_release: calls.filter((c) => c[0] === "fogRelease").length, air };
+      out.leds = st().leds.last;
+      out.errors = vj.errors();
+      out.limiter = st().limiter.mode;
+      return out;
+    })()`);
+    await S4("Page.captureScreenshot", { format: "png" }).then((r) => { const f = join(outDir, "pads-v2.png"); writeFileSync(f, Buffer.from(r.data, "base64")); report.screenshots.push(f); });
+    await browser.send("Target.closeTarget", { targetId: t4 });
+    const P = report.pads_v2;
+    const onLine = (p, g) => p !== null && Math.abs(p / g - Math.round(p / g)) * g <= 1 / 30 + 0.01;   // within a frame of the line
+    console.log(`[pads] next ${JSON.stringify(P.next.roles_from)} -> ${JSON.stringify(P.next.roles_to)} landed ${P.next.landed_at}; same ${JSON.stringify(P.same.engine)}; ring esc ${P.ring.esc} spots ${P.ring.spots} ends ${P.ring.ends}; hero ${P.hero.booked} fired ${P.hero.fired_at}; drop ${P.build.drop_at_asked} at ${P.build.dropped_at}; black ${P.safety.black_min}; co2 plumes ${P.co2.plumes} air ${P.co2.co2_calls}`);
+    checks.colour_next_waits_for_the_beat_then_the_lasers_lead_with_the_next_colour = P.next.pending === 1 && onLine(P.next.landed_at, 1) &&
+      P.next.landed_at > P.next.pressed_at && P.next.landed_at - P.next.pressed_at <= 1 + 1 / 30 && P.next.step === 1 &&
+      P.next.roles_to[0] === P.next.sequence[1] && P.next.L1_to !== P.next.L1_from && P.next.preview_lead === P.next.roles_to[0];
+    checks.colour_same_draws_every_hit_in_one_colour = P.same.on && P.same.engine.length === 2 && P.same.engine[0] === P.same.engine[1] &&
+      P.same.L1 === P.same.L2 && P.same.off_again;
+    checks.a_second_press_within_a_bar_escalates_and_never_lands_in_the_same_place = P.ring.esc.join() === "1,2,3" &&
+      new Set(P.ring.spots).size === 3 && P.ring.sizes[2] > P.ring.sizes[0] && P.ring.instances.some((e) => e.esc === 3 && e.placed);
+    checks.one_shots_land_on_the_beat_grid = P.ring.ends.every((e) => Number.isInteger(e));
+    checks.a_hold_becomes_a_standing_motion_and_its_release_lands = P.shutters.held.length === 1 && !!P.shutters.held[0].motion &&
+      P.shutters.just_released.length === 1 && !P.shutters.just_released[0].held && P.shutters.gone === 0 &&
+      P.morph_tap.length === 1 && P.morph_tap[0].env > 0.5;
+    checks.the_hero_lands_on_the_next_one_then_charges = P.hero.booked % 4 === 0 && P.hero.booked > P.hero.asked_at && onLine(P.hero.fired_at, 4) &&
+      P.hero.laser_gate === "tttou" && P.hero.laser_src === "hero" && P.hero.charge_after < 0.1 && P.hero.rebooked === null;
+    checks.build_then_drop_lands_on_its_bar_line = P.build.phase_after_tap === "build" && P.build.drop_at_asked % 4 === 0 &&
+      onLine(P.build.dropped_at, 4) && Math.abs(P.build.dropped_at - P.build.drop_at_asked) < 0.1 && P.build.rose > 0.9 && P.build.section_after === "drop";
+    checks.safety_dampens_on_a_tap_and_holds_black = P.safety.effects_before > 0 && P.safety.effects_after_tap === 0 &&
+      P.safety.black_min < 0.05 && P.safety.back_in_frames !== null;
+    checks.co2_plumes_or_the_haze_fluid = P.co2.plumes >= 2 && P.co2.granted >= 1 && P.co2.plumes_with_air === 0 && P.co2.co2_calls >= 2 &&
+      P.co2.fog_calls === 1 && P.co2.fog_release === 1 && !!P.co2.air && !P.co2.air.broken;
+    const { ledPostedOk: standInOk } = await import("../web/vj-themes.js");
+    checks.pads_v2_lights_are_stand_ins_the_pads_show = P.leds.length === 12 && P.leds.every((c) => standInOk(c));
+    report.page_errors = (report.page_errors || []).concat(P.errors || []);
+  }
+
   // ------------------------------------------------------------------------- E: the engine contract (fake) --
   await S("Page.navigate", { url: `http://127.0.0.1:${PORT}/web/vj.html?engine=http://127.0.0.1:${ENGINE_PORT}&hud=0&watchdog=0` });
   await waitFor(() => evaluate("!!(window.__vj && window.__vj.ready)"), 60000, "the VJ page (engine run)");

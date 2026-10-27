@@ -450,35 +450,44 @@ export function starPosition(midi, out) {
 // shockwave and the laser had 4 and 12 ms ramps), the particles too; the kaleidoscope folds in over 0.12 s instead of
 // 0.25 s; Zoom punch is new (pad 12). Every hit also gets the shared impact layer (ImpactLayer: punch, shake, dip,
 // afterglow) through the velocity curve (velCurve): a soft tap barely moves the frame, a hard hit throws it.
+// Pads v2 (VJ V2, 2026-10-27; vj-pads.js holds the grammar): the ids stay where a pad kept its verb (pad 1 is still the
+// shockwave's, rebuilt as the Ring), new ones where it got a new verb: co2 (pad 3), hero (pad 10), build (pad 11).
 export const EFFECTS = Object.freeze({
-  shockwave: { label: "Shockwave", hold: false, a: 0.0, d: 1.1, s: 0, r: 0.25, colour: "#7fd8ff",
-               velocity: "ring speed, width, brightness and how hard the ring refracts the picture behind it" },
-  laser:     { label: "Laser burst", hold: false, a: 0.0, d: 0.9, s: 0, r: 0.3, colour: "#ff4fd8",
+  shockwave: { label: "Ring", hold: false, a: 0.0, d: 1.1, s: 0, r: 0.25, colour: "#7fd8ff",
+               velocity: "ring size, speed and how hard it refracts; again within a bar a double, then a triple ring; held, it ripples on every beat" },
+  laser:     { label: "Lasers", hold: false, a: 0.0, d: 0.9, s: 0, r: 0.3, colour: "#ff4fd8",
                velocity: "beam count (3-12), fan spread and brightness" },
   flash:     { label: "White flash", hold: false, a: 0.0, d: 0.22, s: 0, r: 0.12, colour: "#ffffff", flash: true,
                velocity: "flash brightness and length (gated: 3 per second at most)" },
-  glitch:    { label: "Glitch", hold: false, a: 0.0, d: 0.5, s: 0, r: 0.2, colour: "#7dff9a",
-               velocity: "intensity and size; each hit picks its own mode or pair (split, tear, datamosh, sort, stutter, VHS)" },
-  strobe:    { label: "Strobe", hold: true, a: 0.0, d: 0.08, s: 1, r: 0.18, colour: "#f2f2ff", flash: true,
-               velocity: "scanner-bar brightness; full-frame pulses go through the flash gate" },
-  particles: { label: "Particles", hold: true, a: 0.0, d: 0.35, s: 0.75, r: 0.9, colour: "#ffb347",
-               velocity: "particle count and speed" },
-  kaleido:   { label: "Kaleidoscope", hold: true, a: 0.12, d: 0.2, s: 1, r: 0.6, colour: "#b78cff",
-               velocity: "mirror segments (4-12) and spin" },
-  freeze:    { label: "Freeze", hold: true, a: 0.06, d: 0.1, s: 1, r: 0.4, colour: "#9ad7ff",
-               velocity: "how much of the frozen frame shows, and its drift" },
+  co2:       { label: "CO2", hold: true, a: 0.06, d: 0.3, s: 0.8, r: 1.3, colour: "#e8f6ff", flash: true,
+               velocity: "jets (2-8), plume height and density; its bloom spends a flash-gate slot (refused: a thin wisp); held up to 3 s" },
+  glitch:    { label: "Glitch Lift", hold: false, a: 0.0, d: 0.5, s: 0, r: 0.2, colour: "#7dff9a",
+               velocity: "intensity, size and how far the frame lifts; each hit its own mode or pair; held, it strikes again on every beat" },
+  strobe:    { label: "Shutters", hold: true, a: 0.0, d: 0.08, s: 1, r: 0.18, colour: "#f2f2ff", flash: true,
+               velocity: "rows (3-9) and their brightness; the rows strobe on the beat's division and travel with a motion" },
+  particles: { label: "Fog + Swarm", hold: true, a: 0.0, d: 0.35, s: 0.75, r: 0.9, colour: "#ffb347",
+               velocity: "motes (12-48), orbit size and speed; the fog push when the haze runs" },
+  kaleido:   { label: "Morph", hold: true, a: 0.12, d: 0.2, s: 1, r: 0.6, colour: "#b78cff",
+               velocity: "mirror segments (4-12; doubled when pressed again within a bar), turns landing on the grid" },
+  freeze:    { label: "Lower", hold: true, a: 0.06, d: 0.1, s: 1, r: 0.4, colour: "#9ad7ff",
+               velocity: "how much of the frozen frame shows, and how far it sinks; a tap is a hit-stop" },
   invert:    { label: "Invert", hold: true, a: 0.4, d: 0.0, s: 1, r: 0.5, colour: "#ffe066", flash: true,
                velocity: "how far the colours invert (eased in over 0.4 s, gated)" },
   zoom:      { label: "Zoom punch", hold: false, a: 0.0, d: 0.42, s: 0, r: 0.2, colour: "#5ef0ff",
                velocity: "zoom depth (8-30 % of the frame) and a radial blur while it springs back" },
+  hero:      { label: "Hero", hold: false, a: 0.0, d: 1.6, s: 0, r: 0.4, colour: "#ffd84a", flash: true,
+               velocity: "the payoff on the next ONE (once per 8 bars): the lasers' phrase, a triple ring from the centre" },
+  build:     { label: "Build / Drop", hold: true, a: 0.0, d: 0.1, s: 1, r: 0.3, colour: "#ff7ad9", flash: true,
+               velocity: "a tap builds 4, 8 or 16 bars (soft, medium, hard) and drops on the downbeat; held, a riser" },
 });
 export const EFFECT_TYPES = Object.freeze(Object.keys(EFFECTS));
 // The effect codes the strip carries (row 2, texel 10 z): a set can tell which pad effect hit it.
 export const EFFECT_CODES = Object.freeze({ shockwave: 1, laser: 2, flash: 3, glitch: 4, strobe: 5, particles: 6, kaleido: 7,
-                                            freeze: 8, invert: 9, zoom: 10 });
+                                            freeze: 8, invert: 9, zoom: 10, co2: 11, hero: 12, build: 13 });
 
 // The control actions a pad (or Q/W/E/R) can carry instead of an effect.
 export const CONTROLS = Object.freeze({
+  safety: { label: "Safety", colour: "#3d7bff", help: "tap: dampen; tap harder than 0.8: choke; hold half a beat: black until you let go" },
   dampen: { label: "Dampen", colour: "#3d7bff", help: "fast release of every active effect" },
   choke:  { label: "Choke", colour: "#ff9a1f", help: "cut every accent effect now; the set keeps playing" },
   kill:   { label: "Kill", colour: "#ff2a2a", help: "fade everything to black on the next beat; again to bring it back" },
@@ -486,30 +495,38 @@ export const CONTROLS = Object.freeze({
   none:   { label: "(nothing)", colour: "#000000", help: "" },
 });
 
-export const PAD_ACTIONS = Object.freeze([...EFFECT_TYPES, "dampen", "choke", "kill", "next", "none"]);
+export const PAD_ACTIONS = Object.freeze([...EFFECT_TYPES, "safety", "dampen", "choke", "kill", "next", "none"]);
 
-// Pads 1-4 one-shots, 5-8 holdable, 9 dampen, 10 choke, 11 invert (holdable), 12 zoom punch (one-shot). The scenes
-// moved to the transport (rewind / fast-forward) and the main dial (DEFAULT_CTL_MAP); kill stays on the E key.
-export const DEFAULT_PAD_MAP = Object.freeze(["shockwave", "laser", "flash", "glitch", "strobe", "particles", "kaleido",
-                                              "freeze", "dampen", "choke", "invert", "zoom"]);
+// Pads v2 (map v3, VJ V2 2026-10-27; the pads lane's map where it fits the page): row 1 HITS -- 1 Ring, 2 Lasers, 3 CO2,
+// 4 Glitch Lift; row 2 HOLDS -- 5 Shutters, 6 Fog + Swarm, 7 Morph, 8 Lower; row 3 MOVES -- 9 Safety (dampen, choke and
+// black on one pad), 10 Hero, 11 Build / Drop, 12 the Zoom punch (the tap in DAW mode, Daniel's ruling). The white flash,
+// Invert, Dampen and Choke stay actions any pad can learn; Dampen, Choke and Kill stay on Q, W and E.
+export const DEFAULT_PAD_MAP = Object.freeze(["shockwave", "laser", "co2", "glitch", "strobe", "particles", "kaleido",
+                                              "freeze", "safety", "hero", "build", "zoom"]);
+// The map of 2026-10-24 to 2026-10-27 (stored as { v: 2 }): pad 3 the white flash, 9 dampen, 10 choke, 11 invert.
+export const PAD_MAP_V2_DEFAULT = Object.freeze(["shockwave", "laser", "flash", "glitch", "strobe", "particles", "kaleido",
+                                                 "freeze", "dampen", "choke", "invert", "zoom"]);
 // The map before 2026-10-24 (stored as a bare array): pads 11 and 12 were kill and next set.
 export const PAD_MAP_V1_DEFAULT = Object.freeze(["shockwave", "laser", "flash", "glitch", "strobe", "particles", "kaleido",
                                                  "freeze", "dampen", "choke", "kill", "next"]);
-export const PAD_MAP_VERSION = 2;
+export const PAD_MAP_VERSION = 3;
 
-// A stored pad map, as it comes back from localStorage, made safe: an unknown action keeps that pad's default. Two shapes
-// are read: { v: 2, pads: [...] } (written since 2026-10-24) and a bare array (written before). In a bare array, a pad
-// that still holds the OLD default (pad 11 kill, pad 12 next) takes the new one -- it was the default saved along, not a
-// choice -- while every pad Daniel set himself keeps what he set.
+// A stored pad map, as it comes back from localStorage, made safe: an unknown action keeps that pad's default. Three
+// shapes are read: { v: 3, pads } (since VJ V2), { v: 2, pads } (2026-10-24 to 27) and a bare array (before). In an older
+// map, a pad that still holds THAT map's default where the default has since changed takes the new one -- it was the
+// default saved along, not a choice -- while every pad Daniel set himself keeps what he set.
 export function normalizePadMap(stored) {
   const out = DEFAULT_PAD_MAP.slice();
-  let pads = null, legacy = false;
-  if (Array.isArray(stored)) { pads = stored; legacy = true; }
-  else if (stored && typeof stored === "object" && Array.isArray(stored.pads)) pads = stored.pads;
+  let pads = null, was = null;
+  if (Array.isArray(stored)) { pads = stored; was = PAD_MAP_V1_DEFAULT; }
+  else if (stored && typeof stored === "object" && Array.isArray(stored.pads)) {
+    pads = stored.pads;
+    if (stored.v === 2) was = PAD_MAP_V2_DEFAULT;
+  }
   if (pads) {
     for (let i = 0; i < 12; i++) {
       if (!PAD_ACTIONS.includes(pads[i])) continue;
-      if (legacy && pads[i] === PAD_MAP_V1_DEFAULT[i] && PAD_MAP_V1_DEFAULT[i] !== DEFAULT_PAD_MAP[i]) continue;
+      if (was && pads[i] === was[i] && was[i] !== DEFAULT_PAD_MAP[i]) continue;
       out[i] = pads[i];
     }
   }
@@ -536,7 +553,7 @@ export const TARGETS = Object.freeze([
   { id: "sat", label: "Saturation", def: 0.9, group: "colour", help: "0 is grey, 1 full colour" },
   { id: "bright", label: "Master brightness", def: 0.9, group: "colour", help: "everything, set and accents" },
   { id: "trails", label: "Trails / feedback", def: 0.5, group: "motion", help: "how long light lingers" },
-  { id: "strobeRate", label: "Strobe rate", def: 0.45, group: "accents", help: "scanner bars 2-12 Hz; full-frame pulses stay gated" },
+  { id: "strobeRate", label: "Shutters rate", def: 0.45, group: "accents", help: "the Shutters' division on a live beat (a quarter, an eighth, a sixteenth; the build's own on a build), else 2-12 Hz; full-frame pulses stay gated" },
   { id: "accent", label: "Accent intensity", def: 0.85, group: "accents", help: "how strong every pad effect is" },
   { id: "xfade", label: "Set crossfade", def: 0.0, group: "sets", help: "manual mix toward the cued set (picks up at 0 after a switch)" },
   { id: "bassReact", label: "Bass reactivity", def: 0.5, group: "music", help: "how hard bass drives glow and size" },
@@ -581,7 +598,15 @@ export const FAMILY_ACTIONS = Object.freeze(THEME_FAMILIES.map((f, i) => ({
 })));
 export const LASER_ACTION_IDS = Object.freeze(LASER_ACTIONS.map((a) => a.id));
 export const FAMILY_ACTION_IDS = Object.freeze(FAMILY_ACTIONS.map((a) => a.id));
-const CTL_BINDABLE = new Set([...TARGET_IDS, ...SCENE_ACTION_IDS, ...LASER_ACTION_IDS, ...FAMILY_ACTION_IDS]);
+// The colour pair (VJ V2, Daniel 2026-10-27: "one flip to the next color in the sequence and the other stay the same for
+// easy changes and repeats"; vj-themes.js ColourStepper). [ and ] on the keyboard; any button by learn (the 8 buttons
+// under the screen are unbound today: Daniel picks which ones).
+export const COLOUR_ACTIONS = Object.freeze([
+  { id: "colourNext", label: "Colour Next", help: "a press steps the hits to the theme's next colour, on the next beat (held while a pad is hit: with that hit) ([)" },
+  { id: "colourSame", label: "Colour Same", help: "a press holds the current colour for the next hits (again: let it vary); the variety moves to pattern, heads and motion (])" },
+]);
+export const COLOUR_ACTION_IDS = Object.freeze(COLOUR_ACTIONS.map((a) => a.id));
+const CTL_BINDABLE = new Set([...TARGET_IDS, ...SCENE_ACTION_IDS, ...LASER_ACTION_IDS, ...FAMILY_ACTION_IDS, ...COLOUR_ACTION_IDS]);
 
 // Faders 1-9 are CC105-113 (absolute) and the knobs CC91, 92, 94-97, 102-104 (relative around 64), as Arturia's FL script
 // reads them; unconfirmed on the hardware, which is why every binding can be learned. The transport and the dial, from
@@ -765,13 +790,16 @@ export class EffectBank {
     this.fx = [];
     for (let i = 0; i < MAX_FX; i++) {
       this.fx.push({ active: false, type: "", pad: 0, vel: 0, t0: 0, tr: null, rScale: 1, dScale: 1, env: 0, seed: 0,
-                     x: 0, y: 0, granted: true, serial: 0 });
+                     x: 0, y: 0, placed: false, granted: true, serial: 0, size: 1, esc: 1, motion: null });
     }
     this.serial = 0;
     this.seedCounter = 0;
   }
   // Start an effect. opts: { pad, x, y, granted } -- `granted` false marks a flash effect the gate refused (it then plays
-  // without its full-frame component). Returns the instance.
+  // without its full-frame component). Pads v2 (vj-pads.js): `size` (velocity, accent and escalation: 0..1.6), `esc` (the
+  // escalation level 1..3), `motion` (a dealt vj-motions record the drawing follows), `lifeS` (a one-shot's life landed
+  // on the grid: it replaces velocity's stretch of the decay) and x / y given at all mark the instance as placed (a spot).
+  // Returns the instance.
   trigger(type, vel, now, opts = {}) {
     const def = EFFECTS[type];
     if (!def) return null;
@@ -788,14 +816,20 @@ export class EffectBank {
     slot.t0 = now;
     slot.tr = null;
     slot.rScale = 1;
-    // velocity lengthens a one-shot: a soft tap is short, a hard hit rings (x0.6 .. x1.4)
-    slot.dScale = def.hold ? 1 : 0.6 + 0.8 * slot.vel;
+    // velocity lengthens a one-shot: a soft tap is short, a hard hit rings (x0.6 .. x1.4); a landed life sets it instead
+    // (held to x0.5 .. x2 of the effect's own decay, so it stays the effect it is)
+    const landed = !def.hold && Number.isFinite(opts.lifeS) && opts.lifeS > 0 && def.d > 0;
+    slot.dScale = def.hold ? 1 : landed ? Math.min(2, Math.max(0.5, (opts.lifeS - def.a) / def.d)) : 0.6 + 0.8 * slot.vel;
     slot.env = def.a > 0 ? 0 : 1;
     this.seedCounter = (this.seedCounter + 1) % 997;
     slot.seed = ((this.seedCounter * 0.618033988749895) % 1);
+    slot.placed = Number.isFinite(opts.x) && Number.isFinite(opts.y);
     slot.x = opts.x || 0;
     slot.y = opts.y || 0;
     slot.granted = opts.granted !== false;
+    slot.size = Number.isFinite(opts.size) ? Math.max(0, opts.size) : 1;
+    slot.esc = Number.isInteger(opts.esc) && opts.esc > 0 ? opts.esc : 1;
+    slot.motion = opts.motion || null;
     slot.serial = ++this.serial;
     return slot;
   }
@@ -879,6 +913,10 @@ export const IMPACT = Object.freeze({
   freeze:    { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.15 },
   invert:    { punch: 0.020, shake: 0.000, dip: 0.00, glow: 0.0, react: 0.2 },
   zoom:      { punch: 0.000, shake: 0.008, dip: 0.40, glow: 0.7, react: 0.8 },   // its punch is the effect itself (zoomDepth)
+  // pads v2: CO2's plumes are the look (a small punch, a dip that rides its granted slot); the hero lands like the drop
+  co2:       { punch: 0.012, shake: 0.000, dip: 0.40, glow: 0.6, react: 0.5 },
+  hero:      { punch: 0.036, shake: 0.012, dip: 0.55, glow: 1.0, react: 1.0 },
+  build:     { punch: 0.000, shake: 0.000, dip: 0.00, glow: 0.2, react: 0.4 },   // the press starts a build; the drop hits
 });
 export const PUNCH_BACK_S = 0.16;      // the punch eases back over this (+0.12 s at full velocity)
 export const SHAKE_HZ = 23, SHAKE_TAU_S = 0.06;
@@ -916,7 +954,8 @@ export class ImpactLayer {
     this.count = 0;
   }
   // type: an EFFECTS key; opts: { seed 0..1, granted (the hit's flash was granted), x, y (centred space), punch (false:
-  // the panel's impact switch is off -- no punch, shake, dip or afterglow; the strip's hit texel still hears the hit) }
+  // the panel's impact switch is off -- no punch, shake, dip or afterglow; the strip's hit texel still hears the hit),
+  // slipDir ([x, y], unit: the slip's direction instead of the seed's -- the Glitch Lift throws the frame up) }
   hit(type, vel, now, opts = {}) {
     const prof = IMPACT[type];
     if (!prof) return null;
@@ -941,7 +980,8 @@ export class ImpactLayer {
     // a slip (the glitch): the whole frame jumps sideways in the hit's own direction and eases back with the punch
     slot.slip = (prof.slip || 0) * k * on;
     const sa = hash01(seed * 13.7 + 0.1) * 6.283185307179586;
-    slot.slx = Math.cos(sa); slot.sly = Math.sin(sa);
+    const dir = Array.isArray(opts.slipDir) && opts.slipDir.length === 2 && opts.slipDir.every(Number.isFinite) ? opts.slipDir : null;
+    slot.slx = dir ? dir[0] : Math.cos(sa); slot.sly = dir ? dir[1] : Math.sin(sa);
     slot.granted = opts.granted === true;
     slot.glow = prof.glow * k * on;
     slot.seed = seed; slot.x = opts.x || 0; slot.y = opts.y || 0;

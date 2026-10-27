@@ -210,3 +210,23 @@ test("the chord colour on a theme while the audio names the chords: a hue turn o
     assert.ok(!isSaturatedRed(r) || isSaturatedRed(s), `hue ${h}`);
   }
 });
+
+test("the air (VJ V2): lane C's haze fluid is reached feature by feature, and a throwing one is dropped, never a crash", () => {
+  assert.equal(H.airOf(null), null);
+  assert.equal(H.airOf({ step() {} }), null, "nothing a pad can call");
+  const calls = [];
+  const fluid = { co2: (x, y, s) => calls.push(["co2", x, y, s]), fogPush: (l) => calls.push(["fog", l]), fogRelease: () => calls.push(["rel"]) };
+  const air = H.airOf(fluid);
+  assert.deepEqual(air.has, { co2: true, fog: true });
+  assert.equal(air.co2(0.4, 0, 0.9), true);
+  assert.equal(air.fogPush(0.7), true);
+  assert.equal(air.fogRelease(), true);
+  assert.deepEqual(calls, [["co2", 0.4, 0, 0.9], ["fog", 0.7], ["rel"]]);
+  const onlyCo2 = H.airOf({ co2() {} });
+  assert.deepEqual(onlyCo2.has, { co2: true, fog: false });
+  assert.equal(onlyCo2.fogPush(1), false, "a missing method is a no-op");
+  const bad = H.airOf({ co2() { throw new Error("lost context"); }, fogPush() {} });
+  assert.equal(bad.co2(0.5, 0, 1), false);
+  assert.match(bad.broken, /co2: lost context/);
+  assert.equal(bad.fogPush(0.5), false, "once broken, the pads keep their own stand-ins");
+});

@@ -190,6 +190,26 @@ export function standInLed(lin) {
   return { hex: ledPostedOk(hex) ? hex : "#ffffff", level: Math.max(0.3, Math.min(1, m)) };
 }
 
+// --------------------------------------------------------------------------------------------------- the air --
+// The page's haze fluid (VJ V2 lane C, arsenal/web/vj-fluid.js: attachFluid(ctx) -> { step(dt), co2(x01, y01,
+// strength01), fogPush(level01), fogRelease(), inscatter(...), dispose() }), when the page has one: the pads (3 CO2, 6 the
+// fog push) reach it only through this, feature by feature, so a page without it -- or a fluid that lost a method --
+// keeps the pads' own stand-ins. Every call is guarded: a throwing fluid is dropped for good (`broken`), never a crash
+// in a pad handler. Returns null when there is nothing to call.
+export function airOf(fluid) {
+  if (!fluid || typeof fluid !== "object") return null;
+  const fn = (k) => (typeof fluid[k] === "function" ? fluid[k] : null);
+  const raw = { co2: fn("co2"), fogPush: fn("fogPush"), fogRelease: fn("fogRelease") };
+  if (!raw.co2 && !raw.fogPush) return null;
+  const air = { broken: null, calls: 0, has: { co2: !!raw.co2, fog: !!raw.fogPush } };
+  const guard = (k) => (...args) => {
+    if (air.broken || !raw[k]) return false;
+    try { raw[k].apply(fluid, args); air.calls++; return true; } catch (err) { air.broken = `${k}: ${(err && err.message) || err}`; return false; }
+  };
+  air.co2 = guard("co2"); air.fogPush = guard("fogPush"); air.fogRelease = guard("fogRelease");
+  return air;
+}
+
 // ------------------------------------------------------------------------------------------ the chord colour --
 // A theme's palette stop nudged toward a chord's colour. While the AUDIO names the chords (hardstyle), the nudge is a
 // hue turn of at most maxDeg (15: spec 2.2), so the theme's two colours stay two; the keys (the piano) colour freely, up to
