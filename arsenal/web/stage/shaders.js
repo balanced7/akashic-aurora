@@ -1,6 +1,7 @@
 // Virtual Stage v0, the shaders: arsenal/web/stage/shaders.js. GLSL ES 3.00 written fresh for this page (Apache-2.0,
 // Akashic Aurora), composed at load time with the house library (arsenal/web/glsl: volume-phase for the scattering lobe,
-// dither-masks for the static jitter, display-out for the finish, colour-transfer for the sRGB seam), so a change to a
+// atmos-haze's blue noise for the beams' static jitter (VJ V2, the haze base), display-out for the finish,
+// colour-transfer for the sRGB seam), so a change to a
 // house module reaches the stage too (Daniel, 2026-10-13: "tweak one module and have everything update").
 //
 // The techniques, credited:
@@ -362,7 +363,9 @@ void main() {
   float D = max(length(L - ro - rd * delta), 1e-3);
   float thA = atan((tA - delta) / D), thB = atan((tB - delta) / D);
   float inscatter = 0.0;
-  float jit = dthIgn(gl_FragCoord.xy);
+  // the haze base's blue noise (atmos-haze hazeBlueNoise, a void-and-cluster table): interleaved gradient noise left the
+  // crosshatch the light-in-haze judge saw at 1:1 (must-change 3); still spatial only, nothing temporal (rule 4)
+  float jit = hazeBlueNoise(gl_FragCoord.xy);
   for (int k = 0; k < ${samples}; k++) {
     float th = mix(thA, thB, (float(k) + jit) / ${samples}.0);
     float t = delta + D * tan(th);

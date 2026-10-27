@@ -141,7 +141,10 @@ export class StageRenderer {
     this.features = { venue: true, crowd: true, strand: true, rings: true, beams: true, lasers: true, emitters: true, bloom: true, veil: true };
     this.profile = false;
     this.timings = {};
-    this.preludeMain = lib.compose(["volume-phase", "dither-masks", "colour-transfer"], "webgl2");
+    this.preludeMain = lib.compose(["volume-phase", "colour-transfer"], "webgl2");
+    // the beam pass also takes the haze base (atmos-haze 2.0.0) for its blue-noise jitter (VJ V2 lane C, P2): a larger
+    // source for one program's compile, nothing per frame (unused functions are not compiled in)
+    this.preludeBeam = lib.compose(["volume-phase", "colour-transfer", "atmos-haze"], "webgl2");
     this.preludeFinish = lib.compose(["display-out", "colour-transfer"], "webgl2");
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: true, stencil: false,
                                                         powerPreference: "high-performance", preserveDrawingBuffer: false });
@@ -219,7 +222,7 @@ export class StageRenderer {
     };
     this.beamUniforms = { ...this.haze, uDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uNear: { value: 0.1 }, uFar: { value: 420 },
                           uCamFwd: { value: new THREE.Vector3(0, 0, -1) } };
-    this.mat.beam = this._raw(S.BEAM_VERTEX, S.BEAM_FRAGMENT(this.preludeMain, this.q.beamSamples), this.beamUniforms,
+    this.mat.beam = this._raw(S.BEAM_VERTEX, S.BEAM_FRAGMENT(this.preludeBeam, this.q.beamSamples), this.beamUniforms,
                               { ...add, depthTest: false, side: THREE.BackSide });
     const fs = (frag, uniforms) => this._raw(S.FS_VERTEX, frag, uniforms, { depthTest: false, depthWrite: false });
     this.post = {
