@@ -7,6 +7,7 @@ import * as z from "zod";
 
 import { ContentStatus } from "../../types";
 import { getLastModifiedAt } from "../../utils";
+import { rehypeCitations } from "./rehype-citations";
 
 /** Forest Walks: long-form field notes on how machines work, one walk per directory. */
 export const walk = defineCollection({
@@ -24,7 +25,10 @@ export const walk = defineCollection({
   transform: async (document, context) => {
     const mdx = await compileMDX(context, document, {
       remarkPlugins: [remarkGfm],
-      rehypePlugins: [[rehypeShiki, { theme: "one-dark-pro" }]],
+      rehypePlugins: [
+        rehypeCitations,
+        [rehypeShiki, { theme: "one-dark-pro" }],
+      ],
     });
 
     const lastModifiedAt = await context.cache(
