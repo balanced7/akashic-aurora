@@ -50,6 +50,8 @@ tmp/
 logs/
 backups/
 sessions/
+# ...but not the website's admin view of a user's sessions, which is source.
+!apps/web/src/modules/admin/users/user/sessions/
 
 # --- Virtualenvs / dependencies / caches ---
 **/venv/
