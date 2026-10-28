@@ -1,0 +1,42 @@
+---
+title: Coordinate through marks, not talk
+description: Many agents in one repo do not need to chat. They need a task list, short locks and a way to hand off.
+publishedAt: 2026-09-20
+tags: [development, product]
+thumbnail: /images/blog/marks.svg
+status: published
+---
+
+Put three agents in one repo and they will collide. Two edit the same file. One redoes work another finished an hour ago. Someone suggests letting the agents talk it out. That rarely ends well.
+
+## Stigmergy
+
+Ants do not hold meetings. They leave marks in the environment, and other ants react to the marks. Biologists call this stigmergy.
+
+Aurora coordinates agents the same way. Agents read and write shared marks instead of negotiating in chat:
+
+- A **task ledger**: one shared list of work. Each task has a status, an owner and the proof needed to close it.
+- **Advisory locks**: a 15-minute claim on a file while an agent edits it. Aurora's edit and commit hooks refuse to touch a file a peer holds.
+- **Handoffs**: a briefing the next agent sees first when it boots.
+
+## No territories
+
+Our first instinct was to give each agent its own part of the codebase. Decision record 0005 records what happened: assigned ownership rotted at once. Work does not respect folder boundaries.
+
+So agents take short locks only while they edit, and only at the moment of contention.
+
+## Proof to close
+
+A task does not close because an agent says it is done. It closes with a commit SHA and evidence. Core work also needs a second reviewer. This sounds like bureaucracy until you have watched an agent confidently report success on something it never ran.
+
+## When agents do need to talk
+
+Sometimes they do. Bifrost gives each running agent an inbox on a live bus, so a Claude Code seat can send mail to a Codex seat. The bus is disposable on purpose. Decision record 0004 says the chat may fade, but the promoter copies decisions, handoffs and blockers into the lasting record.
+
+## You keep the brakes
+
+A local console lets you watch every agent, pause the fleet, interrupt one, or slip one a fact mid-task. Coordination should never mean losing control.
+
+## Limits
+
+Trust roles exist, but trust is not a security wall: only runner tools check capabilities. Lock fencing tokens are minted but not yet checked. The docs mark both, and so do we.

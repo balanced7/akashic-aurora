@@ -1,0 +1,26 @@
+{
+  "user": {
+    "home": {
+      "title": "Nadzorna plošča",
+      "description": "Pregled dejavnosti vašega osebnega računa po vseh projektih."
+    }
+  },
+  "organization": {
+    "home": {
+      "title": "Nadzorna plošča organizacije",
+      "description": "Pregled dejavnosti in uspešnosti vaše organizacije po vseh projektih."
+    }
+  },
+  "chart": {
+    "showing": "Prikaz skupnega števila obiskovalcev v zadnjem obdobju",
+    "trending": "Rast do 5,2 % v tem mesecu",
+    "period": "Januar - junij 2024",
+    "bar": "Stolpčni grafikon",
+    "pie": "Tortni grafikon",
+    "area": "Ploskovni grafikon",
+    "line": "Črtni grafikon",
+    "shape": "Oblikovni grafikon",
+    "radial": "Radialni grafikon",
+    "radar": "Radarski grafikon"
+  }
+}

@@ -1,0 +1,242 @@
+{
+  "product": {
+    "title": "This could be your very own $1M startup",
+    "description": "A fully customizable Akashic Labs application. Swap in your content and launch your product faster than ever.",
+    "mobile": {
+      "ios": {
+        "title": "iOS App",
+        "description": "Native experience on iPhone and iPad"
+      },
+      "android": {
+        "title": "Android App",
+        "description": "Optimized for Android phones"
+      }
+    },
+    "extension": {
+      "chrome": {
+        "title": "Chrome Extension",
+        "description": "Integration with Chrome browser"
+      },
+      "firefox": {
+        "title": "Firefox Add-on",
+        "description": "Enhanced browsing for Firefox users"
+      },
+      "edge": {
+        "title": "Edge Add-on",
+        "description": "Powerful tools for Microsoft Edge"
+      }
+    }
+  },
+  "announcement": "Your feature announcement goes here",
+  "shippedWith": "Shipped with production-ready tools",
+  "cta": {
+    "question": "Ready to start?",
+    "button": "Start for free",
+    "buy": {
+      "question": "Ready to start?",
+      "description": "Purchase to unlock full access to the codebase and start shipping your product today. On all platforms.",
+      "button": "Get access",
+      "join": {
+        "description": "Join other founders customizing Akashic Labs, share launch tactics, and stay close to new drops.",
+        "button": "Join the community"
+      }
+    }
+  },
+  "editToReload": "Edit <code>{{file}}</code> and save to reload.",
+  "workInProgress": {
+    "title": "We're working on it!",
+    "description": "{{feature}} is currently not available. We're working on it and it will be available soon."
+  },
+  "features": {
+    "label": "Features",
+    "title": "Turn visitors into customers",
+    "description": "Everything you need to build, deploy, and scale your applications with confidence.",
+    "feature": {
+      "core": {
+        "title": "Core foundation",
+        "description": "Authentication, database, and API already wired up so you can focus on customer value."
+      },
+      "ai": {
+        "title": "AI-powered capabilities",
+        "description": "Intelligent features with smart recommendations and automated workflows powered by AI."
+      },
+      "mobile": {
+        "title": "Native mobile experience",
+        "description": "Fully-featured mobile app with seamless synchronization across all your devices."
+      },
+      "extension": {
+        "title": "Browser extension",
+        "description": "Keep users engaged in their browser with customizable shortcuts to your product."
+      }
+    }
+  },
+  "testimonials": {
+    "label": "Testimonials",
+    "title": "Teams ship faster with us",
+    "description": "Hear from founders and developers who customized the starter to launch sooner and convert better.",
+    "rating": "{{rating}} from {{count}}+ reviews",
+    "reviews": {
+      "jack": {
+        "name": "Jack",
+        "position": "Full Stack Developer",
+        "body": "The starter freed our team from boilerplate work. We swapped in our copy over a weekend and focused on features customers actually wanted."
+      },
+      "jill": {
+        "name": "Jill",
+        "position": "Startup Founder",
+        "body": "We launched our MVP in two weeks. Everything from marketing pages to auth was ready—we just rewrote the copy for our audience."
+      },
+      "john": {
+        "name": "John",
+        "position": "Senior Developer",
+        "body": "The DX is unmatched. The stack works out of the box and stays flexible enough to shape around our product narrative."
+      },
+      "sarah": {
+        "name": "Sarah",
+        "position": "Product Manager",
+        "body": "We scaled from prototype to thousands of users without drama. Analytics, billing, and marketing flows were ready to customize."
+      },
+      "mike": {
+        "name": "Mike",
+        "position": "Engineering Lead",
+        "body": "The community is stellar. Fast answers, launch feedback, and constant improvements keep our team moving."
+      }
+    }
+  },
+  "faq": {
+    "label": "FAQ",
+    "title": "Have a question? We got answers",
+    "description": "Find answers to frequently asked questions about features, pricing, implementation, and getting started with our platform.",
+    "cta": "Contact us",
+    "question": {
+      "whatDoesOurPlatformDo": {
+        "question": "What does our platform do?",
+        "answer": "Akashic Labs gives you a full-stack SaaS foundation—marketing site, web app, mobile apps, and extensions—so you can focus on your unique customer experience."
+      },
+      "howWillThisBenefitMyBusiness": {
+        "question": "How will this benefit my business?",
+        "answer": "You launch faster, ship features sooner, and convert more leads because the core product, analytics, and billing flows are already in place."
+      },
+      "isMyDataSafe": {
+        "question": "Is my data safe?",
+        "answer": "Yes. We follow enterprise-grade security practices and provide guardrails so you can adapt policies to your industry requirements."
+      },
+      "whatKindOfIntegrationsAreAvailable": {
+        "question": "What kind of integrations are available?",
+        "answer": "Akashic Labs ships with popular SaaS integrations out of the box, and the modular architecture makes adding your stack straightforward."
+      },
+      "howEasyIsItToOnboardMyTeam": {
+        "question": "How easy is it to onboard my team?",
+        "answer": "Your team can dive in quickly with clear docs, TypeScript-first patterns, and examples that show exactly where to customize."
+      },
+      "whatTypesOfBusinessesCanUseThis": {
+        "question": "What types of businesses can use this?",
+        "answer": "From solo founders to enterprise innovation teams, Akashic Labs adapts to any SaaS use case that needs a head start."
+      },
+      "canICustomizeThisToFitMyBusinessNeeds": {
+        "question": "Can I customize this to fit my business needs?",
+        "answer": "Absolutely. Every module is designed for quick customization—update copy, swap components, and extend logic without fighting the framework."
+      }
+    }
+  },
+  "contact": {
+    "label": "Contact",
+    "title": "Get in touch with us today for support",
+    "cta": "Talk to sales",
+    "description": "Reach us for assistance or feedback",
+    "form": {
+      "name": {
+        "placeholder": "John Doe"
+      },
+      "email": {
+        "placeholder": "your@email.com"
+      },
+      "message": {
+        "placeholder": "How can we help you?"
+      },
+      "submit": "Send message",
+      "success": {
+        "title": "Message sent!",
+        "description": "Thank you for your message. We'll get back to you soon."
+      }
+    },
+    "email": {
+      "subject": "You've received a new contact form submission",
+      "body": "New contact form submission"
+    }
+  },
+  "blog": {
+    "label": "Blog",
+    "title": "News and updates about the platform",
+    "description": "Stay up to date with the latest news, insights, and updates from our platform. Discover new features, best practices, and industry trends.",
+    "timeToRead": "{{time}} min read",
+    "tag": {
+      "learning": "learning",
+      "skills": "skills",
+      "progress": "progress",
+      "product": "product",
+      "development": "development",
+      "prototype": "prototype",
+      "launch": "launch"
+    }
+  },
+  "api": {
+    "title": "API Reference",
+    "description": "Build integrations with our API"
+  },
+  "roadmap": {
+    "title": "Roadmap",
+    "description": "See what's coming next"
+  },
+  "docs": {
+    "title": "Docs",
+    "description": "Learn how to use Akashic Labs"
+  },
+  "ai": {
+    "description": "Unlock productivity and innovation with Akashic Labs's AI assistant. Get instant answers, automate tasks, and boost your workflow using advanced artificial intelligence—secure, reliable, and designed for modern teams.",
+    "prompt": {
+      "history": "Tell the history of the internet",
+      "capitals": "Quiz me on the world capitals",
+      "quantum": "Explain quantum computing",
+      "realWorld": "Describe a real-world AI case"
+    },
+    "placeholder": "Ask a question...",
+    "cta": "Submit"
+  },
+  "setup": {
+    "steps": {
+      "step": {
+        "start": {
+          "title": "This is a simple step",
+          "description": "You need to press Continue button to proceed to the next step"
+        },
+        "required": {
+          "title": "This is a required step",
+          "description": "You have to complete all the required fields to proceed to the next step",
+          "fields": {
+            "data": "I understand that my data is private and encrypted",
+            "privacy": "I've read and agree to the <a>Privacy Policy</a>"
+          }
+        },
+        "skip": {
+          "title": "This is a skip step",
+          "description": "You can skip this step and proceed to the next step"
+        },
+        "final": {
+          "title": "This is a final step",
+          "description": "You have completed all the steps, enjoy your new app!"
+        }
+      }
+    }
+  },
+  "update": {
+    "available": {
+      "title": "New update available!",
+      "description": "A new update is ready to be installed. Click below to install it or dismiss for later."
+    },
+    "installing": {
+      "title": "Installing update...",
+      "description": "The update is being installed. Please wait a moment."
+    }
+  }
+}

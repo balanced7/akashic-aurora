@@ -1,0 +1,145 @@
+{
+  "error": {
+    "default": "Ugyldig inndataverdi",
+    "type": "Forventet {{expected}}, men mottok {{received}}",
+    "type_with_path": "{{path}} skal være {{expected}}, men mottok {{received}}",
+    "undefined": "{{path}} er påkrevd",
+    "date": "Ugyldig datoformat",
+    "custom": "Ugyldig inndataverdi",
+    "notMultipleOf": "Tallet må være et multiplum av {{multipleOf}}",
+    "invalidKey": "Ugyldig nøkkel",
+    "invalidElement": "Ugyldig element: {{- origin}}",
+    "invalidValue_one": "Ugyldig verdi: {{- values}}, forventet {{expected}}",
+    "invalidValue_other": "Ugyldige verdier: {{- values}}, forventet {{expected}}",
+    "string": {
+      "generic": "Ugyldig format - {{format}}",
+      "email": "Skriv inn en gyldig e-postadresse",
+      "url": "Skriv inn en gyldig URL",
+      "uuid": "Skriv inn en gyldig UUID",
+      "cuid": "Skriv inn en gyldig CUID",
+      "regex": "Ugyldig format - {{validation}}",
+      "datetime": "Ugyldig format - {{validation}}",
+      "startsWith": "Må begynne med {{startsWith}}",
+      "endsWith": "Må slutte med {{endsWith}}"
+    },
+    "file": {
+      "type": "Kun {{type}}-filer godtas.",
+      "maxCount_one": "Du kan bare laste opp {{count}} fil.",
+      "maxCount_other": "Du kan laste opp maksimalt {{count}} filer."
+    },
+    "tooSmall": {
+      "array": {
+        "inclusive": "Må inneholde minst {{minimum}} element(er)",
+        "inclusive_one": "Må inneholde minst {{minimum}} element",
+        "inclusive_other": "Må inneholde minst {{minimum}} elementer",
+        "notInclusive": "Må inneholde flere enn {{minimum}} element(er)",
+        "notInclusive_one": "Må inneholde flere enn {{minimum}} element",
+        "notInclusive_other": "Må inneholde flere enn {{minimum}} elementer"
+      },
+      "string": {
+        "inclusive": "Må inneholde minst {{minimum}} tegn",
+        "inclusive_one": "Må inneholde minst {{minimum}} tegn",
+        "inclusive_other": "Må inneholde minst {{minimum}} tegn",
+        "inclusive_with_path": "{{path}} må inneholde minst {{minimum}} tegn",
+        "inclusive_with_path_one": "{{path}} må inneholde minst {{minimum}} tegn",
+        "inclusive_with_path_other": "{{path}} må inneholde minst {{minimum}} tegn",
+        "notInclusive": "Må inneholde flere enn {{minimum}} tegn",
+        "notInclusive_one": "Må inneholde flere enn {{minimum}} tegn",
+        "notInclusive_other": "Må inneholde flere enn {{minimum}} tegn",
+        "notInclusive_with_path": "{{path}} må inneholde flere enn {{minimum}} tegn",
+        "notInclusive_with_path_one": "{{path}} må inneholde flere enn {{minimum}} tegn",
+        "notInclusive_with_path_other": "{{path}} må inneholde flere enn {{minimum}} tegn"
+      },
+      "number": {
+        "inclusive": "Må være større enn eller lik {{minimum}}",
+        "inclusive_with_path": "{{path}} må være større enn eller lik {{minimum}}",
+        "notInclusive": "Må være større enn {{minimum}}",
+        "notInclusive_with_path": "{{path}} må være større enn {{minimum}}"
+      },
+      "set": {
+        "inclusive": "Ugyldig inndataverdi",
+        "notInclusive": "Ugyldig inndataverdi"
+      },
+      "date": {
+        "inclusive": "Datoen må være {{- minimum, datetime}} eller senere",
+        "notInclusive": "Datoen må være etter {{- minimum, datetime}}"
+      },
+      "file": {
+        "inclusive": "Filstørrelsen må være større enn eller lik {{minimum}} MB",
+        "notInclusive": "Filstørrelsen må være større enn {{minimum}} MB"
+      }
+    },
+    "tooBig": {
+      "array": {
+        "inclusive": "Må inneholde maksimalt {{maximum}} element(er)",
+        "inclusive_one": "Må inneholde maksimalt {{maximum}} element",
+        "inclusive_other": "Må inneholde maksimalt {{maximum}} elementer",
+        "notInclusive": "Må inneholde færre enn {{maximum}} element(er)",
+        "notInclusive_one": "Må inneholde færre enn {{maximum}} element",
+        "notInclusive_other": "Må inneholde færre enn {{maximum}} elementer"
+      },
+      "string": {
+        "inclusive": "Må inneholde maksimalt {{maximum}} tegn",
+        "inclusive_one": "Må inneholde maksimalt {{maximum}} tegn",
+        "inclusive_other": "Må inneholde maksimalt {{maximum}} tegn",
+        "inclusive_with_path": "{{path}} kan ikke overstige {{maximum}} tegn",
+        "inclusive_with_path_one": "{{path}} kan ikke overstige {{maximum}} tegn",
+        "inclusive_with_path_other": "{{path}} kan ikke overstige {{maximum}} tegn",
+        "notInclusive": "Må inneholde færre enn {{maximum}} tegn",
+        "notInclusive_one": "Må inneholde færre enn {{maximum}} tegn",
+        "notInclusive_other": "Må inneholde færre enn {{maximum}} tegn",
+        "notInclusive_with_path": "{{path}} må inneholde færre enn {{maximum}} tegn",
+        "notInclusive_with_path_one": "{{path}} må inneholde færre enn {{maximum}} tegn",
+        "notInclusive_with_path_other": "{{path}} må inneholde færre enn {{maximum}} tegn"
+      },
+      "number": {
+        "inclusive": "Må være mindre enn eller lik {{maximum}}",
+        "inclusive_with_path": "{{path}} må være mindre enn eller lik {{maximum}}",
+        "notInclusive": "Må være mindre enn {{maximum}}",
+        "notInclusive_with_path": "{{path}} må være mindre enn {{maximum}}"
+      },
+      "set": {
+        "inclusive": "Ugyldig inndataverdi",
+        "notInclusive": "Ugyldig inndataverdi"
+      },
+      "date": {
+        "inclusive": "Datoen må være {{- maximum, datetime}} eller tidligere",
+        "notInclusive": "Datoen må være før {{- maximum, datetime}}"
+      },
+      "file": {
+        "inclusive": "Filstørrelsen må være mindre enn eller lik {{maximum}} MB",
+        "notInclusive": "Filstørrelsen må være mindre enn {{maximum}} MB"
+      }
+    }
+  },
+  "validation": {
+    "email": "e-postadresse",
+    "url": "URL",
+    "uuid": "uuid",
+    "cuid": "cuid",
+    "regex": "regulært uttrykk",
+    "datetime": "dato og tid"
+  },
+  "type": {
+    "function": "funksjon",
+    "number": "tall",
+    "string": "tekst",
+    "nan": "nan",
+    "integer": "heltall",
+    "float": "desimaltall",
+    "boolean": "boolsk verdi",
+    "date": "dato",
+    "bigint": "bigint",
+    "undefined": "udefinert",
+    "symbol": "symbol",
+    "null": "null",
+    "array": "matrise",
+    "object": "objekt",
+    "unknown": "ukjent",
+    "promise": "promise",
+    "void": "void",
+    "never": "never",
+    "map": "map",
+    "set": "set"
+  }
+}

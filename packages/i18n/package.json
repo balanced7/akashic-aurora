@@ -1,0 +1,36 @@
+{
+  "name": "@akashic-labs/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts",
+    "./with-i18n": "./src/server/with-i18n.tsx",
+    "./env": "./src/env.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "prettier": "@akashic-labs/prettier-config",
+  "dependencies": {
+    "@akashic-labs/shared": "workspace:*",
+    "i18next": "25.7.3",
+    "i18next-browser-languagedetector": "8.2.0",
+    "i18next-resources-to-backend": "1.2.1",
+    "negotiator": "1.0.0",
+    "react-i18next": "16.5.0"
+  },
+  "devDependencies": {
+    "@akashic-labs/eslint-config": "workspace:*",
+    "@akashic-labs/prettier-config": "workspace:*",
+    "@akashic-labs/tsconfig": "workspace:*",
+    "@types/negotiator": "0.6.4",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:"
+  }
+}

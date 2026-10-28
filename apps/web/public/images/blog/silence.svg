@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <radialGradient id="a" cx="25%" cy="20%" r="75%"><stop offset="0" stop-color="#0ac8b9" stop-opacity="0.55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b" cx="85%" cy="90%" r="60%"><stop offset="0" stop-color="#c8aa6e" stop-opacity="0.35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#fff" stroke-opacity="0.05"/></pattern>
+  </defs>
+  <rect width="1200" height="800" fill="#030405"/>
+  <rect width="1200" height="800" fill="url(#g)"/>
+  <rect width="1200" height="800" fill="url(#a)"/>
+  <rect width="1200" height="800" fill="url(#b)"/>
+  <path d="M90 70h40M90 70v40M1110 730h-40M1110 730v-40" stroke="#c8aa6e" stroke-width="3"/>
+  <text x="90" y="560" fill="#fff" font-family="Figtree, Helvetica, Arial, sans-serif" font-size="88" font-weight="600" letter-spacing="-3">Silence beats</text>
+  <text x="90" y="660" fill="#fff" fill-opacity="0.6" font-family="Figtree, Helvetica, Arial, sans-serif" font-size="88" font-weight="600" letter-spacing="-3">a weak hint</text>
+  <text x="90" y="150" fill="#c8aa6e" font-family="monospace" font-size="24" letter-spacing="6">AKASHIC LABS · AURORA</text>
+</svg>

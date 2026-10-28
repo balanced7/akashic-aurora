@@ -1,0 +1,130 @@
+{
+  "home": {
+    "header": {
+      "title": "Superadministrator",
+      "description": "Få oversikt over hele SaaS-en din og administrer alle ressursene på ett sted."
+    },
+    "summary": {
+      "users": "Antall personlige kontoer som er opprettet.",
+      "organizations": "Antall organisasjoner som er opprettet.",
+      "customers": "Antall kunder i SaaS-en din."
+    }
+  },
+  "users": {
+    "header": {
+      "title": "Brukere",
+      "description": "Administrer brukerne dine og rollene deres."
+    },
+    "user": {
+      "details": {
+        "role": {
+          "update": {
+            "success": "Brukerens rolle ble oppdatert!"
+          }
+        },
+        "name": {
+          "update": {
+            "success": "Brukerens navn ble oppdatert!"
+          }
+        }
+      },
+      "ban": {
+        "description": "Utesteng denne brukeren fra plattformen. Du kan oppgi en årsak og eventuelt en utløpsdato for utestengelsen.",
+        "success": "Brukeren ble utestengt!",
+        "form": {
+          "reason": {
+            "info": "Oppgi årsaken til utestengelsen."
+          },
+          "expiresIn": {
+            "info": "Oppgi utløpsdato for utestengelsen, eller la feltet stå tomt for permanent utestengelse."
+          }
+        }
+      },
+      "unban": {
+        "success": "Utestengelsen ble opphevet!"
+      },
+      "delete": {
+        "title": "Slett {{name}}",
+        "disclaimer": "Du er i ferd med å slette denne brukeren. \n\nEtter sletting blir alle brukerdata (inkludert økter og tillatelser) permanent slettet og kan ikke gjenopprettes. \n\nVil du fortsette?",
+        "success": "Brukeren ble slettet!"
+      },
+      "accounts": {
+        "delete": {
+          "success": "Kontoen ble slettet!"
+        },
+        "password": {
+          "update": {
+            "title": "Oppdater passordet til {{name}}",
+            "description": "Velg et sterkt passord som oppfyller sikkerhetskravene. Denne handlingen oppdaterer brukerens påloggingsinformasjon umiddelbart.",
+            "success": "Kontoens passord ble oppdatert!",
+            "info": "Oppgi det nye passordet for kontoen."
+          }
+        }
+      },
+      "sessions": {
+        "revokeAll": {
+          "success": "Alle økter ble opphevet!"
+        }
+      }
+    }
+  },
+  "organizations": {
+    "header": {
+      "title": "Organisasjoner",
+      "description": "Administrer organisasjonene dine og medlemmene deres."
+    },
+    "organization": {
+      "delete": {
+        "title": "Slett {{name}}",
+        "disclaimer": "Du er i ferd med å slette denne organisasjonen. \n\nEtter sletting blir alle organisasjonsdata (inkludert medlemmer og team) permanent slettet og kan ikke gjenopprettes. \n\nVil du fortsette?",
+        "success": "Organisasjonen ble slettet!"
+      },
+      "details": {
+        "name": {
+          "update": {
+            "success": "Organisasjonens navn ble oppdatert!"
+          }
+        },
+        "slug": {
+          "update": {
+            "success": "Organisasjonens kortnavn ble oppdatert!"
+          }
+        }
+      }
+    }
+  },
+  "customers": {
+    "header": {
+      "title": "Kunder",
+      "description": "Administrer kundene dine og abonnementene deres."
+    },
+    "customer": {
+      "delete": {
+        "success": "Kunden ble slettet!"
+      },
+      "updatePlan": {
+        "title": "Oppdater abonnementet til {{name}}",
+        "description": "Velg et abonnement og en status for kunden. Denne handlingen oppdaterer kundens abonnement og status umiddelbart.",
+        "plan": {
+          "info": "Abonnementet bestemmer funksjonene og prisen for kunden."
+        },
+        "status": {
+          "info": "Statusen bestemmer abonnementsstatusen for kunden."
+        },
+        "success": "Kundens abonnement ble oppdatert!"
+      }
+    }
+  },
+  "error": {
+    "cannotCreateUsers": "Du kan ikke opprette brukere.",
+    "cannotListUsers": "Du kan ikke liste opp brukere.",
+    "cannotUpdateUsers": "Du kan ikke oppdatere brukere.",
+    "cannotDeleteUsers": "Du kan ikke slette brukere.",
+    "cannotListUsersSessions": "Du kan ikke liste opp brukeres økter.",
+    "cannotBanUsers": "Du kan ikke utestenge brukere.",
+    "cannotImpersonateUsers": "Du kan ikke logge inn som andre brukere.",
+    "cannotRevokeUsersSessions": "Du kan ikke oppheve brukeres økter.",
+    "cannotSetUsersPassword": "Du kan ikke angi brukeres passord.",
+    "cannotImpersonateAdmins": "Du kan ikke logge inn som administratorer."
+  }
+}

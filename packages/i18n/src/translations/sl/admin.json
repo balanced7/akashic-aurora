@@ -1,0 +1,130 @@
+{
+  "home": {
+    "header": {
+      "title": "Glavni skrbnik",
+      "description": "Preglejte svoj SaaS na enem mestu in upravljajte vse svoje vire."
+    },
+    "summary": {
+      "users": "Število ustvarjenih osebnih računov.",
+      "organizations": "Število ustvarjenih organizacij.",
+      "customers": "Število strank vašega SaaS-a."
+    }
+  },
+  "users": {
+    "header": {
+      "title": "Uporabniki",
+      "description": "Upravljajte uporabnike in njihove vloge."
+    },
+    "user": {
+      "details": {
+        "role": {
+          "update": {
+            "success": "Vloga uporabnika je bila posodobljena!"
+          }
+        },
+        "name": {
+          "update": {
+            "success": "Ime uporabnika je bilo posodobljeno!"
+          }
+        }
+      },
+      "ban": {
+        "description": "Blokirajte tega uporabnika na platformi. Navedete lahko razlog in neobvezen datum poteka blokade.",
+        "success": "Uporabnik je bil blokiran!",
+        "form": {
+          "reason": {
+            "info": "Vnesite razlog za blokado uporabnika."
+          },
+          "expiresIn": {
+            "info": "Vnesite datum poteka blokade ali pustite prazno za trajno blokado."
+          }
+        }
+      },
+      "unban": {
+        "success": "Uporabnik je bil odblokiran!"
+      },
+      "delete": {
+        "title": "Izbriši {{name}}",
+        "disclaimer": "Izbrisali boste tega uporabnika. \n\nPo izbrisu bodo vsi njegovi podatki (vključno s sejami in dovoljenji) trajno izbrisani in jih ne bo mogoče obnoviti. \n\nAli želite nadaljevati?",
+        "success": "Uporabnik je bil izbrisan!"
+      },
+      "accounts": {
+        "delete": {
+          "success": "Račun je bil izbrisan!"
+        },
+        "password": {
+          "update": {
+            "title": "Posodobi geslo uporabnika {{name}}",
+            "description": "Izberite močno geslo, ki izpolnjuje varnostne zahteve. To dejanje bo takoj posodobilo uporabnikove prijavne podatke.",
+            "success": "Geslo računa je bilo posodobljeno!",
+            "info": "Vnesite novo geslo za račun."
+          }
+        }
+      },
+      "sessions": {
+        "revokeAll": {
+          "success": "Vse seje so bile preklicane!"
+        }
+      }
+    }
+  },
+  "organizations": {
+    "header": {
+      "title": "Organizacije",
+      "description": "Upravljajte organizacije in njihove člane."
+    },
+    "organization": {
+      "delete": {
+        "title": "Izbriši {{name}}",
+        "disclaimer": "Izbrisali boste to organizacijo. \n\nPo izbrisu bodo vsi podatki organizacije (vključno s člani in ekipami) trajno izbrisani in jih ne bo mogoče obnoviti. \n\nAli želite nadaljevati?",
+        "success": "Organizacija je bila izbrisana!"
+      },
+      "details": {
+        "name": {
+          "update": {
+            "success": "Ime organizacije je bilo posodobljeno!"
+          }
+        },
+        "slug": {
+          "update": {
+            "success": "Oznaka organizacije je bila posodobljena!"
+          }
+        }
+      }
+    }
+  },
+  "customers": {
+    "header": {
+      "title": "Stranke",
+      "description": "Upravljajte stranke in njihove naročnine."
+    },
+    "customer": {
+      "delete": {
+        "success": "Stranka je bila izbrisana!"
+      },
+      "updatePlan": {
+        "title": "Posodobi paket stranke {{name}}",
+        "description": "Izberite paket in stanje za stranko. To dejanje bo takoj posodobilo paket in stanje stranke.",
+        "plan": {
+          "info": "Paket določa funkcije in ceno za stranko."
+        },
+        "status": {
+          "info": "Stanje določa status naročnine za stranko."
+        },
+        "success": "Paket stranke je bil posodobljen!"
+      }
+    }
+  },
+  "error": {
+    "cannotCreateUsers": "Uporabnikov ne morete ustvarjati.",
+    "cannotListUsers": "Uporabnikov ne morete prikazati.",
+    "cannotUpdateUsers": "Uporabnikov ne morete posodabljati.",
+    "cannotDeleteUsers": "Uporabnikov ne morete brisati.",
+    "cannotListUsersSessions": "Sej uporabnikov ne morete prikazati.",
+    "cannotBanUsers": "Uporabnikov ne morete blokirati.",
+    "cannotImpersonateUsers": "Identitete uporabnikov ne morete prevzeti.",
+    "cannotRevokeUsersSessions": "Sej uporabnikov ne morete preklicati.",
+    "cannotSetUsersPassword": "Gesla uporabnikov ne morete nastaviti.",
+    "cannotImpersonateAdmins": "Identitete skrbnikov ne morete prevzeti."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "extends": "@akashic-labs/tsconfig/internal.json",
+  "compilerOptions": {
+    "lib": ["dom"],
+    "jsx": "preserve"
+  },
+  "include": ["*.ts", "src/**/*"],
+  "exclude": ["node_modules"]
+}

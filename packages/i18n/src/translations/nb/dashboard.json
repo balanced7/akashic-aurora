@@ -1,0 +1,26 @@
+{
+  "user": {
+    "home": {
+      "title": "Dashbord",
+      "description": "En oversikt over aktiviteten på din personlige konto på tvers av alle prosjektene dine."
+    }
+  },
+  "organization": {
+    "home": {
+      "title": "Organisasjonsdashbord",
+      "description": "En oversikt over organisasjonens aktivitet og resultater på tvers av alle prosjekter."
+    }
+  },
+  "chart": {
+    "showing": "Viser totalt antall besøkende for siste periode",
+    "trending": "Opp mot 5,2 % denne måneden",
+    "period": "Januar - juni 2024",
+    "bar": "Stolpediagram",
+    "pie": "Sektordiagram",
+    "area": "Arealdiagram",
+    "line": "Linjediagram",
+    "shape": "Formdiagram",
+    "radial": "Radialdiagram",
+    "radar": "Radardiagram"
+  }
+}

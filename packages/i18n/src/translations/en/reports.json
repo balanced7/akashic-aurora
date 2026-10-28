@@ -1,0 +1,20 @@
+{
+  "home": {
+    "title": "Reports",
+    "description": "An overview of the reports you and your partner can take together."
+  },
+  "reports": {
+    "compatibility": {
+      "title": "Compatibility Report",
+      "description": "Analyze the compatibility between you and your partner based on various factors."
+    },
+    "love_languages": {
+      "title": "Love Languages",
+      "description": "Discover your love languages and how they impact your relationship."
+    }
+  },
+  "actions": {
+    "take_report": "Take Report",
+    "view_results": "View Results"
+  }
+}

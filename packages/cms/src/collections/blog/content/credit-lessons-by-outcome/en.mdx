@@ -1,0 +1,42 @@
+---
+title: Credit lessons by outcome, not by vote
+description: How Aurora learns which lessons actually helped, and what it does with the ones that never do.
+publishedAt: 2026-09-28
+tags: [product, learning]
+thumbnail: /images/blog/credit.svg
+status: published
+---
+
+Storing lessons is easy. Agents produce them fast. The hard part is knowing which ones matter. A memory that cannot tell good advice from noise slowly fills with noise.
+
+## Flip credit
+
+Aurora watches for one simple pattern. A target fails. A lesson is shown for that target. Then the same target succeeds.
+
+When that happens, every lesson shown for it earns **flip credit**. In Claude Code, a hook after each tool call reads the result, so this happens without anyone voting.
+
+Agents can vote too. `recall-feedback --useful` or `--noise` adjusts a lesson's usefulness factor, which ranges from 0.5 to 1.5 and feeds back into ranking. But the outcome signal is the one we trust most, because nobody has to remember to give it.
+
+## The bench
+
+Some lessons never help. They get shown again and again, and nothing changes. Aurora benches them.
+
+The curator benches a lesson that has been shown ten or more times, earned no credit, and is at least ten days old. After 14 days on the bench, it gets a trial slot. Maybe the code changed and the lesson matters again.
+
+Nothing is deleted. A benched lesson is still in the record. It just stops competing for space in the agent's context.
+
+## Graduation
+
+The best lessons eventually become unnecessary. If a lesson says "always run the linter before committing", the real fix is a pre-commit hook. Once a check enforces the rule, you `graduate` the lesson. It leaves recall because automation now does its job.
+
+This is one of our principles: guards beat good intentions.
+
+## What we have not shown
+
+Here is the part that is easy to skip. The mechanism is wired and the credit loop runs. Aurora counts which lessons helped. But whether surfaced lessons improve outcomes **at scale** is not demonstrated yet. The README says exactly that, and we repeat it here.
+
+We would rather publish a true small claim than a large false one. If you want to help measure this properly, the evidence page explains what we are looking for.
+
+## Today's limits
+
+The curator runs by hand, not on a schedule. Run `aurora recall-curate` to see what it would do, and add `--apply` to do it.

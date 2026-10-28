@@ -1,0 +1,43 @@
+{
+  "name": "@akashic-labs/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts",
+    "./server": "./src/server.ts",
+    "./client/*": "./src/client/*.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "db:generate": "cross-env SKIP_ENV_VALIDATION=1 bunx @better-auth/cli@1.4.3 generate --config src/server.ts --output ../db/src/schema/auth.ts --y",
+    "db:seed": "cross-env SKIP_ENV_VALIDATION=1 bunx tsx ./src/scripts/seed.ts",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "prettier": "@akashic-labs/prettier-config",
+  "dependencies": {
+    "@akashic-labs/db": "workspace:*",
+    "@akashic-labs/email": "workspace:*",
+    "@akashic-labs/i18n": "workspace:*",
+    "@akashic-labs/shared": "workspace:*",
+    "@better-auth/expo": "1.4.9",
+    "@better-auth/passkey": "1.4.9",
+    "better-auth": "1.4.9",
+    "envin": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@akashic-labs/eslint-config": "workspace:*",
+    "@akashic-labs/prettier-config": "workspace:*",
+    "@akashic-labs/tsconfig": "workspace:*",
+    "@akashic-labs/vitest-config": "workspace:*",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
