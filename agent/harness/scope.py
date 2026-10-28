@@ -52,11 +52,22 @@ def file_in_scope(path: str) -> bool:
     return under_root(path or "")
 
 
+def _root_spellings() -> tuple:
+    """This checkout's path as a command may spell it, lowercased: native, forward-slash, and
+    git-bash (/e/AI-Setup) for a Windows drive. Derived, so a clone anywhere is recognised --
+    matching the literal 'ai-setup' only ever recognised one machine's folder name."""
+    fwd = _ROOT_RAW.replace("\\", "/").rstrip("/").lower()
+    out = {fwd, fwd.replace("/", "\\")}
+    if len(fwd) > 1 and fwd[1] == ":":
+        out.add(f"/{fwd[0]}{fwd[2:]}")
+    return tuple(out)
+
+
 def shell_in_scope(cwd: str, command: str) -> bool:
     """A shell action belongs to this repo iff the session cwd is inside it, or the command
-    clearly invokes it (an AI-Setup path / agent_cli.py). In a project-launched session both
-    branches are naturally True."""
+    clearly invokes it (a path to this checkout / agent_cli.py). In a project-launched session
+    both branches are naturally True."""
     if under_root(cwd or ""):
         return True
     cl = (command or "").lower()
-    return "ai-setup" in cl or "agent_cli.py" in cl
+    return "agent_cli.py" in cl or any(r in cl for r in _root_spellings())

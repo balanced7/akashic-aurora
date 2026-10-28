@@ -34,7 +34,7 @@ try:
     from core.paths import repo_root as _rr
     BASE = _rr()
 except Exception:
-    BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+    BASE = Path(__file__).resolve().parents[2]
 SNAP_DIR = BASE / "backups" / "snapshots"
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 STORE_DB = BASE / "session_logs" / "store_state.db"
