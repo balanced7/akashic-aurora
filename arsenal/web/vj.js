@@ -35,8 +35,9 @@
 //   the velocity tiers (soft single, medium one-two, hard triple) and the gate the dial picks (AUTO, or one of 15 fixed
 //   gates; its click back to AUTO); V (or the learnable Laser vibrate) makes the beams ring; C (or Lasers: classic) brings
 //   back the old burst exactly. The gates run on the page grid, the continuous beat position of the BeatClock (vj-core.js,
-//   S2). A scene tagged `laser-heads` (the Laser Cathedral) draws its own heads from the strip's head bus (v3) and the beam
-//   layer only the hero's. Fader 1 is the THEME fader (21 themes, Custom at the top: Hue A and B, turned by fader 2), the
+//   S2). A scene tagged `laser-heads` (the Laser Cathedral) takes its heads from the strip's head bus (v3); since
+//   2026-10-28 (Daniel's option C) the beam layer draws them at the scene's own heads, with the hero's, and the haze fluid
+//   lights from their steady picture (packHeads). Fader 1 is the THEME fader (21 themes, Custom at the top: Hue A and B, turned by fader 2), the
 //   family tabs (F1-F8, or learned buttons) pick a family, and the song's key picks one too (key auto); a theme lands on
 //   the next bar and sets the scene's palette, the kick glow, the lasers' colours and the pad lights (LED stand-ins). The
 //   engine's hello names its tap controls (the Tap button and pad 12 by default): a pad that taps fires no effect.
@@ -89,7 +90,7 @@ import { createLaserEngine, SEG_TEXELS, MAX_SEGMENTS, SEG_FLOATS, HALO_CUTOFF_PX
 import { fetchLibrary, ThemeDirector, themeAtFader, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
          clockFromBeatClock as themeClockOf, customTurnFromFader, ColourStepper } from "./vj-themes.js";
 import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, GateDial, gateLabel,
-         customLaserTheme, standInLed, capHue, airOf } from "./vj-hookup.js";
+         customLaserTheme, standInLed, capHue, airOf, cathedralBeams, CathedralHeads } from "./vj-hookup.js";
 // Pads v2 (VJ V2, 2026-10-27): the grammar every pad speaks -- velocity is size, a second press within a bar escalates,
 // one-shots land on the grid, repeats move, holds become motions -- the hero's charge, build then drop, Safety
 import { PadPlay, HeroCharge, BuildDrop, safetyAct, verbOf, SPOTS, co2Jets, lineAfter, escalateGlitch } from "./vj-pads.js";
@@ -760,6 +761,9 @@ const lasers = {
   eng: createLaserEngine({ seed: LASER_SEED, aspect: 16 / 9 }), seed: LASER_SEED,
   dial: new GateDial(), presses: new PressGate(),
   packed: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), n: 0, heroOnly: false,
+  heroN: 0, cath: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), cathRows: 0,   // option C: the Cathedral's heads in the beam layer
+  heads: new CathedralHeads(), dt: 0,        // ... their halos held through a gate's gaps, their cores fitted (vj-hookup.js)
+  air: new Float32Array(MAX_SEGMENTS * SEG_FLOATS), airN: 0,   // ... and their steady picture: the haze fluid's light source
   bus: new Float32Array(24), busOn: false,
   gain: 1, cut: false, dampT: null,          // Choke cuts the beams until the next hit; Dampen fades them
   pinned: false,                             // P: every hit repeats the last one (vj-lasers.js pin)
@@ -1139,7 +1143,7 @@ function dropAllFbs() {
   G.pool = [];
   deletePair(G.ov); G.ov = null;
   if (G.frz) { deletePair(G.frz); G.frz = null; }
-  for (const k of ["cmp", "stut", "meter1", "meterMid", "meter2", "beam"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
+  for (const k of ["cmp", "stut", "meter1", "meterMid", "meter2", "beam", "beamAir"]) if (G[k]) { deletePair(G[k]); G[k] = null; }
 }
 function ensureFb(set) {
   if (set.fb && (set.fb.w !== G.width || set.fb.h !== G.height)) { deletePair(set.fb); set.fb = null; }
@@ -1163,6 +1167,9 @@ function resizeIfNeeded() {
   if (!G.cmp) G.cmp = createPair(G.width, G.height);     // the composite's own pair: its previous frame feeds the glitch
   if (!G.stut) G.stut = createSingle(G.width, G.height); // the frame held at the last glitch (the stutter's slices)
   if (!G.beam) G.beam = createSingle(G.width, G.height); // the beam layer (Lasers v2): redrawn every frame, no feedback
+  // the air's light source for a laser-heads scene (option C): the heads' steady picture at half size (the fluid reads its
+  // light at 256 x 144 anyway; the beam pass keeps a line's light at any size)
+  if (!G.beamAir) G.beamAir = createSingle(Math.max(1, Math.ceil(G.width / 2)), Math.max(1, Math.ceil(G.height / 2)));
   if (!G.meter1) G.meter1 = createSingle(64, 36, true);  // the scene meter: NEAREST, read with texelFetch
   if (!G.meterMid) G.meterMid = createSingle(8, 6, true);
   if (!G.meter2) G.meter2 = createSingle(1, 1, true);
@@ -1782,12 +1789,13 @@ function updateLasers(nowMs, dt) {
   if (lasers.dampT !== null) lasers.gain *= Math.exp(-dt / LASER_DAMPEN_TAU_S);
   const p = packBeams(out, lasers.heroOnly, lasers.packed);
   lasers.seg = p.seg; lasers.n = lasers.cut || lasers.gain < 0.002 ? 0 : p.n;
+  lasers.heroN = p.n; lasers.cathRows = 0; lasers.airN = 0; lasers.dt = dt;
   lasers.frames++;
   if (out.n > 0) lasers.litFrames++;
   if (out.area.over) lasers.over++;
   lasers.maxWindow = Math.max(lasers.maxWindow, out.area.window);
   lasers.maxFrame = Math.max(lasers.maxFrame, out.area.frame);
-  // the head bus, for a scene that draws its own heads (the Cathedral): the engine's levels scaled by Dampen / Choke
+  // the head bus, for a scene with its own heads (the Cathedral): the engine's levels scaled by Dampen / Choke
   lasers.busOn = lasers.heroOnly && !options.lasersClassic;
   if (lasers.busOn) {
     headBus(eng, lasers.bus);
@@ -1799,22 +1807,55 @@ function updateLasers(nowMs, dt) {
     if (lasers.cut) lasers.bus[3] = 1;
   }
 }
-// the beam layer: the frame's records into the texture, then the pass (cleared once when there is nothing to draw)
+// Daniel's option C (2026-10-28, "let the page's haze fluid light the scene's heads"): a laser-heads scene's heads go
+// through the beam layer too, after the strip is built (vj-hookup.js cathedralBeams reads the same texels the scene
+// does: its foci, its pads, the head bus). Their rows come first (a fan keeps its rows while it is lit, so the air's
+// stirs can follow it), then the hero's. The scene draws only the heads' lenses and its own idle beams and pad fans.
+// While a laser gate runs, the heads' halos are held through its dark gaps and only their cores pulse, fitted under gate
+// v2's swings (vj-hookup.js CathedralHeads), so the air glows steadily and the limiter has nothing to darken.
+function packHeads() {
+  if (!lasers.busOn || lasers.cut || lasers.gain < 0.002) { lasers.heads.reset(); return; }
+  const live = sets[deck.running ? deck.b : deck.a];
+  const k = live && live.knobs ? live.knobs : null;
+  const opts = { asp: G.width > 0 && G.height > 0 ? G.width / G.height : 16 / 9, gain: lasers.gain,
+                 sweep: k ? k[0] : undefined, width: k ? k[2] : undefined, spread: k ? k[3] : undefined };
+  lasers.heads.update(strip, opts, lasers.dt);
+  opts.hold = lasers.heads;
+  const rows = cathedralBeams(strip, opts, lasers.cath, 0, MAX_SEGMENTS - lasers.heroN);
+  if (!rows) return;
+  if (lasers.heroN) lasers.cath.set(lasers.packed.subarray(0, lasers.heroN * SEG_FLOATS), rows * SEG_FLOATS);
+  lasers.seg = lasers.cath; lasers.n = rows + lasers.heroN; lasers.cathRows = rows;
+  // the air's light source: the same heads, steady (their held halos, their fitted cores at the held level), and the
+  // hero's beams as drawn -- so the fog and CO2 the heads light glow steadily under a gate instead of breathing with it
+  if (AIR_MODE === "off") return;
+  opts.steady = true;
+  const air = cathedralBeams(strip, opts, lasers.air, 0, MAX_SEGMENTS - lasers.heroN);
+  if (lasers.heroN) lasers.air.set(lasers.packed.subarray(0, lasers.heroN * SEG_FLOATS), air * SEG_FLOATS);
+  lasers.airN = air + lasers.heroN;
+}
+// the beam layer: the frame's records into the texture, then the pass (cleared once when there is nothing to draw);
+// for a laser-heads scene with the air on, also the heads' steady picture into the air's own (half-size) target
 function renderBeams() {
   const gl = G.gl, b = G.beam;
   gl.bindFramebuffer(gl.FRAMEBUFFER, b.fbos[0]);
   gl.viewport(0, 0, b.w, b.h);
   if (!lasers.n || options.lasersClassic) {
     if (!G.beamClear) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); G.beamClear = true; }
+    lasers.airN = 0;
     return;
   }
   G.beamClear = false;
+  beamPass(lasers.seg, lasers.n, b);
+  if (lasers.airN && G.beamAir) { gl.bindFramebuffer(gl.FRAMEBUFFER, G.beamAir.fbos[0]); gl.viewport(0, 0, G.beamAir.w, G.beamAir.h); beamPass(lasers.air, lasers.airN, G.beamAir); }
+}
+function beamPass(seg, n, target) {
+  const gl = G.gl;
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, G.segTex);
-  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SEG_TEXELS, lasers.n, gl.RGBA, gl.FLOAT, lasers.seg, 0);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SEG_TEXELS, n, gl.RGBA, gl.FLOAT, seg, 0);
   gl.useProgram(G.beamProg);
-  gl.uniform1i(G.beamU.u_n, lasers.n);
-  gl.uniform2f(G.beamU.u_res, b.w, b.h);
+  gl.uniform1i(G.beamU.u_n, n);
+  gl.uniform2f(G.beamU.u_res, target.w, target.h);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 function laserGate() { lasers.eng.set({ gateMode: lasers.dial.gate }); }
@@ -2962,6 +3003,7 @@ function onFrame(rafNow) {
   if (deck.running && nowMs - deck.start >= deck.ms) finishFade();
   updateLasers(nowMs, dt);        // before the strip: a laser-heads scene reads the head bus
   buildStrip(nowMs, nowS);
+  packHeads();                    // option C: a laser-heads scene's heads into the beam layer (reads the strip)
   buildAudio(nowS);
   padLights(nowMs, dt);
   persistValues(nowMs);
@@ -3113,7 +3155,7 @@ function updateHud(nowMs) {
     if (options.vibrate) lz += " · vibrate";
     if (lasers.pinned) lz += " · pinned";
     if (lo) lz += ` · change ${(100 * lo.area.window).toFixed(1)} % of a window`;
-    if (lasers.heroOnly) lz += " · heads drawn by the scene";
+    if (lasers.heroOnly) lz += ` · the scene's heads${lasers.heads.running && lasers.heads.coreK < 0.999 ? ` (cores fitted to ${Math.round(100 * lasers.heads.coreK)} %)` : ""}`;
   }
   if (tapPads.length) lz += ` · tap: pad ${[...new Set(tapPads.map((t) => t.pad))].join("/")}` +
     (tapLast ? ` (${tapLast.mode}${tapLast.bpm ? ` ${tapLast.bpm.toFixed(1)} bpm` : ""})` : "");
@@ -3459,7 +3501,7 @@ function wireUi() {
     G.lost = false;
     for (const s of sets) { s.program = null; s.fb = null; }
     G.pool = []; G.ov = null; G.frz = null; G.cmp = null; G.stut = null; G.meter1 = null; G.meterMid = null; G.meter2 = null; G.limiter = null;
-    G.beam = null;
+    G.beam = null; G.beamAir = null;
     if (initGL()) for (const s of sets) if (s.source) compileSet(s);
   });
 }
@@ -3552,6 +3594,9 @@ window.__vj = {
                dialSteps: lasers.dial.steps, dialIgnored: lasers.dial.ignored, vibrate: options.vibrate, seed: lasers.seed,
                hits: lasers.hits, refused: lasers.refused, last: lasers.last, held: lasers.held, cut: lasers.cut,
                gain: +lasers.gain.toFixed(3), records: o ? o.n : 0, uploaded: lasers.n, heroOnly: lasers.heroOnly,
+               heroRows: lasers.heroN, headRows: lasers.cathRows,
+               headFit: { coreK: +lasers.heads.coreK.toFixed(3), running: lasers.heads.running, fits: lasers.heads.fits,
+                          cell: +lasers.heads.last.cell.toFixed(3), window: +lasers.heads.last.window.toFixed(3) },
                busOn: lasers.busOn, bus: lasers.busOn ? Array.from(lasers.bus, (v) => +v.toFixed(3)) : null,
                pulses: lasers.pulses, flashes: lasers.flashes, frames: lasers.frames, litFrames: lasers.litFrames,
                overFrames: lasers.over, maxWindow: +lasers.maxWindow.toFixed(4), maxFrame: +lasers.maxFrame.toFixed(4),
@@ -3689,9 +3734,11 @@ function airFrame(dt) {
   if (AIR_MODE === "off" || airSim.error || !G.beam) return;
   try {
     if (!airSim.fx) airHand(attachFluid({ gl: G.gl, gate, live: limiterLive, now: () => performance.now() / 1000, quality: AIR_MODE, haze: AIR_HAZE }));
-    // the beams light the air at the gain the composite gives them (its u_beamGain)
+    // the beams light the air at the gain the composite gives them (its u_beamGain); a laser-heads scene's heads light it
+    // from their steady picture (renderBeams: option C)
     const lit = !(options.lasersClassic || G.beamClear || lasers.cut);
-    airSim.fx.inscatter(G.beam.texs[0], lit ? Math.min(1, (0.25 + T.accent) / 1.1) * Math.min(1, lasers.gain) : 0);
+    const src = lasers.airN && G.beamAir ? G.beamAir : G.beam;
+    airSim.fx.inscatter(src.texs[0], lit ? Math.min(1, (0.25 + T.accent) / 1.1) * Math.min(1, lasers.gain) : 0);
     airSim.fx.stirFromBeams(lasers.seg, lit ? lasers.n : 0, G.width / Math.max(G.height, 1), dt);
     airSim.fx.tint(palNow[0], palNow[1], palNow[2]);
     airSim.fx.step(dt);

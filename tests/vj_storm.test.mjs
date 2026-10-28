@@ -24,6 +24,14 @@ test("airlasers: pad 2 held for the whole run, fog held then CO2 into the lit be
     assert.equal(co2[k].f, f.f + f.hold, "CO2 fires as the fog push lets go (the judge's sequence)");
     assert.ok(co2[k].vel === 1 && co2[k].f + 60 < frames, "full velocity, with a second left to watch it bloom");
   });
-  // the other storms ask no floor (the limiter is their backstop by design)
-  for (const k of Object.keys(SCENARIOS)) if (k !== "airlasers") assert.equal(GAIN_FLOOR[k], undefined, k);
+  // the other storms ask no floor (the limiter is their backstop by design), but for the beats alone (below)
+  for (const k of Object.keys(SCENARIOS)) if (!["airlasers", "beats", "laserbeats"].includes(k)) assert.equal(GAIN_FLOOR[k], undefined, k);
+});
+
+test("beats: a track's beats and nothing else, held to the same gain floor (the Laser Cathedral's option C, 2026-10-28)", () => {
+  const s = stormSchedule("beats", 600);
+  assert.ok(SCENARIOS.beats && GAIN_FLOOR.beats === 0.5);
+  assert.ok(s.some((e) => e.act === "theme" && e.id === "dreaming-city" && e.f === 0));
+  assert.ok(s.some((e) => e.act === "beats" && e.bpm === 120 && e.f === 0));
+  assert.equal(s.filter((e) => e.pad).length, 0, "no pad at all");
 });

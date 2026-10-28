@@ -6,6 +6,7 @@
 //   node arsenal/lanes/vj_storm.mjs [--web <dir>] [--label L] [--phases storm,safe,cpu,adv,hires,calm,parity,meter,bench]
 //                                   [--sets id,id] [--scenarios a,b] [--seconds 10] [--width 640 --height 360]
 //                                   [--hires 1280x720,1920x1080] [--port 8975] [--out <dir>] [--lock-dir <dir>]
+//                                   [--phases looksheet --look-scenario airlasers --look-frames 12,60,...]
 //
 // WHY. 2026-10-24: the impact pass threw light that never asks the FlashGate; a verifier counted up to 6.5 flashes a
 // second in pad storms. Gate v2 (the final-output limiter) was built, and this receipt certified it with 28 of 28 storms
@@ -183,9 +184,14 @@ export const SCENARIOS = Object.freeze({
   // (2026-10-27, 960 x 540, 120 BPM: 30 of 213 frames with a corner under 0.5, up to 43 corners at 0; master the same,
   // 29 frames; the scene alone on the beats: none) -- a laser-heads matter, not the air's
   airlasers: "the lasers through the air (Dreaming City, a track's beats at 120 BPM): pad 2 held, pad 6 fog held 1.5 s, then pad 3 CO2 at full velocity into the lit beams, twice; gate v2's gains never under 0.5",
+  // the other side of airlasers (2026-10-28, the Laser Cathedral's option C): a set alone on a track's beats, no pad at
+  // all, must never need the limiter either
+  beats: "a track's beats at 120 BPM and nothing else (Dreaming City, no pads): the set alone on the beats; gate v2's gains never under 0.5",
+  // ... and airlasers without the air: the held laser loop alone on the beats (which of the two the limiter answers)
+  laserbeats: "a track's beats at 120 BPM (Dreaming City) and pad 2 held for the whole run, no other pad; gate v2's gains never under 0.5",
 });
 // the scenarios that also hold the limiter to a gain floor (every corner, every frame: what it had to darken)
-export const GAIN_FLOOR = Object.freeze({ airlasers: 0.5 });
+export const GAIN_FLOOR = Object.freeze({ airlasers: 0.5, beats: 0.5, laserbeats: 0.5 });
 export const ADV = Object.freeze({
   // id: [GLSL body, what it is]
   "adv-offgrid12": ["float on = step(0.5, fract(u_time * 8.0)); vec2 p = v_uv; float inR = step(0.122, p.x) * step(p.x, 0.628) * step(0.108, p.y) * step(p.y, 0.614); outColor = vec4(vec3(inR * on * 0.42), 1.0);",
@@ -290,6 +296,10 @@ export function stormSchedule(name, frames, seed = 7) {
       out.push({ f: f0, pad: 6, vel: 0.9, hold: 90 });
       out.push({ f: f0 + 90, pad: 3, vel: 1, hold: 3 });
     }
+  } else if (name === "beats" || name === "laserbeats") {
+    out.push({ f: 0, act: "theme", id: "dreaming-city" });
+    out.push({ f: 0, act: "beats", bpm: 120 });
+    if (name === "laserbeats") out.push({ f: 0, pad: 2, vel: 1, hold: frames + 5 });
   } else if (name === "calmset" || name.startsWith("adv-")) { /* nothing: the set (or the adversarial preset) alone */ }
   else throw new Error(`unknown storm ${name}`);
   return out;
@@ -325,9 +335,11 @@ export const STORM_PAGE = String.raw`(() => {
     }
   }
   // gains: read the limiter's corner gains every frame (a GPU readback: only the scenarios with a gain floor ask)
-  function run(schedule, frames, gains = false) {
+  // grab: frames whose shown picture is also kept as a tile (the look sheet, --phases looksheet), with the corner gains then
+  function run(schedule, frames, gains = false, grab = null) {
     const F = 1000 / 60, vj = window.__vj;
-    const G = { min: 1, frames_under_half: 0, first_under_half: -1, read: 0 };
+    const tiles = [], grabAt = new Set(grab ? grab.at : []);
+    const G = { min: 1, frames_under_half: 0, first_under_half: -1, read: 0, under: [] };   // under: [frame, min gain, corner] under 0.5
     let beats = null;   // a track's beats (act "beats"): the engine's beat events, each sent 220 ms ahead as the engine sends them
     const Lq = new Uint16Array(frames * NC), Rq = new Uint16Array(frames * NC);
     const byF = new Map(); for (const s of schedule) { if (!byF.has(s.f)) byF.set(s.f, []); byF.get(s.f).push(s); }
@@ -355,9 +367,16 @@ export const STORM_PAGE = String.raw`(() => {
       }
       window.__vt.step(F);
       measure();
+      let gmin = null;
       if (gains) {
         const l = vj.limiter();
-        if (l && l.on && l.a) { const m = Math.min(...l.a); G.read++; if (m < G.min) G.min = m; if (m < 0.5) { G.frames_under_half++; if (G.first_under_half < 0) G.first_under_half = f; } }
+        if (l && l.on && l.a) { const m = Math.min(...l.a); gmin = m; G.read++; if (m < G.min) G.min = m; if (m < 0.5) { G.frames_under_half++; if (G.first_under_half < 0) G.first_under_half = f; if (G.under.length < 120) G.under.push([f, +m.toFixed(3), Array.prototype.indexOf.call(l.a, m)]); } }
+      }
+      if (grabAt.has(f)) {   // in the same task as the step that drew it (the drawing buffer is not preserved)
+        const c = document.createElement("canvas"); c.width = grab.tw; c.height = grab.th;
+        c.getContext("2d").drawImage(canvas, 0, 0, grab.tw, grab.th);
+        let mean = 0, tot = 0; for (let k = 0; k < NC; k++) { mean += SL[k]; tot += N[k]; }
+        tiles.push({ f, c, gain_min: gmin === null ? null : +gmin.toFixed(3), mean_luma: +(mean / (tot || 1)).toFixed(4) });
       }
       for (let k = 0; k < NC; k++) { Lq[f * NC + k] = Math.min(65535, Math.round(SL[k] / N[k] * 65535)); Rq[f * NC + k] = Math.min(65535, Math.round(SR[k] / N[k] * 65535)); }
     }
@@ -365,6 +384,15 @@ export const STORM_PAGE = String.raw`(() => {
     const wall = Date.now() - t0;
     const b64 = (u16) => { const u8 = new Uint8Array(u16.buffer); let s = ""; for (let i = 0; i < u8.length; i += 32768) s += String.fromCharCode.apply(null, u8.subarray(i, i + 32768)); return btoa(s); };
     window.__storm.stash = { L: b64(Lq), R: b64(Rq) };
+    if (grab && tiles.length) {   // the look sheet: the tiles in rows of grab.cols, each labelled with its frame, gain and mean
+      const PAD = 18, cols = grab.cols, rows = Math.ceil(tiles.length / cols);
+      const s = document.createElement("canvas"); s.width = cols * grab.tw; s.height = rows * (grab.th + PAD);
+      const g = s.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, s.width, s.height); g.fillStyle = "#ddd"; g.font = "13px monospace";
+      tiles.forEach((t, i) => { const x = (i % cols) * grab.tw, y = Math.floor(i / cols) * (grab.th + PAD);
+        g.drawImage(t.c, x, y + PAD); g.fillText("f" + t.f + " (+" + Math.round(t.f * F) + " ms)  gain min " + t.gain_min + "  mean Y " + t.mean_luma, x + 4, y + 13); });
+      window.__storm.stash.sheet = s.toDataURL("image/png").slice(22);
+      window.__storm.tiles = tiles.map((t) => ({ f: t.f, gain_min: t.gain_min, mean_luma: t.mean_luma }));
+    }
     const st1 = vj.stats();
     let lim = null;
     try { const l = vj.limiter ? vj.limiter() : null; lim = l ? (l.on ? { on: true, mode: l.mode, format: l.format, leaks: l.leaks, frames: l.frames, rest: l.rest, run: l.run } : { on: false, error: l.error }) : null; } catch (e) { lim = { error: String(e) }; }
@@ -373,7 +401,7 @@ export const STORM_PAGE = String.raw`(() => {
              impact_hits: st1.impact ? st1.impact.hits - st0.impact.hits : null,
              lasers: st1.lasers && st0.lasers ? { hits: st1.lasers.hits - st0.lasers.hits, pulses: st1.lasers.pulses - st0.lasers.pulses,
                                                   over_frames: st1.lasers.overFrames - st0.lasers.overFrames, lit_frames: st1.lasers.litFrames - st0.lasers.litFrames,
-                                                  max_window: st1.lasers.maxWindow, mode: st1.lasers.mode } : null,
+                                                  max_window: st1.lasers.maxWindow, mode: st1.lasers.mode, head_fit: st1.lasers.headFit || null } : null,
              safe_refused: st1.limiter && st0.limiter ? (st1.limiter.safeRefused || 0) - (st0.limiter.safeRefused || 0) : null,
              limiter_stats: st1.limiter || null, limiter: lim, errors: vj.errors(), setA: st1.setA, air: vj.air ? vj.air() : null,
              gains: gains ? { ...G, min: +G.min.toFixed(4) } : null };
@@ -384,11 +412,11 @@ export const STORM_PAGE = String.raw`(() => {
 
 // One run in a page already loaded on the virtual clock (ev evaluates in it). mode: what the page was asked for ("gpu"
 // default, "cpu", "off"). Returns the judged result.
-export async function runStormInPage(ev, scenario, frames, { seed = 7, mode = "gpu" } = {}) {
+export async function runStormInPage(ev, scenario, frames, { seed = 7, mode = "gpu", grab = null } = {}) {
   await ev(STORM_PAGE);
   const sch = stormSchedule(scenario, frames, seed);
   const floor = GAIN_FLOOR[scenario];
-  const raw = await ev(`window.__storm.run(${JSON.stringify(sch)}, ${frames}, ${floor !== undefined})`, 1800000);
+  const raw = await ev(`window.__storm.run(${JSON.stringify(sch)}, ${frames}, ${floor !== undefined}, ${JSON.stringify(grab)})`, 1800000);
   const pull = async (key) => { const n = await ev(`window.__storm.len(${JSON.stringify(key)})`); let s = ""; for (let i = 0; i < n; i += 1 << 20) s += await ev(`window.__storm.slice(${JSON.stringify(key)}, ${i}, ${1 << 20})`); return s; };
   const Lb = Buffer.from(await pull("L"), "base64"), Rb = Buffer.from(await pull("R"), "base64");
   const L = new Uint16Array(Lb.buffer, Lb.byteOffset, Lb.length / 2), R = new Uint16Array(Rb.buffer, Rb.byteOffset, Rb.length / 2);
@@ -528,6 +556,8 @@ async function main() {
     "compare-webs": { type: "string", default: "" },
     reps: { type: "string", default: "3" },
     query: { type: "string", default: "" },   // appended to every page load (experiments)
+    "look-scenario": { type: "string", default: "airlasers" },   // the look sheet's storm (--phases looksheet)
+    "look-frames": { type: "string", default: "12,60,100,112,118,130,170,200,290,330,352,362" },
   } });
   const WEB = resolve(opt.web);
   const OTHER = opt["compare-webs"].split(",").filter(Boolean).map((x) => { const [label, ...dir] = x.split("="); return { label, dir: resolve(dir.join("=")) }; });
@@ -763,6 +793,28 @@ async function main() {
       writeFileSync(join(outDir, `air-sheet-${SETS[0]}.png`), Buffer.from(b64, "base64"));
       report.air_sheet = { set: SETS[0], file: `air-sheet-${SETS[0]}.png`, rows: AIR_SHEET_ROWS.map((x) => x.label), air: r.air };
       console.log(`[airsheet] ${SETS[0]}: air-sheet-${SETS[0]}.png (${Math.round(b64.length * 0.75 / 1024)} KB), air ${JSON.stringify(r.air)}`);
+    });
+  }
+
+  // the look sheet (opt-in: --phases looksheet): one storm (--look-scenario, airlasers by default) on the first set, judged
+  // as any storm, with the shown frames at --look-frames kept as a contact sheet PNG beside the receipt (the Laser
+  // Cathedral's before / after receipt, 2026-10-28: its heads through the beam layer into the haze fluid). Not counted in
+  // the verdict's runs.
+  if (PHASES.includes("looksheet")) {
+    await burst("looksheet", SIZE, async ({ ev, load }) => {
+      await load(`engine=off&hud=0&watchdog=0&sets=${SETS[0]}`);
+      await ev("(() => { for (let i = 0; i < 30; i++) window.__vt.step(1000 / 60); return true; })()");
+      const at = list(opt["look-frames"]).map(Number).filter((f) => f >= 0 && f < FRAMES);
+      const grab = { at, cols: 4, tw: Math.min(W, 480), th: Math.round(Math.min(W, 480) * H / W) };
+      const r = await runStormInPage(ev, opt["look-scenario"], FRAMES, { seed: Number(opt.seed), grab });
+      let b64 = "";
+      const n = await ev("window.__storm.len('sheet')");
+      for (let i = 0; i < n; i += 1 << 20) b64 += await ev(`window.__storm.slice('sheet', ${i}, ${1 << 20})`);
+      const file = `look-sheet-${SETS[0]}-${opt["look-scenario"]}.png`;
+      writeFileSync(join(outDir, file), Buffer.from(b64, "base64"));
+      const tiles = await ev("window.__storm.tiles");
+      report.look_sheet = { set: SETS[0], scenario: opt["look-scenario"], file, tiles, pass: r.pass, gains: r.gains, max_flashes_in_1s: r.max_flashes_in_1s, lasers: r.lasers, air: r.air };
+      console.log(`[looksheet] ${SETS[0]} ${opt["look-scenario"]}: ${file}; storm ${r.pass ? "PASS" : "FAIL"}, worst ${r.max_flashes_in_1s}/s${r.gains ? `, gains min ${r.gains.min} (${r.gains.frames_under_half} frames under 0.5)` : ""}; tiles ${tiles.map((t) => `f${t.f} g${t.gain_min} Y${t.mean_luma}`).join(" ")}`);
     });
   }
 

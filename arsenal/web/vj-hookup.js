@@ -5,7 +5,10 @@
 // what the page decides between them that can be tested without a browser:
 //   - the clock the laser engine reads: the page's BeatClock with its continuous beat position (vj-core.js, S2)  laserClock
 //   - the beam records the page uploads: all of them, or for a scene with its own heads (the `laser-heads` tag: the
-//     Laser Cathedral) only the hero head's, since that scene draws the other heads itself                       packBeams
+//     Laser Cathedral) only the hero head's, since that scene's heads stand elsewhere                           packBeams
+//   - the Cathedral's heads as beam records (Daniel's option C, 2026-10-28): the scene's own fan geometry, drawn by the
+//     page's beam layer so the haze fluid carries their light; their halos held through a gate's gaps and their
+//     cores fitted on gate v2's grid                                        cathedralBeams, coreCells, CathedralHeads
 //   - the head bus for such a scene: the engine's stripBus with each pad-grid head's colour slot (L1, L2, white)
 //     read from the records that head drew this frame, written into the VJ strip v3                headBus, writeHeadBus
 //   - which pads tap the engine's tempo (its hello's tap list): the page fires no effect for them      tapPadsOf, isTapPad
@@ -19,7 +22,7 @@
 // fader (Hue A and B moved into Custom); the dial picks the laser gate; on the laser pad soft = single, medium =
 // one-two, hard = triple (the engine's "normal" velocity tiers).
 
-import { GATE_IDS, GATES, HEADS, HERO_HEAD, SEG_FLOATS, MAX_SEGMENTS, GROUP_MARK, LEVEL_MAX, stripBus } from "./vj-lasers.js";
+import { GATE_IDS, GATES, HEADS, HERO_HEAD, SEG_FLOATS, MAX_SEGMENTS, GROUP_MARK, LEVEL_MAX, CORE_MAX_PX, stripBus } from "./vj-lasers.js";
 import { STRIP, stripSet } from "./vj-core.js";
 import { hls, toOklch, fromOklch, ledPostedOk, isSaturatedRed, linearToHex } from "./vj-themes.js";
 
@@ -43,7 +46,7 @@ export function laserClock(bc) {
 }
 
 // ------------------------------------------------------------------------------------------ the beam records --
-// The records to upload for the beam layer: { seg, n }. With heroOnly (a scene tagged `laser-heads` draws its own heads
+// The records to upload for the beam layer: { seg, n }. With heroOnly (a scene tagged `laser-heads` takes its heads
 // from the head bus) only the hero head's records are kept: its beams and every figure group (figures are drawn round
 // the hero, by the hero head), group headers kept with their pieces. Otherwise the engine's own buffer, uncopied.
 export function packBeams(out, heroOnly, dst = new Float32Array(MAX_SEGMENTS * SEG_FLOATS)) {
@@ -64,6 +67,232 @@ export function packBeams(out, heroOnly, dst = new Float32Array(MAX_SEGMENTS * S
     i++;
   }
   return { seg: dst, n: w };
+}
+
+// ------------------------------------------------------------------------------------- the Cathedral's heads --
+// Daniel's option C (2026-10-28), "let the page's haze fluid light the scene's heads": the Laser Cathedral's twelve
+// heads no longer draw their bus fans themselves. The page draws them in the beam layer (these records), so the haze
+// fluid scatters their light like every other beam (vj-fluid.js: the air's light rises no faster than the FlashGate's
+// edge), and the scene's long in-smoke halos no longer lift the whole frame on every pulse of a held laser loop (gate v2
+// cut those pulses: 132 of 600 frames with a corner gain under 0.5 in vj_storm's airlasers case on the Cathedral). The
+// geometry is the scene's own (presets/vj-laser-cathedral.frag: the 3 x 4 pad grid, the scissor foci stepping on the
+// beat, Converge and Rain), read from the same strip texels the shader reads, so the fans stand where the scene's
+// heads are. Each fan is one GROUP (its light from its nearest beam, as the scene's fanDistance did: no bead where the
+// beams meet); its beams are BEAM records, so they fade along themselves. A head whose pad envelope is above its bus
+// level stays the scene's (its pad fan), as before. Returns the rows written at dst[w0 ..], never past maxRows.
+// opts: { asp: width / height, sweep (k1), width (k3), spread (k4): the scene's knobs; gain: the Dampen / Choke gain
+// the page scaled the bus by (the beam layer applies it itself, so the records take the bus back to the engine's level) }.
+export const CATHEDRAL = Object.freeze({
+  PAD_VEL: 0.85,          // the scene's bus fan velocity (lv.y)
+  GLOW: 0.25,             // halo level per core level (held steady through a gate's gaps: CathedralHeads); a held
+                          // halo glows all the time a pulsing one only glowed in its pulses, so it is the lower
+  REACH_MARGIN: 0.02,     // the beams run this far past the frame's edge
+});
+const busAt = (strip, x, y, c) => strip[(y * STRIP.W + x) * 4 + c];
+const smoothstep = (a, b, x) => { const u = clamp01((x - a) / (b - a)); return u * u * (3 - 2 * u); };
+const q8lin = (v) => Math.round(Math.sqrt(clamp01(v)) * 255);
+const q12lvl = (v) => Math.round(clamp01(v / LEVEL_MAX) * 4095);
+// the distance from o along (dx, dy) to the frame's edge (centred units, height 1), past it by the margin
+function reachOf(ox, oy, dx, dy, asp) {
+  const hx = asp / 2;
+  let t = Infinity;
+  if (dx > 1e-9) t = Math.min(t, (hx - ox) / dx); else if (dx < -1e-9) t = Math.min(t, (-hx - ox) / dx);
+  if (dy > 1e-9) t = Math.min(t, (0.5 - oy) / dy); else if (dy < -1e-9) t = Math.min(t, (-0.5 - oy) / dy);
+  return Math.max(0.05, (Number.isFinite(t) ? t : 1) + CATHEDRAL.REACH_MARGIN);
+}
+export function cathedralHead(i, asp) {
+  const c = i % 4, r = Math.floor(i / 4);
+  return { x: (c - 1.5) * 0.30 * asp * 0.9, y: 0.36 - 0.36 * r, c, r };
+}
+export function cathedralBeams(strip, opts, dst, w0 = 0, maxRows = MAX_SEGMENTS) {
+  if (busAt(strip, 15, STRIP.ROW_PALETTE, 0) < 3) return 0;            // no head bus (an older strip)
+  const asp = opts.asp > 0 ? opts.asp : 16 / 9;
+  const sweep = opts.sweep ?? 0.55, widthK = opts.width ?? 0.4, spreadK = opts.spread ?? 0.55;
+  const hold = opts.hold || null, probe = !!opts.probe, steady = !!opts.steady && !!hold;
+  // the foci (the scene's stepB, focusA, focusB); a probe (CathedralHeads' fit) names its own step
+  const phase = busAt(strip, 12, STRIP.ROW_PADS, 0), count = busAt(strip, 12, STRIP.ROW_PADS, 3);
+  const chordPulse = busAt(strip, 15, STRIP.ROW_PADS, 0);
+  const stepB = opts.stepB ?? count + smoothstep(0, 0.45, phase) + 1.5 * chordPulse;
+  const amp = 0.15 + 0.55 * sweep;
+  const fAx = amp * asp * 0.5 * Math.sin(stepB * 1.5708), fAy = 0.05 + 0.32 * Math.cos(stepB * 1.0472);
+  const fBx = -fAx, fBy = -0.05 - 0.3 * Math.cos(stepB * 0.7854 + 1.0);
+  const pattern = busAt(strip, 9, STRIP.ROW_PALETTE, 1);
+  const L1 = [busAt(strip, 13, 2, 0), busAt(strip, 13, 2, 1), busAt(strip, 13, 2, 2)], beams = busAt(strip, 13, 2, 3);
+  const L2 = [busAt(strip, 14, 2, 0), busAt(strip, 14, 2, 1), busAt(strip, 14, 2, 2)], spreadBus = busAt(strip, 14, 2, 3);
+  const vel = CATHEDRAL.PAD_VEL, energy = 0.7 + 0.6 * vel;
+  const gain = opts.gain > 1e-3 ? Math.min(1, opts.gain) : 1;
+  // the core: the scene's widthPx * (1 + 0.6 vel), px at 1080 (its bass swell left out: a fan never widens while lit)
+  const widthPx = Math.min(CORE_MAX_PX, (0.9 + 2.4 * widthK) * (1 + 0.6 * vel));
+  const wq = Math.max(0, Math.min(63, Math.floor(widthPx * 16 + 1e-6)));
+  const RING0 = 128 + 256 * 128 + 65536 * 128;
+  let w = w0;
+  for (let i = 0; i < 12; i++) {
+    const t = busAt(strip, 12 + (i >> 2), STRIP.ROW_PADCOL, i & 3);
+    let slot = Math.floor(t);
+    const shown = t - slot;
+    const level = shown > 0.002 ? Math.min(0.999, shown / gain) : 0;
+    // the core follows the bus (the gate's pulses) times the fit; the halo is held through the gaps while a gate runs
+    // (CathedralHeads); a probe draws the cores at their peak levels, with no halo; the steady picture (the air's light
+    // source) draws the cores fitted at the held level, so the air never breathes with the pulses
+    const held = hold ? hold.glow[i] : 0;
+    const core = probe ? hold.peak[i] : steady ? held * hold.coreK * HEAD_HOLD.STEADY_CORE : level * (hold ? hold.coreK : 1);
+    const glow = probe ? 0 : steady ? held : Math.max(level, held);
+    if (!(Math.max(core, glow) > 0.002)) continue;                                   // dark
+    if (Math.max(shown, held * gain) <= busAt(strip, i, STRIP.ROW_PADS, 0)) continue;  // the pad's own fan (the scene's)
+    if (!(shown > 0.002) && hold) slot = hold.slot[i];                                // in a gap: the colour it last drew
+    const n = beams >= 1 ? Math.max(1, Math.min(12, Math.round(beams))) : Math.floor(3 + 9 * vel);
+    const rows = n > 1 ? n + 1 : 1;
+    if (w + rows > maxRows) break;
+    const h = cathedralHead(i, asp);
+    const focus = (h.c + h.r) % 2 === 0 ? [fAx, fAy] : [fBx, fBy];
+    let aim = Math.atan2(focus[1] - h.y, focus[0] - h.x);
+    if (Math.abs(pattern - 7) < 0.5) aim = Math.atan2(-h.y, -h.x);                    // Converge: at the centre
+    if (Math.abs(pattern - 12) < 0.5) aim = h.y > 0 ? -Math.PI / 2 : Math.PI / 2;     // Rain: down (up from the floor)
+    const spread = spreadBus > 0 ? spreadBus : (0.25 + 1.1 * spreadK * (0.4 + 0.6 * vel)) * (0.35 + 0.65 * Math.max(level, held));
+    const stepA = n > 1 ? spread / (n - 1) : 0;
+    const tint = slot < 0.5 ? L1 : slot < 1.5 ? L2 : [1, 1, 1];
+    const I = Math.min(LEVEL_MAX, core * energy), G = Math.min(LEVEL_MAX, glow * energy * CATHEDRAL.GLOW);
+    const colour = q8lin(tint[0]) * 65536 + q8lin(tint[1]) * 256 + q8lin(tint[2]);
+    const levels = q12lvl(I) * 4096 + q12lvl(G);
+    // heat: the scene's 2 x energy (blur 0, kind beam); a halo held while its core is dark carries the engine's HELD flag
+    const flags = I < 0.002 && G > 0.002 ? 1 : 0;
+    const shape = wq + 64 * (Math.max(0, Math.min(127, Math.round(2 * I * 8))) + 128 * 128 * 2 * flags);
+    let radius = 0;
+    const first = w;
+    if (n > 1) w++;                                                                   // the group header, filled below
+    for (let j = 0; j < n; j++) {
+      const a = aim + (j - 0.5 * (n - 1)) * stepA, dx = Math.cos(a), dy = Math.sin(a);
+      const len = reachOf(h.x, h.y, dx, dy, asp);
+      radius = Math.max(radius, len);
+      const o = w * SEG_FLOATS;
+      dst[o] = h.x; dst[o + 1] = h.y; dst[o + 2] = h.x + dx * len; dst[o + 3] = h.y + dy * len;
+      dst[o + 4] = colour; dst[o + 5] = levels; dst[o + 6] = shape; dst[o + 7] = RING0;
+      w++;
+    }
+    if (n > 1) {
+      const o = first * SEG_FLOATS;
+      dst[o] = h.x; dst[o + 1] = h.y; dst[o + 2] = radius; dst[o + 3] = GROUP_MARK + n;
+      dst[o + 4] = 0; dst[o + 5] = 0; dst[o + 6] = 0; dst[o + 7] = 0;
+    }
+  }
+  return w - w0;
+}
+
+// The cores' light on gate v2's own measuring grid (vj-gate.js: 8 x 8 cells; every rectangle of 16 cells or more is a
+// window): each record's core (its level x its whitened luminance x its width, fading along it) marched every 1/100 of
+// the frame height into the cell it crosses, as a mean of added linear luminance over the cell. Overlaps add (no
+// clipping, no nearest-beam rule): it errs high. Returns { cell, window }: the brightest cell and the brightest window.
+const GATE_G = 8;
+const BEAM_FALLOFF_K = 0.5;   // vj-lasers.js BEAM_FALLOFF: the beam layer's fade along a beam
+const coreCellsScratch = new Float64Array(GATE_G * GATE_G), coreSat = new Float64Array((GATE_G + 1) * (GATE_G + 1));
+const lvlOf = (lv) => (Math.floor(lv / 4096) / 4095) * LEVEL_MAX;
+const chanOf = (col, shift) => { const q = Math.floor(col / shift) % 256; return (q / 255) * (q / 255); };
+export function coreCells(seg, n, asp, out = { cell: 0, window: 0 }) {
+  const cells = coreCellsScratch.fill(0), cellA = (asp / GATE_G) * (1 / GATE_G), hx = asp / 2;
+  for (let i = 0; i < n; i++) {
+    const o = i * SEG_FLOATS;
+    if (seg[o + 3] >= GROUP_MARK - 0.5) continue;
+    const I = lvlOf(seg[o + 5]);
+    if (I < 0.002) continue;
+    const col = seg[o + 4], r = chanOf(col, 65536), g = chanOf(col, 256), b = chanOf(col, 1);
+    let sh = seg[o + 6];
+    const width = (sh % 64) / 16; sh = Math.floor(sh / 64);
+    const heat = (sh % 128) / 8, kw = heat * heat / (1 + heat * heat);
+    const Yh = (1 - kw) * (0.2126 * r + 0.7152 * g + 0.0722 * b) + kw * Math.max(r, g, b);
+    const perLen = I * Yh * Math.max(width, 1e-3) / 1080;            // linear luminance x frame heights, per frame height
+    const x0 = seg[o], y0 = seg[o + 1], dx = seg[o + 2] - x0, dy = seg[o + 3] - y0, len = Math.hypot(dx, dy);
+    const m = Math.max(1, Math.ceil(len / 0.01)), dl = len / m;
+    for (let k = 0; k < m; k++) {
+      const u = (k + 0.5) / m, x = x0 + dx * u, y = y0 + dy * u;
+      if (x < -hx || x > hx || y < -0.5 || y > 0.5) continue;
+      const cx = Math.min(GATE_G - 1, Math.floor((x + hx) / asp * GATE_G)), cy = Math.min(GATE_G - 1, Math.floor((y + 0.5) * GATE_G));
+      cells[cy * GATE_G + cx] += perLen * Math.exp(-u * len * BEAM_FALLOFF_K) * dl / cellA;
+    }
+  }
+  let cell = 0;
+  for (let c = 0; c < cells.length; c++) if (cells[c] > cell) cell = cells[c];
+  const W1 = GATE_G + 1;
+  for (let y = 0; y < GATE_G; y++) {
+    let row = 0;
+    for (let x = 0; x < GATE_G; x++) { row += cells[y * GATE_G + x]; coreSat[(y + 1) * W1 + x + 1] = coreSat[y * W1 + x + 1] + row; }
+  }
+  let win = 0;
+  for (let h = 1; h <= GATE_G; h++) for (let wd = 1; wd <= GATE_G; wd++) {
+    if (wd * h < 16) continue;
+    for (let y = 0; y + h <= GATE_G; y++) for (let x = 0; x + wd <= GATE_G; x++) {
+      const s = coreSat[(y + h) * W1 + x + wd] - coreSat[y * W1 + x + wd] - coreSat[(y + h) * W1 + x] + coreSat[y * W1 + x];
+      if (s / (wd * h) > win) win = s / (wd * h);
+    }
+  }
+  out.cell = cell; out.window = win;
+  return out;
+}
+
+// The Cathedral's heads over time (the page keeps one): while a laser gate runs (the bus's solo under 1), each head's
+// halo is HELD at the brightest level it reached in this run, through the gate's dark gaps, and only the cores pulse --
+// the engine's own rule for its fast gates (vj-lasers.js: "only the cores strobe"), here for the whole run, so the air
+// the haze fluid lights from the beam layer glows steadily instead of breathing with every pulse. The cores are FITTED:
+// the held heads' cores are probed at every half beat of the foci's 24-beat cycle on gate v2's measuring grid
+// (coreCells) and scaled so that no cell's core light passes CELL_CAP and no window's passes WIN_CAP -- well under the
+// swings gate v2 counts (0.15 a cell, 0.068 a window: vj-gate.js LIMIT.TH), with room for the scene's own light. The
+// scale only falls during a run (never given back mid-run, as the engine's fit), and the run's end lets the halos go
+// over RELEASE_S. Measured before this (vj_storm laserbeats, 640 x 360, laser seeds 2 and 4, the heads in the beam
+// layer, nothing held): gate v2 held 123-143 of 600 frames, its gains cut round the inner heads' fans.
+// STEADY_CORE: the cores' share in the steady picture the air lights from -- about a gate's duty (the share of the time
+// its pulses are lit), so the air carries the light the cores give on average, not their peak.
+export const HEAD_HOLD = Object.freeze({ HOLD_S: 0.75, RELEASE_S: 0.35, CELL_CAP: 0.09, WIN_CAP: 0.04, CYCLE_BEATS: 24, PROBES_PER_BEAT: 2,
+  STEADY_CORE: 0.3 });
+export class CathedralHeads {
+  constructor() {
+    this.glow = new Float32Array(12); this.peak = new Float32Array(12); this.since = new Float32Array(12).fill(1e9);
+    this.slot = new Int8Array(12); this.coreK = 1;
+    this.running = false; this.fitKey = ""; this.fits = 0;
+    this.probeSeg = new Float32Array(MAX_SEGMENTS * SEG_FLOATS);
+    this.last = { cell: 0, window: 0 };
+  }
+  reset() { this.glow.fill(0); this.peak.fill(0); this.since.fill(1e9); this.coreK = 1; this.running = false; this.fitKey = ""; }
+  // strip: this frame's strip (the bus written); opts: cathedralBeams' (asp, knobs, gain); dt: seconds since the last frame
+  update(strip, opts, dt) {
+    if (busAt(strip, 15, STRIP.ROW_PALETTE, 0) < 3) { this.reset(); return this; }
+    const solo = busAt(strip, 9, STRIP.ROW_PALETTE, 3);
+    const running = solo > 0 && solo < 0.999;
+    const gain = opts.gain > 1e-3 ? Math.min(1, opts.gain) : 1;
+    const fall = Math.exp(-Math.max(0, dt) / HEAD_HOLD.RELEASE_S);
+    if (running && !this.running) { this.coreK = 1; this.peak.fill(0); }   // a new run: its own fit
+    this.running = running;
+    let key = "";
+    for (let i = 0; i < 12; i++) {
+      const t = busAt(strip, 12 + (i >> 2), STRIP.ROW_PADCOL, i & 3), sl = Math.floor(t), shown = t - sl;
+      const level = shown > 0.002 ? Math.min(0.999, shown / gain) : 0;
+      if (level > 0) { this.slot[i] = sl; this.since[i] = 0; } else this.since[i] += Math.max(0, dt);
+      // in a run, a head's halo holds HOLD_S after its last pulse (a head the pattern keeps returning to stays lit; one it
+      // has left lets go), then falls over RELEASE_S; out of a run, it follows the bus with the same release
+      const hold = running && this.since[i] < HEAD_HOLD.HOLD_S;
+      this.glow[i] = hold ? Math.max(this.glow[i], level) : Math.max(level, this.glow[i] * fall);
+      if (this.glow[i] < 0.002) this.glow[i] = 0;
+      if (running) this.peak[i] = Math.max(this.peak[i], level);
+      if (this.peak[i] > 0) key += `${i}:${Math.round(this.peak[i] * 50)},`;
+    }
+    if (!running) { this.coreK = 1; this.fitKey = ""; this.peak.fill(0); return this; }
+    // the fit, on every head lit in this run at its peak: probed again only when those heads (or their peaks, in 2 %
+    // steps) or the fan's shape change
+    key += `|${busAt(strip, 13, 2, 3)}|${busAt(strip, 14, 2, 3).toFixed(3)}|${busAt(strip, 9, 2, 1)}|${(opts.asp || 0).toFixed(3)}`;
+    if (key !== this.fitKey) {
+      this.fitKey = key; this.fits++;
+      let cell = 0, win = 0;
+      const asp = opts.asp > 0 ? opts.asp : 16 / 9, steps = HEAD_HOLD.CYCLE_BEATS * HEAD_HOLD.PROBES_PER_BEAT, c = { cell: 0, window: 0 };
+      for (let k = 0; k < steps; k++) {
+        const n = cathedralBeams(strip, { ...opts, hold: this, probe: true, stepB: k / HEAD_HOLD.PROBES_PER_BEAT }, this.probeSeg);
+        coreCells(this.probeSeg, n, asp, c);
+        if (c.cell > cell) cell = c.cell;
+        if (c.window > win) win = c.window;
+      }
+      const k = Math.min(1, cell > 0 ? HEAD_HOLD.CELL_CAP / cell : 1, win > 0 ? HEAD_HOLD.WIN_CAP / win : 1);
+      this.coreK = Math.min(this.coreK, k);
+      this.last = { cell, window: win };
+    }
+    return this;
+  }
 }
 
 // ------------------------------------------------------------------------------------------------ the head bus --

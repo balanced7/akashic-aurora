@@ -30,8 +30,9 @@
 // layer, read back) on the beat grid with the three velocity tiers (soft single, medium one-two, hard triple); the dial
 // (cc116) changes the gate and its click (cc117) puts it back on AUTO; fader 1 (cc105) changes the colour theme on the
 // next bar and the lasers take its colours; a hello naming the tap controls makes pad 12 the tap (no effect fires for
-// it, the press is counted); the Laser Cathedral draws its own heads from the head bus while the beam layer draws only
-// the hero's; the pad lights posted are LED stand-ins the pads can show. D2 adds the laser storms (lasertiers, laserroll).
+// it, the press is counted); the Laser Cathedral's heads come from the head bus and (option C, 2026-10-28) are drawn by
+// the beam layer at the scene's own heads, the engine's own bank records left out; the pad lights posted are LED
+// stand-ins the pads can show. D2 adds the laser storms (lasertiers, laserroll).
 // Writes state/arsenal/receipts/vj-<stamp>/receipt.json and the screenshots beside it; exits 1 if the verdict fails.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -644,15 +645,17 @@ try {
       vj.event({ t: "pad", pad: 12, vel: 0.9, on: true, src: "bank" }); step(3);
       out.tap.bank_pad_12_zoom = st().effects.filter((e) => e.type === "zoom").length;
       vj.event({ t: "pad", pad: 12, vel: 0, on: false, src: "bank" }); step(30);
-      // the Laser Cathedral: its heads from the head bus, the hero's beams from the beam layer
+      // the Laser Cathedral: its heads from the head bus, drawn (option C, 2026-10-28) by the beam layer at the scene's own
+      // heads (headRows) with the hero's beams (heroRows: the engine's own records of the bank heads are not uploaded)
       vj.select("vj-laser-cathedral"); step(60);
       vj.laser({ gate: "triple" });
       vj.press(2, 0.95);
-      let busPeak = 0, heroOnly = false, busOn = false, rec = 0, upl = 0;
+      let busPeak = 0, heroOnly = false, busOn = false, rec = 0, upl = 0, heroRows = 0, headRows = 0;
       step(24, () => { const s = st().lasers; heroOnly = heroOnly || s.heroOnly; busOn = busOn || s.busOn;
-        if (s.bus) busPeak = Math.max(busPeak, ...s.bus.slice(4, 16).map((v) => v - Math.floor(v))); rec = Math.max(rec, s.records); upl = Math.max(upl, s.uploaded); });
+        if (s.bus) busPeak = Math.max(busPeak, ...s.bus.slice(4, 16).map((v) => v - Math.floor(v))); rec = Math.max(rec, s.records); upl = Math.max(upl, s.uploaded);
+        heroRows = Math.max(heroRows, s.heroRows || 0); headRows = Math.max(headRows, s.headRows || 0); });
       vj.release(2); vj.laser({ gate: "auto" });
-      out.cathedral = { heroOnly, busOn, bus_peak_level: +busPeak.toFixed(3), records_max: rec, uploaded_max: upl };
+      out.cathedral = { heroOnly, busOn, bus_peak_level: +busPeak.toFixed(3), records_max: rec, uploaded_max: upl, hero_rows_max: heroRows, head_rows_max: headRows };
       const s9 = st();
       out.leds = { last: s9.leds.last, washed: s9.ledsWashed };
       out.errors = vj.errors();
@@ -694,7 +697,7 @@ try {
       t.pulse_frames = snapPulses(t.pulse_frames, g);
       t.consecutive = t.pulse_frames.every((p, i) => i === 0 || p.grid_k === t.pulse_frames[i - 1].grid_k + 1);
     }
-    console.log(`[lasers] tiers ${Lr.tiers.map((t) => `${t.vel}:${t.gate}x${t.pulses} lit ${t.beam_pixels_lit}px early ${t.pulse_frames.map((p) => p.early_ms).join("/")}${t.consecutive ? "" : " NONCONSECUTIVE"}`).join(" | ")}; dial ${Lr.dial.after_one}/${Lr.dial.after_three}/${Lr.dial.after_click}; theme ${Lr.theme.from} -> ${Lr.theme.to} (${Lr.theme.landed_on}); tap ${Lr.tap.presses} press, zoom ${Lr.tap.zoom}; cathedral bus ${Lr.cathedral.bus_peak_level}`);
+    console.log(`[lasers] tiers ${Lr.tiers.map((t) => `${t.vel}:${t.gate}x${t.pulses} lit ${t.beam_pixels_lit}px early ${t.pulse_frames.map((p) => p.early_ms).join("/")}${t.consecutive ? "" : " NONCONSECUTIVE"}`).join(" | ")}; dial ${Lr.dial.after_one}/${Lr.dial.after_three}/${Lr.dial.after_click}; theme ${Lr.theme.from} -> ${Lr.theme.to} (${Lr.theme.landed_on}); tap ${Lr.tap.presses} press, zoom ${Lr.tap.zoom}; cathedral bus ${Lr.cathedral.bus_peak_level}, head rows ${Lr.cathedral.head_rows_max}`);
     // Half a frame late is allowed by spec 3.3; more than one frame early is not on the grid at all.
     const onGrid = (t) => t.pulse_frames.length === t.pulses && t.consecutive &&
       t.pulse_frames.every((p) => p.early_ms >= -1000 / 120 && p.early_ms <= 1000 / 60 + 0.5);
@@ -708,7 +711,7 @@ try {
     checks.pad_12_is_the_tap_and_fires_no_effect = Lr.tap.pads.length === 1 && Lr.tap.pads[0].pad === 12 && Lr.tap.presses === 1 &&
       Lr.tap.zoom === 0 && Lr.tap.impact_hits === 0 && Lr.tap.last && Lr.tap.last.mode === "resync" && Lr.tap.bank_pad_12_zoom === 1;
     checks.the_cathedral_draws_its_heads_from_the_head_bus = Lr.cathedral.heroOnly && Lr.cathedral.busOn && Lr.cathedral.bus_peak_level > 0.05 &&
-      Lr.cathedral.uploaded_max < Lr.cathedral.records_max;
+      Lr.cathedral.hero_rows_max < Lr.cathedral.records_max && Lr.cathedral.head_rows_max > 0;
     report.page_errors = (report.page_errors || []).concat(Lr.errors || []);
   }
 
