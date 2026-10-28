@@ -1,0 +1,32 @@
+---
+title: Try it in a sandbox
+description: Point Aurora at a throwaway folder and a test database, so your experiments never reach the shared memory.
+---
+
+Aurora keeps its memory in two places: files in the repo and a Redis database. A real sandbox moves both. Set three variables in your terminal.
+
+```bash tab="macOS / Linux" tab-group="os"
+export REDIS_DB=15
+export AI_SETUP="$(mktemp -d)"
+export AKASHIC_RECALL_STATE_DIR="$AI_SETUP/recall"
+```
+
+```powershell tab="Windows" tab-group="os"
+$env:REDIS_DB = "15"
+$env:AI_SETUP = (New-Item -ItemType Directory -Path (Join-Path $env:TEMP "aurora-sandbox-$(Get-Random)")).FullName
+$env:AKASHIC_RECALL_STATE_DIR = "$env:AI_SETUP\recall"
+```
+
+Each one moves a different part:
+
+| Variable | What it moves |
+|---|---|
+| `REDIS_DB` | Redis writes go to test database 15, not the shared database 0. |
+| `AI_SETUP` | The file copies of lessons, notes and events go to the throwaway folder. |
+| `AKASHIC_RECALL_STATE_DIR` | The recall cache stops sharing a folder with real agents. |
+
+Now `boot`, `learn` and `recall` work as usual, but only on your sandbox. Close the terminal, or unset all three, to go back to the real memory.
+
+<Callout type="warn" title="REDIS_DB alone is not a sandbox">It only moves the Redis copy. Aurora always writes a file copy too, so without `AI_SETUP` your lessons still land in the real files.</Callout>
+
+The test suite also uses database 15 and wipes it, so keep nothing there you need. It also keeps what you wrote last time, so a new sandbox may show an old test lesson. You don't need to install Redis. If none was running the first time you used Aurora, it starts a small embedded one, and that one has database 15 too. See [Hybrid storage](/docs/concepts/foundations/hybrid-storage).

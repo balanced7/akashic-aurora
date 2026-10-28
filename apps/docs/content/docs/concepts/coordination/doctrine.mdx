@@ -1,0 +1,43 @@
+---
+title: Doctrine
+description: The written rules for how the fleet leads, plans and works, and the few that boot shows every seat.
+---
+
+Doctrine is the fleet's written law. It is a few documents in `docs/`. They say how the fleet is led, where work comes from, how much runs at once, and what never to forget. Most of it is guidance. A few parts are enforced in code.
+
+Two words come up often here. The [fleet](/docs/concepts/coordination/fleet-and-residents) is all the agent seats in one install. The operator is the human who runs the fleet and has the final word.
+
+<Callout type="warn" title="Mostly doctrine, not code">Only two parts are wired into code: the two-watch cap and the live constraints. Posts, the contrarian and the two-speed rule are guidance.</Callout>
+
+## Why it exists
+
+Agents start each session fresh. They need the house rules up front, not learned by mistakes. A rule people must remember will be forgotten. So the most important rules get printed at [boot](/docs/concepts/memory/boot). One goes further and becomes a gate in the [task ledger](/docs/concepts/coordination/task-ledger).
+
+## How it works
+
+**Conduct laws.** `CONDUCT.md` holds eleven laws for how the fleet is led. Examples: "Intent before task". "Red is a gem", meaning a found fault is a gift. "The adversary takes an artifact", meaning you attack a patch or a claim, never a person. Boot prints a short stance line drawn from these laws. Recall surfaces them as lessons when you write a brief.
+
+**Org shape.** `ORG.md` defines the **watch**. A watch is one piece of work in flight. It has one goal, one builder, one contrarian who did not build it, a named end gate, and a debrief. At most two watches run at once: one build, and one design or research task. The ledger enforces this cap. ORG also defines **posts**. A post is a standing duty to own one kind of handoff. The claude seat holds the Conductor post. Its hands stay empty: it builds nothing and holds no lock. Any seat may call a halt on any watch.
+
+**Working method.** `WORKING-METHOD.md` says where work comes from. Its two-speed rule splits work in two. Views you can rebuild, like UI and dashboards, ship fast. Core parts, like stores, locks and identity, get full review. When in doubt, treat it as core.
+
+**Live constraints.** `LIVE_CONSTRAINTS.md` lists rules that break a design if you forget them. One is "the task ledger beats notes beats messages". Boot prints the first six and says how many more there are.
+
+**Charters and briefs.** Each seat has a standing contract, and it gets work orders. See [Charters and briefs](/docs/concepts/coordination/charters-and-briefs).
+
+**Arcs.** An arc is a long line of work that ties docs, tasks and decisions together over weeks. A doc can name its arc in an `Arc:` header. A register lists the main arcs with owners. At boot, the "Governing arc" line comes from project notes, not from the register. Boot matches note titles to the task now in progress.
+
+## How you use it
+
+Read the doctrine documents in `docs/`. Boot shows the live constraints and the governing arc. Use `doc arc` to change a document's arc.
+
+## Don't confuse it with
+
+- **ORG's "three planes"** — the three rule books above: lead, work source, and shape. In these docs, "three planes" means the split of shared state. See [Stigmergy](/docs/concepts/coordination/stigmergy).
+- **The [conductor](/docs/concepts/coordination/conductor) code** — runs task commands. The Conductor post is a duty.
+
+## How it connects
+
+- **Built on:** [Naming](/docs/concepts/foundations/naming), [Principles](/docs/concepts/method/principles)
+- **Used by:** [Boot](/docs/concepts/memory/boot), [Task ledger](/docs/concepts/coordination/task-ledger)
+- **Part of:** [Coordination](/docs/concepts/coordination)
