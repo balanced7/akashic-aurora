@@ -317,7 +317,7 @@ def compare_results(old_metrics: dict, new_metrics: dict):
     print("\n" + "="*70 + "\n")
 
     # Save results for future comparison
-    results_file = Path("E:\\AI-Setup\\session_logs\\test_onboarding_v2_results.json")
+    results_file = Path(__file__).resolve().parents[1] / "session_logs" / "test_onboarding_v2_results.json"
     results_file.parent.mkdir(parents=True, exist_ok=True)
 
     results = {

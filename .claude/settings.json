@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pyw agent/harness/hooks/claude_trace.py"
+            "command": "AI_SETUP=\"$CLAUDE_PROJECT_DIR\" $(command -v uvw || command -v uv) run -p 3.12 --gui-script \"$CLAUDE_PROJECT_DIR/agent/harness/hooks/claude_trace.py\""
           }
         ]
       }
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pyw agent/harness/hooks/claude_posttooluse.py"
+            "command": "AI_SETUP=\"$CLAUDE_PROJECT_DIR\" $(command -v uvw || command -v uv) run -p 3.12 --gui-script \"$CLAUDE_PROJECT_DIR/agent/harness/hooks/claude_posttooluse.py\""
           }
         ]
       }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pyw agent/harness/hooks/claude_stop.py"
+            "command": "AI_SETUP=\"$CLAUDE_PROJECT_DIR\" $(command -v uvw || command -v uv) run -p 3.12 --gui-script \"$CLAUDE_PROJECT_DIR/agent/harness/hooks/claude_stop.py\""
           }
         ]
       }

@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "akashic-aurora": {
-      "command": "py",
-      "args": ["-3", "E:\\AI-Setup\\ai_setup_mcp.py"],
-      "cwd": "E:\\AI-Setup",
+      "command": "uv",
+      "args": ["run", "-p", "3.12", "/abs/path/to/akashic-aurora/ai_setup_mcp.py"],
+      "cwd": "/abs/path/to/akashic-aurora",
       "env": {
         "PYTHONIOENCODING": "utf-8"
       }

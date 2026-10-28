@@ -59,7 +59,7 @@ try:
     from core.paths import repo_root as _rr
     ROOT = _rr()
 except Exception:
-    ROOT = Path(os.getenv("AI_SETUP", r"E:\AI-Setup"))
+    ROOT = Path(__file__).resolve().parents[2]
 
 # Prose nouns that promise a CLASS of artifact, mapped to the filename/extension signature
 # that class actually has on disk. Keep this small: every entry is a maintenance liability,

@@ -90,8 +90,8 @@ def main() -> int:
 
     # ---- your listener ---------------------------------------------------------
     try:
-        import shutil, subprocess
-        exe = shutil.which("tailscale") or r"C:\Program Files\Tailscale\tailscale.exe"
+        import os, shutil, subprocess
+        exe = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", ""), "Tailscale", "tailscale.exe")
         my_ip = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True,
                                timeout=10).stdout.strip().splitlines()[0].strip()
     except Exception:                                             # noqa: BLE001

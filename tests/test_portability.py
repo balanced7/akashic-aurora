@@ -34,8 +34,10 @@ from core.paths import env_override_is_wrong, repo_root  # noqa: E402
 ROOT = repo_root()
 
 # Any drive-letter absolute path, not just this machine's -- a fix that swaps E:\AI-Setup for
-# someone else's C:\dev\aurora is not a fix.
-_ABS = re.compile(r"[A-Za-z]:[\\/](?:AI-Setup|Users)", re.IGNORECASE)
+# someone else's C:\dev\aurora is not a fix. ONE-OR-MORE separators: an escaped literal in
+# source ("E:" then two backslashes) slipped past a one-separator pattern, and every
+# os.getenv("AI_SETUP", <that literal>) fallback survived the 2026-08-01 sweep that way.
+_ABS = re.compile(r"[A-Za-z]:[\\/]+(?:AI-Setup|Users)", re.IGNORECASE)
 
 _CODE_DIRS = ("core", "scripts", "agent", "tests")
 _SKIP_PARTS = {"backups", "docs", "research", "chronicles", "store", "data",
@@ -118,8 +120,6 @@ def test_p2_a_wrong_env_override_is_reported_not_silently_ignored(monkeypatch):
 _FIXTURE_DATA = {
     "tests/test_claude_hook_contract.py":
         "synthetic command strings fed to normalize_target(); asserts on parsing, opens nothing",
-    "tests/test_harness_lib.py":
-        "a 'cd <repo-root> && ls' command string passed to scope.shell_in_scope() as sample input",
     "tests/test_ir4_mirror_family.py":
         "sample argv for the mirror family parser; the path is the thing under test, not a target",
     "tests/test_session_signals.py":
@@ -128,6 +128,33 @@ _FIXTURE_DATA = {
         "a path STRING handed to recall_at() for relevance scoring; never opened",
     "tests/test_precision_audit.py":
         "recorded query/path pairs from a precision run; historical inputs, not live paths",
+    # Verified 2026-09-30 when the one-or-more-separator pattern above first saw them.
+    "tests/test_revive_claude_daemon_rung.py":
+        "Windows process-table lines fed to revive.observe() via a patched _cmdlines(); text only",
+    "tests/test_revive_per_agent_observation.py":
+        "Windows process-table lines fed to revive.observe() via a patched _cmdlines(); text only",
+    "tests/test_bridge_status_pins.py":
+        "recorded Windows process command lines for bridge_status's matcher; parsed, never opened",
+    "tests/test_watcher_kill_warrant_identity.py":
+        "recorded Windows process command lines for the kill-warrant identity match; text only",
+    "tests/test_gateway_census_observer_contamination.py":
+        "recorded Windows process command lines for the gateway census; text only",
+    "tests/test_seat_launchers.py":
+        "a fake shutil.which() answer for the launcher resolver; returned, never executed",
+    "tests/test_spawn_closing_report.py":
+        "a recorded interpreter error message quoted as sample output; text, not a path",
+    "tests/test_t250_gate_bypasses.py":
+        "a Windows-shaped path handed to the gate as a bypass-attempt sample; classified, never opened",
+    "tests/test_forge_replay.py":
+        "recorded forge targets from a historical replay; data, never opened",
+    "tests/test_dsh_contract.py":
+        "argv and normalize_target() samples for the dsh contract; parsed, never opened",
+    "tests/test_codex_hook_contract.py":
+        "recorded Codex payload paths and an env value compared as strings; never opened",
+    "tests/test_find_bounded_is_not_absent.py":
+        "a recorded roots list inside a bounded-find result; reported, never walked",
+    "tests/test_arsenal_band.py":
+        "a live_path string embedded in generated module text and read back; never opened",
 }
 
 
@@ -164,3 +191,37 @@ def test_p5_doctor_reports_deploy_readiness():
     out = (r.stdout or "") + (r.stderr or "")
     assert "repo root" in out.lower(), (
         "doctor --deploy does not report the resolved repo root:\n" + out[:600])
+
+
+# ---- machine-specific locations come from the environment (2026-10-01) ----------------------
+# Some paths cannot be derived -- which physical disks hold the transcript archive is a fact
+# about one machine. Those live in env vars read by core.paths.env_paths, and a drive letter
+# from another OS must never be resolved against the cwd.
+
+def test_p6_env_paths_keeps_absolute_and_drops_relative(monkeypatch, tmp_path):
+    from core.paths import env_paths
+    a, b = tmp_path / "one", tmp_path / "two"
+    monkeypatch.setenv("AKASHIC_TEST_PATHS", os.pathsep.join([str(a), "relative/dir", "", str(b)]))
+    assert env_paths("AKASHIC_TEST_PATHS") == [a, b]
+    monkeypatch.delenv("AKASHIC_TEST_PATHS")
+    assert env_paths("AKASHIC_TEST_PATHS") == []
+
+
+def test_p7_archiver_refuses_no_destinations_instead_of_reporting_ok(tmp_path):
+    from scripts.ops import archive_transcripts as arch
+    src = tmp_path / "s.jsonl"
+    src.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        arch.archive([src], [], receipt_dir=tmp_path / "r")
+
+
+def test_p8_archiver_refuses_a_relative_destination(tmp_path, monkeypatch):
+    from pathlib import Path
+    from scripts.ops import archive_transcripts as arch
+    monkeypatch.chdir(tmp_path)
+    src = tmp_path / "s.jsonl"
+    src.write_text("{}\n", encoding="utf-8")
+    rec = arch._archive_one_dest([src], Path("not-absolute-archive"), verify=False)
+    assert not rec["reachable"] and rec["failed"]
+    assert not (tmp_path / "not-absolute-archive").exists(), "a relative destination was created"
+
