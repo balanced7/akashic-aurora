@@ -1,0 +1,31 @@
+---
+title: Akasha and Aurora
+description: "The name states the design: Akasha is the record nobody rewrites, and Aurora is the knowledge built on top of it."
+---
+
+Akashic Aurora is two words for two parts. Akasha is the record underneath. It keeps every event in order, and nobody rewrites it. Aurora is what grows on top: the story, the library and recall. The goal is to throw Aurora away and rebuild it from Akasha. The [library](/docs/concepts/memory/library) already works this way.
+
+Think of a library. Its register lists every book it ever got, in order. Nobody erases a line. The catalogue and the reading lists sit on top. Staff remake them when they need to change. Akasha is the register. Aurora is the catalogue.
+
+## Why it exists
+
+The project started life as "BreakThrough Stack", and its repo was `ai-setup`. Neither name said what the system does. The new name states the core bet. Keep one record underneath that never changes. Build everything clever on top, as a layer you can rebuild.
+
+## How it works
+
+- The name describes a design. It is not a module. There is no `akasha` or `aurora` package in the code.
+- Akasha is, in practice, the [Ledger](/docs/concepts/foundations/ledger) and the other [append-only records](/docs/concepts/foundations/append-only-record).
+- Aurora is everything built over them. That means the [narrative spine](/docs/concepts/narrative/narrative-spine), the [library](/docs/concepts/memory/library) and [recall](/docs/concepts/memory/recall).
+- The name shows up in settings. Environment variables start with `AKASHIC_`, such as `AKASHIC_STORE_BACKEND`.
+
+## Don't confuse it with
+
+- **Akashic Labs** — the group behind the project, and its parent folder. Akashic Aurora is the system.
+- **AWS Aurora** — an unrelated cloud database.
+- **`ai_setup_mcp.py`** — the MCP server keeps its old name for now. Renaming it needs a matching change in the editor that calls it. The `AI_SETUP` variable also keeps the old name.
+
+## How it connects
+
+- **Built on:** [Ledger](/docs/concepts/foundations/ledger), [Store](/docs/concepts/foundations/store), [Append-only record](/docs/concepts/foundations/append-only-record)
+- **Used by:** the whole system; see [Aurora in five minutes](/docs/concepts)
+- **Part of:** [Foundations](/docs/concepts/foundations)

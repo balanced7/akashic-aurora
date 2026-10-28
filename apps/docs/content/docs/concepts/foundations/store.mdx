@@ -1,0 +1,43 @@
+---
+title: Store
+description: "The place for current facts, looked up by name: what IS the value of this right now?"
+---
+
+The Store answers one question: what IS the value of X right now? You give it a name, called a key. It gives back the current value. A new write replaces the old value, and the old one is gone.
+
+Think of your bank balance. It is one number, and it is always current. It does not tell you how you got there. That is the job of your statement. Your balance is the Store. Your statement is the [Ledger](/docs/concepts/foundations/ledger). Keep this pair in mind: the Store holds what IS, and the Ledger holds what HAPPENED.
+
+| Store | Ledger |
+| --- | --- |
+| what IS | what HAPPENED |
+| look up by key | read in order from a cursor |
+| a write replaces | a write adds to the end |
+| your bank balance | your bank statement |
+
+## Why it exists
+
+Early on, Redis calls sat all over the code. Each module wrote its own "try Redis, fall back to files" branch. There were five or more copies, and nobody could swap the backend. The Store became the one seam. Code still uses Redis-shaped data, but it saves that data through one interface.
+
+## How it works
+
+- The Store copies the Redis commands the code uses. It has plain keys, hashes, lists, sets and sorted sets. A key can expire after a while. Values are plain strings.
+- Two writers can race on one key. The `cas` call (compare-and-set) writes only if the value is still what you expect. The `update_atomic` call retries a change up to eight times. If it still loses, it raises `CASConflict`. The code stops a lost update instead of hiding it.
+- Keys carry a prefix that says what they hold. The `learn:*` keys hold lessons. The `mem:*` keys hold agent memory. The `artifact:*` keys hold library records.
+- Several engines can sit behind the Store. The default writes to a file and to Redis. See [hybrid storage](/docs/concepts/foundations/hybrid-storage).
+
+## How you use it
+
+You never call the Store yourself. It is internal on purpose. You reach it through the [doors](/docs/concepts/coordination/doors), with verbs such as `learn`, `recall`, `note` and `boot`.
+
+## Don't confuse it with
+
+- **Ledger** — ordered events you replay from a bookmark. The Store has no order and no history.
+- **Redis** — one engine under the Store. Redis is not the Store.
+- **`LearningStore` and `AgentMemory`** — stores for one job, built on top of a Store. They use it. They are not engines for it.
+- **`BlobStore`** — holds media files for the bus. It has nothing to do with the Store.
+
+## How it connects
+
+- **Built on:** [Hybrid storage](/docs/concepts/foundations/hybrid-storage), [Fail soft](/docs/concepts/foundations/fail-soft)
+- **Used by:** [Lessons](/docs/concepts/memory/lessons), [Notes and agent memory](/docs/concepts/memory/notes-and-agent-memory), [Library](/docs/concepts/memory/library), [Signals](/docs/concepts/foundations/signals), [Knowledge layers](/docs/concepts/foundations/knowledge-layers)
+- **Part of:** [Foundations](/docs/concepts/foundations); its twin is the [Ledger](/docs/concepts/foundations/ledger)

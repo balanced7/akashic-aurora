@@ -1,0 +1,47 @@
+---
+title: Memory settings
+description: The environment variables and fixed limits that tune boot, recall and the recall loop.
+---
+
+These settings change how memory picks and shows lessons. Most people never touch them. Set one in your shell or in the `env` block of your Claude Code settings. Each default below comes from the code.
+
+## Recall at action
+
+| Variable | Default | What it does |
+|---|---|---|
+| `AKASHIC_RECALL_AT_ACTION` | `1` | Set `0` to turn recall at action off, even when its hook is installed. |
+| `AKASHIC_RECALL_FLOOR` | `0.20` | The relevance a lesson must beat before it can show. |
+| `AKASHIC_RECALL_SELF_ECHO_H` | `2` | Hours a lesson stays hidden from the agent id that wrote it. |
+| `AKASHIC_RECALL_CACHE_TTL` | `120` | Seconds the lesson cache lives before it is built again. |
+| `AKASHIC_RECALL_STATE_DIR` | `<temp>/akashic_recall` | Where the cache and the per-session state files live. |
+| `AKASHIC_VERB_FLOOR` | `0.9` | How well a command must fit before it is suggested. |
+| `AKASHIC_STALE_CUE_DAYS` | `30` | When the oldest lesson shown is this many days old, an `[age]` line asks you to check it still holds. `0` turns the line off. |
+
+Fixed in code: at most two suggested commands. Lessons per call default to three; `recall-at --limit N` changes that for a run by hand.
+
+## Recall loop
+
+| Variable | Default | What it does |
+|---|---|---|
+| `AKASHIC_BENCH_PROBE_DAYS` | `14` | Days a lesson sits on the bench before it gets a trial. `0` turns trials off. |
+| `AKASHIC_BENCH_PROBE_MAX` | `3` | How many benched lessons may be on trial at once. |
+
+Fixed in code: the curator benches a lesson only when it showed 10 times or more, earned no credit, and is at least 10 days old.
+
+## Boot
+
+| Variable | Default | What it does |
+|---|---|---|
+| `AKASHIC_BOOT_FULL` | `0` | Set `1` to print every section inside a Claude Code session. By default boot skips the funnel, the draft, the mail and the delta there. |
+| `AKASHIC_RELEVANCE_BUDGET` | `1` | Set `0` to pick boot's lessons by the older recency ranking instead of fit to your task. |
+| `AKASHIC_RELEVANCE_BUDGET_CHARS` | `2000` | Characters of lesson text boot may print. The top lesson always prints. |
+
+## Store and identity
+
+| Variable | Default | What it does |
+|---|---|---|
+| `AKASHIC_AGENT_ID` | unset | Your agent id. The repo's Claude Code settings set it to `claude`, so all Claude sessions share one id. |
+| `AKASHIC_STORE_BACKEND` | file | Set `sqlite` to keep the durable copy in SQLite. See [Hybrid storage](/docs/concepts/foundations/hybrid-storage). |
+| `AKASHIC_EMBED_THEMES` | unset | Set `1` to find story themes by meaning. Needs the optional embedding model; see [Embeddings](/docs/concepts/memory/ranker-and-distiller). |
+
+See [Recall at action](/docs/concepts/memory/recall-at-action), [Recall loop](/docs/concepts/memory/recall-loop) and [Boot](/docs/concepts/memory/boot) for what each part does.

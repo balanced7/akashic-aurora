@@ -1,0 +1,45 @@
+---
+title: Naming
+description: One shared vocabulary for code, docs and talk, where no name may lie about what it names.
+---
+
+In Aurora, names are part of the design. Code, docs and talk share one vocabulary, kept in `docs/LEXICON.md`. Domain-Driven Design calls this a ubiquitous language. A few laws keep that vocabulary honest. The first is the spine of the whole system: what IS goes in a [Store](/docs/concepts/foundations/store), and what HAPPENED goes in a [Ledger](/docs/concepts/foundations/ledger).
+
+Don't label a box "apples" if it holds all fruit. Don't call a diary a mailbox.
+
+## Why it exists
+
+An early audit found "a class named `Bus` that wasn't one, and a `success:"True"` that wasn't either." Since then, the most common bug here is one word with two meanings. Three modules all called "session state" caused a real bug. The word "charter" once had four meanings.
+
+## How it works
+
+- **State or events?** Ask: am I storing what IS, or what HAPPENED? A fact you look up later goes in a Store. News of something that took place goes in a Ledger.
+- **Names must not lie.** If a name and its behaviour disagree, one of them changes. The old `Bus` became `Ledger`, since readers pulled and nothing pushed. The flag `success: "True"` became `"yes"`, one of `yes`, `partial` and `no`.
+- **Genus, not species.** Name a container after the general kind it holds. A signal can be a decision, a blocker and more. So the class is `AgentSignalLedger`, never `decision_log`.
+- **Generic part, specific use.** The class stays generic: `Ledger`. The variable names the use: `signal_ledger`.
+- **Say what it does.** Write `append_signal`, not `add`.
+- **Old names are aliases.** A retired name may point to the new one, marked "Deprecated: use X".
+- **Use the field's words.** Public names follow a field's standard terms, not new ones.
+
+### What a machine checks
+
+Most of this rests on review. The boundary checker allows one definition per class name and one module per file name in `core/`. Another check makes sure each file's name has the same case on disk as in git. No tool compares a name with what the code does.
+
+## How you use it
+
+Before you name something, look it up in `docs/LEXICON.md`. If another part already uses a word, pick a new one. Some names to avoid:
+
+- `Bus` for a log that readers pull from;
+- `decision_log` for a list of signals;
+- `chronicle` for the raw log;
+- `charter` for a work order (say `brief`).
+
+## Don't confuse it with
+
+- **[Relationship types](/docs/concepts/foundations/relationship-types)** — the list of names for links between records. Naming covers every word in the system.
+
+## How it connects
+
+- **Built on:** the shared vocabulary in `docs/LEXICON.md`
+- **Used by:** the [Store](/docs/concepts/foundations/store) and [Ledger](/docs/concepts/foundations/ledger) split, [Signals](/docs/concepts/foundations/signals), [Charters and briefs](/docs/concepts/coordination/charters-and-briefs), [Chronicles](/docs/concepts/memory/chronicles)
+- **Part of:** [Foundations](/docs/concepts/foundations); see the [principles](/docs/concepts/method/principles)

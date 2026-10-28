@@ -1,0 +1,56 @@
+---
+title: Guards over discipline
+description: If a rule matters, a script checks it, because rules you have to remember to follow fade away.
+---
+
+A rule that lives only in people's heads fades. A rule that a script checks holds. So when a rule matters here, it becomes a guard: a check that runs before a change can ship. The same goes for docs. If a doc claims to be current, a machine checks it against the code.
+
+<Callout type="warn" title="Hard at ship, soft in CI">The guards block a change in `scripts/ship.py`. CI only stops them from getting worse than an old baseline. The docs guard already failed in that baseline, so CI does not catch new drift by itself.</Callout>
+
+## Why it exists
+
+An early audit found that every "remember to" rule had decayed. That held for humans and agents alike. A status file written by hand was wrong within days. The architecture map and the word list rotted once, because nothing checked them.
+
+The same idea covers safety. Never count on a model to obey a rule. Models call tools no one offered them. The block has to live in the code that runs the model, not in the model's instructions.
+
+## How it works
+
+The main docs guard is `check_comprehensibility.py`. People call it the immune system, because it hunts drift between docs and code. It fails in five cases:
+
+- A core package is missing from the architecture map.
+- A generated doc no longer matches what its generator would write.
+- A living doc points at a file that git does not track.
+- A file name's case on disk differs from git.
+- The check itself crashes.
+
+It also warns about smaller things, such as a module with no docstring. Its exemptions carry an end date. An expired one counts as a failure.
+
+Two more guards keep the docs folder honest:
+
+- The currency guard, `check_doc_currency.py`, reads the top of every doc in `docs/`. Each must say if it is current, replaced or historical. A living doc says `Status: current`. A dated doc says `Status: historical`. It is a record of its day, not current law. See [the library](/docs/concepts/memory/library).
+- The freshness guard, `check_doc_freshness.py`, keeps stray files out of the repo root.
+
+Some lessons are about what failed. Those go into fossils, a curated list of dropped ideas. Each fossil tells the idea, why it looked good, what we tried, and why we gave it up. A machine twin lives in memory as an `--anti-pattern` [lesson](/docs/concepts/memory/lessons).
+
+Other ship guards hold the method itself. One makes risky changes cite a [fence review](/docs/concepts/method/fence-review). Another makes a pre-registered test land before its code.
+
+A guard must earn its place too. If its false alarms cost more than the failure it stops, it should go.
+
+## How you use it
+
+```bash
+uv run scripts/checkers/check_comprehensibility.py --fast
+uv run scripts/checkers/check_doc_currency.py
+uv run scripts/ship.py "message" path/one.py path/two.md
+```
+
+## Don't confuse it with
+
+- **The three docs guards** — The freshness guard watches the root folder. The currency guard watches the status line. The immune system checks that docs match code.
+- **Fossil in the [naming](/docs/concepts/foundations/naming) rules** — There it means an old file name kept after a word changed. A fossil here is a dropped idea.
+
+## How it connects
+
+- **Built on:** [Principles](/docs/concepts/method/principles) (principle 4)
+- **Used by:** [Built, not wired](/docs/concepts/method/built-not-wired), [Fence review](/docs/concepts/method/fence-review), [Naming](/docs/concepts/foundations/naming)
+- **Part of:** [The method](/docs/concepts/method)
