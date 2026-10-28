@@ -1,0 +1,94 @@
+---
+title: Wake
+description: A cheap background listener that exits the moment real mail arrives, so the agent's app gives it a new turn.
+---
+
+An agent in Claude Code or Cursor runs only when it has a turn. Between turns it sleeps, and it cannot check its own mail. Wake fixes that. A tiny listener waits on the [bus](/docs/concepts/bifrost/bus) in the background. When mail worth waking for arrives, the listener exits. The harness, the app that runs the agent, sees the exit and gives the agent a new turn.
+
+<Callout type="warn" title="Built, not wired">The doorbell dispatcher has no caller. The listener on this page is the live path.</Callout>
+
+## Why it exists
+
+A turn-based agent cannot wake itself. Checking the inbox every few seconds costs tokens. And no tool can push a message into an idle chat window. The harness does notice when a background task ends. So the honest route is a background task that ends when mail comes.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Host | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/architecture#host) | The AI app the user runs, which creates MCP clients and controls consent. |
+| Turn | [Codex](https://learn.chatgpt.com/docs/app-server#core-primitives) | One user request plus all the agent work and replies that follow it. |
+| Background subagents | [Claude Code](https://code.claude.com/docs/en/sub-agents#run-subagents-in-foreground-or-background) | Subagents that keep working while you chat, then report when finished. |
+| Monitor tool | [Claude Code](https://code.claude.com/docs/en/tools-reference#monitor-tool) | Runs a command in the background and feeds each output line back to Claude. |
+| Idle notice | [Claude Code](https://code.claude.com/docs/en/cross-session-messaging#get-a-notice-when-another-session-goes-idle) | A message telling one session when another session it watches goes idle. |
+| Channels | [Claude Code](https://code.claude.com/docs/en/channels) | MCP servers that push outside events, like chat messages, into a running session. |
+| agent.end | [Amp](https://ampcode.com/docs/customize/plugins#agent-end-continue-after-a-turn-ends) | An event after each turn where a plugin can add a follow-up message. |
+| Scheduled tasks | [Claude Code](https://code.claude.com/docs/en/scheduled-tasks) | Prompts that repeat on a timer or fire once inside a running session. |
+| Scheduled prompts | [GitHub Copilot](https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/schedule-prompts#scheduling-a-recurring-prompt-with-every) | `/every` and `/after` run a prompt on a repeat or after a delay. |
+
+**How Aurora differs:** Aurora calls the host the harness. Like a background subagent, the listener ends and so grants a turn. Unlike a timer, it fires when real mail lands, not on a clock.
+
+</Callout>
+
+## How it works
+
+- **Listen, don't read.** `scripts/bifrost_wake.py` blocks on your inbox and the broadcast stream. It keeps its own bookmark, so it sees mail without consuming it. You still read the mail yourself.
+- **Only real mail.** These kinds wake you: `request`, `handoff`, `reply`, `blocker`, `question`, `completion` and `nudge`. Chatter, traces and steers do not. Mail from the human operator always wakes you.
+- **Mail already waiting.** If unread mail sits there when the listener starts, it fires at once.
+- **Exit codes.** Every normal ending exits with 0. Code 1 means an error. Code 2 means the bus is offline.
+
+## Wake seats
+
+One agent can run in several sessions at once. Each session's listener holds its own seat file. All of them wake on mail. That is by design: locks and the ledger sort out the twins.
+
+No session kills another's listener. That rule came from a bug. Starting session B used to kill session A's live listener. Now, when a session starts, a janitor clears only seats whose process is dead. It removes a live listener only with two proofs. Its activity mark must be over 30 minutes old, and its parent process must be gone. Any doubt means alive.
+
+The `bifrost-standby` verb does the turn-end routine in one step. It drains your mail, reports your seat, then waits as the listener's parent.
+
+## The doorbell
+
+After each send, the bus also rings a doorbell. It is a tiny notice with no payload, on `bifrost:bell:<agent>`. The plan was for a dispatcher to hear it and start turns. That dispatcher has no caller yet, so the bell rings into an empty room. That is safe. The stream and the bookmark stay the truth.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Push notifications | [A2A](https://a2a-protocol.org/latest/topics/streaming-and-async/#push-notifications-for-disconnected-scenarios) | The agent calls a client webhook when a task changes. |
+| Subscriptions | [MCP](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/subscriptions) | A long-lived stream where a client opts in to change notices from a server. |
+| Subscriptions | [Cursor](https://cursor.com/docs/agent/projects#subscriptions) | Events a coordinator listens for, like Slack messages or schedules, to act unprompted. |
+| Webhooks | [Amp](https://ampcode.com/docs/orbs/event-driven#webhooks) | A plugin URL that stores incoming events and wakes its orb. |
+| Webhooks | [Cursor](https://cursor.com/docs/cloud-agent/api/webhooks) | HTTP calls Cursor sends to your URL when a Cloud Agent finishes or errors. |
+| GitHub Webhooks | [Amp](https://ampcode.com/docs/github#github-webhooks) | Threads subscribe to issues, pull requests and CI checks and wake on updates. |
+| Automations | [Cursor](https://cursor.com/docs/cloud-agent/automations) · [GitHub Copilot](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-automations#triggers) | Agents that start on a schedule or when events happen in other tools. |
+
+**How Aurora differs:** The doorbell is the same kind of event notice. It carries no payload, and nothing listens to it yet. The listener on the bus stream wakes agents today.
+
+</Callout>
+
+## How you use it
+
+```bash
+uv run scripts/bifrost_wake.py --agent claude --session <session-id>   # in the background
+aurora bifrost-standby claude                                    # in the background
+```
+
+## Don't confuse it with
+
+- **A runner** — always awake, and it answers. A wake listener never answers. See [Runners](/docs/concepts/bifrost/runners).
+- **A nudge** — it interrupts an agent that is working. Wake rouses one that sleeps. See [Control plane](/docs/concepts/bifrost/control-plane).
+- **The doorbell** — only the notice. It is not the listener.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| .agents/setup and .agents/resume | [Amp](https://ampcode.com/docs/orbs/customizing) | Not the same: scripts that prepare a new orb and reconnect it after each wake. |
+
+**How Aurora differs:** In Amp, a wake resumes a sleeping machine. In Aurora, wake gives a sleeping agent a new turn.
+
+</Callout>
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus)
+- **Used by:** [Seats](/docs/concepts/bifrost/seats) in Claude Code, Cursor and Codex; [Liveness](/docs/concepts/bifrost/liveness) (the daemon runs listeners)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

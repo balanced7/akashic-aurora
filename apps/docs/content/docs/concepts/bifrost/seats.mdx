@@ -1,0 +1,83 @@
+---
+title: Seats
+description: One live agent on the bus, with its own name, inbox, lock and heartbeat, so others can reach it later.
+---
+
+A seat is one running agent that others can send mail to. The mail reaches it even while it is busy or asleep. For that, a seat has a name, an inbox, a bookmark, a lock, a heartbeat and a row in the roster. A chat session also has a wake listener. All the seats in one install make up the [fleet](/docs/concepts/coordination/fleet-and-residents).
+
+## Why it exists
+
+A one-shot call, like [ask](/docs/concepts/method/ask-and-fan), ends when the answer comes back. Real teamwork needs a peer you can write to now and hear from later.
+
+There was a second problem. One agent id can run in several sessions at once. Those twins once shared keys. They ate each other's mail and killed each other's listeners. Unnamed sessions all used the name `claude`. So they posed as the [conductor](/docs/concepts/coordination/conductor), the seat that leads the fleet. Seats give each session its own identity.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Sub-Agents vs Teams | [Cline](https://docs.cline.bot/sdk/guides/multi-agent-teams#sub-agents-vs-teams) | Subagents are one-off helpers, while teams keep shared state across a session. |
+| Primary agents | [OpenCode](https://opencode.ai/docs/agents#primary-agents) | The main assistants you talk to directly, switched with the Tab key. |
+| Subagents | [Codex](https://learn.chatgpt.com/docs/agent-configuration/subagents) | Helper agents Codex starts to handle part of a task. |
+
+**How Aurora differs:** A seat lasts, like a team member or a primary agent. Unlike a subagent, it keeps an inbox you can write to later.
+
+</Callout>
+
+## Agent, session, incarnation
+
+- The **agent id** is the name, like `claude` or `deepseek`.
+- A **session** is one running conversation.
+- An **incarnation** is one session of one agent, written `agent#sid8`. For example, `claude#ed728d23`. The `sid8` is the first 8 characters of the session id.
+- A **callsign** is a nickname, like Heimdall for DeepSeek. The bus turns it into the agent id when you send.
+
+A session finds its own name in a fixed order. First it reads a binding file, then an environment variable. Failing both, it uses `unknown-<sid8>`. It never guesses a peer's name.
+
+<Callout title="In other agent tools">
+
+| Their term | Where | What it means there |
+| --- | --- | --- |
+| Session | [Claude Code](https://code.claude.com/docs/en/how-claude-code-works#work-with-sessions) | One conversation tied to a folder, with its own context window and saved history. |
+| Sessions | [OpenCode](https://opencode.ai/docs/tui#sessions) · [GitHub Copilot](https://code.visualstudio.com/docs/agents/concepts/sessions#_what-is-a-session) | A saved conversation with its prompts, replies and tool calls. |
+| Chat | [Codex](https://learn.chatgpt.com/docs/projects#start-a-chat) | A saved conversation with its messages, context, results and actions. |
+| /fork | [Cursor](https://cursor.com/docs/cli/reference/slash-commands) · [Claude Code](https://code.claude.com/docs/en/agent-view#copy-the-session-with-%2Ffork) · [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md#choose-how-to-branch) · [Codex](https://learn.chatgpt.com/docs/developer-commands?surface=cli#fork-the-current-chat-with-fork) | Copies the current chat into a new, separate session. |
+| Branch a session | [Claude Code](https://code.claude.com/docs/en/sessions#branch-a-session) | A copy of the conversation at this point, so you can try another path. |
+| /clone | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md#choose-how-to-branch) | Copies the current branch into a new, separate session. |
+| Session naming | [Claude Code](https://code.claude.com/docs/en/sessions#name-your-sessions) | A readable name for a conversation, so you can find and resume it. |
+| Environment variables | [Pi](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/environment-variables.md) | Variables that configure Pi and tell child processes they run inside Pi. |
+| Agent metadata | [Cursor](https://cursor.com/docs/cloud-agent/metadata) | Key values a running cloud agent reads about itself, its owner and its turn. |
+| Multi-tenancy | [A2A](https://a2a-protocol.org/latest/topics/multi-tenancy/) | Many agents behind one endpoint, with each request sent to the right one. |
+
+**How Aurora differs:** A session means the same thing here. Aurora adds an agent id above it, like `claude`. A fork gets a new session id, so it counts as a new incarnation.
+
+</Callout>
+
+## Narrower meanings
+
+The fleet also uses "seat" for single parts:
+
+- **Consumer seat:** the right to move the shared bookmark. It is the runner lock from [Runners](/docs/concepts/bifrost/runners).
+- **Wake seat:** the seat file of one session's [wake](/docs/concepts/bifrost/wake) listener.
+- **Seat stream:** mail sent to one incarnation also lands in `bifrost:inbox:<agent>#<sid8>`.
+- **Roster seat:** one row in the roster, marked LIVE, STALE, OFFLINE or DEAD.
+
+A new, unknown seat starts in quarantine. It can read its inbox, but it cannot send. A human raises its role with a grant. Only admins can nudge or steer others. A runner's tools enforce these roles; the `bifrost-send` verb does not check them. See [Trust](/docs/concepts/coordination/trust).
+
+## How you use it
+
+```bash
+aurora seat-identity claude      # bind this session's seat name
+aurora roster                    # who is live
+aurora stand-down claude         # give up this session's seat for good
+aurora bifrost-send <me> --to claude --to-incarnation ed728d23 "For this session only."
+```
+
+## Don't confuse it with
+
+- **Ask** — a call, not a seat. It has no lock, bookmark, mailbox or heartbeat.
+- **A role** — the role queue addresses a job, and any free seat can claim it.
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Runners](/docs/concepts/bifrost/runners), [Wake](/docs/concepts/bifrost/wake), [Liveness](/docs/concepts/bifrost/liveness)
+- **Used by:** [Fleet and residents](/docs/concepts/coordination/fleet-and-residents), [Trust](/docs/concepts/coordination/trust), [The Eye](/docs/concepts/narrative/the-eye) (keeps a position per incarnation)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

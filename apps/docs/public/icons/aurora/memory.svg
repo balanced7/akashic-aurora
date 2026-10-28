@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="m-back" x1="10" y1="8" x2="30" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C084FC"/><stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="m-mid" x1="14" y1="10" x2="34" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E879F9"/><stop offset="1" stop-color="#A21CAF"/>
+    </linearGradient>
+    <linearGradient id="m-front" x1="16" y1="14" x2="40" y2="42" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF9BD2"/><stop offset=".55" stop-color="#F0559B"/><stop offset="1" stop-color="#B83AD9"/>
+    </linearGradient>
+    <linearGradient id="m-star" x1="22" y1="18" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/><stop offset="1" stop-color="#FFE3F3"/>
+    </linearGradient>
+  </defs>
+  <rect x="7" y="7" width="22" height="28" rx="5" fill="url(#m-back)" transform="rotate(-10 18 21)"/>
+  <rect x="12" y="9" width="22" height="28" rx="5" fill="url(#m-mid)" transform="rotate(-2 23 23)"/>
+  <rect x="17" y="13" width="23" height="29" rx="5.5" fill="url(#m-front)"/>
+  <path d="M28.5 19.5c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6Z" fill="url(#m-star)"/>
+  <circle cx="35" cy="35.5" r="1.6" fill="#fff" opacity=".85"/>
+</svg>
