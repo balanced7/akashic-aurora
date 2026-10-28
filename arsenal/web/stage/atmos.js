@@ -41,6 +41,20 @@ export const clampPlume = (s) => (s > PLUME_CAP ? PLUME_CAP : s < 0 ? 0 : s);
 // what a plume of extinction sigma leaves of the light behind it over pathM metres (Beer-Lambert, plume channel)
 export const plumeTransmittance = (sigma, pathM) => Math.exp(-clampPlume(sigma) * Math.max(0, pathM));
 
+// The air's colour (VJ V2 fix round 2). The veil is the room's light scattered back by the haze, so it takes the colour
+// of what lights the room: the rings' white LEDs and the beams, a neutral blue-grey. A theme whose air has a hue of its
+// own (theme.air_tint 0..1: the Dreaming City's deep violet haze, measured plum in every one of Daniel's stills) moves
+// the veil toward its ambient's hue AT THE VEIL'S OWN LUMINANCE: the haze glows exactly as bright with the room's light
+// (nothing the flash limiter counts moves), only its colour is the air's. t = 0 leaves the veil as the light made it.
+const LUMA = [0.2126, 0.7152, 0.0722];
+export function airTint(veil, ambient, t, out = [0, 0, 0]) {
+  const k = t > 1 ? 1 : t > 0 ? t : 0;
+  const ya = LUMA[0] * ambient[0] + LUMA[1] * ambient[1] + LUMA[2] * ambient[2];
+  const s = k > 0 && ya > 1e-9 ? (LUMA[0] * veil[0] + LUMA[1] * veil[1] + LUMA[2] * veil[2]) / ya : 0;
+  for (let i = 0; i < 3; i++) out[i] = s > 0 ? veil[i] + (ambient[i] * s - veil[i]) * k : veil[i];
+  return out;
+}
+
 // Henyey-Greenstein (the same lobe as the house module volume/phase.glsl): mu = dot(viewDir, dirToLight).
 export function phaseHG(mu, g) {
   const c = Math.max(-1, Math.min(1, mu)), gg = Math.max(-0.9999, Math.min(0.9999, g));

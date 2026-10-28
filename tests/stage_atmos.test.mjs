@@ -11,7 +11,9 @@
 // blowing it away) is held by the limiter to three flashes a second on the frames shown.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HAZE_CAP, PLUME_CAP, SIGMA_CAP, clampSigma, clampPlume, plumeTransmittance, Atmosphere } from "../arsenal/web/stage/atmos.js";
+import { HAZE_CAP, PLUME_CAP, SIGMA_CAP, clampSigma, clampPlume, plumeTransmittance, Atmosphere, airTint } from "../arsenal/web/stage/atmos.js";
+import { readFileSync } from "node:fs";
+import { hexToLinear } from "../arsenal/web/stage/lasers.js";
 import { FrameLimiter, WINDOWS, windowMean } from "../arsenal/web/stage/flash.js";
 import { FlashGate } from "../arsenal/web/stage/programmer.js";
 
@@ -102,4 +104,28 @@ test("white-out backstop: a plume that bypassed the gate and clears fast is held
   const raw = play({ bpm: 240, covered: QUARTER, gated: false, tau: 0.04, hold: 0.05 });
   assert.ok(raw.interventions > 0, "the limiter had to act (the case is real)");
   assert.ok(raw.worstTransitionsIn1s <= 6, `shown: ${raw.worstTransitionsIn1s} transitions in a second`);
+});
+
+test("the air's colour: a theme's air_tint moves the haze veil's hue toward its ambient and never its luminance", () => {
+  const Y = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  // fix round 2: the Stage's Dreaming City air measured a neutral blue-grey (the rings' white LEDs light the veil), every
+  // still of Daniel's measures plum (R about 18 over G)
+  const scene = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
+  const dc = scene.themes["dreaming-city"], amb = hexToLinear(dc.ambient);
+  assert.ok(dc.air_tint > 0 && dc.air_tint <= 1);
+  const veil = [0.0093, 0.0086, 0.0144];                       // the measured air, linear (sRGB 24, 23, 32)
+  const out = airTint(veil, amb, dc.air_tint);
+  assert.ok(Math.abs(Y(out) - Y(veil)) < 1e-12, "the luminance the flash limiter counts does not move");
+  const srgb = (l) => 255 * (l <= 0.0031308 ? 12.92 * l : 1.055 * l ** (1 / 2.4) - 0.055);
+  assert.ok(srgb(out[0]) - srgb(out[1]) >= 12 && srgb(out[2]) - srgb(out[1]) >= 12, `plum: ${out.map(srgb).map(Math.round)}`);
+  // t = 0 (every other theme), a black veil and a black ambient leave it as it was; t clamps to 0..1
+  assert.deepEqual(airTint(veil, amb, 0), veil);
+  assert.deepEqual(airTint([0, 0, 0], amb, 1), [0, 0, 0]);
+  assert.deepEqual(airTint(veil, [0, 0, 0], 1), veil);
+  assert.deepEqual(airTint(veil, amb, 5), airTint(veil, amb, 1));
+  const full = airTint(veil, amb, 1);
+  for (let i = 1; i < 3; i++) assert.ok(Math.abs(full[i] / full[0] - amb[i] / amb[0]) < 1e-9, "t = 1: the ambient's own hue");
+  // in place (the renderer reuses one buffer a frame)
+  const v = veil.slice(); assert.equal(airTint(v, amb, 0.5, v), v);
+  for (const [id, t] of Object.entries(scene.themes)) if (t.air_tint !== undefined) assert.ok(t.air_tint >= 0 && t.air_tint <= 1, id);
 });

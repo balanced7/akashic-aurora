@@ -1,6 +1,7 @@
 // VJ air: arsenal/web/vj-fluid.js (ES module). The pure parts (constants, envelopes, the beam stirs and the CPU twin of the
 // solver) are pinned in tests/vj_fluid.test.mjs; vj.js wires it in its AIR block; the page receipts are vj_storm.mjs's
-// airedge and airstir storms.
+// airedge and airstir storms, and airlasers (fix round 2: the beams lit through fog and CO2, gate v2 never darkening a
+// corner -- the air's onset needs no backstop).
 //
 // Daniel, 2026-10-27: "stunning laser effects through as best of a volumetric fog as we can manage", and for CO2 "combine
 // it into one physics system ... a slowed down higher fidelity version" (of NVIDIA's GeForce 8 smoke, GPU Gems 3 ch. 30).

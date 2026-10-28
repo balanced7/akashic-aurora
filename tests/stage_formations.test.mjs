@@ -329,6 +329,13 @@ test("the orrery is never shot through the rig: its views see the heart whole, a
   assert.equal(ok.has("HEAD_ORBIT"), false);
   for (const id of ["FOH_WIDE", "HALO_LOCK", ...V.glide, ...V.hero]) assert.ok(ok.has(id), id);
   assert.equal(d.deal("HEAD_ORBIT", ["orrery"]) !== "HEAD_ORBIT", true, "HEAD_ORBIT is swapped for a stand-in");
+  // fix round 2: TRIBUNE_HIGH_R (groove, drop-v2) has the x = +5 PA hang over the core's lower half on every frame of its
+  // move (22 %, under the old quarter): it is swapped too; no shot the director may deal hides more than 15 %
+  const tr = shotSight(SCENE.cameras.shots.TRIBUNE_HIGH_R, R.sight("orrery"));
+  assert.ok(tr.mean > 0.15 && tr.worst > 0.15, `TRIBUNE_HIGH_R hides ${(tr.mean * 100).toFixed(0)} % of the core`);
+  assert.equal(ok.has("TRIBUNE_HIGH_R"), false);
+  assert.equal(d.deal("TRIBUNE_HIGH_R", ["orrery"]) !== "TRIBUNE_HIGH_R", true, "TRIBUNE_HIGH_R is swapped for a stand-in");
+  for (const id of ok) assert.ok(shotSight(SCENE.cameras.shots[id], R.sight("orrery")).mean <= 0.15, `${id} may be dealt over the orrery`);
   // a formation without a core asks nothing of the sightlines
   assert.equal(R.sight("spiral"), null);
 });

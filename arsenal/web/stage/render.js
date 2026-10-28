@@ -32,7 +32,7 @@ import * as S from "./shaders.js";
 import { elementMatrix, headPose, transformPoint, hallStructure, CELL_KIND } from "./rig.js";
 import { roomHit, L3, L3_FLOATS } from "./lasers3d.js";
 import { H, HEAD_FLOATS } from "./programmer.js";
-import { hazeNoise3D } from "./atmos.js";
+import { hazeNoise3D, airTint } from "./atmos.js";
 import { vfovOf } from "./camera.js";
 import { MAX_FORMATION_EMIT, MAX_FORMATION_BEAMS } from "./formations.js";
 
@@ -146,6 +146,7 @@ export class StageRenderer {
     this.q = { ...(QUALITY[quality] || QUALITY.high) };
     this.qualityName = QUALITY[quality] ? quality : "high";
     this.features = { venue: true, crowd: true, strand: true, rings: true, beams: true, lasers: true, emitters: true, bloom: true, veil: true };
+    this.veilNow = [0, 0, 0];   // the haze veil this frame (linear rgb), reused
     this.profile = false;
     this.timings = {};
     this.preludeMain = lib.compose(["volume-phase", "colour-transfer"], "webgl2");
@@ -478,7 +479,8 @@ export class StageRenderer {
 
   // ------------------------------------------------------------------------------------------------- one frame --
   // fs: {camera {pos, look, hfov, roll, ev}, poses [{y, roll}] per rung, heads (programmer), pixels (programmer),
-  //      lasers {seg, n} (lasers3d), medium (atmos uniform), veil [r, g, b], beatPhase, energy}
+  //      lasers {seg, n} (lasers3d), medium (atmos uniform), veil [r, g, b], ambient [r, g, b], airTint (0..1: how much of
+  //      the ambient's hue the veil takes, atmos.js airTint), beatPhase, energy}
   // limiter: (cells, t) -> {a, k, beta}; t: seconds
   render(fs, limiter, tSec) {
     const rig = this.rig, cam = this.camera, F = this.features;
@@ -697,13 +699,13 @@ export class StageRenderer {
     for (const k of ["iA", "iB", "iPow", "iMisc"]) this.laserGeo.attributes[k].needsUpdate = true;
     this.emitGeo.instanceCount = F.emitters ? ePtr : 0;
     for (const k of ["iPos", "iCol", "iSize"]) this.emitGeo.attributes[k].needsUpdate = true;
-    // the veil: the room's light scattered back by the haze (the beams' flux and the LEDs, tinted)
+    // the veil: the room's light scattered back by the haze (the beams' flux and the LEDs, tinted), in the air's own
+    // colour where the theme gives it one (atmos.js airTint: the hue moves, the luminance does not)
     const amb = fs.ambient || [0.23, 0.1, 0.55];
-    const vk = 0.5e-6 * U, pk = 0.0006 * U;
-    this.post.composite.uniforms.uVeil.value.set(
-      F.veil ? (veil[0] * vk + pixPower[0] * pk) * 0.6 + amb[0] * 0.02 : 0,
-      F.veil ? (veil[1] * vk + pixPower[1] * pk) * 0.6 + amb[1] * 0.02 : 0,
-      F.veil ? (veil[2] * vk + pixPower[2] * pk) * 0.6 + amb[2] * 0.02 : 0);
+    const vk = 0.5e-6 * U, pk = 0.0006 * U, vl = this.veilNow;
+    for (let i = 0; i < 3; i++) vl[i] = F.veil ? (veil[i] * vk + pixPower[i] * pk) * 0.6 + amb[i] * 0.02 : 0;
+    airTint(vl, amb, fs.airTint || 0, vl);
+    this.post.composite.uniforms.uVeil.value.set(vl[0], vl[1], vl[2]);
     this.post.composite.uniforms.uSigma0.value = md.sigma0;
     sp.uAmbient.value.set(0.004 + amb[0] * 0.01, 0.004 + amb[1] * 0.01, 0.006 + amb[2] * 0.01);
     this.mat.arms.uniforms.uBeatPhase.value = fs.beatPhase || 0;

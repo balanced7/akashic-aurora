@@ -308,7 +308,7 @@ export class RingFormations {
     const d = this.def(key), S = d && d.core && d.core.sight;
     if (!S) return null;
     if (!this._hall) { const h = hallStructure(this.rig.venue); this._hall = [...h.solid, ...h.truss]; }
-    return { target: this.axis.C, r: hero ? S.hero_m ?? 3 : d.core.radius ?? 0.85, boxes: this._hall, max: hero ? 0 : S.dealt_hidden ?? 0.25 };
+    return { target: this.axis.C, r: hero ? S.hero_m ?? 3 : d.core.radius ?? 0.85, boxes: this._hall, max: hero ? 0 : S.dealt_hidden ?? 0.15 };
   }
   // The camera's view of the rings: live annuli (camera.js ringAnnulus shape), or null at home.
   liveAnnuli() {

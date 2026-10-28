@@ -147,6 +147,7 @@ function start({ rig, R, renderMod }) {
   const link = new EngineLink();
   const demoBeats = show.demo ? new DemoBeats({ bpm: demoBpm, startMs: now0 + 300 }) : null;
   const ambient = hexToLinear(theme.ambient || "#3a1a8a");
+  const airTint = Number.isFinite(theme.air_tint) ? theme.air_tint : 0;   // the haze veil in the air's own hue (atmos.js airTint)
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
   const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
   const faderMap = show0.faders || {};
@@ -303,7 +304,7 @@ function start({ rig, R, renderMod }) {
       const shot = director.shots[pose.shot];
       const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
-                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
+                   pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
                    bloomMix: BLOOM_MIX, rings: rf };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       const info = api.skipRender ? state.info : R.render(fs, (cells, t) => limiter.step(cells, t, dt), now / 1000);

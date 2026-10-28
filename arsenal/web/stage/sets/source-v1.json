@@ -554,8 +554,8 @@
                  "light": {"core": [0, 4], "bands": [2, 10], "rings": [[12, 20], [8, 16], [4, 12], [0, 8]], "planets": [16, 24], "heads": [16, 24], "lasers": [24, 25], "motes": [24, 32]}},
       "core": {"radius": 1.2, "role": "A", "hot_role": "W", "level": 1, "nits": 180, "hot": 0.25, "hero_hot": 1.2, "swirl_beats": 23, "equator_dots": 48, "dot_nits": 9000, "port_nits": 30000, "glow_nits": 90, "glow_m": 3.4,
                "about": "the orrery report's core: 1.2 m (it clears ring 3's 1.5 m inner radius), its bands at 1.15-1.67 x the core (the measured inner halo, 1.05-1.8 x)",
-               "sight": {"hero_m": 3, "dealt_hidden": 0.25,
-                         "about": "camera.js shotSight: the hero views keep the heart (the core, its bands and ring 3, 3 m) clear of the PA hangs and trusses on every frame; any shot dealt while the orrery stands hides at most a quarter of the core on average"},
+               "sight": {"hero_m": 3, "dealt_hidden": 0.15,
+                         "about": "camera.js shotSight: the hero views keep the heart (the core, its bands and ring 3, 3 m) clear of the PA hangs and trusses on every frame; any shot dealt while the orrery stands hides at most 15 % of the core on average (fix round 2: at a quarter, TRIBUNE_HIGH_R was dealt with the x = +5 PA hang over the core's lower half on every frame, 22 %; the glides STRAND_ORBIT_FULL, 20 %, and SPIRAL_ASCENT, 18 %, go with it)"},
                "bands": [
                  {"r": 1.38, "tilt_deg": -12, "axis_deg": 0, "beats": 7, "dots": 200, "texture": "line", "role": "W", "nits": 7000},
                  {"r": 1.53, "tilt_deg": 6, "axis_deg": 70, "beats": -11, "dots": 160, "texture": "lancet", "role": "bumpA", "nits": 9000},
@@ -754,7 +754,7 @@
     },
     "dreaming-city": {
       "name": "Dreaming City",
-      "about": "Looks wave 1: the VJ library's Dreaming City (arsenal/web/vj-themes.json), measured from Daniel's stills: A the violet core, B the pink-violet haze, W and the first laser the cyan-white glyph lines, warm the window amber (the accent), the air the haze's deep violet. ?theme=dreaming-city",
+      "about": "Looks wave 1: the VJ library's Dreaming City (arsenal/web/vj-themes.json), measured from Daniel's stills: A the violet core, B the pink-violet haze, W and the first laser the cyan-white glyph lines, warm the window amber (the accent), the air the haze's deep violet (air_tint: the haze veil takes the ambient's plum at its own luminance, atmos.js airTint; fix round 2, the air had measured a neutral blue-grey against plum in every still). ?theme=dreaming-city",
       "A": "#8f2fc4",
       "B": "#a864a2",
       "W": "#d1f6fe",
@@ -763,6 +763,7 @@
       "warm": "#f1af64",
       "laser": ["#aceaf6", "#a760f8", "#e9fbff"],
       "ambient": "#4d224c",
+      "air_tint": 0.8,
       "bumpA": "#b88fe6",
       "bumpB": "#e39ecc"
     },
