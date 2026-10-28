@@ -1,0 +1,382 @@
+{
+  "id": "climbing",
+  "domain": "climbing",
+  "title": "Climbing Foundations",
+  "nodes": [
+    {
+      "id": "climb.finger_strength.t1",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.finger_strength",
+      "tier": 1,
+      "title": "Hang 20mm edge, 5s",
+      "rubric": "Dead hang on 20mm edge, bodyweight, full 5s, 2 of 3 attempts",
+      "media": {
+        "image": "/skill-tree/climbing/finger_strength.t1.png?v=2",
+        "video": "/skill-tree/climbing/finger_strength.t1.mp4?v=2",
+        "alt": "Hang 20mm edge, 5s — demo video"
+      }
+    },
+    {
+      "id": "climb.finger_strength.t2",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.finger_strength",
+      "tier": 2,
+      "title": "Hang 20mm edge, 10s",
+      "rubric": "Dead hang, no swing, full 10s, 2 of 3 attempts",
+      "media": {
+        "image": "/skill-tree/climbing/finger_strength.t2.png?v=2",
+        "video": "/skill-tree/climbing/finger_strength.t2.mp4?v=2",
+        "alt": "Hang 20mm edge, 10s — demo video"
+      }
+    },
+    {
+      "id": "climb.finger_strength.t3",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.finger_strength",
+      "tier": 3,
+      "title": "Hang 15mm edge, 7s",
+      "rubric": "Open-hand hang on 15mm, full 7s, 2 of 3",
+      "media": {
+        "image": "/skill-tree/climbing/finger_strength.t3.png?v=2",
+        "video": "/skill-tree/climbing/finger_strength.t3.mp4?v=2",
+        "alt": "Hang 15mm edge, 7s — demo video"
+      }
+    },
+    {
+      "id": "climb.leg_power.t1",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.leg_power",
+      "tier": 1,
+      "title": "Box jump 40cm, 3 reps",
+      "rubric": "Soft landing, full extension, 3 of 3",
+      "media": {
+        "image": "/skill-tree/climbing/leg_power.t1.png?v=2",
+        "video": "/skill-tree/climbing/leg_power.t1.mp4?v=2",
+        "alt": "Box jump 40cm, 3 reps — demo video"
+      }
+    },
+    {
+      "id": "climb.leg_power.t2",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.leg_power",
+      "tier": 2,
+      "title": "Box jump 60cm, 3 reps",
+      "rubric": "Full extension, soft landing, 3 of 3",
+      "media": {
+        "image": "/skill-tree/climbing/leg_power.t2.png?v=2",
+        "video": "/skill-tree/climbing/leg_power.t2.mp4?v=2",
+        "alt": "Box jump 60cm, 3 reps — demo video"
+      }
+    },
+    {
+      "id": "climb.leg_power.t3",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.leg_power",
+      "tier": 3,
+      "title": "Single-leg box step 40cm",
+      "rubric": "Controlled ascent/descent each leg, 5 reps",
+      "media": {
+        "image": "/skill-tree/climbing/leg_power.t3.png?v=2",
+        "video": "/skill-tree/climbing/leg_power.t3.mp4?v=2",
+        "alt": "Single-leg box step 40cm — demo video"
+      }
+    },
+    {
+      "id": "climb.endurance.t1",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.endurance",
+      "tier": 1,
+      "title": "4x4s on easy terrain",
+      "rubric": "Four routes × four laps, 2 min rest between, complete without falling",
+      "media": {
+        "image": "/skill-tree/climbing/endurance.t1.png?v=2",
+        "video": "/skill-tree/climbing/endurance.t1.mp4?v=2",
+        "alt": "4x4s on easy terrain — demo video"
+      }
+    },
+    {
+      "id": "climb.endurance.t2",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.endurance",
+      "tier": 2,
+      "title": "Continuous 20-min traverse",
+      "rubric": "Stay on wall 20 minutes; brief rests on holds only",
+      "media": {
+        "image": "/skill-tree/climbing/endurance.t2.png?v=2",
+        "video": "/skill-tree/climbing/endurance.t2.mp4?v=2",
+        "alt": "Continuous 20-min traverse — demo video"
+      }
+    },
+    {
+      "id": "climb.technique.t1",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.technique",
+      "tier": 1,
+      "title": "Quiet feet on slab",
+      "rubric": "10 moves with silent foot placements, no scrapes",
+      "media": {
+        "image": "/skill-tree/climbing/technique.t1.png?v=2",
+        "video": "/skill-tree/climbing/technique.t1.mp4?v=2",
+        "alt": "Quiet feet on slab — demo video"
+      }
+    },
+    {
+      "id": "climb.technique.t2",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.technique",
+      "tier": 2,
+      "title": "Flag + drop-knee sequence",
+      "rubric": "Link flag into drop-knee on overhang, both sticks",
+      "media": {
+        "image": "/skill-tree/climbing/technique.t2.png?v=2",
+        "video": "/skill-tree/climbing/technique.t2.mp4?v=2",
+        "alt": "Flag + drop-knee sequence — demo video"
+      }
+    },
+    {
+      "id": "climb.dyno.t1",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.dyno",
+      "tier": 1,
+      "title": "Controlled dyno on vertical",
+      "rubric": "Both hands stick, no swing-out",
+      "media": {
+        "image": "/skill-tree/climbing/dyno.t1.png?v=2",
+        "video": "/skill-tree/climbing/dyno.t1.mp4?v=2",
+        "alt": "Controlled dyno on vertical — demo video"
+      }
+    },
+    {
+      "id": "climb.campus.t1",
+      "type": "milestone_tier",
+      "domain": "climbing",
+      "chain": "climb.campus",
+      "tier": 1,
+      "title": "Campus ladder 1-3-5",
+      "rubric": "Match rungs, controlled, no feet, 2 of 3",
+      "media": {
+        "image": "/skill-tree/climbing/campus.t1.png?v=2",
+        "video": "/skill-tree/climbing/campus.t1.mp4?v=2",
+        "alt": "Campus ladder 1-3-5 — demo video"
+      }
+    },
+    {
+      "id": "climb.action.hangboard_routine",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "routine",
+      "title": "3×/week max-hang protocol",
+      "cost": {
+        "time_min": 20,
+        "frequency": "3x/week"
+      },
+      "evidence": "strong"
+    },
+    {
+      "id": "climb.action.box_jumps",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "drill",
+      "title": "Plyometric box jumps",
+      "cost": {
+        "time_min": 15,
+        "frequency": "2x/week"
+      },
+      "evidence": "moderate"
+    },
+    {
+      "id": "climb.action.arc_training",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "routine",
+      "title": "ARC endurance sessions",
+      "cost": {
+        "time_min": 30,
+        "frequency": "2x/week"
+      },
+      "evidence": "strong"
+    },
+    {
+      "id": "climb.action.silent_feet_drill",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "drill",
+      "title": "Silent feet drills",
+      "cost": {
+        "time_min": 10,
+        "frequency": "every session"
+      },
+      "evidence": "moderate"
+    },
+    {
+      "id": "climb.action.campus_board",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "equipment",
+      "title": "Campus board access",
+      "cost": {
+        "time_min": 15,
+        "frequency": "1–2x/week"
+      },
+      "evidence": "strong"
+    },
+    {
+      "id": "climb.action.mobility_flow",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "routine",
+      "title": "Hip + shoulder mobility flow",
+      "cost": {
+        "time_min": 12,
+        "frequency": "daily"
+      },
+      "evidence": "anecdotal"
+    },
+    {
+      "id": "climb.action.spray_wall",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "environment",
+      "title": "Spray-wall dyno practice",
+      "cost": {
+        "time_min": 25,
+        "frequency": "1x/week"
+      },
+      "evidence": "moderate"
+    },
+    {
+      "id": "climb.action.guide_book",
+      "type": "action",
+      "domain": "climbing",
+      "kind": "resource",
+      "title": "Training for Climbing (book)",
+      "evidence": "strong"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e.fs.t1-t2",
+      "from": "climb.finger_strength.t1",
+      "to": "climb.finger_strength.t2",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.fs.t2-t3",
+      "from": "climb.finger_strength.t2",
+      "to": "climb.finger_strength.t3",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.lp.t1-t2",
+      "from": "climb.leg_power.t1",
+      "to": "climb.leg_power.t2",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.lp.t2-t3",
+      "from": "climb.leg_power.t2",
+      "to": "climb.leg_power.t3",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.end.t1-t2",
+      "from": "climb.endurance.t1",
+      "to": "climb.endurance.t2",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.tech.t1-t2",
+      "from": "climb.technique.t1",
+      "to": "climb.technique.t2",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.fs.t3-campus",
+      "from": "climb.finger_strength.t3",
+      "to": "climb.campus.t1",
+      "type": "prerequisite"
+    },
+    {
+      "id": "e.acc.hang-fs2",
+      "from": "climb.action.hangboard_routine",
+      "to": "climb.finger_strength.t2",
+      "type": "accelerates",
+      "weight": 0.8
+    },
+    {
+      "id": "e.acc.hang-fs3",
+      "from": "climb.action.hangboard_routine",
+      "to": "climb.finger_strength.t3",
+      "type": "accelerates",
+      "weight": 0.7
+    },
+    {
+      "id": "e.acc.box-lp2",
+      "from": "climb.action.box_jumps",
+      "to": "climb.leg_power.t2",
+      "type": "accelerates",
+      "weight": 0.75
+    },
+    {
+      "id": "e.acc.arc-end2",
+      "from": "climb.action.arc_training",
+      "to": "climb.endurance.t2",
+      "type": "accelerates",
+      "weight": 0.85
+    },
+    {
+      "id": "e.acc.silent-tech1",
+      "from": "climb.action.silent_feet_drill",
+      "to": "climb.technique.t1",
+      "type": "accelerates",
+      "weight": 0.6
+    },
+    {
+      "id": "e.acc.campus-campus1",
+      "from": "climb.action.campus_board",
+      "to": "climb.campus.t1",
+      "type": "accelerates",
+      "weight": 0.9
+    },
+    {
+      "id": "e.acc.mobility-tech2",
+      "from": "climb.action.mobility_flow",
+      "to": "climb.technique.t2",
+      "type": "accelerates",
+      "weight": 0.4
+    },
+    {
+      "id": "e.acc.spray-dyno",
+      "from": "climb.action.spray_wall",
+      "to": "climb.dyno.t1",
+      "type": "accelerates",
+      "weight": 0.7
+    },
+    {
+      "id": "e.acc.book-fs1",
+      "from": "climb.action.guide_book",
+      "to": "climb.finger_strength.t1",
+      "type": "accelerates",
+      "weight": 0.3
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "climb.dyno.t1.prereq",
+      "type": "prerequisite",
+      "tails": ["climb.finger_strength.t2", "climb.leg_power.t2"],
+      "heads": ["climb.dyno.t1"]
+    }
+  ]
+}

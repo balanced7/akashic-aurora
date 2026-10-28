@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,700&family=Chakra+Petch:wght@600&family=JetBrains+Mono:wght@400&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        background: #000;
+        color: #fff;
+        overflow: hidden;
+        position: relative;
+        font-family: "Bricolage Grotesque", sans-serif;
+      }
+      .sky {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(
+            60% 70% at 78% 8%,
+            rgba(10, 200, 185, 0.55),
+            transparent 60%
+          ),
+          radial-gradient(
+            40% 50% at 95% 30%,
+            rgba(200, 170, 110, 0.35),
+            transparent 60%
+          ),
+          radial-gradient(
+            50% 60% at 60% 0%,
+            rgba(110, 80, 220, 0.25),
+            transparent 60%
+          );
+        filter: blur(10px);
+      }
+      .rays {
+        position: absolute;
+        inset: 0 0 35% 45%;
+        background: repeating-linear-gradient(
+          90deg,
+          rgba(184, 255, 248, 0) 0 14px,
+          rgba(184, 255, 248, 0.07) 14px 16px,
+          rgba(184, 255, 248, 0) 16px 34px
+        );
+        mask-image: linear-gradient(to bottom, #000, transparent);
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.05) 1px,
+            transparent 1px
+          ),
+          linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.05) 1px,
+            transparent 1px
+          );
+        background-size: 48px 48px;
+        mask-image: radial-gradient(
+          ellipse at 30% 60%,
+          #000 20%,
+          transparent 70%
+        );
+      }
+      .wrap {
+        position: absolute;
+        inset: 64px 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+      h1 {
+        font-size: 92px;
+        line-height: 0.96;
+        letter-spacing: -0.05em;
+        font-weight: 700;
+        font-variation-settings: "opsz" 96;
+      }
+      h1 .light {
+        font-weight: 300;
+        color: rgba(255, 255, 255, 0.62);
+      }
+      h1 .grad {
+        background: linear-gradient(100deg, #fff 10%, #9ff5ec 55%, #c8aa6e 95%);
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .hud {
+        font-family: "Chakra Petch", monospace;
+        font-size: 16px;
+        letter-spacing: 0.2em;
+        color: #c8aa6e;
+        text-transform: uppercase;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .gem {
+        width: 10px;
+        height: 10px;
+        transform: rotate(45deg);
+        background: linear-gradient(135deg, #b8fff8, #0ac8b9);
+        box-shadow: 0 0 12px rgba(10, 200, 185, 0.9);
+      }
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 17px;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .corner {
+        position: absolute;
+        width: 26px;
+        height: 26px;
+        border-color: #c8aa6e;
+        border-style: solid;
+      }
+      .tl {
+        top: 28px;
+        left: 28px;
+        border-width: 2px 0 0 2px;
+      }
+      .br {
+        bottom: 28px;
+        right: 28px;
+        border-width: 0 2px 2px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sky"></div>
+    <div class="rays"></div>
+    <div class="grid"></div>
+    <div class="corner tl"></div>
+    <div class="corner br"></div>
+    <div class="wrap">
+      <div class="brand">
+        <svg width="40" height="40" viewBox="0 0 32 32" fill="none">
+          <defs>
+            <linearGradient
+              id="g"
+              x1="4"
+              y1="2"
+              x2="28"
+              y2="30"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#F0E6D2" />
+              <stop offset=".45" stop-color="#C8AA6E" />
+              <stop offset="1" stop-color="#785A28" />
+            </linearGradient>
+            <linearGradient
+              id="c"
+              x1="16"
+              y1="8"
+              x2="16"
+              y2="24"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop stop-color="#B8FFF8" />
+              <stop offset="1" stop-color="#0AC8B9" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M16 1.5 29 9v14L16 30.5 3 23V9L16 1.5Z"
+            stroke="url(#g)"
+            stroke-width="1.6"
+          />
+          <path
+            d="M16 7.5 23.5 12v8L16 24.5 8.5 20v-8L16 7.5Z"
+            fill="url(#c)"
+          />
+        </svg>
+        Akashic Labs
+      </div>
+      <h1>
+        Your agents forget.<br /><span class="grad">Aurora remembers</span
+        ><br /><span class="light">for all of them.</span>
+      </h1>
+      <div class="foot">
+        <div class="hud">
+          <span class="gem"></span>Shared memory for AI agents
+        </div>
+        <div class="mono">open source · Apache-2.0 · local-first</div>
+      </div>
+    </div>
+  </body>
+</html>

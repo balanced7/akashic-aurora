@@ -1,0 +1,20 @@
+{
+  "home": {
+    "title": "Poročila",
+    "description": "Pregled poročil, ki jih lahko skupaj izpolnite vi in vaš partner."
+  },
+  "reports": {
+    "compatibility": {
+      "title": "Poročilo o združljivosti",
+      "description": "Analizirajte združljivost med vami in partnerjem na podlagi različnih dejavnikov."
+    },
+    "love_languages": {
+      "title": "Jeziki ljubezni",
+      "description": "Odkrijte svoje jezike ljubezni in njihov vpliv na vaš odnos."
+    }
+  },
+  "actions": {
+    "take_report": "Izpolni poročilo",
+    "view_results": "Ogled rezultatov"
+  }
+}

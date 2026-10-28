@@ -1,0 +1,202 @@
+{
+  "create": {
+    "title": "Ustvari organizacijo",
+    "description": "Ustvarite novo organizacijo za upravljanje svoje ekipe in projektov.",
+    "cta": "Ustvari organizacijo",
+    "info": "Ime vaše organizacije naj bo edinstveno in opisno."
+  },
+  "join": {
+    "title": "Pridruži se organizaciji",
+    "description": "Pridružite se organizaciji, da boste sodelovali s svojo ekipo, učinkovito upravljali projekte in dostopali do skupnih virov."
+  },
+  "settings": {
+    "title": "Nastavitve",
+    "header": {
+      "title": "Nastavitve organizacije",
+      "description": "Upravljajte nastavitve in preference svoje organizacije."
+    }
+  },
+  "invitations": {
+    "title": "Povabila",
+    "disclaimer": {
+      "title": "Povabljeni ste v organizacijo",
+      "description": "Prijavite se ali ustvarite račun, da sprejmete povabilo in se pridružite organizaciji."
+    },
+    "resend": {
+      "success": "Povabilo je bilo znova poslano!"
+    },
+    "cancel": {
+      "success": "Povabilo je bilo preklicano!"
+    },
+    "accept": {
+      "success": "Zdaj ste član organizacije {{organization}}!"
+    },
+    "reject": {
+      "success": "Zavrnili ste pridružitev organizaciji {{organization}}."
+    },
+    "expired": {
+      "title": "Povabila ni mogoče najti ali je poteklo",
+      "description": "Povabilo, ki ga iščete, je poteklo ali pa ne obstaja. Za obnovitev povabila se obrnite na lastnika organizacije.",
+      "cta": "Nazaj na nadzorno ploščo"
+    },
+    "emailMismatch": {
+      "title": "Trenutno ste prijavljeni z drugim računom",
+      "description": "E-poštni naslov, ki ga želite uporabiti, se ne ujema z naslovom v povabilu. Prijavite se kot <bold>{{email}}</bold> ali se za posodobitev povabila obrnite na lastnika organizacije.",
+      "cta": "Prijavi se kot {{email}}",
+      "skip": "Preskoči na nadzorno ploščo"
+    },
+    "invitation": {
+      "title": "Pridružite se organizaciji {{organizationName}}",
+      "description": "<bold>{{inviterEmail}}</bold> vas vabi, da se v Anomalu pridružite organizaciji <bold>{{organizationName}}</bold>.",
+      "skip": "Preskoči na nadzorno ploščo"
+    },
+    "user": {
+      "banner": {
+        "title_one": "Imate povabilo v čakanju",
+        "title_other": "Imate {{count}} povabil v čakanju",
+        "description": "Kliknite za ogled podrobnosti ter sprejem ali zavrnitev povabila.",
+        "title_two": "Imate {{count}} čakajoči povabili",
+        "title_few": "Imate {{count}} čakajoča povabila"
+      },
+      "list": {
+        "title": "Povabila v čakanju",
+        "description": "Oglejte si in upravljajte svoja povabila v čakanju."
+      }
+    }
+  },
+  "members": {
+    "title": "Člani",
+    "header": {
+      "title": "Člani organizacije",
+      "description": "Upravljajte člane, povabila in vloge v svoji organizaciji."
+    },
+    "invite": {
+      "title": "Povabi člana",
+      "description": "Če želite v organizacijo dodati novega člana, mu pošljite povabilo.",
+      "info": "Naenkrat lahko povabite več članov.",
+      "missingPermission": "Za povabilo članov v to organizacijo potrebujete dodatna dovoljenja.",
+      "success_one": "Član je bil povabljen!",
+      "success_other": "Člani so bili povabljeni!",
+      "email": {
+        "subject": "Povabljeni ste v organizacijo",
+        "preview": "Pridružite se uporabniku {{inviter}} v Anomalu",
+        "body": "<bold>{{inviter}}</bold> vas vabi, da se v Anomalu pridružite organizaciji <bold>{{organization}}</bold>.",
+        "or": "Ali pa kopirajte to povezavo in jo prilepite v brskalnik:",
+        "cta": "Pridruži se organizaciji {{organization}}",
+        "disclaimer": "Če tega povabila niste pričakovali, vam ni treba skrbeti - to sporočilo lahko mirno prezrete."
+      },
+      "success_two": "Člana sta bila uspešno povabljena!",
+      "success_few": "{{count}} člani so bili uspešno povabljeni!"
+    },
+    "update": {
+      "role": {
+        "title": "Posodobi vlogo člana {{name}}",
+        "description": "Spremenite vlogo izbranega člana tako, da jo izberete v spustnem meniju.",
+        "info": "Vloga določa dovoljenja člana.",
+        "success": "Vloga člana je bila posodobljena!"
+      }
+    },
+    "remove": {
+      "success": "Član je bil odstranjen!"
+    }
+  },
+  "name": {
+    "edit": {
+      "description": "Vnesite ime svoje organizacije ali prikazno ime, ki vam ustreza.",
+      "success": "Ime organizacije je bilo posodobljeno!",
+      "info": "Uporabite največ 32 znakov.",
+      "missingPermission": "Za upravljanje imena organizacije potrebujete dodatna dovoljenja."
+    }
+  },
+  "logo": {
+    "description": "To je logotip vaše organizacije.\nKliknite nanj, da naložite svojega iz datotek.",
+    "info": "Logotip ni obvezen, je pa močno priporočen.",
+    "missingPermission": "Za upravljanje logotipa organizacije potrebujete dodatna dovoljenja.",
+    "update": {
+      "success": "Logotip organizacije je bil posodobljen!"
+    },
+    "remove": {
+      "success": "Logotip organizacije je bil odstranjen!"
+    }
+  },
+  "leave": {
+    "title": "Zapusti organizacijo",
+    "description": "Prekličite svoj dostop do te organizacije. Viri, ki ste jih dodali v organizacijo, bodo ostali.",
+    "cta": "Zapusti organizacijo",
+    "disclaimer": "Ali res želite zapustiti to organizacijo?\n\nDo njenih virov ne boste imeli več dostopa in za ponovno pridružitev boste potrebovali novo povabilo.\n\nAli želite nadaljevati?",
+    "success": "Organizacijo ste uspešno zapustili!",
+    "cannotLeaveAsOnlyOwner": "Če želite zapustiti to organizacijo, mora imeti vlogo lastnika vsaj še en član."
+  },
+  "delete": {
+    "title": "Izbriši organizacijo",
+    "description": "Trajno odstranite to organizacijo in vso njeno vsebino s platforme Akashic Labs. Tega dejanja ni mogoče razveljaviti, zato nadaljujte previdno.",
+    "cta": "Izbriši organizacijo",
+    "disclaimer": "Izbrisali boste to organizacijo. \n\nPo izbrisu bodo vsi podatki organizacije (vključno s člani in ekipami) trajno izbrisani in jih ne bo mogoče obnoviti. \n\nAli želite nadaljevati?",
+    "success": "Organizacija je bila izbrisana!",
+    "missingPermission": "Za izbris te organizacije potrebujete dodatna dovoljenja."
+  },
+  "error": {
+    "slugAlreadyTaken": "Oznaka je že zasedena.",
+    "cannotCreateNew": "Nove organizacije ne morete ustvariti.",
+    "maximumNumberOfOrganizations": "Dosegli ste največje dovoljeno število organizacij.",
+    "alreadyExists": "Organizacija s tem imenom že obstaja.",
+    "notFound": "Organizacije nismo našli.",
+    "userNotMember": "Niste član te organizacije.",
+    "cannotUpdate": "Te organizacije ne morete posodobiti.",
+    "cannotDelete": "Te organizacije ne morete izbrisati.",
+    "noActive": "Ni aktivne organizacije.",
+    "userAlreadyMember": "Ste že član te organizacije.",
+    "memberNotFound": "Člana nismo našli.",
+    "roleNotFound": "Vloge nismo našli.",
+    "cannotLeaveAsOnlyOwner": "Organizacije ne morete zapustiti kot edini lastnik.",
+    "cannotLeaveWithoutOwner": "Organizacije ne morete zapustiti brez lastnika.",
+    "cannotDeleteMember": "Tega člana ne morete izbrisati.",
+    "cannotUpdateMember": "Tega člana ne morete posodobiti.",
+    "membershipLimitReached": "Dosegli ste omejitev članstva za to organizacijo.",
+    "cannotAccess": "Do te organizacije ne morete dostopati.",
+    "slugNotAvailable": "Oznaka ni na voljo.",
+    "team": {
+      "cannotCreateNew": "Nove ekipe ne morete ustvariti.",
+      "alreadyExists": "Ekipa s tem imenom že obstaja.",
+      "notFound": "Ekipe nismo našli.",
+      "maximumNumberOfTeams": "Dosegli ste največje dovoljeno število ekip.",
+      "unableToRemoveLastTeam": "Zadnje ekipe ne morete odstraniti.",
+      "cannotCreate": "V tej organizaciji ne morete ustvariti ekipe.",
+      "cannotDelete": "V tej organizaciji ne morete izbrisati ekipe.",
+      "cannotUpdate": "V tej organizaciji ne morete posodobiti ekipe.",
+      "cannotAccessMembers": "Do članov te ekipe ne morete dostopati.",
+      "memberLimitReached": "Dosegli ste omejitev članov za to ekipo.",
+      "userNotMember": "Niste član te ekipe.",
+      "noActive": "Ni aktivne ekipe.",
+      "cannotCreateNewMember": "Novega člana ne morete ustvariti.",
+      "cannotRemoveMember": "Tega člana ne morete odstraniti.",
+      "cannotAccess": "Do te organizacije ne morete dostopati."
+    },
+    "invitation": {
+      "cannotInviteUsers": "V to organizacijo ne morete vabiti uporabnikov.",
+      "userAlreadyInvited": "Ta uporabnik je v to organizacijo že povabljen.",
+      "notFound": "Povabila nismo našli.",
+      "notRecipient": "Niste prejemnik tega povabila.",
+      "cannotCancel": "Tega povabila ne morete preklicati.",
+      "inviterNoLongerMember": "Povabitelj ni več član organizacije.",
+      "cannotInviteUserWithRole": "Uporabnika s to vlogo ne morete povabiti.",
+      "emailVerificationRequired": "Pred sprejemom ali zavrnitvijo povabila je potrebna potrditev e-poštnega naslova.",
+      "failedToRetrieve": "Povabila nismo mogli pridobiti.",
+      "limitReached": "Dosegli ste omejitev povabil za to organizacijo."
+    },
+    "ac": {
+      "missingAcInstance": "Manjka primerek AC.",
+      "mustBeInOrganizationToCreateRole": "Za ustvarjanje vloge morate biti v organizaciji.",
+      "cannotCreateRole": "Vloge ne morete ustvariti.",
+      "cannotUpdateRole": "Vloge ne morete posodobiti.",
+      "cannotDeleteRole": "Vloge ne morete izbrisati.",
+      "cannotReadRole": "Vloge ne morete brati.",
+      "cannotListRole": "Vlog ne morete prikazati.",
+      "cannotGetRole": "Vloge ne morete pridobiti.",
+      "tooManyRoles": "Dosegli ste največje dovoljeno število vlog.",
+      "invalidResource": "Vir ni veljaven.",
+      "cannotDeletePreDefinedRole": "Vnaprej določene vloge ne morete izbrisati.",
+      "roleNameAlreadyTaken": "Ime vloge je že zasedeno."
+    }
+  }
+}

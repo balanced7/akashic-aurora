@@ -1,0 +1,242 @@
+{
+  "product": {
+    "title": "To bi lahko bil vaš startup, vreden milijon",
+    "description": "Popolnoma prilagodljiva aplikacija Akashic Labs. Vstavite svojo vsebino in izdelek objavite hitreje kot kdaj koli prej.",
+    "mobile": {
+      "ios": {
+        "title": "Aplikacija za iOS",
+        "description": "Izvorna izkušnja na iPhonu in iPadu"
+      },
+      "android": {
+        "title": "Aplikacija za Android",
+        "description": "Optimizirana za telefone Android"
+      }
+    },
+    "extension": {
+      "chrome": {
+        "title": "Razširitev za Chrome",
+        "description": "Integracija z brskalnikom Chrome"
+      },
+      "firefox": {
+        "title": "Dodatek za Firefox",
+        "description": "Izboljšano brskanje za uporabnike Firefoxa"
+      },
+      "edge": {
+        "title": "Dodatek za Edge",
+        "description": "Zmogljiva orodja za Microsoft Edge"
+      }
+    }
+  },
+  "announcement": "Tukaj objavite novo funkcijo",
+  "shippedWith": "Na voljo z orodji, pripravljenimi za produkcijo",
+  "cta": {
+    "question": "Ste pripravljeni na začetek?",
+    "button": "Začnite brezplačno",
+    "buy": {
+      "question": "Ste pripravljeni na začetek?",
+      "description": "Kupite in odklenite poln dostop do kode ter še danes začnite razvijati svoj izdelek. Na vseh platformah.",
+      "button": "Pridobi dostop",
+      "join": {
+        "description": "Pridružite se drugim ustanoviteljem, ki prilagajajo Akashic Labs, delite taktike za lansiranje in ostanite v koraku z novostmi.",
+        "button": "Pridružite se skupnosti"
+      }
+    }
+  },
+  "editToReload": "Uredite <code>{{file}}</code> in shranite za ponovno nalaganje.",
+  "workInProgress": {
+    "title": "Delamo na tem!",
+    "description": "{{feature}} trenutno ni na voljo. Delamo na tem in kmalu bo na voljo."
+  },
+  "features": {
+    "label": "Funkcije",
+    "title": "Spremenite obiskovalce v stranke",
+    "description": "Vse, kar potrebujete za gradnjo, uvajanje in razširjanje svojih aplikacij z zaupanjem.",
+    "feature": {
+      "core": {
+        "title": "Osnovni temelji",
+        "description": "Prijava, podatkovna baza in API so že povezani, zato se lahko osredotočite na vrednost za stranke."
+      },
+      "ai": {
+        "title": "Zmogljivosti z umetno inteligenco",
+        "description": "Pametne funkcije s priporočili in samodejnimi delovnimi tokovi, ki jih poganja umetna inteligenca."
+      },
+      "mobile": {
+        "title": "Izvorna mobilna izkušnja",
+        "description": "Polno opremljena mobilna aplikacija z brezhibno sinhronizacijo po vseh vaših napravah."
+      },
+      "extension": {
+        "title": "Razširitev za brskalnik",
+        "description": "Ohranite uporabnike v brskalniku s prilagodljivimi bližnjicami do svojega izdelka."
+      }
+    }
+  },
+  "testimonials": {
+    "label": "Mnenja",
+    "title": "Ekipe z nami razvijajo hitreje",
+    "description": "Prisluhnite ustanoviteljem in razvijalcem, ki so predlogo prilagodili in tako hitreje objavili ter bolje pretvarjali.",
+    "rating": "{{rating}} iz več kot {{count}} mnenj",
+    "reviews": {
+      "jack": {
+        "name": "Jack",
+        "position": "Full Stack razvijalec",
+        "body": "Predloga je našo ekipo osvobodila ponavljajočega se dela. Čez vikend smo vstavili svoja besedila in se posvetili funkcijam, ki so jih stranke res želele."
+      },
+      "jill": {
+        "name": "Jill",
+        "position": "Ustanoviteljica startupa",
+        "body": "MVP smo objavili v dveh tednih. Vse od trženjskih strani do prijave je bilo pripravljeno - le besedila smo prilagodili svoji publiki."
+      },
+      "john": {
+        "name": "John",
+        "position": "Višji razvijalec",
+        "body": "Razvijalska izkušnja je brez primere. Sklad deluje takoj in ostaja dovolj prilagodljiv za našo zgodbo o izdelku."
+      },
+      "sarah": {
+        "name": "Sarah",
+        "position": "Produktna vodja",
+        "body": "Od prototipa smo brez zapletov prišli do tisočev uporabnikov. Analitika, obračun in trženjski tokovi so bili pripravljeni za prilagoditev."
+      },
+      "mike": {
+        "name": "Mike",
+        "position": "Vodja inženiringa",
+        "body": "Skupnost je izjemna. Hitri odgovori, povratne informacije ob lansiranju in nenehne izboljšave ohranjajo našo ekipo v gibanju."
+      }
+    }
+  },
+  "faq": {
+    "label": "Pogosta vprašanja",
+    "title": "Imate vprašanje? Imamo odgovore",
+    "description": "Poiščite odgovore na pogosta vprašanja o funkcijah, cenah, uvedbi in prvih korakih z našo platformo.",
+    "cta": "Kontaktirajte nas",
+    "question": {
+      "whatDoesOurPlatformDo": {
+        "question": "Kaj počne naša platforma?",
+        "answer": "Akashic Labs vam ponuja celovit temelj za SaaS - trženjsko spletno mesto, spletno aplikacijo, mobilne aplikacije in razširitve - da se lahko osredotočite na svojo edinstveno izkušnjo za stranke."
+      },
+      "howWillThisBenefitMyBusiness": {
+        "question": "Kako bo to koristilo mojemu podjetju?",
+        "answer": "Hitreje lansirate, prej objavljate funkcije in bolje pretvarjate potencialne stranke, saj so osnovni izdelek, analitika in obračun že vzpostavljeni."
+      },
+      "isMyDataSafe": {
+        "question": "Ali so moji podatki varni?",
+        "answer": "Da. Sledimo varnostnim praksam na ravni podjetij in ponujamo zaščitne mehanizme, da lahko pravila prilagodite zahtevam svoje panoge."
+      },
+      "whatKindOfIntegrationsAreAvailable": {
+        "question": "Kakšne integracije so na voljo?",
+        "answer": "Akashic Labs že vključuje priljubljene integracije s storitvami SaaS, modularna arhitektura pa poenostavlja dodajanje vašega sklada."
+      },
+      "howEasyIsItToOnboardMyTeam": {
+        "question": "Kako preprosto je uvesti mojo ekipo?",
+        "answer": "Vaša ekipa lahko hitro začne z jasno dokumentacijo, vzorci, ki dajejo prednost TypeScriptu, in primeri, ki natančno pokažejo, kje prilagoditi."
+      },
+      "whatTypesOfBusinessesCanUseThis": {
+        "question": "Katera podjetja lahko to uporabljajo?",
+        "answer": "Od samostojnih ustanoviteljev do inovacijskih ekip v velikih podjetjih - Akashic Labs se prilagodi vsakemu primeru uporabe SaaS, ki potrebuje prednost."
+      },
+      "canICustomizeThisToFitMyBusinessNeeds": {
+        "question": "Ali lahko to prilagodim potrebam svojega podjetja?",
+        "answer": "Vsekakor. Vsak modul je zasnovan za hitro prilagajanje - posodobite besedila, zamenjajte komponente in razširite logiko brez boja z ogrodjem."
+      }
+    }
+  },
+  "contact": {
+    "label": "Kontakt",
+    "title": "Za podporo nas kontaktirajte še danes",
+    "cta": "Pogovorite se s prodajo",
+    "description": "Obrnite se na nas za pomoč ali povratne informacije",
+    "form": {
+      "name": {
+        "placeholder": "Janez Novak"
+      },
+      "email": {
+        "placeholder": "vas@email.com"
+      },
+      "message": {
+        "placeholder": "Kako vam lahko pomagamo?"
+      },
+      "submit": "Pošlji sporočilo",
+      "success": {
+        "title": "Sporočilo je poslano!",
+        "description": "Hvala za vaše sporočilo. Kmalu se vam bomo oglasili."
+      }
+    },
+    "email": {
+      "subject": "Prejeli ste novo sporočilo iz kontaktnega obrazca",
+      "body": "Novo sporočilo iz kontaktnega obrazca"
+    }
+  },
+  "blog": {
+    "label": "Blog",
+    "title": "Novice in posodobitve o platformi",
+    "description": "Bodite na tekočem z najnovejšimi novicami, vpogledi in posodobitvami naše platforme. Odkrijte nove funkcije, najboljše prakse in trende v panogi.",
+    "timeToRead": "{{time}} min branja",
+    "tag": {
+      "learning": "učenje",
+      "skills": "veščine",
+      "progress": "napredek",
+      "product": "izdelek",
+      "development": "razvoj",
+      "prototype": "prototip",
+      "launch": "lansiranje"
+    }
+  },
+  "api": {
+    "title": "Referenca API",
+    "description": "Zgradite integracije z našim API-jem"
+  },
+  "roadmap": {
+    "title": "Načrt razvoja",
+    "description": "Oglejte si, kaj sledi"
+  },
+  "docs": {
+    "title": "Dokumentacija",
+    "description": "Naučite se uporabljati Akashic Labs"
+  },
+  "ai": {
+    "description": "Sprostite produktivnost in inovativnost z asistentom umetne inteligence Akashic Labs. Pridobite takojšnje odgovore, avtomatizirajte opravila in izboljšajte svoj delovni tok z napredno umetno inteligenco - varno, zanesljivo in zasnovano za sodobne ekipe.",
+    "prompt": {
+      "history": "Povej zgodovino interneta",
+      "capitals": "Preizkusi me iz svetovnih prestolnic",
+      "quantum": "Razloži kvantno računalništvo",
+      "realWorld": "Opiši primer uporabe umetne inteligence iz prakse"
+    },
+    "placeholder": "Zastavite vprašanje ...",
+    "cta": "Pošlji"
+  },
+  "setup": {
+    "steps": {
+      "step": {
+        "start": {
+          "title": "To je preprost korak",
+          "description": "Za nadaljevanje na naslednji korak pritisnite gumb Nadaljuj"
+        },
+        "required": {
+          "title": "To je obvezen korak",
+          "description": "Za nadaljevanje na naslednji korak morate izpolniti vsa obvezna polja",
+          "fields": {
+            "data": "Razumem, da so moji podatki zasebni in šifrirani",
+            "privacy": "Prebral sem <a>Politiko zasebnosti</a> in se z njo strinjam"
+          }
+        },
+        "skip": {
+          "title": "To je korak, ki ga lahko preskočite",
+          "description": "Ta korak lahko preskočite in nadaljujete na naslednjega"
+        },
+        "final": {
+          "title": "To je zadnji korak",
+          "description": "Opravili ste vse korake, uživajte v svoji novi aplikaciji!"
+        }
+      }
+    }
+  },
+  "update": {
+    "available": {
+      "title": "Na voljo je nova posodobitev!",
+      "description": "Nova posodobitev je pripravljena za namestitev. Kliknite spodaj za namestitev ali jo opustite za pozneje."
+    },
+    "installing": {
+      "title": "Nameščanje posodobitve ...",
+      "description": "Posodobitev se namešča. Počakajte trenutek."
+    }
+  }
+}

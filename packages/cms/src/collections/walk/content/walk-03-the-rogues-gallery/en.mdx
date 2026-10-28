@@ -1,0 +1,60 @@
+---
+title: "The Rogues' Gallery and the Two Religions"
+description: "Which workloads are brutal to predict, the two ways a pipeline stalls, and the two religions of latency: avoid the wait, or hide it."
+walk: 3
+publishedAt: 2026-09-01
+status: published
+---
+
+_Forest Walks · Walk 03. Three questions, walked together. Which workloads are the most brutal to predict? What actually bottlenecks execution, as opposed to throughput? And what does "hiding latency" mean, as opposed to avoiding it? All three turn out to be the same question wearing different coats. Predict before you look. The exam is at the end._
+
+## The rogues' gallery: what's brutal to predict, and why
+
+One law generates the whole ranking: **brutality = how much the immediate future depends on data the machine hasn't seen yet.** A loop counter is clairvoyance, because the future is arithmetic. A just-loaded value that decides the next branch _and_ the next address is the séance. Rank by that, and the gallery assembles itself:
+
+| Workload                            | Why it's brutal                                                                                                                              | What it starves                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **Graph analytics** (BFS, PageRank) | random neighbor hops over GBs. Addresses come from data, branches depend on data, and there is zero locality of any kind                     | memory latency, purely                     |
+| **Databases / OLTP**                | B-tree descent is a pointer chase, and hash probes are deliberate randomness. _Huge code_ footprints also blow out L1i and the BTB           | memory latency **and** the frontend        |
+| **Interpreters** (hi, CPython)      | the dispatch loop is one indirect branch whose target _is_ the next bytecode. Control flow made of data                                      | bad speculation                            |
+| **Entropy decode** (CABAC)          | unpredictable by mathematical construction. Each bit gates the next                                                                          | the dependency chain itself                |
+| **Hash tables at scale**            | a good hash function destroys locality _on purpose_. It's an anti-prefetcher by contract. Bigger than L3 means one guaranteed miss per probe | memory latency                             |
+| **Sparse algebra** (SpMV)           | indices come from data, which means gathers. Almost no math per byte moved                                                                   | bandwidth                                  |
+| **Dense GEMM, video pixel loops**   | _(for contrast)_ counters and strides everywhere. Clairvoyance                                                                               | nothing. This is the machine's happy place |
+
+Two footnotes with teeth. Crypto code has unpredictable _data_ but predictable _flow_. It is branchless **by law**, because a branch on secret data leaks the secret through timing. That's the Spectre lesson, taken as a design commandment. And the interpreter row has a redemption arc. ITTAGE predictors got good enough to _learn bytecode sequences_, and they tame dispatch far better than folklore claims. There is a paper on this titled "Don't trust folklore," which under house doctrine makes it required reading.
+
+## Chains vs queues: the two ways a pipeline dies
+
+"Execution bottleneck vs throughput bottleneck" hides a distinction. Every stall has one of two shapes:
+
+- **Waiting on a chain** is a _latency_ bottleneck. The critical path is serial: load, use, load, use. No amount of machinery helps, because the next step needs the previous answer. This is the séance's signature.
+- **Waiting on a queue** is a _throughput_ bottleneck. There's plenty of independent work, but a pipe is full. It might be memory bandwidth, or the execution ports themselves. Little's law governs it. More lanes fix it. Lower latency never does.
+
+The profiler's version is the four-wall taxonomy, which Intel calls Top-Down. Every issue slot ends up in one of four places. It **retired**, which is real work; GEMM lives here, at ~90%. It was lost to **bad speculation** and flushed; that's interpreters and branchy data code. It starved at the **frontend** on i-cache and BTB misses. That's databases, and, per Google's warehouse-scale profiling, famously the dominant tax in datacenter code. Or it stalled in the **backend**, which splits into _memory-bound_ (chains, misses) and _core-bound_ (queues, ports). The gallery's third column just says which wall.
+
+Now the single most illuminating number in the whole subject. Little's law: `achieved bandwidth = (outstanding misses × 64B) / latency`. A pure pointer-chaser sustains exactly **one** outstanding miss, because the chain forbids more. At 80ns, that's 64B / 80ns = **0.8 GB/s**, against a memory system that offers ~60. A séance thread uses about **1-2% of the highway it's paying for**. The machine isn't slow. The workload only ever sends one car at a time. That's what "latency-bound" _means_. MLP is the multiplier. Ten independent misses in flight give 8 GB/s. At forty, the pipe itself becomes the wall, and you've crossed from chain-limited to queue-limited. Everything the ROB does, it does to raise that one number.
+
+For the throughput side, the matching instrument is the **roofline**. Count FLOPs per byte moved. A machine with 400 GFLOP/s and 50 GB/s breaks even at 8 FLOP/byte. GEMM reuses each byte O(N) times and lives above the ridge, so it's compute-bound. SpMV manages ~0.2, and no cleverness will ever lift it off the bandwidth roof. You don't profile to _discover_ this. You can compute it from the algorithm before you write a line.
+
+## The two religions
+
+Both religions answer the same number: DRAM is ~300 cycles away. Theologically, they are opposites.
+
+**Latency avoidance** (the CPU religion): _make the wait not happen._ Spend enormous area per thread. Caches keep data near. Prefetchers make it arrive before anyone asks. Speculation means nobody waits for certainty. All of it keeps **one** thread's dependency chain moving. It optimizes the latency of a single life.
+
+**Latency hiding** (the GPU religion): _let the wait happen, and make it cost nothing._ When a warp stalls on memory, the scheduler swaps in another warp on the **next cycle**. The context switch is free because nothing is saved or restored. Every resident thread's registers live on-chip at once, permanently partitioned. That's why a GPU's register file is _bigger than its L1 cache_. The inversion looks insane until you see that resident thread state is the very capital latency hiding runs on. With ~64 warps resident, a 400-cycle stall is invisible as long as someone is always ready. The latency never shrank. Someone else's work always overlaps it.
+
+The price sheet. Hiding makes each individual thread pathetic, and it demands _abundant, independent_ parallelism to feed the swap. Avoidance buys a magnificent single thread, at brutal area cost per thread. But it caps at whatever ILP and MLP one instruction stream can expose. The workload picks the religion. Ten million independent pixels: hide. One gnarly pointer chase: avoid. Graphs add a nuance. One séance defeats both religions, but a _wide_ graph frontier is 100,000 independent séances. There hiding wins after all, by having them all in flight at once. Hiding doesn't need each chain to be fast. It needs many chains.
+
+SMT is the CPU quietly attending the other church on weekends. Two threads live in one core, so one thread's stalls fill with the other's work. It's hiding-lite, on avoidance's hardware.
+
+## Teach-back: resolved, unusually
+
+> SMT typically buys databases ~20-30% more throughput, and GEMM roughly 0%, sometimes negative. Why both numbers?
+
+_Resolution: this one answered itself sideways, during the lab's own systems-design work. The pattern "give a busy worker a low-cost way to answer pings while its main task waits on something slow" IS the SMT insight. A stall-heavy thread leaves gaps that a second, cheap thread can fill. Databases stall constantly, so they gain ~30%. A saturated thread leaves nothing to fill. GEMM retires ~90%, so it gains ~0%, and the second thread just fights it for cache. Sometimes you design the answer before you read it. It's the best possible way to fail an exam._
+
+## Standing exam
+
+Still open from Walk 01: the linked list and the flat array hold identical bytes, and both are resident in L2. The array walk is severalfold faster. Name every mechanism. (You've been over-armed for this since Walk 01 set it. Dependent loads serialize where independent ones pipeline, and the stride prefetcher sees arithmetic but cannot see through a pointer.)

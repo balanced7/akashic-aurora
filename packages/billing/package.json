@@ -1,0 +1,39 @@
+{
+  "name": "@akashic-labs/billing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts",
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "prettier": "@akashic-labs/prettier-config",
+  "dependencies": {
+    "@akashic-labs/auth": "workspace:*",
+    "@akashic-labs/db": "workspace:*",
+    "@akashic-labs/shared": "workspace:*",
+    "@lemonsqueezy/lemonsqueezy.js": "4.0.0",
+    "@polar-sh/sdk": "0.42.1",
+    "envin": "catalog:",
+    "stripe": "19.3.1",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@akashic-labs/eslint-config": "workspace:*",
+    "@akashic-labs/prettier-config": "workspace:*",
+    "@akashic-labs/tsconfig": "workspace:*",
+    "@akashic-labs/vitest-config": "workspace:*",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

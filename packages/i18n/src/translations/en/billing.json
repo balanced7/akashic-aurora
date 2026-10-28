@@ -1,0 +1,108 @@
+{
+  "currency": "usd",
+  "pricing": {
+    "label": "Pricing",
+    "title": "Simple plans for everyone",
+    "description": "Choose the plan that suits your needs and start your journey to success."
+  },
+  "manage": {
+    "plan": {
+      "title": "Manage plan",
+      "description": "Check the details of your current plan. You can change your plan or cancel your subscription at any time."
+    },
+    "billing": {
+      "title": "Manage billing",
+      "description": "Visit the Billing Portal to manage your subscription and billing. You can update your payment method, cancel your subscription, download invoices and more.",
+      "visitPortal": "Visit Billing Portal"
+    },
+    "description": "Manage your billing and subscription."
+  },
+  "subscribe": "Subscribe now",
+  "updatePlan": "Update plan",
+  "getLifetimeAccess": "Get lifetime access",
+  "interval": {
+    "day": "day",
+    "week": "week",
+    "month": "month",
+    "year": "year",
+    "lifetime": "lifetime"
+  },
+  "trial": {
+    "cta": "Start for free",
+    "period": "Try with {{period}}-days trial"
+  },
+  "discount": {
+    "specialOffer": "SPECIAL OFFER: <bold>-{{discount}} off</bold>"
+  },
+  "plan": {
+    "starter": {
+      "name": "Starter",
+      "description": "For small projects just getting started",
+      "features": {
+        "sync": "Seamless sync",
+        "basicSupport": "Basic support",
+        "limitedStorage": "Limited storage",
+        "emailNotifications": "Email notifications",
+        "basicReports": "Basic reports"
+      }
+    },
+    "premium": {
+      "name": "Premium",
+      "description": "Perfect for growing teams with advanced features",
+      "badge": "Bestseller",
+      "features": {
+        "advancedSync": "Advanced sync",
+        "prioritySupport": "Priority support",
+        "moreStorage": "More storage",
+        "teamCollaboration": "Team collaboration",
+        "smsNotifications": "SMS notifications",
+        "advancedReports": "Advanced reports"
+      }
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "Designed for organizations and big teams",
+      "features": {
+        "unlimitedStorage": "Unlimited storage",
+        "customBranding": "Custom branding",
+        "dedicatedSupport": "Dedicated support",
+        "apiAccess": "API access",
+        "userRoles": "User roles management",
+        "auditLogs": "Audit logs",
+        "singleSignOn": "Single sign-on",
+        "advancedAnalytics": "Advanced analytics"
+      }
+    }
+  },
+  "error": {
+    "checkout": "An error occurred while checking out.",
+    "checkoutRetrieve": "An error occurred while retrieving the checkout session.",
+    "portal": "An error occurred while getting the portal URL.",
+    "invalidProvider": "Invalid billing provider!",
+    "lemonSqueezy": "Lemon Squeezy API internal error!",
+    "priceNotFound": "Price not found!",
+    "customerNotFound": "Customer not found!",
+    "orderNotFound": "Order not found!",
+    "subscriptionNotFound": "Subscription not found!",
+    "webhook": {
+      "signatureNotFound": "Webhook signature not found!",
+      "signatureInvalid": "Invalid webhook signature.",
+      "metaInvalid": "Invalid webhook meta.",
+      "dataInvalid": "Invalid webhook data.",
+      "unsupportedEvent": "Unsupported webhook event.",
+      "unhandledEvent": "Unhandled webhook event."
+    },
+    "customerCreation": "Customer creation failed.",
+    "promotionCodeRetrieve": "Could not retrieve promotion code."
+  },
+  "status": {
+    "active": "Active",
+    "canceled": "Canceled",
+    "incomplete": "Incomplete",
+    "incompleteExpired": "Incomplete expired",
+    "pastDue": "Past due",
+    "paused": "Paused",
+    "trialing": "Trialing",
+    "unpaid": "Unpaid"
+  }
+}

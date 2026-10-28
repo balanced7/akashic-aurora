@@ -1,0 +1,68 @@
+---
+title: "The Hostage Negotiations"
+description: "Why the L1 cache has been stuck at 32-48KB since 2006, how a perceptron predicts branches at 5GHz, and why no predictor can beat entropy decoding."
+walk: 2
+publishedAt: 2026-09-01
+status: published
+---
+
+_Forest Walks · Walk 02. This walk answers five natural questions about the L1 cache limit. What constrains it? What would it take to break it? How did caches grow before the freeze? What does a bigger one cost? And what does "the right proportion" even mean? Two follow-ons come after: how a one-cycle perceptron works, and whether random-looking workloads like video compression pay a prediction penalty. The five questions happen to be the exact skeleton of a computer-architecture sizing study: constraint, sensitivity, history, cost, balance. Predict before you look. The exam is at the end._
+
+## The L1 hostage, interrogated
+
+**The constraint, mechanically.** Programs run on virtual addresses. Every process pretends it owns all of memory. Hardware translates virtual addresses to physical ones through page tables, and caches the translations in a small thing called the **TLB** (a cache _of translations_). Translation only changes the _upper_ bits of an address. Within a 4KB page, the bottom 12 bits are identical in the virtual and the physical address. The 4-cycle trick is a race. L1 starts its lookup with only those 12 untranslated bits _while_ the TLB translates the rest in parallel. The translated bits arrive just in time for the tag compare. The moment your cache needs bit 13 to pick a set, you must wait for the TLB _first_. That's serial, and slower. So the index can only reach 4KB per way. Size = 4KB × ways. That's the whole hostage.
+
+**What it takes to break it.** All four escapes have shipped:
+
+1. **Bigger pages.** 16KB pages give 14 free bits, which is 4× headroom. Apple did exactly this on M-series, and it's part of how the M1 fields a _128KB_ L1d at ~3-4 cycles. Apple could do it because it owned the entire software stack and was starting ARM64 fresh. x86 can't easily follow, because forty years of software assumes 4KB. Sit with that. **The constraint was never silicon. It's a 1980s ABI contract.** The hostage-taker is software archaeology.
+2. **More ways.** Zen 5's 12-way × 4KB = 48KB. Intel bought 48KB back in 2019 (Ice Lake) and _paid a cycle for it_. L1 went from 4 cycles to 5, and people argued about it for years. That tells you exactly what a cycle there is worth.
+3. **Don't grow it. Insert a floor.** Lion Cove has a 48KB "L0" at ~4 cycles, then a 192KB "L1" at ~9. When you can't raise the ceiling, add a mezzanine, and rename all the levels to the reviewers' despair.
+4. **Police the aliases.** The old Athlon shipped 64KB 2-way, over the lawful bound. It bolted on machinery to detect and evict virtual-address aliases. That's paying the fine instead of obeying the law.
+
+**How growth looked before the freeze:** 486: 8KB unified (1989) → Pentium: 8+8 split → PII/III: 16+16 → Athlon: 64+64 (1999, the outlaw) → Pentium 4: back DOWN to 8KB but 2-cycle (the speed-demon detour) → Core 2: 32+32 (2006) → frozen. Caches grew freely while clocks were low. Then clocks rose 10×, wire delay started to bite, VIPT became the discipline, and pages stayed 4KB. Three curves intersected around 2006, and L1 has stood at the intersection ever since.
+
+**The cost of bigger comes in three currencies.** _Latency_: L1 load-to-use sits on every dependent-load chain in every program, and pointer chases pay it serially. So +1 cycle costs low-single-digit % IPC _across the whole machine_. Architects will sacrifice enormous hit rate to protect that number. _Power_: a set-associative L1 reads all N ways in parallel and throws away N−1 answers. At 12 ways, you pay for 12 reads per load, billions of times a second. A mechanism called way _prediction_ fights this, because of course the fix is more prediction. Everything in this machine is the same trick in a different hat. _Area_: SRAM next to the load units competes for the most expensive real estate on the die, the center of the core.
+
+**The proportion question has no golden ratio. It has a method.** Three instruments:
+
+1. **Working-set knees.** Hit-rate-vs-size curves aren't smooth. Workloads have plateaus: fits in 32K, fits in 2M, streams everything. You size each level to catch a knee common in your _target_ workloads. That's why server L3s are oceanic and client chips buy latency instead.
+2. **Little's law** for the bandwidth axis: `data in flight = bandwidth × latency`. Want 400GB/s of streaming against 80ns memory? You need 32KB perpetually in flight. That single equation sizes the miss buffers, the prefetch depth, and how much MLP the ROB must expose.
+3. **The strategy fork.** CPUs spend area on caches and speculation, so one thread never waits. GPUs spend the same area on so many threads that waiting is free. It's latency _avoidance_ versus latency _hiding_: same physics, opposite proportions, and the workload picks the corner.
+
+"Cache to execution to throughput to latency to workload type" isn't answered by a ratio. It's answered by which of those two religions the workload converts you to.
+
+## The perceptron, at 5GHz
+
+The object is almost insultingly simple. Each branch, hashed by address, gets a row of small signed weights, one per bit of recent global history. History bits are ±1. The prediction is **the sign of the dot product**. Multiplying by ±1 is add or subtract, so the whole "neural net" is an adder tree of small integers. No multiplies anywhere. Training happens when the branch resolves. If the prediction was wrong, or right but _timid_ (the sum too close to zero), nudge each weight toward what actually happened, saturating at the rails. It's the humble 2-bit counter, grown up and employed in machine learning.
+
+**"How fast must it execute to be useful?"** That's exactly the right question, and the answer is a courtroom. Something must steer fetch _every single cycle_ or the pipeline starves, and the fancy predictor can't answer that fast. So there are two tiers. A dumb, fast predictor (BTB plus simple tables) rules instantly. The perceptron and TAGE apparatus delivers its verdict 2-3 cycles later. If it _disagrees_, it redirects fetch. That costs a 2-3 cycle bubble instead of the ~17-cycle flush. A snap judgment, then appellate review. The smart tier earns its area when `accuracy gained × 17 > override rate × bubble`. That inequality is the entire business case for intelligence in the frontend.
+
+One more thing to savor. A single-layer perceptron can only learn linearly separable patterns. It _provably cannot learn_ "taken if and only if exactly one of the last two branches was taken." That's XOR, Minsky and Papert's 1969 objection to neural networks, alive in your CPU. The industry's fix wasn't depth, since there's no time for layers at 5GHz. It was a _committee_. Pair the perceptron with TAGE, which brute-memorizes the nonlinear cases by context. The historical answer to the XOR problem turned out to be bureaucracy.
+
+## The compression question is deeper than it looks
+
+First, the reframe. There's no mode-switch penalty, no "1 cycle for entering random-land". The cost is an expected value, paid continuously, per branch: `mispredict rate × ~17`. A loop branch at 99.9% costs nothing. A coin-flip branch costs ~8.5 cycles _every time you meet it_, and code meets a branch every five instructions.
+
+Video compression is the perfect specimen. A codec is two natures stapled together. The loops, DCTs and motion search have predictable control flow. Where the _data_ would create branches, codec authors write **branchless** SIMD: compute both outcomes, then blend with a mask. The escape from unpredictability is to _make the branch not exist_. The entropy-coding stage (CABAC) is the opposite by construction. Each decoded bit updates the context that decodes the _next_ bit. It's the séance again, but in control flow: serial by design, branching on maximum-entropy data. That's why hardware video blocks exist, and why the entropy stage is famously the wall in every codec.
+
+Now the floor drops out: **a predictor and a compressor are the same mathematical object.** Shannon says so. If a branch predictor beats 50% on your stream, it has found structure. Structure is _precisely the thing compression removes_. A perfectly compressed stream is indistinguishable from noise _by definition_. So entropy decode is the one workload no predictor will ever beat. Cleverness isn't the problem. Predictors fail here the way perpetual motion fails: lawfully. The machine's mature response to unpredictability is never "predict harder". It's to _restructure so there's nothing to predict_ (branchless code, tables, SIMD), or to _hand the work to dedicated silicon_.
+
+The recall corollary, for the house: split the planes, like I and D caches. Predict per source, with metered confidence. Recall-feedback's useful and noise counters _are_ saturating counters. And for the incompressible residue, don't predict. _Index_. "Dynamic vs static facts" and "predictable vs random content" are the same question on two axes. The answer is the same both times: meter it per key, from observed history, and route by the measurement.
+
+## One floor added to the marvel
+
+Even the 5GHz isn't real. Boost is a control loop. It reads thermal and current sensors thousands of times a second and bids frequency against headroom. The chip is its own SRE. The whole machine is lies all the way down, _with receipts at every layer_. Renaming lies about registers. Caching lies about distance. Speculation lies about time. Boost lies about the clock. The engineering miracle isn't any one layer. It's that every layer keeps its interface contract while lying wildly about its internals.
+
+## Teach-back: open
+
+> Why can no branch predictor ever beat entropy decoding, and what are the two lawful escape hatches?
+
+_Your answer, dated:_
+
+## Descents ledger
+
+- [x] TLBs and why 4KB pages are a tax: forced open early by the L1 constraint question
+- [x] Perceptrons at cycle speed: this walk
+- [ ] SMT: one core, two threads, and what's actually shared _(see Walk 03's teach-back and its unusual resolution)_
+- [ ] DRAM internals: banks, refresh, and why "latency" is secretly five numbers
+- [ ] Wide-and-slow vs narrow-and-fast at equal power (the Apple question)

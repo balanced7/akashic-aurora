@@ -1,0 +1,131 @@
+{
+  "home": {
+    "header": {
+      "title": "Super Admin",
+      "description": "See your SaaS at glance and manage all your resources in one place."
+    },
+    "summary": {
+      "users": "The number of personal accounts that have been created.",
+      "organizations": "The number of organizations that have been created.",
+      "customers": "The number of customers for your SaaS."
+    }
+  },
+  "users": {
+    "header": {
+      "title": "Users",
+      "description": "Manage your users and their roles."
+    },
+    "user": {
+      "details": {
+        "role": {
+          "update": {
+            "success": "User's role updated successfully!"
+          }
+        },
+        "name": {
+          "update": {
+            "success": "User's name updated successfully!"
+          }
+        }
+      },
+      "ban": {
+        "description": "Ban this user from the platform. You can specify a reason and an optional expiration date for the ban.",
+        "success": "User banned successfully!",
+        "form": {
+          "reason": {
+            "info": "Enter the reason for banning the user."
+          },
+          "expiresIn": {
+            "info": "Enter the expiration date for the ban or leave it blank for no expiration."
+          }
+        }
+      },
+      "unban": {
+        "success": "User unbanned successfully!"
+      },
+      "delete": {
+        "title": "Delete {{name}}",
+        "disclaimer": "You are about to delete this user. \n\nAfter deleting it, all user data (including sessions and permissions) will be permanently deleted and cannot be recovered. \n\nDo you want to continue?",
+        "success": "User deleted successfully!"
+      },
+      "accounts": {
+        "delete": {
+          "success": "Account deleted successfully!"
+        },
+        "password": {
+          "update": {
+            "title": "Update {{name}}'s password",
+            "description": "Make sure to choose a strong password that meets the security requirements. This action will immediately update the user's login credentials.",
+            "success": "Account password updated successfully!",
+            "info": "Enter the new password for the account."
+          }
+        }
+      },
+      "sessions": {
+        "revokeAll": {
+          "success": "All sessions revoked successfully!"
+        }
+      }
+    }
+  },
+  "organizations": {
+    "header": {
+      "title": "Organizations",
+      "description": "Manage your organizations and their members."
+    },
+    "organization": {
+      "delete": {
+        "title": "Delete {{name}}",
+        "disclaimer": "You are about to delete this organization. \n\nAfter deleting it, all organization data (including members and teams) will be permanently deleted and cannot be recovered. \n\nDo you want to continue?",
+        "success": "Organization deleted successfully!"
+      },
+      "details": {
+        "name": {
+          "update": {
+            "success": "Organization name updated successfully!"
+          }
+        },
+        "slug": {
+          "update": {
+            "success": "Organization slug updated successfully!"
+          }
+        }
+      }
+    }
+  },
+  "customers": {
+    "header": {
+      "title": "Customers",
+      "description": "Manage your customers and their subscriptions."
+    },
+    "customer": {
+      "delete": {
+        "success": "Customer deleted successfully!"
+      },
+      "updatePlan": {
+        "title": "Update {{name}}'s plan",
+        "description": "Pick a plan and a status for the customer. This action will immediately update the customer's plan and status.`",
+        "plan": {
+          "info": "The plan determines the features and pricing for the customer."
+        },
+        "status": {
+          "info": "The status determines the subscription status for the customer."
+        },
+        "success": "Customer plan updated successfully!"
+      }
+    }
+  },
+  "error": {
+    "cannotCreateUsers": "You cannot create users.",
+    "cannotListUsers": "You cannot list users.",
+    "cannotUpdateUsers": "You cannot update users.",
+    "cannotDeleteUsers": "You cannot delete users.",
+    "cannotListUsersSessions": "You cannot list users sessions.",
+    "cannotBanUsers": "You cannot ban users.",
+    "cannotImpersonateUsers": "You cannot impersonate users.",
+    "cannotImpersonateAdmins": "You cannot impersonate admins.",
+    "cannotRevokeUsersSessions": "You cannot revoke users sessions.",
+    "cannotSetUsersPassword": "You cannot set users password.",
+    "cannotImpersonateAdmins": "You cannot impersonate admins."
+  }
+}

@@ -1,0 +1,105 @@
+/*
+|--------------------------------------------------------------------------
+| Typography Defaults
+|--------------------------------------------------------------------------
+|
+| Global element typography (weights/leading/rhythm) + typography-only
+| text color variables. Intentionally does NOT change non-text variables.
+*/
+
+@layer base {
+  :root {
+    /*
+     * Typography-only font stack
+     * - Prefer the app-provided --font-sans (Next.js `next/font` or app CSS)
+     * - Fall back to a rounded, humanist sans stack similar to Nunito
+     */
+    --typography-font-sans:
+      var(--font-sans), ui-rounded, "Nunito", ui-sans-serif, system-ui,
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+      Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji",
+      "Segoe UI Symbol";
+
+    /* Typography-only colors (light) */
+    --typography-text: #6f6f83; /* gray-700 */
+    --typography-heading: #181832; /* gray-900 */
+    --typography-link: #2563eb; /* blue-600 */
+    --typography-code-bg: #f3f4f6; /* gray-100 */
+    --typography-code-text: #1f2937; /* gray-800 */
+    --typography-blockquote: #6b7280; /* gray-500 */
+  }
+
+  .dark {
+    /* Typography-only colors (dark) */
+    --typography-text: #86868b; /* rgb(134, 134, 139) */
+    --typography-heading: #f5f5f7; /* rgb(245, 245, 247) */
+    --typography-link: #2997ff; /* rgb(41, 151, 255) */
+    --typography-code-bg: #333336; /* rgb(51, 51, 54) */
+    --typography-code-text: #f5f5f7;
+    --typography-blockquote: #86868b;
+  }
+
+  /*
+   * ELEMENT DEFAULTS (global)
+   *
+   * Note: these only affect plain elements. Tailwind utility classes on the
+   * element itself will override these due to specificity.
+   */
+
+  p {
+    @apply leading-relaxed font-semibold tracking-tight;
+    font-family: var(--typography-font-sans);
+    color: var(--typography-text);
+  }
+  strong {
+    @apply font-semibold;
+    font-family: var(--typography-font-sans);
+    color: var(--typography-heading);
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply leading-tight font-semibold tracking-tight;
+    font-family: var(--typography-font-sans);
+    color: var(--typography-heading);
+  }
+  h1 {
+    @apply text-4xl;
+  }
+  h2 {
+    @apply text-3xl;
+  }
+  h3 {
+    @apply text-xl font-bold;
+  }
+  h4 {
+    @apply text-lg;
+  }
+  blockquote {
+    @apply italic;
+    font-family: var(--typography-font-sans);
+    color: var(--typography-blockquote);
+  }
+  pre {
+    color: var(--typography-code-text);
+  }
+  code {
+    @apply font-medium;
+    background-color: var(--typography-code-bg);
+    color: var(--typography-code-text);
+  }
+  table {
+    @apply text-sm;
+    font-family: var(--typography-font-sans);
+  }
+  th {
+    @apply text-left font-semibold;
+    font-family: var(--typography-font-sans);
+    color: var(--typography-heading);
+  }
+  td {
+    font-family: var(--typography-font-sans);
+    color: var(--typography-text);
+  }
+}

@@ -1,0 +1,146 @@
+{
+  "error": {
+    "default": "Invalid input value",
+    "type": "Expected {{expected}}, but received {{received}}",
+    "type_with_path": "{{path}} should be {{expected}}, but received {{received}}",
+    "undefined": "{{path}} is required",
+    "date": "Invalid date format",
+    "custom": "Invalid input value",
+    "notMultipleOf": "Number must be a multiple of {{multipleOf}}",
+    "invalidKey": "Invalid key",
+    "invalidElement": "Invalid element: {{- origin}}",
+    "invalidValue_one": "Invalid value: {{- values}}, expected {{expected}}",
+    "invalidValue_other": "Invalid values: {{- values}}, expected {{expected}}",
+    "string": {
+      "generic": "Invalid format - {{format}}",
+      "email": "Please enter a valid email address",
+      "url": "Please enter a valid URL",
+      "uuid": "Please enter a valid UUID",
+      "cuid": "Please enter a valid CUID",
+      "regex": "Invalid format - {{validation}}",
+      "datetime": "Invalid format - {{validation}}",
+      "startsWith": "Must start with {{startsWith}}",
+      "endsWith": "Must end with {{endsWith}}"
+    },
+    "file": {
+      "type": "Only {{type}} files are accepted.",
+      "maxCount_one": "You can only upload {{count}} file.",
+      "maxCount_other": "You can only upload up to {{count}} files."
+    },
+
+    "tooSmall": {
+      "array": {
+        "inclusive": "Must contain at least {{minimum}} element(s)",
+        "inclusive_one": "Must contain at least {{minimum}} element",
+        "inclusive_other": "Must contain at least {{minimum}} elements",
+        "notInclusive": "Must contain more than {{minimum}} element(s)",
+        "notInclusive_one": "Must contain more than {{minimum}} element",
+        "notInclusive_other": "Must contain more than {{minimum}} elements"
+      },
+      "string": {
+        "inclusive": "Must contain at least {{minimum}} character(s)",
+        "inclusive_one": "Must contain at least {{minimum}} character",
+        "inclusive_other": "Must contain at least {{minimum}} characters",
+        "inclusive_with_path": "{{path}} must contain at least {{minimum}} character(s)",
+        "inclusive_with_path_one": "{{path}} must contain at least {{minimum}} character",
+        "inclusive_with_path_other": "{{path}} must contain at least {{minimum}} characters",
+        "notInclusive": "Must contain more than {{minimum}} character(s)",
+        "notInclusive_one": "Must contain more than {{minimum}} character",
+        "notInclusive_other": "Must contain more than {{minimum}} characters",
+        "notInclusive_with_path": "{{path}} must contain more than {{minimum}} character(s)",
+        "notInclusive_with_path_one": "{{path}} must contain more than {{minimum}} character",
+        "notInclusive_with_path_other": "{{path}} must contain more than {{minimum}} characters"
+      },
+      "number": {
+        "inclusive": "Must be greater than or equal to {{minimum}}",
+        "inclusive_with_path": "{{path}} must be greater than or equal to {{minimum}}",
+        "notInclusive": "Must be greater than {{minimum}}",
+        "notInclusive_with_path": "{{path}} must be greater than {{minimum}}"
+      },
+      "set": {
+        "inclusive": "Invalid input value",
+        "notInclusive": "Invalid input value"
+      },
+      "date": {
+        "inclusive": "Date must be on or after {{- minimum, datetime}}",
+        "notInclusive": "Date must be after {{- minimum, datetime}}"
+      },
+      "file": {
+        "inclusive": "File size must be greater than or equal to {{minimum}}MB",
+        "notInclusive": "File size must be greater than {{minimum}}MB"
+      }
+    },
+    "tooBig": {
+      "array": {
+        "inclusive": "Must contain at most {{maximum}} element(s)",
+        "inclusive_one": "Must contain at most {{maximum}} element",
+        "inclusive_other": "Must contain at most {{maximum}} elements",
+        "notInclusive": "Must contain fewer than {{maximum}} element(s)",
+        "notInclusive_one": "Must contain fewer than {{maximum}} element",
+        "notInclusive_other": "Must contain fewer than {{maximum}} elements"
+      },
+      "string": {
+        "inclusive": "Must contain at most {{maximum}} character(s)",
+        "inclusive_one": "Must contain at most {{maximum}} character",
+        "inclusive_other": "Must contain at most {{maximum}} characters",
+        "inclusive_with_path": "{{path}} must not exceed {{maximum}} character(s)",
+        "inclusive_with_path_one": "{{path}} must not exceed {{maximum}} character",
+        "inclusive_with_path_other": "{{path}} must not exceed {{maximum}} characters",
+        "notInclusive": "Must contain fewer than {{maximum}} character(s)",
+        "notInclusive_one": "Must contain fewer than {{maximum}} character",
+        "notInclusive_other": "Must contain fewer than {{maximum}} characters",
+        "notInclusive_with_path": "{{path}} must contain fewer than {{maximum}} character(s)",
+        "notInclusive_with_path_one": "{{path}} must contain fewer than {{maximum}} character",
+        "notInclusive_with_path_other": "{{path}} must contain fewer than {{maximum}} characters"
+      },
+      "number": {
+        "inclusive": "Must be less than or equal to {{maximum}}",
+        "inclusive_with_path": "{{path}} must be less than or equal to {{maximum}}",
+        "notInclusive": "Must be less than {{maximum}}",
+        "notInclusive_with_path": "{{path}} must be less than {{maximum}}"
+      },
+      "set": {
+        "inclusive": "Invalid input value",
+        "notInclusive": "Invalid input value"
+      },
+      "date": {
+        "inclusive": "Date must be on or before {{- maximum, datetime}}",
+        "notInclusive": "Date must be before {{- maximum, datetime}}"
+      },
+      "file": {
+        "inclusive": "File size must be less than or equal to {{maximum}}MB",
+        "notInclusive": "File size must be less than {{maximum}}MB"
+      }
+    }
+  },
+  "validation": {
+    "email": "email",
+    "url": "url",
+    "uuid": "uuid",
+    "cuid": "cuid",
+    "regex": "regex",
+    "datetime": "datetime"
+  },
+  "type": {
+    "function": "function",
+    "number": "number",
+    "string": "string",
+    "nan": "nan",
+    "integer": "integer",
+    "float": "float",
+    "boolean": "boolean",
+    "date": "date",
+    "bigint": "bigint",
+    "undefined": "undefined",
+    "symbol": "symbol",
+    "null": "null",
+    "array": "array",
+    "object": "object",
+    "unknown": "unknown",
+    "promise": "promise",
+    "void": "void",
+    "never": "never",
+    "map": "map",
+    "set": "set"
+  }
+}

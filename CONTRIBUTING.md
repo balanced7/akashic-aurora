@@ -9,6 +9,20 @@ trustworthy as it grows.
 See [`docs/DEPLOY.md`](docs/DEPLOY.md). TL;DR: `git clone`, optionally `pip install -r requirements.txt`,
 then `py bootstrap.py --agent-init` to verify. (Windows uses `py`; macOS/Linux use `python3`.)
 
+### The website (bun)
+
+`apps/web` (the public website), its packages in `packages/` and their config in `config/` are
+one bun workspace. The root `package.json` declares it and pins bun 1.4.2. `bun.lock` is the
+lockfile.
+
+```bash
+bun install                      # once, from the repo root
+bun run --filter web dev         # the website on http://localhost:3090 (apps/web/README.md)
+bun run format                   # prettier check (also: lint, typecheck, test, build)
+```
+
+CI's `web` job runs the same commands.
+
 ## The quality gates (must be green)
 
 Every change must pass all three before it lands:
