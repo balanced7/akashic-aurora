@@ -28,8 +28,9 @@
 // rings (its guard); the phrase layer's presets re-aim on the live rings; the ring lasers ride ring 0.
 //
 // KICK v2 (2026-10-27, kick.js): two kick pads, pad 1 / key 1 KICK WHITE and pad 5 / key 5 KICK COLOUR (Shift: velocity
-// 1). Each press deals its own row of the set's deck; a held pad keeps its row lit (the kick is a gate) at a live level
-// that padLevel() moves while it is held. The page-level pad door for touch and velocity sources: the window events
+// 1). Each press deals its own AREA of the set's deck (round 2: the one the camera shows most of; its light and colour
+// override the look's from the press on); a held pad keeps it lit (the kick is a gate) at a live level that padLevel()
+// moves while it is held. What a kick pad does is its kind in the set's kick.kinds. The page-level pad door for touch and velocity sources: the window events
 // "arsenal:pad" {pad, vel, on} and "arsenal:padlevel" {pad, vel}; window.__padDoor = 1 says the page listens.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
@@ -44,7 +45,7 @@ import { Atmosphere } from "./atmos.js";
 import { Director, cameraModel, formationPoseSets } from "./camera.js";
 import { RingFormations, validateRingFormations } from "./formations.js";
 import { Show, speedFromFader } from "./show.js";
-import { FrameLimiter } from "./flash.js";
+import { FrameLimiter, LIMIT } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
@@ -210,13 +211,50 @@ function start({ rig, R, renderMod }) {
     const sec = (show0.sections || {})[state.section];
     if (sec && sec.camera && !manualShot) director.start(sec.camera, e.pos);
   }
-  // KICK v2: the kicks are gates (held until the pad lets go) and take a live level while held (padLevel)
-  const KICK_ACTIONS = new Set(["kick", "kick-white", "kick-colour"]);
+  // KICK v2: the kicks are gates (held until the pad lets go) and take a live level while held (padLevel). A pad whose
+  // action is one of the set's kick KINDS (kick.kinds: kick-white, kick-colour, ...) is a kick; "kick" is the first kind.
+  const isKick = (action) => !!(action && programmer.kick.kindOf(action));
+  // KICK round 2: the dealer only deals an area the camera sees, and prefers the one it shows most of: {share: of the area's
+  // sample points (its fixtures, its LEDs, a point 10 m along each head's beam) inside the current shot's view (the roll left
+  // out), cover: the share of a 16 x 8 grid over the frame those points fall in (a head's points also light the cells round
+  // them: a beam in haze is wider than its lens)}
+  const GX = 16, GY = 8, viewGrid = new Uint8Array(GX * GY);
+  programmer.kick.view = (card) => {
+    const S = card.samples;
+    if (!S || !S.length) return { share: 1, cover: 1 };
+    const P = director.pose, aspect = R.w > 0 && R.h > 0 ? R.w / R.h : 16 / 9;
+    const f = [P.look[0] - P.pos[0], P.look[1] - P.pos[1], P.look[2] - P.pos[2]], fl = Math.hypot(f[0], f[1], f[2]) || 1;
+    f[0] /= fl; f[1] /= fl; f[2] /= fl;
+    let r = [-f[2], 0, f[0]], rl = Math.hypot(r[0], r[2]);                 // f x up(0, 1, 0)
+    if (rl < 1e-6) { r = [1, 0, 0]; rl = 1; }
+    r = [r[0] / rl, 0, r[2] / rl];
+    const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
+    const tanH = Math.tan(((P.hfov || 50) * Math.PI) / 360), tanV = tanH / aspect;
+    let inView = 0;
+    const n = S.length / 3, spread = card.heads.length ? 1 : 0;
+    viewGrid.fill(0);
+    for (let k = 0; k < n; k++) {
+      const dx = S[k * 3] - P.pos[0], dy = S[k * 3 + 1] - P.pos[1], dz = S[k * 3 + 2] - P.pos[2];
+      const z = dx * f[0] + dy * f[1] + dz * f[2];
+      if (z < 0.5) continue;
+      const x = (dx * r[0] + dy * r[1] + dz * r[2]) / z, y = (dx * u[0] + dy * u[1] + dz * u[2]) / z;
+      if (Math.abs(x) > tanH || Math.abs(y) > tanV) continue;
+      inView++;
+      const gx = Math.min(GX - 1, Math.floor(((x / tanH + 1) / 2) * GX)), gy = Math.min(GY - 1, Math.floor(((y / tanV + 1) / 2) * GY));
+      for (let ox = -spread; ox <= spread; ox++) for (let oy = -spread; oy <= spread; oy++) {
+        const cx = gx + ox, cy = gy + oy;
+        if (cx >= 0 && cx < GX && cy >= 0 && cy < GY) viewGrid[cy * GX + cx] = 1;
+      }
+    }
+    let cells = 0;
+    for (let i = 0; i < viewGrid.length; i++) cells += viewGrid[i];
+    return { share: inView / n, cover: cells / viewGrid.length };
+  };
   function pad(n, vel, on, tEval) {
     const action = padMap[String(n)];
     const pos = grid.posAt(tEval);
     if (!action) return;
-    if (KICK_ACTIONS.has(action)) {
+    if (isKick(action)) {
       if (on) {
         const k = programmer.pad(action, vel, pos, { hold: true });
         if (kicks.length >= 256) kicks.shift();
@@ -235,7 +273,7 @@ function start({ rig, R, renderMod }) {
   // a held pad's live level (0..1: the phone pad's finger height; later the KeyLab's aftertouch): the held kick's brightness
   function padLevel(n, vel) {
     const action = padMap[String(n)];
-    if (KICK_ACTIONS.has(action) && Number.isFinite(vel)) programmer.padLevel(action, Math.max(0, Math.min(1, vel)));
+    if (isKick(action) && Number.isFinite(vel)) programmer.padLevel(action, Math.max(0, Math.min(1, vel)));
   }
   function handle(obj, nowMs) {
     const ev = parseEvent(obj);
@@ -296,6 +334,13 @@ function start({ rig, R, renderMod }) {
         const k = Math.min(1, dp / 0.5);                        // half a beat to the new level
         ambientNow.scale += (ambientNow.target - ambientNow.scale) * k;
       }
+      // KICK round 2's flash governor: how many more counted transitions the final limiter's most loaded window can take
+      // now (read from its counters, never changing them: flash.js decides on its own, as before)
+      {
+        let room = LIMIT.N_MAX;
+        for (const pair of limiter.trackers) for (const tr of pair) room = Math.min(room, LIMIT.N_MAX - tr.count(now / 1000));
+        programmer.kick.headroom = room;
+      }
       // the rings first (the programmer's formation layer, the camera and the lasers read their live pose)
       rings.update(grid, tEval, dt, programmer.flashGate);
       programmer.setLiveElements(rings.live ? rings.emOf : null);
@@ -350,7 +395,7 @@ function start({ rig, R, renderMod }) {
     $("hud-beatdot").classList.toggle("on", grid.phaseAt(tEval) < 0.2);
     const eng = !ENGINE_URL ? "demo clock" : link.open ? (link.hello ? `engine ${link.hello.src || "on"}` : "engine connected") : "engine offline (free-running)";
     $("hud-clock").textContent = `${grid.bpm.toFixed(1)} BPM · bar ${b.bar} beat ${b.beat} · ${eng}`;
-    const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind === "kick-colour" ? "colour" : "white"} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
+    const kl = programmer.kick.list.filter((k) => !k.dead).map((k) => `${k.kind.replace(/^kick-/, "")} ${k.card.name} ${Math.round(k.level * 100)} %${k.strobing ? " strobe" : ""}${k.held ? "" : " (fading)"}`);
     $("hud-section").textContent = `${state.section || "-"} (look ${state.look || "-"}, speed x${programmer.speed.toFixed(2)})${kl.length ? ` · kick: ${kl.join(" · ")}` : ""}`;
     const ph = $("hud-phrase");
     if (ph) {

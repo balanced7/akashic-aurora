@@ -1216,40 +1216,33 @@
     "flyout_groups": ["truss.heads", "lip.heads"]
   },
   "kick": {
-    "about": "KICK v2 (2026-10-27, kick.js). Two buttons: pad 1 kick-white (the row in the theme's white) and pad 5 kick-colour (the row in the theme's colour). Each press deals the next row of this deck that will show the hit now (a seeded shuffle-bag: every row once a round, never a row a live kick is showing, the next zone of the stage when it can); held, it stays lit at the live level (the pad's velocity, then padLevel); velocity picks the animation by these bands; the strobe runs only while the live level is at or above strobe.from_level, at or under 1.9 flashes a second (the code's cap). The rows share no fixture, so two kicks never light one twice.",
+    "about": "KICK v2 (2026-10-27, kick.js; round 2 after Daniel's 'The kick buttons dont really change anything. Can we make the kick buttons override existing scene lights and cause them to change color with a high intensity'). Two buttons: pad 1 kick-white (the area goes full-intensity white) and pad 5 kick-colour (the area goes a vivid colour of the palette at least 90 degrees of hue from what it shows; each press the next one). Each press deals the next AREA of this deck that the hit will show on (in the camera's view, visibly changed); while a kick is live its area's intensity and colour override the look's, and crossfade back on release. Intensity = level.floor + (1 - floor) x level^gamma: the whole strip reads high. The light starts at the press, with a punch (kinds.*.punch over governor.punch_s). A press while the button's area is still lit (it lingers governor.linger_s after the last press) re-strikes it: the colour kick moves to the next palette colour of about the same luminance (governor.equal_luma), the white kick deals a fresh motion, so every tap of a roll is a new hit without flashing areas on and off. What each button does is its entry in kinds. Velocity picks the animation by these bands; the strobe runs only at a live level of strobe.from_level or more, at or under 1.9 flashes a second (the code's cap). The areas share no fixture, so two kicks never light one twice.",
     "seed": 1027,
+    "kinds": {
+      "kick-white": {"colour": "white", "override": true, "motion": "bands", "strobe": true, "repeat": "motion", "punch": 0.15},
+      "kick-colour": {"colour": "palette", "override": true, "motion": "bands", "strobe": true, "repeat": "colour", "punch": 0.15}
+    },
     "deck": [
-      {"row": "truss.heads", "zone": "truss", "pan": 90},
-      {"row": "rings.r0.slats", "zone": "rings", "order": "clock"},
-      {"row": "lip.heads", "zone": "lip", "pan": 90},
-      {"row": "halo.top", "zone": "halo", "order": "clock"},
-      {"row": "delay.30", "zone": "crowd", "pan": 90},
-      {"row": "strand.cubes", "zone": "strand", "order": "element"},
-      {"row": "rings.r2.slats", "zone": "rings", "order": "clock"},
-      {"row": "vert.towers", "zone": "towers", "pan": 90},
-      {"row": "halo.bot", "zone": "halo", "order": "clock"},
-      {"row": "vert.strips", "zone": "towers", "order": "y"},
-      {"row": "rings.r1.slats", "zone": "rings", "order": "clock"},
-      {"row": "delay.55", "zone": "crowd", "pan": 90},
-      {"row": "strand.heads", "zone": "strand", "order": "element"},
-      {"row": "halo.mid", "zone": "halo", "order": "clock"},
-      {"row": "rings.r3.slats", "zone": "rings", "order": "clock"},
-      {"row": "strand.bars", "zone": "strand", "order": "element"},
-      {"row": "rings.rims", "zone": "rings", "order": "clock"}
+      {"name": "rings", "rows": ["rings.slats", "rings.rims"], "zone": "rings", "order": "clock"},
+      {"name": "beams", "rows": ["truss.heads", "lip.heads", "vert", "vert.strips", "delay.30", "delay.55"], "zone": "beams", "pan": 90},
+      {"name": "halo", "rows": ["halo"], "zone": "halo", "order": "clock"},
+      {"name": "strand", "rows": ["strand.heads", "strand.cubes", "strand.dots", "strand.bars"], "zone": "strand", "order": "element"}
     ],
     "bands": [
       {"name": "peak", "from": 0},
       {"name": "sweep", "from": 0.45, "sweep": {"class": "M1", "deg": 25}},
       {"name": "drive", "from": 0.85, "sweep": {"class": "M1", "deg": 50}}
     ],
-    "level": {"from_velocity": [0, 1], "slew_s": 0.06},
+    "level": {"from_velocity": [0, 1], "slew_s": 0.06, "floor": 0.5, "gamma": 0.5},
     "release_beats": 0.3,
     "tap_hold_beats": 0.125,
     "max_hold_beats": 64,
-    "chase": {"floor": 0.6, "lag": 0.6},
-    "strobe": {"from_level": 0.95, "max_hz": 1.9, "beats": [0.5, 1, 2, 4], "on": 0.35, "floor": 0},
-    "white": {"role": "W"},
-    "colour": {"cells": ["A", "B", "bumpA"], "keep_lit_colour": true}
+    "chase": {"floor": 0.8, "lag": 0.6},
+    "strobe": {"from_level": 0.95, "max_hz": 1.9, "beats": [0.5, 1, 2, 4], "on": 0.35, "floor": 0, "hold_s": 0.25},
+    "white": {"colour": "#ffffff"},
+    "colour": {"palette": ["#00e5ff", "#ff2bd6", "#ffd21a", "#2a5bff", "#19ff4a", "#ff9a1a", "#b84bff", "#a8ff2a"], "contrast_deg": 90},
+    "governor": {"linger_s": 1.0, "punch_s": 0.15, "equal_luma": 0.35, "comb_floor": 0.35, "need": 2, "defer_s": 2},
+    "view": {"min_share": 0.25, "min_cover": 0.12}
   },
   "laser_groups": {
     "lasers.A": {"banks": ["A"]},

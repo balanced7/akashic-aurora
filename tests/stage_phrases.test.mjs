@@ -375,6 +375,37 @@ test("the programmer's phrase layer: LTP over the look, dimmers crossfade over a
   assert.ok(meanDim(prog, lip) > 0.3, "handed back to the look");
 });
 
+// KICK v2 round 2 found it: the drop leaves the halo's Zoom unset (0 in the targets, which means the head's home), and a
+// phrase's release crossfaded the halo's 1.2 degrees toward that literal 0, a 0-degree beam below the fixture's end stop.
+// Dark, nobody saw it; lit by a kick, it was a one-frame collapse of 48 beams the final limiter had to hold.
+test("a phrase's release hands a head's zoom back to its home, never through 0 or past the fixture's end stops", () => {
+  const grid = new BeatGrid({ bpm: 150, t0: 0 });
+  grid.beat({ due_ms: 0, bpm: 150, n: 0, conf: 1, bar: 1, ver: 0 }, 0);
+  const prog = new Programmer(RIG, { theme: THEME });
+  prog.setLook("drop", 0, { fade: 0 });
+  const halo = RIG.groups.halo, i = halo.members[0];
+  const A = prog.headType[i].attrs.Zoom || { min: 0.5, max: 4, home: 2 };
+  const zoomOf = () => prog.heads[i * HEAD_FLOATS + H.ZOOM];
+  let lo = Infinity, hi = -Infinity, f = 0;
+  const run = (n) => { for (const end = f + n; f < end; f++) { prog.tick(grid, f * F, 1 / FPS); lo = Math.min(lo, zoomOf()); hi = Math.max(hi, zoomOf()); } };
+  run(30);
+  prog.setOverlay([{ g: halo, kind: "heads", values: { Dimmer: 0.5, Zoom: 1.2 }, positions: null, effects: [], fade: 0, flash: null }], grid.posAt(f * F));
+  run(90);
+  assert.ok(Math.abs(zoomOf() - 1.2) < 1e-6, "the phrase's zoom");
+  lo = Infinity;
+  prog.clearOverlay(grid.posAt(f * F), 1);
+  run(120);
+  assert.ok(lo >= 1.2 - 1e-9, `the release blends toward the home ${A.home ?? 2}, the zoom never dips below where it was: ${lo}`);
+  assert.ok(Math.abs(zoomOf() - (A.home ?? 2)) < 1e-6, `back at the home: ${zoomOf()}`);
+  // and an effect or a value outside the range is held at the end stops
+  prog.setOverlay([{ g: halo, kind: "heads", values: { Dimmer: 0.5, Zoom: 0.01 }, positions: null, effects: [], fade: 0, flash: null }], grid.posAt(f * F));
+  run(120);
+  assert.ok(Math.abs(zoomOf() - (A.min ?? 0.5)) < 1e-6, `a 0.01-degree zoom stops at the fixture's ${A.min ?? 0.5}: ${zoomOf()}`);
+  prog.setOverlay([{ g: halo, kind: "heads", values: { Dimmer: 0.5, Zoom: 40 }, positions: null, effects: [], fade: 0, flash: null }], grid.posAt(f * F));
+  run(240);
+  assert.ok(Math.abs(zoomOf() - (A.max ?? 4)) < 1e-6, `a 40-degree zoom stops at the fixture's ${A.max ?? 4}: ${zoomOf()}`);
+});
+
 test("FLY-OUT bursts the truss and lip only: never the halo or the verticals a phrase is placing", () => {
   const grid = new BeatGrid({ bpm: 150, t0: 0 });
   grid.beat({ due_ms: 0, bpm: 150, n: 0, conf: 1, bar: 1, ver: 0 }, 0);
