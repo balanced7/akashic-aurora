@@ -1,0 +1,8 @@
+---
+title: "0008: Mail from another fleet is parked, not delivered"
+description: Messages from a peer installation land in a file for review and never go straight onto the live bus.
+---
+
+**Status:** accepted
+
+The [bridge](/docs/concepts/bifrost/bridge) to another fleet signs every message. It admits only a short list of message kinds, and none of them can control an agent. Admitted mail waits in a parked inbox file, not on the live bus. Why? Words from another fleet must never act on our agents by themselves. A person decides when they come in. A relay onto the bus exists, as a script and a console button, but nothing runs it unless a person chooses to.

@@ -1,0 +1,126 @@
+---
+title: Your first session
+description: Walk one agent session from start to finish, in a sandbox, and see the memory loop work.
+---
+
+In this tutorial you play an agent for one short session. You start it, learn something, find it again and hand off to the next agent. It takes about ten minutes.
+
+You need the `aurora` command from the [Quickstart](/docs/quickstart). Run every command from inside the repo.
+
+<Callout title="You work in a sandbox">Step 1 points Aurora at a throwaway folder and a test database. Nothing you do here reaches the real shared memory.</Callout>
+
+<Steps>
+<Step>
+
+### Step 1: Turn on the sandbox
+
+Aurora keeps memory in files and in Redis. These three variables move both to a safe place. [Try it in a sandbox](/docs/how-to/try-it-in-a-sandbox) explains each one.
+
+```bash tab="macOS / Linux" tab-group="os"
+export REDIS_DB=15
+export AI_SETUP="$(mktemp -d)"
+export AKASHIC_RECALL_STATE_DIR="$AI_SETUP/recall"
+```
+
+```powershell tab="Windows" tab-group="os"
+$env:REDIS_DB = "15"
+$env:AI_SETUP = (New-Item -ItemType Directory -Path (Join-Path $env:TEMP "aurora-sandbox-$(Get-Random)")).FullName
+$env:AKASHIC_RECALL_STATE_DIR = "$env:AI_SETUP\recall"
+```
+
+</Step>
+<Step>
+
+### Step 2: Boot
+
+Every session starts with boot. Pick a short name for yourself and say what you are about to do.
+
+```bash
+aurora boot tutorial_agent --task "learn how Aurora works"
+```
+
+Boot prints the lessons that best match your task, plus any open blockers and mail. In a fresh sandbox it may say you are the first agent. That is fine. Read more in [Boot](/docs/concepts/memory/boot).
+
+</Step>
+<Step>
+
+### Step 3: Learn something
+
+Pretend you found a gotcha. Record it as a lesson.
+
+```bash
+aurora learn tutorial_agent --experiment tutorial_sandbox \
+  --tried "tried Aurora with only REDIS_DB set" \
+  --result "my test lesson still reached the shared files" \
+  --recommend "Use when trying Aurora for the first time: set REDIS_DB, AI_SETUP and AKASHIC_RECALL_STATE_DIR first." \
+  --success no
+```
+
+The experiment name is the lesson's key. Record the same name again and you update the lesson, not copy it. See [Lessons](/docs/concepts/memory/lessons).
+
+</Step>
+<Step>
+
+### Step 4: Find it again
+
+Search memory the way a later agent would.
+
+```bash
+aurora recall sandbox
+```
+
+Your lesson comes back with a source pointer: `learn:experiment:tutorial_sandbox`. That pointer is how you cite it. See [Recall](/docs/concepts/memory/recall).
+
+</Step>
+<Step>
+
+### Step 5: Ask before you act
+
+Now ask what Aurora knows about a file before you touch it.
+
+```bash
+aurora recall-at --path core/foundation/store.py
+```
+
+It shows a few lessons tied to that path, or nothing at all. Silence is a real answer: it means nothing passed the relevance bar. In Claude Code, hooks run this for you before each edit. See [Recall at action](/docs/concepts/memory/recall-at-action).
+
+</Step>
+<Step>
+
+### Step 6: Say what helped
+
+If a lesson changed what you did, tell Aurora. Useful lessons rank higher next time.
+
+```bash
+aurora recall-feedback --source learn:experiment:tutorial_sandbox --useful
+```
+
+This closes the [recall loop](/docs/concepts/memory/recall-loop).
+
+</Step>
+<Step>
+
+### Step 7: Hand off
+
+End the session by leaving a note for whoever comes next.
+
+```bash
+aurora handoff tutorial_agent --to next_agent --task "finish the tour" --note "I stopped after recall-at."
+```
+
+Now boot as the next agent:
+
+```bash
+aurora boot next_agent --task "finish the tour"
+```
+
+Your note appears near the top. The next agent picks up where you stopped, with no chat history to reread. See [Handoff](/docs/concepts/bifrost/handoff).
+
+</Step>
+</Steps>
+
+## What you did
+
+You ran the whole memory loop. **Boot** loaded what others knew. **Learn** gave something back. **Recall** found it again, and **recall-at** brought it to the moment of action. **Handoff** carried your place to the next agent.
+
+To work with the real memory again, close the terminal or unset all three variables. Next, read [Aurora in five minutes](/docs/concepts) or pick a [how-to guide](/docs/how-to).
