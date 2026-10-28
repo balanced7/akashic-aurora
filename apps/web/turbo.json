@@ -1,0 +1,61 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "next-env.d.ts"],
+      "env": [
+        "ANALYZE",
+        "CONTACT_EMAIL",
+        "NEXT_PUBLIC_DOCS_URL",
+
+        "BILLING_MODEL",
+        "BILLING_PROVIDER",
+
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+
+        "LEMON_SQUEEZY_API_KEY",
+        "LEMON_SQUEEZY_SIGNING_SECRET",
+        "LEMON_SQUEEZY_STORE_ID",
+
+        "BETTER_AUTH_SECRET",
+
+        "EMAIL_PROVIDER",
+        "EMAIL_FROM",
+
+        "RESEND_API_KEY",
+
+        "SENDGRID_API_KEY",
+
+        "PLUNK_API_KEY",
+
+        "POSTMARK_API_KEY",
+
+        "NODEMAILER_USER",
+        "NODEMAILER_PASSWORD",
+        "NODEMAILER_HOST",
+        "NODEMAILER_PORT",
+
+        "OPEN_PANEL_SECRET",
+        "GOOGLE_ANALYTICS_SECRET",
+
+        "STORAGE_PROVIDER",
+        "S3_REGION",
+        "S3_ENDPOINT",
+        "S3_ACCESS_KEY_ID",
+        "S3_SECRET_ACCESS_KEY",
+
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GOOGLE_GENERATIVE_AI_API_KEY",
+        "MISTRAL_API_KEY",
+        "PERPLEXITY_API_KEY"
+      ]
+    },
+    "dev": {
+      "persistent": true
+    }
+  }
+}

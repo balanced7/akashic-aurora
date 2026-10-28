@@ -1,0 +1,11 @@
+{
+  "extends": "@akashic-labs/tsconfig/internal.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "declaration": false,
+    "declarationMap": false,
+    "composite": false
+  },
+  "include": ["*.ts", "src/**/*"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <radialGradient id="a" cx="20%" cy="15%" r="80%"><stop offset="0" stop-color="#0ac8b9" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b" cx="88%" cy="92%" r="65%"><stop offset="0" stop-color="#c8aa6e" stop-opacity="0.32"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <pattern id="g" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#fff" stroke-opacity="0.05"/></pattern>
+  </defs>
+  <rect width="1200" height="800" fill="#030405"/>
+  <rect width="1200" height="800" fill="url(#g)"/>
+  <rect width="1200" height="800" fill="url(#a)"/>
+  <rect width="1200" height="800" fill="url(#b)"/>
+  <path d="M90 70h40M90 70v40M1110 730h-40M1110 730v-40" stroke="#c8aa6e" stroke-width="3"/>
+  <text x="90" y="150" fill="#c8aa6e" font-family="monospace" font-size="24" letter-spacing="6">AKASHIC LABS · AURORA</text>
+  <text x="90" y="470" fill="#fff" font-family="Figtree, Helvetica, Arial, sans-serif" font-size="96" font-weight="600" letter-spacing="-4">What Aurora is,</text>
+  <text x="90" y="570" fill="#fff" fill-opacity="0.6" font-family="Figtree, Helvetica, Arial, sans-serif" font-size="96" font-weight="600" letter-spacing="-4">and why</text>
+  <path d="M90 640h360" stroke="#0ac8b9" stroke-opacity="0.6" stroke-width="2"/>
+  <text x="90" y="690" fill="#9ff5ec" font-family="monospace" font-size="22" letter-spacing="3">MEMORY · TEAM · WORLD</text>
+</svg>

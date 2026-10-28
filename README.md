@@ -350,6 +350,13 @@ not this README, is what the agents obey.**
 Skeptical? The hard questions — *isn't this just RAG? where are the benchmarks? what is actually
 novel?* — are answered directly in [`docs/FSQ.md`](docs/FSQ.md).
 
+## The website
+
+The public Akashic Labs website lives in this repo, in [`apps/web`](apps/web) (Next.js). The
+packages it uses are in `packages/` and their shared config is in `config/`. It replaces the
+copy in the older `mono` repository, which is no longer maintained. How to run, build and deploy
+it: [`apps/web/README.md`](apps/web/README.md).
+
 ## Contributing
 
 Issues and PRs welcome. [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the slice discipline (small

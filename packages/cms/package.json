@@ -1,0 +1,35 @@
+{
+  "name": "@akashic-labs/cms",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "content-collections build",
+    "clean": "git clean -xdf .cache .turbo dist node_modules",
+    "dev": "content-collections watch",
+    "format": "prettier --check . --ignore-path ../../.gitignore",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit"
+  },
+  "prettier": "@akashic-labs/prettier-config",
+  "dependencies": {
+    "@akashic-labs/shared": "workspace:*",
+    "@content-collections/core": "0.13.0",
+    "reading-time": "1.5.0"
+  },
+  "devDependencies": {
+    "@akashic-labs/eslint-config": "workspace:*",
+    "@akashic-labs/prettier-config": "workspace:*",
+    "@akashic-labs/tsconfig": "workspace:*",
+    "@content-collections/cli": "0.1.8",
+    "@content-collections/mdx": "0.2.2",
+    "@shikijs/rehype": "3.20.0",
+    "concurrently": "9.2.1",
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "home": {
+    "title": "Rapporter",
+    "description": "En oversikt over rapportene du og partneren din kan ta sammen."
+  },
+  "reports": {
+    "compatibility": {
+      "title": "Kompatibilitetsrapport",
+      "description": "Analyser kompatibiliteten mellom deg og partneren din basert på ulike faktorer."
+    },
+    "love_languages": {
+      "title": "Kjærlighetsspråk",
+      "description": "Finn ut hvilke kjærlighetsspråk dere har, og hvordan de påvirker forholdet."
+    }
+  },
+  "actions": {
+    "take_report": "Ta rapport",
+    "view_results": "Se resultater"
+  }
+}

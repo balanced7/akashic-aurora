@@ -1,0 +1,198 @@
+{
+  "create": {
+    "title": "Opprett organisasjon",
+    "description": "Opprett en ny organisasjon for å administrere teamet og prosjektene dine.",
+    "cta": "Opprett organisasjon",
+    "info": "Navnet på organisasjonen bør være unikt og beskrivende."
+  },
+  "join": {
+    "title": "Bli med i organisasjon",
+    "description": "Bli med i en organisasjon for å samarbeide med teamet, administrere prosjekter effektivt og få tilgang til delte ressurser."
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "header": {
+      "title": "Organisasjonsinnstillinger",
+      "description": "Administrer innstillingene og preferansene for organisasjonen din."
+    }
+  },
+  "invitations": {
+    "title": "Invitasjoner",
+    "disclaimer": {
+      "title": "Du er invitert til en organisasjon",
+      "description": "Logg inn eller opprett en konto for å godta invitasjonen og bli med i organisasjonen."
+    },
+    "resend": {
+      "success": "Invitasjonen ble sendt på nytt!"
+    },
+    "cancel": {
+      "success": "Invitasjonen ble avbrutt!"
+    },
+    "accept": {
+      "success": "Du er nå medlem av {{organization}}!"
+    },
+    "reject": {
+      "success": "Du har avslått å bli med i {{organization}}."
+    },
+    "expired": {
+      "title": "Invitasjonen finnes ikke eller er utløpt",
+      "description": "Invitasjonen du leter etter, er utløpt eller finnes ikke. Kontakt eieren av organisasjonen for å få en ny invitasjon.",
+      "cta": "Tilbake til dashbordet"
+    },
+    "emailMismatch": {
+      "title": "Du er logget inn med en annen konto",
+      "description": "E-postadressen du prøver å bruke, samsvarer ikke med adressen i invitasjonen. Logg inn som <bold>{{email}}</bold>, eller kontakt eieren av organisasjonen for å oppdatere invitasjonen.",
+      "cta": "Logg inn som {{email}}",
+      "skip": "Hopp til dashbordet"
+    },
+    "invitation": {
+      "title": "Bli med i {{organizationName}}",
+      "description": "<bold>{{inviterEmail}}</bold> har invitert deg til å bli med i <bold>{{organizationName}}</bold> på Akashic Labs.",
+      "skip": "Hopp til dashbordet"
+    },
+    "user": {
+      "banner": {
+        "title_one": "Du har en invitasjon som venter",
+        "title_other": "Du har {{count}} invitasjoner som venter",
+        "description": "Klikk for å se detaljene og godta eller avslå invitasjonen."
+      },
+      "list": {
+        "title": "Ventende invitasjoner",
+        "description": "Se og administrer invitasjonene som venter på deg."
+      }
+    }
+  },
+  "members": {
+    "title": "Medlemmer",
+    "header": {
+      "title": "Medlemmer i organisasjonen",
+      "description": "Administrer medlemmer, invitasjoner og roller i organisasjonen din."
+    },
+    "invite": {
+      "title": "Inviter medlem",
+      "description": "Send en invitasjon for å legge til et nytt medlem i organisasjonen din.",
+      "info": "Du kan invitere flere medlemmer samtidig.",
+      "missingPermission": "Du trenger flere tillatelser for å invitere medlemmer til denne organisasjonen.",
+      "success_one": "Medlemmet ble invitert!",
+      "success_other": "Medlemmene ble invitert!",
+      "email": {
+        "subject": "Du er invitert til en organisasjon",
+        "preview": "Bli med {{inviter}} på Akashic Labs",
+        "body": "<bold>{{inviter}}</bold> har invitert deg til å bli med i <bold>{{organization}}</bold> på Akashic Labs.",
+        "or": "Eller kopier og lim inn denne lenken i nettleseren:",
+        "cta": "Bli med i {{organization}}",
+        "disclaimer": "Hvis du ikke ventet denne invitasjonen, er det ingenting å bekymre seg for - du kan trygt ignorere denne e-posten."
+      }
+    },
+    "update": {
+      "role": {
+        "title": "Oppdater rollen til {{name}}",
+        "description": "Endre rollen til det valgte medlemmet ved å velge den fra nedtrekksmenyen.",
+        "info": "Rollen bestemmer medlemmets tillatelser.",
+        "success": "Medlemmets rolle ble oppdatert!"
+      }
+    },
+    "remove": {
+      "success": "Medlemmet ble fjernet!"
+    }
+  },
+  "name": {
+    "edit": {
+      "description": "Skriv inn navnet på organisasjonen din, eller et visningsnavn du er komfortabel med.",
+      "success": "Organisasjonens navn ble oppdatert!",
+      "info": "Bruk maksimalt 32 tegn.",
+      "missingPermission": "Du trenger flere tillatelser for å administrere navnet på organisasjonen."
+    }
+  },
+  "logo": {
+    "description": "Dette er logoen til organisasjonen din.\nKlikk på den for å laste opp en egen logo fra filene dine.",
+    "info": "Logo er ikke påkrevd, men sterkt anbefalt.",
+    "missingPermission": "Du trenger flere tillatelser for å administrere logoen til organisasjonen.",
+    "update": {
+      "success": "Organisasjonens logo ble oppdatert!"
+    },
+    "remove": {
+      "success": "Organisasjonens logo ble fjernet!"
+    }
+  },
+  "leave": {
+    "title": "Forlat organisasjonen",
+    "description": "Fjern din egen tilgang til denne organisasjonen. Ressurser du har lagt til i organisasjonen, blir værende.",
+    "cta": "Forlat organisasjonen",
+    "disclaimer": "Er du sikker på at du vil forlate denne organisasjonen?\n\nDu mister tilgangen til ressursene i den, og må inviteres på nytt for å bli med igjen.\n\nVil du fortsette?",
+    "success": "Du har forlatt organisasjonen!",
+    "cannotLeaveAsOnlyOwner": "For å forlate denne organisasjonen må minst ett medlem til ha eierrollen."
+  },
+  "delete": {
+    "title": "Slett organisasjon",
+    "description": "Fjern denne organisasjonen og alt innholdet permanent fra Akashic Labs-plattformen. Denne handlingen kan ikke angres, så fortsett med forsiktighet.",
+    "cta": "Slett organisasjon",
+    "disclaimer": "Du er i ferd med å slette denne organisasjonen. \n\nEtter sletting blir alle organisasjonsdata (inkludert medlemmer og team) permanent slettet og kan ikke gjenopprettes. \n\nVil du fortsette?",
+    "success": "Organisasjonen ble slettet!",
+    "missingPermission": "Du trenger flere tillatelser for å slette denne organisasjonen."
+  },
+  "error": {
+    "slugAlreadyTaken": "Kortnavnet er allerede i bruk.",
+    "cannotCreateNew": "Du kan ikke opprette en ny organisasjon.",
+    "maximumNumberOfOrganizations": "Du har nådd maksimalt antall organisasjoner.",
+    "alreadyExists": "Det finnes allerede en organisasjon med dette navnet.",
+    "notFound": "Vi fant ikke organisasjonen.",
+    "userNotMember": "Du er ikke medlem av denne organisasjonen.",
+    "cannotUpdate": "Du kan ikke oppdatere denne organisasjonen.",
+    "cannotDelete": "Du kan ikke slette denne organisasjonen.",
+    "noActive": "Fant ingen aktiv organisasjon.",
+    "userAlreadyMember": "Du er allerede medlem av denne organisasjonen.",
+    "memberNotFound": "Vi fant ikke medlemmet.",
+    "roleNotFound": "Vi fant ikke rollen.",
+    "cannotLeaveAsOnlyOwner": "Du kan ikke forlate organisasjonen som eneste eier.",
+    "cannotLeaveWithoutOwner": "Du kan ikke forlate organisasjonen uten en eier.",
+    "cannotDeleteMember": "Du kan ikke slette dette medlemmet.",
+    "cannotUpdateMember": "Du kan ikke oppdatere dette medlemmet.",
+    "membershipLimitReached": "Du har nådd medlemsgrensen for denne organisasjonen.",
+    "cannotAccess": "Du har ikke tilgang til denne organisasjonen.",
+    "slugNotAvailable": "Kortnavnet er ikke tilgjengelig.",
+    "team": {
+      "cannotCreateNew": "Du kan ikke opprette et nytt team.",
+      "alreadyExists": "Det finnes allerede et team med dette navnet.",
+      "notFound": "Vi fant ikke teamet.",
+      "maximumNumberOfTeams": "Du har nådd maksimalt antall team.",
+      "unableToRemoveLastTeam": "Du kan ikke fjerne det siste teamet.",
+      "cannotCreate": "Du kan ikke opprette et team i denne organisasjonen.",
+      "cannotDelete": "Du kan ikke slette et team i denne organisasjonen.",
+      "cannotUpdate": "Du kan ikke oppdatere et team i denne organisasjonen.",
+      "cannotAccessMembers": "Du har ikke tilgang til medlemmene i dette teamet.",
+      "memberLimitReached": "Du har nådd medlemsgrensen for dette teamet.",
+      "userNotMember": "Du er ikke medlem av dette teamet.",
+      "noActive": "Fant ingen aktivt team.",
+      "cannotCreateNewMember": "Du kan ikke opprette et nytt medlem.",
+      "cannotRemoveMember": "Du kan ikke fjerne dette medlemmet.",
+      "cannotAccess": "Du har ikke tilgang til denne organisasjonen."
+    },
+    "invitation": {
+      "cannotInviteUsers": "Du kan ikke invitere brukere til denne organisasjonen.",
+      "userAlreadyInvited": "Denne brukeren er allerede invitert til organisasjonen.",
+      "notFound": "Vi fant ikke invitasjonen.",
+      "notRecipient": "Du er ikke mottakeren av denne invitasjonen.",
+      "cannotCancel": "Du kan ikke avbryte denne invitasjonen.",
+      "inviterNoLongerMember": "Den som inviterte, er ikke lenger medlem av organisasjonen.",
+      "cannotInviteUserWithRole": "Du kan ikke invitere en bruker med denne rollen.",
+      "emailVerificationRequired": "E-postadressen må bekreftes før du kan godta eller avslå en invitasjon.",
+      "failedToRetrieve": "Vi klarte ikke å hente invitasjonen.",
+      "limitReached": "Du har nådd invitasjonsgrensen for denne organisasjonen."
+    },
+    "ac": {
+      "missingAcInstance": "Mangler AC-instans.",
+      "mustBeInOrganizationToCreateRole": "Du må være i en organisasjon for å opprette en rolle.",
+      "cannotCreateRole": "Du kan ikke opprette en rolle.",
+      "cannotUpdateRole": "Du kan ikke oppdatere en rolle.",
+      "cannotDeleteRole": "Du kan ikke slette en rolle.",
+      "cannotReadRole": "Du kan ikke lese en rolle.",
+      "cannotListRole": "Du kan ikke liste opp roller.",
+      "cannotGetRole": "Du kan ikke hente en rolle.",
+      "tooManyRoles": "Du har nådd maksimalt antall roller.",
+      "invalidResource": "Ressursen er ugyldig.",
+      "cannotDeletePreDefinedRole": "Du kan ikke slette en forhåndsdefinert rolle.",
+      "roleNameAlreadyTaken": "Rollenavnet er allerede i bruk."
+    }
+  }
+}

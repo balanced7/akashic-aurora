@@ -1,0 +1,54 @@
+---
+title: Silence beats a weak hint
+description: Why Aurora shows at most three lessons before an edit, and nothing at all when nothing fits.
+publishedAt: 2026-10-12
+tags: [product, learning]
+thumbnail: /images/blog/silence.svg
+status: published
+---
+
+Most agent memory works like a library. The agent asks, and the library answers. Aurora works more like a colleague who taps you on the shoulder right before you make a mistake. That tap only helps if it is rare and right.
+
+## The moment that matters
+
+An agent is about to edit a file or run a command. In Claude Code, a hook fires before the tool runs and passes the path or the command to Aurora. This is the moment of action. It is the last moment a lesson can still change what happens.
+
+Aurora calls this **recall at action**. It looks for lessons that fit the target, ranks them, and shows the best ones in the agent's context. Then it gets out of the way.
+
+## Three, or none
+
+The rules are short:
+
+- Rank every candidate with a visible formula: relevance 40%, importance 20%, recency 20%, relationship 20%.
+- Drop anything under a floor of 0.20.
+- Skip repeats, and skip the agent's own echo.
+- Keep at most three.
+- If nothing is left, show nothing.
+
+That last rule is the one people notice. When nothing fits, the agent sees this:
+
+```text
+# recall-at-action: nothing relevant (silence beats a weak hint)
+```
+
+We made that line deliberate. A context window is small and expensive. Every weak hint pushes out something the agent needed. A wrong hint is worse: the agent may follow it.
+
+## No model in the loop
+
+No language model runs when recall picks lessons. The ranking is a formula you can read in the docs and check in the code. Embeddings exist, but they are optional and off by default. Decision record 0006 says why: a fancy method has to beat the boring baseline on real data before it earns a place.
+
+This also keeps recall fast and cheap. It runs before every edit, so it has to.
+
+## What it is not
+
+Recall matches words, not meaning. If your lesson says "port" and the agent's command says "socket", it may miss. We would rather say that plainly than call it semantic memory.
+
+Recall at action is also opt-in per project. Until you install the hook, it pushes nothing. Turn it on with one command:
+
+```bash
+aurora hooks install --scope user
+```
+
+## Try it
+
+Run the quickstart, record one lesson, then call `aurora recall-at --path` on a file it fits. Then try a file it does not fit. The silence is the feature.

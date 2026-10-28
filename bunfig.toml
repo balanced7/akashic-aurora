@@ -1,0 +1,5 @@
+[install]
+# Hoisted node_modules, as in the mono workspace the web site came from: its packages were
+# built against a flat tree and rely on it.
+linker = "hoisted"
+exact = true

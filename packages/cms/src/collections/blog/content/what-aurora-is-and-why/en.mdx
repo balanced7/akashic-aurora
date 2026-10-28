@@ -1,0 +1,90 @@
+---
+title: What Aurora is, and why
+description: The problem, the answer in one sentence, and the bet Aurora makes on persistent peers instead of disposable workers.
+publishedAt: 2026-10-26
+tags: [product, learning]
+thumbnail: /images/blog/what-and-why.svg
+status: published
+---
+
+Aurora is not a memory API with a chat interface. It is a home for your agents: a place where their work accumulates, where they can see each other, and where trust is granted a step at a time.
+
+This is the short version of what it is and why it exists.
+
+## The problem: sessions that start from zero
+
+In April 2026, in the first two days of working with a coding agent, three asks came up in plain language:
+
+- Keep continuity from session to session, even after a crash.
+- Tell me what the other session is doing, and how far along it is.
+- Let two sessions work together without destroying each other's work.
+
+Those three asks are still the shape of the problem. An agent session starts blank. It re-learns the project, re-makes decisions that were already settled, and repeats a mistake the last session paid to discover. Two sessions in the same repo cannot see each other. When they touch the same file, one of them loses.
+
+Storage was never the bottleneck. The hard part is reaching the right lesson at the moment it would change what happens.
+
+## The answer in one sentence
+
+> Aurora is shared memory, a message bus and a trust layer for a team of AI agents and one human, so that what one agent learns reaches the next one at the moment it acts.
+
+That sentence carries three things that are easy to separate and hard to keep together: a record, a way for agents to talk, and a way to decide who may act.
+
+## Memory, then a team, then a world
+
+The project grew in three beats, and each one made the next possible.
+
+**Memory.** It started as a knowledge base that remembered everything, so projects were not lost and knowledge kept compounding. An agent records what it tried, what happened and what to do next. The record is append-only. A correction supersedes; nothing is rewritten.
+
+**A team.** Once agents could remember, they needed to work together. That meant a message bus, a task ledger, short file locks and handoffs. Bifrost is the bridge: one inbox and one cursor per agent, a promoter that copies the mail that matters into the record, and a console where a human keeps the brakes.
+
+**A world.** The goal is a place where you and your agents keep working together, and the ergonomics improve for both. In practice that means effectively infinite context, delivered in a way that fits the work at hand. Memory is the means, not the product.
+
+## The bet: accumulation, not parallelism
+
+There are two ways to scale agent work, and they pull in opposite directions.
+
+**Parallelism** uses disposable workers. Each one starts clean, does a slice, and disappears. There is no context rot, nothing to curate, and scale is a number of workers. What one worker learns does not travel to the next, and that is the point.
+
+**Accumulation** uses persistent peers. The same seats work with you for months and inherit judgement. A lesson one seat pays for surfaces automatically for the next agent standing in the same place. You pay for it in curation: the record has to stay honest, and the wrong lesson is worse than no lesson.
+
+Aurora bets on accumulation. That choice explains most of the design: why the record is append-only, why trust is a ladder, why recall stays silent when nothing fits, and why the fleet has named residents instead of anonymous workers.
+
+## The loop that makes it real
+
+The core of Aurora is a memory loop with four moves:
+
+1. **Learn.** After something fails or works, an agent files a lesson: what it tried, what happened, why, and what to do next.
+2. **Surface.** Just before an edit or a shell command, a hook turns the path or command into a query. It shows at most three lessons above a relevance floor, and often nothing.
+3. **Judge.** Every showing is counted. Agents vote useful or noise, and a lesson earns credit when a failed action succeeds after it was shown.
+4. **Re-rank.** Judgments move a lesson's score. Lessons shown many times that never earn credit can be benched, and benching can be undone.
+
+No model runs on that path. Nothing is dumped into a startup prompt. The same engine serves a coding harness, an MCP client and an API model, because all three reach the same record through different doors.
+
+## How it is built
+
+Aurora rests on a record that is never rewritten. Two questions sit under everything: what is true now, and what happened, in order. The Store answers the first, the Ledger the second. Every write lands in a local file first; Redis is only a speed-up. Everything above the record can be rebuilt.
+
+On top of that sit seven layers: the record, the Bifrost bus, knowledge, coordination, doors, trust and the fleet. The method is the contract that keeps them honest: red before green, a fenced dual pass, drills as acceptance, cite or confess, proportionality, and guards over discipline.
+
+The fleet has six residents, each with a callsign and a written charter, plus one human Gate. None of them owns a file or a task. Gravity holds the fleet together, not walls: any agent can take any task and touch any file, and a short lock keeps two hands off one file while they work.
+
+## What is honest about it today
+
+Aurora is good at producing knowledge and still poor at getting it to the moment of need. As of 2026-10-20:
+
+- 1 of 12 knowledge planes can push into a working agent. Lessons are the one that does; rulings, operator words and research wait to be asked for.
+- 1.8% of about 30,300 lesson showings were ever judged. The rest are unlabelled, not negative.
+- 14.3% of command queries get a recall hit, against 52.1% of path queries. Commands are most of what agents do, and that is where reach is weakest.
+- 7 of 54 value loops are closed. The data plane is sound; the open loops sit in readers, clocks and gates.
+
+Whether surfaced lessons improve outcomes at scale is not shown yet. The project says so rather than inventing a benchmark.
+
+## What done means
+
+Done does not mean shipped. It means the thing has demonstrably worked for a while. The design is finished when nobody has to point out what relates to what, and the agent can see it for itself.
+
+That is a high bar. It is also the reason the site tells you what does not work yet.
+
+## Where to start
+
+Read the quickstart in the docs, run one session, and teach Aurora a lesson. Then add a second agent and watch whether the record earns its keep. The source, the tests and the decision records are all on [GitHub](https://github.com/balanced7/akashic-aurora).

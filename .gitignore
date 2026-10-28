@@ -50,6 +50,8 @@ tmp/
 logs/
 backups/
 sessions/
+# ...but not the website's admin view of a user's sessions, which is source.
+!apps/web/src/modules/admin/users/user/sessions/
 
 # --- Virtualenvs / dependencies / caches ---
 **/venv/
@@ -291,3 +293,14 @@ charters/daniel/*
 # above is not enough -- the ledger needs its own negation or it stays invisible. This
 # is the third distinct way tonight that a durable record nearly ended up untracked.
 !state/authorship/*.jsonl
+
+# --- JS workspace (bun: apps/web, packages/, config/) ---
+.next/
+.cache/
+.turbo/
+.content-collections/
+.vercel/
+.env*.local
+next-env.d.ts
+*.tsbuildinfo
+coverage.json

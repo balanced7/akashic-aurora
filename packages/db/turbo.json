@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "db:generate": {
+      "interactive": true,
+      "cache": false,
+      "dependsOn": ["@akashic-labs/auth#db:generate"]
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:seed": {
+      "cache": false,
+      "dependsOn": ["@akashic-labs/auth#db:seed"]
+    },
+    "db:setup": {}
+  }
+}

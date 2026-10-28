@@ -1,0 +1,587 @@
+/*
+ * Marketing site design system.
+ * Core (90%): Framer-style black canvas, hairline borders, tight display type.
+ * Highlight (10%): hextech HUD frames in gold and cyan, used only where we want attention.
+ */
+
+@theme {
+  --color-mk-bg: #000000;
+  --color-mk-surface: #0a0a0b;
+  --color-mk-raised: #111113;
+  --color-mk-line: rgb(255 255 255 / 0.08);
+  --color-mk-line-strong: rgb(255 255 255 / 0.14);
+  --color-mk-text: #ffffff;
+  --color-mk-muted: rgb(255 255 255 / 0.62);
+  --color-mk-faint: rgb(255 255 255 / 0.52);
+  --color-mk-blue: #0099ff;
+
+  --color-hud-gold: #c8aa6e;
+  --color-hud-gold-bright: #f0e6d2;
+  --color-hud-gold-deep: #785a28;
+  --color-hud-cyan: #0ac8b9;
+  --color-hud-cyan-deep: #0397ab;
+  --color-hud-ink: #010a13;
+  --color-hud-red: #e84057;
+
+  --font-display: var(--font-mk-display), ui-sans-serif, system-ui, sans-serif;
+  --font-hud: var(--font-mk-hud), ui-monospace, monospace;
+
+  --animate-mk-marquee: mk-marquee 40s linear infinite;
+  --animate-hud-scan: hud-scan 3.2s ease-in-out infinite;
+  --animate-hud-pulse: hud-pulse 2.4s ease-in-out infinite;
+  --animate-mk-aurora: mk-aurora 18s ease-in-out infinite alternate;
+  --animate-mk-blink: mk-blink 1.1s steps(1) infinite;
+
+  @keyframes mk-marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes hud-scan {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    20%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes hud-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes mk-aurora {
+    0% {
+      transform: translate3d(-6%, -4%, 0) rotate(-4deg) scale(1);
+    }
+    100% {
+      transform: translate3d(6%, 3%, 0) rotate(5deg) scale(1.12);
+    }
+  }
+
+  @keyframes mk-flow {
+    0% {
+      top: 0;
+      opacity: 0;
+    }
+    30%,
+    70% {
+      opacity: 1;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
+    }
+  }
+
+  @keyframes mk-scan-y {
+    0% {
+      top: -20%;
+    }
+    100% {
+      top: 110%;
+    }
+  }
+
+  @keyframes mk-blink {
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
+  }
+}
+
+@layer base {
+  .mk {
+    /* next/font sets --font-mk-* on this element, so the font tokens must resolve here, not on :root */
+    --font-display:
+      var(--font-mk-display), ui-sans-serif, system-ui, sans-serif;
+    --font-hud: var(--font-mk-hud), ui-monospace, monospace;
+    --font-heading:
+      var(--font-mk-heading), var(--font-mk-display), ui-sans-serif, sans-serif;
+    --font-mono: var(--font-mk-mono), ui-monospace, monospace;
+    --mk-container: 1200px;
+    background: var(--color-mk-bg);
+    color: var(--color-mk-text);
+    font-family: var(--font-display);
+    color-scheme: dark;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  .mk ::selection {
+    background: rgb(10 200 185 / 0.35);
+    color: #fff;
+  }
+
+  .mk-container {
+    width: 100%;
+    max-width: var(--mk-container);
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .mk-container {
+      padding-inline: 2rem;
+    }
+  }
+
+  /* Shared UI components read these tokens. Pin them to the dark marketing palette. */
+  .mk {
+    --background: #000000;
+    --foreground: #ffffff;
+    --card: #0a0a0b;
+    --card-foreground: #ffffff;
+    --popover: #0b0b0d;
+    --popover-foreground: #ffffff;
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    --secondary: rgb(255 255 255 / 0.08);
+    --secondary-foreground: #ffffff;
+    --muted: rgb(255 255 255 / 0.06);
+    --muted-foreground: rgb(255 255 255 / 0.6);
+    --accent: rgb(255 255 255 / 0.08);
+    --accent-foreground: #ffffff;
+    --border: rgb(255 255 255 / 0.1);
+    --input: rgb(255 255 255 / 0.12);
+    --ring: #0ac8b9;
+  }
+
+  /* The shared typography layer styles bare elements for the light dashboard theme. Re-point it here. */
+  .mk {
+    --typography-font-sans: var(--font-display);
+    --typography-text: rgb(255 255 255 / 0.62);
+    --typography-heading: #ffffff;
+    --typography-link: #ffffff;
+    --typography-code-bg: rgb(255 255 255 / 0.06);
+    --typography-code-text: #ffffff;
+    --typography-blockquote: rgb(255 255 255 / 0.62);
+  }
+
+  /* Grid items default to min-width: auto and blow out on long code lines. Let them shrink. */
+  .mk .grid > * {
+    min-width: 0;
+  }
+
+  .mk p {
+    font-weight: 400;
+    letter-spacing: normal;
+  }
+
+  .mk h1,
+  .mk h2 {
+    font-family: var(--font-heading);
+  }
+
+  .mk h3,
+  .mk h4 {
+    font-family: var(--font-display);
+  }
+
+  /* Extreme weight contrast: the quiet half of a headline drops to a light weight. */
+  .mk-display .text-mk-muted,
+  .mk-title .text-mk-muted {
+    font-weight: 300;
+    letter-spacing: -0.04em;
+  }
+
+  /* Page-load choreography: elements rise in sequence, set per element with --rise-delay. */
+  .mk-rise {
+    animation: mk-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+
+  /* Headline words slide up from behind a mask. Opacity stays at 1, so the headline counts for LCP. */
+  .mk-word-mask {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+    padding-bottom: 0.12em;
+    margin-bottom: -0.12em;
+  }
+
+  .mk-word-rise {
+    display: inline-block;
+    animation: mk-word-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+
+  @keyframes mk-word-rise {
+    from {
+      transform: translate3d(0, 108%, 0);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  /* Scroll-driven reveal: pure CSS, so content is visible without JavaScript or support. */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .mk-reveal {
+        animation: mk-reveal linear both;
+        animation-timeline: view();
+        animation-range: entry var(--reveal-start, 0%) entry
+          calc(var(--reveal-start, 0%) + 60%);
+      }
+    }
+  }
+
+  @keyframes mk-reveal {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 28px, 0);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: blur(0);
+    }
+  }
+
+  /* Same entrance without an opacity fade, for the page's largest text block (keeps LCP at first paint). */
+  .mk-rise-solid {
+    animation: mk-rise-solid 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--rise-delay, 0ms);
+  }
+
+  @keyframes mk-rise-solid {
+    from {
+      transform: translate3d(0, 0.6em, 0);
+      filter: blur(6px);
+    }
+    to {
+      transform: none;
+      filter: blur(0);
+    }
+  }
+
+  @keyframes mk-rise {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 0.45em, 0);
+      filter: blur(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: blur(0);
+    }
+  }
+}
+
+@layer components {
+  /* Display type: tight tracking like Framer's headlines */
+  .mk-display {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-variation-settings: "opsz" 96;
+    letter-spacing: -0.05em;
+    /* Text-size utilities read --tw-leading, which the shared h1 base sets to 1.25. */
+    --tw-leading: 0.98;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  .mk-title {
+    font-family: var(--font-heading);
+    font-weight: 650;
+    font-variation-settings: "opsz" 72;
+    --tw-leading: 1.04;
+    letter-spacing: -0.04em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  /* Subtle surfaces */
+  .mk-card {
+    position: relative;
+    border-radius: 20px;
+    border: 1px solid var(--color-mk-line);
+    background:
+      linear-gradient(
+        180deg,
+        rgb(255 255 255 / 0.035),
+        rgb(255 255 255 / 0) 40%
+      ),
+      var(--color-mk-surface);
+  }
+
+  /* Cursor spotlight (set by SpotlightTracker). Sits under content, over the card fill. */
+  .mk-card::after,
+  .mk-spot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--spot-o, 0);
+    transition: opacity 0.4s ease;
+    background:
+      radial-gradient(
+        420px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+        rgb(255 255 255 / 0.06),
+        transparent 60%
+      ),
+      radial-gradient(
+        200px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+        rgb(10 200 185 / 0.08),
+        transparent 70%
+      );
+  }
+
+  .mk-spot {
+    position: relative;
+  }
+
+  .mk-card-hover {
+    transition:
+      border-color 0.3s ease,
+      transform 0.3s ease,
+      background 0.3s ease;
+  }
+
+  .mk-card-hover:hover {
+    border-color: var(--color-mk-line-strong);
+    transform: translateY(-2px);
+  }
+
+  .mk-grid-bg {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%);
+  }
+
+  .mk-noise::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  .mk-fade-x {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 12%,
+      #000 88%,
+      transparent
+    );
+  }
+
+  .mk-fade-b {
+    mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  }
+
+  .mk-gradient-text {
+    background: linear-gradient(100deg, #ffffff 20%, #9ff5ec 55%, #c8aa6e 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ---------- HUD highlight layer (use sparingly) ---------- */
+
+  /* Chamfered frame with a gold hairline. Put content inside; it sits above the ink fill. */
+  .hud-frame {
+    --hud-cut: 14px;
+    --hud-edge: linear-gradient(
+      135deg,
+      var(--color-hud-gold-bright),
+      var(--color-hud-gold) 30%,
+      var(--color-hud-gold-deep) 70%,
+      var(--color-hud-gold)
+    );
+    --hud-fill: linear-gradient(180deg, #06121c, var(--color-hud-ink));
+    position: relative;
+    isolation: isolate;
+    clip-path: polygon(
+      var(--hud-cut) 0,
+      100% 0,
+      100% calc(100% - var(--hud-cut)),
+      calc(100% - var(--hud-cut)) 100%,
+      0 100%,
+      0 var(--hud-cut)
+    );
+    background: var(--hud-edge);
+  }
+
+  .hud-frame::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    clip-path: polygon(
+      calc(var(--hud-cut) - 0.5px) 0,
+      100% 0,
+      100% calc(100% - var(--hud-cut) + 0.5px),
+      calc(100% - var(--hud-cut) + 0.5px) 100%,
+      0 100%,
+      0 calc(var(--hud-cut) - 0.5px)
+    );
+    background: var(--hud-fill);
+  }
+
+  .hud-frame-cyan {
+    --hud-edge: linear-gradient(
+      135deg,
+      #b8fff8,
+      var(--color-hud-cyan) 35%,
+      var(--color-hud-cyan-deep) 70%,
+      var(--color-hud-cyan)
+    );
+  }
+
+  /* Corner brackets drawn with gradients; no extra markup needed */
+  .hud-corners {
+    --hud-c: var(--color-hud-gold);
+    --hud-len: 14px;
+    --hud-w: 1.5px;
+    background:
+      linear-gradient(var(--hud-c), var(--hud-c)) top left / var(--hud-len)
+        var(--hud-w),
+      linear-gradient(var(--hud-c), var(--hud-c)) top left / var(--hud-w)
+        var(--hud-len),
+      linear-gradient(var(--hud-c), var(--hud-c)) top right / var(--hud-len)
+        var(--hud-w),
+      linear-gradient(var(--hud-c), var(--hud-c)) top right / var(--hud-w)
+        var(--hud-len),
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom left / var(--hud-len)
+        var(--hud-w),
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom left / var(--hud-w)
+        var(--hud-len),
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom right / var(--hud-len)
+        var(--hud-w),
+      linear-gradient(var(--hud-c), var(--hud-c)) bottom right / var(--hud-w)
+        var(--hud-len);
+    background-repeat: no-repeat;
+  }
+
+  .hud-corners-cyan {
+    --hud-c: var(--color-hud-cyan);
+  }
+
+  .hud-label {
+    font-family: var(--font-hud);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 600;
+  }
+
+  .hud-glow-gold {
+    text-shadow:
+      0 0 12px rgb(200 170 110 / 0.55),
+      0 0 32px rgb(200 170 110 / 0.25);
+  }
+
+  .hud-glow-cyan {
+    text-shadow:
+      0 0 12px rgb(10 200 185 / 0.6),
+      0 0 32px rgb(10 200 185 / 0.25);
+  }
+
+  .hud-scanlines {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgb(255 255 255 / 0.035) 0,
+      rgb(255 255 255 / 0.035) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  /* Diamond marker, a nod to the hextech gem */
+  .hud-gem {
+    width: 8px;
+    height: 8px;
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, #b8fff8, var(--color-hud-cyan));
+    box-shadow: 0 0 10px rgb(10 200 185 / 0.8);
+  }
+
+  /* Gold button with chamfered ends */
+  .hud-button {
+    --hud-cut: 10px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    isolation: isolate;
+    padding: 0.75rem 1.4rem;
+    font-family: var(--font-hud);
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-hud-gold-bright);
+    clip-path: polygon(
+      var(--hud-cut) 0,
+      calc(100% - var(--hud-cut)) 0,
+      100% 50%,
+      calc(100% - var(--hud-cut)) 100%,
+      var(--hud-cut) 100%,
+      0 50%
+    );
+    background: linear-gradient(
+      180deg,
+      var(--color-hud-gold-bright),
+      var(--color-hud-gold) 45%,
+      var(--color-hud-gold-deep)
+    );
+    transition: filter 0.25s ease;
+  }
+
+  .hud-button::before {
+    content: "";
+    position: absolute;
+    inset: 1.5px;
+    z-index: -1;
+    clip-path: inherit;
+    background: linear-gradient(180deg, #0f2430, #051019);
+    transition: background 0.25s ease;
+  }
+
+  .hud-button:hover {
+    filter: drop-shadow(0 0 14px rgb(200 170 110 / 0.45));
+  }
+
+  .hud-button:hover::before {
+    background: linear-gradient(180deg, #16343f, #082029);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk *,
+  .mk *::before,
+  .mk *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

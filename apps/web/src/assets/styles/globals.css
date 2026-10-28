@@ -1,0 +1,5 @@
+@import "@akashic-labs/ui/globals.css";
+@import "@akashic-labs/ui-web/globals.css";
+@import "./marketing.css";
+
+@source "../../../../../packages/ui";

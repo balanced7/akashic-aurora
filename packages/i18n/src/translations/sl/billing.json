@@ -1,0 +1,108 @@
+{
+  "currency": "eur",
+  "pricing": {
+    "label": "Cenik",
+    "title": "Preprosti paketi za vsakogar",
+    "description": "Izberite paket, ki ustreza vašim potrebam, in začnite svojo pot do uspeha."
+  },
+  "manage": {
+    "plan": {
+      "title": "Upravljanje paketa",
+      "description": "Preverite podrobnosti svojega trenutnega paketa. Paket lahko kadar koli zamenjate ali naročnino prekličete."
+    },
+    "billing": {
+      "title": "Upravljanje obračuna",
+      "description": "Obiščite portal za obračun in upravljajte svojo naročnino ter plačila. Posodobite lahko način plačila, prekličete naročnino, prenesete račune in še več.",
+      "visitPortal": "Obiščite portal za obračun"
+    },
+    "description": "Upravljajte svoj obračun in naročnino."
+  },
+  "subscribe": "Naročite se zdaj",
+  "updatePlan": "Posodobi paket",
+  "getLifetimeAccess": "Pridobite doživljenjski dostop",
+  "interval": {
+    "day": "dan",
+    "week": "teden",
+    "month": "mesec",
+    "year": "leto",
+    "lifetime": "doživljenjsko"
+  },
+  "trial": {
+    "cta": "Začnite brezplačno",
+    "period": "Preizkusite s {{period}}-dnevnim preizkusom"
+  },
+  "discount": {
+    "specialOffer": "POSEBNA PONUDBA: <bold>-{{discount}} popusta</bold>"
+  },
+  "plan": {
+    "starter": {
+      "name": "Osnovni",
+      "description": "Za majhne projekte, ki šele začenjajo",
+      "features": {
+        "sync": "Brezhibna sinhronizacija",
+        "basicSupport": "Osnovna podpora",
+        "limitedStorage": "Omejena shramba",
+        "emailNotifications": "Obvestila po e-pošti",
+        "basicReports": "Osnovna poročila"
+      }
+    },
+    "premium": {
+      "name": "Premium",
+      "description": "Odličen za rastoče ekipe z naprednimi funkcijami",
+      "badge": "Najbolje prodajan",
+      "features": {
+        "advancedSync": "Napredna sinhronizacija",
+        "prioritySupport": "Prednostna podpora",
+        "moreStorage": "Več shrambe",
+        "teamCollaboration": "Sodelovanje v ekipi",
+        "smsNotifications": "Obvestila SMS",
+        "advancedReports": "Napredna poročila"
+      }
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "Zasnovan za organizacije in velike ekipe",
+      "features": {
+        "unlimitedStorage": "Neomejena shramba",
+        "customBranding": "Lastna celostna podoba",
+        "dedicatedSupport": "Namenska podpora",
+        "apiAccess": "Dostop do API-ja",
+        "userRoles": "Upravljanje uporabniških vlog",
+        "auditLogs": "Revizijski dnevniki",
+        "singleSignOn": "Enotna prijava (SSO)",
+        "advancedAnalytics": "Napredna analitika"
+      }
+    }
+  },
+  "error": {
+    "checkout": "Pri zaključku nakupa je prišlo do napake.",
+    "checkoutRetrieve": "Pri pridobivanju seje nakupa je prišlo do napake.",
+    "portal": "Pri pridobivanju naslova portala je prišlo do napake.",
+    "invalidProvider": "Neveljaven ponudnik obračuna!",
+    "lemonSqueezy": "Notranja napaka API-ja Lemon Squeezy!",
+    "priceNotFound": "Cene ni mogoče najti!",
+    "customerNotFound": "Stranke ni mogoče najti!",
+    "orderNotFound": "Naročila ni mogoče najti!",
+    "subscriptionNotFound": "Naročnine ni mogoče najti!",
+    "webhook": {
+      "signatureNotFound": "Podpisa webhooka ni mogoče najti!",
+      "signatureInvalid": "Neveljaven podpis webhooka.",
+      "metaInvalid": "Neveljavni metapodatki webhooka.",
+      "dataInvalid": "Neveljavni podatki webhooka.",
+      "unsupportedEvent": "Nepodprt dogodek webhooka.",
+      "unhandledEvent": "Neobdelan dogodek webhooka."
+    },
+    "customerCreation": "Ustvarjanje stranke ni uspelo.",
+    "promotionCodeRetrieve": "Promocijske kode ni bilo mogoče pridobiti."
+  },
+  "status": {
+    "active": "Aktivna",
+    "canceled": "Preklicana",
+    "incomplete": "Nedokončana",
+    "incompleteExpired": "Nedokončana in potekla",
+    "pastDue": "Zapadla",
+    "paused": "Zaustavljena",
+    "trialing": "V preizkusnem obdobju",
+    "unpaid": "Neplačana"
+  }
+}

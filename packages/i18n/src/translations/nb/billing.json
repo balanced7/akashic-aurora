@@ -1,0 +1,108 @@
+{
+  "currency": "nok",
+  "pricing": {
+    "label": "Priser",
+    "title": "Enkle abonnementer for alle",
+    "description": "Velg abonnementet som passer dine behov, og start reisen mot suksess."
+  },
+  "manage": {
+    "plan": {
+      "title": "Administrer abonnement",
+      "description": "Se detaljene for ditt nåværende abonnement. Du kan når som helst bytte abonnement eller si det opp."
+    },
+    "billing": {
+      "title": "Administrer fakturering",
+      "description": "Gå til faktureringsportalen for å administrere abonnementet og faktureringen din. Du kan oppdatere betalingsmåte, si opp abonnementet, laste ned fakturaer og mer.",
+      "visitPortal": "Gå til faktureringsportalen"
+    },
+    "description": "Administrer fakturering og abonnement."
+  },
+  "subscribe": "Abonner nå",
+  "updatePlan": "Oppdater abonnement",
+  "getLifetimeAccess": "Få livsvarig tilgang",
+  "interval": {
+    "day": "dag",
+    "week": "uke",
+    "month": "måned",
+    "year": "år",
+    "lifetime": "livsvarig"
+  },
+  "trial": {
+    "cta": "Start gratis",
+    "period": "Prøv med {{period}} dagers prøveperiode"
+  },
+  "discount": {
+    "specialOffer": "SPESIALTILBUD: <bold>-{{discount}} rabatt</bold>"
+  },
+  "plan": {
+    "starter": {
+      "name": "Start",
+      "description": "For små prosjekter som nettopp har startet",
+      "features": {
+        "sync": "Sømløs synkronisering",
+        "basicSupport": "Grunnleggende kundestøtte",
+        "limitedStorage": "Begrenset lagring",
+        "emailNotifications": "E-postvarsler",
+        "basicReports": "Grunnleggende rapporter"
+      }
+    },
+    "premium": {
+      "name": "Premium",
+      "description": "Perfekt for team i vekst med avanserte funksjoner",
+      "badge": "Mest solgt",
+      "features": {
+        "advancedSync": "Avansert synkronisering",
+        "prioritySupport": "Prioritert kundestøtte",
+        "moreStorage": "Mer lagring",
+        "teamCollaboration": "Samarbeid i team",
+        "smsNotifications": "SMS-varsler",
+        "advancedReports": "Avanserte rapporter"
+      }
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "description": "Laget for organisasjoner og store team",
+      "features": {
+        "unlimitedStorage": "Ubegrenset lagring",
+        "customBranding": "Egen profilering",
+        "dedicatedSupport": "Dedikert kundestøtte",
+        "apiAccess": "API-tilgang",
+        "userRoles": "Administrasjon av brukerroller",
+        "auditLogs": "Revisjonslogger",
+        "singleSignOn": "Enkeltpålogging (SSO)",
+        "advancedAnalytics": "Avansert analyse"
+      }
+    }
+  },
+  "error": {
+    "checkout": "Det oppsto en feil under betalingen.",
+    "checkoutRetrieve": "Det oppsto en feil under henting av betalingsøkten.",
+    "portal": "Det oppsto en feil under henting av portaladressen.",
+    "invalidProvider": "Ugyldig faktureringsleverandør!",
+    "lemonSqueezy": "Intern feil i Lemon Squeezy-API-et!",
+    "priceNotFound": "Fant ikke prisen!",
+    "customerNotFound": "Fant ikke kunden!",
+    "orderNotFound": "Fant ikke bestillingen!",
+    "subscriptionNotFound": "Fant ikke abonnementet!",
+    "webhook": {
+      "signatureNotFound": "Fant ikke webhook-signaturen!",
+      "signatureInvalid": "Ugyldig webhook-signatur.",
+      "metaInvalid": "Ugyldige webhook-metadata.",
+      "dataInvalid": "Ugyldige webhook-data.",
+      "unsupportedEvent": "Webhook-hendelsen støttes ikke.",
+      "unhandledEvent": "Ubehandlet webhook-hendelse."
+    },
+    "customerCreation": "Opprettelse av kunde mislyktes.",
+    "promotionCodeRetrieve": "Kunne ikke hente kampanjekoden."
+  },
+  "status": {
+    "active": "Aktivt",
+    "canceled": "Avsluttet",
+    "incomplete": "Ufullstendig",
+    "incompleteExpired": "Ufullstendig og utløpt",
+    "pastDue": "Forfalt",
+    "paused": "Satt på pause",
+    "trialing": "Prøveperiode",
+    "unpaid": "Ubetalt"
+  }
+}

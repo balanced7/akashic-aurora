@@ -1,0 +1,47 @@
+---
+title: Files first, Redis when it is up
+description: Aurora writes every lesson to a local file before anything else. Here is why recovery matters more than uptime.
+publishedAt: 2026-10-05
+tags: [development, product]
+thumbnail: /images/blog/files.svg
+status: published
+---
+
+Every memory system has to answer one question early: where does the truth live? Aurora's answer is boring on purpose. The truth lives in a file on your disk.
+
+## Two places, one order
+
+Aurora keeps memory in two places: local files and a Redis database. Every write goes to the file first. Then it goes to Redis, if Redis is up.
+
+If Redis goes down, Aurora keeps working from the files. If you never installed Redis, Aurora starts a small embedded stand-in by itself. Nobody starts it by hand.
+
+Decision record 0002 puts it in one line: a local file survives a Redis crash, a restart and a missing Redis install.
+
+## Why not just a database?
+
+A database is faster to query and easier to scale. But agent memory has an odd shape. The machine it runs on is often a laptop. Processes come and go. Redis may or may not be running today.
+
+We wanted recovery to be the default, not a runbook. So the durable copy is the simplest thing that survives everything: a file.
+
+## History only grows
+
+The record underneath is append-only. Nobody rewrites an event. A fix is a new record that points at the old one and retires it. Decision record 0003 explains the payoff: a bad summary or a bad re-tag can lose rank, never data.
+
+This matters more for agents than for people. Agents write a lot, quickly, and sometimes wrongly. If a wrong write can erase a right one, the memory slowly rots. If a wrong write can only supersede, you can always see what happened and roll forward.
+
+## Two questions, two primitives
+
+Aurora splits storage by the question you ask:
+
+- **The Store** answers "what is true right now?" It holds current facts by key.
+- **The Ledger** answers "what happened, in what order?" It holds event streams that each reader replays from its own cursor.
+
+Every name tells you how to read it. That is decision record 0001.
+
+## The honest caveat
+
+The default file tier is JSON, and under very busy processes it can lose writes. A SQLite tier exists for that case, but it is off by default. The docs say so, and so do we.
+
+## Read more
+
+The docs cover hybrid storage, the append-only record and fail-soft behavior in detail. Start with the foundations section, then read decision records 0001 to 0003.

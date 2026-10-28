@@ -1,0 +1,8 @@
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><clipPath id="norway-clip"><circle cx="32" cy="32" r="31"/></clipPath></defs>
+<g clip-path="url(#norway-clip)">
+<rect x="1" y="1" width="62" height="62" fill="#ED4C5C"/>
+<path d="M1 25.5H20.5V1H33.5V25.5H63V38.5H33.5V63H20.5V38.5H1V25.5Z" fill="white"/>
+<path d="M1 28.5H23.5V1H30.5V28.5H63V35.5H30.5V63H23.5V35.5H1V28.5Z" fill="#2A5F9E"/>
+</g>
+</svg>

@@ -1,0 +1,22 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test:coverage:collect": {
+      "cache": false
+    },
+    "test:coverage:merge": {
+      "dependsOn": ["test:coverage:collect"],
+      "inputs": ["coverage/raw/**"],
+      "outputs": ["coverage/merged/**"]
+    },
+    "test:coverage": {
+      "dependsOn": ["test:coverage:merge"],
+      "inputs": ["coverage/merge"],
+      "outputs": ["coverage/report/**"]
+    },
+    "test:coverage:view": {
+      "dependsOn": ["test:coverage"],
+      "cache": false
+    }
+  }
+}
