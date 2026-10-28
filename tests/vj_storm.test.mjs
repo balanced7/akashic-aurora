@@ -12,6 +12,8 @@ test("airlasers: pad 2 held for the whole run, fog held then CO2 into the lit be
   const frames = 600, s = stormSchedule("airlasers", frames);
   assert.ok(SCENARIOS.airlasers && GAIN_FLOOR.airlasers === 0.5);
   assert.ok(s.some((e) => e.act === "theme" && e.id === "dreaming-city" && e.f === 0));
+  // a track's beats from the first frame: without them the held loop does not lock to a beat (the judge's picture had them)
+  assert.ok(s.some((e) => e.act === "beats" && e.bpm === 120 && e.f === 0));
   const lasers = s.filter((e) => e.pad === 2);
   assert.equal(lasers.length, 1);
   assert.ok(lasers[0].f === 0 && lasers[0].f + lasers[0].hold > frames, "the beams stay lit to the end");

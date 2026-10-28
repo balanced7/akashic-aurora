@@ -179,9 +179,10 @@ export const SCENARIOS = Object.freeze({
   // than the flash count: with the beams lit through fog and CO2, the air's onset stays inside the gate, so the limiter
   // never has to darken a corner (gain floor 0.5, read every frame). It runs on the storm's sets, where the page draws
   // every head and the laser engine fitted them. Not on the Laser Cathedral: its scene draws its own heads from the head
-  // bus, and gate v2 cuts those pulses on the held loop with the air OFF (2026-10-27, 960 x 540: 30 of 213 frames with a
-  // corner under 0.5, up to 43 corners at 0; master the same, 29 frames) -- a laser-heads matter, not the air's
-  airlasers: "the lasers through the air (Dreaming City): pad 2 held, pad 6 fog held 1.5 s, then pad 3 CO2 at full velocity into the lit beams, twice; gate v2's gains never under 0.5",
+  // bus, and with a track's beats gate v2 cuts the held loop's pulses there with the air OFF and no pad but pad 2
+  // (2026-10-27, 960 x 540, 120 BPM: 30 of 213 frames with a corner under 0.5, up to 43 corners at 0; master the same,
+  // 29 frames; the scene alone on the beats: none) -- a laser-heads matter, not the air's
+  airlasers: "the lasers through the air (Dreaming City, a track's beats at 120 BPM): pad 2 held, pad 6 fog held 1.5 s, then pad 3 CO2 at full velocity into the lit beams, twice; gate v2's gains never under 0.5",
 });
 // the scenarios that also hold the limiter to a gain floor (every corner, every frame: what it had to darken)
 export const GAIN_FLOOR = Object.freeze({ airlasers: 0.5 });
@@ -283,6 +284,7 @@ export function stormSchedule(name, frames, seed = 7) {
     }
   } else if (name === "airlasers") {
     out.push({ f: 0, act: "theme", id: "dreaming-city" });
+    out.push({ f: 0, act: "beats", bpm: 120 });   // a track playing: the held loop locks to its beats, as in a show
     out.push({ f: 0, pad: 2, vel: 1, hold: frames + 5 });
     for (let f0 = 20; f0 + 150 <= frames; f0 += 240) {
       out.push({ f: f0, pad: 6, vel: 0.9, hold: 90 });
@@ -326,6 +328,7 @@ export const STORM_PAGE = String.raw`(() => {
   function run(schedule, frames, gains = false) {
     const F = 1000 / 60, vj = window.__vj;
     const G = { min: 1, frames_under_half: 0, first_under_half: -1, read: 0 };
+    let beats = null;   // a track's beats (act "beats"): the engine's beat events, each sent 220 ms ahead as the engine sends them
     const Lq = new Uint16Array(frames * NC), Rq = new Uint16Array(frames * NC);
     const byF = new Map(); for (const s of schedule) { if (!byF.has(s.f)) byF.set(s.f, []); byF.get(s.f).push(s); }
     const relByF = new Map();
@@ -344,6 +347,11 @@ export const STORM_PAGE = String.raw`(() => {
         else if (s.act === "laser" && vj.laser) vj.laser({ vibrate: s.vibrate, gate: s.gate });
         else if (s.act === "air" && vj.air) vj.air(s.o);
         else if (s.act === "theme" && vj.theme) vj.theme(s.id);
+        else if (s.act === "beats") beats = { per: 60000 / s.bpm, bpm: s.bpm, next: performance.now() + 150, n: 0 };
+      }
+      while (beats && performance.now() + 220 >= beats.next) {
+        vj.event({ t: "beat", due_ms: beats.next - performance.now(), bpm: beats.bpm, conf: 0.9, n: beats.n, on_beat: 0.9, src: "track", bar: (beats.n % 4) + 1, ver: 1, wall_ms: 0 });
+        beats.n++; beats.next += beats.per;
       }
       window.__vt.step(F);
       measure();
