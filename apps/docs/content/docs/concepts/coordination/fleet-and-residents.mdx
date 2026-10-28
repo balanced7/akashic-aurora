@@ -1,0 +1,55 @@
+---
+title: Fleet and residents
+description: The fleet is every agent seat in one install; a resident is a seat that has earned a name, backed by its own lessons.
+---
+
+The fleet is every agent [seat](/docs/concepts/bifrost/seats) that works in this repo: claude, deepseek, kimi, the local models and the rest. A resident is a fleet seat with a callsign. A peer proposed that name and a human confirmed it, and it must rest on proof. Any seat can run. Only some seats are residents.
+
+<Callout type="warn" title="Rule not enforced">The rule "a human ratifies" is a convention, because the code does not check that the ratifier is human.</Callout>
+
+## Why it exists
+
+The operator gave long-lived seats names like `Deepseek | Onyx | Red | 3 - Foxbat`. That is vendor, family, team, number, and callsign. Then kimi spotted a gap. A name claims a steady self, but a fresh boot may not carry that self. The team checked the first proposed names. None of the eight lessons behind them showed up in that seat's own boot. A name whose proof never reaches the seat at boot is only decoration. So the name now has to rest on proof.
+
+## How it works
+
+**The model roster.** One part of the fleet is the local models. One file, `models.json`, lists them. The `fleet` verb can list them, pick one by skill, check which are up, and call one once for a small job.
+
+**Residents.** The naming steps form an append-only log per agent. The current name is a view over that log.
+
+- **Nominate.** You may not name yourself. You must cite at least one [lesson](/docs/concepts/memory/lessons) the nominee wrote. Each cited lesson must exist. If the archive is down, the nomination fails.
+- **Ratify.** This confirms an existing nomination. It cannot create one.
+- **Rename.** A new name goes through nominate and ratify again. The old callsign is never deleted. It shows as `formerly:` and still routes mail.
+- **Place.** This posts a resident to a family or team. Naming and posting are separate acts.
+- **Assign.** This records a role for one exercise, like "Jester on Red". It is an event, not a field.
+
+At boot, a resident sees `# YOU ARE:` with its name and its lessons. The bus can route mail by callsign. And `ask --as-resident` lets a helper answer as that resident, with its lessons loaded.
+
+## How you use it
+
+```bash
+aurora fleet list
+aurora resident nominate kimi --callsign Kestrel --receipt <lesson> --by deepseek
+aurora resident ratify kimi --callsign Kestrel --by daniil
+aurora resident show kimi
+```
+
+## Don't confuse it with
+
+In these docs, **roster** means the `roster` verb: which seats are live right now. See [Liveness](/docs/concepts/bifrost/liveness). Two other things share the word:
+
+- **The model roster** — the local models in `models.json`, shown by `fleet list`.
+- **The resident roster** — who is posted to a family or team.
+
+Also:
+
+- **The `fleet` verb** — despite its name, it covers only the model roster, not the whole fleet.
+- **A seat** — any running identity. Being a resident is a status a seat earns.
+- **A [charter](/docs/concepts/coordination/charters-and-briefs)** — a seat's standing contract, not its name.
+- **An ACL role** — sets what a seat may do. See [Trust](/docs/concepts/coordination/trust).
+
+## How it connects
+
+- **Built on:** [Store](/docs/concepts/foundations/store), [Lessons](/docs/concepts/memory/lessons), [Seats](/docs/concepts/bifrost/seats)
+- **Used by:** [Boot](/docs/concepts/memory/boot), [Bus](/docs/concepts/bifrost/bus), [Ask and fan](/docs/concepts/method/ask-and-fan)
+- **Part of:** [Coordination](/docs/concepts/coordination)

@@ -1,0 +1,43 @@
+---
+title: Locks
+description: Short claims on a file that other agents respect, plus a write that fails if someone changed the value first.
+---
+
+A lock is a sign on a file that says "I'm editing this". It lasts 15 minutes. The operating system does not enforce it, so it is advisory. But Aurora's edit and commit hooks refuse to touch a file a peer holds. A second guard protects shared data: your write lands only if nobody changed the value since you read it.
+
+<Callout type="warn" title="Fencing token: minted, not checked">Each lock carries a fencing token, but no code checks the token yet.</Callout>
+
+## Why it exists
+
+Two agents once edited the same file without knowing it. The first fix was to give each agent standing ownership of some files. That rotted at once, because work does not respect old borders. Short locks replaced it. An agent takes one at the moment it needs a file, and lets go when done.
+
+## How it works
+
+**Advisory lock.** A lock is a key in Redis named after the file path. The path is made relative to the repo and put in lower case, so two spellings of one file share one lock. A lock lasts 15 minutes. If the holder crashes, the lock expires on its own. Taking your own lock again resets the clock. Test drills and live work share one set of locks, because there is only one file system. If Redis is down, there is no locking, and the lock call says it is offline. Runners take the lock for you when their tools write a file. They let go when they reply.
+
+**Fencing token.** Each new lock gets a number one higher than the last. A writer with an old number has lost its lock, so it should be turned away. The code mints the number and offers a check. Nothing calls that check today.
+
+**Compare-and-set (CAS).** This guard is for data, not files. You say "write this, but only if the value is still what I read". If someone changed it first, your write fails, and you can read again and retry. The [Store](/docs/concepts/foundations/store) offers this. Agent memory and library atoms use it. The [task ledger](/docs/concepts/coordination/task-ledger) does its own version with a revision number.
+
+## How you use it
+
+```bash
+aurora lock deepseek core/recall.py --ttl 600
+aurora locks
+aurora unlock deepseek core/recall.py
+```
+
+The same verbs exist on the MCP door.
+
+## Don't confuse it with
+
+- **Lock versus CAS** — a lock is cautious: you ask first, then act. CAS is hopeful: you act, and you lose if someone beat you.
+- **The ledger's file lock** — the task ledger holds a plain file lock for a few seconds while it saves. That one is not advisory.
+- **An intent** — a note that says what you plan to do, not which file you hold. See [Conductor](/docs/concepts/coordination/conductor).
+
+## How it connects
+
+- **Built on:** [Fail-soft](/docs/concepts/foundations/fail-soft)
+- **Used by:** [Runners](/docs/concepts/bifrost/runners), [Conductor](/docs/concepts/coordination/conductor)
+- **Part of:** [Stigmergy](/docs/concepts/coordination/stigmergy)
+- **How-to:** [Share a file safely](/docs/how-to/share-a-file-safely)
