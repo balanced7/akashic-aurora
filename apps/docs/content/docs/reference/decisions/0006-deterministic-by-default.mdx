@@ -1,0 +1,12 @@
+---
+title: "0006: Deterministic methods by default; embeddings must earn their place"
+description: Recall and routing use deterministic scoring, and a learned method becomes the default only after it beats that baseline on our own data.
+---
+
+**Status:** accepted
+
+Recall at action ranks lessons with a fixed formula, the [ranker](/docs/concepts/memory/ranker-and-distiller). Plain recall sorts by matched words. The router that sorts story events into threads uses keyword rules. No language model runs when recall picks lessons. Embeddings stay optional and off by default. Where a tool can use them, such as the manuals shelf, it falls back to keywords without them. Why? On our own test data, the embedding router lost to the keyword rules.
+
+## Consequences
+
+Any new mechanism needs a yardstick first. It must beat the boring baseline before it earns the complexity. See [Discover and embeddings](/docs/concepts/memory/discover-and-embeddings).

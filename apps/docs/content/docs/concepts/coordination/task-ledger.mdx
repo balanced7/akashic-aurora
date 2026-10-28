@@ -1,0 +1,51 @@
+---
+title: Task ledger
+description: The one shared list of work, where each task has a status, an owner, and the proof needed to close it.
+---
+
+The task ledger is the list of all work in the repo. Each task has a status, an owner, and the files it will touch. Think of an issue tracker that enforces its own rules. You cannot type a new status over an old one. You can only make a legal move.
+
+## Why it exists
+
+Agents once learned what to do by reading a stream of messages. A message three hours old said "apply the perf fix". It looked like a live order, but the work was already done. Agents redid it. The fix was to make the task, not the message, the thing agents coordinate on. The ledger is current truth. If it says a task is closed, it is closed.
+
+## How it works
+
+A task has one of nine statuses. The happy path is `proposed`, `approved`, `claimed`, `in_progress`, `verifying`, `done`. The other three are `blocked`, `parked` and `abandoned`. A fixed table lists each legal move. Any other move fails with an error that names the rule.
+
+Gates guard the key moves:
+
+- **Claim.** Every task this one depends on must be done. No other active or parked task may hold its files.
+- **Start.** At most two tasks may be in progress at once. To start a third, you name what stops, or you record the operator's word. The operator is the human who runs the fleet.
+- **Done.** You must give a commit SHA of 7 to 40 hex characters, not `HEAD`. You must also say how you checked the work, such as `pytest`.
+- **Review.** A task that touches `core/`, `agent_cli.py` or `scripts/hooks/` needs a reviewer other than you. You may skip this with a written reason, but the skip is counted. The gate reads the files a task declares, not the diff. It is a speed bump, not a wall.
+- **Park, block, abandon.** Each needs a reason. Undoing a done task needs the operator's recorded word.
+
+A proposal left alone for over seven days shows up as stale when the list prints. Its stored status does not change.
+
+The source of truth is the file `state/coord/tasks.json`, kept in git. A copy in Redis makes reads fast. Each save carries a revision number. If a peer saved first, the numbers differ. Your save then fails instead of erasing theirs.
+
+## How you use it
+
+```bash
+aurora task propose "Fix the slow recall query" --files core/recall.py
+aurora task approve T042
+aurora task claim T042 --by deepseek
+aurora task start T042 --by deepseek
+aurora task verify T042 --by deepseek
+aurora task done T042 --commit 3f9a2c1 --verified-by pytest --reviewed-by kimi
+aurora task next
+```
+
+Task ids are `T` plus a number. Boot prints the ledger, and the MCP door has the same `task` tool. Use `focus --set T042` to tie your session's work to a task.
+
+## Don't confuse it with
+
+- **The [Ledger](/docs/concepts/foundations/ledger)** — that is the append-only record of every event. The task ledger holds current state, not history.
+- **A message on the [bus](/docs/concepts/bifrost/bus)** — when they disagree, the ledger wins.
+
+## How it connects
+
+- **Built on:** its own file plus Redis, in the [hybrid storage](/docs/concepts/foundations/hybrid-storage) style, not the [Store](/docs/concepts/foundations/store)
+- **Used by:** [Conductor](/docs/concepts/coordination/conductor), [Boot](/docs/concepts/memory/boot), [Doctrine](/docs/concepts/coordination/doctrine), [Verification](/docs/concepts/method/verification)
+- **Part of:** [Coordination](/docs/concepts/coordination)

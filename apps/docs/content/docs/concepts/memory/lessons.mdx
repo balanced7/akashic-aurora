@@ -1,0 +1,43 @@
+---
+title: Lessons
+description: A lesson is a short, durable record of what an agent tried, what happened, and what the next agent should do.
+---
+
+A lesson is one short record. It says what an agent tried, what happened, and what to do next time. It lives under a short name. Think of a card pinned to the workbench: "If you see X, do Y. Last time Z broke." Write a card with the same name, and it replaces the old one.
+
+## Why it exists
+
+Agents start every session knowing nothing. Without a shared store, each one repeats the last one's mistakes. Lessons began as lines in one flat file. They moved onto the [store](/docs/concepts/foundations/store), so they survive when Redis is down. Real failures shaped the rest. Once, recall could not see 446 of 464 lessons. The list that recall searched had drifted away from the lessons themselves. Now the store rebuilds that list from the lessons.
+
+## How it works
+
+- **The name is the key.** You pass it with `--experiment`. The flag name is a leftover; the thing is a lesson. Writing the same name again updates the lesson, so you get no duplicates.
+- **The fields.** A lesson holds what you tried, what happened, and a recommendation. It can also hold what you expected, a category, a root cause, an anti-pattern and the files it touched.
+- **Success is `yes`, `partial` or `no`.** The store scores them 100, 50 and 0. A word it does not know becomes `no`, so an unclear word never counts as a win. If you leave the flag out, the lesson counts as `yes`, so set it every time.
+- **Categories are free text.** By habit, a human correction gets `--category correction`. No code treats that category in a special way.
+- **The recommendation starts with its trigger:** "Use when the symptom shows, before the action: the advice. Don't when the exception holds." [Recall at action](/docs/concepts/memory/recall-at-action) weighs the "Use when" part above the rest.
+- **Near-duplicate warning.** Before it writes a new lesson, the store compares it to every old one. It checks five points: problem, root cause, fix, references and kind. It uses word overlap, not a model. At four or five matches, it tells you to update the old lesson instead. At two or three, it names a related lesson. It warns, but it never blocks the write.
+- **Two stamps.** The `graduated` stamp means automation now enforces the rule. Boot and recall at action stop showing it. The `benched` stamp means the [recall loop](/docs/concepts/memory/recall-loop) found the lesson never helped. Recall at action stops showing it, except for a rare second chance. Neither stamp deletes anything.
+
+## How you use it
+
+```bash
+aurora learn <agent_id> --experiment port-clash \
+  --tried "started the dev server twice" --result "second start hung" \
+  --recommend "Use when a server start hangs, before you retry: check the port. Don't when..." \
+  --success partial
+```
+
+Agents that use tools call `knowledge_learn`, which needs the `kb.learn` capability. See [Record a lesson](/docs/how-to/record-a-lesson) for the full steps.
+
+## Don't confuse it with
+
+- **Note** — a titled statement of project state. [Boot](/docs/concepts/memory/boot) shows notes, but recall does not rank them. See [Notes](/docs/concepts/memory/notes-and-agent-memory).
+- **A `learning` signal** — an event on the [signal log](/docs/concepts/foundations/signals), not the stored lesson.
+- **"Learning" and "experiment"** — the code says `LearningStore` and the key field says `experiment`. Both mean a lesson.
+
+## How it connects
+
+- **Built on:** [Store](/docs/concepts/foundations/store), [Append-only record](/docs/concepts/foundations/append-only-record)
+- **Used by:** [Boot](/docs/concepts/memory/boot), [Recall](/docs/concepts/memory/recall), [Recall at action](/docs/concepts/memory/recall-at-action), [Recall loop](/docs/concepts/memory/recall-loop), [Narrative spine](/docs/concepts/narrative/narrative-spine)
+- **Part of:** [Memory and recall](/docs/concepts/memory)

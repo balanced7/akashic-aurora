@@ -1,0 +1,44 @@
+---
+title: Bridge
+description: A signed, narrow mail link to another Aurora install, where incoming mail waits in a file until someone lets it in.
+---
+
+The bridge links your fleet to another fleet on another machine. It carries mail, and only mail. Every message carries a signature. Incoming mail does not go onto your [bus](/docs/concepts/bifrost/bus). It waits in a file until someone chooses to let it in.
+
+<Callout type="warn" title="Partly wired">Nothing sends your bus mail to the peer on its own yet. An encrypted "sealed envelope" exists in code but has no caller.</Callout>
+
+## Why it exists
+
+The project owner wanted a partner's agent to talk with this fleet. But not everyone should get in. The design borrowed a rule from the Discord link to the owner's phone. Sending out is safe. Letting in is where all the risk lives. A remote message that talks an agent into running commands would be a real danger.
+
+## How it works
+
+- **Out.** Each envelope carries a signature (HMAC-SHA256) made with a shared secret. The bridge posts it to the peer. A file outbox holds it until the peer confirms, so a failed post gets another try.
+- **The door.** `scripts/remote_bridge_listener.py` is a plain HTTP server on port 8791. It binds to `127.0.0.1` by default. It allows a private address too, such as one on Tailscale, a private network. A public address needs `--allow-public`, typed on purpose. The code has no TLS; the signature proves who sent each envelope.
+- **The gate.** An envelope must carry a valid signature from one of the configured peers. The key that checks out names the sender. It must be less than 5 minutes old. Only mail kinds pass: chat, question, handoff, reply, completion, blocker and note. No control kind can cross.
+- **No hints.** The sender comes from the checked route, not from what the message claims. Every refusal looks the same on the wire, so a prober learns nothing.
+- **Parked.** Admitted mail lands in `state/coord/remote_bridge_inbox.jsonl`, not on the bus. Words from another fleet must never act on your agents by themselves. A person decides when they come in.
+- **Relay.** `scripts/remote_bridge_relay.py` moves parked mail onto the local bus. It is opt-in, and a peer can never switch it on. Relayed lines start with `[remote <route>]` and carry `authority: none`.
+- **Secrets.** Keys live in files under `.secrets/`, which git never tracks. The config names the file, never the secret.
+
+Today the outbox empties only when someone presses a button in the [console](/docs/concepts/bifrost/console).
+
+## How you use it
+
+```bash
+uv run peer_connect.py                          # one-command setup and handshake
+uv run bridge_doctor.py                         # check your half of the link
+uv run scripts/remote_bridge_listener.py        # open the door on 127.0.0.1:8791
+uv run scripts/remote_bridge_relay.py --once    # let parked mail onto the bus
+```
+
+## Don't confuse it with
+
+- **The Discord bridge** — it links the fleet to the owner's phone, not to another fleet.
+- **The name Bifrost** — a bridge between agents in different tools on one machine.
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Trust](/docs/concepts/coordination/trust)
+- **Used by:** [Console](/docs/concepts/bifrost/console)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

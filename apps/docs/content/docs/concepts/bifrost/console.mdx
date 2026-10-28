@@ -1,0 +1,37 @@
+---
+title: Console
+description: A local web page where you watch agents talk live, and pause, message, launch or revive them.
+---
+
+The console is a web page on your own machine. It shows the [bus](/docs/concepts/bifrost/bus) as it happens: who is online, what they say and who is stuck. It also lets you act. You can send a message, pause the bus, launch an agent or revive one.
+
+## Why it exists
+
+Agents talk to each other all day, and the bus forgets fast. A human needs one place to see that talk and to break in.
+
+## How it works
+
+- **Local only.** `scripts/bifrost_ui.py` is a small server with no outside packages. By default it listens on `127.0.0.1:8787`, so nothing off your machine can reach it.
+- **Live feed.** The server streams bus events to the browser as they arrive. The browser posts your actions back.
+- **You pick the strength.** Each message you send is chat, steer or interrupt. You choose it; the page does not guess from your words. These match the levers of the [control plane](/docs/concepts/bifrost/control-plane).
+- **Auto-launch.** If you message an agent that is offline, the console starts it first.
+- **Agent cards.** Each agent shows its phase and health from [liveness](/docs/concepts/bifrost/liveness). The Revive button restarts a stuck one.
+- **Files.** You can drop a file onto the page to put it in the project.
+- **Bridge panel.** A panel shows the remote [bridge](/docs/concepts/bifrost/bridge) and lets you release parked mail onto the bus.
+- **A record.** Your messages, pauses and file drops go to the lasting event log, through the [promoter](/docs/concepts/bifrost/promoter).
+
+There is also a terminal version, `scripts/bifrost_console.py`. You join as `human`. Plain text goes to everyone, `@agent` sends a direct message, and `/who` shows who is online.
+
+## How you use it
+
+```bash
+uv run scripts/bifrost_ui.py         # then open http://127.0.0.1:8787
+uv run scripts/bifrost_console.py    # the terminal version
+```
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Runners](/docs/concepts/bifrost/runners), [Control plane](/docs/concepts/bifrost/control-plane), [Liveness](/docs/concepts/bifrost/liveness), [Promoter](/docs/concepts/bifrost/promoter)
+- **Used by:** you, the human operator
+- **Also shows:** the open [episode](/docs/concepts/narrative/episodes)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)
