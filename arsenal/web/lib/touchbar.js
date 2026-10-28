@@ -39,7 +39,7 @@ const CSS = `
 .tb button.util { flex: 0 0 38px; border-style: dashed; }
 .tb.collapsed button:not(.grip) { display: none; }
 .tb.strips button.stripped { display: none; }
-.tbs { position: fixed; z-index: 61; top: 12vh; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); width: 64px;
+.tbs { position: fixed; z-index: 61; top: 30vh; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); width: 44px;
       pointer-events: auto; touch-action: none; border-radius: 12px; overflow: hidden;
       border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .08);
       font: 600 10px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
@@ -50,7 +50,8 @@ const CSS = `
 .tbs.on { border-color: rgba(255, 255, 255, .4); color: rgba(255, 255, 255, .9); }
 .tbs .zone { position: absolute; left: 0; right: 0; top: 0; height: 5%; border-bottom: 1px dashed rgba(255, 255, 255, .25); }
 .tbs .cap { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; pointer-events: none; }
-.tbs .cap small { display: block; margin-top: 4px; font-size: 8px; opacity: .7; }
+.tbs .cap small { display: block; margin-top: 4px; font-size: 7px; opacity: .7; }
+.tbs .cap { font-size: 9px; }
 .tb.collapsed ~ .tbs { display: none; }
 `;
 
