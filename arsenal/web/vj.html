@@ -95,5 +95,14 @@
   </aside>
 </main>
 <script type="module" src="vj.js"></script>
+<!-- the phone pad bar (lib/touchbar.js): its pads press this page's own keys, labelled from this phone's pad map;
+     touch screens only, ?pads=0|1 -->
+<script type="module">
+import { mountTouchBar, vjPads } from "./lib/touchbar.js";
+import { normalizePadMap } from "./vj-core.js";
+let stored = null;
+try { stored = JSON.parse(localStorage.getItem("arsenal.vj.padMap")); } catch { /* no storage: the default map */ }
+mountTouchBar({ id: "vj", pads: vjPads(normalizePadMap(stored)) });
+</script>
 </body>
 </html>

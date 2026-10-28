@@ -29,9 +29,16 @@
 // while a ring is off its home pose the phrase layer's position presets are re-aimed on the live rig (setLiveElements).
 // Both go through the same physics: a re-aimed head still turns no faster than its motor.
 
+//
+// KICK v2 (2026-10-27): the kicks are their own module (kick.js) and this file's step 3 runs them: two buttons
+// (kick-white, kick-colour), each dealing a row of the set's deck that will show the hit now, lit at a live level while
+// held, with velocity's animation (a peak, or a sweep from the V2 motion library) and a strobe in the level's top band.
+// Without a kick block in the set it is v0's strand lift, number for number.
+
 import { EffectInstance, hashSeed } from "./effects.js";
 import { hexToLinear, isSaturatedRed } from "./lasers.js";
 import { aimPreset } from "./phrases.js";
+import { Kicks, redSlots, wheelWay, nearestAllowedSlot } from "./kick.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
@@ -146,6 +153,21 @@ export class Programmer {
       wheel: new Slew(0, 1 / ((t.attrs.Color1 && t.attrs.Color1.slot_time) || 0.12), 1e6),
     }));
     this.wheels = this.headType.map((t) => (t.attrs.Color1 && t.attrs.Color1.colours ? t.attrs.Color1.colours.map(hexToLinear) : null));
+    // each head's zoom range and home (degrees). A look that leaves Zoom unset holds 0 in its targets, which means HOME;
+    // KICK v2 round 2 found a phrase's release crossfading the halo's zoom from 1.2 toward that literal 0, a 0-degree beam
+    // (an infinitely narrow, infinitely bright line, below the fixture's 0.5-degree end stop) that only showed once a kick
+    // lit the dark halo. The release now blends toward the home, and every zoom target stays inside the fixture's range.
+    const zA = (t) => t.attrs.Zoom || { min: 0.5, max: 4, home: 2 };
+    this.zoomMin = Float64Array.from(this.headType, (t) => zA(t).min ?? 0.5);
+    this.zoomMax = Float64Array.from(this.headType, (t) => zA(t).max ?? 4);
+    this.zoomHome = Float64Array.from(this.headType, (t) => zA(t).home ?? 2);
+    // KICK v2 round 2: a kick may own a head's wheel (kickSlot: the slot it wants, -1 none); while it does, and until the
+    // wheel is back on the look's slot after it, the wheel turns the shortest way round that passes no saturated-red slot
+    // (wheelOwn: 1 while it is on that path), at its real speed
+    this.redSlotsByType = new Map();
+    this.kickSlot = new Int16Array(this.nH).fill(-1);
+    this.wheelOwn = new Uint8Array(this.nH);
+    this.wheelPos = new Float64Array(this.nH);
     this.stats = { kicks: [], flyouts: 0, lookChanges: 0, overlays: 0 };
     // the phrase layer
     const nH = this.nH, nC = this.nC;
@@ -155,6 +177,9 @@ export class Programmer {
     this.ovSetC = new Uint8Array(nC * 4); this.ovBaseC = new Float64Array(nC * 4); this.ovFromC = new Float64Array(nC * 4);
     this.ovTC = new Float64Array(nC * 4); this.ovOnC = new Uint8Array(nC); this.ovFadeC = new Float64Array(nC); this.ovP0C = new Float64Array(nC);
     this.flashGate = new FlashGate();
+    // KICK v2 (kick.js): reads the beat's length and the bar line the last tick saw
+    this.perMs = 400; this.barAnchor = 0;
+    this.kick = new Kicks(this);
   }
   // ---------------------------------------------------------------------------------------------- phrase layer --
   // lines: compiled phrase lines (phrases.js compileRepeat): {g, kind, values, positions, effects [{id, def}], fade,
@@ -340,7 +365,9 @@ export class Programmer {
       const b = i * 7;
       for (let j = 0; j < 7; j++) {
         if (!this.ovSetH[b + j]) continue;
-        this.tH[b + j] = j >= 5 ? (w >= 0.5 ? this.ovTH[b + j] : this.tH[b + j]) : this.tH[b + j] + (this.ovTH[b + j] - this.tH[b + j]) * w;
+        // (zoom: an unset look zoom, 0, is the head's home, and the blend runs toward that, never toward 0)
+        const look = j === 3 && !(this.tH[b + 3] > 0) ? this.zoomHome[i] : this.tH[b + j];
+        this.tH[b + j] = j >= 5 ? (w >= 0.5 ? this.ovTH[b + j] : this.tH[b + j]) : look + (this.ovTH[b + j] - look) * w;
       }
     }
     for (let c = 0; c < nC; c++) {
@@ -356,6 +383,7 @@ export class Programmer {
     this.theme = theme;
     this.colours = resolveTheme(theme);
     this.roleRGB = ROLES.map((r) => this.colours[r]);
+    if (this.kick) this.kick.extendRoles();             // KICK v2's own colours ride after the theme's roles
   }
   setSpeed(s, grid, tEval) {
     this.speed = s;
@@ -417,37 +445,52 @@ export class Programmer {
     for (const [id, inst] of this.effects) if (!wanted.has(id)) inst.stop();
     this.fade = { p0: pos, len: fade ?? look.fade ?? 2 };
   }
-  // A pad playback at beat position pos. kick: onset on the nearest beat (a press within half a beat of a line lands on
-  // it). flyout: onset now. A kick's light starts at the later of its beat and the press: an early press waits for its
-  // line, a late one (Daniel 2026-10-27, on the phone bar: "sometimes had an impact at other times nothing changed")
-  // still belongs to the beat it fell after (onset, the stats, the receipts) but lifts now, at full -- before, it began
-  // its decay on the beat already gone and showed nothing once it was a sixth of a beat late.
-  pad(kind, vel, pos) {
-    if (kind === "kick") {
-      const onset = Math.round(pos);
-      this.pads.push({ kind, onset, from: Math.max(onset, pos), vel });
-      this.stats.kicks.push(onset);
+  // A pad playback at beat position pos. kick (kick-white, kick-colour; "kick" is the white one): onset on the nearest
+  // beat (a press within half a beat of a line lands on it); its light starts at the later of its beat and the press: an
+  // early press waits for its line, a late one (Daniel 2026-10-27, on the phone bar: "sometimes had an impact at other
+  // times nothing changed") still belongs to the beat it fell after (onset, the stats, the receipts) but lights now --
+  // before, it began its decay on the beat already gone and showed nothing once it was a sixth of a beat late.
+  // {hold: true}: the kick stays lit until padRelease (the page's pads are gates); without it, a tap. Returns the kick's
+  // record (kick.js). flyout: onset now.
+  pad(kind, vel, pos, { hold = false } = {}) {
+    const kk = this.kick.kindOf(kind);
+    if (kk) {
+      const rec = this.kick.press(kk, vel, pos, { hold });
+      this.stats.kicks.push(Math.round(pos));
       if (this.stats.kicks.length > 256) this.stats.kicks.shift();
-    } else if (kind === "flyout") {
+      return rec;
+    }
+    if (kind === "flyout") {
       this.pads.push({ kind, onset: pos, vel });
       this.stats.flyouts++;
     }
     while (this.pads.length > 16) this.pads.shift();
+    return null;
   }
-  kickLevel(pos) {
-    let lv = 0;
-    for (const p of this.pads) {
-      if (p.kind !== "kick") continue;
-      const age = pos - p.from;
-      if (age < -1e-6 || age > 2) continue;                      // within float error of its line it is on it
-      lv = Math.max(lv, (0.6 + 0.4 * p.vel) * Math.exp(-Math.max(0, age) / 0.3));
-    }
-    return lv;
+  // a held pad let go (the kicks fade from here); the live level of a held kick (0..1: the finger's height on the pad)
+  padRelease(kind, pos) { if (this.kick.kindOf(kind)) this.kick.release(kind, pos); }
+  padLevel(kind, level) { if (this.kick.kindOf(kind)) this.kick.setLevel(kind, level); }
+  // the wheel slot a head shows now (the kick's red-free wheel while it owns it, else the linear one)
+  wheelSlotOf(i) {
+    const w = this.wheels[i];
+    if (!w) return -1;
+    const n = w.length, x = this.wheelOwn[i] ? this.wheelPos[i] : this.slews[i].wheel.x;
+    return ((Math.round(x) % n) + n) % n;
   }
+  // a head's saturated-red wheel slots (cached per fixture type)
+  redSlotsOf(i) {
+    const t = this.rig.fixtures[this.rig.heads[i]].type;
+    let r = this.redSlotsByType.get(t);
+    if (!r) { r = this.wheels[i] ? redSlots(this.wheels[i]) : []; this.redSlotsByType.set(t, r); }
+    return r;
+  }
+  // the brightest kick now (v0's name for it)
+  kickLevel(pos) { return this.kick.levelNow(pos); }
   tick(grid, tEval, dt) {
     const pos = grid.posAt(tEval);
     const ver = grid.ver;
     const nH = this.nH, nC = this.nC;
+    this.perMs = grid.period || this.perMs; this.barAnchor = grid.barAnchor ?? 0;
     // 1. the look's base, crossfading dimmers from the previous look
     const f = this.fade.len > 0 ? Math.min(1, Math.max(0, (pos - this.fade.p0) / this.fade.len)) : 1;
     for (let i = 0; i < nH * 7; i++) {
@@ -480,12 +523,9 @@ export class Programmer {
     // 2b. the phrase layer (v1), over the look; 2c. the ring formations' light (v2), over both
     if (this.ov.active) this._overlay(pos, ver);
     if (this.layer) this.layer.apply(this.tH, this.tC, pos);
-    // 3. playbacks: KICK (HTP lift on the strand) and FLY-OUT (outward tilt and a pop on the beams)
-    const kick = this.kickLevel(pos);
-    if (kick > 0) {
-      for (let i = 0; i < nH; i++) if (this.strandHead[i]) this.tH[i * 7 + 2] = Math.max(this.tH[i * 7 + 2], kick);
-      for (let c = 0; c < nC; c++) if (this.strandCell[c] && this.rig.cells.kind[c] === 2) this.tC[c * 4] = Math.max(this.tC[c * 4], kick);
-    }
+    // 3. playbacks: KICK v2 (kick.js: the dealt rows, HTP on the level, the button's colour, the sweep, the strobe) and
+    // FLY-OUT (outward tilt and a pop on the beams)
+    this.kick.apply(pos, tEval / 1000, dt);
     for (const p of this.pads) {
       if (p.kind !== "flyout") continue;
       for (let i = 0; i < nH; i++) {
@@ -508,15 +548,39 @@ export class Programmer {
       const master = M.grand * (this.strandHead[i] ? M.strand : M.beams);
       const dim = Math.max(0, Math.min(1, s.dim.step(Math.max(0, Math.min(1, this.tH[b + 2])) * master, dt)));
       const pan = s.pan.step(this.tH[b], dt), tilt = s.tilt.step(this.tH[b + 1], dt);
-      const zoom = s.zoom.step(this.tH[b + 3] || (this.headType[i].attrs.Zoom && this.headType[i].attrs.Zoom.home) || 2, dt);
+      const zt = this.tH[b + 3] > 0 ? this.tH[b + 3] : this.zoomHome[i];
+      const zoom = s.zoom.step(Math.min(this.zoomMax[i], Math.max(this.zoomMin[i], zt)), dt);
       const mix = Math.max(0, Math.min(1, this.tH[b + 4]));
       const c1 = this.roleRGB[this.tH[b + 5] | 0], c2 = this.roleRGB[this.tH[b + 6] | 0];
       let r = c1[0] + (c2[0] - c1[0]) * mix, g = c1[1] + (c2[1] - c1[1]) * mix, bl = c1[2] + (c2[2] - c1[2]) * mix;
       const wheel = this.wheels[i];
       if (wheel) {
-        const slot = nearestSlot(wheel, [r, g, bl]);
-        const wpos = s.wheel.step(slot, dt);
-        const c = wheel[Math.round(wpos)];
+        const ks = this.kickSlot[i];
+        let c;
+        if (ks >= 0 || this.wheelOwn[i]) {
+          // a kick's wheel move (or its way back): the red-free short way round, one slot per slot_time
+          const n = wheel.length, red = this.redSlotsOf(i);
+          const target = ks >= 0 ? ks : nearestAllowedSlot(wheel, [r, g, bl], red);
+          if (!this.wheelOwn[i]) { this.wheelOwn[i] = 1; this.wheelPos[i] = ((Math.round(s.wheel.x) % n) + n) % n; }
+          let x = this.wheelPos[i];
+          const at = ((Math.round(x) % n) + n) % n;
+          const way = wheelWay(at, target, n, red, wheel, this.kick.wheelTol);
+          if (way !== 0) {
+            const left = way > 0 ? (((target - x) % n) + n) % n : (((x - target) % n) + n) % n;
+            const stepS = dt * s.wheel.vmax;
+            x = left <= stepS ? target : x + way * stepS;
+            x = ((x % n) + n) % n;
+          } else x = target;
+          this.wheelPos[i] = x;
+          const shown = ((Math.round(x) % n) + n) % n;
+          c = wheel[shown];
+          // back on the look's own slot with no kick on it: the linear wheel takes over from here
+          if (ks < 0 && shown === target && Math.abs(x - target) < 1e-9) { this.wheelOwn[i] = 0; s.wheel.x = target; s.wheel.v = 0; }
+        } else {
+          const slot = nearestSlot(wheel, [r, g, bl]);
+          const wpos = s.wheel.step(slot, dt);
+          c = wheel[Math.round(wpos)];
+        }
         r = c[0]; g = c[1]; bl = c[2];
       }
       const h = this.heads;

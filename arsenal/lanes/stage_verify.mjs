@@ -44,6 +44,27 @@
 //   flash3m      three minutes of the programmed demo, crowd on, every frame read back, in chunks of --chunk-seconds,
 //                each its own burst; the verifier's counter judges the stitched run (--flash3m-dir resumes a run).
 //   sheet-phrase the phrase's contact sheet: every step from its own camera and from the tribune (scratch only).
+// KICK v2 phases (2026-10-27, arsenal/web/stage/kick.js):
+//   kick         the real page's logic: the page-level pad door (arsenal:pad, arsenal:padlevel, window.__padDoor), the two
+//                kick buttons held at once on two different rows, the live level, the strobe only in the level's top band,
+//                key 5 and Shift; contact frames of the kicks on FOH_WIDE to the receipt folder (for the eye).
+//   kickstorm    the pre-registered flash case K1 (research/in-flight/kick-v2-report-2026-10-27.md): held top-level kicks,
+//                both buttons together, a level wobbling across the strobe band, a 10-a-second tap storm, all through the
+//                pad door over the demo's build into its drop, every frame read back (--kick-scale, --kick-seconds).
+//   kickpix      round 2's acceptance: the share of an 832 x 384 frame a kick changes by dE76 > --pix-de (10), the same
+//                frames drawn with and without it, every look on its main shots (--pix-looks), plus the latency (the first
+//                frames after the press) and presses_unlit; the frames are fetched from the page in slices.
+//   kickrepeat   round 2's repeat hits at --repeat-rate taps a second (4, 6, 8): each tap's own change of the screen, and
+//                how often the limiter has to act, every frame drawn.
+//   --flash-from-bar N   where the flash phase starts (default 14; 30 covers the demo's KICK on every drop downbeat).
+//   --flash-debug        the flash phase keeps every frame's cells and the kick's state (headroom, live areas) in the receipt.
+//   --flash-shots a,b    the flash phase saves a screenshot after each of these frames (diagnosis).
+//   --kick-from-frame A --kick-to-frame B   kickstorm in chunks (SwiftShader draws about 4 frames a second here, so 720
+//                frames do not fit one burst): frames before A are replayed as logic only, with their input (the virtual
+//                clock makes the replay exact), and A..B are drawn and stored in the receipt.
+//   --stitch dirA,dirB,...   no browser: judge kickstorm's chunks, each on its own with the same verifier code (chunks
+//                overlapping by a second or more, so every one-second window lies inside one chunk), and report case K1's
+//                and K3's checks and predictions from them.
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -62,7 +83,21 @@ const MAIN = REPO.split(/[\\/]\.claude[\\/]worktrees[\\/]/)[0];
 const WEB = resolve(REPO, "arsenal", "web");
 const { values: opt } = parseArgs({
   options: {
-    phases: { type: "string", default: "load,clock,camera,phrase,engine,flash,storm,pic-levels,pic-rush,pic-ring,pic-handoff,orrery,spiral" },
+    phases: { type: "string", default: "load,clock,camera,phrase,engine,flash,storm,kick,kickstorm,pic-levels,pic-rush,pic-ring,pic-handoff,orrery,spiral" },
+    "flash-from-bar": { type: "string", default: "14" },
+    "kick-scale": { type: "string", default: "0.5" },
+    "kick-seconds": { type: "string", default: "16" },
+    "pix-looks": { type: "string", default: "intro,build,drop,break,groove" },
+    "pix-de": { type: "string", default: "10" },
+    "pix-max-cases": { type: "string", default: "0" },
+    "repeat-rate": { type: "string", default: "6" },
+    "repeat-kind": { type: "string", default: "colour" },
+    "pix-debug": { type: "boolean", default: false },
+    "flash-debug": { type: "boolean", default: false },
+    "flash-shots": { type: "string", default: "" },
+    "kick-from-frame": { type: "string", default: "0" },
+    "kick-to-frame": { type: "string", default: "0" },
+    stitch: { type: "string", default: "" },
     "flash3m-seconds": { type: "string", default: "180" },
     "chunk-seconds": { type: "string", default: "10" },
     "chunk-from": { type: "string", default: "0" },
@@ -732,38 +767,163 @@ async function phaseCost({ ev, open, phase }) {
 }
 
 async function phaseStorm(ctx) { return phaseFlash(ctx, true); }
-async function phaseFlash({ ev, open, phase, deadline }, storm = false) {
-  const scale = Number(opt["flash-scale"]) || 1;
+async function phaseKickStorm(ctx) { return phaseFlash(ctx, "kicks"); }
+// KICK v2's pre-registered case K1 (kickstorm), frame by frame through the page-level pad door; segments A-D as written in
+// research/in-flight/kick-v2-report-2026-10-27.md before the first run
+const KICK_SEGMENTS = { A: [40, 220], B: [240, 420], C: [440, 620], D: [640, 700], E: [720, 900] };
+// case K1 over frames frame0.. (cells: per frame {lim, ks, kn, rows}); j: the verifier's judgement of those frames
+function kickCase(cells, frame0, j, errs) {
+  const seg = {};
+  const end = frame0 + cells.length;
+  for (const [k, [a, b]] of Object.entries(KICK_SEGMENTS)) {
+    const xs = cells.slice(Math.max(0, a - frame0), Math.max(0, Math.min(b, end) - frame0));
+    seg[k] = { frames: xs.length, whole: a >= frame0 && b <= end, limited: xs.filter((x) => x.lim).length, strobing_frames: xs.filter((x) => x.ks > 0).length,
+               both_strobing: xs.filter((x) => x.ks >= 2).length, two_live: xs.filter((x) => x.kn >= 2).length, rows: [...new Set(xs.map((x) => x.rows).filter(Boolean))].slice(0, 12) };
+  }
+  const held = ["A", "B", "C"].filter((k) => seg[k].frames);
+  const heldFrames = held.reduce((s, k) => s + seg[k].frames, 0), heldLimited = held.reduce((s, k) => s + seg[k].limited, 0);
+  const input = {
+    A: seg.A.whole ? seg.A.strobing_frames > 60 : null,
+    B: seg.B.whole ? seg.B.both_strobing > 60 : null,
+    C: seg.C.whole ? seg.C.strobing_frames > 20 && seg.C.strobing_frames < seg.C.frames - 20 : null,
+    // D (round 2): the taps re-strike the two buttons' areas (a press while its area is lit), so the storm shows as both
+    // buttons live, not as round 1's run of different rows
+    D: seg.D.whole ? seg.D.two_live >= 30 : null,
+    E: seg.E.whole ? seg.E.rows.length >= 1 && seg.E.frames > 0 : null,
+  };
+  return {
+    segments: seg, input, input_ok: Object.values(input).every((v) => v !== false) && Object.values(input).some((v) => v === true),
+    prereg: {
+      P1_gate: { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, held: j.worst <= 3 && j.worst_red <= 3 },
+      P2_held_strobe_limited_share: { frames: heldFrames, limited: heldLimited, share: +(heldLimited / Math.max(1, heldFrames)).toFixed(4), held: heldLimited / Math.max(1, heldFrames) < 0.1 },
+      P3_tap_storm_limited: seg.D.whole ? { frames: seg.D.frames, limited: seg.D.limited, held: seg.D.limited > 0 } : { frames: seg.D.frames, note: "segment D not wholly in these frames" },
+      P4_red_zero: { worst_red: j.worst_red, held: j.worst_red === 0 },
+      P5_no_errors: { errors: errs, held: errs === 0 },
+      P8_rapid_full_taps_limited_share: seg.E.whole ? { frames: seg.E.frames, limited: seg.E.limited, share: +(seg.E.limited / Math.max(1, seg.E.frames)).toFixed(4), held: seg.E.limited / Math.max(1, seg.E.frames) < 0.05 } : { frames: seg.E.frames, note: "segment E not wholly in these frames" },
+    },
+  };
+}
+// --stitch dirA,dirB,...: the kickstorm chunks of one case. Since round 2 the kick's flash governor reads the final
+// limiter's history, which a chunk's logic-only replay does not have, so chunks need not agree where they overlap: each
+// chunk is judged on its own (the verifier's count, every window inside it), the chunks overlapping by a second or more so
+// every one-second window of the case lies wholly inside one chunk, and each segment is read from the chunk that holds it.
+function stitchKickstorm(dirs) {
+  const parts = dirs.map((d) => {
+    const r = JSON.parse(readFileSync(join(d, "receipt.json"), "utf8"));
+    const k = r.phases.kickstorm;
+    if (!k || !k.cells) throw new Error(`${d}: no kickstorm cells (run it with this version of the receipt)`);
+    return { dir: d, frame0: k.frame0, cells: k.cells.map((c) => ({ ...c, N: k.N })), size: k.size, errs: k.prereg && k.prereg.P5_no_errors ? k.prereg.P5_no_errors.errors : 0 };
+  }).sort((a, b) => a.frame0 - b.frame0);
+  const total = Math.round(Number(opt["kick-seconds"]) * 60);
+  const ends = parts.map((p) => p.frame0 + p.cells.length);
+  let covered = parts[0].frame0 === 0 && ends[ends.length - 1] >= total - 10;
+  const overlaps = [];
+  for (let i = 1; i < parts.length; i++) { const o = ends[i - 1] - parts[i].frame0; overlaps.push(o); if (o < 60) covered = false; }
+  // the overlap, for the record: how far the chunks' frames differ where both drew them
+  const diffs = [];
+  for (let i = 1; i < parts.length; i++) {
+    const A = parts[i - 1], B = parts[i];
+    for (let f = B.frame0; f < ends[i - 1]; f++) { const x = A.cells[f - A.frame0], y = B.cells[f - B.frame0]; if (x && y) diffs.push(Math.max(...x.L.map((v, q) => Math.abs(v - y.L[q])))); }
+  }
+  const judged = parts.map((p) => ({ dir: p.dir, from: p.frame0, frames: p.cells.length, ...(() => { const j = judgeFlashes(p.cells); return { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red }; })() }));
+  const worst = Math.max(...judged.map((j) => j.worst)), worstRed = Math.max(...judged.map((j) => j.worst_red));
+  const errs = parts.reduce((s, p) => s + p.errs, 0);
+  // each segment from the first chunk that holds it whole
+  const seg = {}, input = {};
+  for (const [name, [a, b]] of Object.entries(KICK_SEGMENTS)) {
+    const p = parts.find((q) => q.frame0 <= a && q.frame0 + q.cells.length >= b);
+    if (!p) { seg[name] = { frames: 0, whole: false }; continue; }
+    const c = kickCase(p.cells, p.frame0, { worst, worst_window: "", worst_red: worstRed }, errs);
+    seg[name] = { ...c.segments[name], chunk: p.dir }; input[name] = c.input[name];
+  }
+  const held = ["A", "B", "C"].filter((k) => seg[k].frames);
+  const heldFrames = held.reduce((s, k) => s + seg[k].frames, 0), heldLimited = held.reduce((s, k) => s + seg[k].limited, 0);
+  const prereg = {
+    P1_gate: { worst, worst_red: worstRed, held: worst <= 3 && worstRed <= 3, chunks: judged },
+    P2_held_strobe_limited_share: { frames: heldFrames, limited: heldLimited, share: +(heldLimited / Math.max(1, heldFrames)).toFixed(4), held: heldLimited / Math.max(1, heldFrames) < 0.1 },
+    P3_tap_storm_limited: { frames: seg.D.frames, limited: seg.D.limited, held: seg.D.limited > 0 },
+    P4_red_zero: { worst_red: worstRed, held: worstRed === 0 },
+    P5_no_errors: { errors: errs, held: errs === 0 },
+    P8_rapid_full_taps_limited_share: seg.E && seg.E.frames ? { frames: seg.E.frames, limited: seg.E.limited, share: +(seg.E.limited / Math.max(1, seg.E.frames)).toFixed(4), held: seg.E.limited / Math.max(1, seg.E.frames) < 0.05 } : null,
+  };
+  report.title = "KICK v2 case K1 (+ K3), judged chunk by chunk";
+  report.phases.stitch = { parts: judged, overlaps, overlap_max_diff: diffs.length ? +Math.max(...diffs).toFixed(4) : null, segments: seg, prereg };
+  check(`stitch: the chunks cover the case (frames 0..${total - 1}) and overlap by a second or more, so every one-second window is inside one chunk`, covered, { from: parts.map((p) => p.frame0), ends, overlaps });
+  check(`kickstorm (chunked): at most 3 flashes a second in every window of every chunk, red at most 3 (case K1 + K3, ${total} frames)`, covered && worst <= 3 && worstRed <= 3, { worst, worst_red: worstRed, chunks: judged.map((j) => [j.from, j.worst, j.worst_window]) });
+  check("kickstorm (chunked): the input happened in every segment", Object.keys(KICK_SEGMENTS).every((k) => input[k] === true), input);
+  check("kickstorm (chunked): no exceptions or console errors in any chunk", errs === 0, { errors: errs });
+  console.log(`kickstorm chunked pre-registered: ${JSON.stringify(prereg)}`);
+  console.log(`kickstorm chunked segments: ${JSON.stringify(seg)}`);
+  console.log(`kickstorm chunked overlap max difference (for the record): ${report.phases.stitch.overlap_max_diff}`);
+}
+async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
+  const kicks = storm === "kicks";
+  const scale = kicks ? (Number(opt["kick-scale"]) || 0.5) : (Number(opt["flash-scale"]) || 1);
+  const fromBar = kicks ? 14 : (Number(opt["flash-from-bar"]) || 14);
   const fw = Math.round(W * scale), fh = Math.round(H * scale);
   await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`);
   await ev(PAGE_PROBE);
-  // fast-forward to two bars before the drop (bar 14), at 6 frames a step (the show's own logic runs every step)
-  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * 14 - 30; i++) window.__vt.step(${F}); s.skipRender = false; for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`, 170000);
+  // fast-forward to two bars before the drop (bar 14; --flash-from-bar), logic only, then 30 frames drawn
+  phase.from_bar = fromBar;
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * ${fromBar} - 30; i++) window.__vt.step(${F}); s.skipRender = false; for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`, 170000);
   const lim0 = await ev("window.__stage.limiter.stats()");
   const laser0 = await ev("({ onsets: window.__stage.lasers.count, presses: window.__stage.lasers.presses || 0 })");
   // then every frame: the drop's KICKs and FLY-OUT come from the demo; on top, a laser pad storm (pad 2 every 4 frames
-  // for a second, then a held gate) and the director's cuts
-  const RUN = String.raw`((frames, storm0, storm) => {
+  // for a second, then a held gate) and the director's cuts; or (kicks) case K1 through the pad door
+  const RUN = String.raw`((frames, storm0, mode, draw = true, debug = false) => {
     const s = window.__stage, out = [];
+    s.skipRender = !draw;
+    const door = (type, detail) => window.dispatchEvent(new CustomEvent(type, { detail }));
+    const kp = (pad, vel, on) => door("arsenal:pad", { pad, vel, on }), kl = (pad, vel) => door("arsenal:padlevel", { pad, vel });
     for (let i = 0; i < frames; i++) {
       const f = storm0 + i;
-      if (storm && f >= 140 && f < 200 && f % 4 === 0) s.press(2, 1);
-      if (storm && f >= 140 && f < 200 && f % 4 === 2) s.release(2);
-      if (storm && f === 230) s.press(2, 1);
-      if (storm && f === 290) s.release(2);
+      if (mode === "storm") {
+        if (f >= 140 && f < 200 && f % 4 === 0) s.press(2, 1);
+        if (f >= 140 && f < 200 && f % 4 === 2) s.release(2);
+        if (f === 230) s.press(2, 1);
+        if (f === 290) s.release(2);
+      } else if (mode === "kicks") {
+        if (f === 40) kp(1, 1, true);
+        if (f === 220) kp(1, 0, false);
+        if (f === 240) { kp(1, 1, true); kp(5, 1, true); }
+        if (f === 420) { kp(1, 0, false); kp(5, 0, false); }
+        if (f === 440) kp(5, 0.9, true);
+        if (f === 470) kl(5, 1); if (f === 500) kl(5, 0.9); if (f === 530) kl(5, 1); if (f === 560) kl(5, 0.92); if (f === 590) kl(5, 1);
+        if (f === 620) kp(5, 0, false);
+        if (f >= 640 && f < 700) { const q = f - 640, pad = Math.floor(q / 6) % 2 ? 5 : 1; if (q % 6 === 0) kp(pad, 1, true); if (q % 6 === 3) kp(pad, 0, false); }
+        // round 2, case K3: rapid alternating taps of both kicks at full level, every 8 frames for 3 s
+        if (f >= 720 && f < 904) { const q = f - 720, pad = Math.floor(q / 8) % 2 ? 5 : 1; if (q % 8 === 0 && f < 900) kp(pad, 1, true); if (q % 8 === 4) kp(pad, 0, false); }
+      }
       window.__vt.step(1000 / 60);
+      if (!draw) continue;
       const c = window.__probe.cells();
       const g = s.renderer.info.gains;
-      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, section: s.state().section, shot: s.director.pose.shot,
-                 lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0 });
+      const row = { L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, section: s.state().section, shot: s.director.pose.shot,
+                    lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0 };
+      if (mode === "kicks") { const ks = s.programmer.kick.list; row.kn = ks.length; row.ks = ks.filter((k) => k.strobing).length; row.rows = ks.map((k) => k.card.name).join("+"); }
+      else if (debug) { const K = s.programmer.kick; row.kd = { room: K.headroom, live: K.list.map((k) => [k.kind, k.card.name, +K._env(k, s.state().pos ?? 0).toFixed(3), k.motion ? k.motion.id : null, k.held ? 1 : 0]), gov: { ...K.gov }, beams: s.renderer.info.beams, lm: s.renderer.info.beamPowerLm, ib: s.renderer.inBeamFaded || 0 }; }
+      out.push(row);
     }
+    s.skipRender = false;
     return out;
   })`;
   const series = [];
-  const want = Math.round(Number(opt["flash-seconds"]) * 60);
+  const total = Math.round(Number(kicks ? opt["kick-seconds"] : opt["flash-seconds"]) * 60);
+  const mode = kicks ? "kicks" : storm ? "storm" : "flash";
+  // kickstorm in chunks: frames before `from` replayed as logic only (with their input), from..want drawn
+  const from = kicks ? Math.max(0, Number(opt["kick-from-frame"]) || 0) : 0;
+  const want = kicks && Number(opt["kick-to-frame"]) > 0 ? Math.min(total, Number(opt["kick-to-frame"])) : total;
+  for (let done = 0; done < from; done += 240) await ev(`${RUN}(${Math.min(240, from - done)}, ${done}, ${JSON.stringify(mode)}, false)`, 160000);
+  phase.frame0 = from;
   const t0 = Date.now();
-  for (let done = 0; done < want && Date.now() < deadline - 20000; done += 60) {
-    series.push(...await ev(`${RUN}(${Math.min(60, want - done)}, ${done}, ${storm ? "true" : "false"})`, 160000));
+  // --flash-shots: a screenshot after each of these frames (diagnosis; scratch only)
+  const shots = String(opt["flash-shots"] || "").split(",").filter((x) => x.trim() !== "").map(Number).filter((x) => Number.isInteger(x) && x >= from && x < want).sort((a, b) => a - b);
+  for (let done = from; done < want && Date.now() < deadline - 20000;) {
+    const next = shots.find((x) => x >= done);
+    const n = Math.min(60, want - done, next !== undefined ? next - done + 1 : Infinity);
+    series.push(...await ev(`${RUN}(${n}, ${done}, ${JSON.stringify(mode)}, true, ${opt["flash-debug"] ? "true" : "false"})`, 160000));
+    done += n;
+    if (next !== undefined && done === next + 1) await shot(join(outDir, `flash-f${next}.png`));
   }
   phase.frames = series.length;
   phase.ms_per_frame = +((Date.now() - t0) / Math.max(1, series.length)).toFixed(0);
@@ -771,6 +931,7 @@ async function phaseFlash({ ev, open, phase, deadline }, storm = false) {
   const j = judgeFlashes(series);
   phase.judged = { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, full: j.windows.full, windows: j.windows };
   phase.limited_frames = series.map((x, i) => (x.lim ? i : -1)).filter((i) => i >= 0).slice(0, 80);
+  if (opt["flash-debug"] && !kicks) phase.debug_frames = series.map((x) => ({ L: x.L, R: x.R, N: x.N, lim: x.lim, kd: x.kd, shot: x.shot }));
   phase.full_series = series.slice(0, 160).map((x) => +(x.L.reduce((a, v, i) => a + v * x.N[i], 0) / x.N.reduce((a, v) => a + v, 0)).toFixed(4));
   phase.timeline = series.map((x, i) => [i, x.section, x.shot]).filter((r, i, a) => i === 0 || r[1] !== a[i - 1][1] || r[2] !== a[i - 1][2]);
   phase.sections = [...new Set(series.map((s) => s.section))];
@@ -779,13 +940,381 @@ async function phaseFlash({ ev, open, phase, deadline }, storm = false) {
   const laser1 = await ev("({ onsets: window.__stage.lasers.count, presses: window.__stage.lasers.presses || 0 })");
   phase.lasers = { presses: laser1.presses - laser0.presses, onsets: laser1.onsets - laser0.onsets };
   phase.limiter = { interventions: lim1.interventions - lim0.interventions, frames: lim1.frames - lim0.frames, beta_frames: lim1.beta_frames - lim0.beta_frames, log: lim1.log };
-  const what = storm ? "the build's held laser gate into the drop, KICKs, FLY-OUT, the cut, plus a laser pad storm (15 presses a second for a second, then a held gate)"
-                     : "the demo as programmed: the build's held laser gate, the flythrough, the cut into the drop, KICKs and FLY-OUT";
-  const tag = storm ? "storm" : "flash";
-  check(`${tag}: at most 3 flashes a second in every window, red at most 3 (${series.length} frames, ${fw}x${fh}: ${what})`,
-        series.length >= 240 && j.worst <= 3 && j.worst_red <= 3, { worst: j.worst, window: j.worst_window, worst_red: j.worst_red, frames: series.length });
-  if (storm) phase.note = "a pad storm on the lasers is the final limiter's job in v0 (the predictive governor is v1): interventions are reported, not failed";
-  else check("flash: the stage's limiter recorded zero interventions (the programmed show stays inside the budget)", phase.limiter.interventions === 0, phase.limiter);
+  const what = kicks ? "case K1: held top-level kicks (A), both buttons held (B), a level wobbling across the strobe band (C), a 10-a-second tap storm (D), through the pad door, over the build's laser gate, the cut and the drop's phrase"
+             : storm ? "the build's held laser gate into the drop, KICKs, FLY-OUT, the cut, plus a laser pad storm (15 presses a second for a second, then a held gate)"
+             : fromBar === 14 ? "the demo as programmed: the build's held laser gate, the flythrough, the cut into the drop, KICKs and FLY-OUT"
+             : `the demo as programmed from bar ${fromBar}: the drop's KICK on every downbeat, its laser hits, FLY-OUT and cuts`;
+  const tag = kicks ? "kickstorm" : storm ? "storm" : "flash";
+  check(`${tag}: at most 3 flashes a second in every window, red at most 3 (${series.length} frames${kicks ? ` (frames ${from}..${from + series.length - 1})` : ""}, ${fw}x${fh}: ${what})`,
+        (kicks ? series.length === want - from : series.length >= 240) && j.worst <= 3 && j.worst_red <= 3, { worst: j.worst, window: j.worst_window, worst_red: j.worst_red, frames: series.length });
+  if (kicks) {
+    // every frame's cells, for --stitch (the chunks of one run judged as one)
+    phase.N = series.length ? series[0].N : null;
+    phase.cells = series.map((x) => ({ L: x.L, R: x.R, lim: x.lim, ks: x.ks, kn: x.kn, rows: x.rows }));
+    const pageErrors = await ev("window.__stage.errors.slice(0, 5)");
+    const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + pageErrors.length;
+    Object.assign(phase, kickCase(phase.cells, from, j, errs));
+    const ks = await ev("window.__stage.programmer.kick.status()");
+    phase.kick_status = { presses: ks.presses, presses_unlit: ks.presses_unlit, restrikes: ks.restrikes, areas_passed_over: ks.areas_passed_over, governor_held_back: ks.governor_held_back };
+    console.log(`kickstorm kick (cumulative from frame 0): ${JSON.stringify(phase.kick_status)}`);
+    console.log(`kickstorm pre-registered (frames ${from}..${from + series.length - 1}): ${JSON.stringify(phase.prereg)}`);
+    console.log(`kickstorm segments: ${JSON.stringify(phase.segments)}`);
+    const inside = Object.entries(phase.segments).filter(([, s]) => s.whole).map(([k]) => k);
+    check(`kickstorm: the input happened in the segments this run drew (${inside.join(", ") || "none whole"})`, phase.input_ok, phase.input);
+    check("kickstorm: no exceptions or console errors", errs === 0, { exceptions: phase.exceptions.slice(0, 3), page: pageErrors });
+    phase.note = "case K1: the gate (P1) is a check; P2 and P3 are predictions reported in phase.prereg, the limiter being the backstop for a tap storm";
+  } else if (storm) phase.note = "a pad storm on the lasers is the final limiter's job in v0 (the predictive governor is v1): interventions are reported, not failed";
+  else check(`flash: the stage's limiter recorded zero interventions (the programmed show stays inside the budget${fromBar !== 14 ? `, from bar ${fromBar}` : ""})`, phase.limiter.interventions === 0, phase.limiter);
+}
+
+// KICK round 2's acceptance: what the SCREEN shows. The page in engine mode on the fake engine (no beats: the grid
+// free-runs at 150 BPM on the virtual clock, the show sits in its groove section, no demo pads, no phrases), at the
+// phone-like 832 x 384. Each look is set on the programmer; on each of its main shots (pinned) a white and a colour case.
+// The same frames are drawn twice -- page A without the kick, page B with it pressed through the pad door (0.8, held) --
+// and every pixel compared in CIELAB: a pixel CHANGES when it moves by more than dE76 --pix-de (10). A case's coverage is
+// the larger of its two frames' changed share (a quarter beat and a beat after the press); its control frame, just before
+// the press, must be identical in A and B.
+const PIX_SHOTS = {
+  intro: ["FOH_HOLD_ZOOM", "CRANE_RISE_REVEAL", "FOH_WIDE", "TRIBUNE_34"],
+  build: ["STRAND_FLYTHROUGH", "FOH_WIDE", "HEAD_ORBIT", "TUNNEL_UP"],
+  drop: ["TUNNEL_UP", "TOPDOWN_GODVIEW", "TRIBUNE_34", "HEAD_ORBIT", "FOH_WIDE", "CROWD_POV", "WORM_RING"],
+  break: ["HEAD_ORBIT_SLOW", "DJ_OTS", "FOH_WIDE", "CROWD_POV"],
+  groove: ["FOH_HOLD_ZOOM", "TRIBUNE_34", "PROFILE_GRAPH", "HEAD_ORBIT"],
+};
+const PIX_W = 832, PIX_H = 384;
+// sRGB 8-bit -> CIELAB (D65), and the share of pixels whose colour moved by more than each threshold
+const LIN8 = new Float64Array(256).map((_, i) => { const s = i / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); });
+const labF = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+function labBuf(px) {
+  const n = px.length >> 2, out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = LIN8[px[i * 4]], g = LIN8[px[i * 4 + 1]], b = LIN8[px[i * 4 + 2]];
+    const fx = labF((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fy = labF(0.2126 * r + 0.7152 * g + 0.0722 * b), fz = labF((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+    out[i * 3] = 116 * fy - 16; out[i * 3 + 1] = 500 * (fx - fy); out[i * 3 + 2] = 200 * (fy - fz);
+  }
+  return out;
+}
+function pixDiff(labA, labB, ths = [5, 10, 20]) {
+  const n = labA.length / 3, cnt = ths.map(() => 0);
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const d = Math.hypot(labA[i * 3] - labB[i * 3], labA[i * 3 + 1] - labB[i * 3 + 1], labA[i * 3 + 2] - labB[i * 3 + 2]);
+    sum += d;
+    for (let k = 0; k < ths.length; k++) if (d > ths[k]) cnt[k]++;
+  }
+  return { share: Object.fromEntries(ths.map((t, k) => [`de${t}`, +(cnt[k] / n).toFixed(4)])), mean_de: +(sum / n).toFixed(3) };
+}
+function pixPlan(looks) {
+  // each look: set at a block start, two bars to settle, then each case two bars (the press half a beat in)
+  const cases = [];
+  let pos = 16;
+  for (const look of looks) {
+    const setAt = pos;
+    pos += 8;
+    let first = true;
+    for (const shot of PIX_SHOTS[look] || []) for (const [kind, pad] of [["kick-white", 1], ["kick-colour", 5]]) {
+      // the press falls at a different place in its beat every case (0.37 apart), half of them in the beat's second half
+      cases.push({ look, shot, kind, pad, start: pos, phase: +((0.1 + 0.37 * cases.length) % 1).toFixed(3), setLook: first ? setAt : null });
+      first = false;
+      pos += 8;
+    }
+  }
+  return cases;
+}
+async function phaseKickPix({ ev, open, phase, deadline }) {
+  const looks = opt["pix-looks"].split(",").map((s) => s.trim()).filter((l) => PIX_SHOTS[l]);
+  const de = Number(opt["pix-de"]) || 10;
+  const cases = pixPlan(looks).slice(0, Number(opt["pix-max-cases"]) || Infinity);
+  phase.size = [PIX_W, PIX_H]; phase.de = de; phase.cases_planned = cases.length;
+  // one case in the page: logic to its start (setting the look first if it opens a block), the shot pinned, the limiter
+  // fresh, three frames drawn, the control frame read, the press (page B), frames read a quarter beat and a beat later,
+  // the release; returns the frames as base64 RGBA (rows bottom-up, the same in A and B)
+  const CASE = String.raw`((c, withKick, debug) => {
+    const s = window.__stage, F = 1000 / 60;
+    const t0 = window.__realNow ? window.__realNow() : 0;
+    const log = (m) => { if (debug) console.log("kickpix " + m + " pos " + posNow().toFixed(3) + " real " + ((window.__realNow ? window.__realNow() : 0) - t0).toFixed(0) + " ms"); };
+    const posNow = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    const stepTo = (p, draw) => { s.skipRender = !draw; while (posNow() < p - 1e-9) window.__vt.step(F); s.skipRender = false; };
+    const gl = s.renderer.gl, canvas = document.getElementById("gl");
+    const read = () => {
+      const w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+      const g = s.renderer.info.gains;
+      return { w, h, b64: btoa(bin), lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0 };
+    };
+    const drawRead = () => { window.__vt.step(F); return read(); };
+    log("start");
+    if (c.setLook !== null) { stepTo(c.setLook, false); s.programmer.setLook(c.look, posNow(), { fade: 0 }); }
+    log("look");
+    stepTo(c.start + c.phase - 4 / 24, false);
+    log("at case");
+    s.setShot(c.shot, 0.5); s.resetLimiter();
+    for (let i = 0; i < 3; i++) { window.__vt.step(F); log("warm " + i); }
+    const control = drawRead();
+    log("control");
+    const pressAt = posNow();
+    log("press");
+    let dealt = null;
+    if (withKick) {
+      window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: c.pad, vel: 0.8, on: true } }));
+      const live = s.programmer.kick.list.filter((k) => k.held).map((k) => k.card.name);
+      dealt = live;
+    }
+    // the first three frames after the press (the latency), then a quarter beat and a beat after it
+    const f1 = drawRead(), f2 = drawRead(), f3 = drawRead();
+    stepTo(pressAt + 0.25, false);
+    log("stepped");
+    const q = drawRead();
+    log("q");
+    stepTo(pressAt + 1, false);
+    const b = drawRead();
+    log("b");
+    const skipped = withKick ? s.programmer.kick.status() : null;
+    if (withKick) window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: c.pad, vel: 0, on: false } }));
+    // the frames stay in the page; the receipt fetches them in slices (a 5 MB answer never arrives through one CDP message)
+    window.__pix = { control: control.b64, f1: f1.b64, f2: f2.b64, f3: f3.b64, q: q.b64, b: b.b64 };
+    return { sizes: [control.b64.length, f1.b64.length, f2.b64.length, f3.b64.length, q.b64.length, b.b64.length],
+             lim: control.lim + f1.lim + f2.lim + f3.lim + q.lim + b.lim, pressAt, dealt, presses: skipped ? skipped.presses : null,
+             unlit: skipped ? skipped.presses_unlit ?? null : null, passed: skipped ? skipped.areas_passed_over ?? null : null };
+  })`;
+  const fetchPix = async (name, len) => {
+    const parts = [];
+    for (let i = 0; i < len; i += 262144) parts.push(await ev(`window.__pix.${name}.slice(${i}, ${i + 262144})`, 60000));
+    return Buffer.from(parts.join(""), "base64");
+  };
+  const query = `engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&w=${PIX_W}&h=${PIX_H}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
+  // page A: the frames without the kick, kept as CIELAB
+  await open(query);
+  await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+  const A = [];
+  for (const c of cases) {
+    if (Date.now() > deadline - 60000) break;
+    const r = await ev(`${CASE}(${JSON.stringify(c)}, false, ${opt["pix-debug"] ? "true" : "false"})`, 160000);
+    const fr = {};
+    for (const [k, name] of ["control", "f1", "f2", "f3", "q", "b"].entries()) fr[name] = labBuf(await fetchPix(name, r.sizes[k]));
+    A.push({ ...fr, lim: r.lim });
+  }
+  // page B: the same frames with the kick
+  await open(query);
+  await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+  const rows = [];
+  for (let i = 0; i < A.length; i++) {
+    if (Date.now() > deadline - 15000) break;
+    const c = cases[i];
+    const r = await ev(`${CASE}(${JSON.stringify(c)}, true, ${opt["pix-debug"] ? "true" : "false"})`, 160000);
+    const dd = {};
+    for (const [k, name] of ["control", "f1", "f2", "f3", "q", "b"].entries()) dd[name] = pixDiff(A[i][name], labBuf(await fetchPix(name, r.sizes[k])));
+    const ctl = dd.control, dq = dd.q, db = dd.b;
+    const key = `de${de}`;
+    // latency: the first frame after the press whose changed share (dE > de) reaches 1 % of the screen
+    const lat = ["f1", "f2", "f3"].findIndex((n) => dd[n].share[key] >= 0.01);
+    const best = dq.share[key] >= db.share[key] ? dq : db;
+    rows.push({ look: c.look, shot: c.shot, kind: c.kind, dealt: r.dealt, coverage: best.share[key], at: best === dq ? "quarter beat" : "one beat",
+                latency_frames: lat >= 0 ? lat + 1 : null, first_frames: ["f1", "f2", "f3"].map((n) => dd[n].share[key]), unlit: r.unlit, areas_passed_over: r.passed,
+                shares: { q: dq.share, b: db.share }, control: ctl.share[key], limiter: A[i].lim + r.lim });
+  }
+  phase.cases = rows;
+  const cov = rows.map((r) => r.coverage).sort((a, b) => a - b);
+  const q = (p) => (cov.length ? cov[Math.min(cov.length - 1, Math.floor(p * (cov.length - 1)))] : null);
+  phase.distribution = { cases: cov.length, min: cov[0], p10: q(0.1), median: q(0.5), max: cov[cov.length - 1] };
+  const byLookKind = {};
+  for (const r of rows) { const k = `${r.look} ${r.kind}`; (byLookKind[k] = byLookKind[k] || []).push(r.coverage); }
+  phase.by_look_kind = Object.fromEntries(Object.entries(byLookKind).map(([k, v]) => [k, { min: Math.min(...v), median: v.slice().sort((a, b) => a - b)[v.length >> 1], max: Math.max(...v) }]));
+  phase.worst = rows.slice().sort((a, b) => a.coverage - b.coverage).slice(0, 8).map((r) => ({ look: r.look, shot: r.shot, kind: r.kind, dealt: r.dealt, coverage: r.coverage }));
+  const lats = rows.map((r) => r.latency_frames);
+  phase.latency = { worst_frames: lats.some((x) => x === null) ? "over 3" : Math.max(...lats), by_frames: { 1: lats.filter((x) => x === 1).length, 2: lats.filter((x) => x === 2).length, 3: lats.filter((x) => x === 3).length, over3: lats.filter((x) => x === null).length } };
+  console.log(`kickpix latency: ${JSON.stringify(phase.latency)}`);
+  console.log(`kickpix: ${JSON.stringify(phase.distribution)}`);
+  console.log(`kickpix by look and kind: ${JSON.stringify(phase.by_look_kind)}`);
+  for (const r of rows) console.log(`kickpix case ${r.look.padEnd(6)} ${r.shot.padEnd(18)} ${r.kind.padEnd(11)} ${(100 * r.coverage).toFixed(1).padStart(5)} % (${r.at}; dE5 ${(100 * Math.max(r.shares.q.de5, r.shares.b.de5)).toFixed(1)} %, dE20 ${(100 * Math.max(r.shares.q.de20, r.shares.b.de20)).toFixed(1)} %) control ${(100 * r.control).toFixed(2)} % latency ${r.latency_frames ?? "> 3"} frames limiter ${r.limiter} dealt ${JSON.stringify(r.dealt)}`);
+  check(`kickpix: every case was measured (${rows.length} of ${cases.length})`, rows.length === cases.length, { measured: rows.length, planned: cases.length });
+  check("kickpix: every control frame is identical with and without the kick (the comparison is sound)", rows.every((r) => r.control === 0), rows.filter((r) => r.control !== 0).slice(0, 4));
+  check(`kickpix: every kick changes at least 10 % of the screen by dE76 > ${de} (R1)`, rows.length && rows.every((r) => r.coverage >= 0.1), phase.distribution);
+  check("kickpix: every kick shows on the first frame after its press (R4: 1 % of the screen by dE76 > 10)", rows.length && rows.every((r) => r.latency_frames === 1), phase.latency);
+  phase.unlit = rows.length ? Math.max(...rows.map((r) => r.unlit ?? 0)) : null;
+  // the AREAS the dealer judged and passed by (an area it would not show on), for the record: a press never goes unlit
+  phase.areas_passed_over = rows.reduce((n, r) => n + (r.areas_passed_over ?? 0), 0);
+  console.log(`kickpix: presses unlit ${phase.unlit}, areas the dealer passed over ${phase.areas_passed_over}`);
+  check("kickpix: no press was left unlit (R5: presses_unlit stays 0)", rows.length && rows.every((r) => (r.unlit ?? 0) === 0), { presses_unlit: phase.unlit });
+}
+
+// KICK round 2, REPEAT HITS (R6, R7 in the report): the drop look on FOH_WIDE at 832 x 384, every frame drawn in page A
+// (no taps) and page B (--repeat-kind's kick tapped at --repeat-rate a second for 1.25 s, frames 30 to 105, each tap held
+// 3 frames, velocity 0.8; one kind a run so both pages fit one burst). A tap's change: pixels moving by dE76 > --pix-de between the frame before it and 6 frames after it in B
+// but not in A. Every tap must change 3 % of the screen; the limiter may act on at most 2 % of B's frames.
+async function phaseKickRepeat({ ev, open, phase, deadline }) {
+  const rate = Number(opt["repeat-rate"]) || 6, de = Number(opt["pix-de"]) || 10;
+  // one kind a run (both pages of 120 frames fit one burst): --repeat-kind colour or white
+  const kindArg = opt["repeat-kind"] === "white" ? "white" : "colour";
+  const segs = [kindArg === "white" ? { pad: 1, kind: "kick-white", from: 30, to: 105 } : { pad: 5, kind: "kick-colour", from: 30, to: 105 }];
+  phase.kind = kindArg;
+  const taps = [];
+  for (const sg of segs) for (let k = 0; ; k++) { const f = sg.from + Math.round((k * 60) / rate); if (f >= sg.to) break; taps.push({ f, pad: sg.pad, kind: sg.kind }); }
+  const total = 120;
+  phase.rate = rate; phase.taps_planned = taps.length; phase.size = [PIX_W, PIX_H];
+  const keep = new Set(taps.flatMap((t) => [t.f - 1, t.f + 6]));
+  const RUN = String.raw`((from, n, withTaps, taps, keep) => {
+    const s = window.__stage, F = 1000 / 60, out = [];
+    const gl = s.renderer.gl, canvas = document.getElementById("gl");
+    window.__rep = window.__rep || {};
+    for (let i = 0; i < n; i++) {
+      const f = from + i;
+      if (withTaps) for (const t of taps) {
+        if (t.f === f) window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: t.pad, vel: 0.8, on: true } }));
+        if (t.f + 3 === f) window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: t.pad, vel: 0, on: false } }));
+      }
+      window.__vt.step(F);
+      const c = window.__probe.cells();
+      const g = s.renderer.info.gains;
+      if (keep.includes(f)) {
+        const w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        let bin = ""; for (let k = 0; k < buf.length; k += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(k, k + 0x8000));
+        window.__rep[f] = btoa(bin);
+      }
+      const ks = s.programmer.kick.list;
+      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0,
+                 rows: ks.map((k) => k.card.name + ":" + (s.programmer.kick._hexOf ? s.programmer.kick._hexOf(k) : "")).join(" ") });
+    }
+    return out;
+  })`;
+  const SETUP = String.raw`(() => {
+    const s = window.__stage, F = 1000 / 60;
+    const posNow = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    s.skipRender = true;
+    while (posNow() < 16) window.__vt.step(F);
+    s.programmer.setLook("drop", posNow(), { fade: 0 });
+    while (posNow() < 24) window.__vt.step(F);
+    s.skipRender = false;
+    s.setShot("FOH_WIDE", 0.5); s.resetLimiter();
+    return true;
+  })()`;
+  const query = `engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&w=${PIX_W}&h=${PIX_H}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
+  const fetchFrame = async (f) => {
+    const len = await ev(`window.__rep[${f}].length`);
+    const parts = [];
+    for (let i = 0; i < len; i += 262144) parts.push(await ev(`window.__rep[${f}].slice(${i}, ${i + 262144})`, 60000));
+    return labBuf(Buffer.from(parts.join(""), "base64"));
+  };
+  const runPage = async (withTaps) => {
+    await open(query);
+    await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+    await ev(PAGE_PROBE);
+    await ev(SETUP, 160000);
+    const series = [];
+    for (let done = 0; done < total && Date.now() < deadline - 25000; done += 30) {
+      series.push(...await ev(`${RUN}(${done}, ${Math.min(30, total - done)}, ${withTaps}, ${JSON.stringify(taps)}, ${JSON.stringify([...keep])})`, 160000));
+    }
+    const frames = {};
+    for (const f of keep) if (f < series.length) frames[f] = await fetchFrame(f);
+    const status = withTaps ? await ev("window.__stage.programmer.kick.status()") : null;
+    return { series, frames, status };
+  };
+  const A = await runPage(false);
+  const B = await runPage(true);
+  const share = (a0, a1, b0, b1) => {
+    let n = 0, hit = 0;
+    for (let i = 0; i < a0.length; i += 3) {
+      const dB = Math.hypot(b1[i] - b0[i], b1[i + 1] - b0[i + 1], b1[i + 2] - b0[i + 2]);
+      const dA = Math.hypot(a1[i] - a0[i], a1[i + 1] - a0[i + 1], a1[i + 2] - a0[i + 2]);
+      if (dB > de && dA <= de) hit++;
+      n++;
+    }
+    return hit / n;
+  };
+  const rows = [];
+  for (const t of taps) {
+    if (!(A.frames[t.f - 1] && A.frames[t.f + 6] && B.frames[t.f - 1] && B.frames[t.f + 6])) continue;
+    rows.push({ f: t.f, kind: t.kind, change: +share(A.frames[t.f - 1], A.frames[t.f + 6], B.frames[t.f - 1], B.frames[t.f + 6]).toFixed(4), shows: B.series[t.f + 6] && B.series[t.f + 6].rows });
+  }
+  const j = judgeFlashes(B.series);
+  const limB = B.series.filter((x) => x.lim).length, limA = A.series.filter((x) => x.lim).length;
+  phase.taps = rows; phase.frames = { A: A.series.length, B: B.series.length };
+  phase.limiter = { B: limB, A: limA, share_B: +(limB / Math.max(1, B.series.length)).toFixed(4), frames_B: B.series.map((x, i) => (x.lim ? i : -1)).filter((i) => i >= 0).slice(0, 40) };
+  phase.judged = { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red };
+  phase.kick_status = B.status && { presses: B.status.presses, presses_unlit: B.status.presses_unlit, restrikes: B.status.restrikes,
+                                     areas_passed_over: B.status.areas_passed_over, governor_held_back: B.status.governor_held_back };
+  const ch = rows.map((r) => r.change);
+  phase.change = { taps: rows.length, min: ch.length ? Math.min(...ch) : null, median: ch.length ? ch.slice().sort((a, b) => a - b)[ch.length >> 1] : null, max: ch.length ? Math.max(...ch) : null };
+  console.log(`kickrepeat ${kindArg} ${rate} taps/s: ${JSON.stringify(phase.change)} limiter ${JSON.stringify(phase.limiter)} flashes ${JSON.stringify(phase.judged)} kick ${JSON.stringify(phase.kick_status)}`);
+  for (const r of rows) console.log(`kickrepeat ${rate}/s tap at frame ${r.f} ${r.kind.padEnd(11)} ${(100 * r.change).toFixed(1).padStart(5)} %  ${r.shows || ""}`);
+  check(`kickrepeat ${kindArg} ${rate}/s: every tap was measured (${rows.length} of ${taps.length}) over ${total} frames drawn in both pages`, rows.length === taps.length && A.series.length === total && B.series.length === total, { taps: rows.length, frames: phase.frames });
+  check(`kickrepeat ${kindArg} ${rate}/s: every tap reads as a new hit (R6: at least 3 % of the screen changes by dE76 > ${de} that the scene alone did not change)`, rows.length && rows.every((r) => r.change >= 0.03), phase.change);
+  check(`kickrepeat ${kindArg} ${rate}/s: the limiter acts on at most 2 % of the frames (R7)`, limB / Math.max(1, B.series.length) <= 0.02, phase.limiter);
+  check(`kickrepeat ${kindArg} ${rate}/s: at most 3 flashes a second in every window, red at most 3`, j.worst <= 3 && j.worst_red <= 3, phase.judged);
+  check(`kickrepeat ${kindArg} ${rate}/s: no press left unlit`, B.status && B.status.presses_unlit === 0, phase.kick_status);
+}
+
+// KICK v2 in the real page: the page-level pad door, the two buttons at once, the live level, the strobe band, key 5 and
+// Shift; then four contact frames of the kicks on FOH_WIDE (the receipt folder, for the eye). Logic every 60 fps frame.
+async function phaseKick({ ev, open, shot, phase }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  // into the break (bar 41), where the demo presses no pads of its own (in the drop it presses pad 1 on every downbeat,
+  // and a new press of a kick button lets go of that button's held kick), logic only
+  await ev(`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 96 * 41 + 6; i++) window.__vt.step(${F}); return true; })()`, 170000);
+  const step = (n) => ev(`(() => { for (let i = 0; i < ${n}; i++) window.__vt.step(${F}); return true; })()`, 170000);
+  const door = (type, detail) => ev(`window.dispatchEvent(new CustomEvent(${JSON.stringify(type)}, { detail: ${JSON.stringify(detail)} }))`);
+  const key = (type, code, shift = false) => ev(`window.dispatchEvent(new KeyboardEvent(${JSON.stringify(type)}, { code: ${JSON.stringify(code)}, shiftKey: ${shift} }))`);
+  const live = () => ev("window.__stage.state().kick.live");
+  check("kick: the page-level pad door is there (window.__padDoor = 1)", (await ev("window.__padDoor")) === 1, await ev("window.__padDoor"));
+  const kicks0 = (await ev("window.__stage.state().kicks")).length;
+  // the two buttons through the door, held together
+  await door("arsenal:pad", { pad: 1, vel: 0.8, on: true }); await step(4);
+  await door("arsenal:pad", { pad: 5, vel: 0.8, on: true }); await step(12);
+  const both = await live();
+  phase.both = both;
+  const heldNow = both.filter((k) => k.held);
+  check("kick: pads 1 and 5 through the door hold KICK WHITE and KICK COLOUR at once, on two different rows",
+        heldNow.length === 2 && heldNow.some((k) => k.kind === "kick-white") && heldNow.some((k) => k.kind === "kick-colour") && heldNow[0].row !== heldNow[1].row, heldNow);
+  // the live level, then the strobe band
+  await door("arsenal:padlevel", { pad: 1, vel: 0.3 }); await step(20);
+  const lv = (await live()).find((k) => k.kind === "kick-white" && k.held);
+  check("kick: arsenal:padlevel moves the held row's level (0.8 -> 0.3 within 20 frames)", lv && Math.abs(lv.level - 0.3) < 0.02, lv);
+  await door("arsenal:padlevel", { pad: 1, vel: 1 }); await step(40);
+  const st1 = (await live()).find((k) => k.kind === "kick-white" && k.held);
+  await door("arsenal:padlevel", { pad: 1, vel: 0.9 }); await step(60);
+  const st2 = (await live()).find((k) => k.kind === "kick-white" && k.held);
+  const colourNotStrobing = (await live()).find((k) => k.kind === "kick-colour" && k.held);
+  check("kick: the strobe runs only while the live level is in the top band (on at 1.0, off back at 0.9; the colour kick at 0.8 never)",
+        st1 && st1.strobing && st2 && !st2.strobing && colourNotStrobing && !colourNotStrobing.strobing, { at_1: st1, at_0_9: st2, colour: colourNotStrobing });
+  // let go through the door: both fade and are gone two beats later
+  await door("arsenal:pad", { pad: 1, vel: 0, on: false }); await door("arsenal:pad", { pad: 5, vel: 0, on: false });
+  await step(3);
+  const fading = await live();
+  await step(60);
+  const gone = await live();
+  check("kick: let go, both rows fade and are gone within two beats", fading.length === 2 && fading.every((k) => !k.held) && gone.length === 0, { fading, gone });
+  // the keyboard: key 5 holds KICK COLOUR at 0.8; Shift+1 holds KICK WHITE at 1.0 (the strobe band)
+  await key("keydown", "Digit5"); await step(6);
+  const k5 = (await live()).find((k) => k.held);
+  await key("keyup", "Digit5"); await step(2);
+  const k5up = (await live()).find((k) => k.kind === "kick-colour");
+  await key("keydown", "Digit1", true); await step(30);
+  const k1 = (await live()).find((k) => k.held);
+  await key("keyup", "Digit1"); await step(60);
+  check("kick: key 5 holds KICK COLOUR at 0.8 until key-up; Shift+1 holds KICK WHITE at 1.0, strobing",
+        k5 && k5.kind === "kick-colour" && Math.abs(k5.target - 0.8) < 1e-9 && k5up && !k5up.held && k1 && k1.kind === "kick-white" && k1.target === 1 && k1.strobing, { k5, k5up, k1 });
+  const st = await ev("window.__stage.state()");
+  phase.kick_status = st.kick;
+  const added = st.kicks.slice(kicks0);
+  check("kick: every press is booked on the beat it fell on (onset = the nearest beat)", added.length >= 4 && added.every((k) => k.onset === Math.round(k.pressPos)), added.slice(0, 6));
+  // contact frames on FOH_WIDE: nothing, white, white + colour, colour alone (logic as above, drawn)
+  await ev(`(() => { const s = window.__stage; s.setShot("FOH_WIDE", 0.5); s.skipRender = false; for (let i = 0; i < 4; i++) window.__vt.step(${F}); return true; })()`);
+  const frames = {};
+  frames.none = await shot(join(outDir, "kick-0-none.png"));
+  await door("arsenal:pad", { pad: 1, vel: 0.8, on: true }); await step(10);
+  frames.white = await shot(join(outDir, "kick-1-white.png"));
+  await door("arsenal:pad", { pad: 5, vel: 0.8, on: true }); await step(10);
+  frames.both = await shot(join(outDir, "kick-2-both.png"));
+  phase.frame_rows = (await live()).map((k) => `${k.kind} ${k.row}`);
+  await door("arsenal:pad", { pad: 1, vel: 0, on: false }); await step(30);
+  frames.colour = await shot(join(outDir, "kick-3-colour.png"));
+  await door("arsenal:pad", { pad: 5, vel: 0, on: false }); await step(2);
+  phase.frames = frames;
+  const pageErrors = await ev("window.__stage.errors.slice(0, 5)");
+  const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + pageErrors.length;
+  check("kick: no exceptions or console errors", errs === 0, { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((c) => /error/.test(c.type)).slice(0, 3), page: pageErrors });
 }
 
 // A diagnostic burst (not part of the default run): which layer swings the frame during the build's flythrough. Four
@@ -1411,13 +1940,24 @@ async function phaseSheetPhrase({ ev, open, shot, phase }) {
 }
 
 // ------------------------------------------------------------------------------------------------------ main --
+if (opt.stitch) {
+  // no browser, no lock: judge stored chunks
+  try { stitchKickstorm(opt.stitch.split(",").map((s) => s.trim()).filter(Boolean)); }
+  catch (e) { check("stitch: the chunks load", false, String(e && e.message || e)); }
+  const failedS = Object.entries(report.checks).filter(([, v]) => !v.ok).map(([k]) => k);
+  report.verdict = failedS.length ? "fail" : "pass"; report.failed = failedS; report.finished_at = new Date().toISOString();
+  writeFileSync(join(outDir, "receipt.json"), JSON.stringify(report, null, 2));
+  console.log(`receipt: ${join(outDir, "receipt.json")}`);
+  console.log(`verdict: ${report.verdict}${failedS.length ? ` (${failedS.join("; ")})` : ""}`);
+  process.exit(failedS.length ? 1 : 0);
+}
 try {
   PORT = await listen(web, PORT);
   ENGINE_PORT = await listen(engine, ENGINE_PORT);
   report.ports = { web: PORT, engine: ENGINE_PORT };
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
-                  orrery: phaseOrrery, spiral: phaseSpiral };
+                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }
