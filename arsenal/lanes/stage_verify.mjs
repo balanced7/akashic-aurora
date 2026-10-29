@@ -65,6 +65,12 @@
 //   --stitch dirA,dirB,...   no browser: judge kickstorm's chunks, each on its own with the same verifier code (chunks
 //                overlapping by a second or more, so every one-second window lies inside one chunk), and report case K1's
 //                and K3's checks and predictions from them.
+// KICK ROUND 3 and THE HAZE FADER (2026-10-29):
+//   bank         kick 5's colour bank on the screen: wide shots, groove and drop, the first bank and a later one; pages A
+//                (no press), B (kick 5 pressed), C (A without the lasers' pass: the laser mask); the pre-registered bars
+//                B1-B5 are in phaseBank's comment.
+//   haze         F5 through the fake engine (absolute and rel-filed cc109) at 0, 0.5 and 1, and 0 with the haze's passes
+//                off: the bars H1-H5 are in phaseHaze's comment.
 // PALETTES phases (2026-10-28, arsenal/web/palettes.js):
 //   palettes     the contact sheet: each palette (--pal-ids a,b; all thirty by default) landed through the page's door, the
 //                --pal-look (drop) from --pal-shot (FOH_WIDE), settled, drawn; --pal-kick adds the same view with a colour
@@ -129,6 +135,8 @@ const { values: opt } = parseArgs({
     "pal-look": { type: "string", default: "drop" },
     "pal-shot": { type: "string", default: "FOH_WIDE" },
     "pal-kick": { type: "boolean", default: false },
+    // the bank phase's diagnosis: F5 (haze) at this level on every page ("" leaves the set's default)
+    "bank-haze": { type: "string", default: "" },
   },
 });
 if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.set)) { console.log(`ERROR --set ${opt.set}: a set name`); process.exit(2); }
@@ -1298,6 +1306,215 @@ async function phaseKickRepeat({ ev, open, phase, deadline }) {
 
 // KICK v2 in the real page: the page-level pad door, the two buttons at once, the live level, the strobe band, key 5 and
 // Shift; then four contact frames of the kicks on FOH_WIDE (the receipt folder, for the eye). Logic every 60 fps frame.
+// KICK ROUND 3, THE COLOUR BANK (2026-10-29, kick.js header): what the SCREEN shows after a press of kick 5. Daniel: "also
+// pressing 5 never seems to change the full stage worth of lights, just a few accent lights. I want 5 to change light groups
+// using a palate across all the elements" and "I also want kick 5 to also adjust all lasers". The page in engine mode on
+// the fake engine (the groove section: its lasers' lattice runs), flash protection on (automation), at 832 x 384, the frames
+// read every second pixel. Each case: a look, a wide shot pinned, the bank stepped to k on both pages (programmer
+// bankAdvance, no burst), the limiter fresh, 30 frames drawn; page A draws on; page B presses kick 5 (0.8, held a quarter
+// beat) through the pad door; page C is A with the lasers' pass off (the laser pixels are where A and C differ by dE76 > 10).
+// Every frame from the press is drawn (the limiter sees them all). Frames read: the next frame (f1), a quarter beat on (q),
+// and four beats on (latched: the burst has faded, the bank holds).
+// PRE-REGISTERED (written before the first run): in the latched frame of every case
+//   B1  of the lit pixels (CIELAB L* >= 20 in A or B), 60 % or more have a hue in both frames (C* >= 10) that moved by
+//       30 degrees or more;
+//   B2  of the laser pixels, 80 % or more changed colour (dE76 > 10);
+//   B3  the red rule: B has no more saturated-red pixels (encoded R / (R + G + B) >= 0.8, L* >= 20) than A, plus 0.1 % of
+//       the frame, in every frame read;
+//   B4  the limiter (protection on) acted on no frame of B from the press to the latched frame;
+//   B5  the press shows on the next frame (f1: 1 % of the frame by dE76 > 10, as kickpix's R4).
+const BANK_W = 832, BANK_H = 384, BANK_STEP = 2;
+const BANK_CASES = (() => {
+  const out = [];
+  let pos = 16;
+  // k: the bank both pages stand at before the press (page B's own presses run it one ahead of page A, so each case
+  // starts both at 2 x its index: the comparison is always one step)
+  for (const look of ["groove", "drop"]) for (const shot of ["FOH_WIDE", "TRIBUNE_34"]) for (let j = 0; j < 2; j++) { out.push({ look, shot, k: 2 * out.length, start: pos + ((0.37 * out.length) % 1) }); pos += 12; }
+  return out;
+})();
+const BANK_CASE = String.raw`((c, mode) => {
+  const s = window.__stage, F = 1000 / 60, STEP = ${BANK_STEP};
+  const posNow = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+  const stepTo = (p, draw, each) => { s.skipRender = !draw; while (posNow() < p - 1e-9) { window.__vt.step(F); if (each) each(); } s.skipRender = false; };
+  const gl = s.renderer.gl, canvas = document.getElementById("gl");
+  const read = () => {
+    const w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const sw = Math.floor(w / STEP), sh = Math.floor(h / STEP), sub = new Uint8Array(sw * sh * 3);
+    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) { const i = ((y * STEP) * w + x * STEP) * 4, o = (y * sw + x) * 3; sub[o] = buf[i]; sub[o + 1] = buf[i + 1]; sub[o + 2] = buf[i + 2]; }
+    let bin = ""; for (let i = 0; i < sub.length; i += 0x8000) bin += String.fromCharCode.apply(null, sub.subarray(i, i + 0x8000));
+    return btoa(bin);
+  };
+  let acted = 0;
+  const count = () => { const g = s.renderer.info.gains; if (g && (g.a !== 1 || g.b !== 0)) acted++; };
+  if (mode === "C") s.features({ lasers: false });
+  if (c.setLook) { stepTo(c.start - 8, false); s.programmer.setLook(c.look, posNow(), { fade: 0 }); }
+  stepTo(c.start - 1, false);
+  s.setShot(c.shot, 0.5); s.resetLimiter();
+  for (let j = s.programmer.bank.count; j < c.k; j++) s.programmer.bankAdvance(posNow());
+  for (let i = 0; i < 30; i++) window.__vt.step(F);
+  stepTo(c.start, true);
+  const pressAt = posNow(), before = s.programmer.bank.count;
+  acted = 0;
+  if (mode === "B") window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0.8, on: true } }));
+  window.__vt.step(F); count();
+  const f1 = read();
+  stepTo(pressAt + 0.25, true, count);
+  const q = read();
+  if (mode === "B") window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0, on: false } }));
+  stepTo(pressAt + 4, true, count);
+  const L = read();
+  window.__bank = { f1, q, L };
+  return { sizes: [f1.length, q.length, L.length], acted, bankBefore: before, bankAfter: s.programmer.bank.count,
+           protection: s.flashProtection().on, bank: s.programmer.bankStatus() };
+})`;
+function labOf3(px) {
+  const n = px.length / 3, out = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = LIN8[px[i * 3]], g = LIN8[px[i * 3 + 1]], b = LIN8[px[i * 3 + 2]];
+    const fx = labF((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047), fy = labF(0.2126 * r + 0.7152 * g + 0.0722 * b), fz = labF((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+    out[i * 3] = 116 * fy - 16; out[i * 3 + 1] = 500 * (fx - fy); out[i * 3 + 2] = 200 * (fy - fz);
+  }
+  return out;
+}
+const isRed8 = (px, i) => { const r = px[i * 3], g = px[i * 3 + 1], b = px[i * 3 + 2], s = r + g + b; return s > 0 && r / s >= 0.8; };
+async function phaseBank({ ev, open, shot, phase, deadline }) {
+  phase.size = [BANK_W, BANK_H]; phase.sample_step = BANK_STEP; phase.cases_planned = BANK_CASES.length;
+  phase.prereg = { B1: "latched: >= 60 % of lit pixels (L* >= 20 in A or B) have a hue (C* >= 10) in both frames that moved >= 30 degrees",
+                   B2: "latched: >= 80 % of laser pixels (A vs lasers-off C, dE76 > 10) changed colour (A vs B dE76 > 10)",
+                   B3: "B's saturated-red pixels (encoded R share >= 0.8, L* >= 20) <= A's + 0.1 % of the frame, every read frame",
+                   B4: "the limiter acted on no frame of B from the press to the latched frame (protection on)",
+                   B5: "the press shows on the next frame: >= 1 % of the frame by dE76 > 10" };
+  const cases = BANK_CASES.map((c, i) => ({ ...c, setLook: i === 0 || BANK_CASES[i - 1].look !== c.look }));
+  const query = `engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&w=${BANK_W}&h=${BANK_H}&hud=0&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
+  const fetchB = async (name, len) => { const parts = []; for (let i = 0; i < len; i += 262144) parts.push(await ev(`window.__bank.${name}.slice(${i}, ${i + 262144})`, 60000)); return Buffer.from(parts.join(""), "base64"); };
+  const pages = {};
+  for (const mode of ["A", "C", "B"]) {
+    await open(query);
+    await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+    if (opt["bank-haze"] !== "") { await ev(`window.__stage.fader("haze", ${Number(opt["bank-haze"])})`); phase.haze_fader = Number(opt["bank-haze"]); }
+    pages[mode] = [];
+    for (const c of cases) {
+      if (Date.now() > deadline - 20000) break;
+      const r = await ev(`${BANK_CASE}(${JSON.stringify(c)}, ${JSON.stringify(mode)})`, 160000);
+      // stills for the eye: the latched frame of each look's first case, with and without the press
+      if (mode !== "C" && c.setLook) await shot(join(sheetDir || outDir, `bank-${c.look}-${c.shot}-${mode === "A" ? "before" : "after"}.png`));
+      const fr = {};
+      for (const [k, name] of ["f1", "q", "L"].entries()) fr[name] = await fetchB(name, r.sizes[k]);
+      pages[mode].push({ ...r, fr });
+    }
+  }
+  const rows = [];
+  for (let i = 0; i < Math.min(pages.A.length, pages.B.length, pages.C.length); i++) {
+    const c = cases[i], A = pages.A[i], B = pages.B[i], C = pages.C[i];
+    const row = { look: c.look, shot: c.shot, bank_from: B.bankBefore, bank_to: B.bankAfter, limiter_acted_B: B.acted, protection: B.protection };
+    for (const name of ["f1", "q", "L"]) {
+      const a = A.fr[name], b = B.fr[name], la = labOf3(a), lb = labOf3(b), lc = labOf3(C.fr[name]);
+      const n = la.length / 3;
+      let lit = 0, hued = 0, laser = 0, laserCh = 0, ch10 = 0, redA = 0, redB = 0, chromaLit = 0, bright = 0, brightHued = 0;
+      const dhs = [];
+      for (let p = 0; p < n; p++) {
+        const LA = la[p * 3], LB = lb[p * 3], aA = la[p * 3 + 1], bA = la[p * 3 + 2], aB = lb[p * 3 + 1], bB = lb[p * 3 + 2];
+        const dAB = Math.hypot(LA - LB, aA - aB, bA - bB);
+        if (dAB > 10) ch10++;
+        if (LA >= 20 || LB >= 20) {
+          lit++;
+          if (LA >= 50 || LB >= 50) bright++;
+          if (Math.hypot(aA, bA) >= 10 && Math.hypot(aB, bB) >= 10) {
+            let dh = Math.abs(Math.atan2(bA, aA) - Math.atan2(bB, aB)) * 180 / Math.PI;
+            if (dh > 180) dh = 360 - dh;
+            chromaLit++; dhs.push(dh);
+            if (dh >= 30) { hued++; if (LA >= 50 || LB >= 50) brightHued++; }
+          }
+        }
+        if (Math.hypot(LA - lc[p * 3], aA - lc[p * 3 + 1], bA - lc[p * 3 + 2]) > 10) { laser++; if (dAB > 10) laserCh++; }
+        if (LA >= 20 && isRed8(a, p)) redA++;
+        if (LB >= 20 && isRed8(b, p)) redB++;
+      }
+      dhs.sort((x, y) => x - y);
+      row[name] = { lit_share: +(lit / n).toFixed(4), hue30: lit ? +(hued / lit).toFixed(4) : null,
+                    chroma_lit_share: lit ? +(chromaLit / lit).toFixed(4) : null, hue30_of_chroma: chromaLit ? +(hued / chromaLit).toFixed(4) : null,
+                    hue_move_median: dhs.length ? +dhs[dhs.length >> 1].toFixed(1) : null, bright_share: +(bright / n).toFixed(4), hue30_of_bright: bright ? +(brightHued / bright).toFixed(4) : null, laser_px: laser, laser_changed: laser ? +(laserCh / laser).toFixed(4) : null,
+                    changed_de10: +(ch10 / n).toFixed(4), red_A: +(redA / n).toFixed(5), red_B: +(redB / n).toFixed(5) };
+    }
+    rows.push(row);
+    console.log(`bank case ${c.look.padEnd(6)} ${c.shot.padEnd(11)} bank ${row.bank_from}->${row.bank_to}: latched hue>=30 ${(100 * row.L.hue30).toFixed(1)} % of lit (${(100 * row.L.lit_share).toFixed(1)} % of frame lit; ${(100 * row.L.chroma_lit_share).toFixed(1)} % of lit chromatic, of those ${(100 * row.L.hue30_of_chroma).toFixed(1)} % moved, median ${row.L.hue_move_median} deg; L*>=50 ${(100 * row.L.bright_share).toFixed(1)} % of frame, ${(100 * (row.L.hue30_of_bright ?? 0)).toFixed(1)} % moved), lasers changed ${row.L.laser_changed === null ? "-" : (100 * row.L.laser_changed).toFixed(1) + " %"} of ${row.L.laser_px} px; f1 dE10 ${(100 * row.f1.changed_de10).toFixed(1)} %; q hue>=30 ${(100 * row.q.hue30).toFixed(1)} %; red A ${row.L.red_A} B ${row.L.red_B}; limiter acted ${row.limiter_acted_B}`);
+  }
+  phase.cases = rows;
+  phase.bank_status = pages.B.length ? pages.B[pages.B.length - 1].bank : null;
+  check(`bank: every case measured (${rows.length} of ${cases.length})`, rows.length === cases.length, { measured: rows.length });
+  check("bank: the press stepped the bank by one in every case (B), A and C stayed, and A and B stood at the same bank before it", rows.length && rows.every((r) => r.bank_to === r.bank_from + 1) && pages.A.every((x, i) => x.bankAfter === x.bankBefore && x.bankBefore === pages.B[i].bankBefore), rows.map((r, i) => [pages.A[i].bankBefore, r.bank_from, r.bank_to]));
+  check("bank: flash protection on in every page", ["A", "B", "C"].every((m) => pages[m].length && pages[m].every((x) => x.protection)));
+  check("bank B1: latched, 60 % or more of the lit pixels moved hue by 30 degrees or more", rows.length && rows.every((r) => r.L.hue30 >= 0.6), rows.map((r) => `${r.look} ${r.shot} ${r.bank_from}: ${r.L.hue30}`));
+  check("bank B2: latched, 80 % or more of the laser pixels changed colour", rows.length && rows.every((r) => r.L.laser_px > 200 && r.L.laser_changed >= 0.8), rows.map((r) => `${r.look} ${r.shot} ${r.bank_from}: ${r.L.laser_changed} of ${r.L.laser_px}`));
+  check("bank B3: the red rule, no saturated red added", rows.length && rows.every((r) => ["f1", "q", "L"].every((n) => r[n].red_B <= r[n].red_A + 0.001)), rows.map((r) => [r.L.red_A, r.L.red_B]));
+  check("bank B4: the limiter acted on no frame of B (protection on)", rows.length && rows.every((r) => r.limiter_acted_B === 0), rows.map((r) => r.limiter_acted_B));
+  check("bank B5: the press shows on the next frame", rows.length && rows.every((r) => r.f1.changed_de10 >= 0.01), rows.map((r) => r.f1.changed_de10));
+}
+
+// THE HAZE FADER (2026-10-29, atmos.js header). Daniel: "It looks like the haze knob doesn't quite fully control the haze".
+// The page in engine mode on FOH_WIDE at 832 x 384: the KeyLab's F5 sent through the fake engine as cc109 (as an absolute
+// event, and once as the "rel" event the hub's decoder can file a fader as), then 6 s of logic, then drawn. Pages at
+// F5 = 0, 0.5, 1 and one at 0 with the haze's passes (wide beams, veil) off, the same frame position in each.
+// PRE-REGISTERED (written before the first run): H1 the state's haze level follows the fader (|H - F5| < 0.01), sigma0 is
+// 0 at F5 = 0 and SIGMA_MAX x F5 otherwise, every hazer plume 0 at F5 = 0; H2 at F5 = 0 the frame equals the frame with
+// the haze passes off (pixels differing by dE76 > 3: 0.2 % or less: no haze left anywhere on screen); H3 the frame's mean
+// luminance rises 0 < 0.5 < 1; H4 the HUD row reads the real level; H5 a rel-filed cc109 moves the fader too.
+async function phaseHaze({ ev, open, phase, deadline }) {
+  const query = `engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&w=${BANK_W}&h=${BANK_H}&quality=receipt&set=${opt.set}${opt.query ? `&${opt.query}` : ""}`;
+  const F = 1000 / 60;
+  const runs = [{ f5: 0, rel: false, off: false }, { f5: 0.5, rel: true, off: false }, { f5: 1, rel: false, off: false }, { f5: 0, rel: false, off: true }];
+  const out = [];
+  for (const r of runs) {
+    if (Date.now() > deadline - 15000) break;
+    await open(query);
+    await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+    const raw = Math.round(r.f5 * 127);
+    send(r.rel ? { t: "ctl", id: "cc109", kind: "rel", value: 0.5, delta: raw - 64 } : { t: "ctl", id: "cc109", kind: "abs", value: raw / 127, delta: 0 });
+    await waitFor(() => ev(`Math.abs(window.__stage.faders.haze - ${raw / 127}) < 1e-6`), 10000, "the fader event");
+    const got = await ev(String.raw`(() => {
+      const s = window.__stage, F = ${F}, STEP = ${BANK_STEP};
+      if (${r.off}) s.features({ beams: false, veil: false });
+      s.skipRender = true; for (let i = 0; i < 360; i++) window.__vt.step(F); s.skipRender = false;
+      s.setShot("FOH_WIDE", 0.5);
+      for (let i = 0; i < 6; i++) window.__vt.step(F);
+      const gl = s.renderer.gl, canvas = document.getElementById("gl"), w = canvas.width, h = canvas.height, buf = new Uint8Array(w * h * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      const sw = Math.floor(w / STEP), sh = Math.floor(h / STEP), sub = new Uint8Array(sw * sh * 3);
+      for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) { const i = ((y * STEP) * w + x * STEP) * 4, o = (y * sw + x) * 3; sub[o] = buf[i]; sub[o + 1] = buf[i + 1]; sub[o + 2] = buf[i + 2]; }
+      let bin = ""; for (let i = 0; i < sub.length; i += 0x8000) bin += String.fromCharCode.apply(null, sub.subarray(i, i + 0x8000));
+      window.__haze = btoa(bin);
+      const st = s.state();
+      return { size: window.__haze.length, haze: st.haze, pos: st.pos };
+    })()`, 160000);
+    // the HUD row refreshes every 100 ms of the page's clock: step a few frames without drawing, then read it
+    const hud = await ev(String.raw`(() => { const s = window.__stage; s.skipRender = true; for (let i = 0; i < 8; i++) window.__vt.step(${F}); s.skipRender = false; return (document.getElementById("hud-haze") || {}).textContent || null; })()`);
+    const parts = [];
+    for (let i = 0; i < got.size; i += 262144) parts.push(await ev(`window.__haze.slice(${i}, ${i + 262144})`, 60000));
+    const px = Buffer.from(parts.join(""), "base64");
+    let lum = 0;
+    for (let p = 0; p < px.length; p += 3) lum += 0.2126 * LIN8[px[p]] + 0.7152 * LIN8[px[p + 1]] + 0.0722 * LIN8[px[p + 2]];
+    out.push({ ...r, lab: labOf3(px), mean_lum: lum / (px.length / 3), haze: got.haze, pos: got.pos, hud });
+    console.log(`haze F5 ${r.f5}${r.rel ? " (rel event)" : ""}${r.off ? " haze passes off" : ""}: H ${got.haze.H.toFixed(4)} sigma0 ${got.haze.sigma0.toFixed(5)} hazers max ${Math.max(...got.haze.hazerSigma).toFixed(5)} mean luminance ${(lum / (px.length / 3)).toFixed(5)} pos ${got.pos.toFixed(3)} HUD "${hud}"`);
+  }
+  phase.runs = out.map(({ lab, ...x }) => x);
+  check(`haze: every run measured (${out.length} of ${runs.length})`, out.length === runs.length);
+  if (out.length !== runs.length) return;
+  const at = (f5, off = false) => out.find((x) => x.f5 === f5 && x.off === off);
+  const z = at(0), h5 = at(0.5), one = at(1), zoff = at(0, true);
+  check("haze H1: the level is the fader's (H within 0.01 of F5), sigma0 0 at F5 0 and 0.02 x F5 above, the hazers' plumes 0 at F5 0",
+        out.every((x) => Math.abs(x.haze.H - x.haze.fader) < 0.01) && z.haze.sigma0 === 0 && z.haze.hazerSigma.every((v) => v === 0) && Math.abs(h5.haze.sigma0 - 0.02 * h5.haze.fader) < 2e-4 && Math.abs(one.haze.sigma0 - 0.02) < 2e-4,
+        out.map((x) => ({ f5: x.haze.fader, H: +x.haze.H.toFixed(4), sigma0: +x.haze.sigma0.toFixed(5), hazers: +Math.max(...x.haze.hazerSigma).toFixed(5) })));
+  let diff = 0;
+  const n = z.lab.length / 3;
+  for (let p = 0; p < n; p++) if (Math.hypot(z.lab[p * 3] - zoff.lab[p * 3], z.lab[p * 3 + 1] - zoff.lab[p * 3 + 1], z.lab[p * 3 + 2] - zoff.lab[p * 3 + 2]) > 3) diff++;
+  phase.zero_vs_passes_off = { differing_de3: diff, share: +(diff / n).toFixed(5), same_pos: Math.abs(z.pos - zoff.pos) < 1e-6 };
+  check("haze H2: at F5 0 the frame is the frame with the haze's passes off (dE76 > 3 on 0.2 % of pixels or less)", phase.zero_vs_passes_off.same_pos && diff / n <= 0.002, phase.zero_vs_passes_off);
+  check("haze H3: the frame's mean luminance rises with F5 (0 < 0.5 < 1)", z.mean_lum < h5.mean_lum && h5.mean_lum < one.mean_lum, [z.mean_lum, h5.mean_lum, one.mean_lum].map((x) => +x.toFixed(5)));
+  check("haze H4: the HUD reads the real level and the fader", /^0 % \(F5\)/.test(z.hud || "") && /^50 % \(F5\)/.test(h5.hud || "") && /^100 % \(F5\)/.test(one.hud || ""), [z.hud, h5.hud, one.hud]);
+  check("haze H5: a cc109 the hub filed as relative moves the fader (F5 64/127 from a rel event)", Math.abs(h5.haze.fader - 64 / 127) < 1e-6 && Math.abs(h5.haze.H - 64 / 127) < 0.01, h5.haze);
+}
+
 async function phaseKick({ ev, open, shot, phase }) {
   await open(`demo=1&vt=1&${BASE}`);
   // into the break (bar 41), where the demo presses no pads of its own (in the drop it presses pad 1 on every downbeat,
@@ -2122,7 +2339,7 @@ try {
   report.ports = { web: PORT, engine: ENGINE_PORT };
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
-                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat,
+                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat, bank: phaseBank, haze: phaseHaze,
                   palettes: phasePalettes, phonebar: phasePhoneBar };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
