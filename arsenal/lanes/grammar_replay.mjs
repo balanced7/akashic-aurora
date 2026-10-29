@@ -18,6 +18,7 @@ import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { Grammar, windowsFor, positionOf } from "../web/stage/grammar.js";
+import { Ensembles } from "../web/stage/ensemble.js";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url)).replace(/[\\/]+$/, "");
 const { values: opt, positionals } = parseArgs({ allowPositionals: true, options: { out: { type: "string", default: "" }, clock: { type: "string", default: "os" } } });
@@ -36,8 +37,26 @@ function replay(file) {
   for (const l of lines) { try { recs.push(JSON.parse(l)); } catch { /* a torn last line */ } }
   let beat = null;                      // {bpm, pc}
   let nowPc = 0;
-  const g = new Grammar({ beatMs: () => (beat && nowPc - beat.pc < 2 && beat.bpm > 0 ? 60000 / beat.bpm : null) });
+  // the ensembles as the page wires them: canFade reads the fade's target, every decision is planned (the BREATH path)
+  const ens = new Ensembles();
+  const g = new Grammar({ beatMs: () => (beat && nowPc - beat.pc < 2 && beat.bpm > 0 ? 60000 / beat.bpm : null), canFade: (dir) => ens.canFade(dir) });
   const all = [];
+  const breathPath = [];                // [t, target] after every decision that moved it
+  let noopTakeovers = 0;
+  const lineageStart = new Map();       // lineage -> {t0, strum, W}: a new attack identity inside a strum's W is a split gesture
+  let strumSplits = 0;
+  const plan = (d, t) => {
+    const before = ens.breath.target;
+    ens.plan(d);
+    if (d.type === "breath" && (d.phase === "start" || d.phase === "step") && ens.breath.target === before) noopTakeovers++;
+    if (ens.breath.target !== before) breathPath.push([t, ens.breath.target]);
+    if (d.type === "press" && !lineageStart.has(d.lineage)) {
+      for (const L of lineageStart.values()) if (L.strum && d.t - L.t0 <= L.W) strumSplits++;
+      lineageStart.set(d.lineage, { t0: d.t, strum: false, W: windowsFor(g.B()).W });
+      if (lineageStart.size > 64) lineageStart.delete(lineageStart.keys().next().value);
+    }
+    if (d.type === "reclassify" && d.to === "strum" && lineageStart.has(d.lineage)) lineageStart.get(d.lineage).strum = true;
+  };
   let fresh = 0, keys = 0, utility = 0, lastKeyT = null;
   const downGaps = [];                  // consecutive number-row/C downs, ms
   let firstT = null, lastT = null;
@@ -57,10 +76,21 @@ function replay(file) {
       if (firstT === null) firstT = t;
       lastT = t;
     }
-    for (const d of g.settle(t)) all.push(d);
-    for (const d of g.input({ source: "key", control, down: r.down, t, velocity: 0.8 })) all.push({ ...d, _t: t });
+    for (const d of g.settle(t)) { all.push(d); plan(d, t); }
+    for (const d of g.input({ source: "key", control, down: r.down, t, velocity: 0.8 })) { all.push({ ...d, _t: t }); plan(d, t); }
   }
-  for (const d of g.settle(Infinity)) all.push(d);
+  for (const d of g.settle(Infinity)) { all.push(d); plan(d, lastT); }
+  // BREATH over the take: the share of the playing time the fade's target sat below half, at black, and where it ended
+  let below = 0, black = 0;
+  if (firstT !== null && lastT > firstT) {
+    let tgt = 1, at = firstT;
+    for (const [t, v] of [...breathPath, [lastT, null]]) {
+      const tt = Math.max(firstT, Math.min(lastT, t));
+      if (tgt < 0.5) below += tt - at; if (tgt <= 1e-9) black += tt - at;
+      at = tt; if (v !== null) tgt = v;
+    }
+  }
+  const span = firstT !== null && lastT > firstT ? lastT - firstT : 0;
   // the gestures' own timing (no sequences: distributions only)
   const settles = all.filter((d) => d.type === "settle");
   const presses = all.filter((d) => d.type === "press");
@@ -93,7 +123,10 @@ function replay(file) {
     take: basename(file), records: recs.length, minutes_of_playing: +minutes.toFixed(2),
     number_row_and_C_downs: keys, utility_keys_skipped: utility, with_a_fresh_clock: keys ? +(fresh / keys).toFixed(3) : null,
     recogniser: { singles: c.singles, chords: c.chords, strums: c.strums, walks: c.walks, fades: c.sweeps, fade_steps: c.breathSteps,
-                  dispatched: c.dispatched, suppressed_by_fades: c.suppressed, auto_repeats_ignored: c.repeats },
+                  dispatched: c.dispatched, suppressed_by_fades: c.suppressed, auto_repeats_ignored: c.repeats,
+                  fade_keys_that_moved_nothing: noopTakeovers, new_gestures_inside_a_strums_W: strumSplits },
+    breath: { share_of_playing_below_half: span ? +(below / span).toFixed(3) : null, share_at_black: span ? +(black / span).toFixed(3) : null,
+              final_target: +ens.breath.target.toFixed(3), punches: { attacks: ens.stats.attacks, joined: ens.stats.joined } },
     intervals_ms: {
       consecutive_downs: { ...dist(downGaps), bands_at_400ms: { edges: [90, B0.W, B0.slowMin, B0.slowMax, 450].map((x) => +x.toFixed(1)), counts: hist(downGaps, [90, B0.W, B0.slowMin, B0.slowMax, 450]) } },
       chord_member_after_first: dist(chordSpread), chord_size: dist(chordSize),
@@ -111,6 +144,7 @@ writeFileSync(file, JSON.stringify(out, null, 2));
 for (const t of out.takes) {
   const r = t.recogniser, iv = t.intervals_ms;
   console.log(`${t.take}: ${t.number_row_and_C_downs} downs (${t.minutes_of_playing} min, fresh clock ${t.with_a_fresh_clock}) -> singles ${r.singles}, chords ${r.chords}, strums ${r.strums}, walks ${r.walks}, fades ${r.fades} (${r.fade_steps} steps, ${r.suppressed_by_fades} keys owned by fades); auto-repeats ignored ${r.auto_repeats_ignored}`);
+  console.log(`  breath: below half ${t.breath.share_of_playing_below_half}, at black ${t.breath.share_at_black}, ends at ${t.breath.final_target}; fade keys that moved nothing ${r.fade_keys_that_moved_nothing}; new gestures inside a strum's W ${r.new_gestures_inside_a_strums_W}`);
   console.log(`  consecutive downs ms p10/p50/p90 ${iv.consecutive_downs.p10}/${iv.consecutive_downs.p50}/${iv.consecutive_downs.p90}; chord spread p50 ${iv.chord_member_after_first.p50}; strum step p50 ${iv.strum_step.p50}; fade step p50 ${iv.fade_step.p50}`);
 }
 console.log(`receipt: ${file}`);
