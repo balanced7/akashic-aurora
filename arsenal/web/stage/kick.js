@@ -93,8 +93,10 @@
 //                 matched luminance (palettes.js checks the ratio is 0.80 or more), and the heads alternate where the plan
 //                 says so -- a roll of taps is a run of colour flips, never a bright/dark swing.
 //   THE DEALER    a colour kick is never dealt an area of heads alone that cannot change colour (the halo in a palette whose
-//                 heads rest on white), and the strand is dealt at least once in every three presses while it shows
-//                 (Daniel's "dont change at all").
+//                 heads rest on white), and a white kick never one that cannot show white (heads alone on a colour slot:
+//                 it never turns a wheel); the strand is dealt at least once in every three presses while it shows
+//                 (Daniel's "dont change at all"); of the areas that show, the one whose screen share times the share of
+//                 its members the hit changes is largest.
 
 import { MotionDealer, valueAt, headSign, CLASSES, seededRng } from "../vj-motions.js";
 import { ORDERS, orderKey, rankBy } from "./effects.js";
@@ -618,6 +620,12 @@ export class Kicks {
     const s = this._slotsFor(card, { lift: 0 });
     return !!s && s.some((x) => x >= 0);
   }
+  // can a white kick show white here? (it never turns a wheel: an area of heads alone shows white only where its heads are
+  // on the white slot; anywhere else the LEDs carry the white). Without a palette (a set theme) every area may.
+  _whiteShows(card) {
+    if (card.cells.length || !this.p.plan) return true;
+    return card.heads.some((i) => this.p.wheels[i] && this.p.wheelSlotOf(i) === 0);
+  }
   // the colour kick's pattern jump: every colour effect running on the area's groups (the strand's helix, the ring ladder)
   // jumps a quarter cycle on the hit and eases back over a beat (effects.js EffectInstance.kickJump)
   _jump(card, pos) {
@@ -702,20 +710,26 @@ export class Kicks {
     const shows = (c) => { let j = judged.get(c); if (!j) { j = this.judge(c, kind, level, band); judged.set(c, j); if (!j.ok) passed++; } return j.ok; };
     // PALETTES: a colour kick never takes an area of heads alone that cannot change colour; and the strand is dealt at least
     // once in every STRAND_EVERY presses (of either button) while it shows and no other kick has it
-    const colourKind = spec.colour === "palette";
+    const colourKind = spec.colour === "palette", whiteKind = spec.colour === "white";
+    const truthful = (card) => (!colourKind || this._colourShows(card)) && (!whiteKind || this._whiteShows(card));
     const strandIdx = this.cards.findIndex((c) => c.zone === "strand");
-    if (strandIdx >= 0 && this.deck.forceNext < 0 && this.sinceStrand >= STRAND_EVERY - 1 && !aliveOther.has(strandIdx) &&
-        (!colourKind || this._colourShows(this.cards[strandIdx])) && shows(strandIdx)) this.deck.forceNext = strandIdx;
+    if (strandIdx >= 0 && this.deck.forceNext < 0 && this.sinceStrand >= STRAND_EVERY - 1 && !aliveOther.has(strandIdx) && lastMine !== strandIdx &&
+        truthful(this.cards[strandIdx]) && shows(strandIdx)) this.deck.forceNext = strandIdx;
     const ci = this.deck.deal((c, pass) => {
       if (aliveOther.has(c)) return false;
-      if (colourKind && !this._colourShows(this.cards[c])) return false;
+      if (!truthful(this.cards[c])) return false;
       if (pass === -1 || pass === 4) return true;                     // a forced card (tests and receipts); the last resort
       if (pass === 2) return shows(c);                                // it shows: the button's last or its own fading allowed
       if (aliveMine.has(c)) return false;
       if (pass === 3) return c !== lastMine;                          // nothing shows anywhere: the next area anyway
       if (c === lastMine || (c === this.deck.last && this.cards.length > 2)) return false;
       return pass === 0 ? shows(c) && this.cards[c].zone !== this.lastZone : shows(c);
-    }, this.view ? (c) => { const j = judged.get(c); const v = j ? j.view : this.view(this.cards[c]); return typeof v === "number" ? v : v.cover; } : null);
+    }, this.view ? (c) => {
+      // the area the hit will show on most: how much of the frame it covers, weighted by the share of its members the hit
+      // changes (PALETTES: a lift inside the palette changes some areas far more than others)
+      const j = judged.get(c); const v = j ? j.view : this.view(this.cards[c]);
+      return (typeof v === "number" ? v : v.cover) * (j ? 0.25 + 0.75 * j.changed : 1);
+    } : null);
     this.passedOver += passed;
     if (ci < 0) { this.unlit++; return null; }
     const card = this.cards[ci];

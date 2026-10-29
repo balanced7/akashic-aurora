@@ -28,9 +28,18 @@
 //     the current colour for the hits to come                                  colourSequence, ColourStepper, themeLook
 // The page owns the clock, the GL and the posting: it hands this module a clock adapter and reads plans back. Nothing
 // here schedules a timer; ThemeDirector.tick(now) is called from the frame loop.
+//
+// PALETTES (2026-10-28, arsenal/web/palettes.js; research/in-flight/palettes-2026-10-28/DESIGN.md section 6.3): one palette
+// library for the Stage and the VJ page. fetchLibrary also loads palettes.json (validated by the shared palette validator,
+// the stricter red rule and the wheel plans) and withPalettes() adds each palette as a theme of this library -- id
+// "pal-<palette id>", its family tab "pal-<family>" (violet, pink, blue, green, warm, neutral), off the fader (it is full at
+// 25) -- carrying the palette's own A, B, W, ground, line, laser pair and pad stand-ins, so a palette shows the same colours
+// on both pages. The merged library is checked by validateLibrary like the rest. Without palettes.json the page keeps its
+// own library.
 
 import { linearToOklab, oklabToLinear, rgbToHex, EFFECTS, CONTROLS, DEFAULT_PAD_MAP } from "./vj-core.js";
 import { nextDownbeatAt } from "./vj-show.js";
+import { loadPalettes, vjTheme as paletteVjTheme } from "./palettes.js";
 
 export const THEMES_API = "arsenal.vj-themes/v1";
 
@@ -438,11 +447,50 @@ export class SpecialModes {
   }
 }
 
-// The page's loader: fetch, validate, index. A library that fails validation rejects (the page keeps its fader palette).
-export async function fetchLibrary(url = new URL("./vj-themes.json", import.meta.url), fetchImpl = globalThis.fetch) {
+// PALETTES: the palette library's family tabs on this page, in the library's order
+export const PALETTE_FAMILY_PREFIX = "pal-";
+// A palette library (palettes.js loadPalettes) as themes of this one: each palette's VJ theme (palettes.js vjTheme) with
+// the id "pal-<id>" (the 37 themes here keep theirs: Molten and Dreaming City exist on both pages with their own data),
+// and a playbook for each palette family tab (anti and break: its slowest palette; climax and drop2: its driving ones).
+export function paletteThemes(palLib) {
+  return palLib.list.map((p) => ({ ...paletteVjTheme(p), id: `${PALETTE_FAMILY_PREFIX}${p.id}`, palette_id: p.id }));
+}
+export function withPalettes(raw, palLib) {
+  const data = typeof raw === "string" ? JSON.parse(raw) : JSON.parse(JSON.stringify(raw));
+  if (!palLib || !palLib.list || !palLib.list.length) return data;
+  const themes = paletteThemes(palLib), have = new Set(data.themes.map((t) => t.id));
+  const fresh = themes.filter((t) => !have.has(t.id));
+  data.themes = [...data.themes, ...fresh];
+  data.families = { ...(data.families || {}) };
+  const byFam = {};
+  for (const t of fresh) (byFam[t.family] = byFam[t.family] || []).push(t);
+  for (const [fam, list] of Object.entries(byFam)) {
+    const tempo = (t) => (palLib.byId[t.palette_id].tempo || {}).name;
+    const slow = list.find((t) => ["slow", "still"].includes(tempo(t))) || list[0];
+    const drive = list.filter((t) => ["drive", "raw", "walk"].includes(tempo(t)));
+    data.families[fam] = { anti: slow.id, climax: (drive[0] || list[0]).id, drop2: (drive[1] || drive[0] || list[0]).id, break: slow.id };
+  }
+  return data;
+}
+export function paletteFamilies(lib) { return Object.keys(lib.families).filter((f) => f.startsWith(PALETTE_FAMILY_PREFIX)); }
+
+// The page's loader: fetch, validate, index (with the palette library, unless palettesUrl is null; a palette library that
+// does not load leaves this library as it is). A library that fails validation rejects (the page keeps its fader palette).
+export async function fetchLibrary(url = new URL("./vj-themes.json", import.meta.url), fetchImpl = globalThis.fetch,
+                                   { palettesUrl = new URL("./palettes.json", import.meta.url), onPalettes = null } = {}) {
   const res = await fetchImpl(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`vj-themes: ${url} answered ${res.status}`);
-  return loadLibrary(await res.text());
+  let raw = await res.text();
+  if (palettesUrl) {
+    try {
+      const pr = await fetchImpl(palettesUrl, { cache: "no-store" });
+      if (!pr.ok) throw new Error(`${palettesUrl} answered ${pr.status}`);
+      const palLib = loadPalettes(await pr.json());
+      raw = withPalettes(raw, palLib);
+      if (onPalettes) onPalettes({ ok: true, count: palLib.list.length, refused: palLib.refused });
+    } catch (e) { if (onPalettes) onPalettes({ ok: false, error: String((e && e.message) || e) }); }
+  }
+  return loadLibrary(raw);
 }
 
 // ------------------------------------------------------------------------------------------ choosing a theme --

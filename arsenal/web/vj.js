@@ -87,7 +87,7 @@ import { createLimiter } from "./vj-limiter.js";   // gate v2: the final-output 
 // Lasers v2 (2026-10-25): the laser engine (pad 2), the colour themes (fader 1, the family tabs, key auto) and the pure
 // hook-up between them and the page (the clock, the beam records, the head bus, the tap pads, the gate dial, Custom)
 import { createLaserEngine, SEG_TEXELS, MAX_SEGMENTS, SEG_FLOATS, HALO_CUTOFF_PX, TIER_LED, catalogue as laserCatalogue } from "./vj-lasers.js";
-import { fetchLibrary, ThemeDirector, themeAtFader, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
+import { fetchLibrary, paletteFamilies, ThemeDirector, themeAtFader, padLeds, ledHexAt, ledPostedOk, CHOKE_LED,
          clockFromBeatClock as themeClockOf, customTurnFromFader, ColourStepper } from "./vj-themes.js";
 import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, GateDial, gateLabel,
          customLaserTheme, standInLed, capHue, airOf, cathedralBeams, CathedralHeads } from "./vj-hookup.js";
@@ -2304,7 +2304,9 @@ const themeClock = {
 };
 async function loadThemes() {
   try {
-    const lib = await fetchLibrary();
+    // PALETTES (2026-10-28): the library carries the thirty palettes of arsenal/web/palettes.json as themes "pal-<id>" in the
+    // family tabs pal-violet ... pal-neutral (Shift+F1-F6), the same colours the Stage shows; ?theme=pal-source-violet
+    const lib = await fetchLibrary(undefined, undefined, { onPalettes: (r) => { themes.palettes = r; if (!r.ok) recordError("load", "palettes", r.error); } });
     themes.lib = lib;
     let initial = THEME_AT_START && lib.byId.has(THEME_AT_START) ? THEME_AT_START : null, custom = false;
     if (!initial) {
@@ -3439,9 +3441,11 @@ function wireUi() {
   const typing = (el) => el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") && el.type !== "range";
   window.addEventListener("keydown", (e) => {
     if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (FAMILY_KEYS[e.code] !== undefined) {   // F1-F8: the family tabs
+    if (FAMILY_KEYS[e.code] !== undefined) {   // F1-F8: the family tabs; Shift+F1-F6: the palette families (PALETTES)
       e.preventDefault();
-      if (!e.repeat) pickFamily(FAMILY_ACTIONS[FAMILY_KEYS[e.code]].family);
+      const pf = e.shiftKey && themes.lib ? paletteFamilies(themes.lib) : null;
+      const fam = pf ? pf[FAMILY_KEYS[e.code]] : FAMILY_ACTIONS[FAMILY_KEYS[e.code]].family;
+      if (!e.repeat && fam) pickFamily(fam);
       return;
     }
     const pad = KEY_PADS[e.code];
@@ -3611,6 +3615,7 @@ window.__vj = {
                pending: d && d.state.pending ? { id: d.state.pending.id, on: d.state.pending.on, reason: d.state.pending.reason } : null,
                locked: d ? d.locked : false, key: d ? d.key : null, mode: d ? d.mode : null, keyAuto: options.keyAuto,
                changes: themes.changes, cuts: themes.cuts, last: themes.lastChange, keyEvents: themes.keyEvents,
+               palettes: themes.palettes ? { ...themes.palettes, refused: (themes.palettes.refused || []).map((r) => r.id) } : null,
                fader: +T.theme.toFixed(4), faderTheme: themes.lib ? themeAtFader(themes.lib, T.theme) : null,
                palette: Array.from(palNow, (v) => +v.toFixed(4)) };
     })(),
