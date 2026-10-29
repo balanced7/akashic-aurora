@@ -83,17 +83,18 @@ Every headless run: SwiftShader, the house GPU lock, below-normal priority, test
 
 | id | bar | result | verdict |
 |---|---|---|---|
-| K1 | kickpix median >= 44.4 % | 27.2 % (with the dealer changes; 26.2 % first run); the final code's run is pending (renders paused for Daniel's game) | **NOT MET** (section 5) |
-| K2 | kickpix minimum >= 8.9 % | 8.6 % (break, DJ_OTS, colour kick on the strand: round 2's weakest case, 8.9 % there) | **NOT MET**, by 0.3 points |
+| K1 | kickpix median >= 44.4 % | 27.2 % with the dealer changes (26.2 % first run). The run on the very last code (one dealer guard more, `c54d0e304`) is not done: renders were paused (below) | **NOT MET** (section 5) |
+| K2 | kickpix minimum >= 8.9 % | 8.6 % in both runs (break, DJ_OTS, colour kick on the strand: round 2's own weakest case, 8.9 % there) | **NOT MET**, by 0.3 points |
 | K3 | latency 1 frame in all 46, no unlit press, every control frame identical | held in both runs: 1 frame in 46 of 46, 0 unlit, every control frame identical | met |
 | A1 | colour-kicked head frames on the warm-white slot ~0 % unless declared | 0 of 59,960 in all 30 palettes (before: 66-70 % in the violet themes; the halo 100 %) | met |
 | A2 | white-kicked heads: no wheel moves | 0 of 62,848 head frames | met |
 | A3 | colour-kicked heads on a palette colour >= 90 % where heads can lift | 97.7-98.6 % in the 26 that can; the 4 white-resting palettes never colour-kick the heads-only halo | met |
-| F1-F5 | flash, flash 30, storm, kickstorm + stitch, limiter loads | pending: the GPU lock is held while Daniel plays ("Daniel is gaming: renders paused"); not run on any palette code yet | **NOT YET RUN** |
-| N1 | every stage_* and vj_* node test | 405 of 405 (before the last test was added; 14 of 14 in stage_palettes after it) | met |
-| N2 | new tests | stage_palettes 14, vj_palettes 5: all pass | met |
+| F1-F5 | flash, flash 30, storm, kickstorm + stitch, the limiter loads | **not run**: the house GPU lock was held by "Daniel is gaming: renders paused until he is done" from 03:53 to past 09:58 UTC (6 h), and the coordinator asked that no render start | **NOT RUN** (the commands are below) |
+| N1 | every stage_* and vj_* node test | 405 of 405 on `c54d0e304`; 14 of 14 in stage_palettes after the last test was added | met |
+| N2 | the new tests | stage_palettes 14, vj_palettes 5: all pass | met |
 | V1 | the contact sheet, all 30 looked at | done; Moon Hive fixed; two observations (section 6) | met |
 | P1 | headless phone check | 8 of 8 (stage-20261029-031606): the pad shows the palette, the strip wears the lift colours, a touch queues the next palette for the 16-bar line, one event per change, frame time with the bar 160-167 ms against 167 ms without (SwiftShader), a finger on the strip kicks in the lift colour, the landing updates the pad and the strip, no errors | met |
+| load | the page boots with the palettes | `load` 5 of 5 and `palettes` 2 of 2 (stage-20261029-031001): 30 palettes landed and drawn, no errors | met |
 
 ## 5. K1 and K2: the kick pixel metric did not reach round 2's, and why
 
@@ -111,7 +112,7 @@ The same 46 cases, the same harness, this machine:
 | round 2 with ONE change: a kick may not send a head to the warm-white slot (12) | 36.4 % (35.9 / 36.8, 38 cases: the build look's burst found the lock taken) | 8.9 % | 1 | 1 frame | scratchpad `receipts_nocto` |
 | the palettes, first run (`70176b7ca`) | 26.2 % (26.0 / 26.4) | 8.6 % | 1 | 1 frame | stage-20261029-031834 ... -033018 |
 | the palettes with the dealer changes (`c54d0e304` less the last fix) | 27.2 % (26.9 / 27.5) | 8.6 % | 2 | 1 frame | stage-20261029-032619 ... -033152 |
-| the palettes, final code | pending (renders paused) | | | |  |
+| the palettes, final code | not run (renders paused) | | | |  |
 
 About 8 points of round 2's median were the warm-white slot itself; most of the rest is the lift. Per case, the same area
 dealt in both codes:
@@ -169,7 +170,17 @@ What I saw, against each swatch:
 
 ## 7. The phone, the amber, the flash
 
-**The flash runs are pending**: the house GPU lock has been held since 03:53 UTC by "Daniel is gaming: renders paused until he is done". The palette changes that touch the flash budget are covered by node tests meanwhile: the kick's strobe, comb, governor and roll tests (stage_kick, all pass on the palette kick), and a new test that a palette change (the one-beat dip at 128, 150 and 174 BPM, and a crossfade) never makes the final limiter act on the whole rig as one frame (it swings 0.53 to 0 to 0.97 and counts two transitions).
+**The flash receipts were not run.** The house GPU lock was held by "Daniel is gaming: renders paused until he is done" from 03:53 UTC until past 09:58 UTC, and the coordinator asked me not to start renders, reap or bypass it; I stopped after six hours. What covers the flash budget meanwhile is node-level: the kick's strobe, comb, governor, roll and closed-loop limiter tests (stage_kick, all pass with the palette kick), and a new test that a palette change (the one-beat dip at 128, 150 and 174 BPM, and a crossfade) never makes the final limiter act on the whole rig as one frame (it swings 0.53 to 0 to 0.97: two counted transitions). F1-F5 must be run before this branch is called done; from the worktree, at below-normal priority, one after another:
+
+```
+node arsenal/lanes/stage_verify.mjs --phases flash,storm --port 8961 --engine-port 8962
+node arsenal/lanes/stage_verify.mjs --phases flash --flash-from-bar 30 --port 8961 --engine-port 8962
+node arsenal/lanes/stage_verify.mjs --phases kickstorm --width 640 --height 360 --kick-from-frame 0 --kick-to-frame 300 --port 8961 --engine-port 8962
+   (then 220-520, 420-720, 640-960 the same way, and --stitch dirA,dirB,dirC,dirD)
+node arsenal/lanes/stage_verify.mjs --phases kickpix --pix-looks intro   (then build, drop, break, groove)
+```
+
+The last line is the final K1-K3 measurement on the last code; a re-render of the contact sheet with Moon Hive's fix is `--phases palettes --width 640 --height 360 --pal-kick --sheet-dir <dir>`.
 
 **The amber (A1-A3).** `arsenal/lanes/palette_amber.mjs`, inventory.md section 4's method (per palette and look, 12
 colour-kick presses a bar apart, the deck dealing as it deals, held 2 beats at velocity 0.7, the kicked heads' slot read
@@ -204,6 +215,7 @@ colour-kick presses a bar apart, the deck dealing as it deals, held 2 beats at v
 
 ## 9. Commits and files
 
+- `816148d89` Palettes build report (interim): what was built, the deviations, the kick pixel metric's fall measured against round 2 and round 2 without the warm-white slot, the amber receipt, the contact sheet and the phone check; the flash runs wait on the GPU lock (Daniel is gaming)
 - `1d4ac9484` Palettes test: a palette change (the one-beat dip at 128, 150, 174 BPM, and a crossfade) never makes the final limiter act
 - `61be483de` Stage README: the palettes (?palette=, key P, the PALETTE pad, KeyLab pads 11 and 12, the 16-bar landing, the two kicks)
 - `c54d0e304` Palettes: one library for the Stage and the VJ page; the kick dealer tells the truth about white and colour
