@@ -26,6 +26,14 @@ Open it from the Arsenal server:
   (a beam tunnel with the rings' spiral, one way per repeat). `?theme=<name>` picks one of the set's themes:
   `dreaming-city` (the VJ library's colours measured from Daniel's stills), `genesis-indigo`, `vex-conflux`, `anti-sun`.
   For example `index.html?demo=1&theme=dreaming-city&phrase=pillars`, then pad 3.
+- PALETTES (2026-10-28, `../palettes.js`, `../palettes.json`; design `research/in-flight/palettes-2026-10-28/DESIGN.md`):
+  thirty palettes drive every colour (the roles, both kicks, the heads' wheel plans, the splits and pins, the strand's
+  gradient and tempo, the lasers' fans, the air). `?palette=<id>` picks one (`?theme=` is read the same way first; the
+  three wave-1 set themes that are not palettes, `genesis-indigo`, `vex-conflux`, `anti-sun`, still load by name);
+  the show's own is `show.palette` (Source Violet). Live: key `P` (Shift+`P` back), the phone bar's PALETTE pad, or
+  the pad map's `palette-next` / `palette-prev` (KeyLab pads 11 and 12): the change lands on the next 16-bar line, a
+  neighbour crossfading over 4 bars, anything else through a one-beat dip. The white kick is the palette's white and never
+  turns a wheel; the colour kick lifts each cell inside the palette and keeps the strand's helix.
 - Kinetics wave A and the orrery (2026-10-27): `?ring=orrery` (or `spiral`, `vortex`, `crown`, `portal`) opens with the
   rings in that formation; pad 8 (key `8`) MORPHs to the next one on the next bar line and pad 9 (key `9`) fires the
   energy beam's discharge. Drawn for the Dreaming City palette: `index.html?demo=1&theme=dreaming-city&ring=orrery`.
@@ -125,7 +133,7 @@ models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is st
 | `grid.js` | The one beat position for everything, plus the demo clock. |
 | `effects.js` | Spreads (MA, ChamSys and Hog in one object), waveforms, beat-locked phase accumulators, the unison floor rule; v1: block "ties", cue-anchored phase, one-shots, clean starts, sparkle. |
 | `programmer.js` | Looks, effects, pads (HTP), masters, theme colours, the colour wheel, motor physics (every zoom target held inside its fixture's range), v1: the phrase layer (LTP over the look; a release hands a head's zoom back to its home) and the FlashGate. |
-| `kick.js` | KICK v2: the kinds (what a kick does, as data), the deck of areas (a seeded shuffle-bag that deals only an area the camera shows and the hit visibly changes, the most visible first), the override of intensity and colour, the contrast palette and its equal-brightness re-strikes, the wheel's red-free short way (with programmer.js), the punch, hold = gate and the linger, the live level and its curve, velocity's animation (a V2 motion as a sweep or a chase, sized to the tilt motor), the one bar-locked strobe clock under the flash gate, and the flash governor (the limiter's headroom holds back the kick's optional changes). Without a `kick` block (source-v0) it is v0's strand lift exactly. |
+| `kick.js` | KICK v2: the kinds (what a kick does, as data), the deck of areas (a seeded shuffle-bag that deals only an area the camera shows and the hit visibly changes, the most visible first), the override of intensity and colour, the palette lift (each cell its own role's lift, the helix kept; the re-strike swaps the luminance-matched ladder; the heads by the palette's wheel plan), the wheel's red-free short way (with programmer.js), the punch, hold = gate and the linger, the live level and its curve, velocity's animation (a V2 motion as a sweep or a chase, sized to the tilt motor), the one bar-locked strobe clock under the flash gate, and the flash governor (the limiter's headroom holds back the kick's optional changes). Without a `kick` block (source-v0) it is v0's strand lift exactly. |
 | `kinetics.js` | The hoists (jerk-limited), the formations, and time-priority landing on bar lines; v2: the S-curve with cruise, the strand shapes (arch, valley, ramp, stairs), and the RingRig (lift and tilt on the rim hoists, lift before tilt, the dream rotators). |
 | `formations.js` | v2: the ring formations (home, orrery, spiral, vortex, crown, portal): MORPH, HERO, the reveal, the light layer, the scenery (core, bands, planets, motes), the energy column, the camera's annuli, and the safety check of every beam's end. |
 | `lasers.js`, `lasers3d.js` | A minimal laser brain on the Lasers v2 contract (v1: laser group lines with shapes and gates, heads past the 21, an aim side channel), mapped onto 33 projectors in 3D with physical power sharing. |
