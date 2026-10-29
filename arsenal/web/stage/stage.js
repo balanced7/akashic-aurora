@@ -32,6 +32,15 @@
 // override the look's from the press on); a held pad keeps it lit (the kick is a gate) at a live level that padLevel()
 // moves while it is held. What a kick pad does is its kind in the set's kick.kinds. The page-level pad door for touch and velocity sources: the window events
 // "arsenal:pad" {pad, vel, on} and "arsenal:padlevel" {pad, vel}; window.__padDoor = 1 says the page listens.
+//
+// FLASH PROTECTION, THE VIEWER'S CHOICE (2026-10-28, lib/flash-consent.js). Daniel: "have it be a toggle, as it should
+// be, you get a siezure warning and its up to you what you do with it, default is on". On a first visit the page shows
+// the photosensitivity warning with one "Flash protection" box (checked) and Start; the show starts on Start; the choice
+// is remembered in this browser; the HUD has a quiet "Flash protection" checkbox; ?flash=on|off decides from the URL
+// (tests, kiosks); automation (every receipt) gets protection on and no screen. ON: the final-frame limiter (flash.js v2,
+// the smooth fields) judges every frame exactly as before. OFF: the page asks no limiter, the meter does not run and the
+// apply pass is the identity -- the frame reaches the canvas as drawn -- and the kick's flash governor, which exists only
+// so the limiter never has to act, sees a full budget.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
@@ -49,6 +58,7 @@ import { FrameLimiter, LIMIT } from "./flash.js";
 import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
+import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -86,6 +96,8 @@ window.addEventListener("error", (e) => recordError("page", e.error || e.message
 window.addEventListener("unhandledrejection", (e) => recordError("promise", e.reason));
 
 const api = window.__stage = { ready: false, errors, version: "stage-v1" };
+// the viewer's flash protection (the warning on a first visit: the show waits for Start)
+const flash = flashProtection({ page: "stage" });
 
 async function boot() {
   // the scene
@@ -339,9 +351,10 @@ function start({ rig, R, renderMod }) {
       }
       // KICK round 2's flash governor: how many more counted transitions the final limiter's most loaded window can take
       // now (read from its counters, never changing them: flash.js decides on its own, as before)
+      // (with flash protection off no limiter acts, so the governor holds nothing back)
       {
         let room = LIMIT.N_MAX;
-        for (const pair of limiter.trackers) for (const tr of pair) room = Math.min(room, LIMIT.N_MAX - tr.count(now / 1000));
+        if (flash.on) for (const pair of limiter.trackers) for (const tr of pair) room = Math.min(room, LIMIT.N_MAX - tr.count(now / 1000));
         programmer.kick.headroom = room;
       }
       // the rings first (the programmer's formation layer, the camera and the lasers read their live pose)
@@ -373,7 +386,8 @@ function start({ rig, R, renderMod }) {
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
                    bloomMix: BLOOM_MIX, rings: rf };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
-      const info = api.skipRender ? state.info : R.render(fs, (cells, t) => limiter.step(cells, t, dt), now / 1000);
+      // flash protection off: no limiter asked (no meter, the identity: the frame as drawn)
+      const info = api.skipRender ? state.info : R.render(fs, flash.on ? (cells, t) => limiter.step(cells, t, dt) : null, now / 1000);
       state.shot = pose.shot; state.u = pose.u; state.pos = pos; state.info = info; state.l3 = l3; state.l2 = l2;
       const ft = (globalThis.__realNow ? globalThis.__realNow() - realStart : performance.now() - now);
       timing.n++; if (timing.list.length >= 240) timing.list.shift(); timing.list.push(ft);
@@ -416,7 +430,8 @@ function start({ rig, R, renderMod }) {
     $("hud-lasers").textContent = `${state.l2 ? state.l2.look : "-"} · ${state.l3 ? state.l3.n : 0} beams · ${state.l2 && state.l2.hits ? `${state.l2.hits} hits` : "no hits"}`;
     $("hud-haze").textContent = `${Math.round(atmos.H * 100)} % → ${Math.round(atmos.target * 100)} % · σ ${atmos.uniform.sigma0.toFixed(4)} /m · ${atmos.hazers.length} hazers`;
     const st = limiter.stats();
-    $("hud-flash").innerHTML = st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
+    $("hud-flash").innerHTML = !flash.on ? "protection off (frames as drawn)"
+      : st.interventions ? `<span class="warn">limiter acted on ${st.interventions} frames</span>` : `<span class="ok">no limiter interventions</span> · ${st.frames} frames judged`;
     const avg = timing.list.length ? timing.list.reduce((s, x) => s + x, 0) / timing.list.length : 0;
     $("hud-render").textContent = `${R.w}x${R.h} · ${avg.toFixed(1)} ms CPU+GPU · ${state.info ? `${state.info.beams} beams, ${state.info.emitters} emitters, ${state.info.drawCalls} draws` : ""}`;
   }
@@ -432,6 +447,10 @@ function start({ rig, R, renderMod }) {
     fwrap.append(d);
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
+  // the quiet flash protection setting, under the faders (on a phone: the pad bar's HUD button shows it)
+  fwrap.after(protectionCheckbox(document, flash, { id: "opt-flash", className: "hud-opt" }));
+  // back on: the limiter starts fresh, as at load (what played while it was off is not its history)
+  flash.onChange((on) => { if (on) Object.assign(limiter, new FrameLimiter()); });
   // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,
   // F fullscreen, Esc back to the director
   const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
@@ -514,10 +533,27 @@ function start({ rig, R, renderMod }) {
     overdraw: () => R.overdraw(),
     debugTargets: () => R.debugTargets(),
     resetLimiter: () => { const L = new FrameLimiter(); Object.assign(limiter, L); },
+    // flash protection: its state, a setter for tests (not remembered), and the identity probe -- called in the same task
+    // as a drawn frame, it compares the frame as drawn (the finish pass's target) with the canvas, pixel for pixel
+    flashProtection: () => ({ on: flash.on, source: flash.source, shown: flash.shown }),
+    setFlashProtection: (on) => flash.set(on, { remember: false }),
+    identityProbe: () => {
+      const w = R.w, h = R.h, a = new Uint8Array(w * h * 4), b = new Uint8Array(w * h * 4), gl = R.renderer.getContext();
+      R.renderer.readRenderTargetPixels(R.ldrRT, 0, 0, w, h, a);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, b);
+      let diff = 0, max = 0;
+      for (let i = 0; i < a.length; i += 4) {
+        const d = Math.max(Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+        if (d) { diff++; if (d > max) max = d; }
+      }
+      return { w, h, pixels: w * h, differing: diff, max_diff: max, protection: flash.on };
+    },
     frameTimes: () => timing.list.slice(),
   });
   applyFaders(performance.now() + grid.presentLagMs);
   requestAnimationFrame(frame);
 }
 
-boot().then(start).catch((e) => { recordError("boot", e); banner(e.message); api.bootError = e.message; });
+// the scene loads behind the warning; the show starts once the viewer has made the choice
+Promise.all([boot(), flash.ready]).then(([b]) => start(b)).catch((e) => { recordError("boot", e); banner(e.message); api.bootError = e.message; });

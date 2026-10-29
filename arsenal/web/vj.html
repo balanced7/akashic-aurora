@@ -87,10 +87,13 @@
       <label class="check"><input type="checkbox" id="opt-vibrate" /> Lasers vibrate: the beams ring like plucked strings (<kbd>V</kbd>)</label>
       <label class="check"><input type="checkbox" id="opt-classic" /> Lasers: classic (pad 2 fires the old burst instead of Lasers v2; <kbd>C</kbd>)</label>
       <label class="check"><input type="checkbox" id="opt-keyauto" checked="checked" /> Key auto: the song's key picks the colour family (a theme you pick wins until the next track)</label>
-      <p class="note">Flash safety is always on: every frame passes the flash limiter last (fewer than three flashes a second
+      <label class="check"><input type="checkbox" id="opt-flash" checked="checked" /> Flash protection</label>
+      <p class="note">With flash protection on, every frame passes the flash limiter last (fewer than three flashes a second
         over any quarter of the screen, wherever it sits, red included, and a short rest after about five seconds of
         flashing). It only ever takes light away, and only when the picture would flash too often. Until the limiter runs
-        (a moment after the page opens), and for good if this GPU cannot run it, pad effects are refused.</p>
+        (a moment after the page opens), and for good if this GPU cannot run it, pad effects are refused. With it off, the
+        frames reach the screen as drawn. The choice is remembered in this browser (also in the HUD; <code>?flash=on</code>
+        or <code>off</code> sets it from the address).</p>
     </section>
   </aside>
 </main>

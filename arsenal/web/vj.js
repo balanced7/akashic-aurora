@@ -69,6 +69,13 @@
 // effect is refused (the set plays on; dampen, choke, kill and the scene keys still work), so nothing on the screen is
 // left to the FlashGate alone. ?limiter=cpu decides on the CPU (the JS twin, a readback a frame); ?limiter=off forces the
 // safe mode (receipts).
+// FLASH PROTECTION, THE VIEWER'S CHOICE (2026-10-28, lib/flash-consent.js; Daniel: "have it be a toggle, as it should be,
+// you get a siezure warning and its up to you what you do with it, default is on"): the first visit shows the warning
+// with one "Flash protection" box, checked; the show starts on Start; the choice is remembered in this browser; the HUD
+// and the Options panel have a quiet "Flash protection" checkbox; ?flash=on|off decides from the URL (tests, kiosks).
+// Automation (every receipt) gets protection on and no screen. With protection ON everything above holds exactly. With
+// it OFF the final limiter does not run (the frame reaches the canvas as drawn) and the safe mode's refusals are lifted
+// (they exist only because no limiter guards the frame); the FlashGate in front of the effects that ask it is unchanged.
 import {
   VJ_API, STRIP, createStrip, stripSet, parseEvent, pitchColours, hueColour, linearToOklab, oklabToLinear, rgbToHex,
   starPosition, fifthsIndex, EFFECTS, CONTROLS, PAD_ACTIONS, DEFAULT_PAD_MAP, normalizePadMap, serializePadMap, actionLabel,
@@ -96,6 +103,7 @@ import { laserClock, packBeams, headBus, writeHeadBus, tapPadsOf, isTapPad, Gate
 import { PadPlay, HeroCharge, BuildDrop, safetyAct, verbOf, SPOTS, co2Jets, lineAfter, escalateGlitch } from "./vj-pads.js";
 import { valueAt as motionValueAt } from "./vj-motions.js";
 import { attachFluid } from "./vj-fluid.js";   // VJ V2 air (lane C): the haze fluid, CO2 and fog (the AIR block below)
+import { flashProtection, protectionCheckbox } from "./lib/flash-consent.js";   // the viewer's flash protection choice
 
 // --------------------------------------------------------------------------------------------------- constants --
 const QS = new URLSearchParams(location.search);
@@ -140,6 +148,8 @@ const KEY_PADS = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6
 const SCENE_POST_MIN_MS = 120;         // the scene report to the engine: newest wins, at most ~8 a second
 // ?limiter=cpu (the JS twin decides, always), off (the safe mode), late (the twin until two seconds in, then the GPU)
 const LIMITER_MODE = (() => { const m = QS.get("limiter"); return m === "cpu" || m === "off" || m === "late" ? m : "auto"; })();
+// the viewer's flash protection (the warning on a first visit; the show waits for Start): on = the final limiter runs
+const flash = flashProtection({ page: "vj" });
 const LATENCY_KEEP = 64;
 const NOTE_NAMES = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
 const PLAY_UNIFORMS = [
@@ -1263,7 +1273,7 @@ function prevValid(from) {
 const SAFE_SCENE_MIN_MS = 1000;
 let safeSceneAt = -1e9;
 function safeSceneRefused(nowMs) {
-  if (limiterLive()) return false;
+  if (effectsLive()) return false;
   if (deck.running || nowMs - safeSceneAt < SAFE_SCENE_MIN_MS) { safeRefused++; return true; }
   safeSceneAt = nowMs;
   return false;
@@ -1302,7 +1312,7 @@ function finishFade() {
 }
 function selectSet(i, boot = false) {   // a cut, for the test hook and a click while nothing plays
   if (!validSet(i)) return false;
-  if (!boot && !limiterLive() && sets[deck.a]) {   // the safe mode: no cuts, a crossfade at most once a second
+  if (!boot && !effectsLive() && sets[deck.a]) {   // the safe mode: no cuts, a crossfade at most once a second
     if (i === deck.a) return true;
     const before = deck.b, running = deck.running;
     nextSet(i);
@@ -1512,7 +1522,7 @@ function padFire(pad, vel, src, nowS, arriveMs, snap = null) {
   // THE SAFE MODE (2026-10-25, the round-2 verifier): without a running limiter, the one-shots, the glitch, the zoom
   // punch and Invert put 5-10 flashes a second on the screen with only the FlashGate in front of them. So until the
   // limiter runs (and for good if it cannot) every pad effect is refused; the controls still work.
-  if (EFFECTS[action] && !limiterLive()) { safeRefused++; if (action === "laser") lasers.refused++; return; }
+  if (EFFECTS[action] && !effectsLive()) { safeRefused++; if (action === "laser") lasers.refused++; return; }
   // Colour Next held while a pad is hit: its step lands with this hit, so the hit already shows the new colour
   if (colour.onHit()) colourChanged();
   const ctx = padCtx(nowS * 1000);
@@ -1618,7 +1628,7 @@ function co2Press(pad, vel, nowS, h, ctx) {
   const nowMs = nowS * 1000;
   for (const j of jets) pads.co2Q.push({ atMs: nowMs + j.delay * ctx.perMs, x01: j.x01, strength: j.strength, pad, serial: f.serial, granted });
   const at = spotXY(h);
-  impact.hit("co2", vel, nowS, { seed: f.seed, granted, x: at ? at[0] : 0, y: -0.45, punch: options.punch && limiterLive() });
+  impact.hit("co2", vel, nowS, { seed: f.seed, granted, x: at ? at[0] : 0, y: -0.45, punch: options.punch && effectsLive() });
   return f;
 }
 // The jets whose time has come: into the fluid, or a plume of the page's own. A plume follows its CO2 instance's
@@ -1666,7 +1676,7 @@ function payoff(pad, kind, nowS, { phrase = false } = {}) {
   if (!options.lasersClassic) laserHit(pad, 1, kind, nowS, nowS * 1000, null, { phrase, noHold: true });
   triggerEffect("shockwave", 1, pad, nowS, { size: 1.6, esc: 3, spot: 0, motion: null, endPos: null }, padCtx(nowS * 1000));
   if (kind === "drop") requestFlash(nowS, 0.6 * T.accent, 0.12);
-  impact.hit("hero", 1, nowS, { seed: 0.5, granted: false, x: 0, y: 0.05, punch: options.punch && limiterLive() });
+  impact.hit("hero", 1, nowS, { seed: 0.5, granted: false, x: 0, y: 0.05, punch: options.punch && effectsLive() });
   pads.log.push({ t: Math.round(nowS * 1000), pad, action: kind, pos: +padCtx(nowS * 1000).pos.toFixed(3) });
   if (pads.log.length > 64) pads.log.shift();
 }
@@ -1724,7 +1734,7 @@ function padsTick(nowMs, dt) {
     if (action === "build") pads.build.hold(ctx.pos);
     if (pads.play.repeats(pad, ctx.pos)) {                                    // held: the ring ripples, the glitch strikes
       const last = pads.hits[i];
-      if (last && limiterLive()) triggerEffect(action, 0.85 * pads.vel[i], pad, nowS,
+      if (last && effectsLive()) triggerEffect(action, 0.85 * pads.vel[i], pad, nowS,
         { ...last, size: last.size * 0.85, motion: pads.play.standing(pad) || last.motion, endPos: null }, ctx);
     }
     if (action === "co2" && pads.play.isHeld(pad) && air.api && air.api.has.co2) {
@@ -1764,7 +1774,7 @@ function laserHit(pad, vel, src, nowS, arriveMs, snap = null, { phrase = false, 
   if (lasers.log.length > 64) lasers.log.shift();
   // the impact layer: the scene punches, shakes and dips behind the beams (never the beams themselves)
   impact.hit("laser", vel, nowS, { seed: ((info.id || lasers.hits) * 0.6180339887) % 1, granted: false, x: 0, y: 0.05,
-                                   punch: options.punch && limiterLive() });
+                                   punch: options.punch && effectsLive() });
   latency.records.push({ pad, type: "laser", v2: true, arrive: +arriveMs.toFixed(2), fired: +t.toFixed(2), frame: null,
                          env: null, lit: null, serial: -1 - lasers.hits, src, arriveWall: Date.now(), frameWall: null,
                          gate: info.gate, tier: info.tier, snapAt: snap ? +snap.at.toFixed(2) : null,
@@ -1783,7 +1793,7 @@ function updateLasers(nowMs, dt) {
     if (e.type === "pulse") lasers.pulses++;
     else if (e.type === "flash") {                 // the phrase's last syllable: a white flash, through the FlashGate
       lasers.flashes++;
-      if (!lasers.cut && limiterLive()) requestFlash(nowMs / 1000, 0.5 * T.accent, 0.1);
+      if (!lasers.cut && effectsLive()) requestFlash(nowMs / 1000, 0.5 * T.accent, 0.1);
     }
   }
   if (lasers.dampT !== null) lasers.gain *= Math.exp(-dt / LASER_DAMPEN_TAU_S);
@@ -1936,7 +1946,7 @@ function triggerEffect(type, vel, pad, nowS, h = null, ctx = null) {
   if (f) {
     const at = hitOrigin(f);
     impact.hit(type, vel, nowS, { seed: f.seed, granted: type === "flash" && granted, x: at[0], y: at[1],
-                                 punch: options.punch && limiterLive(), slipDir: type === "glitch" ? LIFT_DIR : null });
+                                 punch: options.punch && effectsLive(), slipDir: type === "glitch" ? LIFT_DIR : null });
   }
   return f;
 }
@@ -2484,7 +2494,7 @@ function buildStrip(nowMs, nowS) {
   writeHeadBus(S, lasers.busOn ? lasers.bus : null, n);
   // v2: the shared hit input (vj-core.js STRIP row 2, texels 10-12) -- each set reacts to a pad hit in its own way
   const im = impact.out;
-  stripSet(S, 10, 2, limiterLive() ? im.pulse * T.accent : 0, im.vel, im.code, im.since);   // the safe mode: no set reactions
+  stripSet(S, 10, 2, effectsLive() ? im.pulse * T.accent : 0, im.vel, im.code, im.since);   // the safe mode: no set reactions
   stripSet(S, 11, 2, bands.env.kick, bands.env.snare, bands.env.hat, frame.punch);
   stripSet(S, 12, 2, im.seed, im.x, im.y, 0);
   stripSet(S, 15, 2, STRIP.VERSION, 0, 0, 1);
@@ -2541,7 +2551,7 @@ function renderSet(set, nowS) {
   gl.uniform1f(u.u_has_video, 0);
   // a VJ-aware set hears pad hits through its strip (row 2, texel 10) and reacts in its own way; any other Play preset
   // gets them through its pulse, so every set answers a hit
-  const padPulse = set.vj || !limiterLive() ? 0 : 0.9 * impact.out.pulse * T.accent;
+  const padPulse = set.vj || !effectsLive() ? 0 : 0.9 * impact.out.pulse * T.accent;
   gl.uniform1f(u.u_pulse, clamp(Math.max(pulseEnv * react, padPulse), 0, 1.5));
   gl.uniform1f(u.u_beat, Math.max(beat.pulse, 0.8 * hit.pulse, 0.9 * bands.env.kick, padPulse));
   gl.uniform1f(u.u_level, energy.level);
@@ -3031,11 +3041,11 @@ function onFrame(rafNow) {
       const mixed = stage && A && A.fb && B && B.fb && B !== A ?
         stage.mix(deck, A.fb.texs[A.fb.read], B.fb.texs[B.fb.read], G.width, G.height, nowMs, nowS) : null;
       const drawn = composite(nowMs, nowS, mixAB, mixed);
-      if (limiterLive()) {
+      if (flash.on && limiterLive()) {
         // the look draws into the limiter's input; the limiter meters it, decides and puts the frame on the canvas
         const looked = stage && stage.post(G.width, G.height, drawn, G.limiter.preTarget(G.width, G.height));
         G.limiter.run(looked ? G.limiter.preTexture() : drawn, G.width, G.height, frameDt);
-      } else if (!(stage && stage.post(G.width, G.height, drawn))) copyToScreen(drawn);
+      } else if (!(stage && stage.post(G.width, G.height, drawn))) copyToScreen(drawn);   // the safe mode, or protection off: as drawn
       if (probe.on || probe.waiters.length) runProbe(nowMs);
       noteDrawn(nowMs);
       stats.frames++;
@@ -3066,10 +3076,20 @@ function limiterLive() {
   if (err && G.limiter.fatal() && G.limiterError !== err) {
     G.limiterError = err;
     recordError("compile", "vj-limiter", err);
-    banner(SAFE_MODE_BANNER);
+    if (flash.on) banner(SAFE_MODE_BANNER);
   }
   return false;
 }
+// the effects may play in full: the limiter guards the frame, or the viewer turned flash protection off (the safe mode's
+// refusals exist only because nothing guards the frame)
+function effectsLive() { return !flash.on || limiterLive(); }
+// the viewer changed the quiet setting: back on, the limiter starts fresh (as at load: what played while it was off is
+// not its history); a limiter that cannot run puts the page in its safe mode again
+flash.onChange((on) => {
+  if (on && G.limiter && limiterLive()) G.limiter.reset();
+  if (on && G.limiter && G.limiter.fatal()) banner(SAFE_MODE_BANNER);
+  toast(on ? "flash protection on" : "flash protection off");
+});
 let frameDt = 1 / 60;
 // the latency record: the first frame drawn after a pad event, and the effect's level in it
 function noteDrawn(nowMs) {
@@ -3210,7 +3230,7 @@ function updateHud(nowMs) {
   if (kill.pending !== null) parts.push(kill.pending === 0 ? "KILL on beat" : "revive on beat");
   else if (kill.target < 0.5) parts.push("KILLED");
   setText("hud-fx", parts.length ? parts.join(" · ") : "—");
-  setText("hud-flash", `granted ${gate.granted} · refused ${gate.refused} · most in a second ${gate.maxInAnyWindow()} (limit 3)`);
+  setText("hud-flash", `${flash.on ? "" : "protection off · "}granted ${gate.granted} · refused ${gate.refused} · most in a second ${gate.maxInAnyWindow()} (limit 3)`);
   setText("hud-ctl", learnTarget ? `learn: move a control for ${targetLabel(learnTarget)}` :
     lastCtl ? `${lastCtl.id} (${lastCtl.kind}) → ${lastCtl.target ? targetLabel(lastCtl.target) : "unbound"}` + (lastPadSrc ? ` · pads from ${lastPadSrc}` : "") :
     (lastPadSrc ? `pads from ${lastPadSrc}` : "—"));
@@ -3415,6 +3435,12 @@ function togglePanel(force) {
 
 function wireUi() {
   buildHudPads();
+  // the quiet flash protection setting: in the HUD (reachable on a phone through the pad bar's HUD button) and in the
+  // Options panel, kept in step
+  const hudKeys = document.querySelector("#hud .hud-keys");
+  if (hudKeys) hudKeys.before(protectionCheckbox(document, flash, { id: "hud-opt-flash", className: "check hud-flash-opt" }));
+  const optFlash = $("opt-flash");
+  if (optFlash) { optFlash.checked = flash.on; optFlash.addEventListener("change", () => flash.set(optFlash.checked)); flash.onChange((on) => { optFlash.checked = on; }); }
   $("btn-close-panel").addEventListener("click", () => togglePanel(false));
   $("btn-reset-pads").addEventListener("click", () => { padMap = DEFAULT_PAD_MAP.slice(); savePadMap(); renderPadMap(); });
   $("btn-reset-ctl").addEventListener("click", () => { ctlMap = { ...DEFAULT_CTL_MAP }; saveCtlMap(); renderTargets(); });
@@ -3579,7 +3605,8 @@ window.__vj = {
     glitch: glitchState.plan ? { serial: glitchState.serial, ...glitchState.plan } : null,
     options: { ...options }, snapQueued: snapQ.length,
     // gate v2 (no readback here: window.__vj.limiter() reads its state)
-    limiter: { on: limiterLive(), mode: G.limiter ? G.limiter.mode() : "", format: G.limiter ? G.limiter.format : null,
+    flashProtection: { on: flash.on, source: flash.source, shown: flash.shown },
+    limiter: { on: flash.on && limiterLive(), mode: G.limiter ? G.limiter.mode() : "", format: G.limiter ? G.limiter.format : null,
                frames: G.limiter ? G.limiter.frames() : 0, compileMs: G.limiter ? G.limiter.compileMs() : null,
                gpuMs: G.limiter ? G.limiter.gpuMs() : null, parallel: G.limiter ? G.limiter.parallel : null,
                error: G.limiterError, fatal: G.limiter ? G.limiter.fatal() : !!G.limiterError, asked: LIMITER_MODE,
@@ -3733,7 +3760,7 @@ function airHand(fx) { if (air.fluid === null || air.fluid === airSim.fx) air.fl
 function airFrame(dt) {
   if (AIR_MODE === "off" || airSim.error || !G.beam) return;
   try {
-    if (!airSim.fx) airHand(attachFluid({ gl: G.gl, gate, live: limiterLive, now: () => performance.now() / 1000, quality: AIR_MODE, haze: AIR_HAZE }));
+    if (!airSim.fx) airHand(attachFluid({ gl: G.gl, gate, live: effectsLive, now: () => performance.now() / 1000, quality: AIR_MODE, haze: AIR_HAZE }));
     // the beams light the air at the gain the composite gives them (its u_beamGain); a laser-heads scene's heads light it
     // from their steady picture (renderBeams: option C)
     const lit = !(options.lasersClassic || G.beamClear || lasers.cut);
@@ -3792,7 +3819,7 @@ async function boot() {
   }
   connectEngine();
   if (DEMO_AT_START) setDemo(true);
-  requestAnimationFrame(onFrame);
+  flash.ready.then(() => requestAnimationFrame(onFrame));   // the show starts once the viewer has made the choice
   await Promise.all(sets.map(loadSet));
   if (!validSet(deck.a)) deck.a = nextValid(deck.a);
   deck.b = nextValid(deck.a);
