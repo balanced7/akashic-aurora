@@ -3435,10 +3435,10 @@ function togglePanel(force) {
 
 function wireUi() {
   buildHudPads();
-  // the quiet flash protection setting: in the HUD (reachable on a phone through the pad bar's HUD button) and in the
-  // Options panel, kept in step
-  const hudKeys = document.querySelector("#hud .hud-keys");
-  if (hudKeys) hudKeys.before(protectionCheckbox(document, protection, { id: "hud-opt-flash", className: "check hud-flash-opt" }));
+  // the quiet flash protection setting: in the HUD's header row (reachable on a phone through the pad bar's HUD button,
+  // above the pad bar) and in the Options panel, kept in step
+  const hudHead = document.querySelector("#hud .hud-head");
+  if (hudHead) hudHead.append(protectionCheckbox(document, protection, { id: "hud-opt-flash", className: "hud-flash-opt" }));
   const optFlash = $("opt-flash");
   if (optFlash) { optFlash.checked = protection.on; optFlash.addEventListener("change", () => protection.set(optFlash.checked)); protection.onChange((on) => { optFlash.checked = on; }); }
   $("btn-close-panel").addEventListener("click", () => togglePanel(false));

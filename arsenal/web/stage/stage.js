@@ -447,8 +447,9 @@ function start({ rig, R, renderMod }) {
     fwrap.append(d);
   }
   function syncFaderUI() { for (const [id] of FADERS) { const e = $(`fader-${id}`); if (e) e.value = String(faders[id]); } }
-  // the quiet flash protection setting, under the faders (on a phone: the pad bar's HUD button shows it)
-  fwrap.after(protectionCheckbox(document, flash, { id: "opt-flash", className: "hud-opt" }));
+  // the quiet flash protection setting, in the HUD's header row (on a phone the pad bar's HUD button shows it, and the
+  // header sits above the kick strips, which start at 30 % of the height, and the pad bar at the bottom)
+  document.querySelector("#hud .hud-head").append(protectionCheckbox(document, flash, { id: "opt-flash", className: "hud-opt" }));
   // back on: the limiter starts fresh, as at load (what played while it was off is not its history)
   flash.onChange((on) => { if (on) Object.assign(limiter, new FrameLimiter()); });
   // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,

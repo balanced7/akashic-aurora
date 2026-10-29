@@ -57,6 +57,8 @@ kbd { font-family: var(--mono); font-size: 10px; padding: 0 3px; border: 1px sol
   .hud { left: 16px; right: 16px; width: auto; }
   .faders { grid-template-columns: repeat(3, 1fr); }
 }
-/* the quiet flash protection setting (lib/flash-consent.js protectionCheckbox) */
-.hud-opt { display: flex; align-items: center; gap: 6px; margin: 2px 0 4px; font-size: 10.5px; color: var(--ink-dim); cursor: pointer; }
+/* the quiet flash protection setting (lib/flash-consent.js protectionCheckbox), at the end of the HUD's header row */
+.hud-head .hud-set { min-width: 0; }
+.hud-opt { display: flex; align-items: center; gap: 5px; flex: none; margin-left: auto; font-family: var(--mono); font-size: 10.5px;
+           color: var(--ink-dim); cursor: pointer; white-space: nowrap; }
 .hud-opt input { margin: 0; accent-color: var(--accent); }

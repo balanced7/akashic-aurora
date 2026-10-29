@@ -280,9 +280,9 @@ async function phaseConsent(pageKey, sizeKey) {
     phase.after_reload = { state: st2, nag: nag2, started: started2 };
     check(`${tag}: a reload shows no screen and starts with protection off (remembered)`, !nag2.screen && st2 && st2.on === false && st2.source === "stored" && started2 === true, phase.after_reload);
     // the quiet setting in the HUD: back on, remembered
-    const box = await ev(`(() => { const b = document.querySelector(${JSON.stringify(P.hudBox)}); if (!b) return null; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, checked: b.checked, inView: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth }; })()`);
+    const box = await ev(`(() => { const b = document.querySelector(${JSON.stringify(P.hudBox)}); if (!b) return null; const r = b.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2, top = document.elementFromPoint(x, y); return { x, y, checked: b.checked, inView: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, onTop: !!top && (top === b || top === b.closest("label")), under: top ? top.className || top.tagName : null }; })()`);
     phase.hud_box = box;
-    check(`${tag}: the HUD has the quiet "Flash protection" checkbox, on screen, unchecked`, box && box.checked === false && box.inView, box);
+    check(`${tag}: the HUD has the quiet "Flash protection" checkbox, on screen and on top (no pad or strip over it), unchecked`, box && box.checked === false && box.inView && box.onTop, box);
     if (box) await press(box.x, box.y);
     await ev(STEP(3));
     const st3 = await ev(P.state), stored3 = await ev("(() => { try { return localStorage.getItem('arsenal.flashProtection'); } catch { return 'no storage'; } })()");

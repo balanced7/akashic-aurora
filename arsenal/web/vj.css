@@ -50,6 +50,11 @@ body { font-family: var(--sans); font-size: 14px; }
   overflow: hidden; white-space: nowrap; padding: 0 3px;
 }
 .hud-keys { margin: 4px 0 0; color: var(--ink-faint); font-size: 10.5px; }
+/* the quiet flash protection setting (lib/flash-consent.js protectionCheckbox), at the end of the HUD's header row */
+.hud-head .hud-set { min-width: 0; }
+.hud-flash-opt { display: flex; align-items: center; gap: 5px; flex: none; margin-left: auto; font-size: 10.5px; color: var(--ink-dim);
+                 cursor: pointer; white-space: nowrap; }
+.hud-flash-opt input { margin: 0; accent-color: var(--accent); }
 kbd { font-family: var(--mono); font-size: 10px; padding: 0 3px; border: 1px solid var(--line); border-radius: 3px; color: var(--ink-dim); }
 
 .toast {
