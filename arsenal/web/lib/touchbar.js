@@ -31,8 +31,9 @@
 // trigger between closeup medium and far"). Three joined pads, CLOSE . MID . FAR, that press the page's Q, W and E (a
 // tap starts the dolly, it lands on a beat; the lit one again hands distance back to the director). A page that knows its
 // distance says so with the window event "arsenal:camdist" {mode, stop, ...} (only when it changes) and keeps the latest in
-// window.__camdist; the segment lights the stop held by hand and none in auto. It sits in the bar's own row, at the bar's
-// height, so it never covers the kick strips; each pad is 44 CSS px wide.
+// window.__camdist; the segment lights the stop held by hand and none in auto. It sits in the bar, each pad 44 CSS px
+// square. On a phone narrower than about 770 CSS px the bar wraps to a second row; the kick strips then stand above it
+// (their bottom follows the bar's measured height, --tb-h), so no pad ever covers a strip, at any width.
 //
 // The bar shows itself on touch screens (pointer: coarse); ?pads=1 forces it on, ?pads=0 off. Its collapsed state is
 // remembered per page (a convenience; the page works the same without storage).
@@ -43,14 +44,14 @@ const CSS = `
       display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end;
       font: 600 10px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
       -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.tb button { pointer-events: auto; touch-action: none; flex: 1 1 48px; height: 44px; min-width: 0; margin: 0; padding: 0 2px;
+.tb button { pointer-events: auto; touch-action: none; flex: 1 1 44px; height: 44px; min-width: 0; margin: 0; padding: 0 2px;
       border-radius: 8px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .10);
       color: rgba(255, 255, 255, .42); font: inherit; letter-spacing: inherit; text-transform: inherit;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background .18s, color .18s; }
 .tb button.long { font-size: 8.5px; letter-spacing: .02em; }
 .tb button small { display: block; margin-top: 3px; font-size: 8px; opacity: .7; }
 .tb button.on { background: rgba(255, 255, 255, .32); color: rgba(255, 255, 255, .9); transition: none; }
-.tb button.util { flex: 0 0 38px; border-style: dashed; }
+.tb button.util { flex: 0 0 44px; border-style: dashed; }
 .tb.collapsed button:not(.grip) { display: none; }
 .tb .seg { pointer-events: none; flex: 0 0 auto; display: flex; gap: 1px; }
 .tb .seg button { flex: 0 0 44px; width: 44px; border-radius: 0; font-size: 8.5px; letter-spacing: .02em; }
@@ -58,7 +59,7 @@ const CSS = `
 .tb .seg button:last-child { border-radius: 0 8px 8px 0; }
 .tb .seg button.lit { background: rgba(255, 255, 255, .26); color: rgba(255, 255, 255, .85); border-color: rgba(255, 255, 255, .34); }
 .tb.strips button.stripped { display: none; }
-.tbs { position: fixed; z-index: 61; top: 30vh; bottom: calc(60px + env(safe-area-inset-bottom, 0px)); width: 44px;
+.tbs { position: fixed; z-index: 61; top: 30vh; bottom: calc(var(--tb-h, calc(52px + env(safe-area-inset-bottom, 0px))) + 8px); width: 44px;
       pointer-events: auto; touch-action: none; border-radius: 12px; overflow: hidden;
       border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .08);
       font: 600 10px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase;
@@ -193,13 +194,18 @@ export function mountTouchBar({ id, pads, strips = [], segment = null }) {
   // the browser drops the wake lock whenever the tab is hidden; take it back on return once a touch has asked for it
   document.addEventListener("visibilitychange", () => { if (wakeWanted) keepAwake(); });
   document.body.appendChild(bar);
+  // the strips stand above the bar whatever its height (one row, or two on a narrow phone): its measured height, live
+  const barHeight = () => document.documentElement.style.setProperty("--tb-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+  barHeight();
+  if ("ResizeObserver" in window) new ResizeObserver(barHeight).observe(bar);
+  else window.addEventListener("resize", barHeight);
   if (strips.length) {
     // the strips wait for the page's pad door (it opens once the show starts: a show page holds its start for the
     // viewer's flash protection choice, lib/flash-consent.js, for as long as the viewer reads the warning); a page
     // without a door keeps its keys. Looked for every 250 ms for 30 s, then every 2 s.
     const t0 = performance.now();
     const look = () => {
-      if (window.__padDoor) { for (const st of strips) mountStrip(st); bar.classList.add("strips"); return; }
+      if (window.__padDoor) { for (const st of strips) mountStrip(st); bar.classList.add("strips"); barHeight(); return; }
       setTimeout(look, performance.now() - t0 < 30000 ? 250 : 2000);
     };
     look();

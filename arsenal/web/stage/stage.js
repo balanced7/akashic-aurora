@@ -203,10 +203,14 @@ function start({ rig, R, renderMod, palettes }) {
   // hall's structure and 1.5 m from the strand and the rings
   const hall = hallStructure(rig.venue);
   const camDist = new CameraDistance({ room: makeRoom(rig.venue, [...hall.solid, ...hall.truss]), z: camModel.z, rings: camModel.rings });
+  // the cuts a Shift cut must keep 2 beats from: the last one (the director's, a C-key shot or a distance cut: all land in
+  // director.lastCutPos) and the director's next (his next entry, or a guard or swap override he has scheduled)
   const distCtx = (tMs, extra = {}) => {
     const pos = grid.posAt(tMs + grid.presentLagMs);
+    const o = director.override, next = Math.min(!director.manual && director.entry && director.entry.p1 > pos ? director.entry.p1 : Infinity,
+                                                 !director.manual && o && !o.started && o.at > pos ? o.at : Infinity);
     return { t: tMs / 1000, pos, spb: 60 / grid.bpm, shot: director.shots[director.pose.shot] || null, lastCutPos: director.lastCutPos,
-             nextCutPos: !director.manual && director.entry && director.entry.p1 > pos ? director.entry.p1 : Infinity, ...extra };
+             nextCutPos: next, ...extra };
   };
   function announceDistance() {
     const d = camDist.status(director.shots[director.pose.shot] || null);
@@ -480,6 +484,8 @@ function start({ rig, R, renderMod, palettes }) {
       const pose = director.update(pos, camScene);
       // the distance layer moves the camera along the shot's own line to its subject (auto: the director's pose exactly)
       camDist.apply(pose, director.shots[pose.shot], { t: now / 1000, pos, cut: pose.cut, poses: strand.poses, rings: camScene.rings });
+      // a distance cut is a cut: in the director's log and his last-cut line (so neither layer cuts within 2 beats of it)
+      if (pose.distCut && !pose.cut) { director._cut(pos, pos, pose.shot, "distance"); pose.cut = true; }
       if (camDist.takeChange()) announceDistance();
       const pl = Math.hypot(pose.look[0] - pose.pos[0], pose.look[1] - pose.pos[1], pose.look[2] - pose.pos[2]) || 1;
       fwd[0] = (pose.look[0] - pose.pos[0]) / pl; fwd[1] = (pose.look[1] - pose.pos[1]) / pl; fwd[2] = (pose.look[2] - pose.pos[2]) / pl;
@@ -600,6 +606,7 @@ function start({ rig, R, renderMod, palettes }) {
       const cur = ids.indexOf(manualShot ? manualShot : state.shot);
       manualShot = ids[(cur + 1) % ids.length];
       director.manual = { shot: manualShot, p0: grid.posAt(tEval), beats: (director.shots[manualShot].bars ?? 4) * 4 };
+      director.lastCutPos = director.manual.p0;     // a shot by hand is a cut too (a Shift distance cut keeps 2 beats from it)
     } else if (e.code === "Escape") { manualShot = null; director.manual = null; distance("auto"); }
   });
   window.addEventListener("keyup", (e) => {
