@@ -72,6 +72,11 @@
 //   phonebar     the headless phone check (915 x 412, touch): the PALETTE pad's label, the colour strip's wash of the lift
 //                colours, a touch that queues the next palette, the page's palette event only on a change, the frame time
 //                with the bar against without it, a finger on the colour strip, and the landing on the 16-bar line.
+// CAMERA DISTANCE phase (2026-10-29, arsenal/web/stage/distance.js; not in the default list: run it attended, --gpu):
+//   distance     the same shot (HALO_LOCK, FOH_WIDE) at CLOSE, MEDIUM and FAR: the rings' on-screen box through the renderer's
+//                own camera (close >= 3x far, medium between), a dolly not a zoom, the picture's luminance and true-black
+//                share, stills distance-<shot>-<stop>.png; the keys Q / Q again / Shift+E / Esc and the F8 fader on the
+//                60 fps virtual clock; the phone segment at 832 x 384 and 915 x 412.
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -2104,6 +2109,199 @@ async function phasePhoneBar({ S, ev, open, phase, deadline }) {
   check("phonebar: no exceptions or console errors", !phase.exceptions.length && !phase.console.some((x) => x.type === "error" || x.type === "log-error") && !(await ev("window.__stage.state().errors.length")), { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((x) => x.type === "error" || x.type === "log-error").slice(0, 3) });
 }
 
+// CAMERA DISTANCE (2026-10-29, arsenal/web/stage/distance.js). Daniel: "can we think of a control scheme for camera distance
+// so that i can trigger between closeup medium and far." Pre-registered bars, before the first run:
+//   size     the rings (the subject of both shots) as the renderer's own camera projects them: the on-screen bounding box's
+//            area (clipped to the frame) at CLOSE is at least 3x its area at FAR, and MEDIUM lies strictly between, on
+//            HALO_LOCK (the long lens) and FOH_WIDE (the hero wide). The first two runs (receipts stage-20261029-130859 and
+//            -131056) FAILED it, and the failure was the receipt's: it projected the ring cells' positions as if they were
+//            world positions, but rig.cells.pos is in each element's own frame (a ring's cells sit round (0, 0, 0)). The
+//            first run's numbers (2.87x and 3.84x) measure nothing; the second also tried the inner ring alone (a subject
+//            chosen after the first run). Fixed: the cells are placed by the element's live matrix; the bar is the one
+//            registered first, on all four rings; the inner ring's box rides along as detail;
+//   dolly    the lens (hfov), the look point and the shot's exposure (EV) identical at the three sizes, the view's direction
+//            within 0.5 degrees: a dolly, not a zoom;
+//   picture  every still neither black nor blown (the load phase's bar: mean relative luminance 0.004..0.6), the camera
+//            inside the venue and 1.5 m or more from the strand and the rings;
+//   keys     (logic, every 60 fps frame) Q moves on the next frame and arrives on its planned beat line (+-1 frame); Q again
+//            hands back to the director's pose exactly on a beat line two or more beats on; Shift+E cuts on a beat line
+//            (+-1 frame) with nothing moving before it; Esc hands back; the F8 fader (CC 112 through the engine's ctl event)
+//            does nothing until it crosses the live value, then drives the distance with no jump;
+//   phone    at 832 x 384 and 915 x 412 (touch): the CLOSE . MID . FAR segment sits in the bar's single row, each pad at least
+//            44 x 44 CSS px, clear of both kick strips; a tap on MID lights it and the camera's distance goes manual MEDIUM;
+//   no exceptions or console errors.
+async function phaseDistance({ S, ev, open, shot, phase, deadline }) {
+  await open(`demo=1&vt=1&${BASE}`);
+  await ev(PAGE_PROBE);
+  const renderer = await ev("window.__probe.renderer()");
+  phase.renderer = renderer;
+  check(opt.gpu ? "distance: the renderer is the GPU (--gpu)" : "distance: the renderer is SwiftShader (no hardware)", judgeFor(opt.gpu)(renderer).ok, renderer);
+  await ev(`(() => { for (let i = 0; i < 120; i++) window.__vt.step(${F}); window.__stage.show.update = () => []; return true; })()`);
+  // what the renderer's camera makes of the rings, the pose, the clearance, and the picture: read in the frame's own task
+  const READ = String.raw`(() => {
+    const s = window.__stage, R = s.renderer, cam = R.camera, rig = s.rig, C = rig.cells, gl = R.gl;
+    const v = cam.position.clone();
+    const ringEls = rig.elements.filter((e) => e.id === "ring");
+    const inner = ringEls.reduce((a, e) => (e.params.diameter < a.params.diameter ? e : a), ringEls[0]);
+    // the on-screen box of the cells passing keep(element): clipped to the frame, as a share of it
+    // cells.pos are in each element's own frame: placed in the world by the element's live matrix (the rings' formation
+    // layer when it moves them, else the home pose)
+    const Rg = window.__distModel.R, mats = new Map(), wpt = [0, 0, 0], lpt = [0, 0, 0];
+    const matOf = (ei) => { if (!mats.has(ei)) mats.set(ei, s.rings.live && s.rings.emOf ? s.rings.emOf(ei) : Rg.elementMatrix(rig.elements[ei])); return mats.get(ei); };
+    const box = (keep) => {
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, n = 0, on = 0;
+      for (let i = 0; i < C.n; i++) {
+        const e = rig.elements[C.element[i]];
+        if (!e || !keep(e)) continue;
+        lpt[0] = C.pos[i * 3]; lpt[1] = C.pos[i * 3 + 1]; lpt[2] = C.pos[i * 3 + 2];
+        Rg.transformPoint(matOf(C.element[i]), lpt, wpt);
+        v.set(wpt[0], wpt[1], wpt[2]).project(cam);
+        if (v.z < -1 || v.z > 1) continue;
+        n++; if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1) on++;
+        if (v.x < x0) x0 = v.x; if (v.x > x1) x1 = v.x; if (v.y < y0) y0 = v.y; if (v.y > y1) y1 = v.y;
+      }
+      const cx0 = Math.max(-1, x0), cx1 = Math.min(1, x1), cy0 = Math.max(-1, y0), cy1 = Math.min(1, y1);
+      const area = cx1 > cx0 && cy1 > cy0 ? ((cx1 - cx0) * (cy1 - cy0)) / 4 : 0;
+      return { cells: n, on_screen: on, bbox_ndc: [x0, y0, x1, y1].map((x) => +x.toFixed(3)), area: +area.toFixed(4) };
+    };
+    const w = R.w, h = R.h, buf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const lin = (c) => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    const LUT = Array.from({ length: 256 }, (_, i) => lin(i));
+    let sum = 0, black = 0;
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < buf.length; i += 4) {
+      const L = 0.2126 * LUT[buf[i]] + 0.7152 * LUT[buf[i + 1]] + 0.0722 * LUT[buf[i + 2]];
+      sum += L; if (Math.max(buf[i], buf[i + 1], buf[i + 2]) <= 2) black++;
+      hist[Math.min(255, Math.round(Math.sqrt(L) * 255))]++;
+    }
+    const N = w * h; let acc = 0, p50 = 0, p95 = 0;
+    for (let k = 0; k < 256; k++) { acc += hist[k]; if (!p50 && acc >= N * 0.5) p50 = (k / 255) ** 2; if (!p95 && acc >= N * 0.95) { p95 = (k / 255) ** 2; break; } }
+    const P = s.director.pose, M = window.__distModel;
+    const clear = Math.min(M.C.clearanceToStrand(P.pos, s.strand.poses, M.m.z), M.C.clearanceToRings(P.pos, M.m.rings));
+    const st = s.camDist.status(s.director.shots[P.shot]);
+    return { shot: P.shot, pos: P.pos.slice(), look: P.look.slice(), hfov: P.hfov, ev: P.ev, clear, inside: s.camDist.room.inside(P.pos),
+             inner: box((e) => e === inner), rings: box((e) => e.id === "ring"),
+             luminance: { mean: +(sum / N).toFixed(4), p50: +p50.toFixed(5), p95: +p95.toFixed(4), true_black_share: +(black / N).toFixed(4) },
+             distance: { mode: st.mode, stop: st.stop, k: st.k, clamp: st.clamp } };
+  })()`;
+  await ev(`(async () => { const C = await import("/web/stage/camera.js"), R = await import("/web/stage/rig.js"); window.__distModel = { C, R, m: C.cameraModel(window.__stage.rig) }; return true; })()`);
+  const stills = {};
+  for (const id of ["HALO_LOCK", "FOH_WIDE"]) {
+    stills[id] = {};
+    for (const stop of ["close", "medium", "far"]) {
+      // 24 frames = one beat at 150 BPM between stills: the three sizes are drawn at the same beat phase
+      await ev(`(() => { const s = window.__stage; s.setShot("${id}", 0.5); s.distance("${stop}", { now: true }); for (let i = 0; i < 23; i++) window.__vt.step(${F}); return true; })()`);
+      const r = await ev(`(() => { window.__vt.step(${F}); return ${READ}; })()`);
+      r.png = await shot(join(outDir, `distance-${id.toLowerCase()}-${stop}.png`));
+      stills[id][stop] = r;
+    }
+  }
+  phase.stills = stills;
+  const DEG = 180 / Math.PI;
+  const dirOf = (r) => { const d = r.look.map((x, i) => x - r.pos[i]), l = Math.hypot(...d); return d.map((x) => x / l); };
+  for (const id of Object.keys(stills)) {
+    const { close: c, medium: m, far: f } = stills[id];
+    check(`distance: ${id} -- the rings' on-screen box at CLOSE is at least 3x its area at FAR, MEDIUM between`,
+          c.rings.area >= 3 * f.rings.area && f.rings.area < m.rings.area && m.rings.area < c.rings.area && f.rings.area > 0,
+          { close: c.rings.area, medium: m.rings.area, far: f.rings.area, ratio: +(c.rings.area / Math.max(1e-9, f.rings.area)).toFixed(2),
+            inner_ring: { close: c.inner.area, medium: m.inner.area, far: f.inner.area, ratio: +(c.inner.area / Math.max(1e-9, f.inner.area)).toFixed(2) },
+            k: [c.distance.k, m.distance.k, f.distance.k], clamps: [c.distance.clamp, m.distance.clamp, f.distance.clamp] });
+    const ang = Math.max(...[m, f].map((r) => Math.acos(Math.min(1, dirOf(r).reduce((s, x, i) => s + x * dirOf(c)[i], 0))) * DEG));
+    check(`distance: ${id} -- a dolly, not a zoom (the same lens, look point and EV; the view's direction within 0.5 degrees)`,
+          c.hfov === m.hfov && m.hfov === f.hfov && c.ev === m.ev && m.ev === f.ev && [m, f].every((r) => r.look.every((x, i) => Math.abs(x - c.look[i]) < 0.05)) && ang <= 0.5,
+          { hfov: [c.hfov, m.hfov, f.hfov], ev: [c.ev, m.ev, f.ev], degrees: +ang.toFixed(3), metres_to_look: [c, m, f].map((r) => +Math.hypot(...r.pos.map((x, i) => x - r.look[i])).toFixed(1)) });
+    check(`distance: ${id} -- every still neither black nor blown, the lens inside the venue and 1.5 m from the strand and rings`,
+          [c, m, f].every((r) => r.luminance.mean > 0.004 && r.luminance.mean < 0.6 && r.inside && r.clear >= 1.5),
+          [c, m, f].map((r) => ({ mean: r.luminance.mean, p50: r.luminance.p50, true_black: r.luminance.true_black_share, clear_m: +r.clear.toFixed(2), inside: r.inside })));
+  }
+  // the controls, logic only (every 60 fps frame): the keys as the keyboard sends them, the fader as the engine does
+  await ev("window.__stage.skipRender = true");
+  const KEYS = String.raw`((code, shift, frames) => {
+    const s = window.__stage, D = s.camDist, out = [];
+    const pos = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    const dist = () => { const p = s.director.pose; return Math.hypot(p.pos[0] - p.look[0], p.pos[1] - p.look[1], p.pos[2] - p.look[2]); };
+    const before = { pos: pos(), d: dist(), k: D.last.k };
+    if (code) { window.dispatchEvent(new KeyboardEvent("keydown", { code, key: code.slice(-1).toLowerCase(), shiftKey: shift })); window.dispatchEvent(new KeyboardEvent("keyup", { code, key: code.slice(-1).toLowerCase(), shiftKey: shift })); }
+    const move = D.moves.at(-1) || null;
+    for (let i = 0; i < frames; i++) { window.__vt.step(1000 / 60); out.push({ pos: pos(), d: dist(), k: D.last.k, w: D.w.x, cut: !!s.director.pose.distCut }); }
+    return { before, move: move && { ...move }, frames: out, status: D.status(s.director.shots[s.director.pose.shot]) };
+  })`;
+  await ev(`(() => { const s = window.__stage; s.setShot("HALO_LOCK", 0.5); s.distance("auto", { now: true }); for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`);
+  const onFrame = (p, at) => Math.abs(p - at) * 24 <= 1.01;
+  const q = await ev(`${KEYS}("KeyQ", false, 90)`);
+  const qLand = q.frames.find((r) => r.pos >= q.move.landAt - 1e-6);
+  const settled = q.frames.at(-1).d;
+  const firstAt = q.frames.findIndex((r) => Math.abs(r.d - settled) < 1e-6);
+  phase.q = { move: q.move, before: q.before, land_frame: qLand, first_settled: q.frames[firstAt] };
+  check("distance: Q moves the camera on the next frame and arrives on its planned beat line (+-1 frame)",
+        q.move && q.move.stop === "close" && q.frames[0].d < q.before.d - 1e-6 && q.move.landAt === Math.round(q.move.landAt) && firstAt >= 0 && onFrame(q.frames[firstAt].pos, q.move.landAt),
+        { press_pos: +q.before.pos.toFixed(3), land_at: q.move && q.move.landAt, settled_at: firstAt >= 0 ? +q.frames[firstAt].pos.toFixed(3) : null, d: [+q.before.d.toFixed(1), +settled.toFixed(1)] });
+  const qq = await ev(`${KEYS}("KeyQ", false, 110)`);
+  const back = qq.frames.find((r) => r.pos >= qq.move.landAt - 1e-6);
+  const backFirst = qq.frames.findIndex((r) => r.k === 1 && r.w === 0);
+  check("distance: Q again hands back to the director: his pose exactly, on a beat line two or more beats on (+-1 frame)",
+        qq.move.kind === "handback" && qq.move.landAt - qq.before.pos >= 2 - 1e-6 && back && back.k === 1 && backFirst >= 0 && onFrame(qq.frames[backFirst].pos, qq.move.landAt) && qq.status.mode === "auto",
+        { press_pos: +qq.before.pos.toFixed(3), land_at: qq.move.landAt, back_at: backFirst >= 0 ? +qq.frames[backFirst].pos.toFixed(3) : null, mode: qq.status.mode });
+  const e = await ev(`${KEYS}("KeyE", true, 72)`);
+  const cutI = e.frames.findIndex((r) => r.cut);
+  check("distance: Shift+E is a clean cut on a beat line (+-1 frame), nothing moving before it",
+        e.move.kind === "cut" && cutI >= 0 && onFrame(e.frames[cutI].pos, Math.round(e.frames[cutI].pos)) && e.frames.slice(0, cutI).every((r) => r.k === 1) && e.frames[cutI].k > 1,
+        { press_pos: +e.before.pos.toFixed(3), cut_at: cutI >= 0 ? +e.frames[cutI].pos.toFixed(3) : null, planned: e.move.landAt, k_after: cutI >= 0 ? e.frames[cutI].k : null, clamp: e.status.clamp });
+  const esc = await ev(`${KEYS}("Escape", false, 110)`);
+  check("distance: Esc hands distance back to the director (auto, his pose exactly at the end)",
+        esc.status.mode === "auto" && esc.frames.at(-1).k === 1 && esc.frames.at(-1).w === 0, { mode: esc.status.mode, k: esc.frames.at(-1).k });
+  // the fader through the engine's ctl event: soft takeover
+  const FAD = String.raw`((value, frames) => { const s = window.__stage, D = s.camDist, out = [];
+    s.inject({ t: "ctl", id: "cc112", kind: "abs", value });
+    for (let i = 0; i < frames; i++) { window.__vt.step(1000 / 60); out.push({ k: D.last.k, v: D.v.x }); }
+    return { status: D.status(s.director.shots[s.director.pose.shot]), frames: out }; })`;
+  await ev(`(() => { const s = window.__stage; s.setShot("HALO_LOCK", 0.5); for (let i = 0; i < 12; i++) window.__vt.step(${F}); return true; })()`);
+  const f0 = await ev(`${FAD}(0.02, 6)`);
+  const f1 = await ev(`${FAD}(${Math.min(0.99, (f0.status.vAuto ?? 0.6) + 0.05)}, 6)`);
+  const f2 = await ev(`${FAD}(0.0, 60)`);
+  const steps = f2.frames.map((r, i) => (i ? Math.abs(Math.log(r.k / f2.frames[i - 1].k)) : 0));
+  phase.fader = { before: f0.status, caught: f1.status, end: f2.status, max_step_ln: +Math.max(...steps).toFixed(4) };
+  check("distance: F8 (CC 112) does nothing until it crosses the live distance, then drives it toward CLOSE with no jump",
+        f0.status.mode === "auto" && f0.frames.every((r) => r.k === 1) && f1.status.fader.caught && f1.status.source === "fader" && Math.abs(Math.log(f1.frames[0].k)) < 0.05
+        && f2.frames.at(-1).k < 0.6 && Math.max(...steps) <= 4.5 / 60 + 1e-3, phase.fader);
+  await ev(`(() => { const s = window.__stage; s.distance("auto", { now: true }); s.clearShot(); s.skipRender = false; return true; })()`);
+  const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (await ev("window.__stage.errors.length"));
+  // the phone: the segment in the pad bar
+  const phone = [];
+  for (const [PW, PH] of [[832, 384], [915, 412]]) {
+    await S("Emulation.setDeviceMetricsOverride", { width: PW, height: PH, deviceScaleFactor: 1, mobile: true });
+    await S("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    await open(`demo=1&vt=1&pads=1&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
+    await waitFor(() => ev("!!document.querySelector('.tbs.right') && !!document.querySelector('.tb .seg')"), 15000, "the strips and the segment");
+    await ev(`(() => { for (let i = 0; i < 30; i++) window.__vt.step(${F}); return true; })()`);
+    const g = await ev(`(() => { const r = (el) => { const b = el.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
+      const bar = document.querySelector(".tb"), seg = [...document.querySelectorAll(".tb .seg button")];
+      const vis = [...bar.querySelectorAll("button")].filter((b) => b.offsetParent !== null);
+      const tops = [...new Set(vis.map((b) => Math.round(b.getBoundingClientRect().top)))];
+      return { bar: r(bar), rows: tops.length, seg: seg.map((b) => ({ label: b.textContent, rect: r(b) })), strips: [...document.querySelectorAll(".tbs")].map(r) }; })()`);
+    const ov = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+    const mid = g.seg.find((x) => x.label === "mid");
+    const cx = (mid.rect[0] + mid.rect[2]) / 2, cy = (mid.rect[1] + mid.rect[3]) / 2;
+    const under = await ev(`(() => { const el = document.elementFromPoint(${cx}, ${cy}); return el ? el.textContent : null; })()`);
+    await S("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: cx, y: cy, id: 1 }] });
+    await ev(`(() => { for (let i = 0; i < 2; i++) window.__vt.step(${F}); return true; })()`);
+    await S("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await ev(`(() => { for (let i = 0; i < 4; i++) window.__vt.step(${F}); return true; })()`);
+    const after = await ev(`(() => ({ status: window.__stage.camDist.status(), lit: [...document.querySelectorAll(".tb .seg button.lit")].map((b) => b.textContent) }))()`);
+    await shot(join(outDir, `distance-phone-${PW}x${PH}.png`));
+    phone.push({ viewport: [PW, PH], ...g, under, after });
+    check(`distance: phone ${PW} x ${PH} -- CLOSE . MID . FAR in the bar's one row, 44 x 44 px or more, clear of the kick strips; a tap on MID lights it and goes manual MEDIUM`,
+          g.rows === 1 && g.seg.length === 3 && g.seg.every((x) => x.rect[2] - x.rect[0] >= 44 - 0.5 && x.rect[3] - x.rect[1] >= 44 - 0.5 && g.strips.every((st) => !ov(x.rect, st)))
+          && under === "mid" && after.status.mode === "manual" && after.status.stop === "medium" && after.lit.length === 1 && after.lit[0] === "mid",
+          { rows: g.rows, seg: g.seg.map((x) => [x.label, Math.round(x.rect[2] - x.rect[0]), Math.round(x.rect[3] - x.rect[1])]), strips: g.strips.map((x) => x.map(Math.round)), under, status: { mode: after.status.mode, stop: after.status.stop }, lit: after.lit });
+  }
+  phase.phone = phone;
+  const errs2 = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + (await ev("window.__stage.errors.length"));
+  check("distance: no exceptions or console errors", errs === 0 && errs2 === 0, { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((c) => /error/.test(c.type)).slice(0, 3) });
+}
+
 // ------------------------------------------------------------------------------------------------------ main --
 if (opt.stitch) {
   // no browser, no lock: judge stored chunks
@@ -2123,7 +2321,7 @@ try {
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
                   orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat,
-                  palettes: phasePalettes, phonebar: phasePhoneBar };
+                  palettes: phasePalettes, phonebar: phasePhoneBar, distance: phaseDistance };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }
