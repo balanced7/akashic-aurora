@@ -38,6 +38,7 @@ import { hazeNoise3D, airTint } from "./atmos.js";
 import { vfovOf } from "./camera.js";
 import { MAX_FORMATION_EMIT, MAX_FORMATION_BEAMS } from "./formations.js";
 import { meterBounds, finishCells } from "./flash.js";
+import { HAL, cubeColours, tumbleAngles } from "./cubes.js";
 
 export const UNIT_NITS = 30;
 const U = 1 / UNIT_NITS;
@@ -177,6 +178,12 @@ export class StageRenderer {
     // source for one program's compile, nothing per frame (unused functions are not compiled in)
     this.preludeBeam = lib.compose(["volume-phase", "colour-transfer", "atmos-haze"], "webgl2");
     this.preludeFinish = lib.compose(["display-out", "colour-transfer"], "webgl2");
+    // the HAL 4000 cubes (cubes.js): the house neon line and the exact rounded box. If the library cannot compose them
+    // the cubes stay solid (the page never dies for a look)
+    try { this.preludeNeon = lib.compose(["neon-line", "draw2-sdf2"], "webgl2"); } catch (e) { this.preludeNeon = null; console.error(`cubes: the HAL look is off (${e.message})`); }
+    // the cubes' style (cubes.js cubeStyleOf; stage.js sets it from ?cubes= and key U), their tumble (0..1) and the frame's
+    // tint (fs.cubeTint, cubes.js cubeTintOf: the hook a setup drives)
+    this.cubes = { style: "solid", tumble: HAL.tumble };
     const r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, depth: true, stencil: false,
                                                         powerPreference: "high-performance", preserveDrawingBuffer: false });
     r.autoClear = false;
@@ -246,6 +253,12 @@ export class StageRenderer {
       ring: lit([0.12, 0.12, 0.13]),
       chain: lit([0.18, 0.18, 0.2], [0, 0, 0], { instanced: true }),
       cube: this._raw(S.CUBE_VERTEX, S.CUBE_FRAGMENT(this.preludeMain), {}),
+      cubeHal: this.preludeNeon ? this._raw(S.CUBE_HAL_VERTEX, S.CUBE_HAL_FRAGMENT(this.preludeNeon), {
+        uRingHalf: { value: new THREE.Vector3(...HAL.rings.map((r) => r.half)) }, uRingRad: { value: new THREE.Vector3(...HAL.rings.map((r) => r.radius)) },
+        uRingGain: { value: new THREE.Vector3(...HAL.rings.map((r) => r.gain)) }, uRingGlow: { value: new THREE.Vector3(...HAL.rings.map((r) => r.glow)) },
+        uWidthPx: { value: HAL.widthPx }, uHaloPx: { value: HAL.haloPx }, uHaloMaxM: { value: HAL.haloMaxM }, uRingStep: { value: HAL.ringStep }, uGraze: { value: HAL.graze }, uHeat: { value: HAL.heat }, uFull: { value: 1 },
+        uLineGain: { value: HAL.lineGain }, uHaloGain: { value: HAL.haloGain }, uInnerGain: { value: HAL.innerGain }, uInnerSigma: { value: HAL.innerSigma },
+        uBackDim: { value: HAL.backDim }, uDefocus: { value: HAL.defocus } }, { ...add, side: THREE.DoubleSide }) : null,
       orb: this._raw(S.ORB_VERTEX, S.ORB_FRAGMENT, { uCol: { value: new THREE.Vector3(0.3, 0.05, 1) }, uHot: { value: new THREE.Vector3(1, 0.9, 1) },
         uScale: { value: 0 }, uHotK: { value: 0.35 }, uTime: { value: 0 }, uSpin: { value: new THREE.Matrix3() } }),
       emit: this._raw(S.EMIT_VERTEX, S.EMIT_FRAGMENT, { ...this.view }, add),
@@ -339,7 +352,13 @@ export class StageRenderer {
     this.cubeFix = rig.fixtures.map((f, i) => (f.type === "cube-6" ? i : -1)).filter((i) => i >= 0);
     const cubeGeo = new THREE.BoxGeometry(1.1, 1.1, 1.1);
     this.cubeEmit = new Float32Array(this.cubeFix.length * 3);
+    this.cubeGlow = new Float32Array(this.cubeFix.length * 3);     // the HAL cube's glow hue (cubes.js cubeColours)
     cubeGeo.setAttribute("iEmit", new THREE.InstancedBufferAttribute(this.cubeEmit, 3));
+    cubeGeo.setAttribute("iGlow", new THREE.InstancedBufferAttribute(this.cubeGlow, 3));
+    // each cube's place along the strand (0 at the first rung, 1 at the last): the glow's gradient
+    const rungOrder = new Map(this.rungEls.map((ei, k) => [ei, k]));
+    this.cubeAlong = Float32Array.from(this.cubeFix, (fi) => (rungOrder.get(rig.fixtures[fi].element) ?? 0) / Math.max(1, this.rungEls.length - 1));
+    this.cubeTmp = { core: [0, 0, 0], glow: [0, 0, 0], emit: [0, 0, 0], ang: [0, 0, 0], m: new THREE.Matrix4(), r: new THREE.Matrix4(), e: new THREE.Euler() };
     this.cubeMesh = new THREE.InstancedMesh(cubeGeo, this.mat.cube, this.cubeFix.length);
     this.cubeMesh.frustumCulled = false; this.cubeMesh.userData.group = "strand"; world.add(this.cubeMesh);
     const chainGeo = new THREE.BoxGeometry(0.035, 1, 0.035); chainGeo.translate(0, 0.5, 0);
@@ -575,19 +594,31 @@ export class StageRenderer {
       }
     }
     this.rungMesh.instanceMatrix.needsUpdate = true; this.chainMesh.instanceMatrix.needsUpdate = true;
-    // the cubes: pose, and the mean of their six cells as their light
+    // the cubes: pose, and the mean of their six cells as their light. HAL (cubes.js): the core light and the glow hue
+    // from the frame's tint, and the slow tumble inside the rung's frame
+    const hal = this.cubes.style === "hal" && this.mat.cubeHal, ct = this.cubeTmp;
+    this.cubeMesh.material = hal ? this.mat.cubeHal : this.mat.cube;
+    const tumble = hal ? (Number.isFinite(this.cubes.tumble) ? this.cubes.tumble : 0) : 0;
     for (let k = 0; k < this.cubeFix.length; k++) {
       const f = rig.fixtures[this.cubeFix[k]];
       const em = this.elM[f.element];
       const p = transformPoint(em, f.local);
-      const m4 = new THREE.Matrix4().set(em[0], em[1], em[2], p[0], em[3], em[4], em[5], p[1], em[6], em[7], em[8], p[2], 0, 0, 0, 1);
+      const m4 = ct.m.set(em[0], em[1], em[2], p[0], em[3], em[4], em[5], p[1], em[6], em[7], em[8], p[2], 0, 0, 0, 1);
+      if (tumble) { const a = tumbleAngles(k, tSec || 0, tumble, ct.ang); m4.multiply(ct.r.makeRotationFromEuler(ct.e.set(a[0], a[1], a[2]))); }
       this.cubeMesh.setMatrixAt(k, m4);
       let r = 0, g = 0, b = 0;
       for (let cI = f.cell0; cI < f.cell0 + f.ncell; cI++) { r += fs.pixels[cI * 4]; g += fs.pixels[cI * 4 + 1]; b += fs.pixels[cI * 4 + 2]; }
       const kk = this.cellNits[f.cell0] / f.ncell;
-      this.cubeEmit[k * 3] = r * kk; this.cubeEmit[k * 3 + 1] = g * kk; this.cubeEmit[k * 3 + 2] = b * kk;
+      if (hal) {
+        ct.emit[0] = r * kk; ct.emit[1] = g * kk; ct.emit[2] = b * kk;
+        cubeColours(ct.emit, this.cubeAlong[k], fs.cubeTint || null, ct.core, ct.glow);
+        this.cubeEmit[k * 3] = ct.core[0]; this.cubeEmit[k * 3 + 1] = ct.core[1]; this.cubeEmit[k * 3 + 2] = ct.core[2];
+        this.cubeGlow[k * 3] = ct.glow[0]; this.cubeGlow[k * 3 + 1] = ct.glow[1]; this.cubeGlow[k * 3 + 2] = ct.glow[2];
+        if (k === 0) this.mat.cubeHal.uniforms.uFull.value = this.cellNits[f.cell0];
+      } else { this.cubeEmit[k * 3] = r * kk; this.cubeEmit[k * 3 + 1] = g * kk; this.cubeEmit[k * 3 + 2] = b * kk; }
     }
     this.cubeMesh.instanceMatrix.needsUpdate = true; this.cubeMesh.geometry.attributes.iEmit.needsUpdate = true;
+    if (hal) this.cubeMesh.geometry.attributes.iGlow.needsUpdate = true;
     // the heads: lens and direction, beams, spot lights, bodies, lens glints
     const nH = rig.heads.length;
     let nb = 0, ns = 0;

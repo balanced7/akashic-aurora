@@ -55,7 +55,8 @@ import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
 import { validateScene, expandScene } from "./rig.js";
 import { BeatGrid, DemoBeats, beatExtras } from "./grid.js";
-import { Programmer } from "./programmer.js";
+import { Programmer, ROLE } from "./programmer.js";
+import { CUBE_STYLES, cubeStyleOf, cubeTintOf } from "./cubes.js";
 import { Strand } from "./kinetics.js";
 import { LaserEngine } from "./lasers.js";
 import { Lasers3D } from "./lasers3d.js";
@@ -149,6 +150,15 @@ function start({ rig, R, renderMod, palettes }) {
   const lookStore = (v) => { try { if (v === undefined) return localStorage.getItem("arsenal.stage.look"); localStorage.setItem("arsenal.stage.look", v); } catch { return null; } return null; };
   const qLook = QS.get("look");
   R.look = LOOKS[qLook] ? qLook : navigator.webdriver ? "classic" : (LOOKS[lookStore()] ? lookStore() : "hdr");
+  // the strand's cubes (cubes.js): ?cubes=hal|solid, else HAL 4000 neon for a viewer and the solid cubes for automation
+  // (the lanes' numbers were measured on them); key U toggles; ?cubetumble=0 holds them square to their rungs
+  R.cubes.style = cubeStyleOf(QS.get("cubes"), navigator.webdriver);
+  if (QS.get("cubetumble") !== null && Number.isFinite(Number(QS.get("cubetumble")))) R.cubes.tumble = Math.min(1, Math.max(0, Number(QS.get("cubetumble"))));
+  // a setup's cube colours (api.cubeTint): null fields keep the palette's. As a URL A/B: ?cubeglow=<hex>[,<hex>] (the
+  // glow at the strand's first and last rung) and ?cubecore=<hex>[,<hex>] (the core's hue), e.g. cubeglow=0040ff,ff2000
+  const hexPair = (v) => { const h = (v || "").split(",").filter((x) => /^#?[0-9a-f]{6}$/i.test(x)).map((x) => hexToLinear(x.startsWith("#") ? x : `#${x}`)); return h.length ? [h[0], h[1] || h[0]] : null; };
+  const qGlow = hexPair(QS.get("cubeglow")), qCore = hexPair(QS.get("cubecore"));
+  let cubeTintOverride = qGlow || qCore ? { glowTop: qGlow && qGlow[0], glowBottom: qGlow && qGlow[1], coreTop: qCore && qCore[0], coreBottom: qCore && qCore[1] } : null;
   const show0 = rig.show;
   // the palette asked for (or a set theme by that name that is not a palette), else the show's palette, else its theme
   const palAsked = palettes && PALETTE_ASKED && palettes.byId[PALETTE_ASKED] ? PALETTE_ASKED : null;
@@ -462,7 +472,9 @@ function start({ rig, R, renderMod, palettes }) {
       const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
-                   bloomMix: BLOOM_MIX, rings: rf };
+                   bloomMix: BLOOM_MIX, rings: rf,
+                   // the HAL cubes' glow: the palette's deep (crossfading with it) along to its B, unless a setup names its own
+                   cubeTint: cubeTintOf({ deep: programmer.ambient, B: programmer.roleRGB[ROLE.B] }, cubeTintOverride) };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       // flash protection off: no limiter asked (no meter, the identity: the frame as drawn)
       const info = api.skipRender ? state.info : R.render(fs, flash.on ? (cells, t) => limiter.step(cells, t, dt) : null, now / 1000);
@@ -535,7 +547,7 @@ function start({ rig, R, renderMod, palettes }) {
   // back on: the limiter starts fresh, as at load (what played while it was off is not its history)
   flash.onChange((on) => { if (on) Object.assign(limiter, new FrameLimiter()); });
   // the keyboard: pads 1, 2, 6 and 0 (= pad 10), C next shot (played in motion, looping over its own bars), H HUD,
-  // F fullscreen, Esc back to the director
+  // F fullscreen, U the cubes (HAL 4000 neon / solid), Esc back to the director
   const KEYPAD = { Digit1: 1, Digit2: 2, Digit3: 3, Digit4: 4, Digit5: 5, Digit6: 6, Digit7: 7, Digit8: 8, Digit9: 9, Digit0: 10 };
   const held = new Set();
   window.addEventListener("keydown", (e) => {
@@ -545,6 +557,7 @@ function start({ rig, R, renderMod, palettes }) {
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
     if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
     else if (e.code === "KeyH") hudEl.classList.toggle("hidden");
+    else if (e.code === "KeyU") R.cubes.style = CUBE_STYLES[(CUBE_STYLES.indexOf(R.cubes.style) + 1) % CUBE_STYLES.length];
     else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
     else if (e.code === "KeyF") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
     else if (e.code === "KeyC") {
@@ -619,6 +632,10 @@ function start({ rig, R, renderMod, palettes }) {
     fader: (id, v) => { faders[id] = v; applyFaders(performance.now() + grid.presentLagMs); syncFaderUI(); },
     inject: (obj) => handle(obj, performance.now()),
     features: (f) => Object.assign(R.features, f),
+    // the cubes: style (hal|solid), tumble (0..1); cubeTint(t) is the setups' door (cubes.js THE HOOK: glowTop, glowBottom,
+    // coreTop, coreBottom as linear RGB, glowMix; null clears it back to the palette's)
+    cubes: (o = {}) => { if (CUBE_STYLES.includes(o.style)) R.cubes.style = o.style; if (Number.isFinite(o.tumble)) R.cubes.tumble = o.tumble; return { ...R.cubes, tint: cubeTintOverride }; },
+    cubeTint: (t) => { cubeTintOverride = t && typeof t === "object" ? { ...t } : null; return cubeTintOverride; },
     profile: (on) => { R.profile = !!on; if (on) R.timings = {}; return R.timings; },
     timings: () => R.timings,
     overdraw: () => R.overdraw(),

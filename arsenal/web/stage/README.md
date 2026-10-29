@@ -34,6 +34,13 @@ Open it from the Arsenal server:
   the pad map's `palette-next` / `palette-prev` (KeyLab pads 11 and 12): the change lands on the next 16-bar line, a
   neighbour crossfading over 4 bars, anything else through a one-beat dip. The white kick is the palette's white and never
   turns a wheel; the colour kick lifts each cell inside the palette and keeps the strand's helix.
+- HAL 4000 cubes (2026-10-29, `cubes.js`, shaders.js `CUBE_HAL_*`): the strand's cubes drawn as light, nested rounded-square
+  neon outlines on every face (the house `neonLine`: a one-pixel-minimum core, a Lorentzian halo, crossings by max), see
+  through to the far faces, a soft inner bloom, a slow tumble at three incommensurate rates. The core is the programmer's
+  own cube colour; the glow runs along the strand from the palette's deep to its B, and a setup can name both
+  (`window.__stage.cubeTint({glowTop, glowBottom, coreTop, coreBottom, glowMix})`, linear RGB; as a URL A/B
+  `?cubeglow=0040ff,ff2000&cubecore=a0f0ff,ffb040`, first and last rung). `?cubes=hal|solid` (a
+  viewer gets HAL, automation the solid cubes), key `U` toggles, `?cubetumble=0` holds them square.
 - Kinetics wave A and the orrery (2026-10-27): `?ring=orrery` (or `spiral`, `vortex`, `crown`, `portal`) opens with the
   rings in that formation; pad 8 (key `8`) MORPHs to the next one on the next bar line and pad 9 (key `9`) fires the
   energy beam's discharge. Drawn for the Dreaming City palette: `index.html?demo=1&theme=dreaming-city&ring=orrery`.

@@ -168,6 +168,109 @@ void main() {
   fragColor = vec4(fEmit * glow * (1.0 - 0.85 * frame), 1.0);
 }`;
 
+// ------------------------------------------------------------------------------------- cubes, HAL 4000 (neon) --
+// 2026-10-29 (Daniel: "the hal 4000 shader"): the cube drawn as light, not paint. Each face carries nested rounded-square
+// outlines (cubes.js HAL.rings), each drawn with the house neonLine (groups/neon-line.glsl): a core pen of fixed screen
+// width that never breaks below a pixel (its width read from the distance's own screen gradient, so a face seen edge-on
+// keeps a one-pixel line), a Lorentzian halo in pixels, the core whitening toward the cube's full level, and every
+// crossing combined by MAX (the HAL 4000 rule: a tangle stays crisp, never blooms to white). The faces are otherwise
+// black and the cube is drawn additively from both sides, so the far faces' outlines show through, dimmer and spread by
+// neonLine's defocus: a cage of light lines, as in the study. A soft inner bloom sits at the heart (front faces only, so
+// it is counted once): a Gaussian of the view ray's miss distance from the centre. Two colours per cube (cubes.js
+// cubeColours): fEmit the core light (scene units), fGlow the glow's hue (unit brightness); the outer ring's core is the
+// core colour and the inner rings lean to the glow, so one cube is a gradient from its edge inward.
+export const CUBE_HAL_VERTEX = `${HEAD}
+uniform mat4 projectionMatrix;
+uniform mat4 viewMatrix;
+in vec3 position;
+in vec3 normal;
+in mat4 instanceMatrix;
+in vec3 iEmit;
+in vec3 iGlow;
+out vec3 vLocal;
+out vec3 vWorld;
+flat out vec3 fNormalL;
+flat out vec3 fNormalW;
+flat out vec3 fEmit;
+flat out vec3 fGlow;
+flat out vec3 fCentre;
+void main() {
+  vec4 wp = instanceMatrix * vec4(position, 1.0);
+  vLocal = position;
+  vWorld = wp.xyz;
+  fNormalL = normal;
+  fNormalW = normalize(mat3(instanceMatrix) * normal);
+  fEmit = iEmit;
+  fGlow = iGlow;
+  fCentre = instanceMatrix[3].xyz;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+export const CUBE_HAL_FRAGMENT = (prelude) => `${HEAD}
+${prelude}
+uniform vec3 cameraPosition;
+uniform vec3 uRingHalf;
+uniform vec3 uRingRad;
+uniform vec3 uRingGain;
+uniform vec3 uRingGlow;
+uniform float uWidthPx;
+uniform float uHaloPx;
+uniform float uHaloMaxM;
+uniform float uRingStep;
+uniform float uGraze;
+uniform float uHeat;
+uniform float uFull;
+uniform float uLineGain;
+uniform float uHaloGain;
+uniform float uInnerGain;
+uniform float uInnerSigma;
+uniform float uBackDim;
+uniform float uDefocus;
+in vec3 vLocal;
+in vec3 vWorld;
+flat in vec3 fNormalL;
+flat in vec3 fNormalW;
+flat in vec3 fEmit;
+flat in vec3 fGlow;
+flat in vec3 fCentre;
+out vec4 fragColor;
+vec3 unitHue(vec3 c) { return c / max(max(c.r, max(c.g, c.b)), 1e-6); }
+void main() {
+  // the face's own plane: the two local axes across the face's normal
+  vec3 an = abs(fNormalL);
+  vec2 uv = an.x > 0.5 ? vLocal.yz : (an.y > 0.5 ? vLocal.xz : vLocal.xy);
+  float level = max(fEmit.r, max(fEmit.g, fEmit.b));          // scene units
+  float full = clamp(level / max(uFull, 1e-6), 0.0, 1.0);       // 0..1 of the cube's full light
+  vec3 coreHue = unitHue(fEmit);
+  vec3 glowHue = unitHue(fGlow);
+  float depth = gl_FrontFacing ? 0.0 : 1.0;                     // the far faces, seen through the cube
+  vec3 core = vec3(0.0);
+  vec3 halo = vec3(0.0);
+  for (int i = 0; i < 3; i++) {
+    float d = sd2RoundBox(uv, vec2(uRingHalf[i]), uRingRad[i]);
+    float px = length(vec2(dFdx(d), dFdy(d)));                  // one screen pixel across this line, in face metres
+    vec3 tint = unitHue(mix(coreHue, glowHue, uRingGlow[i]));
+    // the inner rings fade out as the cube gets small on screen (under ~8 px between rings they would fill the face):
+    // a far cube is its outer outline, a near one the whole nest
+    float gain = uRingGain[i] * (i == 0 ? 1.0 : smoothstep(3.0, 8.0, uRingStep / max(px, 1e-6)));
+    core = neonLine(core, d, px, tint, gain, depth, uWidthPx, 0.0, 3, uHeat * full, 0, uDefocus, 0);
+    float haloPx = min(uHaloPx, uHaloMaxM / max(px, 1e-6));   // a far cube: the halo stays on the face, the bloom does the rest
+    halo = neonLine(halo, d, px, glowHue, gain, depth, uWidthPx, haloPx, 1, 0.0, 0, uDefocus, 2);
+  }
+  // a face seen edge-on squeezes its whole nest into a sliver along the cube's edge, which would outline the box
+  // itself (the painted look): those faces give way to the ones that face the viewer
+  vec3 rd = normalize(vWorld - cameraPosition);
+  float facing = abs(dot(fNormalW, rd));
+  float graze = mix(uGraze, 1.0, smoothstep(0.08, 0.45, facing));
+  vec3 light = (uLineGain * core + uHaloGain * halo) * (gl_FrontFacing ? 1.0 : uBackDim) * graze;
+  // the soft inner bloom: a Gaussian of the view ray's miss distance from the cube's centre
+  vec3 oc = fCentre - cameraPosition;
+  float along = dot(oc, rd);
+  float miss2 = max(dot(oc, oc) - along * along, 0.0);
+  float inner = gl_FrontFacing ? exp(-miss2 / max(uInnerSigma * uInnerSigma, 1e-6)) : 0.0;
+  light += glowHue * (uInnerGain * inner);
+  fragColor = vec4(min(level * light, vec3(3.0e4)), 1.0);
+}`;
+
 // ------------------------------------------------------------------------------------------------- the core --
 // v2 (2026-10-27): the orrery's core, an LED sphere lit from inside. A saturated body whose light swirls like a nebula
 // (two octaves of value noise in the sphere's turning frame), brighter toward its centre as seen (the volume the view
