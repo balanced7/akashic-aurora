@@ -532,62 +532,95 @@ void main() {
   fragColor = vec4(displayOut(lin, gl_FragCoord.xy, uRes, uEv, uCurve, uSat, uVig, 0.0, 256.0), 1.0);
 }`;
 
-// the meter: per 4 x 4 block of the finished frame, the sums of relative luminance and of the WCAG red quantity, and
-// the pixel count (exact box sums: the limiter's cells are means of every pixel)
+// the meter (flash.js v2): per 4 x 4 block of the finished frame, THREE texels side by side (slot = x % 3): the block's
+// sums of the relative luminance times each of its cell's four corner hats, of the WCAG red quantity times them, and of
+// the linear RGB with the pixel count. The hats are flash.js hats() (smoothstep-bilinear in the pixel's cell, the cells'
+// pixel bounds in uBX / uBY: flash.js meterBounds, 16-pixel blocks shared out four ways), so a window's shown value is an
+// exact linear function of the apply pass's corner fields. (Exact box sums: every pixel counted once.)
+const METER_CELL = `
+uniform float uBX[5];
+uniform float uBY[5];
+float hatSmooth(float q) { q = clamp(q, 0.0, 1.0); return q * q * (3.0 - 2.0 * q); }
+// a pixel centre's cell (cx, cy) and its hats for the cell's corners (cx, cy), (cx + 1, cy), (cx, cy + 1), (cx + 1, cy + 1)
+vec4 cellHats(vec2 pc, out ivec2 cell) {
+  int cx = pc.x >= uBX[3] ? 3 : pc.x >= uBX[2] ? 2 : pc.x >= uBX[1] ? 1 : 0;
+  int cy = pc.y >= uBY[3] ? 3 : pc.y >= uBY[2] ? 2 : pc.y >= uBY[1] ? 1 : 0;
+  cell = ivec2(cx, cy);
+  float fx = hatSmooth((pc.x - uBX[cx]) / max(1.0, uBX[cx + 1] - uBX[cx]));
+  float fy = hatSmooth((pc.y - uBY[cy]) / max(1.0, uBY[cy + 1] - uBY[cy]));
+  return vec4((1.0 - fx) * (1.0 - fy), fx * (1.0 - fy), (1.0 - fx) * fy, fx * fy);
+}
+`;
 export const METER1_FRAGMENT = (prelude) => `${HEAD}
 ${prelude}
 uniform sampler2D uSrc;
 uniform ivec2 uSrcSize;
+${METER_CELL}
 out vec4 fragColor;
 void main() {
-  ivec2 base = ivec2(gl_FragCoord.xy) * 4;
-  vec3 sums = vec3(0.0);
+  ivec2 f = ivec2(gl_FragCoord.xy);
+  int slot = f.x % 3;
+  ivec2 base = ivec2((f.x / 3) * 4, f.y * 4);
+  vec4 acc = vec4(0.0);
   for (int k = 0; k < 16; k++) {
     ivec2 p = base + ivec2(k % 4, k / 4);
     if (p.x >= uSrcSize.x || p.y >= uSrcSize.y) continue;
     vec3 e = texelFetch(uSrc, p, 0).rgb;
     vec3 l = srgbDecode(e);
-    float s = e.r + e.g + e.b;
-    float red = (s > 0.0 && e.r / s >= 0.8) ? max(0.0, (l.r - l.g - l.b) * 320.0) : 0.0;
-    sums += vec3(dot(l, vec3(0.2126, 0.7152, 0.0722)), red, 1.0);
+    if (slot == 2) { acc += vec4(l, 1.0); continue; }
+    ivec2 cell;
+    vec4 h = cellHats(vec2(p) + 0.5, cell);
+    if (slot == 0) acc += h * dot(l, vec3(0.2126, 0.7152, 0.0722));
+    else {
+      float s = e.r + e.g + e.b;
+      acc += h * ((s > 0.0 && e.r / s >= 0.8) ? max(0.0, (l.r - l.g - l.b) * 320.0) : 0.0);
+    }
   }
-  fragColor = vec4(sums, 1.0);
+  fragColor = acc;
 }`;
+// the second level: 4 x 4 first-level blocks (16 x 16 pixels, all in one cell) summed slot by slot
 export const METER2_FRAGMENT = `${HEAD}
 uniform sampler2D uSrc;
 uniform ivec2 uSrcSize;
 out vec4 fragColor;
 void main() {
-  ivec2 base = ivec2(gl_FragCoord.xy) * 4;
-  vec3 sums = vec3(0.0);
+  ivec2 f = ivec2(gl_FragCoord.xy);
+  int slot = f.x % 3;
+  ivec2 base = ivec2((f.x / 3) * 4, f.y * 4);
+  vec4 acc = vec4(0.0);
   for (int k = 0; k < 16; k++) {
-    ivec2 p = base + ivec2(k % 4, k / 4);
-    if (p.x >= uSrcSize.x || p.y >= uSrcSize.y) continue;
-    sums += texelFetch(uSrc, p, 0).rgb;
+    ivec2 b = base + ivec2(k % 4, k / 4);
+    if (b.x >= uSrcSize.x || b.y >= uSrcSize.y) continue;
+    acc += texelFetch(uSrc, ivec2(b.x * 3 + slot, b.y), 0);
   }
-  fragColor = vec4(sums, 1.0);
+  fragColor = acc;
 }`;
 
-// the limiter's apply pass: identity copies the frame untouched; otherwise, in cell c (the meter's cells: 16-pixel blocks
-// shared out four ways), x' = (1 - b_c) a_c x + b_c prev, per channel in linear light (prev: the last shown frame)
+// the limiter's apply pass (flash.js v2, applyRGBA8 is its CPU twin): identity copies the frame untouched; otherwise, in
+// linear light, x' = (1 - beta) (a(p) x + l(p)) + beta prev, the gain a(p) and the lift l(p) interpolated from the 5 x 5
+// corner fields with the meter's own hats (continuous and flat across every cell border: no seam), prev the last shown
+// frame (beta is the rare fallback, one number for the whole frame)
 export const PRESENT_FRAGMENT = (prelude) => `${HEAD}
 ${prelude}
 uniform sampler2D uSrc;
 uniform sampler2D uPrev;
-uniform float uA[16];
-uniform float uB[16];
-uniform ivec2 uM2;
+uniform float uA[25];
+uniform vec3 uL[25];
+uniform float uBeta;
 uniform int uIdentity;
+${METER_CELL}
 out vec4 fragColor;
 void main() {
   ivec2 p = ivec2(gl_FragCoord.xy);
   vec4 e = texelFetch(uSrc, p, 0);
   if (uIdentity == 1) { fragColor = vec4(e.rgb, 1.0); return; }
-  ivec2 bl = p / 16;
-  int c = min(3, (bl.y * 4) / uM2.y) * 4 + min(3, (bl.x * 4) / uM2.x);
-  vec3 l = uA[c] * srgbDecode(e.rgb);
-  vec3 prev = srgbDecode(texelFetch(uPrev, p, 0).rgb);
-  l = mix(l, prev, uB[c]);
+  ivec2 cell;
+  vec4 h = cellHats(gl_FragCoord.xy, cell);
+  int k0 = cell.y * 5 + cell.x;
+  float a = h.x * uA[k0] + h.y * uA[k0 + 1] + h.z * uA[k0 + 5] + h.w * uA[k0 + 6];
+  vec3 lift = h.x * uL[k0] + h.y * uL[k0 + 1] + h.z * uL[k0 + 5] + h.w * uL[k0 + 6];
+  vec3 l = a * srgbDecode(e.rgb) + lift;
+  if (uBeta > 0.0) l = mix(l, srgbDecode(texelFetch(uPrev, p, 0).rgb), uBeta);
   fragColor = vec4(srgbEncode(clamp(l, 0.0, 1.0)), 1.0);
 }`;
 

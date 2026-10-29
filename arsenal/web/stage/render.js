@@ -12,8 +12,10 @@
 //   3. composite: scene + beams (bilinear upsample; the depth-aware upsample is v1) + the haze veil (aerial perspective);
 //   4. bloom (6 levels, Karis first) and the finish (house display-out: exposure, display curve, saturation, vignette,
 //      sRGB, static dither) into an 8-bit frame;
-//   5. the meter (4 x 4 cell sums of relative luminance and the WCAG red quantity, exact box sums over every pixel), read
-//      back, judged by the stage's FrameLimiter (flash.js), and the apply pass onto the canvas.
+//   5. the meter (4 x 4 cells: per cell the corner-hat moments of relative luminance and of the WCAG red quantity and the
+//      mean linear RGB, exact box sums over every pixel), read back, judged by the stage's FrameLimiter (flash.js), and
+//      the apply pass onto the canvas. With flash protection off (the viewer's choice, lib/flash-consent.js) the page
+//      asks no limiter: the meter does not run and the apply pass is the identity, the frame reaches the canvas as drawn.
 // Units: scene light is in "units" of 30 nits (UNIT_NITS), so a half-float target holds a blinding lens (clamped at 6e4).
 //
 // v1 (2026-10-25): the crowd near the lens is culled (within 4 m) and its raised arms hold still (within 10 m) in the
@@ -35,6 +37,7 @@ import { H, HEAD_FLOATS } from "./programmer.js";
 import { hazeNoise3D, airTint } from "./atmos.js";
 import { vfovOf } from "./camera.js";
 import { MAX_FORMATION_EMIT, MAX_FORMATION_BEAMS } from "./formations.js";
+import { meterBounds, finishCells } from "./flash.js";
 
 export const UNIT_NITS = 30;
 const U = 1 / UNIT_NITS;
@@ -176,7 +179,7 @@ export class StageRenderer {
     this._materials();
     this._build();
     this.w = 0; this.h = 0;
-    this.cells = { L: new Float64Array(16), R: new Float64Array(16) };
+    this.cells = { L: new Float64Array(16), R: new Float64Array(16), LM: new Float64Array(64), RM: new Float64Array(64), rgb: new Float64Array(48) };
     this.info = {};
   }
 
@@ -245,10 +248,12 @@ export class StageRenderer {
       finish: fs(S.FINISH_FRAGMENT(this.preludeFinish), { uHdr: { value: null }, uBloom: { value: null }, uRes: { value: new THREE.Vector2() },
                                                          uBloomMix: { value: 0.06 }, uExposure: { value: 1 }, uEv: { value: 0 }, uCurve: { value: 0 },
                                                          uSat: { value: 1.08 }, uVig: { value: 0.22 } }),
-      meter1: fs(S.METER1_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() } }),
+      meter1: fs(S.METER1_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() },
+                                                       uBX: { value: new Float32Array(5) }, uBY: { value: new Float32Array(5) } }),
       meter2: fs(S.METER2_FRAGMENT, { uSrc: { value: null }, uSrcSize: { value: new THREE.Vector2() } }),
-      present: fs(S.PRESENT_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uPrev: { value: null }, uA: { value: new Float32Array(16).fill(1) },
-                                                         uB: { value: new Float32Array(16) }, uM2: { value: new THREE.Vector2(1, 1) }, uIdentity: { value: 1 } }),
+      present: fs(S.PRESENT_FRAGMENT(this.preludeMain), { uSrc: { value: null }, uPrev: { value: null }, uA: { value: new Float32Array(25).fill(1) },
+                                                         uL: { value: new Float32Array(75) }, uBeta: { value: 0 }, uIdentity: { value: 1 },
+                                                         uBX: { value: new Float32Array(5) }, uBY: { value: new Float32Array(5) } }),
     };
     // int uniforms: three infers the GL type from the program, a Vector2 value for an ivec2 is fine
   }
@@ -439,9 +444,12 @@ export class StageRenderer {
     this.shownIdx = 0;
     const fl = { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, depthBuffer: false };
     this.m1w = Math.ceil(w / 4); this.m1h = Math.ceil(h / 4); this.m2w = Math.ceil(this.m1w / 4); this.m2h = Math.ceil(this.m1h / 4);
-    this.meter1RT = new THREE.WebGLRenderTarget(this.m1w, this.m1h, fl);
-    this.meter2RT = new THREE.WebGLRenderTarget(this.m2w, this.m2h, fl);
-    this.meterBuf = new Float32Array(this.m2w * this.m2h * 4);
+    // three texels a block (flash.js v2: luminance moments, red moments, RGB and count), the cells' pixel bounds
+    this.meter1RT = new THREE.WebGLRenderTarget(this.m1w * 3, this.m1h, fl);
+    this.meter2RT = new THREE.WebGLRenderTarget(this.m2w * 3, this.m2h, fl);
+    this.meterBuf = new Float32Array(this.m2w * 3 * this.m2h * 4);
+    this.bx = meterBounds(w); this.by = meterBounds(h);
+    for (const m of [this.post.meter1, this.post.present]) { m.uniforms.uBX.value.set(this.bx); m.uniforms.uBY.value.set(this.by); }
     this.targets = [this.sceneRT, this.beamRT, this.hdrRT, ...this.bloom, this.ldrRT, ...this.shownRT, this.meter1RT, this.meter2RT];
     this.camera.aspect = w / h;
   }
@@ -481,7 +489,8 @@ export class StageRenderer {
   // fs: {camera {pos, look, hfov, roll, ev}, poses [{y, roll}] per rung, heads (programmer), pixels (programmer),
   //      lasers {seg, n} (lasers3d), medium (atmos uniform), veil [r, g, b], ambient [r, g, b], airTint (0..1: how much of
   //      the ambient's hue the veil takes, atmos.js airTint), beatPhase, energy}
-  // limiter: (cells, t) -> {a, k, beta}; t: seconds
+  // limiter: (cells, t) -> gains (flash.js FrameLimiter.step: cornerA, cornerL, beta, identity), or null: no limiter
+  // asked (flash protection off), no meter, the identity; t: seconds
   render(fs, limiter, tSec) {
     const rig = this.rig, cam = this.camera, F = this.features;
     const w = this.w, h = this.h;
@@ -769,35 +778,34 @@ export class StageRenderer {
       u.uEv.value = (c.ev || 0) + (fs.ev || 0);
       this._fs(this.post.finish, this.ldrRT);
     }, () => this.ldrRT.texture);
-    // 5. the meter, the limiter, the apply pass
-    let gains = { a: 1, b: 0, cellA: new Float64Array(16).fill(1), cellB: new Float64Array(16) };
-    this._t("meter", () => {
+    // 5. the meter, the limiter, the apply pass (with no limiter asked: no meter, and the identity)
+    let gains = null;
+    if (limiter) this._t("meter", () => {
       const m1 = this.post.meter1.uniforms, m2 = this.post.meter2.uniforms;
       m1.uSrc.value = this.ldrRT.texture; m1.uSrcSize.value.set(w, h);
       this._fs(this.post.meter1, this.meter1RT);
       m2.uSrc.value = this.meter1RT.texture; m2.uSrcSize.value.set(this.m1w, this.m1h);
       this._fs(this.post.meter2, this.meter2RT);
-      R.readRenderTargetPixels(this.meter2RT, 0, 0, this.m2w, this.m2h, this.meterBuf);
-      const Lc = this.cells.L, Rc = this.cells.R, cnt = new Float64Array(16);
-      Lc.fill(0); Rc.fill(0);
+      R.readRenderTargetPixels(this.meter2RT, 0, 0, this.m2w * 3, this.m2h, this.meterBuf);
       // the cells are the meter's own: 16-pixel blocks shared out four ways (the apply pass maps pixels the same way)
+      const C = this.cells, buf = this.meterBuf, row = this.m2w * 12, cnt = new Float64Array(16);
+      C.LM.fill(0); C.RM.fill(0); C.rgb.fill(0);
       for (let y = 0; y < this.m2h; y++) {
         const cy = Math.min(3, Math.floor((y * 4) / this.m2h));
         for (let x = 0; x < this.m2w; x++) {
-          const cx = Math.min(3, Math.floor((x * 4) / this.m2w));
-          const i = (y * this.m2w + x) * 4, ci = cy * 4 + cx;
-          Lc[ci] += this.meterBuf[i]; Rc[ci] += this.meterBuf[i + 1]; cnt[ci] += this.meterBuf[i + 2];
+          const cx = Math.min(3, Math.floor((x * 4) / this.m2w)), ci = cy * 4 + cx, i = y * row + x * 12;
+          for (let j = 0; j < 4; j++) { C.LM[ci * 4 + j] += buf[i + j]; C.RM[ci * 4 + j] += buf[i + 4 + j]; }
+          C.rgb[ci * 3] += buf[i + 8]; C.rgb[ci * 3 + 1] += buf[i + 9]; C.rgb[ci * 3 + 2] += buf[i + 10]; cnt[ci] += buf[i + 11];
         }
       }
-      for (let i = 0; i < 16; i++) { Lc[i] /= Math.max(1, cnt[i]); Rc[i] /= Math.max(1, cnt[i]); }
-      if (limiter) gains = limiter(this.cells, tSec);
+      finishCells(C, cnt);
+      gains = limiter(C, tSec);
     });
     this._t("present", () => {
       const p = this.post.present.uniforms;
-      let identity = true;
-      for (let i = 0; i < 16 && identity; i++) if (gains.cellA[i] !== 1 || gains.cellB[i] !== 0) identity = false;
+      const identity = !gains || gains.identity;
       p.uSrc.value = this.ldrRT.texture; p.uPrev.value = this.shownRT[this.shownIdx].texture;
-      p.uA.value.set(gains.cellA); p.uB.value.set(gains.cellB); p.uM2.value.set(this.m2w, this.m2h);
+      if (!identity) { p.uA.value.set(gains.cornerA); p.uL.value.set(gains.cornerL); p.uBeta.value = gains.beta || 0; }
       p.uIdentity.value = identity ? 1 : 0;
       const next = 1 - this.shownIdx;
       this._fs(this.post.present, this.shownRT[next]);
@@ -805,7 +813,7 @@ export class StageRenderer {
       this.shownIdx = next;
     }, () => this.shownRT[this.shownIdx].texture);
     this.info = { beams: nb, spots: ns, lasers: nl, emitters: ePtr, crowd: this.crowdCount, drawCalls: R.info.render.calls,
-                  triangles: R.info.render.triangles, beamPowerLm: Math.round(beamPower), gains: { a: gains.a, b: gains.b } };
+                  triangles: R.info.render.triangles, beamPowerLm: Math.round(beamPower), gains: { a: gains ? gains.a : 1, b: gains ? gains.b : 0 } };
     return this.info;
   }
 
