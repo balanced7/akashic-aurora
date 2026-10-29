@@ -318,20 +318,41 @@ export function stepPalette(lib, id, delta = 1) {
   return lib.ids[(((i < 0 ? 0 : i + delta) % n) + n) % n];
 }
 
-// KICK 5's COLOUR BANK on the lasers (2026-10-29, Daniel: "I also want kick 5 to also adjust all lasers"): bank k > 0 turns
-// the palette's laser colours k places round (colour i shows the distinct colour k places on from its own: every laser
-// changes colour on every press), and a fan of the first two takes a gradient per beam between the two it now shows (OKLCh, 32 samples);
-// bank 0 is the palette's own (its colours and its designed "lasers" gradient: the caller's). colours: #rrggbb or linear.
-export function bankLasers(colours, k) {
+// KICK 5's COLOUR BANK on the lasers (2026-10-29, Daniel: "I also want kick 5 to also adjust all lasers"): bank k > 0 deals
+// every laser colour the palette's CHROMATIC laser colours turned one place a press (laser colour i shows chromatic colour
+// (i + s + k - 1) mod m, s the start that moves the first bank furthest from the palette's own), so every laser changes
+// colour on every press -- the palette's near-white laser too, which under a bank
+// takes a colour (a white laser's core and a colour's clip alike to white on screen: the GPU receipt's first run measured
+// a press from pink and white to white and violet changing 5 % of the laser pixels). The chromatic colours are the
+// palette's laser colours of OKLCh chroma 0.06 or more, then, while there are fewer than two, its "lasers" gradient's
+// stops, then its kick and highlight (a palette of one hue turns its own laser colours, white included). A fan of the first two takes a gradient per beam between the two it now shows
+// (OKLCh, 32 samples). Bank 0 is the palette's own (its colours and its designed "lasers" gradient: the caller's).
+// colours: #rrggbb or linear; extra: further #rrggbb candidates in that order (the gradient's stops, the lift colours).
+export function bankLasers(colours, k, extra = []) {
   const lin = (colours || []).map((c) => (typeof c === "string" ? hexToLin(c) : c.slice()));
   const n = lin.length;
   if (!n || !(k > 0)) return { colours: lin, fanRamp: null };
-  // the distinct colours (a palette may carry two near-whites: Noir), each laser colour turning round them
-  const uniq = [], of = lin.map((c) => { let j = uniq.findIndex((u) => deOK(u, c) < 0.05); if (j < 0) j = uniq.push(c) - 1; return j; });
-  const rot = of.map((j) => uniq[(j + k) % uniq.length].slice());
+  const chroma = [];
+  const add = (c) => { if (lchOfLin(c).C >= 0.06 && !isSaturatedRed(c) && !chroma.some((u) => deOK(u, c) < 0.05)) chroma.push(c); };
+  for (const c of lin) add(c);
+  for (const h of extra) { if (chroma.length >= 2) break; add(typeof h === "string" ? hexToLin(h) : h); }
+  // a palette of one hue (Titanium: one cyan and its greys) turns its own distinct laser colours, white included
+  if (chroma.length < 2) for (const c of lin) if (!chroma.some((u) => deOK(u, c) < 0.05)) chroma.push(c);
+  if (chroma.length < 2) return { colours: lin, fanRamp: null };
+  // the turn's start: the one whose first bank moves every laser colour furthest from the palette's own
+  const m = chroma.length;
+  let s0 = 0, best = -1;
+  for (let s = 0; s < m; s++) { const lo = Math.min(...lin.map((c, i) => deOK(c, chroma[(i + s) % m]))); if (lo > best + 1e-9) { best = lo; s0 = s; } }
+  const rot = lin.map((_, i) => chroma[(i + s0 + k - 1) % m].slice());
   const t = new Float32Array(96);
   if (n >= 2) for (let i = 0; i < 32; i++) t.set(mixLch(rot[0], rot[1], i / 31), i * 3);
   return { colours: rot, fanRamp: n >= 2 ? t : null };
+}
+// the extra candidates bankLasers takes from a palette: its "lasers" gradient's stops, then its kick and highlight
+export function bankLaserExtras(p) {
+  if (!p) return [];
+  const g = grad(p, "lasers");
+  return [...(g && g.stops ? g.stops.map((s) => s.hex) : []), roleHex(p, "kick"), roleHex(p, "highlight")].filter(isHex);
 }
 
 // ----------------------------------------------------------------------------------------------- the tables --

@@ -51,6 +51,9 @@ const GROUPS = (() => {
 // (dEOK 0.04) in every palette.
 const SHARE = Number(process.env.BANK_SHARE ?? 0.9);
 const ONE_FAMILY = new Set(["cyan-hold", "titanium", "emerald-laser", "glacier"]);
+// palettes with a single chromatic laser colour among their lasers, gradient and lift colours: their lasers turn through
+// their own colours, white included
+const ONE_HUE = new Set(LIB.list.filter((pl) => { const lin = [...pl.lasers, ...PAL.bankLaserExtras(pl)].map(PAL.hexToLin).filter((c) => PAL.lchOfLin(c).C >= 0.06 && !PAL.isSaturatedRed(c)); return !lin.some((c) => PAL.deOK(c, lin[0]) >= 0.05); }).map((pl) => pl.id));
 const shareFor = (id) => (process.env.BANK_SHARE ? SHARE : ONE_FAMILY.has(id) ? 0.75 : SHARE);
 const farApart = (pl) => { const plan = PAL.planOf(pl); const d = Math.abs(plan.rest - plan.alt) % 14; return !(d === 1 || d === 13); };
 
@@ -211,22 +214,23 @@ test("a palette change starts from that palette's own colours (bank 0); the next
   assert.ok(n > 100 && ch / n > 0.9, `the first bank of cyan-hold moved ${ch} of ${n} lit LEDs`);
 });
 
-test("the lasers: every bank turns the palette's laser colours (every laser group, every beam another colour on every press), from the palette's own; never a saturated red", () => {
+test("the lasers: every bank turns the palette's chromatic laser colours (every laser group, every beam another colour on every press, a colour, never white), from the palette's own; never a saturated red", () => {
   for (const pl of LIB.list) {
-    const own = pl.lasers;
-    assert.deepEqual(PAL.bankLasers(own, 0).colours.map(PAL.linToHex), own.map((h) => h.toLowerCase()), `${pl.id}: bank 0 is the palette's own`);
+    const own = pl.lasers, ex = PAL.bankLaserExtras(pl);
+    assert.deepEqual(PAL.bankLasers(own, 0, ex).colours.map(PAL.linToHex), own.map((h) => h.toLowerCase()), `${pl.id}: bank 0 is the palette's own`);
     for (let k = 1; k <= 6; k++) {
-      const a = PAL.bankLasers(own, k - 1).colours, b = PAL.bankLasers(own, k).colours;
+      const a = PAL.bankLasers(own, k - 1, ex).colours, b = PAL.bankLasers(own, k, ex).colours;
       for (let i = 0; i < a.length; i++) {
         assert.ok(PAL.deOK(a[i], b[i]) >= 0.05, `${pl.id} bank ${k}: laser colour ${i} ${PAL.linToHex(a[i])} -> ${PAL.linToHex(b[i])}`);
         assert.ok(!PAL.isSaturatedRed(b[i]), `${pl.id} bank ${k}: a red laser`);
+        if (!ONE_HUE.has(pl.id)) assert.ok(PAL.lchOfLin(b[i]).C >= 0.06, `${pl.id} bank ${k}: laser colour ${i} ${PAL.linToHex(b[i])} is a colour`);
       }
     }
   }
   // in the laser brain: a lattice and a fan look, every segment drawn in another colour one bank on, at the same moment
   for (const look of ["lattice", "ceiling", "fans", "tunnel"]) {
     const pl = LIB.byId["source-violet"];
-    const mk = (k) => { const L = new LaserEngine({ seed: 2014, colours: pl.lasers }); const lb = PAL.bankLasers(pl.lasers, k); if (k) L.setColours(lb.colours, { fanRamp: lb.fanRamp }); L.setLook(look, 1); return L; };
+    const mk = (k) => { const L = new LaserEngine({ seed: 2014, colours: pl.lasers }); const lb = PAL.bankLasers(pl.lasers, k, PAL.bankLaserExtras(pl)); if (k) L.setColours(lb.colours, { fanRamp: lb.fanRamp }); L.setLook(look, 1); return L; };
     for (let k = 0; k < 4; k++) {
       const A = mk(k).frame(1234), segA = A.seg.slice(0, A.n * SEG_FLOATS), B = mk(k + 1).frame(1234);
       assert.equal(A.n, B.n);

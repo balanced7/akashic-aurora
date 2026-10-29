@@ -68,7 +68,7 @@ import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
-import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers } from "../palettes.js";
+import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf, bankLasers, bankLaserExtras } from "../palettes.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -210,7 +210,7 @@ function start({ rig, R, renderMod, palettes }) {
     if (B.serial === laserBankSerial) return;
     laserBankSerial = B.serial;
     if (!B.count) { lasers.setColours(theme.laser, laserOpts(theme)); return; }
-    const lb = bankLasers(theme.laser, B.count);
+    const lb = bankLasers(theme.laser, B.count, bankLaserExtras(theme.palette));
     lasers.setColours(lb.colours, { white: hexToLinear(theme.W || "#ffffff"), fanRamp: lb.fanRamp });
   }
   // the live palette: what shows, what is queued and the 16-bar line it lands on
