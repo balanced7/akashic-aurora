@@ -35,17 +35,61 @@
 // held, with velocity's animation (a peak, or a sweep from the V2 motion library) and a strobe in the level's top band.
 // Without a kick block in the set it is v0's strand lift, number for number.
 
+//
+// PALETTES (2026-10-28, arsenal/web/palettes.js; research/in-flight/palettes-2026-10-28/DESIGN.md): one active palette
+// drives every colour. The roles gain the split and pin roles (accent, accent2, accentLift, pin); a theme built from a
+// palette (palettes.js stageTheme) carries the palette, and from it the programmer takes
+//   - the moving heads' WHEEL PLAN: a head shows only the palette's slots (white, rest, alt, the lifts), never the wheel's
+//     warm white unless the palette declares it, and every wheel move takes the red-free short way, snapping while the
+//     head is dark (a move in black) -- a look change no longer slews a lit head through the red slot;
+//   - the SPLITS and PINS: a split's groups show the palette's second family (accent, accent2: a strand wing, the rims, the
+//     tower strips) and never cross-fade into the bed; a pin's cells hold their colour and follow the scene's level slowly
+//     (never kicked, chased, strobed or flashed); a split's heads rest on their own slot (Lime Rows' lime rows);
+//   - the 3-STOP STRANDS (Lantern Walk, Aurora): an A/B pair on a bed cell is sampled from the palette's strand gradient
+//     (OKLCh, 32 samples) instead of a two-colour lerp; two-stop strands keep the linear mix that made the loved helix;
+//   - the TEMPO: the strand's helix and the ring ladder turn at the palette's own rate (drive, slow, raw, still, walk), in
+//     beats; Lantern Walk's bed walks one stop per 16-bar phrase;
+//   - the SWITCH: beginPalette() lands a new palette on a beat position -- a neighbour crossfades its roles in OKLCh over
+//     the given beats, anything else cuts on the line through a one-beat dip (the rig dims to black and back, the colours
+//     and the wheels change at the bottom, in the dark).
+// A theme without a palette (the set's own themes, the tests') resolves as before and takes the same kick rules from its
+// own roles (bumpB the lift of a base cell, bumpA of a partner cell, W the white kick).
+
 import { EffectInstance, hashSeed } from "./effects.js";
-import { hexToLinear, isSaturatedRed } from "./lasers.js";
+import { hexToLinear } from "./lasers.js";
 import { aimPreset } from "./phrases.js";
-import { Kicks, redSlots, wheelWay, nearestAllowedSlot } from "./kick.js";
+import { Kicks, redSlots, wheelWay, wayLumaClean as wayLumaCleanKick } from "./kick.js";
+import { STAGE_ROLES, planOf, tableOf, sampleTable, mixLch, isSaturatedRed } from "../palettes.js";
 
 export const PROGRAMMER_API = "arsenal.stage-programmer/v1";
 export const HEAD_FLOATS = 16;
 export const H = Object.freeze({ PAN: 0, TILT: 1, DIM: 2, R: 3, G: 4, B: 5, ZOOM: 6, FROST: 7, IRIS: 8, GOBO: 9, GOBOROT: 10,
   PRISM: 11, PRISMROT: 12, SHUTTER: 13, FOCUS: 14, FLAGS: 15 });
-const ROLES = ["A", "B", "W", "beamA", "beamB", "warm", "bumpA", "bumpB"];
+const ROLES = STAGE_ROLES.slice();
 export const ROLE_NAMES = ROLES;
+export const ROLE = Object.freeze(Object.fromEntries(ROLES.map((r, i) => [r, i])));
+// how a split's cells show the look's roles (the palette's second family, never the bed): a strand wing's cells take the
+// accent pair; a pin's cells take the pin
+const REMAP_SPLIT = Object.freeze({ A: "accent", B: "accent2", W: "W", beamA: "accent", beamB: "accent2", warm: "accentLift", bumpA: "accentLift",
+                                     bumpB: "accent", accent: "accent", accent2: "accent2", accentLift: "accentLift", pin: "pin" });
+export const CELL_KIND = Object.freeze({ BED: 0, ACCENT: 1, PIN: 2 });
+// the colour kick's LIFT: what each role becomes on a colour kick (swap 0), and on the re-strike that swaps the ladder
+// (swap 1). bumpB is the palette's kick colour and bumpA its highlight (palettes.js stageTheme), so a base cell lifts into
+// the partner's family and a partner cell to the highlight; a split's cells lift to accentLift; a pin is never lifted.
+export const LIFT = Object.freeze([
+  Object.freeze({ A: "bumpB", W: "bumpB", beamA: "bumpB", warm: "bumpB", bumpA: "bumpB", B: "bumpA", beamB: "bumpA", bumpB: "bumpA",
+                  accent: "accentLift", accent2: "accentLift", accentLift: "accentLift", pin: "pin" }),
+  Object.freeze({ A: "bumpA", W: "bumpA", beamA: "bumpA", warm: "bumpA", bumpA: "bumpA", B: "bumpB", beamB: "bumpB", bumpB: "bumpB",
+                  accent: "accentLift", accent2: "accentLift", accentLift: "accentLift", pin: "pin" }),
+]);
+const roleIdx = (map) => Int16Array.from(ROLES, (r) => ROLES.indexOf(map[r] ?? r));
+const REMAP_IDX = [null, roleIdx(REMAP_SPLIT), Int16Array.from(ROLES, () => ROLES.indexOf("pin"))];
+export const LIFT_IDX = Object.freeze([roleIdx(LIFT[0]), roleIdx(LIFT[1])]);
+// the colour effects the palette's tempo drives (the strand's helix, the ring ladder), and how long a pin takes to follow
+// the scene's level (seconds): slow enough that no chase, strobe or flash shows in it
+const TEMPO_EFFECTS = Object.freeze({ "cube-colour": "strand", "ring-colour": "ring" });
+const PIN_TAU_S = 1.2;
+export const PALETTE_DIP_BEATS = 1;
 export const FLASH_MIN_DECAY_BEATS = 0.5;
 export const FLASH_LIFT_BEATS = 0.125;
 
@@ -91,23 +135,30 @@ export function slewFor(attr, x0 = 0) {
 }
 
 // ----------------------------------------------------------------------------------------- the theme's colours --
+// The roles as linear rgb. The red test is the house rule as the VJ library has it (encoded OR linear R / (R + G + B) at
+// 0.8 or more); a pin is HELD (never pulsed), so it is not thrown on. A theme without the split roles shows its bed there
+// (accent = A, accent2 = B, accentLift = bumpA) and its white as the pin.
 export function resolveTheme(theme) {
   const out = {};
-  for (const r of ROLES) out[r] = theme && theme[r] ? hexToLinear(theme[r]) : [1, 1, 1];
-  for (const r of ROLES) if (isSaturatedRed(out[r])) throw new Error(`theme ${theme && theme.name}: role ${r} is saturated red (held, never pulsed)`);
+  const fallback = { accent: "A", accent2: "B", accentLift: "bumpA", pin: "W" };
+  for (const r of ROLES) out[r] = theme && theme[r] ? hexToLinear(theme[r]) : null;
+  for (const r of ROLES) if (!out[r]) out[r] = fallback[r] && out[fallback[r]] ? out[fallback[r]].slice() : [1, 1, 1];
+  for (const r of ROLES) if (r !== "pin" && isSaturatedRed(out[r])) throw new Error(`theme ${theme && theme.name}: role ${r} is saturated red (held, never pulsed)`);
   out.laser = (theme && theme.laser) || ["#19ff4a", "#4a3cff", "#e6ffe9"];
   return out;
 }
-// the wheel slot nearest a colour (squared distance on chromaticity, then brightness)
-export function nearestSlot(wheel, rgb) {
+// the wheel slot nearest a colour (squared distance on chromaticity, then brightness); allowed: the slots it may pick
+export function nearestSlot(wheel, rgb, allowed = null) {
   const n = (c) => { const s = c[0] + c[1] + c[2] || 1; return [c[0] / s, c[1] / s, c[2] / s]; };
   const q = n(rgb);
-  let best = 0, bd = Infinity;
-  for (let i = 0; i < wheel.length; i++) {
+  let best = allowed && allowed.length ? allowed[0] : 0, bd = Infinity;
+  const one = (i) => {
     const p = n(wheel[i]);
     const d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
     if (d < bd - 1e-12) { bd = d; best = i; }
-  }
+  };
+  if (allowed && allowed.length) for (const i of allowed) one(i);
+  else for (let i = 0; i < wheel.length; i++) one(i);
   return best;
 }
 
@@ -132,7 +183,8 @@ export class Programmer {
     this.lines = [];
     this.pads = [];                // running playbacks {kind, onset, vel}
     this.lookName = "";
-    this.setTheme(theme || Object.values(rig.themes)[0] || null);
+    // a head no look has named yet shows the palette's rest slot (beamA, beamB), never role 0's nearest slot
+    for (let i = 0; i < this.nH; i++) { this.baseH[i * 7 + 5] = this.fromH[i * 7 + 5] = ROLE.beamA; this.baseH[i * 7 + 6] = this.fromH[i * 7 + 6] = ROLE.beamB; }
     // the head's type data: attributes, wheel colours
     this.headType = rig.heads.map((fi) => rig.types[rig.fixtures[fi].type]);
     this.strandHead = rig.heads.map((fi) => rig.elements[rig.fixtures[fi].element].id === "rung");
@@ -161,13 +213,25 @@ export class Programmer {
     this.zoomMin = Float64Array.from(this.headType, (t) => zA(t).min ?? 0.5);
     this.zoomMax = Float64Array.from(this.headType, (t) => zA(t).max ?? 4);
     this.zoomHome = Float64Array.from(this.headType, (t) => zA(t).home ?? 2);
-    // KICK v2 round 2: a kick may own a head's wheel (kickSlot: the slot it wants, -1 none); while it does, and until the
-    // wheel is back on the look's slot after it, the wheel turns the shortest way round that passes no saturated-red slot
-    // (wheelOwn: 1 while it is on that path), at its real speed
+    // KICK v2 round 2: a kick may own a head's wheel (kickSlot: the slot it wants, -1 none; wheelOwn: 1 while it does, and
+    // until the wheel is back on the look's slot after it). PALETTES: every wheel move, the look's too, turns the shortest
+    // way round that passes no saturated-red slot (wheelPos, at the wheel's real speed), and snaps while the head is dark
     this.redSlotsByType = new Map();
     this.kickSlot = new Int16Array(this.nH).fill(-1);
     this.wheelOwn = new Uint8Array(this.nH);
-    this.wheelPos = new Float64Array(this.nH);
+    this.wheelPos = new Float64Array(this.nH).fill(-1);
+    this.wheelWait = new Float64Array(this.nH).fill(-1);
+    // PALETTES: the members' place in the palette (a split's or a pin's cells, a split's heads and their own wheel plan),
+    // the colour kick's light on each cell (kickC: r, g, b and its weight, written by kick.js each frame), a pin's held level
+    this.cellKind = new Uint8Array(this.nC);
+    this.headSlotOv = new Int16Array(this.nH).fill(-1);
+    this.headLift = new Array(this.nH).fill(null);
+    this.kickC = new Float32Array(this.nC * 4);
+    this.pinDim = new Float32Array(this.nC);
+    this.palX = null; this.dipLevel = 1; this.paletteEvents = [];
+    this.tempoMeasure = {};
+    this.roleRGB = [];
+    this.setTheme(theme || Object.values(rig.themes)[0] || null);
     this.stats = { kicks: [], flyouts: 0, lookChanges: 0, overlays: 0 };
     // the phrase layer
     const nH = this.nH, nC = this.nC;
@@ -379,11 +443,122 @@ export class Programmer {
       }
     }
   }
+  // A theme now (no transition). The role array keeps its identity (the ring formations hold it by reference).
   setTheme(theme) {
     this.theme = theme;
     this.colours = resolveTheme(theme);
-    this.roleRGB = ROLES.map((r) => this.colours[r]);
+    this.roleRGB.length = 0;
+    for (const r of ROLES) this.roleRGB.push(this.colours[r].slice());
+    this.ownRoles = ROLES.map((r) => this.colours[r].slice());
+    this._applyPalette(theme);
     if (this.kick) this.kick.extendRoles();             // KICK v2's own colours ride after the theme's roles
+  }
+  // the palette's structure: its wheel plan, its splits and pins, its 3-stop strand, its tempo, its walk, its air
+  _applyPalette(theme) {
+    const p = (theme && theme.palette) || null, rig = this.rig;
+    this.palette = p;
+    this.plan = p ? planOf(p) : null;
+    this.headAllowed = this.plan ? this.plan.slots : null;
+    this.cellKind.fill(0); this.headSlotOv.fill(-1);
+    for (let i = 0; i < this.nH; i++) this.headLift[i] = this.plan ? this.plan.lift : null;
+    if (p && p.split) for (const gname of p.split.accent_groups || []) {
+      const wingB = / wing B$/.test(gname), g = rig.groups[wingB ? gname.replace(/ wing B$/, "") : gname];
+      if (!g) continue;
+      for (let m = 0; m < g.n; m++) {
+        if (wingB && !(g.keys.side[m] > 0)) continue;
+        const k = g.members[m];
+        if (g.kind === "cells") this.cellKind[k] = CELL_KIND.ACCENT;
+        else if (g.kind === "heads" && this.plan.groups[gname]) { this.headSlotOv[k] = this.plan.groups[gname].rest; this.headLift[k] = this.plan.groups[gname].lift; }
+      }
+    }
+    if (p && p.pin) for (const gname of p.pin.groups || []) {
+      const g = rig.groups[gname];
+      if (g && g.kind === "cells") for (let m = 0; m < g.n; m++) this.cellKind[g.members[m]] = CELL_KIND.PIN;
+    }
+    const sg = p && (p.gradients || []).find((x) => x.name === "strand");
+    this.ramp3 = sg && sg.stops && sg.stops.length >= 3 ? tableOf(sg) : null;
+    this.walk = p && Array.isArray(p.walk) && p.walk.length ? p.walk.map(hexToLinear) : null;
+    this.ambient = hexToLinear((theme && theme.ambient) || "#3a1a8a");
+    this.airTint = theme && Number.isFinite(theme.air_tint) ? theme.air_tint : 0;
+    // the palette's tempo turns the strand's helix and the ring ladder (a held ladder, "still", one turn in 16 bars)
+    const t = p && p.tempo;
+    this.tempoMeasure = t ? { "cube-colour": t.strand, "ring-colour": t.name === "still" ? 64 : t.ring } : {};
+    for (const [id, inst] of this.effects) {
+      const name = id.slice(id.indexOf(":") + 1), m = this.tempoMeasure[name] ?? (this.rig.effects[name] || {}).measure;
+      if (TEMPO_EFFECTS[name] && Number.isFinite(m) && m > 0) inst.phasor.measure = m;
+    }
+  }
+  // A new palette lands at beat position pos: a neighbour crossfades every role in OKLCh over `beats`; anything else
+  // (dip: true) cuts ON pos through a one-beat dip -- the rig dims to black over the half beat before it and comes back in
+  // the new palette over the half beat after, its colours and wheels changing at the bottom, in the dark.
+  beginPalette(theme, pos, { beats = 16, dip = false } = {}) {
+    const to = resolveTheme(theme);
+    this.palX = { theme, to: ROLES.map((r) => to[r]), from: null, fromAmbient: null, toAmbient: hexToLinear(theme.ambient || "#3a1a8a"), dip: !!dip,
+                  p0: dip ? pos - PALETTE_DIP_BEATS / 2 : pos, len: dip ? PALETTE_DIP_BEATS : Math.max(1e-3, beats), swapAt: pos, swapped: false };
+    return { at: pos, until: this.palX.p0 + this.palX.len, dip: this.palX.dip };
+  }
+  // the palette's transition and Lantern Walk's walk, once a frame before the colours
+  _paletteStep(pos) {
+    const X = this.palX;
+    this.dipLevel = 1;
+    if (X) {
+      const t = (pos - X.p0) / X.len;
+      if (!X.swapped && pos >= (X.dip ? X.swapAt : X.p0) - 1e-9) {
+        // the new palette's structure (the plan, the splits and pins, the tempo) and, for a dip, its colours: now; a
+        // crossfade starts from the colours showing at this moment
+        X.from = this.roleRGB.slice(0, ROLES.length).map((c) => c.slice()); X.fromAmbient = this.ambient.slice();
+        this.setTheme(X.theme);
+        if (!X.dip) { for (let r = 0; r < ROLES.length; r++) this.roleRGB[r] = X.from[r].slice(); this.ambient = X.fromAmbient.slice(); }
+        X.swapped = true;
+        this.paletteEvents.push({ type: "swap", id: X.theme.id || X.theme.name, pos });
+      }
+      if (X.dip) {
+        const u = Math.max(0, Math.min(1, t));
+        this.dipLevel = t <= 0 || t >= 1 ? 1 : 0.5 + 0.5 * Math.cos(2 * Math.PI * u);
+      } else if (t >= 0 && X.from) {
+        const u = Math.min(1, t);
+        for (let r = 0; r < ROLES.length; r++) this.roleRGB[r] = mixLch(X.from[r], X.to[r], u);
+        this.ambient = mixLch(X.fromAmbient, X.toAmbient, u);
+      }
+      if (t >= 1) {
+        if (!X.dip) { for (let r = 0; r < ROLES.length; r++) this.roleRGB[r] = X.to[r].slice(); this.ambient = X.toAmbient.slice(); }
+        this.palX = null;
+        this.paletteEvents.push({ type: "landed", id: X.theme.id || X.theme.name, pos });
+      }
+    }
+    // Lantern Walk: the bed walks its stops, one per 16-bar phrase, crossfading in OKLCh over the phrase's first 4 bars
+    if (this.walk && !this.palX) {
+      const ph = (pos - (this.barAnchor || 0)) / 64, k = Math.floor(ph), u = Math.min(1, (ph - k) * 4), n = this.walk.length;
+      const cur = this.walk[((k % n) + n) % n], prev = this.walk[(((k - 1) % n) + n) % n];
+      this.roleRGB[ROLE.A] = u >= 1 ? cur.slice() : mixLch(prev, cur, u);
+    }
+  }
+  // a cell's colour for the roles r1, r2 at mix as this palette shows it (its split or pin, a 3-stop strand's ramp): the
+  // colour stage below does the same inline; kick.js judges a hit with it
+  colourOfCell(c, r1, r2, mix, out = [0, 0, 0]) {
+    const kind = this.cellKind[c], nR = ROLES.length;
+    if (kind) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
+    if (this.ramp3 && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) return sampleTable(this.ramp3, r1 === ROLE.A ? mix : 1 - mix, out);
+    const c1 = this.roleRGB[r1], c2 = this.roleRGB[r2];
+    for (let k = 0; k < 3; k++) out[k] = c1[k] + (c2[k] - c1[k]) * mix;
+    return out;
+  }
+  // the colour kick's LIFT of that cell: each of its roles lifted inside the palette (LIFT; swap 1 the swapped ladder), its
+  // mix -- its place in the gradient -- kept, so a lifted strand is still a helix
+  liftOfCell(c, r1, r2, mix, swap = 0, out = [0, 0, 0]) {
+    const kind = this.cellKind[c], nR = ROLES.length, L = LIFT_IDX[swap ? 1 : 0];
+    if (kind) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
+    const c1 = this.roleRGB[r1 < nR ? L[r1] : r1], c2 = this.roleRGB[r2 < nR ? L[r2] : r2];
+    for (let k = 0; k < 3; k++) out[k] = c1[k] + (c2[k] - c1[k]) * mix;
+    return out;
+  }
+  takePaletteEvents() { const e = this.paletteEvents; this.paletteEvents = []; return e; }
+  // the slot a head shows for the look's colour: a split head's own slot (white stays white), else the palette's slot
+  // nearest the colour (never a slot outside the palette's plan: the warm white only where a palette declares it)
+  _lookSlot(i, b, rgb) {
+    const ov = this.headSlotOv[i];
+    if (ov >= 0) { const lead = this.tH[b + 4] <= 0.5 ? this.tH[b + 5] | 0 : this.tH[b + 6] | 0; if (lead !== ROLE.W) return ov; }
+    return nearestSlot(this.wheels[i], rgb, this.headAllowed);
   }
   setSpeed(s, grid, tEval) {
     this.speed = s;
@@ -431,6 +606,7 @@ export class Programmer {
         const ref = typeof e === "string" ? { name: e } : e;
         const def = { ...(this.rig.effects[ref.name] || {}), ...(ref.with || {}) };
         if (!this.rig.effects[ref.name]) throw new Error(`look ${name}: no effect ${ref.name}`);
+        if (TEMPO_EFFECTS[ref.name] && this.tempoMeasure[ref.name] > 0) def.measure = this.tempoMeasure[ref.name];   // the palette's tempo
         const id = `${line.group}:${ref.name}`;
         wanted.add(id);
         let inst = this.effects.get(id);
@@ -474,7 +650,7 @@ export class Programmer {
   wheelSlotOf(i) {
     const w = this.wheels[i];
     if (!w) return -1;
-    const n = w.length, x = this.wheelOwn[i] ? this.wheelPos[i] : this.slews[i].wheel.x;
+    const n = w.length, x = this.wheelPos[i] >= 0 ? this.wheelPos[i] : this.slews[i].wheel.x;
     return ((Math.round(x) % n) + n) % n;
   }
   // a head's saturated-red wheel slots (cached per fixture type)
@@ -491,6 +667,8 @@ export class Programmer {
     const ver = grid.ver;
     const nH = this.nH, nC = this.nC;
     this.perMs = grid.period || this.perMs; this.barAnchor = grid.barAnchor ?? 0;
+    // 0. the palette: its transition (a crossfade, or a dip with the swap at the bottom) and Lantern Walk's walk
+    this._paletteStep(pos);
     // 1. the look's base, crossfading dimmers from the previous look
     const f = this.fade.len > 0 ? Math.min(1, Math.max(0, (pos - this.fade.p0) / this.fade.len)) : 1;
     for (let i = 0; i < nH * 7; i++) {
@@ -541,11 +719,12 @@ export class Programmer {
       }
     }
     this.pads = this.pads.filter((p) => pos - p.onset < 3);
-    // 4-6. masters, colour, physics -> FrameState
-    const M = this.masters;
+    // 4-6. masters, colour, physics -> FrameState (a palette's dip dims the whole rig with the grand master)
+    const M = this.masters, dipL = this.dipLevel;
+    const tol = this.kick.wheelTol;
     for (let i = 0; i < nH; i++) {
       const b = i * 7, o = i * HEAD_FLOATS, s = this.slews[i];
-      const master = M.grand * (this.strandHead[i] ? M.strand : M.beams);
+      const master = M.grand * dipL * (this.strandHead[i] ? M.strand : M.beams);
       const dim = Math.max(0, Math.min(1, s.dim.step(Math.max(0, Math.min(1, this.tH[b + 2])) * master, dt)));
       const pan = s.pan.step(this.tH[b], dt), tilt = s.tilt.step(this.tH[b + 1], dt);
       const zt = this.tH[b + 3] > 0 ? this.tH[b + 3] : this.zoomHome[i];
@@ -555,32 +734,38 @@ export class Programmer {
       let r = c1[0] + (c2[0] - c1[0]) * mix, g = c1[1] + (c2[1] - c1[1]) * mix, bl = c1[2] + (c2[2] - c1[2]) * mix;
       const wheel = this.wheels[i];
       if (wheel) {
-        const ks = this.kickSlot[i];
-        let c;
-        if (ks >= 0 || this.wheelOwn[i]) {
-          // a kick's wheel move (or its way back): the red-free short way round, one slot per slot_time
-          const n = wheel.length, red = this.redSlotsOf(i);
-          const target = ks >= 0 ? ks : nearestAllowedSlot(wheel, [r, g, bl], red);
-          if (!this.wheelOwn[i]) { this.wheelOwn[i] = 1; this.wheelPos[i] = ((Math.round(s.wheel.x) % n) + n) % n; }
-          let x = this.wheelPos[i];
-          const at = ((Math.round(x) % n) + n) % n;
-          const way = wheelWay(at, target, n, red, wheel, this.kick.wheelTol);
+        // the wheel: the kick's slot while a kick owns it, else the look's (the palette's slot nearest the role colour). Every
+        // move turns the red-free short way at the wheel's real speed; a head that is dark snaps (a move in black); a lit head
+        // asked for more than one clean slot waits up to a beat for its dimmer to reach black before it turns
+        const n = wheel.length, red = this.redSlotsOf(i), ks = this.kickSlot[i];
+        const look = this._lookSlot(i, b, [r, g, bl]);
+        let x = this.wheelPos[i];
+        if (x < 0) x = look;                                              // the first frame: the wheel starts on its slot
+        const at = ((Math.round(x) % n) + n) % n, resting = Math.abs(x - Math.round(x)) < 1e-9;
+        let target = ks >= 0 ? ks : look;
+        if (ks < 0 && target !== at && resting) {
+          const one = Math.min(((target - at) % n + n) % n, ((at - target) % n + n) % n) === 1 && wayLumaCleanFor(wheel, at, target, red, tol);
+          if (dim < 0.02) { x = target; this.wheelWait[i] = -1; }           // dark: the move in black
+          else if (!one) {
+            if (this.wheelWait[i] < 0) this.wheelWait[i] = pos;
+            if (pos - this.wheelWait[i] < 1) target = at;                  // lit: wait (up to a beat) for black
+          }
+        } else if (ks >= 0 || target === at) this.wheelWait[i] = -1;
+        const cur = ((Math.round(x) % n) + n) % n;
+        if (Math.abs(x - target) > 1e-9) {
+          const way = wheelWay(cur, target, n, red, wheel, tol);
           if (way !== 0) {
             const left = way > 0 ? (((target - x) % n) + n) % n : (((x - target) % n) + n) % n;
             const stepS = dt * s.wheel.vmax;
             x = left <= stepS ? target : x + way * stepS;
             x = ((x % n) + n) % n;
           } else x = target;
-          this.wheelPos[i] = x;
-          const shown = ((Math.round(x) % n) + n) % n;
-          c = wheel[shown];
-          // back on the look's own slot with no kick on it: the linear wheel takes over from here
-          if (ks < 0 && shown === target && Math.abs(x - target) < 1e-9) { this.wheelOwn[i] = 0; s.wheel.x = target; s.wheel.v = 0; }
-        } else {
-          const slot = nearestSlot(wheel, [r, g, bl]);
-          const wpos = s.wheel.step(slot, dt);
-          c = wheel[Math.round(wpos)];
         }
+        this.wheelPos[i] = x;
+        const shown = ((Math.round(x) % n) + n) % n;
+        s.wheel.x = x; s.wheel.v = 0;
+        this.wheelOwn[i] = ks >= 0 || (this.wheelOwn[i] && shown !== look) ? 1 : 0;
+        const c = wheel[shown];
         r = c[0]; g = c[1]; bl = c[2];
       }
       const h = this.heads;
@@ -588,17 +773,37 @@ export class Programmer {
       h[o + H.ZOOM] = zoom; h[o + H.FROST] = 0; h[o + H.IRIS] = 1; h[o + H.GOBO] = 0; h[o + H.GOBOROT] = 0;
       h[o + H.PRISM] = 0; h[o + H.PRISMROT] = 0; h[o + H.SHUTTER] = 1; h[o + H.FOCUS] = 0.5; h[o + H.FLAGS] = 0;
     }
+    const kC = this.kickC, ramp = this.ramp3, nR = ROLES.length, tmp = [0, 0, 0];
+    const pinK = 1 - Math.exp(-Math.max(0, dt) / PIN_TAU_S);
     for (let c = 0; c < nC; c++) {
-      const b = c * 4;
-      const master = M.grand * M.pixels * (this.strandCell[c] ? M.strand : 1);
-      const dim = Math.max(0, Math.min(1, this.tC[b])) * master;
+      const b = c * 4, kind = this.cellKind[c];
+      const master = M.grand * dipL * M.pixels * (this.strandCell[c] ? M.strand : 1);
+      let dim = Math.max(0, Math.min(1, this.tC[b])) * master;
       const mix = Math.max(0, Math.min(1, this.tC[b + 1]));
-      const c1 = this.roleRGB[this.tC[b + 2] | 0], c2 = this.roleRGB[this.tC[b + 3] | 0];
-      this.pixels[b] = (c1[0] + (c2[0] - c1[0]) * mix) * dim;
-      this.pixels[b + 1] = (c1[1] + (c2[1] - c1[1]) * mix) * dim;
-      this.pixels[b + 2] = (c1[2] + (c2[2] - c1[2]) * mix) * dim;
+      let r1 = this.tC[b + 2] | 0, r2 = this.tC[b + 3] | 0;
+      if (kind) { const map = REMAP_IDX[kind]; if (r1 < nR) r1 = map[r1]; if (r2 < nR) r2 = map[r2]; }
+      let R, G, B;
+      if (ramp && !kind && ((r1 === ROLE.A && r2 === ROLE.B) || (r1 === ROLE.B && r2 === ROLE.A))) {
+        sampleTable(ramp, r1 === ROLE.A ? mix : 1 - mix, tmp); R = tmp[0]; G = tmp[1]; B = tmp[2];   // a 3-stop strand
+      } else {
+        const c1 = this.roleRGB[r1], c2 = this.roleRGB[r2];
+        R = c1[0] + (c2[0] - c1[0]) * mix; G = c1[1] + (c2[1] - c1[1]) * mix; B = c1[2] + (c2[2] - c1[2]) * mix;
+      }
+      // the colour kick's lift over the look's colour (kick.js: each cell's own roles lifted, its gradient kept)
+      const kw = kC[b + 3];
+      if (kw > 0) { R += (kC[b] - R) * kw; G += (kC[b + 1] - G) * kw; B += (kC[b + 2] - B) * kw; }
+      if (kind === CELL_KIND.PIN) { this.pinDim[c] += (dim - this.pinDim[c]) * pinK; dim = this.pinDim[c]; }   // a pin holds
+      this.pixels[b] = R * dim;
+      this.pixels[b + 1] = G * dim;
+      this.pixels[b + 2] = B * dim;
       this.pixels[b + 3] = dim;
     }
     return { heads: this.heads, pixels: this.pixels };
   }
+}
+// a one-slot wheel move that runs clean (no red slot, the luminance way clean): a lit head may make it at once
+function wayLumaCleanFor(wheel, at, to, red, tol) {
+  if (red.includes(to)) return false;
+  const n = wheel.length, dir = ((to - at) % n + n) % n === 1 ? 1 : -1;
+  return wayLumaCleanKick(wheel, at, to, dir, tol < 1 ? tol : 0.35);
 }
