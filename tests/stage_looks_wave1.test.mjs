@@ -78,7 +78,8 @@ test("the wave-1 phrases are valid and sit after Daniel's halo-levels, so pad 3 
   // the page's door: the phrase and theme parameters are read as names, and only a name the set has is used
   const page = readFileSync(new URL("../arsenal/web/stage/stage.js", import.meta.url), "utf8");
   assert.match(page, /PHRASE_ASKED && rig\.phrases\[PHRASE_ASKED\] \? PHRASE_ASKED : Object\.keys\(rig\.phrases\)\[0\]/);
-  assert.match(page, /THEME_ASKED && rig\.themes\[THEME_ASKED\] \? THEME_ASKED : show0\.theme/);
+  // (PALETTES: ?palette= or ?theme= names a palette first; a set theme by that name that is not a palette still loads)
+  assert.match(page, /const legacyAsked = !palAsked && THEME_ASKED && rig\.themes\[THEME_ASKED\] \? THEME_ASKED : null/);
 });
 
 test("every variant of every wave-1 phrase compiles over four repeats, with legal laser shapes and gates", () => {

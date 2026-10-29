@@ -12,6 +12,9 @@
 // Round 2's acceptance is the SCREEN (arsenal/lanes/stage_verify.mjs, phase kickpix: the share of an 832 x 384 frame whose
 // colour moves by more than dE76 10). These node tests pin the logic under it: the deck of areas, the override, the colours,
 // the level curve, hold = gate and the re-strike, the wheel's red-free way, the strobe and the flash budget.
+// PALETTES (2026-10-28): the programmer runs the page's default palette (Source Violet, arsenal/web/palettes.json) as the
+// page does; the kick's colours are the palette's (its white, its lift ladder, its wheel plan). tests/stage_palettes.test.mjs
+// runs all thirty.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -21,12 +24,14 @@ import { BeatGrid } from "../arsenal/web/stage/grid.js";
 import { FrameLimiter } from "../arsenal/web/stage/flash.js";
 import { isSaturatedRed } from "../arsenal/web/stage/lasers.js";
 import * as KICK from "../arsenal/web/stage/kick.js";
+import { loadPalettes, stageTheme, planOf, deOK, lchOf, lchOfLin, linToHex } from "../arsenal/web/palettes.js";
 
 const SCENE1 = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v1.json", import.meta.url), "utf8"));
 const SCENE0 = JSON.parse(readFileSync(new URL("../arsenal/web/stage/sets/source-v0.json", import.meta.url), "utf8"));
 const RIG1 = expandScene(SCENE1);
 const RIG0 = expandScene(SCENE0);
-const THEME1 = { name: "source-violet", ...SCENE1.themes["source-violet"] };
+const PALS = loadPalettes(JSON.parse(readFileSync(new URL("../arsenal/web/palettes.json", import.meta.url), "utf8")));
+const THEME1 = stageTheme(PALS.byId[SCENE1.show.palette]);          // the page's default palette, as the page runs it
 const THEME0 = { name: "source-violet", ...SCENE0.themes["source-violet"] };
 const FPS = 60, DT = 1 / FPS;
 const W = "kick-white", C = "kick-colour";
@@ -109,7 +114,7 @@ test("the dealer deals only an area the camera sees, when the page tells it what
 });
 
 // ------------------------------------------------------------------------------ the override and the colours --
-test("OVERRIDE: a white kick turns a lit area full-intensity white over the look; a colour kick a vivid colour 90 degrees or more from the look's; release hands it back to the look", () => {
+test("OVERRIDE: a white kick turns a lit area full-intensity palette white over the look; a colour kick lifts every cell inside the palette (its own role's lift, its gradient kept); release hands it back to the look", () => {
   for (const [kind, check] of [[W, "white"], [C, "colour"]]) {
     const g = locked(150), p = fresh({ look: "drop" }), base = fresh({ look: "drop" });
     force(p, "rings");
@@ -122,29 +127,40 @@ test("OVERRIDE: a white kick turns a lit area full-intensity white over the look
       if (!during && pos >= 10) {
         const ms = members(rec.card);
         const I = KICK.intensityOf(KICK.kickConfig(RIG1), 0.8);
-        let lowLevel = 0, sat = 0, hueOff = 0, n = 0;
+        let lowLevel = 0, offWhite = 0, offLift = 0, amber = 0, n = 0;
+        const white = p.roleRGB[ROLE_NAMES.indexOf("W")], lifts = new Set();
         for (const [k, i] of ms) {
           const l = levelOf(p, k, i);
           if (l < I * 0.6 - 1e-6) lowLevel++;                    // the chase never takes a member under 60 % of the intensity
-          const c = colourOf(p, k, i), b0 = colourOf(base, k, i);
-          sat += KICK.saturation(...c);
-          hueOff += KICK.saturation(...b0) > 0.2 ? Math.min(Math.abs(KICK.hue(...c) - KICK.hue(...b0)), 360 - Math.abs(KICK.hue(...c) - KICK.hue(...b0))) : 180;
+          const c = colourOf(p, k, i);
+          offWhite = Math.max(offWhite, deOK(c, white));
+          if (k === "c" && rec.colour.lift >= 0) {
+            const want = p.kick._cellLift(i, rec.colour.lift);   // the cell's own roles lifted, its mix kept
+            offLift = Math.max(offLift, deOK(c, want));
+            lifts.add(linToHex(want));
+          }
+          const o = lchOfLin(c);
+          if (o.C >= 0.06 && o.h >= 40 && o.h <= 105) amber++;
           n++;
         }
-        during = { lowLevel, sat: sat / n, hueOff: hueOff / n, changed: changedShare(p, base, rec.card), level: areaLevel(p, rec.card), I };
+        during = { lowLevel, offWhite, offLift, amber, lifts: lifts.size, changed: changedShare(p, base, rec.card), level: areaLevel(p, rec.card), I };
       }
       if (!after && pos >= 17) after = changedShare(p, base, rec.card, 2);
     }
     assert.equal(rec.card.name, "rings");
     assert.equal(during.lowLevel, 0, `${check}: no ring LED under 60 % of the kick's intensity ${during.I.toFixed(3)}`);
     assert.ok(during.changed >= 0.95, `${check}: ${(100 * during.changed).toFixed(1)} % of the rings' LEDs changed by dE76 > 10`);
-    if (check === "white") assert.ok(during.sat < 0.05, `white: saturation ${during.sat.toFixed(3)}`);
-    else { assert.ok(during.sat > 0.6, `colour: saturation ${during.sat.toFixed(3)}`); assert.ok(during.hueOff >= 90, `colour: ${during.hueOff.toFixed(0)} degrees of hue from the look's`); }
+    if (check === "white") assert.ok(during.offWhite < 0.02, `white: every member the palette's white (dEOK up to ${during.offWhite.toFixed(3)})`);
+    else {
+      assert.ok(during.offLift < 0.02, `colour: every ring LED shows its own lift (dEOK up to ${during.offLift.toFixed(3)})`);
+      assert.ok(during.lifts > 20, `colour: the lifted rings keep their gradient (${during.lifts} different colours, not one flat wash)`);
+    }
+    assert.equal(during.amber, 0, `${check}: no member amber`);
     assert.ok(after < 0.01, `${check}: five beats after the release the rings are the look's again (${(100 * after).toFixed(2)} % differ)`);
   }
 });
 
-test("a re-strike while lit is a new hit at about the same brightness: the colour kick steps to the next palette colour of similar luminance on EVERY tap (never a saturated red), the white kick to a fresh motion", () => {
+test("a re-strike while lit is a new hit at about the same brightness: the colour kick swaps the palette's lift ladder on EVERY tap (its kick and highlight colours, luminance-matched, never a saturated red), the white kick deals a fresh motion", () => {
   const g = locked(150), p = fresh({ look: "break" });
   force(p, "rings");
   const seen = [];
@@ -163,11 +179,13 @@ test("a re-strike while lit is a new hit at about the same brightness: the colou
   assert.equal(rec.card.name, "rings");
   assert.equal(seen.length, 20);
   const luma = (h) => { const c = hexLin(h); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+  const ladder = THEME1.palette.kick.ladder;
   for (let i = 1; i < seen.length; i++) {
     assert.notEqual(seen[i], seen[i - 1], `tap ${i}: a new colour`);
-    assert.ok(KICK.deltaE(hexLin(seen[i]), hexLin(seen[i - 1])) >= 25, `tap ${i}: ${seen[i - 1]} -> ${seen[i]} reads as another colour`);
+    assert.ok(ladder.includes(seen[i]), `tap ${i}: ${seen[i]} is one of the palette's lift colours ${ladder.join(", ")}`);
+    assert.ok(deOK(seen[i], seen[i - 1]) >= 0.10, `tap ${i}: ${seen[i - 1]} -> ${seen[i]} reads as another colour`);
     const l0 = luma(seen[i - 1]), l1 = luma(seen[i]);
-    assert.ok(Math.abs(l1 - l0) <= 0.35 * Math.max(l0, l1) + 1e-9, `tap ${i}: ${seen[i - 1]} (luminance ${l0.toFixed(2)}) -> ${seen[i]} (${l1.toFixed(2)})`);
+    assert.ok(Math.min(l0, l1) / Math.max(l0, l1) >= 0.80, `tap ${i}: ${seen[i - 1]} (luminance ${l0.toFixed(2)}) -> ${seen[i]} (${l1.toFixed(2)}): matched`);
   }
   for (const h of seen) assert.ok(!isSaturatedRed(hexLin(h)), `${h} is a saturated red`);
   // the white kick's re-strike: a fresh motion each tap, the chase jumped on
@@ -183,7 +201,7 @@ test("a re-strike while lit is a new hit at about the same brightness: the colou
 });
 function hexLin(h) { const v = parseInt(h.slice(1), 16); const f = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return [f(v >> 16 & 255), f(v >> 8 & 255), f(v & 255)]; }
 
-test("moving heads change colour too: the wheel goes to the slot nearest the kick's colour the short way, never through the red slot, and comes back the same way", () => {
+test("moving heads change colour too: a colour kick steps the wheel by the palette's plan the short way, never through the red slot, never to the warm white; the white kick never turns a wheel", () => {
   const wheel = SCENE1.types["beam-7r"].attrs.Color1.colours.map(hexLin);
   const red = KICK.redSlots(wheel);
   assert.deepEqual(red, [1], "the beam's red slot");
@@ -193,8 +211,10 @@ test("moving heads change colour too: the wheel goes to the slot nearest the kic
     const way = KICK.wheelWay(a, b, 14, red);
     for (let x = a, s = 0; x !== b && s < 14; s++) { x = (x + way + 14) % 14; assert.ok(!red.includes(x), `${a} -> ${b} passes red`); }
   }
-  // and in the programmer: kicks on the halo and the beams in every look; no head ever shows the red slot
-  let shownRed = 0, moved = 0;
+  // and in the programmer: kicks on the halo and the beams in every look; no head ever shows the red slot, the pink slot
+  // or the warm white (the palette's plan: white, violet 9, magenta 10)
+  const plan = planOf(THEME1.palette);
+  let shownRed = 0, moved = 0, offPlan = 0;
   for (const look of ["intro", "build", "drop", "break", "groove"]) {
     const g = locked(150), p = fresh({ look });
     let k = 0;
@@ -205,18 +225,28 @@ test("moving heads change colour too: the wheel goes to the slot nearest the kic
         moved++;
         const c = [p.heads[i * HEAD_FLOATS + H.R], p.heads[i * HEAD_FLOATS + H.G], p.heads[i * HEAD_FLOATS + H.B]];
         if (isSaturatedRed(c)) shownRed++;
+        if (!plan.slots.includes(p.wheelSlotOf(i))) offPlan++;
       }
     });
   }
-  assert.ok(moved > 1000, `kick-owned wheel frames: ${moved}`);
+  assert.ok(moved > 500, `kick-owned wheel frames: ${moved}`);
   assert.equal(shownRed, 0, "a kick's wheel never showed the red slot");
-  // a white kick on the dark halo (its wheel parked on the theme's violet) takes it to white, one slot the short way
-  const g = locked(150), p = fresh({ look: "break" });
-  force(p, "halo");
-  let rec = null;
-  play(p, g, 0, 12, (pos) => { if (!rec && pos >= 8.1) rec = p.pad(W, 0.8, pos, { hold: true }); });
-  const sats = Array.from(rec.card.heads, (i) => KICK.saturation(p.heads[i * HEAD_FLOATS + H.R], p.heads[i * HEAD_FLOATS + H.G], p.heads[i * HEAD_FLOATS + H.B]));
-  assert.ok(Math.max(...sats) < 0.05, `the halo's wheels show white (saturation up to ${Math.max(...sats).toFixed(3)})`);
+  assert.equal(offPlan, 0, "a kick's wheel never left the palette's plan (never pink, never the warm white)");
+  // a white kick on the dark halo (its wheel parked on the palette's rest slot, violet) leaves the wheel where it is; a
+  // colour kick steps it one slot to magenta, and on the release it comes back
+  for (const [kind, want] of [[W, plan.rest], [C, plan.lift.get(plan.rest).to]]) {
+    const g = locked(150), p = fresh({ look: "break" });
+    force(p, "halo");
+    let rec = null, before = null, back = null;
+    play(p, g, 0, 16, (pos) => {
+      if (!rec && pos >= 8.1) { before = Array.from(KICK.kickConfig(RIG1).cards.find((c) => c.name === "halo").heads, (i) => p.wheelSlotOf(i)); rec = p.pad(kind, 0.8, pos, { hold: true }); }
+      if (rec && rec.releasedAt === null && pos >= 11) p.padRelease(kind, pos);
+      if (rec && pos >= 15.5 && !back) back = Array.from(rec.card.heads, (i) => p.wheelSlotOf(i));
+      if (rec && pos >= 9 && pos < 11) for (const i of rec.card.heads) assert.equal(p.wheelSlotOf(i), want, `${kind}: the halo's wheel on slot ${want}`);
+    });
+    assert.ok(before.every((x) => x === plan.rest), `the dark halo rests on the palette's slot ${plan.rest}: ${[...new Set(before)]}`);
+    assert.ok(back.every((x) => x === plan.rest), `${kind}: back on the rest slot after the release: ${[...new Set(back)]}`);
+  }
 });
 
 // KICK round 2, case K3: the colour kick's re-strikes sent the beams' wheels from indigo toward cyan through pink, magenta,
@@ -227,7 +257,7 @@ test("a kick never runs a wheel through a flash: clean ways only, never to a muc
   const wheel = SCENE1.types["beam-7r"].attrs.Color1.colours.map(hexLin);
   const red = KICK.redSlots(wheel), tol = KICK.kickConfig(RIG1).governor.equal_luma;
   const L = (i) => 0.2126 * wheel[i][0] + 0.7152 * wheel[i][1] + 0.0722 * wheel[i][2];
-  const targets = [[1, 1, 1], ...SCENE1.kick.colour.palette.map(hexLin)];
+  const targets = [[1, 1, 1], ...PALS.list.flatMap((pl) => pl.kick.ladder.map(hexLin))];
   let moves = 0;
   for (let a = 0; a < 14; a++) {
     if (red.includes(a)) continue;
@@ -593,7 +623,7 @@ test("without a kick block (source-v0) KICK is the v0 strand lift: the strand's 
   assert.ok(line[2] >= 0.8 - 1e-4, `the cube at the line: ${line[2]}`);
 });
 
-test("the kick block is checked: source-v1's is valid; unknown groups, areas sharing fixtures, a saturated-red palette colour and a strobe above the house cap are refused", () => {
+test("the kick block is checked: source-v1's is valid; unknown groups, areas sharing fixtures, the retired colour list and white, a red kind colour and a strobe above the house cap are refused", () => {
   assert.deepEqual(KICK.validateKick(RIG1), []);
   assert.deepEqual(KICK.validateKick(RIG0), [], "no block is valid (the v0 kick)");
   const bad = (patch) => KICK.validateKick({ ...RIG1, kick: { ...SCENE1.kick, ...patch } });
@@ -601,12 +631,13 @@ test("the kick block is checked: source-v1's is valid; unknown groups, areas sha
   assert.ok(bad({ deck: [{ rows: ["halo"] }, { rows: ["halo.top"] }] }).some((m) => /share/.test(m)));
   assert.ok(bad({ strobe: { ...SCENE1.kick.strobe, max_hz: 3 } }).some((m) => /strobe/.test(m)));
   assert.ok(bad({ bands: [{ name: "x", from: 0.2 }] }).some((m) => /bands/.test(m)));
-  assert.ok(bad({ colour: { palette: ["#00e5ff", "#ff2010"] } }).some((m) => /saturated red/.test(m)));
+  assert.ok(bad({ colour: { palette: ["#00e5ff", "#ff2010"] } }).some((m) => /colour: retired/.test(m)), "the set's own colour list is retired: the palette's lifts");
+  assert.ok(bad({ white: { colour: "#ffffff" } }).some((m) => /white: retired/.test(m)), "and its own white: the palette's");
   assert.ok(bad({ governor: { linger_s: 1, punch_s: 0.15, equal_luma: 0 } }).some((m) => /equal_luma/.test(m)));
   assert.ok(bad({ kinds: { "kick-white": { colour: "#ff2010" } } }).some((m) => /kinds.kick-white.colour/.test(m)));
   assert.ok(bad({ kinds: { "kick-white": { repeat: "explode" } } }).some((m) => /kinds.kick-white.repeat/.test(m)));
   assert.deepEqual(Object.keys(SCENE1.kick.kinds), ["kick-white", "kick-colour"], "the set's kinds: white and colour first");
-  for (const h of SCENE1.kick.colour.palette) assert.ok(!isSaturatedRed(hexLin(h)), `${h}`);
+  assert.equal(SCENE1.kick.colour, undefined); assert.equal(SCENE1.kick.white, undefined);
   assert.deepEqual({ ...KICK.KICK_VISIBLE }, { de: 10, share: 0.5 });
   assert.deepEqual([...KICK.KICK_ROLES], [...ROLE_NAMES]);
   assert.equal(SCENE1.show.pads["1"], "kick-white");
@@ -638,7 +669,7 @@ test("responsive: a press at any phase of its beat lights its area on the very n
   }
 });
 
-test("the kinds are data: a set may add a kind (its own colour, no repeat) and map a pad to it; two palette kinds held together never clash", () => {
+test("the kinds are data: a set may add a kind (its own colour, no repeat) and map a pad to it; two palette kinds held together both paint inside the palette", () => {
   const scene = JSON.parse(JSON.stringify(SCENE1));
   scene.kick.kinds["kick-amber"] = { colour: "#ffd21a", override: true, motion: "none", strobe: false, repeat: "none", punch: 0 };
   scene.kick.kinds["kick-colour-2"] = { colour: "palette", override: true, motion: "none", strobe: false, repeat: "colour", punch: 0 };
@@ -658,9 +689,7 @@ test("the kinds are data: a set may add a kind (its own colour, no repeat) and m
   const cells = Array.from(a.card.cells.slice(0, 50));
   assert.ok(cells.every((c) => Math.abs(KICK.hue(...colourOf(p, "c", c)) - KICK.hue(...hexLin("#ffd21a"))) < 3), "the amber kind paints its own colour");
   assert.equal(a.motion, null, "and does not move");
-  const h1 = KICK.hue(...c1.colour.rgb), h2 = KICK.hue(...c2.colour.rgb);
-  const d = Math.min(Math.abs(h1 - h2), 360 - Math.abs(h1 - h2));
-  assert.ok(d >= 60, `two palette kinds at once: ${p.kick._hexOf(c1)} and ${p.kick._hexOf(c2)} are ${d.toFixed(0)} degrees apart`);
+  for (const c of [c1, c2]) assert.ok(THEME1.palette.kick.ladder.includes(p.kick._hexOf(c)), `${c.kind}: ${p.kick._hexOf(c)} is one of the palette's lift colours`);
   assert.ok(new Set([a.card.name, c1.card.name, c2.card.name]).size === 3, "three kinds, three areas");
 });
 

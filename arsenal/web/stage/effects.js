@@ -308,6 +308,9 @@ export class EffectInstance {
     this.startPos = pos;
     this.lastPos = pos;
     this.dead = false;
+    // a colour kick's jump of the pattern (kick.js PHASE_JUMP): {at, size, ease} -- size cycles at beat position at, easing
+    // back to none over ease beats; jump: the offset this frame (moves the pattern, never the light's level)
+    this.kickJump = null; this.jump = 0;
   }
   stop() { this.target = 0; if (!this.def.fadeOut) { this.level = 0; this.dead = true; } }
   start() { this.target = 1; this.dead = false; }
@@ -317,6 +320,12 @@ export class EffectInstance {
     if (this.target > this.level) this.level = Math.min(1, this.level + (this.def.fadeIn ? dPos / this.def.fadeIn : 1));
     else if (this.target < this.level) this.level = Math.max(0, this.level - (this.def.fadeOut ? dPos / this.def.fadeOut : 1));
     if (this.level <= 0 && this.target <= 0) this.dead = true;
+    const j = this.kickJump;
+    if (j) {
+      const u = (pos - j.at) / Math.max(1e-6, j.ease);
+      if (u >= 1) { this.kickJump = null; this.jump = 0; }
+      else this.jump = u < 0 ? 0 : j.size * 0.5 * (1 + Math.cos(Math.PI * u));
+    }
     return this.phasor.tick(pos, ver);
   }
   // The waveform value 0..1 of member i now.
@@ -334,7 +343,7 @@ export class EffectInstance {
       const end = Math.max(1e-9, d.shots) - 1e-9;
       return waveform(d.form || "sine", u <= 0 ? 0 : u >= end ? end : u, fp);
     }
-    return waveform(d.form || "sine", this.phasor.phi + this.phase[i] + LINE_EPS, fp);
+    return waveform(d.form || "sine", this.phasor.phi + this.phase[i] + this.jump + LINE_EPS, fp);
   }
   // Apply to an attribute value of member i (relative unless the def says absolute). attr: the attribute name.
   apply(attr, base, i) {

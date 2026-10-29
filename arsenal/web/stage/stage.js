@@ -41,6 +41,15 @@
 // the smooth fields) judges every frame exactly as before. OFF: the page asks no limiter, the meter does not run and the
 // apply pass is the identity -- the frame reaches the canvas as drawn -- and the kick's flash governor, which exists only
 // so the limiter never has to act, sees a full budget.
+//
+// PALETTES (2026-10-28, ../palettes.js): one active palette of thirty drives every colour (the roles, the kicks, the wheel
+// plan, the splits and pins, the strand's gradient and tempo, the lasers, the air). ?palette=source-violet picks one at
+// load (?theme= is read the same way; a set theme that is not a palette still loads as before); the show's own is
+// show.palette. Live: key P steps to the next palette, Shift+P the previous one, and the set's pad map can name
+// "palette-next" and "palette-prev" (the phone bar's PALETTE pad, a KeyLab pad); the change lands on the next 16-bar line --
+// a neighbour crossfades over 4 bars, anything else cuts on the line through a one-beat dip. Every press before the
+// landing steps the palette that will land. The page says what is showing and what is coming with the window event
+// "arsenal:palette" {id, name, next, nextName, at} (only when it changes) and keeps the latest in window.__palette.
 
 import { parseEvent, EngineLink } from "../vj-core.js";
 import { loadLibrary } from "../glsl/modlib.js";
@@ -59,6 +68,7 @@ import { hexToLinear, extraHeadsFrom } from "./lasers.js";
 import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
+import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf } from "../palettes.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -73,6 +83,7 @@ const SET = /^[a-z0-9][a-z0-9-]{0,40}$/.test(QS.get("set") || "") ? QS.get("set"
 // looks wave-1 themes and phrases (Dreaming City, Single Thread, Pillars...) are reached by name
 const asName = (v) => (/^[a-z0-9][a-z0-9-]{0,40}$/.test(v || "") ? v : null);
 const THEME_ASKED = asName(QS.get("theme")), PHRASE_ASKED = asName(QS.get("phrase")), RING_ASKED = asName(QS.get("ring"));
+const PALETTE_ASKED = asName(QS.get("palette")) || THEME_ASKED;
 const STRAND_ASKED = asName(QS.get("strand"));
 const QUALITY = ["high", "receipt", "low"].includes(QS.get("quality")) ? QS.get("quality") : "high";
 const FIXED_W = Number(QS.get("w")) || 0, FIXED_H = Number(QS.get("h")) || 0;
@@ -113,6 +124,14 @@ async function boot() {
   if (ringProblems.length) throw new Error(`the scene ${SET}'s ring formations are not valid:\n${ringProblems.join("\n")}`);
   const kickProblems = validateKick(rig);
   if (kickProblems.length) throw new Error(`the scene ${SET}'s kick block is not valid:\n${kickProblems.join("\n")}`);
+  // the palettes (checked against this rig's beam wheel; a palette that fails is refused with its reasons and the rest load;
+  // without the library the set's own themes still run)
+  let palettes = null;
+  try {
+    const beam = Object.values(scene.types || {}).find((t) => t.attrs && t.attrs.Color1 && t.attrs.Color1.colours);
+    palettes = await fetchPalettes(new URL("../palettes.json", import.meta.url), fetch, { wheel: beam ? beam.attrs.Color1.colours : null });
+    for (const r of palettes.refused) recordError("palette", `${r.id} refused: ${r.problems.join("; ")}`);
+  } catch (e) { recordError("palettes", e); }
   // the house GLSL library and the renderer (three.js from the pinned CDN build, as the piano loads it)
   const lib = await loadLibrary(new URL("../glsl/index.json", import.meta.url).href);
   let renderMod;
@@ -120,10 +139,10 @@ async function boot() {
   catch (e) { throw new Error(`three.js r186 did not load from cdn.jsdelivr.net (${e.message}). Check the network, then reload.`); }
   const canvas = $("gl");
   const R = new renderMod.StageRenderer(canvas, rig, lib, { quality: QUALITY });
-  return { scene, rig, lib, R, renderMod };
+  return { scene, rig, lib, R, renderMod, palettes };
 }
 
-function start({ rig, R, renderMod }) {
+function start({ rig, R, renderMod, palettes }) {
   // the finish's look (render.js LOOKS): ?look=hdr|punch|velvet|classic, then this browser's last choice, then HDR Night;
   // automation (every house lane) stays on classic, the finish its numbers were measured on. L cycles it.
   const LOOKS = renderMod.LOOKS, LOOK_ORDER = renderMod.LOOK_ORDER;
@@ -131,8 +150,12 @@ function start({ rig, R, renderMod }) {
   const qLook = QS.get("look");
   R.look = LOOKS[qLook] ? qLook : navigator.webdriver ? "classic" : (LOOKS[lookStore()] ? lookStore() : "hdr");
   const show0 = rig.show;
-  const themeName = THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : show0.theme || Object.keys(rig.themes)[0];
-  const theme = { name: themeName, ...rig.themes[themeName] };
+  // the palette asked for (or a set theme by that name that is not a palette), else the show's palette, else its theme
+  const palAsked = palettes && PALETTE_ASKED && palettes.byId[PALETTE_ASKED] ? PALETTE_ASKED : null;
+  const legacyAsked = !palAsked && THEME_ASKED && rig.themes[THEME_ASKED] ? THEME_ASKED : null;
+  const palId = palAsked || (!legacyAsked && palettes && palettes.ids.length ? (palettes.byId[show0.palette] ? show0.palette : palettes.ids[0]) : null);
+  const themeName = legacyAsked || show0.theme || Object.keys(rig.themes)[0];
+  let theme = palId ? stageTheme(palettes.byId[palId]) : { name: themeName, ...rig.themes[themeName] };
   const demoBpm = (show0.demo && show0.demo.bpm) || 150;
   const now0 = performance.now();
   const grid = new BeatGrid({ bpm: demoBpm, t0: now0 });
@@ -173,8 +196,45 @@ function start({ rig, R, renderMod }) {
   const limiter = new FrameLimiter();
   const link = new EngineLink();
   const demoBeats = show.demo ? new DemoBeats({ bpm: demoBpm, startMs: now0 + 300 }) : null;
-  const ambient = hexToLinear(theme.ambient || "#3a1a8a");
-  const airTint = Number.isFinite(theme.air_tint) ? theme.air_tint : 0;   // the haze veil in the air's own hue (atmos.js airTint)
+  // the air: the active palette's deep colour and air tint (programmer.ambient, airTint: they crossfade with the palette)
+  // PALETTES: the lasers' red fallback is the palette's white, and a fan of its first two colours is a gradient per beam
+  const laserOpts = (th) => { const pl = th.palette, g = pl && pl.gradients.find((x) => x.name === "lasers");
+                              return { white: hexToLinear(th.W || "#ffffff"), fanRamp: g ? tableOf(g) : null }; };
+  lasers.setColours(theme.laser, laserOpts(theme));
+  lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+  // the live palette: what shows, what is queued and the 16-bar line it lands on
+  const pal = { id: palId, queued: null, at: null, dip: false, landings: [] };
+  function announcePalette() {
+    const cur = pal.id && palettes.byId[pal.id], nxt = pal.queued && palettes.byId[pal.queued];
+    const d = { id: pal.id, name: cur ? cur.name : theme.name, next: pal.queued, nextName: nxt ? nxt.name : null, at: pal.at,
+                ladder: cur ? cur.kick.ladder.slice() : null, nextLadder: nxt ? nxt.kick.ladder.slice() : null };
+    window.__palette = d;
+    window.dispatchEvent(new CustomEvent("arsenal:palette", { detail: { ...d } }));
+  }
+  // step to the next (+1) or previous (-1) palette (or to id), landing on the next 16-bar line (a press before the landing
+  // steps the queued one); now: true lands it on this frame, no transition (the receipts' door)
+  function stepPal(delta, tEval, { id = null, now = false } = {}) {
+    if (!palettes || !palettes.ids.length) return null;
+    const from = pal.queued || pal.id || palettes.ids[0];
+    const want = id && palettes.byId[id] ? id : stepPalette(palettes, from, delta);
+    const pos = grid.posAt(tEval);
+    if (now) {
+      pal.id = want; pal.queued = null; pal.at = null;
+      theme = stageTheme(palettes.byId[want]);
+      programmer.palX = null; programmer.setTheme(theme);
+      lasers.setColours(theme.laser, laserOpts(theme)); lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+      $("hud-set").textContent = hudSetText();
+      announcePalette();
+      return { id: want, at: pos, dip: false };
+    }
+    const at = landingPos(pos, grid.barAnchor || 0, 16);
+    const cur = palettes.byId[pal.id], nxt = palettes.byId[want];
+    const dip = needsDip(cur, nxt, palettes.wheel);
+    pal.queued = want; pal.at = at; pal.dip = dip;
+    programmer.beginPalette(stageTheme(nxt), at, { beats: 16, dip });
+    announcePalette();
+    return { id: want, at, dip };
+  }
   // the faders: F1 strand, F4 lasers, F5 haze, F6 speed, F9 grand master
   const faders = { ...{ strand: 1, lasers: 1, haze: 0.55, speed: 0.5, grand: 1 }, ...(show0.fader_defaults || {}) };
   const faderMap = show0.faders || {};
@@ -288,6 +348,8 @@ function start({ rig, R, renderMod }) {
     else if (runner && action === "phrase-go" && on) { prepare(firstPhrase); runner.go(firstPhrase, grid, pos, { section: state.section || "any" }); }
     else if (runner && action === "phrase-next" && on) runner.next(grid, pos);
     else if (runner && action === "phrase-stop" && on) runner.stop(grid, pos);
+    else if (action === "palette-next" && on) stepPal(1, tEval);
+    else if (action === "palette-prev" && on) stepPal(-1, tEval);
     else if (action === "morph" && on) rings.morph(grid, tEval);
     else if (action === "hero" && on) rings.hero(grid, tEval);
   }
@@ -367,6 +429,15 @@ function start({ rig, R, renderMod }) {
       rings.update(grid, tEval, dt, programmer.flashGate);
       programmer.setLiveElements(rings.live ? rings.emOf : null);
       programmer.tick(grid, tEval, dt);
+      // the palette's landing: the lasers and the HUD take the new palette at its swap (the dip's bottom, or a crossfade's start)
+      for (const e of programmer.takePaletteEvents()) {
+        if (e.type !== "swap") { if (e.type === "landed" && pal.landings.length < 64) pal.landings.push({ id: e.id, pos: e.pos }); continue; }
+        theme = programmer.theme;
+        lasers.setColours(theme.laser, laserOpts(theme)); lasers3d.safeWhite = hexToLinear(theme.W || "#ffffff");
+        if (pal.queued === e.id) { pal.id = e.id; pal.queued = null; pal.at = null; }
+        $("hud-set").textContent = hudSetText();
+        announcePalette();
+      }
       strand.update(grid, tEval, dt);
       // the camera follows the ring formation while one stands (its landing, its hero view, the live rings for the guard)
       const ringKey = rings.key !== "home" ? rings.key : null;
@@ -387,6 +458,7 @@ function start({ rig, R, renderMod }) {
       const Hh = FIXED_H || Math.round(Math.min(window.devicePixelRatio || 1, DPR_CAP) * canvasCss().h);
       R.resize(W, Hh);
       const shot = director.shots[pose.shot];
+      const ambient = programmer.ambient, airTint = programmer.airTint;
       const amb = ambientNow.scale === 1 ? ambient : ambient.map((c) => c * ambientNow.scale);
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
@@ -409,7 +481,11 @@ function start({ rig, R, renderMod }) {
   let hudAt = 0;
   const hudEl = $("hud");
   if (QS.get("hud") === "0") hudEl.classList.add("hidden");
-  $("hud-set").textContent = `${rig.name} · ${theme.name} · ${show.demo ? "demo show" : "engine"} · ${rig.mode} motion`;
+  function hudSetText() {
+    const q = pal.queued && palettes ? palettes.byId[pal.queued] : null;
+    return `${rig.name} · ${theme.name}${q ? ` → ${q.name} (bar ${Math.round((pal.at - (grid.barAnchor || 0)) / 4)})` : ""} · ${show.demo ? "demo show" : "engine"} · ${rig.mode} motion`;
+  }
+  $("hud-set").textContent = hudSetText();
   function hud(now) {
     if (now - hudAt < 100 || hudEl.classList.contains("hidden")) return;
     hudAt = now;
@@ -467,7 +543,8 @@ function start({ rig, R, renderMod }) {
     const n = KEYPAD[e.code];
     const tEval = performance.now() + grid.presentLagMs;
     if (n) { held.add(e.code); pad(n, e.shiftKey ? 1 : 0.8, true, tEval); e.preventDefault(); return; }
-    if (e.code === "KeyH") hudEl.classList.toggle("hidden");
+    if (e.code === "KeyP") stepPal(e.shiftKey ? -1 : 1, tEval);
+    else if (e.code === "KeyH") hudEl.classList.toggle("hidden");
     else if (e.code === "KeyL") { R.look = LOOK_ORDER[(LOOK_ORDER.indexOf(R.look) + 1) % LOOK_ORDER.length]; lookStore(R.look); }
     else if (e.code === "KeyF") { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }
     else if (e.code === "KeyC") {
@@ -513,6 +590,8 @@ function start({ rig, R, renderMod }) {
                     phrase: runner ? runner.status() : null, phraseSteps: state.phraseSteps.slice(-64),
                     flashGate: { grants: programmer.flashGate.grants.slice(-32), refusals: programmer.flashGate.refusals.slice(-32) },
                     kick: programmer.kick.status(),
+                    palette: { id: pal.id, name: theme.name, queued: pal.queued, at: pal.at, dip: pal.dip, landings: pal.landings.slice(-8),
+                               library: palettes ? palettes.ids.length : 0, refused: palettes ? palettes.refused.map((r) => r.id) : [] },
                     rings: { key: rings.key, from: rings.from, move: rings.move ? { key: rings.move.key, start: rings.move.start, posLand: rings.move.posLand } : null,
                              poses: rings.rr.poses.map((p) => ({ ...p })), lands: rings.rr.lands.slice(-8), clamped: rings.rr.clamped.slice(-8),
                              hero: { fired: rings.heroState.fired.slice(-8), refused: rings.heroState.refused.slice(-8), armed: rings.heroState.at } } }),
@@ -530,6 +609,10 @@ function start({ rig, R, renderMod }) {
       return r;
     },
     clearShot: () => { manualShot = null; director.manual = null; },
+    // PALETTES: the library's ids, and a palette by id (or a step) -- landing on the next 16-bar line, or now
+    palettes: () => (palettes ? palettes.ids.slice() : []),
+    palette: (id, { now = false } = {}) => stepPal(1, performance.now() + grid.presentLagMs, { id, now }),
+    paletteStep: (delta = 1) => stepPal(delta, performance.now() + grid.presentLagMs),
     press: (n, vel = 0.9) => pad(n, vel, true, performance.now() + grid.presentLagMs),
     release: (n) => pad(n, 0, false, performance.now() + grid.presentLagMs),
     level: (n, v) => padLevel(n, v),
@@ -560,6 +643,7 @@ function start({ rig, R, renderMod }) {
     frameTimes: () => timing.list.slice(),
   });
   applyFaders(performance.now() + grid.presentLagMs);
+  if (palettes) announcePalette();
   requestAnimationFrame(frame);
 }
 

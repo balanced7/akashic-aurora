@@ -65,6 +65,13 @@
 //   --stitch dirA,dirB,...   no browser: judge kickstorm's chunks, each on its own with the same verifier code (chunks
 //                overlapping by a second or more, so every one-second window lies inside one chunk), and report case K1's
 //                and K3's checks and predictions from them.
+// PALETTES phases (2026-10-28, arsenal/web/palettes.js):
+//   palettes     the contact sheet: each palette (--pal-ids a,b; all thirty by default) landed through the page's door, the
+//                --pal-look (drop) from --pal-shot (FOH_WIDE), settled, drawn; --pal-kick adds the same view with a colour
+//                kick on the rings and on the strand. PNGs to --sheet-dir (else the receipt folder).
+//   phonebar     the headless phone check (915 x 412, touch): the PALETTE pad's label, the colour strip's wash of the lift
+//                colours, a touch that queues the next palette, the page's palette event only on a change, the frame time
+//                with the bar against without it, a finger on the colour strip, and the landing on the 16-bar line.
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -118,6 +125,10 @@ const { values: opt } = parseArgs({
     chrome: { type: "string", default: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" },
     query: { type: "string", default: "" },
     set: { type: "string", default: "source-v1" },
+    "pal-ids": { type: "string", default: "" },
+    "pal-look": { type: "string", default: "drop" },
+    "pal-shot": { type: "string", default: "FOH_WIDE" },
+    "pal-kick": { type: "boolean", default: false },
   },
 });
 if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.set)) { console.log(`ERROR --set ${opt.set}: a set name`); process.exit(2); }
@@ -1978,6 +1989,121 @@ async function phaseSheetPhrase({ ev, open, shot, phase }) {
   check("sheet-phrase: the HUD's phrase row names the running step, its variant and its repeat", hud.step && hud.text.includes(`${hud.step} ${hud.stepName}`) && hud.text.includes(hud.variant), hud);
 }
 
+// ===================================================================================================== PALETTES --
+// 2026-10-28 (arsenal/web/palettes.js; research/in-flight/palettes-2026-10-28/DESIGN.md). Daniel: "I want us to have 30
+// color palates that are high quality and what is used for driving the colors so it always looks careful and deliberate".
+//   palettes   the contact sheet: every palette (or --pal-ids) on the Stage from one hero view (--pal-look, drop; --pal-shot,
+//              FOH_WIDE), the palette landed at once through the page's door, two seconds of logic to settle (the wheels move
+//              in black), then the frame; with --pal-kick also the same view with a colour kick lit on the rings and one on
+//              the strand. PNGs to --sheet-dir (or the receipt folder), for the eye.
+//   phonebar   the headless phone check: a phone's viewport (915 x 412, touch), ?pads=1 -- the PALETTE pad shows the palette
+//              and, pressed by touch, the one queued; the colour strip wears the palette's lift colours; the page says so
+//              only when the palette changes (never per frame), and the frames keep coming as fast with the bar as without.
+async function phasePalettes({ ev, open, shot, phase, deadline }) {
+  const dir = sheetDir || join(outDir, "palettes");
+  mkdirSync(dir, { recursive: true });
+  await open(`engine=http://127.0.0.1:${ENGINE_PORT}&vt=1&${BASE}`);
+  await waitFor(() => ev("window.__stage.state().engine.open"), 15000, "the engine link");
+  const ids = await ev("window.__stage.palettes()");
+  const want = (opt["pal-ids"] ? opt["pal-ids"].split(",").map((s) => s.trim()) : ids).filter((x) => ids.includes(x));
+  phase.dir = dir; phase.planned = want.length; phase.shots = [];
+  const look = opt["pal-look"], camShot = opt["pal-shot"], kick = opt["pal-kick"];
+  const STEP = String.raw`((id, look, camShot, u) => {
+    const s = window.__stage, F = 1000 / 60;
+    const posNow = () => s.grid.posAt(performance.now() + s.grid.presentLagMs);
+    s.palette(id, { now: true });
+    s.programmer.setLook(look, posNow(), { fade: 0 });
+    s.setShot(camShot, u); s.resetLimiter();
+    s.skipRender = true; for (let i = 0; i < 120; i++) window.__vt.step(F); s.skipRender = false;
+    for (let i = 0; i < 2; i++) window.__vt.step(F);
+    const st = s.state();
+    return { palette: st.palette.id, name: st.palette.name, errors: st.errors.slice(), limiter: st.limiter.interventions };
+  })`;
+  const KICK = String.raw`((area) => {
+    const s = window.__stage, F = 1000 / 60, P = s.programmer;
+    const i = P.kick.cards.findIndex((c) => c.name === area);
+    P.kick.deck.forceNext = i;
+    window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0.8, on: true } }));
+    s.skipRender = true; for (let k = 0; k < 20; k++) window.__vt.step(F); s.skipRender = false;
+    for (let k = 0; k < 2; k++) window.__vt.step(F);
+    const live = P.kick.list.filter((k) => k.held).map((k) => ({ area: k.card.name, colour: P.kick._hexOf(k) }));
+    return live;
+  })`;
+  const RELEASE = String.raw`(() => { const s = window.__stage, F = 1000 / 60; window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0, on: false } })); s.skipRender = true; for (let k = 0; k < 120; k++) window.__vt.step(F); s.skipRender = false; return true; })()`;
+  for (const [n, id] of want.entries()) {
+    if (Date.now() > deadline - 12000) break;
+    const r = await ev(`${STEP}(${JSON.stringify(id)}, ${JSON.stringify(look)}, ${JSON.stringify(camShot)}, 0.5)`, 120000);
+    const tag = `${String(ids.indexOf(id) + 1).padStart(2, "0")}-${id}`;
+    const row = { id, name: r.name, landed: r.palette, errors: r.errors, file: await shot(join(dir, `${tag}.png`)) };
+    if (kick) {
+      for (const area of ["rings", "strand"]) {
+        row[`kick_${area}`] = await ev(`${KICK}(${JSON.stringify(area)})`, 120000);
+        row[`file_kick_${area}`] = await shot(join(dir, `${tag}-kick-${area}.png`));
+        await ev(RELEASE, 120000);
+      }
+    }
+    phase.shots.push(row);
+    console.log(`palettes ${tag}: ${r.name}${kick ? ` (kicks: ${JSON.stringify(row.kick_rings)} ${JSON.stringify(row.kick_strand)})` : ""}`);
+  }
+  check(`palettes: every palette asked for landed and was drawn (${phase.shots.length} of ${want.length})`, phase.shots.length === want.length && phase.shots.every((x) => x.landed === x.id), phase.shots.map((x) => `${x.id}:${x.landed}`));
+  check("palettes: no errors on the page while switching", phase.shots.every((x) => !x.errors.length) && !phase.exceptions.length, phase.shots.flatMap((x) => x.errors).slice(0, 4));
+}
+
+async function phasePhoneBar({ S, ev, open, phase, deadline }) {
+  const PW = 915, PH = 412;
+  await S("Emulation.setDeviceMetricsOverride", { width: PW, height: PH, deviceScaleFactor: 1, mobile: true });
+  await S("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+  const frames = async (n, render = true) => ev(`(() => { const s = window.__stage, F = 1000 / 60, t0 = window.__realNow(); s.skipRender = ${!render}; for (let i = 0; i < ${n}; i++) window.__vt.step(F); s.skipRender = false; return (window.__realNow() - t0) / ${n}; })()`, 170000);
+  // the same page without the bar first: the frame time to beat
+  await open(`demo=1&vt=1&pads=0&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
+  await frames(30);
+  const msBare = await frames(90);
+  await open(`demo=1&vt=1&pads=1&w=${PW}&h=${PH}&hud=0&quality=low&set=${opt.set}`);
+  await waitFor(() => ev("!!document.querySelector('.tbs.right')"), 15000, "the kick strips");
+  await ev(`(() => { window.__palEvents = 0; window.addEventListener("arsenal:palette", () => { window.__palEvents++; }); return true; })()`);
+  const read = () => ev(`(() => { const b = [...document.querySelectorAll(".tb button")].find((x) => x.dataset.code === "KeyP");
+    const st = document.querySelector(".tbs.right"), r = b.getBoundingClientRect(), rs = st.getBoundingClientRect(), s = window.__stage.state();
+    return { label: b.textContent, small: b.querySelector("small").textContent, tinted: st.classList.contains("tinted"), k0: st.style.getPropertyValue("--k0"), k1: st.style.getPropertyValue("--k1"),
+             rect: [r.left + r.width / 2, r.top + r.height / 2], strip: [rs.left + rs.width / 2, rs.top + rs.height / 2],
+             palette: s.palette, events: window.__palEvents, pos: s.pos, bar: s.grid.barAnchor, errors: s.errors.slice(), ladder: window.__palette && window.__palette.ladder }; })()`);
+  const touch = async (type, x, y, id = 1) => S("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id }] });
+  await frames(30);
+  const msBar = await frames(90);
+  const a = await read();
+  phase.before = a; phase.ms = { bare: +msBare.toFixed(1), bar: +msBar.toFixed(1) };
+  check("phonebar: the PALETTE pad shows the palette playing", a.small === a.palette.name, { small: a.small, palette: a.palette.name });
+  check("phonebar: the colour strip wears the palette's two lift colours", a.tinted && a.k0.startsWith(a.ladder[0]) && a.k1.startsWith(a.ladder[1]), { k0: a.k0, k1: a.k1, ladder: a.ladder });
+  // press the PALETTE pad with a finger: the next palette is queued for the next 16-bar line, and the pad says so
+  await touch("touchStart", a.rect[0], a.rect[1]); await frames(2); await touch("touchEnd", a.rect[0], a.rect[1]);
+  await frames(2);
+  const b = await read();
+  phase.queued = b;
+  check("phonebar: a touch on the PALETTE pad queues the next palette for the next 16-bar line", !!b.palette.queued && b.palette.at > b.pos && Math.abs(((b.palette.at - b.bar) / 64) - Math.round((b.palette.at - b.bar) / 64)) < 1e-6 && b.small === `-> ${(await ev(`window.__palette.nextName`))}`, { small: b.small, palette: b.palette, pos: b.pos });
+  // rendered frames with the bar: no event per frame, no slower than without the bar (a hang would show here)
+  const msQueued = await frames(120);
+  const c = await read();
+  phase.ms.queued = +msQueued.toFixed(1);
+  check("phonebar: the page announces the palette only when it changes (never per frame)", c.events === b.events && b.events - a.events === 1, { before: a.events, after_press: b.events, after_120_frames: c.events });
+  check("phonebar: the frames keep coming as fast with the bar (no hang)", msQueued < Math.max(2 * msBare, msBare + 40) && msBar < Math.max(2 * msBare, msBare + 40), phase.ms);
+  // a colour kick held on the right strip by a finger, slid, let go: the page keeps drawing
+  await touch("touchStart", a.strip[0], a.strip[1], 2); await frames(10);
+  await touch("touchMove", a.strip[0], a.strip[1] - 40, 2); await frames(10);
+  const k = await ev("window.__stage.state().kick.live.map((x) => [x.kind, x.colour])");
+  await touch("touchEnd", a.strip[0], a.strip[1] - 40, 2); await frames(10);
+  phase.kick = k;
+  check("phonebar: a finger on the colour strip kicks in the palette's lift colours", k.some(([kind, col]) => kind === "kick-colour" && a.ladder.includes(col)), k);
+  // to the landing: the new palette shows, the pad and the strip follow it
+  const toLand = Math.ceil(((b.palette.at - c.pos) + 1) * 24) + 4;
+  if (Date.now() < deadline - 30000) {
+    await frames(toLand, false); await frames(2);
+    const d = await read();
+    phase.landed = d;
+    check("phonebar: on the 16-bar line the queued palette lands, and the pad and the strip follow it", d.palette.id === b.palette.queued && !d.palette.queued && d.small === d.palette.name && d.k0.startsWith(d.ladder[0]) && d.events === c.events + 1,
+          { id: d.palette.id, small: d.small, k0: d.k0, ladder: d.ladder, events: d.events });
+  } else check("phonebar: the landing was reached inside the burst", false, { deadline: "short" });
+  check("phonebar: no exceptions or console errors", !phase.exceptions.length && !phase.console.some((x) => x.type === "error" || x.type === "log-error") && !(await ev("window.__stage.state().errors.length")), { exceptions: phase.exceptions.slice(0, 3), console: phase.console.filter((x) => x.type === "error" || x.type === "log-error").slice(0, 3) });
+}
+
 // ------------------------------------------------------------------------------------------------------ main --
 if (opt.stitch) {
   // no browser, no lock: judge stored chunks
@@ -1996,7 +2122,8 @@ try {
   report.ports = { web: PORT, engine: ENGINE_PORT };
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
-                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat };
+                  orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat,
+                  palettes: phasePalettes, phonebar: phasePhoneBar };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }

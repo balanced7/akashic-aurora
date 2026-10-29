@@ -20,6 +20,13 @@
 // and "arsenal:padlevel" {pad, vel} -- and only appear once the page has opened that door (window.__padDoor). On a
 // page without the door nothing changes: no strips, and the bar keeps its own KICK pad.
 //
+// THE PALETTE PAD (2026-10-28, Daniel: "I want us to have 30 color palates ... what is used for driving the colors"). The
+// Stage's PALETTE pad presses P (the next palette; it lands on the next 16-bar line). A page that knows its palette says so
+// with the window event "arsenal:palette" {id, name, next, nextName, at, ladder, nextLadder} -- only when it changes, never
+// per frame -- and keeps the latest in window.__palette. The pad's small line then shows the palette (or "-> the next one"
+// while one is queued), and the colour kick strip carries a faint wash of the palette's two lift colours (what the colour
+// kick paints). One text and one style change per palette event; nothing runs per frame.
+//
 // The bar shows itself on touch screens (pointer: coarse); ?pads=1 forces it on, ?pads=0 off. Its collapsed state is
 // remembered per page (a convenience; the page works the same without storage).
 
@@ -53,6 +60,7 @@ const CSS = `
 .tbs .cap small { display: block; margin-top: 4px; font-size: 7px; opacity: .7; }
 .tbs .cap { font-size: 9px; }
 .tb.collapsed ~ .tbs { display: none; }
+.tbs.tinted { background: linear-gradient(to top, var(--k0), var(--k1)); border-color: rgba(255, 255, 255, .22); }
 `;
 
 function store(key, value) {
@@ -116,6 +124,7 @@ export function mountTouchBar({ id, pads, strips = [] }) {
     if (p.label.length > 7) b.classList.add("long");
     if (p.stripped) b.classList.add("stripped");
     if (p.sub) { const s = document.createElement("small"); s.textContent = p.sub; b.appendChild(s); }
+    if (p.palette) paletteLabel(b.querySelector("small"));
     b.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       keepAwake();
@@ -173,8 +182,28 @@ export function mountTouchBar({ id, pads, strips = [] }) {
   return bar;
 }
 
+// the palette pad's small line: the palette showing, or the one queued to land (event-driven: arsenal:palette)
+function paletteLabel(small) {
+  if (!small) return;
+  const show = (d) => { if (d && (d.name || d.nextName)) small.textContent = d.nextName ? `-> ${d.nextName}` : d.name; };
+  window.addEventListener("arsenal:palette", (e) => show(e.detail));
+  show(window.__palette);
+}
+const HEX6 = /^#[0-9a-f]{6}$/i;
+// the colour strip's wash: the palette's two lift colours at a low alpha (event-driven: arsenal:palette)
+function ladderTint(el) {
+  const show = (d) => {
+    const L = d && Array.isArray(d.ladder) && d.ladder.length === 2 && d.ladder.every((h) => HEX6.test(h)) ? d.ladder : null;
+    if (!L) return;
+    el.style.setProperty("--k0", `${L[0]}40`); el.style.setProperty("--k1", `${L[1]}1c`);
+    el.classList.add("tinted");
+  };
+  window.addEventListener("arsenal:palette", (e) => show(e.detail));
+  show(window.__palette);
+}
+
 // One tall strip: the finger's height is the velocity (floor at the bottom, 1 at the top), sliding rides it live.
-function mountStrip({ label, sub, pad, side, floor = 0.15 }) {
+function mountStrip({ label, sub, pad, side, floor = 0.15, tint = null }) {
   const el = document.createElement("div");
   el.className = `tbs ${side}`;
   el.setAttribute("role", "slider");
@@ -217,13 +246,14 @@ function mountStrip({ label, sub, pad, side, floor = 0.15 }) {
   for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) el.addEventListener(ev, up);
   el.addEventListener("contextmenu", (e) => e.preventDefault());
   window.addEventListener("blur", () => { if (finger !== null) up({ pointerId: finger }); });
+  if (tint === "ladder") ladderTint(el);
   document.body.appendChild(el);
   return el;
 }
 
 // The Stage's keys (stage/stage.js, the keyboard block; the set's pad map in sets/source-v1.json): kick white 1 and
 // kick colour 5 (both step aside for the strips), lasers 2, phrase go 3 / next 4 / stop 7, fly-out 6, drop 0, the
-// rings' MORPH 8 and HERO 9, and C for the next camera shot.
+// rings' MORPH 8 and HERO 9, C for the next camera shot, and P for the next palette (it lands on the next 16-bar line).
 export const STAGE_PADS = [
   { label: "kick", code: "Digit1", key: "1", sub: "white", stripped: true },
   { label: "kick", code: "Digit5", key: "5", sub: "colour", stripped: true },
@@ -236,12 +266,14 @@ export const STAGE_PADS = [
   { label: "morph", code: "Digit8", key: "8", sub: "rings" },
   { label: "hero", code: "Digit9", key: "9", sub: "beam" },
   { label: "shot", code: "KeyC", key: "c", sub: "camera" },
+  { label: "palette", code: "KeyP", key: "p", sub: "next", palette: true },
 ];
 
-// The Stage's two kick strips (KICK v2: pad 1 deals a row toward white, pad 5 a row in the theme's colour).
+// The Stage's two kick strips (KICK v2: pad 1 deals an area the palette's white, pad 5 an area lifted inside the palette;
+// the colour strip wears a wash of the palette's two lift colours).
 export const STAGE_STRIPS = [
   { label: "kick", sub: "white", pad: 1, side: "left" },
-  { label: "kick", sub: "colour", pad: 5, side: "right" },
+  { label: "kick", sub: "colour", pad: 5, side: "right", tint: "ladder" },
 ];
 
 // The VJ page's twelve pads (vj.js KEY_PADS: 1-9, 0, minus, equals), labelled with the action each pad is mapped to
