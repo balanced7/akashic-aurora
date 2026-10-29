@@ -159,6 +159,7 @@ function start({ rig, R, renderMod, palettes }) {
   const hexPair = (v) => { const h = (v || "").split(",").filter((x) => /^#?[0-9a-f]{6}$/i.test(x)).map((x) => hexToLinear(x.startsWith("#") ? x : `#${x}`)); return h.length ? [h[0], h[1] || h[0]] : null; };
   const qGlow = hexPair(QS.get("cubeglow")), qCore = hexPair(QS.get("cubecore"));
   let cubeTintOverride = qGlow || qCore ? { glowTop: qGlow && qGlow[0], glowBottom: qGlow && qGlow[1], coreTop: qCore && qCore[0], coreBottom: qCore && qCore[1] } : null;
+  const cubeTintNow = {};                 // cubeTintOf's own object, kept: its gradient is rebuilt only when an end moves
   const show0 = rig.show;
   // the palette asked for (or a set theme by that name that is not a palette), else the show's palette, else its theme
   const palAsked = palettes && PALETTE_ASKED && palettes.byId[PALETTE_ASKED] ? PALETTE_ASKED : null;
@@ -473,8 +474,10 @@ function start({ rig, R, renderMod, palettes }) {
       const fs = { camera: { ...pose, orbitCentre: shot && shot.orbit ? shot.orbit.centre : null }, poses: strand.poses, heads: programmer.heads,
                    pixels: programmer.pixels, lasers: l3, medium, ambient: amb, airTint, ambientScale: ambientNow.scale, beatPhase: pos - Math.floor(pos), energy,
                    bloomMix: BLOOM_MIX, rings: rf,
-                   // the HAL cubes' glow: the palette's deep (crossfading with it) along to its B, unless a setup names its own
-                   cubeTint: cubeTintOf({ deep: programmer.ambient, B: programmer.roleRGB[ROLE.B] }, cubeTintOverride) };
+                   // the HAL cubes' glow: the palette's deep (crossfading with it) along to its B, unless a setup names its own;
+                   // and the kicks on their cells (a kicked cube's glow follows the hit: cubes.js cubeKickOf)
+                   cubeTint: cubeTintOf({ deep: programmer.ambient, B: programmer.roleRGB[ROLE.B] }, cubeTintOverride, cubeTintNow),
+                   cubeKick: { kickC: programmer.kickC, tC: programmer.tC, whiteRole: programmer.kick ? programmer.kick.whiteRole : -1 } };
       // api.skipRender: the receipts fast-forward the show's logic without drawing (the limiter then judges nothing)
       // flash protection off: no limiter asked (no meter, the identity: the frame as drawn)
       const info = api.skipRender ? state.info : R.render(fs, flash.on ? (cells, t) => limiter.step(cells, t, dt) : null, now / 1000);
@@ -634,7 +637,7 @@ function start({ rig, R, renderMod, palettes }) {
     features: (f) => Object.assign(R.features, f),
     // the cubes: style (hal|solid), tumble (0..1); cubeTint(t) is the setups' door (cubes.js THE HOOK: glowTop, glowBottom,
     // coreTop, coreBottom as linear RGB, glowMix; null clears it back to the palette's)
-    cubes: (o = {}) => { if (CUBE_STYLES.includes(o.style)) R.cubes.style = o.style; if (Number.isFinite(o.tumble)) R.cubes.tumble = o.tumble; return { ...R.cubes, tint: cubeTintOverride }; },
+    cubes: (o = {}) => { if (CUBE_STYLES.includes(o.style)) R.cubes.style = o.style; if (Number.isFinite(o.tumble)) R.cubes.tumble = Math.min(1, Math.max(0, o.tumble)); return { ...R.cubes, tint: cubeTintOverride }; },
     cubeTint: (t) => { cubeTintOverride = t && typeof t === "object" ? { ...t } : null; return cubeTintOverride; },
     profile: (on) => { R.profile = !!on; if (on) R.timings = {}; return R.timings; },
     timings: () => R.timings,
