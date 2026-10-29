@@ -778,6 +778,8 @@ function kickCase(cells, frame0, j, errs) {
   for (const [k, [a, b]] of Object.entries(KICK_SEGMENTS)) {
     const xs = cells.slice(Math.max(0, a - frame0), Math.max(0, Math.min(b, end) - frame0));
     seg[k] = { frames: xs.length, whole: a >= frame0 && b <= end, limited: xs.filter((x) => x.lim).length, strobing_frames: xs.filter((x) => x.ks > 0).length,
+               hold90: xs.filter((x) => x.hd >= 0.9).length, edge10: xs.filter((x) => x.sm >= 0.1).length, hard_hold: xs.filter((x) => x.he).length,
+               max_hold: +Math.max(0, ...xs.map((x) => x.hd || 0)).toFixed(4), max_seam: +Math.max(0, ...xs.map((x) => x.sm || 0)).toFixed(4),
                both_strobing: xs.filter((x) => x.ks >= 2).length, two_live: xs.filter((x) => x.kn >= 2).length, rows: [...new Set(xs.map((x) => x.rows).filter(Boolean))].slice(0, 12) };
   }
   const held = ["A", "B", "C"].filter((k) => seg[k].frames);
@@ -838,6 +840,11 @@ function stitchKickstorm(dirs) {
   }
   const held = ["A", "B", "C"].filter((k) => seg[k].frames);
   const heldFrames = held.reduce((s, k) => s + seg[k].frames, 0), heldLimited = held.reduce((s, k) => s + seg[k].limited, 0);
+  const segs = Object.keys(KICK_SEGMENTS).filter((k) => seg[k].frames);
+  const sum = (f) => segs.reduce((a, k) => a + (seg[k][f] || 0), 0);
+  report.phases.stitch_holds = { segments: segs.join(""), frames: sum("frames"), limited: sum("limited"), hold90: sum("hold90"), edge10: sum("edge10"),
+                                 hard_hold: sum("hard_hold"), max_hold: Math.max(0, ...segs.map((k) => seg[k].max_hold || 0)), max_seam: Math.max(0, ...segs.map((k) => seg[k].max_seam || 0)) };
+  console.log(`kickstorm chunked holds (the frozen-tile measure, segments ${segs.join("")}): ${JSON.stringify(report.phases.stitch_holds)}`);
   const prereg = {
     P1_gate: { worst, worst_red: worstRed, held: worst <= 3 && worstRed <= 3, chunks: judged },
     P2_held_strobe_limited_share: { frames: heldFrames, limited: heldLimited, share: +(heldLimited / Math.max(1, heldFrames)).toFixed(4), held: heldLimited / Math.max(1, heldFrames) < 0.1 },
@@ -900,6 +907,32 @@ async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
       const g = s.renderer.info.gains;
       const row = { L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, section: s.state().section, shot: s.director.pose.shot,
                     lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0 };
+      // the frozen-tile measure (flash toggle, 2026-10-28): hd, the largest share of any point of the shown frame that is
+      // the previous shown frame (a hold); sm, the largest step of the limiter's controls across a cell border (a seam);
+      // he, a hold of 0.9 or more at a cell with such a step of 0.1 or more beside it (a hard-edged hold). From the
+      // limiter's own gains, the ones the apply pass used this frame (a limiter with holdMetrics() measures itself; the v1
+      // limiter's per-cell gains are measured here)
+      if (s.limiter && s.limiter.gains) {
+        const hm = typeof s.limiter.holdMetrics === "function" ? s.limiter.holdMetrics() : ((A, B) => {
+          let hd = 0, sm = 0, he = 0;
+          for (let q = 0; q < 16; q++) {
+            hd = Math.max(hd, B[q]);
+            const nb = [];
+            if (q % 4 < 3) nb.push(q + 1);
+            if (q % 4 > 0) nb.push(q - 1);
+            if (q < 12) nb.push(q + 4);
+            if (q >= 4) nb.push(q - 4);
+            for (const o of nb) {
+              const st = Math.max(Math.abs(A[q] - A[o]), Math.abs(B[q] - B[o]));
+              sm = Math.max(sm, st);
+              if (B[q] >= 0.9 && st >= 0.1) he = 1;
+            }
+          }
+          return { hd, sm, he };
+        })(s.limiter.gains.cellA, s.limiter.gains.cellB);
+        row.hd = +hm.hd.toFixed(4); row.sm = +hm.sm.toFixed(4); row.he = hm.he ? 1 : 0;
+        if (!row.lim) { row.hd = 0; row.sm = 0; row.he = 0; }
+      }
       if (mode === "kicks") { const ks = s.programmer.kick.list; row.kn = ks.length; row.ks = ks.filter((k) => k.strobing).length; row.rows = ks.map((k) => k.card.name).join("+"); }
       else if (debug) { const K = s.programmer.kick; row.kd = { room: K.headroom, live: K.list.map((k) => [k.kind, k.card.name, +K._env(k, s.state().pos ?? 0).toFixed(3), k.motion ? k.motion.id : null, k.held ? 1 : 0]), gov: { ...K.gov }, beams: s.renderer.info.beams, lm: s.renderer.info.beamPowerLm, ib: s.renderer.inBeamFaded || 0 }; }
       out.push(row);
@@ -931,6 +964,10 @@ async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
   const j = judgeFlashes(series);
   phase.judged = { worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red, full: j.windows.full, windows: j.windows };
   phase.limited_frames = series.map((x, i) => (x.lim ? i : -1)).filter((i) => i >= 0).slice(0, 80);
+  phase.holds = { frames: series.length, limited: series.filter((x) => x.lim).length, hold90: series.filter((x) => x.hd >= 0.9).length,
+                  edge10: series.filter((x) => x.sm >= 0.1).length, hard_hold: series.filter((x) => x.he).length,
+                  max_hold: +Math.max(0, ...series.map((x) => x.hd || 0)).toFixed(4), max_seam: +Math.max(0, ...series.map((x) => x.sm || 0)).toFixed(4) };
+  console.log(`${kicks ? "kickstorm" : storm ? "storm" : "flash"} holds (the frozen-tile measure): ${JSON.stringify(phase.holds)}`);
   if (opt["flash-debug"] && !kicks) phase.debug_frames = series.map((x) => ({ L: x.L, R: x.R, N: x.N, lim: x.lim, kd: x.kd, shot: x.shot }));
   phase.full_series = series.slice(0, 160).map((x) => +(x.L.reduce((a, v, i) => a + v * x.N[i], 0) / x.N.reduce((a, v) => a + v, 0)).toFixed(4));
   phase.timeline = series.map((x, i) => [i, x.section, x.shot]).filter((r, i, a) => i === 0 || r[1] !== a[i - 1][1] || r[2] !== a[i - 1][2]);
@@ -950,7 +987,7 @@ async function phaseFlash({ ev, open, shot, phase, deadline }, storm = false) {
   if (kicks) {
     // every frame's cells, for --stitch (the chunks of one run judged as one)
     phase.N = series.length ? series[0].N : null;
-    phase.cells = series.map((x) => ({ L: x.L, R: x.R, lim: x.lim, ks: x.ks, kn: x.kn, rows: x.rows }));
+    phase.cells = series.map((x) => ({ L: x.L, R: x.R, lim: x.lim, ks: x.ks, kn: x.kn, rows: x.rows, hd: x.hd, sm: x.sm, he: x.he }));
     const pageErrors = await ev("window.__stage.errors.slice(0, 5)");
     const errs = phase.exceptions.length + phase.console.filter((c) => c.type === "error" || c.type === "log-error").length + pageErrors.length;
     Object.assign(phase, kickCase(phase.cells, from, j, errs));
