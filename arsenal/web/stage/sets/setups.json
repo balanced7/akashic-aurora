@@ -1,0 +1,764 @@
+{
+  "format": "arsenal.stage-setups/v1",
+  "about": "SETUPS (2026-10-29, setups.js): a palette x a PLACEMENT -- which colour goes on which part of the rig. They rotate on the 16-bar phrase lines (O / Shift+O by hand, landing on the next bar line; ?setup=<id> holds one, ?setups=hold holds, ?setups=off is the palettes' own looks). Kick 5's bank turns the colours WITHIN the setup. Daniel, 2026-10-29: \"in the screenshot the middle row being white with the other lights being blue and lasers flashing green or purple or pink, can you think of a few cool color palates using the screenshot as a reference for placement and ideas, we could also leverage gradients on the led cubes\" ... \"not permantly only orange and gold, i want the lights to cycle different color palates and setups\".",
+  "rotate_bars": 16,
+  "min_bars": 8,
+  "fade_beats": 4,
+  "order": [
+    "ice-spine",
+    "gold-sapphire",
+    "neon-split",
+    "aurora-column",
+    "source-fan",
+    "ember-cathedral",
+    "cyan-crown",
+    "black-and-one"
+  ],
+  "setups": [
+    {
+      "id": "ice-spine",
+      "name": "Ice Spine",
+      "about": "The screenshot's placement: the centre row white, the side beams and the halo's fan blue, the cubes a blue to violet gradient, the lasers green, purple and pink, the rings white (joining kick 5's bank).",
+      "drawn_from": [
+        "cherenkov",
+        "source-violet",
+        "neomuna-neon"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "ice": "#c8e6ff",
+        "blue": "#2f6bff",
+        "violet": "#7a3cff",
+        "sky": "#4aa8ff",
+        "green": "#2ee86a",
+        "purple": "#9a66ff",
+        "pink": "#f466d8"
+      },
+      "cycle": [
+        "blue",
+        "violet",
+        "sky"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "white",
+          "join": 0
+        },
+        "rings.rims": {
+          "a": "ice",
+          "join": 1
+        },
+        "truss.heads": {
+          "a": "blue"
+        },
+        "lip.heads": {
+          "a": "blue",
+          "b": "sky"
+        },
+        "vert": {
+          "a": "blue"
+        },
+        "vert.strips": {
+          "a": "blue",
+          "b": "violet"
+        },
+        "delay.30": {
+          "a": "sky"
+        },
+        "delay.55": {
+          "a": "sky"
+        },
+        "halo": {
+          "a": "blue",
+          "b": "sky"
+        },
+        "strand.heads": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "blue",
+          "b": "violet"
+        },
+        "strand.dots": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "white",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "green",
+        "purple",
+        "pink"
+      ],
+      "laser_bank": [
+        "green",
+        "purple",
+        "pink"
+      ],
+      "cubes": {
+        "glow": [
+          "blue",
+          "violet"
+        ]
+      }
+    },
+    {
+      "id": "gold-sapphire",
+      "name": "Gold & Sapphire",
+      "warm": true,
+      "about": "Daniel's 'gold and blue': the side beams, the halo's fan and the ring LEDs gold, the rims and cubes sapphire with a sapphire-to-sky glow, the lasers cyan, the centre warm white. (Every part shows one colour: gold and a blue mixed in one fixture grey out.)",
+      "drawn_from": [
+        "blue-hour-amber",
+        "leviathan-royal",
+        "pale-heart"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "warm-white": "#ffe8c8",
+        "gold": "#ffc83a",
+        "sapphire": "#2a48e0",
+        "sky": "#4aa8ff",
+        "cyan": "#19e0ff"
+      },
+      "cycle": [
+        "gold",
+        "sapphire",
+        "sky"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "gold"
+        },
+        "rings.rims": {
+          "a": "sapphire"
+        },
+        "truss.heads": {
+          "a": "gold"
+        },
+        "lip.heads": {
+          "a": "gold"
+        },
+        "vert": {
+          "a": "gold"
+        },
+        "vert.strips": {
+          "a": "sapphire"
+        },
+        "delay.30": {
+          "a": "sapphire"
+        },
+        "delay.55": {
+          "a": "sapphire"
+        },
+        "halo": {
+          "a": "gold"
+        },
+        "strand.heads": {
+          "a": "warm-white",
+          "w": "warm-white",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "sapphire"
+        },
+        "strand.dots": {
+          "a": "warm-white",
+          "w": "warm-white",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "warm-white",
+          "w": "warm-white",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "cyan"
+      ],
+      "laser_bank": [
+        "cyan",
+        "gold",
+        "sky"
+      ],
+      "cubes": {
+        "glow": [
+          "sapphire",
+          "sky"
+        ]
+      }
+    },
+    {
+      "id": "neon-split",
+      "name": "Neon Split",
+      "about": "Pink on the left, cyan on the right, the centre white, the cubes a pink to cyan gradient, the lasers green; kick 5 swaps the sides through violet.",
+      "drawn_from": [
+        "neomuna-neon",
+        "orion-nebula",
+        "synthwave-dusk"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "pink": "#f466d8",
+        "cyan": "#19e0ff",
+        "violet": "#8a5cff",
+        "green": "#2ee86a"
+      },
+      "cycle": [
+        "pink",
+        "cyan",
+        "violet"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "rings.rims": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "truss.heads": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "lip.heads": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "vert": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "vert.strips": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "delay.30": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "delay.55": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "halo": {
+          "a": "violet",
+          "left": {
+            "a": "pink"
+          },
+          "right": {
+            "a": "cyan"
+          }
+        },
+        "strand.heads": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "pink",
+          "b": "cyan"
+        },
+        "strand.dots": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "white",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "green"
+      ],
+      "laser_bank": [
+        "green",
+        "cyan",
+        "pink"
+      ],
+      "cubes": {
+        "glow": [
+          "pink",
+          "cyan"
+        ]
+      }
+    },
+    {
+      "id": "aurora-column",
+      "name": "Aurora Column",
+      "about": "An ice centre, teal beams and a teal halo fan, the cubes a green to violet gradient, violet and pink lasers; kick 5 turns them through teal, green, violet and blue.",
+      "drawn_from": [
+        "aurora-borealis",
+        "abyssal-glow",
+        "emerald-laser"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "ice": "#d2f4ff",
+        "teal": "#14c8b4",
+        "green": "#2ee86a",
+        "violet": "#9a66ff",
+        "pink": "#f070d8",
+        "blue": "#3a7bff"
+      },
+      "cycle": [
+        "teal",
+        "green",
+        "violet",
+        "blue"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "teal",
+          "b": "green"
+        },
+        "rings.rims": {
+          "a": "green"
+        },
+        "truss.heads": {
+          "a": "teal"
+        },
+        "lip.heads": {
+          "a": "teal"
+        },
+        "vert": {
+          "a": "teal"
+        },
+        "vert.strips": {
+          "a": "teal",
+          "b": "green"
+        },
+        "delay.30": {
+          "a": "green"
+        },
+        "delay.55": {
+          "a": "green"
+        },
+        "halo": {
+          "a": "teal"
+        },
+        "strand.heads": {
+          "a": "ice",
+          "w": "ice",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "green",
+          "b": "violet"
+        },
+        "strand.dots": {
+          "a": "ice",
+          "w": "ice",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "ice",
+          "w": "ice",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "violet",
+        "pink"
+      ],
+      "laser_bank": [
+        "violet",
+        "pink",
+        "green"
+      ],
+      "cubes": {
+        "glow": [
+          "green",
+          "violet"
+        ]
+      }
+    },
+    {
+      "id": "source-fan",
+      "name": "Source Fan",
+      "about": "The screenshot kept and its amber taken out: the halo's violet fan, the white spine, magenta to violet cubes, green lasers, and the side beams ice instead of amber.",
+      "drawn_from": [
+        "source-violet",
+        "sparkler-pink",
+        "glacier"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "ice": "#9fd4ff",
+        "violet": "#7a3cff",
+        "magenta": "#e044e0",
+        "sky": "#4aa8ff",
+        "green": "#2ee86a",
+        "purple": "#9a66ff"
+      },
+      "cycle": [
+        "violet",
+        "magenta",
+        "sky"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "white",
+          "join": 0
+        },
+        "rings.rims": {
+          "a": "violet"
+        },
+        "truss.heads": {
+          "a": "ice",
+          "join": 1
+        },
+        "lip.heads": {
+          "a": "ice",
+          "join": 1
+        },
+        "vert": {
+          "a": "ice",
+          "join": 0
+        },
+        "vert.strips": {
+          "a": "violet",
+          "b": "magenta"
+        },
+        "delay.30": {
+          "a": "ice",
+          "join": 0
+        },
+        "delay.55": {
+          "a": "ice",
+          "join": 0
+        },
+        "halo": {
+          "a": "violet"
+        },
+        "strand.heads": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "magenta",
+          "b": "violet"
+        },
+        "strand.dots": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "white",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "green"
+      ],
+      "laser_bank": [
+        "green",
+        "purple",
+        "sky"
+      ],
+      "cubes": {
+        "glow": [
+          "magenta",
+          "violet"
+        ]
+      }
+    },
+    {
+      "id": "ember-cathedral",
+      "name": "Ember Cathedral",
+      "warm": true,
+      "about": "Orange and gold beams standing like columns (the halo's fan orange to gold), a deep-blue cube gradient, magenta and violet lasers, a warm-white spine.",
+      "drawn_from": [
+        "tangerine-teal",
+        "molten",
+        "cherenkov"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "warm-white": "#ffe8c8",
+        "orange": "#ff9a2e",
+        "gold": "#ffc83a",
+        "deep-blue": "#2338d8",
+        "indigo": "#6a40ff",
+        "magenta": "#e044e0",
+        "violet": "#9a66ff"
+      },
+      "cycle": [
+        "orange",
+        "deep-blue",
+        "gold",
+        "indigo"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "orange"
+        },
+        "rings.rims": {
+          "a": "gold"
+        },
+        "truss.heads": {
+          "a": "orange"
+        },
+        "lip.heads": {
+          "a": "gold"
+        },
+        "vert": {
+          "a": "orange"
+        },
+        "vert.strips": {
+          "a": "gold"
+        },
+        "delay.30": {
+          "a": "gold"
+        },
+        "delay.55": {
+          "a": "orange"
+        },
+        "halo": {
+          "a": "orange",
+          "b": "gold"
+        },
+        "strand.heads": {
+          "a": "warm-white",
+          "w": "warm-white",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "deep-blue",
+          "b": "indigo"
+        },
+        "strand.dots": {
+          "a": "warm-white",
+          "w": "warm-white",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "warm-white",
+          "w": "warm-white",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "magenta",
+        "violet"
+      ],
+      "laser_bank": [
+        "magenta",
+        "violet"
+      ],
+      "cubes": {
+        "glow": [
+          "deep-blue",
+          "indigo"
+        ]
+      }
+    },
+    {
+      "id": "cyan-crown",
+      "name": "Cyan Crown",
+      "about": "The rings and the halo a cyan crown over indigo beams, the white spine, cyan to indigo cubes, magenta and pink lasers.",
+      "drawn_from": [
+        "cyan-hold",
+        "spiral-tunnel",
+        "neomuna-neon"
+      ],
+      "colours": {
+        "white": "#f2f5ff",
+        "cyan": "#19e0ff",
+        "indigo": "#4a3cff",
+        "magenta": "#d040f0",
+        "pink": "#f070d8",
+        "sky": "#4aa8ff"
+      },
+      "cycle": [
+        "cyan",
+        "indigo",
+        "magenta"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "cyan"
+        },
+        "rings.rims": {
+          "a": "cyan",
+          "b": "indigo"
+        },
+        "truss.heads": {
+          "a": "indigo"
+        },
+        "lip.heads": {
+          "a": "indigo"
+        },
+        "vert": {
+          "a": "indigo"
+        },
+        "vert.strips": {
+          "a": "indigo",
+          "b": "cyan"
+        },
+        "delay.30": {
+          "a": "indigo"
+        },
+        "delay.55": {
+          "a": "indigo"
+        },
+        "halo": {
+          "a": "cyan"
+        },
+        "strand.heads": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.cubes": {
+          "a": "cyan",
+          "b": "indigo"
+        },
+        "strand.dots": {
+          "a": "white",
+          "pin": true
+        },
+        "strand.bars": {
+          "a": "white",
+          "pin": true
+        }
+      },
+      "lasers": [
+        "magenta",
+        "pink"
+      ],
+      "laser_bank": [
+        "magenta",
+        "sky",
+        "pink"
+      ],
+      "cubes": {
+        "glow": [
+          "cyan",
+          "indigo"
+        ]
+      }
+    },
+    {
+      "id": "black-and-one",
+      "name": "Black & One",
+      "about": "All white with one vivid laser colour; kick 5 deals the rig cyan and violet in alternate groups, a press flips them.",
+      "drawn_from": [
+        "noir",
+        "titanium"
+      ],
+      "colours": {
+        "white": "#f4f6ff",
+        "cyan": "#19e0ff",
+        "violet": "#8a5cff"
+      },
+      "cycle": [
+        "cyan",
+        "violet"
+      ],
+      "place": {
+        "rings.slats": {
+          "a": "white",
+          "join": 0
+        },
+        "rings.rims": {
+          "a": "white",
+          "join": 1
+        },
+        "truss.heads": {
+          "a": "white",
+          "join": 0
+        },
+        "lip.heads": {
+          "a": "white",
+          "join": 1
+        },
+        "vert": {
+          "a": "white",
+          "join": 0
+        },
+        "vert.strips": {
+          "a": "white",
+          "join": 1
+        },
+        "delay.30": {
+          "a": "white",
+          "join": 0
+        },
+        "delay.55": {
+          "a": "white",
+          "join": 1
+        },
+        "halo": {
+          "a": "white",
+          "join": 0
+        },
+        "strand.heads": {
+          "a": "white",
+          "join": 1
+        },
+        "strand.cubes": {
+          "a": "white",
+          "join": 0
+        },
+        "strand.dots": {
+          "a": "white",
+          "join": 1
+        },
+        "strand.bars": {
+          "a": "white",
+          "join": 0
+        }
+      },
+      "lasers": [
+        "cyan"
+      ],
+      "laser_bank": [
+        "cyan",
+        "violet"
+      ]
+    }
+  ]
+}

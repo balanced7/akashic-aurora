@@ -7,7 +7,7 @@
 //        [--extra shots.json]   candidate shots {"ID": {kind, pos, look, ...}} tried without touching source-v1.json
 //        [--u 0.5]              where along each shot (0..1; a list renders each); a path or orbit moves along u
 //        [--section drop]       --bars count from that section's first bar (else from the demo plan's first bar)
-//        [--palette <id>] [--width 1600 --height 900] [--set source-v1] [--port 8960] [--no-sheet]
+//        [--palette <id>] [--setup <id>|off] [--cubes hal|solid] [--width 1600 --height 900] [--set source-v1] [--port 8960] [--no-sheet]
 //        [--facts-only]         no browser: print each shot's placement facts (clearances, landmarks in frame) and stop
 //
 // How: headless Chrome on the real GPU (arsenal/shaders/headless.mjs renderFlags(true); the renderer must name hardware),
@@ -50,6 +50,10 @@ const { values: opt } = parseArgs({
     section: { type: "string", default: "" },
     look: { type: "string", default: "hdr" },
     palette: { type: "string", default: "" },
+    // a SETUP (setups.js), held: ?setup=<id> (default: none -- automation gets the palettes' own looks); "off" says so
+    setup: { type: "string", default: "" },
+    // the cubes' style: hal (the viewer's) or solid (automation's default)
+    cubes: { type: "string", default: "" },
     width: { type: "string", default: "1600" },
     height: { type: "string", default: "900" },
     set: { type: "string", default: "source-v1" },
@@ -69,13 +73,15 @@ const { values: opt } = parseArgs({
 });
 const usage = () => {
   console.log("usage: node arsenal/lanes/stage_stills.mjs --shots ID1,ID2 [--extra shots.json] [--bars 20,28] [--u 0.5] [--section drop]\n" +
-              "         [--look hdr|punch|velvet|classic] [--palette id] [--width 1600 --height 900] [--set source-v1] [--out dir] [--no-sheet]");
+              "         [--look hdr|punch|velvet|classic] [--palette id] [--setup id|off] [--cubes hal|solid] [--width 1600 --height 900] [--set source-v1] [--out dir] [--no-sheet]");
 };
 if (opt.help) { usage(); process.exit(0); }
 const fail = (msg) => { console.log(`ERROR ${msg}`); process.exit(2); };
 if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.set)) fail(`--set ${opt.set}: a set name`);
 if (!/^[a-z]{1,16}$/.test(opt.look)) fail(`--look ${opt.look}: hdr, punch, velvet or classic`);
 if (opt.palette && !/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.palette)) fail(`--palette ${opt.palette}: a palette id`);
+if (opt.setup && !/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.setup)) fail(`--setup ${opt.setup}: a setup id (or off)`);
+if (opt.cubes && !["hal", "solid"].includes(opt.cubes)) fail(`--cubes ${opt.cubes}: hal or solid`);
 const W = Number(opt.width), H = Number(opt.height);
 if (!(W >= 160 && W <= 3840 && H >= 90 && H <= 2160)) fail("--width 160..3840, --height 90..2160");
 const PORT = Number(opt.port);
@@ -193,7 +199,7 @@ mkdirSync(OUT, { recursive: true });
 const report = {
   api: "arsenal.stage-stills/v1", started_at: new Date().toISOString(), worktree: REPO,
   command: `node arsenal/lanes/stage_stills.mjs ${process.argv.slice(2).join(" ")}`,
-  set: opt.set, look: opt.look, palette: opt.palette || null, viewport: { width: W, height: H },
+  set: opt.set, look: opt.look, palette: opt.palette || null, setup: opt.setup || null, cubes: opt.cubes || null, viewport: { width: W, height: H },
   bars: BARS.map((b) => ({ plan_bar: b, ...planSection(b) })), u: US,
   extra: { file: opt.extra || null, added: merged.added, replaced: merged.replaced },
   landmarks: LANDMARKS, shots: SHOT_FACTS, stills: [], bursts: [], errors: [],
@@ -293,7 +299,7 @@ async function burst(n, body) {
       if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
       return r.result.value;
     };
-    const query = `demo=1&vt=1&w=${W}&h=${H}&hud=0&quality=receipt&flash=on&set=${opt.set}&look=${opt.look}${opt.palette ? `&palette=${opt.palette}` : ""}`;
+    const query = `demo=1&vt=1&w=${W}&h=${H}&hud=0&quality=receipt&flash=on&set=${opt.set}&look=${opt.look}${opt.palette ? `&palette=${opt.palette}` : ""}${opt.setup ? (opt.setup === "off" ? "&setups=off" : `&setup=${opt.setup}`) : ""}${opt.cubes ? `&cubes=${opt.cubes}` : ""}`;
     rec.url = `http://127.0.0.1:${PORT}/web/stage/index.html?${query}`;
     await S("Page.navigate", { url: rec.url });
     await waitFor(() => ev("!!(window.__stage && (window.__stage.ready || window.__stage.bootError))"), 60000, "the stage to boot");
@@ -430,7 +436,7 @@ if (!opt["no-sheet"] && report.stills.length) {
   const cols = BARS.flatMap((b) => US.map((u) => ({ bar: b, u })));
   const plan = {
     out: join(OUT, "sheet.png"), thumb_w: Number(opt["sheet-width"]),
-    title: `${opt.set} · look ${opt.look}${opt.palette ? ` · palette ${opt.palette}` : ""} · ${W}x${H} · ${renderer || ""}`.slice(0, 160),
+    title: `${opt.set} · look ${opt.look}${opt.palette ? ` · palette ${opt.palette}` : ""}${opt.setup ? ` · setup ${opt.setup}` : ""} · ${W}x${H} · ${renderer || ""}`.slice(0, 160),
     cols: cols.map((c) => `bar ${c.bar - sectionStart}${opt.section ? ` of ${opt.section}` : ""} (${planSection(c.bar).section})${US.length > 1 ? ` · u ${c.u}` : ""}`),
     rows: SHOT_IDS.map((id) => ({ label: id, note: `${SHOT_FACTS[id].source} · strand ${SHOT_FACTS[id].clearance_strand_home_m} m · rings ${SHOT_FACTS[id].clearance_rings_home_m} m`,
                                   cells: cols.map((c) => (report.stills.find((s) => s.shot === id && s.plan_bar === c.bar && s.u === c.u) || {}).file || null) })),

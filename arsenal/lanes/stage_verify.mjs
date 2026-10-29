@@ -92,6 +92,10 @@
 //                verifier's flash count; then (grammar only) Daniel's slow sweep (6 5 4 3 2 1 then back 2 3 4 5 6, 183 ms
 //                apart: the fade out and in) and the explicit B (held, 9 down to 1 and back), with the level's path
 //                per frame and stills to the receipt folder for the eye.
+// SETUPS phase (2026-10-29, arsenal/web/stage/setups.js; not in the default list: run it attended, --gpu):
+//   setups       every setup held (?setup=<id>) against the palettes' own looks (?setups=off): the demo's drop at 640 x 360,
+//                every frame drawn and judged, protection on, kick 5 tapped three times; the pre-registered bars S1-S6 are in
+//                phaseSetups' comment; stills setups-<id>.png to --sheet-dir (else the receipt folder).
 // Writes <worktree>/state/arsenal/receipts/stage-<stamp>/receipt.json (gitignored) and the PNGs; exits 1 on a failed check.
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -153,6 +157,12 @@ const { values: opt } = parseArgs({
     "pal-kick": { type: "boolean", default: false },
     // the bank phase's diagnosis: F5 (haze) at this level on every page ("" leaves the set's default)
     "bank-haze": { type: "string", default: "" },
+    // the setups phase's diagnosis: only these setups ("" all), and kick 5's taps (1) or none (0)
+    "setups-ids": { type: "string", default: "" },
+    "setups-taps": { type: "string", default: "1" },
+    "setups-lasers": { type: "string", default: "" },
+    // the palettes whose own looks (no setup) are measured beside the setups (the baseline's spread)
+    "setups-palettes": { type: "string", default: "" },
   },
 });
 if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(opt.set)) { console.log(`ERROR --set ${opt.set}: a set name`); process.exit(2); }
@@ -1568,6 +1578,124 @@ async function phaseHaze({ ev, open, phase, deadline }) {
   check("haze H6: every quarter of F5's travel gives 12 % or more of the 0-to-1 rise in the frame's mean luminance", rise > 0 && quarters.every((x) => x >= 0.12), phase.quarters);
 }
 
+// SETUPS (2026-10-29, setups.js; Daniel: "i want the lights to cycle different color palates and setups"). Every setup held
+// (?setup=<id>) and the palettes' own looks (?setups=off, the baseline), each on its own page: the demo from bar 16 (the
+// drop) at 640 x 360, flash protection on, every frame drawn and read by the verifier's own probe, the same input on every
+// page (the demo's own pads, and kick 5 tapped through the pad door at frames 120, 240 and 360), the limiter reset at the
+// start. Then a rotation page (?setups=rotate, logic only): the automatic change on the 16-bar line, O on the next bar line.
+// PRE-REGISTERED (written before this phase's first run): S1 every setup lands (the page's setup is the one asked, its laser
+// colours the setup's, no exceptions); S2 at most 3 flashes a second in every window and no red flash, every page; S3 the
+// limiter's frames under each setup at or under the baseline's x 1.25 + 10 (flash protection's limits are not changed: this
+// says the setups do not lean on it much harder than the palettes do); S4 the saturated-red share of lit pixels (encoded R
+// share >= 0.8, L* >= 20) in the final frame at or under the baseline's + 0.1 % of the frame; S5 every kick-5 tap stepped
+// the setup's bank by one (three taps, bank 3 at the end) and changed the lasers; S6 the rotation: the change lands on bar
+// 16-bar line (the phrase origin on the bar grid + 64: in the demo, the drop's first ONE) to the next setup in the order, O lands on the next bar line, the HUD's set row names the setup.
+const SETUPS_FRAMES = 480;
+async function phaseSetups({ ev, open, shot, phase, deadline }) {
+  const fw = 640, fh = 360, bar = 16;
+  const lib = JSON.parse(readFileSync(join(REPO, "arsenal", "web", "stage", "sets", "setups.json"), "utf8"));
+  const ids = opt["setups-ids"] ? opt["setups-ids"].split(",").filter((x) => lib.order.includes(x)) : lib.order;
+  const taps = opt["setups-taps"] !== "0";
+  phase.taps = taps;
+  phase.prereg = { S1: "every setup lands", S2: "worst <= 3 flashes/s, red 0, every page", S3: "limited frames <= baseline x 1.25 + 10",
+                   S4: "red share of the final frame <= baseline + 0.001", S5: "three taps: bank 3, lasers changed", S6: "auto on bar 16's line, O on the next bar line, HUD names it" };
+  const RUN = String.raw`((from, n) => {
+    const s = window.__stage, out = [];
+    const kp = (on) => window.dispatchEvent(new CustomEvent("arsenal:pad", { detail: { pad: 5, vel: 0.9, on } }));
+    for (let i = 0; i < n; i++) {
+      const f = from + i;
+      if (${taps} && (f === 120 || f === 240 || f === 360)) kp(true);
+      if (f === 126 || f === 246 || f === 366) kp(false);
+      window.__vt.step(1000 / 60);
+      const c = window.__probe.cells(), g = s.renderer.info.gains;
+      out.push({ L: c.L.map((v) => +v.toFixed(5)), R: c.R.map((v) => +v.toFixed(3)), N: c.N, lim: g && (g.a !== 1 || g.b !== 0) ? 1 : 0,
+                 bank: s.programmer.bank.count, lasers: s.programmer.sx.lasers ? s.programmer.sx.lasers.names.join(",") : "palette" });
+    }
+    return out;
+  })`;
+  // (read in the same task as a drawn frame: the canvas does not keep its buffer)
+  const RED = String.raw`(() => {
+    window.__vt.step(1000 / 60);
+    const s = window.__stage, gl = s.renderer.gl, cv = document.getElementById("gl"), w = cv.width, h = cv.height, buf = new Uint8Array(w * h * 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    const lin = (v) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    let lit = 0, red = 0;
+    for (let i = 0; i < buf.length; i += 4) {
+      const r = buf[i], g = buf[i + 1], b = buf[i + 2], Y = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+      const Ls = Y > 0.008856 ? 116 * Math.cbrt(Y) - 16 : 903.3 * Y;
+      if (Ls < 20) continue;
+      lit++; if (r / (r + g + b) >= 0.8) red++;
+    }
+    return { lit: lit / (w * h), red: red / (w * h) };
+  })()`;
+  phase.pages = {};
+  const pals = opt["setups-palettes"] ? opt["setups-palettes"].split(",").filter(Boolean).map((p) => `palette:${p}`) : [];
+  for (const id of ["off", ...pals, ...ids]) {
+    if (Date.now() > deadline - 25000) break;
+    const q = id === "off" ? "setups=off" : id.startsWith("palette:") ? `setups=off&palette=${id.slice(8)}` : `setup=${id}`;
+    await open(`demo=1&vt=1&w=${fw}&h=${fh}&hud=0&quality=receipt&set=${opt.set}&${q}`);
+    await ev(PAGE_PROBE);
+    const setup = await ev(String.raw`(() => {
+      const s = window.__stage, F = 1000 / 60;
+      if (${JSON.stringify(opt["setups-lasers"])} !== "") s.fader("lasers", Number(${JSON.stringify(opt["setups-lasers"])}));
+      s.skipRender = true; for (let i = 0; i < 96 * ${bar} - 30; i++) window.__vt.step(F); s.skipRender = false;
+      for (let i = 0; i < 30; i++) window.__vt.step(F);
+      s.resetLimiter();
+      const st = s.state();
+      return { pos: st.pos, section: st.section, setup: st.setup.id, layer: st.setup.layer, protection: s.flashProtection().on, look: s.renderer.look || null };
+    })()`, 170000);
+    const series = [];
+    for (let done = 0; done < SETUPS_FRAMES && Date.now() < deadline - 15000; done += 60) series.push(...await ev(`${RUN}(${done}, ${Math.min(60, SETUPS_FRAMES - done)})`, 160000));
+    const dealt = await ev("window.__stage.state().kicks.slice(-8).map((k) => `${k.kind}:${k.row}@${k.pressPos.toFixed(2)}`)");
+    const red = await ev(RED);
+    await shot(join(sheetDir || outDir, `setups-${id}.png`));
+    const j = judgeFlashes(series), errs = await ev("window.__stage.errors.slice(0, 5)");
+    const lasersSeen = [...new Set(series.map((x) => x.lasers))], laserChanges = series.filter((x, i) => i && x.lasers !== series[i - 1].lasers).length;
+    const row = { setup, frames: series.length, limited: series.filter((x) => x.lim).length, worst: j.worst, worst_window: j.worst_window, worst_red: j.worst_red,
+                  bank_end: series.length ? series[series.length - 1].bank : null, lasers_seen: lasersSeen, laser_changes: laserChanges, dealt, limited_at: series.map((x, i) => (x.lim ? i : -1)).filter((i) => i >= 0), cells_at: opt["flash-debug"] ? series.map((x) => x.L.map((v) => +v.toFixed(3))) : undefined, bank_at: series.map((x, i) => (i && x.bank !== series[i - 1].bank ? i : -1)).filter((i) => i >= 0), red, errors: errs.length + phase.exceptions.length, error_text: errs };
+    phase.pages[id] = row;
+    console.log(`setups ${id.padEnd(16)} ${row.frames} frames (${setup.section}, protection ${setup.protection}, page setup ${setup.setup}): limiter ${row.limited}, worst ${row.worst} (${row.worst_window}) red ${row.worst_red}, bank ${row.bank_end}, lasers ${lasersSeen.join(" | ")}, red px ${(100 * red.red).toFixed(3)} % of ${(100 * red.lit).toFixed(1)} % lit`);
+  }
+  // the rotation, logic only
+  let rot = null;
+  if (Date.now() < deadline - 20000) {
+    await open(`demo=1&vt=1&w=${fw}&h=${fh}&quality=receipt&set=${opt.set}&setups=rotate`);
+    rot = await ev(String.raw`(() => {
+      const s = window.__stage, F = 1000 / 60, out = { first: s.state().setup.id };
+      s.skipRender = true;
+      let last = out.first, pos0 = null;
+      for (let i = 0; i < 96 * 18 && pos0 === null; i++) { window.__vt.step(F); const st = s.state(); if (st.setup.id !== last) { pos0 = st.setup.landedAt; out.second = st.setup.id; out.frame_pos = st.pos; } }
+      out.landed_at = pos0;
+      for (let i = 0; i < 30; i++) window.__vt.step(F);
+      const pressPos = s.state().pos;
+      window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyO" }));
+      window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyO" }));
+      const q = s.state().setup;
+      out.o = { press_pos: pressPos, queued: q.queued, at: q.at };
+      for (let i = 0; i < 120; i++) window.__vt.step(F);
+      out.o.landed = s.state().setup.id; out.o.landedAt = s.state().setup.landedAt;
+      s.skipRender = false; window.__vt.step(F);
+      for (let i = 0; i < 12; i++) window.__vt.step(F);
+      out.hud = (document.getElementById("hud-set") || {}).textContent || "";
+      out.order = s.setups(); out.anchor = s.state().grid.barAnchor; out.origin = s.state().setup.origin;
+      return out;
+    })()`, 170000);
+    phase.rotation = rot;
+    console.log(`setups rotation: ${rot.first} -> ${rot.second} landed at pos ${rot.landed_at}; O pressed at ${rot.o.press_pos.toFixed(3)} queued ${rot.o.queued} at ${rot.o.at} -> ${rot.o.landed}; HUD "${rot.hud}"`);
+  }
+  const base = phase.pages.off, rows = Object.entries(phase.pages).filter(([k]) => k !== "off" && !k.startsWith("palette:"));
+  phase.palette_pages = Object.fromEntries(Object.entries(phase.pages).filter(([k]) => k.startsWith("palette:")).map(([k, r]) => [k.slice(8), { limited: r.limited, worst: r.worst, worst_red: r.worst_red }]));
+  check(`setups S1: every setup lands (${rows.length} of ${ids.length}), protection on, no errors`, rows.length === ids.length && rows.every(([k, r]) => r.setup.setup === k && r.setup.protection && r.frames === SETUPS_FRAMES && r.errors === 0) && base && base.setup.setup === null,
+        rows.map(([k, r]) => [k, r.setup.setup, r.frames, r.errors, r.error_text]));
+  check("setups S2: at most 3 flashes a second in every window, no red flash, every page (the baseline too)", base && [["off", base], ...rows].every(([, r]) => r.worst <= 3 && r.worst_red === 0), [["off", base], ...rows].map(([k, r]) => [k, r && r.worst, r && r.worst_red]));
+  check("setups S3: the limiter's frames under each setup at or under the baseline's x 1.25 + 10", base && rows.every(([, r]) => r.limited <= base.limited * 1.25 + 10), { baseline: base && base.limited, setups: rows.map(([k, r]) => [k, r.limited]) });
+  check("setups S4: no saturated red added (the final frame's red share at or under the baseline's + 0.1 %)", base && rows.every(([, r]) => r.red.red <= base.red.red + 0.001), { baseline: base && base.red, setups: rows.map(([k, r]) => [k, +r.red.red.toFixed(5)]) });
+  check("setups S5: every kick-5 tap stepped the setup's bank (bank 3 at the end) and turned the lasers", rows.length && rows.every(([, r]) => r.bank_end === 3 && r.laser_changes === 3), rows.map(([k, r]) => [k, r.bank_end, r.laser_changes]));
+  check("setups S6: the rotation lands on the 16-bar line (the phrase origin + 64) to the next setup; O lands on the next bar line; the HUD names the setup",
+        !!rot && rot.landed_at === rot.origin + 64 && rot.second === rot.order[1] && rot.first === rot.order[0] && rot.o.at === rot.anchor + 4 * (Math.floor((rot.o.press_pos - rot.anchor) / 4 + 1e-6) + 1) && rot.o.landed === rot.o.queued && /setup /.test(rot.hud),
+        rot);
+}
+
 // THE BANK ROLL (review S2, 2026-10-29; the review's scratch roll phase, adopted). Kick 5 deals a whole-stage colour bank on
 // every press; the review found the limiter acting more under kick-5 rolls in the drop, by palette (Synthwave Dusk 162
 // limited frames against 80 before the bank; Lime Rows' kick-5 taps alone 9 against 0). The demo's drop from bar 16 at
@@ -2931,7 +3059,7 @@ try {
   const table = { load: phaseLoad, clock: phaseClock, camera: phaseCamera, engine: phaseEngine, cost: phaseCost, flash: phaseFlash, storm: phaseStorm, sheet: phaseSheet, probe: phaseProbe, diag: phaseDiag,
                   phrase: phasePhrase, "pic-debug": phasePicDebug, "pic-levels": phasePicLevels, "pic-rush": phasePicRush, "pic-ring": phasePicRing, "pic-handoff": phasePicHandoff, "sheet-phrase": phaseSheetPhrase,
                   orrery: phaseOrrery, spiral: phaseSpiral, kick: phaseKick, kickstorm: phaseKickStorm, kickpix: phaseKickPix, kickrepeat: phaseKickRepeat, bank: phaseBank, haze: phaseHaze, bankroll: phaseBankRoll,
-                  palettes: phasePalettes, phonebar: phasePhoneBar, distance: phaseDistance, chords: phaseChords };
+                  palettes: phasePalettes, phonebar: phasePhoneBar, distance: phaseDistance, chords: phaseChords, setups: phaseSetups };
   for (const p of PHASES) {
     if (p === "flash3m") { await runFlash3m(); continue; }
     if (!table[p]) { console.log(`unknown phase ${p}`); continue; }
