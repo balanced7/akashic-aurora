@@ -56,6 +56,43 @@ Open it from the Arsenal server:
 | F1, F4, F5, F6, F9 | Strand master, lasers, haze target (it moves over minutes), speed (detents 1/4 to 4; a phrase's own timing is in beats and ignores it), grand master. The sliders in the HUD do the same. |
 | `C` / `Esc` | Play the next camera shot in motion, looping over its own bars (v2; every shot in the set, the held RING_THREAD included) / give the camera back to the director (or the phrase). |
 | `H`, `F` | Hide the HUD, go full screen. The HUD's phrase row names the step, the variant, the repeat and the beats left. |
+| Chords, strums, fades | THE CHORD PHRASING (below): keys pressed together are one gesture, a fast run is a strum, a slow run of neighbouring number keys is a fade (descending out, ascending in); `B` held makes the number row a fader. `Esc` also hands a fade back over four beats. `?grammar=0`: every key is a single, as before. |
+
+## The chord phrasing (2026-10-29, `grammar.js`, `ensemble.js`)
+
+Daniel, after recording two takes: "for parts of it i played the "wrong" buttons on my keyboard but it felt like an
+intuitive way to express fade in and fade out for the calmer moments" / "i mean like 8 7 6 5 4 then 456789"; "like 5 7 6
+could become laser sections 1-4 sections 8-12 then everything in the middle, then all of them could flash together";
+then "lets also land the chord phrasing." The design of record is the round-3 design
+(`docs/library/design/20261028_kick-vocabulary-round3-codex-2026-10-28_4a3a13.md`, sections 4-8); this is its
+recogniser and the ensembles it names, not its focus selectors, combos or phrase library.
+
+**A single never waits.** Every key is decided on its own keystroke: its action fires on the frame it is pressed, exactly
+as before. What follows a key is what can change:
+
+| You play | It is | On the Stage |
+|---|---|---|
+| Keys within W = clamp(beat / 4, 60, 110) ms of the first (97 ms at 154 BPM) | a chord | every key's own action (the union of their areas), under ONE attack: a later kick joins the first one's punch at its age, never a second punch. `C` in a chord asks for one shot at most; GO / NEXT / STOP collapse to the strongest (STOP > NEXT > GO). |
+| Three or more neighbouring number keys one way, each within 90 ms, all within 300 ms | a strum | the same, lit in the order played inside the one attack |
+| Three neighbouring number keys one way, each 110-450 ms apart (within 0.28-0.95 of a beat) | a fade (BREATH) | the first two keys did their thing; the third takes over and fires nothing: the look's own light (heads, LEDs, the room's fill, the lasers' master) moves a ninth per key, down for a descending run, up for an ascending one, ramping a ninth per 120 ms. Any neighbouring key within 450 ms keeps fading, either way; a longer gap or a jump ends it and the level stays where it was left. The kicks and the grand master are never faded: a vivid hit over a candlelit room. A run's first two keys' still-pending commands are withdrawn where they can be (a HERO still armed, a phrase GO still armed, a tapped kick's linger); MORPH's travel and anything already shown stay. |
+| `B` held, then number keys | a fade from the first key | no key fires; the first anchors, each next one moves the level by (its position - the last) / 9. The clean way to fade through 9 (HERO) and 8 (MORPH). |
+| Two-key chords of one gap, moving (0+8, 9+7, 8+6 ...) | a moving interval | recognised and counted as one gesture; each pair plays as a chord (the moving-band look is not built yet) |
+| `Esc` | | the camera back to the director, and the fade back to the look over four beats |
+
+Sources never mix: the keyboard (real keystrokes), the phone (its pad bar and strips) and the KeyLab (pads 1-10 through
+the engine) each make their own chords. Strums and fades read neighbours on the PC number row only: the phone bar's pads are
+not in number order and the KeyLab's pad layout has not been captured, so there it is chords only. Focus or visibility lost
+lets go of every key of the keyboard and the phone; a dropped engine link lets go of the KeyLab's.
+
+Not built, on purpose: the design's focus selectors (K camera, V light, L laser, P order) -- `L` (look) and `P` (palette)
+are already taken, so they need new keys or the phone's buttons first; the named combo (3,3,3,1); LAND timing; the BREATH
+ribbon on the phone; KeyLab pad 11 as BREATH (the design's proposal) -- pad 11 is PALETTE NEXT today.
+
+Receipts: `node --test tests/stage_grammar.test.mjs` (the design's table rows this covers, with the boundaries W-1 / W / W+1,
+89 / 90 / 91 and 109 / 110 / 111 ms); `node arsenal/lanes/stage_verify.mjs --gpu --lock-dir <the GPU lock> --phases chords`
+(real keystrokes on the Stage: one attack per chord against two as singles, the limiter and the flash count unchanged, the
+fades' level path, stills); `node arsenal/lanes/grammar_replay.mjs <take.jsonl> ...` (Daniel's private takes through the
+recogniser: counts and interval distributions only).
 
 ## Flash protection: the viewer's choice (2026-10-28, `../lib/flash-consent.js`)
 
@@ -158,6 +195,8 @@ models the stands); the Qlimax-faithful home keeps the 2014 rule: the ring is st
 | `atmos.js` | The haze medium: the hazers, the lag, our own tileable noise, and two caps since VJ V2 (haze and fog 0.26 /m, CO2 and smoke plumes 15 /m: opaque white CO2 is possible; the white-out guard is flash.js and the FlashGate, receipts in tests/stage_atmos.test.mjs). |
 | `camera.js` | Shots as data, centripetal Catmull-Rom paths driven by the beat position, the director that cuts on bars; v1: a phrase's camera plan; v2: the strand frame (shots round the live centre line, the under-ride), the formation-validity filter and the guard (never a shot within 1.5 m of a rung), roll curves, the easings arrive_fast, snap and arrive_u, the dolly zoom, and the landing grammar: one glide while the hoists move, the cut ON the landing bar line to the formation's hero view (`cameras.formation_views`, the ring formations' among them). |
 | `show.js` | Sections (v1: a section may name a phrase), the demo plan, and DROP NOW. |
+| `grammar.js` | The chord phrasing's recogniser (pure): singles on their own call, chords, strums, fades (slow sweeps and `B`), moving intervals, auto-repeat, releases by press id, cancel per source. |
+| `ensemble.js` | What a chord, strum or fade does, as intents over the page's own actions: one attack identity per lineage, transport collapsed, one camera composition, the BREATH level and its layer. |
 | `flash.js` | The final-frame flash limiter: at most 3 flashes a second, red included. v2 (2026-10-28): the same windows, counters and limits, met with smooth fields over the cells' corners (a soft dimming, or a glow in the region's own colour) instead of v1's per-cell holds, which froze whole tiles with hard edges; see "Flash protection" below. |
 | `render.js`, `shaders.js` | The three.js r186 renderer and our own GLSL, composed with the house library; v1: the crowd near the lens is not drawn (4 m) and its arms hold still (10 m). |
 
