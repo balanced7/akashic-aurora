@@ -62,3 +62,7 @@ kbd { font-family: var(--mono); font-size: 10px; padding: 0 3px; border: 1px sol
 .hud-opt { display: flex; align-items: center; gap: 5px; flex: none; margin-left: auto; font-family: var(--mono); font-size: 10.5px;
            color: var(--ink-dim); cursor: pointer; white-space: nowrap; }
 .hud-opt input { margin: 0; accent-color: var(--accent); }
+/* the fade's chip (stage.js breathChip): a latched BREATH says so even with the HUD hidden; static, dim, never flashing */
+.breath-chip { position: absolute; top: 14px; right: 16px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px;
+               background: var(--glass); font-family: var(--mono); font-size: 11px; color: var(--ink-dim); pointer-events: none; }
+.breath-chip[hidden] { display: none; }

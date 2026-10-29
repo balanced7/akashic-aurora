@@ -374,7 +374,8 @@ function start({ rig, R, renderMod, palettes }) {
   // ---------------------------------------------------------------------------------- the chord phrasing's door --
   // One door for the number keys, C and B (the keyboard and the phone bar), the phone strips' pads and the KeyLab's pads
   // 1-10. Each down is decided on its own call; the intents run at once (grammar.js, ensemble.js).
-  const grammar = GRAMMAR ? new Grammar({ beatMs: () => (grid.locked ? grid.period : null), positional: (src) => src === "key" }) : null;
+  const grammar = GRAMMAR ? new Grammar({ beatMs: () => (grid.locked ? grid.period : null), positional: (src) => src === "key",
+                                           canFade: (dir) => ens.canFade(dir) }) : null;
   const gestures = [];                       // the receipts' record: every decision, its time and what it did
   const controlOf = (n) => String(n % 10);
   const padOfControl = (c) => (c === "0" ? 10 : Number(c));
@@ -411,7 +412,7 @@ function start({ rig, R, renderMod, palettes }) {
           if (it.control === "C") { nextShot(tEval); did.push("shot"); continue; }
           const rec = pad(padOfControl(it.control), it.velocity, true, tEval);
           const a = rec ? ens.attack(it.lineage, rec) : null;
-          did.push(a ? (a.own ? "attack" : "joined") : "press");
+          did.push(a ? (a.own ? "attack" : a.restrike ? "restrike" : "joined") : "press");
         } else if (it.do === "release") { if (it.control !== "C") pad(padOfControl(it.control), 0, false, tEval); did.push("release"); }
         else if (it.do === "cancel") did.push(`${it.control}: ${cancelPending(it.control, tEval)}`);
         else did.push(it.do);
@@ -576,11 +577,26 @@ function start({ rig, R, renderMod, palettes }) {
       if (errors.length === 1) banner(`The stage stopped: ${e.message}`);
     }
     hud(now);
+    breathChip(now);
   }
 
   // --------------------------------------------------------------------------------------------------- the HUD --
   let hudAt = 0;
   const hudEl = $("hud");
+  // the fade's chip: a latched BREATH stays where the hands leave it, so the room says so even with the HUD hidden (H):
+  // a quiet corner label, DOM over the canvas (never in the picture's pixels), only while the level is below the look's
+  // (review F3, 2026-10-29)
+  let chipAt = 0, chipTxt = "";
+  const chipEl = ens ? document.createElement("div") : null;
+  if (chipEl) { chipEl.className = "breath-chip"; chipEl.id = "breath-chip"; chipEl.hidden = true; chipEl.setAttribute("aria-live", "off"); $("stage").append(chipEl); }
+  function breathChip(now) {
+    if (!chipEl || now - chipAt < 100) return;
+    chipAt = now;
+    const b = ens.breath, low = b.level < 0.995 || b.target < 0.995;
+    const txt = !low ? "" : `breath ${Math.round(b.level * 100)} %${b.hand ? " · back" : " · Esc back"}`;
+    if (txt === chipTxt) return;
+    chipTxt = txt; chipEl.textContent = txt; chipEl.hidden = !low;
+  }
   if (QS.get("hud") === "0") hudEl.classList.add("hidden");
   function hudSetText() {
     const q = pal.queued && palettes ? palettes.byId[pal.queued] : null;
@@ -653,7 +669,10 @@ function start({ rig, R, renderMod, palettes }) {
     const n = KEYPAD[e.code];
     const tEval = performance.now() + grid.presentLagMs;
     if (grammar && (n || e.code === "KeyC" || e.code === "KeyB")) {
-      if (keyIds.has(e.code)) return;
+      // a down for a key already held that is not the OS's auto-repeat (e.repeat returned above): its key-up was lost
+      // (a modifier or the OS swallowed it). Let the old press go, then this is a new press (review F7, 2026-10-29)
+      const lost = keyIds.get(e.code);
+      if (lost) { keyIds.delete(e.code); input(lost.src, lost.control, false, 0, evTime(e), lost.id); }
       // a trusted event is the keyboard; the phone's pad bar presses the page's keys with synthetic events
       const src = e.isTrusted ? "key" : "phone", control = n ? controlOf(n) : e.code === "KeyC" ? "C" : "B";
       const id = `${src}:${e.code}:${++inSeq}`;
