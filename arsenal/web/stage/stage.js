@@ -69,6 +69,7 @@ import { PhraseRunner, playPhraseEvents, validatePhrases } from "./phrases.js";
 import { validateKick } from "./kick.js";
 import { flashProtection, protectionCheckbox } from "../lib/flash-consent.js";
 import { fetchPalettes, stageTheme, stepPalette, needsDip, landingPos, tableOf } from "../palettes.js";
+import { withExtraShots, askedShot } from "./stills.js";
 
 const QS = new URLSearchParams(location.search);
 const DEMO = QS.get("demo") === "1";
@@ -181,7 +182,12 @@ function start({ rig, R, renderMod, palettes }) {
   const camModel = cameraModel(rig);
   const ringKeys = rings.formations.filter((k) => k !== "home");
   const strandSets = [].concat(...Object.values(rig.formations).map((f) => formationPoseSets(f, camModel.z.length) || []));
-  const director = new Director(rig.cameras.shots, rig.cameras.sequences,
+  // STILLS (2026-10-29, stills.js): candidate shots from window.__extraShots join the set's (checked first; a bad one is
+  // reported and left out), and ?shot= forces one by hand below
+  const extra = withExtraShots(rig.cameras.shots, window.__extraShots);
+  for (const p of extra.problems) recordError("extra shot", p);
+  api.extraShots = { added: extra.added, replaced: extra.replaced, problems: extra.problems };
+  const director = new Director(extra.shots, rig.cameras.sequences,
                                 { model: camModel, formations: { ...rig.formations, ...Object.fromEntries(ringKeys.map((k) => [k, rings.def(k)])) },
                                   views: rig.cameras.formation_views, safe: rig.cameras.safe,
                                   posesOf: (key, def) => (ringKeys.includes(key) ? strandSets : formationPoseSets(def, camModel.z.length)),
@@ -240,6 +246,14 @@ function start({ rig, R, renderMod, palettes }) {
   const faderMap = show0.faders || {};
   const padMap = show0.pads || {};
   let sectionSpeed = 1, energy = 0.6, lastFrame = null, manualShot = null;
+  // STILLS: ?shot=ID played by hand as C does (looping over its bars), or held at ?shot_u=
+  {
+    const asked = askedShot(QS, director.shots);
+    if (asked) {
+      manualShot = asked.id;
+      director.manual = asked.u === null ? { shot: asked.id, p0: 0, beats: (director.shots[asked.id].bars ?? 4) * 4 } : { shot: asked.id, u: asked.u };
+    }
+  }
   // the room's ambient (the veil and the fill light) x the phrase step's own (a laser step darkens the room)
   const ambientNow = { scale: 1, target: 1, lastPos: null };
   const kicks = [];
