@@ -59,10 +59,15 @@ export const QUALITY = Object.freeze({
 // we truly get the full range of hdr"). classic is the house finish unchanged (every lane's numbers were measured on it);
 // the others crush the haze's grey wash to true black, keep a laser's hue as it brightens, and lift colour and contrast.
 export const LOOKS = Object.freeze({
-  classic: { name: "Classic",      sat: 1.08, vig: 0.22, hueKeep: 0,    black: 0,     vibrance: 0,    contrast: 0,    bloom: 1 },
-  hdr:     { name: "HDR Night",    sat: 1.22, vig: 0.30, hueKeep: 0.85, black: 0.035, vibrance: 0.35, contrast: 0.30, bloom: 1.35 },
-  punch:   { name: "Laser Punch",  sat: 1.38, vig: 0.34, hueKeep: 1,    black: 0.06,  vibrance: 0.55, contrast: 0.42, bloom: 1.7 },
-  velvet:  { name: "Velvet Black", sat: 1.15, vig: 0.36, hueKeep: 0.7,  black: 0.09,  vibrance: 0.3,  contrast: 0.22, bloom: 1.2 },
+  // veil: the haze's uniform room glow (aerial perspective: far walls fade toward it); ambient: the fill on every surface.
+  // Daniel, 2026-10-29: "i dont want blacks to be crushed, i just want black to be black for us to truly have an hdr
+  // fidelity light setup that has pure black as something that is just in the scene without crushing other things". So
+  // black comes from the SCENE (no room glow, no fill: what no fixture lights stays black) and the curve never clips a dim
+  // value to zero: black stays 0 in every look (the finish keeps the floor only as an option).
+  classic: { name: "Classic",      sat: 1.08, vig: 0.22, hueKeep: 0,    black: 0, vibrance: 0,    contrast: 0,    bloom: 1,    veil: 1,    ambient: 1 },
+  hdr:     { name: "HDR Night",    sat: 1.20, vig: 0.24, hueKeep: 0.85, black: 0, vibrance: 0.35, contrast: 0,    bloom: 1.3,  veil: 0.15, ambient: 0.2 },
+  punch:   { name: "Laser Punch",  sat: 1.34, vig: 0.26, hueKeep: 1,    black: 0, vibrance: 0.55, contrast: 0.06, bloom: 1.6,  veil: 0.08, ambient: 0.1 },
+  velvet:  { name: "Velvet Black", sat: 1.12, vig: 0.28, hueKeep: 0.7,  black: 0, vibrance: 0.3,  contrast: 0,    bloom: 1.15, veil: 0.04, ambient: 0.05 },
 });
 export const LOOK_ORDER = Object.freeze(["hdr", "punch", "velvet", "classic"]);
 
@@ -725,12 +730,14 @@ export class StageRenderer {
     // the veil: the room's light scattered back by the haze (the beams' flux and the LEDs, tinted), in the air's own
     // colour where the theme gives it one (atmos.js airTint: the hue moves, the luminance does not)
     const amb = fs.ambient || [0.23, 0.1, 0.55];
+    const lookNow = LOOKS[this.look] || LOOKS.classic;   // the look's room glow and fill (classic: 1 and 1, as before)
     const vk = 0.5e-6 * U, pk = 0.0006 * U, vl = this.veilNow;
-    for (let i = 0; i < 3; i++) vl[i] = F.veil ? (veil[i] * vk + pixPower[i] * pk) * 0.6 + amb[i] * 0.02 : 0;
+    for (let i = 0; i < 3; i++) vl[i] = F.veil ? ((veil[i] * vk + pixPower[i] * pk) * 0.6 + amb[i] * 0.02) * lookNow.veil : 0;
     airTint(vl, amb, fs.airTint || 0, vl);
     this.post.composite.uniforms.uVeil.value.set(vl[0], vl[1], vl[2]);
     this.post.composite.uniforms.uSigma0.value = md.sigma0;
-    sp.uAmbient.value.set(0.004 + amb[0] * 0.01, 0.004 + amb[1] * 0.01, 0.006 + amb[2] * 0.01);
+    const ak = lookNow.ambient;
+    sp.uAmbient.value.set((0.004 + amb[0] * 0.01) * ak, (0.004 + amb[1] * 0.01) * ak, (0.006 + amb[2] * 0.01) * ak);
     this.mat.arms.uniforms.uBeatPhase.value = fs.beatPhase || 0;
     this.mat.arms.uniforms.uEnergy.value = fs.energy ?? 0.6;
     // visibility of the groups
